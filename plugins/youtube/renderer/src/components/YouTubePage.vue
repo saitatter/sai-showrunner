@@ -9,6 +9,9 @@
 				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="connect">
 					Connect
 				</button>
+				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="toggleLiveChat">
+					{{ status.liveChatRunning ? "Stop Chat" : "Start Chat" }}
+				</button>
 				<button class="youtube-page__button" type="button" @click="simulate">Simulate Chat</button>
 			</div>
 		</header>
@@ -57,6 +60,10 @@
 						<dt>Live Chat</dt>
 						<dd>{{ status.broadcast?.liveChatId || "Not discovered" }}</dd>
 					</div>
+					<div>
+						<dt>Ingest</dt>
+						<dd>{{ status.liveChatRunning ? "Running" : "Stopped" }}</dd>
+					</div>
 				</dl>
 			</div>
 		</section>
@@ -99,11 +106,14 @@ interface YouTubeStatus {
 		clientId?: string
 		scopes?: string[]
 	}
+	liveChatRunning?: boolean
 }
 
 const getStatus = useIpcCaller<() => Promise<YouTubeStatus>>("youtube", "getStatus")
 const saveYouTubeSettings = useIpcCaller<(settings: { clientId: string }) => Promise<unknown>>("youtube", "saveSettings")
 const connectYouTube = useIpcCaller<() => Promise<unknown>>("youtube", "connect")
+const startLiveChat = useIpcCaller<() => Promise<unknown>>("youtube", "startLiveChat")
+const stopLiveChat = useIpcCaller<() => Promise<unknown>>("youtube", "stopLiveChat")
 const simulateChatMessage = useIpcCaller<() => Promise<unknown>>("youtube", "simulateChatMessage")
 const status = ref<YouTubeStatus>({})
 const clientId = ref("")
@@ -121,6 +131,15 @@ async function saveSettings() {
 async function connect() {
 	await saveSettings()
 	await connectYouTube()
+	await refresh()
+}
+
+async function toggleLiveChat() {
+	if (status.value.liveChatRunning) {
+		await stopLiveChat()
+	} else {
+		await startLiveChat()
+	}
 	await refresh()
 }
 

@@ -96,6 +96,17 @@ export class YouTubeAuthService {
 		return this.secrets.accessToken
 	}
 
+	async authorizedFetch<T>(url: string | URL) {
+		const accessToken = await this.getAccessToken()
+		if (!accessToken) throw new Error("YouTube access token is missing.")
+		const response = await fetch(url, {
+			headers: {
+				authorization: `Bearer ${accessToken}`,
+			},
+		})
+		return readJsonResponse<T>(response)
+	}
+
 	async login() {
 		if (!this.settings.clientId) {
 			throw new Error("Configure a Google OAuth desktop client ID before connecting YouTube.")
@@ -256,17 +267,9 @@ export class YouTubeAuthService {
 	}
 
 	async fetchProfile(): Promise<YouTubeProfile> {
-		const accessToken = await this.getAccessToken()
-		if (!accessToken) throw new Error("YouTube access token is missing.")
-
-		const response = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true", {
-			headers: {
-				authorization: `Bearer ${accessToken}`,
-			},
-		})
-		const data = await readJsonResponse<{
+		const data = await this.authorizedFetch<{
 			items?: Array<{ id: string; snippet?: { title?: string } }>
-		}>(response)
+		}>("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true")
 		const channel = data.items?.[0]
 		if (!channel) throw new Error("No YouTube channel was returned for this account.")
 		return {

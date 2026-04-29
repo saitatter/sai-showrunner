@@ -1,6 +1,7 @@
 import { definePlugin, defineRendererCallable, defineState, defineTrigger, onLoad, usePluginLogger } from "castmate-core"
 import { YouTubeBroadcastState, YouTubeChatMessage, YouTubeConnectionState } from "castmate-plugin-youtube-shared"
 import { YouTubeAuthService } from "./youtube-auth"
+import { YouTubeLiveChatService } from "./youtube-live-chat"
 
 const disconnectedState: YouTubeConnectionState = {
 	status: "disconnected",
@@ -22,6 +23,7 @@ export default definePlugin(
 	() => {
 		const logger = usePluginLogger()
 		const auth = new YouTubeAuthService()
+		let liveChat: YouTubeLiveChatService
 		const connection = defineState("connection", {
 			type: Object,
 			name: "Connection",
@@ -76,7 +78,7 @@ export default definePlugin(
 			},
 		})
 
-		defineTrigger({
+		const superChat = defineTrigger({
 			id: "superChat",
 			name: "Super Chat",
 			description: "Triggers when a YouTube Super Chat is received.",
@@ -104,6 +106,7 @@ export default definePlugin(
 			broadcast: broadcast.value,
 			latestMessage: latestMessage.value,
 			settings: auth.getSettings(),
+			liveChatRunning: liveChat?.isRunning ?? false,
 		}))
 
 		defineRendererCallable("saveSettings", async (settings: { clientId?: string }) => {
@@ -138,9 +141,31 @@ export default definePlugin(
 		})
 
 		defineRendererCallable("disconnect", async () => {
+			liveChat?.stop()
 			await auth.clear()
 			connection.value = disconnectedState
 			broadcast.value = offlineBroadcast
+			return connection.value
+		})
+
+		defineRendererCallable("startLiveChat", async () => {
+			connection.value = {
+				...connection.value,
+				statusMessage: "Starting YouTube live chat ingest...",
+			}
+			await liveChat.start()
+			return {
+				connection: connection.value,
+				broadcast: broadcast.value,
+			}
+		})
+
+		defineRendererCallable("stopLiveChat", async () => {
+			liveChat.stop()
+			connection.value = {
+				...connection.value,
+				statusMessage: "YouTube live chat ingest stopped.",
+			}
 			return connection.value
 		})
 
@@ -182,6 +207,41 @@ export default definePlugin(
 
 		onLoad(async () => {
 			await auth.initialize()
+			liveChat = new YouTubeLiveChatService(auth, {
+				onBroadcast(nextBroadcast) {
+					broadcast.value = nextBroadcast
+				},
+				async onMessage(event) {
+					latestMessage.value = {
+						id: event.id,
+						author: event.actor.displayName,
+						message: event.payload.message,
+						receivedAt: event.receivedAt,
+					}
+					await chatMessage({
+						viewerId: event.actor.id,
+						viewerName: event.actor.displayName,
+						message: event.payload.message,
+						messageId: event.id,
+					})
+				},
+				async onSuperChat(event) {
+					await superChat({
+						viewerName: event.viewerName,
+						message: event.message,
+						amountMicros: event.amountMicros,
+						currency: event.currency,
+					})
+				},
+				onError(error) {
+					connection.value = {
+						...connection.value,
+						status: error.message.includes("quota") ? "quotaLimited" : connection.value.status,
+						statusMessage: error.message,
+					}
+					logger.error("YouTube live chat ingest failed.", error)
+				},
+			})
 			connection.value = disconnectedState
 			broadcast.value = offlineBroadcast
 			try {
