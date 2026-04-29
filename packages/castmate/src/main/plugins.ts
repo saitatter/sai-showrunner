@@ -9,6 +9,7 @@ import osPlugin from "castmate-plugin-os-main"
 import soundPlugin from "castmate-plugin-sound-main"
 import timePlugin from "castmate-plugin-time-main"
 import twitchPlugin from "castmate-plugin-twitch-main"
+import youtubePlugin from "castmate-plugin-youtube-main"
 import voicemodPlugin from "castmate-plugin-voicemod-main"
 
 import variablesPlugin from "castmate-plugin-variables-main"
@@ -60,6 +61,7 @@ export async function loadPlugins() {
 	const promises = [
 		loadPlugin(timePlugin),
 		loadPlugin(twitchPlugin),
+		loadPlugin(youtubePlugin),
 		loadPlugin(discordPlugin),
 		loadPlugin(obsPlugin),
 		loadPlugin(iotPlugin),

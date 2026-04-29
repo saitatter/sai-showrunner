@@ -46,6 +46,7 @@
 		"castmate-plugin-variables-main": "workspace:^",
 		"castmate-plugin-voicemod-main": "workspace:^",
 		"castmate-plugin-wyze-main": "workspace:^",
+		"castmate-plugin-youtube-main": "workspace:^",
 		"castmate-schema": "workspace:^"
 	},
 	"devDependencies": {
@@ -86,6 +87,7 @@
 		"castmate-plugin-variables-renderer": "workspace:^",
 		"castmate-plugin-voicemod-renderer": "workspace:^",
 		"castmate-plugin-wyze-renderer": "workspace:^",
+		"castmate-plugin-youtube-renderer": "workspace:^",
 		"castmate-ui-core": "workspace:^",
 		"castmate-vite": "workspace:^",
 		"chromatism2": "*",
