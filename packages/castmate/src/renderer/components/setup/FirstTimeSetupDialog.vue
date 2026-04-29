@@ -3,6 +3,9 @@
 		<div class="setup-step" v-if="step == 'twitch'">
 			<setup-accounts v-model:ready="ready" />
 		</div>
+		<div class="setup-step" v-else-if="step == 'youtube'">
+			<setup-youtube v-model:ready="ready" />
+		</div>
 		<div class="setup-step" v-else-if="step == 'obs'">
 			<setup-obs v-model:ready="ready" />
 		</div>
@@ -26,6 +29,7 @@
 <script setup lang="ts">
 import SetupObs from "./SetupObs.vue"
 import SetupAccounts from "./SetupAccounts.vue"
+import SetupYoutube from "./SetupYoutube.vue"
 import SetupDone from "./SetupDone.vue"
 import PButton from "primevue/button"
 import PDivider from "primevue/divider"
@@ -48,6 +52,9 @@ const ready = ref(false)
 
 function moveNextStep() {
 	if (step.value == "twitch") {
+		step.value = "youtube"
+		ready.value = false
+	} else if (step.value == "youtube") {
 		step.value = "obs"
 	} else if (step.value == "obs") {
 		step.value = "done"
