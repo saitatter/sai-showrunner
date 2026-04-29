@@ -1,5 +1,6 @@
 import { definePlugin, defineRendererCallable, defineState, defineTrigger, onLoad, usePluginLogger } from "castmate-core"
 import { YouTubeBroadcastState, YouTubeChatMessage, YouTubeConnectionState } from "castmate-plugin-youtube-shared"
+import { YouTubeAuthService } from "./youtube-auth"
 
 const disconnectedState: YouTubeConnectionState = {
 	status: "disconnected",
@@ -20,6 +21,7 @@ export default definePlugin(
 	},
 	() => {
 		const logger = usePluginLogger()
+		const auth = new YouTubeAuthService()
 		const connection = defineState("connection", {
 			type: Object,
 			name: "Connection",
@@ -101,7 +103,46 @@ export default definePlugin(
 			connection: connection.value,
 			broadcast: broadcast.value,
 			latestMessage: latestMessage.value,
+			settings: auth.getSettings(),
 		}))
+
+		defineRendererCallable("saveSettings", async (settings: { clientId?: string }) => {
+			await auth.saveSettings({ clientId: settings.clientId?.trim() || "" })
+			return auth.getSettings()
+		})
+
+		defineRendererCallable("connect", async () => {
+			connection.value = {
+				...connection.value,
+				status: "connecting",
+				statusMessage: "Opening Google login...",
+			}
+
+			try {
+				const profile = await auth.login()
+				connection.value = {
+					accountName: profile.title,
+					channelId: profile.channelId,
+					status: "connected",
+					statusMessage: "Connected to YouTube.",
+				}
+				return connection.value
+			} catch (error) {
+				connection.value = {
+					...connection.value,
+					status: "error",
+					statusMessage: error instanceof Error ? error.message : String(error),
+				}
+				throw error
+			}
+		})
+
+		defineRendererCallable("disconnect", async () => {
+			await auth.clear()
+			connection.value = disconnectedState
+			broadcast.value = offlineBroadcast
+			return connection.value
+		})
 
 		defineRendererCallable("simulateChatMessage", async () => {
 			const event: YouTubeChatMessage = {
@@ -139,9 +180,26 @@ export default definePlugin(
 			return event
 		})
 
-		onLoad(() => {
+		onLoad(async () => {
+			await auth.initialize()
 			connection.value = disconnectedState
 			broadcast.value = offlineBroadcast
+			try {
+				if (auth.hasUsableToken) {
+					const profile = await auth.fetchProfile()
+					connection.value = {
+						accountName: profile.title,
+						channelId: profile.channelId,
+						status: "connected",
+						statusMessage: "Connected to YouTube.",
+					}
+				}
+			} catch (error) {
+				connection.value = {
+					status: "error",
+					statusMessage: error instanceof Error ? error.message : String(error),
+				}
+			}
 			logger.log("YouTube plugin scaffold loaded.")
 		})
 	}

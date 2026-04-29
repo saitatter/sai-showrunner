@@ -5,8 +5,23 @@
 				<p class="youtube-page__eyebrow">Platform Integration</p>
 				<h1>YouTube Live</h1>
 			</div>
-			<button class="youtube-page__button" type="button" @click="simulate">Simulate Chat</button>
+			<div class="youtube-page__actions">
+				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="connect">
+					Connect
+				</button>
+				<button class="youtube-page__button" type="button" @click="simulate">Simulate Chat</button>
+			</div>
 		</header>
+
+		<section class="youtube-page__panel youtube-page__settings">
+			<label>
+				<span>Google OAuth Client ID</span>
+				<input v-model="clientId" type="text" placeholder="Desktop OAuth client ID" @change="saveSettings" />
+			</label>
+			<p class="youtube-page__muted">
+				Create a Google OAuth desktop client and enable the YouTube Data API before connecting.
+			</p>
+		</section>
 
 		<section class="youtube-page__grid">
 			<div class="youtube-page__panel">
@@ -80,14 +95,33 @@ interface YouTubeStatus {
 		message?: string
 		receivedAt?: string
 	}
+	settings?: {
+		clientId?: string
+		scopes?: string[]
+	}
 }
 
 const getStatus = useIpcCaller<() => Promise<YouTubeStatus>>("youtube", "getStatus")
+const saveYouTubeSettings = useIpcCaller<(settings: { clientId: string }) => Promise<unknown>>("youtube", "saveSettings")
+const connectYouTube = useIpcCaller<() => Promise<unknown>>("youtube", "connect")
 const simulateChatMessage = useIpcCaller<() => Promise<unknown>>("youtube", "simulateChatMessage")
 const status = ref<YouTubeStatus>({})
+const clientId = ref("")
 
 async function refresh() {
 	status.value = await getStatus()
+	clientId.value = status.value.settings?.clientId ?? ""
+}
+
+async function saveSettings() {
+	await saveYouTubeSettings({ clientId: clientId.value })
+	await refresh()
+}
+
+async function connect() {
+	await saveSettings()
+	await connectYouTube()
+	await refresh()
 }
 
 async function simulate() {
@@ -167,6 +201,33 @@ onMounted(refresh)
 	cursor: pointer;
 	font-weight: 700;
 	padding: 0.65rem 0.9rem;
+}
+
+.youtube-page__button--secondary {
+	background: var(--surface-700);
+}
+
+.youtube-page__actions {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.youtube-page__settings {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.youtube-page__settings label {
+	display: grid;
+	gap: 0.4rem;
+}
+
+.youtube-page__settings input {
+	background: var(--surface-950);
+	border: 1px solid var(--surface-700);
+	border-radius: 4px;
+	color: var(--text-color);
+	padding: 0.6rem 0.7rem;
 }
 
 .youtube-page__message {

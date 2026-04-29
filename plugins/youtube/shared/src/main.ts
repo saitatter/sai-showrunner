@@ -32,3 +32,16 @@ export interface YouTubeConnectionState {
 	status: "disconnected" | "connecting" | "connected" | "error" | "quotaLimited"
 	statusMessage?: string
 }
+
+export interface YouTubeSettings {
+	clientId: string
+	scopes: string[]
+}
+
+export interface YouTubeSecrets {
+	accessToken?: string
+	refreshToken?: string
+	expiresAt?: number
+	scope?: string
+	tokenType?: string
+}
