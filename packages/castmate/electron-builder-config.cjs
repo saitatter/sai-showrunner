@@ -79,8 +79,8 @@ module.exports = {
 	publish: [
 		{
 			provider: "github",
-			owner: "LordTocs",
-			repo: "CastMate",
+			owner: "saitatter",
+			repo: "sai-showrunner",
 		},
 	],
 }
