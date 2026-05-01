@@ -1,51 +1,88 @@
 # ShowRunner
 
 [![Build](https://github.com/saitatter/sai-showrunner/actions/workflows/ci.yml/badge.svg)](https://github.com/saitatter/sai-showrunner/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/saitatter/sai-showrunner?display_name=tag)](https://github.com/saitatter/sai-showrunner/releases)
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE.md)
+[![GitHub Release](https://img.shields.io/github/v/release/saitatter/sai-showrunner)](https://github.com/saitatter/sai-showrunner/releases)
+[![Issues](https://img.shields.io/github/issues/saitatter/sai-showrunner)](https://github.com/saitatter/sai-showrunner/issues)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE.md)
+![Made with Electron](https://img.shields.io/badge/Made%20with-Electron-47848F?logo=electron&logoColor=white)
+![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey)
 
-ShowRunner is a desktop-first broadcaster production suite for Twitch, YouTube, OBS, overlays, stream automations, and external SAI services.
+> Desktop-first broadcaster production suite for Twitch, YouTube, OBS, overlays, stream automations, and SAI services.
 
-This project is an AGPL-3.0 fork of CastMate. Upstream architecture, plugin boundaries, and licensing are preserved while the app is being shaped into the SAI streaming toolchain.
+ShowRunner is an AGPL-3.0 fork of CastMate. Upstream architecture, plugin boundaries, and license notices are preserved while the app is being shaped into the SAI streaming toolchain.
 
-## Current Features
+---
 
-- Twitch integration with profiles, channel point rewards, chat triggers, and stream automation.
-- YouTube integration with browser OAuth, live chat ingest, chat command triggers, paid message triggers, membership triggers, and author flags.
-- OBS WebSocket integration for scene/control actions.
-- Overlay editing with OBS preview workflow, visible browser-source URLs, and one-click URL copy.
-- Automation editor with both the original timeline view and a new node-based flow view.
-- Node context workflow with right-click command menus, collapsible trigger/action groups, action insertion, duplicate/delete/reorder controls, and the same action/trigger configuration panel used by Timeline.
-- Moderation Docker integration under `Integrations -> Moderation`, with native queue/status UI, manual override actions, and a `Filter Chat Message` automation action.
-- Native overlay widgets for targeted approved chat feeds, paid alerts, scene banners, and WebGL shader layers with bundled presets or locally edited fragment shader source.
-- Semantic release workflow for packaged Windows builds.
+## Features
 
-## Local Development
+### Stream Integrations
 
-Install dependencies:
+- Twitch integration with profiles, channel point rewards, chat triggers, stream events, and automation actions.
+- YouTube integration with browser OAuth, live chat ingest, chat command triggers, paid message triggers, membership triggers, author flags, and manual broadcast/live chat discovery.
+- OBS WebSocket integration for scene/control actions and browser source workflows.
+- SAI Moderation Docker integration with native ShowRunner queue/status UI and manual override actions.
+
+### Automation Workflow
+
+- Original CastMate timeline editor for detailed action sequencing.
+- Node-based automation editor for graph-style trigger/action flows.
+- Right-click command menu for triggers and actions with collapsible groups.
+- Node-native operations for insert, duplicate, delete, reorder, fit view, snap, and preview.
+- Trigger/action templates for moderated chat feeds, paid alerts, scene banners, and stream states.
+
+### Overlay Studio
+
+- OBS browser source URLs with copy/open controls and live presence indicators.
+- Native `Chat Feed` widget for approved Twitch/YouTube messages.
+- Native `Paid Alert` widget for YouTube paid messages, donations, and support events.
+- Native `Scene Banner` widget for begin/end/intermission style overlays.
+- Native `Shader Layer` widget with bundled WebGL presets, local shader presets, live params, and fallback rendering.
+- Runtime overlay delivery through ShowRunner state/actions instead of direct Streamer.bot wiring.
+
+### Moderation
+
+- Native queue page under `Integrations -> Moderation`.
+- Queue views for latest, pending, approved, and rejected messages.
+- Search/filter by message, viewer, platform, and verdict.
+- Automation action: `Moderation: Filter Chat Message`.
+- Backend-compatible `deliveryMode: "decisionOnly"` flow for SAI Moderation Docker.
+
+### Desktop UI
+
+- CastMate-style production workspace with profiles, integrations, overlays, variables, media, audio, and automations.
+- ShowRunner branding, taskbar icon, and first-run setup flow.
+- Activity/log surfaces for integration errors and successful operations.
+- In-app update support using GitHub Releases and Electron updater metadata.
+
+---
+
+## Quick Start
+
+### Run from source
 
 ```powershell
+corepack enable
 corepack yarn install
-```
-
-Run the desktop app in dev mode:
-
-```powershell
 corepack yarn dev
 ```
 
-Build all Vite targets:
+### Build all Vite targets
 
 ```powershell
 node .\vite-util\multi-vite.mjs build
 ```
 
-Build a local Windows installer:
+### Build a local Windows installer
 
 ```powershell
 $env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
 corepack yarn build
 ```
+
+Generated Windows artifacts are written to `release/`.
+
+---
 
 ## Clean YouTube Test Run
 
@@ -55,40 +92,44 @@ Use this when you want a clean local app data folder and explicit YouTube OAuth 
 corepack yarn dev:clean:youtube -- -YouTubeClientId "your-client-id.apps.googleusercontent.com" -YouTubeClientSecret "your-client-secret"
 ```
 
-## First Run Setup
-
-Recommended local setup order:
-
-1. Open `Integrations -> Twitch -> Account Login` and connect both Channel and Bot accounts.
-2. Open `Integrations -> YouTube -> Live Integration`, confirm the OAuth checklist, then connect YouTube.
-3. Open `Integrations -> Moderation -> Moderation Docker`, choose `Localhost`, save, run Health, then Send Test Event.
-4. Create or open an overlay, copy the Browser Source URL, and add it to OBS.
-5. Add a `Chat Feed`, `Paid Alert`, `Scene Banner`, or `Shader Layer` widget in Overlay Studio when needed.
-6. Create an automation and use `Nodes` mode for the graph workflow or `Timeline` for the upstream detailed editor.
-
 Release builds can bundle YouTube credentials with:
 
-- repository variable: `SHOWRUNNER_YOUTUBE_CLIENT_ID`
-- repository secret: `SHOWRUNNER_YOUTUBE_CLIENT_SECRET`
+| Setting | Source |
+|---------|--------|
+| `SHOWRUNNER_YOUTUBE_CLIENT_ID` | repository variable |
+| `SHOWRUNNER_YOUTUBE_CLIENT_SECRET` | repository secret |
 
-## Moderation Docker
+---
 
-ShowRunner can use SAI Moderation Docker as a backend-only moderation service. The old docker-hosted `/dashboard` page remains available for compatibility, but the primary queue UI is now native in ShowRunner.
+## First Run Setup
 
-Default URLs:
+Recommended setup order:
 
-- API: `http://localhost:8787`
-- Dashboard WebSocket: `ws://localhost:8787/ws?channel=dashboard`
+1. Open `Integrations -> Twitch -> Account Login` and connect Channel/Bot accounts.
+2. Open `Integrations -> YouTube -> Live Integration`, confirm the OAuth checklist, then connect YouTube.
+3. Open `Integrations -> OBS` and configure OBS WebSocket.
+4. Open `Integrations -> Moderation -> Moderation Docker`, choose `Localhost`, save, run Health, then Send Test Event.
+5. Create or open an overlay, copy the Browser Source URL, and add it to OBS.
+6. Add a `Chat Feed`, `Paid Alert`, `Scene Banner`, or `Shader Layer` widget in Overlay Studio.
+7. Create an automation and use `Nodes` mode for graph workflows or `Timeline` for the upstream detailed editor.
 
-In the app, open:
+---
 
-```text
-Integrations -> Moderation -> Moderation Docker
-```
+## Automation Templates
 
-Enable the integration, verify health, send a test event, and leave `Forward YouTube chat` enabled. Approved overlay delivery is still owned by the moderation docker and overlay runtime.
+Ready-made templates are available under `Automations`:
 
-Recommended automation flow:
+| Template | Use case |
+|----------|----------|
+| `Template: Twitch Moderated Chat Feed` | Twitch chat -> moderation -> chat feed |
+| `Template: YouTube Moderated Chat Feed` | YouTube chat -> moderation -> chat feed |
+| `Template: Approved Only Chat Feed` | Push already-approved messages to a target chat widget |
+| `Template: YouTube Paid Alert` | Super Chat / Super Sticker -> paid alert |
+| `Template: Twitch Paid Alert` | subs / bits / channel points -> paid alert |
+| `Template: Scene Banner` | scene begin/end automation |
+| `Template: Starting Soon / BRB / Ending` | common stream-state overlays |
+
+Recommended moderated chat flow:
 
 ```text
 Twitch/YouTube chat trigger
@@ -98,26 +139,43 @@ Twitch/YouTube chat trigger
 -> Chat Feed widget
 ```
 
-`Filter Chat Message` sends `deliveryMode: "decisionOnly"` to `POST /v1/chat-events`, so moderation updates the queue and returns a verdict without publishing directly to an overlay. This makes ShowRunner the place where you decide which approved messages reach which overlay widget.
+`Filter Chat Message` sends `deliveryMode: "decisionOnly"` to `POST /v1/chat-events`, so moderation updates the queue and returns a verdict without publishing directly to an overlay.
 
-Ready-made templates are available under `Automations`:
+---
 
-- `Template: Twitch Moderated Chat Feed`
-- `Template: YouTube Moderated Chat Feed`
-- `Template: Approved Only Chat Feed`
+## Moderation Docker
 
-Use these as a starting point, then select the target `Chat Feed` widget in the `Overlays: Push Chat Message` action when you want a specific overlay destination.
+ShowRunner can use SAI Moderation Docker as a backend-only moderation service. The old docker-hosted `/dashboard` page remains available for compatibility, but the primary queue UI is native in ShowRunner.
 
-## Native Chat And Shader Overlays
+Default URLs:
 
-Overlay Studio includes:
+| Service | URL |
+|---------|-----|
+| API | `http://localhost:8787` |
+| Dashboard WebSocket | `ws://localhost:8787/ws?channel=dashboard` |
 
-- `Chat Feed`: a configurable chat widget for approved Twitch/YouTube messages, with platform colors, font sizing, background opacity, fade time, max messages, layout, badges, and targeted widget delivery from automations.
-- `Paid Alert`: a targeted widget for YouTube paid messages, donations, and support events pushed with `Overlays -> Push Paid Alert`.
-- `Scene Banner`: a targeted widget for `Overlays -> Begin Scene Overlay` and `Overlays -> End Scene Overlay` automation actions.
-- `Shader Layer`: a WebGL widget with bundled shader presets, local saved shader presets, a custom fragment shader editor mode, color/intensity/speed controls, opacity/blend mode, preset previews, and a fallback state if WebGL or shader compilation fails.
+In the app, open:
+
+```text
+Integrations -> Moderation -> Moderation Docker
+```
+
+Enable the integration, verify health, send a test event, and leave `Forward YouTube chat` enabled if you want YouTube messages to enter the moderation pipeline automatically.
+
+---
+
+## Overlay Widgets
+
+| Widget | Purpose |
+|--------|---------|
+| `Chat Feed` | Configurable approved chat widget with platform colors, font sizing, opacity, fade time, max messages, layout, badges, and targeted delivery |
+| `Paid Alert` | Targeted support-event widget for YouTube paid messages, donations, and future providers |
+| `Scene Banner` | Begin/end/intermission style scene messaging |
+| `Shader Layer` | WebGL widget with bundled presets, local saved presets, custom fragment shader editor mode, color/intensity/speed controls, opacity/blend mode, and fallback state |
 
 The older standalone `sai-chat-overlay` flow can be retired once your ShowRunner overlay contains a `Chat Feed` widget and automations push approved messages with `Overlays -> Push Chat Message`.
+
+---
 
 ## Automation Editor
 
@@ -130,11 +188,9 @@ Automations -> New/Open Automation
 The editor starts in `Nodes` mode. Use:
 
 - left click to select a node
-- right click to open the Windows-style command menu for triggers and actions
+- right click to open the command menu for triggers and actions
 - drag to organize nodes visually
 - `Timeline` toggle for the legacy detailed editor
-
-The node editor is currently a compatibility layer over the existing automation schema. Editing action and trigger config works through the inspector, and common node-native operations are available from `Node Actions`.
 
 Node editor controls:
 
@@ -146,17 +202,64 @@ Node editor controls:
 - `Ctrl + D` duplicates the selected node
 - `Delete` removes the selected node
 
-## Release
+---
 
-Main is protected by a repository ruleset. Work should happen on feature branches and land through PRs.
+## Releases
 
-Release notes are generated from conventional commits. Prefer small commits with semantic scopes, for example:
+Uses **semantic-release** with Conventional Commits. On every push to `main`, CI checks if a new version should be published.
 
-```text
-feat(youtube): add paid message trigger
-fix(moderation): harden dashboard websocket reconnect
-chore(branding): replace visible upstream references
-```
+- Use Conventional Commits: `feat: ...`, `fix: ...`, `chore: ...`
+- Use scopes for readable release notes: `feat(youtube): ...`, `fix(overlays): ...`
+- Breaking changes: use `!` or a `BREAKING CHANGE:` footer
+- Main is protected by a repository ruleset; work should happen on feature branches and land through PRs
+- GitHub squash commits are expanded so release notes include each conventional commit from the PR branch
+- Windows installer, update metadata, blockmap, and zip assets are attached to GitHub Releases
+
+Release notes use the same category model as `pylrcget`:
+
+| Section | Commit types |
+|---------|--------------|
+| Features | `feat` |
+| Fixes | `fix`, `perf` |
+| Refactors | `refactor` |
+| CI & Build | `build`, `ci`, `chore` |
+| Docs | `docs` |
+| Tests | `test` |
+
+### Windows note
+
+Windows release builds are currently unsigned. SmartScreen may show a warning on newly downloaded builds. Continue through `More info` -> `Run anyway` only if you trust the release source.
+
+### In-app updates
+
+ShowRunner checks GitHub Releases for newer versions and uses Electron updater metadata when available.
+
+| Platform | Supported assets |
+|----------|------------------|
+| Windows | `SAI.Showrunner-<version>-x64.exe`, `latest.yml`, `.blockmap`, `.zip` |
+
+---
+
+## Troubleshooting
+
+- **YouTube login is blocked** - Add your Google account as a tester in the OAuth consent screen while the app is in testing mode.
+- **No active YouTube broadcast found** - Use manual Broadcast ID / Live Chat ID discovery in the YouTube integration page.
+- **Moderation queue is empty** - Check that SAI Moderation Docker is running on port `8787` and that the integration is enabled.
+- **OBS overlay does not update** - Verify the Browser Source URL is loaded in OBS and the overlay presence indicator is connected.
+- **SmartScreen warning on Windows** - See [Windows note](#windows-note).
+
+---
+
+## Contributing
+
+PRs are welcome. Please:
+
+- keep commits small and conventional
+- preserve upstream CastMate license notices
+- run `corepack yarn check` before submitting TypeScript/Vue changes
+- use feature branches instead of committing directly to `main`
+
+---
 
 ## Upstream
 
@@ -164,4 +267,8 @@ ShowRunner is based on CastMate by LordTocs:
 
 https://github.com/LordTocs/CastMate
 
-Keep upstream license notices intact when moving or reusing code.
+---
+
+## License
+
+AGPL-3.0. See [LICENSE.md](LICENSE.md).
