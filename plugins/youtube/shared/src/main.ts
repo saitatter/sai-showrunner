@@ -55,6 +55,7 @@ export interface YouTubeConnectionState {
 export interface YouTubeSettings {
 	clientId: string
 	scopes: string[]
+	autoStartLiveChat: boolean
 }
 
 export interface YouTubeSecrets {

@@ -48,6 +48,10 @@
 				<span>{{ hasBundledClientSecret ? "Override OAuth Client Secret" : "Google OAuth Client Secret" }}</span>
 				<input v-model="clientSecret" type="password" placeholder="Desktop OAuth client secret" @change="saveSettings" />
 			</label>
+			<label class="youtube-page__checkbox">
+				<span>Start live chat ingest after login</span>
+				<input v-model="autoStartLiveChat" type="checkbox" @change="saveSettings" />
+			</label>
 			<p class="youtube-page__muted">
 				Google Desktop OAuth clients can require the generated client secret during token exchange.
 			</p>
@@ -146,12 +150,16 @@ interface YouTubeStatus {
 		hasBundledClientSecret?: boolean
 		clientSecretConfigured?: boolean
 		clientIdSource?: "bundled" | "manual" | "missing"
+		autoStartLiveChat?: boolean
 	}
 	liveChatRunning?: boolean
 }
 
 const getStatus = useIpcCaller<() => Promise<YouTubeStatus>>("youtube", "getStatus")
-const saveYouTubeSettings = useIpcCaller<(settings: { clientId: string; clientSecret: string }) => Promise<unknown>>("youtube", "saveSettings")
+const saveYouTubeSettings = useIpcCaller<(settings: { clientId: string; clientSecret: string; autoStartLiveChat: boolean }) => Promise<unknown>>(
+	"youtube",
+	"saveSettings"
+)
 const connectYouTube = useIpcCaller<() => Promise<unknown>>("youtube", "connect")
 const startLiveChat = useIpcCaller<() => Promise<unknown>>("youtube", "startLiveChat")
 const stopLiveChat = useIpcCaller<() => Promise<unknown>>("youtube", "stopLiveChat")
@@ -159,6 +167,7 @@ const simulateChatMessage = useIpcCaller<() => Promise<unknown>>("youtube", "sim
 const status = ref<YouTubeStatus>({})
 const clientId = ref("")
 const clientSecret = ref("")
+const autoStartLiveChat = ref(false)
 const showAdvanced = ref(false)
 
 const hasBundledClientId = computed(() => Boolean(status.value.settings?.hasBundledClientId))
@@ -198,10 +207,15 @@ const statusHint = computed(() => {
 async function refresh() {
 	status.value = await getStatus()
 	clientId.value = status.value.settings?.clientId ?? ""
+	autoStartLiveChat.value = Boolean(status.value.settings?.autoStartLiveChat)
 }
 
 async function saveSettings() {
-	await saveYouTubeSettings({ clientId: clientId.value, clientSecret: clientSecret.value })
+	await saveYouTubeSettings({
+		clientId: clientId.value,
+		clientSecret: clientSecret.value,
+		autoStartLiveChat: autoStartLiveChat.value,
+	})
 	await refresh()
 }
 
@@ -210,6 +224,9 @@ async function connect() {
 		await saveSettings()
 	}
 	await connectYouTube()
+	if (autoStartLiveChat.value) {
+		await startLiveChat()
+	}
 	await refresh()
 }
 
@@ -325,6 +342,12 @@ onMounted(refresh)
 .youtube-page__settings label {
 	display: grid;
 	gap: 0.4rem;
+}
+
+.youtube-page__settings label.youtube-page__checkbox {
+	align-items: center;
+	display: flex;
+	justify-content: space-between;
 }
 
 .youtube-page__settings input {

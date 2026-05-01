@@ -59,6 +59,7 @@ export class YouTubeAuthService {
 	private settings: YouTubeSettings = {
 		clientId: "",
 		scopes: DEFAULT_SCOPES,
+		autoStartLiveChat: false,
 	}
 	private secrets: YouTubeSecrets = {}
 
@@ -111,6 +112,7 @@ export class YouTubeAuthService {
 			...this.settings,
 			...publicSettings,
 			scopes: publicSettings.scopes?.length ? publicSettings.scopes : this.settings.scopes,
+			autoStartLiveChat: publicSettings.autoStartLiveChat ?? this.settings.autoStartLiveChat,
 		}
 		if (typeof clientSecret === "string") {
 			const nextSecret = clientSecret.trim()
