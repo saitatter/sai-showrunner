@@ -32,7 +32,7 @@ export default definePlugin(
 	{
 		id: "castmate",
 		name: "ShowRunner",
-		icon: "cmi cmi-castmate",
+		icon: "mdi mdi-webcam",
 		color: "#DE84FF",
 		description: "Builtin Actions and Triggers",
 	},
