@@ -14,6 +14,12 @@
 					}"
 				>
 					<div class="p-1 py-2 flex flex-column gap-4" @mousedown="stopPropagation">
+						<div class="overlay-size-presets">
+							<button type="button" @click="applySizePreset(1920, 1080)">1080p</button>
+							<button type="button" @click="applySizePreset(2560, 1440)">1440p</button>
+							<button type="button" @click="applySizePreset(3840, 2160)">4K</button>
+							<button type="button" @click="applySizePreset(1080, 1920)">Vertical</button>
+						</div>
 						<div class="flex flex-row gap-1">
 							<div style="width: 0; flex: 1">
 								<label-floater label="Width" v-slot="labelProps">
@@ -157,6 +163,11 @@ async function copyOverlayUrl() {
 	await navigator.clipboard.writeText(overlayUrl.value)
 }
 
+function applySizePreset(width: number, height: number) {
+	model.value.size.width = width
+	model.value.size.height = height
+}
+
 onMounted(() => {
 	if (defaultObsSetting.value != null) {
 		view.value.obsId = defaultObsSetting.value
@@ -216,6 +227,21 @@ onMounted(() => {
 	background-color: var(--surface-b);
 	user-select: none;
 	width: 350px;
+}
+
+.overlay-size-presets {
+	display: grid;
+	gap: 0.5rem;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.overlay-size-presets button {
+	background: var(--surface-700);
+	border: 1px solid var(--surface-600);
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	padding: 0.45rem 0.55rem;
 }
 
 .overlay-url {
