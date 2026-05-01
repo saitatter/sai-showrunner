@@ -24,7 +24,7 @@
 			</flex-scroller>
 		</div>
 		<div class="flex flex-row px-2 pb-2">
-			<p-button icon="mdi mdi-plus" @click="popAddMenu" class="extra-small-button" size="small" />
+			<p-button icon="mdi mdi-plus" @click="popAddMenu" class="extra-small-button" size="small" v-tooltip="'Add widget'" />
 			<p-menu :model="addMenuItems" ref="addMenu" :popup="true" />
 		</div>
 		<div class="browser-source-card">
@@ -33,26 +33,26 @@
 				<input :value="overlayUrl" readonly @focus="$event.target.select()" />
 			</div>
 			<div class="browser-source-card__actions">
-				<button type="button" @click="copyOverlayUrl">
+				<button type="button" @click="copyOverlayUrl" v-tooltip="'Copy Browser Source URL'">
 					<i class="mdi mdi-content-copy" />
 					Copy
 				</button>
-				<button type="button" @click="openOverlayUrl">
+				<button type="button" @click="openOverlayUrl" v-tooltip="'Open Browser Source URL'">
 					<i class="mdi mdi-open-in-app" />
 					Open
 				</button>
 			</div>
 		</div>
 		<div class="quick-labels">
-			<button type="button" @click="addLabelTemplate('YouTube Latest', '{{ youtube.latestMessage.message }}')">
+			<button type="button" @click="addLabelTemplate('YouTube Latest', '{{ youtube.latestMessage.message }}')" v-tooltip="'Add a label bound to the latest YouTube chat message'">
 				<i class="mdi mdi-youtube" />
 				YouTube Latest
 			</button>
-			<button type="button" @click="addLabelTemplate('Twitch Channel', '{{ twitch.channel.displayName }}')">
+			<button type="button" @click="addLabelTemplate('Twitch Channel', '{{ twitch.channel.displayName }}')" v-tooltip="'Add a label bound to Twitch channel state'">
 				<i class="mdi mdi-twitch" />
 				Twitch Channel
 			</button>
-			<button type="button" @click="addLabelTemplate('Stream Status', '{{ youtube.broadcast.status }}')">
+			<button type="button" @click="addLabelTemplate('Stream Status', '{{ youtube.broadcast.status }}')" v-tooltip="'Add a label bound to stream status'">
 				<i class="mdi mdi-broadcast" />
 				Stream Status
 			</button>

@@ -28,17 +28,17 @@
 				@wheel.ctrl.prevent="zoomFromWheel"
 			>
 				<div class="node-automation__canvas-controls">
-					<button type="button" aria-label="Zoom out" @click="setZoom(zoom - ZOOM_STEP, true)">
+					<button type="button" aria-label="Zoom out" @click="setZoom(zoom - ZOOM_STEP, true)" v-tooltip="'Zoom out'">
 						<i class="mdi mdi-magnify-minus-outline" />
 					</button>
 					<span>{{ Math.round(zoom * 100) }}%</span>
-					<button type="button" aria-label="Zoom in" @click="setZoom(zoom + ZOOM_STEP, true)">
+					<button type="button" aria-label="Zoom in" @click="setZoom(zoom + ZOOM_STEP, true)" v-tooltip="'Zoom in'">
 						<i class="mdi mdi-magnify-plus-outline" />
 					</button>
-					<button type="button" aria-label="Fit graph" @click="fitGraph">
+					<button type="button" aria-label="Fit graph" @click="fitGraph" v-tooltip="'Fit graph'">
 						<i class="mdi mdi-fit-to-screen-outline" />
 					</button>
-					<button type="button" aria-label="Reset view" @click="resetView">
+					<button type="button" aria-label="Reset view" @click="resetView" v-tooltip="'Reset view'">
 						<i class="mdi mdi-backup-restore" />
 					</button>
 					<button
@@ -46,6 +46,7 @@
 						:class="{ active: snapToGrid }"
 						aria-label="Toggle snap to grid"
 						@click="toggleSnapToGrid"
+						v-tooltip="'Toggle snap to grid'"
 					>
 						<i class="mdi mdi-grid" />
 					</button>
@@ -54,10 +55,11 @@
 						type="button"
 						:aria-label="isPreviewPlaying ? 'Pause preview playhead' : 'Play preview playhead'"
 						@click="togglePlayheadPreview"
+						v-tooltip="isPreviewPlaying ? 'Pause preview playhead' : 'Play preview playhead'"
 					>
 						<i :class="isPreviewPlaying ? 'mdi mdi-pause' : 'mdi mdi-play'" />
 					</button>
-					<button type="button" aria-label="Reset preview playhead" @click="resetPlayheadPreview">
+					<button type="button" aria-label="Reset preview playhead" @click="resetPlayheadPreview" v-tooltip="'Reset preview playhead'">
 						<i class="mdi mdi-stop" />
 					</button>
 				</div>
@@ -157,6 +159,7 @@
 						type="button"
 						aria-label="Close context"
 						@click="selectedNodeId = undefined"
+						v-tooltip="'Close context'"
 					>
 						<i class="mdi mdi-close" />
 					</button>

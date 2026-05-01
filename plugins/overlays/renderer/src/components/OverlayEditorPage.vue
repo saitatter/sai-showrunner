@@ -3,7 +3,7 @@
 		<div class="overlay-editor-header">
 			<div class="pt-4 px-1 flex flex-row w-full justify-content-center gap-1">
 				<div ref="settingsMenuContainer">
-					<p-button icon="mdi mdi-cog" @click="settingsMenuToggle"></p-button>
+					<p-button icon="mdi mdi-cog" @click="settingsMenuToggle" v-tooltip="'Overlay size settings'"></p-button>
 				</div>
 				<drop-down-panel
 					v-model="settingsMenuOpen"
@@ -73,7 +73,7 @@
 					<p-button icon="mdi mdi-content-copy" @click="copyOverlayUrl" v-tooltip="'Copy Browser Source URL'"></p-button>
 				</div>
 				<div ref="previewMenuContainer">
-					<p-button icon="mdi mdi-image-edit" @click="previewMenuToggle" />
+					<p-button icon="mdi mdi-image-edit" @click="previewMenuToggle" v-tooltip="'Preview crop settings'" />
 				</div>
 				<drop-down-panel
 					v-model="previewMenuOpen"
