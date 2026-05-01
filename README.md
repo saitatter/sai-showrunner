@@ -1,6 +1,6 @@
 # ShowRunner
 
-[![Build](https://github.com/saitatter/sai-showrunner/actions/workflows/build.yaml/badge.svg)](https://github.com/saitatter/sai-showrunner/actions/workflows/build.yaml)
+[![Build](https://github.com/saitatter/sai-showrunner/actions/workflows/ci.yml/badge.svg)](https://github.com/saitatter/sai-showrunner/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/saitatter/sai-showrunner?display_name=tag)](https://github.com/saitatter/sai-showrunner/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE.md)
 
@@ -13,10 +13,10 @@ This project is an AGPL-3.0 fork of CastMate. Upstream architecture, plugin boun
 - Twitch integration with profiles, channel point rewards, chat triggers, and stream automation.
 - YouTube integration with browser OAuth, live chat ingest, chat command triggers, paid message triggers, membership triggers, and author flags.
 - OBS WebSocket integration for scene/control actions.
-- Overlay editing and OBS preview workflow inherited from upstream.
+- Overlay editing with OBS preview workflow, visible browser-source URLs, and one-click URL copy.
 - Automation editor with both the original timeline view and a new node-based flow view.
-- Node context inspector with right-click support, collapsible sections, and the same action/trigger configuration panel used by Timeline.
-- Moderation Docker integration under `Integrations -> Moderation`, forwarding normalized YouTube chat messages to `POST /v1/chat-events`.
+- Node context inspector with right-click support, collapsible sections, action insertion, duplicate/delete/reorder controls, and the same action/trigger configuration panel used by Timeline.
+- Moderation Docker integration under `Integrations -> Moderation`, forwarding normalized YouTube chat messages to `POST /v1/chat-events` and sending a test event from the UI.
 - Semantic release workflow for packaged Windows builds.
 
 ## Local Development
@@ -74,7 +74,7 @@ In the app, open:
 Integrations -> Moderation -> Moderation Docker
 ```
 
-Enable the integration, verify health, and leave `Forward YouTube chat` enabled. Approved overlay delivery is still owned by the moderation docker and overlay runtime.
+Enable the integration, verify health, send a test event, and leave `Forward YouTube chat` enabled. Approved overlay delivery is still owned by the moderation docker and overlay runtime.
 
 ## Automation Editor
 
@@ -91,7 +91,7 @@ The editor starts in `Nodes` mode. Use:
 - drag to organize nodes visually
 - `Timeline` toggle for the legacy detailed editor
 
-The node editor is currently a compatibility layer over the existing automation schema. Editing existing action and trigger config works through the inspector; full node-native add/connect/delete workflows are next.
+The node editor is currently a compatibility layer over the existing automation schema. Editing action and trigger config works through the inspector, and common node-native operations are available from `Node Actions`.
 
 ## Release
 
