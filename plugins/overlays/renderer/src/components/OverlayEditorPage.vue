@@ -59,6 +59,16 @@
 					<label>Browser Source URL</label>
 					<input :value="overlayUrl" readonly @focus="$event.target.select()" />
 				</div>
+				<div class="overlay-status">
+					<span :class="{ dirty: document?.dirty }">
+						<i :class="document?.dirty ? 'mdi mdi-circle-edit-outline' : 'mdi mdi-check-circle-outline'" />
+						{{ document?.dirty ? "Unsaved changes" : "Saved" }}
+					</span>
+					<span>
+						<i class="mdi mdi-broadcast" />
+						Preview URL ready
+					</span>
+				</div>
 				<div>
 					<p-button icon="mdi mdi-content-copy" @click="copyOverlayUrl" v-tooltip="'Copy Browser Source URL'"></p-button>
 				</div>
@@ -111,6 +121,7 @@ import {
 	usePluginStore,
 	DataBindingPath,
 	useDocumentId,
+	useDocument,
 	useSettingValue,
 	DropDownPanel,
 	LabelFloater,
@@ -140,6 +151,7 @@ const props = defineProps<{
 }>()
 
 const overlayId = useDocumentId()
+const document = useDocument(() => overlayId.value)
 
 const port = useSettingValue({ plugin: "castmate", setting: "port" })
 const defaultObsSetting = useSettingValue({ plugin: "obs", setting: "obsDefault" })
@@ -264,6 +276,30 @@ onMounted(() => {
 	font-size: 0.85rem;
 	min-width: 0;
 	padding: 0.45rem 0.55rem;
+}
+
+.overlay-status {
+	display: grid;
+	gap: 0.25rem;
+	min-width: 10rem;
+}
+
+.overlay-status span {
+	align-items: center;
+	background: var(--surface-900);
+	border: 1px solid var(--surface-700);
+	border-radius: 999px;
+	color: var(--text-color);
+	display: flex;
+	font-size: 0.75rem;
+	gap: 0.35rem;
+	padding: 0.3rem 0.55rem;
+	white-space: nowrap;
+}
+
+.overlay-status span.dirty {
+	background: color-mix(in srgb, #ffdf6b 14%, transparent);
+	border-color: color-mix(in srgb, #ffdf6b 42%, var(--surface-700));
 }
 
 .number-fix :deep(.p-inputtext) {
