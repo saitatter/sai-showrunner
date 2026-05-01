@@ -62,6 +62,7 @@ export class YouTubeAuthService {
 		autoStartLiveChat: false,
 	}
 	private secrets: YouTubeSecrets = {}
+	private refreshPromise: Promise<void> | undefined
 
 	async initialize() {
 		await ensureDirectory(resolveProjectPath("youtube"))
@@ -134,7 +135,7 @@ export class YouTubeAuthService {
 	async getAccessToken() {
 		if (this.hasUsableToken) return this.secrets.accessToken
 		if (!this.secrets.refreshToken) return undefined
-		await this.refresh()
+		await this.refreshOnce()
 		return this.secrets.accessToken
 	}
 
@@ -148,7 +149,7 @@ export class YouTubeAuthService {
 		})
 
 		if (response.status === 401 && this.secrets.refreshToken) {
-			await this.refresh()
+			await this.refreshOnce()
 			response = await fetch(url, {
 				headers: {
 					authorization: `Bearer ${this.secrets.accessToken}`,
@@ -333,6 +334,13 @@ export class YouTubeAuthService {
 			tokenType: token.token_type,
 		}
 		await writeSecretYAML(this.secrets, "youtube", "secrets.syaml")
+	}
+
+	private async refreshOnce() {
+		this.refreshPromise ??= this.refresh().finally(() => {
+			this.refreshPromise = undefined
+		})
+		return this.refreshPromise
 	}
 
 	async fetchProfile(): Promise<YouTubeProfile> {

@@ -132,7 +132,7 @@ export class ModerationService {
 		if (!this.settings.enabled) {
 			return this.toActionResult({
 				messageId,
-				verdict: "flag",
+				verdict: "disabled",
 				confidence: 0,
 				category: "disabled",
 				reason: "Moderation docker integration is disabled.",
@@ -363,7 +363,14 @@ export class ModerationService {
 		const verdict = String(payload.verdict || "flag").toLowerCase()
 		return {
 			verdict,
-			status: verdict === "allow" ? "approved" : verdict === "block" ? "blocked" : "flagged",
+			status:
+				verdict === "allow"
+					? "approved"
+					: verdict === "block"
+						? "blocked"
+						: verdict === "disabled"
+							? "disabled"
+							: "flagged",
 			confidence: Number(payload.confidence ?? 0),
 			category: String(payload.category || "unknown"),
 			reason: String(payload.reason || ""),

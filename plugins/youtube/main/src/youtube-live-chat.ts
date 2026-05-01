@@ -91,6 +91,7 @@ export class YouTubeLiveChatService {
 	private nextPageToken: string | undefined
 	private timer: NodeJS.Timeout | undefined
 	private stopped = true
+	private errorAttempts = 0
 
 	constructor(
 		private auth: YouTubeAuthService,
@@ -199,6 +200,7 @@ export class YouTubeLiveChatService {
 			if (this.nextPageToken) url.searchParams.set("pageToken", this.nextPageToken)
 
 			const data = await this.auth.authorizedFetch<YouTubeLiveChatMessagesResponse>(url)
+			this.errorAttempts = 0
 			this.nextPageToken = data.nextPageToken
 
 			for (const item of data.items || []) {
@@ -215,7 +217,9 @@ export class YouTubeLiveChatService {
 			this.timer = setTimeout(() => void this.poll(liveChatId), delay)
 		} catch (error) {
 			this.handlers.onError(error instanceof Error ? error : new Error(String(error)))
-			this.timer = setTimeout(() => void this.poll(liveChatId), 15000)
+			const delay = Math.min(120000, 15000 * Math.pow(2, this.errorAttempts))
+			this.errorAttempts += 1
+			this.timer = setTimeout(() => void this.poll(liveChatId), delay)
 		}
 	}
 
