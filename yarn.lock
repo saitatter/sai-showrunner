@@ -4086,6 +4086,50 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"castmate-plugin-moderation-main@workspace:^, castmate-plugin-moderation-main@workspace:plugins/moderation/main":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-moderation-main@workspace:plugins/moderation/main"
+  dependencies:
+    castmate-core: "workspace:^"
+    castmate-plugin-moderation-shared: "workspace:^"
+    castmate-schema: "workspace:^"
+    typescript: "npm:*"
+    ws: "npm:*"
+  languageName: unknown
+  linkType: soft
+
+"castmate-plugin-moderation-renderer@workspace:^, castmate-plugin-moderation-renderer@workspace:plugins/moderation/renderer":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-moderation-renderer@workspace:plugins/moderation/renderer"
+  dependencies:
+    "@vitejs/plugin-vue": "npm:4.6.2"
+    castmate-plugin-moderation-shared: "workspace:^"
+    castmate-schema: "workspace:^"
+    castmate-ui-core: "workspace:^"
+    electron: "npm:^34.2.0"
+    pinia: "npm:^2.1.7"
+    typescript: "npm:*"
+    vite: "npm:^7.3.1"
+    vue: "npm:^3.5.13"
+    vue-tsc: "npm:*"
+  languageName: unknown
+  linkType: soft
+
+"castmate-plugin-moderation-shared@workspace:^, castmate-plugin-moderation-shared@workspace:plugins/moderation/shared":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-moderation-shared@workspace:plugins/moderation/shared"
+  dependencies:
+    castmate-schema: "workspace:^"
+    typescript: "npm:*"
+  languageName: unknown
+  linkType: soft
+
+"castmate-plugin-moderation@workspace:plugins/moderation":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-moderation@workspace:plugins/moderation"
+  languageName: unknown
+  linkType: soft
+
 "castmate-plugin-obs-main@workspace:^, castmate-plugin-obs-main@workspace:plugins/obs/main":
   version: 0.0.0-use.local
   resolution: "castmate-plugin-obs-main@workspace:plugins/obs/main"
@@ -5161,6 +5205,8 @@ __metadata:
     castmate-plugin-lifx-renderer: "workspace:^"
     castmate-plugin-minecraft-main: "workspace:^"
     castmate-plugin-minecraft-renderer: "workspace:^"
+    castmate-plugin-moderation-main: "workspace:^"
+    castmate-plugin-moderation-renderer: "workspace:^"
     castmate-plugin-obs-main: "workspace:^"
     castmate-plugin-obs-renderer: "workspace:^"
     castmate-plugin-os-main: "workspace:^"

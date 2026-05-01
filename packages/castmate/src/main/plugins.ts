@@ -4,6 +4,7 @@ import httpPlugin from "castmate-plugin-http-main"
 import inputPlugin from "castmate-plugin-input-main"
 import iotPlugin from "castmate-plugin-iot-main"
 import minecraftPlugin from "castmate-plugin-minecraft-main"
+import moderationPlugin from "castmate-plugin-moderation-main"
 import obsPlugin from "castmate-plugin-obs-main"
 import osPlugin from "castmate-plugin-os-main"
 import soundPlugin from "castmate-plugin-sound-main"
@@ -62,6 +63,7 @@ export async function loadPlugins() {
 		loadPlugin(timePlugin),
 		loadPlugin(twitchPlugin),
 		loadPlugin(youtubePlugin),
+		loadPlugin(moderationPlugin),
 		loadPlugin(discordPlugin),
 		loadPlugin(obsPlugin),
 		loadPlugin(iotPlugin),

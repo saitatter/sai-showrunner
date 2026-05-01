@@ -39,6 +39,7 @@
 			"castmate-plugin-input-renderer": ["../../plugins/input/renderer/src/main.ts"],
 			"castmate-plugin-iot-renderer": ["../../plugins/iot/renderer/src/main.ts"],
 			"castmate-plugin-minecraft-renderer": ["../../plugins/minecraft/renderer/src/main.ts"],
+			"castmate-plugin-moderation-renderer": ["../../plugins/moderation/renderer/src/main.ts"],
 			"castmate-plugin-obs-renderer": ["../../plugins/obs/renderer/src/main.ts"],
 			"castmate-plugin-os-renderer": ["../../plugins/os/renderer/src/main.ts"],
 			"castmate-plugin-sound-renderer": ["../../plugins/sound/renderer/src/main.ts"],

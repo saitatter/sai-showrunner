@@ -49,6 +49,7 @@ import { initPlugin as initDiscordPlugin } from "castmate-plugin-discord-rendere
 import { initPlugin as initInputPlugin } from "castmate-plugin-input-renderer"
 import { initPlugin as initTimePlugin } from "castmate-plugin-time-renderer"
 import { initPlugin as initMinecraftPlugin } from "castmate-plugin-minecraft-renderer"
+import { initPlugin as initModerationPlugin } from "castmate-plugin-moderation-renderer"
 import { initPlugin as initIoTPlugin } from "castmate-plugin-iot-renderer"
 import { initPlugin as initTwinklyPlugin } from "castmate-plugin-twinkly-renderer"
 import { initPlugin as initHuePlugin } from "castmate-plugin-philips-hue-renderer"
@@ -205,6 +206,7 @@ async function init() {
 	await initVariablesPlugin()
 	await initTwitchPlugin(app)
 	await initYouTubePlugin(app)
+	await initModerationPlugin(app)
 	await initSpellCastPlugin(app)
 
 	//TODO: This init function is bonkers, we should formalize initing these plugins after their main process side gets inited.
