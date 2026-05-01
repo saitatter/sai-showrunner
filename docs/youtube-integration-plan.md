@@ -40,6 +40,9 @@ Implementation notes:
 
 - Reuse the Twitch auth pattern where Electron opens a login window and captures the redirect.
 - Prefer a local loopback redirect URL if compatible with Google OAuth desktop app credentials.
+- Release builds can include a public OAuth client id through `SHOWRUNNER_YOUTUBE_CLIENT_ID`, which keeps setup as a single `Connect YouTube` action.
+- Developer builds continue to support a manual Google OAuth desktop client id when no bundled client id is configured.
+- Never bundle a Google OAuth client secret; desktop auth uses PKCE because app bundles are inspectable.
 - Store refresh tokens with the same encrypted account/resource mechanism already used by CastMate.
 - Add explicit UI states: disconnected, connecting, connected, token expired, quota limited.
 

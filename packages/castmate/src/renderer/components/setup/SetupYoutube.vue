@@ -9,12 +9,15 @@
 
 		<div class="flex flex-column align-items-center gap-3">
 			<div class="youtube-setup-card">
-				<label class="flex flex-column gap-2">
+				<div v-if="hasBundledClientId" class="youtube-setup-card__source">
+					ShowRunner includes a YouTube OAuth client. Connect with your browser to continue.
+				</div>
+				<label v-else class="flex flex-column gap-2">
 					<span>Google OAuth Client ID</span>
 					<input v-model="clientId" type="text" placeholder="Desktop OAuth client ID" @change="saveSettings" />
 				</label>
 				<p class="p-text-secondary text-sm m-0">
-					Use a Google OAuth desktop client with the YouTube Data API enabled.
+					{{ hasBundledClientId ? "No client secret is stored in the app." : "Use a Google OAuth desktop client with the YouTube Data API enabled." }}
 				</p>
 				<div class="flex flex-row justify-content-center gap-2">
 					<p-button @click="connect" :loading="connecting">Connect YouTube</p-button>
@@ -54,6 +57,8 @@ interface YouTubeStatus {
 	settings?: {
 		clientId?: string
 		scopes?: string[]
+		hasBundledClientId?: boolean
+		clientIdSource?: "bundled" | "manual" | "missing"
 	}
 }
 
@@ -71,6 +76,7 @@ const clientId = ref("")
 const connecting = ref(false)
 
 const readyComputed = computed(() => status.value.connection?.status === "connected")
+const hasBundledClientId = computed(() => Boolean(status.value.settings?.hasBundledClientId))
 
 async function refresh() {
 	status.value = await getStatus()
@@ -85,7 +91,9 @@ async function saveSettings() {
 async function connect() {
 	connecting.value = true
 	try {
-		await saveSettings()
+		if (!hasBundledClientId.value) {
+			await saveSettings()
+		}
 		await connectYouTube()
 		await refresh()
 	} finally {
@@ -124,5 +132,12 @@ onMounted(async () => {
 	border-radius: 4px;
 	color: var(--text-color);
 	padding: 0.65rem 0.75rem;
+}
+
+.youtube-setup-card__source {
+	background: color-mix(in srgb, #ff0033 14%, transparent);
+	border: 1px solid color-mix(in srgb, #ff0033 45%, transparent);
+	border-radius: 4px;
+	padding: 0.75rem;
 }
 </style>

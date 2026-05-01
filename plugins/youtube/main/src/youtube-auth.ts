@@ -20,6 +20,7 @@ const DEFAULT_SCOPES = [
 
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 const TOKEN_URL = "https://oauth2.googleapis.com/token"
+const BUNDLED_CLIENT_ID = process.env.SHOWRUNNER_YOUTUBE_CLIENT_ID?.trim() || process.env.YOUTUBE_CLIENT_ID?.trim() || ""
 
 export interface YouTubeProfile {
 	channelId: string
@@ -67,7 +68,21 @@ export class YouTubeAuthService {
 	}
 
 	getSettings() {
-		return this.settings
+		return {
+			...this.settings,
+			hasBundledClientId: Boolean(BUNDLED_CLIENT_ID),
+			clientIdSource: this.clientIdSource,
+		}
+	}
+
+	private get effectiveClientId() {
+		return this.settings.clientId?.trim() || BUNDLED_CLIENT_ID
+	}
+
+	private get clientIdSource() {
+		if (this.settings.clientId?.trim()) return "manual"
+		if (BUNDLED_CLIENT_ID) return "bundled"
+		return "missing"
 	}
 
 	get hasUsableToken() {
@@ -108,15 +123,16 @@ export class YouTubeAuthService {
 	}
 
 	async login() {
-		if (!this.settings.clientId) {
-			throw new Error("Configure a Google OAuth desktop client ID before connecting YouTube.")
+		const clientId = this.effectiveClientId
+		if (!clientId) {
+			throw new Error("Configure a Google OAuth desktop client ID before connecting YouTube or build ShowRunner with SHOWRUNNER_YOUTUBE_CLIENT_ID.")
 		}
 
 		const { verifier, challenge } = createPkcePair()
 		const state = base64Url(randomBytes(24))
 		const redirect = await this.createLoopbackRedirect(state)
 		const authUrl = new URL(AUTH_URL)
-		authUrl.searchParams.set("client_id", this.settings.clientId)
+		authUrl.searchParams.set("client_id", clientId)
 		authUrl.searchParams.set("redirect_uri", redirect.redirectUri)
 		authUrl.searchParams.set("response_type", "code")
 		authUrl.searchParams.set("scope", this.settings.scopes.join(" "))
@@ -145,7 +161,7 @@ export class YouTubeAuthService {
 					window.on("closed", () => reject(new Error("YouTube login window was closed.")))
 				}),
 			])
-			await this.exchangeCode(code, verifier, redirect.redirectUri)
+			await this.exchangeCode(code, verifier, redirect.redirectUri, clientId)
 			return await this.fetchProfile()
 		} finally {
 			redirect.close()
@@ -206,12 +222,12 @@ export class YouTubeAuthService {
 		})
 	}
 
-	private async exchangeCode(code: string, verifier: string, redirectUri: string) {
+	private async exchangeCode(code: string, verifier: string, redirectUri: string, clientId: string) {
 		const response = await fetch(TOKEN_URL, {
 			method: "POST",
 			headers: { "content-type": "application/x-www-form-urlencoded" },
 			body: new URLSearchParams({
-				client_id: this.settings.clientId,
+				client_id: clientId,
 				code,
 				code_verifier: verifier,
 				grant_type: "authorization_code",
@@ -237,14 +253,15 @@ export class YouTubeAuthService {
 	}
 
 	private async refresh() {
-		if (!this.settings.clientId || !this.secrets.refreshToken) {
+		const clientId = this.effectiveClientId
+		if (!clientId || !this.secrets.refreshToken) {
 			throw new Error("YouTube refresh token is missing.")
 		}
 		const response = await fetch(TOKEN_URL, {
 			method: "POST",
 			headers: { "content-type": "application/x-www-form-urlencoded" },
 			body: new URLSearchParams({
-				client_id: this.settings.clientId,
+				client_id: clientId,
 				refresh_token: this.secrets.refreshToken,
 				grant_type: "refresh_token",
 			}),
