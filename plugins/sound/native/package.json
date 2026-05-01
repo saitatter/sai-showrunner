@@ -5,8 +5,8 @@
 	"main": "src/index.js",
 	"scripts": {
 		"test": "node src/index.js",
-		"install": "node-gyp rebuild",
-		"rebuild": "node-gyp rebuild"
+		"install": "node ../../../scripts/rebuild-native-if-supported.cjs",
+		"rebuild": "node ../../../scripts/rebuild-native-if-supported.cjs"
 	},
 	"dependencies": {
 		"bindings": "~1.2.1",
