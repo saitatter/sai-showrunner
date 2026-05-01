@@ -562,30 +562,75 @@ function addSequence(
 
 function createNode(action: AnyAction | ActionStack, path: string, column: number, row: number, group: string): NodeData {
 	if (isActionStack(action)) {
+		const stackCount = action.stack.length
 		return {
 			id: action.id,
 			kind: "stack",
 			title: "Action Stack",
-			subtitle: `${action.stack.length} stacked action${action.stack.length === 1 ? "" : "s"}`,
+			subtitle: `${stackCount} parallel action${stackCount === 1 ? "" : "s"}`,
 			icon: "mdi mdi-layers-triple",
-			badge: group,
+			badge: `${group} stack`,
 			x: 42 + column * H_GAP,
 			y: 88 + row * V_GAP,
 			path,
 		}
 	}
 
+	const timingSummary = getTimingSummary(action)
+	const flowSummary = getFlowSummary(action)
+
 	return {
 		id: action.id,
 		kind: isFlowAction(action) ? "flow" : isTimeAction(action) ? "time" : "action",
 		title: titleCase(action.action),
-		subtitle: `${action.plugin} / ${action.action}`,
+		subtitle: [action.plugin, action.action, timingSummary, flowSummary].filter(Boolean).join(" / "),
 		icon: isFlowAction(action) ? "mdi mdi-source-branch" : isTimeAction(action) ? "mdi mdi-timer-outline" : "mdi mdi-play",
-		badge: group,
+		badge: getNodeBadge(action, group),
 		x: 42 + column * H_GAP,
 		y: 88 + row * V_GAP,
 		path,
 	}
+}
+
+function getNodeBadge(action: AnyAction, group: string) {
+	if (isTimeAction(action)) return `${group} time`
+	if (isFlowAction(action)) return `${group} flow`
+	return group
+}
+
+function getTimingSummary(action: AnyAction) {
+	if (!isTimeAction(action)) return undefined
+	const offsets = action.offsets.length
+	const duration = getConfiguredDuration(action)
+	const parts = [`${offsets} offset${offsets === 1 ? "" : "s"}`]
+	if (duration) parts.unshift(duration)
+	return parts.join(", ")
+}
+
+function getFlowSummary(action: AnyAction) {
+	if (!isFlowAction(action)) return undefined
+	const branches = action.subFlows.length
+	return `${branches} branch${branches === 1 ? "" : "es"}`
+}
+
+function getConfiguredDuration(action: AnyAction) {
+	const configuredDuration = Number(action.config?.duration)
+	if (Number.isFinite(configuredDuration) && configuredDuration > 0) return formatSeconds(configuredDuration)
+
+	const actionDefinition = pluginStore.pluginMap.get(action.plugin)?.actions[action.action]
+	const duration = actionDefinition?.duration
+	if (!duration || "ipcCallback" in duration) return undefined
+	if (duration.dragType === "fixed" && Number.isFinite(duration.duration)) return formatSeconds(duration.duration)
+	if (duration.dragType === "length" && duration.rightSlider?.sliderProp) {
+		const value = Number(action.config?.[duration.rightSlider.sliderProp])
+		if (Number.isFinite(value) && value > 0) return formatSeconds(value)
+	}
+	if (duration.dragType === "crop" && Number.isFinite(duration.duration)) return formatSeconds(duration.duration)
+	return undefined
+}
+
+function formatSeconds(value: number) {
+	return `${Number(value.toFixed(2))}s`
 }
 
 function titleCase(value: string) {
