@@ -18,6 +18,10 @@
 
 		<section class="moderation-page__panel">
 			<h2>Connection</h2>
+			<div class="moderation-page__presets">
+				<button type="button" @click="applyPreset('local')">Localhost</button>
+				<button type="button" @click="applyPreset('dockerHost')">Docker Host</button>
+			</div>
 			<label>
 				<span>Enable moderation docker</span>
 				<input v-model="draft.enabled" type="checkbox" />
@@ -96,6 +100,17 @@ const draft = reactive<ModerationSettings>({
 	forwardYouTube: true,
 })
 
+const presets = {
+	local: {
+		apiBaseUrl: "http://localhost:8787",
+		dashboardWsUrl: "ws://localhost:8787/ws?channel=dashboard",
+	},
+	dockerHost: {
+		apiBaseUrl: "http://host.docker.internal:8787",
+		dashboardWsUrl: "ws://host.docker.internal:8787/ws?channel=dashboard",
+	},
+}
+
 async function refresh() {
 	applyStatus(await getStatus())
 }
@@ -106,6 +121,11 @@ async function save() {
 
 async function checkHealth() {
 	applyStatus(await runHealthCheck())
+}
+
+function applyPreset(name: keyof typeof presets) {
+	draft.apiBaseUrl = presets[name].apiBaseUrl
+	draft.dashboardWsUrl = presets[name].dashboardWsUrl
 }
 
 async function sendTest() {
@@ -164,6 +184,20 @@ onMounted(refresh)
 	display: grid;
 	gap: 0.5rem;
 	grid-template-columns: minmax(12rem, 14rem) 1fr;
+}
+
+.moderation-page__presets {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.moderation-page__presets button {
+	background: var(--surface-700);
+	border: 1px solid var(--surface-600);
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	padding: 0.45rem 0.65rem;
 }
 
 .moderation-page__panel input[type="text"] {
