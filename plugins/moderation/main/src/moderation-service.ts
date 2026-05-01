@@ -1,7 +1,11 @@
 import { ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, usePluginLogger, writeYAML } from "castmate-core"
 import {
+	ModerationActionInput,
+	ModerationActionResult,
 	ModerationChatEvent,
 	ModerationDecisionSummary,
+	ModerationOverrideRequest,
+	ModerationQueueState,
 	ModerationSettings,
 	ModerationStatus,
 } from "castmate-plugin-moderation-shared"
@@ -10,6 +14,7 @@ import WebSocket from "ws"
 const DEFAULT_SETTINGS: ModerationSettings = {
 	enabled: false,
 	apiBaseUrl: "http://localhost:8787",
+	apiToken: "",
 	dashboardWsUrl: "ws://localhost:8787/ws?channel=dashboard",
 	forwardYouTube: true,
 }
@@ -64,7 +69,9 @@ export class ModerationService {
 		}
 
 		try {
-			const response = await fetch(this.joinUrl(this.settings.apiBaseUrl, "/healthz"))
+			const response = await fetch(this.joinUrl(this.settings.apiBaseUrl, "/healthz"), {
+				headers: this.authHeaders(),
+			})
 			if (!response.ok) throw new Error(`Health check failed with HTTP ${response.status}`)
 			this.status.health = "healthy"
 			this.status.statusMessage = "Moderation docker is reachable."
@@ -89,7 +96,7 @@ export class ModerationService {
 		try {
 			const response = await fetch(this.joinUrl(this.settings.apiBaseUrl, "/v1/chat-events"), {
 				method: "POST",
-				headers: { "content-type": "application/json" },
+				headers: this.jsonHeaders(),
 				body: JSON.stringify({
 					id: event.id,
 					messageId: event.id,
@@ -115,6 +122,93 @@ export class ModerationService {
 		}
 	}
 
+	async moderateChatMessage(input: ModerationActionInput): Promise<ModerationActionResult> {
+		const messageId = String(input.messageId || `showrunner-${Date.now()}`)
+		const platform = String(input.platform || "unknown").toLowerCase()
+		const viewerName = String(input.viewerName || "unknown")
+		const message = String(input.message || "")
+		const badges = this.parseBadges(input.badges)
+
+		if (!this.settings.enabled) {
+			return this.toActionResult({
+				messageId,
+				verdict: "flag",
+				confidence: 0,
+				category: "disabled",
+				reason: "Moderation docker integration is disabled.",
+			})
+		}
+
+		try {
+			const response = await fetch(this.joinUrl(this.settings.apiBaseUrl, "/v1/chat-events"), {
+				method: "POST",
+				headers: this.jsonHeaders(),
+				body: JSON.stringify({
+					id: messageId,
+					messageId,
+					type: "chat.message",
+					source: platform,
+					platform,
+					userId: input.viewerId,
+					username: viewerName,
+					text: message,
+					actor: {
+						id: input.viewerId || "",
+						name: viewerName,
+						displayName: viewerName,
+						badges,
+					},
+					payload: {
+						message,
+						isModerator: Boolean(input.isModerator),
+						isMember: Boolean(input.isMember),
+						isOwner: Boolean(input.isOwner),
+					},
+					badges,
+					receivedAt: new Date().toISOString(),
+					deliveryMode: "decisionOnly",
+				}),
+			})
+
+			if (!response.ok) throw new Error(`Moderation docker rejected decision request with HTTP ${response.status}`)
+
+			const payload = (await response.json()) as { moderation?: Record<string, unknown> }
+			this.status.processedMessages += 1
+			this.status.lastEventAt = new Date().toISOString()
+			this.status.statusMessage = `Moderated ${platform} message through moderation docker.`
+			return this.toActionResult({ messageId, ...(payload.moderation ?? {}) })
+		} catch (error) {
+			this.status.health = "error"
+			this.status.statusMessage = error instanceof Error ? error.message : String(error)
+			this.logger.warn("Failed to moderate chat message.", error)
+			return this.toActionResult({
+				messageId,
+				verdict: "flag",
+				confidence: 0,
+				category: "error",
+				reason: this.status.statusMessage,
+			})
+		}
+	}
+
+	async getQueue(): Promise<ModerationQueueState> {
+		const response = await fetch(this.joinUrl(this.settings.apiBaseUrl, "/api/moderation/queue"), {
+			headers: this.authHeaders(),
+		})
+		if (!response.ok) throw new Error(`Queue request failed with HTTP ${response.status}`)
+		return (await response.json()) as ModerationQueueState
+	}
+
+	async requestOverride(request: ModerationOverrideRequest): Promise<ModerationQueueState> {
+		const response = await fetch(this.joinUrl(this.settings.apiBaseUrl, "/v1/overrides"), {
+			method: "POST",
+			headers: this.jsonHeaders(),
+			body: JSON.stringify(request),
+		})
+		if (!response.ok) throw new Error(`Override request failed with HTTP ${response.status}`)
+		return this.getQueue()
+	}
+
 	async sendTestMessage() {
 		await this.forwardChatMessage({
 			id: `showrunner-test-${Date.now()}`,
@@ -138,6 +232,7 @@ export class ModerationService {
 		return {
 			enabled: Boolean(settings.enabled),
 			apiBaseUrl: this.normalizeUrl(settings.apiBaseUrl, DEFAULT_SETTINGS.apiBaseUrl),
+			apiToken: String(settings.apiToken || ""),
 			dashboardWsUrl: this.normalizeUrl(settings.dashboardWsUrl, DEFAULT_SETTINGS.dashboardWsUrl),
 			forwardYouTube: settings.forwardYouTube ?? DEFAULT_SETTINGS.forwardYouTube,
 		}
@@ -158,7 +253,7 @@ export class ModerationService {
 		}
 
 		try {
-			const socket = new WebSocket(this.settings.dashboardWsUrl)
+			const socket = new WebSocket(this.withToken(this.settings.dashboardWsUrl))
 			this.socket = socket
 
 			socket.on("open", () => {
@@ -239,5 +334,43 @@ export class ModerationService {
 	private joinUrl(baseUrl: string, path: string) {
 		const url = new URL(path, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`)
 		return url.toString()
+	}
+
+	private jsonHeaders() {
+		return { "content-type": "application/json", ...this.authHeaders() }
+	}
+
+	private authHeaders() {
+		return this.settings.apiToken ? { authorization: `Bearer ${this.settings.apiToken}` } : {}
+	}
+
+	private withToken(value: string) {
+		if (!this.settings.apiToken) return value
+		const url = new URL(value)
+		url.searchParams.set("token", this.settings.apiToken)
+		return url.toString()
+	}
+
+	private parseBadges(value: unknown) {
+		if (Array.isArray(value)) return value.map((badge) => String(badge)).filter(Boolean)
+		return String(value || "")
+			.split(",")
+			.map((badge) => badge.trim())
+			.filter(Boolean)
+	}
+
+	private toActionResult(payload: Record<string, unknown>): ModerationActionResult {
+		const verdict = String(payload.verdict || "flag").toLowerCase()
+		return {
+			verdict,
+			status: verdict === "allow" ? "approved" : verdict === "block" ? "blocked" : "flagged",
+			confidence: Number(payload.confidence ?? 0),
+			category: String(payload.category || "unknown"),
+			reason: String(payload.reason || ""),
+			messageId: String(payload.messageId || ""),
+			approved: verdict === "allow",
+			blocked: verdict === "block",
+			flagged: verdict === "flag",
+		}
 	}
 }

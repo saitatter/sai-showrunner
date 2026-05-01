@@ -31,6 +31,10 @@
 				<input v-model="draft.apiBaseUrl" type="text" />
 			</label>
 			<label>
+				<span>API Token</span>
+				<input v-model="draft.apiToken" autocomplete="off" type="password" />
+			</label>
+			<label>
 				<span>Dashboard WebSocket URL</span>
 				<input v-model="draft.dashboardWsUrl" type="text" />
 			</label>
@@ -108,6 +112,7 @@ const status = ref<Partial<ModerationStatus>>({})
 const draft = reactive<ModerationSettings>({
 	enabled: false,
 	apiBaseUrl: "http://localhost:8787",
+	apiToken: "",
 	dashboardWsUrl: "ws://localhost:8787/ws?channel=dashboard",
 	forwardYouTube: true,
 })
@@ -148,6 +153,7 @@ function applyStatus(nextStatus: ModerationStatus) {
 	status.value = nextStatus
 	draft.enabled = nextStatus.enabled
 	draft.apiBaseUrl = nextStatus.apiBaseUrl
+	draft.apiToken = nextStatus.apiToken
 	draft.dashboardWsUrl = nextStatus.dashboardWsUrl
 	draft.forwardYouTube = nextStatus.forwardYouTube
 }
@@ -212,6 +218,7 @@ onMounted(refresh)
 	padding: 0.45rem 0.65rem;
 }
 
+.moderation-page__panel input[type="password"],
 .moderation-page__panel input[type="text"] {
 	background: var(--surface-950);
 	border: 1px solid var(--surface-700);
