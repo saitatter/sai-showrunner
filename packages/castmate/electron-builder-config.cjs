@@ -28,6 +28,7 @@ module.exports = {
 	nodeGypRebuild: false,
 	nativeRebuilder: "sequential",
 	win: {
+		icon: "build/icon.png",
 		target: [
 			{
 				target: "nsis",
