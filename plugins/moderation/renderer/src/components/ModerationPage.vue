@@ -82,6 +82,36 @@
 			</dl>
 		</section>
 
+		<section class="moderation-page__panel moderation-page__panel--queue">
+			<div class="moderation-page__section-header">
+				<h2>Moderation Queue</h2>
+				<button class="moderation-page__button moderation-page__button--ghost" type="button" @click="refreshQueue">
+					Refresh Queue
+				</button>
+			</div>
+			<div class="moderation-page__queues">
+				<div v-for="queueConfig in queueConfigs" :key="queueConfig.key" class="moderation-page__queue">
+					<h3>{{ queueConfig.label }}</h3>
+					<p v-if="!queue[queueConfig.key]?.length" class="moderation-page__muted">No messages.</p>
+					<ul v-else class="moderation-page__feed moderation-page__feed--queue">
+						<li v-for="entry in queue[queueConfig.key]" :key="`${queueConfig.key}:${entry.messageId}:${entry.verdict}`">
+							<div>
+								<strong>{{ entry.username || "unknown" }}</strong>
+								<span>{{ entry.platform }} · {{ entry.verdict }}</span>
+								<small>{{ entry.messageId }}</small>
+							</div>
+							<p>{{ entry.text }}</p>
+							<div class="moderation-page__queue-actions">
+								<button type="button" @click="override(entry.messageId, 'approve')">Approve</button>
+								<button type="button" @click="override(entry.messageId, 'block')">Block</button>
+								<button type="button" @click="override(entry.messageId, 'falsePositive')">False Positive</button>
+							</div>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</section>
+
 		<section class="moderation-page__panel">
 			<h2>Latest Decisions</h2>
 			<p v-if="!status.recentDecisions?.length" class="moderation-page__muted">No moderation dashboard events yet.</p>
@@ -97,9 +127,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue"
+import { onBeforeUnmount, onMounted, reactive, ref } from "vue"
 import { useIpcCaller } from "castmate-ui-core"
-import { ModerationSettings, ModerationStatus } from "castmate-plugin-moderation-shared"
+import {
+	ModerationOverrideRequest,
+	ModerationQueueState,
+	ModerationSettings,
+	ModerationStatus,
+} from "castmate-plugin-moderation-shared"
 
 const getStatus = useIpcCaller<() => Promise<ModerationStatus>>("moderation", "getStatus")
 const saveSettings = useIpcCaller<(settings: Partial<ModerationSettings>) => Promise<ModerationStatus>>(
@@ -108,7 +143,18 @@ const saveSettings = useIpcCaller<(settings: Partial<ModerationSettings>) => Pro
 )
 const runHealthCheck = useIpcCaller<() => Promise<ModerationStatus>>("moderation", "checkHealth")
 const sendTestMessage = useIpcCaller<() => Promise<ModerationStatus>>("moderation", "sendTestMessage")
+const getQueue = useIpcCaller<() => Promise<ModerationQueueState>>("moderation", "getQueue")
+const requestOverride = useIpcCaller<(request: ModerationOverrideRequest) => Promise<ModerationQueueState>>(
+	"moderation",
+	"requestOverride"
+)
 const status = ref<Partial<ModerationStatus>>({})
+const queue = ref<ModerationQueueState>({
+	latest: [],
+	pending: [],
+	approved: [],
+	rejected: [],
+})
 const draft = reactive<ModerationSettings>({
 	enabled: false,
 	apiBaseUrl: "http://localhost:8787",
@@ -127,17 +173,28 @@ const presets = {
 		dashboardWsUrl: "ws://host.docker.internal:8787/ws?channel=dashboard",
 	},
 }
+const queueConfigs: { key: keyof ModerationQueueState; label: string }[] = [
+	{ key: "pending", label: "Pending" },
+	{ key: "approved", label: "Approved" },
+	{ key: "rejected", label: "Rejected" },
+	{ key: "latest", label: "Latest" },
+]
+let refreshTimer: ReturnType<typeof setInterval> | undefined
 
 async function refresh() {
-	applyStatus(await getStatus())
+	const [nextStatus, nextQueue] = await Promise.allSettled([getStatus(), getQueue()])
+	if (nextStatus.status === "fulfilled") applyStatus(nextStatus.value)
+	if (nextQueue.status === "fulfilled") queue.value = nextQueue.value
 }
 
 async function save() {
 	applyStatus(await saveSettings({ ...draft }))
+	await refreshQueue()
 }
 
 async function checkHealth() {
 	applyStatus(await runHealthCheck())
+	await refreshQueue()
 }
 
 function applyPreset(name: keyof typeof presets) {
@@ -147,6 +204,22 @@ function applyPreset(name: keyof typeof presets) {
 
 async function sendTest() {
 	applyStatus(await sendTestMessage())
+	await refreshQueue()
+}
+
+async function refreshQueue() {
+	queue.value = await getQueue()
+}
+
+async function override(messageId: string, action: ModerationOverrideRequest["action"]) {
+	if (!messageId) return
+	queue.value = await requestOverride({
+		messageId,
+		action,
+		operatorId: "showrunner",
+		reason: `ShowRunner ${action}`,
+	})
+	applyStatus(await getStatus())
 }
 
 function applyStatus(nextStatus: ModerationStatus) {
@@ -158,7 +231,13 @@ function applyStatus(nextStatus: ModerationStatus) {
 	draft.forwardYouTube = nextStatus.forwardYouTube
 }
 
-onMounted(refresh)
+onMounted(() => {
+	void refresh()
+	refreshTimer = setInterval(() => void refresh(), 5000)
+})
+onBeforeUnmount(() => {
+	if (refreshTimer) clearInterval(refreshTimer)
+})
 </script>
 
 <style scoped>
@@ -184,7 +263,8 @@ onMounted(refresh)
 }
 
 .moderation-page h1,
-.moderation-page h2 {
+.moderation-page h2,
+.moderation-page h3 {
 	margin: 0;
 }
 
@@ -268,9 +348,30 @@ onMounted(refresh)
 	gap: 0.5rem;
 }
 
+.moderation-page__section-header {
+	align-items: center;
+	display: flex;
+	justify-content: space-between;
+}
+
 .moderation-page__button--ghost {
 	background: var(--surface-700);
 	color: var(--text-color);
+}
+
+.moderation-page__queues {
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.moderation-page__queue {
+	background: var(--surface-950);
+	border: 1px solid var(--surface-700);
+	border-radius: 4px;
+	display: grid;
+	gap: 0.65rem;
+	padding: 0.75rem;
 }
 
 .moderation-page__feed {
@@ -298,5 +399,36 @@ onMounted(refresh)
 	text-align: right;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.moderation-page__feed--queue li {
+	align-items: stretch;
+	grid-template-columns: 1fr;
+}
+
+.moderation-page__feed--queue li p {
+	color: var(--text-color);
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.moderation-page__feed--queue li span {
+	color: var(--text-color-secondary);
+	display: block;
+}
+
+.moderation-page__queue-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.moderation-page__queue-actions button {
+	background: var(--surface-700);
+	border: 1px solid var(--surface-600);
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	padding: 0.35rem 0.45rem;
 }
 </style>
