@@ -95,6 +95,14 @@ export class YouTubeLiveChatService {
 	private stopped = true
 	private errorAttempts = 0
 	private sessionId = 0
+	private diagnostics = {
+		estimatedQuotaUnits: 0,
+		liveChatPolls: 0,
+		searchDiscoveries: 0,
+		lastApiError: undefined as string | undefined,
+		lastApiErrorAt: undefined as string | undefined,
+		nextRetryAt: undefined as string | undefined,
+	}
 	private searchDiscoveryCache:
 		| {
 				expiresAt: number
@@ -117,6 +125,17 @@ export class YouTubeLiveChatService {
 
 	get isRunning() {
 		return !this.stopped
+	}
+
+	getDiagnostics() {
+		return {
+			...this.diagnostics,
+			searchDiscoveryCooldownUntil: this.searchDiscoveryCache?.expiresAt
+				? new Date(this.searchDiscoveryCache.expiresAt).toISOString()
+				: undefined,
+			searchDiscoveryCached: Boolean(this.searchDiscoveryCache && this.searchDiscoveryCache.expiresAt > Date.now()),
+			searchDiscoveryInFlight: Boolean(this.searchDiscoveryPromise),
+		}
 	}
 
 	async discoverActiveBroadcast(): Promise<YouTubeBroadcastState> {
@@ -164,6 +183,8 @@ export class YouTubeLiveChatService {
 	}
 
 	private async fetchSearchLive(): Promise<YouTubeBroadcastState> {
+		this.diagnostics.searchDiscoveries += 1
+		this.diagnostics.estimatedQuotaUnits += 100
 		const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search")
 		searchUrl.searchParams.set("part", "snippet")
 		searchUrl.searchParams.set("forMine", "true")
@@ -180,6 +201,7 @@ export class YouTubeLiveChatService {
 		const videosUrl = new URL("https://www.googleapis.com/youtube/v3/videos")
 		videosUrl.searchParams.set("part", "snippet,liveStreamingDetails")
 		videosUrl.searchParams.set("id", videoIds.join(","))
+		this.diagnostics.estimatedQuotaUnits += 1
 		const videosData = await this.auth.authorizedFetch<YouTubeVideosResponse>(videosUrl)
 		const video = videosData.items?.find((item) => item.liveStreamingDetails?.activeLiveChatId) || videosData.items?.[0]
 
@@ -237,6 +259,9 @@ export class YouTubeLiveChatService {
 
 			const data = await this.auth.authorizedFetch<YouTubeLiveChatMessagesResponse>(url)
 			if (!this.isActiveSession(sessionId)) return
+			this.diagnostics.liveChatPolls += 1
+			this.diagnostics.estimatedQuotaUnits += 5
+			this.diagnostics.nextRetryAt = undefined
 			this.errorAttempts = 0
 			this.nextPageToken = data.nextPageToken
 
@@ -255,9 +280,13 @@ export class YouTubeLiveChatService {
 			this.timer = setTimeout(() => void this.poll(liveChatId, sessionId), delay)
 		} catch (error) {
 			if (!this.isActiveSession(sessionId)) return
-			this.handlers.onError(error instanceof Error ? error : new Error(String(error)))
+			const normalizedError = error instanceof Error ? error : new Error(String(error))
+			this.diagnostics.lastApiError = normalizedError.message
+			this.diagnostics.lastApiErrorAt = new Date().toISOString()
 			const delay = Math.min(120000, 15000 * Math.pow(2, this.errorAttempts))
 			this.errorAttempts += 1
+			this.diagnostics.nextRetryAt = new Date(Date.now() + delay).toISOString()
+			this.handlers.onError(normalizedError)
 			this.timer = setTimeout(() => void this.poll(liveChatId, sessionId), delay)
 		}
 	}

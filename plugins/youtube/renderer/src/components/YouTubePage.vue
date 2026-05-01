@@ -110,6 +110,32 @@
 					</div>
 				</dl>
 			</div>
+
+			<div class="youtube-page__panel">
+				<h2>API Diagnostics</h2>
+				<dl>
+					<div>
+						<dt>Estimated Quota</dt>
+						<dd>{{ status.diagnostics?.estimatedQuotaUnits ?? 0 }} units</dd>
+					</div>
+					<div>
+						<dt>Search Discovery</dt>
+						<dd>{{ discoveryStatus }}</dd>
+					</div>
+					<div>
+						<dt>Live Chat Polls</dt>
+						<dd>{{ status.diagnostics?.liveChatPolls ?? 0 }}</dd>
+					</div>
+					<div v-if="status.diagnostics?.nextRetryAt">
+						<dt>Next Retry</dt>
+						<dd>{{ formatTime(status.diagnostics.nextRetryAt) }}</dd>
+					</div>
+					<div v-if="status.diagnostics?.lastApiError">
+						<dt>Last Error</dt>
+						<dd>{{ status.diagnostics.lastApiError }}</dd>
+					</div>
+				</dl>
+			</div>
 		</section>
 
 		<section class="youtube-page__panel">
@@ -168,6 +194,17 @@ interface YouTubeStatus {
 		autoStartLiveChat?: boolean
 	}
 	liveChatRunning?: boolean
+	diagnostics?: {
+		searchDiscoveryCooldownUntil?: string
+		searchDiscoveryCached: boolean
+		searchDiscoveryInFlight: boolean
+		estimatedQuotaUnits: number
+		liveChatPolls: number
+		searchDiscoveries: number
+		lastApiError?: string
+		lastApiErrorAt?: string
+		nextRetryAt?: string
+	}
 }
 
 const getStatus = useIpcCaller<() => Promise<YouTubeStatus>>("youtube", "getStatus")
@@ -194,6 +231,15 @@ const hasBundledCredentials = computed(() => hasBundledClientId.value && hasBund
 const hasEffectiveClientId = computed(() => hasBundledClientId.value || Boolean(clientId.value.trim()))
 const isConnected = computed(() => status.value.connection?.status === "connected")
 const hasActiveBroadcast = computed(() => status.value.broadcast?.status === "live" && Boolean(status.value.broadcast?.liveChatId))
+const discoveryStatus = computed(() => {
+	const diagnostics = status.value.diagnostics
+	if (!diagnostics) return "No discovery yet"
+	if (diagnostics.searchDiscoveryInFlight) return "Searching now"
+	if (diagnostics.searchDiscoveryCached && diagnostics.searchDiscoveryCooldownUntil) {
+		return `Cooldown until ${formatTime(diagnostics.searchDiscoveryCooldownUntil)}`
+	}
+	return `${diagnostics.searchDiscoveries} search fallback${diagnostics.searchDiscoveries === 1 ? "" : "s"}`
+})
 const checklist = computed(() => [
 	{
 		label: "OAuth Client",
@@ -302,6 +348,12 @@ function addActivity(severity: "success" | "info" | "warn" | "error", summary: s
 		detail,
 	})
 	activityLog.value = activityLog.value.slice(0, 12)
+}
+
+function formatTime(value: string) {
+	const date = new Date(value)
+	if (!Number.isFinite(date.getTime())) return value
+	return date.toLocaleTimeString()
 }
 
 onMounted(refresh)

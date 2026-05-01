@@ -52,6 +52,18 @@ export interface YouTubeConnectionState {
 	statusMessage?: string
 }
 
+export interface YouTubeDiagnostics {
+	searchDiscoveryCooldownUntil?: string
+	searchDiscoveryCached: boolean
+	searchDiscoveryInFlight: boolean
+	estimatedQuotaUnits: number
+	liveChatPolls: number
+	searchDiscoveries: number
+	lastApiError?: string
+	lastApiErrorAt?: string
+	nextRetryAt?: string
+}
+
 export interface YouTubeSettings {
 	clientId: string
 	scopes: string[]

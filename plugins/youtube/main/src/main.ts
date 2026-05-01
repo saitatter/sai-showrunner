@@ -222,6 +222,7 @@ export default definePlugin(
 			latestMessage: latestMessage.value,
 			settings: auth.getSettings(),
 			liveChatRunning: liveChat?.isRunning ?? false,
+			diagnostics: liveChat?.getDiagnostics(),
 		}))
 
 		defineRendererCallable("saveSettings", async (settings: { clientId?: string; clientSecret?: string; autoStartLiveChat?: boolean }) => {
