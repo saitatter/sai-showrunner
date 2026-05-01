@@ -1,0 +1,152 @@
+import { ref, watch, type ComputedRef, type Ref } from "vue"
+
+export interface NodePosition {
+	x: number
+	y: number
+}
+
+export interface NodeEditorViewState {
+	zoom?: number
+	pan?: NodePosition
+	snapToGrid?: boolean
+}
+
+interface NodeEditorView {
+	nodeView?: NodeEditorViewState
+}
+
+interface GraphBounds {
+	minX: number
+	minY: number
+	width: number
+	height: number
+}
+
+const GRID_SIZE = 42
+const MIN_ZOOM = 0.35
+const MAX_ZOOM = 1.5
+export const ZOOM_STEP = 0.1
+
+export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRef<GraphBounds>, commitUndo: () => void) {
+	const canvasRef = ref<HTMLElement>()
+	const zoom = ref(view.value.nodeView?.zoom ?? 1)
+	const pan = ref(view.value.nodeView?.pan ?? { x: 0, y: 0 })
+	const isPanning = ref(false)
+	const snapToGrid = ref(view.value.nodeView?.snapToGrid ?? true)
+
+	watch(
+		[zoom, pan, snapToGrid],
+		() => {
+			view.value.nodeView = {
+				zoom: zoom.value,
+				pan: pan.value,
+				snapToGrid: snapToGrid.value,
+			}
+		},
+		{ deep: true, immediate: true }
+	)
+
+	function setZoom(nextZoom: number, commitChange = false) {
+		const previous = zoom.value
+		zoom.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(nextZoom.toFixed(2))))
+		if (commitChange && previous !== zoom.value) commitUndo()
+	}
+
+	function toggleSnapToGrid() {
+		snapToGrid.value = !snapToGrid.value
+		commitUndo()
+	}
+
+	function snapCoordinate(value: number) {
+		if (!snapToGrid.value) return value
+		return Math.round(value / GRID_SIZE) * GRID_SIZE
+	}
+
+	function zoomFromWheel(event: WheelEvent) {
+		setZoom(zoom.value + (event.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP))
+	}
+
+	function fitGraph() {
+		const canvas = canvasRef.value
+		if (!canvas) return
+		const availableWidth = Math.max(1, canvas.clientWidth - 56)
+		const availableHeight = Math.max(1, canvas.clientHeight - 56)
+		const bounds = graphBounds.value
+		const widthScale = availableWidth / Math.max(1, bounds.width)
+		const heightScale = availableHeight / Math.max(1, bounds.height)
+		setZoom(Math.min(widthScale, heightScale, 1))
+		pan.value = { x: 0, y: 0 }
+		canvas.scrollTo({
+			left: Math.max(0, bounds.minX * zoom.value - 28),
+			top: Math.max(0, bounds.minY * zoom.value - 28),
+			behavior: "smooth",
+		})
+		commitUndo()
+	}
+
+	function resetView() {
+		zoom.value = 1
+		pan.value = { x: 0, y: 0 }
+		canvasRef.value?.scrollTo({ left: 0, top: 0, behavior: "smooth" })
+		commitUndo()
+	}
+
+	function startPan(event: PointerEvent) {
+		const canvas = canvasRef.value
+		if (!canvas) return
+
+		isPanning.value = true
+		const startX = event.clientX
+		const startY = event.clientY
+		const initialPan = { ...pan.value }
+		canvas.setPointerCapture(event.pointerId)
+
+		function onMove(moveEvent: PointerEvent) {
+			pan.value = {
+				x: initialPan.x + moveEvent.clientX - startX,
+				y: initialPan.y + moveEvent.clientY - startY,
+			}
+		}
+
+		function onUp(upEvent: PointerEvent) {
+			const moved = initialPan.x !== pan.value.x || initialPan.y !== pan.value.y
+			isPanning.value = false
+			canvas.releasePointerCapture(upEvent.pointerId)
+			canvas.removeEventListener("pointermove", onMove)
+			canvas.removeEventListener("pointerup", onUp)
+			canvas.removeEventListener("pointercancel", onUp)
+			if (moved) commitUndo()
+		}
+
+		canvas.addEventListener("pointermove", onMove)
+		canvas.addEventListener("pointerup", onUp)
+		canvas.addEventListener("pointercancel", onUp)
+	}
+
+	function getCanvasPointFromClient(clientX: number, clientY: number): NodePosition {
+		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
+		const rect = surface?.getBoundingClientRect()
+		if (!rect) return { x: 42, y: 88 }
+		return {
+			x: snapCoordinate(Math.max(12, (clientX - rect.left) / zoom.value)),
+			y: snapCoordinate(Math.max(12, (clientY - rect.top) / zoom.value)),
+		}
+	}
+
+	return {
+		canvasRef,
+		zoom,
+		pan,
+		isPanning,
+		snapToGrid,
+		ZOOM_STEP,
+		setZoom,
+		toggleSnapToGrid,
+		snapCoordinate,
+		zoomFromWheel,
+		fitGraph,
+		resetView,
+		startPan,
+		getCanvasPointFromClient,
+	}
+}

@@ -388,7 +388,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, useModel, watch } from "vue"
+import { computed, onMounted, onUnmounted, ref, useModel } from "vue"
 import {
 	ActionSelection,
 	AutomationConfig,
@@ -412,12 +412,8 @@ import {
 	isTimeAction,
 	constructDefault,
 } from "castmate-schema"
+import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
 import { useAutomationPreview } from "./useAutomationPreview"
-
-interface NodePosition {
-	x: number
-	y: number
-}
 
 interface NodeData extends NodePosition {
 	id: string
@@ -442,12 +438,6 @@ interface LaneData extends NodePosition {
 	label: string
 	width: number
 	height: number
-}
-
-interface NodeEditorViewState {
-	zoom?: number
-	pan?: NodePosition
-	snapToGrid?: boolean
 }
 
 interface ContextMenuItem {
@@ -479,11 +469,6 @@ const mode = ref<"nodes" | "timeline">("nodes")
 const selectedNodeId = ref<string>()
 const selectedActionToAdd = ref("")
 const actionPaletteQuery = ref("")
-const canvasRef = ref<HTMLElement>()
-const zoom = ref(props.view.nodeView?.zoom ?? 1)
-const pan = ref(props.view.nodeView?.pan ?? { x: 0, y: 0 })
-const isPanning = ref(false)
-const snapToGrid = ref(props.view.nodeView?.snapToGrid ?? true)
 const dropTargetNodeId = ref<string>()
 const dropTargetEdgeId = ref<string>()
 const detailsOpen = ref(true)
@@ -508,27 +493,11 @@ const NODE_WIDTH = 220
 const NODE_HEIGHT = 74
 const H_GAP = 285
 const V_GAP = 128
-const GRID_SIZE = 42
-const MIN_ZOOM = 0.35
-const MAX_ZOOM = 1.5
-const ZOOM_STEP = 0.1
 
 const nodePositions = computed(() => {
 	view.value.nodePositions ??= {}
 	return view.value.nodePositions
 })
-
-watch(
-	[zoom, pan, snapToGrid],
-	() => {
-		view.value.nodeView = {
-			zoom: zoom.value,
-			pan: pan.value,
-			snapToGrid: snapToGrid.value,
-		}
-	},
-	{ deep: true, immediate: true }
-)
 
 const graph = computed(() => buildGraph(model.value))
 const nodes = computed(() =>
@@ -676,6 +645,22 @@ const graphBounds = computed(() => {
 	const maxY = Math.max(...nodes.value.map((node) => node.y + NODE_HEIGHT))
 	return { minX, minY, width: maxX - minX, height: maxY - minY }
 })
+const {
+	canvasRef,
+	zoom,
+	pan,
+	isPanning,
+	snapToGrid,
+	ZOOM_STEP,
+	setZoom,
+	toggleSnapToGrid,
+	snapCoordinate,
+	zoomFromWheel,
+	fitGraph,
+	resetView,
+	startPan,
+	getCanvasPointFromClient: getCanvasPointFromClientPosition,
+} = useNodeCanvas(view, graphBounds, commitUndo)
 
 function buildGraph(automation: AutomationConfig) {
 	const nodes: NodeData[] = []
@@ -942,51 +927,6 @@ function resetSelectedNodePosition() {
 	commitUndo()
 }
 
-function setZoom(nextZoom: number, commitChange = false) {
-	const previous = zoom.value
-	zoom.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(nextZoom.toFixed(2))))
-	if (commitChange && previous !== zoom.value) commitUndo()
-}
-
-function toggleSnapToGrid() {
-	snapToGrid.value = !snapToGrid.value
-	commitUndo()
-}
-
-function snapCoordinate(value: number) {
-	if (!snapToGrid.value) return value
-	return Math.round(value / GRID_SIZE) * GRID_SIZE
-}
-
-function zoomFromWheel(event: WheelEvent) {
-	setZoom(zoom.value + (event.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP))
-}
-
-function fitGraph() {
-	const canvas = canvasRef.value
-	if (!canvas) return
-	const availableWidth = Math.max(1, canvas.clientWidth - 56)
-	const availableHeight = Math.max(1, canvas.clientHeight - 56)
-	const bounds = graphBounds.value
-	const widthScale = availableWidth / Math.max(1, bounds.width)
-	const heightScale = availableHeight / Math.max(1, bounds.height)
-	setZoom(Math.min(widthScale, heightScale, 1))
-	pan.value = { x: 0, y: 0 }
-	canvas.scrollTo({
-		left: Math.max(0, bounds.minX * zoom.value - 28),
-		top: Math.max(0, bounds.minY * zoom.value - 28),
-		behavior: "smooth",
-	})
-	commitUndo()
-}
-
-function resetView() {
-	zoom.value = 1
-	pan.value = { x: 0, y: 0 }
-	canvasRef.value?.scrollTo({ left: 0, top: 0, behavior: "smooth" })
-	commitUndo()
-}
-
 function handleCanvasPointerDown(event: PointerEvent) {
 	const target = event.target as HTMLElement
 	if (target.closest(".node-automation__context-menu")) return
@@ -1003,38 +943,6 @@ function handleCanvasPointerDown(event: PointerEvent) {
 		event.preventDefault()
 		startPan(event)
 	}
-}
-
-function startPan(event: PointerEvent) {
-	const canvas = canvasRef.value
-	if (!canvas) return
-
-	isPanning.value = true
-	const startX = event.clientX
-	const startY = event.clientY
-	const initialPan = { ...pan.value }
-	canvas.setPointerCapture(event.pointerId)
-
-	function onMove(moveEvent: PointerEvent) {
-		pan.value = {
-			x: initialPan.x + moveEvent.clientX - startX,
-			y: initialPan.y + moveEvent.clientY - startY,
-		}
-	}
-
-	function onUp(upEvent: PointerEvent) {
-		const moved = initialPan.x !== pan.value.x || initialPan.y !== pan.value.y
-		isPanning.value = false
-		canvas.releasePointerCapture(upEvent.pointerId)
-		canvas.removeEventListener("pointermove", onMove)
-		canvas.removeEventListener("pointerup", onUp)
-		canvas.removeEventListener("pointercancel", onUp)
-		if (moved) commitUndo()
-	}
-
-	canvas.addEventListener("pointermove", onMove)
-	canvas.addEventListener("pointerup", onUp)
-	canvas.addEventListener("pointercancel", onUp)
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -1270,13 +1178,7 @@ function getCanvasPoint(event: DragEvent): NodePosition {
 }
 
 function getCanvasPointFromClient(clientX: number, clientY: number): NodePosition {
-	const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
-	const rect = surface?.getBoundingClientRect()
-	if (!rect) return { x: 42, y: 88 }
-	return {
-		x: snapCoordinate(Math.max(12, (clientX - rect.left) / zoom.value)),
-		y: snapCoordinate(Math.max(12, (clientY - rect.top) / zoom.value)),
-	}
+	return getCanvasPointFromClientPosition(clientX, clientY)
 }
 
 function buildContextGroups(
