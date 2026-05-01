@@ -1,4 +1,5 @@
-import { definePlugin, defineRendererCallable, defineState, defineTrigger, onLoad, usePluginLogger } from "castmate-core"
+import { definePlugin, defineRendererCallable, defineState, defineTransformTrigger, defineTrigger, onLoad, usePluginLogger } from "castmate-core"
+import { Command, getCommandDataSchema, matchAndParseCommand } from "castmate-schema"
 import { YouTubeBroadcastState, YouTubeChatMessage, YouTubeConnectionState } from "castmate-plugin-youtube-shared"
 import { YouTubeAuthService } from "./youtube-auth"
 import { YouTubeLiveChatService } from "./youtube-live-chat"
@@ -98,6 +99,52 @@ export default definePlugin(
 			},
 			async handle() {
 				return true
+			},
+		})
+
+		const chatCommand = defineTransformTrigger({
+			id: "chatCommand",
+			name: "Chat Command",
+			description: "Triggers when a YouTube live chat message matches a command.",
+			icon: "mdi mdi-message-processing",
+			config: {
+				type: Object,
+				properties: {
+					command: {
+						type: Command,
+						name: "Command",
+						required: true,
+					},
+				},
+			},
+			invokeContext: {
+				type: Object,
+				properties: {
+					viewerId: { type: String, required: true, name: "Viewer ID", default: "youtube-channel-id" },
+					viewerName: { type: String, required: true, name: "Viewer Name", default: "Viewer Name" },
+					message: { type: String, required: true, name: "Message", default: "!hello chat" },
+					messageId: { type: String, required: true, name: "Message ID", default: "youtube-message-id", view: false },
+				},
+			},
+			async context(config) {
+				return {
+					type: Object,
+					properties: {
+						viewerId: { type: String, required: true, name: "Viewer ID", default: "youtube-channel-id" },
+						viewerName: { type: String, required: true, name: "Viewer Name", default: "Viewer Name" },
+						message: { type: String, required: true, name: "Message", default: "!hello chat" },
+						messageId: { type: String, required: true, name: "Message ID", default: "youtube-message-id", view: false },
+						...getCommandDataSchema(config.command).properties,
+					},
+				}
+			},
+			async handle(config, context) {
+				const matchResult = await matchAndParseCommand(context.message, config.command)
+				if (matchResult == null) return undefined
+				return {
+					...context,
+					...matchResult,
+				}
 			},
 		})
 
@@ -222,6 +269,12 @@ export default definePlugin(
 						receivedAt: event.receivedAt,
 					}
 					await chatMessage({
+						viewerId: event.actor.id,
+						viewerName: event.actor.displayName,
+						message: event.payload.message,
+						messageId: event.id,
+					})
+					await chatCommand({
 						viewerId: event.actor.id,
 						viewerName: event.actor.displayName,
 						message: event.payload.message,
