@@ -61,17 +61,11 @@ function parseEmotesFromMsg(chatMessage: ChatMessage): EmoteParsedString {
 }
 
 function getTwitchBadges(msgInfo: ChatMessage): string[] {
-	const userInfo = msgInfo.userInfo as unknown as {
-		isBroadcaster?: boolean
-		isMod?: boolean
-		isSubscriber?: boolean
-		isVip?: boolean
-	}
 	const badges: string[] = []
-	if (userInfo.isBroadcaster) badges.push("broadcaster")
-	if (userInfo.isMod) badges.push("moderator")
-	if (userInfo.isSubscriber) badges.push("subscriber")
-	if (userInfo.isVip) badges.push("vip")
+	if (msgInfo.userInfo.isBroadcaster) badges.push("broadcaster")
+	if (msgInfo.userInfo.isMod) badges.push("moderator")
+	if (msgInfo.userInfo.isSubscriber) badges.push("subscriber")
+	if (msgInfo.userInfo.isVip) badges.push("vip")
 	return badges
 }
 
