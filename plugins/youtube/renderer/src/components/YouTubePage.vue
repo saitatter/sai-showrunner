@@ -51,6 +51,16 @@
 			<p class="youtube-page__muted">
 				Google Desktop OAuth clients can require the generated client secret during token exchange.
 			</p>
+			<div class="youtube-page__checklist">
+				<div v-for="item in checklist" :key="item.label" :class="['youtube-page__check', item.state]">
+					<i :class="item.icon" />
+					<div>
+						<strong>{{ item.label }}</strong>
+						<span>{{ item.detail }}</span>
+					</div>
+				</div>
+			</div>
+			<p v-if="statusHint" class="youtube-page__hint">{{ statusHint }}</p>
 		</section>
 
 		<section class="youtube-page__grid">
@@ -154,6 +164,36 @@ const showAdvanced = ref(false)
 const hasBundledClientId = computed(() => Boolean(status.value.settings?.hasBundledClientId))
 const hasBundledClientSecret = computed(() => Boolean(status.value.settings?.hasBundledClientSecret))
 const hasBundledCredentials = computed(() => hasBundledClientId.value && hasBundledClientSecret.value)
+const hasEffectiveClientId = computed(() => hasBundledClientId.value || Boolean(clientId.value.trim()))
+const isConnected = computed(() => status.value.connection?.status === "connected")
+const hasActiveBroadcast = computed(() => status.value.broadcast?.status === "live" && Boolean(status.value.broadcast?.liveChatId))
+const checklist = computed(() => [
+	{
+		label: "OAuth Client",
+		detail: hasEffectiveClientId.value ? "Client ID is available." : "Add a Desktop OAuth client ID.",
+		state: hasEffectiveClientId.value ? "ok" : "warn",
+		icon: hasEffectiveClientId.value ? "mdi mdi-check-circle" : "mdi mdi-alert-circle",
+	},
+	{
+		label: "Google Login",
+		detail: isConnected.value ? `Connected as ${status.value.connection?.accountName}.` : "Use Connect to sign in with Google.",
+		state: isConnected.value ? "ok" : "idle",
+		icon: isConnected.value ? "mdi mdi-check-circle" : "mdi mdi-login",
+	},
+	{
+		label: "Live Broadcast",
+		detail: hasActiveBroadcast.value ? "Active live chat discovered." : "Start ingest when your YouTube broadcast is live.",
+		state: hasActiveBroadcast.value ? "ok" : "idle",
+		icon: hasActiveBroadcast.value ? "mdi mdi-check-circle" : "mdi mdi-broadcast",
+	},
+])
+const statusHint = computed(() => {
+	const message = status.value.connection?.statusMessage || ""
+	if (/quota|rate|limit/i.test(message)) return "YouTube API quota/rate limit was hit. Wait for quota reset or reduce polling frequency."
+	if (/client_secret/i.test(message)) return "Your Google OAuth client likely requires the generated Desktop client secret."
+	if (/access_denied|verification/i.test(message)) return "Your Google app is still in testing. Add your Google account as a test user in OAuth consent screen."
+	return message && status.value.connection?.status === "error" ? message : ""
+})
 
 async function refresh() {
 	status.value = await getStatus()
@@ -307,5 +347,52 @@ onMounted(refresh)
 	display: flex;
 	gap: 0.75rem;
 	margin-top: 1rem;
+}
+
+.youtube-page__checklist {
+	display: grid;
+	gap: 0.55rem;
+}
+
+.youtube-page__check {
+	align-items: center;
+	background: var(--surface-950);
+	border: 1px solid var(--surface-700);
+	border-radius: 6px;
+	display: grid;
+	gap: 0.65rem;
+	grid-template-columns: 1.75rem 1fr;
+	padding: 0.65rem 0.75rem;
+}
+
+.youtube-page__check i {
+	font-size: 1.25rem;
+}
+
+.youtube-page__check strong,
+.youtube-page__check span {
+	display: block;
+}
+
+.youtube-page__check span {
+	color: var(--text-color-secondary);
+	font-size: 0.86rem;
+}
+
+.youtube-page__check.ok i {
+	color: #2ed47a;
+}
+
+.youtube-page__check.warn i,
+.youtube-page__hint {
+	color: #ffc857;
+}
+
+.youtube-page__hint {
+	background: color-mix(in srgb, #ffc857 10%, transparent);
+	border: 1px solid color-mix(in srgb, #ffc857 35%, transparent);
+	border-radius: 4px;
+	margin: 0;
+	padding: 0.65rem 0.75rem;
 }
 </style>
