@@ -26,6 +26,7 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 ## Priority 2: Automation Timeline / DAW Feel
 
 11. Done: Add a running playhead preview for automation execution.
+11a. Done: Add progress, elapsed time, and duration-aware pacing to the node preview playhead.
 12. Done: Show action durations and offsets more clearly in node mode.
 13. Done: Add snap-to-grid controls for node movement.
 14. Done: Add action grouping lanes for time, flow, and floating sequences.
@@ -48,19 +49,29 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 25. Done: Add preview frame sizing presets for common OBS canvases.
 26. Done: Add quick label templates for YouTube/Twitch state.
 27. Done: Add a visible save/live preview status indicator.
+27a. Done: Back the live preview indicator with real overlay websocket subscriber presence.
 28. Done: Add shader-capable scene overlay planning in docs before implementation.
 29. Done: Add native Chat Feed widget for approved chat messages.
 30. Done: Add automation action that pushes approved messages to Chat Feed.
+30a. Done: Allow chat push actions to target a specific Chat Feed widget.
 31. Done: Add bundled WebGL Shader Layer widget.
+31a. Done: Add a local custom fragment shader editor mode for Shader Layer.
 
 ## Priority 5: UI Cleanup
 
 32. Done: Make the Integrations group the obvious home for Twitch, YouTube, OBS, and Moderation.
-33. Reduce duplicated top-level entries where integration settings are hidden.
+33. Verified: Twitch, YouTube, OBS, and Moderation are already grouped under Integrations; avoid risky nav moves until the next wider sidebar cleanup.
 34. Done: Replace ambiguous icon-only buttons with tooltips where missing.
 35. Done: Document the new first-run setup path and local test commands.
 36. Done: Document moderation/chat overlay migration path.
 
 ## Current Batch
 
-Continue with navigation deduplication, shader editor MVP on top of local presets, richer automation preview timing, targeted chat feed routing per widget, and live overlay websocket presence.
+Current batch complete: node context menu, targeted Chat Feed routing, live overlay websocket presence, Shader Layer custom source editing, and richer node preview timing are implemented.
+
+Next batch:
+
+1. Add explicit automation templates for Twitch/YouTube chat -> moderation filter -> targeted Chat Feed.
+2. Add overlay runtime websocket presence to the widget list, not only the editor header.
+3. Add shader preset save/load once the local editor UX is stable.
+4. Add moderation queue filters/search and richer override audit details.

@@ -15,9 +15,9 @@ This project is an AGPL-3.0 fork of CastMate. Upstream architecture, plugin boun
 - OBS WebSocket integration for scene/control actions.
 - Overlay editing with OBS preview workflow, visible browser-source URLs, and one-click URL copy.
 - Automation editor with both the original timeline view and a new node-based flow view.
-- Node context inspector with right-click support, collapsible sections, action insertion, duplicate/delete/reorder controls, and the same action/trigger configuration panel used by Timeline.
+- Node context workflow with right-click command menus, collapsible trigger/action groups, action insertion, duplicate/delete/reorder controls, and the same action/trigger configuration panel used by Timeline.
 - Moderation Docker integration under `Integrations -> Moderation`, with native queue/status UI, manual override actions, and a `Filter Chat Message` automation action.
-- Native overlay widgets for approved chat feeds and bundled WebGL shader layers.
+- Native overlay widgets for targeted approved chat feeds and WebGL shader layers with bundled presets or locally edited fragment shader source.
 - Semantic release workflow for packaged Windows builds.
 
 ## Local Development
@@ -110,8 +110,8 @@ Twitch/YouTube chat trigger
 
 Overlay Studio includes:
 
-- `Chat Feed`: a configurable chat widget for approved Twitch/YouTube messages, with platform colors, font sizing, background opacity, fade time, max messages, layout, and badges.
-- `Shader Layer`: a WebGL widget with bundled shader presets, color/intensity/speed controls, opacity/blend mode, and a fallback state if WebGL or shader compilation fails.
+- `Chat Feed`: a configurable chat widget for approved Twitch/YouTube messages, with platform colors, font sizing, background opacity, fade time, max messages, layout, badges, and targeted widget delivery from automations.
+- `Shader Layer`: a WebGL widget with bundled shader presets, a local custom fragment shader editor mode, color/intensity/speed controls, opacity/blend mode, and a fallback state if WebGL or shader compilation fails.
 
 The older standalone `sai-chat-overlay` flow can be retired once your ShowRunner overlay contains a `Chat Feed` widget and automations push approved messages with `Overlays -> Push Chat Message`.
 
@@ -126,7 +126,7 @@ Automations -> New/Open Automation
 The editor starts in `Nodes` mode. Use:
 
 - left click to select a node
-- right click to open the node context inspector
+- right click to open the Windows-style command menu for triggers and actions
 - drag to organize nodes visually
 - `Timeline` toggle for the legacy detailed editor
 
