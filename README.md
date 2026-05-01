@@ -16,7 +16,8 @@ This project is an AGPL-3.0 fork of CastMate. Upstream architecture, plugin boun
 - Overlay editing with OBS preview workflow, visible browser-source URLs, and one-click URL copy.
 - Automation editor with both the original timeline view and a new node-based flow view.
 - Node context inspector with right-click support, collapsible sections, action insertion, duplicate/delete/reorder controls, and the same action/trigger configuration panel used by Timeline.
-- Moderation Docker integration under `Integrations -> Moderation`, forwarding normalized YouTube chat messages to `POST /v1/chat-events` and sending a test event from the UI.
+- Moderation Docker integration under `Integrations -> Moderation`, with native queue/status UI, manual override actions, and a `Filter Chat Message` automation action.
+- Native overlay widgets for approved chat feeds and bundled WebGL shader layers.
 - Semantic release workflow for packaged Windows builds.
 
 ## Local Development
@@ -62,7 +63,8 @@ Recommended local setup order:
 2. Open `Integrations -> YouTube -> Live Integration`, confirm the OAuth checklist, then connect YouTube.
 3. Open `Integrations -> Moderation -> Moderation Docker`, choose `Localhost`, save, run Health, then Send Test Event.
 4. Create or open an overlay, copy the Browser Source URL, and add it to OBS.
-5. Create an automation and use `Nodes` mode for the graph workflow or `Timeline` for the upstream detailed editor.
+5. Add a `Chat Feed` widget or `Shader Layer` widget in Overlay Studio when needed.
+6. Create an automation and use `Nodes` mode for the graph workflow or `Timeline` for the upstream detailed editor.
 
 For a clean local YouTube test session:
 
@@ -77,7 +79,7 @@ Release builds can bundle YouTube credentials with:
 
 ## Moderation Docker
 
-ShowRunner can forward YouTube live chat messages to the SAI moderation docker.
+ShowRunner can use SAI Moderation Docker as a backend-only moderation service. The old docker-hosted `/dashboard` page remains available for compatibility, but the primary queue UI is now native in ShowRunner.
 
 Default URLs:
 
@@ -91,6 +93,27 @@ Integrations -> Moderation -> Moderation Docker
 ```
 
 Enable the integration, verify health, send a test event, and leave `Forward YouTube chat` enabled. Approved overlay delivery is still owned by the moderation docker and overlay runtime.
+
+Recommended automation flow:
+
+```text
+Twitch/YouTube chat trigger
+-> Moderation: Filter Chat Message
+-> condition on approved/verdict
+-> Overlays: Push Chat Message
+-> Chat Feed widget
+```
+
+`Filter Chat Message` sends `deliveryMode: "decisionOnly"` to `POST /v1/chat-events`, so moderation updates the queue and returns a verdict without publishing directly to an overlay. This makes ShowRunner the place where you decide which approved messages reach which overlay widget.
+
+## Native Chat And Shader Overlays
+
+Overlay Studio includes:
+
+- `Chat Feed`: a configurable chat widget for approved Twitch/YouTube messages, with platform colors, font sizing, background opacity, fade time, max messages, layout, and badges.
+- `Shader Layer`: a WebGL widget with bundled shader presets, color/intensity/speed controls, opacity/blend mode, and a fallback state if WebGL or shader compilation fails.
+
+The older standalone `sai-chat-overlay` flow can be retired once your ShowRunner overlay contains a `Chat Feed` widget and automations push approved messages with `Overlays -> Push Chat Message`.
 
 ## Automation Editor
 

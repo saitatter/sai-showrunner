@@ -39,22 +39,28 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 19. Done: Add Twitch account status card under Integrations.
 20. Done: Add Moderation Docker connection presets for local and Docker host networking.
 21. Done: Add Moderation Docker latest decision feed in the integration page.
+22. Done: Add decision-only moderation action for Twitch/YouTube chat automations.
+23. Done: Add native Moderation Docker queue page with override actions.
 
 ## Priority 4: Overlay Studio
 
-22. Done: Add overlay browser source copy/open controls to the overlay list.
-23. Done: Add preview frame sizing presets for common OBS canvases.
-24. Done: Add quick label templates for YouTube/Twitch state.
-25. Done: Add a visible save/live preview status indicator.
-26. Done: Add shader-capable scene overlay planning in docs before implementation.
+24. Done: Add overlay browser source copy/open controls to the overlay list.
+25. Done: Add preview frame sizing presets for common OBS canvases.
+26. Done: Add quick label templates for YouTube/Twitch state.
+27. Done: Add a visible save/live preview status indicator.
+28. Done: Add shader-capable scene overlay planning in docs before implementation.
+29. Done: Add native Chat Feed widget for approved chat messages.
+30. Done: Add automation action that pushes approved messages to Chat Feed.
+31. Done: Add bundled WebGL Shader Layer widget.
 
 ## Priority 5: UI Cleanup
 
-27. Done: Make the Integrations group the obvious home for Twitch, YouTube, OBS, and Moderation.
-28. Reduce duplicated top-level entries where integration settings are hidden.
-29. Done: Replace ambiguous icon-only buttons with tooltips where missing.
-30. Done: Document the new first-run setup path and local test commands.
+32. Done: Make the Integrations group the obvious home for Twitch, YouTube, OBS, and Moderation.
+33. Reduce duplicated top-level entries where integration settings are hidden.
+34. Done: Replace ambiguous icon-only buttons with tooltips where missing.
+35. Done: Document the new first-run setup path and local test commands.
+36. Done: Document moderation/chat overlay migration path.
 
 ## Current Batch
 
-Continue with navigation deduplication, scene overlay resource implementation, shader editor MVP, richer automation preview timing, and live overlay websocket presence.
+Continue with navigation deduplication, shader editor MVP on top of local presets, richer automation preview timing, targeted chat feed routing per widget, and live overlay websocket presence.
