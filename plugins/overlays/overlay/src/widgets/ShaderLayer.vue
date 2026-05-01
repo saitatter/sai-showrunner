@@ -71,7 +71,69 @@ void main() {
 	gl_FragColor = vec4(color, value * u_intensity);
 }
 `,
+	nebula: `
+precision mediump float;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec3 u_accent;
+uniform vec3 u_secondary;
+uniform float u_intensity;
+uniform float u_speed;
+float field(vec2 p) {
+	float value = 0.0;
+	float scale = 1.0;
+	for (int i = 0; i < 4; i++) {
+		value += abs(sin(p.x * scale + u_time * 0.15 * u_speed) + cos(p.y * scale - u_time * 0.2 * u_speed)) / scale;
+		p = mat2(0.8, -0.6, 0.6, 0.8) * p * 1.35;
+		scale *= 1.7;
+	}
+	return value;
 }
+void main() {
+	vec2 uv = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+	float cloud = smoothstep(0.9, 2.4, field(uv * 1.4));
+	vec3 color = mix(u_secondary * 0.35, u_accent, cloud);
+	gl_FragColor = vec4(color, cloud * u_intensity * 0.78);
+}
+`,
+	scanlines: `
+precision mediump float;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec3 u_accent;
+uniform vec3 u_secondary;
+uniform float u_intensity;
+uniform float u_speed;
+void main() {
+	vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+	float line = smoothstep(0.48, 0.5, sin((uv.y + u_time * 0.04 * u_speed) * 220.0) * 0.5 + 0.5);
+	float sweep = smoothstep(0.02, 0.0, abs(fract(uv.y + u_time * 0.08 * u_speed) - 0.5));
+	float edge = smoothstep(0.0, 0.35, uv.x) * smoothstep(1.0, 0.65, uv.x);
+	vec3 color = mix(u_secondary, u_accent, uv.x + sweep * 0.4);
+	gl_FragColor = vec4(color, (line * 0.2 + sweep * 0.8) * edge * u_intensity);
+}
+`,
+	vortex: `
+precision mediump float;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec3 u_accent;
+uniform vec3 u_secondary;
+uniform float u_intensity;
+uniform float u_speed;
+void main() {
+	vec2 uv = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+	float radius = length(uv);
+	float angle = atan(uv.y, uv.x);
+	float swirl = sin(angle * 5.0 + radius * 11.0 - u_time * u_speed * 1.4);
+	float ring = smoothstep(0.45, 0.02, abs(swirl * 0.08 + radius - 0.52));
+	vec3 color = mix(u_secondary, u_accent, swirl * 0.5 + 0.5);
+	gl_FragColor = vec4(color, ring * (1.0 - smoothstep(0.2, 1.05, radius)) * u_intensity);
+}
+`,
+}
+
+const bundledPresetNames = ["aurora", "grid", "plasma", "nebula", "scanlines", "vortex", "custom"] as const
 
 defineOptions({
 	widget: declareWidgetOptions({
@@ -88,7 +150,7 @@ defineOptions({
 					name: "Shader Preset",
 					default: "aurora",
 					required: true,
-					enum: ["aurora", "grid", "plasma", "custom"],
+					enum: ["aurora", "grid", "plasma", "nebula", "scanlines", "vortex", "custom"],
 				},
 				customFragmentShader: {
 					type: String,
@@ -116,7 +178,7 @@ defineOptions({
 
 const props = defineProps<{
 	config: {
-		preset: "aurora" | "grid" | "plasma" | "custom"
+		preset: (typeof bundledPresetNames)[number]
 		customFragmentShader?: string
 		accentColor: string
 		secondaryColor: string
@@ -171,6 +233,10 @@ onUnmounted(() => {
 
 function compilePreset() {
 	if (!gl) return
+	if (props.config.preset === "custom" && !props.config.customFragmentShader?.trim()) {
+		errorMessage.value = "Custom shader is empty. Pick a bundled preset or paste a fragment shader source."
+		return
+	}
 	const source =
 		props.config.preset === "custom" && props.config.customFragmentShader
 			? props.config.customFragmentShader

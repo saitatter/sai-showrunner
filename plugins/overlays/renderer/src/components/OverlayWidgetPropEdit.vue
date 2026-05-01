@@ -8,7 +8,24 @@
 					local-path="config"
 				/>
 				<section v-if="isShaderLayer" class="shader-preset-panel">
+					<h3>Bundled Shader Presets</h3>
+					<div class="shader-preset-panel__bundled">
+						<button
+							v-for="preset in bundledShaderPresets"
+							:key="preset.id"
+							type="button"
+							:class="{ active: selectedWidget?.config?.preset === preset.id }"
+							@click="applyBundledShaderPreset(preset.id)"
+						>
+							<span class="shader-preset-panel__preview" :class="`preset-${preset.id}`" />
+							<span>
+								<strong>{{ preset.name }}</strong>
+								<small>{{ preset.description }}</small>
+							</span>
+						</button>
+					</div>
 					<h3>Local Shader Presets</h3>
+					<p v-if="shaderPresetHint" class="shader-preset-panel__hint">{{ shaderPresetHint }}</p>
 					<div class="shader-preset-panel__save">
 						<input v-model="shaderPresetName" type="text" placeholder="Preset name" />
 						<button type="button" @click="saveShaderPreset">Save Preset</button>
@@ -60,12 +77,19 @@ const widgetSelection = useDocumentSelection()
 
 const selectedWidgetId = computed(() => {
 	if (widgetSelection.value.length > 1 || widgetSelection.value.length == 0) return undefined
-	console.log(widgetSelection.value[0])
 	return widgetSelection.value[0]
 })
 
 const widgets = useOverlayWidgets()
 const SHADER_PRESETS_KEY = "showrunner.overlay.shaderPresets"
+const bundledShaderPresets = [
+	{ id: "aurora", name: "Aurora", description: "Soft waves for scene mood." },
+	{ id: "grid", name: "Grid", description: "Motion grid for tech overlays." },
+	{ id: "plasma", name: "Plasma", description: "High energy color field." },
+	{ id: "nebula", name: "Nebula", description: "Cloudy procedural depth." },
+	{ id: "scanlines", name: "Scanlines", description: "CRT-style sweep bands." },
+	{ id: "vortex", name: "Vortex", description: "Circular portal motion." },
+]
 const shaderPresetName = ref("")
 const shaderPresetNames = ref<string[]>([])
 
@@ -92,6 +116,13 @@ const selectedWidget = computed(() => {
 })
 
 const isShaderLayer = computed(() => selectedWidget.value?.plugin === "overlays" && selectedWidget.value?.widget === "shaderLayer")
+const shaderPresetHint = computed(() => {
+	if (!isShaderLayer.value) return ""
+	if (selectedWidget.value?.config?.preset === "custom" && !String(selectedWidget.value?.config?.customFragmentShader || "").trim()) {
+		return "Custom preset is selected but the shader source is empty."
+	}
+	return ""
+})
 
 function readShaderPresets(): Record<string, string> {
 	try {
@@ -118,6 +149,11 @@ function saveShaderPreset() {
 	presets[name] = source
 	writeShaderPresets(presets)
 	shaderPresetName.value = ""
+}
+
+function applyBundledShaderPreset(name: string) {
+	if (!selectedWidget.value) return
+	selectedWidget.value.config.preset = name
 }
 
 function applyShaderPreset(name: string) {
@@ -154,6 +190,68 @@ onMounted(refreshShaderPresets)
 .shader-preset-panel h3 {
 	font-size: 0.9rem;
 	margin: 0;
+}
+
+.shader-preset-panel__bundled {
+	display: grid;
+	gap: 0.45rem;
+	grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.shader-preset-panel__bundled button {
+	justify-content: flex-start;
+	min-height: 4.4rem;
+	text-align: left;
+}
+
+.shader-preset-panel__bundled button.active {
+	border-color: #e9aaff;
+	box-shadow: 0 0 0 1px rgba(233, 170, 255, 0.35);
+}
+
+.shader-preset-panel__bundled strong,
+.shader-preset-panel__bundled small {
+	display: block;
+}
+
+.shader-preset-panel__bundled small {
+	color: var(--text-color-secondary);
+	font-size: 0.72rem;
+}
+
+.shader-preset-panel__preview {
+	border-radius: 4px;
+	display: block;
+	flex: 0 0 2.2rem;
+	height: 2.2rem;
+}
+
+.shader-preset-panel__preview.preset-aurora {
+	background: linear-gradient(135deg, #00d1ff, #9146ff 55%, #f0a6ff);
+}
+
+.shader-preset-panel__preview.preset-grid {
+	background:
+		linear-gradient(90deg, rgba(255, 255, 255, 0.25) 1px, transparent 1px),
+		linear-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px),
+		#1b1238;
+	background-size: 8px 8px;
+}
+
+.shader-preset-panel__preview.preset-plasma {
+	background: radial-gradient(circle at 35% 30%, #e9aaff, transparent 30%), radial-gradient(circle at 65% 60%, #00d1ff, #3b1974);
+}
+
+.shader-preset-panel__preview.preset-nebula {
+	background: radial-gradient(circle at 30% 35%, #9146ff, transparent 35%), radial-gradient(circle at 70% 65%, #00d1ff, #160b28);
+}
+
+.shader-preset-panel__preview.preset-scanlines {
+	background: repeating-linear-gradient(0deg, #141414, #141414 4px, #9be7ff 5px, #141414 7px);
+}
+
+.shader-preset-panel__preview.preset-vortex {
+	background: conic-gradient(from 45deg, #00d1ff, #9146ff, #111, #00d1ff);
 }
 
 .shader-preset-panel__save,
@@ -193,5 +291,15 @@ onMounted(refreshShaderPresets)
 	color: var(--text-color-secondary);
 	font-size: 0.8rem;
 	margin: 0;
+}
+
+.shader-preset-panel__hint {
+	background: rgba(255, 210, 112, 0.12);
+	border: 1px solid rgba(255, 210, 112, 0.35);
+	border-radius: 4px;
+	color: #ffd270;
+	font-size: 0.8rem;
+	margin: 0;
+	padding: 0.45rem 0.55rem;
 }
 </style>
