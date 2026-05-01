@@ -16,6 +16,32 @@ interface YouTubeLiveBroadcastsResponse {
 	}>
 }
 
+interface YouTubeSearchResponse {
+	items?: Array<{
+		id?: {
+			videoId?: string
+		}
+		snippet?: {
+			title?: string
+		}
+	}>
+}
+
+interface YouTubeVideosResponse {
+	items?: Array<{
+		id: string
+		snippet?: {
+			title?: string
+			liveBroadcastContent?: string
+		}
+		liveStreamingDetails?: {
+			activeLiveChatId?: string
+			actualStartTime?: string
+			actualEndTime?: string
+		}
+	}>
+}
+
 interface YouTubeLiveChatMessagesResponse {
 	nextPageToken?: string
 	pollingIntervalMillis?: number
@@ -83,6 +109,12 @@ export class YouTubeLiveChatService {
 	}
 
 	async discoverActiveBroadcast(): Promise<YouTubeBroadcastState> {
+		const broadcast = await this.discoverBroadcastManagerLive()
+		if (broadcast.status === "live" || broadcast.liveChatId) return broadcast
+		return this.discoverSearchLive()
+	}
+
+	private async discoverBroadcastManagerLive(): Promise<YouTubeBroadcastState> {
 		const url = new URL("https://www.googleapis.com/youtube/v3/liveBroadcasts")
 		url.searchParams.set("part", "snippet")
 		url.searchParams.set("broadcastStatus", "active")
@@ -99,6 +131,39 @@ export class YouTubeLiveChatService {
 			title: broadcast.snippet?.title,
 			liveChatId: broadcast.snippet?.liveChatId,
 			status: broadcast.snippet?.liveChatId ? "live" : "unknown",
+		}
+	}
+
+	private async discoverSearchLive(): Promise<YouTubeBroadcastState> {
+		const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search")
+		searchUrl.searchParams.set("part", "snippet")
+		searchUrl.searchParams.set("forMine", "true")
+		searchUrl.searchParams.set("type", "video")
+		searchUrl.searchParams.set("eventType", "live")
+		searchUrl.searchParams.set("maxResults", "5")
+		const searchData = await this.auth.authorizedFetch<YouTubeSearchResponse>(searchUrl)
+		const videoIds = (searchData.items || []).map((item) => item.id?.videoId).filter(Boolean) as string[]
+
+		if (!videoIds.length) {
+			return { status: "offline" }
+		}
+
+		const videosUrl = new URL("https://www.googleapis.com/youtube/v3/videos")
+		videosUrl.searchParams.set("part", "snippet,liveStreamingDetails")
+		videosUrl.searchParams.set("id", videoIds.join(","))
+		const videosData = await this.auth.authorizedFetch<YouTubeVideosResponse>(videosUrl)
+		const video = videosData.items?.find((item) => item.liveStreamingDetails?.activeLiveChatId) || videosData.items?.[0]
+
+		if (!video) {
+			return { status: "offline" }
+		}
+
+		const liveChatId = video.liveStreamingDetails?.activeLiveChatId
+		return {
+			id: video.id,
+			title: video.snippet?.title,
+			liveChatId,
+			status: liveChatId ? "live" : "unknown",
 		}
 	}
 

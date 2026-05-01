@@ -278,7 +278,37 @@ export default definePlugin(
 				...connection.value,
 				statusMessage: "Starting YouTube live chat ingest...",
 			}
-			await liveChat.start()
+			try {
+				await liveChat.start()
+			} catch (error) {
+				connection.value = {
+					...connection.value,
+					statusMessage: error instanceof Error ? error.message : String(error),
+				}
+				throw error
+			}
+			return {
+				connection: connection.value,
+				broadcast: broadcast.value,
+			}
+		})
+
+		defineRendererCallable("discoverBroadcast", async () => {
+			connection.value = {
+				...connection.value,
+				statusMessage: "Discovering active YouTube broadcast...",
+			}
+			const nextBroadcast = await liveChat.discoverActiveBroadcast()
+			broadcast.value = nextBroadcast
+			connection.value = {
+				...connection.value,
+				statusMessage:
+					nextBroadcast.status === "live"
+						? "Active YouTube live chat discovered."
+						: nextBroadcast.status === "unknown"
+							? "A live broadcast was found, but live chat is not available yet."
+							: "No active YouTube broadcast was found.",
+			}
 			return {
 				connection: connection.value,
 				broadcast: broadcast.value,

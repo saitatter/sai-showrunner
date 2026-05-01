@@ -12,6 +12,9 @@
 				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="toggleLiveChat">
 					{{ status.liveChatRunning ? "Stop Chat" : "Start Chat" }}
 				</button>
+				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="discover">
+					Discover Live
+				</button>
 				<button class="youtube-page__button" type="button" @click="simulate">Simulate Chat</button>
 			</div>
 		</header>
@@ -161,6 +164,7 @@ const saveYouTubeSettings = useIpcCaller<(settings: { clientId: string; clientSe
 	"saveSettings"
 )
 const connectYouTube = useIpcCaller<() => Promise<unknown>>("youtube", "connect")
+const discoverBroadcast = useIpcCaller<() => Promise<unknown>>("youtube", "discoverBroadcast")
 const startLiveChat = useIpcCaller<() => Promise<unknown>>("youtube", "startLiveChat")
 const stopLiveChat = useIpcCaller<() => Promise<unknown>>("youtube", "stopLiveChat")
 const simulateChatMessage = useIpcCaller<() => Promise<unknown>>("youtube", "simulateChatMessage")
@@ -236,6 +240,11 @@ async function toggleLiveChat() {
 	} else {
 		await startLiveChat()
 	}
+	await refresh()
+}
+
+async function discover() {
+	await discoverBroadcast()
 	await refresh()
 }
 
