@@ -407,7 +407,7 @@ export default definePlugin(
 			connection.value = disconnectedState
 			broadcast.value = offlineBroadcast
 			try {
-				if (auth.hasUsableToken) {
+				if (auth.hasUsableToken || auth.hasStoredRefreshToken) {
 					const profile = await auth.fetchProfile()
 					connection.value = {
 						accountName: profile.title,

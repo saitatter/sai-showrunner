@@ -101,6 +101,10 @@ export class YouTubeAuthService {
 		return Boolean(this.secrets.accessToken && (!this.secrets.expiresAt || this.secrets.expiresAt > Date.now() + 60000))
 	}
 
+	get hasStoredRefreshToken() {
+		return Boolean(this.secrets.refreshToken)
+	}
+
 	async saveSettings(settings: YouTubeSettingsUpdate) {
 		const { clientSecret, ...publicSettings } = settings
 		this.settings = {
@@ -135,11 +139,21 @@ export class YouTubeAuthService {
 	async authorizedFetch<T>(url: string | URL) {
 		const accessToken = await this.getAccessToken()
 		if (!accessToken) throw new Error("YouTube access token is missing.")
-		const response = await fetch(url, {
+		let response = await fetch(url, {
 			headers: {
 				authorization: `Bearer ${accessToken}`,
 			},
 		})
+
+		if (response.status === 401 && this.secrets.refreshToken) {
+			await this.refresh()
+			response = await fetch(url, {
+				headers: {
+					authorization: `Bearer ${this.secrets.accessToken}`,
+				},
+			})
+		}
+
 		return readJsonResponse<T>(response)
 	}
 
