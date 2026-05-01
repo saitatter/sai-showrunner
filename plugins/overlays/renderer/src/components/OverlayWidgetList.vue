@@ -31,6 +31,10 @@
 			<div>
 				<span>OBS Browser Source</span>
 				<input :value="overlayUrl" readonly @focus="$event.target.select()" />
+				<small :class="{ live: overlayPresence.connected }">
+					<i :class="overlayPresence.connected ? 'mdi mdi-broadcast' : 'mdi mdi-broadcast-off'" />
+					{{ overlayPresence.connected ? `Connected (${overlayPresence.subscribers})` : "Disconnected" }}
+				</small>
 			</div>
 			<div class="browser-source-card__actions">
 				<button type="button" @click="copyOverlayUrl" v-tooltip="'Copy Browser Source URL'">
@@ -71,8 +75,9 @@ import {
 	DraggableCollection,
 	useDocumentId,
 	useSettingValue,
+	useIpcCaller,
 } from "castmate-ui-core"
-import { computed, ref, useModel } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, useModel } from "vue"
 import PButton from "primevue/button"
 import PMenu from "primevue/menu"
 import { OverlayWidgetInfo, useOverlayWidgets } from "castmate-overlay-widget-loader"
@@ -96,6 +101,20 @@ const commitUndo = useCommitUndo()
 const overlayId = useDocumentId()
 const port = useSettingValue({ plugin: "castmate", setting: "port" })
 const overlayUrl = computed(() => `http://localhost:${port.value ?? 8181}/overlays/${overlayId.value}`)
+
+interface OverlayPresence {
+	overlayId: string
+	connected: boolean
+	subscribers: number
+}
+
+const getOverlayPresence = useIpcCaller<(overlayId: string) => Promise<OverlayPresence>>("overlays", "getOverlayPresence")
+const overlayPresence = ref<OverlayPresence>({ overlayId: overlayId.value, connected: false, subscribers: 0 })
+let overlayPresenceTimer: ReturnType<typeof setInterval> | undefined
+
+async function refreshOverlayPresence() {
+	overlayPresence.value = await getOverlayPresence(overlayId.value)
+}
 
 async function addWidget(widget: OverlayWidgetInfo) {
 	const size = {
@@ -214,6 +233,15 @@ function deleteWidget(idx: number) {
 	model.value.widgets.splice(idx, 1)
 	commitUndo()
 }
+
+onMounted(() => {
+	void refreshOverlayPresence()
+	overlayPresenceTimer = setInterval(() => void refreshOverlayPresence(), 2500)
+})
+
+onBeforeUnmount(() => {
+	if (overlayPresenceTimer) clearInterval(overlayPresenceTimer)
+})
 </script>
 
 <style scoped>
@@ -268,6 +296,19 @@ function deleteWidget(idx: number) {
 	font-size: 0.78rem;
 	padding: 0.45rem 0.55rem;
 	width: 100%;
+}
+
+.browser-source-card small {
+	align-items: center;
+	color: var(--text-color-secondary);
+	display: flex;
+	font-size: 0.75rem;
+	gap: 0.35rem;
+	margin-top: 0.25rem;
+}
+
+.browser-source-card small.live {
+	color: #54d98c;
 }
 
 .browser-source-card__actions {
