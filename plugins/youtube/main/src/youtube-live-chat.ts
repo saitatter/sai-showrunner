@@ -118,7 +118,6 @@ export class YouTubeLiveChatService {
 		const url = new URL("https://www.googleapis.com/youtube/v3/liveBroadcasts")
 		url.searchParams.set("part", "snippet")
 		url.searchParams.set("broadcastStatus", "active")
-		url.searchParams.set("mine", "true")
 		const data = await this.auth.authorizedFetch<YouTubeLiveBroadcastsResponse>(url)
 		const broadcast = data.items?.[0]
 
