@@ -17,7 +17,7 @@ This project is an AGPL-3.0 fork of CastMate. Upstream architecture, plugin boun
 - Automation editor with both the original timeline view and a new node-based flow view.
 - Node context workflow with right-click command menus, collapsible trigger/action groups, action insertion, duplicate/delete/reorder controls, and the same action/trigger configuration panel used by Timeline.
 - Moderation Docker integration under `Integrations -> Moderation`, with native queue/status UI, manual override actions, and a `Filter Chat Message` automation action.
-- Native overlay widgets for targeted approved chat feeds and WebGL shader layers with bundled presets or locally edited fragment shader source.
+- Native overlay widgets for targeted approved chat feeds, paid alerts, scene banners, and WebGL shader layers with bundled presets or locally edited fragment shader source.
 - Semantic release workflow for packaged Windows builds.
 
 ## Local Development
@@ -63,7 +63,7 @@ Recommended local setup order:
 2. Open `Integrations -> YouTube -> Live Integration`, confirm the OAuth checklist, then connect YouTube.
 3. Open `Integrations -> Moderation -> Moderation Docker`, choose `Localhost`, save, run Health, then Send Test Event.
 4. Create or open an overlay, copy the Browser Source URL, and add it to OBS.
-5. Add a `Chat Feed` widget or `Shader Layer` widget in Overlay Studio when needed.
+5. Add a `Chat Feed`, `Paid Alert`, `Scene Banner`, or `Shader Layer` widget in Overlay Studio when needed.
 6. Create an automation and use `Nodes` mode for the graph workflow or `Timeline` for the upstream detailed editor.
 
 Release builds can bundle YouTube credentials with:
@@ -113,7 +113,9 @@ Use these as a starting point, then select the target `Chat Feed` widget in the 
 Overlay Studio includes:
 
 - `Chat Feed`: a configurable chat widget for approved Twitch/YouTube messages, with platform colors, font sizing, background opacity, fade time, max messages, layout, badges, and targeted widget delivery from automations.
-- `Shader Layer`: a WebGL widget with bundled shader presets, local saved shader presets, a custom fragment shader editor mode, color/intensity/speed controls, opacity/blend mode, and a fallback state if WebGL or shader compilation fails.
+- `Paid Alert`: a targeted widget for YouTube paid messages, donations, and support events pushed with `Overlays -> Push Paid Alert`.
+- `Scene Banner`: a targeted widget for `Overlays -> Begin Scene Overlay` and `Overlays -> End Scene Overlay` automation actions.
+- `Shader Layer`: a WebGL widget with bundled shader presets, local saved shader presets, a custom fragment shader editor mode, color/intensity/speed controls, opacity/blend mode, preset previews, and a fallback state if WebGL or shader compilation fails.
 
 The older standalone `sai-chat-overlay` flow can be retired once your ShowRunner overlay contains a `Chat Feed` widget and automations push approved messages with `Overlays -> Push Chat Message`.
 

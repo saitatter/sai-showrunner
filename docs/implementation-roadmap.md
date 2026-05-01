@@ -22,6 +22,7 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 8. Done: Add keyboard shortcuts for delete, duplicate, and fit view.
 9. Done: Add undo-friendly mutations for node editor operations.
 10. Done: Persist node editor view state per automation.
+10a. Done: Extract node canvas, drag, context menu, and preview behavior into focused composables.
 
 ## Priority 2: Automation Timeline / DAW Feel
 
@@ -37,6 +38,7 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 16. Done: Add a YouTube connection checklist with clearer OAuth state.
 17. Done: Add YouTube live chat auto-start option after successful login.
 18. Done: Add YouTube quota/error hints in the integration page.
+18a. Done: Add YouTube API diagnostics with search cooldown, estimated quota, last API error, and retry state.
 19. Done: Add Twitch account status card under Integrations.
 20. Done: Add Moderation Docker connection presets for local and Docker host networking.
 21. Done: Add Moderation Docker latest decision feed in the integration page.
@@ -57,6 +59,9 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 31. Done: Add bundled WebGL Shader Layer widget.
 31a. Done: Add a local custom fragment shader editor mode for Shader Layer.
 31b. Done: Add local Shader Layer preset save/load for custom fragment sources.
+31c. Done: Add richer bundled shader presets with visual preset cards and custom-source validation hints.
+31d. Done: Add Paid Alert widget and `Push Paid Alert` automation action.
+31e. Done: Add Scene Banner widget and begin/end scene overlay automation actions.
 
 ## Priority 5: UI Cleanup
 
@@ -75,11 +80,13 @@ Current batch complete:
 3. Done: Add local Shader Layer preset save/load once the local editor UX is stable.
 4. Done: Add moderation queue filters/search and richer override audit details.
 5. Done: Extract node preview timing into `useAutomationPreview`.
+6. Done: Extract node canvas, drag, and context menu behavior into composables.
+7. Done: Add richer shader preset workflow, YouTube API diagnostics, paid alerts, and scene banner events.
 
 Next batch:
 
-1. Continue splitting `NodeAutomationEdit.vue` into focused composables: `useNodeCanvas`, `useNodeDrag`, and `useNodeContextMenu`.
-2. Add a richer bundled shader library with previews and safer validation messages.
-3. Add a YouTube quota dashboard with discovery cooldown visibility and recent API errors.
-4. Add donation widgets and paid-message overlay templates.
-5. Add scene begin/end overlay actions that can coordinate Chat Feed, Shader Layer, and future scene widgets.
+1. Build a common context menu surface shared by Nodes and Timeline.
+2. Add node type styling improvements for triggers, actions, paid alerts, moderation filters, and overlay actions.
+3. Add automation templates for YouTube paid alert -> Paid Alert widget and scene begin/end flows.
+4. Add richer manual YouTube discovery controls for stream IDs/live chat IDs.
+5. Add deeper OBS preview validation for Chat Feed, Paid Alert, Scene Banner, and Shader Layer widgets.
