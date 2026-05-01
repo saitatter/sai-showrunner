@@ -23,7 +23,7 @@
 					<p class="youtube-page__muted">
 						{{
 							hasBundledClientId
-								? "ShowRunner includes a YouTube OAuth client for one-click login."
+								? "ShowRunner includes YouTube OAuth credentials for one-click login."
 								: "Add a Google OAuth desktop client ID before connecting."
 						}}
 					</p>
@@ -37,15 +37,19 @@
 					{{ showAdvanced ? "Hide Advanced" : "Advanced" }}
 				</button>
 			</div>
-			<p v-if="hasBundledClientId && !showAdvanced" class="youtube-page__source">
+			<p v-if="hasBundledCredentials && !showAdvanced" class="youtube-page__source">
 				Using bundled ShowRunner OAuth client.
 			</p>
 			<label v-if="!hasBundledClientId || showAdvanced">
 				<span>{{ hasBundledClientId ? "Override OAuth Client ID" : "Google OAuth Client ID" }}</span>
 				<input v-model="clientId" type="text" placeholder="Desktop OAuth client ID" @change="saveSettings" />
 			</label>
+			<label v-if="!hasBundledClientSecret || showAdvanced">
+				<span>{{ hasBundledClientSecret ? "Override OAuth Client Secret" : "Google OAuth Client Secret" }}</span>
+				<input v-model="clientSecret" type="password" placeholder="Desktop OAuth client secret" @change="saveSettings" />
+			</label>
 			<p class="youtube-page__muted">
-				Client IDs are public OAuth identifiers. Do not paste or ship a client secret in ShowRunner.
+				Google Desktop OAuth clients can require the generated client secret during token exchange.
 			</p>
 		</section>
 
@@ -129,22 +133,27 @@ interface YouTubeStatus {
 		clientId?: string
 		scopes?: string[]
 		hasBundledClientId?: boolean
+		hasBundledClientSecret?: boolean
+		clientSecretConfigured?: boolean
 		clientIdSource?: "bundled" | "manual" | "missing"
 	}
 	liveChatRunning?: boolean
 }
 
 const getStatus = useIpcCaller<() => Promise<YouTubeStatus>>("youtube", "getStatus")
-const saveYouTubeSettings = useIpcCaller<(settings: { clientId: string }) => Promise<unknown>>("youtube", "saveSettings")
+const saveYouTubeSettings = useIpcCaller<(settings: { clientId: string; clientSecret: string }) => Promise<unknown>>("youtube", "saveSettings")
 const connectYouTube = useIpcCaller<() => Promise<unknown>>("youtube", "connect")
 const startLiveChat = useIpcCaller<() => Promise<unknown>>("youtube", "startLiveChat")
 const stopLiveChat = useIpcCaller<() => Promise<unknown>>("youtube", "stopLiveChat")
 const simulateChatMessage = useIpcCaller<() => Promise<unknown>>("youtube", "simulateChatMessage")
 const status = ref<YouTubeStatus>({})
 const clientId = ref("")
+const clientSecret = ref("")
 const showAdvanced = ref(false)
 
 const hasBundledClientId = computed(() => Boolean(status.value.settings?.hasBundledClientId))
+const hasBundledClientSecret = computed(() => Boolean(status.value.settings?.hasBundledClientSecret))
+const hasBundledCredentials = computed(() => hasBundledClientId.value && hasBundledClientSecret.value)
 
 async function refresh() {
 	status.value = await getStatus()
@@ -152,12 +161,12 @@ async function refresh() {
 }
 
 async function saveSettings() {
-	await saveYouTubeSettings({ clientId: clientId.value })
+	await saveYouTubeSettings({ clientId: clientId.value, clientSecret: clientSecret.value })
 	await refresh()
 }
 
 async function connect() {
-	if (!hasBundledClientId.value || showAdvanced.value) {
+	if (!hasBundledCredentials.value || showAdvanced.value) {
 		await saveSettings()
 	}
 	await connectYouTube()

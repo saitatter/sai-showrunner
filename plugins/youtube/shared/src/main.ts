@@ -39,6 +39,7 @@ export interface YouTubeSettings {
 }
 
 export interface YouTubeSecrets {
+	clientSecret?: string
 	accessToken?: string
 	refreshToken?: string
 	expiresAt?: number

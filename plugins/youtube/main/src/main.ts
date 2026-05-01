@@ -109,8 +109,11 @@ export default definePlugin(
 			liveChatRunning: liveChat?.isRunning ?? false,
 		}))
 
-		defineRendererCallable("saveSettings", async (settings: { clientId?: string }) => {
-			await auth.saveSettings({ clientId: settings.clientId?.trim() || "" })
+		defineRendererCallable("saveSettings", async (settings: { clientId?: string; clientSecret?: string }) => {
+			await auth.saveSettings({
+				clientId: settings.clientId?.trim() || "",
+				clientSecret: settings.clientSecret,
+			})
 			return auth.getSettings()
 		})
 

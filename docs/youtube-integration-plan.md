@@ -50,12 +50,14 @@ GitHub release setup:
 
 1. Create a Google OAuth desktop client with the YouTube Data API enabled.
 2. Add the OAuth client id as a GitHub repository variable named `SHOWRUNNER_YOUTUBE_CLIENT_ID`.
-3. Run the release workflow normally; Vite embeds that public id into the packaged Electron main process.
+3. Add the OAuth client secret as a GitHub repository secret named `SHOWRUNNER_YOUTUBE_CLIENT_SECRET`.
+4. Run the release workflow normally; Vite embeds those desktop OAuth credentials into the packaged Electron main process.
 
 Local build setup:
 
 ```powershell
 $env:SHOWRUNNER_YOUTUBE_CLIENT_ID = "your-google-oauth-client-id.apps.googleusercontent.com"
+$env:SHOWRUNNER_YOUTUBE_CLIENT_SECRET = "your-google-oauth-client-secret"
 corepack yarn setup-vite
 corepack yarn workspace castmate-core run rebuild
 node .\vite-util\multi-vite.mjs build

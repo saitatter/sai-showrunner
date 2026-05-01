@@ -9,15 +9,19 @@
 
 		<div class="flex flex-column align-items-center gap-3">
 			<div class="youtube-setup-card">
-				<div v-if="hasBundledClientId" class="youtube-setup-card__source">
+				<div v-if="hasBundledCredentials" class="youtube-setup-card__source">
 					ShowRunner includes a YouTube OAuth client. Connect with your browser to continue.
 				</div>
-				<label v-else class="flex flex-column gap-2">
+				<label v-if="!hasBundledClientId" class="flex flex-column gap-2">
 					<span>Google OAuth Client ID</span>
 					<input v-model="clientId" type="text" placeholder="Desktop OAuth client ID" @change="saveSettings" />
 				</label>
+				<label v-if="!hasBundledClientSecret" class="flex flex-column gap-2">
+					<span>Google OAuth Client Secret</span>
+					<input v-model="clientSecret" type="password" placeholder="Desktop OAuth client secret" @change="saveSettings" />
+				</label>
 				<p class="p-text-secondary text-sm m-0">
-					{{ hasBundledClientId ? "No client secret is stored in the app." : "Use a Google OAuth desktop client with the YouTube Data API enabled." }}
+					{{ hasBundledCredentials ? "OAuth credentials are bundled for this build." : "Use a Google OAuth desktop client with the YouTube Data API enabled." }}
 				</p>
 				<div class="flex flex-row justify-content-center gap-2">
 					<p-button @click="connect" :loading="connecting">Connect YouTube</p-button>
@@ -58,6 +62,8 @@ interface YouTubeStatus {
 		clientId?: string
 		scopes?: string[]
 		hasBundledClientId?: boolean
+		hasBundledClientSecret?: boolean
+		clientSecretConfigured?: boolean
 		clientIdSource?: "bundled" | "manual" | "missing"
 	}
 }
@@ -68,15 +74,18 @@ const props = defineProps<{
 
 const ready = useModel(props, "ready")
 const getStatus = useIpcCaller<() => Promise<YouTubeStatus>>("youtube", "getStatus")
-const saveYouTubeSettings = useIpcCaller<(settings: { clientId: string }) => Promise<unknown>>("youtube", "saveSettings")
+const saveYouTubeSettings = useIpcCaller<(settings: { clientId: string; clientSecret: string }) => Promise<unknown>>("youtube", "saveSettings")
 const connectYouTube = useIpcCaller<() => Promise<unknown>>("youtube", "connect")
 
 const status = ref<YouTubeStatus>({})
 const clientId = ref("")
+const clientSecret = ref("")
 const connecting = ref(false)
 
 const readyComputed = computed(() => status.value.connection?.status === "connected")
 const hasBundledClientId = computed(() => Boolean(status.value.settings?.hasBundledClientId))
+const hasBundledClientSecret = computed(() => Boolean(status.value.settings?.hasBundledClientSecret))
+const hasBundledCredentials = computed(() => hasBundledClientId.value && hasBundledClientSecret.value)
 
 async function refresh() {
 	status.value = await getStatus()
@@ -84,14 +93,14 @@ async function refresh() {
 }
 
 async function saveSettings() {
-	await saveYouTubeSettings({ clientId: clientId.value })
+	await saveYouTubeSettings({ clientId: clientId.value, clientSecret: clientSecret.value })
 	await refresh()
 }
 
 async function connect() {
 	connecting.value = true
 	try {
-		if (!hasBundledClientId.value) {
+		if (!hasBundledCredentials.value) {
 			await saveSettings()
 		}
 		await connectYouTube()

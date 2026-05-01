@@ -21,6 +21,12 @@ const DEFAULT_SCOPES = [
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 const TOKEN_URL = "https://oauth2.googleapis.com/token"
 const BUNDLED_CLIENT_ID = process.env.SHOWRUNNER_YOUTUBE_CLIENT_ID?.trim() || process.env.YOUTUBE_CLIENT_ID?.trim() || ""
+const BUNDLED_CLIENT_SECRET =
+	process.env.SHOWRUNNER_YOUTUBE_CLIENT_SECRET?.trim() || process.env.YOUTUBE_CLIENT_SECRET?.trim() || ""
+
+export interface YouTubeSettingsUpdate extends Partial<YouTubeSettings> {
+	clientSecret?: string
+}
 
 export interface YouTubeProfile {
 	channelId: string
@@ -71,6 +77,8 @@ export class YouTubeAuthService {
 		return {
 			...this.settings,
 			hasBundledClientId: Boolean(BUNDLED_CLIENT_ID),
+			hasBundledClientSecret: Boolean(BUNDLED_CLIENT_SECRET),
+			clientSecretConfigured: Boolean(this.effectiveClientSecret),
 			clientIdSource: this.clientIdSource,
 		}
 	}
@@ -85,18 +93,31 @@ export class YouTubeAuthService {
 		return "missing"
 	}
 
+	private get effectiveClientSecret() {
+		return this.secrets.clientSecret?.trim() || BUNDLED_CLIENT_SECRET
+	}
+
 	get hasUsableToken() {
 		return Boolean(this.secrets.accessToken && (!this.secrets.expiresAt || this.secrets.expiresAt > Date.now() + 60000))
 	}
 
-	async saveSettings(settings: Partial<YouTubeSettings>) {
+	async saveSettings(settings: YouTubeSettingsUpdate) {
+		const { clientSecret, ...publicSettings } = settings
 		this.settings = {
 			...this.settings,
-			...settings,
-			scopes: settings.scopes?.length ? settings.scopes : this.settings.scopes,
+			...publicSettings,
+			scopes: publicSettings.scopes?.length ? publicSettings.scopes : this.settings.scopes,
+		}
+		if (typeof clientSecret === "string") {
+			const nextSecret = clientSecret.trim()
+			this.secrets = {
+				...this.secrets,
+				clientSecret: nextSecret || undefined,
+			}
+			await writeSecretYAML(this.secrets, "youtube", "secrets.syaml")
 		}
 		await writeYAML(this.settings, "youtube", "settings.yaml")
-		return this.settings
+		return this.getSettings()
 	}
 
 	async clear() {
@@ -124,6 +145,7 @@ export class YouTubeAuthService {
 
 	async login() {
 		const clientId = this.effectiveClientId
+		const clientSecret = this.effectiveClientSecret
 		if (!clientId) {
 			throw new Error("Configure a Google OAuth desktop client ID before connecting YouTube or build ShowRunner with SHOWRUNNER_YOUTUBE_CLIENT_ID.")
 		}
@@ -161,7 +183,7 @@ export class YouTubeAuthService {
 					window.on("closed", () => reject(new Error("YouTube login window was closed.")))
 				}),
 			])
-			await this.exchangeCode(code, verifier, redirect.redirectUri, clientId)
+			await this.exchangeCode(code, verifier, redirect.redirectUri, clientId, clientSecret)
 			return await this.fetchProfile()
 		} finally {
 			redirect.close()
@@ -222,17 +244,20 @@ export class YouTubeAuthService {
 		})
 	}
 
-	private async exchangeCode(code: string, verifier: string, redirectUri: string, clientId: string) {
+	private async exchangeCode(code: string, verifier: string, redirectUri: string, clientId: string, clientSecret?: string) {
+		const body = new URLSearchParams({
+			client_id: clientId,
+			code,
+			code_verifier: verifier,
+			grant_type: "authorization_code",
+			redirect_uri: redirectUri,
+		})
+		if (clientSecret) body.set("client_secret", clientSecret)
+
 		const response = await fetch(TOKEN_URL, {
 			method: "POST",
 			headers: { "content-type": "application/x-www-form-urlencoded" },
-			body: new URLSearchParams({
-				client_id: clientId,
-				code,
-				code_verifier: verifier,
-				grant_type: "authorization_code",
-				redirect_uri: redirectUri,
-			}),
+			body,
 		})
 		const token = await readJsonResponse<{
 			access_token: string
@@ -243,6 +268,7 @@ export class YouTubeAuthService {
 		}>(response)
 
 		this.secrets = {
+			...this.secrets,
 			accessToken: token.access_token,
 			refreshToken: token.refresh_token || this.secrets.refreshToken,
 			expiresAt: token.expires_in ? Date.now() + token.expires_in * 1000 : undefined,
@@ -254,17 +280,21 @@ export class YouTubeAuthService {
 
 	private async refresh() {
 		const clientId = this.effectiveClientId
+		const clientSecret = this.effectiveClientSecret
 		if (!clientId || !this.secrets.refreshToken) {
 			throw new Error("YouTube refresh token is missing.")
 		}
+		const body = new URLSearchParams({
+			client_id: clientId,
+			refresh_token: this.secrets.refreshToken,
+			grant_type: "refresh_token",
+		})
+		if (clientSecret) body.set("client_secret", clientSecret)
+
 		const response = await fetch(TOKEN_URL, {
 			method: "POST",
 			headers: { "content-type": "application/x-www-form-urlencoded" },
-			body: new URLSearchParams({
-				client_id: clientId,
-				refresh_token: this.secrets.refreshToken,
-				grant_type: "refresh_token",
-			}),
+			body,
 		})
 		const token = await readJsonResponse<{
 			access_token: string

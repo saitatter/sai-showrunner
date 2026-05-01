@@ -28,6 +28,10 @@ export default defineConfig({
 						process.env.SHOWRUNNER_YOUTUBE_CLIENT_ID ?? ""
 					),
 					"process.env.YOUTUBE_CLIENT_ID": JSON.stringify(process.env.YOUTUBE_CLIENT_ID ?? ""),
+					"process.env.SHOWRUNNER_YOUTUBE_CLIENT_SECRET": JSON.stringify(
+						process.env.SHOWRUNNER_YOUTUBE_CLIENT_SECRET ?? ""
+					),
+					"process.env.YOUTUBE_CLIENT_SECRET": JSON.stringify(process.env.YOUTUBE_CLIENT_SECRET ?? ""),
 				},
 				esbuild: {
 					format: "esm",
