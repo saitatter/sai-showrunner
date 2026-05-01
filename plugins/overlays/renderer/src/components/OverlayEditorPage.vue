@@ -49,6 +49,13 @@
 				<div>
 					<overlay-add-to-obs-button :obsId="view.obsId" :overlay-config="model" :overlay-id="overlayId" />
 				</div>
+				<div class="overlay-url">
+					<label>Browser Source URL</label>
+					<input :value="overlayUrl" readonly @focus="$event.target.select()" />
+				</div>
+				<div>
+					<p-button icon="mdi mdi-content-copy" @click="copyOverlayUrl" v-tooltip="'Copy Browser Source URL'"></p-button>
+				</div>
 				<div ref="previewMenuContainer">
 					<p-button icon="mdi mdi-image-edit" @click="previewMenuToggle" />
 				</div>
@@ -146,6 +153,10 @@ function openOverlayDebug() {
 	window.open(overlayUrl.value, "_blank")
 }
 
+async function copyOverlayUrl() {
+	await navigator.clipboard.writeText(overlayUrl.value)
+}
+
 onMounted(() => {
 	if (defaultObsSetting.value != null) {
 		view.value.obsId = defaultObsSetting.value
@@ -205,6 +216,28 @@ onMounted(() => {
 	background-color: var(--surface-b);
 	user-select: none;
 	width: 350px;
+}
+
+.overlay-url {
+	display: grid;
+	gap: 0.2rem;
+	min-width: 18rem;
+}
+
+.overlay-url label {
+	color: var(--text-color-secondary);
+	font-size: 0.72rem;
+	line-height: 1;
+}
+
+.overlay-url input {
+	background: var(--surface-950);
+	border: 1px solid var(--surface-700);
+	border-radius: 4px;
+	color: var(--text-color);
+	font-size: 0.85rem;
+	min-width: 0;
+	padding: 0.45rem 0.55rem;
 }
 
 .number-fix :deep(.p-inputtext) {
