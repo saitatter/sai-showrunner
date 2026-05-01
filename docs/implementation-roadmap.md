@@ -17,7 +17,7 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 3. Done: Add fit-to-content and reset-view buttons.
 4. Done: Add search/filter for the node action palette.
 5. Done: Allow dropping a new action directly onto the canvas.
-6. In progress: Allow inserting an action between two connected nodes.
+6. Done: Allow inserting an action between two connected nodes.
 7. Done: Show explicit connection handles on action nodes.
 8. Done: Add keyboard shortcuts for delete, duplicate, and fit view.
 9. Add undo-friendly mutations for node editor operations.
@@ -36,7 +36,7 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 16. Done: Add a YouTube connection checklist with clearer OAuth state.
 17. Done: Add YouTube live chat auto-start option after successful login.
 18. Done: Add YouTube quota/error hints in the integration page.
-19. Add Twitch account status card under Integrations.
+19. Done: Add Twitch account status card under Integrations.
 20. Done: Add Moderation Docker connection presets for local and Docker host networking.
 21. Done: Add Moderation Docker latest decision feed in the integration page.
 
@@ -44,7 +44,7 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 
 22. Add overlay browser source copy/open controls to the overlay list.
 23. Done: Add preview frame sizing presets for common OBS canvases.
-24. Add quick label templates for YouTube/Twitch state.
+24. Done: Add quick label templates for YouTube/Twitch state.
 25. Add a visible save/live preview status indicator.
 26. Add shader-capable scene overlay planning in docs before implementation.
 
@@ -53,8 +53,8 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 27. Make the Integrations group the obvious home for Twitch, YouTube, OBS, and Moderation.
 28. Reduce duplicated top-level entries where integration settings are hidden.
 29. Replace ambiguous icon-only buttons with tooltips where missing.
-30. Document the new first-run setup path and local test commands.
+30. Done: Document the new first-run setup path and local test commands.
 
 ## Current Batch
 
-Continue with node insertion between existing edges, undo-friendly mutations, Twitch account status, overlay templates, and first-run docs.
+Continue with undo-friendly node mutations, automation playhead preview, time/flow lanes, overlay save/live preview status, and scene shader planning.
