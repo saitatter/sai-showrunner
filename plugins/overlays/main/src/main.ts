@@ -7,6 +7,7 @@ import { OverlayTextStyle } from "castmate-plugin-overlays-shared"
 import { setupEmoteBouncer } from "./emote-bouncer"
 import { setupAlerts } from "./alerts"
 import { setupChatFeed } from "./chat-feed"
+import { setupPaidAlert } from "./paid-alert"
 
 export default definePlugin(
 	{
@@ -25,6 +26,7 @@ export default definePlugin(
 		setupWebsockets()
 		setupEmoteBouncer()
 		setupChatFeed()
+		setupPaidAlert()
 	}
 )
 
