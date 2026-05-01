@@ -151,6 +151,7 @@
 							<div class="node-automation__action-picker">
 								<label>
 									<span>Add Action</span>
+									<input v-model="actionPaletteQuery" type="search" placeholder="Search plugin or action..." />
 									<select v-model="selectedActionToAdd">
 										<option value="">Choose an action...</option>
 										<optgroup v-for="plugin in actionPalette" :key="plugin.id" :label="plugin.name">
@@ -263,6 +264,7 @@ const view = useModel(props, "view")
 const mode = ref<"nodes" | "timeline">("nodes")
 const selectedNodeId = ref<string>()
 const selectedActionToAdd = ref("")
+const actionPaletteQuery = ref("")
 const canvasRef = ref<HTMLElement>()
 const zoom = ref(1)
 const pan = ref({ x: 0, y: 0 })
@@ -344,12 +346,15 @@ const actionPalette = computed(() =>
 				.map((action) => ({
 					key: `${plugin.id}:${action.id}`,
 					name: action.name,
+					searchText: `${plugin.name} ${plugin.id} ${action.name} ${action.id}`.toLowerCase(),
 				}))
+				.filter((action) => action.searchText.includes(actionPaletteSearch.value))
 				.sort((a, b) => a.name.localeCompare(b.name)),
 		}))
-		.filter((plugin) => plugin.actions.length)
+		.filter((plugin) => plugin.actions.length || plugin.name.toLowerCase().includes(actionPaletteSearch.value))
 		.sort((a, b) => a.name.localeCompare(b.name))
 )
+const actionPaletteSearch = computed(() => actionPaletteQuery.value.trim().toLowerCase())
 const viewBox = computed(() => {
 	return `0 0 ${canvasSize.value.width} ${canvasSize.value.height}`
 })
@@ -1025,6 +1030,7 @@ function getPathPosition(path: string):
 	font-size: 0.78rem;
 }
 
+.node-automation__action-picker input,
 .node-automation__action-picker select {
 	background: #0e0e0e;
 	border: 1px solid #4d4d4d;
