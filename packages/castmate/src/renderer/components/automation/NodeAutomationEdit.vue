@@ -18,37 +18,59 @@
 		</header>
 
 		<div v-if="mode === 'nodes'" class="node-automation__body">
-			<section class="node-automation__canvas" @pointerdown.self="selectedNodeId = undefined">
-				<svg class="node-automation__edges" :viewBox="viewBox">
-					<path
-						v-for="edge in edges"
-						:key="edge.id"
-						class="node-automation__edge"
-						:d="edge.path"
-						vector-effect="non-scaling-stroke"
-					/>
-				</svg>
+			<section ref="canvasRef" class="node-automation__canvas" @pointerdown.self="selectedNodeId = undefined">
+				<div class="node-automation__canvas-controls">
+					<button type="button" aria-label="Zoom out" @click="setZoom(zoom - ZOOM_STEP)">
+						<i class="mdi mdi-magnify-minus-outline" />
+					</button>
+					<span>{{ Math.round(zoom * 100) }}%</span>
+					<button type="button" aria-label="Zoom in" @click="setZoom(zoom + ZOOM_STEP)">
+						<i class="mdi mdi-magnify-plus-outline" />
+					</button>
+					<button type="button" aria-label="Fit graph" @click="fitGraph">
+						<i class="mdi mdi-fit-to-screen-outline" />
+					</button>
+				</div>
 
-				<button
-					v-for="node in nodes"
-					:key="node.id"
-					class="node-automation__node"
-					:class="[`node-automation__node--${node.kind}`, { selected: selectedNodeId === node.id }]"
-					:style="{ transform: `translate(${node.x}px, ${node.y}px)` }"
-					type="button"
-					@pointerdown.stop="startDrag($event, node)"
-					@click.stop="selectedNodeId = node.id"
-					@contextmenu.prevent.stop="openNodeContext(node)"
+				<div
+					class="node-automation__surface"
+					:style="{
+						width: `${canvasSize.width}px`,
+						height: `${canvasSize.height}px`,
+						transform: `scale(${zoom})`,
+					}"
 				>
-					<span class="node-automation__node-icon">
-						<i :class="node.icon" />
-					</span>
-					<span class="node-automation__node-text">
-						<strong>{{ node.title }}</strong>
-						<small>{{ node.subtitle }}</small>
-					</span>
-					<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
-				</button>
+					<svg class="node-automation__edges" :viewBox="viewBox">
+						<path
+							v-for="edge in edges"
+							:key="edge.id"
+							class="node-automation__edge"
+							:d="edge.path"
+							vector-effect="non-scaling-stroke"
+						/>
+					</svg>
+
+					<button
+						v-for="node in nodes"
+						:key="node.id"
+						class="node-automation__node"
+						:class="[`node-automation__node--${node.kind}`, { selected: selectedNodeId === node.id }]"
+						:style="{ transform: `translate(${node.x}px, ${node.y}px)` }"
+						type="button"
+						@pointerdown.stop="startDrag($event, node)"
+						@click.stop="selectedNodeId = node.id"
+						@contextmenu.prevent.stop="openNodeContext(node)"
+					>
+						<span class="node-automation__node-icon">
+							<i :class="node.icon" />
+						</span>
+						<span class="node-automation__node-text">
+							<strong>{{ node.title }}</strong>
+							<small>{{ node.subtitle }}</small>
+						</span>
+						<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
+					</button>
+				</div>
 			</section>
 
 			<aside class="node-automation__details" :class="{ empty: !selectedNode }">
@@ -232,6 +254,8 @@ const view = useModel(props, "view")
 const mode = ref<"nodes" | "timeline">("nodes")
 const selectedNodeId = ref<string>()
 const selectedActionToAdd = ref("")
+const canvasRef = ref<HTMLElement>()
+const zoom = ref(1)
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
@@ -241,6 +265,9 @@ const NODE_WIDTH = 220
 const NODE_HEIGHT = 74
 const H_GAP = 285
 const V_GAP = 128
+const MIN_ZOOM = 0.35
+const MAX_ZOOM = 1.5
+const ZOOM_STEP = 0.1
 
 const nodePositions = computed(() => {
 	view.value.nodePositions ??= {}
@@ -313,9 +340,18 @@ const actionPalette = computed(() =>
 		.sort((a, b) => a.name.localeCompare(b.name))
 )
 const viewBox = computed(() => {
-	const maxX = Math.max(1280, ...nodes.value.map((node) => node.x + NODE_WIDTH + 160))
-	const maxY = Math.max(720, ...nodes.value.map((node) => node.y + NODE_HEIGHT + 160))
-	return `0 0 ${maxX} ${maxY}`
+	return `0 0 ${canvasSize.value.width} ${canvasSize.value.height}`
+})
+const canvasSize = computed(() => ({
+	width: Math.max(1280, ...nodes.value.map((node) => node.x + NODE_WIDTH + 160)),
+	height: Math.max(720, ...nodes.value.map((node) => node.y + NODE_HEIGHT + 160)),
+}))
+const graphBounds = computed(() => {
+	const minX = Math.min(42, ...nodes.value.map((node) => node.x))
+	const minY = Math.min(88, ...nodes.value.map((node) => node.y))
+	const maxX = Math.max(...nodes.value.map((node) => node.x + NODE_WIDTH))
+	const maxY = Math.max(...nodes.value.map((node) => node.y + NODE_HEIGHT))
+	return { minX, minY, width: maxX - minX, height: maxY - minY }
 })
 
 function buildGraph(automation: AutomationConfig) {
@@ -461,8 +497,8 @@ function startDrag(event: PointerEvent, node: NodeData) {
 
 	function onMove(moveEvent: PointerEvent) {
 		nodePositions.value[node.id] = {
-			x: Math.max(12, initial.x + moveEvent.clientX - startX),
-			y: Math.max(12, initial.y + moveEvent.clientY - startY),
+			x: Math.max(12, initial.x + (moveEvent.clientX - startX) / zoom.value),
+			y: Math.max(12, initial.y + (moveEvent.clientY - startY) / zoom.value),
 		}
 	}
 
@@ -488,6 +524,26 @@ function openNodeContext(node: NodeData) {
 function resetSelectedNodePosition() {
 	if (!selectedNodeId.value) return
 	delete nodePositions.value[selectedNodeId.value]
+}
+
+function setZoom(nextZoom: number) {
+	zoom.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(nextZoom.toFixed(2))))
+}
+
+function fitGraph() {
+	const canvas = canvasRef.value
+	if (!canvas) return
+	const availableWidth = Math.max(1, canvas.clientWidth - 56)
+	const availableHeight = Math.max(1, canvas.clientHeight - 56)
+	const bounds = graphBounds.value
+	const widthScale = availableWidth / Math.max(1, bounds.width)
+	const heightScale = availableHeight / Math.max(1, bounds.height)
+	setZoom(Math.min(widthScale, heightScale, 1))
+	canvas.scrollTo({
+		left: Math.max(0, bounds.minX * zoom.value - 28),
+		top: Math.max(0, bounds.minY * zoom.value - 28),
+		behavior: "smooth",
+	})
 }
 
 function parseActionSelection(value: string): ActionSelection | undefined {
@@ -675,6 +731,46 @@ function getPathPosition(path: string):
 	margin: 0.75rem;
 	overflow: auto;
 	position: relative;
+}
+
+.node-automation__canvas-controls {
+	align-items: center;
+	background: rgb(15 15 15 / 0.88);
+	border: 1px solid #454545;
+	border-radius: 6px;
+	display: flex;
+	gap: 0.35rem;
+	left: 0.75rem;
+	padding: 0.35rem;
+	position: sticky;
+	top: 0.75rem;
+	width: max-content;
+	z-index: 4;
+}
+
+.node-automation__canvas-controls button {
+	align-items: center;
+	background: #2b173d;
+	border: 1px solid #7041a6;
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	display: flex;
+	height: 2rem;
+	justify-content: center;
+	width: 2rem;
+}
+
+.node-automation__canvas-controls span {
+	color: #e9e9e9;
+	font-size: 0.8rem;
+	min-width: 3rem;
+	text-align: center;
+}
+
+.node-automation__surface {
+	position: relative;
+	transform-origin: 0 0;
 }
 
 .node-automation__edges {
