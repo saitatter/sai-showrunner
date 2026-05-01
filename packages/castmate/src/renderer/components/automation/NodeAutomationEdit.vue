@@ -28,11 +28,11 @@
 				@wheel.ctrl.prevent="zoomFromWheel"
 			>
 				<div class="node-automation__canvas-controls">
-					<button type="button" aria-label="Zoom out" @click="setZoom(zoom - ZOOM_STEP)">
+					<button type="button" aria-label="Zoom out" @click="setZoom(zoom - ZOOM_STEP, true)">
 						<i class="mdi mdi-magnify-minus-outline" />
 					</button>
 					<span>{{ Math.round(zoom * 100) }}%</span>
-					<button type="button" aria-label="Zoom in" @click="setZoom(zoom + ZOOM_STEP)">
+					<button type="button" aria-label="Zoom in" @click="setZoom(zoom + ZOOM_STEP, true)">
 						<i class="mdi mdi-magnify-plus-outline" />
 					</button>
 					<button type="button" aria-label="Fit graph" @click="fitGraph">
@@ -45,7 +45,7 @@
 						type="button"
 						:class="{ active: snapToGrid }"
 						aria-label="Toggle snap to grid"
-						@click="snapToGrid = !snapToGrid"
+						@click="toggleSnapToGrid"
 					>
 						<i class="mdi mdi-grid" />
 					</button>
@@ -277,6 +277,7 @@ import {
 	AutomationResourceView,
 	AutomationEdit,
 	DataBindingPath,
+	useCommitUndo,
 	usePluginStore,
 } from "castmate-ui-core"
 import ActionConfigEdit from "../../../../../../libs/castmate-ui-core/src/components/automation/ActionConfigEdit.vue"
@@ -345,6 +346,7 @@ const actionsOpen = ref(false)
 const activityOpen = ref(true)
 const activityLog = ref<Array<{ id: number; title: string; detail: string }>>([])
 const pluginStore = usePluginStore()
+const commitUndo = useCommitUndo()
 
 const NODE_WIDTH = 220
 const NODE_HEIGHT = 74
@@ -611,10 +613,14 @@ function startDrag(event: PointerEvent, node: NodeData) {
 	}
 
 	function onUp(upEvent: PointerEvent) {
+		const moved = nodePositions.value[node.id]
 		target.releasePointerCapture(upEvent.pointerId)
 		target.removeEventListener("pointermove", onMove)
 		target.removeEventListener("pointerup", onUp)
 		target.removeEventListener("pointercancel", onUp)
+		if (moved && (moved.x !== initial.x || moved.y !== initial.y)) {
+			commitUndo()
+		}
 	}
 
 	target.addEventListener("pointermove", onMove)
@@ -631,11 +637,20 @@ function openNodeContext(node: NodeData) {
 
 function resetSelectedNodePosition() {
 	if (!selectedNodeId.value) return
+	if (!nodePositions.value[selectedNodeId.value]) return
 	delete nodePositions.value[selectedNodeId.value]
+	commitUndo()
 }
 
-function setZoom(nextZoom: number) {
+function setZoom(nextZoom: number, commitChange = false) {
+	const previous = zoom.value
 	zoom.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(nextZoom.toFixed(2))))
+	if (commitChange && previous !== zoom.value) commitUndo()
+}
+
+function toggleSnapToGrid() {
+	snapToGrid.value = !snapToGrid.value
+	commitUndo()
 }
 
 function snapCoordinate(value: number) {
@@ -662,12 +677,14 @@ function fitGraph() {
 		top: Math.max(0, bounds.minY * zoom.value - 28),
 		behavior: "smooth",
 	})
+	commitUndo()
 }
 
 function resetView() {
 	zoom.value = 1
 	pan.value = { x: 0, y: 0 }
 	canvasRef.value?.scrollTo({ left: 0, top: 0, behavior: "smooth" })
+	commitUndo()
 }
 
 function handleCanvasPointerDown(event: PointerEvent) {
@@ -704,11 +721,13 @@ function startPan(event: PointerEvent) {
 	}
 
 	function onUp(upEvent: PointerEvent) {
+		const moved = initialPan.x !== pan.value.x || initialPan.y !== pan.value.y
 		isPanning.value = false
 		canvas.releasePointerCapture(upEvent.pointerId)
 		canvas.removeEventListener("pointermove", onMove)
 		canvas.removeEventListener("pointerup", onUp)
 		canvas.removeEventListener("pointercancel", onUp)
+		if (moved) commitUndo()
 	}
 
 	canvas.addEventListener("pointermove", onMove)
@@ -755,6 +774,7 @@ async function addActionFromPalette() {
 
 	selectedNodeId.value = action.id
 	configOpen.value = true
+	commitUndo()
 }
 
 function startActionPaletteDrag(event: DragEvent, actionKey: string) {
@@ -773,6 +793,7 @@ async function dropActionOnCanvas(event: DragEvent) {
 	selectedNodeId.value = action.id
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
+	commitUndo()
 }
 
 async function dropActionOnNode(event: DragEvent, node: NodeData) {
@@ -788,6 +809,7 @@ async function dropActionOnNode(event: DragEvent, node: NodeData) {
 	selectedNodeId.value = action.id
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
+	commitUndo()
 }
 
 async function dropActionOnEdge(event: DragEvent, edge: EdgeData) {
@@ -810,6 +832,7 @@ async function dropActionOnEdge(event: DragEvent, edge: EdgeData) {
 	selectedNodeId.value = action.id
 	configOpen.value = true
 	dropTargetEdgeId.value = undefined
+	commitUndo()
 }
 
 function clearDropTarget(nodeId: string) {
@@ -850,6 +873,7 @@ function duplicateSelectedAction() {
 	logActivity("Duplicated node", selectedNode.value?.title || actionInfo.action.id)
 	selectedNodeId.value = clonedAction.id
 	configOpen.value = true
+	commitUndo()
 }
 
 function deleteSelectedAction() {
@@ -861,6 +885,7 @@ function deleteSelectedAction() {
 		logActivity("Deleted node", selectedNode.value?.title || removed[0].id)
 	}
 	selectedNodeId.value = undefined
+	if (removed.length) commitUndo()
 }
 
 function canMoveSelectedAction(direction: -1 | 1) {
@@ -876,6 +901,7 @@ function moveSelectedAction(direction: -1 | 1) {
 	const [action] = position.items.splice(position.index, 1)
 	position.items.splice(position.index + direction, 0, action)
 	logActivity(direction < 0 ? "Moved node left" : "Moved node right", selectedNode.value?.title || action.id)
+	commitUndo()
 }
 
 function getNodePosition(nodeId: string) {
