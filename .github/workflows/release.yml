@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.semantic-release.outputs.new_release_published || 'false' }}
+      version: ${{ steps.semantic-release.outputs.new_release_version }}
+      tag: ${{ steps.semantic-release.outputs.new_release_git_tag }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Semantic release
+        id: semantic-release
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          semantic_version: 24
+          extra_plugins: |
+            @semantic-release/commit-analyzer
+            @semantic-release/release-notes-generator
+            @semantic-release/github
+            conventional-changelog-conventionalcommits
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+
+  package-windows:
+    runs-on: windows-latest
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+
+      - name: Install distutils compatibility
+        run: pip install setuptools
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Setup Vite extensions
+        run: yarn setup-vite
+
+      - name: Rebuild native dependencies
+        run: yarn workspace castmate-core run rebuild
+
+      - name: Build renderer and packages
+        run: node ./vite-util/multi-vite.mjs build
+        env:
+          VITE_APP_MIXPANEL_PROJECT_TOKEN: ${{ secrets.MIXPANEL_PROJECT_TOKEN }}
+          SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
+          SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
+
+      - name: Package Windows app
+        run: yarn workspace castmate run electron:build -- --config.extraMetadata.version=${{ needs.release.outputs.version }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload Windows artifacts
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path release -File |
+            Where-Object {
+              $_.Name -eq "latest.yml" -or
+              $_.Name -like "*.exe" -or
+              $_.Name -like "*.exe.blockmap" -or
+              $_.Name -like "*.zip"
+            } |
+            ForEach-Object { $_.FullName }
+          if (-not $files) {
+            throw "No Windows package artifacts found in release/."
+          }
+          gh release upload "${{ needs.release.outputs.tag }}" $files --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
