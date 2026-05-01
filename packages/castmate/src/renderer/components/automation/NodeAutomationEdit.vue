@@ -18,7 +18,13 @@
 		</header>
 
 		<div v-if="mode === 'nodes'" class="node-automation__body">
-			<section ref="canvasRef" class="node-automation__canvas" @pointerdown.self="selectedNodeId = undefined">
+			<section
+				ref="canvasRef"
+				class="node-automation__canvas"
+				:class="{ panning: isPanning }"
+				@pointerdown="handleCanvasPointerDown"
+				@wheel.ctrl.prevent="zoomFromWheel"
+			>
 				<div class="node-automation__canvas-controls">
 					<button type="button" aria-label="Zoom out" @click="setZoom(zoom - ZOOM_STEP)">
 						<i class="mdi mdi-magnify-minus-outline" />
@@ -30,6 +36,9 @@
 					<button type="button" aria-label="Fit graph" @click="fitGraph">
 						<i class="mdi mdi-fit-to-screen-outline" />
 					</button>
+					<button type="button" aria-label="Reset view" @click="resetView">
+						<i class="mdi mdi-backup-restore" />
+					</button>
 				</div>
 
 				<div
@@ -37,7 +46,7 @@
 					:style="{
 						width: `${canvasSize.width}px`,
 						height: `${canvasSize.height}px`,
-						transform: `scale(${zoom})`,
+						transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
 					}"
 				>
 					<svg class="node-automation__edges" :viewBox="viewBox">
@@ -256,6 +265,8 @@ const selectedNodeId = ref<string>()
 const selectedActionToAdd = ref("")
 const canvasRef = ref<HTMLElement>()
 const zoom = ref(1)
+const pan = ref({ x: 0, y: 0 })
+const isPanning = ref(false)
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
@@ -530,6 +541,10 @@ function setZoom(nextZoom: number) {
 	zoom.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(nextZoom.toFixed(2))))
 }
 
+function zoomFromWheel(event: WheelEvent) {
+	setZoom(zoom.value + (event.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP))
+}
+
 function fitGraph() {
 	const canvas = canvasRef.value
 	if (!canvas) return
@@ -539,11 +554,64 @@ function fitGraph() {
 	const widthScale = availableWidth / Math.max(1, bounds.width)
 	const heightScale = availableHeight / Math.max(1, bounds.height)
 	setZoom(Math.min(widthScale, heightScale, 1))
+	pan.value = { x: 0, y: 0 }
 	canvas.scrollTo({
 		left: Math.max(0, bounds.minX * zoom.value - 28),
 		top: Math.max(0, bounds.minY * zoom.value - 28),
 		behavior: "smooth",
 	})
+}
+
+function resetView() {
+	zoom.value = 1
+	pan.value = { x: 0, y: 0 }
+	canvasRef.value?.scrollTo({ left: 0, top: 0, behavior: "smooth" })
+}
+
+function handleCanvasPointerDown(event: PointerEvent) {
+	const target = event.target as HTMLElement
+	if (target.closest(".node-automation__canvas-controls")) return
+
+	const isCanvasTarget =
+		target.classList.contains("node-automation__canvas") ||
+		target.classList.contains("node-automation__surface") ||
+		target.classList.contains("node-automation__edges")
+
+	if (isCanvasTarget) selectedNodeId.value = undefined
+	if (event.button === 1 && isCanvasTarget) {
+		event.preventDefault()
+		startPan(event)
+	}
+}
+
+function startPan(event: PointerEvent) {
+	const canvas = canvasRef.value
+	if (!canvas) return
+
+	isPanning.value = true
+	const startX = event.clientX
+	const startY = event.clientY
+	const initialPan = { ...pan.value }
+	canvas.setPointerCapture(event.pointerId)
+
+	function onMove(moveEvent: PointerEvent) {
+		pan.value = {
+			x: initialPan.x + moveEvent.clientX - startX,
+			y: initialPan.y + moveEvent.clientY - startY,
+		}
+	}
+
+	function onUp(upEvent: PointerEvent) {
+		isPanning.value = false
+		canvas.releasePointerCapture(upEvent.pointerId)
+		canvas.removeEventListener("pointermove", onMove)
+		canvas.removeEventListener("pointerup", onUp)
+		canvas.removeEventListener("pointercancel", onUp)
+	}
+
+	canvas.addEventListener("pointermove", onMove)
+	canvas.addEventListener("pointerup", onUp)
+	canvas.addEventListener("pointercancel", onUp)
 }
 
 function parseActionSelection(value: string): ActionSelection | undefined {
@@ -731,6 +799,10 @@ function getPathPosition(path: string):
 	margin: 0.75rem;
 	overflow: auto;
 	position: relative;
+}
+
+.node-automation__canvas.panning {
+	cursor: grabbing;
 }
 
 .node-automation__canvas-controls {
