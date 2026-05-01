@@ -56,6 +56,8 @@ export { default as CAngleInput } from "./components/data/base-components/numeri
 export { default as CBooleanExpression } from "./components/data/base-components/CBooleanExpression.vue"
 
 export { default as AutomationEdit } from "./components/automation/AutomationEdit.vue"
+export { default as ActionConfigEdit } from "./components/automation/ActionConfigEdit.vue"
+export { default as TriggerConfigEdit } from "./components/automation/TriggerConfigEdit.vue"
 export { default as InlineAutomationEdit } from "./components/automation/InlineAutomation.vue"
 export { default as SequenceMiniPreview } from "./components/automation/mini/SequenceMiniPreview.vue"
 

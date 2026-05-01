@@ -333,6 +333,7 @@ export function setupChat() {
 			logger.log("ChatMsg", message)
 			const badges = getTwitchBadges(msgInfo)
 			const context = {
+				// Keep `viewer` for legacy Twitch triggers while newer cross-platform automations use `viewerId`.
 				viewer: msgInfo.userInfo.userId,
 				viewerId: msgInfo.userInfo.userId,
 				viewerName: msgInfo.userInfo.displayName || user,

@@ -1,5 +1,5 @@
 import { defineStore } from "pinia"
-import { shallowRef, ComputedRef, computed, ref, App, VueElementConstructor, Component, toValue, Ref } from "vue"
+import { shallowRef, ComputedRef, computed, ref, App, VueElementConstructor, Component, Ref } from "vue"
 import { NamedData, useDockingStore, useResourceCreateDialog, useResourceData, useResourceStore } from "../main"
 import NameDialogVue from "../components/dialogs/NameDialog.vue"
 import { ResourceData } from "castmate-schema"
@@ -31,7 +31,6 @@ export const useProjectStore = defineStore("project", () => {
 	const sharedGroups = new Map<string, { group: Omit<ProjectGroup, "items">; items: Ref<ComputedRef<ProjectGroupItem>[]> }>()
 
 	function registerProjectGroupItem(item: ComputedRef<ProjectGroupItem>) {
-		console.log("Register Item", toValue(item))
 		projectItems.value.push(item)
 	}
 

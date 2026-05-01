@@ -20,9 +20,8 @@ const DEFAULT_SCOPES = [
 
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 const TOKEN_URL = "https://oauth2.googleapis.com/token"
-const BUNDLED_CLIENT_ID = process.env.SHOWRUNNER_YOUTUBE_CLIENT_ID?.trim() || process.env.YOUTUBE_CLIENT_ID?.trim() || ""
-const BUNDLED_CLIENT_SECRET =
-	process.env.SHOWRUNNER_YOUTUBE_CLIENT_SECRET?.trim() || process.env.YOUTUBE_CLIENT_SECRET?.trim() || ""
+const BUNDLED_CLIENT_ID = process.env.SHOWRUNNER_YOUTUBE_CLIENT_ID?.trim() || ""
+const BUNDLED_CLIENT_SECRET = process.env.SHOWRUNNER_YOUTUBE_CLIENT_SECRET?.trim() || ""
 
 export interface YouTubeSettingsUpdate extends Partial<YouTubeSettings> {
 	clientSecret?: string

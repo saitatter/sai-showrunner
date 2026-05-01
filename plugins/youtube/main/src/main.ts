@@ -1,23 +1,17 @@
-import { definePlugin, defineRendererCallable, defineState, defineTransformTrigger, defineTrigger, onLoad, usePluginLogger } from "castmate-core"
+import {
+	definePlugin,
+	defineRendererCallable,
+	defineState,
+	defineTransformTrigger,
+	defineTrigger,
+	onLoad,
+	showrunnerChatModerationEvents,
+	usePluginLogger,
+} from "castmate-core"
 import { Command, getCommandDataSchema, matchAndParseCommand } from "castmate-schema"
 import { YouTubeBroadcastState, YouTubeChatMessage, YouTubeConnectionState } from "castmate-plugin-youtube-shared"
 import { YouTubeAuthService } from "./youtube-auth"
 import { YouTubeLiveChatService } from "./youtube-live-chat"
-
-interface ModerationForwarder {
-	forwardChatMessage(event: {
-		id: string
-		platform: string
-		source: string
-		receivedAt: string
-		actor: YouTubeChatMessage["actor"] & { badges?: string[] }
-		payload: YouTubeChatMessage["payload"]
-	}): Promise<void>
-}
-
-declare global {
-	var __showrunnerModeration: ModerationForwarder | undefined
-}
 
 const disconnectedState: YouTubeConnectionState = {
 	status: "disconnected",
@@ -457,11 +451,8 @@ export default definePlugin(
 		})
 
 		async function forwardToModeration(event: YouTubeChatMessage) {
-			const moderation = globalThis.__showrunnerModeration
-			if (!moderation) return
-
 			try {
-				await moderation.forwardChatMessage({
+				await showrunnerChatModerationEvents.run({
 					id: event.id,
 					platform: event.platform,
 					source: "youtube",

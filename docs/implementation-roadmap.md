@@ -75,3 +75,4 @@ Next batch:
 2. Add overlay runtime websocket presence to the widget list, not only the editor header.
 3. Add shader preset save/load once the local editor UX is stable.
 4. Add moderation queue filters/search and richer override audit details.
+5. Split `NodeAutomationEdit.vue` into focused composables for canvas interactions, node dragging, context menus, and preview timing.

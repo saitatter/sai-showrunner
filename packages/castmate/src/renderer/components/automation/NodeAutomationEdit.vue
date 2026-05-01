@@ -392,12 +392,12 @@ import {
 	AutomationConfig,
 	AutomationResourceView,
 	AutomationEdit,
+	ActionConfigEdit,
 	DataBindingPath,
+	TriggerConfigEdit,
 	useCommitUndo,
 	usePluginStore,
 } from "castmate-ui-core"
-import ActionConfigEdit from "../../../../../../libs/castmate-ui-core/src/components/automation/ActionConfigEdit.vue"
-import TriggerConfigEdit from "../../../../../../libs/castmate-ui-core/src/components/automation/TriggerConfigEdit.vue"
 import {
 	ActionStack,
 	AnyAction,

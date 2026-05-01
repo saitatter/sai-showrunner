@@ -66,12 +66,6 @@ Recommended local setup order:
 5. Add a `Chat Feed` widget or `Shader Layer` widget in Overlay Studio when needed.
 6. Create an automation and use `Nodes` mode for the graph workflow or `Timeline` for the upstream detailed editor.
 
-For a clean local YouTube test session:
-
-```powershell
-corepack yarn dev:clean:youtube -- -YouTubeClientId "your-client-id.apps.googleusercontent.com" -YouTubeClientSecret "your-client-secret"
-```
-
 Release builds can bundle YouTube credentials with:
 
 - repository variable: `SHOWRUNNER_YOUTUBE_CLIENT_ID`
