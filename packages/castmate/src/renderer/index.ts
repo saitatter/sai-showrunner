@@ -49,7 +49,6 @@ import { initPlugin as initDiscordPlugin } from "castmate-plugin-discord-rendere
 import { initPlugin as initInputPlugin } from "castmate-plugin-input-renderer"
 import { initPlugin as initTimePlugin } from "castmate-plugin-time-renderer"
 import { initPlugin as initMinecraftPlugin } from "castmate-plugin-minecraft-renderer"
-import { initPlugin as initModerationPlugin } from "castmate-plugin-moderation-renderer"
 import { initPlugin as initIoTPlugin } from "castmate-plugin-iot-renderer"
 import { initPlugin as initTwinklyPlugin } from "castmate-plugin-twinkly-renderer"
 import { initPlugin as initHuePlugin } from "castmate-plugin-philips-hue-renderer"
@@ -71,6 +70,7 @@ import { initPlugin as initBlueSkyPlugin } from "castmate-plugin-bluesky-rendere
 
 import { initPlugin as initAdvssPlugin } from "castmate-plugin-advss-renderer"
 import { initPlugin as initAitumPlugin } from "castmate-plugin-aitum-renderer"
+import { initPlugin as initModerationPlugin } from "../../../../plugins/moderation/renderer/src/main"
 
 import { loadOverlayWidgets } from "castmate-overlay-widget-loader"
 import { loadDashboardWidgets } from "castmate-dashboard-widget-loader"

@@ -4086,7 +4086,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"castmate-plugin-moderation-main@workspace:^, castmate-plugin-moderation-main@workspace:plugins/moderation/main":
+"castmate-plugin-moderation-main@workspace:plugins/moderation/main":
   version: 0.0.0-use.local
   resolution: "castmate-plugin-moderation-main@workspace:plugins/moderation/main"
   dependencies:
@@ -4098,7 +4098,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"castmate-plugin-moderation-renderer@workspace:^, castmate-plugin-moderation-renderer@workspace:plugins/moderation/renderer":
+"castmate-plugin-moderation-renderer@workspace:plugins/moderation/renderer":
   version: 0.0.0-use.local
   resolution: "castmate-plugin-moderation-renderer@workspace:plugins/moderation/renderer"
   dependencies:
@@ -5205,8 +5205,6 @@ __metadata:
     castmate-plugin-lifx-renderer: "workspace:^"
     castmate-plugin-minecraft-main: "workspace:^"
     castmate-plugin-minecraft-renderer: "workspace:^"
-    castmate-plugin-moderation-main: "workspace:^"
-    castmate-plugin-moderation-renderer: "workspace:^"
     castmate-plugin-obs-main: "workspace:^"
     castmate-plugin-obs-renderer: "workspace:^"
     castmate-plugin-os-main: "workspace:^"
