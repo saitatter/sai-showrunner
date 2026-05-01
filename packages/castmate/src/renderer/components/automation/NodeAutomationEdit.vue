@@ -26,6 +26,7 @@
 				@dragover.prevent
 				@drop.prevent="dropActionOnCanvas"
 				@wheel.ctrl.prevent="zoomFromWheel"
+				@contextmenu.prevent="openCanvasContextMenu"
 			>
 				<div class="node-automation__canvas-controls">
 					<button type="button" aria-label="Zoom out" @click="setZoom(zoom - ZOOM_STEP, true)" v-tooltip="'Zoom out'">
@@ -124,7 +125,7 @@
 						type="button"
 						@pointerdown.stop="startDrag($event, node)"
 						@click.stop="selectedNodeId = node.id"
-						@contextmenu.prevent.stop="openNodeContext(node)"
+						@contextmenu.prevent.stop="openNodeContext($event, node)"
 						@dragover.prevent.stop="dropTargetNodeId = node.id"
 						@dragleave.stop="clearDropTarget(node.id)"
 						@drop.prevent.stop="dropActionOnNode($event, node)"
@@ -144,6 +145,82 @@
 							title="Drop an action here to insert after this node"
 						/>
 					</button>
+				</div>
+
+				<div
+					v-if="contextMenu.open"
+					class="node-automation__context-menu"
+					:style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+					@click.stop
+					@contextmenu.prevent.stop
+				>
+					<header class="node-automation__context-menu-header">
+						<div>
+							<strong>{{ contextMenu.nodeId ? "Node Menu" : "Canvas Menu" }}</strong>
+							<span>{{ contextMenuSubtitle }}</span>
+						</div>
+						<button type="button" aria-label="Close menu" @click="closeContextMenu">
+							<i class="mdi mdi-close" />
+						</button>
+					</header>
+					<label class="node-automation__context-menu-search">
+						<i class="mdi mdi-magnify" />
+						<input v-model="contextMenuQuery" type="search" placeholder="Search triggers or actions..." />
+					</label>
+					<section class="node-automation__menu-section">
+						<button type="button" class="node-automation__menu-section-header" @click="toggleContextGroup('triggers')">
+							<span><i class="mdi mdi-flash" /> Triggers</span>
+							<i :class="isContextGroupOpen('triggers') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						</button>
+						<div v-if="isContextGroupOpen('triggers')" class="node-automation__menu-groups">
+							<div v-for="group in triggerContextGroups" :key="group.id" class="node-automation__menu-group">
+								<button type="button" class="node-automation__menu-group-header" @click="toggleContextGroup(`trigger:${group.id}`)">
+									<span>
+										<i :class="group.icon" :style="{ color: group.color }" />
+										{{ group.name }}
+									</span>
+									<i :class="isContextGroupOpen(`trigger:${group.id}`) ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+								</button>
+								<div v-if="isContextGroupOpen(`trigger:${group.id}`)" class="node-automation__menu-items">
+									<button v-for="item in group.items" :key="item.key" type="button" @click="selectTriggerFromContext(item.key)">
+										<i :class="item.icon" :style="{ color: item.color }" />
+										<span>
+											<strong>{{ item.name }}</strong>
+											<small>{{ item.pluginName }}</small>
+										</span>
+										<em class="trigger">Trigger</em>
+									</button>
+								</div>
+							</div>
+						</div>
+					</section>
+					<section class="node-automation__menu-section">
+						<button type="button" class="node-automation__menu-section-header" @click="toggleContextGroup('actions')">
+							<span><i class="mdi mdi-play-circle-outline" /> Actions</span>
+							<i :class="isContextGroupOpen('actions') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						</button>
+						<div v-if="isContextGroupOpen('actions')" class="node-automation__menu-groups">
+							<div v-for="group in actionContextGroups" :key="group.id" class="node-automation__menu-group">
+								<button type="button" class="node-automation__menu-group-header" @click="toggleContextGroup(`action:${group.id}`)">
+									<span>
+										<i :class="group.icon" :style="{ color: group.color }" />
+										{{ group.name }}
+									</span>
+									<i :class="isContextGroupOpen(`action:${group.id}`) ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+								</button>
+								<div v-if="isContextGroupOpen(`action:${group.id}`)" class="node-automation__menu-items">
+									<button v-for="item in group.items" :key="item.key" type="button" @click="selectActionFromContext(item.key)">
+										<i :class="item.icon" :style="{ color: item.color }" />
+										<span>
+											<strong>{{ item.name }}</strong>
+											<small>{{ item.pluginName }}</small>
+										</span>
+										<em>Action</em>
+									</button>
+								</div>
+							</div>
+						</div>
+					</section>
 				</div>
 			</section>
 
@@ -324,6 +401,7 @@ import {
 	isActionStack,
 	isFlowAction,
 	isTimeAction,
+	constructDefault,
 } from "castmate-schema"
 
 interface NodePosition {
@@ -362,6 +440,24 @@ interface NodeEditorViewState {
 	snapToGrid?: boolean
 }
 
+interface ContextMenuItem {
+	key: string
+	pluginId: string
+	pluginName: string
+	name: string
+	icon: string
+	color: string
+	searchText: string
+}
+
+interface ContextMenuGroup {
+	id: string
+	name: string
+	icon: string
+	color: string
+	items: ContextMenuItem[]
+}
+
 const props = defineProps<{
 	modelValue: AutomationConfig
 	view: AutomationResourceView & { nodePositions?: Record<string, NodePosition>; nodeView?: NodeEditorViewState }
@@ -385,6 +481,16 @@ const configOpen = ref(true)
 const actionsOpen = ref(false)
 const activityOpen = ref(true)
 const activityLog = ref<Array<{ id: number; title: string; detail: string }>>([])
+const contextMenu = ref<{ open: boolean; x: number; y: number; nodeId?: string; canvasPoint?: NodePosition }>({
+	open: false,
+	x: 0,
+	y: 0,
+})
+const contextMenuQuery = ref("")
+const contextMenuOpenGroups = ref<Record<string, boolean>>({
+	triggers: true,
+	actions: true,
+})
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
 const playheadNodeId = ref<string>()
@@ -518,6 +624,24 @@ const flatActionPalette = computed(() =>
 	actionPalette.value
 		.flatMap((plugin) => plugin.actions.map((action) => ({ ...action, pluginName: plugin.name })))
 		.slice(0, 24)
+)
+const contextMenuSearch = computed(() => contextMenuQuery.value.trim().toLowerCase())
+const contextMenuSubtitle = computed(() => {
+	const node = contextMenu.value.nodeId ? nodes.value.find((entry) => entry.id === contextMenu.value.nodeId) : undefined
+	if (node) return `Insert after ${node.title} or replace the trigger.`
+	return "Add a trigger or drop a new action on the canvas."
+})
+const actionContextGroups = computed(() =>
+	buildContextGroups("actions", (plugin) => plugin.actions, (entry) => ({
+		name: entry.name,
+		icon: entry.icon || "mdi mdi-play",
+	}))
+)
+const triggerContextGroups = computed(() =>
+	buildContextGroups("triggers", (plugin) => plugin.triggers, (entry) => ({
+		name: entry.name,
+		icon: entry.icon || "mdi mdi-flash",
+	}))
 )
 const viewBox = computed(() => {
 	return `0 0 ${canvasSize.value.width} ${canvasSize.value.height}`
@@ -722,6 +846,7 @@ function getNodeLane(node: NodeData): Pick<LaneData, "id" | "kind" | "label"> {
 }
 
 function startDrag(event: PointerEvent, node: NodeData) {
+	closeContextMenu()
 	selectedNodeId.value = node.id
 	const startX = event.clientX
 	const startY = event.clientY
@@ -754,11 +879,52 @@ function startDrag(event: PointerEvent, node: NodeData) {
 	target.addEventListener("pointercancel", onUp)
 }
 
-function openNodeContext(node: NodeData) {
+function openNodeContext(event: MouseEvent, node: NodeData) {
 	selectedNodeId.value = node.id
 	detailsOpen.value = true
 	configOpen.value = true
 	actionsOpen.value = false
+	openContextMenu(event, node.id)
+}
+
+function openCanvasContextMenu(event: MouseEvent) {
+	const target = event.target as HTMLElement
+	if (target.closest(".node-automation__canvas-controls") || target.closest(".node-automation__context-menu")) return
+	const nodeElement = target.closest(".node-automation__node")
+	if (nodeElement) return
+	selectedNodeId.value = undefined
+	openContextMenu(event)
+}
+
+function openContextMenu(event: MouseEvent, nodeId?: string) {
+	const menuWidth = 340
+	const menuHeight = 520
+	contextMenu.value = {
+		open: true,
+		x: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
+		y: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8)),
+		nodeId,
+		canvasPoint: getCanvasPointFromClient(event.clientX, event.clientY),
+	}
+	contextMenuQuery.value = ""
+
+	if (nodeId) {
+		const node = nodes.value.find((entry) => entry.id === nodeId)
+		const lane = node ? getNodeLane(node) : undefined
+		if (lane) contextMenuOpenGroups.value[`action:${lane.id}`] = true
+	}
+}
+
+function closeContextMenu() {
+	contextMenu.value.open = false
+}
+
+function toggleContextGroup(key: string) {
+	contextMenuOpenGroups.value[key] = !isContextGroupOpen(key)
+}
+
+function isContextGroupOpen(key: string) {
+	return contextMenuOpenGroups.value[key] ?? true
 }
 
 function resetSelectedNodePosition() {
@@ -856,6 +1022,7 @@ function advancePlayheadPreview() {
 }
 
 function handleCanvasPointerDown(event: PointerEvent) {
+	if (contextMenu.value.open) closeContextMenu()
 	const target = event.target as HTMLElement
 	if (target.closest(".node-automation__canvas-controls")) return
 
@@ -908,6 +1075,12 @@ function handleKeydown(event: KeyboardEvent) {
 	const target = event.target as HTMLElement | null
 	if (target?.closest("input, textarea, select, [contenteditable='true']")) return
 
+	if (event.key === "Escape" && contextMenu.value.open) {
+		event.preventDefault()
+		closeContextMenu()
+		return
+	}
+
 	if ((event.key === "Delete" || event.key === "Backspace") && canEditSelectedAction.value) {
 		event.preventDefault()
 		deleteSelectedAction()
@@ -922,6 +1095,10 @@ function handleKeydown(event: KeyboardEvent) {
 		event.preventDefault()
 		fitGraph()
 	}
+}
+
+function handleWindowClick() {
+	if (contextMenu.value.open) closeContextMenu()
 }
 
 function parseActionSelection(value: string): ActionSelection | undefined {
@@ -942,6 +1119,47 @@ async function addActionFromPalette() {
 
 	selectedNodeId.value = action.id
 	configOpen.value = true
+	commitUndo()
+}
+
+async function selectActionFromContext(actionKey: string) {
+	const selection = parseActionSelection(actionKey)
+	if (!selection) return
+
+	const action = await pluginStore.createAction(selection)
+	if (!action) return
+
+	insertAction(action, contextMenu.value.nodeId)
+	if (!contextMenu.value.nodeId && contextMenu.value.canvasPoint) {
+		nodePositions.value[action.id] = contextMenu.value.canvasPoint
+	}
+	logActivity("Added action", `${selection.plugin}/${selection.action}`)
+	selectedNodeId.value = action.id
+	configOpen.value = true
+	closeContextMenu()
+	commitUndo()
+}
+
+async function selectTriggerFromContext(triggerKey: string) {
+	const [pluginId, triggerId] = triggerKey.split(":")
+	const trigger = pluginStore.pluginMap.get(pluginId)?.triggers?.[triggerId]
+	if (!pluginId || !triggerId || !trigger) return
+
+	const nextConfig = await constructDefault(trigger.config)
+	const contextSchema = typeof trigger.context === "function" ? await trigger.context(nextConfig) : trigger.context
+
+	Object.assign(model.value, {
+		plugin: pluginId,
+		trigger: triggerId,
+		config: nextConfig,
+		stop: model.value.stop ?? false,
+		testContext: contextSchema ? await constructDefault(contextSchema) : model.value.testContext,
+	})
+
+	selectedNodeId.value = "trigger"
+	configOpen.value = true
+	closeContextMenu()
+	logActivity("Changed trigger", `${pluginId}/${triggerId}`)
 	commitUndo()
 }
 
@@ -1079,13 +1297,53 @@ function getNodePosition(nodeId: string) {
 }
 
 function getCanvasPoint(event: DragEvent): NodePosition {
+	return getCanvasPointFromClient(event.clientX, event.clientY)
+}
+
+function getCanvasPointFromClient(clientX: number, clientY: number): NodePosition {
 	const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
 	const rect = surface?.getBoundingClientRect()
 	if (!rect) return { x: 42, y: 88 }
 	return {
-		x: snapCoordinate(Math.max(12, (event.clientX - rect.left) / zoom.value)),
-		y: snapCoordinate(Math.max(12, (event.clientY - rect.top) / zoom.value)),
+		x: snapCoordinate(Math.max(12, (clientX - rect.left) / zoom.value)),
+		y: snapCoordinate(Math.max(12, (clientY - rect.top) / zoom.value)),
 	}
+}
+
+function buildContextGroups(
+	kind: "actions" | "triggers",
+	getEntries: (plugin: any) => Record<string, any>,
+	getMeta: (entry: any) => { name: string; icon: string }
+): ContextMenuGroup[] {
+	const query = contextMenuSearch.value
+	return [...pluginStore.pluginMap.values()]
+		.map((plugin) => {
+			const items = Object.entries(getEntries(plugin) || {})
+				.map(([id, entry]) => {
+					const meta = getMeta(entry)
+					return {
+						key: `${plugin.id}:${id}`,
+						pluginId: plugin.id,
+						pluginName: plugin.name,
+						name: meta.name,
+						icon: meta.icon,
+						color: String(plugin.color || "#e9aaff"),
+						searchText: `${kind} ${plugin.name} ${plugin.id} ${meta.name} ${id}`.toLowerCase(),
+					}
+				})
+				.filter((item) => !query || item.searchText.includes(query))
+				.sort((a, b) => a.name.localeCompare(b.name))
+
+			return {
+				id: plugin.id,
+				name: plugin.name,
+				icon: plugin.icon,
+				color: String(plugin.color || "#e9aaff"),
+				items,
+			}
+		})
+		.filter((group) => group.items.length)
+		.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 function logActivity(title: string, detail: string) {
@@ -1144,9 +1402,13 @@ function getPathPosition(path: string):
 	return { items: lastContainer, index: lastIndex, containerKind: lastContainerKind }
 }
 
-onMounted(() => window.addEventListener("keydown", handleKeydown))
+onMounted(() => {
+	window.addEventListener("keydown", handleKeydown)
+	window.addEventListener("click", handleWindowClick)
+})
 onUnmounted(() => {
 	window.removeEventListener("keydown", handleKeydown)
+	window.removeEventListener("click", handleWindowClick)
 	pausePlayheadPreview()
 })
 </script>
@@ -1423,6 +1685,12 @@ onUnmounted(() => {
 
 .node-automation__node--trigger {
 	background: #40256c;
+	border-color: #e9aaff;
+}
+
+.node-automation__node--action {
+	background: #151515;
+	border-color: #7d32d4;
 }
 
 .node-automation__node--time {
@@ -1435,6 +1703,10 @@ onUnmounted(() => {
 
 .node-automation__node--floating {
 	border-color: #ff9bd7;
+}
+
+.node-automation__node--trigger .node-automation__node-badge {
+	background: #ffdf6b;
 }
 
 .node-automation__node-icon {
@@ -1471,6 +1743,179 @@ onUnmounted(() => {
 	font-size: 0.7rem;
 	font-weight: 700;
 	padding: 0.2rem 0.35rem;
+}
+
+.node-automation__context-menu {
+	background: #f4f4f4;
+	border: 1px solid #7a7a7a;
+	border-radius: 3px;
+	box-shadow: 0 18px 45px rgb(0 0 0 / 0.42);
+	color: #111;
+	display: grid;
+	gap: 0.35rem;
+	max-height: min(32rem, calc(100vh - 1rem));
+	overflow: auto;
+	padding: 0.35rem;
+	position: fixed;
+	width: 340px;
+	z-index: 20;
+}
+
+.node-automation__context-menu-header {
+	align-items: center;
+	background: linear-gradient(180deg, #ffffff, #e8e8e8);
+	border: 1px solid #c8c8c8;
+	border-radius: 2px;
+	display: flex;
+	justify-content: space-between;
+	padding: 0.5rem 0.55rem;
+}
+
+.node-automation__context-menu-header div {
+	display: grid;
+	gap: 0.1rem;
+	min-width: 0;
+}
+
+.node-automation__context-menu-header span {
+	color: #555;
+	font-size: 0.75rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node-automation__context-menu-header button {
+	align-items: center;
+	background: #ececec;
+	border: 1px solid #b9b9b9;
+	border-radius: 2px;
+	color: #222;
+	cursor: pointer;
+	display: flex;
+	height: 1.65rem;
+	justify-content: center;
+	width: 1.65rem;
+}
+
+.node-automation__context-menu-search {
+	align-items: center;
+	background: white;
+	border: 1px solid #b9b9b9;
+	border-radius: 2px;
+	display: grid;
+	gap: 0.35rem;
+	grid-template-columns: 1rem 1fr;
+	padding: 0.35rem 0.45rem;
+}
+
+.node-automation__context-menu-search input {
+	background: transparent;
+	border: 0;
+	color: #111;
+	min-width: 0;
+	outline: 0;
+}
+
+.node-automation__menu-section {
+	border: 1px solid #c8c8c8;
+	border-radius: 2px;
+	overflow: hidden;
+}
+
+.node-automation__menu-section-header,
+.node-automation__menu-group-header {
+	align-items: center;
+	background: #e8e8e8;
+	border: 0;
+	border-bottom: 1px solid #c8c8c8;
+	color: #111;
+	cursor: pointer;
+	display: flex;
+	font-weight: 700;
+	justify-content: space-between;
+	padding: 0.45rem 0.55rem;
+	width: 100%;
+}
+
+.node-automation__menu-section-header span,
+.node-automation__menu-group-header span {
+	align-items: center;
+	display: flex;
+	gap: 0.4rem;
+	min-width: 0;
+}
+
+.node-automation__menu-groups {
+	background: #fbfbfb;
+	display: grid;
+}
+
+.node-automation__menu-group + .node-automation__menu-group {
+	border-top: 1px solid #ddd;
+}
+
+.node-automation__menu-group-header {
+	background: #f7f7f7;
+	font-size: 0.86rem;
+	font-weight: 600;
+	padding-left: 0.75rem;
+}
+
+.node-automation__menu-items {
+	display: grid;
+	padding: 0.2rem;
+}
+
+.node-automation__menu-items button {
+	align-items: center;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 2px;
+	color: #111;
+	cursor: pointer;
+	display: grid;
+	gap: 0.45rem;
+	grid-template-columns: 1.35rem minmax(0, 1fr) auto;
+	padding: 0.42rem 0.45rem;
+	text-align: left;
+}
+
+.node-automation__menu-items button:hover {
+	background: #dcebff;
+	border-color: #7db7ff;
+}
+
+.node-automation__menu-items span {
+	display: grid;
+	min-width: 0;
+}
+
+.node-automation__menu-items strong,
+.node-automation__menu-items small {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node-automation__menu-items small {
+	color: #616161;
+	font-size: 0.72rem;
+}
+
+.node-automation__menu-items em {
+	background: #7d32d4;
+	border-radius: 3px;
+	color: white;
+	font-size: 0.66rem;
+	font-style: normal;
+	font-weight: 700;
+	padding: 0.12rem 0.28rem;
+}
+
+.node-automation__menu-items em.trigger {
+	background: #c24cff;
+	color: #19001f;
 }
 
 .node-automation__details {
