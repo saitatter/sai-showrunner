@@ -86,6 +86,7 @@
 						@dragleave.stop="clearDropTarget(node.id)"
 						@drop.prevent.stop="dropActionOnNode($event, node)"
 					>
+						<span class="node-automation__handle node-automation__handle--in" />
 						<span class="node-automation__node-icon">
 							<i :class="node.icon" />
 						</span>
@@ -94,6 +95,11 @@
 							<small>{{ node.subtitle }}</small>
 						</span>
 						<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
+						<span
+							v-if="node.id !== 'trigger'"
+							class="node-automation__handle node-automation__handle--out"
+							title="Drop an action here to insert after this node"
+						/>
 					</button>
 				</div>
 			</section>
@@ -1021,6 +1027,30 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 	text-align: left;
 	touch-action: none;
 	width: 220px;
+}
+
+.node-automation__handle {
+	background: #111;
+	border: 2px solid #e9aaff;
+	border-radius: 999px;
+	height: 0.85rem;
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 0.85rem;
+}
+
+.node-automation__handle--in {
+	left: -0.5rem;
+}
+
+.node-automation__handle--out {
+	right: -0.5rem;
+}
+
+.node-automation__node.drop-target .node-automation__handle--out {
+	background: #2ed47a;
+	border-color: #d2ffe3;
 }
 
 .node-automation__node:active {
