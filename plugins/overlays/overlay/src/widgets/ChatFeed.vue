@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue"
-import { declareWidgetOptions, handleOverlayMessage, useIsEditor } from "castmate-overlay-core"
+import { declareWidgetOptions, handleOverlayMessage, useCastMateBridge, useIsEditor } from "castmate-overlay-core"
 
 interface ChatFeedMessage {
 	id?: string
@@ -36,6 +36,8 @@ interface ChatFeedMessage {
 	message?: string
 	text?: string
 	badges?: string[] | string
+	targetOverlayId?: string
+	targetWidgetId?: string
 }
 
 defineOptions({
@@ -85,10 +87,12 @@ const props = defineProps<{
 }>()
 
 const isEditor = useIsEditor()
+const bridge = useCastMateBridge()
 const messages = ref<Required<ChatFeedMessage>[]>([])
 const visibleMessages = computed(() => messages.value.slice(0, Math.max(1, Number(props.config.maxMessages) || 8)))
 
 function addMessage(message: ChatFeedMessage) {
+	if (!matchesTarget(message)) return
 	const entry = normalizeMessage(message)
 	messages.value.unshift(entry)
 	messages.value = messages.value.slice(0, Math.max(1, Number(props.config.maxMessages) || 8))
@@ -99,6 +103,13 @@ function addMessage(message: ChatFeedMessage) {
 			messages.value = messages.value.filter((item) => item.id !== entry.id)
 		}, fadeMs)
 	}
+}
+
+function matchesTarget(message: ChatFeedMessage) {
+	if (isEditor.value) return true
+	if (message.targetOverlayId && message.targetOverlayId !== bridge.config.value.overlayId) return false
+	if (message.targetWidgetId && message.targetWidgetId !== bridge.config.value.id) return false
+	return true
 }
 
 function normalizeMessage(message: ChatFeedMessage): Required<ChatFeedMessage> {
@@ -118,6 +129,8 @@ function normalizeMessage(message: ChatFeedMessage): Required<ChatFeedMessage> {
 		message: String(message.message || message.text || ""),
 		text: String(message.text || message.message || ""),
 		badges,
+		targetOverlayId: String(message.targetOverlayId || ""),
+		targetWidgetId: String(message.targetWidgetId || ""),
 	}
 }
 

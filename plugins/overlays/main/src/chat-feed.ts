@@ -1,4 +1,5 @@
 import { defineAction } from "castmate-core"
+import { OverlayWidget } from "castmate-plugin-overlays-shared"
 import { OverlayWebsocketService } from "./websocket-bridge"
 
 export function setupChatFeed() {
@@ -10,6 +11,7 @@ export function setupChatFeed() {
 		config: {
 			type: Object,
 			properties: {
+				targetWidget: { type: OverlayWidget, name: "Target Chat Feed" },
 				messageId: { type: String, name: "Message ID", template: true, default: "" },
 				platform: { type: String, name: "Platform", template: true, default: "twitch" },
 				viewerName: { type: String, name: "Viewer Name", template: true, default: "" },
@@ -25,6 +27,8 @@ export function setupChatFeed() {
 		},
 		async invoke(config) {
 			OverlayWebsocketService.getInstance().sendOverlayMessage("showrunner_chat_message", {
+				targetOverlayId: config.targetWidget?.overlayId || "",
+				targetWidgetId: config.targetWidget?.widgetId || "",
 				id: config.messageId || `showrunner-chat-${Date.now()}`,
 				platform: config.platform || "unknown",
 				displayName: config.viewerName || "unknown",
