@@ -36,3 +36,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_APP_MIXPANEL_PROJECT_TOKEN: ${{ secrets.MIXPANEL_PROJECT_TOKEN }}
+          SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}

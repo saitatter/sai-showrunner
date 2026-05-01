@@ -23,6 +23,12 @@ export default defineConfig({
 			entry: "src/main/background.ts",
 			vite: {
 				plugins: [nodeResolve()],
+				define: {
+					"process.env.SHOWRUNNER_YOUTUBE_CLIENT_ID": JSON.stringify(
+						process.env.SHOWRUNNER_YOUTUBE_CLIENT_ID ?? ""
+					),
+					"process.env.YOUTUBE_CLIENT_ID": JSON.stringify(process.env.YOUTUBE_CLIENT_ID ?? ""),
+				},
 				esbuild: {
 					format: "esm",
 				},

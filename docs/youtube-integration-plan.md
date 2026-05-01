@@ -46,6 +46,23 @@ Implementation notes:
 - Store refresh tokens with the same encrypted account/resource mechanism already used by CastMate.
 - Add explicit UI states: disconnected, connecting, connected, token expired, quota limited.
 
+GitHub release setup:
+
+1. Create a Google OAuth desktop client with the YouTube Data API enabled.
+2. Add the OAuth client id as a GitHub repository variable named `SHOWRUNNER_YOUTUBE_CLIENT_ID`.
+3. Run the release workflow normally; Vite embeds that public id into the packaged Electron main process.
+
+Local build setup:
+
+```powershell
+$env:SHOWRUNNER_YOUTUBE_CLIENT_ID = "your-google-oauth-client-id.apps.googleusercontent.com"
+corepack yarn setup-vite
+corepack yarn workspace castmate-core run rebuild
+node .\vite-util\multi-vite.mjs build
+$env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
+corepack yarn workspace castmate run electron:build -- --publish never
+```
+
 ## MVP Events
 
 Triggers:
