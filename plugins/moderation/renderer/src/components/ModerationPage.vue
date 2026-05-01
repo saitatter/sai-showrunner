@@ -77,6 +77,18 @@
 				</div>
 			</dl>
 		</section>
+
+		<section class="moderation-page__panel">
+			<h2>Latest Decisions</h2>
+			<p v-if="!status.recentDecisions?.length" class="moderation-page__muted">No moderation dashboard events yet.</p>
+			<ul v-else class="moderation-page__feed">
+				<li v-for="decision in status.recentDecisions" :key="`${decision.messageId || decision.receivedAt}:${decision.decision}`">
+					<strong>{{ decision.decision }}</strong>
+					<span>{{ decision.eventType }}</span>
+					<small>{{ decision.messageId || decision.receivedAt }}</small>
+				</li>
+			</ul>
+		</section>
 	</div>
 </template>
 
@@ -224,6 +236,11 @@ onMounted(refresh)
 	color: var(--text-color-secondary);
 }
 
+.moderation-page__muted {
+	color: var(--text-color-secondary);
+	margin: 0;
+}
+
 .moderation-page__panel dd {
 	margin: 0;
 	text-align: right;
@@ -247,5 +264,32 @@ onMounted(refresh)
 .moderation-page__button--ghost {
 	background: var(--surface-700);
 	color: var(--text-color);
+}
+
+.moderation-page__feed {
+	display: grid;
+	gap: 0.5rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.moderation-page__feed li {
+	align-items: center;
+	background: var(--surface-950);
+	border: 1px solid var(--surface-700);
+	border-radius: 4px;
+	display: grid;
+	gap: 0.5rem;
+	grid-template-columns: 7rem 1fr minmax(8rem, auto);
+	padding: 0.55rem 0.65rem;
+}
+
+.moderation-page__feed small {
+	color: var(--text-color-secondary);
+	overflow: hidden;
+	text-align: right;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 </style>

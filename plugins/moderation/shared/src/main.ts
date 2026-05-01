@@ -19,6 +19,14 @@ export interface ModerationStatus {
 	flaggedMessages: number
 	lastEventAt?: string
 	lastDecision?: string
+	recentDecisions?: ModerationDecisionSummary[]
+}
+
+export interface ModerationDecisionSummary {
+	decision: string
+	eventType: string
+	messageId?: string
+	receivedAt: string
 }
 
 export interface ModerationChatEvent {

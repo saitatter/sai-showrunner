@@ -1,5 +1,10 @@
 import { ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, usePluginLogger, writeYAML } from "castmate-core"
-import { ModerationChatEvent, ModerationSettings, ModerationStatus } from "castmate-plugin-moderation-shared"
+import {
+	ModerationChatEvent,
+	ModerationDecisionSummary,
+	ModerationSettings,
+	ModerationStatus,
+} from "castmate-plugin-moderation-shared"
 import WebSocket from "ws"
 
 const DEFAULT_SETTINGS: ModerationSettings = {
@@ -24,6 +29,7 @@ export class ModerationService {
 		blockedMessages: 0,
 		flaggedMessages: 0,
 	}
+	private recentDecisions: ModerationDecisionSummary[] = []
 
 	static getInstance() {
 		this.instance ??= new ModerationService()
@@ -39,7 +45,7 @@ export class ModerationService {
 	}
 
 	getStatus(): ModerationStatus {
-		return { ...this.settings, ...this.status, connected: this.isSocketConnected() }
+		return { ...this.settings, ...this.status, connected: this.isSocketConnected(), recentDecisions: this.recentDecisions }
 	}
 
 	async saveSettings(settings: Partial<ModerationSettings>) {
@@ -179,13 +185,27 @@ export class ModerationService {
 
 	private handleDashboardMessage(raw: string) {
 		try {
-			const packet = JSON.parse(raw) as { verdict?: string; status?: string; type?: string; eventType?: string }
+			const packet = JSON.parse(raw) as {
+				verdict?: string
+				status?: string
+				type?: string
+				eventType?: string
+				messageId?: string
+				id?: string
+			}
 			const decision = String(packet.verdict || packet.status || "").toLowerCase()
 			if (decision === "allow" || decision === "approved") this.status.approvedMessages += 1
 			if (decision === "block" || decision === "blocked" || decision === "rejected") this.status.blockedMessages += 1
 			if (decision === "flag" || decision === "flagged" || decision === "pending") this.status.flaggedMessages += 1
 			this.status.lastDecision = decision || packet.type || packet.eventType || "dashboard.event"
 			this.status.lastEventAt = new Date().toISOString()
+			this.recentDecisions.unshift({
+				decision: this.status.lastDecision,
+				eventType: packet.type || packet.eventType || "dashboard.event",
+				messageId: packet.messageId || packet.id,
+				receivedAt: this.status.lastEventAt,
+			})
+			if (this.recentDecisions.length > 10) this.recentDecisions.pop()
 		} catch (error) {
 			this.logger.debug("Ignoring non-JSON moderation websocket payload.", raw, error)
 		}
