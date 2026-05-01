@@ -123,6 +123,17 @@
 				</li>
 			</ul>
 		</section>
+
+		<section class="moderation-page__panel">
+			<h2>Activity Log</h2>
+			<p v-if="!activityLog.length" class="moderation-page__muted">No activity yet.</p>
+			<ul v-else class="moderation-page__activity">
+				<li v-for="entry in activityLog" :key="entry.id" :class="`moderation-page__activity-item ${entry.severity}`">
+					<strong>{{ entry.summary }}</strong>
+					<span>{{ entry.detail }}</span>
+				</li>
+			</ul>
+		</section>
 	</div>
 </template>
 
@@ -135,6 +146,7 @@ import {
 	ModerationSettings,
 	ModerationStatus,
 } from "castmate-plugin-moderation-shared"
+import { useToast } from "primevue/usetoast"
 
 const getStatus = useIpcCaller<() => Promise<ModerationStatus>>("moderation", "getStatus")
 const saveSettings = useIpcCaller<(settings: Partial<ModerationSettings>) => Promise<ModerationStatus>>(
@@ -149,6 +161,8 @@ const requestOverride = useIpcCaller<(request: ModerationOverrideRequest) => Pro
 	"requestOverride"
 )
 const status = ref<Partial<ModerationStatus>>({})
+const toast = useToast()
+const activityLog = ref<{ id: string; severity: "success" | "info" | "warn" | "error"; summary: string; detail: string }[]>([])
 const queue = ref<ModerationQueueState>({
 	latest: [],
 	pending: [],
@@ -188,13 +202,17 @@ async function refresh() {
 }
 
 async function save() {
-	applyStatus(await saveSettings({ ...draft }))
-	await refreshQueue()
+	await runWithFeedback("success", "Moderation settings saved.", async () => {
+		applyStatus(await saveSettings({ ...draft }))
+		await refreshQueue()
+	})
 }
 
 async function checkHealth() {
-	applyStatus(await runHealthCheck())
-	await refreshQueue()
+	await runWithFeedback("info", "Moderation health check finished.", async () => {
+		applyStatus(await runHealthCheck())
+		await refreshQueue()
+	})
 }
 
 function applyPreset(name: keyof typeof presets) {
@@ -203,23 +221,29 @@ function applyPreset(name: keyof typeof presets) {
 }
 
 async function sendTest() {
-	applyStatus(await sendTestMessage())
-	await refreshQueue()
+	await runWithFeedback("success", "Moderation test event sent.", async () => {
+		applyStatus(await sendTestMessage())
+		await refreshQueue()
+	})
 }
 
 async function refreshQueue() {
-	queue.value = await getQueue()
+	await runWithFeedback("info", "Moderation queue refreshed.", async () => {
+		queue.value = await getQueue()
+	})
 }
 
 async function override(messageId: string, action: ModerationOverrideRequest["action"]) {
 	if (!messageId) return
-	queue.value = await requestOverride({
-		messageId,
-		action,
-		operatorId: "showrunner",
-		reason: `ShowRunner ${action}`,
+	await runWithFeedback("success", `Moderation override ${action} sent.`, async () => {
+		queue.value = await requestOverride({
+			messageId,
+			action,
+			operatorId: "showrunner",
+			reason: `ShowRunner ${action}`,
+		})
+		applyStatus(await getStatus())
 	})
-	applyStatus(await getStatus())
 }
 
 function applyStatus(nextStatus: ModerationStatus) {
@@ -229,6 +253,28 @@ function applyStatus(nextStatus: ModerationStatus) {
 	draft.apiToken = nextStatus.apiToken
 	draft.dashboardWsUrl = nextStatus.dashboardWsUrl
 	draft.forwardYouTube = nextStatus.forwardYouTube
+}
+
+async function runWithFeedback(severity: "success" | "info", successMessage: string, action: () => Promise<void>) {
+	try {
+		await action()
+		addActivity(severity, successMessage)
+		toast.add({ severity, summary: successMessage, life: 2500 })
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error)
+		addActivity("error", "Moderation action failed.", detail)
+		toast.add({ severity: "error", summary: "Moderation action failed", detail, life: 6000 })
+	}
+}
+
+function addActivity(severity: "success" | "info" | "warn" | "error", summary: string, detail = new Date().toLocaleTimeString()) {
+	activityLog.value.unshift({
+		id: `${Date.now()}-${Math.random()}`,
+		severity,
+		summary,
+		detail,
+	})
+	activityLog.value = activityLog.value.slice(0, 12)
 }
 
 onMounted(() => {
@@ -430,5 +476,40 @@ onBeforeUnmount(() => {
 	color: var(--text-color);
 	cursor: pointer;
 	padding: 0.35rem 0.45rem;
+}
+
+.moderation-page__activity {
+	display: grid;
+	gap: 0.5rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.moderation-page__activity-item {
+	background: var(--surface-950);
+	border-left: 3px solid var(--surface-500);
+	border-radius: 4px;
+	display: grid;
+	gap: 0.2rem;
+	padding: 0.55rem 0.65rem;
+}
+
+.moderation-page__activity-item.success {
+	border-left-color: #20d6b5;
+}
+
+.moderation-page__activity-item.error {
+	border-left-color: #ff5c7a;
+}
+
+.moderation-page__activity-item.info {
+	border-left-color: #8ab4ff;
+}
+
+.moderation-page__activity-item span {
+	color: var(--text-color-secondary);
+	font-size: 0.85rem;
+	overflow-wrap: anywhere;
 }
 </style>

@@ -120,12 +120,24 @@
 				<span>{{ status.latestMessage.message }}</span>
 			</div>
 		</section>
+
+		<section class="youtube-page__panel">
+			<h2>Activity Log</h2>
+			<p v-if="!activityLog.length" class="youtube-page__muted">No activity yet.</p>
+			<ul v-else class="youtube-page__activity">
+				<li v-for="entry in activityLog" :key="entry.id" :class="`youtube-page__activity-item ${entry.severity}`">
+					<strong>{{ entry.summary }}</strong>
+					<span>{{ entry.detail }}</span>
+				</li>
+			</ul>
+		</section>
 	</div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue"
 import { useIpcCaller } from "castmate-ui-core"
+import { useToast } from "primevue/usetoast"
 
 interface YouTubeStatus {
 	connection?: {
@@ -173,6 +185,8 @@ const clientId = ref("")
 const clientSecret = ref("")
 const autoStartLiveChat = ref(false)
 const showAdvanced = ref(false)
+const toast = useToast()
+const activityLog = ref<{ id: string; severity: "success" | "info" | "warn" | "error"; summary: string; detail: string }[]>([])
 
 const hasBundledClientId = computed(() => Boolean(status.value.settings?.hasBundledClientId))
 const hasBundledClientSecret = computed(() => Boolean(status.value.settings?.hasBundledClientSecret))
@@ -215,42 +229,79 @@ async function refresh() {
 }
 
 async function saveSettings() {
-	await saveYouTubeSettings({
-		clientId: clientId.value,
-		clientSecret: clientSecret.value,
-		autoStartLiveChat: autoStartLiveChat.value,
+	await runWithFeedback("success", "YouTube settings saved.", async () => {
+		await saveYouTubeSettings({
+			clientId: clientId.value,
+			clientSecret: clientSecret.value,
+			autoStartLiveChat: autoStartLiveChat.value,
+		})
+		await refresh()
 	})
-	await refresh()
 }
 
 async function connect() {
-	if (!hasBundledCredentials.value || showAdvanced.value) {
-		await saveSettings()
-	}
-	await connectYouTube()
-	if (autoStartLiveChat.value) {
-		await startLiveChat()
-	}
-	await refresh()
+	await runWithFeedback("success", "Connected to YouTube.", async () => {
+		if (!hasBundledCredentials.value || showAdvanced.value) {
+			await saveYouTubeSettings({
+				clientId: clientId.value,
+				clientSecret: clientSecret.value,
+				autoStartLiveChat: autoStartLiveChat.value,
+			})
+		}
+		await connectYouTube()
+		if (autoStartLiveChat.value) {
+			await startLiveChat()
+		}
+		await refresh()
+	})
 }
 
 async function toggleLiveChat() {
-	if (status.value.liveChatRunning) {
-		await stopLiveChat()
-	} else {
-		await startLiveChat()
-	}
-	await refresh()
+	await runWithFeedback("success", status.value.liveChatRunning ? "YouTube chat ingest stopped." : "YouTube chat ingest started.", async () => {
+		if (status.value.liveChatRunning) {
+			await stopLiveChat()
+		} else {
+			await startLiveChat()
+		}
+		await refresh()
+	})
 }
 
 async function discover() {
-	await discoverBroadcast()
-	await refresh()
+	await runWithFeedback("info", "YouTube broadcast discovery finished.", async () => {
+		await discoverBroadcast()
+		await refresh()
+	})
 }
 
 async function simulate() {
-	await simulateChatMessage()
-	await refresh()
+	await runWithFeedback("success", "Simulated YouTube chat message.", async () => {
+		await simulateChatMessage()
+		await refresh()
+	})
+}
+
+async function runWithFeedback(severity: "success" | "info", successMessage: string, action: () => Promise<void>) {
+	try {
+		await action()
+		addActivity(severity, successMessage)
+		toast.add({ severity, summary: successMessage, life: 2500 })
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error)
+		addActivity("error", "YouTube action failed.", detail)
+		toast.add({ severity: "error", summary: "YouTube action failed", detail, life: 6000 })
+		throw error
+	}
+}
+
+function addActivity(severity: "success" | "info" | "warn" | "error", summary: string, detail = new Date().toLocaleTimeString()) {
+	activityLog.value.unshift({
+		id: `${Date.now()}-${Math.random()}`,
+		severity,
+		summary,
+		detail,
+	})
+	activityLog.value = activityLog.value.slice(0, 12)
 }
 
 onMounted(refresh)
@@ -426,5 +477,40 @@ onMounted(refresh)
 	border-radius: 4px;
 	margin: 0;
 	padding: 0.65rem 0.75rem;
+}
+
+.youtube-page__activity {
+	display: grid;
+	gap: 0.5rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.youtube-page__activity-item {
+	background: var(--surface-950);
+	border-left: 3px solid var(--surface-500);
+	border-radius: 4px;
+	display: grid;
+	gap: 0.2rem;
+	padding: 0.55rem 0.65rem;
+}
+
+.youtube-page__activity-item.success {
+	border-left-color: #20d6b5;
+}
+
+.youtube-page__activity-item.error {
+	border-left-color: #ff5c7a;
+}
+
+.youtube-page__activity-item.info {
+	border-left-color: #8ab4ff;
+}
+
+.youtube-page__activity-item span {
+	color: var(--text-color-secondary);
+	font-size: 0.85rem;
+	overflow-wrap: anywhere;
 }
 </style>
