@@ -64,9 +64,13 @@
 						<i :class="document?.dirty ? 'mdi mdi-circle-edit-outline' : 'mdi mdi-check-circle-outline'" />
 						{{ document?.dirty ? "Unsaved changes" : "Saved" }}
 					</span>
-					<span>
-						<i class="mdi mdi-broadcast" />
-						Preview URL ready
+					<span :class="{ live: overlayPresence.connected, offline: !overlayPresence.connected }">
+						<i :class="overlayPresence.connected ? 'mdi mdi-broadcast' : 'mdi mdi-broadcast-off'" />
+						{{
+							overlayPresence.connected
+								? `Live preview connected (${overlayPresence.subscribers})`
+								: "No live preview"
+						}}
 					</span>
 				</div>
 				<div>
@@ -130,8 +134,9 @@ import {
 	CNumberInput,
 	ExpanderSlider,
 	viewRef,
+	useIpcCaller,
 } from "castmate-ui-core"
-import { computed, onMounted, ref, useModel, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetPropEdit from "./OverlayWidgetPropEdit.vue"
 import OverlayWidgetList from "./OverlayWidgetList.vue"
 import OverlayPreviewMenu from "./OverlayPreviewMenu.vue"
@@ -153,6 +158,19 @@ const props = defineProps<{
 const overlayId = useDocumentId()
 const document = useDocument(() => overlayId.value)
 
+interface OverlayPresence {
+	overlayId: string
+	connected: boolean
+	subscribers: number
+}
+
+const getOverlayPresence = useIpcCaller<(overlayId: string) => Promise<OverlayPresence>>("overlays", "getOverlayPresence")
+const overlayPresence = ref<OverlayPresence>({
+	overlayId: overlayId.value,
+	connected: false,
+	subscribers: 0,
+})
+
 const port = useSettingValue({ plugin: "castmate", setting: "port" })
 const defaultObsSetting = useSettingValue({ plugin: "obs", setting: "obsDefault" })
 
@@ -166,6 +184,12 @@ provideScrollAttachable(editorDiv)
 const overlayUrl = computed(() => {
 	return `http://localhost:${port.value ?? 8181}/overlays/${overlayId.value}`
 })
+
+let overlayPresenceTimer: ReturnType<typeof setInterval> | undefined
+
+async function refreshOverlayPresence() {
+	overlayPresence.value = await getOverlayPresence(overlayId.value)
+}
 
 function openOverlayDebug() {
 	window.open(overlayUrl.value, "_blank")
@@ -183,6 +207,15 @@ function applySizePreset(width: number, height: number) {
 onMounted(() => {
 	if (defaultObsSetting.value != null) {
 		view.value.obsId = defaultObsSetting.value
+	}
+
+	void refreshOverlayPresence()
+	overlayPresenceTimer = setInterval(() => void refreshOverlayPresence(), 2000)
+})
+
+onBeforeUnmount(() => {
+	if (overlayPresenceTimer) {
+		clearInterval(overlayPresenceTimer)
 	}
 })
 
@@ -300,6 +333,15 @@ onMounted(() => {
 .overlay-status span.dirty {
 	background: color-mix(in srgb, #ffdf6b 14%, transparent);
 	border-color: color-mix(in srgb, #ffdf6b 42%, var(--surface-700));
+}
+
+.overlay-status span.live {
+	background: color-mix(in srgb, #54d98c 14%, transparent);
+	border-color: color-mix(in srgb, #54d98c 42%, var(--surface-700));
+}
+
+.overlay-status span.offline {
+	color: var(--text-color-secondary);
 }
 
 .number-fix :deep(.p-inputtext) {

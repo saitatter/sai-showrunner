@@ -16,6 +16,7 @@ import {
 	MediaManager,
 	ViewerData,
 	ipcConvertSchema,
+	defineIPCFunc,
 } from "castmate-core"
 import { OverlayConfig } from "castmate-plugin-overlays-shared"
 import { Overlay } from "./overlay-resource"
@@ -50,6 +51,20 @@ export const OverlayWebsocketService = Service(
 
 		private widgetRPCs = new Map<string, WidgetRPCHandler>()
 		private viewerVariableObservers = new Map<ExtendedWebsocket, ViewerDataObserver>()
+
+		constructor() {
+			defineIPCFunc("overlays", "getOverlayPresence", (overlayId: string) => this.getOverlayPresence(overlayId))
+		}
+
+		getOverlayPresence(overlayId: string) {
+			const openData = this.openOverlays.get(overlayId)
+
+			return {
+				overlayId,
+				connected: Boolean(openData?.sockets.length),
+				subscribers: openData?.sockets.length ?? 0,
+			}
+		}
 
 		async onConnection(socket: ExtendedWebsocket, url: URL) {
 			const overlayId = url.searchParams.get("overlay")
@@ -108,7 +123,7 @@ export const OverlayWebsocketService = Service(
 			if (openData) {
 				const idx = openData.sockets.findIndex((s) => s === socket)
 				if (idx >= 0) {
-					openData.sockets.splice(idx)
+					openData.sockets.splice(idx, 1)
 				}
 
 				if (openData.sockets.length == 0) {
