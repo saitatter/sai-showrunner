@@ -49,6 +49,17 @@
 					>
 						<i class="mdi mdi-grid" />
 					</button>
+					<span class="node-automation__control-divider" />
+					<button
+						type="button"
+						:aria-label="isPreviewPlaying ? 'Pause preview playhead' : 'Play preview playhead'"
+						@click="togglePlayheadPreview"
+					>
+						<i :class="isPreviewPlaying ? 'mdi mdi-pause' : 'mdi mdi-play'" />
+					</button>
+					<button type="button" aria-label="Reset preview playhead" @click="resetPlayheadPreview">
+						<i class="mdi mdi-stop" />
+					</button>
 				</div>
 
 				<div
@@ -101,7 +112,11 @@
 						class="node-automation__node"
 						:class="[
 							`node-automation__node--${node.kind}`,
-							{ selected: selectedNodeId === node.id, 'drop-target': dropTargetNodeId === node.id },
+							{
+								selected: selectedNodeId === node.id,
+								'drop-target': dropTargetNodeId === node.id,
+								'preview-active': playheadNodeId === node.id,
+							},
 						]"
 						:style="{ transform: `translate(${node.x}px, ${node.y}px)` }"
 						type="button"
@@ -369,6 +384,9 @@ const activityOpen = ref(true)
 const activityLog = ref<Array<{ id: number; title: string; detail: string }>>([])
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
+const playheadNodeId = ref<string>()
+const isPreviewPlaying = ref(false)
+let playheadTimer: ReturnType<typeof window.setInterval> | undefined
 
 const NODE_WIDTH = 220
 const NODE_HEIGHT = 74
@@ -451,6 +469,7 @@ const lanes = computed<LaneData[]>(() => {
 	})
 })
 const selectedNode = computed(() => nodes.value.find((node) => node.id === selectedNodeId.value))
+const previewNodes = computed(() => nodes.value.filter((node) => node.id !== "trigger").sort((a, b) => a.x - b.x || a.y - b.y))
 const selectedActionInfo = computed(() => {
 	if (!selectedNodeId.value || selectedNodeId.value === "trigger") return undefined
 	return findActionAndSequenceById(selectedNodeId.value, model.value)
@@ -791,6 +810,48 @@ function resetView() {
 	commitUndo()
 }
 
+function togglePlayheadPreview() {
+	if (isPreviewPlaying.value) {
+		pausePlayheadPreview()
+		return
+	}
+
+	if (!playheadNodeId.value) {
+		playheadNodeId.value = previewNodes.value[0]?.id
+	}
+	isPreviewPlaying.value = true
+	playheadTimer = window.setInterval(advancePlayheadPreview, 900)
+}
+
+function pausePlayheadPreview() {
+	isPreviewPlaying.value = false
+	if (playheadTimer) {
+		window.clearInterval(playheadTimer)
+		playheadTimer = undefined
+	}
+}
+
+function resetPlayheadPreview() {
+	pausePlayheadPreview()
+	playheadNodeId.value = undefined
+}
+
+function advancePlayheadPreview() {
+	const orderedNodes = previewNodes.value
+	if (!orderedNodes.length) {
+		resetPlayheadPreview()
+		return
+	}
+
+	const currentIndex = orderedNodes.findIndex((node) => node.id === playheadNodeId.value)
+	const nextIndex = currentIndex < 0 ? 0 : currentIndex + 1
+	if (nextIndex >= orderedNodes.length) {
+		pausePlayheadPreview()
+		return
+	}
+	playheadNodeId.value = orderedNodes[nextIndex].id
+}
+
 function handleCanvasPointerDown(event: PointerEvent) {
 	const target = event.target as HTMLElement
 	if (target.closest(".node-automation__canvas-controls")) return
@@ -1081,7 +1142,10 @@ function getPathPosition(path: string):
 }
 
 onMounted(() => window.addEventListener("keydown", handleKeydown))
-onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
+onUnmounted(() => {
+	window.removeEventListener("keydown", handleKeydown)
+	pausePlayheadPreview()
+})
 </script>
 
 <style scoped>
@@ -1202,6 +1266,14 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 	font-size: 0.8rem;
 	min-width: 3rem;
 	text-align: center;
+}
+
+.node-automation__canvas-controls .node-automation__control-divider {
+	background: #454545;
+	display: block;
+	height: 1.35rem;
+	min-width: 1px;
+	width: 1px;
 }
 
 .node-automation__surface {
@@ -1334,6 +1406,11 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 .node-automation__node.selected {
 	border-color: #ffdf6b;
 	box-shadow: 0 0 0 3px rgb(255 223 107 / 0.2), 0 12px 28px rgb(0 0 0 / 0.35);
+}
+
+.node-automation__node.preview-active {
+	border-color: #2ed47a;
+	box-shadow: 0 0 0 4px rgb(46 212 122 / 0.28), 0 0 30px rgb(46 212 122 / 0.22), 0 12px 28px rgb(0 0 0 / 0.35);
 }
 
 .node-automation__node.drop-target {
