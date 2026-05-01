@@ -412,6 +412,7 @@ import {
 	isTimeAction,
 	constructDefault,
 } from "castmate-schema"
+import { useNodeActivity } from "./useNodeActivity"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
 import { useNodeContextMenu } from "./useNodeContextMenu"
 import { useNodeDrag } from "./useNodeDrag"
@@ -459,7 +460,7 @@ const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
 const activityOpen = ref(true)
-const activityLog = ref<Array<{ id: number; title: string; detail: string }>>([])
+const { activityLog, logActivity } = useNodeActivity()
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
 
@@ -1082,11 +1083,6 @@ function getCanvasPoint(event: DragEvent): NodePosition {
 
 function getCanvasPointFromClient(clientX: number, clientY: number): NodePosition {
 	return getCanvasPointFromClientPosition(clientX, clientY)
-}
-
-function logActivity(title: string, detail: string) {
-	activityLog.value.unshift({ id: Date.now() + Math.random(), title, detail })
-	activityLog.value = activityLog.value.slice(0, 8)
 }
 
 function cloneActionForNodeEditor(action: AnyAction | ActionStack) {
