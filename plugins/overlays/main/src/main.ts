@@ -8,6 +8,7 @@ import { setupEmoteBouncer } from "./emote-bouncer"
 import { setupAlerts } from "./alerts"
 import { setupChatFeed } from "./chat-feed"
 import { setupPaidAlert } from "./paid-alert"
+import { setupSceneEvents } from "./scene-events"
 
 export default definePlugin(
 	{
@@ -27,6 +28,7 @@ export default definePlugin(
 		setupEmoteBouncer()
 		setupChatFeed()
 		setupPaidAlert()
+		setupSceneEvents()
 	}
 )
 
