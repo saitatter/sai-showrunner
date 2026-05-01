@@ -39,6 +39,14 @@
 					<button type="button" aria-label="Reset view" @click="resetView">
 						<i class="mdi mdi-backup-restore" />
 					</button>
+					<button
+						type="button"
+						:class="{ active: snapToGrid }"
+						aria-label="Toggle snap to grid"
+						@click="snapToGrid = !snapToGrid"
+					>
+						<i class="mdi mdi-grid" />
+					</button>
 				</div>
 
 				<div
@@ -269,6 +277,7 @@ const canvasRef = ref<HTMLElement>()
 const zoom = ref(1)
 const pan = ref({ x: 0, y: 0 })
 const isPanning = ref(false)
+const snapToGrid = ref(true)
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
@@ -278,6 +287,7 @@ const NODE_WIDTH = 220
 const NODE_HEIGHT = 74
 const H_GAP = 285
 const V_GAP = 128
+const GRID_SIZE = 42
 const MIN_ZOOM = 0.35
 const MAX_ZOOM = 1.5
 const ZOOM_STEP = 0.1
@@ -512,9 +522,11 @@ function startDrag(event: PointerEvent, node: NodeData) {
 	target.setPointerCapture(event.pointerId)
 
 	function onMove(moveEvent: PointerEvent) {
+		const nextX = Math.max(12, initial.x + (moveEvent.clientX - startX) / zoom.value)
+		const nextY = Math.max(12, initial.y + (moveEvent.clientY - startY) / zoom.value)
 		nodePositions.value[node.id] = {
-			x: Math.max(12, initial.x + (moveEvent.clientX - startX) / zoom.value),
-			y: Math.max(12, initial.y + (moveEvent.clientY - startY) / zoom.value),
+			x: snapCoordinate(nextX),
+			y: snapCoordinate(nextY),
 		}
 	}
 
@@ -544,6 +556,11 @@ function resetSelectedNodePosition() {
 
 function setZoom(nextZoom: number) {
 	zoom.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(nextZoom.toFixed(2))))
+}
+
+function snapCoordinate(value: number) {
+	if (!snapToGrid.value) return value
+	return Math.round(value / GRID_SIZE) * GRID_SIZE
 }
 
 function zoomFromWheel(event: WheelEvent) {
@@ -860,6 +877,11 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 	height: 2rem;
 	justify-content: center;
 	width: 2rem;
+}
+
+.node-automation__canvas-controls button.active {
+	background: #8b35e6;
+	border-color: #e9aaff;
 }
 
 .node-automation__canvas-controls span {
