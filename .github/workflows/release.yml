@@ -32,6 +32,8 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --immutable
+        env:
+          YARN_ENABLE_SCRIPTS: false
 
       - name: Semantic release
         id: semantic-release
