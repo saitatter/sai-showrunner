@@ -54,6 +54,22 @@ Use this when you want a clean local app data folder and explicit YouTube OAuth 
 corepack yarn dev:clean:youtube -- -YouTubeClientId "your-client-id.apps.googleusercontent.com" -YouTubeClientSecret "your-client-secret"
 ```
 
+## First Run Setup
+
+Recommended local setup order:
+
+1. Open `Integrations -> Twitch -> Account Login` and connect both Channel and Bot accounts.
+2. Open `Integrations -> YouTube -> Live Integration`, confirm the OAuth checklist, then connect YouTube.
+3. Open `Integrations -> Moderation -> Moderation Docker`, choose `Localhost`, save, run Health, then Send Test Event.
+4. Create or open an overlay, copy the Browser Source URL, and add it to OBS.
+5. Create an automation and use `Nodes` mode for the graph workflow or `Timeline` for the upstream detailed editor.
+
+For a clean local YouTube test session:
+
+```powershell
+corepack yarn dev:clean:youtube -- -YouTubeClientId "your-client-id.apps.googleusercontent.com" -YouTubeClientSecret "your-client-secret"
+```
+
 Release builds can bundle YouTube credentials with:
 
 - repository variable: `SHOWRUNNER_YOUTUBE_CLIENT_ID`
@@ -92,6 +108,16 @@ The editor starts in `Nodes` mode. Use:
 - `Timeline` toggle for the legacy detailed editor
 
 The node editor is currently a compatibility layer over the existing automation schema. Editing action and trigger config works through the inspector, and common node-native operations are available from `Node Actions`.
+
+Node editor controls:
+
+- drag actions from the palette onto the canvas
+- drop actions on an edge to insert them between nodes
+- middle mouse drag pans the canvas
+- `Ctrl + wheel` zooms
+- `F` fits the graph
+- `Ctrl + D` duplicates the selected node
+- `Delete` removes the selected node
 
 ## Release
 
