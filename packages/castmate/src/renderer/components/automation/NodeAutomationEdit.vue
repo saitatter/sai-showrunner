@@ -258,7 +258,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, useModel } from "vue"
+import { computed, onMounted, onUnmounted, ref, useModel, watch } from "vue"
 import {
 	ActionSelection,
 	AutomationConfig,
@@ -303,9 +303,15 @@ interface EdgeData {
 	path: string
 }
 
+interface NodeEditorViewState {
+	zoom?: number
+	pan?: NodePosition
+	snapToGrid?: boolean
+}
+
 const props = defineProps<{
 	modelValue: AutomationConfig
-	view: AutomationResourceView & { nodePositions?: Record<string, NodePosition> }
+	view: AutomationResourceView & { nodePositions?: Record<string, NodePosition>; nodeView?: NodeEditorViewState }
 }>()
 
 const model = useModel(props, "modelValue")
@@ -315,10 +321,10 @@ const selectedNodeId = ref<string>()
 const selectedActionToAdd = ref("")
 const actionPaletteQuery = ref("")
 const canvasRef = ref<HTMLElement>()
-const zoom = ref(1)
-const pan = ref({ x: 0, y: 0 })
+const zoom = ref(props.view.nodeView?.zoom ?? 1)
+const pan = ref(props.view.nodeView?.pan ?? { x: 0, y: 0 })
 const isPanning = ref(false)
-const snapToGrid = ref(true)
+const snapToGrid = ref(props.view.nodeView?.snapToGrid ?? true)
 const dropTargetNodeId = ref<string>()
 const detailsOpen = ref(true)
 const configOpen = ref(true)
@@ -340,6 +346,18 @@ const nodePositions = computed(() => {
 	view.value.nodePositions ??= {}
 	return view.value.nodePositions
 })
+
+watch(
+	[zoom, pan, snapToGrid],
+	() => {
+		view.value.nodeView = {
+			zoom: zoom.value,
+			pan: pan.value,
+			snapToGrid: snapToGrid.value,
+		}
+	},
+	{ deep: true, immediate: true }
+)
 
 const graph = computed(() => buildGraph(model.value))
 const nodes = computed(() =>
