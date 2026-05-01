@@ -62,8 +62,20 @@
 					<svg class="node-automation__edges" :viewBox="viewBox">
 						<path
 							v-for="edge in edges"
-							:key="edge.id"
+							:key="`${edge.id}:hit`"
+							class="node-automation__edge-hit"
+							:class="{ active: dropTargetEdgeId === edge.id }"
+							:d="edge.path"
+							vector-effect="non-scaling-stroke"
+							@dragover.prevent.stop="dropTargetEdgeId = edge.id"
+							@dragleave.stop="clearDropEdge(edge.id)"
+							@drop.prevent.stop="dropActionOnEdge($event, edge)"
+						/>
+						<path
+							v-for="edge in edges"
+							:key="`${edge.id}:line`"
 							class="node-automation__edge"
+							:class="{ active: dropTargetEdgeId === edge.id }"
 							:d="edge.path"
 							vector-effect="non-scaling-stroke"
 						/>
@@ -326,6 +338,7 @@ const pan = ref(props.view.nodeView?.pan ?? { x: 0, y: 0 })
 const isPanning = ref(false)
 const snapToGrid = ref(props.view.nodeView?.snapToGrid ?? true)
 const dropTargetNodeId = ref<string>()
+const dropTargetEdgeId = ref<string>()
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
@@ -777,8 +790,34 @@ async function dropActionOnNode(event: DragEvent, node: NodeData) {
 	dropTargetNodeId.value = undefined
 }
 
+async function dropActionOnEdge(event: DragEvent, edge: EdgeData) {
+	const action = await createDraggedAction(event)
+	if (!action) return
+
+	if (edge.from === "trigger") {
+		model.value.sequence.actions.unshift(action)
+	} else {
+		insertAction(action, edge.from)
+	}
+
+	const fromNode = nodes.value.find((node) => node.id === edge.from)
+	const toNode = nodes.value.find((node) => node.id === edge.to)
+	nodePositions.value[action.id] = {
+		x: snapCoordinate(((fromNode?.x ?? 42) + (toNode?.x ?? 42)) / 2),
+		y: snapCoordinate(((fromNode?.y ?? 88) + (toNode?.y ?? 88)) / 2),
+	}
+	logActivity("Inserted on edge", `${action.plugin}/${action.action}`)
+	selectedNodeId.value = action.id
+	configOpen.value = true
+	dropTargetEdgeId.value = undefined
+}
+
 function clearDropTarget(nodeId: string) {
 	if (dropTargetNodeId.value === nodeId) dropTargetNodeId.value = undefined
+}
+
+function clearDropEdge(edgeId: string) {
+	if (dropTargetEdgeId.value === edgeId) dropTargetEdgeId.value = undefined
 }
 
 async function createDraggedAction(event: DragEvent) {
@@ -1052,6 +1091,23 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 	stroke: #e9aaff;
 	stroke-linecap: round;
 	stroke-width: 2.5px;
+}
+
+.node-automation__edge.active {
+	stroke: #2ed47a;
+	stroke-width: 4px;
+}
+
+.node-automation__edge-hit {
+	fill: none;
+	pointer-events: stroke;
+	stroke: transparent;
+	stroke-linecap: round;
+	stroke-width: 22px;
+}
+
+.node-automation__edge-hit.active {
+	stroke: rgb(46 212 122 / 0.15);
 }
 
 .node-automation__node {
