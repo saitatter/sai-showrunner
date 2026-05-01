@@ -89,18 +89,48 @@
 					Refresh Queue
 				</button>
 			</div>
+			<div class="moderation-page__filters">
+				<label>
+					<span>Search</span>
+					<input v-model="queueFilters.text" type="text" placeholder="Message, viewer, id..." />
+				</label>
+				<label>
+					<span>Platform</span>
+					<select v-model="queueFilters.platform">
+						<option value="">All</option>
+						<option value="twitch">Twitch</option>
+						<option value="youtube">YouTube</option>
+					</select>
+				</label>
+				<label>
+					<span>Verdict</span>
+					<select v-model="queueFilters.verdict">
+						<option value="">All</option>
+						<option value="allow">Allow</option>
+						<option value="flag">Flag</option>
+						<option value="block">Block</option>
+						<option value="approved">Approved</option>
+						<option value="rejected">Rejected</option>
+					</select>
+				</label>
+			</div>
 			<div class="moderation-page__queues">
 				<div v-for="queueConfig in queueConfigs" :key="queueConfig.key" class="moderation-page__queue">
-					<h3>{{ queueConfig.label }}</h3>
-					<p v-if="!queue[queueConfig.key]?.length" class="moderation-page__muted">No messages.</p>
+					<h3>{{ queueConfig.label }} <small>{{ filteredQueue(queueConfig.key).length }}</small></h3>
+					<p v-if="!filteredQueue(queueConfig.key).length" class="moderation-page__muted">No matching messages.</p>
 					<ul v-else class="moderation-page__feed moderation-page__feed--queue">
-						<li v-for="entry in queue[queueConfig.key]" :key="`${queueConfig.key}:${entry.messageId}:${entry.verdict}`">
+						<li v-for="entry in filteredQueue(queueConfig.key)" :key="`${queueConfig.key}:${entry.messageId}:${entry.verdict}`">
 							<div>
 								<strong>{{ entry.username || "unknown" }}</strong>
 								<span>{{ entry.platform }} · {{ entry.verdict }}</span>
 								<small>{{ entry.messageId }}</small>
 							</div>
 							<p>{{ entry.text }}</p>
+							<div class="moderation-page__audit">
+								<span v-if="entry.category">{{ entry.category }}</span>
+								<span v-if="entry.reason">{{ entry.reason }}</span>
+								<span v-if="entry.receivedAt">{{ entry.receivedAt }}</span>
+							</div>
 							<div class="moderation-page__queue-actions">
 								<button type="button" @click="override(entry.messageId, 'approve')">Approve</button>
 								<button type="button" @click="override(entry.messageId, 'block')">Block</button>
@@ -168,6 +198,11 @@ const queue = ref<ModerationQueueState>({
 	pending: [],
 	approved: [],
 	rejected: [],
+})
+const queueFilters = reactive({
+	text: "",
+	platform: "",
+	verdict: "",
 })
 const draft = reactive<ModerationSettings>({
 	enabled: false,
@@ -243,6 +278,24 @@ async function override(messageId: string, action: ModerationOverrideRequest["ac
 			reason: `ShowRunner ${action}`,
 		})
 		applyStatus(await getStatus())
+		addActivity("info", "Manual moderation override", `${action} · ${messageId}`)
+	})
+}
+
+function filteredQueue(key: keyof ModerationQueueState) {
+	const text = queueFilters.text.trim().toLowerCase()
+	const platform = queueFilters.platform.trim().toLowerCase()
+	const verdict = queueFilters.verdict.trim().toLowerCase()
+
+	return (queue.value[key] || []).filter((entry) => {
+		const haystack = [entry.text, entry.username, entry.messageId, entry.category, entry.reason]
+			.filter(Boolean)
+			.join(" ")
+			.toLowerCase()
+		if (text && !haystack.includes(text)) return false
+		if (platform && String(entry.platform || "").toLowerCase() !== platform) return false
+		if (verdict && String(entry.verdict || "").toLowerCase() !== verdict) return false
+		return true
 	})
 }
 
@@ -345,7 +398,8 @@ onBeforeUnmount(() => {
 }
 
 .moderation-page__panel input[type="password"],
-.moderation-page__panel input[type="text"] {
+.moderation-page__panel input[type="text"],
+.moderation-page__panel select {
 	background: var(--surface-950);
 	border: 1px solid var(--surface-700);
 	border-radius: 4px;
@@ -420,6 +474,32 @@ onBeforeUnmount(() => {
 	padding: 0.75rem;
 }
 
+.moderation-page__queue h3 {
+	align-items: center;
+	display: flex;
+	gap: 0.45rem;
+}
+
+.moderation-page__queue h3 small {
+	background: var(--surface-700);
+	border-radius: 999px;
+	color: var(--text-color-secondary);
+	font-size: 0.72rem;
+	padding: 0.12rem 0.45rem;
+}
+
+.moderation-page__filters {
+	display: grid;
+	gap: 0.75rem;
+	grid-template-columns: minmax(16rem, 1fr) repeat(2, minmax(10rem, 12rem));
+}
+
+.moderation-page__filters label {
+	display: grid;
+	gap: 0.35rem;
+	grid-template-columns: 1fr;
+}
+
 .moderation-page__feed {
 	display: grid;
 	gap: 0.5rem;
@@ -456,6 +536,21 @@ onBeforeUnmount(() => {
 	color: var(--text-color);
 	margin: 0;
 	overflow-wrap: anywhere;
+}
+
+.moderation-page__audit {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.moderation-page__audit span {
+	background: var(--surface-900);
+	border: 1px solid var(--surface-700);
+	border-radius: 999px;
+	color: var(--text-color-secondary);
+	font-size: 0.72rem;
+	padding: 0.2rem 0.45rem;
 }
 
 .moderation-page__feed--queue li span {
