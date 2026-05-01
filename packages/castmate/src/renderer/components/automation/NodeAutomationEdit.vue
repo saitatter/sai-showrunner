@@ -59,6 +59,20 @@
 						transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
 					}"
 				>
+					<div
+						v-for="lane in lanes"
+						:key="lane.id"
+						class="node-automation__lane"
+						:class="`node-automation__lane--${lane.kind}`"
+						:style="{
+							transform: `translate(${lane.x}px, ${lane.y}px)`,
+							width: `${lane.width}px`,
+							height: `${lane.height}px`,
+						}"
+					>
+						<span>{{ lane.label }}</span>
+					</div>
+
 					<svg class="node-automation__edges" :viewBox="viewBox">
 						<path
 							v-for="edge in edges"
@@ -316,6 +330,14 @@ interface EdgeData {
 	path: string
 }
 
+interface LaneData extends NodePosition {
+	id: string
+	kind: "main" | "floating" | "stack" | "time" | "flow"
+	label: string
+	width: number
+	height: number
+}
+
 interface NodeEditorViewState {
 	zoom?: number
 	pan?: NodePosition
@@ -398,6 +420,34 @@ const edges = computed<EdgeData[]>(() => {
 				path: `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`,
 			},
 		]
+	})
+})
+const lanes = computed<LaneData[]>(() => {
+	const groups = new Map<string, { kind: LaneData["kind"]; label: string; nodes: NodeData[] }>()
+	for (const node of nodes.value) {
+		const lane = getNodeLane(node)
+		const group = groups.get(lane.id)
+		if (group) {
+			group.nodes.push(node)
+		} else {
+			groups.set(lane.id, { kind: lane.kind, label: lane.label, nodes: [node] })
+		}
+	}
+
+	return [...groups.entries()].map(([id, group]) => {
+		const minX = Math.min(...group.nodes.map((node) => node.x))
+		const minY = Math.min(...group.nodes.map((node) => node.y))
+		const maxX = Math.max(...group.nodes.map((node) => node.x + NODE_WIDTH))
+		const maxY = Math.max(...group.nodes.map((node) => node.y + NODE_HEIGHT))
+		return {
+			id,
+			kind: group.kind,
+			label: group.label,
+			x: Math.max(12, minX - 18),
+			y: Math.max(12, minY - 34),
+			width: Math.max(NODE_WIDTH + 36, maxX - minX + 36),
+			height: Math.max(NODE_HEIGHT + 58, maxY - minY + 58),
+		}
 	})
 })
 const selectedNode = computed(() => nodes.value.find((node) => node.id === selectedNodeId.value))
@@ -638,6 +688,15 @@ function titleCase(value: string) {
 		.replace(/[-_]/g, " ")
 		.replace(/([a-z])([A-Z])/g, "$1 $2")
 		.replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function getNodeLane(node: NodeData): Pick<LaneData, "id" | "kind" | "label"> {
+	if (node.id === "trigger") return { id: "main", kind: "main", label: "Main Flow" }
+	if (node.path?.includes(".stack[")) return { id: "stack", kind: "stack", label: "Stacked Actions" }
+	if (node.path?.includes(".offsets[")) return { id: "time", kind: "time", label: "Time Offsets" }
+	if (node.path?.includes(".subFlows[")) return { id: "flow", kind: "flow", label: "Flow Branches" }
+	if (node.path?.startsWith("floatingSequences")) return { id: "floating", kind: "floating", label: "Floating Sequences" }
+	return { id: "main", kind: "main", label: "Main Flow" }
 }
 
 function startDrag(event: PointerEvent, node: NodeData) {
@@ -1155,6 +1214,49 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 	min-height: 100%;
 	min-width: 100%;
 	position: absolute;
+	z-index: 1;
+}
+
+.node-automation__lane {
+	background: rgb(255 255 255 / 0.035);
+	border: 1px solid rgb(255 255 255 / 0.1);
+	border-radius: 8px;
+	position: absolute;
+	z-index: 0;
+}
+
+.node-automation__lane span {
+	background: rgb(16 16 16 / 0.86);
+	border: 1px solid rgb(255 255 255 / 0.12);
+	border-radius: 999px;
+	color: #e9e9e9;
+	font-size: 0.72rem;
+	font-weight: 700;
+	left: 0.75rem;
+	letter-spacing: 0;
+	padding: 0.2rem 0.5rem;
+	position: absolute;
+	top: 0.45rem;
+}
+
+.node-automation__lane--main {
+	border-color: rgb(233 170 255 / 0.3);
+}
+
+.node-automation__lane--floating {
+	border-color: rgb(255 155 215 / 0.35);
+}
+
+.node-automation__lane--stack {
+	border-color: rgb(255 223 107 / 0.35);
+}
+
+.node-automation__lane--time {
+	border-color: rgb(104 211 145 / 0.35);
+}
+
+.node-automation__lane--flow {
+	border-color: rgb(100 181 246 / 0.35);
 }
 
 .node-automation__edge {
@@ -1198,6 +1300,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 	text-align: left;
 	touch-action: none;
 	width: 220px;
+	z-index: 2;
 }
 
 .node-automation__handle {
