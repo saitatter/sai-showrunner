@@ -43,6 +43,7 @@ import { initData, StreamPlanEditorPage, useSatelliteResourceStore } from "castm
 import { initPlugin as initSoundPlugin } from "castmate-plugin-sound-renderer"
 import { initPlugin as initVariablesPlugin } from "castmate-plugin-variables-renderer"
 import { initPlugin as initTwitchPlugin } from "castmate-plugin-twitch-renderer"
+import { initPlugin as initYouTubePlugin } from "castmate-plugin-youtube-renderer"
 import { initPlugin as initObsPlugin } from "castmate-plugin-obs-renderer"
 import { initPlugin as initDiscordPlugin } from "castmate-plugin-discord-renderer"
 import { initPlugin as initInputPlugin } from "castmate-plugin-input-renderer"
@@ -69,6 +70,7 @@ import { initPlugin as initBlueSkyPlugin } from "castmate-plugin-bluesky-rendere
 
 import { initPlugin as initAdvssPlugin } from "castmate-plugin-advss-renderer"
 import { initPlugin as initAitumPlugin } from "castmate-plugin-aitum-renderer"
+import { initPlugin as initModerationPlugin } from "../../../../plugins/moderation/renderer/src/main"
 
 import { loadOverlayWidgets } from "castmate-overlay-widget-loader"
 import { loadDashboardWidgets } from "castmate-dashboard-widget-loader"
@@ -203,6 +205,8 @@ async function init() {
 
 	await initVariablesPlugin()
 	await initTwitchPlugin(app)
+	await initYouTubePlugin(app)
+	await initModerationPlugin(app)
 	await initSpellCastPlugin(app)
 
 	//TODO: This init function is bonkers, we should formalize initing these plugins after their main process side gets inited.

@@ -31,8 +31,8 @@ interface ConditionalTrigger {
 export default definePlugin(
 	{
 		id: "castmate",
-		name: "CastMate",
-		icon: "cmi cmi-castmate",
+		name: "ShowRunner",
+		icon: "mdi mdi-webcam",
 		color: "#DE84FF",
 		description: "Builtin Actions and Triggers",
 	},

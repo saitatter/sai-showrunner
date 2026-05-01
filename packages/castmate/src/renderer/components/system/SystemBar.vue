@@ -5,7 +5,9 @@
 	</div> -->
 	<p-menubar :model="menuItems" class="system-bar windrag">
 		<template #start>
-			<img src="../../assets/castmate/logo-dark.svg" style="height: 1em; padding-left: 1rem" />
+			<div class="system-bar__brand non-windrag" aria-label="ShowRunner">
+				<img src="../../assets/showrunner/logo-dark.svg" />
+			</div>
 		</template>
 		<template #end>
 			<p-button
@@ -87,10 +89,6 @@ useIpcMessage("windowFuncs", "stateChanged", (event, state: string) => {
 })
 
 const openLogFolder = useIpcCaller<() => any>("logging", "openLogFolder")
-
-const props = defineProps<{
-	title: string
-}>()
 
 const dockingStore = useDockingStore()
 
@@ -273,6 +271,32 @@ const menuItems = computed<MenuItem[]>(() => {
 .system-bar {
 	padding: 0 !important;
 	border-radius: 0 !important;
+	min-height: 48px;
+}
+
+.system-bar__brand {
+	align-items: center;
+	display: flex;
+	height: 100%;
+	justify-content: center;
+	padding-left: 0.85rem;
+	padding-right: 0.35rem;
+}
+
+.system-bar__brand img {
+	display: block;
+	height: 1.55rem;
+	width: 1.55rem;
+}
+
+.system-bar :deep(.p-menubar-start) {
+	align-items: center;
+	display: flex;
+	order: -1;
+}
+
+.system-bar :deep(.p-menubar-root-list) {
+	margin-left: 0;
 }
 
 .system-bar :deep(.p-menubar-root-list) {

@@ -54,7 +54,7 @@ export default definePlugin(
 		onUnload(() => {})
 
 		onChannelAuth((channel) => {
-			//Pass the auth token to the pubsub so it can auth with the CastMate servers
+			//Pass the auth token to the pubsub so it can auth with the ShowRunner servers
 			PubSubManager.getInstance().setToken(channel.secrets.accessToken)
 
 			AnalyticsService.getInstance().setUserId(channel.twitchId)
@@ -116,7 +116,7 @@ const twitchSatellite = defineSatellitePlugin(
 		})
 
 		onChannelAuth((channel) => {
-			//Pass the auth token to the pubsub so it can auth with the CastMate servers
+			//Pass the auth token to the pubsub so it can auth with the ShowRunner servers
 			PubSubManager.getInstance().setToken(channel.secrets.accessToken)
 		})
 

@@ -4086,6 +4086,50 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"castmate-plugin-moderation-main@workspace:plugins/moderation/main":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-moderation-main@workspace:plugins/moderation/main"
+  dependencies:
+    castmate-core: "workspace:^"
+    castmate-plugin-moderation-shared: "workspace:^"
+    castmate-schema: "workspace:^"
+    typescript: "npm:*"
+    ws: "npm:*"
+  languageName: unknown
+  linkType: soft
+
+"castmate-plugin-moderation-renderer@workspace:plugins/moderation/renderer":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-moderation-renderer@workspace:plugins/moderation/renderer"
+  dependencies:
+    "@vitejs/plugin-vue": "npm:4.6.2"
+    castmate-plugin-moderation-shared: "workspace:^"
+    castmate-schema: "workspace:^"
+    castmate-ui-core: "workspace:^"
+    electron: "npm:^34.2.0"
+    pinia: "npm:^2.1.7"
+    typescript: "npm:*"
+    vite: "npm:^7.3.1"
+    vue: "npm:^3.5.13"
+    vue-tsc: "npm:*"
+  languageName: unknown
+  linkType: soft
+
+"castmate-plugin-moderation-shared@workspace:^, castmate-plugin-moderation-shared@workspace:plugins/moderation/shared":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-moderation-shared@workspace:plugins/moderation/shared"
+  dependencies:
+    castmate-schema: "workspace:^"
+    typescript: "npm:*"
+  languageName: unknown
+  linkType: soft
+
+"castmate-plugin-moderation@workspace:plugins/moderation":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-moderation@workspace:plugins/moderation"
+  languageName: unknown
+  linkType: soft
+
 "castmate-plugin-obs-main@workspace:^, castmate-plugin-obs-main@workspace:plugins/obs/main":
   version: 0.0.0-use.local
   resolution: "castmate-plugin-obs-main@workspace:plugins/obs/main"
@@ -4975,6 +5019,50 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"castmate-plugin-youtube-main@workspace:^, castmate-plugin-youtube-main@workspace:plugins/youtube/main":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-youtube-main@workspace:plugins/youtube/main"
+  dependencies:
+    castmate-core: "workspace:^"
+    castmate-plugin-youtube-shared: "workspace:^"
+    castmate-schema: "workspace:^"
+    electron: "npm:^34.2.0"
+    typescript: "npm:*"
+  languageName: unknown
+  linkType: soft
+
+"castmate-plugin-youtube-renderer@workspace:^, castmate-plugin-youtube-renderer@workspace:plugins/youtube/renderer":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-youtube-renderer@workspace:plugins/youtube/renderer"
+  dependencies:
+    "@vitejs/plugin-vue": "npm:4.6.2"
+    castmate-plugin-youtube-shared: "workspace:^"
+    castmate-schema: "workspace:^"
+    castmate-ui-core: "workspace:^"
+    electron: "npm:^34.2.0"
+    pinia: "npm:^2.1.7"
+    typescript: "npm:*"
+    vite: "npm:^7.3.1"
+    vue: "npm:^3.5.13"
+    vue-tsc: "npm:*"
+  languageName: unknown
+  linkType: soft
+
+"castmate-plugin-youtube-shared@workspace:^, castmate-plugin-youtube-shared@workspace:plugins/youtube/shared":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-youtube-shared@workspace:plugins/youtube/shared"
+  dependencies:
+    castmate-schema: "workspace:^"
+    typescript: "npm:*"
+  languageName: unknown
+  linkType: soft
+
+"castmate-plugin-youtube@workspace:plugins/youtube":
+  version: 0.0.0-use.local
+  resolution: "castmate-plugin-youtube@workspace:plugins/youtube"
+  languageName: unknown
+  linkType: soft
+
 "castmate-satellite@workspace:packages/castmate-satellite":
   version: 0.0.0-use.local
   resolution: "castmate-satellite@workspace:packages/castmate-satellite"
@@ -5149,6 +5237,8 @@ __metadata:
     castmate-plugin-voicemod-renderer: "workspace:^"
     castmate-plugin-wyze-main: "workspace:^"
     castmate-plugin-wyze-renderer: "workspace:^"
+    castmate-plugin-youtube-main: "workspace:^"
+    castmate-plugin-youtube-renderer: "workspace:^"
     castmate-schema: "workspace:^"
     castmate-ui-core: "workspace:^"
     castmate-vite: "workspace:^"

@@ -20,7 +20,7 @@
 				class="p-text-secondary"
 				style="font-size: 0.875rem"
 				v-else
-				v-tooltip="`CastMate can't start OBS on remote machines`"
+				v-tooltip="`ShowRunner can't start OBS on remote machines`"
 			>
 				Remote OBS
 			</div>

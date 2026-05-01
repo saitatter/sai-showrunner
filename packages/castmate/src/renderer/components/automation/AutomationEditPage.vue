@@ -1,15 +1,14 @@
 <template>
 	<div class="automation-edit-page">
-		<data-binding-path local-path="automation">
-			<automation-edit v-model="model" v-model:view="view" style="flex: 1" />
-		</data-binding-path>
+		<node-automation-edit v-model="model" v-model:view="view" />
 	</div>
 </template>
 
 <script setup lang="ts">
 import { AutomationConfig } from "castmate-schema"
-import { AutomationResourceView, AutomationEdit, DataBindingPath } from "castmate-ui-core"
+import { AutomationResourceView } from "castmate-ui-core"
 import { useModel } from "vue"
+import NodeAutomationEdit from "./NodeAutomationEdit.vue"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
@@ -23,6 +22,8 @@ const model = useModel(props, "modelValue")
 <style scoped>
 .automation-edit-page {
 	position: relative;
+	display: flex;
+	height: 100%;
 	--trigger-color: #3e3e3e;
 	--darker-trigger-color: #2e2e2e;
 	--darkest-trigger-color: #1e1e1e;

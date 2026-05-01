@@ -79,7 +79,7 @@ export default definePlugin(
 				return {
 					type: Object,
 					properties: {
-						message: { type: String, required: true, default: "Thanks for using CastMate!" },
+						message: { type: String, required: true, default: "Thanks for using ShowRunner!" },
 						...getCommandDataSchema(config.message).properties,
 					},
 				}

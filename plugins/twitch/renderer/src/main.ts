@@ -110,13 +110,31 @@ export async function initPlugin(app: App<Element>) {
 		page: GroupPageVue,
 	})
 
-	projectStore.registerProjectGroupItem(
+	projectStore.registerProjectGroupChild(
+		{
+			id: "integrations",
+			title: "Integrations",
+			icon: "mdi mdi-connection",
+		},
 		computed<ProjectGroup>(() => {
 			return {
 				id: "twitch",
 				title: "Twitch",
 				icon: "mdi mdi-twitch twitch-purple",
 				items: [
+					{
+						id: "twitch.accounts",
+						title: "Account Login",
+						icon: "mdi mdi-account-key",
+						open() {
+							dockingStore.openPage(
+								"twitch.accounts",
+								"Twitch Account Login",
+								"mdi mdi-account-key",
+								TwitchAccountSettingsVue
+							)
+						},
+					},
 					{
 						id: "twitch.channelpoints",
 						title: "Channel Point Rewards",

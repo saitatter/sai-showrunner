@@ -242,7 +242,7 @@ export class ChannelPointReward extends Resource<ChannelPointRewardConfig, Chann
 		await this.storage.inject(...resources)
 	}
 
-	//Called when we discover a CastMate controlled reward that doesn't have a resource
+	//Called when we discover a ShowRunner controlled reward that doesn't have a resource
 	static async recoverLocalReward(reward: TwurpleReward) {
 		logger.log("Recovering ", reward.title)
 		const rewardData = rewardDataFromTwurple(reward)
@@ -508,7 +508,7 @@ export function setupChannelPointRewards() {
 				viewer: { type: TwitchViewer, required: true, default: "27082158" },
 				reward: { type: ChannelPointReward, required: true, view: false },
 				redemptionId: { type: String, required: true, view: false },
-				message: { type: String, default: "Thanks for using CastMate!" },
+				message: { type: String, default: "Thanks for using ShowRunner!" },
 			},
 		},
 		async handle(config, context) {

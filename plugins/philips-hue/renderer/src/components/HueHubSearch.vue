@@ -3,7 +3,7 @@
 		<div class="text-centered">Philips Hue Bridge</div>
 		<div class="flex flex-column align-items-center justify-content-center">
 			<div class="my-3">
-				Press the button on the hue hub, then click Pair Hub to automatically connect CastMate to philips hue.
+				Press the button on the hue hub, then click Pair Hub to automatically connect ShowRunner to Philips Hue.
 			</div>
 			<p-button :loading="syncing" @click="doSearch">{{ buttonText }}</p-button>
 		</div>

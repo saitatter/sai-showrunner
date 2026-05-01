@@ -17,7 +17,7 @@ export default definePlugin(
 	{
 		id: "remote",
 		name: "Remote",
-		description: "Allows various programs to remotely trigger CastMate",
+		description: "Allows various programs to remotely trigger ShowRunner",
 		icon: "mdi mdi-remote",
 		color: "#D554FF",
 	},

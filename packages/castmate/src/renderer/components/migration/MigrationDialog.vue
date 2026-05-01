@@ -1,9 +1,9 @@
 <template>
 	<div class="migration-dialog">
 		<div class="text-center">
-			<h1 class="mb-0">CastMate 0.5 is <i>Finally</i> Here!</h1>
+			<h1 class="mb-0">ShowRunner setup needs a data update</h1>
 			<h3 class="p-text-secondary mt-0" v-if="!migratedProfiles">
-				We need to update your existing CastMate data.
+				We need to update your existing ShowRunner data.
 			</h3>
 		</div>
 		<div v-if="!creatingBackup" class="flex flex-row justify-content-center align-items-center py-5">
@@ -51,7 +51,7 @@
 					<p class="m-0 text-center">
 						Connect to OBS<br />
 						<span class="p-text-secondary text-sm">
-							CastMate needs OBS <b>open</b> and <b>connected</b> to properly update data.
+							ShowRunner needs OBS <b>open</b> and <b>connected</b> to properly update data.
 						</span>
 					</p>
 					<data-input v-model="obsConfig" :schema="obsConfigSchema"></data-input>

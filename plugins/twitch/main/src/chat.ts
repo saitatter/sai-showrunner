@@ -60,6 +60,15 @@ function parseEmotesFromMsg(chatMessage: ChatMessage): EmoteParsedString {
 	return result
 }
 
+function getTwitchBadges(msgInfo: ChatMessage): string[] {
+	const badges: string[] = []
+	if (msgInfo.userInfo.isBroadcaster) badges.push("broadcaster")
+	if (msgInfo.userInfo.isMod) badges.push("moderator")
+	if (msgInfo.userInfo.isSubscriber) badges.push("subscriber")
+	if (msgInfo.userInfo.isVip) badges.push("vip")
+	return badges
+}
+
 export function setupChat() {
 	const logger = usePluginLogger()
 
@@ -105,8 +114,12 @@ export function setupChat() {
 			type: Object,
 			properties: {
 				viewer: { type: TwitchViewer, required: true, default: "27082158", name: "Viewer" },
-				message: { type: String, required: true, default: "Thanks for using CastMate!" },
+				viewerId: { type: String, required: true, default: "27082158", name: "Viewer ID" },
+				viewerName: { type: String, required: true, default: "ViewerName", name: "Viewer Name" },
+				platform: { type: String, required: true, default: "twitch", name: "Platform" },
+				message: { type: String, required: true, default: "Thanks for using ShowRunner!" },
 				messageId: { type: String, required: true, default: "1234", view: false },
+				badges: { type: String, required: true, default: "", name: "Badges" },
 			},
 		},
 		async context(config) {
@@ -114,8 +127,12 @@ export function setupChat() {
 				type: Object,
 				properties: {
 					viewer: { type: TwitchViewer, required: true, default: "27082158" },
-					message: { type: String, required: true, default: "Thanks for using CastMate!" },
+					viewerId: { type: String, required: true, default: "27082158", name: "Viewer ID" },
+					viewerName: { type: String, required: true, default: "ViewerName", name: "Viewer Name" },
+					platform: { type: String, required: true, default: "twitch", name: "Platform" },
+					message: { type: String, required: true, default: "Thanks for using ShowRunner!" },
 					messageId: { type: String, required: true, default: "1234", view: false },
+					badges: { type: String, required: true, default: "", name: "Badges" },
 					...getCommandDataSchema(config.command).properties,
 				},
 			}
@@ -163,8 +180,12 @@ export function setupChat() {
 			type: Object,
 			properties: {
 				viewer: { type: TwitchViewer, required: true, default: "27082158", name: "Viewer" },
-				message: { type: String, required: true, default: "Thanks for using CastMate!" },
+				viewerId: { type: String, required: true, default: "27082158", name: "Viewer ID" },
+				viewerName: { type: String, required: true, default: "ViewerName", name: "Viewer Name" },
+				platform: { type: String, required: true, default: "twitch", name: "Platform" },
+				message: { type: String, required: true, default: "Thanks for using ShowRunner!" },
 				messageId: { type: String, required: true, default: "1234", view: false },
+				badges: { type: String, required: true, default: "", name: "Badges" },
 			},
 		},
 		async handle(config, context) {
@@ -262,7 +283,7 @@ export function setupChat() {
 			properties: {
 				bits: { type: Number, required: true, default: 100 },
 				viewer: { type: TwitchViewer, required: true, default: "27082158" },
-				message: { type: String, required: true, default: "Thanks for using CastMate" },
+				message: { type: String, required: true, default: "Thanks for using ShowRunner" },
 			},
 		},
 		async handle(config, context) {
@@ -304,10 +325,16 @@ export function setupChat() {
 	onBotAuth((account, service) => {
 		service.chatClient.onMessage(async (channel, user, message, msgInfo) => {
 			logger.log("ChatMsg", message)
+			const badges = getTwitchBadges(msgInfo)
 			const context = {
+				// Keep `viewer` for legacy Twitch triggers while newer cross-platform automations use `viewerId`.
 				viewer: msgInfo.userInfo.userId,
+				viewerId: msgInfo.userInfo.userId,
+				viewerName: msgInfo.userInfo.displayName || user,
+				platform: "twitch",
 				message,
 				messageId: msgInfo.id,
+				badges: badges.join(","),
 			}
 
 			const twitchOnlyEmotes = parseEmotesFromMsg(msgInfo)

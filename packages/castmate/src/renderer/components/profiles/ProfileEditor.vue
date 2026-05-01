@@ -18,7 +18,7 @@
 				</template>
 				<template #no-items>
 					<div class="flex flex-column align-items-center p-3">
-						<h3>Triggers are how CastMate responds to events.</h3>
+						<h3>Triggers are how ShowRunner responds to events.</h3>
 						<p-button @click="createTriggerEnd">Add Trigger</p-button>
 					</div>
 				</template>

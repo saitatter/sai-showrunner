@@ -1,6 +1,6 @@
 module.exports = {
-	appId: "com.lordtocs.castmate",
-	productName: "CastMate",
+	appId: "com.saitatter.showrunner",
+	productName: "ShowRunner",
 	asar: true,
 	electronVersion: "34.2.0",
 	directories: {
@@ -28,6 +28,7 @@ module.exports = {
 	nodeGypRebuild: false,
 	nativeRebuilder: "sequential",
 	win: {
+		icon: "build/icon.png",
 		target: [
 			{
 				target: "nsis",
@@ -79,8 +80,8 @@ module.exports = {
 	publish: [
 		{
 			provider: "github",
-			owner: "LordTocs",
-			repo: "CastMate",
+			owner: "saitatter",
+			repo: "sai-showrunner",
 		},
 	],
 }

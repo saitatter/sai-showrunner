@@ -1,45 +1,167 @@
-# CastMate
+# ShowRunner
 
-CastMate is an all-in-one Broadcaster Production Suite for Twitch. It lets a streamer create viewer interactions, automate common tasks, display overlays, and plan streams.
+[![Build](https://github.com/saitatter/sai-showrunner/actions/workflows/ci.yml/badge.svg)](https://github.com/saitatter/sai-showrunner/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/saitatter/sai-showrunner?display_name=tag)](https://github.com/saitatter/sai-showrunner/releases)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE.md)
 
-## Triggers
+ShowRunner is a desktop-first broadcaster production suite for Twitch, YouTube, OBS, overlays, stream automations, and external SAI services.
 
-In CastMate you can setup triggers to respond to twitch events like channel point redemptions, bits being cheered, gaining a follower, receiving a sub, chat messages, being raided, hype trains, and more.
+This project is an AGPL-3.0 fork of CastMate. Upstream architecture, plugin boundaries, and licensing are preserved while the app is being shaped into the SAI streaming toolchain.
 
-You can use actions to automatically respond to triggers. Using CastMate's click and drag timeline automation system you can easily setup sounds to play, lights to change, chat to twitch, message to discord, etc. Using triggers lets you easily create an interactive stream for your audience.
+## Current Features
 
-![CastMate UI Triggers](docs/images/trigger.png?raw=true)
+- Twitch integration with profiles, channel point rewards, chat triggers, and stream automation.
+- YouTube integration with browser OAuth, live chat ingest, chat command triggers, paid message triggers, membership triggers, and author flags.
+- OBS WebSocket integration for scene/control actions.
+- Overlay editing with OBS preview workflow, visible browser-source URLs, and one-click URL copy.
+- Automation editor with both the original timeline view and a new node-based flow view.
+- Node context workflow with right-click command menus, collapsible trigger/action groups, action insertion, duplicate/delete/reorder controls, and the same action/trigger configuration panel used by Timeline.
+- Moderation Docker integration under `Integrations -> Moderation`, with native queue/status UI, manual override actions, and a `Filter Chat Message` automation action.
+- Native overlay widgets for targeted approved chat feeds, paid alerts, scene banners, and WebGL shader layers with bundled presets or locally edited fragment shader source.
+- Semantic release workflow for packaged Windows builds.
 
-## Profiles
+## Local Development
 
-A Profile is an organizational tool to group triggers together. They also serve as a way to change what triggers are active. Profiles can be manually turned on and off, or they can be set to automatically turn on and off based custom conditions you choose.
+Install dependencies:
 
-![CastMate UI Profiles](docs/images/profile.png?raw=true)
+```powershell
+corepack yarn install
+```
 
-When a profile is off it will automatically disable the channel point rewards no longer needed, any chat commands in it will become unavailable, and
+Run the desktop app in dev mode:
 
-![CastMate UI Profiles](docs/images/ChannelPointRewards.gif?raw=true)
+```powershell
+corepack yarn dev
+```
 
-## Overlays
+Build all Vite targets:
 
-CastMate has a WYSIWYG interface for creating overlays. Create custom alerts entirely though the UI. Sync labels with CastMate's internal state automatically. Easily edit your overlays right in the UI and have their results appear immediately once saved in OBS.
+```powershell
+node .\vite-util\multi-vite.mjs build
+```
 
-![CastMate UI Profiles](docs/images/WYSIWYG.gif?raw=true)
+Build a local Windows installer:
 
-## SpellCast
+```powershell
+$env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
+corepack yarn build
+```
 
-SpellCast is a companion twitch extension to CastMate that lets you do away with your "bits menu". SpellCast lets you create custom spells your viewers can cast for bits to trigger CastMate. They are activated and deactivated with your profiles just like channel point rewards. This way it's always clear to your viewers what bits will do on your stream.
+## Clean YouTube Test Run
 
-![CastMate UI Profiles](docs/images/SpellCast.png?raw=true)
+Use this when you want a clean local app data folder and explicit YouTube OAuth credentials:
 
-## Contributing
+```powershell
+corepack yarn dev:clean:youtube -- -YouTubeClientId "your-client-id.apps.googleusercontent.com" -YouTubeClientSecret "your-client-secret"
+```
 
-Pull Requests are on hold until a CLA can be worked out.
+## First Run Setup
 
-## Support
+Recommended local setup order:
 
-Feedback and bug reports are greatly appreciated! Please don't hesitate to reach out through Twitch, Discord, or GitHub issues.
+1. Open `Integrations -> Twitch -> Account Login` and connect both Channel and Bot accounts.
+2. Open `Integrations -> YouTube -> Live Integration`, confirm the OAuth checklist, then connect YouTube.
+3. Open `Integrations -> Moderation -> Moderation Docker`, choose `Localhost`, save, run Health, then Send Test Event.
+4. Create or open an overlay, copy the Browser Source URL, and add it to OBS.
+5. Add a `Chat Feed`, `Paid Alert`, `Scene Banner`, or `Shader Layer` widget in Overlay Studio when needed.
+6. Create an automation and use `Nodes` mode for the graph workflow or `Timeline` for the upstream detailed editor.
 
--   [LordTocs' Twitch](https://www.twitch.tv/lordtocs)
--   [LordTocs' YouTube](https://www.youtube.com/channel/UCe4uXUoF5MkKvhgy514FCuA)
--   [LordTocs' Discord](https://discord.gg/txt4DUzYJM)
+Release builds can bundle YouTube credentials with:
+
+- repository variable: `SHOWRUNNER_YOUTUBE_CLIENT_ID`
+- repository secret: `SHOWRUNNER_YOUTUBE_CLIENT_SECRET`
+
+## Moderation Docker
+
+ShowRunner can use SAI Moderation Docker as a backend-only moderation service. The old docker-hosted `/dashboard` page remains available for compatibility, but the primary queue UI is now native in ShowRunner.
+
+Default URLs:
+
+- API: `http://localhost:8787`
+- Dashboard WebSocket: `ws://localhost:8787/ws?channel=dashboard`
+
+In the app, open:
+
+```text
+Integrations -> Moderation -> Moderation Docker
+```
+
+Enable the integration, verify health, send a test event, and leave `Forward YouTube chat` enabled. Approved overlay delivery is still owned by the moderation docker and overlay runtime.
+
+Recommended automation flow:
+
+```text
+Twitch/YouTube chat trigger
+-> Moderation: Filter Chat Message
+-> condition on approved/verdict
+-> Overlays: Push Chat Message
+-> Chat Feed widget
+```
+
+`Filter Chat Message` sends `deliveryMode: "decisionOnly"` to `POST /v1/chat-events`, so moderation updates the queue and returns a verdict without publishing directly to an overlay. This makes ShowRunner the place where you decide which approved messages reach which overlay widget.
+
+Ready-made templates are available under `Automations`:
+
+- `Template: Twitch Moderated Chat Feed`
+- `Template: YouTube Moderated Chat Feed`
+- `Template: Approved Only Chat Feed`
+
+Use these as a starting point, then select the target `Chat Feed` widget in the `Overlays: Push Chat Message` action when you want a specific overlay destination.
+
+## Native Chat And Shader Overlays
+
+Overlay Studio includes:
+
+- `Chat Feed`: a configurable chat widget for approved Twitch/YouTube messages, with platform colors, font sizing, background opacity, fade time, max messages, layout, badges, and targeted widget delivery from automations.
+- `Paid Alert`: a targeted widget for YouTube paid messages, donations, and support events pushed with `Overlays -> Push Paid Alert`.
+- `Scene Banner`: a targeted widget for `Overlays -> Begin Scene Overlay` and `Overlays -> End Scene Overlay` automation actions.
+- `Shader Layer`: a WebGL widget with bundled shader presets, local saved shader presets, a custom fragment shader editor mode, color/intensity/speed controls, opacity/blend mode, preset previews, and a fallback state if WebGL or shader compilation fails.
+
+The older standalone `sai-chat-overlay` flow can be retired once your ShowRunner overlay contains a `Chat Feed` widget and automations push approved messages with `Overlays -> Push Chat Message`.
+
+## Automation Editor
+
+Open or create an automation:
+
+```text
+Automations -> New/Open Automation
+```
+
+The editor starts in `Nodes` mode. Use:
+
+- left click to select a node
+- right click to open the Windows-style command menu for triggers and actions
+- drag to organize nodes visually
+- `Timeline` toggle for the legacy detailed editor
+
+The node editor is currently a compatibility layer over the existing automation schema. Editing action and trigger config works through the inspector, and common node-native operations are available from `Node Actions`.
+
+Node editor controls:
+
+- drag actions from the palette onto the canvas
+- drop actions on an edge to insert them between nodes
+- middle mouse drag pans the canvas
+- `Ctrl + wheel` zooms
+- `F` fits the graph
+- `Ctrl + D` duplicates the selected node
+- `Delete` removes the selected node
+
+## Release
+
+Main is protected by a repository ruleset. Work should happen on feature branches and land through PRs.
+
+Release notes are generated from conventional commits. Prefer small commits with semantic scopes, for example:
+
+```text
+feat(youtube): add paid message trigger
+fix(moderation): harden dashboard websocket reconnect
+chore(branding): replace visible upstream references
+```
+
+## Upstream
+
+ShowRunner is based on CastMate by LordTocs:
+
+https://github.com/LordTocs/CastMate
+
+Keep upstream license notices intact when moving or reusing code.

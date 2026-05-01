@@ -1,0 +1,11 @@
+{
+	"name": "castmate-plugin-youtube",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"workspaces": [
+		"main",
+		"renderer",
+		"shared"
+	]
+}

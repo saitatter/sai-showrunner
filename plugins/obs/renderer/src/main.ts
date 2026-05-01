@@ -4,9 +4,13 @@ import {
 	ResourceSchemaEdit,
 	useDataInputStore,
 	usePluginStore,
+	useProjectStore,
+	useDockingStore,
+	ProjectGroup,
 } from "castmate-ui-core"
 import "./css/icons.css"
 import { OBSSourceTransform } from "castmate-plugin-obs-shared"
+import { computed } from "vue"
 
 export { default as DashboardObsCard } from "./components/DashboardObsCard.vue"
 export { default as ObsMainPageCard } from "./components/main-page/ObsMainPageCard.vue"
@@ -28,11 +32,14 @@ import ScreenshotActionComponent from "./components/action-components/Screenshot
 import SourceTextActionComponent from "./components/action-components/SourceTextActionComponent.vue"
 import RefreshBrowserActionComponent from "./components/action-components/RefreshBrowserActionComponent.vue"
 import TransformActionComponent from "./components/action-components/TransformActionComponent.vue"
+import ObsIntegrationPage from "./components/ObsIntegrationPage.vue"
 
 export function initPlugin() {
 	const resourceStore = useResourceStore()
 
 	const pluginStore = usePluginStore()
+	const projectStore = useProjectStore()
+	const dockingStore = useDockingStore()
 
 	resourceStore.registerSettingComponent("OBSConnection", ResourceSettingList)
 	resourceStore.registerEditComponent("OBSConnection", ObsConnectionEdit)
@@ -47,6 +54,29 @@ export function initPlugin() {
 			password: { type: String, name: "Password" },
 		},
 	})
+
+	projectStore.registerProjectGroupChild(
+		{
+			id: "integrations",
+			title: "Integrations",
+			icon: "mdi mdi-connection",
+		},
+		computed<ProjectGroup>(() => ({
+			id: "obs",
+			title: "OBS",
+			icon: "obsi obsi-obs obs-blue",
+			items: [
+				{
+					id: "obs.connections",
+					title: "Connections",
+					icon: "obsi obsi-obs obs-blue",
+					open() {
+						dockingStore.openPage("obs.connections", "OBS Connections", "obsi obsi-obs obs-blue", ObsIntegrationPage)
+					},
+				},
+			],
+		}))
+	)
 
 	const dataStore = useDataInputStore()
 

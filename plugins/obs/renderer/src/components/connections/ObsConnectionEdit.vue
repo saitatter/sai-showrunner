@@ -1,8 +1,8 @@
 <template>
 	<div class="pb-2">
 		<div style="width: 800px">
-			CastMate can control OBS over OBS's WebSocket Server. You must first enable the websocket server in OBS so
-			CastMate can connect to it.
+			ShowRunner can control OBS over OBS's WebSocket Server. You must first enable the websocket server in OBS so
+			ShowRunner can connect to it.
 			<ol>
 				<li class="text-center">
 					Open the <span class="code-like">WebSocket Server Settings</span> in OBS.<br />
@@ -31,7 +31,7 @@
 		<div class="flex flex-column gap-5">
 			<p-float-label variant="on" style="flex: 1">
 				<p-input-text v-model="model.name" fluid />
-				<label>CastMate Connection Name</label>
+				<label>ShowRunner Connection Name</label>
 			</p-float-label>
 			<div class="flex flex-row gap-1">
 				<p-button @click="readQR" v-tooltip="'Scan Connect Info QR Code'">

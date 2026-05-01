@@ -13,7 +13,7 @@ export default definePlugin(
 	{
 		id: "voicemod",
 		name: "Voicemod",
-		description: "Control VoiceMod with CastMate",
+		description: "Control VoiceMod with ShowRunner",
 		icon: "mdi mdi-star",
 		color: "#3F918D",
 	},
