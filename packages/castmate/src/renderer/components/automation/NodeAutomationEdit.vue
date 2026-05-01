@@ -1,0 +1,548 @@
+<template>
+	<div class="node-automation">
+		<header class="node-automation__toolbar">
+			<div>
+				<p class="node-automation__eyebrow">Automation Flow</p>
+				<h2>{{ model.name || "Untitled Automation" }}</h2>
+			</div>
+			<div class="node-automation__mode">
+				<button :class="{ active: mode === 'nodes' }" type="button" @click="mode = 'nodes'">
+					<i class="mdi mdi-graph-outline" />
+					Nodes
+				</button>
+				<button :class="{ active: mode === 'timeline' }" type="button" @click="mode = 'timeline'">
+					<i class="mdi mdi-timeline-clock-outline" />
+					Timeline
+				</button>
+			</div>
+		</header>
+
+		<div v-if="mode === 'nodes'" class="node-automation__body">
+			<section class="node-automation__canvas" @pointerdown.self="selectedNodeId = undefined">
+				<svg class="node-automation__edges" :viewBox="viewBox">
+					<path
+						v-for="edge in edges"
+						:key="edge.id"
+						class="node-automation__edge"
+						:d="edge.path"
+						vector-effect="non-scaling-stroke"
+					/>
+				</svg>
+
+				<button
+					v-for="node in nodes"
+					:key="node.id"
+					class="node-automation__node"
+					:class="[`node-automation__node--${node.kind}`, { selected: selectedNodeId === node.id }]"
+					:style="{ transform: `translate(${node.x}px, ${node.y}px)` }"
+					type="button"
+					@pointerdown.stop="startDrag($event, node)"
+					@click.stop="selectedNodeId = node.id"
+				>
+					<span class="node-automation__node-icon">
+						<i :class="node.icon" />
+					</span>
+					<span class="node-automation__node-text">
+						<strong>{{ node.title }}</strong>
+						<small>{{ node.subtitle }}</small>
+					</span>
+					<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
+				</button>
+			</section>
+
+			<aside class="node-automation__details">
+				<template v-if="selectedNode">
+					<p class="node-automation__eyebrow">Selected Node</p>
+					<h3>{{ selectedNode.title }}</h3>
+					<dl>
+						<div>
+							<dt>Type</dt>
+							<dd>{{ selectedNode.kind }}</dd>
+						</div>
+						<div>
+							<dt>Source</dt>
+							<dd>{{ selectedNode.subtitle }}</dd>
+						</div>
+						<div v-if="selectedNode.path">
+							<dt>Path</dt>
+							<dd>{{ selectedNode.path }}</dd>
+						</div>
+					</dl>
+				</template>
+				<template v-else>
+					<p class="node-automation__eyebrow">Flow Map</p>
+					<h3>Select a node</h3>
+					<p class="node-automation__hint">
+						Drag nodes to organize the automation visually. Use Timeline when you need the original detailed
+						editor.
+					</p>
+				</template>
+			</aside>
+		</div>
+
+		<data-binding-path v-else local-path="automation">
+			<automation-edit v-model="model" v-model:view="view" class="node-automation__classic" />
+		</data-binding-path>
+	</div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, useModel } from "vue"
+import { AutomationConfig, AutomationResourceView, AutomationEdit, DataBindingPath } from "castmate-ui-core"
+import {
+	ActionStack,
+	AnyAction,
+	FloatingSequence,
+	Sequence,
+	isActionStack,
+	isFlowAction,
+	isTimeAction,
+} from "castmate-schema"
+
+interface NodePosition {
+	x: number
+	y: number
+}
+
+interface NodeData extends NodePosition {
+	id: string
+	kind: "trigger" | "action" | "stack" | "time" | "flow" | "floating"
+	title: string
+	subtitle: string
+	icon: string
+	badge?: string
+	path?: string
+}
+
+interface EdgeData {
+	id: string
+	from: string
+	to: string
+	path: string
+}
+
+const props = defineProps<{
+	modelValue: AutomationConfig
+	view: AutomationResourceView & { nodePositions?: Record<string, NodePosition> }
+}>()
+
+const model = useModel(props, "modelValue")
+const view = useModel(props, "view")
+const mode = ref<"nodes" | "timeline">("nodes")
+const selectedNodeId = ref<string>()
+
+const NODE_WIDTH = 220
+const NODE_HEIGHT = 74
+const H_GAP = 285
+const V_GAP = 128
+
+const nodePositions = computed(() => {
+	view.value.nodePositions ??= {}
+	return view.value.nodePositions
+})
+
+const graph = computed(() => buildGraph(model.value))
+const nodes = computed(() =>
+	graph.value.nodes.map((node) => ({
+		...node,
+		...(nodePositions.value[node.id] ?? { x: node.x, y: node.y }),
+	}))
+)
+const edges = computed<EdgeData[]>(() => {
+	const byId = new Map(nodes.value.map((node) => [node.id, node]))
+	return graph.value.edges.flatMap((edge) => {
+		const from = byId.get(edge.from)
+		const to = byId.get(edge.to)
+		if (!from || !to) return []
+		const startX = from.x + NODE_WIDTH
+		const startY = from.y + NODE_HEIGHT / 2
+		const endX = to.x
+		const endY = to.y + NODE_HEIGHT / 2
+		const midX = startX + Math.max(60, (endX - startX) / 2)
+		return [
+			{
+				...edge,
+				path: `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`,
+			},
+		]
+	})
+})
+const selectedNode = computed(() => nodes.value.find((node) => node.id === selectedNodeId.value))
+const viewBox = computed(() => {
+	const maxX = Math.max(1280, ...nodes.value.map((node) => node.x + NODE_WIDTH + 160))
+	const maxY = Math.max(720, ...nodes.value.map((node) => node.y + NODE_HEIGHT + 160))
+	return `0 0 ${maxX} ${maxY}`
+})
+
+function buildGraph(automation: AutomationConfig) {
+	const nodes: NodeData[] = []
+	const edges: Omit<EdgeData, "path">[] = []
+
+	const triggerId = "trigger"
+	nodes.push({
+		id: triggerId,
+		kind: "trigger",
+		title: automation.trigger ? titleCase(automation.trigger) : "Manual Start",
+		subtitle: automation.plugin ? `${automation.plugin} trigger` : "No trigger configured",
+		icon: "mdi mdi-flash",
+		x: 42,
+		y: 88,
+	})
+
+	const mainNodes = addSequence(nodes, edges, automation.sequence, "sequence", 1, 0, "Main")
+	if (mainNodes[0]) edges.push({ id: `${triggerId}:${mainNodes[0]}`, from: triggerId, to: mainNodes[0] })
+
+	automation.floatingSequences?.forEach((sequence, index) => {
+		const floatingId = sequence.id || `floating-${index}`
+		nodes.push({
+			id: floatingId,
+			kind: "floating",
+			title: `Floating ${index + 1}`,
+			subtitle: `${sequence.actions.length} action${sequence.actions.length === 1 ? "" : "s"}`,
+			icon: "mdi mdi-vector-polyline",
+			badge: "free",
+			x: 42,
+			y: 280 + index * V_GAP,
+			path: `floatingSequences[${index}]`,
+		})
+		const childNodes = addSequence(nodes, edges, sequence, `floatingSequences[${index}]`, 1, index + 2, `Floating ${index + 1}`)
+		if (childNodes[0]) edges.push({ id: `${floatingId}:${childNodes[0]}`, from: floatingId, to: childNodes[0] })
+	})
+
+	return { nodes, edges }
+}
+
+function addSequence(
+	nodes: NodeData[],
+	edges: Omit<EdgeData, "path">[],
+	sequence: Sequence | FloatingSequence,
+	path: string,
+	column: number,
+	row: number,
+	group: string
+) {
+	const ids: string[] = []
+	sequence.actions.forEach((action, index) => {
+		const node = createNode(action, `${path}.actions[${index}]`, column + index, row, group)
+		nodes.push(node)
+		ids.push(node.id)
+
+		if (index > 0) {
+			edges.push({ id: `${ids[index - 1]}:${node.id}`, from: ids[index - 1], to: node.id })
+		}
+
+		if (isActionStack(action)) {
+			action.stack.forEach((stackAction, stackIndex) => {
+				const child = createNode(stackAction, `${node.path}.stack[${stackIndex}]`, column + index, row + stackIndex + 1, "Stack")
+				nodes.push(child)
+				edges.push({ id: `${node.id}:${child.id}`, from: node.id, to: child.id })
+			})
+		}
+
+		if (isTimeAction(action)) {
+			action.offsets.forEach((offset, offsetIndex) => {
+				const children = addSequence(
+					nodes,
+					edges,
+					offset,
+					`${node.path}.offsets[${offsetIndex}]`,
+					column + index + 1,
+					row + offsetIndex + 1,
+					`+${offset.offset}s`
+				)
+				if (children[0]) edges.push({ id: `${node.id}:${children[0]}`, from: node.id, to: children[0] })
+			})
+		}
+
+		if (isFlowAction(action)) {
+			action.subFlows.forEach((flow, flowIndex) => {
+				const children = addSequence(
+					nodes,
+					edges,
+					flow,
+					`${node.path}.subFlows[${flowIndex}]`,
+					column + index + 1,
+					row + flowIndex + 1,
+					`Flow ${flowIndex + 1}`
+				)
+				if (children[0]) edges.push({ id: `${node.id}:${children[0]}`, from: node.id, to: children[0] })
+			})
+		}
+	})
+	return ids
+}
+
+function createNode(action: AnyAction | ActionStack, path: string, column: number, row: number, group: string): NodeData {
+	if (isActionStack(action)) {
+		return {
+			id: action.id,
+			kind: "stack",
+			title: "Action Stack",
+			subtitle: `${action.stack.length} stacked action${action.stack.length === 1 ? "" : "s"}`,
+			icon: "mdi mdi-layers-triple",
+			badge: group,
+			x: 42 + column * H_GAP,
+			y: 88 + row * V_GAP,
+			path,
+		}
+	}
+
+	return {
+		id: action.id,
+		kind: isFlowAction(action) ? "flow" : isTimeAction(action) ? "time" : "action",
+		title: titleCase(action.action),
+		subtitle: `${action.plugin} / ${action.action}`,
+		icon: isFlowAction(action) ? "mdi mdi-source-branch" : isTimeAction(action) ? "mdi mdi-timer-outline" : "mdi mdi-play",
+		badge: group,
+		x: 42 + column * H_GAP,
+		y: 88 + row * V_GAP,
+		path,
+	}
+}
+
+function titleCase(value: string) {
+	return value
+		.replace(/[-_]/g, " ")
+		.replace(/([a-z])([A-Z])/g, "$1 $2")
+		.replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function startDrag(event: PointerEvent, node: NodeData) {
+	selectedNodeId.value = node.id
+	const startX = event.clientX
+	const startY = event.clientY
+	const initial = nodePositions.value[node.id] ?? { x: node.x, y: node.y }
+	const target = event.currentTarget as HTMLElement
+	target.setPointerCapture(event.pointerId)
+
+	function onMove(moveEvent: PointerEvent) {
+		nodePositions.value[node.id] = {
+			x: Math.max(12, initial.x + moveEvent.clientX - startX),
+			y: Math.max(12, initial.y + moveEvent.clientY - startY),
+		}
+	}
+
+	function onUp(upEvent: PointerEvent) {
+		target.releasePointerCapture(upEvent.pointerId)
+		target.removeEventListener("pointermove", onMove)
+		target.removeEventListener("pointerup", onUp)
+		target.removeEventListener("pointercancel", onUp)
+	}
+
+	target.addEventListener("pointermove", onMove)
+	target.addEventListener("pointerup", onUp)
+	target.addEventListener("pointercancel", onUp)
+}
+</script>
+
+<style scoped>
+.node-automation {
+	background: #151515;
+	color: var(--text-color);
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.node-automation__toolbar {
+	align-items: center;
+	background: #202020;
+	border-bottom: 1px solid #343434;
+	display: flex;
+	gap: 1rem;
+	justify-content: space-between;
+	padding: 0.85rem 1rem;
+}
+
+.node-automation__toolbar h2,
+.node-automation__details h3 {
+	margin: 0;
+}
+
+.node-automation__eyebrow {
+	color: #e9aaff;
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0;
+	margin: 0 0 0.2rem;
+	text-transform: uppercase;
+}
+
+.node-automation__mode {
+	background: #101010;
+	border: 1px solid #3f3f3f;
+	border-radius: 6px;
+	display: flex;
+	padding: 0.2rem;
+}
+
+.node-automation__mode button {
+	align-items: center;
+	background: transparent;
+	border: 0;
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	display: flex;
+	gap: 0.35rem;
+	padding: 0.55rem 0.8rem;
+}
+
+.node-automation__mode button.active {
+	background: #8b35e6;
+	color: white;
+}
+
+.node-automation__body {
+	display: grid;
+	flex: 1;
+	grid-template-columns: minmax(0, 1fr) 320px;
+	min-height: 0;
+}
+
+.node-automation__canvas {
+	background-color: #202020;
+	background-image: linear-gradient(#353535 1px, transparent 1px), linear-gradient(90deg, #353535 1px, transparent 1px);
+	background-size: 42px 42px;
+	border: 2px solid #8b35e6;
+	margin: 0.75rem;
+	overflow: auto;
+	position: relative;
+}
+
+.node-automation__edges {
+	inset: 0;
+	min-height: 100%;
+	min-width: 100%;
+	position: absolute;
+}
+
+.node-automation__edge {
+	fill: none;
+	stroke: #e9aaff;
+	stroke-linecap: round;
+	stroke-width: 2.5px;
+}
+
+.node-automation__node {
+	align-items: center;
+	background: #181818;
+	border: 2px solid #7d32d4;
+	border-radius: 6px;
+	box-shadow: 0 10px 24px rgb(0 0 0 / 0.28);
+	color: white;
+	cursor: grab;
+	display: grid;
+	gap: 0.65rem;
+	grid-template-columns: 2rem minmax(0, 1fr) auto;
+	height: 74px;
+	padding: 0.7rem;
+	position: absolute;
+	text-align: left;
+	touch-action: none;
+	width: 220px;
+}
+
+.node-automation__node:active {
+	cursor: grabbing;
+}
+
+.node-automation__node.selected {
+	border-color: #ffdf6b;
+	box-shadow: 0 0 0 3px rgb(255 223 107 / 0.2), 0 12px 28px rgb(0 0 0 / 0.35);
+}
+
+.node-automation__node--trigger {
+	background: #40256c;
+}
+
+.node-automation__node--time {
+	border-color: #68d391;
+}
+
+.node-automation__node--flow {
+	border-color: #64b5f6;
+}
+
+.node-automation__node--floating {
+	border-color: #ff9bd7;
+}
+
+.node-automation__node-icon {
+	align-items: center;
+	background: rgb(255 255 255 / 0.12);
+	border-radius: 4px;
+	display: flex;
+	font-size: 1.25rem;
+	height: 2rem;
+	justify-content: center;
+}
+
+.node-automation__node-text {
+	display: grid;
+	min-width: 0;
+}
+
+.node-automation__node-text strong,
+.node-automation__node-text small {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node-automation__node-text small {
+	color: #d6d6d6;
+	font-size: 0.78rem;
+}
+
+.node-automation__node-badge {
+	background: #e9aaff;
+	border-radius: 4px;
+	color: #1b0f21;
+	font-size: 0.7rem;
+	font-weight: 700;
+	padding: 0.2rem 0.35rem;
+}
+
+.node-automation__details {
+	background: #111;
+	border-left: 1px solid #343434;
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+	padding: 1rem;
+}
+
+.node-automation__details dl {
+	display: grid;
+	gap: 0.75rem;
+	margin: 0;
+}
+
+.node-automation__details dl div {
+	display: grid;
+	gap: 0.2rem;
+}
+
+.node-automation__details dt {
+	color: #aaa;
+	font-size: 0.78rem;
+}
+
+.node-automation__details dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.node-automation__hint {
+	color: #cfcfcf;
+	line-height: 1.45;
+	margin: 0;
+}
+
+.node-automation__classic {
+	flex: 1;
+	min-height: 0;
+}
+</style>
