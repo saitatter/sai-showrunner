@@ -72,6 +72,10 @@ export default definePlugin(
 					viewerName: { type: String, required: true, name: "Viewer Name", default: "Viewer Name" },
 					message: { type: String, required: true, name: "Message", default: "Hello from YouTube" },
 					messageId: { type: String, required: true, name: "Message ID", default: "youtube-message-id", view: false },
+					avatarUrl: { type: String, name: "Avatar URL", default: "" },
+					isModerator: { type: Boolean, required: true, name: "Moderator", default: false },
+					isMember: { type: Boolean, required: true, name: "Member", default: false },
+					isOwner: { type: Boolean, required: true, name: "Owner", default: false },
 				},
 			},
 			async handle() {
@@ -171,6 +175,10 @@ export default definePlugin(
 					viewerName: { type: String, required: true, name: "Viewer Name", default: "Viewer Name" },
 					message: { type: String, required: true, name: "Message", default: "!hello chat" },
 					messageId: { type: String, required: true, name: "Message ID", default: "youtube-message-id", view: false },
+					avatarUrl: { type: String, name: "Avatar URL", default: "" },
+					isModerator: { type: Boolean, required: true, name: "Moderator", default: false },
+					isMember: { type: Boolean, required: true, name: "Member", default: false },
+					isOwner: { type: Boolean, required: true, name: "Owner", default: false },
 				},
 			},
 			async context(config) {
@@ -181,6 +189,10 @@ export default definePlugin(
 						viewerName: { type: String, required: true, name: "Viewer Name", default: "Viewer Name" },
 						message: { type: String, required: true, name: "Message", default: "!hello chat" },
 						messageId: { type: String, required: true, name: "Message ID", default: "youtube-message-id", view: false },
+						avatarUrl: { type: String, name: "Avatar URL", default: "" },
+						isModerator: { type: Boolean, required: true, name: "Moderator", default: false },
+						isMember: { type: Boolean, required: true, name: "Member", default: false },
+						isOwner: { type: Boolean, required: true, name: "Owner", default: false },
 						...getCommandDataSchema(config.command).properties,
 					},
 				}
@@ -276,6 +288,7 @@ export default definePlugin(
 					id: "demo-viewer",
 					name: "demo-viewer",
 					displayName: "Demo Viewer",
+					avatarUrl: "",
 				},
 				payload: {
 					message: "YouTube plugin scaffold is alive.",
@@ -297,6 +310,10 @@ export default definePlugin(
 				viewerName: event.actor.displayName,
 				message: event.payload.message,
 				messageId: event.id,
+				avatarUrl: event.actor.avatarUrl || "",
+				isModerator: event.payload.isModerator,
+				isMember: event.payload.isMember,
+				isOwner: event.payload.isOwner,
 			})
 
 			return event
@@ -320,12 +337,20 @@ export default definePlugin(
 						viewerName: event.actor.displayName,
 						message: event.payload.message,
 						messageId: event.id,
+						avatarUrl: event.actor.avatarUrl || "",
+						isModerator: event.payload.isModerator,
+						isMember: event.payload.isMember,
+						isOwner: event.payload.isOwner,
 					})
 					await chatCommand({
 						viewerId: event.actor.id,
 						viewerName: event.actor.displayName,
 						message: event.payload.message,
 						messageId: event.id,
+						avatarUrl: event.actor.avatarUrl || "",
+						isModerator: event.payload.isModerator,
+						isMember: event.payload.isMember,
+						isOwner: event.payload.isOwner,
 					})
 				},
 				async onSuperChat(event) {
