@@ -1,4 +1,6 @@
+import { ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, usePluginLogger, writeYAML } from "castmate-core"
 import { ModerationChatEvent, ModerationSettings, ModerationStatus } from "castmate-plugin-moderation-shared"
+import WebSocket from "ws"
 
 const DEFAULT_SETTINGS: ModerationSettings = {
 	enabled: false,
@@ -9,37 +11,194 @@ const DEFAULT_SETTINGS: ModerationSettings = {
 
 export class ModerationService {
 	private static instance: ModerationService | undefined
+	private logger = usePluginLogger("moderation")
+	private settings: ModerationSettings = { ...DEFAULT_SETTINGS }
+	private socket: WebSocket | undefined
+	private reconnectTimer: NodeJS.Timeout | undefined
+	private status: Omit<ModerationStatus, keyof ModerationSettings> = {
+		connected: false,
+		health: "unknown",
+		statusMessage: "Moderation docker is not connected.",
+		processedMessages: 0,
+		approvedMessages: 0,
+		blockedMessages: 0,
+		flaggedMessages: 0,
+	}
 
 	static getInstance() {
 		this.instance ??= new ModerationService()
 		return this.instance
 	}
 
-	async initialize() {}
-
-	getStatus(): ModerationStatus {
-		return {
-			...DEFAULT_SETTINGS,
-			connected: false,
-			health: "unknown",
-			processedMessages: 0,
-			approvedMessages: 0,
-			blockedMessages: 0,
-			flaggedMessages: 0,
-		}
+	async initialize() {
+		await ensureDirectory(resolveProjectPath("moderation"))
+		await ensureYAML(DEFAULT_SETTINGS, "moderation", "settings.yaml")
+		this.settings = this.normalizeSettings(await loadYAML<Partial<ModerationSettings>>("moderation", "settings.yaml"))
+		await this.checkHealth()
+		this.connectDashboardSocket()
 	}
 
-	async saveSettings(_settings: Partial<ModerationSettings>) {
+	getStatus(): ModerationStatus {
+		return { ...this.settings, ...this.status, connected: this.isSocketConnected() }
+	}
+
+	async saveSettings(settings: Partial<ModerationSettings>) {
+		this.settings = this.normalizeSettings({ ...this.settings, ...settings })
+		await writeYAML(this.settings, "moderation", "settings.yaml")
+		await this.checkHealth()
+		this.connectDashboardSocket()
 		return this.getStatus()
 	}
 
 	async checkHealth() {
+		if (!this.settings.enabled) {
+			this.status.health = "unknown"
+			this.status.statusMessage = "Moderation docker forwarding is disabled."
+			return this.getStatus()
+		}
+
+		try {
+			const response = await fetch(this.joinUrl(this.settings.apiBaseUrl, "/healthz"))
+			if (!response.ok) throw new Error(`Health check failed with HTTP ${response.status}`)
+			this.status.health = "healthy"
+			this.status.statusMessage = "Moderation docker is reachable."
+		} catch (error) {
+			this.status.health = "error"
+			this.status.statusMessage = error instanceof Error ? error.message : String(error)
+			this.logger.warn("Moderation docker health check failed.", error)
+		}
+
 		return this.getStatus()
 	}
 
 	async reconnect() {
+		this.connectDashboardSocket()
 		return this.getStatus()
 	}
 
-	async forwardChatMessage(_event: ModerationChatEvent) {}
+	async forwardChatMessage(event: ModerationChatEvent) {
+		if (!this.settings.enabled) return
+		if (event.platform === "youtube" && !this.settings.forwardYouTube) return
+
+		try {
+			const response = await fetch(this.joinUrl(this.settings.apiBaseUrl, "/v1/chat-events"), {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					id: event.id,
+					messageId: event.id,
+					type: "chat.message",
+					source: event.source,
+					platform: event.platform,
+					actor: event.actor,
+					payload: event.payload,
+					message: event.payload.message,
+					receivedAt: event.receivedAt,
+				}),
+			})
+
+			if (!response.ok) throw new Error(`Moderation docker rejected event with HTTP ${response.status}`)
+
+			this.status.processedMessages += 1
+			this.status.lastEventAt = new Date().toISOString()
+			this.status.statusMessage = `Forwarded ${event.platform} message to moderation docker.`
+		} catch (error) {
+			this.status.health = "error"
+			this.status.statusMessage = error instanceof Error ? error.message : String(error)
+			this.logger.warn("Failed to forward chat message to moderation docker.", error)
+		}
+	}
+
+	private normalizeSettings(settings: Partial<ModerationSettings>): ModerationSettings {
+		return {
+			enabled: Boolean(settings.enabled),
+			apiBaseUrl: this.normalizeUrl(settings.apiBaseUrl, DEFAULT_SETTINGS.apiBaseUrl),
+			dashboardWsUrl: this.normalizeUrl(settings.dashboardWsUrl, DEFAULT_SETTINGS.dashboardWsUrl),
+			forwardYouTube: settings.forwardYouTube ?? DEFAULT_SETTINGS.forwardYouTube,
+		}
+	}
+
+	private normalizeUrl(value: unknown, fallback: string) {
+		const next = String(value || "").trim()
+		return next || fallback
+	}
+
+	private connectDashboardSocket() {
+		this.clearReconnectTimer()
+		this.closeSocket()
+
+		if (!this.settings.enabled) {
+			this.status.connected = false
+			return
+		}
+
+		try {
+			const socket = new WebSocket(this.settings.dashboardWsUrl)
+			this.socket = socket
+
+			socket.on("open", () => {
+				this.status.connected = true
+				this.status.statusMessage = "Connected to moderation dashboard websocket."
+			})
+
+			socket.on("message", (data) => this.handleDashboardMessage(data.toString()))
+			socket.on("error", (error) => {
+				this.status.connected = false
+				this.status.statusMessage = error.message
+				this.logger.warn("Moderation websocket error.", error)
+			})
+			socket.on("close", () => {
+				this.status.connected = false
+				this.scheduleReconnect()
+			})
+		} catch (error) {
+			this.status.connected = false
+			this.status.statusMessage = error instanceof Error ? error.message : String(error)
+			this.scheduleReconnect()
+		}
+	}
+
+	private handleDashboardMessage(raw: string) {
+		try {
+			const packet = JSON.parse(raw) as { verdict?: string; status?: string; type?: string; eventType?: string }
+			const decision = String(packet.verdict || packet.status || "").toLowerCase()
+			if (decision === "allow" || decision === "approved") this.status.approvedMessages += 1
+			if (decision === "block" || decision === "blocked" || decision === "rejected") this.status.blockedMessages += 1
+			if (decision === "flag" || decision === "flagged" || decision === "pending") this.status.flaggedMessages += 1
+			this.status.lastDecision = decision || packet.type || packet.eventType || "dashboard.event"
+			this.status.lastEventAt = new Date().toISOString()
+		} catch (error) {
+			this.logger.debug("Ignoring non-JSON moderation websocket payload.", raw, error)
+		}
+	}
+
+	private scheduleReconnect() {
+		if (!this.settings.enabled || this.reconnectTimer) return
+		this.reconnectTimer = setTimeout(() => {
+			this.reconnectTimer = undefined
+			this.connectDashboardSocket()
+		}, 5000)
+	}
+
+	private clearReconnectTimer() {
+		if (!this.reconnectTimer) return
+		clearTimeout(this.reconnectTimer)
+		this.reconnectTimer = undefined
+	}
+
+	private closeSocket() {
+		if (!this.socket) return
+		this.socket.removeAllListeners()
+		this.socket.close()
+		this.socket = undefined
+	}
+
+	private isSocketConnected() {
+		return this.socket?.readyState === WebSocket.OPEN
+	}
+
+	private joinUrl(baseUrl: string, path: string) {
+		const url = new URL(path, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`)
+		return url.toString()
+	}
 }

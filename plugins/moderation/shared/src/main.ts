@@ -9,6 +9,7 @@ export interface ModerationStatus {
 	enabled: boolean
 	apiBaseUrl: string
 	dashboardWsUrl: string
+	forwardYouTube: boolean
 	connected: boolean
 	health: "unknown" | "healthy" | "error"
 	statusMessage?: string
