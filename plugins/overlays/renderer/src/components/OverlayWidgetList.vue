@@ -27,6 +27,20 @@
 			<p-button icon="mdi mdi-plus" @click="popAddMenu" class="extra-small-button" size="small" />
 			<p-menu :model="addMenuItems" ref="addMenu" :popup="true" />
 		</div>
+		<div class="quick-labels">
+			<button type="button" @click="addLabelTemplate('YouTube Latest', '{{ youtube.latestMessage.message }}')">
+				<i class="mdi mdi-youtube" />
+				YouTube Latest
+			</button>
+			<button type="button" @click="addLabelTemplate('Twitch Channel', '{{ twitch.channel.displayName }}')">
+				<i class="mdi mdi-twitch" />
+				Twitch Channel
+			</button>
+			<button type="button" @click="addLabelTemplate('Stream Status', '{{ youtube.broadcast.status }}')">
+				<i class="mdi mdi-broadcast" />
+				Stream Status
+			</button>
+		</div>
 	</div>
 </template>
 
@@ -91,6 +105,34 @@ async function addWidget(widget: OverlayWidgetInfo) {
 		position: {
 			x: 0,
 			y: 0,
+		},
+		name,
+		visible: true,
+		locked: false,
+	})
+
+	commitUndo()
+}
+
+async function addLabelTemplate(name: string, message: string) {
+	const labelWidget = overlayWidgets.widgets.find((widget) => widget.plugin === "overlays" && widget.component.widget.id === "label")
+	if (!labelWidget) return
+
+	const config = await constructDefault(labelWidget.component.widget.config)
+	config.message = message
+
+	model.value.widgets.push({
+		id: nanoid(),
+		plugin: labelWidget.plugin,
+		widget: labelWidget.component.widget.id,
+		config,
+		size: {
+			width: 420,
+			height: 90,
+		},
+		position: {
+			x: 64,
+			y: 64 + model.value.widgets.length * 18,
 		},
 		name,
 		visible: true,
@@ -166,5 +208,25 @@ function deleteWidget(idx: number) {
 
 .widget-list-item.selected {
 	background-color: rgba(96, 165, 250, 0.16);
+}
+
+.quick-labels {
+	border-top: 1px solid var(--surface-border);
+	display: grid;
+	gap: 0.4rem;
+	padding: 0.5rem;
+}
+
+.quick-labels button {
+	align-items: center;
+	background: var(--surface-900);
+	border: 1px solid var(--surface-700);
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	display: flex;
+	gap: 0.45rem;
+	padding: 0.45rem 0.55rem;
+	text-align: left;
 }
 </style>
