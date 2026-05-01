@@ -413,6 +413,7 @@ import {
 	constructDefault,
 } from "castmate-schema"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
+import { useNodeContextMenu } from "./useNodeContextMenu"
 import { useNodeDrag } from "./useNodeDrag"
 import { useAutomationPreview } from "./useAutomationPreview"
 
@@ -441,24 +442,6 @@ interface LaneData extends NodePosition {
 	height: number
 }
 
-interface ContextMenuItem {
-	key: string
-	pluginId: string
-	pluginName: string
-	name: string
-	icon: string
-	color: string
-	searchText: string
-}
-
-interface ContextMenuGroup {
-	id: string
-	name: string
-	icon: string
-	color: string
-	items: ContextMenuItem[]
-}
-
 const props = defineProps<{
 	modelValue: AutomationConfig
 	view: AutomationResourceView & { nodePositions?: Record<string, NodePosition>; nodeView?: NodeEditorViewState }
@@ -477,16 +460,6 @@ const configOpen = ref(true)
 const actionsOpen = ref(false)
 const activityOpen = ref(true)
 const activityLog = ref<Array<{ id: number; title: string; detail: string }>>([])
-const contextMenu = ref<{ open: boolean; x: number; y: number; nodeId?: string; canvasPoint?: NodePosition }>({
-	open: false,
-	x: 0,
-	y: 0,
-})
-const contextMenuQuery = ref("")
-const contextMenuOpenGroups = ref<Record<string, boolean>>({
-	triggers: true,
-	actions: true,
-})
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
 
@@ -614,24 +587,6 @@ const flatActionPalette = computed(() =>
 		.flatMap((plugin) => plugin.actions.map((action) => ({ ...action, pluginName: plugin.name })))
 		.slice(0, 24)
 )
-const contextMenuSearch = computed(() => contextMenuQuery.value.trim().toLowerCase())
-const contextMenuSubtitle = computed(() => {
-	const node = contextMenu.value.nodeId ? nodes.value.find((entry) => entry.id === contextMenu.value.nodeId) : undefined
-	if (node) return `Insert after ${node.title} or replace the trigger.`
-	return "Add a trigger or drop a new action on the canvas."
-})
-const actionContextGroups = computed(() =>
-	buildContextGroups("actions", (plugin) => plugin.actions, (entry) => ({
-		name: entry.name,
-		icon: entry.icon || "mdi mdi-play",
-	}))
-)
-const triggerContextGroups = computed(() =>
-	buildContextGroups("triggers", (plugin) => plugin.triggers, (entry) => ({
-		name: entry.name,
-		icon: entry.icon || "mdi mdi-flash",
-	}))
-)
 const viewBox = computed(() => {
 	return `0 0 ${canvasSize.value.width} ${canvasSize.value.height}`
 })
@@ -662,6 +617,17 @@ const {
 	startPan,
 	getCanvasPointFromClient: getCanvasPointFromClientPosition,
 } = useNodeCanvas(view, graphBounds, commitUndo)
+const {
+	contextMenu,
+	contextMenuQuery,
+	contextMenuSubtitle,
+	actionContextGroups,
+	triggerContextGroups,
+	openContextMenu,
+	closeContextMenu,
+	toggleContextGroup,
+	isContextGroupOpen,
+} = useNodeContextMenu(nodes, pluginStore, getCanvasPointFromClient, getNodeLane)
 const { startDrag, resetSelectedNodePosition } = useNodeDrag(
 	nodePositions,
 	selectedNodeId,
@@ -862,37 +828,6 @@ function openCanvasContextMenu(event: MouseEvent) {
 	if (nodeElement) return
 	selectedNodeId.value = undefined
 	openContextMenu(event)
-}
-
-function openContextMenu(event: MouseEvent, nodeId?: string) {
-	const menuWidth = 340
-	const menuHeight = 520
-	contextMenu.value = {
-		open: true,
-		x: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
-		y: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8)),
-		nodeId,
-		canvasPoint: getCanvasPointFromClient(event.clientX, event.clientY),
-	}
-	contextMenuQuery.value = ""
-
-	if (nodeId) {
-		const node = nodes.value.find((entry) => entry.id === nodeId)
-		const lane = node ? getNodeLane(node) : undefined
-		if (lane) contextMenuOpenGroups.value[`action:${lane.id}`] = true
-	}
-}
-
-function closeContextMenu() {
-	contextMenu.value.open = false
-}
-
-function toggleContextGroup(key: string) {
-	contextMenuOpenGroups.value[key] = !isContextGroupOpen(key)
-}
-
-function isContextGroupOpen(key: string) {
-	return contextMenuOpenGroups.value[key] ?? true
 }
 
 function handleCanvasPointerDown(event: PointerEvent) {
@@ -1147,42 +1082,6 @@ function getCanvasPoint(event: DragEvent): NodePosition {
 
 function getCanvasPointFromClient(clientX: number, clientY: number): NodePosition {
 	return getCanvasPointFromClientPosition(clientX, clientY)
-}
-
-function buildContextGroups(
-	kind: "actions" | "triggers",
-	getEntries: (plugin: any) => Record<string, any>,
-	getMeta: (entry: any) => { name: string; icon: string }
-): ContextMenuGroup[] {
-	const query = contextMenuSearch.value
-	return [...pluginStore.pluginMap.values()]
-		.map((plugin) => {
-			const items = Object.entries(getEntries(plugin) || {})
-				.map(([id, entry]) => {
-					const meta = getMeta(entry)
-					return {
-						key: `${plugin.id}:${id}`,
-						pluginId: plugin.id,
-						pluginName: plugin.name,
-						name: meta.name,
-						icon: meta.icon,
-						color: String(plugin.color || "#e9aaff"),
-						searchText: `${kind} ${plugin.name} ${plugin.id} ${meta.name} ${id}`.toLowerCase(),
-					}
-				})
-				.filter((item) => !query || item.searchText.includes(query))
-				.sort((a, b) => a.name.localeCompare(b.name))
-
-			return {
-				id: plugin.id,
-				name: plugin.name,
-				icon: plugin.icon,
-				color: String(plugin.color || "#e9aaff"),
-				items,
-			}
-		})
-		.filter((group) => group.items.length)
-		.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 function logActivity(title: string, detail: string) {
