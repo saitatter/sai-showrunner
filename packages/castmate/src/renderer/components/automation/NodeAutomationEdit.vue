@@ -412,6 +412,7 @@ import {
 	isTimeAction,
 	constructDefault,
 } from "castmate-schema"
+import { useAutomationPreview } from "./useAutomationPreview"
 
 interface NodePosition {
 	x: number
@@ -502,11 +503,6 @@ const contextMenuOpenGroups = ref<Record<string, boolean>>({
 })
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
-const playheadNodeId = ref<string>()
-const isPreviewPlaying = ref(false)
-const playheadElapsedMs = ref(0)
-let playheadTimer: ReturnType<typeof window.setInterval> | undefined
-let playheadStartedAt = 0
 
 const NODE_WIDTH = 220
 const NODE_HEIGHT = 74
@@ -516,8 +512,6 @@ const GRID_SIZE = 42
 const MIN_ZOOM = 0.35
 const MAX_ZOOM = 1.5
 const ZOOM_STEP = 0.1
-const PREVIEW_DEFAULT_STEP_SECONDS = 0.9
-const PREVIEW_TICK_MS = 100
 
 const nodePositions = computed(() => {
 	view.value.nodePositions ??= {}
@@ -592,34 +586,18 @@ const lanes = computed<LaneData[]>(() => {
 })
 const selectedNode = computed(() => nodes.value.find((node) => node.id === selectedNodeId.value))
 const previewNodes = computed(() => nodes.value.filter((node) => node.id !== "trigger").sort((a, b) => a.x - b.x || a.y - b.y))
-const previewSteps = computed(() => {
-	let startMs = 0
-	return previewNodes.value.map((node) => {
-		const durationMs = getPreviewNodeDurationMs(node)
-		const step = {
-			node,
-			startMs,
-			durationMs,
-			endMs: startMs + durationMs,
-		}
-		startMs += durationMs
-		return step
-	})
-})
-const previewTotalMs = computed(() => Math.max(0, previewSteps.value.at(-1)?.endMs ?? 0))
-const playheadProgress = computed(() => {
-	if (!previewTotalMs.value) return 0
-	return Math.min(100, Math.max(0, (playheadElapsedMs.value / previewTotalMs.value) * 100))
-})
-const currentPreviewStep = computed(() => {
-	if (!previewSteps.value.length) return undefined
-	return (
-		previewSteps.value.find((step) => playheadElapsedMs.value >= step.startMs && playheadElapsedMs.value < step.endMs) ??
-		previewSteps.value.at(-1)
-	)
-})
-const playheadElapsedLabel = computed(() => formatSeconds(playheadElapsedMs.value / 1000))
-const previewTotalLabel = computed(() => formatSeconds(previewTotalMs.value / 1000))
+const {
+	playheadNodeId,
+	isPreviewPlaying,
+	playheadProgress,
+	currentPreviewStep,
+	playheadElapsedLabel,
+	previewTotalLabel,
+	togglePlayheadPreview,
+	pausePlayheadPreview,
+	resetPlayheadPreview,
+	getConfiguredDurationSeconds: getPreviewConfiguredDurationSeconds,
+} = useAutomationPreview(model, previewNodes)
 const selectedActionInfo = computed(() => {
 	if (!selectedNodeId.value || selectedNodeId.value === "trigger") return undefined
 	return findActionAndSequenceById(selectedNodeId.value, model.value)
@@ -851,32 +829,8 @@ function getFlowSummary(action: AnyAction) {
 }
 
 function getConfiguredDuration(action: AnyAction) {
-	const duration = getConfiguredDurationSeconds(action)
+	const duration = getPreviewConfiguredDurationSeconds(action.id)
 	return duration ? formatSeconds(duration) : undefined
-}
-
-function getConfiguredDurationSeconds(action: AnyAction) {
-	const configuredDuration = Number(action.config?.duration)
-	if (Number.isFinite(configuredDuration) && configuredDuration > 0) return configuredDuration
-
-	const actionDefinition = pluginStore.pluginMap.get(action.plugin)?.actions[action.action]
-	const duration = actionDefinition?.duration
-	if (!duration || "ipcCallback" in duration) return undefined
-	if (duration.dragType === "fixed" && Number.isFinite(duration.duration)) return duration.duration
-	if (duration.dragType === "length" && duration.rightSlider?.sliderProp) {
-		const value = Number(action.config?.[duration.rightSlider.sliderProp])
-		if (Number.isFinite(value) && value > 0) return value
-	}
-	if (duration.dragType === "crop" && Number.isFinite(duration.duration)) return duration.duration
-	return undefined
-}
-
-function getPreviewNodeDurationMs(node: NodeData) {
-	const actionInfo = findActionAndSequenceById(node.id, model.value)
-	const action = actionInfo?.action
-	if (!action) return PREVIEW_DEFAULT_STEP_SECONDS * 1000
-	if (isActionStack(action)) return Math.max(PREVIEW_DEFAULT_STEP_SECONDS, action.stack.length * 0.35) * 1000
-	return (getConfiguredDurationSeconds(action) ?? PREVIEW_DEFAULT_STEP_SECONDS) * 1000
 }
 
 function formatSeconds(value: number) {
@@ -1031,49 +985,6 @@ function resetView() {
 	pan.value = { x: 0, y: 0 }
 	canvasRef.value?.scrollTo({ left: 0, top: 0, behavior: "smooth" })
 	commitUndo()
-}
-
-function togglePlayheadPreview() {
-	if (isPreviewPlaying.value) {
-		pausePlayheadPreview()
-		return
-	}
-
-	if (!previewSteps.value.length) return
-	if (playheadElapsedMs.value >= previewTotalMs.value) playheadElapsedMs.value = 0
-	isPreviewPlaying.value = true
-	playheadStartedAt = performance.now() - playheadElapsedMs.value
-	updatePlayheadPreview()
-	playheadTimer = window.setInterval(updatePlayheadPreview, PREVIEW_TICK_MS)
-}
-
-function pausePlayheadPreview() {
-	isPreviewPlaying.value = false
-	if (playheadTimer) {
-		window.clearInterval(playheadTimer)
-		playheadTimer = undefined
-	}
-}
-
-function resetPlayheadPreview() {
-	pausePlayheadPreview()
-	playheadElapsedMs.value = 0
-	playheadNodeId.value = undefined
-}
-
-function updatePlayheadPreview() {
-	const totalMs = previewTotalMs.value
-	if (!totalMs) {
-		resetPlayheadPreview()
-		return
-	}
-
-	playheadElapsedMs.value = Math.min(totalMs, performance.now() - playheadStartedAt)
-	playheadNodeId.value = currentPreviewStep.value?.node.id
-
-	if (playheadElapsedMs.value >= totalMs) {
-		pausePlayheadPreview()
-	}
 }
 
 function handleCanvasPointerDown(event: PointerEvent) {
