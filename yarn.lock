@@ -5024,6 +5024,7 @@ __metadata:
   resolution: "castmate-plugin-youtube-main@workspace:plugins/youtube/main"
   dependencies:
     castmate-core: "workspace:^"
+    castmate-plugin-moderation-main: "workspace:^"
     castmate-plugin-youtube-shared: "workspace:^"
     castmate-schema: "workspace:^"
     electron: "npm:^34.2.0"

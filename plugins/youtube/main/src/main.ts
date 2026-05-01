@@ -1,4 +1,5 @@
 import { definePlugin, defineRendererCallable, defineState, defineTransformTrigger, defineTrigger, onLoad, usePluginLogger } from "castmate-core"
+import { ModerationService } from "castmate-plugin-moderation-main"
 import { Command, getCommandDataSchema, matchAndParseCommand } from "castmate-schema"
 import { YouTubeBroadcastState, YouTubeChatMessage, YouTubeConnectionState } from "castmate-plugin-youtube-shared"
 import { YouTubeAuthService } from "./youtube-auth"
@@ -24,6 +25,7 @@ export default definePlugin(
 	() => {
 		const logger = usePluginLogger()
 		const auth = new YouTubeAuthService()
+		const moderation = ModerationService.getInstance()
 		let liveChat: YouTubeLiveChatService
 		const connection = defineState("connection", {
 			type: Object,
@@ -305,6 +307,7 @@ export default definePlugin(
 				receivedAt: event.receivedAt,
 			}
 
+			await forwardToModeration(event)
 			await chatMessage({
 				viewerId: event.actor.id,
 				viewerName: event.actor.displayName,
@@ -332,6 +335,7 @@ export default definePlugin(
 						message: event.payload.message,
 						receivedAt: event.receivedAt,
 					}
+					await forwardToModeration(event)
 					await chatMessage({
 						viewerId: event.actor.id,
 						viewerName: event.actor.displayName,
@@ -407,5 +411,27 @@ export default definePlugin(
 			}
 			logger.log("YouTube plugin scaffold loaded.")
 		})
+
+		async function forwardToModeration(event: YouTubeChatMessage) {
+			try {
+				await moderation.forwardChatMessage({
+					id: event.id,
+					platform: event.platform,
+					source: "youtube",
+					receivedAt: event.receivedAt,
+					actor: {
+						...event.actor,
+						badges: [
+							...(event.payload.isOwner ? ["owner"] : []),
+							...(event.payload.isModerator ? ["moderator"] : []),
+							...(event.payload.isMember ? ["member"] : []),
+						],
+					},
+					payload: event.payload,
+				})
+			} catch (error) {
+				logger.warn("Failed to forward YouTube message to moderation docker.", error)
+			}
+		}
 	}
 )
