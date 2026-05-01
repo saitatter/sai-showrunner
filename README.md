@@ -1,45 +1,114 @@
 # ShowRunner
 
-ShowRunner is an all-in-one broadcaster production suite for Twitch, YouTube, OBS, overlays, and stream automations. It lets a streamer create viewer interactions, automate common tasks, display overlays, and plan streams.
+[![Build](https://github.com/saitatter/sai-showrunner/actions/workflows/build.yaml/badge.svg)](https://github.com/saitatter/sai-showrunner/actions/workflows/build.yaml)
+[![Release](https://img.shields.io/github/v/release/saitatter/sai-showrunner?display_name=tag)](https://github.com/saitatter/sai-showrunner/releases)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE.md)
 
-## Triggers
+ShowRunner is a desktop-first broadcaster production suite for Twitch, YouTube, OBS, overlays, stream automations, and external SAI services.
 
-In ShowRunner you can set up triggers to respond to Twitch and YouTube events like channel point redemptions, chat messages, paid messages, gaining a follower, receiving a sub, being raided, hype trains, and more.
+This project is an AGPL-3.0 fork of CastMate. Upstream architecture, plugin boundaries, and licensing are preserved while the app is being shaped into the SAI streaming toolchain.
 
-You can use actions to automatically respond to triggers. Using ShowRunner's node and timeline automation system you can set up sounds to play, lights to change, chat messages, Discord messages, overlays, and more.
+## Current Features
 
-![ShowRunner UI Triggers](docs/images/trigger.png?raw=true)
+- Twitch integration with profiles, channel point rewards, chat triggers, and stream automation.
+- YouTube integration with browser OAuth, live chat ingest, chat command triggers, paid message triggers, membership triggers, and author flags.
+- OBS WebSocket integration for scene/control actions.
+- Overlay editing and OBS preview workflow inherited from upstream.
+- Automation editor with both the original timeline view and a new node-based flow view.
+- Node context inspector with right-click support, collapsible sections, and the same action/trigger configuration panel used by Timeline.
+- Moderation Docker integration under `Integrations -> Moderation`, forwarding normalized YouTube chat messages to `POST /v1/chat-events`.
+- Semantic release workflow for packaged Windows builds.
 
-## Profiles
+## Local Development
 
-A Profile is an organizational tool to group triggers together. They also serve as a way to change what triggers are active. Profiles can be manually turned on and off, or they can be set to automatically turn on and off based custom conditions you choose.
+Install dependencies:
 
-![ShowRunner UI Profiles](docs/images/profile.png?raw=true)
+```powershell
+corepack yarn install
+```
 
-When a profile is off it will automatically disable the channel point rewards no longer needed, any chat commands in it will become unavailable, and
+Run the desktop app in dev mode:
 
-![ShowRunner UI Profiles](docs/images/ChannelPointRewards.gif?raw=true)
+```powershell
+corepack yarn dev
+```
 
-## Overlays
+Build all Vite targets:
 
-ShowRunner has a WYSIWYG interface for creating overlays. Create custom alerts entirely through the UI. Sync labels with ShowRunner's internal state automatically. Easily edit your overlays right in the UI and have their results appear immediately once saved in OBS.
+```powershell
+node .\vite-util\multi-vite.mjs build
+```
 
-![ShowRunner UI Profiles](docs/images/WYSIWYG.gif?raw=true)
+Build a local Windows installer:
 
-## SpellCast
+```powershell
+$env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
+corepack yarn build
+```
 
-SpellCast is a companion Twitch extension to ShowRunner that lets you do away with your "bits menu". SpellCast lets you create custom spells your viewers can cast for bits to trigger ShowRunner. They are activated and deactivated with your profiles just like channel point rewards. This way it's always clear to your viewers what bits will do on your stream.
+## Clean YouTube Test Run
 
-![ShowRunner UI Profiles](docs/images/SpellCast.png?raw=true)
+Use this when you want a clean local app data folder and explicit YouTube OAuth credentials:
 
-## Contributing
+```powershell
+corepack yarn dev:clean:youtube -- -YouTubeClientId "your-client-id.apps.googleusercontent.com" -YouTubeClientSecret "your-client-secret"
+```
 
-Pull Requests are on hold until a CLA can be worked out.
+Release builds can bundle YouTube credentials with:
 
-## Support
+- repository variable: `SHOWRUNNER_YOUTUBE_CLIENT_ID`
+- repository secret: `SHOWRUNNER_YOUTUBE_CLIENT_SECRET`
 
-Feedback and bug reports are greatly appreciated! Please don't hesitate to reach out through Twitch, Discord, or GitHub issues.
+## Moderation Docker
 
--   [LordTocs' Twitch](https://www.twitch.tv/lordtocs)
--   [LordTocs' YouTube](https://www.youtube.com/channel/UCe4uXUoF5MkKvhgy514FCuA)
--   [LordTocs' Discord](https://discord.gg/txt4DUzYJM)
+ShowRunner can forward YouTube live chat messages to the SAI moderation docker.
+
+Default URLs:
+
+- API: `http://localhost:8787`
+- Dashboard WebSocket: `ws://localhost:8787/ws?channel=dashboard`
+
+In the app, open:
+
+```text
+Integrations -> Moderation -> Moderation Docker
+```
+
+Enable the integration, verify health, and leave `Forward YouTube chat` enabled. Approved overlay delivery is still owned by the moderation docker and overlay runtime.
+
+## Automation Editor
+
+Open or create an automation:
+
+```text
+Automations -> New/Open Automation
+```
+
+The editor starts in `Nodes` mode. Use:
+
+- left click to select a node
+- right click to open the node context inspector
+- drag to organize nodes visually
+- `Timeline` toggle for the legacy detailed editor
+
+The node editor is currently a compatibility layer over the existing automation schema. Editing existing action and trigger config works through the inspector; full node-native add/connect/delete workflows are next.
+
+## Release
+
+Main is protected by a repository ruleset. Work should happen on feature branches and land through PRs.
+
+Release notes are generated from conventional commits. Prefer small commits with semantic scopes, for example:
+
+```text
+feat(youtube): add paid message trigger
+fix(moderation): harden dashboard websocket reconnect
+chore(branding): replace visible upstream references
+```
+
+## Upstream
+
+ShowRunner is based on CastMate by LordTocs:
+
+https://github.com/LordTocs/CastMate
+
+Keep upstream license notices intact when moving or reusing code.
