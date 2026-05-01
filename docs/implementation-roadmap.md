@@ -20,15 +20,15 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 6. Done: Allow inserting an action between two connected nodes.
 7. Done: Show explicit connection handles on action nodes.
 8. Done: Add keyboard shortcuts for delete, duplicate, and fit view.
-9. Add undo-friendly mutations for node editor operations.
+9. Done: Add undo-friendly mutations for node editor operations.
 10. Done: Persist node editor view state per automation.
 
 ## Priority 2: Automation Timeline / DAW Feel
 
-11. Add a running playhead preview for automation execution.
-12. Show action durations and offsets more clearly in node mode.
+11. Done: Add a running playhead preview for automation execution.
+12. Done: Show action durations and offsets more clearly in node mode.
 13. Done: Add snap-to-grid controls for node movement.
-14. Add action grouping lanes for time, flow, and floating sequences.
+14. Done: Add action grouping lanes for time, flow, and floating sequences.
 15. Done: Add a compact node activity log beside the editor.
 
 ## Priority 3: Integrations
@@ -42,19 +42,19 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 
 ## Priority 4: Overlay Studio
 
-22. Add overlay browser source copy/open controls to the overlay list.
+22. Done: Add overlay browser source copy/open controls to the overlay list.
 23. Done: Add preview frame sizing presets for common OBS canvases.
 24. Done: Add quick label templates for YouTube/Twitch state.
-25. Add a visible save/live preview status indicator.
-26. Add shader-capable scene overlay planning in docs before implementation.
+25. Done: Add a visible save/live preview status indicator.
+26. Done: Add shader-capable scene overlay planning in docs before implementation.
 
 ## Priority 5: UI Cleanup
 
-27. Make the Integrations group the obvious home for Twitch, YouTube, OBS, and Moderation.
+27. Done: Make the Integrations group the obvious home for Twitch, YouTube, OBS, and Moderation.
 28. Reduce duplicated top-level entries where integration settings are hidden.
-29. Replace ambiguous icon-only buttons with tooltips where missing.
+29. Done: Replace ambiguous icon-only buttons with tooltips where missing.
 30. Done: Document the new first-run setup path and local test commands.
 
 ## Current Batch
 
-Continue with undo-friendly node mutations, automation playhead preview, time/flow lanes, overlay save/live preview status, and scene shader planning.
+Continue with navigation deduplication, scene overlay resource implementation, shader editor MVP, richer automation preview timing, and live overlay websocket presence.
