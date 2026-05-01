@@ -100,12 +100,20 @@ Twitch/YouTube chat trigger
 
 `Filter Chat Message` sends `deliveryMode: "decisionOnly"` to `POST /v1/chat-events`, so moderation updates the queue and returns a verdict without publishing directly to an overlay. This makes ShowRunner the place where you decide which approved messages reach which overlay widget.
 
+Ready-made templates are available under `Automations`:
+
+- `Template: Twitch Moderated Chat Feed`
+- `Template: YouTube Moderated Chat Feed`
+- `Template: Approved Only Chat Feed`
+
+Use these as a starting point, then select the target `Chat Feed` widget in the `Overlays: Push Chat Message` action when you want a specific overlay destination.
+
 ## Native Chat And Shader Overlays
 
 Overlay Studio includes:
 
 - `Chat Feed`: a configurable chat widget for approved Twitch/YouTube messages, with platform colors, font sizing, background opacity, fade time, max messages, layout, badges, and targeted widget delivery from automations.
-- `Shader Layer`: a WebGL widget with bundled shader presets, a local custom fragment shader editor mode, color/intensity/speed controls, opacity/blend mode, and a fallback state if WebGL or shader compilation fails.
+- `Shader Layer`: a WebGL widget with bundled shader presets, local saved shader presets, a custom fragment shader editor mode, color/intensity/speed controls, opacity/blend mode, and a fallback state if WebGL or shader compilation fails.
 
 The older standalone `sai-chat-overlay` flow can be retired once your ShowRunner overlay contains a `Chat Feed` widget and automations push approved messages with `Overlays -> Push Chat Message`.
 

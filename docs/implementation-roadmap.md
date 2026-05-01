@@ -56,6 +56,7 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 30a. Done: Allow chat push actions to target a specific Chat Feed widget.
 31. Done: Add bundled WebGL Shader Layer widget.
 31a. Done: Add a local custom fragment shader editor mode for Shader Layer.
+31b. Done: Add local Shader Layer preset save/load for custom fragment sources.
 
 ## Priority 5: UI Cleanup
 
@@ -67,12 +68,18 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 
 ## Current Batch
 
-Current batch complete: node context menu, targeted Chat Feed routing, live overlay websocket presence, Shader Layer custom source editing, and richer node preview timing are implemented.
+Current batch complete:
+
+1. Done: Add automation templates for Twitch/YouTube chat -> moderation filter -> targeted Chat Feed.
+2. Done: Add overlay runtime websocket presence to the widget list, not only the editor header.
+3. Done: Add local Shader Layer preset save/load once the local editor UX is stable.
+4. Done: Add moderation queue filters/search and richer override audit details.
+5. Done: Extract node preview timing into `useAutomationPreview`.
 
 Next batch:
 
-1. Add explicit automation templates for Twitch/YouTube chat -> moderation filter -> targeted Chat Feed.
-2. Add overlay runtime websocket presence to the widget list, not only the editor header.
-3. Add shader preset save/load once the local editor UX is stable.
-4. Add moderation queue filters/search and richer override audit details.
-5. Split `NodeAutomationEdit.vue` into focused composables for canvas interactions, node dragging, context menus, and preview timing.
+1. Continue splitting `NodeAutomationEdit.vue` into focused composables: `useNodeCanvas`, `useNodeDrag`, and `useNodeContextMenu`.
+2. Add a richer bundled shader library with previews and safer validation messages.
+3. Add a YouTube quota dashboard with discovery cooldown visibility and recent API errors.
+4. Add donation widgets and paid-message overlay templates.
+5. Add scene begin/end overlay actions that can coordinate Chat Feed, Shader Layer, and future scene widgets.
