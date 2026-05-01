@@ -117,6 +117,41 @@
 							<i :class="actionsOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
 						<div v-if="actionsOpen" class="node-automation__quick-actions">
+							<div class="node-automation__action-picker">
+								<label>
+									<span>Add Action</span>
+									<select v-model="selectedActionToAdd">
+										<option value="">Choose an action...</option>
+										<optgroup v-for="plugin in actionPalette" :key="plugin.id" :label="plugin.name">
+											<option v-for="action in plugin.actions" :key="action.key" :value="action.key">
+												{{ action.name }}
+											</option>
+										</optgroup>
+									</select>
+								</label>
+								<button type="button" :disabled="!selectedActionToAdd" @click="addActionFromPalette">
+									<i class="mdi mdi-plus" />
+									Insert After Selection
+								</button>
+							</div>
+							<div class="node-automation__action-grid">
+								<button type="button" :disabled="!canEditSelectedAction" @click="duplicateSelectedAction">
+									<i class="mdi mdi-content-duplicate" />
+									Duplicate
+								</button>
+								<button type="button" :disabled="!canMoveSelectedAction(-1)" @click="moveSelectedAction(-1)">
+									<i class="mdi mdi-arrow-left" />
+									Move Left
+								</button>
+								<button type="button" :disabled="!canMoveSelectedAction(1)" @click="moveSelectedAction(1)">
+									<i class="mdi mdi-arrow-right" />
+									Move Right
+								</button>
+								<button type="button" class="danger" :disabled="!canEditSelectedAction" @click="deleteSelectedAction">
+									<i class="mdi mdi-trash-can-outline" />
+									Delete
+								</button>
+							</div>
 							<button type="button" @click="mode = 'timeline'">
 								<i class="mdi mdi-timeline-clock-outline" />
 								Open in Timeline
@@ -143,7 +178,14 @@
 
 <script setup lang="ts">
 import { computed, ref, useModel } from "vue"
-import { AutomationConfig, AutomationResourceView, AutomationEdit, DataBindingPath } from "castmate-ui-core"
+import {
+	ActionSelection,
+	AutomationConfig,
+	AutomationResourceView,
+	AutomationEdit,
+	DataBindingPath,
+	usePluginStore,
+} from "castmate-ui-core"
 import ActionConfigEdit from "../../../../../../libs/castmate-ui-core/src/components/automation/ActionConfigEdit.vue"
 import TriggerConfigEdit from "../../../../../../libs/castmate-ui-core/src/components/automation/TriggerConfigEdit.vue"
 import {
@@ -151,6 +193,7 @@ import {
 	AnyAction,
 	FloatingSequence,
 	Sequence,
+	assignNewIds,
 	findActionAndSequenceById,
 	isActionStack,
 	isFlowAction,
@@ -188,9 +231,11 @@ const model = useModel(props, "modelValue")
 const view = useModel(props, "view")
 const mode = ref<"nodes" | "timeline">("nodes")
 const selectedNodeId = ref<string>()
+const selectedActionToAdd = ref("")
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
+const pluginStore = usePluginStore()
 
 const NODE_WIDTH = 220
 const NODE_HEIGHT = 74
@@ -244,6 +289,29 @@ const selectedActionDef = computed(() => {
 	if (!actionInfo || isActionStack(actionInfo.action)) return undefined
 	return actionInfo.action
 })
+const selectedActionPosition = computed(() => {
+	if (!selectedActionPath.value) return undefined
+	return getPathPosition(selectedActionPath.value)
+})
+const canEditSelectedAction = computed(() => {
+	const position = selectedActionPosition.value
+	return Boolean(position && selectedActionInfo.value)
+})
+const actionPalette = computed(() =>
+	[...pluginStore.pluginMap.values()]
+		.map((plugin) => ({
+			id: plugin.id,
+			name: plugin.name,
+			actions: Object.values(plugin.actions)
+				.map((action) => ({
+					key: `${plugin.id}:${action.id}`,
+					name: action.name,
+				}))
+				.sort((a, b) => a.name.localeCompare(b.name)),
+		}))
+		.filter((plugin) => plugin.actions.length)
+		.sort((a, b) => a.name.localeCompare(b.name))
+)
 const viewBox = computed(() => {
 	const maxX = Math.max(1280, ...nodes.value.map((node) => node.x + NODE_WIDTH + 160))
 	const maxY = Math.max(720, ...nodes.value.map((node) => node.y + NODE_HEIGHT + 160))
@@ -420,6 +488,116 @@ function openNodeContext(node: NodeData) {
 function resetSelectedNodePosition() {
 	if (!selectedNodeId.value) return
 	delete nodePositions.value[selectedNodeId.value]
+}
+
+function parseActionSelection(value: string): ActionSelection | undefined {
+	const [plugin, action] = value.split(":")
+	if (!plugin || !action) return undefined
+	return { plugin, action }
+}
+
+async function addActionFromPalette() {
+	const selection = parseActionSelection(selectedActionToAdd.value)
+	if (!selection) return
+
+	const action = await pluginStore.createAction(selection)
+	if (!action) return
+
+	const position = selectedActionPosition.value
+	if (position?.containerKind === "actions") {
+		position.items.splice(position.index + 1, 0, action)
+	} else {
+		model.value.sequence.actions.push(action)
+	}
+
+	selectedNodeId.value = action.id
+	configOpen.value = true
+}
+
+function duplicateSelectedAction() {
+	const actionInfo = selectedActionInfo.value
+	const position = selectedActionPosition.value
+	if (!actionInfo || !position) return
+
+	const clonedAction = cloneActionForNodeEditor(actionInfo.action)
+	position.items.splice(position.index + 1, 0, clonedAction)
+	selectedNodeId.value = clonedAction.id
+	configOpen.value = true
+}
+
+function deleteSelectedAction() {
+	const position = selectedActionPosition.value
+	if (!position) return
+	const removed = position.items.splice(position.index, 1)
+	if (removed.length) {
+		delete nodePositions.value[removed[0].id]
+	}
+	selectedNodeId.value = undefined
+}
+
+function canMoveSelectedAction(direction: -1 | 1) {
+	const position = selectedActionPosition.value
+	if (!position) return false
+	const nextIndex = position.index + direction
+	return nextIndex >= 0 && nextIndex < position.items.length
+}
+
+function moveSelectedAction(direction: -1 | 1) {
+	const position = selectedActionPosition.value
+	if (!position || !canMoveSelectedAction(direction)) return
+	const [action] = position.items.splice(position.index, 1)
+	position.items.splice(position.index + direction, 0, action)
+}
+
+function cloneActionForNodeEditor(action: AnyAction | ActionStack) {
+	const clonedSequence = { actions: [structuredClone(action)] }
+	assignNewIds(clonedSequence)
+	return clonedSequence.actions[0]
+}
+
+function getPathPosition(path: string):
+	| {
+			items: Array<AnyAction | ActionStack>
+			index: number
+			containerKind: "actions" | "stack"
+	  }
+	| undefined {
+	const parts = Array.from(path.matchAll(/([a-zA-Z]+)(?:\[(\d+)\])?/g)).map((match) => ({
+		key: match[1],
+		index: match[2] === undefined ? undefined : Number(match[2]),
+	}))
+
+	let cursor: any = model.value
+	let lastContainer: Array<AnyAction | ActionStack> | undefined
+	let lastContainerKind: "actions" | "stack" | undefined
+	let lastIndex = -1
+
+	for (const part of parts) {
+		if (part.key === "actions" || part.key === "stack") {
+			lastContainer = cursor?.[part.key]
+			lastContainerKind = part.key
+			lastIndex = part.index ?? -1
+			cursor = lastContainer?.[lastIndex]
+			continue
+		}
+
+		if (part.key === "sequence") {
+			cursor = model.value.sequence
+			continue
+		}
+
+		if (part.key === "floatingSequences") {
+			cursor = model.value.floatingSequences?.[part.index ?? -1]
+			continue
+		}
+
+		if (part.key === "offsets" || part.key === "subFlows") {
+			cursor = cursor?.[part.key]?.[part.index ?? -1]
+		}
+	}
+
+	if (!lastContainer || lastIndex < 0 || lastIndex >= lastContainer.length || !lastContainerKind) return undefined
+	return { items: lastContainer, index: lastIndex, containerKind: lastContainerKind }
 }
 </script>
 
@@ -664,6 +842,36 @@ function resetSelectedNodePosition() {
 	padding: 0.65rem;
 }
 
+.node-automation__action-picker {
+	display: grid;
+	gap: 0.5rem;
+}
+
+.node-automation__action-picker label {
+	display: grid;
+	gap: 0.3rem;
+}
+
+.node-automation__action-picker span {
+	color: #d9d9d9;
+	font-size: 0.78rem;
+}
+
+.node-automation__action-picker select {
+	background: #0e0e0e;
+	border: 1px solid #4d4d4d;
+	border-radius: 4px;
+	color: var(--text-color);
+	min-width: 0;
+	padding: 0.55rem;
+}
+
+.node-automation__action-grid {
+	display: grid;
+	gap: 0.5rem;
+	grid-template-columns: 1fr 1fr;
+}
+
 .node-automation__quick-actions button {
 	align-items: center;
 	background: #2b173d;
@@ -675,6 +883,16 @@ function resetSelectedNodePosition() {
 	gap: 0.45rem;
 	padding: 0.65rem 0.75rem;
 	text-align: left;
+}
+
+.node-automation__quick-actions button.danger {
+	background: #3a171b;
+	border-color: #8f3744;
+}
+
+.node-automation__quick-actions button:disabled {
+	cursor: not-allowed;
+	opacity: 0.45;
 }
 
 .node-automation__details dl {
