@@ -123,6 +123,19 @@ export async function initPlugin(app: App<Element>) {
 				icon: "mdi mdi-twitch twitch-purple",
 				items: [
 					{
+						id: "twitch.accounts",
+						title: "Account Login",
+						icon: "mdi mdi-account-key",
+						open() {
+							dockingStore.openPage(
+								"twitch.accounts",
+								"Twitch Account Login",
+								"mdi mdi-account-key",
+								TwitchAccountSettingsVue
+							)
+						},
+					},
+					{
 						id: "twitch.channelpoints",
 						title: "Channel Point Rewards",
 						icon: "twi twi-channel-points",
