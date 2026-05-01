@@ -413,6 +413,7 @@ import {
 	constructDefault,
 } from "castmate-schema"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
+import { useNodeDrag } from "./useNodeDrag"
 import { useAutomationPreview } from "./useAutomationPreview"
 
 interface NodeData extends NodePosition {
@@ -661,6 +662,14 @@ const {
 	startPan,
 	getCanvasPointFromClient: getCanvasPointFromClientPosition,
 } = useNodeCanvas(view, graphBounds, commitUndo)
+const { startDrag, resetSelectedNodePosition } = useNodeDrag(
+	nodePositions,
+	selectedNodeId,
+	zoom,
+	snapCoordinate,
+	closeContextMenu,
+	commitUndo
+)
 
 function buildGraph(automation: AutomationConfig) {
 	const nodes: NodeData[] = []
@@ -838,40 +847,6 @@ function getNodeLane(node: NodeData): Pick<LaneData, "id" | "kind" | "label"> {
 	return { id: "main", kind: "main", label: "Main Flow" }
 }
 
-function startDrag(event: PointerEvent, node: NodeData) {
-	closeContextMenu()
-	selectedNodeId.value = node.id
-	const startX = event.clientX
-	const startY = event.clientY
-	const initial = nodePositions.value[node.id] ?? { x: node.x, y: node.y }
-	const target = event.currentTarget as HTMLElement
-	target.setPointerCapture(event.pointerId)
-
-	function onMove(moveEvent: PointerEvent) {
-		const nextX = Math.max(12, initial.x + (moveEvent.clientX - startX) / zoom.value)
-		const nextY = Math.max(12, initial.y + (moveEvent.clientY - startY) / zoom.value)
-		nodePositions.value[node.id] = {
-			x: snapCoordinate(nextX),
-			y: snapCoordinate(nextY),
-		}
-	}
-
-	function onUp(upEvent: PointerEvent) {
-		const moved = nodePositions.value[node.id]
-		target.releasePointerCapture(upEvent.pointerId)
-		target.removeEventListener("pointermove", onMove)
-		target.removeEventListener("pointerup", onUp)
-		target.removeEventListener("pointercancel", onUp)
-		if (moved && (moved.x !== initial.x || moved.y !== initial.y)) {
-			commitUndo()
-		}
-	}
-
-	target.addEventListener("pointermove", onMove)
-	target.addEventListener("pointerup", onUp)
-	target.addEventListener("pointercancel", onUp)
-}
-
 function openNodeContext(event: MouseEvent, node: NodeData) {
 	selectedNodeId.value = node.id
 	detailsOpen.value = true
@@ -918,13 +893,6 @@ function toggleContextGroup(key: string) {
 
 function isContextGroupOpen(key: string) {
 	return contextMenuOpenGroups.value[key] ?? true
-}
-
-function resetSelectedNodePosition() {
-	if (!selectedNodeId.value) return
-	if (!nodePositions.value[selectedNodeId.value]) return
-	delete nodePositions.value[selectedNodeId.value]
-	commitUndo()
 }
 
 function handleCanvasPointerDown(event: PointerEvent) {
