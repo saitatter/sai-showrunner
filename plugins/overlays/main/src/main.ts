@@ -6,6 +6,7 @@ import { setupWebsockets } from "./websocket-bridge"
 import { OverlayTextStyle } from "castmate-plugin-overlays-shared"
 import { setupEmoteBouncer } from "./emote-bouncer"
 import { setupAlerts } from "./alerts"
+import { setupChatFeed } from "./chat-feed"
 
 export default definePlugin(
 	{
@@ -23,6 +24,7 @@ export default definePlugin(
 		setupAlerts()
 		setupWebsockets()
 		setupEmoteBouncer()
+		setupChatFeed()
 	}
 )
 
