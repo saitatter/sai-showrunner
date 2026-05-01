@@ -11,7 +11,8 @@ import { checkMigration, finishMigration, migrateAllOldAutomations } from "./mig
 
 const isDevelopment = false //!app.isPackaged // true //TODO: import.meta.env.DEV
 
-if (process.platform === "win32") app.setAppUserModelId(app.getName())
+app.setName("ShowRunner")
+if (process.platform === "win32") app.setAppUserModelId("com.saitatter.showrunner")
 
 //???
 process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true"

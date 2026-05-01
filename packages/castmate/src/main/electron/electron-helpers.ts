@@ -18,6 +18,7 @@ export function createWindow(
 	icon: string = "icon.png"
 ) {
 	const win = new BrowserWindow({
+		title: "ShowRunner",
 		width,
 		height,
 		icon: path.join(iconPath, icon),

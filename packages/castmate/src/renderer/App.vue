@@ -1,6 +1,6 @@
 <template>
 	<div class="app" @keydown="onKeyDown" tabindex="-1">
-		<system-bar title="ShowRunner"></system-bar>
+		<system-bar />
 		<toast position="bottom-left" style="width: 17rem" />
 		<div class="app-row" v-if="initStore.inited">
 			<project-view />
