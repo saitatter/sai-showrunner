@@ -23,6 +23,8 @@
 				class="node-automation__canvas"
 				:class="{ panning: isPanning }"
 				@pointerdown="handleCanvasPointerDown"
+				@dragover.prevent
+				@drop.prevent="dropActionOnCanvas"
 				@wheel.ctrl.prevent="zoomFromWheel"
 			>
 				<div class="node-automation__canvas-controls">
@@ -71,12 +73,18 @@
 						v-for="node in nodes"
 						:key="node.id"
 						class="node-automation__node"
-						:class="[`node-automation__node--${node.kind}`, { selected: selectedNodeId === node.id }]"
+						:class="[
+							`node-automation__node--${node.kind}`,
+							{ selected: selectedNodeId === node.id, 'drop-target': dropTargetNodeId === node.id },
+						]"
 						:style="{ transform: `translate(${node.x}px, ${node.y}px)` }"
 						type="button"
 						@pointerdown.stop="startDrag($event, node)"
 						@click.stop="selectedNodeId = node.id"
 						@contextmenu.prevent.stop="openNodeContext(node)"
+						@dragover.prevent.stop="dropTargetNodeId = node.id"
+						@dragleave.stop="clearDropTarget(node.id)"
+						@drop.prevent.stop="dropActionOnNode($event, node)"
 					>
 						<span class="node-automation__node-icon">
 							<i :class="node.icon" />
@@ -173,6 +181,20 @@
 									<i class="mdi mdi-plus" />
 									Insert After Selection
 								</button>
+								<div class="node-automation__palette-list">
+									<button
+										v-for="action in flatActionPalette"
+										:key="action.key"
+										type="button"
+										draggable="true"
+										@click="selectedActionToAdd = action.key"
+										@dragstart="startActionPaletteDrag($event, action.key)"
+									>
+										<i class="mdi mdi-drag" />
+										<span>{{ action.pluginName }}</span>
+										<strong>{{ action.name }}</strong>
+									</button>
+								</div>
 							</div>
 							<div class="node-automation__action-grid">
 								<button type="button" :disabled="!canEditSelectedAction" @click="duplicateSelectedAction">
@@ -278,6 +300,7 @@ const zoom = ref(1)
 const pan = ref({ x: 0, y: 0 })
 const isPanning = ref(false)
 const snapToGrid = ref(true)
+const dropTargetNodeId = ref<string>()
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
@@ -365,6 +388,11 @@ const actionPalette = computed(() =>
 		.sort((a, b) => a.name.localeCompare(b.name))
 )
 const actionPaletteSearch = computed(() => actionPaletteQuery.value.trim().toLowerCase())
+const flatActionPalette = computed(() =>
+	actionPalette.value
+		.flatMap((plugin) => plugin.actions.map((action) => ({ ...action, pluginName: plugin.name })))
+		.slice(0, 24)
+)
 const viewBox = computed(() => {
 	return `0 0 ${canvasSize.value.width} ${canvasSize.value.height}`
 })
@@ -670,15 +698,65 @@ async function addActionFromPalette() {
 	const action = await pluginStore.createAction(selection)
 	if (!action) return
 
-	const position = selectedActionPosition.value
-	if (position?.containerKind === "actions") {
-		position.items.splice(position.index + 1, 0, action)
-	} else {
-		model.value.sequence.actions.push(action)
-	}
+	insertAction(action)
 
 	selectedNodeId.value = action.id
 	configOpen.value = true
+}
+
+function startActionPaletteDrag(event: DragEvent, actionKey: string) {
+	event.dataTransfer?.setData("application/showrunner-action", actionKey)
+	event.dataTransfer?.setData("text/plain", actionKey)
+	if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy"
+}
+
+async function dropActionOnCanvas(event: DragEvent) {
+	const action = await createDraggedAction(event)
+	if (!action) return
+
+	model.value.sequence.actions.push(action)
+	nodePositions.value[action.id] = getCanvasPoint(event)
+	selectedNodeId.value = action.id
+	configOpen.value = true
+	dropTargetNodeId.value = undefined
+}
+
+async function dropActionOnNode(event: DragEvent, node: NodeData) {
+	const action = await createDraggedAction(event)
+	if (!action) return
+
+	insertAction(action, node.id)
+	nodePositions.value[action.id] = {
+		x: snapCoordinate(node.x + H_GAP),
+		y: snapCoordinate(node.y),
+	}
+	selectedNodeId.value = action.id
+	configOpen.value = true
+	dropTargetNodeId.value = undefined
+}
+
+function clearDropTarget(nodeId: string) {
+	if (dropTargetNodeId.value === nodeId) dropTargetNodeId.value = undefined
+}
+
+async function createDraggedAction(event: DragEvent) {
+	const actionKey =
+		event.dataTransfer?.getData("application/showrunner-action") || event.dataTransfer?.getData("text/plain")
+	const selection = parseActionSelection(actionKey || "")
+	if (!selection) return undefined
+	return pluginStore.createAction(selection)
+}
+
+function insertAction(action: AnyAction, afterNodeId = selectedNodeId.value) {
+	if (afterNodeId) {
+		const position = getNodePosition(afterNodeId)
+		if (position?.containerKind === "actions") {
+			position.items.splice(position.index + 1, 0, action)
+			return
+		}
+	}
+
+	model.value.sequence.actions.push(action)
 }
 
 function duplicateSelectedAction() {
@@ -714,6 +792,22 @@ function moveSelectedAction(direction: -1 | 1) {
 	if (!position || !canMoveSelectedAction(direction)) return
 	const [action] = position.items.splice(position.index, 1)
 	position.items.splice(position.index + direction, 0, action)
+}
+
+function getNodePosition(nodeId: string) {
+	const info = findActionAndSequenceById(nodeId, model.value)
+	if (!info) return undefined
+	return getPathPosition(info.path)
+}
+
+function getCanvasPoint(event: DragEvent): NodePosition {
+	const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
+	const rect = surface?.getBoundingClientRect()
+	if (!rect) return { x: 42, y: 88 }
+	return {
+		x: snapCoordinate(Math.max(12, (event.clientX - rect.left) / zoom.value)),
+		y: snapCoordinate(Math.max(12, (event.clientY - rect.top) / zoom.value)),
+	}
 }
 
 function cloneActionForNodeEditor(action: AnyAction | ActionStack) {
@@ -938,6 +1032,11 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 	box-shadow: 0 0 0 3px rgb(255 223 107 / 0.2), 0 12px 28px rgb(0 0 0 / 0.35);
 }
 
+.node-automation__node.drop-target {
+	border-color: #2ed47a;
+	box-shadow: 0 0 0 4px rgb(46 212 122 / 0.22), 0 12px 28px rgb(0 0 0 / 0.35);
+}
+
 .node-automation__node--trigger {
 	background: #40256c;
 }
@@ -1090,6 +1189,43 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 	display: grid;
 	gap: 0.5rem;
 	grid-template-columns: 1fr 1fr;
+}
+
+.node-automation__palette-list {
+	display: grid;
+	gap: 0.35rem;
+	max-height: 13rem;
+	overflow: auto;
+	padding-right: 0.15rem;
+}
+
+.node-automation__palette-list button {
+	align-items: center;
+	background: #151515;
+	border: 1px solid #3d3d3d;
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: grab;
+	display: grid;
+	gap: 0.4rem;
+	grid-template-columns: 1.25rem minmax(4rem, 0.7fr) minmax(0, 1fr);
+	padding: 0.45rem 0.5rem;
+	text-align: left;
+}
+
+.node-automation__palette-list button:active {
+	cursor: grabbing;
+}
+
+.node-automation__palette-list span,
+.node-automation__palette-list strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node-automation__palette-list span {
+	color: #bbb;
 }
 
 .node-automation__quick-actions button {
