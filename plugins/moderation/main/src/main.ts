@@ -3,6 +3,10 @@ import { ModerationService } from "./moderation-service"
 
 export { ModerationService } from "./moderation-service"
 
+declare global {
+	var __showrunnerModeration: ModerationService | undefined
+}
+
 export default definePlugin(
 	{
 		id: "moderation",
@@ -13,6 +17,7 @@ export default definePlugin(
 	},
 	() => {
 		const moderation = ModerationService.getInstance()
+		globalThis.__showrunnerModeration = moderation
 
 		defineRendererCallable("getStatus", async () => moderation.getStatus())
 		defineRendererCallable("saveSettings", async (settings) => moderation.saveSettings(settings))
