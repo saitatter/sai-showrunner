@@ -38,6 +38,7 @@
 					type="button"
 					@pointerdown.stop="startDrag($event, node)"
 					@click.stop="selectedNodeId = node.id"
+					@contextmenu.prevent.stop="openNodeContext(node)"
 				>
 					<span class="node-automation__node-icon">
 						<i :class="node.icon" />
@@ -50,33 +51,87 @@
 				</button>
 			</section>
 
-			<aside class="node-automation__details">
+			<aside class="node-automation__details" :class="{ empty: !selectedNode }">
+				<header class="node-automation__details-header">
+					<div>
+						<p class="node-automation__eyebrow">{{ selectedNode ? "Node Context" : "Flow Map" }}</p>
+						<h3>{{ selectedNode?.title || "Select a node" }}</h3>
+					</div>
+					<button
+						v-if="selectedNode"
+						class="node-automation__icon-button"
+						type="button"
+						aria-label="Close context"
+						@click="selectedNodeId = undefined"
+					>
+						<i class="mdi mdi-close" />
+					</button>
+				</header>
+
 				<template v-if="selectedNode">
-					<p class="node-automation__eyebrow">Selected Node</p>
-					<h3>{{ selectedNode.title }}</h3>
-					<dl>
-						<div>
-							<dt>Type</dt>
-							<dd>{{ selectedNode.kind }}</dd>
+					<section class="node-automation__context-section">
+						<button type="button" class="node-automation__context-header" @click="detailsOpen = !detailsOpen">
+							<span><i class="mdi mdi-information-outline" /> Details</span>
+							<i :class="detailsOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						</button>
+						<dl v-if="detailsOpen">
+							<div>
+								<dt>Type</dt>
+								<dd>{{ selectedNode.kind }}</dd>
+							</div>
+							<div>
+								<dt>Source</dt>
+								<dd>{{ selectedNode.subtitle }}</dd>
+							</div>
+							<div v-if="selectedNode.path">
+								<dt>Path</dt>
+								<dd>{{ selectedNode.path }}</dd>
+							</div>
+						</dl>
+					</section>
+
+					<data-binding-path local-path="automation">
+						<section class="node-automation__context-section">
+							<button type="button" class="node-automation__context-header" @click="configOpen = !configOpen">
+								<span><i class="mdi mdi-tune" /> Configure</span>
+								<i :class="configOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+							</button>
+							<div v-if="configOpen" class="node-automation__config">
+								<action-config-edit
+									v-if="selectedActionDef"
+									v-model="selectedActionDef"
+									:sequence="selectedSequence"
+									:local-path="selectedActionPath"
+								/>
+								<trigger-config-edit v-else-if="selectedNode.id === 'trigger'" v-model="model" />
+								<p v-else class="node-automation__hint">
+									This node groups other actions. Select a child action node to edit its settings.
+								</p>
+							</div>
+						</section>
+					</data-binding-path>
+
+					<section class="node-automation__context-section">
+						<button type="button" class="node-automation__context-header" @click="actionsOpen = !actionsOpen">
+							<span><i class="mdi mdi-dots-horizontal-circle-outline" /> Node Actions</span>
+							<i :class="actionsOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						</button>
+						<div v-if="actionsOpen" class="node-automation__quick-actions">
+							<button type="button" @click="mode = 'timeline'">
+								<i class="mdi mdi-timeline-clock-outline" />
+								Open in Timeline
+							</button>
+							<button type="button" @click="resetSelectedNodePosition">
+								<i class="mdi mdi-crosshairs-gps" />
+								Reset Visual Position
+							</button>
 						</div>
-						<div>
-							<dt>Source</dt>
-							<dd>{{ selectedNode.subtitle }}</dd>
-						</div>
-						<div v-if="selectedNode.path">
-							<dt>Path</dt>
-							<dd>{{ selectedNode.path }}</dd>
-						</div>
-					</dl>
+					</section>
 				</template>
-				<template v-else>
-					<p class="node-automation__eyebrow">Flow Map</p>
-					<h3>Select a node</h3>
-					<p class="node-automation__hint">
-						Drag nodes to organize the automation visually. Use Timeline when you need the original detailed
-						editor.
-					</p>
-				</template>
+				<p v-else class="node-automation__hint">
+					Left click selects a node. Right click opens the collapsible context panel with the same configuration
+					controls as Timeline.
+				</p>
 			</aside>
 		</div>
 
@@ -89,11 +144,14 @@
 <script setup lang="ts">
 import { computed, ref, useModel } from "vue"
 import { AutomationConfig, AutomationResourceView, AutomationEdit, DataBindingPath } from "castmate-ui-core"
+import ActionConfigEdit from "../../../../../../libs/castmate-ui-core/src/components/automation/ActionConfigEdit.vue"
+import TriggerConfigEdit from "../../../../../../libs/castmate-ui-core/src/components/automation/TriggerConfigEdit.vue"
 import {
 	ActionStack,
 	AnyAction,
 	FloatingSequence,
 	Sequence,
+	findActionAndSequenceById,
 	isActionStack,
 	isFlowAction,
 	isTimeAction,
@@ -130,6 +188,9 @@ const model = useModel(props, "modelValue")
 const view = useModel(props, "view")
 const mode = ref<"nodes" | "timeline">("nodes")
 const selectedNodeId = ref<string>()
+const detailsOpen = ref(true)
+const configOpen = ref(true)
+const actionsOpen = ref(false)
 
 const NODE_WIDTH = 220
 const NODE_HEIGHT = 74
@@ -168,6 +229,21 @@ const edges = computed<EdgeData[]>(() => {
 	})
 })
 const selectedNode = computed(() => nodes.value.find((node) => node.id === selectedNodeId.value))
+const selectedActionInfo = computed(() => {
+	if (!selectedNodeId.value || selectedNodeId.value === "trigger") return undefined
+	return findActionAndSequenceById(selectedNodeId.value, model.value)
+})
+const selectedActionPath = computed(() => selectedActionInfo.value?.path)
+const selectedSequence = computed(() => {
+	const actionInfo = selectedActionInfo.value
+	if (!actionInfo || isActionStack(actionInfo.action)) return undefined
+	return actionInfo.sequence
+})
+const selectedActionDef = computed(() => {
+	const actionInfo = selectedActionInfo.value
+	if (!actionInfo || isActionStack(actionInfo.action)) return undefined
+	return actionInfo.action
+})
 const viewBox = computed(() => {
 	const maxX = Math.max(1280, ...nodes.value.map((node) => node.x + NODE_WIDTH + 160))
 	const maxY = Math.max(720, ...nodes.value.map((node) => node.y + NODE_HEIGHT + 160))
@@ -332,6 +408,18 @@ function startDrag(event: PointerEvent, node: NodeData) {
 	target.addEventListener("pointermove", onMove)
 	target.addEventListener("pointerup", onUp)
 	target.addEventListener("pointercancel", onUp)
+}
+
+function openNodeContext(node: NodeData) {
+	selectedNodeId.value = node.id
+	detailsOpen.value = true
+	configOpen.value = true
+	actionsOpen.value = false
+}
+
+function resetSelectedNodePosition() {
+	if (!selectedNodeId.value) return
+	delete nodePositions.value[selectedNodeId.value]
 }
 </script>
 
@@ -514,10 +602,86 @@ function startDrag(event: PointerEvent, node: NodeData) {
 	padding: 1rem;
 }
 
+.node-automation__details.empty {
+	justify-content: flex-start;
+}
+
+.node-automation__details-header {
+	align-items: flex-start;
+	display: flex;
+	gap: 0.75rem;
+	justify-content: space-between;
+}
+
+.node-automation__icon-button {
+	align-items: center;
+	background: #2c2c2c;
+	border: 1px solid #454545;
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	display: flex;
+	height: 2rem;
+	justify-content: center;
+	width: 2rem;
+}
+
+.node-automation__context-section {
+	background: #181818;
+	border: 1px solid #303030;
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.node-automation__context-header {
+	align-items: center;
+	background: #222;
+	border: 0;
+	color: var(--text-color);
+	cursor: pointer;
+	display: flex;
+	font-weight: 700;
+	justify-content: space-between;
+	padding: 0.7rem 0.8rem;
+	width: 100%;
+}
+
+.node-automation__context-header span {
+	align-items: center;
+	display: flex;
+	gap: 0.45rem;
+}
+
+.node-automation__config {
+	max-height: 52vh;
+	overflow: auto;
+	padding: 0.55rem;
+}
+
+.node-automation__quick-actions {
+	display: grid;
+	gap: 0.5rem;
+	padding: 0.65rem;
+}
+
+.node-automation__quick-actions button {
+	align-items: center;
+	background: #2b173d;
+	border: 1px solid #7041a6;
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	display: flex;
+	gap: 0.45rem;
+	padding: 0.65rem 0.75rem;
+	text-align: left;
+}
+
 .node-automation__details dl {
 	display: grid;
 	gap: 0.75rem;
 	margin: 0;
+	padding: 0.75rem;
 }
 
 .node-automation__details dl div {
