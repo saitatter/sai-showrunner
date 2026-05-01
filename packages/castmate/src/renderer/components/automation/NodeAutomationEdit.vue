@@ -209,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useModel } from "vue"
+import { computed, onMounted, onUnmounted, ref, useModel } from "vue"
 import {
 	ActionSelection,
 	AutomationConfig,
@@ -619,6 +619,27 @@ function startPan(event: PointerEvent) {
 	canvas.addEventListener("pointercancel", onUp)
 }
 
+function handleKeydown(event: KeyboardEvent) {
+	if (mode.value !== "nodes") return
+	const target = event.target as HTMLElement | null
+	if (target?.closest("input, textarea, select, [contenteditable='true']")) return
+
+	if ((event.key === "Delete" || event.key === "Backspace") && canEditSelectedAction.value) {
+		event.preventDefault()
+		deleteSelectedAction()
+	}
+
+	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d" && canEditSelectedAction.value) {
+		event.preventDefault()
+		duplicateSelectedAction()
+	}
+
+	if (event.key.toLowerCase() === "f") {
+		event.preventDefault()
+		fitGraph()
+	}
+}
+
 function parseActionSelection(value: string): ActionSelection | undefined {
 	const [plugin, action] = value.split(":")
 	if (!plugin || !action) return undefined
@@ -728,6 +749,9 @@ function getPathPosition(path: string):
 	if (!lastContainer || lastIndex < 0 || lastIndex >= lastContainer.length || !lastContainerKind) return undefined
 	return { items: lastContainer, index: lastIndex, containerKind: lastContainerKind }
 }
+
+onMounted(() => window.addEventListener("keydown", handleKeydown))
+onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 </script>
 
 <style scoped>
