@@ -218,6 +218,12 @@ export class YouTubeAuthService {
 
 		const server = createServer((request, response) => {
 			const url = new URL(request.url || "/", "http://127.0.0.1")
+			if (url.pathname !== "/oauth/youtube/callback") {
+				response.writeHead(404)
+				response.end()
+				return
+			}
+
 			const error = url.searchParams.get("error")
 			const code = url.searchParams.get("code")
 			const receivedState = url.searchParams.get("state")
