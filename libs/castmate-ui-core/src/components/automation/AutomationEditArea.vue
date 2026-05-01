@@ -41,12 +41,17 @@
 				height: `${(selectTo?.y ?? 0) - (selectFrom?.y ?? 0)}px`,
 			}"
 		></div>
-		<action-palette @select-action="onCreateAction" ref="palette" />
+		<action-palette
+			:include-triggers="canEditTrigger"
+			@select-action="onCreateAction"
+			@select-trigger="onSelectTrigger"
+			ref="palette"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { ref, toValue, useModel, provide } from "vue"
+import { computed, ref, toValue, useModel, provide } from "vue"
 import { type Sequence, type AutomationData } from "castmate-schema"
 import {
 	ActionSelection,
@@ -56,7 +61,6 @@ import {
 	usePluginStore,
 	useDocumentSelection,
 	TriggerSelection,
-	useTrigger,
 	useSelectionRect,
 	useActiveTestSequence,
 	useActionQueueStore,
@@ -122,7 +126,7 @@ const actionQueueStore = useActionQueueStore()
 const activeTestSequence = useActiveTestSequence(testSequenceId)
 provide("activeTestSequence", activeTestSequence)
 
-const trigger = useTrigger(() => props.trigger)
+const canEditTrigger = computed(() => Boolean(props.trigger))
 
 async function onRunSequence() {
 	testSequenceId.value = await actionQueueStore.testSequence(props.modelValue)
@@ -187,6 +191,17 @@ async function onCreateAction(actionSelection: ActionSelection) {
 
 	model.value.floatingSequences.push(floatingSequence)
 
+	commitUndo()
+}
+
+function onSelectTrigger(triggerSelection: TriggerSelection) {
+	const triggerDefinition = pluginStore.pluginMap.get(triggerSelection.plugin ?? "")?.triggers[triggerSelection.trigger ?? ""]
+	if (!triggerSelection.plugin || !triggerSelection.trigger || !triggerDefinition || !props.trigger) return
+
+	const automation = model.value as AutomationData & { plugin?: string; trigger?: string; config?: unknown }
+	automation.plugin = triggerSelection.plugin
+	automation.trigger = triggerSelection.trigger
+	automation.config = constructDefault(triggerDefinition.config)
 	commitUndo()
 }
 

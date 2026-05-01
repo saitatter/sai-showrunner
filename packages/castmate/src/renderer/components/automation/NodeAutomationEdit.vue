@@ -159,6 +159,8 @@
 					class="node-automation__context-menu"
 					:style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
 					@click.stop
+					@pointerdown.stop
+					@mousedown.stop
 					@contextmenu.prevent.stop
 				>
 					<header class="node-automation__context-menu-header">
@@ -1075,8 +1077,9 @@ function updatePlayheadPreview() {
 }
 
 function handleCanvasPointerDown(event: PointerEvent) {
-	if (contextMenu.value.open) closeContextMenu()
 	const target = event.target as HTMLElement
+	if (target.closest(".node-automation__context-menu")) return
+	if (contextMenu.value.open) closeContextMenu()
 	if (target.closest(".node-automation__canvas-controls")) return
 
 	const isCanvasTarget =
@@ -1150,7 +1153,9 @@ function handleKeydown(event: KeyboardEvent) {
 	}
 }
 
-function handleWindowClick() {
+function handleWindowClick(event: MouseEvent) {
+	const target = event.target as HTMLElement | null
+	if (target?.closest(".node-automation__context-menu")) return
 	if (contextMenu.value.open) closeContextMenu()
 }
 
@@ -1844,11 +1849,11 @@ onUnmounted(() => {
 }
 
 .node-automation__context-menu {
-	background: #f4f4f4;
-	border: 1px solid #7a7a7a;
+	background: var(--surface-b);
+	border: 1px solid var(--surface-d);
 	border-radius: 3px;
 	box-shadow: 0 18px 45px rgb(0 0 0 / 0.42);
-	color: #111;
+	color: var(--text-color);
 	display: grid;
 	gap: 0.35rem;
 	max-height: min(32rem, calc(100vh - 1rem));
@@ -1861,8 +1866,8 @@ onUnmounted(() => {
 
 .node-automation__context-menu-header {
 	align-items: center;
-	background: linear-gradient(180deg, #ffffff, #e8e8e8);
-	border: 1px solid #c8c8c8;
+	background: var(--surface-c);
+	border: 1px solid var(--surface-d);
 	border-radius: 2px;
 	display: flex;
 	justify-content: space-between;
@@ -1876,7 +1881,7 @@ onUnmounted(() => {
 }
 
 .node-automation__context-menu-header span {
-	color: #555;
+	color: var(--text-color-secondary);
 	font-size: 0.75rem;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1885,10 +1890,10 @@ onUnmounted(() => {
 
 .node-automation__context-menu-header button {
 	align-items: center;
-	background: #ececec;
-	border: 1px solid #b9b9b9;
+	background: var(--surface-700);
+	border: 1px solid var(--surface-d);
 	border-radius: 2px;
-	color: #222;
+	color: var(--text-color);
 	cursor: pointer;
 	display: flex;
 	height: 1.65rem;
@@ -1898,8 +1903,8 @@ onUnmounted(() => {
 
 .node-automation__context-menu-search {
 	align-items: center;
-	background: white;
-	border: 1px solid #b9b9b9;
+	background: var(--surface-a);
+	border: 1px solid var(--surface-d);
 	border-radius: 2px;
 	display: grid;
 	gap: 0.35rem;
@@ -1910,13 +1915,13 @@ onUnmounted(() => {
 .node-automation__context-menu-search input {
 	background: transparent;
 	border: 0;
-	color: #111;
+	color: var(--text-color);
 	min-width: 0;
 	outline: 0;
 }
 
 .node-automation__menu-section {
-	border: 1px solid #c8c8c8;
+	border: 1px solid var(--surface-d);
 	border-radius: 2px;
 	overflow: hidden;
 }
@@ -1924,10 +1929,10 @@ onUnmounted(() => {
 .node-automation__menu-section-header,
 .node-automation__menu-group-header {
 	align-items: center;
-	background: #e8e8e8;
+	background: var(--surface-c);
 	border: 0;
-	border-bottom: 1px solid #c8c8c8;
-	color: #111;
+	border-bottom: 1px solid var(--surface-d);
+	color: var(--text-color);
 	cursor: pointer;
 	display: flex;
 	font-weight: 700;
@@ -1945,16 +1950,16 @@ onUnmounted(() => {
 }
 
 .node-automation__menu-groups {
-	background: #fbfbfb;
+	background: var(--surface-b);
 	display: grid;
 }
 
 .node-automation__menu-group + .node-automation__menu-group {
-	border-top: 1px solid #ddd;
+	border-top: 1px solid var(--surface-d);
 }
 
 .node-automation__menu-group-header {
-	background: #f7f7f7;
+	background: var(--surface-a);
 	font-size: 0.86rem;
 	font-weight: 600;
 	padding-left: 0.75rem;
@@ -1970,7 +1975,7 @@ onUnmounted(() => {
 	background: transparent;
 	border: 1px solid transparent;
 	border-radius: 2px;
-	color: #111;
+	color: var(--text-color);
 	cursor: pointer;
 	display: grid;
 	gap: 0.45rem;
@@ -1980,8 +1985,8 @@ onUnmounted(() => {
 }
 
 .node-automation__menu-items button:hover {
-	background: #dcebff;
-	border-color: #7db7ff;
+	background: color-mix(in srgb, #8b35e6 24%, var(--surface-a));
+	border-color: #8b35e6;
 }
 
 .node-automation__menu-items span {
@@ -1997,7 +2002,7 @@ onUnmounted(() => {
 }
 
 .node-automation__menu-items small {
-	color: #616161;
+	color: var(--text-color-secondary);
 	font-size: 0.72rem;
 }
 
