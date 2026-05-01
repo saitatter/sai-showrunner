@@ -105,7 +105,7 @@ export const PubSubManager = Service(
 			if (!url) throw new Error("Negotiation Response didn't contain URL!")
 
 			if (this.azSocket) {
-				logger.error("Double CastMate PubSub connection detected!!")
+				logger.error("Double ShowRunner PubSub connection detected!!")
 				this.azSocket.stop()
 				this.azSocket = undefined
 			}
@@ -134,7 +134,7 @@ export const PubSubManager = Service(
 			})
 
 			this.azSocket.on("connected", async (ev) => {
-				logger.log(`Connected to CastMate PubSub as ${ev.userId}:${ev.connectionId}`)
+				logger.log(`Connected to ShowRunner PubSub as ${ev.userId}:${ev.connectionId}`)
 				this.connected = true
 				await this.onConnect.run()
 			})
@@ -142,7 +142,7 @@ export const PubSubManager = Service(
 			this.azSocket.on("disconnected", (ev) => {
 				this.connected = false
 				this.connecting = false
-				logger.error("Lost Connection to CastMate Pubsub", ev.message)
+				logger.error("Lost Connection to ShowRunner Pubsub", ev.message)
 			})
 
 			await this.azSocket.start()

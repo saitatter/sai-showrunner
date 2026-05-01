@@ -64,7 +64,7 @@ const logger = usePluginLogger("satellite")
 
 export const SatelliteResources = Service(
 	class {
-		//Remote Satellite Resources represented in CastMate
+		//Remote Satellite Resources represented in ShowRunner
 		private remoteSlots = new Map<string, RemoteSatelliteResourceSlot>()
 		private slotHandlers = new Map<string, SatelliteResourceSlotHandler>()
 		private slotBindings = new Map<string, SatelliteResourceSlotBinding>()
@@ -160,7 +160,7 @@ export const SatelliteResources = Service(
 		}
 
 		async createRemoteResourceSlot(id: string, resourceType: string, name: string) {
-			if (!isCastMate()) throw new Error("This is CastMate side only")
+			if (!isCastMate()) throw new Error("This is ShowRunner side only")
 			const handler = this.getSlotHandler(resourceType)
 
 			if (!handler) throw new Error("Creating Remote Slot for unknown Remote Resource")
@@ -185,7 +185,7 @@ export const SatelliteResources = Service(
 		}
 
 		async deleteRemoteResourceSlot(id: string) {
-			if (!isCastMate()) throw new Error("This is CastMate side only")
+			if (!isCastMate()) throw new Error("This is ShowRunner side only")
 
 			const slot = this.remoteSlots.get(id)
 			if (!slot) return
@@ -200,7 +200,7 @@ export const SatelliteResources = Service(
 		}
 
 		async callResourceRPC(slotId: string, name: string, ...args: any[]) {
-			if (!isCastMate()) throw new Error("This is CastMate side only")
+			if (!isCastMate()) throw new Error("This is ShowRunner side only")
 
 			const slot = this.remoteSlots.get(slotId)
 			if (!slot) return

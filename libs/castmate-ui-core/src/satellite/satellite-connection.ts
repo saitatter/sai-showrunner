@@ -302,7 +302,7 @@ export const useSatelliteConnection = defineStore("satellite-connection", () => 
 				candidate: ev.candidate.toJSON(),
 			}
 
-			console.log("Sending Ice Candidate to CastMate")
+			console.log("Sending Ice Candidate to ShowRunner")
 			await satelliteConnectionIceCandidate(candidateMsg)
 		}
 
@@ -318,16 +318,16 @@ export const useSatelliteConnection = defineStore("satellite-connection", () => 
 				sdp: self.connection.localDescription.toJSON(),
 			}
 
-			console.log("Sending Connection Request to CastMate", connectionObj)
+			console.log("Sending Connection Request to ShowRunner", connectionObj)
 
-			//Request Connection from satellite to CastMate
+			//Request Connection from satellite to ShowRunner
 			satelliteConnectionRequest(connectionObj)
 		}
 
 		return self
 	}
 
-	//Handle incoming satellite connection request (As main CastMate, sent by satellite)
+	//Handle incoming satellite connection request (as main ShowRunner, sent by satellite)
 	async function handleClientConnection(desc: SatelliteConnectionRequest) {
 		const self = createConnection(desc.satelliteService, desc.satelliteId, desc.dashId)
 

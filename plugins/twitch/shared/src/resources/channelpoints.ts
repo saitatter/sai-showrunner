@@ -31,7 +31,7 @@ export interface ChannelPointRewardConfig {
 
 export interface ChannelPointRewardState {
 	enabled: boolean
-	//Indicates if CastMate wants the channel point reward active
+	//Indicates if ShowRunner wants the channel point reward active
 	shouldEnable: boolean
 
 	image?: string

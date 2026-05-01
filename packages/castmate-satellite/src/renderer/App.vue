@@ -1,6 +1,6 @@
 <template>
 	<div class="app" @keydown="onKeyDown" tabindex="-1">
-		<system-bar title="CastMate Satellite"></system-bar>
+		<system-bar title="ShowRunner Satellite"></system-bar>
 		<div class="app-row" v-if="initStore.inited">
 			<!-- <div>
 				<account-widget account-type="TwitchAccount" account-id="channel" />
@@ -9,7 +9,7 @@
 			<component v-if="activePage" :is="activePage" />
 		</div>
 		<div class="load-row" v-else>
-			<h3>Loading CastMate Satellite</h3>
+			<h3>Loading ShowRunner Satellite</h3>
 			<p-progress-spinner />
 		</div>
 		<!-- <p-dynamic-dialog /> -->

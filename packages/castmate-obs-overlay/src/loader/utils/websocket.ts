@@ -61,7 +61,7 @@ export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 	rpcs.handle("overlays_setConfig", (configData: OverlayConfig) => {
 		console.log("Config Set", configData)
 		config.value = configData
-		document.title = `CastMate Overlay -- ${configData.name}`
+		document.title = `ShowRunner Overlay -- ${configData.name}`
 	})
 
 	rpcs.handle("overlays_widgetRPC", (widgetId: string, rpcId: string, ...args: any[]) => {

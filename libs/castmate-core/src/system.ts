@@ -129,7 +129,7 @@ export async function finializeCastMateSetup() {
 	ProfileManager.initialize()
 	await ProfileManager.getInstance().finishSetup()
 	await EmoteCache.getInstance().initialize()
-	globalLogger.log("CastMate Init Complete")
+	globalLogger.log("ShowRunner Init Complete")
 	setupComplete = true
 	notifyRendererSetupFinished()
 }
@@ -178,7 +178,7 @@ export async function finializeCastMateSatelliteSetup() {
 	//ProfileManager.initialize()
 	//await ProfileManager.getInstance().finishSetup()
 	//await EmoteCache.getInstance().initialize()
-	globalLogger.log("CastMate Satellite Init Complete")
+	globalLogger.log("ShowRunner Satellite Init Complete")
 	setupComplete = true
 	notifyRendererSetupFinished()
 }

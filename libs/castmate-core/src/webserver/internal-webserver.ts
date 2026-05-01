@@ -323,7 +323,7 @@ export function useHTTPRouter(baseRoute?: string): Router {
 }
 
 /**
- * Don't use this one, use useHTTPRouter(). This is for internal CastMate use
+ * Don't use this one, use useHTTPRouter(). This is for internal ShowRunner use
  * @param baseRoute
  */
 export function useRootHTTPRouter(baseRoute: string): Router {

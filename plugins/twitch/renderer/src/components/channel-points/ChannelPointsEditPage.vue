@@ -19,7 +19,7 @@
 							<i class="pi pi-search" />
 							<p-input-text v-model="filters['global'].value" placeholder="Search" />
 						</span>-->
-						<p-button @click="createDialog()"> Create CastMate Reward</p-button>
+						<p-button @click="createDialog()"> Create ShowRunner Reward</p-button>
 					</div>
 				</template>
 				<!--<template #empty> ... </template> -->
@@ -27,7 +27,7 @@
 					<!--template v-if="(data as ChannelPointResource).config.controllable">
 							<div class="flex flex-row">
 								<div class="flex-1">
-									<h3 class="my-0">CastMate Channel Point Rewards</h3>
+									<h3 class="my-0">ShowRunner Channel Point Rewards</h3>
 								</div>
 							</div>
 						</template-->
@@ -37,7 +37,7 @@
 								<div class="flex-1">
 									<h3 class="my-0">Other Channel Point Rewards</h3>
 									<h4 class="my-0">
-										These rewards can't be enabled and disabled with CastMate profiles. But you can
+										These rewards can't be enabled and disabled with ShowRunner profiles. But you can
 										still use them in triggers.
 									</h4>
 								</div>

@@ -4,7 +4,7 @@
 		<p-message icon="pi pi-exclamation-triangle" severity="warn" :pt="{ text: 'flex-grow-1' }">
 			<div class="flex flex-row w-full gap-1">
 				<div class="flex-grow-1 flex flex-column justify-content-center text-center">
-					CastMate can control OBS, but you haven't set up the connection yet.
+					ShowRunner can control OBS, but you haven't set up the connection yet.
 				</div>
 				<p-button severity="warn" @click="createFirstConnection">Setup OBS</p-button>
 			</div>

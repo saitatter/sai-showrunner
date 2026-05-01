@@ -52,7 +52,7 @@ export function setupDiscovery(hubIp: ReactiveRef<string | undefined>, hubKey: R
 
 		try {
 			const resp = await coreAxios.post(`http://${hubIp.value}/api`, {
-				devicetype: `CastMate#${os.userInfo().username}`,
+				devicetype: `ShowRunner#${os.userInfo().username}`,
 			})
 
 			const key = resp.data[0]?.success?.username as string | undefined

@@ -18,7 +18,7 @@
 						</div>
 					</div>
 					<div class="flex flex-column gap-2 text-center" v-else>
-						OBS is running, but CastMate isn't connected.
+						OBS is running, but ShowRunner isn't connected.
 						<div class="flex flex-row gap-1 justify-content-center">
 							<p-button size="small" @click="edit" severity="secondary"> Edit </p-button>
 						</div>

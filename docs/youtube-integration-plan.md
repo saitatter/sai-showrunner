@@ -1,13 +1,13 @@
 # YouTube Integration Plan
 
-SAI Showrunner is an AGPL-3.0 fork of CastMate. The YouTube work should follow the existing CastMate plugin architecture instead of adding a separate service layer. The Twitch plugin is the primary reference for auth, resources, triggers, overlays, and renderer registration.
+SAI Showrunner is an AGPL-3.0 fork of CastMate. The YouTube work should follow the existing ShowRunner plugin architecture instead of adding a separate service layer. The Twitch plugin is the primary reference for auth, resources, triggers, overlays, and renderer registration.
 
 ## Goals
 
 - Add a first-party YouTube plugin with the same UX shape as Twitch.
 - Support one-click browser authentication from the desktop app.
 - Ingest live chat for the active channel broadcast.
-- Expose YouTube events as CastMate triggers and state so they can drive automations, overlays, and timelines.
+- Expose YouTube events as ShowRunner triggers and state so they can drive automations, overlays, and timelines.
 - Keep the integration modular enough to later share normalized platform events with external SAI services.
 
 ## Architecture
@@ -21,7 +21,7 @@ The plugin should live under `plugins/youtube` with the same split used by Twitc
 
 Core services:
 
-- `YouTubeAccount`: account resource based on CastMate account storage patterns.
+- `YouTubeAccount`: account resource based on ShowRunner account storage patterns.
 - `YouTubeAuthService`: opens a browser window, handles OAuth redirect, stores access and refresh tokens, refreshes tokens before expiry.
 - `YouTubeAPIService`: wraps YouTube Data API calls and centralizes quota/backoff behavior.
 - `YouTubeLiveChatService`: resolves the active broadcast, discovers `liveChatId`, polls `liveChat/messages`, and emits normalized internal events.
@@ -43,7 +43,7 @@ Implementation notes:
 - Release builds can include a public OAuth client id through `SHOWRUNNER_YOUTUBE_CLIENT_ID`, which keeps setup as a single `Connect YouTube` action.
 - Developer builds continue to support a manual Google OAuth desktop client id when no bundled client id is configured.
 - Never bundle a Google OAuth client secret; desktop auth uses PKCE because app bundles are inspectable.
-- Store refresh tokens with the same encrypted account/resource mechanism already used by CastMate.
+- Store refresh tokens with the same encrypted account/resource mechanism already used by ShowRunner.
 - Add explicit UI states: disconnected, connecting, connected, token expired, quota limited.
 
 GitHub release setup:

@@ -242,7 +242,7 @@ export class ChannelPointReward extends Resource<ChannelPointRewardConfig, Chann
 		await this.storage.inject(...resources)
 	}
 
-	//Called when we discover a CastMate controlled reward that doesn't have a resource
+	//Called when we discover a ShowRunner controlled reward that doesn't have a resource
 	static async recoverLocalReward(reward: TwurpleReward) {
 		logger.log("Recovering ", reward.title)
 		const rewardData = rewardDataFromTwurple(reward)

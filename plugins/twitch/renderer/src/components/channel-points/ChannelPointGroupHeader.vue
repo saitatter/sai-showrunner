@@ -1,6 +1,6 @@
 <template>
 	<li class="header text-center mb-1 pb-2" :style="{ borderBottom: `solid 2px #e6e6e6` }">
-		<template v-if="item.config.controllable"> CastMate Rewards </template>
+		<template v-if="item.config.controllable"> ShowRunner Rewards </template>
 		<template v-else> Other Rewards</template>
 	</li>
 </template>

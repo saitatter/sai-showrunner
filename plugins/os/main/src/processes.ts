@@ -55,7 +55,7 @@ export function setupProcesses() {
 				cwd = path.dirname(config.application)
 			}
 
-			spawn("cmd", ["/c", "start", "CastMate Launch", config.application, ...config.args], {
+			spawn("cmd", ["/c", "start", "ShowRunner Launch", config.application, ...config.args], {
 				cwd,
 				detached: true,
 			})

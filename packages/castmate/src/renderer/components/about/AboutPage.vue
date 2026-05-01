@@ -6,7 +6,7 @@
 		<p>
 			<a href="https://github.com/saitatter/sai-showrunner" target="_blank"> ShowRunner GitHub </a>
 			<br />
-			<a href="https://www.github.com/LordTocs/CastMate" target="_blank"> Upstream CastMate </a>
+			<a href="https://www.github.com/LordTocs/CastMate" target="_blank"> Upstream Project </a>
 			<br />
 			<a href="https://discord.gg/txt4DUzYJM" target="_blank"> Help Discord </a>
 			<br />

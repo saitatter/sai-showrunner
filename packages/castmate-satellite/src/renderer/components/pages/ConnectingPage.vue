@@ -1,6 +1,6 @@
 <template>
 	<div class="flex-grow-1 flex flex-column justify-content-center align-items-center">
-		<h3>Connecting to CastMate</h3>
+		<h3>Connecting to ShowRunner</h3>
 		<p-progress-spinner />
 	</div>
 </template>

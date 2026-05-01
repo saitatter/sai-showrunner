@@ -21,7 +21,7 @@
 			:video="video"
 		>
 			<template #noItems>
-				<div class="empty-div">CastMate doesn't have any media in it's media folder.</div>
+				<div class="empty-div">ShowRunner doesn't have any media in its media folder.</div>
 			</template>
 
 			<template #noFiltered> <div class="empty-div">No Media by that name.</div> </template>

@@ -1,5 +1,5 @@
 //We have to implement our own reactivity separate from vue because vue's reactivity is not async compatible.
-// In CastMate our templates are async and thus we must be able to asynchronously gather depdendencies
+// In ShowRunner our templates are async and thus we must be able to asynchronously gather depdendencies
 
 import { AsyncLocalStorage } from "node:async_hooks"
 import { isArray, isObject, isString, isSymbol } from "../util/type-helpers"

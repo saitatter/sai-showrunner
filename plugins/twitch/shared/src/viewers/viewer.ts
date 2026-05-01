@@ -84,7 +84,7 @@ registerType("TwitchViewer", {
 export const testViewer = TwitchViewer.fromData({
 	id: "27082158",
 	displayName: "LordTocs",
-	description: "LordTocs made CastMate!",
+	description: "LordTocs created the upstream project.",
 	profilePicture: "",
 	color: "#4411FF",
 	following: true,
