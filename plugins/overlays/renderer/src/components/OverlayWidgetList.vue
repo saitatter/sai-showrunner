@@ -27,6 +27,22 @@
 			<p-button icon="mdi mdi-plus" @click="popAddMenu" class="extra-small-button" size="small" />
 			<p-menu :model="addMenuItems" ref="addMenu" :popup="true" />
 		</div>
+		<div class="browser-source-card">
+			<div>
+				<span>OBS Browser Source</span>
+				<input :value="overlayUrl" readonly @focus="$event.target.select()" />
+			</div>
+			<div class="browser-source-card__actions">
+				<button type="button" @click="copyOverlayUrl">
+					<i class="mdi mdi-content-copy" />
+					Copy
+				</button>
+				<button type="button" @click="openOverlayUrl">
+					<i class="mdi mdi-open-in-app" />
+					Open
+				</button>
+			</div>
+		</div>
 		<div class="quick-labels">
 			<button type="button" @click="addLabelTemplate('YouTube Latest', '{{ youtube.latestMessage.message }}')">
 				<i class="mdi mdi-youtube" />
@@ -53,6 +69,8 @@ import {
 	useCommitUndo,
 	DataBindingPath,
 	DraggableCollection,
+	useDocumentId,
+	useSettingValue,
 } from "castmate-ui-core"
 import { computed, ref, useModel } from "vue"
 import PButton from "primevue/button"
@@ -75,6 +93,9 @@ const selection = useDocumentSelection("widgets")
 const overlayWidgets = useOverlayWidgets()
 
 const commitUndo = useCommitUndo()
+const overlayId = useDocumentId()
+const port = useSettingValue({ plugin: "castmate", setting: "port" })
+const overlayUrl = computed(() => `http://localhost:${port.value ?? 8181}/overlays/${overlayId.value}`)
 
 async function addWidget(widget: OverlayWidgetInfo) {
 	const size = {
@@ -181,6 +202,14 @@ function widgetClick(idx: number, ev: MouseEvent) {
 	}
 }
 
+async function copyOverlayUrl() {
+	await navigator.clipboard.writeText(overlayUrl.value)
+}
+
+function openOverlayUrl() {
+	window.open(overlayUrl.value, "_blank")
+}
+
 function deleteWidget(idx: number) {
 	model.value.widgets.splice(idx, 1)
 	commitUndo()
@@ -217,7 +246,38 @@ function deleteWidget(idx: number) {
 	padding: 0.5rem;
 }
 
-.quick-labels button {
+.browser-source-card {
+	border-top: 1px solid var(--surface-border);
+	display: grid;
+	gap: 0.5rem;
+	padding: 0.5rem;
+}
+
+.browser-source-card span {
+	color: var(--text-color-secondary);
+	display: block;
+	font-size: 0.72rem;
+	margin-bottom: 0.25rem;
+}
+
+.browser-source-card input {
+	background: var(--surface-950);
+	border: 1px solid var(--surface-700);
+	border-radius: 4px;
+	color: var(--text-color);
+	font-size: 0.78rem;
+	padding: 0.45rem 0.55rem;
+	width: 100%;
+}
+
+.browser-source-card__actions {
+	display: grid;
+	gap: 0.4rem;
+	grid-template-columns: 1fr 1fr;
+}
+
+.quick-labels button,
+.browser-source-card__actions button {
 	align-items: center;
 	background: var(--surface-900);
 	border: 1px solid var(--surface-700);
