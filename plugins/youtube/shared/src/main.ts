@@ -19,6 +19,25 @@ export interface YouTubeChatMessage {
 	}
 }
 
+export interface YouTubePaidEvent {
+	id: string
+	viewerId: string
+	viewerName: string
+	message: string
+	amountMicros: number
+	currency: string
+}
+
+export interface YouTubeMembershipEvent {
+	id: string
+	viewerId: string
+	viewerName: string
+	message: string
+	eventType: "newSponsor" | "memberMilestone" | "membershipGift" | "giftMembershipReceived"
+	memberLevelName?: string
+	memberMonth?: number
+}
+
 export interface YouTubeBroadcastState {
 	id?: string
 	title?: string

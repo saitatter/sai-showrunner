@@ -1,4 +1,9 @@
-import { YouTubeBroadcastState, YouTubeChatMessage } from "castmate-plugin-youtube-shared"
+import {
+	YouTubeBroadcastState,
+	YouTubeChatMessage,
+	YouTubeMembershipEvent,
+	YouTubePaidEvent,
+} from "castmate-plugin-youtube-shared"
 import { YouTubeAuthService } from "./youtube-auth"
 
 interface YouTubeLiveBroadcastsResponse {
@@ -36,6 +41,14 @@ interface YouTubeLiveChatMessageResource {
 				altText?: string
 			}
 		}
+		memberMilestoneChatDetails?: {
+			memberMonth?: number
+			memberLevelName?: string
+			userComment?: string
+		}
+		newSponsorDetails?: {
+			memberLevelName?: string
+		}
 	}
 	authorDetails?: {
 		channelId?: string
@@ -48,15 +61,6 @@ interface YouTubeLiveChatMessageResource {
 	}
 }
 
-export interface YouTubePaidMessage {
-	id: string
-	viewerId: string
-	viewerName: string
-	message: string
-	amountMicros: number
-	currency: string
-}
-
 export class YouTubeLiveChatService {
 	private nextPageToken: string | undefined
 	private timer: NodeJS.Timeout | undefined
@@ -67,7 +71,9 @@ export class YouTubeLiveChatService {
 		private handlers: {
 			onBroadcast: (broadcast: YouTubeBroadcastState) => void
 			onMessage: (message: YouTubeChatMessage) => Promise<void> | void
-			onSuperChat: (message: YouTubePaidMessage) => Promise<void> | void
+			onSuperChat: (message: YouTubePaidEvent) => Promise<void> | void
+			onSuperSticker: (message: YouTubePaidEvent) => Promise<void> | void
+			onMembership: (message: YouTubeMembershipEvent) => Promise<void> | void
 			onError: (error: Error) => void
 		}
 	) {}
@@ -154,7 +160,12 @@ export class YouTubeLiveChatService {
 		const snippet = item.snippet
 		const viewerId = author?.channelId || "unknown"
 		const viewerName = author?.displayName || viewerId
-		const message = snippet?.displayMessage || snippet?.superChatDetails?.userComment || ""
+		const message =
+			snippet?.displayMessage ||
+			snippet?.superChatDetails?.userComment ||
+			snippet?.memberMilestoneChatDetails?.userComment ||
+			snippet?.superStickerDetails?.superStickerMetadata?.altText ||
+			""
 
 		const normalized: YouTubeChatMessage = {
 			id: item.id,
@@ -187,5 +198,37 @@ export class YouTubeLiveChatService {
 				currency: snippet.superChatDetails.currency || "USD",
 			})
 		}
+
+		if (snippet?.type === "superStickerEvent" && snippet.superStickerDetails) {
+			await this.handlers.onSuperSticker({
+				id: item.id,
+				viewerId,
+				viewerName,
+				message,
+				amountMicros: Number(snippet.superStickerDetails.amountMicros || 0),
+				currency: snippet.superStickerDetails.currency || "USD",
+			})
+		}
+
+		const membershipEventType = this.toMembershipEventType(snippet?.type)
+		if (membershipEventType) {
+			await this.handlers.onMembership({
+				id: item.id,
+				viewerId,
+				viewerName,
+				message,
+				eventType: membershipEventType,
+				memberLevelName: snippet?.memberMilestoneChatDetails?.memberLevelName || snippet?.newSponsorDetails?.memberLevelName,
+				memberMonth: snippet?.memberMilestoneChatDetails?.memberMonth,
+			})
+		}
+	}
+
+	private toMembershipEventType(type?: string): YouTubeMembershipEvent["eventType"] | undefined {
+		if (type === "newSponsorEvent") return "newSponsor"
+		if (type === "memberMilestoneChatEvent") return "memberMilestone"
+		if (type === "membershipGiftingEvent") return "membershipGift"
+		if (type === "giftMembershipReceivedEvent") return "giftMembershipReceived"
+		return undefined
 	}
 }

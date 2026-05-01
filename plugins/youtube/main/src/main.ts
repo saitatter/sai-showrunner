@@ -102,6 +102,53 @@ export default definePlugin(
 			},
 		})
 
+		const superSticker = defineTrigger({
+			id: "superSticker",
+			name: "Super Sticker",
+			description: "Triggers when a YouTube Super Sticker is received.",
+			icon: "mdi mdi-sticker",
+			config: {
+				type: Object,
+				properties: {},
+			},
+			context: {
+				type: Object,
+				properties: {
+					viewerName: { type: String, required: true, name: "Viewer Name", default: "Viewer Name" },
+					message: { type: String, required: true, name: "Sticker", default: "Super Sticker" },
+					amountMicros: { type: Number, required: true, name: "Amount Micros", default: 1000000 },
+					currency: { type: String, required: true, name: "Currency", default: "USD" },
+				},
+			},
+			async handle() {
+				return true
+			},
+		})
+
+		const membership = defineTrigger({
+			id: "membership",
+			name: "Membership",
+			description: "Triggers when a YouTube membership event is received.",
+			icon: "mdi mdi-account-star",
+			config: {
+				type: Object,
+				properties: {},
+			},
+			context: {
+				type: Object,
+				properties: {
+					viewerName: { type: String, required: true, name: "Viewer Name", default: "Viewer Name" },
+					message: { type: String, required: true, name: "Message", default: "Thanks for becoming a member!" },
+					eventType: { type: String, required: true, name: "Event Type", default: "newSponsor" },
+					memberLevelName: { type: String, name: "Member Level", default: "Member" },
+					memberMonth: { type: Number, name: "Member Month", default: 1 },
+				},
+			},
+			async handle() {
+				return true
+			},
+		})
+
 		const chatCommand = defineTransformTrigger({
 			id: "chatCommand",
 			name: "Chat Command",
@@ -287,6 +334,23 @@ export default definePlugin(
 						message: event.message,
 						amountMicros: event.amountMicros,
 						currency: event.currency,
+					})
+				},
+				async onSuperSticker(event) {
+					await superSticker({
+						viewerName: event.viewerName,
+						message: event.message,
+						amountMicros: event.amountMicros,
+						currency: event.currency,
+					})
+				},
+				async onMembership(event) {
+					await membership({
+						viewerName: event.viewerName,
+						message: event.message,
+						eventType: event.eventType,
+						memberLevelName: event.memberLevelName,
+						memberMonth: event.memberMonth,
 					})
 				},
 				onError(error) {
