@@ -5,12 +5,12 @@
 			<unauthed-twitch-account-error
 				account-id="channel"
 				category="Channel"
-				auth-message="CastMate needs your Twitch account to run"
+				auth-message="ShowRunner needs your Twitch account to run"
 			/>
 			<unauthed-twitch-account-error
 				account-id="bot"
 				category="Bot"
-				auth-message="CastMate needs a bot account to run. You can use a separate bot account or just sign into your channel again."
+				auth-message="ShowRunner needs a bot account to run. You can use a separate bot account or just sign into your channel again."
 			/>
 			<div class="flex flex-row justify-content-center">
 				<twitch-stats />

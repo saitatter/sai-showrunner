@@ -5,7 +5,7 @@
 	</div> -->
 	<p-menubar :model="menuItems" class="system-bar windrag">
 		<template #start>
-			<img src="../../assets/castmate/logo-dark.svg" style="height: 1em; padding-left: 1rem" />
+			<img src="../../assets/showrunner/logo-dark.svg" style="height: 1.25em; padding-left: 1rem" />
 		</template>
 		<template #end>
 			<p-button

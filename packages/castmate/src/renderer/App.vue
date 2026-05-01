@@ -1,6 +1,6 @@
 <template>
 	<div class="app" @keydown="onKeyDown" tabindex="-1">
-		<system-bar title="Hello World"></system-bar>
+		<system-bar title="ShowRunner"></system-bar>
 		<toast position="bottom-left" style="width: 17rem" />
 		<div class="app-row" v-if="initStore.inited">
 			<project-view />
@@ -9,7 +9,7 @@
 		<div class="load-row" v-else>
 			<p-input-text v-show="false" />
 			<!--We need p-input-text to be mounted to get their styles loaded-->
-			<h3>Loading CastMate</h3>
+			<h3>Loading ShowRunner</h3>
 			<p-progress-spinner />
 		</div>
 		<!-- <p-dynamic-dialog /> -->
@@ -122,9 +122,9 @@ onMounted(async () => {
 	const isDev = urlParams.get("dev") == "true"
 
 	if (isDev) {
-		document.title = "CastMate - Dev"
+		document.title = "ShowRunner - Dev"
 	} else if (isPortable) {
-		document.title = "CastMate - Portable"
+		document.title = "ShowRunner - Portable"
 	}
 
 	let migrated = false

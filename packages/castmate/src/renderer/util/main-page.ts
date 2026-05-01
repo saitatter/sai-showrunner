@@ -8,14 +8,14 @@ export const useMainPageStore = defineStore("main-page", () => {
 	const projectStore = useProjectStore()
 
 	function openMain() {
-		dockingStore.openPage("dashboard", "CastMate", "mdi mdi-square", MainPage)
+		dockingStore.openPage("dashboard", "ShowRunner", "mdi mdi-square", MainPage)
 	}
 
 	async function initialize() {
 		const projectItem = computed<ProjectItem>(() => {
 			return {
 				id: "main-page",
-				title: "CastMate",
+				title: "ShowRunner",
 				icon: "mdi mdi-square",
 				open() {
 					openMain()

@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<h1 class="text-center mb-0"><i class="obsi obsi-obs obs-blue"></i>Setup OBS <migration-check-box :checked="ready" /></h1>
-		<p class="p-text-secondary text-center">CastMate needs to connect to OBS through the OBS Websocket Server in order for OBS actions to work.</p>
+		<p class="p-text-secondary text-center">ShowRunner needs to connect to OBS through the OBS Websocket Server in order for OBS actions to work.</p>
 		<div class="flex flex-row align-items-start justify-content-center gap-4 w-full image-row">
 			<img class="guide-image" src="../../assets/setup/websocket-dropdown.png"></img>
 			<img class="guide-image" src="../../assets/setup/websocket-settings.png"></img>

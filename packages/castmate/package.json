@@ -1,8 +1,8 @@
 {
 	"name": "castmate",
 	"version": "0.5.9-beta2",
-	"description": "CastMate",
-	"author": "LordTocs",
+	"description": "ShowRunner",
+	"author": "saitatter",
 	"type": "module",
 	"scripts": {
 		"compile": "vue-tsc",
