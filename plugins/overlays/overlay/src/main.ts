@@ -5,8 +5,9 @@ import EmoteBouncer from "./widgets/EmoteBouncer.vue"
 import Alert from "./widgets/Alert.vue"
 import Bar from "./widgets/Bar.vue"
 import LeaderBoard from "./widgets/LeaderBoard.vue"
+import ChatFeed from "./widgets/ChatFeed.vue"
 
 export default definePluginOverlays({
 	id: "overlays",
-	widgets: [LabelVue, EmoteBouncer, Alert, Bar, LeaderBoard],
+	widgets: [LabelVue, EmoteBouncer, Alert, Bar, LeaderBoard, ChatFeed],
 })
