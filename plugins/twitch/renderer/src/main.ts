@@ -110,7 +110,12 @@ export async function initPlugin(app: App<Element>) {
 		page: GroupPageVue,
 	})
 
-	projectStore.registerProjectGroupItem(
+	projectStore.registerProjectGroupChild(
+		{
+			id: "integrations",
+			title: "Integrations",
+			icon: "mdi mdi-connection",
+		},
 		computed<ProjectGroup>(() => {
 			return {
 				id: "twitch",

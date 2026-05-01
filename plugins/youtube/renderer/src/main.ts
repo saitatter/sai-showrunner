@@ -7,7 +7,12 @@ export async function initPlugin(app: App<Element>) {
 	const projectStore = useProjectStore()
 	const dockingStore = useDockingStore()
 
-	projectStore.registerProjectGroupItem(
+	projectStore.registerProjectGroupChild(
+		{
+			id: "integrations",
+			title: "Integrations",
+			icon: "mdi mdi-connection",
+		},
 		computed<ProjectGroup>(() => ({
 			id: "youtube",
 			title: "YouTube",

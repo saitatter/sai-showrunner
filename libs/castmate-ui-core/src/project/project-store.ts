@@ -1,5 +1,5 @@
 import { defineStore } from "pinia"
-import { shallowRef, ComputedRef, computed, ref, App, VueElementConstructor, Component, toValue } from "vue"
+import { shallowRef, ComputedRef, computed, ref, App, VueElementConstructor, Component, toValue, Ref } from "vue"
 import { NamedData, useDockingStore, useResourceCreateDialog, useResourceData, useResourceStore } from "../main"
 import NameDialogVue from "../components/dialogs/NameDialog.vue"
 import { ResourceData } from "castmate-schema"
@@ -28,16 +28,37 @@ export interface ProjectGroup {
 
 export const useProjectStore = defineStore("project", () => {
 	const projectItems = ref<ComputedRef<ProjectGroupItem>[]>([])
+	const sharedGroups = new Map<string, { group: Omit<ProjectGroup, "items">; items: Ref<ComputedRef<ProjectGroupItem>[]> }>()
 
 	function registerProjectGroupItem(item: ComputedRef<ProjectGroupItem>) {
 		console.log("Register Item", toValue(item))
 		projectItems.value.push(item)
 	}
 
+	function registerProjectGroupChild(group: Omit<ProjectGroup, "items">, item: ComputedRef<ProjectGroupItem>) {
+		let sharedGroup = sharedGroups.get(group.id)
+		if (!sharedGroup) {
+			sharedGroup = {
+				group,
+				items: ref<ComputedRef<ProjectGroupItem>[]>([]),
+			}
+			sharedGroups.set(group.id, sharedGroup)
+			registerProjectGroupItem(
+				computed<ProjectGroup>(() => ({
+					...sharedGroup.group,
+					items: sharedGroup.items.value.map((projectItem) => projectItem.value),
+				}))
+			)
+		}
+
+		sharedGroup.items.value = [...sharedGroup.items.value, item]
+	}
+
 	async function initialize() {}
 
 	return {
 		registerProjectGroupItem,
+		registerProjectGroupChild,
 		projectItems: computed(() => projectItems.value.map((pi) => pi.value)),
 		initialize,
 	}
