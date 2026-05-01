@@ -235,6 +235,19 @@
 					Left click selects a node. Right click opens the collapsible context panel with the same configuration
 					controls as Timeline.
 				</p>
+
+				<section class="node-automation__context-section">
+					<button type="button" class="node-automation__context-header" @click="activityOpen = !activityOpen">
+						<span><i class="mdi mdi-history" /> Node Activity</span>
+						<i :class="activityOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+					</button>
+					<ol v-if="activityOpen" class="node-automation__activity">
+						<li v-for="entry in activityLog" :key="entry.id">
+							<strong>{{ entry.title }}</strong>
+							<span>{{ entry.detail }}</span>
+						</li>
+					</ol>
+				</section>
 			</aside>
 		</div>
 
@@ -310,6 +323,8 @@ const dropTargetNodeId = ref<string>()
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
+const activityOpen = ref(true)
+const activityLog = ref<Array<{ id: number; title: string; detail: string }>>([])
 const pluginStore = usePluginStore()
 
 const NODE_WIDTH = 220
@@ -705,6 +720,7 @@ async function addActionFromPalette() {
 	if (!action) return
 
 	insertAction(action)
+	logActivity("Added action", `${selection.plugin}/${selection.action}`)
 
 	selectedNodeId.value = action.id
 	configOpen.value = true
@@ -722,6 +738,7 @@ async function dropActionOnCanvas(event: DragEvent) {
 
 	model.value.sequence.actions.push(action)
 	nodePositions.value[action.id] = getCanvasPoint(event)
+	logActivity("Dropped action", `${action.plugin}/${action.action} on canvas`)
 	selectedNodeId.value = action.id
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
@@ -736,6 +753,7 @@ async function dropActionOnNode(event: DragEvent, node: NodeData) {
 		x: snapCoordinate(node.x + H_GAP),
 		y: snapCoordinate(node.y),
 	}
+	logActivity("Inserted action", `${action.plugin}/${action.action} after ${node.title}`)
 	selectedNodeId.value = action.id
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
@@ -772,6 +790,7 @@ function duplicateSelectedAction() {
 
 	const clonedAction = cloneActionForNodeEditor(actionInfo.action)
 	position.items.splice(position.index + 1, 0, clonedAction)
+	logActivity("Duplicated node", selectedNode.value?.title || actionInfo.action.id)
 	selectedNodeId.value = clonedAction.id
 	configOpen.value = true
 }
@@ -782,6 +801,7 @@ function deleteSelectedAction() {
 	const removed = position.items.splice(position.index, 1)
 	if (removed.length) {
 		delete nodePositions.value[removed[0].id]
+		logActivity("Deleted node", selectedNode.value?.title || removed[0].id)
 	}
 	selectedNodeId.value = undefined
 }
@@ -798,6 +818,7 @@ function moveSelectedAction(direction: -1 | 1) {
 	if (!position || !canMoveSelectedAction(direction)) return
 	const [action] = position.items.splice(position.index, 1)
 	position.items.splice(position.index + direction, 0, action)
+	logActivity(direction < 0 ? "Moved node left" : "Moved node right", selectedNode.value?.title || action.id)
 }
 
 function getNodePosition(nodeId: string) {
@@ -814,6 +835,11 @@ function getCanvasPoint(event: DragEvent): NodePosition {
 		x: snapCoordinate(Math.max(12, (event.clientX - rect.left) / zoom.value)),
 		y: snapCoordinate(Math.max(12, (event.clientY - rect.top) / zoom.value)),
 	}
+}
+
+function logActivity(title: string, detail: string) {
+	activityLog.value.unshift({ id: Date.now() + Math.random(), title, detail })
+	activityLog.value = activityLog.value.slice(0, 8)
 }
 
 function cloneActionForNodeEditor(action: AnyAction | ActionStack) {
@@ -1286,6 +1312,31 @@ onUnmounted(() => window.removeEventListener("keydown", handleKeydown))
 	gap: 0.75rem;
 	margin: 0;
 	padding: 0.75rem;
+}
+
+.node-automation__activity {
+	display: grid;
+	gap: 0.55rem;
+	list-style: none;
+	margin: 0;
+	padding: 0.65rem;
+}
+
+.node-automation__activity li {
+	background: #101010;
+	border: 1px solid #303030;
+	border-radius: 4px;
+	display: grid;
+	gap: 0.2rem;
+	padding: 0.55rem;
+}
+
+.node-automation__activity span {
+	color: #bbb;
+	font-size: 0.8rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .node-automation__details dl div {
