@@ -60,6 +60,21 @@ function parseEmotesFromMsg(chatMessage: ChatMessage): EmoteParsedString {
 	return result
 }
 
+function getTwitchBadges(msgInfo: ChatMessage): string[] {
+	const userInfo = msgInfo.userInfo as unknown as {
+		isBroadcaster?: boolean
+		isMod?: boolean
+		isSubscriber?: boolean
+		isVip?: boolean
+	}
+	const badges: string[] = []
+	if (userInfo.isBroadcaster) badges.push("broadcaster")
+	if (userInfo.isMod) badges.push("moderator")
+	if (userInfo.isSubscriber) badges.push("subscriber")
+	if (userInfo.isVip) badges.push("vip")
+	return badges
+}
+
 export function setupChat() {
 	const logger = usePluginLogger()
 
@@ -105,8 +120,12 @@ export function setupChat() {
 			type: Object,
 			properties: {
 				viewer: { type: TwitchViewer, required: true, default: "27082158", name: "Viewer" },
+				viewerId: { type: String, required: true, default: "27082158", name: "Viewer ID" },
+				viewerName: { type: String, required: true, default: "ViewerName", name: "Viewer Name" },
+				platform: { type: String, required: true, default: "twitch", name: "Platform" },
 				message: { type: String, required: true, default: "Thanks for using ShowRunner!" },
 				messageId: { type: String, required: true, default: "1234", view: false },
+				badges: { type: String, required: true, default: "", name: "Badges" },
 			},
 		},
 		async context(config) {
@@ -114,8 +133,12 @@ export function setupChat() {
 				type: Object,
 				properties: {
 					viewer: { type: TwitchViewer, required: true, default: "27082158" },
+					viewerId: { type: String, required: true, default: "27082158", name: "Viewer ID" },
+					viewerName: { type: String, required: true, default: "ViewerName", name: "Viewer Name" },
+					platform: { type: String, required: true, default: "twitch", name: "Platform" },
 					message: { type: String, required: true, default: "Thanks for using ShowRunner!" },
 					messageId: { type: String, required: true, default: "1234", view: false },
+					badges: { type: String, required: true, default: "", name: "Badges" },
 					...getCommandDataSchema(config.command).properties,
 				},
 			}
@@ -163,8 +186,12 @@ export function setupChat() {
 			type: Object,
 			properties: {
 				viewer: { type: TwitchViewer, required: true, default: "27082158", name: "Viewer" },
+				viewerId: { type: String, required: true, default: "27082158", name: "Viewer ID" },
+				viewerName: { type: String, required: true, default: "ViewerName", name: "Viewer Name" },
+				platform: { type: String, required: true, default: "twitch", name: "Platform" },
 				message: { type: String, required: true, default: "Thanks for using ShowRunner!" },
 				messageId: { type: String, required: true, default: "1234", view: false },
+				badges: { type: String, required: true, default: "", name: "Badges" },
 			},
 		},
 		async handle(config, context) {
@@ -304,10 +331,15 @@ export function setupChat() {
 	onBotAuth((account, service) => {
 		service.chatClient.onMessage(async (channel, user, message, msgInfo) => {
 			logger.log("ChatMsg", message)
+			const badges = getTwitchBadges(msgInfo)
 			const context = {
 				viewer: msgInfo.userInfo.userId,
+				viewerId: msgInfo.userInfo.userId,
+				viewerName: msgInfo.userInfo.displayName || user,
+				platform: "twitch",
 				message,
 				messageId: msgInfo.id,
+				badges: badges.join(","),
 			}
 
 			const twitchOnlyEmotes = parseEmotesFromMsg(msgInfo)
