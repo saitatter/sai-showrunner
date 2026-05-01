@@ -51,7 +51,9 @@ export const useProjectStore = defineStore("project", () => {
 			)
 		}
 
-		sharedGroup.items.value = [...sharedGroup.items.value, item]
+		if (!sharedGroup.items.value.some((projectItem) => projectItem.value.id === item.value.id)) {
+			sharedGroup.items.value = [...sharedGroup.items.value, item]
+		}
 	}
 
 	async function initialize() {}

@@ -123,7 +123,7 @@ export class ModerationService {
 	}
 
 	async moderateChatMessage(input: ModerationActionInput): Promise<ModerationActionResult> {
-		const messageId = String(input.messageId || `showrunner-${Date.now()}`)
+		const messageId = String(input.messageId || `showrunner-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`)
 		const platform = String(input.platform || "unknown").toLowerCase()
 		const viewerName = String(input.viewerName || "unknown")
 		const message = String(input.message || "")

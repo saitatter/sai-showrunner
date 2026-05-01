@@ -87,11 +87,21 @@ interface YouTubeLiveChatMessageResource {
 	}
 }
 
+const SEARCH_DISCOVERY_CACHE_MS = 60_000
+
 export class YouTubeLiveChatService {
 	private nextPageToken: string | undefined
 	private timer: NodeJS.Timeout | undefined
 	private stopped = true
 	private errorAttempts = 0
+	private sessionId = 0
+	private searchDiscoveryCache:
+		| {
+				expiresAt: number
+				result: YouTubeBroadcastState
+		  }
+		| undefined
+	private searchDiscoveryPromise: Promise<YouTubeBroadcastState> | undefined
 
 	constructor(
 		private auth: YouTubeAuthService,
@@ -135,6 +145,25 @@ export class YouTubeLiveChatService {
 	}
 
 	private async discoverSearchLive(): Promise<YouTubeBroadcastState> {
+		const now = Date.now()
+		if (this.searchDiscoveryCache && this.searchDiscoveryCache.expiresAt > now) {
+			return this.searchDiscoveryCache.result
+		}
+		if (this.searchDiscoveryPromise) return this.searchDiscoveryPromise
+
+		this.searchDiscoveryPromise = this.fetchSearchLive().finally(() => {
+			this.searchDiscoveryPromise = undefined
+		})
+
+		const result = await this.searchDiscoveryPromise
+		this.searchDiscoveryCache = {
+			expiresAt: Date.now() + SEARCH_DISCOVERY_CACHE_MS,
+			result,
+		}
+		return result
+	}
+
+	private async fetchSearchLive(): Promise<YouTubeBroadcastState> {
 		const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search")
 		searchUrl.searchParams.set("part", "snippet")
 		searchUrl.searchParams.set("forMine", "true")
@@ -169,28 +198,35 @@ export class YouTubeLiveChatService {
 
 	async start() {
 		this.stop()
+		const sessionId = ++this.sessionId
 		this.stopped = false
 		this.nextPageToken = undefined
 
 		const broadcast = await this.discoverActiveBroadcast()
+		if (!this.isActiveSession(sessionId)) return
 		this.handlers.onBroadcast(broadcast)
 		if (!broadcast.liveChatId) {
 			throw new Error("No active YouTube live chat was found.")
 		}
 
-		await this.poll(broadcast.liveChatId)
+		await this.poll(broadcast.liveChatId, sessionId)
 	}
 
 	stop() {
 		this.stopped = true
+		this.sessionId += 1
 		if (this.timer) {
 			clearTimeout(this.timer)
 			this.timer = undefined
 		}
 	}
 
-	private async poll(liveChatId: string) {
-		if (this.stopped) return
+	private isActiveSession(sessionId: number) {
+		return !this.stopped && this.sessionId === sessionId
+	}
+
+	private async poll(liveChatId: string, sessionId: number) {
+		if (!this.isActiveSession(sessionId)) return
 
 		try {
 			const url = new URL("https://www.googleapis.com/youtube/v3/liveChat/messages")
@@ -200,10 +236,12 @@ export class YouTubeLiveChatService {
 			if (this.nextPageToken) url.searchParams.set("pageToken", this.nextPageToken)
 
 			const data = await this.auth.authorizedFetch<YouTubeLiveChatMessagesResponse>(url)
+			if (!this.isActiveSession(sessionId)) return
 			this.errorAttempts = 0
 			this.nextPageToken = data.nextPageToken
 
 			for (const item of data.items || []) {
+				if (!this.isActiveSession(sessionId)) return
 				await this.handleMessage(item)
 			}
 
@@ -214,12 +252,13 @@ export class YouTubeLiveChatService {
 			}
 
 			const delay = Math.max(1000, data.pollingIntervalMillis || 5000)
-			this.timer = setTimeout(() => void this.poll(liveChatId), delay)
+			this.timer = setTimeout(() => void this.poll(liveChatId, sessionId), delay)
 		} catch (error) {
+			if (!this.isActiveSession(sessionId)) return
 			this.handlers.onError(error instanceof Error ? error : new Error(String(error)))
 			const delay = Math.min(120000, 15000 * Math.pow(2, this.errorAttempts))
 			this.errorAttempts += 1
-			this.timer = setTimeout(() => void this.poll(liveChatId), delay)
+			this.timer = setTimeout(() => void this.poll(liveChatId, sessionId), delay)
 		}
 	}
 
