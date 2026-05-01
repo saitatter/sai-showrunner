@@ -109,6 +109,25 @@ export class ModerationService {
 		}
 	}
 
+	async sendTestMessage() {
+		await this.forwardChatMessage({
+			id: `showrunner-test-${Date.now()}`,
+			platform: "showrunner",
+			source: "showrunner",
+			receivedAt: new Date().toISOString(),
+			actor: {
+				id: "showrunner-test",
+				name: "showrunner-test",
+				displayName: "ShowRunner Test",
+				badges: ["test"],
+			},
+			payload: {
+				message: "ShowRunner moderation docker test event.",
+			},
+		})
+		return this.getStatus()
+	}
+
 	private normalizeSettings(settings: Partial<ModerationSettings>): ModerationSettings {
 		return {
 			enabled: Boolean(settings.enabled),

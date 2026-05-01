@@ -9,6 +9,9 @@
 				<button class="moderation-page__button moderation-page__button--ghost" type="button" @click="checkHealth">
 					Health
 				</button>
+				<button class="moderation-page__button moderation-page__button--ghost" type="button" @click="sendTest">
+					Send Test Event
+				</button>
 				<button class="moderation-page__button" type="button" @click="save">Save</button>
 			</div>
 		</header>
@@ -84,6 +87,7 @@ const saveSettings = useIpcCaller<(settings: Partial<ModerationSettings>) => Pro
 	"saveSettings"
 )
 const runHealthCheck = useIpcCaller<() => Promise<ModerationStatus>>("moderation", "checkHealth")
+const sendTestMessage = useIpcCaller<() => Promise<ModerationStatus>>("moderation", "sendTestMessage")
 const status = ref<Partial<ModerationStatus>>({})
 const draft = reactive<ModerationSettings>({
 	enabled: false,
@@ -102,6 +106,10 @@ async function save() {
 
 async function checkHealth() {
 	applyStatus(await runHealthCheck())
+}
+
+async function sendTest() {
+	applyStatus(await sendTestMessage())
 }
 
 function applyStatus(nextStatus: ModerationStatus) {

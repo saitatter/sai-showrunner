@@ -23,6 +23,7 @@ export default definePlugin(
 		defineRendererCallable("saveSettings", async (settings) => moderation.saveSettings(settings))
 		defineRendererCallable("checkHealth", async () => moderation.checkHealth())
 		defineRendererCallable("reconnect", async () => moderation.reconnect())
+		defineRendererCallable("sendTestMessage", async () => moderation.sendTestMessage())
 
 		onLoad(async () => {
 			await moderation.initialize()
