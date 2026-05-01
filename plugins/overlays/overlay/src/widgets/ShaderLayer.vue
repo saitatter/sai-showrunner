@@ -77,7 +77,7 @@ defineOptions({
 	widget: declareWidgetOptions({
 		id: "shaderLayer",
 		name: "Shader Layer",
-		description: "Renders a bundled WebGL shader preset inside the overlay.",
+		description: "Renders a bundled or locally edited WebGL shader inside the overlay.",
 		icon: "mdi mdi-magic-staff",
 		defaultSize: { width: 900, height: 500 },
 		config: {
@@ -88,7 +88,13 @@ defineOptions({
 					name: "Shader Preset",
 					default: "aurora",
 					required: true,
-					enum: ["aurora", "grid", "plasma"],
+					enum: ["aurora", "grid", "plasma", "custom"],
+				},
+				customFragmentShader: {
+					type: String,
+					name: "Custom Fragment Shader",
+					default: "",
+					multiLine: true,
 				},
 				accentColor: { type: String, name: "Accent Color", default: "#9146ff", required: true },
 				secondaryColor: { type: String, name: "Secondary Color", default: "#00d1ff", required: true },
@@ -110,7 +116,8 @@ defineOptions({
 
 const props = defineProps<{
 	config: {
-		preset: "aurora" | "grid" | "plasma"
+		preset: "aurora" | "grid" | "plasma" | "custom"
+		customFragmentShader?: string
 		accentColor: string
 		secondaryColor: string
 		intensity: number
@@ -131,7 +138,7 @@ let resizeObserver: ResizeObserver | undefined
 let startedAt = performance.now()
 
 watch(
-	() => props.config.preset,
+	() => [props.config.preset, props.config.customFragmentShader],
 	() => {
 		if (!gl) return
 		compilePreset()
@@ -164,11 +171,20 @@ onUnmounted(() => {
 
 function compilePreset() {
 	if (!gl) return
-	const nextProgram = createProgram(gl, presets[props.config.preset] || presets.aurora)
-	if (program) gl.deleteProgram(program)
-	program = nextProgram
-	startedAt = performance.now()
-	errorMessage.value = ""
+	const source =
+		props.config.preset === "custom" && props.config.customFragmentShader
+			? props.config.customFragmentShader
+			: presets[props.config.preset] || presets.aurora
+
+	try {
+		const nextProgram = createProgram(gl, source)
+		if (program) gl.deleteProgram(program)
+		program = nextProgram
+		startedAt = performance.now()
+		errorMessage.value = ""
+	} catch (error) {
+		errorMessage.value = error instanceof Error ? error.message : String(error)
+	}
 }
 
 function render() {
