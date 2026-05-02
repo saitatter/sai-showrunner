@@ -749,6 +749,131 @@
 										/>
 									</label>
 								</div>
+								<div v-else-if="selectedControlNode" class="node-automation__control-edit">
+									<template v-if="selectedControlNode.type === 'if' || selectedControlNode.type === 'while'">
+										<label>
+											<span>{{ selectedControlNode.type === 'if' ? 'Condition' : 'Loop while' }}</span>
+											<select
+												:value="expressionMode(selectedControlNode.condition)"
+												@change="setControlExpressionMode(selectedControlNode, 'condition', ($event.target as HTMLSelectElement).value)"
+											>
+												<option value="true">Always true</option>
+												<option value="false">Always false</option>
+												<option value="variable">Variable is truthy</option>
+												<option value="equals">Variable equals value</option>
+											</select>
+										</label>
+										<label v-if="expressionMode(selectedControlNode.condition) === 'variable' || expressionMode(selectedControlNode.condition) === 'equals'">
+											<span>Variable</span>
+											<input
+												type="text"
+												:value="expressionVariable(selectedControlNode.condition)"
+												placeholder="message.approved"
+												@change="setControlExpressionVariable(selectedControlNode, 'condition', ($event.target as HTMLInputElement).value)"
+											/>
+										</label>
+										<label v-if="expressionMode(selectedControlNode.condition) === 'equals'">
+											<span>Equals</span>
+											<input
+												type="text"
+												:value="expressionCompareValue(selectedControlNode.condition)"
+												placeholder="approved"
+												@change="setControlExpressionCompareValue(selectedControlNode, 'condition', ($event.target as HTMLInputElement).value)"
+											/>
+										</label>
+										<label v-if="selectedControlNode.type === 'while'">
+											<span>Max iterations</span>
+											<input
+												type="number"
+												min="1"
+												step="1"
+												:value="selectedControlNode.maxIterations ?? 1000"
+												@change="setControlNumber(selectedControlNode, 'maxIterations', Number(($event.target as HTMLInputElement).value))"
+											/>
+										</label>
+									</template>
+									<template v-else-if="selectedControlNode.type === 'for'">
+										<label>
+											<span>Counter</span>
+											<input
+												type="text"
+												:value="selectedControlNode.variable"
+												@change="setControlString(selectedControlNode, 'variable', ($event.target as HTMLInputElement).value)"
+											/>
+										</label>
+										<label>
+											<span>Start</span>
+											<input
+												type="number"
+												:value="literalNumber(selectedControlNode.start)"
+												@change="setControlLiteralNumber(selectedControlNode, 'start', Number(($event.target as HTMLInputElement).value))"
+											/>
+										</label>
+										<label>
+											<span>End</span>
+											<input
+												type="number"
+												:value="literalNumber(selectedControlNode.end)"
+												@change="setControlLiteralNumber(selectedControlNode, 'end', Number(($event.target as HTMLInputElement).value))"
+											/>
+										</label>
+										<label>
+											<span>Step</span>
+											<input
+												type="number"
+												:value="literalNumber(selectedControlNode.step, 1)"
+												@change="setControlLiteralNumber(selectedControlNode, 'step', Number(($event.target as HTMLInputElement).value))"
+											/>
+										</label>
+									</template>
+									<template v-else-if="selectedControlNode.type === 'forEach'">
+										<label>
+											<span>Item variable</span>
+											<input
+												type="text"
+												:value="selectedControlNode.variable"
+												@change="setControlString(selectedControlNode, 'variable', ($event.target as HTMLInputElement).value)"
+											/>
+										</label>
+										<label>
+											<span>Collection variable</span>
+											<input
+												type="text"
+												:value="expressionVariable(selectedControlNode.collection)"
+												placeholder="items"
+												@change="setControlExpressionVariable(selectedControlNode, 'collection', ($event.target as HTMLInputElement).value)"
+											/>
+										</label>
+									</template>
+									<template v-else-if="selectedControlNode.type === 'switch'">
+										<label>
+											<span>Switch variable</span>
+											<input
+												type="text"
+												:value="expressionVariable(selectedControlNode.expression)"
+												placeholder="platform"
+												@change="setControlExpressionVariable(selectedControlNode, 'expression', ($event.target as HTMLInputElement).value)"
+											/>
+										</label>
+										<div class="node-automation__case-list">
+											<div v-for="(item, ci) in selectedControlNode.cases" :key="item.port">
+												<input
+													type="text"
+													:value="String(item.value)"
+													placeholder="case value"
+													@change="setSwitchCaseValue(selectedControlNode, ci, ($event.target as HTMLInputElement).value)"
+												/>
+												<button type="button" class="danger" @click="deleteSwitchCase(selectedControlNode, ci)">
+													<i class="mdi mdi-trash-can-outline" />
+												</button>
+											</div>
+											<button type="button" @click="addSwitchCase(selectedControlNode)">
+												<i class="mdi mdi-plus" /> Add case
+											</button>
+										</div>
+									</template>
+									<p v-else class="node-automation__hint">This control node does not have editable fields yet.</p>
+								</div>
 								<p v-else class="node-automation__hint">
 									This node groups other actions. Select a child action node to edit its settings.
 								</p>
@@ -907,6 +1032,7 @@ import {
 	constructDefault,
 	type AutomationDataWire,
 	type AutomationVariableNode,
+	type Expression,
 	type GraphNode,
 	type GraphEdge,
 	type AutomationGraph,
@@ -1129,6 +1255,11 @@ const selectedNode = computed(() => nodes.value.find((node) => node.id === selec
 const selectedVariableNode = computed(() => {
 	if (!selectedNodeId.value) return undefined
 	return variableNodes.value.find((vn) => vn.id === selectedNodeId.value)
+})
+const selectedControlNode = computed(() => {
+	if (!selectedNodeId.value) return undefined
+	const node = model.value.graph?.nodes.find((item) => item.id === selectedNodeId.value)
+	return node && node.type !== "action" ? node : undefined
 })
 const previewNodes = computed(() => nodes.value.filter((node) => node.id !== "trigger").sort((a, b) => a.x - b.x || a.y - b.y))
 const {
@@ -2246,6 +2377,109 @@ function formatNodeDuration(durationMs: number) {
 
 function nodeTitleById(nodeId: string) {
 	return nodes.value.find((node) => node.id === nodeId)?.title ?? nodeId
+}
+
+function expressionMode(expr: Expression | undefined) {
+	if (!expr) return "true"
+	if (expr.type === "literal" && expr.value === false) return "false"
+	if (expr.type === "literal") return "true"
+	if (expr.type === "binary" && expr.op === "==" && expr.left.type === "variable") return "equals"
+	if (expr.type === "variable") return "variable"
+	return "variable"
+}
+
+function expressionVariable(expr: Expression | undefined) {
+	if (!expr) return ""
+	if (expr.type === "variable") return expr.name
+	if (expr.type === "binary" && expr.left.type === "variable") return expr.left.name
+	return ""
+}
+
+function expressionCompareValue(expr: Expression | undefined) {
+	if (expr?.type === "binary" && expr.right.type === "literal") return String(expr.right.value ?? "")
+	return ""
+}
+
+function literalNumber(expr: Expression | undefined, fallback = 0) {
+	return expr?.type === "literal" && Number.isFinite(Number(expr.value)) ? Number(expr.value) : fallback
+}
+
+function setControlExpressionMode(node: GraphNode, key: string, mode: string) {
+	const next = getControlExpressionForMode(mode, expressionVariable((node as any)[key]), expressionCompareValue((node as any)[key]))
+	;(node as any)[key] = next
+	commitUndo()
+}
+
+function setControlExpressionVariable(node: GraphNode, key: string, variable: string) {
+	const clean = variable.trim()
+	const current = (node as any)[key] as Expression | undefined
+	if (expressionMode(current) === "equals") {
+		;(node as any)[key] = {
+			type: "binary",
+			op: "==",
+			left: { type: "variable", name: clean },
+			right: { type: "literal", value: expressionCompareValue(current) },
+		}
+	} else {
+		;(node as any)[key] = clean ? { type: "variable", name: clean } : { type: "literal", value: true }
+	}
+	commitUndo()
+}
+
+function setControlExpressionCompareValue(node: GraphNode, key: string, value: string) {
+	const variable = expressionVariable((node as any)[key]) || "value"
+	;(node as any)[key] = {
+		type: "binary",
+		op: "==",
+		left: { type: "variable", name: variable },
+		right: { type: "literal", value },
+	}
+	commitUndo()
+}
+
+function setControlString(node: GraphNode, key: string, value: string) {
+	;(node as any)[key] = value.trim() || key
+	commitUndo()
+}
+
+function setControlNumber(node: GraphNode, key: string, value: number) {
+	;(node as any)[key] = Number.isFinite(value) ? value : 1
+	commitUndo()
+}
+
+function setControlLiteralNumber(node: GraphNode, key: string, value: number) {
+	;(node as any)[key] = { type: "literal", value: Number.isFinite(value) ? value : 0 }
+	commitUndo()
+}
+
+function getControlExpressionForMode(mode: string, variable: string, compareValue: string): Expression {
+	if (mode === "false") return { type: "literal", value: false }
+	if (mode === "variable") return { type: "variable", name: variable || "value" }
+	if (mode === "equals") {
+		return {
+			type: "binary",
+			op: "==",
+			left: { type: "variable", name: variable || "value" },
+			right: { type: "literal", value: compareValue },
+		}
+	}
+	return { type: "literal", value: true }
+}
+
+function setSwitchCaseValue(node: Extract<GraphNode, { type: "switch" }>, index: number, value: string) {
+	if (!node.cases[index]) return
+	node.cases[index].value = value
+	commitUndo()
+}
+
+function addSwitchCase(node: Extract<GraphNode, { type: "switch" }>) {
+	node.cases.push({ value: `case${node.cases.length + 1}`, port: `case:${node.cases.length}` })
+	commitUndo()
+}
+
+function deleteSwitchCase(node: Extract<GraphNode, { type: "switch" }>, index: number) {
+	node.cases.splice(index, 1)
+	commitUndo()
 }
 
 function addVariableNode(type: "string" | "number" | "boolean" | "color") {
@@ -3768,13 +4002,21 @@ onUnmounted(() => {
 	margin: 0;
 }
 
-.node-automation__variable-edit label {
+.node-automation__variable-edit,
+.node-automation__control-edit {
+	display: grid;
+	gap: 0.55rem;
+}
+
+.node-automation__variable-edit label,
+.node-automation__control-edit label {
 	display: flex;
 	flex-direction: column;
 	gap: 0.3rem;
 }
 
-.node-automation__variable-edit label span {
+.node-automation__variable-edit label span,
+.node-automation__control-edit label span {
 	color: var(--text-color-secondary);
 	font-size: 0.75rem;
 	font-weight: 600;
@@ -3782,13 +4024,43 @@ onUnmounted(() => {
 }
 
 .node-automation__variable-edit input,
-.node-automation__variable-edit select {
+.node-automation__variable-edit select,
+.node-automation__control-edit input,
+.node-automation__control-edit select {
 	background: var(--surface-a);
 	border: 1px solid var(--surface-d);
 	border-radius: 4px;
 	color: var(--text-color);
 	font-size: 0.85rem;
 	padding: 0.35rem 0.5rem;
+}
+
+.node-automation__case-list {
+	display: grid;
+	gap: 0.4rem;
+}
+
+.node-automation__case-list > div {
+	display: grid;
+	gap: 0.35rem;
+	grid-template-columns: 1fr auto;
+}
+
+.node-automation__case-list button {
+	align-items: center;
+	background: #262626;
+	border: 1px solid #3a3a3a;
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	display: inline-flex;
+	gap: 0.25rem;
+	justify-content: center;
+	padding: 0.35rem 0.55rem;
+}
+
+.node-automation__case-list button.danger {
+	color: #ffb4b4;
 }
 
 .node-automation__resize-handle {
