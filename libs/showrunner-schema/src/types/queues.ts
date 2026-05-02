@@ -1,5 +1,5 @@
 import { Duration } from "../data/duration"
-import { QueuedSequence } from "./sequence"
+import { QueuedAutomation } from "./sequence"
 
 export interface ActionQueueConfig {
 	name: string
@@ -8,7 +8,7 @@ export interface ActionQueueConfig {
 }
 
 export interface ActionQueueState {
-	running?: QueuedSequence
-	queue: QueuedSequence[]
-	history: QueuedSequence[]
+	running?: QueuedAutomation
+	queue: QueuedAutomation[]
+	history: QueuedAutomation[]
 }

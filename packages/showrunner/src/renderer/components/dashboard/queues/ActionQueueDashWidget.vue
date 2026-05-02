@@ -70,7 +70,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue"
 import { settableArray } from "ShowRunner-ui-core"
 
 import PButton from "primevue/button"
-import { QueuedSequence } from "ShowRunner-schema"
+import { QueuedAutomation } from "ShowRunner-schema"
 
 const props = defineProps<{
 	queueId: string
@@ -78,7 +78,7 @@ const props = defineProps<{
 
 const queue = useResource<ResourceData<ActionQueueConfig, ActionQueueState>>("ActionQueue", () => props.queueId)
 
-const spliceQueue = useResourceIPCCaller<(index: number, deleteCount: number, ...sequence: QueuedSequence[]) => any>(
+const spliceQueue = useResourceIPCCaller<(index: number, deleteCount: number, ...sequence: QueuedAutomation[]) => any>(
 	"ActionQueue",
 	() => props.queueId,
 	"spliceQueue"

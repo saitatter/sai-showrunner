@@ -1,8 +1,8 @@
 import { ResourceStorage, Resource } from "../resources/resource"
 import type { ResourceConstructor } from "../resources/resource"
 import {
-	QueuedSequence,
-	SequenceSource,
+	AutomationSource,
+	QueuedAutomation,
 	ActionQueueConfig,
 	ActionQueueState,
 	Schema,
@@ -93,7 +93,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		}
 	}
 
-	enqueue(source: SequenceSource, context: Record<string, any>) {
+	enqueue(source: AutomationSource, context: Record<string, any>) {
 		this.state.queue.push({
 			id: nanoid(),
 			queueContext: { contextState: context },
@@ -103,7 +103,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		this.checkQueueStart()
 	}
 
-	private pushToHistory(qs: QueuedSequence) {
+	private pushToHistory(qs: QueuedAutomation) {
 		this.state.history.unshift(qs)
 		if (this.state.history.length > 20) {
 			//Todo: Configurable?
@@ -138,7 +138,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		}
 	}
 
-	spliceQueue(index: number, deleteCount: number, ...sequence: QueuedSequence[]) {
+	spliceQueue(index: number, deleteCount: number, ...sequence: QueuedAutomation[]) {
 		this.state.queue.splice(index, deleteCount, ...sequence)
 	}
 
@@ -149,7 +149,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		this.enqueue(played.source, played.queueContext.contextState)
 	}
 
-	private getNextSequence(): QueuedSequence | undefined {
+	private getNextSequence(): QueuedAutomation | undefined {
 		return this.state.queue.shift()
 	}
 

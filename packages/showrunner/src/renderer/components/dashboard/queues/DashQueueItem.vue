@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { asyncComputed } from "@vueuse/core"
-import { QueuedSequence, ResourceData, ProfileConfig } from "ShowRunner-schema"
+import { QueuedAutomation, ResourceData, ProfileConfig } from "ShowRunner-schema"
 import {
 	useColors,
 	useResourceData,
@@ -53,7 +53,7 @@ import { computed } from "vue"
 import { isFunction } from "lodash"
 
 const props = defineProps<{
-	queueItem: QueuedSequence
+	queueItem: QueuedAutomation
 	state: "history" | "running" | "queued"
 }>()
 

@@ -1,4 +1,4 @@
-import { Color, ExposedSchemaType, ResolvedSchemaType, SchemaObj, SequenceSource, TriggerData } from "ShowRunner-schema"
+import { AutomationSource, Color, ExposedSchemaType, ResolvedSchemaType, SchemaObj, TriggerData } from "ShowRunner-schema"
 import { SemanticVersion } from "../util/type-helpers"
 import { Schema, SchemaType } from "ShowRunner-schema"
 import { initingPlugin } from "../plugins/plugin-init"
@@ -43,7 +43,7 @@ interface TriggerDefinitionSpec<ConfigSchema extends Schema, ContextDataSchema e
 		context: SchemaType<ContextDataSchema>,
 		mapping: TriggerMapping
 	): Promise<boolean>
-	runWrapper?(inner: () => any, mapping: SequenceSource): any
+	runWrapper?(inner: () => any, mapping: AutomationSource): any
 }
 
 //A transform trigger is a trigger that outputs a different context schema than it is triggered on.

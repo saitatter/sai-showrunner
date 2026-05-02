@@ -1,26 +1,38 @@
 import { nanoid } from "nanoid/non-secure"
 
-export interface SequenceSource {
+export interface AutomationSource {
 	type: string
 	id: string
 	subId?: string
 }
 
-export interface SequenceProvider {
-	getSequence(id: string): Sequence | undefined
+export interface AutomationProvider {
+	getAutomation(id: string): unknown | undefined
 }
 
-export interface QueuedSequence {
+export interface QueuedAutomation {
 	id: string
-	source: SequenceSource
-	queueContext: SequenceContext
+	source: AutomationSource
+	queueContext: ExecutionContext
 }
 
-export interface SequenceContext {
+export interface ExecutionContext {
 	//TODO: Previous action context information
 	//TODO: Future action context information
 	contextState: Record<string, any>
 }
+
+/** @deprecated Use AutomationSource. */
+export type SequenceSource = AutomationSource
+
+/** @deprecated Use AutomationProvider. */
+export type SequenceProvider = AutomationProvider
+
+/** @deprecated Use QueuedAutomation. */
+export type QueuedSequence = QueuedAutomation
+
+/** @deprecated Use ExecutionContext. */
+export type SequenceContext = ExecutionContext
 
 export type AnyAction = InstantAction | TimeAction | FlowAction
 

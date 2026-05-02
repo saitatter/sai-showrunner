@@ -1,4 +1,4 @@
-import { InlineAutomation, Schema, SequenceSource } from "ShowRunner-schema"
+import { AutomationSource, InlineAutomation, Schema } from "ShowRunner-schema"
 import { Service } from "../util/service"
 
 /**
@@ -17,7 +17,7 @@ export interface ExecutionDebugger {
 interface ActionResolverImpl {
 	getAutomation(id: string, subId?: string): InlineAutomation | undefined
 	getContextSchema(id: string, subId?: string): Promise<Schema | undefined>
-	getRunWrapper(id: string, subId?: string): (inner: () => any, mapping: SequenceSource) => Promise<any>
+	getRunWrapper(id: string, subId?: string): (inner: () => any, mapping: AutomationSource) => Promise<any>
 }
 
 export const ActionResolvers = Service(

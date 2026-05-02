@@ -6,9 +6,7 @@ import {
 	ActionDefinition,
 } from "ShowRunner-ui-core"
 import {
-	AnyAction,
-	isFlowAction,
-	isTimeAction,
+	type ActionGraphNode,
 	isObjectSchema,
 	type AutomationGraph,
 	type GraphNode,
@@ -123,7 +121,7 @@ export function formatSeconds(value: number) {
 }
 
 export function extractPorts(
-	action: AnyAction,
+	action: ActionGraphNode,
 	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
 ): { inputPorts: PortDef[]; outputPorts: PortDef[] } {
 	const actionDef = pluginMap.get(action.plugin)?.actions?.[action.action]
@@ -150,7 +148,7 @@ function schemaToPorts(schema: unknown): PortDef[] {
 }
 
 export function extractConfigSummary(
-	action: AnyAction,
+	action: ActionGraphNode,
 	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
 ): ConfigLine[] {
 	const actionDef = pluginMap.get(action.plugin)?.actions?.[action.action]
@@ -169,29 +167,6 @@ export function extractConfigSummary(
 			const label = ("name" in propSchema && propSchema.name) ? String(propSchema.name) : titleCase(key)
 			lines.push({ label, value: summarizeConfigValue(value) })
 		}
-	}
-
-	if (isFlowAction(action) && actionDef.type === "flow") {
-		const flowDef = actionDef as any
-		action.subFlows.forEach((flow, i) => {
-			if (lines.length >= MAX_CONFIG_LINES) return
-			let branchLabel = `Branch ${i + 1}`
-			if (flowDef.flowConfig && isObjectSchema(flowDef.flowConfig) && flow.config) {
-				const firstProp = Object.entries(flowDef.flowConfig.properties)[0]
-				if (firstProp) {
-					const val = (flow.config as Record<string, unknown>)[firstProp[0]]
-					if (val != null) branchLabel += `: ${summarizeConfigValue(val)}`
-				}
-			}
-			lines.push({ label: "↳", value: branchLabel })
-		})
-	}
-
-	if (isTimeAction(action)) {
-		action.offsets.forEach((offset) => {
-			if (lines.length >= MAX_CONFIG_LINES) return
-			lines.push({ label: "↳", value: `+${offset.offset}s → ${offset.actions.length} action${offset.actions.length === 1 ? "" : "s"}` })
-		})
 	}
 
 	if (totalProps > lines.length) {
