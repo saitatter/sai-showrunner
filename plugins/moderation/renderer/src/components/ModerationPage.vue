@@ -1,18 +1,20 @@
 <template>
 	<div class="moderation-page">
+		<p v-if="pageLoading" class="moderation-page__muted">Loading moderation status…</p>
+		<template v-else>
 		<header class="moderation-page__header">
 			<div>
 				<p class="moderation-page__eyebrow">Integration</p>
 				<h1>Moderation Docker</h1>
 			</div>
 			<div class="moderation-page__actions">
-				<button class="moderation-page__button moderation-page__button--ghost" type="button" @click="checkHealth">
+				<button class="moderation-page__button moderation-page__button--ghost" type="button" :disabled="busy" @click="checkHealth">
 					Health
 				</button>
-				<button class="moderation-page__button moderation-page__button--ghost" type="button" @click="sendTest">
+				<button class="moderation-page__button moderation-page__button--ghost" type="button" :disabled="busy" @click="sendTest">
 					Send Test Event
 				</button>
-				<button class="moderation-page__button" type="button" @click="save">Save</button>
+				<button class="moderation-page__button" type="button" :disabled="busy" @click="save">Save</button>
 			</div>
 		</header>
 
@@ -85,7 +87,7 @@
 		<section class="moderation-page__panel moderation-page__panel--queue">
 			<div class="moderation-page__section-header">
 				<h2>Moderation Queue</h2>
-				<button class="moderation-page__button moderation-page__button--ghost" type="button" @click="refreshQueue">
+				<button class="moderation-page__button moderation-page__button--ghost" type="button" :disabled="busy" @click="refreshQueue">
 					Refresh Queue
 				</button>
 			</div>
@@ -172,6 +174,7 @@
 				</li>
 			</ul>
 		</section>
+		</template>
 	</div>
 </template>
 
@@ -200,6 +203,8 @@ const requestOverride = useIpcCaller<(request: ModerationOverrideRequest) => Pro
 )
 const status = ref<Partial<ModerationStatus>>({})
 const toast = useToast()
+const busy = ref(false)
+const pageLoading = ref(true)
 const activityLog = ref<{ id: string; severity: "success" | "info" | "warn" | "error"; summary: string; detail: string }[]>([])
 const queue = ref<ModerationQueueState>({
 	latest: [],
@@ -249,6 +254,7 @@ async function refresh() {
 	const [nextStatus, nextQueue] = await Promise.allSettled([getStatus(), getQueue()])
 	if (nextStatus.status === "fulfilled") applyStatus(nextStatus.value)
 	if (nextQueue.status === "fulfilled") queue.value = nextQueue.value
+	pageLoading.value = false
 }
 
 async function save() {
@@ -324,6 +330,7 @@ function applyStatus(nextStatus: ModerationStatus) {
 }
 
 async function runWithFeedback(severity: "success" | "info", successMessage: string, action: () => Promise<void>) {
+	busy.value = true
 	try {
 		await action()
 		addActivity(severity, successMessage)
@@ -332,6 +339,8 @@ async function runWithFeedback(severity: "success" | "info", successMessage: str
 		const detail = error instanceof Error ? error.message : String(error)
 		addActivity("error", "Moderation action failed.", detail)
 		toast.add({ severity: "error", summary: "Moderation action failed", detail, life: 6000 })
+	} finally {
+		busy.value = false
 	}
 }
 

@@ -6,16 +6,16 @@
 				<h1>YouTube Live</h1>
 			</div>
 			<div class="youtube-page__actions">
-				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="connect">
+				<button class="youtube-page__button youtube-page__button--secondary" type="button" :disabled="busy" @click="connect">
 					Connect
 				</button>
-				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="toggleLiveChat">
+				<button class="youtube-page__button youtube-page__button--secondary" type="button" :disabled="busy" @click="toggleLiveChat">
 					{{ status.liveChatRunning ? "Stop Chat" : "Start Chat" }}
 				</button>
-				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="discover">
+				<button class="youtube-page__button youtube-page__button--secondary" type="button" :disabled="busy" @click="discover">
 					Discover Live
 				</button>
-				<button class="youtube-page__button" type="button" @click="simulate">Simulate Chat</button>
+				<button class="youtube-page__button" type="button" :disabled="busy" @click="simulate">Simulate Chat</button>
 			</div>
 		</header>
 
@@ -223,6 +223,7 @@ const clientSecret = ref("")
 const autoStartLiveChat = ref(false)
 const showAdvanced = ref(false)
 const toast = useToast()
+const busy = ref(false)
 const activityLog = ref<{ id: string; severity: "success" | "info" | "warn" | "error"; summary: string; detail: string }[]>([])
 
 const hasBundledClientId = computed(() => Boolean(status.value.settings?.hasBundledClientId))
@@ -328,6 +329,7 @@ async function simulate() {
 }
 
 async function runWithFeedback(severity: "success" | "info", successMessage: string, action: () => Promise<void>) {
+	busy.value = true
 	try {
 		await action()
 		addActivity(severity, successMessage)
@@ -337,6 +339,8 @@ async function runWithFeedback(severity: "success" | "info", successMessage: str
 		addActivity("error", "YouTube action failed.", detail)
 		toast.add({ severity: "error", summary: "YouTube action failed", detail, life: 6000 })
 		throw error
+	} finally {
+		busy.value = false
 	}
 }
 
