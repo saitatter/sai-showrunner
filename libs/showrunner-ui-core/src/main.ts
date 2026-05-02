@@ -58,6 +58,7 @@ export { default as CBooleanExpression } from "./components/data/base-components
 export { default as AutomationEdit } from "./components/automation/AutomationEdit.vue"
 export { default as ActionConfigEdit } from "./components/automation/ActionConfigEdit.vue"
 export { default as TriggerConfigEdit } from "./components/automation/TriggerConfigEdit.vue"
+export { default as GraphMiniPreview } from "./components/automation/GraphMiniPreview.vue"
 export { default as InlineAutomationEdit } from "./components/automation/InlineAutomation.vue"
 export { default as SequenceMiniPreview } from "./components/automation/mini/SequenceMiniPreview.vue"
 

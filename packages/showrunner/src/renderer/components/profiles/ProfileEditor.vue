@@ -63,7 +63,7 @@ import {
 	useCommitUndo,
 	CBooleanExpression,
 } from "ShowRunner-ui-core"
-import { ProfileConfig } from "ShowRunner-schema"
+import { ProfileConfig, createInlineAutomation } from "ShowRunner-schema"
 import TriggerEdit from "./TriggerEdit.vue"
 import { computed, ref, useModel } from "vue"
 import PButton from "primevue/button"
@@ -105,8 +105,7 @@ function createTriggerEnd() {
 		id,
 		queue: undefined,
 		config: {},
-		sequence: { actions: [] },
-		floatingSequences: [],
+		...createInlineAutomation(),
 	})
 
 	view.value.triggers.push({
@@ -134,8 +133,7 @@ function createTriggerBeginning() {
 		id,
 		queue: undefined,
 		config: {},
-		sequence: { actions: [] },
-		floatingSequences: [],
+		...createInlineAutomation(),
 	})
 
 	view.value.triggers.splice(0, 0, {

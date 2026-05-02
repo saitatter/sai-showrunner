@@ -62,7 +62,7 @@
 			:style="{ height: `${view.height}px` }"
 			ref="cardBody"
 		>
-			<automation-edit class="h-full flex-grow-1" v-model="modelObj" v-model:view="view" :trigger="modelObj" />
+			<node-automation-edit class="h-full flex-grow-1" v-model="automationModel" v-model:view="automationView" />
 			<expander-slider
 				v-model="view.height"
 				:color="(triggerColor as Color)"
@@ -73,7 +73,9 @@
 			<div style="width: 50%">
 				<data-view v-if="trigger" :model-value="modelValue.config" :schema="trigger.config" />
 			</div>
-			<sequence-mini-preview style="width: 50%" :sequence="modelValue.sequence" />
+			<div style="width: 50%">
+				<graph-mini-preview :graph="modelValue.graph" />
+			</div>
 		</div>
 	</div>
 </template>
@@ -81,7 +83,7 @@
 <script setup lang="ts">
 import { computed, markRaw, ref, useModel, onMounted, watch, provide } from "vue"
 import PButton from "primevue/button"
-import { type TriggerData, ActionQueueConfig, Color, ResourceData } from "ShowRunner-schema"
+import { type TriggerData, type AutomationConfig, ActionQueueConfig, Color, ResourceData } from "ShowRunner-schema"
 import {
 	useTrigger,
 	DataInput,
@@ -91,13 +93,10 @@ import {
 	useTriggerColors,
 	ResourceProxyFactory,
 	provideDataContextSchema,
-	AutomationEdit,
 	ExpanderSlider,
-	DataBindingPath,
-	SequenceMiniPreview,
+	GraphMiniPreview,
 	TriggerSelection,
 	usePropagationStop,
-	useDocumentSelection,
 	useDataBinding,
 	useDataUIBinding,
 	CTextInput,
@@ -108,7 +107,7 @@ import { useVModel, asyncComputed } from "@vueuse/core"
 import { Schema } from "ShowRunner-schema"
 import _debounce from "lodash/debounce"
 import { constructDefault } from "ShowRunner-schema"
-import { useRawDocumentSelection } from "../../../../../../libs/ShowRunner-ui-core/src/util/document"
+import NodeAutomationEdit from "../automation/NodeAutomationEdit.vue"
 
 const stopPropagation = usePropagationStop()
 
@@ -145,8 +144,6 @@ useDataBinding(() => props.localPath)
 
 const view = useModel(props, "view")
 
-const sequenceSelection = useDocumentSelection("automation.sequence")
-
 const isSelected = computed(() => {
 	return props.selectedIds.includes(modelObj.value.id)
 })
@@ -165,7 +162,6 @@ const open = computed<boolean>({
 })
 
 function openTrigger() {
-	sequenceSelection.value = ["trigger"]
 	open.value = true
 }
 
@@ -199,7 +195,6 @@ const triggerModel = computed({
 onMounted(() => {
 	watch(trigger, async () => {
 		if (trigger.value) {
-			console.log("TRIGGER CHANGED!")
 			const schemaDefaults = await constructDefault(trigger.value.config)
 			modelObj.value.config = schemaDefaults
 
@@ -211,6 +206,37 @@ onMounted(() => {
 			modelObj.value.testContext = await constructDefault(contextSchema)
 		}
 	})
+})
+
+const automationModel = computed<AutomationConfig>({
+	get() {
+		modelObj.value.graph ??= { nodes: [], edges: [], entryNodeId: "" }
+		modelObj.value.subgraphs ??= []
+		modelObj.value.dataWires ??= []
+		modelObj.value.variableNodes ??= []
+		return modelObj.value as unknown as AutomationConfig
+	},
+	set(value) {
+		modelObj.value = { ...modelObj.value, ...value } as TriggerData
+	},
+})
+
+const automationView = computed({
+	get() {
+		view.value.automationView ??= {
+			panState: {
+				panX: 0,
+				panY: 0,
+				zoomX: 1,
+				zoomY: 1,
+				panning: false,
+			},
+		}
+		return view.value as any
+	},
+	set(value) {
+		view.value = value
+	},
 })
 
 const trigger = useTrigger(() => props.modelValue)

@@ -8,7 +8,7 @@
 				style="cursor: pointer"
 				@click="doOpen"
 			>
-				<sequence-mini-preview :sequence="props.modelValue?.sequence" />
+				<graph-mini-preview :graph="props.modelValue?.graph" />
 			</input-box>
 			<div
 				v-else
@@ -42,11 +42,13 @@
 						icon="mdi mdi-chevron-up"
 					/>
 				</div>
-				<automation-edit
-					v-model="model"
-					v-model:view="view"
-					style="border-radius: --border-radius; flex-grow: 1; flex-shrink: 1"
-				/>
+				<div class="graph-summary">
+					<graph-mini-preview :graph="model.graph" />
+					<p>
+						Inline automations now use the graph model only. Open the matching automation document to edit
+						triggers and actions in the node graph editor.
+					</p>
+				</div>
 				<expander-slider color="#3c3c3c" v-model="view.height" :container="editBody" />
 			</div>
 		</label-floater>
@@ -56,11 +58,10 @@
 <script setup lang="ts">
 import { InlineAutomation } from "ShowRunner-schema"
 import { InlineAutomationView } from "../../automations/automations.ts"
-import { useModel, ref, computed } from "vue"
+import { useModel, ref, computed, watchEffect } from "vue"
 import ExpanderSlider from "../util/ExpanderSlider.vue"
-import AutomationEdit from "./AutomationEdit.vue"
 import { ResourceProxyFactory, DataInput, usePropagationStop, useDataBinding, useDataUIBinding } from "../../main"
-import SequenceMiniPreview from "./mini/SequenceMiniPreview.vue"
+import GraphMiniPreview from "./GraphMiniPreview.vue"
 import PButton from "primevue/button"
 import PInputGroup from "primevue/inputgroup"
 import { LabelFloater, InputBox } from "../../main"
@@ -76,13 +77,20 @@ const props = defineProps<{
 useDataBinding(() => props.localPath)
 
 const hasActions = computed(() => {
-	if (!props.modelValue?.sequence?.actions) return undefined
-	if (props.modelValue.sequence.actions.length == 0) return undefined
+	if (!props.modelValue?.graph?.nodes) return undefined
+	if (props.modelValue.graph.nodes.length == 0) return undefined
 	return true
 })
 
 const model = useModel(props, "modelValue")
 const view = useModel(props, "view")
+
+watchEffect(() => {
+	model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" }
+	model.value.subgraphs ??= []
+	model.value.dataWires ??= []
+	model.value.variableNodes ??= []
+})
 
 const editBody = ref<HTMLElement>()
 
@@ -137,5 +145,21 @@ useDataUIBinding({
 	font-family: Lato, Helvetica, sans-serif;
 	font-size: 1rem;
 	padding: 0.5rem 0.75rem;
+}
+
+.graph-summary {
+	display: grid;
+	align-content: start;
+	gap: 0.75rem;
+	flex-grow: 1;
+	padding: 0.75rem;
+	color: var(--text-color-secondary);
+}
+
+.graph-summary p {
+	max-width: 48rem;
+	margin: 0;
+	font-size: 0.9rem;
+	line-height: 1.4;
 }
 </style>
