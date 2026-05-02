@@ -31,6 +31,7 @@ import {
 	useSaveActiveTab,
 	useSaveAllTabs,
 	useUndoActiveTab,
+	useAppFeedback,
 } from "ShowRunner-ui-core"
 import ProjectView from "./components/project/ProjectView.vue"
 
@@ -147,6 +148,7 @@ const saveActiveTab = useSaveActiveTab()
 const saveAllTabs = useSaveAllTabs()
 
 const undoActiveTab = useUndoActiveTab()
+const feedback = useAppFeedback("App")
 
 function onKeyDown(ev: KeyboardEvent) {
 	if (ev.ctrlKey && ev.code == "KeyS") {
@@ -159,10 +161,9 @@ function onKeyDown(ev: KeyboardEvent) {
 	}
 
 	if (ev.ctrlKey && ev.code == "KeyZ") {
-		console.log("UNDO UNDO UNDO!")
 		ev.preventDefault()
-
 		undoActiveTab()
+		feedback.debug("Undo active tab")
 	}
 }
 </script>

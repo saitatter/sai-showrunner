@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { AutomationConfig } from "ShowRunner-schema"
-import { AutomationResourceView } from "ShowRunner-ui-core"
+import { AutomationResourceView, useAppFeedback } from "ShowRunner-ui-core"
 import { computed, onErrorCaptured, ref, useModel } from "vue"
 import NodeAutomationEdit from "./NodeAutomationEdit.vue"
 
@@ -23,6 +23,7 @@ const props = defineProps<{
 const view = useModel(props, "view")
 const model = useModel(props, "modelValue")
 const renderError = ref("")
+const feedback = useAppFeedback("Automation")
 
 const safeModel = computed({
 	get() {
@@ -76,7 +77,8 @@ const debugSummary = computed(() =>
 
 onErrorCaptured((error, instance, info) => {
 	renderError.value = error instanceof Error ? error.stack || error.message : String(error)
-	console.error("[ShowRunner AutomationEditPage] child render failed", {
+	feedback.error("Automation editor failed", error)
+	feedback.debug("Automation editor failure context", {
 		error,
 		info,
 		instance,

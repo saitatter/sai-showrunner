@@ -4,6 +4,7 @@
  */
 import { type Ref } from "vue"
 import { nanoid } from "nanoid"
+import { useAppFeedback } from "ShowRunner-ui-core"
 import {
 	AutomationConfig,
 	type AutomationDataWire,
@@ -35,6 +36,7 @@ export function useClipboard(
 	clearSelection: () => void,
 ) {
 	let inMemoryClipboard = ""
+	const feedback = useAppFeedback("Node Editor")
 
 	function copySelectedNodes() {
 		const graphNodes: GraphNode[] = []
@@ -60,7 +62,7 @@ export function useClipboard(
 		const payload = JSON.stringify({ graphNodes, graphEdges: copiedEdges, variableNodes: copiedVarNodes, wires: copiedWires })
 		inMemoryClipboard = payload
 		navigator.clipboard.writeText(payload).catch((err) => {
-			console.warn("[Clipboard] Failed to write to system clipboard, using in-memory fallback", err)
+			feedback.warn("Using in-memory clipboard fallback", err instanceof Error ? err.message : String(err), 2500)
 		})
 		logActivity("Copied", `${graphNodes.length + copiedVarNodes.length} node${(graphNodes.length + copiedVarNodes.length) === 1 ? "" : "s"}`)
 	}

@@ -9,6 +9,7 @@ import { useConfirm } from "primevue/useconfirm"
 import ResourceEditDialogVue from "../components/resources/ResourceEditDialog.vue"
 import { DialogServiceMethods } from "primevue/dialogservice"
 import ResourceCreateDialog from "../components/resources/ResourceCreateDialog.vue"
+import { useAppFeedback } from "../util/feedback"
 
 interface ResourceStorage<TResourceData extends ResourceData = ResourceData> {
 	resources: Map<string, TResourceData>
@@ -39,6 +40,7 @@ function convertResourcesToStorage(resources: ResourceData[]) {
 
 export const useResourceStore = defineStore("resources", () => {
 	const resourceMap = ref(new Map<string, ResourceStorage>())
+	const feedback = useAppFeedback("Resources")
 
 	const getResourceTypeNames = useIpcCaller<() => string[]>("resources", "getResourceTypeNames")
 	const getResources = useIpcCaller<(typeName: string) => ResourceData[]>("resources", "getResources")
@@ -118,7 +120,7 @@ export const useResourceStore = defineStore("resources", () => {
 				resourceMap.value.set(typeNames[i], convertResourcesToStorage(resourceArrays[i]))
 			}
 		} catch (err) {
-			console.error("[ResourceStore] Failed to load resources", err)
+			feedback.error("Failed to load resources", err)
 		}
 	}
 

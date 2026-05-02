@@ -21,7 +21,7 @@ import {
 	onUnmounted,
 } from "vue"
 import { createDataBinding, DataBinding, DataPathView, joinDataPath, useDataPath } from "./data-binding"
-import { useToast } from "primevue/usetoast"
+import { useAppFeedback } from "./feedback"
 
 export type NamedData = {
 	name?: string
@@ -68,7 +68,7 @@ export const useDocumentStore = defineStore("documents", () => {
 	const documentComponents = ref<Map<string, Component>>(new Map())
 	const saveFunctions = ref<Map<string, DocumentSaveFunction>>(new Map())
 
-	const toast = useToast()
+	const feedback = useAppFeedback("Documents")
 
 	function addDocument(id: string, data: NamedData, view: any, type: string) {
 		if (documents.value.has(id)) {
@@ -111,7 +111,7 @@ export const useDocumentStore = defineStore("documents", () => {
 		if (!doc.dirty) return
 
 		await save(doc)
-		toast.add({ severity: "success", summary: `Saved ${doc.data.name ?? doc.id}`, life: 1000 })
+		feedback.success(`Saved ${doc.data.name ?? doc.id}`, undefined, 1000)
 		doc.dirty = false
 	}
 
