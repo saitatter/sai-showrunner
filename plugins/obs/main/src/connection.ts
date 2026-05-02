@@ -313,7 +313,7 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 				this.state.virtualCamming = outputActive
 			})
 		} catch (err) {
-			logger.warn("VirtualcamStateChanged event not supported by this OBS version", err)
+			logger.error("VirtualcamStateChanged event not supported by this OBS version", err)
 		}
 
 		this.connection.on("StudioModeStateChanged", ({ studioModeEnabled }) => {
@@ -331,7 +331,7 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 				logger.log("OBS Vendor Event", ev.vendorName, ev.eventType, ev.eventData)
 			})
 		} catch (err) {
-			logger.warn("VendorEvent not supported by this OBS version", err)
+			logger.error("VendorEvent not supported by this OBS version", err)
 		}
 
 		OBSEventService.getInstance().addEventHandlers(this)
@@ -342,8 +342,8 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 			try {
 				await this.queryInitialState()
 				return
-			} catch (err) {
-				if (err.code == 207) {
+			} catch (err: any) {
+				if (err?.code == 207) {
 					logger.log(err.message)
 				} else {
 					logger.error("Error Trying Initial State Check", err)
@@ -361,7 +361,7 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 			const replayStatus = await this.connection.call("GetReplayBufferStatus")
 			this.state.replayBuffering = replayStatus.outputActive
 		} catch (err) {
-			logger.warn("Replay buffer status not available", err)
+			logger.error("Replay buffer status not available", err)
 		}
 
 		this.state.streaming = streamStatus.outputActive

@@ -78,7 +78,7 @@ export class ModerationService {
 		} catch (error) {
 			this.status.health = "error"
 			this.status.statusMessage = error instanceof Error ? error.message : String(error)
-			this.logger.warn("Moderation docker health check failed.", error)
+			this.logger.error("Moderation docker health check failed.", error)
 		}
 
 		return this.getStatus()
@@ -118,7 +118,7 @@ export class ModerationService {
 		} catch (error) {
 			this.status.health = "error"
 			this.status.statusMessage = error instanceof Error ? error.message : String(error)
-			this.logger.warn("Failed to forward chat message to moderation docker.", error)
+			this.logger.error("Failed to forward chat message to moderation docker.", error)
 		}
 	}
 
@@ -180,7 +180,7 @@ export class ModerationService {
 		} catch (error) {
 			this.status.health = "error"
 			this.status.statusMessage = error instanceof Error ? error.message : String(error)
-			this.logger.warn("Failed to moderate chat message.", error)
+			this.logger.error("Failed to moderate chat message.", error)
 			return this.toActionResult({
 				messageId,
 				verdict: "flag",
@@ -265,7 +265,7 @@ export class ModerationService {
 			socket.on("error", (error) => {
 				this.status.connected = false
 				this.status.statusMessage = error.message
-				this.logger.warn("Moderation websocket error.", error)
+				this.logger.error("Moderation websocket error.", error)
 			})
 			socket.on("close", () => {
 				this.status.connected = false
@@ -302,7 +302,7 @@ export class ModerationService {
 			})
 			if (this.recentDecisions.length > 10) this.recentDecisions.pop()
 		} catch (error) {
-			this.logger.debug("Ignoring non-JSON moderation websocket payload.", raw, error)
+			this.logger.log("Ignoring non-JSON moderation websocket payload.", raw, error)
 		}
 	}
 
@@ -327,7 +327,7 @@ export class ModerationService {
 			this.socket.removeAllListeners()
 			this.socket.close()
 		} catch (err) {
-			this.logger.warn("Error closing moderation websocket", err)
+			this.logger.error("Error closing moderation websocket", err)
 		}
 		this.socket = undefined
 	}
@@ -345,8 +345,9 @@ export class ModerationService {
 		return { "content-type": "application/json", ...this.authHeaders() }
 	}
 
-	private authHeaders() {
-		return this.settings.apiToken ? { authorization: `Bearer ${this.settings.apiToken}` } : {}
+	private authHeaders(): Record<string, string> {
+		if (this.settings.apiToken) return { authorization: `Bearer ${this.settings.apiToken}` }
+		return {}
 	}
 
 	private withToken(value: string) {

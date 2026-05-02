@@ -148,10 +148,10 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 		function onUp(upEvent: PointerEvent) {
 			const moved = initialPan.x !== pan.value.x || initialPan.y !== pan.value.y
 			isPanning.value = false
-			canvas.releasePointerCapture(upEvent.pointerId)
-			canvas.removeEventListener("pointermove", onMove)
-			canvas.removeEventListener("pointerup", onUp)
-			canvas.removeEventListener("pointercancel", onUp)
+			canvas?.releasePointerCapture(upEvent.pointerId)
+			canvas?.removeEventListener("pointermove", onMove)
+			canvas?.removeEventListener("pointerup", onUp)
+			canvas?.removeEventListener("pointercancel", onUp)
 			if (moved) commitUndo()
 		}
 
