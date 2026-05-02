@@ -174,6 +174,35 @@
 							:d="edge.path"
 							vector-effect="non-scaling-stroke"
 						/>
+
+						<!-- Data wires (port-to-port connections) -->
+						<path
+							v-for="wire in dataWirePaths"
+							:key="`dw-hit:${wire.id}`"
+							class="node-automation__data-wire-hit"
+							:d="wire.path"
+							vector-effect="non-scaling-stroke"
+							@click.stop="selectedDataWireId = wire.id"
+						/>
+						<path
+							v-for="wire in dataWirePaths"
+							:key="`dw:${wire.id}`"
+							class="node-automation__data-wire"
+							:class="{ selected: selectedDataWireId === wire.id }"
+							:d="wire.path"
+							:stroke="wire.color"
+							vector-effect="non-scaling-stroke"
+						/>
+
+						<!-- In-progress wire drag -->
+						<path
+							v-if="dragWirePath"
+							class="node-automation__data-wire node-automation__data-wire--dragging"
+							:d="dragWirePath.path"
+							:stroke="dragWirePath.color"
+							vector-effect="non-scaling-stroke"
+						/>
+
 						<template v-for="(guide, gi) in alignmentGuides" :key="`guide-${gi}`">
 							<line
 								v-if="guide.axis === 'x'"
@@ -242,7 +271,11 @@
 							<div class="node-automation__port-columns">
 								<ul v-if="node.inputPorts?.length" class="node-automation__port-list node-automation__port-list--in">
 									<li v-for="port in node.inputPorts" :key="port.key" class="node-automation__port node-automation__port--in">
-										<span class="node-automation__port-dot node-automation__port-dot--in" />
+										<span
+											class="node-automation__port-dot node-automation__port-dot--in"
+											:style="{ borderColor: portTypeColor(port.type), background: portTypeColor(port.type) + '44' }"
+											@pointerdown.stop="startWireDrag(node.id, port.key, 'in', $event)"
+										/>
 										<span class="node-automation__port-label">{{ port.label }}</span>
 										<span class="node-automation__port-type">{{ port.type }}</span>
 									</li>
@@ -251,7 +284,11 @@
 									<li v-for="port in node.outputPorts" :key="port.key" class="node-automation__port node-automation__port--out">
 										<span class="node-automation__port-type">{{ port.type }}</span>
 										<span class="node-automation__port-label">{{ port.label }}</span>
-										<span class="node-automation__port-dot node-automation__port-dot--out" />
+										<span
+											class="node-automation__port-dot node-automation__port-dot--out"
+											:style="{ borderColor: portTypeColor(port.type), background: portTypeColor(port.type) + '44' }"
+											@pointerdown.stop="startWireDrag(node.id, port.key, 'out', $event)"
+										/>
 									</li>
 								</ul>
 							</div>
@@ -381,6 +418,29 @@
 							<span>New Floating Sequence</span>
 						</button>
 					</section>
+					<section class="node-automation__menu-section">
+						<div class="node-automation__menu-section-header" style="cursor: default; font-size: 0.8rem; opacity: 0.7;">
+							<span><i class="mdi mdi-variable" /> Constant Values</span>
+						</div>
+						<div class="node-automation__menu-items node-automation__constant-grid">
+							<button type="button" @click="addConstantNode('string')">
+								<i class="mdi mdi-format-text" style="color: #81c784" />
+								<span><strong>String</strong></span>
+							</button>
+							<button type="button" @click="addConstantNode('number')">
+								<i class="mdi mdi-numeric" style="color: #4fc3f7" />
+								<span><strong>Number</strong></span>
+							</button>
+							<button type="button" @click="addConstantNode('boolean')">
+								<i class="mdi mdi-toggle-switch-outline" style="color: #ffb74d" />
+								<span><strong>Boolean</strong></span>
+							</button>
+							<button type="button" @click="addConstantNode('color')">
+								<i class="mdi mdi-palette" style="color: #f06292" />
+								<span><strong>Color</strong></span>
+							</button>
+						</div>
+					</section>
 				</div>
 				<svg
 					class="node-automation__minimap"
@@ -470,6 +530,38 @@
 									:local-path="selectedActionPath"
 								/>
 								<trigger-config-edit v-else-if="selectedNode.id === 'trigger'" v-model="model" />
+								<div v-else-if="selectedNode.kind === 'constant'" class="node-automation__constant-edit">
+									<label>
+										<span>Value</span>
+										<input
+											v-if="selectedConstantNode?.type === 'string'"
+											type="text"
+											:value="selectedConstantNode.value"
+											@change="updateConstantNodeValue(selectedConstantNode!.id, ($event.target as HTMLInputElement).value)"
+										/>
+										<input
+											v-else-if="selectedConstantNode?.type === 'number'"
+											type="number"
+											:value="selectedConstantNode.value"
+											step="any"
+											@change="updateConstantNodeValue(selectedConstantNode!.id, Number(($event.target as HTMLInputElement).value))"
+										/>
+										<select
+											v-else-if="selectedConstantNode?.type === 'boolean'"
+											:value="String(selectedConstantNode.value)"
+											@change="updateConstantNodeValue(selectedConstantNode!.id, ($event.target as HTMLSelectElement).value === 'true')"
+										>
+											<option value="true">true</option>
+											<option value="false">false</option>
+										</select>
+										<input
+											v-else-if="selectedConstantNode?.type === 'color'"
+											type="color"
+											:value="selectedConstantNode.value"
+											@change="updateConstantNodeValue(selectedConstantNode!.id, ($event.target as HTMLInputElement).value)"
+										/>
+									</label>
+								</div>
 								<p v-else class="node-automation__hint">
 									This node groups other actions. Select a child action node to edit its settings.
 								</p>
@@ -604,21 +696,16 @@ import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./us
 import { useNodeContextMenu } from "./useNodeContextMenu"
 import { useNodeDrag } from "./useNodeDrag"
 import { useAutomationPreview } from "./useAutomationPreview"
+import { usePortConnections, portTypeColor, type DataWire, type PortDef } from "./usePortConnections"
 
 interface ConfigLine {
 	label: string
 	value: string
 }
 
-interface PortDef {
-	key: string
-	label: string
-	type: string
-}
-
 interface NodeData extends NodePosition {
 	id: string
-	kind: "trigger" | "action" | "stack" | "time" | "flow" | "floating"
+	kind: "trigger" | "action" | "stack" | "time" | "flow" | "floating" | "constant"
 	title: string
 	subtitle: string
 	icon: string
@@ -637,6 +724,15 @@ interface EdgeData {
 	path: string
 }
 
+/** A constant value node in the graph (not a real action) */
+interface ConstantNodeData {
+	id: string
+	type: "string" | "number" | "boolean" | "color"
+	value: string | number | boolean
+	x: number
+	y: number
+}
+
 interface LaneData extends NodePosition {
 	id: string
 	kind: "main" | "floating" | "stack" | "time" | "flow"
@@ -647,7 +743,12 @@ interface LaneData extends NodePosition {
 
 const props = defineProps<{
 	modelValue: AutomationConfig
-	view: AutomationResourceView & { nodePositions?: Record<string, NodePosition>; nodeView?: NodeEditorViewState }
+	view: AutomationResourceView & {
+		nodePositions?: Record<string, NodePosition>
+		nodeView?: NodeEditorViewState
+		dataWires?: DataWire[]
+		constantNodes?: ConstantNodeData[]
+	}
 }>()
 
 const model = useModel(props, "modelValue")
@@ -698,14 +799,57 @@ const nodePositions = computed(() => {
 	view.value.nodePositions ??= {}
 	return view.value.nodePositions
 })
+const dataWires = computed({
+	get: () => {
+		view.value.dataWires ??= []
+		return view.value.dataWires!
+	},
+	set: (v: DataWire[]) => {
+		view.value.dataWires = v
+	},
+})
+const constantNodes = computed({
+	get: () => {
+		view.value.constantNodes ??= []
+		return view.value.constantNodes!
+	},
+	set: (v: ConstantNodeData[]) => {
+		view.value.constantNodes = v
+	},
+})
+
+const CONSTANT_TYPE_INFO: Record<string, { icon: string; portType: string; color: string }> = {
+	string: { icon: "mdi mdi-format-text", portType: "str", color: "#81c784" },
+	number: { icon: "mdi mdi-numeric", portType: "num", color: "#4fc3f7" },
+	boolean: { icon: "mdi mdi-toggle-switch-outline", portType: "bool", color: "#ffb74d" },
+	color: { icon: "mdi mdi-palette", portType: "color", color: "#f06292" },
+}
 
 const graph = computed(() => buildGraph(model.value, pluginStore.pluginMap))
-const nodes = computed(() =>
-	graph.value.nodes.map((node) => ({
+const nodes = computed(() => {
+	const actionNodes = graph.value.nodes.map((node) => ({
 		...node,
 		...(nodePositions.value[node.id] ?? { x: node.x, y: node.y }),
 	}))
-)
+	// Add constant value nodes
+	const constNodes: NodeData[] = constantNodes.value.map((cn) => {
+		const info = CONSTANT_TYPE_INFO[cn.type] ?? CONSTANT_TYPE_INFO.string
+		const pos = nodePositions.value[cn.id] ?? { x: cn.x, y: cn.y }
+		return {
+			id: cn.id,
+			kind: "constant" as const,
+			title: cn.type.charAt(0).toUpperCase() + cn.type.slice(1),
+			subtitle: String(cn.value),
+			icon: info.icon,
+			badge: info.portType,
+			x: pos.x,
+			y: pos.y,
+			outputPorts: [{ key: "value", label: "value", type: info.portType }],
+			height: computeNodeHeight(undefined, undefined, [{ key: "value", label: "value", type: info.portType }]),
+		}
+	})
+	return [...actionNodes, ...constNodes]
+})
 const canvasSearchResults = computed(() => {
 	const q = canvasSearchQuery.value.toLowerCase().trim()
 	if (!q) return []
@@ -771,6 +915,10 @@ const lanes = computed<LaneData[]>(() => {
 	})
 })
 const selectedNode = computed(() => nodes.value.find((node) => node.id === selectedNodeId.value))
+const selectedConstantNode = computed(() => {
+	if (!selectedNodeId.value) return undefined
+	return constantNodes.value.find((cn) => cn.id === selectedNodeId.value)
+})
 const previewNodes = computed(() => nodes.value.filter((node) => node.id !== "trigger").sort((a, b) => a.x - b.x || a.y - b.y))
 const {
 	playheadNodeId,
@@ -906,6 +1054,14 @@ const { startDrag, resetSelectedNodePosition, alignmentGuides } = useNodeDrag(
 	nodes,
 	NODE_WIDTH
 )
+const {
+	wireDrag,
+	dataWirePaths,
+	dragWirePath,
+	startWireDrag,
+	deleteDataWire,
+} = usePortConnections(nodes, dataWires, zoom, pan, canvasRef, commitUndo)
+const selectedDataWireId = ref<string>()
 
 function summarizeConfigValue(value: unknown): string {
 	if (value == null) return "—"
@@ -1359,9 +1515,22 @@ function handleKeydown(event: KeyboardEvent) {
 		selectedNodeIds.value = new Set()
 	}
 
+	if ((event.key === "Delete" || event.key === "Backspace") && selectedNode.value?.kind === "constant") {
+		event.preventDefault()
+		deleteConstantNode(selectedNode.value.id)
+		selectedNodeId.value = undefined
+		selectedNodeIds.value = new Set()
+	}
+
 	if ((event.key === "Delete" || event.key === "Backspace") && selectedEdgeId.value && !canEditSelectedAction.value) {
 		event.preventDefault()
 		deleteSelectedEdge()
+	}
+
+	if ((event.key === "Delete" || event.key === "Backspace") && selectedDataWireId.value) {
+		event.preventDefault()
+		deleteDataWire(selectedDataWireId.value)
+		selectedDataWireId.value = undefined
 	}
 
 	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d" && canEditSelectedAction.value) {
@@ -1921,6 +2090,41 @@ function deleteFloatingSequence(floatingId: string) {
 	}
 }
 
+function addConstantNode(type: "string" | "number" | "boolean" | "color") {
+	const canvasPoint = contextMenu.value.canvasPoint ?? { x: 100, y: 200 }
+	const defaults: Record<string, string | number | boolean> = { string: "", number: 0, boolean: true, color: "#ffffff" }
+	const cn: ConstantNodeData = {
+		id: nanoid(),
+		type,
+		value: defaults[type],
+		x: canvasPoint.x,
+		y: canvasPoint.y,
+	}
+	constantNodes.value.push(cn)
+	closeContextMenu()
+	logActivity("Added", `${type} constant`)
+	commitUndo()
+}
+
+function deleteConstantNode(id: string) {
+	const idx = constantNodes.value.findIndex((cn) => cn.id === id)
+	if (idx >= 0) {
+		constantNodes.value.splice(idx, 1)
+		// Also remove any wires connected to this node
+		dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
+		logActivity("Deleted", "Constant node")
+		commitUndo()
+	}
+}
+
+function updateConstantNodeValue(id: string, value: string | number | boolean) {
+	const cn = constantNodes.value.find((c) => c.id === id)
+	if (cn) {
+		cn.value = value
+		commitUndo()
+	}
+}
+
 const CLIPBOARD_MIME = "application/showrunner-nodes"
 
 let inMemoryClipboard = ""
@@ -2437,6 +2641,37 @@ onUnmounted(() => {
 	stroke-width: 1px;
 }
 
+.node-automation__data-wire-hit {
+	fill: none;
+	pointer-events: stroke;
+	stroke: transparent;
+	stroke-linecap: round;
+	stroke-width: 16px;
+	cursor: pointer;
+}
+
+.node-automation__data-wire {
+	fill: none;
+	pointer-events: none;
+	stroke-linecap: round;
+	stroke-width: 2px;
+}
+
+.node-automation__data-wire.selected {
+	stroke-width: 3.5px;
+	filter: drop-shadow(0 0 4px currentColor);
+}
+
+.node-automation__data-wire--dragging {
+	stroke-dasharray: 6 4;
+	opacity: 0.7;
+	animation: wire-dash 0.4s linear infinite;
+}
+
+@keyframes wire-dash {
+	to { stroke-dashoffset: -10; }
+}
+
 .node-automation__node {
 	align-items: center;
 	background: #181818;
@@ -2526,6 +2761,12 @@ onUnmounted(() => {
 
 .node-automation__node--floating {
 	border-color: #ff9bd7;
+}
+
+.node-automation__node--constant {
+	border-color: #90a4ae;
+	min-width: 140px;
+	width: 140px;
 }
 
 .node-automation__node--trigger .node-automation__node-badge {
@@ -2646,21 +2887,25 @@ onUnmounted(() => {
 }
 
 .node-automation__port-dot {
-	background: #e9aaff;
-	border: 1.5px solid #7d32d4;
+	border: 2px solid #7d32d4;
 	border-radius: 50%;
+	cursor: crosshair;
 	flex-shrink: 0;
-	height: 7px;
-	width: 7px;
+	height: 10px;
+	transition: transform 0.12s, box-shadow 0.12s;
+	width: 10px;
+}
+
+.node-automation__port-dot:hover {
+	box-shadow: 0 0 6px 2px currentColor;
+	transform: scale(1.4);
 }
 
 .node-automation__port-dot--in {
-	background: #81c784;
 	border-color: #4a8a4d;
 }
 
 .node-automation__port-dot--out {
-	background: #4fc3f7;
 	border-color: #2980b9;
 }
 
@@ -3083,6 +3328,39 @@ onUnmounted(() => {
 	color: #cfcfcf;
 	line-height: 1.45;
 	margin: 0;
+}
+
+.node-automation__constant-edit label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+}
+
+.node-automation__constant-edit label span {
+	color: var(--text-color-secondary);
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.node-automation__constant-edit input,
+.node-automation__constant-edit select {
+	background: var(--surface-a);
+	border: 1px solid var(--surface-d);
+	border-radius: 4px;
+	color: var(--text-color);
+	font-size: 0.85rem;
+	padding: 0.35rem 0.5rem;
+}
+
+.node-automation__constant-grid {
+	display: grid !important;
+	gap: 2px;
+	grid-template-columns: 1fr 1fr;
+}
+
+.node-automation__constant-grid button {
+	padding: 0.35rem 0.5rem !important;
 }
 
 .node-automation__classic {
