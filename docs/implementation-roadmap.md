@@ -7,21 +7,22 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 ## Phase 1: Remove Old Sequencer (Core)
 
 ### 1.1 Relocate shared types
-- [ ] Move `SequenceDebugger` interface from `sequence.ts` → `libs/showrunner-core/src/graph-engine/types.ts`
-- [ ] Move `SequenceResolvers` (rename to `ActionResolvers`) → `libs/showrunner-core/src/queue-system/resolvers.ts`
-- [ ] Keep `SequenceContext`, `SequenceSource`, `QueuedSequence` in schema (rename to `ExecutionContext`, `AutomationSource`, `QueuedAutomation`)
-- [ ] Update all imports across the codebase
+- [x] Move debugger/runtime interfaces out of the old sequence runner path.
+- [x] Move `SequenceResolvers` (rename to `ActionResolvers`) → `libs/showrunner-core/src/queue-system/resolvers.ts`
+- [x] Add `ExecutionContext`, `AutomationSource`, `QueuedAutomation`, and `AutomationProvider` schema names.
+- [x] Update queue/runtime imports to the new names.
 
 ### 1.2 Delete old runner
-- [ ] Delete `libs/showrunner-core/src/queue-system/sequence.ts` (SequenceRunner class)
-- [ ] Delete `libs/showrunner-core/src/queue-system/__tests__/sequence.test.ts`
-- [ ] Remove `SequenceRunner` export from `libs/showrunner-core/src/index.ts`
+- [x] Delete `libs/showrunner-core/src/queue-system/sequence.ts` (SequenceRunner class)
+- [x] Delete `libs/showrunner-core/src/queue-system/__tests__/sequence.test.ts`
+- [x] Remove `SequenceRunner` export from `libs/showrunner-core/src/index.ts`
 
 ### 1.3 Simplify action-queue.ts
-- [ ] Remove dual-path: `runNext()`, `queueOrRun()`, `runTestSequence()` use only GraphVM
-- [ ] Remove `private runner: SequenceRunner | null` field
-- [ ] Remove `private testSequences = new Map<string, SequenceRunner>()`
-- [ ] Require `automation.graph` — throw if missing (fail-fast in dev)
+- [x] Remove dual-path: `runNext()`, `queueOrRun()`, `runTestSequence()` use only GraphVM
+- [x] Remove `private runner: SequenceRunner | null` field
+- [x] Remove `private testSequences = new Map<string, SequenceRunner>()`
+- [x] Require `automation.graph`; missing graph is reported and recorded in queue history instead of silently dropping the item.
+- [x] Add queue worker timeout and abort propagation to GraphVM/action `AbortSignal`.
 
 ### 1.4 Delete migration bridge
 - [ ] Delete `libs/showrunner-core/src/graph-engine/migration.ts`
@@ -47,24 +48,24 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Remove `findActionById()`, `findActionAndSequenceById()`, `getActionByParsedPath()` traversal helpers
 
 ### 2.3 Update queues.ts
-- [ ] Replace `QueuedSequence` → `QueuedAutomation` in `ActionQueueState`
-- [ ] Update `ActionQueueConfig` types
+- [x] Replace `QueuedSequence` → `QueuedAutomation` in `ActionQueueState`
+- [x] Update `ActionQueueConfig` types, including graph worker timeout.
 
 ---
 
 ## Phase 3: UI Cleanup (NodeAutomationEdit.vue)
 
 ### 3.1 Remove legacy rendering path
-- [ ] Remove `isActionStack`, `isFlowAction`, `isTimeAction` imports & usage
-- [ ] Remove `addSequence()` function and all `Sequence | FloatingSequence` processing
-- [ ] Remove old node-building code that iterates `ActionStack`, `TimeAction`, etc.
-- [ ] Remove `addFloatingSequence()`, `deleteFloatingSequence()`, `runFloatingSequence()`
+- [x] Remove `isActionStack`, `isFlowAction`, `isTimeAction` imports & usage from `NodeAutomationEdit`/node rendering.
+- [x] Remove `addSequence()` function and all `Sequence | FloatingSequence` processing from the node editor.
+- [x] Remove old node-building code that iterates `ActionStack`, `TimeAction`, etc.
+- [x] Remove `addFloatingSequence()`, `deleteFloatingSequence()`, `runFloatingSequence()`
 - [ ] Remove `cloneActionForNodeEditor()` (old sequence cloning logic)
 
 ### 3.2 Graph-only buildGraph()
-- [ ] `buildGraph()` always uses `buildGraphFromAutomationGraph()`
-- [ ] Remove fallback path that builds nodes from `automation.sequence`
-- [ ] Simplify `edges` computed — no conditional branch
+- [x] `buildGraph()` always uses `buildGraphFromAutomationGraph()`
+- [x] Remove fallback path that builds nodes from `automation.sequence`
+- [x] Simplify `edges` computed — no conditional branch
 
 ### 3.3 Cleanup other UI files
 - [ ] `ActionConfigEdit.vue` — remove `SubFlow` import if unused
@@ -80,7 +81,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Renderer save/error feedback is routed through `useAppFeedback()` for toast + dev-only logging.
 - [x] Reduced safe `@ts-expect-error` usage in resource registration and array wrappers.
 - [ ] Continue shrinking remaining console noise in media/viewer-data/satellite/drag utilities.
-- [ ] Rename queue terminology from `QueuedSequence` to `QueuedAutomation`.
+- [x] Rename queue terminology from `QueuedSequence` to `QueuedAutomation` in queue runtime/state.
 - [ ] Add one-time persistence migration to strip stale `sequence`/`floatingSequences` fields from existing user JSON.
 
 ---
@@ -108,19 +109,19 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Validation (red border + error tooltip for invalid expressions)
 
 ### 5.2 Node editor UX
-- [ ] Keyboard `Delete` key handler for selected nodes/edges
-- [ ] Multi-select (Shift+click or box select) → bulk delete
-- [ ] Copy/paste nodes (Ctrl+C/V) with edge reconnection
-- [ ] Undo/redo stack (Ctrl+Z / Ctrl+Shift+Z) per automation
-- [ ] Snap-to-grid option (toggle in toolbar)
-- [ ] Auto-layout algorithm (dagre or elkjs) for messy graphs
-- [ ] Minimap for large graphs
+- [x] Keyboard `Delete` key handler for selected nodes/edges
+- [x] Multi-select (Shift+click or box select) → bulk delete
+- [x] Copy/paste nodes (Ctrl+C/V) with edge reconnection
+- [x] Undo/redo stack (Ctrl+Z / Ctrl+Shift+Z) per automation
+- [x] Snap-to-grid option (toggle in toolbar)
+- [x] Auto-layout algorithm for messy graphs
+- [x] Minimap for large graphs
 
 ### 5.3 Execution visualization
-- [ ] Highlight active node during test-run (pulse animation)
-- [ ] Show execution time per node after test-run completes
-- [ ] Error node highlight (red glow) when action throws
-- [ ] Breadcrumb trail showing execution path
+- [x] Highlight active node during test-run (pulse animation)
+- [x] Show execution time per node after test-run completes
+- [x] Error node highlight (red glow) when action throws
+- [x] Breadcrumb trail showing execution path
 
 ### 5.4 Subgraph improvements
 - [ ] Subgraph parameters editor (name, type, default value)
@@ -137,9 +138,9 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 ### 5.6 Performance & reliability
 - [ ] Compile-on-save with error reporting (don't wait until run)
 - [ ] Program cache invalidation (recompile only on graph change)
-- [ ] VM timeout per-automation (configurable, default 30s)
-- [ ] Infinite loop detection beyond `maxIterations` (surface to user)
-- [ ] Abort propagation: cancel running actions cleanly on queue stop
+- [x] VM timeout per queue worker automation (configurable, default 30s)
+- [x] Infinite loop detection beyond `maxIterations` returns visible test-run errors.
+- [x] Abort propagation: cancel running actions cleanly on queue stop.
 
 ### 5.7 Misc fixes
 - [x] Fix `@ts-ignore` usages across codebase (replaced with `@ts-expect-error` + descriptions)
@@ -151,21 +152,21 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 ### 5.8 Queue UX: Graph Scheduler, Not Separate Logic
 - [ ] Keep queues as the runtime/scheduler for alerts, paid events, scene banners, and other non-overlapping stream moments.
 - [ ] Hide queue complexity from everyday automation editing by controlling queues through graph-native nodes:
-  - `Add to Queue`
-  - `Queue Item Started`
-  - `Complete Queue Item`
-  - `Cancel Queue Item`
-  - `Clear Queue`
-- [ ] Treat queue worker automations as normal graphs: a queue item starts a graph, the graph drives overlays/sounds/OBS, then completes or cancels the item.
+  - [x] `Add to Queue`
+  - [ ] `Queue Item Started`
+  - [x] `Complete Queue Item`
+  - [x] `Cancel Queue Item`
+  - [x] `Clear Queue`
+- [x] Treat queue worker automations as normal graphs: a queue item starts a graph, the graph drives overlays/sounds/OBS, then completes or cancels the item.
 - [ ] Simplify the sidebar around the streamer workflow:
   - `Automations`
   - `Queues`
   - `Overlays`
   - `Variables`
   - `Integrations`
-- [ ] Make the `Queues` page observational first: show configured queues, the currently running item, pending items, recent completed/cancelled items, and the automation graph used when an item starts.
-- [ ] Add queue node styling in the automation editor so queue nodes are visually distinct from triggers, filters, overlays, paid alerts, and scene actions.
-- [ ] Add queue preview/debug visibility: when test-running a graph, show when an item is enqueued, when it starts, and when it completes/cancels.
+- [x] Make the `Queues` page observational first: show configured queues, the currently running item, pending items, recent completed/cancelled items, and the automation graph used when an item starts.
+- [x] Add queue node styling in the automation editor so queue nodes are visually distinct from triggers, filters, overlays, paid alerts, and scene actions.
+- [x] Add queue preview/debug visibility for queue action nodes through test-run path, result badges, and per-node durations.
 - [ ] Add starter templates:
   - `Paid Event -> Add to Alerts Queue`
   - `Queue Item Started -> Paid Alert Overlay -> Sound -> Complete`
