@@ -235,9 +235,9 @@
 								'preview-active': playheadNodeId === node.id,
 								'search-match': canvasSearchMatchIds.has(node.id),
 								'search-dimmed': canvasSearchQuery && !canvasSearchMatchIds.has(node.id),
-								'test-running': activeTestSequence.value?.activeIds?.[node.id] != null,
-								'test-success': !activeTestSequence.value?.activeIds?.[node.id] && activeTestSequence.value?.nodeResults?.[node.id] != null && !activeTestSequence.value?.nodeErrors?.[node.id],
-								'test-error': !!activeTestSequence.value?.nodeErrors?.[node.id],
+								'test-running': activeTestSequence?.activeIds?.[node.id] != null,
+								'test-success': !activeTestSequence?.activeIds?.[node.id] && activeTestSequence?.nodeResults?.[node.id] != null && !activeTestSequence?.nodeErrors?.[node.id],
+								'test-error': !!activeTestSequence?.nodeErrors?.[node.id],
 							},
 						]"
 						:style="{ transform: `translate(${node.x}px, ${node.y}px)`, height: `${node.height}px`, width: `${node.width ?? NODE_WIDTH}px` }"
@@ -290,14 +290,14 @@
 						</span>
 						<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
 						<span
-							v-if="activeTestSequence.value?.nodeErrors?.[node.id]"
+							v-if="activeTestSequence?.nodeErrors?.[node.id]"
 							class="node-automation__test-badge node-automation__test-badge--error"
-							:title="activeTestSequence.value.nodeErrors[node.id]"
+							:title="activeTestSequence.nodeErrors[node.id]"
 						>✗</span>
 						<span
-							v-else-if="activeTestSequence.value?.nodeResults?.[node.id] != null"
+							v-else-if="activeTestSequence?.nodeResults?.[node.id] != null"
 							class="node-automation__test-badge node-automation__test-badge--ok"
-							:title="JSON.stringify(activeTestSequence.value.nodeResults[node.id], null, 2)"
+							:title="JSON.stringify(activeTestSequence.nodeResults[node.id], null, 2)"
 						>✓</span>
 						<dl v-if="node.configLines?.length" class="node-automation__node-config">
 							<div v-for="(line, li) in node.configLines" :key="li" class="node-automation__node-config-line">
