@@ -32,7 +32,7 @@ export default definePlugin(
 			try {
 				await voiceMod.connect(voiceModHost.value)
 			} catch (err) {
-				logger.error("Failed to connect to VoiceMod", err)
+				logger.warn("VoiceMod is not reachable; retrying in the background.", err)
 			}
 		}
 

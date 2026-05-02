@@ -4,7 +4,7 @@ import installExtension, { VUEJS_DEVTOOLS } from "electron-devtools-installer"
 //import electronUpdater from "electron-updater"
 import { app, BrowserWindow, ipcMain, contentTracing } from "electron"
 import { createWindow } from "./electron/electron-helpers"
-import { initializeShowRunner, finializeShowRunnerSetup, loadAutomations, setupShowRunnerDirectories } from "ShowRunner-core"
+import { initializeShowRunner, finializeShowRunnerSetup, loadAutomations, setupShowRunnerDirectories, defineIPCFunc } from "ShowRunner-core"
 import { finishInitDashboards } from "ShowRunner-plugin-dashboards-main"
 import { loadPlugins } from "./plugins"
 
@@ -15,6 +15,10 @@ if (process.platform === "win32") app.setAppUserModelId("com.saitatter.showrunne
 
 //???
 process.env["ELECTRON_DISABLE_SECURITY_WARNINGS"] = "true"
+
+defineIPCFunc("oldMigration", "needsMigrate", () => false)
+defineIPCFunc("oldMigration", "beginMigrate", async () => {})
+defineIPCFunc("oldMigration", "finishMigrate", async () => {})
 
 function quit() {
 	app.quit()

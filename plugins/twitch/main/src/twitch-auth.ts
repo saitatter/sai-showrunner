@@ -423,6 +423,9 @@ export class TwitchAccount extends Account<TwitchAccountSecrets, TwitchAccountCo
 
 			await super.applyConfig(loadedConfig)
 		} catch (err) {
+			if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
+				return
+			}
 			logger.error("Error loading Twitch account config", this.id, err)
 		}
 	}

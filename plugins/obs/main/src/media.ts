@@ -56,6 +56,7 @@ export function setupMedia(obsDefault: ReactiveRef<OBSConnection>) {
 					name: "Source",
 					required: true,
 					async enum(context: { obs: OBSConnection }) {
+						if (!context?.obs) return []
 						return await context.obs.getInputs(["ffmpeg_source", "vlc_source"])
 					},
 				},
@@ -145,6 +146,7 @@ export function setupMedia(obsDefault: ReactiveRef<OBSConnection>) {
 					name: "Source",
 					required: true,
 					async enum(context: { scene: string; obs: OBSConnection }) {
+						if (!context?.obs) return []
 						return await context.obs.getSceneSources(context.scene, "ffmpeg_source")
 					},
 				},
