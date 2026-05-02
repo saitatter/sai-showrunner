@@ -94,10 +94,10 @@ function openObs(installDir: string) {
 					cwd: `${installDir}\\bin\\64bit\\`,
 				},
 				(err, stdout, stderr) => {
-					console.log(stdout)
-					console.error(stderr)
+					if (stdout) logger.log(stdout)
+					if (stderr) logger.error(stderr)
 					if (err) {
-						console.error(err)
+						logger.error("Error starting OBS", err)
 						return resolve(false)
 					}
 					resolve(true)
@@ -612,8 +612,6 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 	async findBrowserByUrlPattern(urlPattern: string) {
 		if (!this.state.connected) return undefined
 
-		console.log("Attempting Browser Find")
-
 		const { inputs } = await this.connection.call("GetInputList", {
 			inputKind: "browser_source",
 		})
@@ -628,8 +626,6 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 		)
 
 		const urlRegex = new RegExp(urlPattern)
-
-		console.log("Checking Pattern", urlPattern)
 
 		const input = inputSettingsAndName.find((i) => {
 			return (i.inputSettings.url as string | undefined)?.match?.(urlRegex)

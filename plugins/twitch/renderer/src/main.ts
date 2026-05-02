@@ -44,7 +44,6 @@ export { default as StreamInfoDashboardCard } from "./components/stream-info/Str
 export { default as TwitchMainPageCard } from "./components/main-page/TwitchMainPageCard.vue"
 
 export async function initPlugin(app: App<Element>) {
-	console.log("Registering", TwitchViewerGroup, "TwitchViewerGroup")
 	const dataStore = useDataInputStore()
 	dataStore.registerInputComponent(TwitchViewerGroup, TwitchViewerGroupInput)
 	dataStore.registerViewComponent(TwitchViewerGroup, TwitchViewerGroupViewVue)

@@ -441,8 +441,6 @@ export function setupWebsockets() {
 			logger.error("Error Proxying", err)
 		})
 
-		console.log("REACHED PROXY SETUP CALL---------------------------------------")
-
 		defineWebsocketProxy("/overlays/", devProxy)
 
 		devProxy.on("error", (err) => {

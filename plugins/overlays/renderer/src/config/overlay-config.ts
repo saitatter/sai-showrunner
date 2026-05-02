@@ -59,8 +59,6 @@ export const useOverlayRemoteConfigStore = defineStore("overlay-remote-config", 
 
 		const configValue = toValue(config)
 
-		console.log("Starting Overlay Edit", id, configValue.plugin, configValue.widget, configValue.config)
-
 		startEdit(id, configValue.plugin, configValue.widget, configValue.config) //Setup the main process evaluation
 
 		const effect = watch(
@@ -88,8 +86,6 @@ export const useOverlayRemoteConfigStore = defineStore("overlay-remote-config", 
 		if (!remote) return
 
 		stopEdit(id)
-
-		console.log("Stopping Overlay Edit", id)
 
 		//Stop the effect
 		remote.effect()

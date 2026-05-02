@@ -454,8 +454,6 @@ export function getBackgroundCSS(
 		result.background += ` ${style.color}`
 	}
 
-	console.log("Background CSS", result.background)
-
 	return result
 }
 
