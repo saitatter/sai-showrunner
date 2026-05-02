@@ -2,6 +2,8 @@ import type { Expression, GraphNode } from "ShowRunner-schema"
 import { OpCode, type Instruction, type Program, type CompiledSubgraph } from "./compiler"
 import { evalExpression, type EvalContext } from "./expression"
 import type { ExecutionDebugger } from "../queue-system/resolvers"
+import { PluginManager } from "../plugins/plugin-manager"
+import { deserializeSchema } from "../util/ipc-schema"
 
 export interface GraphVMOptions {
 	/** Maximum loop iterations before forced abort (default 10000) */
@@ -184,10 +186,7 @@ export class GraphVM {
 			// Resolve data wire inputs via nodeResults
 			const resolvedConfig = this.resolveActionConfig(node)
 
-			// Invoke via action registry (lazy import to avoid circular deps through electron)
-			const { PluginManager } = await import("../plugins/plugin-manager")
-			const { deserializeSchema } = await import("../util/ipc-schema")
-
+			// Invoke via action registry
 			const actionDef = PluginManager.getInstance().getAction(node.plugin, node.action)
 			if (!actionDef || actionDef.type !== "regular") {
 				throw new Error(`Unknown action: ${node.plugin}:${node.action}`)

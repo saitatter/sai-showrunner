@@ -1,4 +1,11 @@
 import { describe, it, expect, vi } from "vitest"
+
+// Mock electron (not available in test environment)
+vi.mock("electron", () => ({
+	ipcMain: { handle: vi.fn() },
+	BrowserWindow: vi.fn(),
+}))
+
 import { GraphCompiler, OpCode, type Program, type Instruction } from "../compiler"
 import { GraphVM } from "../vm"
 import type { AutomationGraph } from "ShowRunner-schema"
