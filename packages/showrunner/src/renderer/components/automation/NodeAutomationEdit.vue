@@ -393,26 +393,21 @@
 
 				<div
 					v-if="contextMenu.open"
-					class="node-automation__context-menu"
-					:style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
-					@click.stop
-					@pointerdown.stop
-					@mousedown.stop
-					@contextmenu.prevent.stop
+					class="node-automation__context-menu-anchor"
 				>
-					<header class="node-automation__context-menu-header">
-						<div>
-							<strong>{{ contextMenu.nodeId ? "Node Menu" : "Canvas Menu" }}</strong>
-							<span>{{ contextMenuSubtitle }}</span>
-						</div>
-						<button type="button" aria-label="Close menu" @click="closeContextMenu">
-							<i class="mdi mdi-close" />
-						</button>
-					</header>
-					<label class="node-automation__context-menu-search">
-						<i class="mdi mdi-magnify" />
-						<input v-model="contextMenuQuery" type="search" placeholder="Search triggers or actions..." />
-					</label>
+					<collapsible-context-menu
+						:x="contextMenu.x"
+						:y="contextMenu.y"
+						:title="contextMenu.nodeId ? 'Node Menu' : 'Canvas Menu'"
+						:subtitle="contextMenuSubtitle"
+						@close="closeContextMenu"
+					>
+						<template #search>
+							<label class="node-automation__context-menu-search">
+								<i class="mdi mdi-magnify" />
+								<input v-model="contextMenuQuery" type="search" placeholder="Search triggers or actions..." />
+							</label>
+						</template>
 					<section v-if="recentlyUsed.length && !contextMenuQuery" class="node-automation__menu-section">
 						<div class="node-automation__menu-section-header" style="cursor: default; font-size: 0.8rem; opacity: 0.7;">
 							<span><i class="mdi mdi-history" /> Recently Used</span>
@@ -583,6 +578,7 @@
 							</div>
 						</div>
 					</section>
+					</collapsible-context-menu>
 				</div>
 				<svg
 					class="node-automation__minimap"
@@ -857,6 +853,7 @@ import {
 	ActionDefinition,
 	useParentTestSequence,
 	useActionQueueStore,
+	CollapsibleContextMenu,
 } from "ShowRunner-ui-core"
 import {
 	AnyAction,

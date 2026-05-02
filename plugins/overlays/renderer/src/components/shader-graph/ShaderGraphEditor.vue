@@ -115,32 +115,42 @@
 				<!-- Node palette (right-click) -->
 				<div
 					v-if="paletteOpen"
-					class="shader-graph__palette"
-					:style="{ left: `${palettePos.x}px`, top: `${palettePos.y}px` }"
-					@click.stop
-					@pointerdown.stop
 				>
-					<input
-						ref="paletteInputRef"
-						v-model="paletteQuery"
-						type="search"
-						placeholder="Search nodes..."
-						@keydown.escape.prevent="paletteOpen = false"
-					/>
-					<div class="shader-graph__palette-list">
-						<template v-for="cat in filteredCategories" :key="cat.name">
-							<div class="shader-graph__palette-category">{{ cat.name }}</div>
-							<button
-								v-for="def in cat.defs"
-								:key="def.id"
-								type="button"
-								@click="addNode(def.id)"
-							>
-								<i :class="def.icon" />
-								{{ def.name }}
-							</button>
+					<collapsible-context-menu
+						:x="palettePos.x"
+						:y="palettePos.y"
+						title="Shader Nodes"
+						subtitle="Add procedural building blocks"
+						width="320px"
+						@close="paletteOpen = false"
+					>
+						<template #search>
+							<label class="shader-graph__palette-search">
+								<i class="mdi mdi-magnify" />
+								<input
+									ref="paletteInputRef"
+									v-model="paletteQuery"
+									type="search"
+									placeholder="Search nodes..."
+									@keydown.escape.prevent="paletteOpen = false"
+								/>
+							</label>
 						</template>
-					</div>
+						<div class="shader-graph__palette-list">
+							<template v-for="cat in filteredCategories" :key="cat.name">
+								<div class="shader-graph__palette-category">{{ cat.name }}</div>
+								<button
+									v-for="def in cat.defs"
+									:key="def.id"
+									type="button"
+									@click="addNode(def.id)"
+								>
+									<i :class="def.icon" />
+									{{ def.name }}
+								</button>
+							</template>
+						</div>
+					</collapsible-context-menu>
 				</div>
 			</section>
 
@@ -169,6 +179,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
+import { CollapsibleContextMenu } from "ShowRunner-ui-core"
 import {
 	SHADER_NODE_DEFS,
 	SHADER_NODE_DEF_MAP,
@@ -819,27 +830,23 @@ function categoryColor(cat: string): string {
 	font-size: 0.6rem;
 }
 
-.shader-graph__palette {
-	background: #1a1a1a;
-	border: 1px solid #555;
-	border-radius: 6px;
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-	max-height: 360px;
-	overflow: hidden;
-	position: absolute;
-	width: 220px;
-	z-index: 20;
+.shader-graph__palette-search {
+	align-items: center;
+	background: var(--surface-a);
+	border: 1px solid var(--surface-d);
+	border-radius: 2px;
+	display: grid;
+	gap: 0.35rem;
+	grid-template-columns: 1rem 1fr;
+	padding: 0.35rem 0.45rem;
 }
 
-.shader-graph__palette input {
-	background: #111;
+.shader-graph__palette-search input {
+	background: transparent;
 	border: 0;
-	border-bottom: 1px solid #333;
-	box-sizing: border-box;
-	color: #eee;
-	font-size: 0.8rem;
-	padding: 0.45rem 0.6rem;
-	width: 100%;
+	color: var(--text-color);
+	min-width: 0;
+	outline: 0;
 }
 
 .shader-graph__palette-list {
