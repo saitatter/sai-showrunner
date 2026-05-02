@@ -1095,9 +1095,99 @@ function handleKeydown(event: KeyboardEvent) {
 		pasteNodes()
 	}
 
-	if (event.key.toLowerCase() === "f") {
+	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+		event.preventDefault()
+		selectedNodeIds.value = new Set(nodes.value.map((n) => n.id))
+		selectedNodeId.value = nodes.value[0]?.id
+	}
+
+	// Arrow key navigation between nodes
+	if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key) && !event.ctrlKey && !event.metaKey) {
+		event.preventDefault()
+		navigateToAdjacentNode(event.key as "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown", event.shiftKey)
+	}
+
+	// Zoom shortcuts
+	if ((event.ctrlKey || event.metaKey) && (event.key === "=" || event.key === "+")) {
+		event.preventDefault()
+		setZoom(zoom.value + ZOOM_STEP, true)
+	}
+	if ((event.ctrlKey || event.metaKey) && event.key === "-") {
+		event.preventDefault()
+		setZoom(zoom.value - ZOOM_STEP, true)
+	}
+	if ((event.ctrlKey || event.metaKey) && event.key === "0") {
+		event.preventDefault()
+		resetView()
+	}
+
+	if (event.key.toLowerCase() === "f" && !event.ctrlKey && !event.metaKey) {
 		event.preventDefault()
 		fitGraph()
+	}
+}
+
+function navigateToAdjacentNode(direction: "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown", extend: boolean) {
+	const current = selectedNode.value ?? nodes.value[0]
+	if (!current) return
+
+	const cx = current.x + NODE_WIDTH / 2
+	const cy = current.y + current.height / 2
+	const candidates = nodes.value.filter((n) => n.id !== current.id)
+
+	let best: NodeData | undefined
+	let bestScore = Infinity
+
+	for (const node of candidates) {
+		const nx = node.x + NODE_WIDTH / 2
+		const ny = node.y + node.height / 2
+		const dx = nx - cx
+		const dy = ny - cy
+
+		let inDirection = false
+		let primaryDist = 0
+		let crossDist = 0
+
+		switch (direction) {
+			case "ArrowRight":
+				inDirection = dx > 20
+				primaryDist = dx
+				crossDist = Math.abs(dy)
+				break
+			case "ArrowLeft":
+				inDirection = dx < -20
+				primaryDist = -dx
+				crossDist = Math.abs(dy)
+				break
+			case "ArrowDown":
+				inDirection = dy > 20
+				primaryDist = dy
+				crossDist = Math.abs(dx)
+				break
+			case "ArrowUp":
+				inDirection = dy < -20
+				primaryDist = -dy
+				crossDist = Math.abs(dx)
+				break
+		}
+
+		if (!inDirection) continue
+		const score = primaryDist + crossDist * 2
+		if (score < bestScore) {
+			bestScore = score
+			best = node
+		}
+	}
+
+	if (!best) return
+
+	if (extend) {
+		const next = new Set(selectedNodeIds.value)
+		next.add(best.id)
+		selectedNodeIds.value = next
+		selectedNodeId.value = best.id
+	} else {
+		focusNode(best.id)
 	}
 }
 
