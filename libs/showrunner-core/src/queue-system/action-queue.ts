@@ -178,6 +178,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 
 		if (!automation.graph) {
 			logger.error("Automation missing graph — cannot execute", seqItem.source)
+			this.pushToHistory(seqItem)
 			return
 		}
 

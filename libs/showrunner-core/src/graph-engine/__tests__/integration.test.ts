@@ -176,6 +176,36 @@ describe("Graph Integration (compile → VM → action)", () => {
 		expect(receivedConfig).toEqual({ payload: { viewer: { name: "ViewerName" } } })
 	})
 
+	it("resolves data wires for action node ids that contain colons", async () => {
+		let receivedConfig: any = null
+		mockGetAction.mockImplementation((_plugin: string, action: string) => {
+			if (action === "producer") {
+				return mockAction(async () => ({ text: "colon-safe" }))
+			}
+			return mockAction(async (config) => {
+				receivedConfig = config
+				return {}
+			})
+		})
+
+		const graph: AutomationGraph = {
+			nodes: [
+				{ id: "group:a1", type: "action", plugin: "p", action: "producer", config: {}, x: 0, y: 0 },
+				{ id: "group:a2", type: "action", plugin: "p", action: "consumer", config: {}, x: 1, y: 0 },
+			],
+			edges: [{ id: "e1", from: "group:a1", to: "group:a2" }],
+			entryNodeId: "group:a1",
+		}
+		const dataWires: AutomationDataWire[] = [
+			{ id: "w1", fromNode: "group:a1", fromPort: "text", toNode: "group:a2", toPort: "payload.message" },
+		]
+
+		const program = new GraphCompiler().compile(graph, undefined, dataWires)
+		await new GraphVM(program, { contextState: {} }).execute()
+
+		expect(receivedConfig).toEqual({ payload: { message: "colon-safe" } })
+	})
+
 	it("ignores unsafe data wire paths instead of polluting prototypes", async () => {
 		let receivedConfig: any = null
 		mockGetAction.mockImplementation((_plugin: string, action: string) => {

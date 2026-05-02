@@ -292,6 +292,24 @@ describe("GraphVM", () => {
 			expect(dbg.sequenceStarted).toHaveBeenCalledOnce()
 			expect(dbg.sequenceEnded).toHaveBeenCalledOnce()
 		})
+
+		it("reports global VM errors with a global node id", async () => {
+			const dbg = {
+				sequenceStarted: vi.fn(),
+				sequenceEnded: vi.fn(),
+				markStart: vi.fn(),
+				markEnd: vi.fn(),
+				logResult: vi.fn(),
+				logError: vi.fn(),
+			}
+			const program = makeProgram([{ op: OpCode.CALL, nodeId: "call1", arg0: 999, arg1: {} }])
+			const result = await new GraphVM(program, { contextState: {} }, dbg).execute()
+
+			expect(result).toBe("error")
+			expect(dbg.logError).toHaveBeenCalledOnce()
+			expect(dbg.logError.mock.calls[0][0]).toBe("__global")
+			expect(dbg.logError.mock.calls[0][1]).toBeInstanceOf(Error)
+		})
 	})
 
 	describe("expression evaluation in VM context", () => {

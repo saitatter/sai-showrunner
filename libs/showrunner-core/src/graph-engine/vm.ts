@@ -1,5 +1,5 @@
 import type { Expression, GraphNode } from "ShowRunner-schema"
-import { OpCode, type Instruction, type IterNextArgs, type Program } from "./compiler"
+import { OpCode, type Instruction, type IterNextArgs, type Program, type WireSource } from "./compiler"
 import { evalExpression, type EvalContext } from "./expression"
 import type { ExecutionDebugger } from "../queue-system/resolvers"
 import { PluginManager } from "../plugins/plugin-manager"
@@ -35,6 +35,8 @@ export class GraphVM {
 	private maxIterations: number
 	private maxCallDepth: number
 	private localSlotsByName = new Map<string, number>()
+	private evalContext: EvalContext
+	private nodeWireInputs = new Map<string, Array<{ toPort: string; source: WireSource }>>()
 
 	constructor(
 		private program: Program,
@@ -46,10 +48,17 @@ export class GraphVM {
 		this.maxIterations = options?.maxIterations ?? 10000
 		this.maxCallDepth = options?.maxCallDepth ?? 32
 		this.locals = new Array(program.localSlotCount).fill(undefined)
+		this.evalContext = {
+			localValues: this.locals,
+			localSlotsByName: this.localSlotsByName,
+			contextState: this.context.contextState,
+			nodeResults: this.nodeResults,
+		}
 		for (let i = 0; i < program.slotNames.length; i++) {
 			const name = program.slotNames[i]
 			if (name) this.localSlotsByName.set(name, i)
 		}
+		this.nodeWireInputs = buildNodeWireInputs(program)
 	}
 
 	/**
@@ -71,7 +80,7 @@ export class GraphVM {
 			this.dbg?.sequenceEnded()
 			return "complete"
 		} catch (err) {
-			this.dbg?.logError?.(err instanceof Error ? err.message : String(err))
+			this.dbg?.logError?.("__global", err)
 			this.dbg?.sequenceEnded()
 			return "error"
 		}
@@ -230,18 +239,13 @@ export class GraphVM {
 
 	private resolveActionConfig(node: GraphNode & { type: "action" }): any {
 		const config = node.config ?? {}
-		const wireMap = this.program.wireMap
-		if (!wireMap || Object.keys(wireMap).length === 0) return config
+		const wires = this.nodeWireInputs.get(node.id)
+		if (!wires?.length) return config
 
 		// Deep clone config and substitute wired inputs
 		const resolved = structuredClone(config)
 
-		const prefix = `${node.id}:`
-		for (const [wireKey, source] of Object.entries(wireMap)) {
-			if (!wireKey.startsWith(prefix)) continue
-			const toPort = wireKey.slice(prefix.length)
-			if (!toPort) continue
-
+		for (const { toPort, source } of wires) {
 			const sourceResult = this.nodeResults.get(source.fromNodeId)
 			setPathValue(resolved, toPort, getPathValue(sourceResult, source.fromPort))
 		}
@@ -295,6 +299,7 @@ export class GraphVM {
 
 		// Restore locals
 		this.locals = frame.localSnapshot
+		this.evalContext.localValues = this.locals
 		if (frame.callNodeId) {
 			this.nodeResults.set(frame.callNodeId, outputs)
 		}
@@ -303,13 +308,7 @@ export class GraphVM {
 
 	private evalExpr(expr: Expression | undefined): any {
 		if (!expr) return undefined
-		const ctx: EvalContext = {
-			localValues: this.locals,
-			localSlotsByName: this.localSlotsByName,
-			contextState: this.context.contextState,
-			nodeResults: this.nodeResults,
-		}
-		return evalExpression(expr, ctx)
+		return evalExpression(expr, this.evalContext)
 	}
 
 	private checkIterationLimit(nodeId?: string) {
@@ -330,6 +329,25 @@ export class GraphVM {
 			}
 		})
 	}
+}
+
+function buildNodeWireInputs(program: Program): Map<string, Array<{ toPort: string; source: WireSource }>> {
+	const byNode = new Map<string, Array<{ toPort: string; source: WireSource }>>()
+	const nodeIds = [...new Set(program.actionNodes.map((node) => node.id))].sort((a, b) => b.length - a.length)
+
+	for (const [wireKey, source] of Object.entries(program.wireMap ?? {})) {
+		const nodeId = nodeIds.find((id) => wireKey.startsWith(`${id}:`))
+		if (!nodeId) continue
+
+		const toPort = wireKey.slice(nodeId.length + 1)
+		if (!toPort) continue
+
+		const existing = byNode.get(nodeId) ?? []
+		existing.push({ toPort, source })
+		byNode.set(nodeId, existing)
+	}
+
+	return byNode
 }
 
 function getPathValue(source: any, path: string) {
