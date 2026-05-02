@@ -164,6 +164,25 @@
 							:d="edge.path"
 							vector-effect="non-scaling-stroke"
 						/>
+						<g
+							v-for="edge in edges.filter((item) => item.label)"
+							:key="`${edge.id}:label`"
+							class="node-automation__edge-label"
+						>
+							<rect
+								:x="(edge.labelX ?? 0) - 30"
+								:y="(edge.labelY ?? 0) - 11"
+								width="60"
+								height="22"
+								rx="11"
+							/>
+							<text
+								:x="edge.labelX"
+								:y="edge.labelY"
+								text-anchor="middle"
+								dominant-baseline="central"
+							>{{ edge.label }}</text>
+						</g>
 
 						<!-- Data wires (port-to-port connections) -->
 						<path
@@ -1011,7 +1030,16 @@ const edges = computed<EdgeData[]>(() => {
 		const toY = toNode ? toNode.y + toNode.height / 2 : 0
 		const cpOffset = Math.min(80, Math.abs(toX - fromX) / 2)
 		const path = `M${fromX},${fromY} C${fromX + cpOffset},${fromY} ${toX - cpOffset},${toY} ${toX},${toY}`
-		return { id: e.id, from: e.from, to: e.to, port: e.port, path }
+		return {
+			id: e.id,
+			from: e.from,
+			to: e.to,
+			port: e.port,
+			label: getEdgeLabel(e.port),
+			labelX: (fromX + toX) / 2,
+			labelY: (fromY + toY) / 2 - 10,
+			path,
+		}
 	}).filter((e) => e.path)
 })
 const lanes = computed<LaneData[]>(() => {
@@ -1214,6 +1242,12 @@ function isPortConnected(nodeId: string, portKey: string, kind: "in" | "out"): b
 function isExecPortConnected(nodeId: string, portKey: string): boolean {
 	if (!model.value.graph) return false
 	return model.value.graph.edges.some((e) => e.from === nodeId && e.port === portKey)
+}
+
+function getEdgeLabel(port?: string) {
+	if (!port) return undefined
+	if (port.startsWith("case:")) return `case ${port.slice(5)}`
+	return port
 }
 
 const removingWireIds = ref(new Set<string>())
@@ -2616,6 +2650,23 @@ onUnmounted(() => {
 
 .node-automation__edge-hit.active {
 	stroke: rgb(46 212 122 / 0.15);
+}
+
+.node-automation__edge-label {
+	pointer-events: none;
+}
+
+.node-automation__edge-label rect {
+	fill: rgb(18 18 22 / 0.92);
+	stroke: rgb(233 170 255 / 0.42);
+	stroke-width: 1px;
+}
+
+.node-automation__edge-label text {
+	fill: #f7e7ff;
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0;
 }
 
 .node-automation__alignment-guide {

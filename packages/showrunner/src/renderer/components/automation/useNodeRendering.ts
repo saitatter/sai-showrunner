@@ -46,6 +46,9 @@ export interface EdgeData {
 	from: string
 	to: string
 	port?: string
+	label?: string
+	labelX?: number
+	labelY?: number
 	path: string
 }
 
