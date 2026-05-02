@@ -163,6 +163,16 @@ export function setupLights(subnetMask: ReactiveRef<string>) {
 		})
 	}
 
+	function stopClient() {
+		if (!client) return
+		try {
+			client.stopDiscovery()
+		} catch (err) {
+			logger.warn("Error stopping Kasa discovery", err)
+		}
+		client.removeAllListeners()
+	}
+
 	async function setupDiscovery() {
 		logger.log("Starting TP-Link Kasa Discovery", subnetMask.value)
 		client.startDiscovery({
@@ -177,7 +187,7 @@ export function setupLights(subnetMask: ReactiveRef<string>) {
 	})
 
 	onSettingChanged(subnetMask, async () => {
-		client.stopDiscovery()
+		stopClient()
 		await clearResources()
 		setupClient()
 		setupDiscovery()
