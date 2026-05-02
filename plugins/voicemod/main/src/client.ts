@@ -159,6 +159,7 @@ export class VoiceModClient {
 						}
 					}
 				} catch (err) {
+					logger.error("Error handling VoiceMod message", err)
 					return
 				}
 			})
