@@ -11,16 +11,14 @@ export async function getMediaDuration(obs: OBSConnection, sourceName: string): 
 	return undefined
 }
 
-//HACK HACK HACK HACK
+//Workaround: OBS doesn't report media duration if the source hasn't been activated yet.
+//Triggering a restart forces OBS to load the media file so we can read its duration.
 export async function forceGetMediaDuration(obs: OBSConnection, sourceName: string): Promise<number | undefined> {
-	//Check to see if we can get the duration
 	let duration = await getMediaDuration(obs, sourceName)
 
 	if (duration != null) return duration
 
-	//Do the hack if we couldn't
-	//Why does this work???
-	//Best Guess: Asking for media restart even while not active will cause OBS to load the media
+	//Trigger media load by requesting a restart
 	await obs.connection.call("TriggerMediaInputAction", {
 		inputName: sourceName,
 		mediaAction: "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
