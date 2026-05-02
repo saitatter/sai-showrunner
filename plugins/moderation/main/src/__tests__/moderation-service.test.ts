@@ -218,7 +218,7 @@ describe("ModerationService - moderateChatMessage", () => {
 		expect(result.confidence).toBe(0.95)
 	})
 
-	it("should return flagged result on network error", async () => {
+	it("should return backend error result on network error", async () => {
 		const service = freshService()
 		;(fetch as any).mockResolvedValue({ ok: true })
 		await service.saveSettings({ enabled: true })
@@ -232,8 +232,11 @@ describe("ModerationService - moderateChatMessage", () => {
 			message: "test",
 		} as any)
 
-		expect(result.verdict).toBe("flag")
-		expect(result.flagged).toBe(true)
+		expect(result.verdict).toBe("error")
+		expect(result.status).toBe("error")
+		expect(result.flagged).toBe(false)
+		expect(result.backendError).toBe(true)
+		expect(result.errorMessage).toContain("timeout")
 		expect(result.reason).toContain("timeout")
 	})
 

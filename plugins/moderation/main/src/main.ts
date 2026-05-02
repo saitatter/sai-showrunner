@@ -67,6 +67,8 @@ export default definePlugin(
 					approved: { type: Boolean, name: "Approved", required: true },
 					blocked: { type: Boolean, name: "Blocked", required: true },
 					flagged: { type: Boolean, name: "Flagged", required: true },
+					backendError: { type: Boolean, name: "Backend Error", required: true },
+					errorMessage: { type: String, name: "Error Message", required: true },
 				},
 			},
 			async invoke(config) {

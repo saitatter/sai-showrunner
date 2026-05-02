@@ -183,10 +183,13 @@ export class ModerationService {
 			this.logger.error("Failed to moderate chat message.", error)
 			return this.toActionResult({
 				messageId,
-				verdict: "flag",
+				verdict: "error",
+				status: "error",
 				confidence: 0,
 				category: "error",
 				reason: this.status.statusMessage,
+				backendError: true,
+				errorMessage: this.status.statusMessage,
 			})
 		}
 	}
@@ -367,23 +370,30 @@ export class ModerationService {
 
 	private toActionResult(payload: Record<string, unknown>): ModerationActionResult {
 		const verdict = String(payload.verdict || "flag").toLowerCase()
+		const status = String(payload.status || "").toLowerCase()
+		const backendError = Boolean(payload.backendError) || verdict === "error" || status === "error"
 		return {
 			verdict,
 			status:
-				verdict === "allow"
+				status ||
+				(verdict === "allow"
 					? "approved"
 					: verdict === "block"
 						? "blocked"
 						: verdict === "disabled"
 							? "disabled"
-							: "flagged",
+							: backendError
+								? "error"
+								: "flagged"),
 			confidence: Number(payload.confidence ?? 0),
 			category: String(payload.category || "unknown"),
 			reason: String(payload.reason || ""),
 			messageId: String(payload.messageId || ""),
 			approved: verdict === "allow",
 			blocked: verdict === "block",
-			flagged: verdict === "flag",
+			flagged: !backendError && verdict === "flag",
+			backendError,
+			errorMessage: String(payload.errorMessage || (backendError ? payload.reason || "" : "")),
 		}
 	}
 }
