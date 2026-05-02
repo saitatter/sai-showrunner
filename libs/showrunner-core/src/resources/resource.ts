@@ -186,13 +186,11 @@ export class Resource<ConfigType extends object, StateType extends object = {}> 
 	}
 
 	static async initialize() {
-		// @ts-expect-error Static this refers to concrete subclass
-		ResourceRegistry.getInstance().register(this)
+		ResourceRegistry.getInstance().register(this as unknown as ResourceConstructor<ResourceBase>)
 	}
 
 	static async uninitialize() {
-		// @ts-expect-error Static this refers to concrete subclass
-		ResourceRegistry.getInstance().unregister(this)
+		ResourceRegistry.getInstance().unregister(this as unknown as ResourceConstructor<ResourceBase>)
 	}
 }
 

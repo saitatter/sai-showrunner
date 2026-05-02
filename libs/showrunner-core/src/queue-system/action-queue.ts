@@ -1,4 +1,5 @@
 import { ResourceStorage, Resource } from "../resources/resource"
+import type { ResourceConstructor } from "../resources/resource"
 import {
 	QueuedSequence,
 	SequenceSource,
@@ -215,12 +216,10 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 	static async initialize() {
 		await super.initialize()
 
-		// @ts-expect-error — ActionQueue class doesn't satisfy ResourceConstructor<T>
-		ResourceRegistry.getInstance().exposeIPCFunction(ActionQueue, "skip")
-		// @ts-expect-error — ActionQueue class doesn't satisfy ResourceConstructor<T>
-		ResourceRegistry.getInstance().exposeIPCFunction(ActionQueue, "replay")
-		// @ts-expect-error — ActionQueue class doesn't satisfy ResourceConstructor<T>
-		ResourceRegistry.getInstance().exposeIPCFunction(ActionQueue, "spliceQueue")
+		const resourceConstructor = ActionQueue as unknown as ResourceConstructor<ActionQueue>
+		ResourceRegistry.getInstance().exposeIPCFunction(resourceConstructor, "skip")
+		ResourceRegistry.getInstance().exposeIPCFunction(resourceConstructor, "replay")
+		ResourceRegistry.getInstance().exposeIPCFunction(resourceConstructor, "spliceQueue")
 	}
 }
 

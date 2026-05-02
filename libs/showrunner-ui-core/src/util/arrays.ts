@@ -57,7 +57,6 @@ export function settableArray<T>(config: {
 		return stackedProxy
 	}
 
-	const symbols = Object.getOwnPropertySymbols(innerComputed)
 	const result = {
 		get value() {
 			return getStackedProxy(innerComputed.value)
@@ -73,6 +72,5 @@ export function settableArray<T>(config: {
 		},
 	}
 
-	// @ts-expect-error Faking RefSymbol for reactive array wrapper
-	return result
+	return result as unknown as WritableComputedRef<T[]>
 }
