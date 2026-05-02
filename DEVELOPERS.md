@@ -2,21 +2,37 @@
 
 Pull Requests are on hold until a CLA can be worked out.
 
-We're currently developing on node 16.13.1.
+We're currently developing on Node.js 20+ (see `.nvmrc`).
 
-This project relies on VUE CLI you need to run `npm install -g @vue/cli`
+This repo is a mono repo managed by **Yarn 4** (Berry) workspaces. Make sure Corepack is enabled:
 
-The is repo is a mono repo and we rely on yarn to handle cross package dependencies.
+```powershell
+corepack enable
+```
 
-Run `yarn install` after cloning the repo
+Install dependencies:
 
-CastMate has a custom vite plugin to handle mono-repo stuff
+```powershell
+corepack yarn install
+```
 
-Run `yarn run setup-vite` to build the custom vite plugin.
+ShowRunner has a custom Vite plugin to handle mono-repo builds:
 
-To start in development mode, use `yarn run dev`
+```powershell
+corepack yarn run setup-vite
+```
 
-To build into an installer run `yarn run build`
+To start in development mode:
+
+```powershell
+corepack yarn dev
+```
+
+To build into an installer:
+
+```powershell
+corepack yarn build
+```
 
 ## Useful Documentation Links
 
