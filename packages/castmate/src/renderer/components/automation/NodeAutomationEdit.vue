@@ -21,7 +21,7 @@
 			<section
 				ref="canvasRef"
 				class="node-automation__canvas"
-				:class="{ panning: isPanning }"
+				:class="{ panning: isPanning, 'space-held': spaceHeld }"
 				role="application"
 				aria-label="Node editor canvas"
 				@pointerdown="handleCanvasPointerDown"
@@ -29,6 +29,7 @@
 				@dragleave="ghostNode = null"
 				@drop.prevent="dropActionOnCanvas"
 				@wheel.ctrl.prevent="zoomFromWheel"
+				@wheel.shift.exact.prevent="horizontalPan"
 				@contextmenu.prevent="openCanvasContextMenu"
 			>
 				<div class="node-automation__canvas-controls">
@@ -638,6 +639,7 @@ const actionPaletteQuery = ref("")
 const dropTargetNodeId = ref<string>()
 const dropTargetEdgeId = ref<string>()
 const selectedEdgeId = ref<string>()
+const spaceHeld = ref(false)
 const ghostNode = ref<{ x: number; y: number } | null>(null)
 const rubberBand = ref<{ x: number; y: number; width: number; height: number } | null>(null)
 const canvasSearchOpen = ref(false)
@@ -852,6 +854,7 @@ const {
 	toggleSnapToGrid,
 	snapCoordinate,
 	zoomFromWheel,
+	horizontalPan,
 	fitGraph,
 	resetView,
 	fitSelection,
@@ -949,8 +952,11 @@ function extractConfigSummary(
 
 	const lines: ConfigLine[] = []
 	const schema = actionDef.config
+	let totalProps = 0
 	if (schema && isObjectSchema(schema) && action.config) {
-		for (const [key, propSchema] of Object.entries(schema.properties)) {
+		const entries = Object.entries(schema.properties)
+		totalProps = entries.length
+		for (const [key, propSchema] of entries) {
 			if (lines.length >= MAX_CONFIG_LINES) break
 			const value = (action.config as Record<string, unknown>)[key]
 			if (value == null && !propSchema.required) continue
@@ -980,6 +986,10 @@ function extractConfigSummary(
 			if (lines.length >= MAX_CONFIG_LINES) return
 			lines.push({ label: "↳", value: `+${offset.offset}s → ${offset.actions.length} action${offset.actions.length === 1 ? "" : "s"}` })
 		})
+	}
+
+	if (totalProps > lines.length) {
+		lines.push({ label: "…", value: `+${totalProps - lines.length} more` })
 	}
 
 	return lines
@@ -1241,7 +1251,10 @@ function handleCanvasPointerDown(event: PointerEvent) {
 		event.preventDefault()
 		startPan(event)
 	}
-	if (event.button === 0 && isCanvasTarget) {
+	if (event.button === 0 && isCanvasTarget && spaceHeld.value) {
+		event.preventDefault()
+		startPan(event)
+	} else if (event.button === 0 && isCanvasTarget) {
 		startRubberBand(event)
 	}
 }
@@ -1301,6 +1314,10 @@ function handleKeydown(event: KeyboardEvent) {
 	const target = event.target as HTMLElement | null
 	if (target?.closest("input, textarea, select, [contenteditable='true']")) return
 
+	if (event.code === "Space" && !event.ctrlKey && !event.metaKey) {
+		spaceHeld.value = true
+	}
+
 	if (event.key === "Escape" && contextMenu.value.open) {
 		event.preventDefault()
 		closeContextMenu()
@@ -1310,6 +1327,11 @@ function handleKeydown(event: KeyboardEvent) {
 	if ((event.key === "Delete" || event.key === "Backspace") && canEditSelectedAction.value) {
 		event.preventDefault()
 		deleteSelectedAction()
+	}
+
+	if ((event.key === "Delete" || event.key === "Backspace") && selectedEdgeId.value && !canEditSelectedAction.value) {
+		event.preventDefault()
+		deleteSelectedEdge()
 	}
 
 	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d" && canEditSelectedAction.value) {
@@ -1366,6 +1388,12 @@ function handleKeydown(event: KeyboardEvent) {
 	if (event.key.toLowerCase() === "f" && !event.ctrlKey && !event.metaKey) {
 		event.preventDefault()
 		fitGraph()
+	}
+}
+
+function handleKeyup(event: KeyboardEvent) {
+	if (event.code === "Space") {
+		spaceHeld.value = false
 	}
 }
 
@@ -1768,6 +1796,27 @@ function deleteSelectedAction() {
 	if (removed.length) commitUndo()
 }
 
+function deleteSelectedEdge() {
+	const edgeId = selectedEdgeId.value
+	if (!edgeId) return
+	const edge = edges.value.find((e) => e.id === edgeId)
+	if (!edge) return
+	// Delete the downstream node
+	const toId = edge.to
+	if (toId === "trigger") return
+	const result = findActionAndSequenceById(toId, model.value)
+	if (result) {
+		const idx = result.sequence.actions.findIndex((a) => a.id === toId)
+		if (idx >= 0) {
+			result.sequence.actions.splice(idx, 1)
+			delete nodePositions.value[toId]
+			logActivity("Deleted via edge", nodes.value.find((n) => n.id === toId)?.title ?? toId)
+			commitUndo()
+		}
+	}
+	selectedEdgeId.value = undefined
+}
+
 function canMoveSelectedAction(direction: -1 | 1) {
 	const position = selectedActionPosition.value
 	if (!position) return false
@@ -1810,6 +1859,8 @@ function cloneActionForNodeEditor(action: AnyAction | ActionStack) {
 
 const CLIPBOARD_MIME = "application/showrunner-nodes"
 
+let inMemoryClipboard = ""
+
 function copySelectedNodes() {
 	const actions: (AnyAction | ActionStack)[] = []
 	for (const id of selectedNodeIds.value) {
@@ -1819,6 +1870,7 @@ function copySelectedNodes() {
 	}
 	if (actions.length === 0) return
 	const payload = JSON.stringify({ actions })
+	inMemoryClipboard = payload
 	navigator.clipboard.writeText(payload).catch(() => {})
 	logActivity("Copied", `${actions.length} node${actions.length === 1 ? "" : "s"}`)
 }
@@ -1842,7 +1894,7 @@ function cutSelectedNodes() {
 }
 
 function pasteNodes() {
-	navigator.clipboard.readText().then((text) => {
+	const doPaste = (text: string) => {
 		let parsed: { actions: (AnyAction | ActionStack)[] }
 		try {
 			parsed = JSON.parse(text)
@@ -1858,12 +1910,15 @@ function pasteNodes() {
 			newIds.push(cloned.id)
 		}
 
-		// Select all pasted nodes
 		selectedNodeIds.value = new Set(newIds)
 		selectedNodeId.value = newIds[0]
 		logActivity("Pasted", `${newIds.length} node${newIds.length === 1 ? "" : "s"}`)
 		commitUndo()
-	}).catch(() => {})
+	}
+
+	navigator.clipboard.readText().then(doPaste).catch(() => {
+		if (inMemoryClipboard) doPaste(inMemoryClipboard)
+	})
 }
 
 function getPathPosition(path: string):
@@ -1913,10 +1968,12 @@ function getPathPosition(path: string):
 
 onMounted(() => {
 	window.addEventListener("keydown", handleKeydown)
+	window.addEventListener("keyup", handleKeyup)
 	window.addEventListener("click", handleWindowClick)
 })
 onUnmounted(() => {
 	window.removeEventListener("keydown", handleKeydown)
+	window.removeEventListener("keyup", handleKeyup)
 	window.removeEventListener("click", handleWindowClick)
 	pausePlayheadPreview()
 })
@@ -2000,6 +2057,10 @@ onUnmounted(() => {
 
 .node-automation__canvas.panning {
 	cursor: grabbing;
+}
+
+.node-automation__canvas.space-held {
+	cursor: grab;
 }
 
 .node-automation__canvas-controls {

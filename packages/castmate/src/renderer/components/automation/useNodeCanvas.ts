@@ -170,6 +170,12 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 		}
 	}
 
+	function horizontalPan(event: WheelEvent) {
+		const canvas = canvasRef.value
+		if (!canvas) return
+		canvas.scrollBy({ left: event.deltaY })
+	}
+
 	return {
 		canvasRef,
 		zoom,
@@ -181,6 +187,7 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 		toggleSnapToGrid,
 		snapCoordinate,
 		zoomFromWheel,
+		horizontalPan,
 		fitGraph,
 		resetView,
 		fitSelection,
