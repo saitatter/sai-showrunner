@@ -2260,8 +2260,6 @@ function startResize(event: PointerEvent, node: NodeData) {
 	target.addEventListener("pointerup", onUp)
 }
 
-const CLIPBOARD_MIME = "application/showrunner-nodes"
-
 let inMemoryClipboard = ""
 
 function copySelectedNodes() {
@@ -2327,24 +2325,44 @@ function pasteNodes() {
 		} catch {
 			return
 		}
-		if (!parsed?.actions?.length && !parsed?.variableNodes?.length) return
+		if (
+			(!Array.isArray(parsed?.actions) || parsed.actions.length === 0) &&
+			(!Array.isArray(parsed?.variableNodes) || parsed.variableNodes.length === 0)
+		) return
+
+		// Compute viewport center in canvas space for positioning pasted nodes
+		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
+		const rect = surface?.getBoundingClientRect()
+		const viewCenterX = rect ? (rect.width / 2) / zoom.value : 400
+		const viewCenterY = rect ? (rect.height / 2) / zoom.value : 300
 
 		const idMap = new Map<string, string>() // old ID → new ID
 		const newIds: string[] = []
 
-		// Paste action nodes
+		// Paste action nodes with offset toward viewport center
 		for (const action of parsed.actions ?? []) {
 			const cloned = cloneActionForNodeEditor(action)
 			idMap.set(action.id, cloned.id)
 			model.value.sequence.actions.push(cloned)
+			// Offset position toward center (handled by layout for action nodes)
+			const pos = nodePositions.value[cloned.id]
+			if (pos) {
+				pos.x += 40
+				pos.y += 40
+			}
 			newIds.push(cloned.id)
 		}
 
-		// Paste variable nodes with new IDs
+		// Paste variable nodes with new IDs, positioned near viewport center
 		for (const vn of parsed.variableNodes ?? []) {
 			const newId = nanoid()
 			idMap.set(vn.id, newId)
-			variableNodes.value.push({ ...vn, id: newId, x: vn.x + 40, y: vn.y + 40 })
+			variableNodes.value.push({
+				...vn,
+				id: newId,
+				x: viewCenterX + (vn.x - (parsed.variableNodes![0]?.x ?? 0)),
+				y: viewCenterY + (vn.y - (parsed.variableNodes![0]?.y ?? 0)),
+			})
 			newIds.push(newId)
 		}
 

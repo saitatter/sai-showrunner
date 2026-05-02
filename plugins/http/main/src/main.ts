@@ -74,11 +74,13 @@ export default definePlugin(
 				properties: {},
 			},
 			async invoke(config, contextData, abortSignal) {
-				let url = config.url
+				const parsed = new URL(config.url)
 				if (config.query) {
-					const separator = url.includes("?") ? "&" : "?"
-					url = `${url}${separator}${config.query}`
+					// Append user-provided query string, properly handling existing params
+					const extra = new URLSearchParams(config.query)
+					extra.forEach((value, key) => parsed.searchParams.append(key, value))
 				}
+				let url = parsed.toString()
 
 				let headers: Record<string, string> = {}
 				if (config.headers) {
