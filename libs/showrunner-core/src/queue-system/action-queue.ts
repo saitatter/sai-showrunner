@@ -27,6 +27,18 @@ import { GraphVM } from "../graph-engine/vm"
 
 const logger = usePluginLogger("queues")
 
+export interface QueueAutomationEvent {
+	queueId: string
+	queueName: string
+	itemId: string
+	sourceType: string
+	sourceId: string
+	sourceSubId?: string
+	payload: Record<string, any>
+	queuedAt?: string
+	startedAt: string
+}
+
 export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueState> {
 	static resourceDirectory: string = "./queues"
 	static storage = new ResourceStorage<ActionQueue>("ActionQueue")
@@ -203,6 +215,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 
 		const doRun = async () => {
 			try {
+				ActionQueueManager.getInstance().emitQueueItemStarted(this, seqItem)
 				const timeoutMs = Math.max(0, this.timeout * 1000)
 				if (timeoutMs > 0) {
 					this.activeTimeout = setTimeout(() => {
@@ -299,6 +312,7 @@ class TestRunnerDebugger implements ExecutionDebugger {
 export const ActionQueueManager = Service(
 	class {
 		private testVMs = new Map<string, GraphVM>()
+		private queueItemStartedListeners = new Set<(event: QueueAutomationEvent) => void | Promise<void>>()
 
 		constructor() {
 			defineIPCFunc("actionQueue", "runTestSequence", (id: string, automation: AutomationData) => {
@@ -340,6 +354,35 @@ export const ActionQueueManager = Service(
 				const program = compiler.compile(automation.graph, automation.subgraphs, automation.dataWires)
 				const vm = new GraphVM(program, { contextState: finalContext })
 				await wrapper(async () => await vm.execute(), { type, id, subId })
+			}
+		}
+
+		onQueueItemStarted(listener: (event: QueueAutomationEvent) => void | Promise<void>) {
+			this.queueItemStartedListeners.add(listener)
+			return () => {
+				this.queueItemStartedListeners.delete(listener)
+			}
+		}
+
+		emitQueueItemStarted(queue: ActionQueue, item: QueuedAutomation) {
+			const context = item.queueContext.contextState ?? {}
+			const payload = context.payload && typeof context.payload === "object" ? context.payload : context
+			const event: QueueAutomationEvent = {
+				queueId: queue.id,
+				queueName: queue.config.name,
+				itemId: item.id,
+				sourceType: item.source.type,
+				sourceId: item.source.id,
+				sourceSubId: item.source.subId,
+				payload,
+				queuedAt: typeof context.queuedAt === "string" ? context.queuedAt : undefined,
+				startedAt: new Date().toISOString(),
+			}
+
+			for (const listener of this.queueItemStartedListeners) {
+				void Promise.resolve(listener(event)).catch((error) => {
+					logger.error("Queue item started listener failed", error)
+				})
 			}
 		}
 

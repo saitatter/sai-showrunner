@@ -1,6 +1,7 @@
 import { BooleanExpression, constructDefault, Toggle, hashString } from "ShowRunner-schema"
 import {
 	ActionQueue,
+	ActionQueueManager,
 	Automation,
 	Profile,
 	ReactiveEffect,
@@ -159,6 +160,41 @@ export default definePlugin(
 			async invoke(config, contextData, abortSignal) {
 				config.queue?.clearPending()
 			},
+		})
+
+		const queueItemStarted = defineTrigger({
+			id: "queueItemStarted",
+			name: "Queue Item Started",
+			icon: "mdi mdi-tray-arrow-down",
+			description: "Runs when a queue worker item starts. Use it to drive queued alert or scene graphs.",
+			config: {
+				type: Object,
+				properties: {
+					queue: { type: ActionQueue, name: "Queue" },
+				},
+			},
+			context: {
+				type: Object,
+				properties: {
+					queueId: { type: String, name: "Queue ID" },
+					queueName: { type: String, name: "Queue Name" },
+					itemId: { type: String, name: "Queue Item ID" },
+					sourceType: { type: String, name: "Source Type" },
+					sourceId: { type: String, name: "Source ID" },
+					sourceSubId: { type: String, name: "Source Sub ID" },
+					payload: { type: Object, name: "Payload" },
+					queuedAt: { type: String, name: "Queued At" },
+					startedAt: { type: String, name: "Started At" },
+				},
+			},
+			async handle(config, context) {
+				if (!config.queue) return true
+				return config.queue.id === context.queueId
+			},
+		})
+
+		onLoad(() => {
+			ActionQueueManager.getInstance().onQueueItemStarted((event) => queueItemStarted(event))
 		})
 
 		defineAction({
