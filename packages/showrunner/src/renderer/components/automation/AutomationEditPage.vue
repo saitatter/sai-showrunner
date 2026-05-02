@@ -26,9 +26,11 @@ const renderError = ref("")
 
 const safeModel = computed({
 	get() {
-		model.value ??= { name: "", sequence: { actions: [] }, floatingSequences: [] }
-		model.value.sequence ??= { actions: [] }
-		model.value.floatingSequences ??= []
+		model.value ??= { name: "", sequence: { actions: [] }, floatingSequences: [], graph: { nodes: [], edges: [], entryNodeId: "" } }
+		model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" }
+		model.value.subgraphs ??= []
+		model.value.dataWires ??= []
+		model.value.variableNodes ??= []
 		return model.value
 	},
 	set(value: AutomationConfig) {
@@ -58,10 +60,10 @@ const safeView = computed({
 const debugSummary = computed(() =>
 	JSON.stringify({
 		name: safeModel.value.name,
-		hasSequence: !!safeModel.value.sequence,
-		actionCount: safeModel.value.sequence?.actions?.length ?? 0,
-		floatingCount: safeModel.value.floatingSequences?.length ?? 0,
 		hasGraph: !!safeModel.value.graph,
+		graphNodeCount: safeModel.value.graph?.nodes?.length ?? 0,
+		graphEdgeCount: safeModel.value.graph?.edges?.length ?? 0,
+		entryNodeId: safeModel.value.graph?.entryNodeId ?? "",
 		dataWireCount: safeModel.value.dataWires?.length ?? 0,
 		variableNodeCount: safeModel.value.variableNodes?.length ?? 0,
 		hasView: !!safeView.value,

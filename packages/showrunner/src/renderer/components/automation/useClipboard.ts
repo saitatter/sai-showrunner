@@ -5,20 +5,18 @@
 import { type Ref } from "vue"
 import { nanoid } from "nanoid"
 import {
-	AnyAction,
-	ActionStack,
 	AutomationConfig,
-	isActionStack,
-	findActionAndSequenceById,
-	assignNewIds,
 	type AutomationDataWire,
 	type AutomationVariableNode,
+	type GraphEdge,
+	type GraphNode,
 } from "ShowRunner-schema"
 import type { NodePosition } from "./useNodeCanvas"
 import type { NodeData } from "./useNodeRendering"
 
 interface ClipboardPayload {
-	actions?: (AnyAction | ActionStack)[]
+	graphNodes?: GraphNode[]
+	graphEdges?: GraphEdge[]
 	variableNodes?: AutomationVariableNode[]
 	wires?: AutomationDataWire[]
 }
@@ -35,56 +33,48 @@ export function useClipboard(
 	commitUndo: () => void,
 	logActivity: (action: string, detail: string) => void,
 	clearSelection: () => void,
-	cloneActionForNodeEditor: (action: AnyAction | ActionStack) => AnyAction | ActionStack,
 ) {
 	let inMemoryClipboard = ""
 
 	function copySelectedNodes() {
-		const actions: (AnyAction | ActionStack)[] = []
+		const graphNodes: GraphNode[] = []
 		const copiedVarNodes: AutomationVariableNode[] = []
 		const selectedIds = new Set(selectedNodeIds.value)
 
 		for (const id of selectedIds) {
 			if (id === "trigger") continue
-			const info = findActionAndSequenceById(id, model.value)
-			if (info) {
-				actions.push(structuredClone(info.action))
-			} else {
-				const vn = variableNodes.value.find((v) => v.id === id)
-				if (vn) copiedVarNodes.push(structuredClone(vn))
-			}
+			const node = model.value.graph?.nodes.find((graphNode) => graphNode.id === id)
+			if (node) graphNodes.push(structuredClone(node))
+			const vn = variableNodes.value.find((v) => v.id === id)
+			if (vn) copiedVarNodes.push(structuredClone(vn))
 		}
 
 		const copiedWires = dataWires.value.filter(
 			(w) => selectedIds.has(w.fromNode) && selectedIds.has(w.toNode)
 		).map((w) => structuredClone(w))
+		const copiedEdges = (model.value.graph?.edges ?? []).filter(
+			(edge) => selectedIds.has(edge.from) && selectedIds.has(edge.to)
+		).map((edge) => structuredClone(edge))
 
-		if (actions.length === 0 && copiedVarNodes.length === 0) return
-		const payload = JSON.stringify({ actions, variableNodes: copiedVarNodes, wires: copiedWires })
+		if (graphNodes.length === 0 && copiedVarNodes.length === 0) return
+		const payload = JSON.stringify({ graphNodes, graphEdges: copiedEdges, variableNodes: copiedVarNodes, wires: copiedWires })
 		inMemoryClipboard = payload
 		navigator.clipboard.writeText(payload).catch((err) => {
 			console.warn("[Clipboard] Failed to write to system clipboard, using in-memory fallback", err)
 		})
-		logActivity("Copied", `${actions.length + copiedVarNodes.length} node${(actions.length + copiedVarNodes.length) === 1 ? "" : "s"}`)
+		logActivity("Copied", `${graphNodes.length + copiedVarNodes.length} node${(graphNodes.length + copiedVarNodes.length) === 1 ? "" : "s"}`)
 	}
 
 	function cutSelectedNodes() {
 		copySelectedNodes()
 		const idsToDelete = [...selectedNodeIds.value].filter((id) => id !== "trigger")
+		model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" }
 		for (const id of idsToDelete) {
-			// Try action node
-			const info = findActionAndSequenceById(id, model.value)
-			if (info) {
-				const idx = info.sequence.actions.findIndex((item) => {
-					if (isActionStack(item)) return item.id === id
-					return (item as AnyAction).id === id
-				})
-				if (idx >= 0) info.sequence.actions.splice(idx, 1)
-			} else {
-				// Try variable node
-				const vnIdx = variableNodes.value.findIndex((v) => v.id === id)
-				if (vnIdx >= 0) variableNodes.value.splice(vnIdx, 1)
-			}
+			model.value.graph.nodes = model.value.graph.nodes.filter((node) => node.id !== id)
+			model.value.graph.edges = model.value.graph.edges.filter((edge) => edge.from !== id && edge.to !== id)
+			if (model.value.graph.entryNodeId === id) model.value.graph.entryNodeId = model.value.graph.nodes[0]?.id ?? ""
+			const vnIdx = variableNodes.value.findIndex((v) => v.id === id)
+			if (vnIdx >= 0) variableNodes.value.splice(vnIdx, 1)
 			delete nodePositions.value[id]
 			dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
 		}
@@ -102,7 +92,7 @@ export function useClipboard(
 				return
 			}
 			if (
-				(!Array.isArray(parsed?.actions) || parsed.actions.length === 0) &&
+				(!Array.isArray(parsed?.graphNodes) || parsed.graphNodes.length === 0) &&
 				(!Array.isArray(parsed?.variableNodes) || parsed.variableNodes.length === 0)
 			) return
 
@@ -113,17 +103,34 @@ export function useClipboard(
 
 			const idMap = new Map<string, string>()
 			const newIds: string[] = []
+			model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" }
 
-			for (const action of parsed.actions ?? []) {
-				const cloned = cloneActionForNodeEditor(action)
-				idMap.set(action.id, cloned.id)
-				model.value.sequence.actions.push(cloned)
-				const pos = nodePositions.value[cloned.id]
-				if (pos) {
-					pos.x += 40
-					pos.y += 40
-				}
+			for (const node of parsed.graphNodes ?? []) {
+				const newId = nanoid()
+				idMap.set(node.id, newId)
+				const cloned = {
+					...structuredClone(node),
+					id: newId,
+					x: viewCenterX + (node.x - (parsed.graphNodes![0]?.x ?? 0)),
+					y: viewCenterY + (node.y - (parsed.graphNodes![0]?.y ?? 0)),
+				} as GraphNode
+				model.value.graph.nodes.push(cloned)
+				if (!model.value.graph.entryNodeId) model.value.graph.entryNodeId = cloned.id
+				nodePositions.value[cloned.id] = { x: cloned.x, y: cloned.y }
 				newIds.push(cloned.id)
+			}
+
+			for (const edge of parsed.graphEdges ?? []) {
+				const newFrom = idMap.get(edge.from)
+				const newTo = idMap.get(edge.to)
+				if (newFrom && newTo) {
+					model.value.graph.edges.push({
+						id: `${newFrom}:${edge.port ?? "out"}:${newTo}`,
+						from: newFrom,
+						to: newTo,
+						port: edge.port,
+					})
+				}
 			}
 
 			for (const vn of parsed.variableNodes ?? []) {

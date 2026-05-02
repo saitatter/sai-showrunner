@@ -118,7 +118,17 @@ export function useOpenAutomationDocument() {
 
 	return (id: string) => {
 		const resource = resourceStore.value?.resources?.get(id)
-		const config: AutomationConfig = resource?.config ?? { name: "Untitled", sequence: { actions: [] }, floatingSequences: [] }
+		const config: AutomationConfig = resource?.config ?? {
+			name: "Untitled",
+			sequence: { actions: [] },
+			floatingSequences: [],
+			graph: { nodes: [], edges: [], entryNodeId: "" },
+			subgraphs: [],
+		}
+		config.graph ??= { nodes: [], edges: [], entryNodeId: "" }
+		config.subgraphs ??= []
+		config.dataWires ??= []
+		config.variableNodes ??= []
 
 		dockingStore.openDocument(
 			id,

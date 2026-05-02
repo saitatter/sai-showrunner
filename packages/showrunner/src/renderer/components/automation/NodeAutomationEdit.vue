@@ -282,9 +282,6 @@
 								@dblclick.stop="node.kind === 'variable' && startInlineEdit(node.id)"
 							>{{ node.subtitle }}</small>
 						</span>
-						<span v-if="node.kind === 'floating'" class="node-automation__node-run" title="Run this sequence" @click.stop="runFloatingSequence(node.id)">
-							<i class="mdi mdi-play" />
-						</span>
 						<span v-if="node.kind === 'trigger'" class="node-automation__node-run" title="Run automation" @click.stop="runMainSequence">
 							<i class="mdi mdi-play" />
 						</span>
@@ -507,7 +504,7 @@
 							</div>
 						</div>
 					</section>
-					<!-- Flow: Control Flow Nodes + Floating Sequences -->
+					<!-- Flow: Control Flow Nodes + Subgraphs -->
 					<section class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('flow')" @click="toggleContextGroup('flow')">
 							<span><i class="mdi mdi-vector-polyline" /> Flow</span>
@@ -564,10 +561,6 @@
 									</button>
 									<hr style="border: none; border-top: 1px solid #333; margin: 6px 0;" />
 								</template>
-								<button type="button" @click="addFloatingSequence">
-									<i class="mdi mdi-plus-circle-outline" />
-									<span><strong>New Floating Sequence</strong></span>
-								</button>
 							</div>
 						</div>
 					</section>
@@ -665,7 +658,6 @@
 								<action-config-edit
 									v-if="selectedActionDef"
 									v-model="selectedActionDef"
-									:sequence="selectedSequence"
 									:local-path="selectedActionPath"
 								/>
 								<trigger-config-edit v-else-if="selectedNode.id === 'trigger'" v-model="model" />
@@ -848,15 +840,7 @@ import {
 	useActionQueueStore,
 } from "ShowRunner-ui-core"
 import {
-	ActionStack,
 	AnyAction,
-	FloatingSequence,
-	Sequence,
-	assignNewIds,
-	findActionAndSequenceById,
-	isActionStack,
-	isFlowAction,
-	isTimeAction,
 	isObjectSchema,
 	constructDefault,
 	type AutomationDataWire,
@@ -881,23 +865,10 @@ import {
 	type LaneData,
 	NODE_WIDTH,
 	NODE_BASE_HEIGHT,
-	CONFIG_LINE_HEIGHT,
-	PORT_LINE_HEIGHT,
-	MAX_CONFIG_LINES,
-	MAX_PORTS,
 	H_GAP,
-	V_GAP,
 	computeNodeHeight,
-	summarizeConfigValue,
-	schemaTypeLabel,
-	titleCase,
-	formatSeconds,
-	extractPorts,
-	extractConfigSummary,
 	GRAPH_NODE_INFO,
 	summarizeExpression,
-	graphNodeToNodeData,
-	buildGraphFromAutomationGraph,
 	buildGraph,
 	getNodeLane,
 } from "./useNodeRendering"
@@ -1040,7 +1011,7 @@ const edges = computed<EdgeData[]>(() => {
 		const toY = toNode ? toNode.y + toNode.height / 2 : 0
 		const cpOffset = Math.min(80, Math.abs(toX - fromX) / 2)
 		const path = `M${fromX},${fromY} C${fromX + cpOffset},${fromY} ${toX - cpOffset},${toY} ${toX},${toY}`
-		return { id: e.id, from: e.from, to: e.to, path }
+		return { id: e.id, from: e.from, to: e.to, port: e.port, path }
 	}).filter((e) => e.path)
 })
 const lanes = computed<LaneData[]>(() => {
@@ -1091,26 +1062,20 @@ const {
 } = useAutomationPreview(model, previewNodes)
 const selectedActionInfo = computed(() => {
 	if (!selectedNodeId.value || selectedNodeId.value === "trigger") return undefined
-	return findActionAndSequenceById(selectedNodeId.value, model.value)
+	const index = model.value.graph?.nodes.findIndex((node) => node.id === selectedNodeId.value && node.type === "action") ?? -1
+	if (index < 0) return undefined
+	return model.value.graph!.nodes[index] as Extract<GraphNode, { type: "action" }>
 })
-const selectedActionPath = computed(() => selectedActionInfo.value?.path)
-const selectedSequence = computed(() => {
-	const actionInfo = selectedActionInfo.value
-	if (!actionInfo || isActionStack(actionInfo.action)) return undefined
-	return actionInfo.sequence
+const selectedActionPath = computed(() => {
+	if (!selectedActionInfo.value || !model.value.graph) return undefined
+	const index = model.value.graph.nodes.findIndex((node) => node.id === selectedActionInfo.value?.id)
+	return index >= 0 ? `graph.nodes[${index}]` : undefined
 })
 const selectedActionDef = computed(() => {
-	const actionInfo = selectedActionInfo.value
-	if (!actionInfo || isActionStack(actionInfo.action)) return undefined
-	return actionInfo.action
-})
-const selectedActionPosition = computed(() => {
-	if (!selectedActionPath.value) return undefined
-	return getPathPosition(selectedActionPath.value)
+	return selectedActionInfo.value
 })
 const canEditSelectedAction = computed(() => {
-	const position = selectedActionPosition.value
-	return Boolean(position && selectedActionInfo.value)
+	return Boolean(selectedActionInfo.value)
 })
 const actionPalette = computed(() =>
 	[...pluginStore.pluginMap.values()]
@@ -1200,7 +1165,7 @@ const {
 	copySelectedNodes,
 	cutSelectedNodes,
 	pasteNodes,
-} = useClipboard(model, selectedNodeIds, selectedNodeId, variableNodes, dataWires, nodePositions, canvasRef, zoom, commitUndo, logActivity, clearSelection, cloneActionForNodeEditor)
+} = useClipboard(model, selectedNodeIds, selectedNodeId, variableNodes, dataWires, nodePositions, canvasRef, zoom, commitUndo, logActivity, clearSelection)
 const {
 	contextMenu,
 	contextMenuQuery,
@@ -1401,15 +1366,10 @@ function handleKeydown(event: KeyboardEvent) {
 
 	if (event.key === "Delete" || event.key === "Backspace") {
 		const hasMultipleActionNodes = selectedNodeIds.value.size > 1 &&
-			[...selectedNodeIds.value].some((id) => id !== "trigger" && findActionAndSequenceById(id, model.value))
+			[...selectedNodeIds.value].some((id) => id !== "trigger" && model.value.graph?.nodes.some((node) => node.id === id))
 		if (canEditSelectedAction.value || hasMultipleActionNodes) {
 			event.preventDefault()
 			deleteSelectedAction()
-		} else if (selectedNode.value?.kind === "floating") {
-			event.preventDefault()
-			deleteFloatingSequence(selectedNode.value.id)
-			selectedNodeId.value = undefined
-			selectedNodeIds.value = new Set()
 		} else if (selectedNode.value?.kind === "variable") {
 			event.preventDefault()
 			deleteVariableNode(selectedNode.value.id)
@@ -1757,10 +1717,9 @@ async function selectActionFromContext(actionKey: string) {
 	const actionDef = plugin?.actions?.[selection.action]
 	trackRecentlyUsed(actionKey, "action", actionDef?.name ?? selection.action, actionDef?.icon ?? "mdi mdi-play", String(plugin?.color ?? "#e9aaff"))
 
-	insertAction(action, contextMenu.value.nodeId)
-	if (!contextMenu.value.nodeId && contextMenu.value.canvasPoint) {
-		nodePositions.value[action.id] = contextMenu.value.canvasPoint
-	}
+	const position = !contextMenu.value.nodeId ? contextMenu.value.canvasPoint : undefined
+	insertAction(action, contextMenu.value.nodeId, position)
+	if (position) nodePositions.value[action.id] = position
 	logActivity("Added action", `${selection.plugin}/${selection.action}`)
 	focusNode(action.id)
 	configOpen.value = true
@@ -1808,8 +1767,9 @@ async function dropActionOnCanvas(event: DragEvent) {
 	const action = await createDraggedAction(event)
 	if (!action) return
 
-	model.value.sequence.actions.push(action)
-	nodePositions.value[action.id] = getCanvasPoint(event)
+	const position = getCanvasPoint(event)
+	addGraphActionNode(action, position)
+	nodePositions.value[action.id] = position
 	logActivity("Dropped action", `${action.plugin}/${action.action} on canvas`)
 	focusNode(action.id)
 	configOpen.value = true
@@ -1826,11 +1786,12 @@ async function dropActionOnNode(event: DragEvent, node: NodeData) {
 	const action = await createDraggedAction(event)
 	if (!action) return
 
-	insertAction(action, node.id)
-	nodePositions.value[action.id] = {
+	const position = {
 		x: snapCoordinate(node.x + H_GAP),
 		y: snapCoordinate(node.y),
 	}
+	insertAction(action, node.id, position)
+	nodePositions.value[action.id] = position
 	logActivity("Inserted action", `${action.plugin}/${action.action} after ${node.title}`)
 	focusNode(action.id)
 	configOpen.value = true
@@ -1846,18 +1807,14 @@ async function dropActionOnEdge(event: DragEvent, edge: EdgeData) {
 	const action = await createDraggedAction(event)
 	if (!action) return
 
-	if (edge.from === "trigger") {
-		model.value.sequence.actions.unshift(action)
-	} else {
-		insertAction(action, edge.from)
-	}
-
 	const fromNode = nodes.value.find((node) => node.id === edge.from)
 	const toNode = nodes.value.find((node) => node.id === edge.to)
-	nodePositions.value[action.id] = {
+	const position = {
 		x: snapCoordinate(((fromNode?.x ?? 42) + (toNode?.x ?? 42)) / 2),
 		y: snapCoordinate(((fromNode?.y ?? 88) + (toNode?.y ?? 88)) / 2),
 	}
+	insertActionOnEdge(action, edge, position)
+	nodePositions.value[action.id] = position
 	logActivity("Inserted on edge", `${action.plugin}/${action.action}`)
 	focusNode(action.id)
 	configOpen.value = true
@@ -1882,26 +1839,107 @@ async function createDraggedAction(event: DragEvent) {
 	return pluginStore.createAction(selection)
 }
 
-function insertAction(action: AnyAction, afterNodeId = selectedNodeId.value) {
-	if (afterNodeId) {
-		const position = getNodePosition(afterNodeId)
-		if (position?.containerKind === "actions") {
-			position.items.splice(position.index + 1, 0, action)
-			return
+function ensureGraph() {
+	model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" }
+	return model.value.graph
+}
+
+function toGraphActionNode(action: AnyAction, position: NodePosition): Extract<GraphNode, { type: "action" }> {
+	return {
+		id: action.id,
+		type: "action",
+		plugin: action.plugin,
+		action: action.action,
+		config: structuredClone(action.config ?? {}),
+		resultMapping: action.resultMapping ? structuredClone(action.resultMapping) : undefined,
+		x: position.x,
+		y: position.y,
+	}
+}
+
+function addGraphActionNode(action: AnyAction, position: NodePosition) {
+	const graph = ensureGraph()
+	const node = toGraphActionNode(action, position)
+	graph.nodes.push(node)
+	if (!graph.entryNodeId) graph.entryNodeId = node.id
+	return node
+}
+
+function insertAction(action: AnyAction, afterNodeId = selectedNodeId.value, position?: NodePosition) {
+	const graph = ensureGraph()
+	const anchor = afterNodeId && afterNodeId !== "trigger" ? nodes.value.find((node) => node.id === afterNodeId) : undefined
+	const fallbackPosition = position ?? {
+		x: snapCoordinate((anchor?.x ?? 42) + H_GAP),
+		y: snapCoordinate(anchor?.y ?? 88),
+	}
+	const node = addGraphActionNode(action, fallbackPosition)
+
+	if (!afterNodeId) return node
+
+	if (afterNodeId === "trigger") {
+		const previousEntry = graph.entryNodeId && graph.entryNodeId !== node.id ? graph.entryNodeId : ""
+		graph.entryNodeId = node.id
+		if (previousEntry) {
+			graph.edges.push({ id: `${node.id}:${previousEntry}`, from: node.id, to: previousEntry })
 		}
+		return node
 	}
 
-	model.value.sequence.actions.push(action)
+	const outgoing = graph.edges.find((edge) => edge.from === afterNodeId && edge.port == null)
+	if (outgoing) {
+		const previousTo = outgoing.to
+		outgoing.to = node.id
+		graph.edges.push({ id: `${node.id}:${previousTo}`, from: node.id, to: previousTo })
+	} else {
+		graph.edges.push({ id: `${afterNodeId}:${node.id}`, from: afterNodeId, to: node.id })
+	}
+	return node
+}
+
+function insertActionOnEdge(action: AnyAction, edge: EdgeData, position: NodePosition) {
+	const graph = ensureGraph()
+	const node = addGraphActionNode(action, position)
+
+	if (edge.from === "trigger") {
+		const previousEntry = graph.entryNodeId && graph.entryNodeId !== node.id ? graph.entryNodeId : edge.to
+		graph.entryNodeId = node.id
+		if (previousEntry && previousEntry !== node.id) {
+			graph.edges.push({ id: `${node.id}:${previousEntry}`, from: node.id, to: previousEntry })
+		}
+		return node
+	}
+
+	const existing = graph.edges.find((graphEdge) => graphEdge.id === edge.id)
+	if (existing) {
+		const previousTo = existing.to
+		existing.to = node.id
+		graph.edges.push({ id: `${node.id}:${previousTo}`, from: node.id, to: previousTo })
+	} else {
+		graph.edges.push({ id: `${edge.from}:${node.id}`, from: edge.from, to: node.id, port: edge.port })
+		graph.edges.push({ id: `${node.id}:${edge.to}`, from: node.id, to: edge.to })
+	}
+	return node
 }
 
 function duplicateSelectedAction() {
 	const actionInfo = selectedActionInfo.value
-	const position = selectedActionPosition.value
-	if (!actionInfo || !position) return
+	if (!actionInfo) return
 
-	const clonedAction = cloneActionForNodeEditor(actionInfo.action)
-	position.items.splice(position.index + 1, 0, clonedAction)
-	logActivity("Duplicated node", selectedNode.value?.title || actionInfo.action.id)
+	const clonedAction: AnyAction = {
+		id: nanoid(),
+		plugin: actionInfo.plugin,
+		action: actionInfo.action,
+		config: structuredClone(actionInfo.config ?? {}),
+		resultMapping: actionInfo.resultMapping ? structuredClone(actionInfo.resultMapping) : undefined,
+	}
+	const sourceNode = selectedNode.value
+	const position = {
+		x: snapCoordinate((sourceNode?.x ?? actionInfo.x) + H_GAP),
+		y: snapCoordinate(sourceNode?.y ?? actionInfo.y),
+	}
+	insertAction(clonedAction, actionInfo.id, position)
+	nodePositions.value[clonedAction.id] = position
+	logActivity("Duplicated node", selectedNode.value?.title || actionInfo.id)
 	focusNode(clonedAction.id)
 	configOpen.value = true
 	commitUndo()
@@ -1911,45 +1949,12 @@ function deleteSelectedAction() {
 	// Multi-select: delete all selected action nodes
 	const idsToDelete = selectedNodeIds.value.size > 1
 		? [...selectedNodeIds.value].filter((id) => id !== "trigger")
-		: selectedActionPosition.value ? [selectedNodeId.value!] : []
+		: selectedActionInfo.value ? [selectedNodeId.value!] : []
 
-	// In graph mode, also handle nodes that are only in the graph (not in sequence)
-	if (model.value.graph && idsToDelete.length === 0 && selectedNodeId.value && selectedNodeId.value !== "trigger") {
-		const graphNodeExists = model.value.graph.nodes.some((n) => n.id === selectedNodeId.value)
-		if (graphNodeExists) {
-			deleteGraphNodes([selectedNodeId.value])
-			return
-		}
-	}
-	if (model.value.graph && idsToDelete.length > 0) {
+	if (idsToDelete.length > 0) {
 		deleteGraphNodes(idsToDelete)
 		return
 	}
-
-	if (idsToDelete.length === 0) return
-
-	let anyRemoved = false
-	for (const id of idsToDelete) {
-		const info = findActionAndSequenceById(id, model.value)
-		if (!info) continue
-		const pos = getPathPosition(info.path)
-		if (!pos) continue
-		const idx = pos.items.findIndex((item) => {
-			if (isActionStack(item)) return item.id === id
-			return (item as AnyAction).id === id
-		})
-		if (idx >= 0) {
-			pos.items.splice(idx, 1)
-			delete nodePositions.value[id]
-			dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
-			anyRemoved = true
-		}
-	}
-	if (anyRemoved) {
-		logActivity("Deleted", `${idsToDelete.length} node${idsToDelete.length === 1 ? "" : "s"}`)
-	}
-	clearSelection()
-	if (anyRemoved) commitUndo()
 }
 
 function deleteGraphNodes(ids: string[]) {
@@ -1974,59 +1979,27 @@ function deleteSelectedEdge() {
 	const edge = edges.value.find((e) => e.id === edgeId)
 	if (!edge) return
 
-	// In graph mode, just remove the edge from the graph
 	if (model.value.graph) {
 		deleteExecEdge(edgeId)
 		selectedEdgeId.value = undefined
 		return
 	}
-
-	const toId = edge.to
-	if (toId === "trigger") return
-
-	// Split: detach the downstream node (and everything after it) into a new floating sequence
-	const result = findActionAndSequenceById(toId, model.value)
-	if (result) {
-		const idx = result.sequence.actions.findIndex((a) => a.id === toId)
-		if (idx >= 0) {
-			const detached = result.sequence.actions.splice(idx)
-			if (detached.length > 0) {
-				const firstPos = nodePositions.value[detached[0].id]
-				const floatingSeq: FloatingSequence = {
-					actions: detached,
-					id: nanoid(),
-					x: firstPos?.x ?? 100,
-					y: (firstPos?.y ?? 200) + 60,
-				}
-				model.value.floatingSequences.push(floatingSeq)
-				logActivity("Split sequence", `${detached.length} node${detached.length === 1 ? "" : "s"} detached`)
-				commitUndo()
-			}
-		}
-	}
 	selectedEdgeId.value = undefined
 }
 
 function canMoveSelectedAction(direction: -1 | 1) {
-	const position = selectedActionPosition.value
-	if (!position) return false
-	const nextIndex = position.index + direction
-	return nextIndex >= 0 && nextIndex < position.items.length
+	return Boolean(selectedActionInfo.value && direction)
 }
 
 function moveSelectedAction(direction: -1 | 1) {
-	const position = selectedActionPosition.value
-	if (!position || !canMoveSelectedAction(direction)) return
-	const [action] = position.items.splice(position.index, 1)
-	position.items.splice(position.index + direction, 0, action)
-	logActivity(direction < 0 ? "Moved node left" : "Moved node right", selectedNode.value?.title || action.id)
+	const nodeId = selectedActionInfo.value?.id
+	if (!nodeId || !canMoveSelectedAction(direction)) return
+	const node = model.value.graph?.nodes.find((graphNode) => graphNode.id === nodeId)
+	if (!node) return
+	node.x = snapCoordinate(node.x + direction * H_GAP)
+	nodePositions.value[node.id] = { x: node.x, y: node.y }
+	logActivity(direction < 0 ? "Moved node left" : "Moved node right", selectedNode.value?.title || node.id)
 	commitUndo()
-}
-
-function getNodePosition(nodeId: string) {
-	const info = findActionAndSequenceById(nodeId, model.value)
-	if (!info) return undefined
-	return getPathPosition(info.path)
 }
 
 function getCanvasPoint(event: DragEvent): NodePosition {
@@ -2039,12 +2012,6 @@ function updateGhostNode(event: DragEvent) {
 
 function getCanvasPointFromClient(clientX: number, clientY: number): NodePosition {
 	return getCanvasPointFromClientPosition(clientX, clientY)
-}
-
-function cloneActionForNodeEditor(action: AnyAction | ActionStack) {
-	const clonedSequence = { actions: [structuredClone(action)] }
-	assignNewIds(clonedSequence)
-	return clonedSequence.actions[0]
 }
 
 // ─── Subgraph Management ──────────────────────────────────────────────────────
@@ -2151,40 +2118,6 @@ function addControlFlowNode(type: GraphNodeType) {
 	closeContextMenu()
 	logActivity("Added", GRAPH_NODE_INFO[type].label)
 	commitUndo()
-}
-
-function addFloatingSequence() {
-	const canvasPoint = contextMenu.value.canvasPoint ?? { x: 100, y: 200 }
-	const floatingSequence: FloatingSequence = {
-		actions: [],
-		x: canvasPoint.x,
-		y: canvasPoint.y,
-		id: nanoid(),
-	}
-	model.value.floatingSequences.push(floatingSequence)
-	closeContextMenu()
-	logActivity("Added", "Floating Sequence")
-	commitUndo()
-}
-
-function deleteFloatingSequence(floatingId: string) {
-	const idx = model.value.floatingSequences.findIndex((f) => f.id === floatingId)
-	if (idx >= 0) {
-		model.value.floatingSequences.splice(idx, 1)
-		logActivity("Deleted", "Floating Sequence")
-		commitUndo()
-	}
-}
-
-function runFloatingSequence(floatingId: string) {
-	const floating = model.value.floatingSequences.find((f) => f.id === floatingId)
-	if (!floating) return
-	actionQueueStore.testSequence({
-		sequence: { actions: floating.actions },
-		floatingSequences: [],
-		dataWires: model.value.dataWires,
-		variableNodes: model.value.variableNodes,
-	})
 }
 
 function runMainSequence() {
@@ -2295,51 +2228,6 @@ function startResize(event: PointerEvent, node: NodeData) {
 	target.addEventListener("pointerup", onUp)
 }
 
-
-function getPathPosition(path: string):
-	| {
-			items: Array<AnyAction | ActionStack>
-			index: number
-			containerKind: "actions" | "stack"
-	  }
-	| undefined {
-	const parts = Array.from(path.matchAll(/([a-zA-Z]+)(?:\[(\d+)\])?/g)).map((match) => ({
-		key: match[1],
-		index: match[2] === undefined ? undefined : Number(match[2]),
-	}))
-
-	let cursor: any = model.value
-	let lastContainer: Array<AnyAction | ActionStack> | undefined
-	let lastContainerKind: "actions" | "stack" | undefined
-	let lastIndex = -1
-
-	for (const part of parts) {
-		if (part.key === "actions" || part.key === "stack") {
-			lastContainer = cursor?.[part.key]
-			lastContainerKind = part.key
-			lastIndex = part.index ?? -1
-			cursor = lastContainer?.[lastIndex]
-			continue
-		}
-
-		if (part.key === "sequence") {
-			cursor = model.value.sequence
-			continue
-		}
-
-		if (part.key === "floatingSequences") {
-			cursor = model.value.floatingSequences?.[part.index ?? -1]
-			continue
-		}
-
-		if (part.key === "offsets" || part.key === "subFlows") {
-			cursor = cursor?.[part.key]?.[part.index ?? -1]
-		}
-	}
-
-	if (!lastContainer || lastIndex < 0 || lastIndex >= lastContainer.length || !lastContainerKind) return undefined
-	return { items: lastContainer, index: lastIndex, containerKind: lastContainerKind }
-}
 
 onMounted(() => {
 	window.addEventListener("keydown", handleKeydown)

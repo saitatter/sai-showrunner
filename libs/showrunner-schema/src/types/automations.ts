@@ -45,7 +45,7 @@ export interface InlineAutomation extends AutomationData {
 }
 
 export function createInlineAutomation(): InlineAutomation {
-	return { sequence: { actions: [] }, floatingSequences: [], queue: undefined }
+	return { sequence: { actions: [] }, floatingSequences: [], graph: { nodes: [], edges: [], entryNodeId: "" }, subgraphs: [], queue: undefined }
 }
 
 export interface AutomationConfig extends AutomationData {

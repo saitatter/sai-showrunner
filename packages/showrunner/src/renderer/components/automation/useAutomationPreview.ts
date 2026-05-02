@@ -1,5 +1,5 @@
 import { computed, ref, type ComputedRef, type Ref } from "vue"
-import { findActionAndSequenceById, isActionStack, type AutomationConfig } from "ShowRunner-schema"
+import { type AutomationConfig } from "ShowRunner-schema"
 import { usePluginStore } from "ShowRunner-ui-core"
 
 interface PreviewNode {
@@ -48,9 +48,8 @@ export function useAutomationPreview(model: Ref<AutomationConfig>, previewNodes:
 	const previewTotalLabel = computed(() => formatSeconds(previewTotalMs.value / 1000))
 
 	function getConfiguredDurationSeconds(actionId: string) {
-		const actionInfo = findActionAndSequenceById(actionId, model.value)
-		const action = actionInfo?.action
-		if (!action || isActionStack(action)) return undefined
+		const action = model.value.graph?.nodes.find((node) => node.id === actionId && node.type === "action")
+		if (!action || action.type !== "action") return undefined
 
 		const configuredDuration = Number(action.config?.duration)
 		if (Number.isFinite(configuredDuration) && configuredDuration > 0) return configuredDuration
@@ -68,10 +67,8 @@ export function useAutomationPreview(model: Ref<AutomationConfig>, previewNodes:
 	}
 
 	function getPreviewNodeDurationMs(nodeId: string) {
-		const actionInfo = findActionAndSequenceById(nodeId, model.value)
-		const action = actionInfo?.action
+		const action = model.value.graph?.nodes.find((node) => node.id === nodeId && node.type === "action")
 		if (!action) return PREVIEW_DEFAULT_STEP_SECONDS * 1000
-		if (isActionStack(action)) return Math.max(PREVIEW_DEFAULT_STEP_SECONDS, action.stack.length * 0.35) * 1000
 		return (getConfiguredDurationSeconds(nodeId) ?? PREVIEW_DEFAULT_STEP_SECONDS) * 1000
 	}
 

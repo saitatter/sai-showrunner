@@ -7,10 +7,6 @@ import {
 } from "ShowRunner-ui-core"
 import {
 	AnyAction,
-	ActionStack,
-	FloatingSequence,
-	Sequence,
-	isActionStack,
 	isFlowAction,
 	isTimeAction,
 	isObjectSchema,
@@ -49,6 +45,7 @@ export interface EdgeData {
 	id: string
 	from: string
 	to: string
+	port?: string
 	path: string
 }
 
@@ -333,6 +330,7 @@ export function buildGraphFromAutomationGraph(
 		id: e.id,
 		from: e.from,
 		to: e.to,
+		port: e.port,
 	}))
 	return { nodes, edges }
 }
@@ -340,35 +338,15 @@ export function buildGraphFromAutomationGraph(
 export function buildGraph(
 	automation: AutomationConfig,
 	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>,
-	getPreviewConfiguredDurationSeconds: (id: string) => number | undefined
+	_getPreviewConfiguredDurationSeconds: (id: string) => number | undefined
 ) {
 	if (!automation) return { nodes: [], edges: [] }
-	if (automation.graph) {
-		const { nodes: graphNodes, edges: graphEdges } = buildGraphFromAutomationGraph(automation.graph, pluginMap)
-		const triggerId = "trigger"
-		const triggerNode: NodeData = {
-			id: triggerId,
-			kind: "trigger",
-			title: automation.trigger ? titleCase(automation.trigger) : "Start",
-			subtitle: automation.plugin ? `${automation.plugin} trigger` : "Entry point",
-			icon: "mdi mdi-flash",
-			x: 42,
-			y: 88,
-			height: NODE_BASE_HEIGHT,
-		}
-		const nodes = [triggerNode, ...graphNodes]
-		const edges = [...graphEdges]
-		if (automation.graph.entryNodeId) {
-			edges.push({ id: `${triggerId}:${automation.graph.entryNodeId}`, from: triggerId, to: automation.graph.entryNodeId })
-		}
-		return { nodes, edges }
-	}
-
-	const nodes: NodeData[] = []
-	const edges: Omit<EdgeData, "path">[] = []
-
+	const { nodes: graphNodes, edges: graphEdges } = buildGraphFromAutomationGraph(
+		automation.graph ?? { nodes: [], edges: [], entryNodeId: "" },
+		pluginMap
+	)
 	const triggerId = "trigger"
-	nodes.push({
+	const triggerNode: NodeData = {
 		id: triggerId,
 		kind: "trigger",
 		title: automation.trigger ? titleCase(automation.trigger) : "Start",
@@ -377,173 +355,19 @@ export function buildGraph(
 		x: 42,
 		y: 88,
 		height: NODE_BASE_HEIGHT,
-	})
-
-	if (automation.sequence) {
-		const mainNodes = addSequence(nodes, edges, automation.sequence, "sequence", 1, 0, "Main", pluginMap, getPreviewConfiguredDurationSeconds)
-		if (mainNodes[0]) edges.push({ id: `${triggerId}:${mainNodes[0]}`, from: triggerId, to: mainNodes[0] })
 	}
-
-	automation.floatingSequences?.forEach((sequence, index) => {
-		const floatingId = sequence.id || `floating-${index}`
-		nodes.push({
-			id: floatingId,
-			kind: "floating",
-			title: `Floating ${index + 1}`,
-			subtitle: `${sequence.actions.length} action${sequence.actions.length === 1 ? "" : "s"}`,
-			icon: "mdi mdi-vector-polyline",
-			badge: "free",
-			x: 42,
-			y: 280 + index * V_GAP,
-			path: `floatingSequences[${index}]`,
-			height: NODE_BASE_HEIGHT,
-		})
-		const childNodes = addSequence(nodes, edges, sequence, `floatingSequences[${index}]`, 1, index + 2, `Floating ${index + 1}`, pluginMap, getPreviewConfiguredDurationSeconds)
-		if (childNodes[0]) edges.push({ id: `${floatingId}:${childNodes[0]}`, from: floatingId, to: childNodes[0] })
-	})
-
+	const nodes = [triggerNode, ...graphNodes]
+	const edges = [...graphEdges]
+	if (automation.graph?.entryNodeId) {
+		edges.push({ id: `${triggerId}:${automation.graph.entryNodeId}`, from: triggerId, to: automation.graph.entryNodeId })
+	}
 	return { nodes, edges }
-}
-
-function addSequence(
-	nodes: NodeData[],
-	edges: Omit<EdgeData, "path">[],
-	sequence: Sequence | FloatingSequence,
-	path: string,
-	column: number,
-	row: number,
-	group: string,
-	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>,
-	getPreviewConfiguredDurationSeconds: (id: string) => number | undefined
-) {
-	const ids: string[] = []
-	sequence.actions.forEach((action, index) => {
-		const node = createNode(action, `${path}.actions[${index}]`, column + index, row, group, pluginMap, getPreviewConfiguredDurationSeconds)
-		nodes.push(node)
-		ids.push(node.id)
-
-		if (index > 0) {
-			edges.push({ id: `${ids[index - 1]}:${node.id}`, from: ids[index - 1], to: node.id })
-		}
-
-		if (isActionStack(action)) {
-			action.stack.forEach((stackAction, stackIndex) => {
-				const child = createNode(stackAction, `${node.path}.stack[${stackIndex}]`, column + index, row + stackIndex + 1, "Stack", pluginMap, getPreviewConfiguredDurationSeconds)
-				nodes.push(child)
-				edges.push({ id: `${node.id}:${child.id}`, from: node.id, to: child.id })
-			})
-		}
-
-		if (isTimeAction(action)) {
-			action.offsets.forEach((offset, offsetIndex) => {
-				const children = addSequence(
-					nodes,
-					edges,
-					offset,
-					`${node.path}.offsets[${offsetIndex}]`,
-					column + index + 1,
-					row + offsetIndex + 1,
-					`+${offset.offset}s`,
-					pluginMap,
-					getPreviewConfiguredDurationSeconds
-				)
-				if (children[0]) edges.push({ id: `${node.id}:${children[0]}`, from: node.id, to: children[0] })
-			})
-		}
-
-		if (isFlowAction(action)) {
-			action.subFlows.forEach((flow, flowIndex) => {
-				const children = addSequence(
-					nodes,
-					edges,
-					flow,
-					`${node.path}.subFlows[${flowIndex}]`,
-					column + index + 1,
-					row + flowIndex + 1,
-					`Flow ${flowIndex + 1}`,
-					pluginMap,
-					getPreviewConfiguredDurationSeconds
-				)
-				if (children[0]) edges.push({ id: `${node.id}:${children[0]}`, from: node.id, to: children[0] })
-			})
-		}
-	})
-	return ids
-}
-
-function createNode(
-	action: AnyAction | ActionStack,
-	path: string,
-	column: number,
-	row: number,
-	group: string,
-	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>,
-	getPreviewConfiguredDurationSeconds: (id: string) => number | undefined
-): NodeData {
-	if (isActionStack(action)) {
-		const stackCount = action.stack.length
-		return {
-			id: action.id,
-			kind: "stack",
-			title: "Action Stack",
-			subtitle: `${stackCount} parallel action${stackCount === 1 ? "" : "s"}`,
-			icon: "mdi mdi-layers-triple",
-			badge: `${group} stack`,
-			x: 42 + column * H_GAP,
-			y: 88 + row * V_GAP,
-			path,
-			height: NODE_BASE_HEIGHT,
-		}
-	}
-
-	const timingSummary = getTimingSummary(action, getPreviewConfiguredDurationSeconds)
-	const flowSummary = getFlowSummary(action)
-	const configLines = extractConfigSummary(action, pluginMap)
-	const { inputPorts, outputPorts } = extractPorts(action, pluginMap)
-
-	return {
-		id: action.id,
-		kind: isFlowAction(action) ? "flow" : isTimeAction(action) ? "time" : "action",
-		title: titleCase(action.action),
-		subtitle: [action.plugin, action.action, timingSummary, flowSummary].filter(Boolean).join(" / "),
-		icon: isFlowAction(action) ? "mdi mdi-source-branch" : isTimeAction(action) ? "mdi mdi-timer-outline" : "mdi mdi-play",
-		badge: getNodeBadge(action, group),
-		x: 42 + column * H_GAP,
-		y: 88 + row * V_GAP,
-		path,
-		configLines,
-		inputPorts: inputPorts.length > 0 ? inputPorts : undefined,
-		outputPorts: outputPorts.length > 0 ? outputPorts : undefined,
-		height: computeNodeHeight(configLines, inputPorts, outputPorts),
-	}
-}
-
-function getNodeBadge(action: AnyAction, group: string) {
-	if (isTimeAction(action)) return `${group} time`
-	if (isFlowAction(action)) return `${group} flow`
-	return group
-}
-
-function getTimingSummary(action: AnyAction, getPreviewConfiguredDurationSeconds: (id: string) => number | undefined) {
-	if (!isTimeAction(action)) return undefined
-	const offsets = action.offsets.length
-	const duration = getPreviewConfiguredDurationSeconds(action.id)
-	const parts = [`${offsets} offset${offsets === 1 ? "" : "s"}`]
-	if (duration) parts.unshift(formatSeconds(duration))
-	return parts.join(", ")
-}
-
-function getFlowSummary(action: AnyAction) {
-	if (!isFlowAction(action)) return undefined
-	const branches = action.subFlows.length
-	return `${branches} branch${branches === 1 ? "" : "es"}`
 }
 
 export function getNodeLane(node: NodeData): Pick<LaneData, "id" | "kind" | "label"> {
 	if (node.id === "trigger") return { id: "main", kind: "main", label: "Main Flow" }
-	if (node.path?.includes(".stack[")) return { id: "stack", kind: "stack", label: "Stacked Actions" }
-	if (node.path?.includes(".offsets[")) return { id: "time", kind: "time", label: "Time Offsets" }
-	if (node.path?.includes(".subFlows[")) return { id: "flow", kind: "flow", label: "Flow Branches" }
-	if (node.path?.startsWith("floatingSequences")) return { id: "floating", kind: "floating", label: "Floating Sequences" }
+	if (node.kind === "if" || node.kind === "switch") return { id: "flow", kind: "flow", label: "Flow Branches" }
+	if (node.kind === "for" || node.kind === "forEach" || node.kind === "while") return { id: "time", kind: "time", label: "Loops" }
+	if (node.kind === "break" || node.kind === "continue" || node.kind === "return") return { id: "flow", kind: "flow", label: "Control" }
 	return { id: "main", kind: "main", label: "Main Flow" }
 }
