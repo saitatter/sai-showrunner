@@ -1080,6 +1080,21 @@ function handleKeydown(event: KeyboardEvent) {
 		duplicateSelectedAction()
 	}
 
+	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+		event.preventDefault()
+		copySelectedNodes()
+	}
+
+	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x") {
+		event.preventDefault()
+		cutSelectedNodes()
+	}
+
+	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+		event.preventDefault()
+		pasteNodes()
+	}
+
 	if (event.key.toLowerCase() === "f") {
 		event.preventDefault()
 		fitGraph()
@@ -1300,6 +1315,64 @@ function cloneActionForNodeEditor(action: AnyAction | ActionStack) {
 	const clonedSequence = { actions: [structuredClone(action)] }
 	assignNewIds(clonedSequence)
 	return clonedSequence.actions[0]
+}
+
+const CLIPBOARD_MIME = "application/showrunner-nodes"
+
+function copySelectedNodes() {
+	const actions: (AnyAction | ActionStack)[] = []
+	for (const id of selectedNodeIds.value) {
+		if (id === "trigger") continue
+		const info = findActionAndSequenceById(id, model.value)
+		if (info) actions.push(structuredClone(info.action))
+	}
+	if (actions.length === 0) return
+	const payload = JSON.stringify({ actions })
+	navigator.clipboard.writeText(payload).catch(() => {})
+	logActivity("Copied", `${actions.length} node${actions.length === 1 ? "" : "s"}`)
+}
+
+function cutSelectedNodes() {
+	copySelectedNodes()
+	// Delete all selected (non-trigger) nodes
+	const idsToDelete = [...selectedNodeIds.value].filter((id) => id !== "trigger")
+	for (const id of idsToDelete) {
+		const position = getNodePosition(id)
+		if (!position) continue
+		const idx = position.items.findIndex((item) => {
+			if (isActionStack(item)) return item.id === id
+			return (item as AnyAction).id === id
+		})
+		if (idx >= 0) position.items.splice(idx, 1)
+	}
+	clearSelection()
+	logActivity("Cut", `${idsToDelete.length} node${idsToDelete.length === 1 ? "" : "s"}`)
+	commitUndo()
+}
+
+function pasteNodes() {
+	navigator.clipboard.readText().then((text) => {
+		let parsed: { actions: (AnyAction | ActionStack)[] }
+		try {
+			parsed = JSON.parse(text)
+		} catch {
+			return
+		}
+		if (!parsed?.actions?.length) return
+
+		const newIds: string[] = []
+		for (const action of parsed.actions) {
+			const cloned = cloneActionForNodeEditor(action)
+			model.value.sequence.actions.push(cloned)
+			newIds.push(cloned.id)
+		}
+
+		// Select all pasted nodes
+		selectedNodeIds.value = new Set(newIds)
+		selectedNodeId.value = newIds[0]
+		logActivity("Pasted", `${newIds.length} node${newIds.length === 1 ? "" : "s"}`)
+		commitUndo()
+	}).catch(() => {})
 }
 
 function getPathPosition(path: string):
