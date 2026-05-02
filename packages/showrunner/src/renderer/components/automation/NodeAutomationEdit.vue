@@ -669,7 +669,7 @@
 									:local-path="selectedActionPath"
 								/>
 								<trigger-config-edit v-else-if="selectedNode.id === 'trigger'" v-model="model" />
-								<div v-else-if="selectedNode.kind === 'variable'" class="node-automation__variable-edit">
+								<div v-else-if="selectedNode.kind === 'variable' && selectedVariableNode" class="node-automation__variable-edit">
 									<label>
 										<span>Name</span>
 										<input
