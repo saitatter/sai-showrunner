@@ -1437,6 +1437,8 @@ function getNodeLane(node: NodeData): Pick<LaneData, "id" | "kind" | "label"> {
 }
 
 function selectNode(event: MouseEvent | PointerEvent, nodeId: string) {
+	selectedEdgeId.value = undefined
+	selectedDataWireId.value = undefined
 	if (event.ctrlKey || event.metaKey) {
 		const next = new Set(selectedNodeIds.value)
 		if (next.has(nodeId)) {
@@ -1501,6 +1503,8 @@ function handleCanvasPointerDown(event: PointerEvent) {
 		event.preventDefault()
 		startPan(event)
 	} else if (event.button === 0 && isCanvasTarget) {
+		selectedEdgeId.value = undefined
+		selectedDataWireId.value = undefined
 		startRubberBand(event)
 	}
 }
@@ -1570,7 +1574,9 @@ function handleKeydown(event: KeyboardEvent) {
 	}
 
 	if (event.key === "Delete" || event.key === "Backspace") {
-		if (canEditSelectedAction.value) {
+		const hasMultipleActionNodes = selectedNodeIds.value.size > 1 &&
+			[...selectedNodeIds.value].some((id) => id !== "trigger" && findActionAndSequenceById(id, model.value))
+		if (canEditSelectedAction.value || hasMultipleActionNodes) {
 			event.preventDefault()
 			deleteSelectedAction()
 		} else if (selectedNode.value?.kind === "floating") {
@@ -2054,16 +2060,34 @@ function duplicateSelectedAction() {
 }
 
 function deleteSelectedAction() {
-	const position = selectedActionPosition.value
-	if (!position) return
-	const removed = position.items.splice(position.index, 1)
-	if (removed.length) {
-		delete nodePositions.value[removed[0].id]
-		logActivity("Deleted node", selectedNode.value?.title || removed[0].id)
+	// Multi-select: delete all selected action nodes
+	const idsToDelete = selectedNodeIds.value.size > 1
+		? [...selectedNodeIds.value].filter((id) => id !== "trigger")
+		: selectedActionPosition.value ? [selectedNodeId.value!] : []
+	if (idsToDelete.length === 0) return
+
+	let anyRemoved = false
+	for (const id of idsToDelete) {
+		const info = findActionAndSequenceById(id, model.value)
+		if (!info) continue
+		const pos = getPathPosition(info.path)
+		if (!pos) continue
+		const idx = pos.items.findIndex((item) => {
+			if (isActionStack(item)) return item.id === id
+			return (item as AnyAction).id === id
+		})
+		if (idx >= 0) {
+			pos.items.splice(idx, 1)
+			delete nodePositions.value[id]
+			dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
+			anyRemoved = true
+		}
 	}
-	selectedNodeId.value = undefined
-	selectedNodeIds.value = new Set()
-	if (removed.length) commitUndo()
+	if (anyRemoved) {
+		logActivity("Deleted", `${idsToDelete.length} node${idsToDelete.length === 1 ? "" : "s"}`)
+	}
+	clearSelection()
+	if (anyRemoved) commitUndo()
 }
 
 function deleteSelectedEdge() {
