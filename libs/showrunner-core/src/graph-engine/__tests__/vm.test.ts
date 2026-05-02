@@ -10,6 +10,7 @@ function makeProgram(instructions: Instruction[], localSlots = 10): Program {
 		actionNodes: [],
 		subgraphs: [],
 		localSlotCount: localSlots,
+		slotNames: new Array(localSlots).fill(""),
 	}
 }
 
@@ -224,8 +225,9 @@ describe("GraphVM", () => {
 					{ op: OpCode.RET, arg1: undefined },
 				],
 				actionNodes: [],
-				subgraphs: [{ id: "sg1", name: "Sub1", entryPC: 2, paramSlots: [], outputExprs: {} }],
+				subgraphs: [{ id: "sg1", name: "Sub1", entryPC: 2, paramSlots: [], paramNames: [], outputExprs: {} }],
 				localSlotCount: 5,
+				slotNames: new Array(5).fill(""),
 			}
 			// Patch CALL instruction to reference subgraph
 			;(program.instructions[0] as any).__subgraphId = "sg1"
@@ -243,8 +245,9 @@ describe("GraphVM", () => {
 					{ op: OpCode.HALT },
 				],
 				actionNodes: [],
-				subgraphs: [{ id: "sg1", name: "Recursive", entryPC: 0, paramSlots: [], outputExprs: {} }],
+				subgraphs: [{ id: "sg1", name: "Recursive", entryPC: 0, paramSlots: [], paramNames: [], outputExprs: {} }],
 				localSlotCount: 5,
+				slotNames: new Array(5).fill(""),
 			}
 			;(program.instructions[0] as any).__subgraphId = "sg1"
 

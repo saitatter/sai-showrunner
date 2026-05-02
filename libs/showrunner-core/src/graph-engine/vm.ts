@@ -64,6 +64,7 @@ export class GraphVM {
 			this.dbg?.sequenceEnded()
 			return "complete"
 		} catch (err) {
+			this.dbg?.logError?.(err instanceof Error ? err.message : String(err))
 			this.dbg?.sequenceEnded()
 			return "error"
 		}
@@ -183,7 +184,7 @@ export class GraphVM {
 			// Resolve data wire inputs via nodeResults
 			const resolvedConfig = this.resolveActionConfig(node)
 
-			// Invoke via action registry (imported dynamically to avoid circular deps)
+			// Invoke via action registry (lazy import to avoid circular deps through electron)
 			const { PluginManager } = await import("../plugins/plugin-manager")
 			const { deserializeSchema } = await import("../util/ipc-schema")
 
@@ -241,12 +242,12 @@ export class GraphVM {
 			outputSlots: {},
 		})
 
-		// Set parameter values from inputs
+		// Set parameter values from inputs — map by name for reliable binding
 		const inputs = instr.arg1 as Record<string, Expression> | undefined
 		if (inputs) {
-			for (let i = 0; i < sg.paramSlots.length; i++) {
-				const paramName = Object.keys(inputs)[i]
-				if (paramName) {
+			for (let i = 0; i < sg.paramNames.length; i++) {
+				const paramName = sg.paramNames[i]
+				if (paramName && inputs[paramName]) {
 					this.locals[sg.paramSlots[i]] = this.evalExpr(inputs[paramName])
 				}
 			}
@@ -279,13 +280,12 @@ export class GraphVM {
 	}
 
 	private buildLocalsMap(): Map<string, any> {
-		// The VM uses indexed slots, but expression eval uses named lookups.
-		// For performance, we could pre-build this, but for correctness we rebuild per eval.
-		// TODO: optimize with a slot→name reverse map
+		// Use the compiler-provided slot→name mapping for proper variable resolution
 		const map = new Map<string, any>()
+		const slotNames = this.program.slotNames
 		for (let i = 0; i < this.locals.length; i++) {
-			if (this.locals[i] !== undefined) {
-				map.set(`__slot_${i}`, this.locals[i])
+			if (this.locals[i] !== undefined && slotNames[i]) {
+				map.set(slotNames[i], this.locals[i])
 			}
 		}
 		return map

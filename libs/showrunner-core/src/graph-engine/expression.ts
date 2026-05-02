@@ -79,10 +79,10 @@ function evalBinary(op: string, left: any, right: any): any {
 		case "*":
 			return left * right
 		case "/":
-			if (right === 0) return 0
+			if (right === 0) return NaN
 			return left / right
 		case "%":
-			if (right === 0) return 0
+			if (right === 0) return NaN
 			return left % right
 		default:
 			return undefined

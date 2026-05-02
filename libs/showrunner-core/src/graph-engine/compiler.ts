@@ -57,6 +57,8 @@ export interface CompiledSubgraph {
 	name: string
 	entryPC: number
 	paramSlots: number[]
+	/** Parameter names in same order as paramSlots */
+	paramNames: string[]
 	outputExprs: Record<string, Expression>
 }
 
@@ -68,6 +70,8 @@ export interface Program {
 	subgraphs: CompiledSubgraph[]
 	/** Total local slots needed */
 	localSlotCount: number
+	/** Maps slot index → variable name(s) for expression resolution */
+	slotNames: string[]
 }
 
 // ─── Compiler ─────────────────────────────────────────────────────────────────
@@ -95,6 +99,8 @@ export class GraphCompiler {
 	private maxIterations: number
 	private edgeMap = new Map<string, GraphEdge[]>() // from nodeId → outgoing edges
 	private nodeMap = new Map<string, GraphNode>()
+	/** Maps nodeId → instruction index where it was first compiled (for merge points) */
+	private nodePC = new Map<string, number>()
 
 	constructor(private options: CompilerOptions = {}) {
 		this.yieldInterval = options.yieldInterval ?? DEFAULT_YIELD_INTERVAL
@@ -120,11 +126,21 @@ export class GraphCompiler {
 		// Resolve all jump labels
 		this.resolveLabels()
 
+		// Build slot→name reverse map
+		const slotNames = new Array<string>(this.nextSlot).fill("")
+		for (const [name, slot] of this.localSlots) {
+			// Prefer user-facing names (no internal prefixes)
+			if (!slotNames[slot] || slotNames[slot].includes(":")) {
+				slotNames[slot] = name
+			}
+		}
+
 		return {
 			instructions: this.instructions,
 			actionNodes: this.actionNodes,
 			subgraphs: compiledSubgraphs,
 			localSlotCount: this.nextSlot,
+			slotNames,
 		}
 	}
 
@@ -159,11 +175,21 @@ export class GraphCompiler {
 	}
 
 	private compileNode(nodeId: string, visited: Set<string>) {
-		if (visited.has(nodeId)) return
+		if (visited.has(nodeId)) {
+			// Merge point: node already compiled elsewhere, emit JUMP to its start
+			const pc = this.nodePC.get(nodeId)
+			if (pc != null) {
+				this.instructions.push({ op: OpCode.JUMP, nodeId, arg0: pc })
+			}
+			return
+		}
 		visited.add(nodeId)
 
 		const node = this.nodeMap.get(nodeId)
 		if (!node) return
+
+		// Record instruction index for this node (for merge point jumps)
+		this.nodePC.set(nodeId, this.instructions.length)
 
 		switch (node.type) {
 			case "action":
@@ -220,13 +246,13 @@ export class GraphCompiler {
 
 		// Then branch
 		const thenTarget = this.getEdgeTarget(node.id, "then")
-		if (thenTarget) this.compileNode(thenTarget, new Set(visited))
+		if (thenTarget) this.compileNode(thenTarget, visited)
 		this.emitJumpToLabel(OpCode.JUMP, endLabel, node.id)
 
 		// Else branch
 		this.placeLabel(elseLabel)
 		const elseTarget = this.getEdgeTarget(node.id, "else")
-		if (elseTarget) this.compileNode(elseTarget, new Set(visited))
+		if (elseTarget) this.compileNode(elseTarget, visited)
 
 		this.placeLabel(endLabel)
 
@@ -239,27 +265,33 @@ export class GraphCompiler {
 		if (node.type !== "switch") return
 		const endLabel = this.newLabel()
 
+		// Evaluate the switch expression once, store in a temp slot
+		const switchSlot = this.allocSlot(node.id + ":switchVal")
+		this.emit({ op: OpCode.EVAL, nodeId: node.id, arg1: node.expression })
+		this.emit({ op: OpCode.STORE, nodeId: node.id, arg0: switchSlot })
+
+		// Register the slot so it's accessible by variable name
+		const switchVarName = `__switch_${node.id}`
+		this.localSlots.set(switchVarName, switchSlot)
+
 		for (const c of node.cases) {
 			const skipLabel = this.newLabel()
-			// Evaluate: expression == case value
-			this.emit({ op: OpCode.EVAL, nodeId: node.id, arg1: node.expression })
-			this.emit({ op: OpCode.EVAL, nodeId: node.id, arg1: { type: "literal", value: c.value } })
-			// Compare via binary ==
+			// Compare: switchVal == case value using a binary expression referencing the variable
 			this.emit({
 				op: OpCode.EVAL,
 				nodeId: node.id,
 				arg1: {
 					type: "binary",
 					op: "==",
-					left: { type: "literal", value: "__STACK_POP__" },
-					right: { type: "literal", value: "__STACK_POP__" },
+					left: { type: "variable", name: switchVarName },
+					right: { type: "literal", value: c.value },
 				},
 			})
 			this.emitJumpToLabel(OpCode.JUMP_IF_NOT, skipLabel, node.id)
 
 			// Case body
 			const target = this.getEdgeTarget(node.id, c.port)
-			if (target) this.compileNode(target, new Set(visited))
+			if (target) this.compileNode(target, visited)
 			this.emitJumpToLabel(OpCode.JUMP, endLabel, node.id)
 
 			this.placeLabel(skipLabel)
@@ -267,7 +299,7 @@ export class GraphCompiler {
 
 		// Default case
 		const defaultTarget = this.getEdgeTarget(node.id, "default")
-		if (defaultTarget) this.compileNode(defaultTarget, new Set(visited))
+		if (defaultTarget) this.compileNode(defaultTarget, visited)
 
 		this.placeLabel(endLabel)
 
@@ -302,7 +334,7 @@ export class GraphCompiler {
 		this.loopHeaderStack.push([headerLabel])
 
 		const bodyTarget = this.getEdgeTarget(node.id, "body")
-		if (bodyTarget) this.compileNode(bodyTarget, new Set(visited))
+		if (bodyTarget) this.compileNode(bodyTarget, visited)
 
 		// Yield in loops
 		this.emit({ op: OpCode.YIELD, nodeId: node.id })
@@ -352,7 +384,7 @@ export class GraphCompiler {
 		this.loopHeaderStack.push([headerLabel])
 
 		const bodyTarget = this.getEdgeTarget(node.id, "body")
-		if (bodyTarget) this.compileNode(bodyTarget, new Set(visited))
+		if (bodyTarget) this.compileNode(bodyTarget, visited)
 
 		this.emit({ op: OpCode.YIELD, nodeId: node.id })
 
@@ -386,7 +418,7 @@ export class GraphCompiler {
 		this.loopHeaderStack.push([headerLabel])
 
 		const bodyTarget = this.getEdgeTarget(node.id, "body")
-		if (bodyTarget) this.compileNode(bodyTarget, new Set(visited))
+		if (bodyTarget) this.compileNode(bodyTarget, visited)
 
 		this.emit({ op: OpCode.YIELD, nodeId: node.id })
 		this.emitJumpToLabel(OpCode.JUMP, headerLabel, node.id)
@@ -456,6 +488,7 @@ export class GraphCompiler {
 			name: sg.name,
 			entryPC,
 			paramSlots,
+			paramNames: sg.parameters.map((p) => p.name),
 			outputExprs: {},
 		}
 	}

@@ -75,9 +75,9 @@ describe("evalExpression", () => {
 			["-", { type: "binary", op: "-", left: { type: "literal", value: 10 }, right: { type: "literal", value: 3 } }, 7],
 			["*", { type: "binary", op: "*", left: { type: "literal", value: 4 }, right: { type: "literal", value: 5 } }, 20],
 			["/", { type: "binary", op: "/", left: { type: "literal", value: 10 }, right: { type: "literal", value: 2 } }, 5],
-			["/ by zero", { type: "binary", op: "/", left: { type: "literal", value: 10 }, right: { type: "literal", value: 0 } }, 0],
+			["/ by zero", { type: "binary", op: "/", left: { type: "literal", value: 10 }, right: { type: "literal", value: 0 } }, NaN],
 			["%", { type: "binary", op: "%", left: { type: "literal", value: 7 }, right: { type: "literal", value: 3 } }, 1],
-			["% by zero", { type: "binary", op: "%", left: { type: "literal", value: 7 }, right: { type: "literal", value: 0 } }, 0],
+			["% by zero", { type: "binary", op: "%", left: { type: "literal", value: 7 }, right: { type: "literal", value: 0 } }, NaN],
 		]
 		for (const [label, expr, expected] of cases) {
 			it(label, () => expect(evalExpression(expr, mkCtx())).toBe(expected))
