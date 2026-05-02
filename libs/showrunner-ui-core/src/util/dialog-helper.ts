@@ -1,5 +1,5 @@
 import { DialogServiceMethods } from "primevue/dialogservice"
-//@ts-ignore
+// @ts-expect-error PrimeVue internal module without type declarations
 import DynamicDialogEventBus from "primevue/dynamicdialogeventbus"
 
 import { type EventBus } from "@primevue/core/utils"

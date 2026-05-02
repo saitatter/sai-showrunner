@@ -330,6 +330,7 @@ export class GraphCompiler {
 		this.emit({ op: OpCode.STORE, nodeId: node.id, arg0: endSlot })
 
 		// Expose counter as local variable for body nodes
+		const prevCounterSlot = this.localSlots.get(node.variable)
 		this.localSlots.set(node.variable, counterSlot)
 
 		this.placeLabel(headerLabel)
@@ -356,6 +357,10 @@ export class GraphCompiler {
 		this.loopExitStack.pop()
 		this.loopHeaderStack.pop()
 
+		// Restore previous variable scope
+		if (prevCounterSlot !== undefined) this.localSlots.set(node.variable, prevCounterSlot)
+		else this.localSlots.delete(node.variable)
+
 		const next = this.getEdgeTarget(node.id, "next")
 		if (next) this.compileNode(next, visited)
 	}
@@ -376,6 +381,8 @@ export class GraphCompiler {
 		this.emit({ op: OpCode.EVAL, nodeId: node.id, arg1: { type: "literal", value: 0 } })
 		this.emit({ op: OpCode.STORE, nodeId: node.id, arg0: indexSlot })
 
+		const prevItemSlot = this.localSlots.get(node.variable)
+		const prevIndexSlot = node.indexVariable ? this.localSlots.get(node.indexVariable) : undefined
 		this.localSlots.set(node.variable, itemSlot)
 		if (node.indexVariable) this.localSlots.set(node.indexVariable, indexSlot)
 
@@ -407,6 +414,14 @@ export class GraphCompiler {
 
 		this.loopExitStack.pop()
 		this.loopHeaderStack.pop()
+
+		// Restore previous variable scope
+		if (prevItemSlot !== undefined) this.localSlots.set(node.variable, prevItemSlot)
+		else this.localSlots.delete(node.variable)
+		if (node.indexVariable) {
+			if (prevIndexSlot !== undefined) this.localSlots.set(node.indexVariable, prevIndexSlot)
+			else this.localSlots.delete(node.indexVariable)
+		}
 
 		const next = this.getEdgeTarget(node.id, "next")
 		if (next) this.compileNode(next, visited)

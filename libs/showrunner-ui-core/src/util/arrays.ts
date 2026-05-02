@@ -73,6 +73,6 @@ export function settableArray<T>(config: {
 		},
 	}
 
-	//@ts-ignore We're faking RefSymbol here, so tell the type system to ignore it
+	// @ts-expect-error Faking RefSymbol for reactive array wrapper
 	return result
 }

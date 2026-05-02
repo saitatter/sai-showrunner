@@ -43,7 +43,7 @@ function isItemFocused(item: MenuItem) {
 }
 
 function isCurrentItem(item: MenuItem) {
-	//@ts-ignore prime-vue has mistyped their function
+	// @ts-expect-error PrimeVue MenuItem type mismatch
 	return false
 }
 

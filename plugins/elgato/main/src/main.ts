@@ -55,7 +55,7 @@ class ElgatoKeyLight extends PollingLight {
 			},
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Initializing state before polling
 		this.state = {}
 		await this.poll()
 
@@ -148,7 +148,7 @@ class ElgatoLightStrip extends PollingLight<ElgatoLightStripConfig> {
 			ledCount: lights.data.numberOfLights,
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Initializing state before parsing
 		this.state = {}
 		this.parseState(lights.data.lights[0])
 

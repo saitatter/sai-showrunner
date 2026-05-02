@@ -358,7 +358,7 @@ class WyzeLight extends LightResource<WyzeLightConfig> {
 			transitions: { available: false },
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Initializing state before parsing
 		this.state = {
 			on: desc.device_params.switch_state != 0,
 		}

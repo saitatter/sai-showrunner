@@ -342,7 +342,7 @@ export function useRootHTTPRouter(baseRoute: string): Router {
 
 export function resetRouter(router: Router) {
 	router.stack = []
-	//@ts-ignore
+	// @ts-expect-error Router.methods is not in the type definitions
 	router.methods = {}
 }
 

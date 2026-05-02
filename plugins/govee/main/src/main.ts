@@ -69,7 +69,7 @@ class GoveeBulb extends LightResource<GoveeBulbConfig> {
 			},
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Initializing state before parsing
 		this.state = {}
 	}
 
@@ -253,7 +253,7 @@ class GoveePlug extends PollingPlug<GoveePlugConfig> {
 			hasLan: false,
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Initializing state before cloud device setup
 		this.state = {}
 	}
 
@@ -328,13 +328,13 @@ export default definePlugin(
 		async function shutdown() {
 			await removeAllSubResource(GoveeBulb)
 			if (cloudPoller) {
-				//@ts-ignore
+				// @ts-expect-error Timer type mismatch between Node and browser
 				clearInterval(cloudPoller)
 				cloudPoller = undefined
 			}
 
 			if (lanPoller) {
-				//@ts-ignore
+				// @ts-expect-error Timer type mismatch between Node and browser
 				clearInterval(lanPoller)
 				lanPoller = undefined
 			}

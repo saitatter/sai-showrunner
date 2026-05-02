@@ -141,7 +141,7 @@ class TriggerImplementation<
 	}
 
 	get runWrapper() {
-		//@ts-ignore
+		// @ts-expect-error Spec may have optional runWrapper not in base type
 		return this.spec.runWrapper
 	}
 

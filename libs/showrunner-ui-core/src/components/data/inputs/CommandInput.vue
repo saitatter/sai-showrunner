@@ -111,12 +111,12 @@ const matchModel = useDefaultableModel(model, "match", "", defaultCommand)
 const tabModel = useUndoCommitter(useDefaultableModel(model, "mode", "command", defaultCommand))
 
 const leftBoundaryModel = useUndoCommitter(
-	//@ts-ignore
+	// @ts-expect-error Generic constraint too strict for this usage
 	useDefaultableModel<StringModeCommand, "leftBoundary", boolean>(model, "leftBoundary", false, defaultCommand)
 )
 
 const rightBoundaryModel = useUndoCommitter(
-	//@ts-ignore
+	// @ts-expect-error Generic constraint too strict for this usage
 	useDefaultableModel<StringModeCommand, "rightBoundary", boolean>(model, "rightBoundary", false, defaultCommand)
 )
 

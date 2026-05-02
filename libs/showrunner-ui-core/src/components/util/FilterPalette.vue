@@ -183,12 +183,12 @@ function isItemFocused(item: MenuItem) {
 }
 
 function getItemValue(item: MenuItem) {
-	//@ts-ignore prime-vue has mistyped their function
+	// @ts-expect-error PrimeVue MenuItem type mismatch
 	return props.optionValue ? resolveFieldData(item, props.optionValue) : item
 }
 
 function isCurrentItem(item: MenuItem) {
-	//@ts-ignore prime-vue has mistyped their function
+	// @ts-expect-error PrimeVue MenuItem type mismatch
 	return false
 }
 

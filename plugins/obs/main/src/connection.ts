@@ -214,7 +214,7 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 				local: isLocalHost(config.host),
 			}
 		} else {
-			//@ts-ignore
+			// @ts-expect-error Initializing with empty config before connection
 			this._config = {}
 		}
 
@@ -712,7 +712,7 @@ export function setupRunningPolling() {
 
 	onUnload(() => {
 		if (poller) {
-			//@ts-ignore
+			// @ts-expect-error Timer type mismatch between Node and browser
 			clearInterval(poller)
 		}
 	})

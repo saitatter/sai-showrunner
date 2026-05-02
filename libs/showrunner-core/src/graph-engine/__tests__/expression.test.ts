@@ -263,4 +263,60 @@ describe("evalExpression", () => {
 			expect(evalExpression(expr, ctx)).toBe(2)
 		})
 	})
+
+	describe("error handling", () => {
+		it("unknown binary operator throws", () => {
+			expect(() => evalExpression({ type: "binary", op: "**" as any, left: { type: "literal", value: 2 }, right: { type: "literal", value: 3 } }, mkCtx())).toThrow("Unknown binary operator: **")
+		})
+
+		it("unknown unary operator throws", () => {
+			expect(() => evalExpression({ type: "unary", op: "~" as any, operand: { type: "literal", value: 5 } }, mkCtx())).toThrow("Unknown unary operator: ~")
+		})
+
+		it("unknown builtin function throws", () => {
+			expect(() => evalExpression({ type: "call", fn: "notAFunction" as any, args: [] }, mkCtx())).toThrow("Unknown builtin function: notAFunction")
+		})
+	})
+
+	describe("null safety", () => {
+		it("member access on null returns undefined", () => {
+			expect(evalExpression({ type: "member", object: { type: "literal", value: null }, property: "x" }, mkCtx())).toBeUndefined()
+		})
+
+		it("index access on null returns undefined", () => {
+			expect(evalExpression({ type: "index", object: { type: "literal", value: null }, index: { type: "literal", value: 0 } }, mkCtx())).toBeUndefined()
+		})
+
+		it("port on missing node returns undefined", () => {
+			expect(evalExpression({ type: "port", nodeId: "missing", port: "out" }, mkCtx())).toBeUndefined()
+		})
+
+		it("variable not in context returns undefined", () => {
+			expect(evalExpression({ type: "variable", name: "noSuchVar" }, mkCtx())).toBeUndefined()
+		})
+
+		it("len of null returns 0", () => {
+			expect(evalExpression({ type: "call", fn: "len", args: [{ type: "literal", value: null }] }, mkCtx())).toBe(0)
+		})
+
+		it("includes on null returns false", () => {
+			expect(evalExpression({ type: "call", fn: "includes", args: [{ type: "literal", value: null }, { type: "literal", value: "x" }] }, mkCtx())).toBe(false)
+		})
+
+		it("startsWith on number returns false", () => {
+			expect(evalExpression({ type: "call", fn: "startsWith", args: [{ type: "literal", value: 42 }, { type: "literal", value: "4" }] }, mkCtx())).toBe(false)
+		})
+
+		it("keys on null returns empty array", () => {
+			expect(evalExpression({ type: "call", fn: "keys", args: [{ type: "literal", value: null }] }, mkCtx())).toEqual([])
+		})
+
+		it("toString on null returns empty string", () => {
+			expect(evalExpression({ type: "call", fn: "toString", args: [{ type: "literal", value: null }] }, mkCtx())).toBe("")
+		})
+
+		it("toNumber on non-numeric returns 0", () => {
+			expect(evalExpression({ type: "call", fn: "toNumber", args: [{ type: "literal", value: "abc" }] }, mkCtx())).toBe(0)
+		})
+	})
 })

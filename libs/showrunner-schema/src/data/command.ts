@@ -231,7 +231,7 @@ export async function matchAndParseCommand(
 		return undefined
 	}
 
-	//@ts-ignore
+	// @ts-expect-error Exhaustive switch — unreachable if all modes handled
 	throw new Error(`Unknown Command Mode ${command.mode}`)
 }
 
@@ -273,6 +273,6 @@ export function getCommandDataSchema(command: Command): SchemaObj {
 		return result
 	}
 
-	//@ts-ignore
+	// @ts-expect-error Exhaustive switch — unreachable if all modes handled
 	throw new Error(`Unknown Command Mode: ${command.mode}`)
 }

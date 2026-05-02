@@ -172,7 +172,7 @@ export async function templateSchema<TSchema extends Schema>(
 
 		await Promise.all(
 			Object.keys(schema.properties).map(async (key) => {
-				//@ts-ignore Type system too stupid again.
+				// @ts-expect-error Dynamic property access on schema-validated object
 				result[key] = await templateSchema(obj[key], schema.properties[key], context, rootValue)
 			})
 		)
@@ -211,7 +211,7 @@ export async function remoteTemplateSchema<TSchema extends Schema>(
 
 		await Promise.all(
 			Object.keys(schema.properties).map(async (key) => {
-				//@ts-ignore Type system too stupid again.
+				// @ts-expect-error Dynamic property access on schema-validated object
 				result[key] = await remoteTemplateSchema(obj[key], schema.properties[key], context, rootValue)
 			})
 		)

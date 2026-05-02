@@ -184,7 +184,7 @@ export function ipcParseSchema(ipcSchema: IPCSchema): Schema {
 			throw new Error(`Unknown IPC Type ${ipcSchema.type}`)
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Spread type too complex for TS to verify
 		return {
 			...ipcSchema,
 			...ipcParseSchemaDefault(ipcSchema),

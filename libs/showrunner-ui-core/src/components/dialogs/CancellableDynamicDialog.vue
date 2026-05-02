@@ -61,7 +61,7 @@ useDialogEvent("close", async ({ instance, params }) => {
 
 	if (inst.options.onClose) {
 		const result = await inst.options.onClose({ data: params, type: "config-close" })
-		//@ts-ignore
+		// @ts-expect-error onClose may return false to cancel
 		if (result == false) {
 			return
 		}

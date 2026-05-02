@@ -78,12 +78,12 @@ function SchemaResourceType<MetaData extends ResourceMetaData<any, any>>(metaDat
 		}
 
 		static async initialize() {
-			//@ts-ignore
+			// @ts-expect-error Static this refers to concrete subclass
 			ResourceRegistry.getInstance().register(this)
 		}
 
 		static async uninitialize() {
-			//@ts-ignore
+			// @ts-expect-error Static this refers to concrete subclass
 			ResourceRegistry.getInstance().unregister(this)
 		}
 	}

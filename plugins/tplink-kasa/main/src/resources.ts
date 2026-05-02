@@ -35,7 +35,7 @@ class KasaLight extends LightResource {
 			this._config.kelvin.min = kasaBulb.colorTemperatureRange?.min
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Initializing state before parsing
 		this.state = {}
 		this.parseLightState(initialState)
 
