@@ -116,6 +116,7 @@ provideAutomationEditState(editArea, (seq, offset, ev) => {
 
 function removeFloatingSequence(index: number) {
 	model.value.floatingSequences.splice(index, 1)
+	commitUndo()
 }
 
 const mainSequence = ref<InstanceType<typeof SequenceEdit> | null>(null)
