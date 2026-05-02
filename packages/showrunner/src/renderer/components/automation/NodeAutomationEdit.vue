@@ -194,7 +194,9 @@
 							:d="wire.path"
 							vector-effect="non-scaling-stroke"
 							@click.stop="selectedDataWireId = wire.id"
-						/>
+						>
+							<title>{{ dataWireTitle(wire) }}</title>
+						</path>
 						<path
 							v-for="wire in dataWirePaths"
 							:key="`dw:${wire.id}`"
@@ -203,7 +205,9 @@
 							:d="wire.path"
 							:stroke="wire.color"
 							vector-effect="non-scaling-stroke"
-						/>
+						>
+							<title>{{ dataWireTitle(wire) }}</title>
+						</path>
 
 						<!-- In-progress wire drag -->
 						<path
@@ -1433,6 +1437,49 @@ const connectedPorts = computed(() => {
 
 function isPortConnected(nodeId: string, portKey: string, kind: "in" | "out"): boolean {
 	return connectedPorts.value.has(`${nodeId}:${portKey}:${kind}`)
+}
+
+function dataWireTitle(wire: DataWire) {
+	const value = getWireRuntimeValue(wire)
+	const fromNode = nodeTitleById(wire.fromNode)
+	const toNode = nodeTitleById(wire.toNode)
+	if (value === undefined) return `${fromNode}.${wire.fromPort} -> ${toNode}.${wire.toPort}`
+	return `${fromNode}.${wire.fromPort} -> ${toNode}.${wire.toPort}\nValue: ${summarizeRuntimeValue(value)}`
+}
+
+function getWireRuntimeValue(wire: DataWire) {
+	const variable = variableNodes.value.find((node) => node.id === wire.fromNode)
+	if (variable && wire.fromPort === "value") return variable.value
+
+	const result = activeTestSequence.value?.nodeResults?.[wire.fromNode]
+	return getRuntimePathValue(result, wire.fromPort)
+}
+
+function getRuntimePathValue(source: any, path: string) {
+	if (source == null) return undefined
+	const parts = String(path || "")
+		.replace(/\[(\d+)\]/g, ".$1")
+		.split(".")
+		.map((part) => part.trim())
+		.filter(Boolean)
+	let cursor = source
+	for (const part of parts) {
+		if (cursor == null) return undefined
+		cursor = cursor[part]
+	}
+	return cursor
+}
+
+function summarizeRuntimeValue(value: unknown) {
+	if (value == null) return String(value)
+	if (typeof value === "string") return value.length > 80 ? `${value.slice(0, 77)}...` : value
+	if (typeof value === "number" || typeof value === "boolean") return String(value)
+	try {
+		const text = JSON.stringify(value)
+		return text.length > 120 ? `${text.slice(0, 117)}...` : text
+	} catch {
+		return String(value)
+	}
 }
 
 function isExecPortConnected(nodeId: string, portKey: string): boolean {
