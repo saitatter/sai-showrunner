@@ -392,4 +392,117 @@ describe("GraphCompiler", () => {
 			expect(yields.length).toBeGreaterThanOrEqual(1)
 		})
 	})
+
+	describe("nested loops", () => {
+		it("compiles nested for loops with same variable name", () => {
+			const graph = makeGraph(
+				[
+					{
+						id: "outer",
+						type: "for",
+						variable: "i",
+						start: { type: "literal", value: 0 },
+						end: { type: "literal", value: 3 },
+						step: { type: "literal", value: 1 },
+						x: 0,
+						y: 0,
+					},
+					{
+						id: "inner",
+						type: "for",
+						variable: "i",
+						start: { type: "literal", value: 0 },
+						end: { type: "literal", value: 2 },
+						step: { type: "literal", value: 1 },
+						x: 1,
+						y: 0,
+					},
+					{ id: "body", type: "action", plugin: "p", action: "body", config: {}, x: 2, y: 0 },
+				],
+				[
+					{ id: "e1", from: "outer", to: "inner", port: "body" },
+					{ id: "e2", from: "inner", to: "body", port: "body" },
+				],
+				"outer"
+			)
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph)
+
+			// Both loops should produce separate LOOP_CHECK and LOOP_STEP instructions
+			const loopChecks = program.instructions.filter((i) => i.op === OpCode.LOOP_CHECK)
+			expect(loopChecks.length).toBe(2)
+			// They should use different counter slots
+			expect(loopChecks[0].arg0).not.toBe(loopChecks[1].arg0)
+		})
+
+		it("compiles for loop followed by action using 'next' port", () => {
+			const graph = makeGraph(
+				[
+					{
+						id: "for1",
+						type: "for",
+						variable: "i",
+						start: { type: "literal", value: 0 },
+						end: { type: "literal", value: 5 },
+						step: { type: "literal", value: 1 },
+						x: 0,
+						y: 0,
+					},
+					{ id: "body", type: "action", plugin: "p", action: "body", config: {}, x: 1, y: 0 },
+					{ id: "after", type: "action", plugin: "p", action: "after", config: {}, x: 2, y: 0 },
+				],
+				[
+					{ id: "e1", from: "for1", to: "body", port: "body" },
+					{ id: "e2", from: "for1", to: "after", port: "next" },
+				],
+				"for1"
+			)
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph)
+
+			// HALT should be the last instruction
+			expect(program.instructions[program.instructions.length - 1].op).toBe(OpCode.HALT)
+			// after node should be compiled
+			expect(program.instructions.some((i) => i.op === OpCode.EXEC && i.nodeId === "after")).toBe(true)
+		})
+	})
+
+	describe("edge cases", () => {
+		it("node with no outgoing edges halts", () => {
+			const graph = makeGraph(
+				[{ id: "a1", type: "action", plugin: "p", action: "a", config: {}, x: 0, y: 0 }],
+				[],
+				"a1"
+			)
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph)
+
+			expect(program.instructions[program.instructions.length - 1].op).toBe(OpCode.HALT)
+		})
+
+		it("duplicate node visits are prevented", () => {
+			// Create a diamond: a1 -> a2, a1 -> a3, a2 -> a4, a3 -> a4
+			const graph = makeGraph(
+				[
+					{ id: "if1", type: "if", condition: { type: "literal", value: true }, x: 0, y: 0 },
+					{ id: "a2", type: "action", plugin: "p", action: "b", config: {}, x: 1, y: 0 },
+					{ id: "a3", type: "action", plugin: "p", action: "c", config: {}, x: 1, y: 1 },
+					{ id: "a4", type: "action", plugin: "p", action: "d", config: {}, x: 2, y: 0 },
+				],
+				[
+					{ id: "e1", from: "if1", to: "a2", port: "then" },
+					{ id: "e2", from: "if1", to: "a3", port: "else" },
+					{ id: "e3", from: "a2", to: "a4" },
+					{ id: "e4", from: "a3", to: "a4" },
+				],
+				"if1"
+			)
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph)
+
+			// a4 should appear at most once in EXEC instructions
+			const a4Execs = program.instructions.filter((i) => i.op === OpCode.EXEC && i.nodeId === "a4")
+			expect(a4Execs.length).toBeLessThanOrEqual(1)
+		})
+	})
 })

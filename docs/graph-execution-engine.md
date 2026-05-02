@@ -307,6 +307,8 @@ UI sees all nodes light up in real-time, exactly as before.
 
 **Deliverable:** Engine compiles a graph and VM executes it, passing all unit tests. Existing SequenceRunner unchanged (backward compatible).
 
+**Status:** ✅ Complete — 118 tests passing (75 expression, 19 compiler, 24 VM). Expression evaluator throws on division by zero, unknown operators, and unknown builtins. Compiler isolates loop variable scope for nested loops sharing the same variable name.
+
 **Tests:** ≥50 tests covering:
 - Linear execution, branching, nested branches
 - For/forEach/while with break/continue

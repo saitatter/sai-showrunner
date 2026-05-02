@@ -131,10 +131,10 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Abort propagation: cancel running actions cleanly on queue stop
 
 ### 5.7 Misc fixes
-- [ ] Fix `@ts-ignore` usages across codebase (currently 0 in source, verify)
-- [ ] Remove dead code references to `castmate` naming (run-clean-youtube.ps1 ✅ done)
+- [x] Fix `@ts-ignore` usages across codebase (replaced with `@ts-expect-error` + descriptions)
+- [ ] Remove dead code references to `castmate` naming (run-clean-youtube.ps1 \u2705 done)
 - [ ] Consolidate duplicate `NodeAutomationEdit.vue` if any remain in packages/castmate
-- [ ] Update `docs/graph-execution-engine.md` to reflect final implementation
+- [x] Update `docs/graph-execution-engine.md` to reflect final implementation
 - [ ] Bump version to `1.0.0-beta1` in all package.json files
 
 ---

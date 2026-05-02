@@ -1718,7 +1718,12 @@ function parseActionSelection(value: string): ActionSelection | undefined {
 	return { plugin, action }
 }
 
+let dropInProgress = false
+
 async function addActionFromPalette() {
+	if (dropInProgress) return
+	dropInProgress = true
+	try {
 	const selection = parseActionSelection(selectedActionToAdd.value)
 	if (!selection) return
 
@@ -1731,6 +1736,7 @@ async function addActionFromPalette() {
 	focusNode(action.id)
 	configOpen.value = true
 	commitUndo()
+	} finally { dropInProgress = false }
 }
 
 function trackRecentlyUsed(key: string, kind: "action" | "trigger", name: string, icon: string, color: string) {
@@ -1738,6 +1744,9 @@ function trackRecentlyUsed(key: string, kind: "action" | "trigger", name: string
 }
 
 async function selectActionFromContext(actionKey: string) {
+	if (dropInProgress) return
+	dropInProgress = true
+	try {
 	const selection = parseActionSelection(actionKey)
 	if (!selection) return
 
@@ -1757,6 +1766,7 @@ async function selectActionFromContext(actionKey: string) {
 	configOpen.value = true
 	closeContextMenu()
 	commitUndo()
+	} finally { dropInProgress = false }
 }
 
 async function selectTriggerFromContext(triggerKey: string) {
@@ -1792,6 +1802,9 @@ function startActionPaletteDrag(event: DragEvent, actionKey: string) {
 }
 
 async function dropActionOnCanvas(event: DragEvent) {
+	if (dropInProgress) return
+	dropInProgress = true
+	try {
 	const action = await createDraggedAction(event)
 	if (!action) return
 
@@ -1803,9 +1816,13 @@ async function dropActionOnCanvas(event: DragEvent) {
 	dropTargetNodeId.value = undefined
 	ghostNode.value = null
 	commitUndo()
+	} finally { dropInProgress = false }
 }
 
 async function dropActionOnNode(event: DragEvent, node: NodeData) {
+	if (dropInProgress) return
+	dropInProgress = true
+	try {
 	const action = await createDraggedAction(event)
 	if (!action) return
 
@@ -1819,9 +1836,13 @@ async function dropActionOnNode(event: DragEvent, node: NodeData) {
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
 	commitUndo()
+	} finally { dropInProgress = false }
 }
 
 async function dropActionOnEdge(event: DragEvent, edge: EdgeData) {
+	if (dropInProgress) return
+	dropInProgress = true
+	try {
 	const action = await createDraggedAction(event)
 	if (!action) return
 
@@ -1842,6 +1863,7 @@ async function dropActionOnEdge(event: DragEvent, edge: EdgeData) {
 	configOpen.value = true
 	dropTargetEdgeId.value = undefined
 	commitUndo()
+	} finally { dropInProgress = false }
 }
 
 function clearDropTarget(nodeId: string) {

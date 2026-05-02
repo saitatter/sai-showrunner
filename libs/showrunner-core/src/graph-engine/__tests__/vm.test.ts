@@ -366,5 +366,118 @@ describe("GraphVM", () => {
 			const result = await vm.execute()
 			expect(result).toBe("complete")
 		})
+
+		it("compiles and runs nested for loops", async () => {
+			const graph: AutomationGraph = {
+				nodes: [
+					{
+						id: "outer",
+						type: "for",
+						variable: "i",
+						start: { type: "literal", value: 0 },
+						end: { type: "literal", value: 2 },
+						step: { type: "literal", value: 1 },
+						x: 0,
+						y: 0,
+					},
+					{
+						id: "inner",
+						type: "for",
+						variable: "j",
+						start: { type: "literal", value: 0 },
+						end: { type: "literal", value: 2 },
+						step: { type: "literal", value: 1 },
+						x: 1,
+						y: 0,
+					},
+				],
+				edges: [
+					{ id: "e1", from: "outer", to: "inner", port: "body" },
+				],
+				entryNodeId: "outer",
+			}
+
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph)
+			const vm = new GraphVM(program, { contextState: {} })
+			const result = await vm.execute()
+			expect(result).toBe("complete")
+		})
+
+		it("compiles and runs forEach over array", async () => {
+			const graph: AutomationGraph = {
+				nodes: [
+					{
+						id: "fe1",
+						type: "forEach",
+						variable: "item",
+						collection: { type: "literal", value: ["a", "b", "c"] },
+						x: 0,
+						y: 0,
+					},
+				],
+				edges: [],
+				entryNodeId: "fe1",
+			}
+
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph)
+			const vm = new GraphVM(program, { contextState: {} })
+			const result = await vm.execute()
+			expect(result).toBe("complete")
+		})
+
+		it("compiles and runs switch with matching case", async () => {
+			const graph: AutomationGraph = {
+				nodes: [
+					{
+						id: "sw1",
+						type: "switch",
+						expression: { type: "literal", value: 2 },
+						cases: [
+							{ value: 1, port: "case:0" },
+							{ value: 2, port: "case:1" },
+						],
+						x: 0,
+						y: 0,
+					},
+					{ id: "c0", type: "return", outputs: { matched: { type: "literal", value: "case0" } }, x: 1, y: 0 },
+					{ id: "c1", type: "return", outputs: { matched: { type: "literal", value: "case1" } }, x: 1, y: 1 },
+				],
+				edges: [
+					{ id: "e0", from: "sw1", to: "c0", port: "case:0" },
+					{ id: "e1", from: "sw1", to: "c1", port: "case:1" },
+				],
+				entryNodeId: "sw1",
+			}
+
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph)
+			const vm = new GraphVM(program, { contextState: {} })
+			const result = await vm.execute()
+			expect(result).toBe("complete")
+		})
+
+		it("compiles and runs while loop with false condition (zero iterations)", async () => {
+			const graph: AutomationGraph = {
+				nodes: [
+					{
+						id: "w1",
+						type: "while",
+						condition: { type: "literal", value: false },
+						x: 0,
+						y: 0,
+					},
+				],
+				edges: [],
+				entryNodeId: "w1",
+			}
+
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph)
+			const vm = new GraphVM(program, { contextState: {} })
+			const result = await vm.execute()
+			expect(result).toBe("complete")
+		})
 	})
 })
