@@ -507,6 +507,15 @@
 						class="node-automation__minimap-edge"
 						fill="none"
 					/>
+					<!-- Data wires on minimap -->
+					<path
+						v-for="wire in dataWirePaths"
+						:key="`mm-dw-${wire.id}`"
+						:d="wire.path"
+						class="node-automation__minimap-data-wire"
+						:stroke="wire.color"
+						fill="none"
+					/>
 					<rect
 						class="node-automation__minimap-viewport"
 						:x="minimapViewport.x"
@@ -2677,6 +2686,11 @@ onUnmounted(() => {
 .node-automation__minimap-edge {
 	stroke: rgb(255 255 255 / 0.25);
 	stroke-width: 1.5;
+}
+
+.node-automation__minimap-data-wire {
+	stroke-width: 1;
+	opacity: 0.6;
 }
 
 .node-automation__minimap-viewport {

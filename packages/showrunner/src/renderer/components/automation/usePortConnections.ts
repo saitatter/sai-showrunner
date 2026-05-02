@@ -111,6 +111,8 @@ export function usePortConnections(
 	commitUndo: () => void
 ) {
 	const wireDrag = ref<WireDragState | null>(null)
+	/** Wire that was disconnected at drag start (for restoring on cancel) */
+	let disconnectedWire: DataWire | null = null
 
 	/** Computed: wire paths for rendering */
 	const dataWirePaths = computed(() => {
@@ -162,6 +164,8 @@ export function usePortConnections(
 		const pos = getPortPosition(node, portKey, kind)
 		if (!pos) return
 
+		disconnectedWire = null
+
 		// If dragging from an input that already has a wire, disconnect and start dragging from the other end
 		if (kind === "in") {
 			const existingIdx = dataWires.value.findIndex((w) => w.toNode === nodeId && w.toPort === portKey)
@@ -169,6 +173,7 @@ export function usePortConnections(
 				const existing = dataWires.value[existingIdx]
 				const fromNode = nodes.value.find((n) => n.id === existing.fromNode)
 				const fromPos = fromNode ? getPortPosition(fromNode, existing.fromPort, "out") : undefined
+				disconnectedWire = { ...existing }
 				dataWires.value.splice(existingIdx, 1)
 				if (fromPos && fromNode) {
 					wireDrag.value = {
@@ -221,6 +226,7 @@ export function usePortConnections(
 
 		// Find the port under the cursor
 		const target = findPortUnderCursor(event, drag)
+		let connected = false
 		if (target) {
 			const fromNode = drag.fromKind === "out" ? drag.fromNode : target.nodeId
 			const fromPort = drag.fromKind === "out" ? drag.fromPort : target.portKey
@@ -240,10 +246,16 @@ export function usePortConnections(
 					toNode,
 					toPort,
 				})
+				connected = true
 				commitUndo()
 			}
 		}
 
+		// If drag was cancelled (dropped on empty space) and we disconnected a wire, restore it
+		if (!connected && disconnectedWire) {
+			dataWires.value.push(disconnectedWire)
+		}
+		disconnectedWire = null
 		wireDrag.value = null
 	}
 
