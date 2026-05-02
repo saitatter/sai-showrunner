@@ -3,7 +3,7 @@ import { Sequence, StreamPlanConfig, StreamPlanState, SequenceProvider } from "S
 import { FileResource } from "../resources/file-resource"
 import { Service } from "../util/service"
 import { ActionQueueManager } from "../queue-system/action-queue"
-import { SequenceResolvers, SequenceRunner } from "../queue-system/sequence"
+import { ActionResolvers } from "../queue-system/resolvers"
 import { PluginManager } from "../plugins/plugin-manager"
 import { ResourceStorage } from "../resources/resource"
 import { defineCallableIPC, defineIPCFunc } from "../util/electron"
@@ -230,7 +230,7 @@ export function setupStreamPlans() {
 
 	StreamPlanManager.getInstance().initialize()
 
-	SequenceResolvers.getInstance().registerResolver("stream-plan", {
+	ActionResolvers.getInstance().registerResolver("stream-plan", {
 		getAutomation(id, subId) {
 			const plan = StreamPlan.storage.getById(id)
 			if (!plan) return undefined

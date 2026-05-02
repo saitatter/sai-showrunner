@@ -193,6 +193,14 @@
 							vector-effect="non-scaling-stroke"
 						/>
 
+						<!-- In-progress execution edge drag -->
+						<path
+							v-if="execDragWirePath"
+							class="node-automation__edge node-automation__edge--dragging"
+							:d="execDragWirePath"
+							vector-effect="non-scaling-stroke"
+						/>
+
 						<template v-for="(guide, gi) in alignmentGuides" :key="`guide-${gi}`">
 							<line
 								v-if="guide.axis === 'x'"
@@ -245,7 +253,10 @@
 						@dragleave.stop="clearDropTarget(node.id)"
 						@drop.prevent.stop="dropActionOnNode($event, node)"
 					>
-						<span class="node-automation__handle node-automation__handle--in" />
+						<span
+							class="node-automation__handle node-automation__handle--in"
+							:class="{ 'connectable': !!model.graph }"
+						/>
 						<span class="node-automation__node-icon">
 							<i :class="node.icon" />
 						</span>
@@ -270,6 +281,12 @@
 								v-else
 								@dblclick.stop="node.kind === 'variable' && startInlineEdit(node.id)"
 							>{{ node.subtitle }}</small>
+						</span>
+						<span v-if="node.kind === 'floating'" class="node-automation__node-run" title="Run this sequence" @click.stop="runFloatingSequence(node.id)">
+							<i class="mdi mdi-play" />
+						</span>
+						<span v-if="node.kind === 'trigger'" class="node-automation__node-run" title="Run automation" @click.stop="runMainSequence">
+							<i class="mdi mdi-play" />
 						</span>
 						<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
 						<span
@@ -307,6 +324,13 @@
 										<span class="node-automation__port-type">{{ port.type }}</span>
 										<span class="node-automation__port-label">{{ port.label }}</span>
 										<span
+											v-if="port.type === 'flow'"
+											class="node-automation__port-dot node-automation__port-dot--out node-automation__port-dot--exec"
+											:class="{ connected: isExecPortConnected(node.id, port.key) }"
+											@pointerdown.stop="startExecEdgeDrag(node.id, port.key, $event)"
+										/>
+										<span
+											v-else
 											class="node-automation__port-dot node-automation__port-dot--out"
 											:class="{ connected: isPortConnected(node.id, port.key, 'out') }"
 											:style="{ borderColor: portTypeColor(port.type), background: isPortConnected(node.id, port.key, 'out') ? portTypeColor(port.type) : portTypeColor(port.type) + '44' }"
@@ -319,7 +343,9 @@
 						<span
 							v-if="node.id !== 'trigger'"
 							class="node-automation__handle node-automation__handle--out"
-							title="Drop an action here to insert after this node"
+							:class="{ 'connectable': !!model.graph }"
+							title="Drag to connect to another node"
+							@pointerdown.stop="model.graph && startExecEdgeDrag(node.id, undefined, $event)"
 						/>
 						<span
 							class="node-automation__resize-handle"
@@ -481,7 +507,7 @@
 							</div>
 						</div>
 					</section>
-					<!-- Flow: Floating Sequences -->
+					<!-- Flow: Control Flow Nodes + Floating Sequences -->
 					<section class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('flow')" @click="toggleContextGroup('flow')">
 							<span><i class="mdi mdi-vector-polyline" /> Flow</span>
@@ -489,6 +515,55 @@
 						</button>
 						<div v-if="isContextGroupOpen('flow')">
 							<div class="node-automation__menu-items">
+								<button type="button" @click="addControlFlowNode('if')">
+									<i class="mdi mdi-source-branch" style="color: #64b5f6" />
+									<span><strong>If / Else</strong><small>Conditional branch</small></span>
+									<em>Control</em>
+								</button>
+								<button type="button" @click="addControlFlowNode('switch')">
+									<i class="mdi mdi-source-fork" style="color: #64b5f6" />
+									<span><strong>Switch</strong><small>Multi-way branch</small></span>
+									<em>Control</em>
+								</button>
+								<button type="button" @click="addControlFlowNode('for')">
+									<i class="mdi mdi-repeat" style="color: #68d391" />
+									<span><strong>For Loop</strong><small>Counter-based loop</small></span>
+									<em>Control</em>
+								</button>
+								<button type="button" @click="addControlFlowNode('forEach')">
+									<i class="mdi mdi-format-list-numbered" style="color: #68d391" />
+									<span><strong>For Each</strong><small>Iterate over collection</small></span>
+									<em>Control</em>
+								</button>
+								<button type="button" @click="addControlFlowNode('while')">
+									<i class="mdi mdi-sync" style="color: #68d391" />
+									<span><strong>While Loop</strong><small>Condition-based loop</small></span>
+									<em>Control</em>
+								</button>
+								<button type="button" @click="addControlFlowNode('break')">
+									<i class="mdi mdi-debug-step-out" style="color: #ef9a9a" />
+									<span><strong>Break</strong><small>Exit current loop</small></span>
+									<em>Control</em>
+								</button>
+								<button type="button" @click="addControlFlowNode('continue')">
+									<i class="mdi mdi-skip-next" style="color: #ef9a9a" />
+									<span><strong>Continue</strong><small>Next iteration</small></span>
+									<em>Control</em>
+								</button>
+								<button type="button" @click="addControlFlowNode('return')">
+									<i class="mdi mdi-keyboard-return" style="color: #ef9a9a" />
+									<span><strong>Return</strong><small>End execution</small></span>
+									<em>Control</em>
+								</button>
+								<hr style="border: none; border-top: 1px solid #333; margin: 6px 0;" />
+								<template v-if="subgraphsList.length">
+									<button v-for="sg in subgraphsList" :key="`sg-${sg.id}`" type="button" @click="addSubgraphCallNode(sg.id)">
+										<i class="mdi mdi-function" style="color: #ce93d8" />
+										<span><strong>{{ sg.name || 'Unnamed' }}</strong><small>Call subgraph</small></span>
+										<em>Subgraph</em>
+									</button>
+									<hr style="border: none; border-top: 1px solid #333; margin: 6px 0;" />
+								</template>
 								<button type="button" @click="addFloatingSequence">
 									<i class="mdi mdi-plus-circle-outline" />
 									<span><strong>New Floating Sequence</strong></span>
@@ -710,6 +785,34 @@
 				</p>
 
 				<section class="node-automation__context-section">
+					<button type="button" class="node-automation__context-header" :aria-expanded="subgraphsOpen" @click="subgraphsOpen = !subgraphsOpen">
+						<span><i class="mdi mdi-function-variant" /> Subgraphs</span>
+						<i :class="subgraphsOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+					</button>
+					<div v-if="subgraphsOpen" class="node-automation__subgraphs">
+						<ul v-if="subgraphsList.length" class="node-automation__subgraph-list">
+							<li v-for="sg in subgraphsList" :key="sg.id" class="node-automation__subgraph-item">
+								<span class="node-automation__subgraph-name">
+									<i class="mdi mdi-function" />
+									{{ sg.name || 'Unnamed' }}
+								</span>
+								<span class="node-automation__subgraph-meta">
+									{{ sg.parameters.length }} param{{ sg.parameters.length === 1 ? '' : 's' }},
+									{{ sg.nodes.length }} node{{ sg.nodes.length === 1 ? '' : 's' }}
+								</span>
+								<button type="button" class="danger" title="Delete subgraph" @click="deleteSubgraph(sg.id)">
+									<i class="mdi mdi-trash-can-outline" />
+								</button>
+							</li>
+						</ul>
+						<p v-else class="node-automation__hint">No subgraphs defined.</p>
+						<button type="button" class="node-automation__add-subgraph" @click="addSubgraph">
+							<i class="mdi mdi-plus" /> New Subgraph
+						</button>
+					</div>
+				</section>
+
+				<section class="node-automation__context-section">
 					<button type="button" class="node-automation__context-header" :aria-expanded="activityOpen" @click="activityOpen = !activityOpen">
 						<span><i class="mdi mdi-history" /> Node Activity</span>
 						<i :class="activityOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
@@ -742,6 +845,7 @@ import {
 	usePluginStore,
 	ActionDefinition,
 	useParentTestSequence,
+	useActionQueueStore,
 } from "ShowRunner-ui-core"
 import {
 	ActionStack,
@@ -757,6 +861,10 @@ import {
 	constructDefault,
 	type AutomationDataWire,
 	type AutomationVariableNode,
+	type GraphNode,
+	type GraphEdge,
+	type AutomationGraph,
+	type GraphNodeType,
 } from "ShowRunner-schema"
 import { useNodeActivity } from "./useNodeActivity"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
@@ -772,7 +880,7 @@ interface ConfigLine {
 
 interface NodeData extends NodePosition {
 	id: string
-	kind: "trigger" | "action" | "stack" | "time" | "flow" | "floating" | "variable"
+	kind: "trigger" | "action" | "stack" | "time" | "flow" | "floating" | "variable" | "if" | "switch" | "for" | "forEach" | "while" | "break" | "continue" | "return"
 	title: string
 	subtitle: string
 	icon: string
@@ -829,12 +937,14 @@ const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
 const activityOpen = ref(true)
+const subgraphsOpen = ref(false)
 const recentlyUsed = ref<{ key: string; kind: "action" | "trigger"; name: string; icon: string; color: string }[]>([])
 const MAX_RECENT = 5
 const { activityLog, logActivity } = useNodeActivity()
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
 const activeTestSequence = useParentTestSequence()
+const actionQueueStore = useActionQueueStore()
 
 const NODE_WIDTH = 220
 const NODE_BASE_HEIGHT = 74
@@ -935,23 +1045,20 @@ const screenReaderAnnouncement = computed(() => {
 	return `${selectedNodeIds.value.size} nodes selected`
 })
 const edges = computed<EdgeData[]>(() => {
-	const byId = new Map(nodes.value.map((node) => [node.id, node]))
-	return graph.value.edges.flatMap((edge) => {
-		const from = byId.get(edge.from)
-		const to = byId.get(edge.to)
-		if (!from || !to) return []
-		const startX = from.x + (from.width ?? NODE_WIDTH)
-		const startY = from.y + from.height / 2
-		const endX = to.x
-		const endY = to.y + to.height / 2
-		const midX = startX + Math.max(60, (endX - startX) / 2)
-		return [
-			{
-				...edge,
-				path: `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`,
-			},
-		]
-	})
+	if (!model.value.graph) return []
+	// Build edges from the graph data, computing SVG paths
+	const nodeMap = new Map(nodes.value.map((n) => [n.id, n]))
+	return graph.value.edges.map((e) => {
+		const fromNode = nodeMap.get(e.from)
+		const toNode = nodeMap.get(e.to)
+		const fromX = fromNode ? fromNode.x + (fromNode.width ?? NODE_WIDTH) : 0
+		const fromY = fromNode ? fromNode.y + fromNode.height / 2 : 0
+		const toX = toNode ? toNode.x : 0
+		const toY = toNode ? toNode.y + toNode.height / 2 : 0
+		const cpOffset = Math.min(80, Math.abs(toX - fromX) / 2)
+		const path = `M${fromX},${fromY} C${fromX + cpOffset},${fromY} ${toX - cpOffset},${toY} ${toX},${toY}`
+		return { id: e.id, from: e.from, to: e.to, path }
+	}).filter((e) => e.path)
 })
 const lanes = computed<LaneData[]>(() => {
 	const groups = new Map<string, { kind: LaneData["kind"]; label: string; nodes: NodeData[] }>()
@@ -1144,6 +1251,11 @@ function isPortConnected(nodeId: string, portKey: string, kind: "in" | "out"): b
 	return connectedPorts.value.has(`${nodeId}:${portKey}:${kind}`)
 }
 
+function isExecPortConnected(nodeId: string, portKey: string): boolean {
+	if (!model.value.graph) return false
+	return model.value.graph.edges.some((e) => e.from === nodeId && e.port === portKey)
+}
+
 const removingWireIds = ref(new Set<string>())
 
 function animateWireRemoval(wireId: string) {
@@ -1152,6 +1264,154 @@ function animateWireRemoval(wireId: string) {
 		removingWireIds.value.delete(wireId)
 		deleteDataWire(wireId)
 	}, 300)
+}
+
+// ─── Execution Edge Drawing ──────────────────────────────────────────────────
+
+interface ExecEdgeDragState {
+	fromNode: string
+	fromPort: string | undefined // undefined = default out, named = "then", "else", "body", etc.
+	fromX: number
+	fromY: number
+	currentX: number
+	currentY: number
+}
+
+const execEdgeDrag = ref<ExecEdgeDragState | null>(null)
+
+const execDragWirePath = computed(() => {
+	const drag = execEdgeDrag.value
+	if (!drag) return null
+	const x1 = drag.fromX
+	const y1 = drag.fromY
+	const x2 = drag.currentX
+	const y2 = drag.currentY
+	const cp = Math.max(60, Math.abs(x2 - x1) * 0.4)
+	return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`
+})
+
+function startExecEdgeDrag(nodeId: string, port: string | undefined, event: PointerEvent) {
+	if (!model.value.graph) return
+	event.stopPropagation()
+	event.preventDefault()
+
+	const node = nodes.value.find((n) => n.id === nodeId)
+	if (!node) return
+
+	// Calculate start position (right edge center for default, or port position for named ports)
+	let fromX: number
+	let fromY: number
+	if (port && node.outputPorts) {
+		// Named port — find vertical position
+		const idx = node.outputPorts.findIndex((p) => p.key === port)
+		const configHeight = (node.configLines?.length ?? 0) > 0 ? (node.configLines!.length * 20 + 4) : 0
+		const portsStartY = NODE_BASE_HEIGHT + configHeight + 8
+		fromX = node.x + (node.width ?? NODE_WIDTH)
+		fromY = node.y + portsStartY + idx * 18 + 9
+	} else {
+		fromX = node.x + (node.width ?? NODE_WIDTH) + 6
+		fromY = node.y + node.height / 2
+	}
+
+	execEdgeDrag.value = {
+		fromNode: nodeId,
+		fromPort: port,
+		fromX,
+		fromY,
+		currentX: fromX,
+		currentY: fromY,
+	}
+
+	window.addEventListener("pointermove", onExecEdgeMove)
+	window.addEventListener("pointerup", onExecEdgeEnd)
+}
+
+function onExecEdgeMove(event: PointerEvent) {
+	if (!execEdgeDrag.value || !canvasRef.value) return
+	const surface = canvasRef.value.querySelector<HTMLElement>(".node-automation__surface")
+	if (!surface) return
+	const rect = surface.getBoundingClientRect()
+	execEdgeDrag.value.currentX = (event.clientX - rect.left) / zoom.value
+	execEdgeDrag.value.currentY = (event.clientY - rect.top) / zoom.value
+}
+
+function onExecEdgeEnd(event: PointerEvent) {
+	window.removeEventListener("pointermove", onExecEdgeMove)
+	window.removeEventListener("pointerup", onExecEdgeEnd)
+
+	const drag = execEdgeDrag.value
+	if (!drag || !model.value.graph) {
+		execEdgeDrag.value = null
+		return
+	}
+
+	// Find target node under cursor (by checking if cursor is over handle--in area)
+	const targetNode = findExecEdgeTarget(drag)
+	if (targetNode && targetNode !== drag.fromNode) {
+		// Check for cycles
+		if (!wouldCreateExecCycle(drag.fromNode, targetNode)) {
+			// Remove any existing edge from this port
+			const g = model.value.graph
+			const existingIdx = g.edges.findIndex(
+				(e) => e.from === drag.fromNode && (e.port ?? undefined) === drag.fromPort
+			)
+			if (existingIdx >= 0) g.edges.splice(existingIdx, 1)
+
+			g.edges.push({
+				id: nanoid(),
+				from: drag.fromNode,
+				to: targetNode,
+				port: drag.fromPort,
+			})
+			commitUndo()
+		}
+	}
+
+	execEdgeDrag.value = null
+}
+
+function findExecEdgeTarget(drag: ExecEdgeDragState): string | undefined {
+	const SNAP_RADIUS = 30
+	for (const node of nodes.value) {
+		if (node.id === drag.fromNode) continue
+		if (node.id === "trigger") continue // can't connect TO trigger
+		// Check if cursor is near the left handle (input)
+		const handleX = node.x - 6
+		const handleY = node.y + node.height / 2
+		const dx = drag.currentX - handleX
+		const dy = drag.currentY - handleY
+		if (Math.sqrt(dx * dx + dy * dy) < SNAP_RADIUS) {
+			return node.id
+		}
+	}
+	return undefined
+}
+
+function wouldCreateExecCycle(fromNode: string, toNode: string): boolean {
+	if (!model.value.graph) return false
+	const visited = new Set<string>()
+	const stack = [toNode]
+	while (stack.length > 0) {
+		const current = stack.pop()!
+		if (current === fromNode) return true
+		if (visited.has(current)) continue
+		visited.add(current)
+		for (const edge of model.value.graph.edges) {
+			if (edge.from === current) {
+				stack.push(edge.to)
+			}
+		}
+	}
+	return false
+}
+
+function deleteExecEdge(edgeId: string) {
+	if (!model.value.graph) return
+	const idx = model.value.graph.edges.findIndex((e) => e.id === edgeId)
+	if (idx >= 0) {
+		model.value.graph.edges.splice(idx, 1)
+		commitUndo()
+	}
 }
 
 function summarizeConfigValue(value: unknown): string {
@@ -1265,7 +1525,162 @@ function extractConfigSummary(
 	return lines
 }
 
+// ─── Graph Node Info Map ──────────────────────────────────────────────────────
+const GRAPH_NODE_INFO: Record<GraphNodeType, { icon: string; kind: NodeData["kind"]; label: string }> = {
+	action: { icon: "mdi mdi-play", kind: "action", label: "Action" },
+	if: { icon: "mdi mdi-source-branch", kind: "if", label: "If" },
+	switch: { icon: "mdi mdi-source-fork", kind: "switch", label: "Switch" },
+	for: { icon: "mdi mdi-repeat", kind: "for", label: "For Loop" },
+	forEach: { icon: "mdi mdi-format-list-numbered", kind: "forEach", label: "For Each" },
+	while: { icon: "mdi mdi-sync", kind: "while", label: "While" },
+	break: { icon: "mdi mdi-debug-step-out", kind: "break", label: "Break" },
+	continue: { icon: "mdi mdi-skip-next", kind: "continue", label: "Continue" },
+	return: { icon: "mdi mdi-keyboard-return", kind: "return", label: "Return" },
+	subgraphCall: { icon: "mdi mdi-function", kind: "action", label: "Subgraph" },
+}
+
+function summarizeExpression(expr: any): string {
+	if (!expr) return "—"
+	switch (expr.type) {
+		case "literal": return JSON.stringify(expr.value)?.slice(0, 20) ?? "—"
+		case "variable": return `$${expr.name}`
+		case "port": return `${expr.nodeId}.${expr.port}`
+		case "binary": return `${summarizeExpression(expr.left)} ${expr.op} ${summarizeExpression(expr.right)}`
+		case "unary": return `${expr.op}${summarizeExpression(expr.operand)}`
+		case "call": return `${expr.fn}(…)`
+		case "member": return `${summarizeExpression(expr.object)}.${expr.property}`
+		case "index": return `${summarizeExpression(expr.object)}[…]`
+		default: return "expr"
+	}
+}
+
+function graphNodeToNodeData(
+	gn: GraphNode,
+	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
+): NodeData {
+	const info = GRAPH_NODE_INFO[gn.type]
+	let title = info.label
+	let subtitle = ""
+	let configLines: ConfigLine[] | undefined
+	let outputPorts: PortDef[] | undefined
+
+	switch (gn.type) {
+		case "action": {
+			title = titleCase(gn.action)
+			subtitle = `${gn.plugin} / ${gn.action}`
+			configLines = extractConfigSummary(gn as any, pluginMap)
+			break
+		}
+		case "if":
+			subtitle = "condition"
+			configLines = [{ label: "when", value: summarizeExpression(gn.condition) }]
+			outputPorts = [
+				{ key: "then", label: "then", type: "flow" },
+				{ key: "else", label: "else", type: "flow" },
+			]
+			break
+		case "switch":
+			subtitle = `${gn.cases.length} case${gn.cases.length === 1 ? "" : "s"}`
+			configLines = [{ label: "expr", value: summarizeExpression(gn.expression) }]
+			outputPorts = [
+				...gn.cases.map((c) => ({ key: c.port, label: String(c.value), type: "flow" as const })),
+				{ key: "default", label: "default", type: "flow" as const },
+			]
+			break
+		case "for":
+			subtitle = `${gn.variable}`
+			configLines = [
+				{ label: "from", value: summarizeExpression(gn.start) },
+				{ label: "to", value: summarizeExpression(gn.end) },
+			]
+			outputPorts = [
+				{ key: "body", label: "body", type: "flow" },
+				{ key: "next", label: "done", type: "flow" },
+			]
+			break
+		case "forEach":
+			subtitle = `${gn.variable} in collection`
+			configLines = [{ label: "of", value: summarizeExpression(gn.collection) }]
+			outputPorts = [
+				{ key: "body", label: "body", type: "flow" },
+				{ key: "next", label: "done", type: "flow" },
+			]
+			break
+		case "while":
+			subtitle = `max ${gn.maxIterations ?? 10000}`
+			configLines = [{ label: "while", value: summarizeExpression(gn.condition) }]
+			outputPorts = [
+				{ key: "body", label: "body", type: "flow" },
+				{ key: "next", label: "done", type: "flow" },
+			]
+			break
+		case "break":
+			subtitle = "exit loop"
+			break
+		case "continue":
+			subtitle = "next iteration"
+			break
+		case "return":
+			subtitle = "end execution"
+			break
+		case "subgraphCall":
+			title = "Call Subgraph"
+			subtitle = gn.subgraphId
+			break
+	}
+
+	return {
+		id: gn.id,
+		kind: info.kind,
+		title,
+		subtitle,
+		icon: info.icon,
+		x: gn.x,
+		y: gn.y,
+		configLines,
+		outputPorts,
+		height: computeNodeHeight(configLines, undefined, outputPorts),
+	}
+}
+
+function buildGraphFromAutomationGraph(
+	automationGraph: AutomationGraph,
+	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
+) {
+	const nodes: NodeData[] = automationGraph.nodes.map((gn) => graphNodeToNodeData(gn, pluginMap))
+	const edges: Omit<EdgeData, "path">[] = automationGraph.edges.map((e) => ({
+		id: e.id,
+		from: e.from,
+		to: e.to,
+	}))
+	return { nodes, edges }
+}
+
 function buildGraph(automation: AutomationConfig, pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>) {
+	// If automation has a graph, use the graph-based rendering
+	if (automation.graph) {
+		const { nodes: graphNodes, edges: graphEdges } = buildGraphFromAutomationGraph(automation.graph, pluginMap)
+		// Prepend trigger node
+		const triggerId = "trigger"
+		const triggerNode: NodeData = {
+			id: triggerId,
+			kind: "trigger",
+			title: automation.trigger ? titleCase(automation.trigger) : "Start",
+			subtitle: automation.plugin ? `${automation.plugin} trigger` : "Entry point",
+			icon: "mdi mdi-flash",
+			x: 42,
+			y: 88,
+			height: NODE_BASE_HEIGHT,
+		}
+		const nodes = [triggerNode, ...graphNodes]
+		const edges = [...graphEdges]
+		// Connect trigger to entry node
+		if (automation.graph.entryNodeId) {
+			edges.push({ id: `${triggerId}:${automation.graph.entryNodeId}`, from: triggerId, to: automation.graph.entryNodeId })
+		}
+		return { nodes, edges }
+	}
+
 	const nodes: NodeData[] = []
 	const edges: Omit<EdgeData, "path">[] = []
 
@@ -1273,8 +1688,8 @@ function buildGraph(automation: AutomationConfig, pluginMap: Map<string, { actio
 	nodes.push({
 		id: triggerId,
 		kind: "trigger",
-		title: automation.trigger ? titleCase(automation.trigger) : "Manual Start",
-		subtitle: automation.plugin ? `${automation.plugin} trigger` : "No trigger configured",
+		title: automation.trigger ? titleCase(automation.trigger) : "Start",
+		subtitle: automation.plugin ? `${automation.plugin} trigger` : "Entry point",
 		icon: "mdi mdi-flash",
 		x: 42,
 		y: 88,
@@ -2088,6 +2503,20 @@ function deleteSelectedAction() {
 	const idsToDelete = selectedNodeIds.value.size > 1
 		? [...selectedNodeIds.value].filter((id) => id !== "trigger")
 		: selectedActionPosition.value ? [selectedNodeId.value!] : []
+
+	// In graph mode, also handle nodes that are only in the graph (not in sequence)
+	if (model.value.graph && idsToDelete.length === 0 && selectedNodeId.value && selectedNodeId.value !== "trigger") {
+		const graphNodeExists = model.value.graph.nodes.some((n) => n.id === selectedNodeId.value)
+		if (graphNodeExists) {
+			deleteGraphNodes([selectedNodeId.value])
+			return
+		}
+	}
+	if (model.value.graph && idsToDelete.length > 0) {
+		deleteGraphNodes(idsToDelete)
+		return
+	}
+
 	if (idsToDelete.length === 0) return
 
 	let anyRemoved = false
@@ -2114,11 +2543,34 @@ function deleteSelectedAction() {
 	if (anyRemoved) commitUndo()
 }
 
+function deleteGraphNodes(ids: string[]) {
+	if (!model.value.graph) return
+	const idSet = new Set(ids)
+	model.value.graph.nodes = model.value.graph.nodes.filter((n) => !idSet.has(n.id))
+	model.value.graph.edges = model.value.graph.edges.filter((e) => !idSet.has(e.from) && !idSet.has(e.to))
+	// Clean data wires too
+	dataWires.value = dataWires.value.filter((w) => !idSet.has(w.fromNode) && !idSet.has(w.toNode))
+	// Fix entry node if deleted
+	if (model.value.graph.entryNodeId && idSet.has(model.value.graph.entryNodeId)) {
+		model.value.graph.entryNodeId = model.value.graph.nodes[0]?.id ?? ""
+	}
+	logActivity("Deleted", `${ids.length} node${ids.length === 1 ? "" : "s"}`)
+	clearSelection()
+	commitUndo()
+}
+
 function deleteSelectedEdge() {
 	const edgeId = selectedEdgeId.value
 	if (!edgeId) return
 	const edge = edges.value.find((e) => e.id === edgeId)
 	if (!edge) return
+
+	// In graph mode, just remove the edge from the graph
+	if (model.value.graph) {
+		deleteExecEdge(edgeId)
+		selectedEdgeId.value = undefined
+		return
+	}
 
 	const toId = edge.to
 	if (toId === "trigger") return
@@ -2186,6 +2638,112 @@ function cloneActionForNodeEditor(action: AnyAction | ActionStack) {
 	return clonedSequence.actions[0]
 }
 
+// ─── Subgraph Management ──────────────────────────────────────────────────────
+
+const subgraphsList = computed(() => model.value.subgraphs ?? [])
+
+function addSubgraph() {
+	if (!model.value.subgraphs) model.value.subgraphs = []
+	const id = nanoid()
+	model.value.subgraphs.push({
+		id,
+		name: `Subgraph ${model.value.subgraphs.length + 1}`,
+		parameters: [],
+		outputs: [],
+		nodes: [],
+		edges: [],
+		entryNodeId: "",
+	})
+	logActivity("Added", "Subgraph")
+	commitUndo()
+}
+
+function deleteSubgraph(id: string) {
+	if (!model.value.subgraphs) return
+	const idx = model.value.subgraphs.findIndex((s) => s.id === id)
+	if (idx >= 0) {
+		model.value.subgraphs.splice(idx, 1)
+		// Also remove any subgraphCall nodes referencing this subgraph
+		if (model.value.graph) {
+			model.value.graph.nodes = model.value.graph.nodes.filter(
+				(n) => !(n.type === "subgraphCall" && n.subgraphId === id)
+			)
+		}
+		logActivity("Deleted", "Subgraph")
+		commitUndo()
+	}
+}
+
+function addSubgraphCallNode(subgraphId: string) {
+	if (!model.value.graph) {
+		model.value.graph = { nodes: [], edges: [], entryNodeId: "" }
+	}
+	const canvasPoint = contextMenu.value.canvasPoint ?? { x: 100, y: 200 }
+	const id = nanoid()
+	model.value.graph.nodes.push({
+		id,
+		type: "subgraphCall",
+		x: canvasPoint.x,
+		y: canvasPoint.y,
+		subgraphId,
+		inputs: {},
+	})
+	closeContextMenu()
+	logActivity("Added", "Subgraph Call")
+	commitUndo()
+}
+
+function addControlFlowNode(type: GraphNodeType) {
+	const canvasPoint = contextMenu.value.canvasPoint ?? { x: 100, y: 200 }
+	const id = nanoid()
+
+	// Ensure graph exists on the automation
+	if (!model.value.graph) {
+		model.value.graph = { nodes: [], edges: [], entryNodeId: "" }
+	}
+
+	let newNode: GraphNode
+	switch (type) {
+		case "if":
+			newNode = { id, type: "if", x: canvasPoint.x, y: canvasPoint.y, condition: { type: "literal", value: true } }
+			break
+		case "switch":
+			newNode = { id, type: "switch", x: canvasPoint.x, y: canvasPoint.y, expression: { type: "literal", value: "" }, cases: [{ value: "case1", port: "case:0" }] }
+			break
+		case "for":
+			newNode = { id, type: "for", x: canvasPoint.x, y: canvasPoint.y, variable: "i", start: { type: "literal", value: 0 }, end: { type: "literal", value: 10 }, step: { type: "literal", value: 1 } }
+			break
+		case "forEach":
+			newNode = { id, type: "forEach", x: canvasPoint.x, y: canvasPoint.y, variable: "item", collection: { type: "literal", value: [] } }
+			break
+		case "while":
+			newNode = { id, type: "while", x: canvasPoint.x, y: canvasPoint.y, condition: { type: "literal", value: true }, maxIterations: 1000 }
+			break
+		case "break":
+			newNode = { id, type: "break", x: canvasPoint.x, y: canvasPoint.y }
+			break
+		case "continue":
+			newNode = { id, type: "continue", x: canvasPoint.x, y: canvasPoint.y }
+			break
+		case "return":
+			newNode = { id, type: "return", x: canvasPoint.x, y: canvasPoint.y }
+			break
+		default:
+			return
+	}
+
+	model.value.graph.nodes.push(newNode)
+
+	// Set entry if first node
+	if (model.value.graph.nodes.length === 1) {
+		model.value.graph.entryNodeId = id
+	}
+
+	closeContextMenu()
+	logActivity("Added", GRAPH_NODE_INFO[type].label)
+	commitUndo()
+}
+
 function addFloatingSequence() {
 	const canvasPoint = contextMenu.value.canvasPoint ?? { x: 100, y: 200 }
 	const floatingSequence: FloatingSequence = {
@@ -2207,6 +2765,21 @@ function deleteFloatingSequence(floatingId: string) {
 		logActivity("Deleted", "Floating Sequence")
 		commitUndo()
 	}
+}
+
+function runFloatingSequence(floatingId: string) {
+	const floating = model.value.floatingSequences.find((f) => f.id === floatingId)
+	if (!floating) return
+	actionQueueStore.testSequence({
+		sequence: { actions: floating.actions },
+		floatingSequences: [],
+		dataWires: model.value.dataWires,
+		variableNodes: model.value.variableNodes,
+	})
+}
+
+function runMainSequence() {
+	actionQueueStore.testSequence(model.value)
 }
 
 function addVariableNode(type: "string" | "number" | "boolean" | "color") {
@@ -2849,6 +3422,15 @@ onUnmounted(() => {
 	stroke-width: 2.5px;
 }
 
+.node-automation__edge--dragging {
+	fill: none;
+	stroke: #e9aaff;
+	stroke-dasharray: 6 4;
+	stroke-linecap: round;
+	stroke-width: 2.5px;
+	opacity: 0.7;
+}
+
 .node-automation__edge.active {
 	stroke: #2ed47a;
 	stroke-width: 4px;
@@ -2955,6 +3537,17 @@ onUnmounted(() => {
 	right: -0.5rem;
 }
 
+.node-automation__handle.connectable {
+	cursor: crosshair;
+	transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.node-automation__handle.connectable:hover {
+	background: #e9aaff;
+	border-color: #fff;
+	transform: translateY(-50%) scale(1.3);
+}
+
 .node-automation__node.drop-target .node-automation__handle--out {
 	background: #2ed47a;
 	border-color: #d2ffe3;
@@ -3023,6 +3616,32 @@ onUnmounted(() => {
 	border-color: #64b5f6;
 }
 
+.node-automation__node--if {
+	border-color: #64b5f6;
+}
+
+.node-automation__node--switch {
+	border-color: #7c4dff;
+}
+
+.node-automation__node--for,
+.node-automation__node--forEach {
+	border-color: #68d391;
+}
+
+.node-automation__node--while {
+	border-color: #4db6ac;
+}
+
+.node-automation__node--break,
+.node-automation__node--continue {
+	border-color: #ef9a9a;
+}
+
+.node-automation__node--return {
+	border-color: #ffab91;
+}
+
 .node-automation__node--floating {
 	border-color: #ff9bd7;
 }
@@ -3081,6 +3700,22 @@ onUnmounted(() => {
 	font-size: 0.7rem;
 	font-weight: 700;
 	padding: 0.2rem 0.35rem;
+}
+
+.node-automation__node-run {
+	align-items: center;
+	background: #4caf50;
+	border-radius: 50%;
+	color: #fff;
+	cursor: pointer;
+	display: flex;
+	font-size: 0.7rem;
+	height: 20px;
+	justify-content: center;
+	width: 20px;
+}
+.node-automation__node-run:hover {
+	background: #66bb6a;
 }
 
 .node-automation__test-badge {
@@ -3209,6 +3844,19 @@ onUnmounted(() => {
 
 .node-automation__port-dot--out {
 	border-color: #2980b9;
+}
+
+.node-automation__port-dot--exec {
+	border-color: #e9aaff;
+	background: #e9aaff44;
+}
+
+.node-automation__port-dot--exec.connected {
+	background: #e9aaff;
+}
+
+.node-automation__port-dot--exec:hover {
+	box-shadow: 0 0 6px 2px #e9aaff;
 }
 
 .node-automation__port-label {
@@ -3584,6 +4232,65 @@ onUnmounted(() => {
 	gap: 0.75rem;
 	margin: 0;
 	padding: 0.75rem;
+}
+
+.node-automation__subgraphs {
+	padding: 0.65rem;
+}
+
+.node-automation__subgraph-list {
+	display: grid;
+	gap: 0.4rem;
+	list-style: none;
+	margin: 0 0 0.5rem;
+	padding: 0;
+}
+
+.node-automation__subgraph-item {
+	align-items: center;
+	background: #101010;
+	border: 1px solid #303030;
+	border-radius: 4px;
+	display: grid;
+	gap: 0.2rem;
+	grid-template-columns: 1fr auto;
+	padding: 0.5rem 0.6rem;
+}
+
+.node-automation__subgraph-name {
+	font-weight: 500;
+}
+
+.node-automation__subgraph-meta {
+	color: #999;
+	font-size: 0.75rem;
+	grid-column: 1;
+}
+
+.node-automation__subgraph-item .danger {
+	background: transparent;
+	border: none;
+	color: #ef5350;
+	cursor: pointer;
+	grid-row: 1 / 3;
+	grid-column: 2;
+	padding: 0.3rem;
+}
+
+.node-automation__add-subgraph {
+	background: #1e1e1e;
+	border: 1px dashed #555;
+	border-radius: 4px;
+	color: #ccc;
+	cursor: pointer;
+	padding: 0.5rem;
+	width: 100%;
+}
+
+.node-automation__add-subgraph:hover {
+	background: #2a2a2a;
+	border-color: #e9aaff;
+	color: #fff;
 }
 
 .node-automation__activity {

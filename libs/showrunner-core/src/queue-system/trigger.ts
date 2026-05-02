@@ -14,7 +14,6 @@ import {
 import { IPCTriggerDefinition } from "ShowRunner-schema"
 import { ProfileManager } from "../profile/profile-system"
 import { ActionQueue, ActionQueueManager } from "./action-queue"
-import { SequenceRunner } from "./sequence"
 import { isFunction } from "lodash"
 import { Profile } from "../profile/profile"
 import { globalLogger, usePluginLogger } from "../logging/logging"

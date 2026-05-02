@@ -9,6 +9,7 @@ import {
 	isTimeAction,
 	isFlowAction,
 } from "./sequence"
+import { AutomationGraph, SubgraphDefinition } from "./graph"
 import _cloneDeep from "lodash/cloneDeep"
 
 export interface AutomationDataWire {
@@ -34,6 +35,8 @@ export interface AutomationData {
 	dataWires?: AutomationDataWire[]
 	variableNodes?: AutomationVariableNode[]
 	testContext?: any
+	graph?: AutomationGraph
+	subgraphs?: SubgraphDefinition[]
 }
 
 export interface InlineAutomation extends AutomationData {

@@ -1,7 +1,6 @@
 import { ResourceStorage, Resource } from "../resources/resource"
 import {
 	QueuedSequence,
-	Sequence,
 	SequenceSource,
 	ActionQueueConfig,
 	ActionQueueState,
@@ -14,7 +13,7 @@ import {
 } from "ShowRunner-schema"
 import { nanoid } from "nanoid/non-secure"
 import { Service } from "../util/service"
-import { SequenceDebugger, SequenceResolvers, SequenceRunner } from "./sequence"
+import { ExecutionDebugger, ActionResolvers } from "./resolvers"
 import { defineCallableIPC, defineIPCFunc } from "../util/electron"
 import { Profile } from "../profile/profile"
 import { FileResource } from "../resources/file-resource"
@@ -22,6 +21,8 @@ import { ResourceRegistry } from "../resources/resource-registry"
 import { deserializeSchema, exposeSchema, serializeSchema } from "../util/ipc-schema"
 import { PluginManager } from "../plugins/plugin-manager"
 import { usePluginLogger } from "../logging/logging"
+import { GraphCompiler } from "../graph-engine/compiler"
+import { GraphVM } from "../graph-engine/vm"
 
 const logger = usePluginLogger("queues")
 
@@ -29,7 +30,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 	static resourceDirectory: string = "./queues"
 	static storage = new ResourceStorage<ActionQueue>("ActionQueue")
 
-	private runner: SequenceRunner | null = null
+	private activeVM: GraphVM | null = null
 	private lastCompletion: number | null = null
 	private scheduledId: string | undefined = undefined
 	private scheduler: NodeJS.Timeout | undefined = undefined
@@ -52,7 +53,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 	}
 
 	get isRunning() {
-		return this.runner != null
+		return this.activeVM != null
 	}
 
 	get isReady() {
@@ -119,7 +120,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 
 	skip(id: string) {
 		if (this.state.running?.id == id) {
-			this.runner?.abort()
+			this.activeVM?.abort()
 		} else {
 			const idx = this.state.queue.findIndex((i) => i.id == id)
 			if (idx < 0) return
@@ -152,7 +153,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 	}
 
 	private async runNext() {
-		if (this.runner || this.state.running) {
+		if (this.activeVM || this.state.running) {
 			return
 		}
 
@@ -160,7 +161,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 
 		if (!seqItem) return
 
-		const resolver = SequenceResolvers.getInstance().getResolver(seqItem.source.type)
+		const resolver = ActionResolvers.getInstance().getResolver(seqItem.source.type)
 
 		if (!resolver) return
 
@@ -174,22 +175,24 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		const deserializedContext = await deserializeSchema(contextSchema, seqItem.queueContext.contextState)
 		const finalContext = await exposeSchema(contextSchema, deserializedContext)
 
-		this.runner = new SequenceRunner(
-			automation.sequence,
-			{ contextState: finalContext },
-			undefined, // debugger (not used in queue execution)
-			automation.dataWires,
-			automation.variableNodes
-		)
+		if (!automation.graph) {
+			logger.error("Automation missing graph — cannot execute", seqItem.source)
+			return
+		}
+
+		const compiler = new GraphCompiler()
+		const program = compiler.compile(automation.graph, automation.subgraphs)
+		this.activeVM = new GraphVM(program, { contextState: finalContext })
+
 		//Sequence Set
 		this.state.running = seqItem
 
 		const doRun = async () => {
 			try {
-				await wrapper(async () => await this.runner?.run(), seqItem.source)
+				await wrapper(async () => await this.activeVM?.execute(), seqItem.source)
 			} finally {
 				this.lastCompletion = Date.now()
-				this.runner = null
+				this.activeVM = null
 				this.state.running = undefined
 				this.pushToHistory(seqItem)
 				if (!this.isPaused) {
@@ -242,7 +245,7 @@ const markTestActionError = defineCallableIPC<(sequenceId: string, id: string, e
 	"markTestActionError"
 )
 
-class TestRunnerDebugger implements SequenceDebugger {
+class TestRunnerDebugger implements ExecutionDebugger {
 	constructor(private sequenceId: string) {}
 
 	markStart(id: string) {
@@ -270,11 +273,10 @@ class TestRunnerDebugger implements SequenceDebugger {
 
 export const ActionQueueManager = Service(
 	class {
-		private testSequences = new Map<string, SequenceRunner>()
+		private testVMs = new Map<string, GraphVM>()
 
 		constructor() {
 			defineIPCFunc("actionQueue", "runTestSequence", (id: string, automation: AutomationData) => {
-				//sequence is encoded for IPC, change configs to proper types
 				this.runTestSequence(id, automation)
 				return id
 			})
@@ -285,7 +287,7 @@ export const ActionQueueManager = Service(
 		}
 
 		async queueOrRun(type: string, id: string, subId: string | undefined, contextData: object) {
-			const resolver = SequenceResolvers.getInstance().getResolver(type)
+			const resolver = ActionResolvers.getInstance().getResolver(type)
 			if (!resolver) return
 
 			const automation = resolver.getAutomation(id, subId)
@@ -303,21 +305,21 @@ export const ActionQueueManager = Service(
 
 				queue.enqueue({ type, id, subId }, serializeSchema(contextSchema, contextData))
 			} else {
-				const finalContext = await exposeSchema(contextSchema, contextData)
-				const sequenceRunner = new SequenceRunner(
-					automation.sequence,
-					{ contextState: finalContext },
-					undefined,
-					automation.dataWires,
-					automation.variableNodes
-				)
+				if (!automation.graph) {
+					logger.error("Automation missing graph — cannot execute", type, id, subId)
+					return
+				}
 
-				await wrapper(async () => await sequenceRunner.run(), { type, id, subId })
+				const finalContext = await exposeSchema(contextSchema, contextData)
+				const compiler = new GraphCompiler()
+				const program = compiler.compile(automation.graph, automation.subgraphs)
+				const vm = new GraphVM(program, { contextState: finalContext })
+				await wrapper(async () => await vm.execute(), { type, id, subId })
 			}
 		}
 
 		async runTestSequence(id: string, automation: AutomationData) {
-			if (this.testSequences.has(id)) return
+			if (this.testVMs.has(id)) return
 
 			let context: any = {}
 
@@ -339,30 +341,28 @@ export const ActionQueueManager = Service(
 				}
 			}
 
-			const runner = new SequenceRunner(
-				automation.sequence,
-				{
-					contextState: context,
-				},
-				new TestRunnerDebugger(id),
-				automation.dataWires,
-				automation.variableNodes
-			)
-
-			this.testSequences.set(id, runner)
-
-			const runnerComplete = () => {
-				this.testSequences.delete(id)
+			if (!automation.graph) {
+				logger.error("Automation missing graph — cannot test-run")
+				return
 			}
 
-			runner.run().then(runnerComplete).catch(runnerComplete)
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(automation.graph, automation.subgraphs)
+			const vm = new GraphVM(program, { contextState: context }, new TestRunnerDebugger(id))
+			this.testVMs.set(id, vm)
+
+			const runnerComplete = () => {
+				this.testVMs.delete(id)
+			}
+
+			vm.execute().then(runnerComplete).catch(runnerComplete)
 		}
 
 		stopTestSequence(id: string) {
-			const runner = this.testSequences.get(id)
-			if (!runner) return false
+			const vm = this.testVMs.get(id)
+			if (!vm) return false
 
-			runner.abort()
+			vm.abort()
 			return true
 		}
 	}

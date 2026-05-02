@@ -5,7 +5,7 @@ export * from "./automation/automation"
 export * from "./media/media-manager"
 export * from "./queue-system/action"
 export * from "./queue-system/action-queue"
-export * from "./queue-system/sequence"
+export * from "./queue-system/resolvers"
 export * from "./queue-system/trigger"
 export * from "./resources/resource"
 export * from "./resources/resource-registry"
@@ -32,6 +32,8 @@ export * from "./logging/logging"
 export * from "./templates/template"
 
 export * from "./reactivity/reactivity"
+
+export * from "./graph-engine/index"
 
 export * from "./profile/profile"
 export * from "./queue-system/action-queue"

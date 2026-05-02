@@ -12,7 +12,7 @@ import { finishSettingUpStreamPlans, setupStreamPlans } from "./stream-plan/stre
 import { globalLogger, initializeLogging } from "./logging/logging"
 import { WebService } from "./webserver/internal-webserver"
 import { PubSubManager } from "./pubsub/pubsub-service"
-import { SequenceResolvers } from "./queue-system/sequence"
+import { ActionResolvers } from "./queue-system/resolvers"
 import { EmoteCache } from "./emotes/emote-service"
 import { GenericLoginService } from "./util/generic-login"
 
@@ -101,7 +101,7 @@ export async function initializeShowRunner() {
 	PubSubManager.initialize()
 	SatelliteService.initialize()
 	SatelliteResources.initialize()
-	SequenceResolvers.initialize()
+	ActionResolvers.initialize()
 	EmoteCache.initialize()
 	setupStreamPlans()
 	ViewerData.initialize()
@@ -156,7 +156,7 @@ export async function initializeShowRunnerSatellite() {
 	SatelliteService.getInstance().startListening()
 	SatelliteMedia.initialize()
 	await SatelliteMedia.getInstance().initialize()
-	//SequenceResolvers.initialize()
+	//ActionResolvers.initialize()
 	//EmoteCache.initialize()
 	//setupStreamPlans()
 	//ViewerData.initialize()

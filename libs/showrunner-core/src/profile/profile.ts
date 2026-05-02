@@ -1,11 +1,11 @@
 import {
 	ProfileState,
 	ProfileConfig,
-	Sequence,
 	TriggerData,
 	Schema,
 	SchemaType,
 	createInlineAutomation,
+	AutomationGraph,
 } from "ShowRunner-schema"
 import { Resource, ResourceStorage } from "../resources/resource"
 import { FileResource } from "../resources/file-resource"
@@ -15,7 +15,7 @@ import { ReactiveEffect, autoRerun } from "../reactivity/reactivity"
 import { ProfileManager } from "./profile-system"
 import { TriggerFunc } from "../queue-system/trigger"
 import { PluginManager } from "../plugins/plugin-manager"
-import { SequenceResolvers } from "../queue-system/sequence"
+import { ActionResolvers } from "../queue-system/resolvers"
 import { isFunction, now } from "lodash"
 import { usePluginLogger } from "../logging/logging"
 
@@ -105,13 +105,13 @@ export class Profile extends FileResource<ProfileConfig, ProfileState> {
 		})
 	}
 
-	getSequence(id: string): Sequence | undefined {
-		if (id == "activation") return this.config.activationAutomation.sequence
-		if (id == "deactivation") return this.config.deactivationAutomation.sequence
+	getGraph(id: string): AutomationGraph | undefined {
+		if (id == "activation") return this.config.activationAutomation.graph
+		if (id == "deactivation") return this.config.deactivationAutomation.graph
 
 		const trigger = this.config.triggers.find((t) => t.id == id)
 		if (trigger) {
-			return trigger.sequence
+			return trigger.graph
 		}
 		return undefined
 	}
@@ -138,7 +138,7 @@ const logger = usePluginLogger("profiles")
 export async function setupProfiles() {
 	await Profile.initialize()
 
-	SequenceResolvers.getInstance().registerResolver("profile", {
+	ActionResolvers.getInstance().registerResolver("profile", {
 		getAutomation(id, subId) {
 			if (!subId) return undefined
 

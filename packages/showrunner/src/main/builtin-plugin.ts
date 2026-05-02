@@ -1,17 +1,15 @@
-import { BooleanExpression, constructDefault, Toggle } from "ShowRunner-schema"
+import { BooleanExpression, constructDefault, Toggle, hashString } from "ShowRunner-schema"
 import {
 	ActionQueue,
 	Automation,
 	Profile,
 	ReactiveEffect,
-	SequenceRunner,
 	WebService,
 	defineAction,
 	definePlugin,
 	defineSetting,
 	defineTrigger,
 	forceRunWithEffect,
-	getSequenceHash,
 	onLoad,
 	onProfilesChanged,
 	runOnChange,
@@ -19,6 +17,8 @@ import {
 	defineFlowAction,
 	globalLogger,
 	usePluginLogger,
+	GraphCompiler,
+	GraphVM,
 } from "ShowRunner-core"
 import { getExpressionHash } from "ShowRunner-core/src/util/boolean-helpers"
 
@@ -166,14 +166,16 @@ export default definePlugin(
 				},
 			},
 			async invoke(config, contextData, abortSignal) {
-				const runner = new SequenceRunner(config.automation.config.sequence, contextData)
+				if (!config.automation.config.graph) return
 
-				const onabort = () => runner.abort()
+				const compiler = new GraphCompiler()
+				const program = compiler.compile(config.automation.config.graph, config.automation.config.subgraphs)
+				const vm = new GraphVM(program, contextData)
 
-				//Link up the sequence runners abort
+				const onabort = () => vm.abort()
 				abortSignal.addEventListener("abort", onabort, { once: true })
 
-				await runner.run()
+				await vm.execute()
 
 				abortSignal.removeEventListener("abort", onabort)
 			},
@@ -231,7 +233,7 @@ export default definePlugin(
 					const key = `${profile.id}.${trigger.id}`
 
 					const existing = autoRunners.get(key)
-					const hash = getSequenceHash(trigger.sequence)
+					const hash = hashString(JSON.stringify(trigger.graph ?? {}))
 					if (!existing) {
 						const effect = new ReactiveEffect(async () => {
 							logger.log("RUN!")
