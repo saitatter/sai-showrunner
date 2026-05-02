@@ -73,6 +73,7 @@ import {
 	useDataBinding,
 	DataBindingPath,
 	provideScrollAttachable,
+	useIpcCaller,
 } from "ShowRunner-ui-core"
 import { computed, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetTransformEdit from "./OverlayWidgetTransformEdit.vue"
@@ -99,7 +100,6 @@ const selectedWidgetId = computed(() => {
 })
 
 const widgets = useOverlayWidgets()
-const SHADER_PRESETS_KEY = "showrunner.overlay.shaderPresets"
 const bundledShaderPresets = [
 	{ id: "aurora", name: "Aurora", description: "Soft waves for scene mood." },
 	{ id: "grid", name: "Grid", description: "Motion grid for tech overlays." },
@@ -110,6 +110,10 @@ const bundledShaderPresets = [
 ]
 const shaderPresetName = ref("")
 const shaderPresetNames = ref<string[]>([])
+const shaderPresets = ref<Record<string, string>>({})
+const listShaderPresets = useIpcCaller<() => Promise<Record<string, string>>>("overlays", "listShaderPresets")
+const saveShaderPresetCall = useIpcCaller<(preset: { name: string; source: string }) => Promise<Record<string, string>>>("overlays", "saveShaderPreset")
+const deleteShaderPresetCall = useIpcCaller<(name: string) => Promise<Record<string, string>>>("overlays", "deleteShaderPreset")
 
 const selectedWidgetIndex = computed(() => {
 	if (!selectedWidgetId.value) return
@@ -142,30 +146,20 @@ const shaderPresetHint = computed(() => {
 	return ""
 })
 
-function readShaderPresets(): Record<string, string> {
-	try {
-		return JSON.parse(localStorage.getItem(SHADER_PRESETS_KEY) || "{}") as Record<string, string>
-	} catch {
-		return {}
-	}
-}
-
-function writeShaderPresets(presets: Record<string, string>) {
-	localStorage.setItem(SHADER_PRESETS_KEY, JSON.stringify(presets))
+function setShaderPresets(presets: Record<string, string>) {
+	shaderPresets.value = presets
 	shaderPresetNames.value = Object.keys(presets).sort((a, b) => a.localeCompare(b))
 }
 
-function refreshShaderPresets() {
-	shaderPresetNames.value = Object.keys(readShaderPresets()).sort((a, b) => a.localeCompare(b))
+async function refreshShaderPresets() {
+	setShaderPresets(await listShaderPresets())
 }
 
-function saveShaderPreset() {
+async function saveShaderPreset() {
 	const name = shaderPresetName.value.trim()
 	const source = String(selectedWidget.value?.config?.customFragmentShader || "").trim()
 	if (!name || !source) return
-	const presets = readShaderPresets()
-	presets[name] = source
-	writeShaderPresets(presets)
+	setShaderPresets(await saveShaderPresetCall({ name, source }))
 	shaderPresetName.value = ""
 }
 
@@ -175,7 +169,7 @@ function applyBundledShaderPreset(name: string) {
 }
 
 function applyShaderPreset(name: string) {
-	const source = readShaderPresets()[name]
+	const source = shaderPresets.value[name]
 	if (!source || !selectedWidget.value) return
 	selectedWidget.value.config.preset = "custom"
 	selectedWidget.value.config.customFragmentShader = source
@@ -188,10 +182,8 @@ function deleteShaderPreset(name: string) {
 		header: `Delete Shader Preset?`,
 		message: `Are you sure you want to delete the shader preset "${name}"? This cannot be undone.`,
 		icon: "mdi mdi-delete",
-		accept() {
-			const presets = readShaderPresets()
-			delete presets[name]
-			writeShaderPresets(presets)
+		async accept() {
+			setShaderPresets(await deleteShaderPresetCall(name))
 		},
 	})
 }

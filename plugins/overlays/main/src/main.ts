@@ -9,6 +9,7 @@ import { setupAlerts } from "./alerts"
 import { setupChatFeed } from "./chat-feed"
 import { setupPaidAlert } from "./paid-alert"
 import { setupSceneEvents } from "./scene-events"
+import { setupShaderPresets } from "./shader-presets"
 
 export default definePlugin(
 	{
@@ -29,6 +30,7 @@ export default definePlugin(
 		setupChatFeed()
 		setupPaidAlert()
 		setupSceneEvents()
+		setupShaderPresets()
 	}
 )
 
