@@ -127,8 +127,14 @@ export function extractPorts(
 	const actionDef = pluginMap.get(action.plugin)?.actions?.[action.action]
 	if (!actionDef) return { inputPorts: [], outputPorts: [] }
 
+	const inputPorts = schemaToPorts(actionDef.config)
+	const outputPorts = actionDef.type === "regular" ? schemaToPorts(actionDef.result) : []
+
+	return { inputPorts, outputPorts }
+}
+
+function schemaToPorts(schema: unknown): PortDef[] {
 	const inputPorts: PortDef[] = []
-	const schema = actionDef.config
 	if (schema && isObjectSchema(schema)) {
 		for (const [key, propSchema] of Object.entries(schema.properties)) {
 			if (inputPorts.length >= MAX_PORTS) break
@@ -138,19 +144,7 @@ export function extractPorts(
 			inputPorts.push({ key, label, type: schemaTypeLabel(propSchema) })
 		}
 	}
-
-	const outputPorts: PortDef[] = []
-	if (actionDef.type === "regular" && actionDef.result && isObjectSchema(actionDef.result)) {
-		for (const [key, propSchema] of Object.entries(actionDef.result.properties)) {
-			if (outputPorts.length >= MAX_PORTS) break
-			const label = (propSchema && typeof propSchema === "object" && "name" in propSchema && propSchema.name)
-				? String(propSchema.name)
-				: titleCase(key)
-			outputPorts.push({ key, label, type: schemaTypeLabel(propSchema) })
-		}
-	}
-
-	return { inputPorts, outputPorts }
+	return inputPorts
 }
 
 export function extractConfigSummary(
@@ -243,6 +237,7 @@ export function graphNodeToNodeData(
 	let title = info.label
 	let subtitle = ""
 	let configLines: ConfigLine[] | undefined
+	let inputPorts: PortDef[] | undefined
 	let outputPorts: PortDef[] | undefined
 
 	switch (gn.type) {
@@ -250,6 +245,9 @@ export function graphNodeToNodeData(
 			title = titleCase((gn as any).action)
 			subtitle = `${(gn as any).plugin} / ${(gn as any).action}`
 			configLines = extractConfigSummary(gn as any, pluginMap)
+			const ports = extractPorts(gn as any, pluginMap)
+			inputPorts = ports.inputPorts
+			outputPorts = ports.outputPorts
 			break
 		}
 		case "if":
@@ -319,8 +317,9 @@ export function graphNodeToNodeData(
 		x: (gn as any).x ?? 0,
 		y: (gn as any).y ?? 0,
 		configLines,
+		inputPorts,
 		outputPorts,
-		height: computeNodeHeight(configLines, undefined, outputPorts),
+		height: computeNodeHeight(configLines, inputPorts, outputPorts),
 	}
 }
 
@@ -357,14 +356,27 @@ export function buildGraph(
 		icon: "mdi mdi-flash",
 		x: 42,
 		y: 88,
+		outputPorts: getTriggerOutputPorts(automation, pluginMap),
 		height: NODE_BASE_HEIGHT,
 	}
+	triggerNode.height = computeNodeHeight(undefined, undefined, triggerNode.outputPorts)
 	const nodes = [triggerNode, ...graphNodes]
 	const edges = [...graphEdges]
 	if (automation.graph?.entryNodeId) {
 		edges.push({ id: `${triggerId}:${automation.graph.entryNodeId}`, from: triggerId, to: automation.graph.entryNodeId })
 	}
 	return { nodes, edges }
+}
+
+function getTriggerOutputPorts(
+	automation: AutomationConfig,
+	pluginMap: Map<string, { triggers?: Record<string, { context?: unknown }> }>
+): PortDef[] | undefined {
+	if (!automation.plugin || !automation.trigger) return undefined
+	const context = pluginMap.get(automation.plugin)?.triggers?.[automation.trigger]?.context
+	if (!context || typeof context === "function") return undefined
+	const ports = schemaToPorts(context)
+	return ports.length ? ports : undefined
 }
 
 export function getNodeLane(node: NodeData): Pick<LaneData, "id" | "kind" | "label"> {
