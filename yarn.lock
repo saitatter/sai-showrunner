@@ -2702,7 +2702,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^20.4.8, @types/node@npm:^20.9.0":
+"@types/node@npm:^20.19.0":
+  version: 20.19.39
+  resolution: "@types/node@npm:20.19.39"
+  dependencies:
+    undici-types: "npm:~6.21.0"
+  checksum: 10/15087cb55440fe401d2363d1719fd7123a0aa1152c1b4aeab8c256cee1eaebfba6f54266bf3d181faafda724e3625c91d87109d983cffb3ca8fc12f9f82effcb
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^20.9.0":
   version: 20.17.19
   resolution: "@types/node@npm:20.17.19"
   dependencies:
@@ -2860,13 +2869,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vitejs/plugin-vue@npm:4.6.2":
-  version: 4.6.2
-  resolution: "@vitejs/plugin-vue@npm:4.6.2"
+"@vitejs/plugin-vue@npm:^5.2.0":
+  version: 5.2.4
+  resolution: "@vitejs/plugin-vue@npm:5.2.4"
   peerDependencies:
-    vite: ^4.0.0 || ^5.0.0
+    vite: ^5.0.0 || ^6.0.0
     vue: ^3.2.25
-  checksum: 10/7102f6804347744d14d20b8fa339d4ef28bfd3d4859a5edde8fef0686c52d26b2372d7ef342b71caa51d5908f6cb6dd831b338644fa5457076790b2e2e3aab9e
+  checksum: 10/da39ddb9cc053edeac8c5eae81bcee5762e100a979775b34c181802b421eca183d2b24dbf6f08e167ab0086e482e50208a47517da7004a840fec6d856a39353a
   languageName: node
   linkType: hard
 
@@ -2959,15 +2968,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@volar/language-core@npm:1.11.1, @volar/language-core@npm:~1.11.1":
-  version: 1.11.1
-  resolution: "@volar/language-core@npm:1.11.1"
-  dependencies:
-    "@volar/source-map": "npm:1.11.1"
-  checksum: 10/2fef58727bb3058b7bbd350fea6c38ded6608c65f7f672ffd825f0ba48307e4c5eded634e0c3b37d2ebbdd2e7ab32bc974eeb54f455c0390f85971ebeef3a6ca
-  languageName: node
-  linkType: hard
-
 "@volar/language-core@npm:2.4.11, @volar/language-core@npm:~2.4.11":
   version: 2.4.11
   resolution: "@volar/language-core@npm:2.4.11"
@@ -2977,12 +2977,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@volar/source-map@npm:1.11.1, @volar/source-map@npm:~1.11.1":
-  version: 1.11.1
-  resolution: "@volar/source-map@npm:1.11.1"
+"@volar/language-core@npm:2.4.15":
+  version: 2.4.15
+  resolution: "@volar/language-core@npm:2.4.15"
   dependencies:
-    muggle-string: "npm:^0.3.1"
-  checksum: 10/b90c32b23bbb86a3c47a20a9f7e6293c01b2e65390973e0c849c80ee0ff740ffa76b4d547fdb9b76b2b91a7bdeb2d8d0b1772d4f4d70e2a85784abe0385672f1
+    "@volar/source-map": "npm:2.4.15"
+  checksum: 10/00116468aa7c85ebd1c046437c23de445971358c6fe102dad401d0092d79901d5d43c05eff2b70ed5c7b3779496420d049bdbfba8e8762829834471be33e6e23
   languageName: node
   linkType: hard
 
@@ -2993,13 +2993,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@volar/typescript@npm:~1.11.1":
-  version: 1.11.1
-  resolution: "@volar/typescript@npm:1.11.1"
+"@volar/source-map@npm:2.4.15":
+  version: 2.4.15
+  resolution: "@volar/source-map@npm:2.4.15"
+  checksum: 10/80e8c4b6aa39263c89c376b11c82bf9eaa6cfa02aae70ad01410297246496d9d1b1512a0a71a499d1e1fad97411c3a4103664f3be8f0afc7df9b163a515dcfee
+  languageName: node
+  linkType: hard
+
+"@volar/typescript@npm:2.4.15":
+  version: 2.4.15
+  resolution: "@volar/typescript@npm:2.4.15"
   dependencies:
-    "@volar/language-core": "npm:1.11.1"
+    "@volar/language-core": "npm:2.4.15"
     path-browserify: "npm:^1.0.1"
-  checksum: 10/714eeb3472902617555b9b4959722a215b391160fe4fdf2f8f4abcb075edbd24a5a633db0c36acd175daeddac5f1b35c33f5fc8788e1e251d91385aad27deda9
+    vscode-uri: "npm:^3.0.8"
+  checksum: 10/f5b7dccc6abfca8c1943076690788a6a05e8ecea880be2244c2588bb47835a399927092e200e3774abc33ed56551804c8acfff6d90685ff5acafc3409832ccc6
   languageName: node
   linkType: hard
 
@@ -3046,7 +3054,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vue/compiler-dom@npm:3.5.13, @vue/compiler-dom@npm:^3.3.0, @vue/compiler-dom@npm:^3.5.0":
+"@vue/compiler-dom@npm:3.5.13, @vue/compiler-dom@npm:^3.5.0":
   version: 3.5.13
   resolution: "@vue/compiler-dom@npm:3.5.13"
   dependencies:
@@ -3133,25 +3141,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vue/language-core@npm:1.8.27":
-  version: 1.8.27
-  resolution: "@vue/language-core@npm:1.8.27"
+"@vue/language-core@npm:2.2.12":
+  version: 2.2.12
+  resolution: "@vue/language-core@npm:2.2.12"
   dependencies:
-    "@volar/language-core": "npm:~1.11.1"
-    "@volar/source-map": "npm:~1.11.1"
-    "@vue/compiler-dom": "npm:^3.3.0"
-    "@vue/shared": "npm:^3.3.0"
-    computeds: "npm:^0.0.1"
+    "@volar/language-core": "npm:2.4.15"
+    "@vue/compiler-dom": "npm:^3.5.0"
+    "@vue/compiler-vue2": "npm:^2.7.16"
+    "@vue/shared": "npm:^3.5.0"
+    alien-signals: "npm:^1.0.3"
     minimatch: "npm:^9.0.3"
-    muggle-string: "npm:^0.3.1"
+    muggle-string: "npm:^0.4.1"
     path-browserify: "npm:^1.0.1"
-    vue-template-compiler: "npm:^2.7.14"
   peerDependencies:
     typescript: "*"
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/8ad4e129a334dd78b3ffc161615e4c303105f3e5f2478458eaea8db71d3b2b8081120d913464532d5b6c4f2c0611b2c5cb2a0f9a5f46ba6d5e9422d5d63ae71b
+  checksum: 10/ff3c20da3656bd66786c7317df66d43c9b914778771571a029d019107b3bc83c8e8978514b6aa83b246efe6e2a30051bbb9332340b641b5874b34d72cea136c5
   languageName: node
   linkType: hard
 
@@ -3219,7 +3226,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vue/shared@npm:3.5.13, @vue/shared@npm:^3.3.0, @vue/shared@npm:^3.5.0":
+"@vue/shared@npm:3.5.13, @vue/shared@npm:^3.5.0":
   version: 3.5.13
   resolution: "@vue/shared@npm:3.5.13"
   checksum: 10/5c0c24f443533392dde08c3e4272ff2e19af9762f90baeaa808850e05106537bbd9e2d2ad2081d979b8c4bc89902395b46036b67f74c60b76025924de37833b1
@@ -3338,7 +3345,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-dashboard-core@workspace:libs/showrunner-dashboard-core"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-dashboards-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -3358,7 +3365,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-dashboard-widget-loader@workspace:libs/showrunner-dashboard-widget-loader"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-overlay-core: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -3384,8 +3391,8 @@ __metadata:
     "@ffprobe-installer/win32-x64": "npm:^5.1.0"
     "@semantic-release/commit-analyzer": "npm:^13.0.1"
     "@semantic-release/release-notes-generator": "npm:^14.1.0"
-    "@types/node": "npm:^20.4.8"
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@types/node": "npm:^20.19.0"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vue/tsconfig": "npm:^0.4.0"
     "@vueuse/core": "npm:10.7.2"
     ShowRunner-core: "workspace:^"
@@ -3409,7 +3416,7 @@ __metadata:
     vitest: "npm:^4.1.5"
     vue: "npm:^3.5.13"
     vue-i18n: "npm:9"
-    vue-tsc: "npm:^1.8.0"
+    vue-tsc: "npm:^2.2.0"
     ws: "npm:^8.14.2"
   languageName: unknown
   linkType: soft
@@ -3424,6 +3431,7 @@ __metadata:
     axios: "npm:^1.1.3"
     events: "npm:^3.3.0"
     pinia: "npm:^2.1.7"
+    vite: "npm:^7.3.1"
     vite-plugin-externals: "npm:^0.5.1"
     vue: "npm:^3.5.13"
   languageName: unknown
@@ -3433,7 +3441,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-overlay-core@workspace:libs/showrunner-overlay-core"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-overlays-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -3463,7 +3471,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-overlay-widget-loader@workspace:libs/showrunner-overlay-widget-loader"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-overlay-core: "workspace:^"
     ShowRunner-plugin-overlays-overlays: "workspace:^"
@@ -3636,7 +3644,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-dashboards-dashboard@workspace:plugins/dashboards/dashboard"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-dashboard-core: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -3669,7 +3677,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-dashboards-renderer@workspace:plugins/dashboards/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-dashboard-widget-loader: "workspace:^"
     ShowRunner-plugin-dashboards-shared: "workspace:^"
@@ -3719,7 +3727,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-discord-renderer@workspace:plugins/discord/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     chromatism2: "npm:*"
@@ -3815,7 +3823,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-elgato-renderer@workspace:plugins/elgato/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -3864,7 +3872,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-govee-renderer@workspace:plugins/govee/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -3911,7 +3919,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-http-renderer@workspace:plugins/http/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     chromatism2: "npm:*"
@@ -3957,7 +3965,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-input-renderer@workspace:plugins/input/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-input-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4005,7 +4013,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-iot-renderer@workspace:plugins/iot/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-iot-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4055,7 +4063,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-lifx-renderer@workspace:plugins/lifx/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -4103,7 +4111,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-minecraft-renderer@workspace:plugins/minecraft/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     chromatism2: "npm:*"
@@ -4150,7 +4158,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-moderation-renderer@workspace:plugins/moderation/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     ShowRunner-plugin-moderation-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -4199,7 +4207,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-obs-renderer@workspace:plugins/obs/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -4246,7 +4254,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-os-renderer@workspace:plugins/os/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-os-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4300,7 +4308,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-overlays-overlays@workspace:plugins/overlays/overlay"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-overlay-core: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4321,7 +4329,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-overlays-renderer@workspace:plugins/overlays/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-overlay-core: "workspace:^"
     ShowRunner-overlay-widget-loader: "workspace:^"
@@ -4377,7 +4385,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-philips-hue-renderer@workspace:plugins/philips-hue/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -4425,7 +4433,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-random-overlays@workspace:plugins/random/overlay"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-overlay-core: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4446,7 +4454,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-random-renderer@workspace:plugins/random/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-random-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4483,7 +4491,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-remote-dashboard@workspace:plugins/remote/dashboard"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-dashboard-core: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4516,7 +4524,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-remote-renderer@workspace:plugins/remote/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-remote-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4575,7 +4583,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-sound-renderer@workspace:plugins/sound/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -4625,7 +4633,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-spellcast-renderer@workspace:plugins/spellcast/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-spellcast-shared: "workspace:^"
     ShowRunner-plugin-twitch-renderer: "workspace:^"
@@ -4674,7 +4682,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-stream-plans-renderer@workspace:plugins/stream-plans/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-stream-plans-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4723,7 +4731,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-time-renderer@workspace:plugins/time/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-time-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4772,7 +4780,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-tplink-kasa-renderer@workspace:plugins/tplink-kasa/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -4818,7 +4826,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-twinkly-renderer@workspace:plugins/twinkly/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -4875,7 +4883,7 @@ __metadata:
   resolution: "ShowRunner-plugin-twitch-overlays@workspace:plugins/twitch/overlay"
   dependencies:
     "@types/matter-js": "npm:^0.19.6"
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-overlay-core: "workspace:^"
     ShowRunner-plugin-twitch-shared: "workspace:^"
@@ -4898,7 +4906,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-twitch-renderer@workspace:plugins/twitch/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-plugin-twitch-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
@@ -4948,7 +4956,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-variables-renderer@workspace:plugins/variables/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -4996,7 +5004,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-voicemod-renderer@workspace:plugins/voicemod/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     chromatism2: "npm:*"
@@ -5035,7 +5043,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-wyze-renderer@workspace:plugins/wyze/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -5083,7 +5091,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-plugin-youtube-renderer@workspace:plugins/youtube/renderer"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     ShowRunner-plugin-youtube-shared: "workspace:^"
     ShowRunner-schema: "workspace:^"
     ShowRunner-ui-core: "workspace:^"
@@ -5118,7 +5126,7 @@ __metadata:
     "@mdi/font": "npm:^7.1.96"
     "@rollup/plugin-node-resolve": "npm:^15.2.1"
     "@types/archiver": "npm:^6.0.2"
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-core: "workspace:^"
     ShowRunner-dashboard-widget-loader: "workspace:^"
@@ -5152,6 +5160,7 @@ __metadata:
     primevue: "npm:^4.2.4"
     sass: "npm:^1.71.0"
     ts-toolbelt: "npm:*"
+    typescript: "npm:^5.1.3"
     vite: "npm:^7.3.1"
     vite-plugin-electron: "npm:^0.29.0"
     vite-plugin-electron-renderer: "npm:^0.14.6"
@@ -5175,7 +5184,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ShowRunner-ui-core@workspace:libs/showrunner-ui-core"
   dependencies:
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-schema: "workspace:^"
     chromatism2: "npm:*"
@@ -5221,7 +5230,7 @@ __metadata:
     "@primevue/themes": "npm:^4.2.4"
     "@rollup/plugin-node-resolve": "npm:^15.2.1"
     "@types/archiver": "npm:^6.0.2"
-    "@vitejs/plugin-vue": "npm:4.6.2"
+    "@vitejs/plugin-vue": "npm:^5.2.0"
     "@vueuse/core": "npm:*"
     ShowRunner-core: "workspace:^"
     ShowRunner-dashboard-widget-loader: "workspace:^"
@@ -5303,6 +5312,7 @@ __metadata:
     primevue: "npm:^4.2.4"
     sass: "npm:^1.71.0"
     ts-toolbelt: "npm:*"
+    typescript: "npm:^5.1.3"
     vite: "npm:^7.3.1"
     vite-plugin-electron: "npm:^0.29.0"
     vite-plugin-electron-renderer: "npm:^0.14.6"
@@ -6684,13 +6694,6 @@ __metadata:
     normalize-path: "npm:^3.0.0"
     readable-stream: "npm:^4.0.0"
   checksum: 10/78e3ba10aeef919a1c5bbac21e120f3e1558a31b2defebbfa1635274fc7f7e8a3a0ee748a06249589acd0b33a0d58144b8238ff77afc3220f8d403a96fcc13aa
-  languageName: node
-  linkType: hard
-
-"computeds@npm:^0.0.1":
-  version: 0.0.1
-  resolution: "computeds@npm:0.0.1"
-  checksum: 10/738625ccec6e483124d0ac79ec5474ab5c9df103ea05afc1fd840eed7d9004e3d6009b7bc806df564d66ad915c1ee1fb017bd91b2b32606a252ea9870b6a4026
   languageName: node
   linkType: hard
 
@@ -10921,13 +10924,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"muggle-string@npm:^0.3.1":
-  version: 0.3.1
-  resolution: "muggle-string@npm:0.3.1"
-  checksum: 10/f2357f906e0160b7df0179c77838cf859f3ca23cb74eca7c043b9fc9e1e416d91497c80fbe2f3c9aeb003c14ad15857fc4e94f1631e8a6695b07e4135626d305
-  languageName: node
-  linkType: hard
-
 "muggle-string@npm:^0.4.1":
   version: 0.4.1
   resolution: "muggle-string@npm:0.4.1"
@@ -13211,7 +13207,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.2.1, semver@npm:^7.3.2, semver@npm:^7.3.5, semver@npm:^7.3.6, semver@npm:^7.3.8, semver@npm:^7.5.3, semver@npm:^7.5.4, semver@npm:^7.6.2, semver@npm:^7.6.3":
+"semver@npm:^7.2.1, semver@npm:^7.3.2, semver@npm:^7.3.5, semver@npm:^7.3.6, semver@npm:^7.3.8, semver@npm:^7.5.3, semver@npm:^7.6.2, semver@npm:^7.6.3":
   version: 7.7.1
   resolution: "semver@npm:7.7.1"
   bin:
@@ -14486,6 +14482,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"undici-types@npm:~6.21.0":
+  version: 6.21.0
+  resolution: "undici-types@npm:6.21.0"
+  checksum: 10/ec8f41aa4359d50f9b59fa61fe3efce3477cc681908c8f84354d8567bb3701fafdddf36ef6bff307024d3feb42c837cf6f670314ba37fc8145e219560e473d14
+  languageName: node
+  linkType: hard
+
 "undici@npm:6.21.1":
   version: 6.21.1
   resolution: "undici@npm:6.21.1"
@@ -14999,16 +15002,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vue-template-compiler@npm:^2.7.14":
-  version: 2.7.16
-  resolution: "vue-template-compiler@npm:2.7.16"
-  dependencies:
-    de-indent: "npm:^1.0.2"
-    he: "npm:^1.2.0"
-  checksum: 10/8b05748dc64ee709a6077d576b4af234b229ecd36f7fda7cd2e17851403b66d168ad81c91636b5c28da6356d7723fd1ffe1202c73ffcdcc3ac9ad3ba748e42c7
-  languageName: node
-  linkType: hard
-
 "vue-tsc@npm:*":
   version: 2.2.4
   resolution: "vue-tsc@npm:2.2.4"
@@ -15023,18 +15016,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vue-tsc@npm:^1.8.0":
-  version: 1.8.27
-  resolution: "vue-tsc@npm:1.8.27"
+"vue-tsc@npm:^2.2.0":
+  version: 2.2.12
+  resolution: "vue-tsc@npm:2.2.12"
   dependencies:
-    "@volar/typescript": "npm:~1.11.1"
-    "@vue/language-core": "npm:1.8.27"
-    semver: "npm:^7.5.4"
+    "@volar/typescript": "npm:2.4.15"
+    "@vue/language-core": "npm:2.2.12"
   peerDependencies:
-    typescript: "*"
+    typescript: ">=5.0.0"
   bin:
-    vue-tsc: bin/vue-tsc.js
-  checksum: 10/fb84ff195de75e3529cf01b917f111bee561d15e1e437aa97a47e797f99f913783f24ec2d595271240240a21df08ba43b36aa7fc82a48a4c396a0f6d0e409376
+    vue-tsc: ./bin/vue-tsc.js
+  checksum: 10/b637cabea5520144b63832bdbce19191104d6ac225d739c14e6aa70b9de31f751ac84468ad1e2443a10797e8b5b4a8b2ef6b227b0038479d6e1de12f6aeaf1cb
   languageName: node
   linkType: hard
 

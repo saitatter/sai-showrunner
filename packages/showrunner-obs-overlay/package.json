@@ -20,6 +20,7 @@
 	},
 	"devDependencies": {
 		"ShowRunner-vite": "workspace:^",
+		"vite": "^7.3.1",
 		"vite-plugin-externals": "^0.5.1"
 	}
 }
