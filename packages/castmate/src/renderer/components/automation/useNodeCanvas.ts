@@ -63,7 +63,27 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 	}
 
 	function zoomFromWheel(event: WheelEvent) {
-		setZoom(zoom.value + (event.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP))
+		const canvas = canvasRef.value
+		if (!canvas) return
+		const prevZoom = zoom.value
+		const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number((prevZoom + (event.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP)).toFixed(2))))
+		if (nextZoom === prevZoom) return
+
+		// Zoom toward cursor position
+		const rect = canvas.getBoundingClientRect()
+		const cursorX = event.clientX - rect.left + canvas.scrollLeft
+		const cursorY = event.clientY - rect.top + canvas.scrollTop
+
+		// Point in canvas space under cursor before zoom
+		const worldX = (cursorX - pan.value.x) / prevZoom
+		const worldY = (cursorY - pan.value.y) / prevZoom
+
+		zoom.value = nextZoom
+
+		// After zoom, adjust scroll so the same world point stays under the cursor
+		const newScrollX = worldX * nextZoom + pan.value.x - (event.clientX - rect.left)
+		const newScrollY = worldY * nextZoom + pan.value.y - (event.clientY - rect.top)
+		canvas.scrollTo({ left: Math.max(0, newScrollX), top: Math.max(0, newScrollY) })
 	}
 
 	function fitGraph() {
@@ -88,6 +108,23 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 		zoom.value = 1
 		pan.value = { x: 0, y: 0 }
 		canvasRef.value?.scrollTo({ left: 0, top: 0, behavior: "smooth" })
+		commitUndo()
+	}
+
+	function fitSelection(bounds: { minX: number; minY: number; width: number; height: number }) {
+		const canvas = canvasRef.value
+		if (!canvas) return
+		const availableWidth = Math.max(1, canvas.clientWidth - 56)
+		const availableHeight = Math.max(1, canvas.clientHeight - 56)
+		const widthScale = availableWidth / Math.max(1, bounds.width)
+		const heightScale = availableHeight / Math.max(1, bounds.height)
+		setZoom(Math.min(widthScale, heightScale, 1))
+		pan.value = { x: 0, y: 0 }
+		canvas.scrollTo({
+			left: Math.max(0, bounds.minX * zoom.value - 28),
+			top: Math.max(0, bounds.minY * zoom.value - 28),
+			behavior: "smooth",
+		})
 		commitUndo()
 	}
 
@@ -146,6 +183,7 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 		zoomFromWheel,
 		fitGraph,
 		resetView,
+		fitSelection,
 		startPan,
 		getCanvasPointFromClient,
 	}

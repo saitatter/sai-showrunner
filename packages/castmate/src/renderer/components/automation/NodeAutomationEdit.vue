@@ -39,6 +39,9 @@
 					<button type="button" aria-label="Fit graph" @click="fitGraph" v-tooltip="'Fit graph'">
 						<i class="mdi mdi-fit-to-screen-outline" />
 					</button>
+					<button type="button" aria-label="Fit selection" :disabled="selectedNodeIds.size < 1" @click="fitToSelection" v-tooltip="'Fit to selection'">
+						<i class="mdi mdi-select-all" />
+					</button>
 					<button type="button" aria-label="Reset view" @click="resetView" v-tooltip="'Reset view'">
 						<i class="mdi mdi-backup-restore" />
 					</button>
@@ -790,6 +793,7 @@ const {
 	zoomFromWheel,
 	fitGraph,
 	resetView,
+	fitSelection,
 	startPan,
 	getCanvasPointFromClient: getCanvasPointFromClientPosition,
 } = useNodeCanvas(view, graphBounds, commitUndo)
@@ -1403,6 +1407,16 @@ function autoLayout() {
 		positions[node.id] = { x: node.x, y: node.y }
 	}
 	view.value = { ...view.value, nodePositions: positions }
+}
+
+function fitToSelection() {
+	const selected = nodes.value.filter((n) => selectedNodeIds.value.has(n.id))
+	if (!selected.length) return
+	const minX = Math.min(...selected.map((n) => n.x))
+	const minY = Math.min(...selected.map((n) => n.y))
+	const maxX = Math.max(...selected.map((n) => n.x + NODE_WIDTH))
+	const maxY = Math.max(...selected.map((n) => n.y + n.height))
+	fitSelection({ minX, minY, width: maxX - minX, height: maxY - minY })
 }
 
 function alignSelectedNodes(axis: "horizontal" | "vertical") {
