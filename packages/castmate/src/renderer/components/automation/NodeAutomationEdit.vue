@@ -72,6 +72,27 @@
 					</div>
 				</div>
 
+				<div v-if="canvasSearchOpen" class="node-automation__canvas-search" @click.stop @pointerdown.stop>
+					<i class="mdi mdi-magnify" />
+					<input
+						ref="canvasSearchInputRef"
+						v-model="canvasSearchQuery"
+						type="search"
+						placeholder="Find node…"
+						@keydown.enter.prevent="cycleSearchResult(1)"
+						@keydown.escape.prevent="closeCanvasSearch"
+						@keydown.up.prevent="cycleSearchResult(-1)"
+						@keydown.down.prevent="cycleSearchResult(1)"
+					/>
+					<span v-if="canvasSearchResults.length" class="node-automation__search-count">
+						{{ canvasSearchIndex + 1 }}/{{ canvasSearchResults.length }}
+					</span>
+					<span v-else-if="canvasSearchQuery" class="node-automation__search-count">0</span>
+					<button type="button" aria-label="Previous" @click="cycleSearchResult(-1)"><i class="mdi mdi-chevron-up" /></button>
+					<button type="button" aria-label="Next" @click="cycleSearchResult(1)"><i class="mdi mdi-chevron-down" /></button>
+					<button type="button" aria-label="Close" @click="closeCanvasSearch"><i class="mdi mdi-close" /></button>
+				</div>
+
 				<div
 					class="node-automation__surface"
 					:style="{
@@ -146,6 +167,8 @@
 								selected: selectedNodeIds.has(node.id),
 								'drop-target': dropTargetNodeId === node.id,
 								'preview-active': playheadNodeId === node.id,
+								'search-match': canvasSearchMatchIds.has(node.id),
+								'search-dimmed': canvasSearchQuery && !canvasSearchMatchIds.has(node.id),
 							},
 						]"
 						:style="{ transform: `translate(${node.x}px, ${node.y}px)`, height: `${node.height}px` }"
@@ -424,7 +447,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, useModel } from "vue"
+import { computed, nextTick, onMounted, onUnmounted, ref, useModel, watch } from "vue"
 import {
 	ActionSelection,
 	AutomationConfig,
@@ -503,6 +526,10 @@ const actionPaletteQuery = ref("")
 const dropTargetNodeId = ref<string>()
 const dropTargetEdgeId = ref<string>()
 const rubberBand = ref<{ x: number; y: number; width: number; height: number } | null>(null)
+const canvasSearchOpen = ref(false)
+const canvasSearchQuery = ref("")
+const canvasSearchIndex = ref(0)
+const canvasSearchInputRef = ref<HTMLInputElement>()
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
@@ -535,6 +562,15 @@ const nodes = computed(() =>
 		...(nodePositions.value[node.id] ?? { x: node.x, y: node.y }),
 	}))
 )
+const canvasSearchResults = computed(() => {
+	const q = canvasSearchQuery.value.toLowerCase().trim()
+	if (!q) return []
+	return nodes.value.filter((n) => {
+		const text = `${n.title} ${n.subtitle} ${n.kind} ${n.badge ?? ""} ${(n.configLines ?? []).map((l) => `${l.label} ${l.value}`).join(" ")}`.toLowerCase()
+		return text.includes(q)
+	})
+})
+const canvasSearchMatchIds = computed(() => new Set(canvasSearchResults.value.map((n) => n.id)))
 const edges = computed<EdgeData[]>(() => {
 	const byId = new Map(nodes.value.map((node) => [node.id, node]))
 	return graph.value.edges.flatMap((edge) => {
@@ -1101,6 +1137,11 @@ function handleKeydown(event: KeyboardEvent) {
 		selectedNodeId.value = nodes.value[0]?.id
 	}
 
+	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
+		event.preventDefault()
+		openCanvasSearch()
+	}
+
 	// Arrow key navigation between nodes
 	if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key) && !event.ctrlKey && !event.metaKey) {
 		event.preventDefault()
@@ -1190,6 +1231,42 @@ function navigateToAdjacentNode(direction: "ArrowLeft" | "ArrowRight" | "ArrowUp
 		focusNode(best.id)
 	}
 }
+
+function openCanvasSearch() {
+	canvasSearchOpen.value = true
+	canvasSearchQuery.value = ""
+	canvasSearchIndex.value = 0
+	nextTick(() => canvasSearchInputRef.value?.focus())
+}
+
+function closeCanvasSearch() {
+	canvasSearchOpen.value = false
+	canvasSearchQuery.value = ""
+	canvasSearchIndex.value = 0
+}
+
+function cycleSearchResult(direction: 1 | -1) {
+	const results = canvasSearchResults.value
+	if (!results.length) return
+	canvasSearchIndex.value = (canvasSearchIndex.value + direction + results.length) % results.length
+	const node = results[canvasSearchIndex.value]
+	focusNode(node.id)
+	// Auto-pan so the node is visible
+	const pos = nodePositions.value[node.id] ?? node
+	panX.value = -(pos.x + NODE_WIDTH / 2) * zoom.value + (containerRef.value?.clientWidth ?? 0) / 2
+	panY.value = -(pos.y + node.height / 2) * zoom.value + (containerRef.value?.clientHeight ?? 0) / 2
+}
+
+watch(canvasSearchQuery, () => {
+	canvasSearchIndex.value = 0
+	if (canvasSearchResults.value.length) {
+		const node = canvasSearchResults.value[0]
+		focusNode(node.id)
+		const pos = nodePositions.value[node.id] ?? node
+		panX.value = -(pos.x + NODE_WIDTH / 2) * zoom.value + (containerRef.value?.clientWidth ?? 0) / 2
+		panY.value = -(pos.y + node.height / 2) * zoom.value + (containerRef.value?.clientHeight ?? 0) / 2
+	}
+})
 
 function handleWindowClick(event: MouseEvent) {
 	const target = event.target as HTMLElement | null
@@ -1647,6 +1724,72 @@ onUnmounted(() => {
 	height: 1.35rem;
 	min-width: 1px;
 	width: 1px;
+}
+
+.node-automation__canvas-search {
+	align-items: center;
+	background: rgb(0 0 0 / 0.72);
+	border: 1px solid rgb(255 255 255 / 0.12);
+	border-radius: 6px;
+	display: flex;
+	gap: 0.35rem;
+	padding: 0.3rem 0.5rem;
+	pointer-events: auto;
+	position: absolute;
+	right: 0.75rem;
+	top: 3.5rem;
+	z-index: 20;
+}
+
+.node-automation__canvas-search i {
+	color: rgb(255 255 255 / 0.6);
+	font-size: 1.1rem;
+}
+
+.node-automation__canvas-search input {
+	background: transparent;
+	border: none;
+	color: #eee;
+	font-size: 0.8rem;
+	outline: none;
+	width: 10rem;
+}
+
+.node-automation__canvas-search input::placeholder {
+	color: rgb(255 255 255 / 0.35);
+}
+
+.node-automation__search-count {
+	color: rgb(255 255 255 / 0.55);
+	font-size: 0.75rem;
+	min-width: 2.5rem;
+	text-align: center;
+	white-space: nowrap;
+}
+
+.node-automation__canvas-search button {
+	align-items: center;
+	background: transparent;
+	border: none;
+	border-radius: 3px;
+	color: rgb(255 255 255 / 0.7);
+	cursor: pointer;
+	display: flex;
+	font-size: 1rem;
+	justify-content: center;
+	padding: 0.15rem;
+}
+
+.node-automation__canvas-search button:hover {
+	background: rgb(255 255 255 / 0.12);
+}
+
+.node-automation__node.search-dimmed {
+	opacity: 0.3;
+}
+
+.node-automation__node.search-match {
+	box-shadow: 0 0 0 2px #ffcc00;
 }
 
 .node-automation__preview-status {
