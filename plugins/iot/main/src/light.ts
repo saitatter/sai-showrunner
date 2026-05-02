@@ -34,8 +34,10 @@ export class PollingLight<
 		this.stopPolling()
 		this.poller = setInterval(async () => {
 			try {
-				this.poll()
-			} catch (err) {}
+				await this.poll()
+			} catch (err) {
+				console.error("Error polling light", err)
+			}
 		}, interval * 1000)
 	}
 

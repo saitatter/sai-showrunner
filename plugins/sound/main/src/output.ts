@@ -75,7 +75,9 @@ export class SystemSoundOutput extends SoundOutput<SystemSoundOutputConfig> {
 			await this.applyConfig({
 				webId: webId,
 			})
-		} catch (err) {}
+		} catch (err) {
+			console.error("Error querying sound output web ID", this.config.name, err)
+		}
 	}
 
 	async setDefault(device: AudioDevice) {

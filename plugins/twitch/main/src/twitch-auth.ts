@@ -422,7 +422,9 @@ export class TwitchAccount extends Account<TwitchAccountSecrets, TwitchAccountCo
 			delete loadedConfig.scopes
 
 			await super.applyConfig(loadedConfig)
-		} catch (err) {}
+		} catch (err) {
+			logger.error("Error loading Twitch account config", this.id, err)
+		}
 	}
 
 	static async initialize(): Promise<void> {

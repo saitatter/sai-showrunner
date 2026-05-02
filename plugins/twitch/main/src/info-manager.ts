@@ -108,7 +108,9 @@ export const StreamInfoManager = Service(
 						this.categoryRef.value = await CategoryCache.getInstance().getCategoryById(
 							resolvedInfo.category
 						)
-					} catch (err) {}
+					} catch (err) {
+						logger.error("Error fetching category by ID", resolvedInfo.category, err)
+					}
 				}
 			})
 		}

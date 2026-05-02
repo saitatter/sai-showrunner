@@ -50,8 +50,10 @@ export class PollingPlug<
 		this.stopPolling()
 		this.poller = setInterval(async () => {
 			try {
-				this.poll()
-			} catch (err) {}
+				await this.poll()
+			} catch (err) {
+				console.error("Error polling plug", err)
+			}
 		}, interval * 1000)
 	}
 

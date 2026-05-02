@@ -69,7 +69,9 @@ export function setupHueEvents(hubIp: ReactiveRef<string | undefined>, hubKey: R
 						injectResourceFromApi(event.data, { hubIp: hubIp.value, hubKey: hubKey.value })
 					}
 				}
-			} catch (err) {}
+			} catch (err) {
+				console.error("Error processing Philips Hue event", err)
+			}
 		}
 
 		eventSource.onerror = (err) => {
