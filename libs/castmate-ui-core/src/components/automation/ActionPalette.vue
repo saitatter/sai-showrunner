@@ -25,13 +25,13 @@
 		</label>
 
 		<section v-if="includeTriggers" class="automation-command-menu__section">
-			<button type="button" class="automation-command-menu__section-header" @click="toggleGroup('triggers')">
+			<button type="button" class="automation-command-menu__section-header" :aria-expanded="isGroupOpen('triggers')" @click="toggleGroup('triggers')">
 				<span><i class="mdi mdi-flash" /> Triggers</span>
 				<i :class="isGroupOpen('triggers') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 			</button>
 			<div v-if="isGroupOpen('triggers')" class="automation-command-menu__groups">
 				<div v-for="group in triggerGroups" :key="group.id" class="automation-command-menu__group">
-					<button type="button" class="automation-command-menu__group-header" @click="toggleGroup(`trigger:${group.id}`)">
+					<button type="button" class="automation-command-menu__group-header" :aria-expanded="isGroupOpen(`trigger:${group.id}`)" @click="toggleGroup(`trigger:${group.id}`)">
 						<span>
 							<i :class="group.icon" :style="{ color: group.color }" />
 							{{ group.name }}
@@ -53,13 +53,13 @@
 		</section>
 
 		<section class="automation-command-menu__section">
-			<button type="button" class="automation-command-menu__section-header" @click="toggleGroup('actions')">
+			<button type="button" class="automation-command-menu__section-header" :aria-expanded="isGroupOpen('actions')" @click="toggleGroup('actions')">
 				<span><i class="mdi mdi-play-circle-outline" /> Actions</span>
 				<i :class="isGroupOpen('actions') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 			</button>
 			<div v-if="isGroupOpen('actions')" class="automation-command-menu__groups">
 				<div v-for="group in actionGroups" :key="group.id" class="automation-command-menu__group">
-					<button type="button" class="automation-command-menu__group-header" @click="toggleGroup(`action:${group.id}`)">
+					<button type="button" class="automation-command-menu__group-header" :aria-expanded="isGroupOpen(`action:${group.id}`)" @click="toggleGroup(`action:${group.id}`)">
 						<span>
 							<i :class="group.icon" :style="{ color: group.color }" />
 							{{ group.name }}

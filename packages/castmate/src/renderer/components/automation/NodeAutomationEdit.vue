@@ -177,13 +177,13 @@
 						<input v-model="contextMenuQuery" type="search" placeholder="Search triggers or actions..." />
 					</label>
 					<section class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" @click="toggleContextGroup('triggers')">
+						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('triggers')" @click="toggleContextGroup('triggers')">
 							<span><i class="mdi mdi-flash" /> Triggers</span>
 							<i :class="isContextGroupOpen('triggers') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
 						<div v-if="isContextGroupOpen('triggers')" class="node-automation__menu-groups">
 							<div v-for="group in triggerContextGroups" :key="group.id" class="node-automation__menu-group">
-								<button type="button" class="node-automation__menu-group-header" @click="toggleContextGroup(`trigger:${group.id}`)">
+								<button type="button" class="node-automation__menu-group-header" :aria-expanded="isContextGroupOpen(`trigger:${group.id}`)" @click="toggleContextGroup(`trigger:${group.id}`)">
 									<span>
 										<i :class="group.icon" :style="{ color: group.color }" />
 										{{ group.name }}
@@ -204,13 +204,13 @@
 						</div>
 					</section>
 					<section class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" @click="toggleContextGroup('actions')">
+						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('actions')" @click="toggleContextGroup('actions')">
 							<span><i class="mdi mdi-play-circle-outline" /> Actions</span>
 							<i :class="isContextGroupOpen('actions') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
 						<div v-if="isContextGroupOpen('actions')" class="node-automation__menu-groups">
 							<div v-for="group in actionContextGroups" :key="group.id" class="node-automation__menu-group">
-								<button type="button" class="node-automation__menu-group-header" @click="toggleContextGroup(`action:${group.id}`)">
+								<button type="button" class="node-automation__menu-group-header" :aria-expanded="isContextGroupOpen(`action:${group.id}`)" @click="toggleContextGroup(`action:${group.id}`)">
 									<span>
 										<i :class="group.icon" :style="{ color: group.color }" />
 										{{ group.name }}
@@ -253,7 +253,7 @@
 
 				<template v-if="selectedNode">
 					<section class="node-automation__context-section">
-						<button type="button" class="node-automation__context-header" @click="detailsOpen = !detailsOpen">
+						<button type="button" class="node-automation__context-header" :aria-expanded="detailsOpen" @click="detailsOpen = !detailsOpen">
 							<span><i class="mdi mdi-information-outline" /> Details</span>
 							<i :class="detailsOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
@@ -275,7 +275,7 @@
 
 					<data-binding-path local-path="automation">
 						<section class="node-automation__context-section">
-							<button type="button" class="node-automation__context-header" @click="configOpen = !configOpen">
+							<button type="button" class="node-automation__context-header" :aria-expanded="configOpen" @click="configOpen = !configOpen">
 								<span><i class="mdi mdi-tune" /> Configure</span>
 								<i :class="configOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 							</button>
@@ -295,7 +295,7 @@
 					</data-binding-path>
 
 					<section class="node-automation__context-section">
-						<button type="button" class="node-automation__context-header" @click="actionsOpen = !actionsOpen">
+						<button type="button" class="node-automation__context-header" :aria-expanded="actionsOpen" @click="actionsOpen = !actionsOpen">
 							<span><i class="mdi mdi-dots-horizontal-circle-outline" /> Node Actions</span>
 							<i :class="actionsOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
@@ -367,7 +367,7 @@
 				</p>
 
 				<section class="node-automation__context-section">
-					<button type="button" class="node-automation__context-header" @click="activityOpen = !activityOpen">
+					<button type="button" class="node-automation__context-header" :aria-expanded="activityOpen" @click="activityOpen = !activityOpen">
 						<span><i class="mdi mdi-history" /> Node Activity</span>
 						<i :class="activityOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 					</button>
