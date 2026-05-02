@@ -11,9 +11,28 @@ import {
 } from "./sequence"
 import _cloneDeep from "lodash/cloneDeep"
 
+export interface AutomationDataWire {
+	id: string
+	fromNode: string
+	fromPort: string
+	toNode: string
+	toPort: string
+}
+
+export interface AutomationVariableNode {
+	id: string
+	name: string
+	type: "string" | "number" | "boolean" | "color"
+	value: string | number | boolean
+	x: number
+	y: number
+}
+
 export interface AutomationData {
 	sequence: Sequence
 	floatingSequences: FloatingSequence[]
+	dataWires?: AutomationDataWire[]
+	variableNodes?: AutomationVariableNode[]
 	testContext?: any
 }
 

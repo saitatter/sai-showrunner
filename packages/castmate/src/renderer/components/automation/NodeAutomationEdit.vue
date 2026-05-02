@@ -5,19 +5,9 @@
 				<p class="node-automation__eyebrow">Automation Flow</p>
 				<h2>{{ model.name || "Untitled Automation" }}</h2>
 			</div>
-			<div class="node-automation__mode">
-				<button :class="{ active: mode === 'nodes' }" type="button" @click="mode = 'nodes'">
-					<i class="mdi mdi-graph-outline" />
-					Nodes
-				</button>
-				<button :class="{ active: mode === 'timeline' }" type="button" @click="mode = 'timeline'">
-					<i class="mdi mdi-timeline-clock-outline" />
-					Timeline
-				</button>
-			</div>
 		</header>
 
-		<div v-if="mode === 'nodes'" class="node-automation__body">
+		<div class="node-automation__body">
 			<section
 				ref="canvasRef"
 				class="node-automation__canvas"
@@ -188,7 +178,7 @@
 							v-for="wire in dataWirePaths"
 							:key="`dw:${wire.id}`"
 							class="node-automation__data-wire"
-							:class="{ selected: selectedDataWireId === wire.id }"
+							:class="{ selected: selectedDataWireId === wire.id, removing: removingWireIds.has(wire.id) }"
 							:d="wire.path"
 							:stroke="wire.color"
 							vector-effect="non-scaling-stroke"
@@ -239,7 +229,7 @@
 								'search-dimmed': canvasSearchQuery && !canvasSearchMatchIds.has(node.id),
 							},
 						]"
-						:style="{ transform: `translate(${node.x}px, ${node.y}px)`, height: `${node.height}px` }"
+						:style="{ transform: `translate(${node.x}px, ${node.y}px)`, height: `${node.height}px`, width: `${node.width ?? NODE_WIDTH}px` }"
 						type="button"
 						role="treeitem"
 						:aria-selected="selectedNodeIds.has(node.id)"
@@ -258,7 +248,25 @@
 						</span>
 						<span class="node-automation__node-text">
 							<strong>{{ node.title }}</strong>
-							<small>{{ node.subtitle }}</small>
+							<small
+								v-if="node.kind === 'variable' && inlineEditNodeId === node.id"
+								class="node-automation__inline-edit"
+							>
+								<input
+									ref="inlineEditInput"
+									type="text"
+									:value="node.subtitle"
+									@blur="commitInlineEdit($event, node)"
+									@keydown.enter="($event.target as HTMLInputElement).blur()"
+									@keydown.escape="cancelInlineEdit"
+									@pointerdown.stop
+									@click.stop
+								/>
+							</small>
+							<small
+								v-else
+								@dblclick.stop="node.kind === 'variable' && startInlineEdit(node.id)"
+							>{{ node.subtitle }}</small>
 						</span>
 						<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
 						<dl v-if="node.configLines?.length" class="node-automation__node-config">
@@ -273,7 +281,8 @@
 									<li v-for="port in node.inputPorts" :key="port.key" class="node-automation__port node-automation__port--in">
 										<span
 											class="node-automation__port-dot node-automation__port-dot--in"
-											:style="{ borderColor: portTypeColor(port.type), background: portTypeColor(port.type) + '44' }"
+											:class="{ connected: isPortConnected(node.id, port.key, 'in') }"
+											:style="{ borderColor: portTypeColor(port.type), background: isPortConnected(node.id, port.key, 'in') ? portTypeColor(port.type) : portTypeColor(port.type) + '44' }"
 											@pointerdown.stop="startWireDrag(node.id, port.key, 'in', $event)"
 										/>
 										<span class="node-automation__port-label">{{ port.label }}</span>
@@ -286,7 +295,8 @@
 										<span class="node-automation__port-label">{{ port.label }}</span>
 										<span
 											class="node-automation__port-dot node-automation__port-dot--out"
-											:style="{ borderColor: portTypeColor(port.type), background: portTypeColor(port.type) + '44' }"
+											:class="{ connected: isPortConnected(node.id, port.key, 'out') }"
+											:style="{ borderColor: portTypeColor(port.type), background: isPortConnected(node.id, port.key, 'out') ? portTypeColor(port.type) : portTypeColor(port.type) + '44' }"
 											@pointerdown.stop="startWireDrag(node.id, port.key, 'out', $event)"
 										/>
 									</li>
@@ -297,6 +307,10 @@
 							v-if="node.id !== 'trigger'"
 							class="node-automation__handle node-automation__handle--out"
 							title="Drop an action here to insert after this node"
+						/>
+						<span
+							class="node-automation__resize-handle"
+							@pointerdown.stop="startResize($event, node)"
 						/>
 					</button>
 
@@ -358,87 +372,115 @@
 							</button>
 						</div>
 					</section>
+					<!-- Integrations: Triggers + Actions grouped by plugin -->
 					<section class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('triggers')" @click="toggleContextGroup('triggers')">
-							<span><i class="mdi mdi-flash" /> Triggers</span>
-							<i :class="isContextGroupOpen('triggers') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('integrations')" @click="toggleContextGroup('integrations')">
+							<span><i class="mdi mdi-puzzle-outline" /> Integrations</span>
+							<i :class="isContextGroupOpen('integrations') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
-						<div v-if="isContextGroupOpen('triggers')" class="node-automation__menu-groups">
-							<div v-for="group in triggerContextGroups" :key="group.id" class="node-automation__menu-group">
-								<button type="button" class="node-automation__menu-group-header" :aria-expanded="isContextGroupOpen(`trigger:${group.id}`)" @click="toggleContextGroup(`trigger:${group.id}`)">
-									<span>
-										<i :class="group.icon" :style="{ color: group.color }" />
-										{{ group.name }}
-									</span>
-									<i :class="isContextGroupOpen(`trigger:${group.id}`) ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						<div v-if="isContextGroupOpen('integrations')">
+							<!-- Triggers sub-section -->
+							<section class="node-automation__menu-section" style="border: 0; border-radius: 0;">
+								<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('triggers')" @click="toggleContextGroup('triggers')">
+									<span><i class="mdi mdi-flash" /> Triggers</span>
+									<i :class="isContextGroupOpen('triggers') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 								</button>
-								<div v-if="isContextGroupOpen(`trigger:${group.id}`)" class="node-automation__menu-items">
-									<button v-for="item in group.items" :key="item.key" type="button" @click="selectTriggerFromContext(item.key)">
-										<i :class="item.icon" :style="{ color: item.color }" />
-										<span>
-											<strong>{{ item.name }}</strong>
-											<small>{{ item.pluginName }}</small>
-										</span>
-										<em class="trigger">Trigger</em>
-									</button>
+								<div v-if="isContextGroupOpen('triggers')" class="node-automation__menu-groups">
+									<div v-for="group in triggerContextGroups" :key="group.id" class="node-automation__menu-group">
+										<button type="button" class="node-automation__menu-group-header" :aria-expanded="isContextGroupOpen(`trigger:${group.id}`)" @click="toggleContextGroup(`trigger:${group.id}`)">
+											<span>
+												<i :class="group.icon" :style="{ color: group.color }" />
+												{{ group.name }}
+											</span>
+											<i :class="isContextGroupOpen(`trigger:${group.id}`) ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+										</button>
+										<div v-if="isContextGroupOpen(`trigger:${group.id}`)" class="node-automation__menu-items">
+											<button v-for="item in group.items" :key="item.key" type="button" @click="selectTriggerFromContext(item.key)">
+												<i :class="item.icon" :style="{ color: item.color }" />
+												<span>
+													<strong>{{ item.name }}</strong>
+													<small>{{ item.pluginName }}</small>
+												</span>
+												<em class="trigger">Trigger</em>
+											</button>
+										</div>
+									</div>
 								</div>
+							</section>
+							<!-- Actions sub-section -->
+							<section class="node-automation__menu-section" style="border: 0; border-radius: 0;">
+								<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('actions')" @click="toggleContextGroup('actions')">
+									<span><i class="mdi mdi-play-circle-outline" /> Actions</span>
+									<i :class="isContextGroupOpen('actions') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+								</button>
+								<div v-if="isContextGroupOpen('actions')" class="node-automation__menu-groups">
+									<div v-for="group in actionContextGroups" :key="group.id" class="node-automation__menu-group">
+										<button type="button" class="node-automation__menu-group-header" :aria-expanded="isContextGroupOpen(`action:${group.id}`)" @click="toggleContextGroup(`action:${group.id}`)">
+											<span>
+												<i :class="group.icon" :style="{ color: group.color }" />
+												{{ group.name }}
+											</span>
+											<i :class="isContextGroupOpen(`action:${group.id}`) ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+										</button>
+										<div v-if="isContextGroupOpen(`action:${group.id}`)" class="node-automation__menu-items">
+											<button v-for="item in group.items" :key="item.key" type="button" @click="selectActionFromContext(item.key)">
+												<i :class="item.icon" :style="{ color: item.color }" />
+												<span>
+													<strong>{{ item.name }}</strong>
+													<small>{{ item.pluginName }}</small>
+												</span>
+												<em>Action</em>
+											</button>
+										</div>
+									</div>
+								</div>
+							</section>
+						</div>
+					</section>
+					<!-- Data: Variables + Constants -->
+					<section class="node-automation__menu-section">
+						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('data')" @click="toggleContextGroup('data')">
+							<span><i class="mdi mdi-database-outline" /> Data</span>
+							<i :class="isContextGroupOpen('data') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						</button>
+						<div v-if="isContextGroupOpen('data')">
+							<div class="node-automation__menu-items">
+								<button type="button" @click="addVariableNode('string')">
+									<i class="mdi mdi-format-text" style="color: #81c784" />
+									<span><strong>String Variable</strong></span>
+									<em>Variable</em>
+								</button>
+								<button type="button" @click="addVariableNode('number')">
+									<i class="mdi mdi-numeric" style="color: #4fc3f7" />
+									<span><strong>Number Variable</strong></span>
+									<em>Variable</em>
+								</button>
+								<button type="button" @click="addVariableNode('boolean')">
+									<i class="mdi mdi-toggle-switch-outline" style="color: #ffb74d" />
+									<span><strong>Boolean Variable</strong></span>
+									<em>Variable</em>
+								</button>
+								<button type="button" @click="addVariableNode('color')">
+									<i class="mdi mdi-palette" style="color: #f06292" />
+									<span><strong>Color Variable</strong></span>
+									<em>Variable</em>
+								</button>
 							</div>
 						</div>
 					</section>
+					<!-- Flow: Floating Sequences -->
 					<section class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('actions')" @click="toggleContextGroup('actions')">
-							<span><i class="mdi mdi-play-circle-outline" /> Actions</span>
-							<i :class="isContextGroupOpen('actions') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('flow')" @click="toggleContextGroup('flow')">
+							<span><i class="mdi mdi-vector-polyline" /> Flow</span>
+							<i :class="isContextGroupOpen('flow') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
-						<div v-if="isContextGroupOpen('actions')" class="node-automation__menu-groups">
-							<div v-for="group in actionContextGroups" :key="group.id" class="node-automation__menu-group">
-								<button type="button" class="node-automation__menu-group-header" :aria-expanded="isContextGroupOpen(`action:${group.id}`)" @click="toggleContextGroup(`action:${group.id}`)">
-									<span>
-										<i :class="group.icon" :style="{ color: group.color }" />
-										{{ group.name }}
-									</span>
-									<i :class="isContextGroupOpen(`action:${group.id}`) ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						<div v-if="isContextGroupOpen('flow')">
+							<div class="node-automation__menu-items">
+								<button type="button" @click="addFloatingSequence">
+									<i class="mdi mdi-plus-circle-outline" />
+									<span><strong>New Floating Sequence</strong></span>
 								</button>
-								<div v-if="isContextGroupOpen(`action:${group.id}`)" class="node-automation__menu-items">
-									<button v-for="item in group.items" :key="item.key" type="button" @click="selectActionFromContext(item.key)">
-										<i :class="item.icon" :style="{ color: item.color }" />
-										<span>
-											<strong>{{ item.name }}</strong>
-											<small>{{ item.pluginName }}</small>
-										</span>
-										<em>Action</em>
-									</button>
-								</div>
 							</div>
-						</div>
-					</section>
-					<section class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-utility-btn" @click="addFloatingSequence">
-							<i class="mdi mdi-plus-circle-outline" />
-							<span>New Floating Sequence</span>
-						</button>
-					</section>
-					<section class="node-automation__menu-section">
-						<div class="node-automation__menu-section-header" style="cursor: default; font-size: 0.8rem; opacity: 0.7;">
-							<span><i class="mdi mdi-variable" /> Constant Values</span>
-						</div>
-						<div class="node-automation__menu-items node-automation__constant-grid">
-							<button type="button" @click="addConstantNode('string')">
-								<i class="mdi mdi-format-text" style="color: #81c784" />
-								<span><strong>String</strong></span>
-							</button>
-							<button type="button" @click="addConstantNode('number')">
-								<i class="mdi mdi-numeric" style="color: #4fc3f7" />
-								<span><strong>Number</strong></span>
-							</button>
-							<button type="button" @click="addConstantNode('boolean')">
-								<i class="mdi mdi-toggle-switch-outline" style="color: #ffb74d" />
-								<span><strong>Boolean</strong></span>
-							</button>
-							<button type="button" @click="addConstantNode('color')">
-								<i class="mdi mdi-palette" style="color: #f06292" />
-								<span><strong>Color</strong></span>
-							</button>
 						</div>
 					</section>
 				</div>
@@ -530,35 +572,44 @@
 									:local-path="selectedActionPath"
 								/>
 								<trigger-config-edit v-else-if="selectedNode.id === 'trigger'" v-model="model" />
-								<div v-else-if="selectedNode.kind === 'constant'" class="node-automation__constant-edit">
+								<div v-else-if="selectedNode.kind === 'variable'" class="node-automation__variable-edit">
+									<label>
+										<span>Name</span>
+										<input
+											type="text"
+											:value="selectedVariableNode?.name"
+											placeholder="Variable name..."
+											@change="updateVariableNodeName(selectedVariableNode!.id, ($event.target as HTMLInputElement).value)"
+										/>
+									</label>
 									<label>
 										<span>Value</span>
 										<input
-											v-if="selectedConstantNode?.type === 'string'"
+											v-if="selectedVariableNode?.type === 'string'"
 											type="text"
-											:value="selectedConstantNode.value"
-											@change="updateConstantNodeValue(selectedConstantNode!.id, ($event.target as HTMLInputElement).value)"
+											:value="selectedVariableNode.value"
+											@change="updateVariableNodeValue(selectedVariableNode!.id, ($event.target as HTMLInputElement).value)"
 										/>
 										<input
-											v-else-if="selectedConstantNode?.type === 'number'"
+											v-else-if="selectedVariableNode?.type === 'number'"
 											type="number"
-											:value="selectedConstantNode.value"
+											:value="selectedVariableNode.value"
 											step="any"
-											@change="updateConstantNodeValue(selectedConstantNode!.id, Number(($event.target as HTMLInputElement).value))"
+											@change="updateVariableNodeValue(selectedVariableNode!.id, Number(($event.target as HTMLInputElement).value))"
 										/>
 										<select
-											v-else-if="selectedConstantNode?.type === 'boolean'"
-											:value="String(selectedConstantNode.value)"
-											@change="updateConstantNodeValue(selectedConstantNode!.id, ($event.target as HTMLSelectElement).value === 'true')"
+											v-else-if="selectedVariableNode?.type === 'boolean'"
+											:value="String(selectedVariableNode.value)"
+											@change="updateVariableNodeValue(selectedVariableNode!.id, ($event.target as HTMLSelectElement).value === 'true')"
 										>
 											<option value="true">true</option>
 											<option value="false">false</option>
 										</select>
 										<input
-											v-else-if="selectedConstantNode?.type === 'color'"
+											v-else-if="selectedVariableNode?.type === 'color'"
 											type="color"
-											:value="selectedConstantNode.value"
-											@change="updateConstantNodeValue(selectedConstantNode!.id, ($event.target as HTMLInputElement).value)"
+											:value="selectedVariableNode.value"
+											@change="updateVariableNodeValue(selectedVariableNode!.id, ($event.target as HTMLInputElement).value)"
 										/>
 									</label>
 								</div>
@@ -625,10 +676,6 @@
 									Delete
 								</button>
 							</div>
-							<button type="button" @click="mode = 'timeline'">
-								<i class="mdi mdi-timeline-clock-outline" />
-								Open in Timeline
-							</button>
 							<button type="button" @click="resetSelectedNodePosition">
 								<i class="mdi mdi-crosshairs-gps" />
 								Reset Visual Position
@@ -637,8 +684,7 @@
 					</section>
 				</template>
 				<p v-else class="node-automation__hint">
-					Left click selects a node. Right click opens the collapsible context panel with the same configuration
-					controls as Timeline.
+					Left click selects a node. Right click opens the context menu to add nodes.
 				</p>
 
 				<section class="node-automation__context-section">
@@ -657,9 +703,6 @@
 			<div aria-live="polite" class="sr-only">{{ screenReaderAnnouncement }}</div>
 		</div>
 
-		<data-binding-path v-else local-path="automation">
-			<automation-edit v-model="model" v-model:view="view" class="node-automation__classic" />
-		</data-binding-path>
 	</div>
 </template>
 
@@ -670,7 +713,6 @@ import {
 	ActionSelection,
 	AutomationConfig,
 	AutomationResourceView,
-	AutomationEdit,
 	ActionConfigEdit,
 	DataBindingPath,
 	TriggerConfigEdit,
@@ -690,6 +732,8 @@ import {
 	isTimeAction,
 	isObjectSchema,
 	constructDefault,
+	type AutomationDataWire,
+	type AutomationVariableNode,
 } from "castmate-schema"
 import { useNodeActivity } from "./useNodeActivity"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
@@ -705,7 +749,7 @@ interface ConfigLine {
 
 interface NodeData extends NodePosition {
 	id: string
-	kind: "trigger" | "action" | "stack" | "time" | "flow" | "floating" | "constant"
+	kind: "trigger" | "action" | "stack" | "time" | "flow" | "floating" | "variable"
 	title: string
 	subtitle: string
 	icon: string
@@ -715,6 +759,7 @@ interface NodeData extends NodePosition {
 	inputPorts?: PortDef[]
 	outputPorts?: PortDef[]
 	height: number
+	width?: number
 }
 
 interface EdgeData {
@@ -722,15 +767,6 @@ interface EdgeData {
 	from: string
 	to: string
 	path: string
-}
-
-/** A constant value node in the graph (not a real action) */
-interface ConstantNodeData {
-	id: string
-	type: "string" | "number" | "boolean" | "color"
-	value: string | number | boolean
-	x: number
-	y: number
 }
 
 interface LaneData extends NodePosition {
@@ -746,14 +782,12 @@ const props = defineProps<{
 	view: AutomationResourceView & {
 		nodePositions?: Record<string, NodePosition>
 		nodeView?: NodeEditorViewState
-		dataWires?: DataWire[]
-		constantNodes?: ConstantNodeData[]
+		nodeSizes?: Record<string, { width: number }>
 	}
 }>()
 
 const model = useModel(props, "modelValue")
 const view = useModel(props, "view")
-const mode = ref<"nodes" | "timeline">("nodes")
 const selectedNodeId = ref<string>()
 const selectedNodeIds = ref<Set<string>>(new Set())
 const selectedActionToAdd = ref("")
@@ -799,22 +833,26 @@ const nodePositions = computed(() => {
 	view.value.nodePositions ??= {}
 	return view.value.nodePositions
 })
+const nodeSizes = computed(() => {
+	view.value.nodeSizes ??= {}
+	return view.value.nodeSizes!
+})
 const dataWires = computed({
 	get: () => {
-		view.value.dataWires ??= []
-		return view.value.dataWires!
+		model.value.dataWires ??= []
+		return model.value.dataWires!
 	},
-	set: (v: DataWire[]) => {
-		view.value.dataWires = v
+	set: (v: AutomationDataWire[]) => {
+		model.value.dataWires = v
 	},
 })
-const constantNodes = computed({
+const variableNodes = computed({
 	get: () => {
-		view.value.constantNodes ??= []
-		return view.value.constantNodes!
+		model.value.variableNodes ??= []
+		return model.value.variableNodes!
 	},
-	set: (v: ConstantNodeData[]) => {
-		view.value.constantNodes = v
+	set: (v: AutomationVariableNode[]) => {
+		model.value.variableNodes = v
 	},
 })
 
@@ -830,25 +868,30 @@ const nodes = computed(() => {
 	const actionNodes = graph.value.nodes.map((node) => ({
 		...node,
 		...(nodePositions.value[node.id] ?? { x: node.x, y: node.y }),
+		width: nodeSizes.value[node.id]?.width ?? NODE_WIDTH,
 	}))
-	// Add constant value nodes
-	const constNodes: NodeData[] = constantNodes.value.map((cn) => {
-		const info = CONSTANT_TYPE_INFO[cn.type] ?? CONSTANT_TYPE_INFO.string
-		const pos = nodePositions.value[cn.id] ?? { x: cn.x, y: cn.y }
+	// Add variable nodes
+	const varNodes: NodeData[] = variableNodes.value.map((vn) => {
+		const info = CONSTANT_TYPE_INFO[vn.type] ?? CONSTANT_TYPE_INFO.string
+		const pos = nodePositions.value[vn.id] ?? { x: vn.x, y: vn.y }
+		const inPorts: PortDef[] = [{ key: "value", label: "set", type: info.portType }]
+		const outPorts: PortDef[] = [{ key: "value", label: "value", type: info.portType }]
 		return {
-			id: cn.id,
-			kind: "constant" as const,
-			title: cn.type.charAt(0).toUpperCase() + cn.type.slice(1),
-			subtitle: String(cn.value),
+			id: vn.id,
+			kind: "variable" as const,
+			title: vn.name || vn.type.charAt(0).toUpperCase() + vn.type.slice(1),
+			subtitle: String(vn.value),
 			icon: info.icon,
 			badge: info.portType,
 			x: pos.x,
 			y: pos.y,
-			outputPorts: [{ key: "value", label: "value", type: info.portType }],
-			height: computeNodeHeight(undefined, undefined, [{ key: "value", label: "value", type: info.portType }]),
+			inputPorts: inPorts,
+			outputPorts: outPorts,
+			height: computeNodeHeight(undefined, inPorts, outPorts),
+			width: nodeSizes.value[vn.id]?.width ?? 160,
 		}
 	})
-	return [...actionNodes, ...constNodes]
+	return [...actionNodes, ...varNodes]
 })
 const canvasSearchResults = computed(() => {
 	const q = canvasSearchQuery.value.toLowerCase().trim()
@@ -873,7 +916,7 @@ const edges = computed<EdgeData[]>(() => {
 		const from = byId.get(edge.from)
 		const to = byId.get(edge.to)
 		if (!from || !to) return []
-		const startX = from.x + NODE_WIDTH
+		const startX = from.x + (from.width ?? NODE_WIDTH)
 		const startY = from.y + from.height / 2
 		const endX = to.x
 		const endY = to.y + to.height / 2
@@ -915,9 +958,9 @@ const lanes = computed<LaneData[]>(() => {
 	})
 })
 const selectedNode = computed(() => nodes.value.find((node) => node.id === selectedNodeId.value))
-const selectedConstantNode = computed(() => {
+const selectedVariableNode = computed(() => {
 	if (!selectedNodeId.value) return undefined
-	return constantNodes.value.find((cn) => cn.id === selectedNodeId.value)
+	return variableNodes.value.find((vn) => vn.id === selectedNodeId.value)
 })
 const previewNodes = computed(() => nodes.value.filter((node) => node.id !== "trigger").sort((a, b) => a.x - b.x || a.y - b.y))
 const {
@@ -1062,6 +1105,30 @@ const {
 	deleteDataWire,
 } = usePortConnections(nodes, dataWires, zoom, pan, canvasRef, commitUndo)
 const selectedDataWireId = ref<string>()
+
+/** Set of "nodeId:portKey:kind" strings for ports that have a wire connected */
+const connectedPorts = computed(() => {
+	const set = new Set<string>()
+	for (const w of dataWires.value) {
+		set.add(`${w.fromNode}:${w.fromPort}:out`)
+		set.add(`${w.toNode}:${w.toPort}:in`)
+	}
+	return set
+})
+
+function isPortConnected(nodeId: string, portKey: string, kind: "in" | "out"): boolean {
+	return connectedPorts.value.has(`${nodeId}:${portKey}:${kind}`)
+}
+
+const removingWireIds = ref(new Set<string>())
+
+function animateWireRemoval(wireId: string) {
+	removingWireIds.value.add(wireId)
+	setTimeout(() => {
+		removingWireIds.value.delete(wireId)
+		deleteDataWire(wireId)
+	}, 300)
+}
 
 function summarizeConfigValue(value: unknown): string {
 	if (value == null) return "—"
@@ -1489,7 +1556,6 @@ function startRubberBand(event: PointerEvent) {
 }
 
 function handleKeydown(event: KeyboardEvent) {
-	if (mode.value !== "nodes") return
 	const target = event.target as HTMLElement | null
 	if (target?.closest("input, textarea, select, [contenteditable='true']")) return
 
@@ -1515,9 +1581,9 @@ function handleKeydown(event: KeyboardEvent) {
 		selectedNodeIds.value = new Set()
 	}
 
-	if ((event.key === "Delete" || event.key === "Backspace") && selectedNode.value?.kind === "constant") {
+	if ((event.key === "Delete" || event.key === "Backspace") && selectedNode.value?.kind === "variable") {
 		event.preventDefault()
-		deleteConstantNode(selectedNode.value.id)
+		deleteVariableNode(selectedNode.value.id)
 		selectedNodeId.value = undefined
 		selectedNodeIds.value = new Set()
 	}
@@ -1529,7 +1595,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 	if ((event.key === "Delete" || event.key === "Backspace") && selectedDataWireId.value) {
 		event.preventDefault()
-		deleteDataWire(selectedDataWireId.value)
+		animateWireRemoval(selectedDataWireId.value)
 		selectedDataWireId.value = undefined
 	}
 
@@ -2090,39 +2156,108 @@ function deleteFloatingSequence(floatingId: string) {
 	}
 }
 
-function addConstantNode(type: "string" | "number" | "boolean" | "color") {
+function addVariableNode(type: "string" | "number" | "boolean" | "color") {
 	const canvasPoint = contextMenu.value.canvasPoint ?? { x: 100, y: 200 }
 	const defaults: Record<string, string | number | boolean> = { string: "", number: 0, boolean: true, color: "#ffffff" }
-	const cn: ConstantNodeData = {
+	const vn: AutomationVariableNode = {
 		id: nanoid(),
+		name: "",
 		type,
 		value: defaults[type],
 		x: canvasPoint.x,
 		y: canvasPoint.y,
 	}
-	constantNodes.value.push(cn)
+	variableNodes.value.push(vn)
 	closeContextMenu()
-	logActivity("Added", `${type} constant`)
+	logActivity("Added", `${type} variable`)
 	commitUndo()
 }
 
-function deleteConstantNode(id: string) {
-	const idx = constantNodes.value.findIndex((cn) => cn.id === id)
+function deleteVariableNode(id: string) {
+	const idx = variableNodes.value.findIndex((vn) => vn.id === id)
 	if (idx >= 0) {
-		constantNodes.value.splice(idx, 1)
+		variableNodes.value.splice(idx, 1)
 		// Also remove any wires connected to this node
 		dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
-		logActivity("Deleted", "Constant node")
+		logActivity("Deleted", "Variable node")
 		commitUndo()
 	}
 }
 
-function updateConstantNodeValue(id: string, value: string | number | boolean) {
-	const cn = constantNodes.value.find((c) => c.id === id)
-	if (cn) {
-		cn.value = value
+function updateVariableNodeValue(id: string, value: string | number | boolean) {
+	const vn = variableNodes.value.find((v) => v.id === id)
+	if (vn) {
+		vn.value = value
 		commitUndo()
 	}
+}
+
+function updateVariableNodeName(id: string, name: string) {
+	const vn = variableNodes.value.find((v) => v.id === id)
+	if (vn) {
+		vn.name = name
+		commitUndo()
+	}
+}
+
+const inlineEditNodeId = ref<string>()
+const inlineEditInput = ref<HTMLInputElement>()
+
+function startInlineEdit(nodeId: string) {
+	inlineEditNodeId.value = nodeId
+	nextTick(() => {
+		inlineEditInput.value?.focus()
+		inlineEditInput.value?.select()
+	})
+}
+
+function commitInlineEdit(event: Event, node: NodeData) {
+	const input = event.target as HTMLInputElement
+	const vn = variableNodes.value.find((v) => v.id === node.id)
+	if (vn) {
+		// Parse the value based on type
+		const raw = input.value
+		if (vn.type === "number") {
+			const num = Number(raw)
+			if (!isNaN(num)) vn.value = num
+		} else if (vn.type === "boolean") {
+			vn.value = raw === "true" || raw === "1"
+		} else {
+			vn.value = raw
+		}
+		commitUndo()
+	}
+	inlineEditNodeId.value = undefined
+}
+
+function cancelInlineEdit() {
+	inlineEditNodeId.value = undefined
+}
+
+function startResize(event: PointerEvent, node: NodeData) {
+	event.preventDefault()
+	const startX = event.clientX
+	const startWidth = node.width ?? NODE_WIDTH
+	const target = event.currentTarget as HTMLElement
+	target.setPointerCapture(event.pointerId)
+
+	// Compute dynamic min width: base 100 + longest port label (~7px per char)
+	const allPorts = [...(node.inputPorts ?? []), ...(node.outputPorts ?? [])]
+	const maxLabelLen = allPorts.reduce((max, p) => Math.max(max, p.label.length), 0)
+	const minWidth = Math.max(120, 80 + maxLabelLen * 7)
+
+	function onMove(me: PointerEvent) {
+		const dx = (me.clientX - startX) / zoom.value
+		const newWidth = Math.max(minWidth, Math.round(startWidth + dx))
+		nodeSizes.value[node.id] = { width: newWidth }
+	}
+	function onUp() {
+		target.removeEventListener("pointermove", onMove)
+		target.removeEventListener("pointerup", onUp)
+		commitUndo()
+	}
+	target.addEventListener("pointermove", onMove)
+	target.addEventListener("pointerup", onUp)
 }
 
 const CLIPBOARD_MIME = "application/showrunner-nodes"
@@ -2131,16 +2266,31 @@ let inMemoryClipboard = ""
 
 function copySelectedNodes() {
 	const actions: (AnyAction | ActionStack)[] = []
-	for (const id of selectedNodeIds.value) {
+	const copiedVarNodes: typeof variableNodes.value = []
+	const selectedIds = new Set(selectedNodeIds.value)
+
+	for (const id of selectedIds) {
 		if (id === "trigger") continue
 		const info = findActionAndSequenceById(id, model.value)
-		if (info) actions.push(structuredClone(info.action))
+		if (info) {
+			actions.push(structuredClone(info.action))
+		} else {
+			// Check if it's a variable node
+			const vn = variableNodes.value.find((v) => v.id === id)
+			if (vn) copiedVarNodes.push(structuredClone(vn))
+		}
 	}
-	if (actions.length === 0) return
-	const payload = JSON.stringify({ actions })
+
+	// Also copy wires that connect selected nodes to each other
+	const copiedWires = dataWires.value.filter(
+		(w) => selectedIds.has(w.fromNode) && selectedIds.has(w.toNode)
+	).map((w) => structuredClone(w))
+
+	if (actions.length === 0 && copiedVarNodes.length === 0) return
+	const payload = JSON.stringify({ actions, variableNodes: copiedVarNodes, wires: copiedWires })
 	inMemoryClipboard = payload
 	navigator.clipboard.writeText(payload).catch(() => {})
-	logActivity("Copied", `${actions.length} node${actions.length === 1 ? "" : "s"}`)
+	logActivity("Copied", `${actions.length + copiedVarNodes.length} node${(actions.length + copiedVarNodes.length) === 1 ? "" : "s"}`)
 }
 
 function cutSelectedNodes() {
@@ -2148,13 +2298,21 @@ function cutSelectedNodes() {
 	// Delete all selected (non-trigger) nodes
 	const idsToDelete = [...selectedNodeIds.value].filter((id) => id !== "trigger")
 	for (const id of idsToDelete) {
+		// Try action node first
 		const position = getNodePosition(id)
-		if (!position) continue
-		const idx = position.items.findIndex((item) => {
-			if (isActionStack(item)) return item.id === id
-			return (item as AnyAction).id === id
-		})
-		if (idx >= 0) position.items.splice(idx, 1)
+		if (position) {
+			const idx = position.items.findIndex((item) => {
+				if (isActionStack(item)) return item.id === id
+				return (item as AnyAction).id === id
+			})
+			if (idx >= 0) position.items.splice(idx, 1)
+		} else {
+			// Try variable node
+			const vnIdx = variableNodes.value.findIndex((v) => v.id === id)
+			if (vnIdx >= 0) variableNodes.value.splice(vnIdx, 1)
+		}
+		// Remove connected wires
+		dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
 	}
 	clearSelection()
 	logActivity("Cut", `${idsToDelete.length} node${idsToDelete.length === 1 ? "" : "s"}`)
@@ -2163,19 +2321,46 @@ function cutSelectedNodes() {
 
 function pasteNodes() {
 	const doPaste = (text: string) => {
-		let parsed: { actions: (AnyAction | ActionStack)[] }
+		let parsed: { actions?: (AnyAction | ActionStack)[]; variableNodes?: typeof variableNodes.value; wires?: typeof dataWires.value }
 		try {
 			parsed = JSON.parse(text)
 		} catch {
 			return
 		}
-		if (!parsed?.actions?.length) return
+		if (!parsed?.actions?.length && !parsed?.variableNodes?.length) return
 
+		const idMap = new Map<string, string>() // old ID → new ID
 		const newIds: string[] = []
-		for (const action of parsed.actions) {
+
+		// Paste action nodes
+		for (const action of parsed.actions ?? []) {
 			const cloned = cloneActionForNodeEditor(action)
+			idMap.set(action.id, cloned.id)
 			model.value.sequence.actions.push(cloned)
 			newIds.push(cloned.id)
+		}
+
+		// Paste variable nodes with new IDs
+		for (const vn of parsed.variableNodes ?? []) {
+			const newId = nanoid()
+			idMap.set(vn.id, newId)
+			variableNodes.value.push({ ...vn, id: newId, x: vn.x + 40, y: vn.y + 40 })
+			newIds.push(newId)
+		}
+
+		// Paste wires with remapped IDs
+		for (const wire of parsed.wires ?? []) {
+			const newFrom = idMap.get(wire.fromNode)
+			const newTo = idMap.get(wire.toNode)
+			if (newFrom && newTo) {
+				dataWires.value.push({
+					id: `${newFrom}:${wire.fromPort}->${newTo}:${wire.toPort}`,
+					fromNode: newFrom,
+					fromPort: wire.fromPort,
+					toNode: newTo,
+					toPort: wire.toPort,
+				})
+			}
 		}
 
 		selectedNodeIds.value = new Set(newIds)
@@ -2279,31 +2464,6 @@ onUnmounted(() => {
 	letter-spacing: 0;
 	margin: 0 0 0.2rem;
 	text-transform: uppercase;
-}
-
-.node-automation__mode {
-	background: #101010;
-	border: 1px solid #3f3f3f;
-	border-radius: 6px;
-	display: flex;
-	padding: 0.2rem;
-}
-
-.node-automation__mode button {
-	align-items: center;
-	background: transparent;
-	border: 0;
-	border-radius: 4px;
-	color: var(--text-color);
-	cursor: pointer;
-	display: flex;
-	gap: 0.35rem;
-	padding: 0.55rem 0.8rem;
-}
-
-.node-automation__mode button.active {
-	background: #8b35e6;
-	color: white;
 }
 
 .node-automation__body {
@@ -2662,6 +2822,13 @@ onUnmounted(() => {
 	filter: drop-shadow(0 0 4px currentColor);
 }
 
+.node-automation__data-wire.removing {
+	stroke: #ff4444;
+	stroke-width: 3px;
+	opacity: 0;
+	transition: opacity 0.3s ease-out;
+}
+
 .node-automation__data-wire--dragging {
 	stroke-dasharray: 6 4;
 	opacity: 0.7;
@@ -2689,7 +2856,6 @@ onUnmounted(() => {
 	position: absolute;
 	text-align: left;
 	touch-action: none;
-	width: 220px;
 	z-index: 2;
 }
 
@@ -2763,10 +2929,9 @@ onUnmounted(() => {
 	border-color: #ff9bd7;
 }
 
-.node-automation__node--constant {
+.node-automation__node--variable {
 	border-color: #90a4ae;
 	min-width: 140px;
-	width: 140px;
 }
 
 .node-automation__node--trigger .node-automation__node-badge {
@@ -2798,6 +2963,17 @@ onUnmounted(() => {
 .node-automation__node-text small {
 	color: #d6d6d6;
 	font-size: 0.78rem;
+}
+
+.node-automation__inline-edit input {
+	background: rgba(0, 0, 0, 0.5);
+	border: 1px solid #8b35e6;
+	border-radius: 3px;
+	color: #fff;
+	font-size: 0.78rem;
+	outline: none;
+	padding: 0 0.2rem;
+	width: 100%;
 }
 
 .node-automation__node-badge {
@@ -2892,8 +3068,16 @@ onUnmounted(() => {
 	cursor: crosshair;
 	flex-shrink: 0;
 	height: 10px;
+	position: relative;
 	transition: transform 0.12s, box-shadow 0.12s;
 	width: 10px;
+}
+
+/* Expanded invisible hit area so ports are easier to click at any zoom */
+.node-automation__port-dot::before {
+	content: "";
+	inset: -6px;
+	position: absolute;
 }
 
 .node-automation__port-dot:hover {
@@ -3330,21 +3514,21 @@ onUnmounted(() => {
 	margin: 0;
 }
 
-.node-automation__constant-edit label {
+.node-automation__variable-edit label {
 	display: flex;
 	flex-direction: column;
 	gap: 0.3rem;
 }
 
-.node-automation__constant-edit label span {
+.node-automation__variable-edit label span {
 	color: var(--text-color-secondary);
 	font-size: 0.75rem;
 	font-weight: 600;
 	text-transform: uppercase;
 }
 
-.node-automation__constant-edit input,
-.node-automation__constant-edit select {
+.node-automation__variable-edit input,
+.node-automation__variable-edit select {
 	background: var(--surface-a);
 	border: 1px solid var(--surface-d);
 	border-radius: 4px;
@@ -3353,19 +3537,20 @@ onUnmounted(() => {
 	padding: 0.35rem 0.5rem;
 }
 
-.node-automation__constant-grid {
-	display: grid !important;
-	gap: 2px;
-	grid-template-columns: 1fr 1fr;
+.node-automation__resize-handle {
+	bottom: 0;
+	cursor: ew-resize;
+	position: absolute;
+	right: -4px;
+	top: 0;
+	width: 8px;
+	z-index: 10;
 }
 
-.node-automation__constant-grid button {
-	padding: 0.35rem 0.5rem !important;
-}
-
-.node-automation__classic {
-	flex: 1;
-	min-height: 0;
+.node-automation__resize-handle:hover,
+.node-automation__resize-handle:active {
+	background: rgba(139, 53, 230, 0.4);
+	border-radius: 0 4px 4px 0;
 }
 
 .sr-only {

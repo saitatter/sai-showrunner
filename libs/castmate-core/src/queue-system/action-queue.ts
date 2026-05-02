@@ -174,7 +174,13 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		const deserializedContext = await deserializeSchema(contextSchema, seqItem.queueContext.contextState)
 		const finalContext = await exposeSchema(contextSchema, deserializedContext)
 
-		this.runner = new SequenceRunner(automation.sequence, { contextState: finalContext })
+		this.runner = new SequenceRunner(
+			automation.sequence,
+			{ contextState: finalContext },
+			undefined,
+			automation.dataWires,
+			automation.variableNodes
+		)
 		//Sequence Set
 		this.state.running = seqItem
 
@@ -227,6 +233,14 @@ const markTestActionEnd = defineCallableIPC<(sequenceId: string, id: string) => 
 )
 const markTestSequenceStart = defineCallableIPC<(sequenceId: string) => void>("actionQueue", "markTestSequenceStart")
 const markTestSequenceEnd = defineCallableIPC<(sequenceId: string) => void>("actionQueue", "markTestSequenceEnd")
+const markTestActionResult = defineCallableIPC<(sequenceId: string, id: string, result: any) => void>(
+	"actionQueue",
+	"markTestActionResult"
+)
+const markTestActionError = defineCallableIPC<(sequenceId: string, id: string, error: string) => void>(
+	"actionQueue",
+	"markTestActionError"
+)
 
 class TestRunnerDebugger implements SequenceDebugger {
 	constructor(private sequenceId: string) {}
@@ -239,10 +253,10 @@ class TestRunnerDebugger implements SequenceDebugger {
 		markTestActionEnd(this.sequenceId, id)
 	}
 	logResult(id: string, result: any) {
-		//TODO
+		markTestActionResult(this.sequenceId, id, result)
 	}
 	logError(id: string, err: any) {
-		//TODO
+		markTestActionError(this.sequenceId, id, err instanceof Error ? err.message : String(err))
 	}
 
 	sequenceStarted() {
@@ -290,9 +304,13 @@ export const ActionQueueManager = Service(
 				queue.enqueue({ type, id, subId }, serializeSchema(contextSchema, contextData))
 			} else {
 				const finalContext = await exposeSchema(contextSchema, contextData)
-				const sequenceRunner = new SequenceRunner(automation.sequence, {
-					contextState: finalContext,
-				})
+				const sequenceRunner = new SequenceRunner(
+					automation.sequence,
+					{ contextState: finalContext },
+					undefined,
+					automation.dataWires,
+					automation.variableNodes
+				)
 
 				await wrapper(async () => await sequenceRunner.run(), { type, id, subId })
 			}
@@ -326,7 +344,9 @@ export const ActionQueueManager = Service(
 				{
 					contextState: context,
 				},
-				new TestRunnerDebugger(id)
+				new TestRunnerDebugger(id),
+				automation.dataWires,
+				automation.variableNodes
 			)
 
 			this.testSequences.set(id, runner)

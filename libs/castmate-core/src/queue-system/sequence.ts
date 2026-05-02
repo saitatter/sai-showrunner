@@ -22,6 +22,8 @@ import {
 	InlineAutomation,
 	hashString,
 	SequenceSource,
+	AutomationDataWire,
+	AutomationVariableNode,
 } from "castmate-schema"
 import { ActionInvokeContextData } from "./action"
 import { globalLogger } from "../logging/logging"
@@ -42,8 +44,50 @@ type SequenceCompletion = "complete" | "aborted"
 export class SequenceRunner {
 	private abortController = new AbortController()
 	private disconnectedFlows = new Array<Promise<any>>()
+	private nodeResults = new Map<string, Record<string, any>>()
 
-	constructor(private sequence: Sequence, private context: SequenceContext, private dbg?: SequenceDebugger) {}
+	constructor(
+		private sequence: Sequence,
+		private context: SequenceContext,
+		private dbg?: SequenceDebugger,
+		private dataWires?: AutomationDataWire[],
+		private variableNodes?: AutomationVariableNode[]
+	) {
+		// Populate variable node values into results map so wires from variables resolve
+		if (variableNodes) {
+			for (const v of variableNodes) {
+				this.nodeResults.set(v.id, { value: v.value })
+			}
+		}
+
+		// Validate wires: filter out any that reference non-existent nodes
+		if (dataWires?.length) {
+			const actionIds = new Set<string>()
+			const collectIds = (seq: SequenceActions) => {
+				for (const action of seq.actions) {
+					if (isActionStack(action)) {
+						for (const a of action.stack) actionIds.add(a.id)
+					} else if (isFlowAction(action)) {
+						actionIds.add(action.id)
+						for (const f of action.subFlows) collectIds(f)
+					} else {
+						actionIds.add(action.id)
+					}
+				}
+			}
+			collectIds(sequence)
+			for (const v of variableNodes ?? []) actionIds.add(v.id)
+
+			const validWires = dataWires.filter((w) => {
+				if (!actionIds.has(w.fromNode) || !actionIds.has(w.toNode)) {
+					globalLogger.warn(`Data wire ${w.id} references missing node, skipping`)
+					return false
+				}
+				return true
+			})
+			this.dataWires = validWires
+		}
+	}
 
 	abort() {
 		this.abortController.abort()
@@ -68,11 +112,27 @@ export class SequenceRunner {
 			if (!actionDef || actionDef.type != "regular") {
 				throw new Error(`Unknown Action: ${action.plugin}:${action.action}`)
 			}
-			const deserializedConfig = await deserializeSchema(actionDef.configSchema, action.config)
+
+			// Resolve data wire inputs: override config values with wired source outputs
+			const resolvedConfig = this.resolveWireInputs(action.id, action.config)
+			const deserializedConfig = await deserializeSchema(actionDef.configSchema, resolvedConfig)
 			//Todo construct action context
 			const actionContext: ActionInvokeContextData = this.context
 			const result = await actionDef.invoke(deserializedConfig, actionContext, this.abortController.signal)
 			this.dbg?.logResult(action.id, result)
+
+			// Store result for data wire lookups by downstream nodes
+			if (result != null) {
+				if (typeof result === "object") {
+					this.nodeResults.set(action.id, result)
+				} else {
+					// Wrap primitives so port "_result" can reference them
+					this.nodeResults.set(action.id, { _result: result })
+				}
+			}
+
+			// Propagate wired values to variable nodes (write-through)
+			this.propagateToVariableNodes(action.id)
 
 			let resultMapped: Record<string, any> = {}
 
@@ -94,6 +154,46 @@ export class SequenceRunner {
 			return undefined
 		} finally {
 			this.dbg?.markEnd(action.id)
+		}
+	}
+
+	/** Resolve incoming data wires for a node, overwriting config fields with wired values */
+	private resolveWireInputs(nodeId: string, config: any): any {
+		if (!this.dataWires?.length || !config || typeof config !== "object") return config
+		const incomingWires = this.dataWires.filter((w) => w.toNode === nodeId)
+		if (incomingWires.length === 0) return config
+
+		const resolved = { ...config }
+		for (const wire of incomingWires) {
+			const sourceResult = this.nodeResults.get(wire.fromNode)
+			if (sourceResult === undefined) {
+				globalLogger.warn(`Data wire: source node "${wire.fromNode}" has no result (wire ${wire.id})`)
+				continue
+			}
+			if (!(wire.fromPort in sourceResult)) {
+				globalLogger.warn(`Data wire: port "${wire.fromPort}" not found in node "${wire.fromNode}" result (wire ${wire.id})`)
+				continue
+			}
+			resolved[wire.toPort] = sourceResult[wire.fromPort]
+		}
+		return resolved
+	}
+
+	/** After an action runs, propagate its output to any variable nodes connected via wires */
+	private propagateToVariableNodes(sourceNodeId: string) {
+		if (!this.dataWires?.length || !this.variableNodes?.length) return
+		const variableIds = new Set(this.variableNodes.map((v) => v.id))
+		const outgoing = this.dataWires.filter((w) => w.fromNode === sourceNodeId && variableIds.has(w.toNode))
+		for (const wire of outgoing) {
+			const sourceResult = this.nodeResults.get(wire.fromNode)
+			if (!sourceResult || !(wire.fromPort in sourceResult)) continue
+			const value = sourceResult[wire.fromPort]
+			// Update both the variable node data and the nodeResults map
+			const vn = this.variableNodes.find((v) => v.id === wire.toNode)
+			if (vn) vn.value = value
+			const existing = this.nodeResults.get(wire.toNode) ?? {}
+			existing[wire.toPort] = value
+			this.nodeResults.set(wire.toNode, existing)
 		}
 	}
 

@@ -40,6 +40,7 @@ export interface PortNodeInfo {
 	x: number
 	y: number
 	height: number
+	width?: number
 	inputPorts?: PortDef[]
 	outputPorts?: PortDef[]
 	configLines?: { label: string; value: string }[]
@@ -69,7 +70,7 @@ export function getPortPosition(
 	if (kind === "in") {
 		return { x: node.x, y: portY }
 	} else {
-		return { x: node.x + NODE_WIDTH, y: portY }
+		return { x: node.x + (node.width ?? NODE_WIDTH), y: portY }
 	}
 }
 
@@ -227,7 +228,7 @@ export function usePortConnections(
 			const toPort = drag.fromKind === "out" ? target.portKey : drag.fromPort
 
 			// Don't connect a node to itself
-			if (fromNode !== toNode) {
+			if (fromNode !== toNode && !wouldCreateCycle(fromNode, toNode)) {
 				// Remove existing wire to this input (one wire per input port)
 				const existingIdx = dataWires.value.findIndex((w) => w.toNode === toNode && w.toPort === toPort)
 				if (existingIdx >= 0) dataWires.value.splice(existingIdx, 1)
@@ -246,9 +247,28 @@ export function usePortConnections(
 		wireDrag.value = null
 	}
 
+	/** Check if adding an edge fromNode→toNode would create a cycle in the data wire graph */
+	function wouldCreateCycle(fromNode: string, toNode: string): boolean {
+		// Walk forward from toNode through existing wires; if we reach fromNode, it's a cycle
+		const visited = new Set<string>()
+		const stack = [toNode]
+		while (stack.length > 0) {
+			const current = stack.pop()!
+			if (current === fromNode) return true
+			if (visited.has(current)) continue
+			visited.add(current)
+			for (const wire of dataWires.value) {
+				if (wire.fromNode === current) {
+					stack.push(wire.toNode)
+				}
+			}
+		}
+		return false
+	}
+
 	function findPortUnderCursor(event: PointerEvent, drag: WireDragState): PortAddress | undefined {
 		const targetKind = drag.fromKind === "out" ? "in" : "out"
-		const SNAP_RADIUS = 18
+		const SNAP_RADIUS = 18 / zoom.value
 
 		for (const node of nodes.value) {
 			if (node.id === drag.fromNode && targetKind === drag.fromKind) continue

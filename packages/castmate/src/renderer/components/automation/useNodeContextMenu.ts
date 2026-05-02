@@ -96,7 +96,7 @@ export function useNodeContextMenu(
 	}
 
 	function isContextGroupOpen(key: string) {
-		return contextMenuOpenGroups.value[key] ?? true
+		return contextMenuOpenGroups.value[key] ?? false
 	}
 
 	function buildContextGroups(
