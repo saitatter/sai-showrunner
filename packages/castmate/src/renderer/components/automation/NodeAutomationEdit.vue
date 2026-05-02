@@ -237,6 +237,24 @@
 								<dd>{{ line.value }}</dd>
 							</div>
 						</dl>
+						<div v-if="node.inputPorts?.length || node.outputPorts?.length" class="node-automation__node-ports">
+							<div class="node-automation__port-columns">
+								<ul v-if="node.inputPorts?.length" class="node-automation__port-list node-automation__port-list--in">
+									<li v-for="port in node.inputPorts" :key="port.key" class="node-automation__port node-automation__port--in">
+										<span class="node-automation__port-dot node-automation__port-dot--in" />
+										<span class="node-automation__port-label">{{ port.label }}</span>
+										<span class="node-automation__port-type">{{ port.type }}</span>
+									</li>
+								</ul>
+								<ul v-if="node.outputPorts?.length" class="node-automation__port-list node-automation__port-list--out">
+									<li v-for="port in node.outputPorts" :key="port.key" class="node-automation__port node-automation__port--out">
+										<span class="node-automation__port-type">{{ port.type }}</span>
+										<span class="node-automation__port-label">{{ port.label }}</span>
+										<span class="node-automation__port-dot node-automation__port-dot--out" />
+									</li>
+								</ul>
+							</div>
+						</div>
 						<span
 							v-if="node.id !== 'trigger'"
 							class="node-automation__handle node-automation__handle--out"
@@ -570,6 +588,12 @@ interface ConfigLine {
 	value: string
 }
 
+interface PortDef {
+	key: string
+	label: string
+	type: string
+}
+
 interface NodeData extends NodePosition {
 	id: string
 	kind: "trigger" | "action" | "stack" | "time" | "flow" | "floating"
@@ -579,6 +603,8 @@ interface NodeData extends NodePosition {
 	badge?: string
 	path?: string
 	configLines?: ConfigLine[]
+	inputPorts?: PortDef[]
+	outputPorts?: PortDef[]
 	height: number
 }
 
@@ -629,13 +655,18 @@ const commitUndo = useCommitUndo()
 const NODE_WIDTH = 220
 const NODE_BASE_HEIGHT = 74
 const CONFIG_LINE_HEIGHT = 20
+const PORT_LINE_HEIGHT = 18
 const MAX_CONFIG_LINES = 4
+const MAX_PORTS = 5
 const H_GAP = 285
 const V_GAP = 128
 
-function computeNodeHeight(configLines?: ConfigLine[]): number {
-	if (!configLines || configLines.length === 0) return NODE_BASE_HEIGHT
-	return NODE_BASE_HEIGHT + configLines.length * CONFIG_LINE_HEIGHT + 4
+function computeNodeHeight(configLines?: ConfigLine[], inputPorts?: PortDef[], outputPorts?: PortDef[]): number {
+	let h = NODE_BASE_HEIGHT
+	if (configLines && configLines.length > 0) h += configLines.length * CONFIG_LINE_HEIGHT + 4
+	const portCount = Math.max(inputPorts?.length ?? 0, outputPorts?.length ?? 0)
+	if (portCount > 0) h += portCount * PORT_LINE_HEIGHT + 8
+	return h
 }
 
 const nodePositions = computed(() => {
@@ -863,6 +894,52 @@ function summarizeConfigValue(value: unknown): string {
 	return String(value)
 }
 
+function schemaTypeLabel(schema: unknown): string {
+	if (!schema || typeof schema !== "object") return "any"
+	if ("type" in schema) {
+		const t = schema.type
+		if (t === String) return "str"
+		if (t === Number) return "num"
+		if (t === Boolean) return "bool"
+		if (t === Object) return "obj"
+		if (t === Array) return "list"
+	}
+	return "any"
+}
+
+function extractPorts(
+	action: AnyAction,
+	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
+): { inputPorts: PortDef[]; outputPorts: PortDef[] } {
+	const actionDef = pluginMap.get(action.plugin)?.actions?.[action.action]
+	if (!actionDef) return { inputPorts: [], outputPorts: [] }
+
+	const inputPorts: PortDef[] = []
+	const schema = actionDef.config
+	if (schema && isObjectSchema(schema)) {
+		for (const [key, propSchema] of Object.entries(schema.properties)) {
+			if (inputPorts.length >= MAX_PORTS) break
+			const label = (propSchema && typeof propSchema === "object" && "name" in propSchema && propSchema.name)
+				? String(propSchema.name)
+				: titleCase(key)
+			inputPorts.push({ key, label, type: schemaTypeLabel(propSchema) })
+		}
+	}
+
+	const outputPorts: PortDef[] = []
+	if (actionDef.type === "regular" && actionDef.result && isObjectSchema(actionDef.result)) {
+		for (const [key, propSchema] of Object.entries(actionDef.result.properties)) {
+			if (outputPorts.length >= MAX_PORTS) break
+			const label = (propSchema && typeof propSchema === "object" && "name" in propSchema && propSchema.name)
+				? String(propSchema.name)
+				: titleCase(key)
+			outputPorts.push({ key, label, type: schemaTypeLabel(propSchema) })
+		}
+	}
+
+	return { inputPorts, outputPorts }
+}
+
 function extractConfigSummary(
 	action: AnyAction,
 	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
@@ -1038,6 +1115,7 @@ function createNode(
 	const timingSummary = getTimingSummary(action)
 	const flowSummary = getFlowSummary(action)
 	const configLines = extractConfigSummary(action, pluginMap)
+	const { inputPorts, outputPorts } = extractPorts(action, pluginMap)
 
 	return {
 		id: action.id,
@@ -1050,7 +1128,9 @@ function createNode(
 		y: 88 + row * V_GAP,
 		path,
 		configLines,
-		height: computeNodeHeight(configLines),
+		inputPorts: inputPorts.length > 0 ? inputPorts : undefined,
+		outputPorts: outputPorts.length > 0 ? outputPorts : undefined,
+		height: computeNodeHeight(configLines, inputPorts, outputPorts),
 	}
 }
 
@@ -2398,6 +2478,80 @@ onUnmounted(() => {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.node-automation__node-ports {
+	border-top: 1px solid rgb(255 255 255 / 0.1);
+	grid-column: 1 / -1;
+	padding-top: 0.25rem;
+}
+
+.node-automation__port-columns {
+	display: flex;
+	gap: 0.5rem;
+	justify-content: space-between;
+}
+
+.node-automation__port-list {
+	display: grid;
+	gap: 0;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.node-automation__port-list--in {
+	align-items: flex-start;
+}
+
+.node-automation__port-list--out {
+	align-items: flex-end;
+	margin-left: auto;
+}
+
+.node-automation__port {
+	align-items: center;
+	display: flex;
+	gap: 0.25rem;
+	line-height: 1.15;
+}
+
+.node-automation__port--out {
+	justify-content: flex-end;
+}
+
+.node-automation__port-dot {
+	background: #e9aaff;
+	border: 1.5px solid #7d32d4;
+	border-radius: 50%;
+	flex-shrink: 0;
+	height: 7px;
+	width: 7px;
+}
+
+.node-automation__port-dot--in {
+	background: #81c784;
+	border-color: #4a8a4d;
+}
+
+.node-automation__port-dot--out {
+	background: #4fc3f7;
+	border-color: #2980b9;
+}
+
+.node-automation__port-label {
+	color: #d6d6d6;
+	font-size: 0.65rem;
+	max-width: 5rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node-automation__port-type {
+	color: rgb(255 255 255 / 0.35);
+	font-family: monospace;
+	font-size: 0.58rem;
 }
 
 .node-automation__context-menu {
