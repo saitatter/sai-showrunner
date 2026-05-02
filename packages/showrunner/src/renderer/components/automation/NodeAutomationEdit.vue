@@ -318,6 +318,11 @@
 							class="node-automation__test-badge node-automation__test-badge--ok"
 							:title="JSON.stringify(activeTestSequence.nodeResults[node.id], null, 2)"
 						>✓</span>
+						<span
+							v-if="activeTestSequence?.nodeDurations?.[node.id] != null"
+							class="node-automation__test-duration"
+							:title="`Last test-run duration: ${formatNodeDuration(activeTestSequence.nodeDurations[node.id])}`"
+						>{{ formatNodeDuration(activeTestSequence.nodeDurations[node.id]) }}</span>
 						<dl v-if="node.configLines?.length" class="node-automation__node-config">
 							<div v-for="(line, li) in node.configLines" :key="li" class="node-automation__node-config-line">
 								<dt>{{ line.label }}</dt>
@@ -858,6 +863,21 @@
 						</li>
 					</ol>
 				</section>
+
+				<section v-if="activeTestSequence?.executionPath?.length" class="node-automation__context-section">
+					<div class="node-automation__execution-header">
+						<span><i class="mdi mdi-map-marker-path" /> Execution Path</span>
+						<small>{{ activeTestSequence.running ? "Running" : "Last run" }}</small>
+					</div>
+					<ol class="node-automation__execution-path">
+						<li v-for="nodeId in activeTestSequence.executionPath" :key="`${nodeId}:${activeTestSequence.nodeDurations[nodeId] ?? 'active'}`">
+							<span>{{ nodeTitleById(nodeId) }}</span>
+							<small v-if="activeTestSequence.nodeErrors[nodeId]" class="error">{{ activeTestSequence.nodeErrors[nodeId] }}</small>
+							<small v-else-if="activeTestSequence.nodeDurations[nodeId] != null">{{ formatNodeDuration(activeTestSequence.nodeDurations[nodeId]) }}</small>
+							<small v-else>running</small>
+						</li>
+					</ol>
+				</section>
 			</aside>
 			<div aria-live="polite" class="sr-only">{{ screenReaderAnnouncement }}</div>
 		</div>
@@ -878,7 +898,6 @@ import {
 	useCommitUndo,
 	usePluginStore,
 	ActionDefinition,
-	useParentTestSequence,
 	useActionQueueStore,
 	CollapsibleContextMenu,
 } from "ShowRunner-ui-core"
@@ -951,8 +970,12 @@ const MAX_RECENT = 5
 const { activityLog, logActivity } = useNodeActivity()
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
-const activeTestSequence = useParentTestSequence()
 const actionQueueStore = useActionQueueStore()
+const activeTestSequenceId = ref<string>()
+const activeTestSequence = computed(() => {
+	if (!activeTestSequenceId.value) return undefined
+	return actionQueueStore.activeTestSequences[activeTestSequenceId.value]
+})
 
 const nodePositions = computed(() => {
 	if (!view.value) return {}
@@ -2212,8 +2235,17 @@ function addControlFlowNode(type: GraphNodeType) {
 	commitUndo()
 }
 
-function runMainSequence() {
-	actionQueueStore.testSequence(model.value)
+async function runMainSequence() {
+	activeTestSequenceId.value = await actionQueueStore.testSequence(model.value)
+}
+
+function formatNodeDuration(durationMs: number) {
+	if (durationMs < 1000) return `${Math.max(1, Math.round(durationMs))}ms`
+	return `${(durationMs / 1000).toFixed(durationMs < 10000 ? 1 : 0)}s`
+}
+
+function nodeTitleById(nodeId: string) {
+	return nodes.value.find((node) => node.id === nodeId)?.title ?? nodeId
 }
 
 function addVariableNode(type: "string" | "number" | "boolean" | "color") {
@@ -3029,6 +3061,16 @@ onUnmounted(() => {
 	color: #fff;
 }
 
+.node-automation__test-duration {
+	background: rgba(79, 195, 247, 0.16);
+	border: 1px solid rgba(79, 195, 247, 0.4);
+	border-radius: 4px;
+	color: #b8eaff;
+	font-size: 0.68rem;
+	font-weight: 700;
+	padding: 0.12rem 0.28rem;
+}
+
 .node-automation__node-config {
 	border-top: 1px solid rgb(255 255 255 / 0.1);
 	display: grid;
@@ -3625,6 +3667,81 @@ onUnmounted(() => {
 .node-automation__activity span {
 	color: #bbb;
 	font-size: 0.8rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node-automation__execution-header {
+	align-items: center;
+	background: #222;
+	color: var(--text-color);
+	display: flex;
+	font-weight: 700;
+	justify-content: space-between;
+	padding: 0.7rem 0.8rem;
+}
+
+.node-automation__execution-header span {
+	align-items: center;
+	display: flex;
+	gap: 0.45rem;
+}
+
+.node-automation__execution-header small {
+	color: #b8eaff;
+	font-size: 0.72rem;
+	text-transform: uppercase;
+}
+
+.node-automation__execution-path {
+	counter-reset: execution-step;
+	display: grid;
+	gap: 0.4rem;
+	list-style: none;
+	margin: 0;
+	max-height: 13rem;
+	overflow: auto;
+	padding: 0.65rem;
+}
+
+.node-automation__execution-path li {
+	align-items: center;
+	background: #101010;
+	border: 1px solid #303030;
+	border-radius: 4px;
+	counter-increment: execution-step;
+	display: grid;
+	gap: 0.15rem;
+	grid-template-columns: 1fr auto;
+	padding: 0.5rem 0.6rem;
+}
+
+.node-automation__execution-path li::before {
+	color: #e9aaff;
+	content: counter(execution-step, decimal-leading-zero);
+	font-size: 0.68rem;
+	font-weight: 800;
+	grid-column: 1 / -1;
+	letter-spacing: 0.04em;
+}
+
+.node-automation__execution-path span {
+	font-weight: 700;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node-automation__execution-path small {
+	color: #b8eaff;
+	font-size: 0.72rem;
+}
+
+.node-automation__execution-path small.error {
+	color: #ffb4b4;
+	max-width: 12rem;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;

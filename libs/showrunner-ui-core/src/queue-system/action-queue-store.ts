@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { useIpcCaller, handleIpcMessage } from "../main"
-import { AutomationData, Sequence } from "ShowRunner-schema"
+import { AutomationData } from "ShowRunner-schema"
 import { nanoid } from "nanoid/non-secure"
 import { MaybeRefOrGetter, computed, ref, toValue, inject, ComputedRef, nextTick } from "vue"
 
@@ -9,6 +9,8 @@ export interface TestSequenceData {
 	activeIds: Record<string, number> //Maps active ids to their start time
 	nodeResults: Record<string, any> //Maps node ids to their last execution result
 	nodeErrors: Record<string, string> //Maps node ids to their error message
+	nodeDurations: Record<string, number> //Maps node ids to their last execution duration in ms
+	executionPath: string[]
 }
 
 export const useActionQueueStore = defineStore("actionQueues", () => {
@@ -22,17 +24,31 @@ export const useActionQueueStore = defineStore("actionQueues", () => {
 
 	async function initialize() {
 		handleIpcMessage("actionQueue", "markTestSequenceStart", (event, sequenceId: string) => {
-			activeTestSequences.value[sequenceId] = { running: true, activeIds: {}, nodeResults: {}, nodeErrors: {} }
+			activeTestSequences.value[sequenceId] = {
+				running: true,
+				activeIds: {},
+				nodeResults: {},
+				nodeErrors: {},
+				nodeDurations: {},
+				executionPath: [],
+			}
 		})
 
 		handleIpcMessage("actionQueue", "markTestSequenceEnd", (event, sequenceId: string) => {
-			delete activeTestSequences.value[sequenceId]
+			const testRun = activeTestSequences.value[sequenceId]
+			if (!testRun) return
+			testRun.running = false
+			testRun.activeIds = {}
 		})
 
 		handleIpcMessage("actionQueue", "markTestActionStart", (event, sequenceId: string, id: string) => {
 			const testRun = activeTestSequences.value[sequenceId]
 			if (!testRun) return //TODO: Handle out of order??
 			testRun.activeIds[id] = Date.now()
+			delete testRun.nodeErrors[id]
+			if (testRun.executionPath[testRun.executionPath.length - 1] !== id) {
+				testRun.executionPath.push(id)
+			}
 		})
 
 		handleIpcMessage("actionQueue", "markTestActionEnd", (event, sequenceId: string, id: string) => {
@@ -43,6 +59,7 @@ export const useActionQueueStore = defineStore("actionQueues", () => {
 			if (startTime == null) return
 
 			const diff = time - startTime
+			testRun.nodeDurations[id] = diff
 			const delay = 300 - diff
 
 			//Hold for at least 300ms so the border can show up
