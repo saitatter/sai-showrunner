@@ -5,6 +5,7 @@ export interface ActionQueueConfig {
 	name: string
 	paused: boolean
 	gap: Duration
+	timeout?: Duration
 }
 
 export interface ActionQueueState {

@@ -28,6 +28,7 @@ export function initializeQueues() {
 			name: { type: String, name: "Name", required: true },
 			paused: { type: Boolean, name: "Paused", required: true, default: false },
 			gap: { type: Duration, name: "Gap", required: true, default: 0 },
+			timeout: { type: Duration, name: "Automation Timeout", required: true, default: 30 },
 		},
 	})
 	resourceStore.registerEditComponent("ActionQueue", ResourceSchemaEdit)

@@ -272,7 +272,7 @@ export default definePlugin(
 
 				const compiler = new GraphCompiler()
 				const program = compiler.compile(config.automation.config.graph, config.automation.config.subgraphs, config.automation.config.dataWires)
-				const vm = new GraphVM(program, contextData)
+				const vm = new GraphVM(program, contextData, undefined, abortSignal)
 
 				const onabort = () => vm.abort()
 				abortSignal.addEventListener("abort", onabort, { once: true })

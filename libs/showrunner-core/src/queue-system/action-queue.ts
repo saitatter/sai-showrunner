@@ -32,6 +32,8 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 	static storage = new ResourceStorage<ActionQueue>("ActionQueue")
 
 	private activeVM: GraphVM | null = null
+	private activeAbortController: AbortController | null = null
+	private activeTimeout: NodeJS.Timeout | undefined = undefined
 	private lastCompletion: number | null = null
 	private scheduledId: string | undefined = undefined
 	private scheduler: NodeJS.Timeout | undefined = undefined
@@ -43,7 +45,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 			this._id = nanoid()
 			this._config = config
 		} else {
-			this._config = { name: "", paused: false, gap: 0 }
+			this._config = { name: "", paused: false, gap: 0, timeout: 30 }
 		}
 
 		this.state = {
@@ -58,7 +60,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 	}
 
 	get isReady() {
-		return !this.isRunning || this.scheduler == null
+		return !this.isRunning && this.scheduler == null
 	}
 
 	/**
@@ -82,6 +84,10 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 
 	get gap() {
 		return this.config.gap ?? 0
+	}
+
+	get timeout() {
+		return this.config.timeout ?? 30
 	}
 
 	//Restarts the queue processing if it needs to
@@ -121,6 +127,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 
 	skip(id: string) {
 		if (this.state.running?.id == id) {
+			this.activeAbortController?.abort()
 			this.activeVM?.abort()
 		} else {
 			const idx = this.state.queue.findIndex((i) => i.id == id)
@@ -189,15 +196,30 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 
 		const compiler = new GraphCompiler()
 		const program = compiler.compile(automation.graph, automation.subgraphs, automation.dataWires)
-		this.activeVM = new GraphVM(program, { contextState: finalContext })
+		const abortController = new AbortController()
+		this.activeAbortController = abortController
+		this.activeVM = new GraphVM(program, { contextState: finalContext }, undefined, abortController.signal)
 		this.state.running = seqItem
 
 		const doRun = async () => {
 			try {
+				const timeoutMs = Math.max(0, this.timeout * 1000)
+				if (timeoutMs > 0) {
+					this.activeTimeout = setTimeout(() => {
+						logger.error("Queue automation timed out", seqItem.source, this.timeout)
+						abortController.abort()
+						this.activeVM?.abort()
+					}, timeoutMs)
+				}
 				await wrapper(async () => await this.activeVM?.execute(), seqItem.source)
 			} finally {
+				if (this.activeTimeout) {
+					clearTimeout(this.activeTimeout)
+					this.activeTimeout = undefined
+				}
 				this.lastCompletion = Date.now()
 				this.activeVM = null
+				this.activeAbortController = null
 				this.state.running = undefined
 				this.pushToHistory(seqItem)
 				if (!this.isPaused) {
