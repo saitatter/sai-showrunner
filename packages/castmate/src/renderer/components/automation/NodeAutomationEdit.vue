@@ -51,6 +51,36 @@
 					>
 						<i class="mdi mdi-grid" />
 					</button>
+					<button type="button" aria-label="Auto-layout" @click="autoLayout" v-tooltip="'Auto-layout'">
+						<i class="mdi mdi-sitemap-outline" />
+					</button>
+					<button
+						type="button"
+						aria-label="Align horizontally"
+						:disabled="selectedNodeIds.size < 2"
+						@click="alignSelectedNodes('horizontal')"
+						v-tooltip="'Align selected horizontally'"
+					>
+						<i class="mdi mdi-align-vertical-center" />
+					</button>
+					<button
+						type="button"
+						aria-label="Align vertically"
+						:disabled="selectedNodeIds.size < 2"
+						@click="alignSelectedNodes('vertical')"
+						v-tooltip="'Align selected vertically'"
+					>
+						<i class="mdi mdi-align-horizontal-center" />
+					</button>
+					<button
+						type="button"
+						aria-label="Distribute evenly"
+						:disabled="selectedNodeIds.size < 3"
+						@click="distributeSelectedNodes"
+						v-tooltip="'Distribute selected evenly'"
+					>
+						<i class="mdi mdi-distribute-horizontal-center" />
+					</button>
 					<span class="node-automation__control-divider" />
 					<button
 						type="button"
@@ -1267,6 +1297,72 @@ watch(canvasSearchQuery, () => {
 		panY.value = -(pos.y + node.height / 2) * zoom.value + (containerRef.value?.clientHeight ?? 0) / 2
 	}
 })
+
+function autoLayout() {
+	commitUndo()
+	const graphNodes = graph.value.nodes
+	const positions = { ...nodePositions.value }
+	for (const node of graphNodes) {
+		positions[node.id] = { x: node.x, y: node.y }
+	}
+	view.value = { ...view.value, nodePositions: positions }
+}
+
+function alignSelectedNodes(axis: "horizontal" | "vertical") {
+	if (selectedNodeIds.value.size < 2) return
+	commitUndo()
+	const selected = nodes.value.filter((n) => selectedNodeIds.value.has(n.id))
+	const positions = { ...nodePositions.value }
+
+	if (axis === "horizontal") {
+		// Align all selected to the average Y
+		const avgY = selected.reduce((sum, n) => sum + n.y + n.height / 2, 0) / selected.length
+		for (const node of selected) {
+			positions[node.id] = { x: (positions[node.id] ?? node).x, y: avgY - node.height / 2 }
+		}
+	} else {
+		// Align all selected to the average X
+		const avgX = selected.reduce((sum, n) => sum + n.x + NODE_WIDTH / 2, 0) / selected.length
+		for (const node of selected) {
+			positions[node.id] = { x: avgX - NODE_WIDTH / 2, y: (positions[node.id] ?? node).y }
+		}
+	}
+	view.value = { ...view.value, nodePositions: positions }
+}
+
+function distributeSelectedNodes() {
+	if (selectedNodeIds.value.size < 3) return
+	commitUndo()
+	const selected = nodes.value.filter((n) => selectedNodeIds.value.has(n.id))
+	const positions = { ...nodePositions.value }
+
+	// Determine if nodes are more horizontal or vertical
+	const xs = selected.map((n) => n.x)
+	const ys = selected.map((n) => n.y)
+	const xRange = Math.max(...xs) - Math.min(...xs)
+	const yRange = Math.max(...ys) - Math.min(...ys)
+
+	if (xRange >= yRange) {
+		// Distribute horizontally
+		const sorted = [...selected].sort((a, b) => a.x - b.x)
+		const minX = sorted[0].x
+		const maxX = sorted[sorted.length - 1].x
+		const step = (maxX - minX) / (sorted.length - 1)
+		for (let i = 0; i < sorted.length; i++) {
+			positions[sorted[i].id] = { x: minX + step * i, y: (positions[sorted[i].id] ?? sorted[i]).y }
+		}
+	} else {
+		// Distribute vertically
+		const sorted = [...selected].sort((a, b) => a.y - b.y)
+		const minY = sorted[0].y
+		const maxY = sorted[sorted.length - 1].y
+		const step = (maxY - minY) / (sorted.length - 1)
+		for (let i = 0; i < sorted.length; i++) {
+			positions[sorted[i].id] = { x: (positions[sorted[i].id] ?? sorted[i]).x, y: minY + step * i }
+		}
+	}
+	view.value = { ...view.value, nodePositions: positions }
+}
 
 function handleWindowClick(event: MouseEvent) {
 	const target = event.target as HTMLElement | null
