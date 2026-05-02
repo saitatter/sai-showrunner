@@ -45,6 +45,7 @@ export function evalExpression(expr: Expression, ctx: EvalContext): any {
 		case "member": {
 			const obj = evalExpression(expr.object, ctx)
 			if (obj == null) return undefined
+			if (isUnsafeProperty(expr.property)) return undefined
 			return obj[expr.property]
 		}
 
@@ -52,6 +53,7 @@ export function evalExpression(expr: Expression, ctx: EvalContext): any {
 			const obj = evalExpression(expr.object, ctx)
 			const idx = evalExpression(expr.index, ctx)
 			if (obj == null) return undefined
+			if (isUnsafeProperty(idx)) return undefined
 			return obj[idx]
 		}
 
@@ -138,11 +140,11 @@ function evalBuiltin(fn: BuiltinFn, args: any[]): any {
 			return Math.abs(Number(args[0]) || 0)
 		case "min": {
 			const numbers = args.map(Number).filter(Number.isFinite)
-			return numbers.length > 0 ? Math.min(...numbers) : 0
+			return numbers.length > 0 ? Math.min(...numbers) : undefined
 		}
 		case "max": {
 			const numbers = args.map(Number).filter(Number.isFinite)
-			return numbers.length > 0 ? Math.max(...numbers) : 0
+			return numbers.length > 0 ? Math.max(...numbers) : undefined
 		}
 		case "keys":
 			if (args[0] != null && typeof args[0] === "object") return Object.keys(args[0])
@@ -165,4 +167,8 @@ function evalBuiltin(fn: BuiltinFn, args: any[]): any {
 		default:
 			throw new Error(`Unknown builtin function: ${fn}`)
 	}
+}
+
+function isUnsafeProperty(property: unknown): boolean {
+	return property === "__proto__" || property === "constructor" || property === "prototype"
 }

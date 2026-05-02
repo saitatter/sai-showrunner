@@ -122,6 +122,11 @@ describe("evalExpression", () => {
 			const expr: Expression = { type: "member", object: { type: "literal", value: null }, property: "x" }
 			expect(evalExpression(expr, mkCtx())).toBeUndefined()
 		})
+		it("blocks unsafe prototype properties", () => {
+			const ctx = mkCtx({ contextState: { obj: {} } })
+			const expr: Expression = { type: "member", object: { type: "variable", name: "obj" }, property: "__proto__" }
+			expect(evalExpression(expr, ctx)).toBeUndefined()
+		})
 	})
 
 	describe("index access", () => {
@@ -134,6 +139,11 @@ describe("evalExpression", () => {
 			const ctx = mkCtx({ contextState: { obj: { a: 1, b: 2 } } })
 			const expr: Expression = { type: "index", object: { type: "variable", name: "obj" }, index: { type: "literal", value: "b" } }
 			expect(evalExpression(expr, ctx)).toBe(2)
+		})
+		it("blocks unsafe dynamic keys", () => {
+			const ctx = mkCtx({ contextState: { obj: {} } })
+			const expr: Expression = { type: "index", object: { type: "variable", name: "obj" }, index: { type: "literal", value: "constructor" } }
+			expect(evalExpression(expr, ctx)).toBeUndefined()
 		})
 	})
 
@@ -193,14 +203,14 @@ describe("evalExpression", () => {
 		it("min", () => {
 			expect(evalExpression({ type: "call", fn: "min", args: [{ type: "literal", value: 3 }, { type: "literal", value: 1 }, { type: "literal", value: 5 }] }, mkCtx())).toBe(1)
 		})
-		it("min returns zero when no finite numbers are provided", () => {
-			expect(evalExpression({ type: "call", fn: "min", args: [{ type: "literal", value: "nope" }] }, mkCtx())).toBe(0)
+		it("min returns undefined when no finite numbers are provided", () => {
+			expect(evalExpression({ type: "call", fn: "min", args: [{ type: "literal", value: "nope" }] }, mkCtx())).toBeUndefined()
 		})
 		it("max", () => {
 			expect(evalExpression({ type: "call", fn: "max", args: [{ type: "literal", value: 3 }, { type: "literal", value: 1 }, { type: "literal", value: 5 }] }, mkCtx())).toBe(5)
 		})
-		it("max returns zero when no finite numbers are provided", () => {
-			expect(evalExpression({ type: "call", fn: "max", args: [] }, mkCtx())).toBe(0)
+		it("max returns undefined when no finite numbers are provided", () => {
+			expect(evalExpression({ type: "call", fn: "max", args: [] }, mkCtx())).toBeUndefined()
 		})
 		it("keys", () => {
 			const expr: Expression = { type: "call", fn: "keys", args: [{ type: "literal", value: { a: 1, b: 2 } }] }

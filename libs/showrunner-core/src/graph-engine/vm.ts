@@ -139,8 +139,12 @@ export class GraphVM {
 			}
 
 			case OpCode.LOOP_STEP: {
-				const step = this.evalExpr(instr.arg1)
-				this.locals[instr.arg0!] += step
+				const current = Number(this.locals[instr.arg0!])
+				const step = Number(this.evalExpr(instr.arg1))
+				if (!Number.isFinite(current) || !Number.isFinite(step)) {
+					throw new Error(`Loop step must be numeric at node ${instr.nodeId ?? "unknown"}`)
+				}
+				this.locals[instr.arg0!] = current + step
 				return true
 			}
 
@@ -232,22 +236,12 @@ export class GraphVM {
 		// Deep clone config and substitute wired inputs
 		const resolved = structuredClone(config)
 
-		for (const key of Object.keys(resolved)) {
-			const wireKey = `${node.id}:${key}`
-			const source = wireMap[wireKey]
-			if (source) {
-				const sourceResult = this.nodeResults.get(source.fromNodeId)
-				resolved[key] = getPathValue(sourceResult, source.fromPort)
-			}
-		}
+		const prefix = `${node.id}:`
+		for (const [wireKey, source] of Object.entries(wireMap)) {
+			if (!wireKey.startsWith(prefix)) continue
+			const toPort = wireKey.slice(prefix.length)
+			if (!toPort) continue
 
-		for (const wireKey of Object.keys(wireMap)) {
-			const [toNodeId, ...toPortParts] = wireKey.split(":")
-			if (toNodeId !== node.id) continue
-			const toPort = toPortParts.join(":")
-			if (!toPort || Object.prototype.hasOwnProperty.call(resolved, toPort)) continue
-
-			const source = wireMap[wireKey]
 			const sourceResult = this.nodeResults.get(source.fromNodeId)
 			setPathValue(resolved, toPort, getPathValue(sourceResult, source.fromPort))
 		}
@@ -344,6 +338,7 @@ function getPathValue(source: any, path: string) {
 	let cursor = source
 	for (const part of parts) {
 		if (cursor == null) return undefined
+		if (isUnsafePathPart(part)) return undefined
 		cursor = cursor[part as keyof typeof cursor]
 	}
 	return cursor
@@ -356,13 +351,16 @@ function setPathValue(target: Record<string, any>, path: string, value: any) {
 	let cursor: any = target
 	for (let i = 0; i < parts.length - 1; i++) {
 		const part = parts[i]
+		if (isUnsafePathPart(part)) return
 		const nextPart = parts[i + 1]
 		if (cursor[part] == null || typeof cursor[part] !== "object") {
 			cursor[part] = typeof nextPart === "number" ? [] : {}
 		}
 		cursor = cursor[part]
 	}
-	cursor[parts[parts.length - 1]] = value
+	const lastPart = parts[parts.length - 1]
+	if (isUnsafePathPart(lastPart)) return
+	cursor[lastPart] = value
 }
 
 function parsePath(path: string): Array<string | number> {
@@ -372,4 +370,8 @@ function parsePath(path: string): Array<string | number> {
 		else if (match[2]) parts.push(Number(match[2]))
 	}
 	return parts
+}
+
+function isUnsafePathPart(part: string | number): boolean {
+	return part === "__proto__" || part === "constructor" || part === "prototype"
 }

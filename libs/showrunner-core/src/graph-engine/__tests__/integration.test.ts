@@ -146,6 +146,68 @@ describe("Graph Integration (compile → VM → action)", () => {
 		expect(receivedConfig.payload.message).toBe("nested hello")
 	})
 
+	it("resolves data wires into nested paths when the target config does not exist yet", async () => {
+		let receivedConfig: any = null
+		mockGetAction.mockImplementation((_plugin: string, action: string) => {
+			if (action === "producer") {
+				return mockAction(async () => ({ actor: { displayName: "ViewerName" } }))
+			}
+			return mockAction(async (config) => {
+				receivedConfig = config
+				return {}
+			})
+		})
+
+		const graph: AutomationGraph = {
+			nodes: [
+				{ id: "a1", type: "action", plugin: "p", action: "producer", config: {}, x: 0, y: 0 },
+				{ id: "a2", type: "action", plugin: "p", action: "consumer", config: {}, x: 1, y: 0 },
+			],
+			edges: [{ id: "e1", from: "a1", to: "a2" }],
+			entryNodeId: "a1",
+		}
+		const dataWires: AutomationDataWire[] = [
+			{ id: "w1", fromNode: "a1", fromPort: "actor.displayName", toNode: "a2", toPort: "payload.viewer.name" },
+		]
+
+		const program = new GraphCompiler().compile(graph, undefined, dataWires)
+		await new GraphVM(program, { contextState: {} }).execute()
+
+		expect(receivedConfig).toEqual({ payload: { viewer: { name: "ViewerName" } } })
+	})
+
+	it("ignores unsafe data wire paths instead of polluting prototypes", async () => {
+		let receivedConfig: any = null
+		mockGetAction.mockImplementation((_plugin: string, action: string) => {
+			if (action === "producer") {
+				return mockAction(async () => ({ safe: "ok", constructor: { prototype: { polluted: true } } }))
+			}
+			return mockAction(async (config) => {
+				receivedConfig = config
+				return {}
+			})
+		})
+
+		const graph: AutomationGraph = {
+			nodes: [
+				{ id: "a1", type: "action", plugin: "p", action: "producer", config: {}, x: 0, y: 0 },
+				{ id: "a2", type: "action", plugin: "p", action: "consumer", config: {}, x: 1, y: 0 },
+			],
+			edges: [{ id: "e1", from: "a1", to: "a2" }],
+			entryNodeId: "a1",
+		}
+		const dataWires: AutomationDataWire[] = [
+			{ id: "w1", fromNode: "a1", fromPort: "constructor.prototype.polluted", toNode: "a2", toPort: "__proto__.polluted" },
+			{ id: "w2", fromNode: "a1", fromPort: "safe", toNode: "a2", toPort: "payload.safe" },
+		]
+
+		const program = new GraphCompiler().compile(graph, undefined, dataWires)
+		await new GraphVM(program, { contextState: {} }).execute()
+
+		expect(receivedConfig).toEqual({ payload: { safe: "ok" } })
+		expect(({} as Record<string, any>).polluted).toBeUndefined()
+	})
+
 	it("executes correct branch in if-then-else", async () => {
 		const calls: string[] = []
 		mockGetAction.mockImplementation((_p: string, action: string) =>

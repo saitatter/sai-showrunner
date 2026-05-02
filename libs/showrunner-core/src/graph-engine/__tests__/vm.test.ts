@@ -166,6 +166,19 @@ describe("GraphVM", () => {
 			const result = await vm.execute()
 			expect(result).toBe("error") // exceeded limit
 		})
+
+		it("errors when loop step is not numeric", async () => {
+			const program = makeProgram([
+				{ op: OpCode.EVAL, arg1: { type: "literal", value: 0 } },
+				{ op: OpCode.STORE, arg0: 0 },
+				{ op: OpCode.LOOP_STEP, nodeId: "loop", arg0: 0, arg1: { type: "literal", value: "bad-step" } },
+				{ op: OpCode.HALT },
+			])
+
+			const result = await new GraphVM(program, { contextState: {} }).execute()
+
+			expect(result).toBe("error")
+		})
 	})
 
 	describe("forEach (ITER_NEXT)", () => {
