@@ -308,6 +308,7 @@ export class ModerationService {
 
 	private scheduleReconnect() {
 		if (!this.settings.enabled || this.reconnectTimer) return
+		this.logger.log("Scheduling moderation websocket reconnect in 5s")
 		this.reconnectTimer = setTimeout(() => {
 			this.reconnectTimer = undefined
 			this.connectDashboardSocket()
@@ -322,8 +323,12 @@ export class ModerationService {
 
 	private closeSocket() {
 		if (!this.socket) return
-		this.socket.removeAllListeners()
-		this.socket.close()
+		try {
+			this.socket.removeAllListeners()
+			this.socket.close()
+		} catch (err) {
+			this.logger.warn("Error closing moderation websocket", err)
+		}
 		this.socket = undefined
 	}
 
