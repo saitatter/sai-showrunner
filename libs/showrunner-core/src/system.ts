@@ -6,7 +6,7 @@ import { ensureDirectory, resolveProjectPath, setProjectDirectory, initializeFil
 import { MediaManager, setupMedia } from "./media/media-manager"
 import { ProfileManager } from "./profile/profile-system"
 import { defineCallableIPC, defineIPCFunc } from "./util/electron"
-import { Automation } from "./automation/automation"
+import { setupAutomations } from "./automation/automation"
 import util from "util"
 import { finishSettingUpStreamPlans, setupStreamPlans } from "./stream-plan/stream-plan"
 import { globalLogger, initializeLogging } from "./logging/logging"
@@ -117,7 +117,7 @@ export async function initializeShowRunner() {
 const notifyRendererSetupFinished = defineCallableIPC<() => void>("ShowRunner", "setupFinished")
 
 export async function loadAutomations() {
-	await Automation.initialize()
+	await setupAutomations()
 }
 
 export async function finializeShowRunnerSetup() {

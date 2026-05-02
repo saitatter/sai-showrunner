@@ -24,7 +24,7 @@ export interface ConfigLine {
 
 export interface NodeData {
 	id: string
-	kind: "trigger" | "action" | "stack" | "time" | "flow" | "floating" | "variable" | "if" | "switch" | "for" | "forEach" | "while" | "break" | "continue" | "return"
+	kind: "trigger" | "action" | "queue" | "stack" | "time" | "flow" | "floating" | "variable" | "if" | "switch" | "for" | "forEach" | "while" | "break" | "continue" | "return"
 	title: string
 	subtitle: string
 	icon: string
@@ -191,6 +191,8 @@ export const GRAPH_NODE_INFO: Record<GraphNodeType, { icon: string; kind: NodeDa
 	subgraphCall: { icon: "mdi mdi-function", kind: "action", label: "Subgraph" },
 }
 
+const QUEUE_ACTION_IDS = new Set(["addToQueue", "completeQueueItem", "cancelQueueItem", "clearQueue", "skip", "pause"])
+
 export function summarizeExpression(expr: any): string {
 	if (!expr) return "—"
 	switch (expr.type) {
@@ -249,6 +251,22 @@ export function graphNodeToNodeData(
 			const ports = extractPorts(action, pluginMap)
 			inputPorts = ports.inputPorts
 			outputPorts = ports.outputPorts
+			if (action.plugin === "ShowRunner" && QUEUE_ACTION_IDS.has(action.action)) {
+				return {
+					id: gn.id,
+					kind: "queue",
+					title,
+					subtitle,
+					icon: actionDef.icon ?? "mdi mdi-tray-full",
+					badge: "Queue",
+					x: action.x ?? 0,
+					y: action.y ?? 0,
+					configLines,
+					inputPorts,
+					outputPorts,
+					height: computeNodeHeight(configLines, inputPorts, outputPorts),
+				}
+			}
 			break
 		}
 		case "if":
@@ -399,6 +417,7 @@ function getTriggerOutputPorts(
 export function getNodeLane(node: NodeData): Pick<LaneData, "id" | "kind" | "label"> {
 	if (node.id === "trigger") return { id: "main", kind: "main", label: "Main Flow" }
 	if (node.kind === "if" || node.kind === "switch") return { id: "flow", kind: "flow", label: "Flow Branches" }
+	if (node.kind === "queue") return { id: "queue", kind: "flow", label: "Queue Scheduler" }
 	if (node.kind === "for" || node.kind === "forEach" || node.kind === "while") return { id: "time", kind: "time", label: "Loops" }
 	if (node.kind === "break" || node.kind === "continue" || node.kind === "return") return { id: "flow", kind: "flow", label: "Control" }
 	return { id: "main", kind: "main", label: "Main Flow" }

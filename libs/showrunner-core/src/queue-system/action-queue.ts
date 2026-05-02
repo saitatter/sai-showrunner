@@ -138,6 +138,11 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		}
 	}
 
+	clearPending() {
+		this.clearScheduled()
+		this.state.queue.splice(0)
+	}
+
 	spliceQueue(index: number, deleteCount: number, ...sequence: QueuedAutomation[]) {
 		this.state.queue.splice(index, deleteCount, ...sequence)
 	}

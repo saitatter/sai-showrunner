@@ -2523,6 +2523,7 @@ onUnmounted(() => {
 
 .node-automation__minimap-node--trigger { fill: #4fc3f7; }
 .node-automation__minimap-node--action { fill: #81c784; }
+.node-automation__minimap-node--queue { fill: #ffcf5a; }
 .node-automation__minimap-node--stack { fill: #ba68c8; }
 .node-automation__minimap-node--time { fill: #ffb74d; }
 .node-automation__minimap-node--flow { fill: #4dd0e1; }
@@ -2886,6 +2887,11 @@ onUnmounted(() => {
 .node-automation__node--action {
 	background: #151515;
 	border-color: #7d32d4;
+}
+
+.node-automation__node--queue {
+	background: color-mix(in srgb, #ffcf5a 12%, #151515);
+	border-color: #ffcf5a;
 }
 
 .node-automation__node--time {

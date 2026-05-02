@@ -60,6 +60,108 @@ export default definePlugin(
 		)
 
 		defineAction({
+			id: "addToQueue",
+			name: "Add to Queue",
+			icon: "mdi mdi-tray-plus",
+			description: "Schedules another automation to run through a queue.",
+			config: {
+				type: Object,
+				properties: {
+					queue: { type: ActionQueue, name: "Queue", required: true },
+					automation: { type: Automation, name: "Worker Automation", required: true },
+					payload: { type: Object, name: "Payload" },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					queued: { type: Boolean, name: "Queued" },
+					queueId: { type: String, name: "Queue ID" },
+					automationId: { type: String, name: "Automation ID" },
+				},
+			},
+			async invoke(config, contextData, abortSignal) {
+				if (!config.queue || !config.automation) {
+					return { queued: false, queueId: "", automationId: "" }
+				}
+
+				const payload =
+					config.payload && Object.keys(config.payload).length > 0
+						? config.payload
+						: contextData.contextState
+
+				config.queue.enqueue(
+					{ type: "automation", id: config.automation.id },
+					{
+						payload,
+						queuedAt: new Date().toISOString(),
+						source: {
+							type: "graph",
+							action: "addToQueue",
+						},
+					}
+				)
+
+				return { queued: true, queueId: config.queue.id, automationId: config.automation.id }
+			},
+		})
+
+		defineAction({
+			id: "completeQueueItem",
+			name: "Complete Queue Item",
+			icon: "mdi mdi-check-circle-outline",
+			description: "Marks the intended completion point of a queue worker graph. Queue items complete automatically when the graph ends.",
+			config: {
+				type: Object,
+				properties: {},
+			},
+			result: {
+				type: Object,
+				properties: {
+					completed: { type: Boolean, name: "Completed" },
+				},
+			},
+			async invoke(config, contextData, abortSignal) {
+				return { completed: true }
+			},
+		})
+
+		defineAction({
+			id: "cancelQueueItem",
+			name: "Cancel Queue Item",
+			icon: "mdi mdi-cancel",
+			description: "Cancels the currently running queue item.",
+			config: {
+				type: Object,
+				properties: {
+					queue: { type: ActionQueue, name: "Queue", required: true },
+				},
+			},
+			async invoke(config, contextData, abortSignal) {
+				const runningId = config.queue?.state?.running?.id
+				if (runningId) {
+					config.queue.skip(runningId)
+				}
+			},
+		})
+
+		defineAction({
+			id: "clearQueue",
+			name: "Clear Queue",
+			icon: "mdi mdi-tray-remove",
+			description: "Clears pending queue items without interrupting the currently running item.",
+			config: {
+				type: Object,
+				properties: {
+					queue: { type: ActionQueue, name: "Queue", required: true },
+				},
+			},
+			async invoke(config, contextData, abortSignal) {
+				config.queue?.clearPending()
+			},
+		})
+
+		defineAction({
 			id: "skip",
 			name: "Queue Skip",
 			icon: "mdi mdi-skip-next",
