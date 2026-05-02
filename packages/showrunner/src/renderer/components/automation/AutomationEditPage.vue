@@ -1,13 +1,18 @@
 <template>
 	<div class="automation-edit-page">
-		<node-automation-edit v-model="safeModel" v-model:view="safeView" />
+		<div v-if="renderError" class="automation-edit-page__error">
+			<strong>Automation editor failed</strong>
+			<code>{{ renderError }}</code>
+			<small>{{ debugSummary }}</small>
+		</div>
+		<node-automation-edit v-else v-model="safeModel" v-model:view="safeView" />
 	</div>
 </template>
 
 <script setup lang="ts">
 import { AutomationConfig } from "ShowRunner-schema"
 import { AutomationResourceView } from "ShowRunner-ui-core"
-import { computed, useModel } from "vue"
+import { computed, onErrorCaptured, ref, useModel, watchEffect } from "vue"
 import NodeAutomationEdit from "./NodeAutomationEdit.vue"
 
 const props = defineProps<{
@@ -17,9 +22,11 @@ const props = defineProps<{
 
 const view = useModel(props, "view")
 const model = useModel(props, "modelValue")
+const renderError = ref("")
 
 const safeModel = computed({
 	get() {
+		model.value ??= { name: "", sequence: { actions: [] }, floatingSequences: [] }
 		model.value.sequence ??= { actions: [] }
 		model.value.floatingSequences ??= []
 		return model.value
@@ -31,6 +38,7 @@ const safeModel = computed({
 
 const safeView = computed({
 	get() {
+		view.value ??= { automationView: { panState: { zoomX: 4, zoomY: 1, panX: 0, panY: 0, panning: false } } }
 		view.value.automationView ??= {
 			panState: {
 				zoomX: 4,
@@ -46,6 +54,38 @@ const safeView = computed({
 		view.value = value
 	},
 })
+
+const debugSummary = computed(() =>
+	JSON.stringify({
+		name: safeModel.value.name,
+		hasSequence: !!safeModel.value.sequence,
+		actionCount: safeModel.value.sequence?.actions?.length ?? 0,
+		floatingCount: safeModel.value.floatingSequences?.length ?? 0,
+		hasGraph: !!safeModel.value.graph,
+		dataWireCount: safeModel.value.dataWires?.length ?? 0,
+		variableNodeCount: safeModel.value.variableNodes?.length ?? 0,
+		hasView: !!safeView.value,
+		hasAutomationView: !!safeView.value.automationView,
+		nodePositionCount: Object.keys((safeView.value as any).nodePositions ?? {}).length,
+		nodeSizeCount: Object.keys((safeView.value as any).nodeSizes ?? {}).length,
+		nodeView: (safeView.value as any).nodeView ?? null,
+	})
+)
+
+watchEffect(() => {
+	console.debug("[ShowRunner AutomationEditPage]", JSON.parse(debugSummary.value))
+})
+
+onErrorCaptured((error, instance, info) => {
+	renderError.value = error instanceof Error ? error.stack || error.message : String(error)
+	console.error("[ShowRunner AutomationEditPage] child render failed", {
+		error,
+		info,
+		instance,
+		debug: JSON.parse(debugSummary.value),
+	})
+	return false
+})
 </script>
 
 <style scoped>
@@ -58,6 +98,28 @@ const safeView = computed({
 	--darkest-trigger-color: #1e1e1e;
 	--lighter-trigger-color: #4e4e4e;
 }
+
+.automation-edit-page__error {
+	display: grid;
+	align-content: start;
+	gap: 0.75rem;
+	width: 100%;
+	margin: 1rem;
+	border: 1px solid rgba(255, 120, 120, 0.45);
+	border-radius: 6px;
+	background: rgba(50, 10, 14, 0.82);
+	color: #ffe8e8;
+	padding: 1rem;
+	white-space: pre-wrap;
+}
+
+.automation-edit-page__error code,
+.automation-edit-page__error small {
+	color: #ffd0d0;
+	font-size: 0.8rem;
+	word-break: break-word;
+}
+
 .config {
 	background-color: var(--surface-b);
 	user-select: none;
