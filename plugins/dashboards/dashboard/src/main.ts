@@ -1,4 +1,4 @@
-import { definePluginDashboard } from "castmate-dashboard-core"
+import { definePluginDashboard } from "ShowRunner-dashboard-core"
 import Label from "./widgets/Label.vue"
 
 export default definePluginDashboard({

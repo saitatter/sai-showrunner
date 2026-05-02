@@ -1,5 +1,5 @@
-import { TwitchAccountConfig, TwitchAccountSecrets } from "castmate-plugin-twitch-shared"
-import { Account, AccountConstructor, ResourceStorage, isSatellite, loadYAML, usePluginLogger } from "castmate-core"
+import { TwitchAccountConfig, TwitchAccountSecrets } from "ShowRunner-plugin-twitch-shared"
+import { Account, AccountConstructor, ResourceStorage, isSatellite, loadYAML, usePluginLogger } from "ShowRunner-core"
 import { getTokenInfo, AuthProvider, AccessTokenWithUserId, AccessTokenMaybeWithUserId } from "@twurple/auth"
 import { BrowserWindow } from "electron"
 import { ApiClient, UserIdResolvable } from "@twurple/api"
@@ -422,7 +422,12 @@ export class TwitchAccount extends Account<TwitchAccountSecrets, TwitchAccountCo
 			delete loadedConfig.scopes
 
 			await super.applyConfig(loadedConfig)
-		} catch (err) {}
+		} catch (err) {
+			if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
+				return
+			}
+			logger.error("Error loading Twitch account config", this.id, err)
+		}
 	}
 
 	static async initialize(): Promise<void> {

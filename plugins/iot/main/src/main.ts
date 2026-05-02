@@ -1,4 +1,4 @@
-import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSatellitePlugin } from "castmate-core"
+import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSatellitePlugin } from "ShowRunner-core"
 import { setupLights, LightResource, PollingLight } from "./light"
 import { setupPlugs, PlugResource, PollingPlug } from "./plug"
 
@@ -14,8 +14,8 @@ export default definePlugin(
 	},
 	() => {
 		//Plugin Intiialization
-		setupLights("castmate")
-		setupPlugs("castmate")
+		setupLights("ShowRunner")
+		setupPlugs("ShowRunner")
 	}
 )
 

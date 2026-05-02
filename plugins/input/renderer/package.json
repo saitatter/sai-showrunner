@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-input-renderer",
+  "name": "ShowRunner-plugin-input-renderer",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -13,9 +13,9 @@
   },
   "dependencies": {
     "@vueuse/core": "*",
-    "castmate-plugin-input-shared": "workspace:^",
-    "castmate-schema": "workspace:^",
-    "castmate-ui-core": "workspace:^",
+    "ShowRunner-plugin-input-shared": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
+    "ShowRunner-ui-core": "workspace:^",
     "chromatism2": "*",
     "electron": "^34.2.0",
     "nanoid": "^5.0.7",
@@ -23,7 +23,7 @@
     "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "4.6.2",
+    "@vitejs/plugin-vue": "^6.0.0",
     "typescript": "*",
     "vite": "^7.3.1",
     "vue-tsc": "*"

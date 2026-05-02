@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-overlays-shared",
+	"name": "ShowRunner-plugin-overlays-shared",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,9 +13,9 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"axios": "*",
-		"castmate-core": "workspace:^",
-		"castmate-plugin-sound-shared": "workspace:^",
-		"castmate-schema": "workspace:^"
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-sound-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^",
+		"axios": "*"
 	}
 }

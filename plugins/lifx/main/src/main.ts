@@ -8,10 +8,10 @@ import {
 	removeAllSubResource,
 	onSettingChanged,
 	usePluginLogger,
-} from "castmate-core"
-import { LightResource, PollingLight } from "castmate-plugin-iot-main/src/light"
-import { LightColor } from "castmate-plugin-iot-shared"
-import { Toggle } from "castmate-schema"
+} from "ShowRunner-core"
+import { LightResource, PollingLight } from "ShowRunner-plugin-iot-main/src/light"
+import { LightColor, LightState } from "ShowRunner-plugin-iot-shared"
+import { Toggle } from "ShowRunner-schema"
 import EventEmitter from "events"
 import { Client, Light } from "lifx-lan-client"
 
@@ -71,8 +71,7 @@ class LIFXLight extends PollingLight {
 	constructor(private lifxLight: Light) {
 		super()
 
-		//@ts-ignore .d.ts is wrong
-		this._id = `lifx.${lifxLight.id}`
+		this._id = `lifx.${(lifxLight as any).id}`
 	}
 
 	async initialize() {
@@ -81,8 +80,7 @@ class LIFXLight extends PollingLight {
 		this._config = {
 			name: state?.label ?? "UNKNOWN",
 			provider: "lifx",
-			//@ts-ignore .d.ts is wrong
-			providerId: this.lifxLight.id,
+			providerId: (this.lifxLight as any).id,
 			rgb: {
 				available: hardware.productFeatures?.color ?? true,
 			},
@@ -99,8 +97,7 @@ class LIFXLight extends PollingLight {
 			},
 		}
 
-		//@ts-ignore
-		this.state = {}
+		this.state = {} as LightState
 		this.parseState(state)
 
 		this.startPolling(30)

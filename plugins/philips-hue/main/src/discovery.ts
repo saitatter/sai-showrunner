@@ -9,7 +9,7 @@ import {
 	onSettingChanged,
 	sleep,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import os from "os"
 
 const logger = usePluginLogger("philips-hue")

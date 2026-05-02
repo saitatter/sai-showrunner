@@ -1,7 +1,7 @@
-import { useResolvedWidgetConfig } from "castmate-overlay-core"
-import { useOverlayWidgets } from "castmate-overlay-widget-loader"
-import { OverlayConfig, OverlayWidgetConfig } from "castmate-plugin-overlays-shared"
-import { handleIpcMessage, useIpcCaller, useIpcMessage } from "castmate-ui-core"
+import { useResolvedWidgetConfig } from "ShowRunner-overlay-core"
+import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
+import { OverlayConfig, OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
+import { handleIpcMessage, useIpcCaller, useIpcMessage } from "ShowRunner-ui-core"
 import { nanoid } from "nanoid/non-secure"
 import { defineStore } from "pinia"
 import {
@@ -59,8 +59,6 @@ export const useOverlayRemoteConfigStore = defineStore("overlay-remote-config", 
 
 		const configValue = toValue(config)
 
-		console.log("Starting Overlay Edit", id, configValue.plugin, configValue.widget, configValue.config)
-
 		startEdit(id, configValue.plugin, configValue.widget, configValue.config) //Setup the main process evaluation
 
 		const effect = watch(
@@ -88,8 +86,6 @@ export const useOverlayRemoteConfigStore = defineStore("overlay-remote-config", 
 		if (!remote) return
 
 		stopEdit(id)
-
-		console.log("Stopping Overlay Edit", id)
 
 		//Stop the effect
 		remote.effect()

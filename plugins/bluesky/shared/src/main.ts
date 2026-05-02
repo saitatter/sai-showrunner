@@ -1,4 +1,4 @@
-import { AccountSecrets, AccountConfig } from "castmate-schema"
+import { AccountSecrets, AccountConfig } from "ShowRunner-schema"
 
 export interface BlueSkyAccountConfig extends AccountConfig {
 	name: string

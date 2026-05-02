@@ -1,4 +1,4 @@
-import { Duration, Toggle, Timer, isTimerStarted, offsetTimer, pauseTimer, setTimer, startTimer } from "castmate-schema"
+import { Duration, Toggle, Timer, isTimerStarted, offsetTimer, pauseTimer, setTimer, startTimer } from "ShowRunner-schema"
 import {
 	defineAction,
 	defineTrigger,
@@ -7,9 +7,9 @@ import {
 	definePlugin,
 	abortableSleep,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { setupTimers } from "./timers"
-import { VariableManager } from "castmate-plugin-variables-main"
+import { VariableManager } from "ShowRunner-plugin-variables-main"
 
 export default definePlugin(
 	{

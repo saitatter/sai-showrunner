@@ -28,11 +28,11 @@
 </template>
 
 <script setup lang="ts">
-import { WidgetBackgroundImage } from "castmate-plugin-overlays-shared"
+import { WidgetBackgroundImage } from "ShowRunner-plugin-overlays-shared"
 import WidgetBackgroundSettingsEdit from "./WidgetBackgroundSettingsEdit.vue"
 
-import { MediaFile, SchemaMediaFile, MediaMetadata } from "castmate-schema"
-import { FilterInputBox, MediaDropDown, useDefaultableModel, useMediaStore, useUndoCommitter } from "castmate-ui-core"
+import { MediaFile, SchemaMediaFile, MediaMetadata } from "ShowRunner-schema"
+import { FilterInputBox, MediaDropDown, useDefaultableModel, useMediaStore, useUndoCommitter } from "ShowRunner-ui-core"
 import { computed, ref } from "vue"
 
 const props = defineProps<{}>()

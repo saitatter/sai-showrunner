@@ -25,15 +25,15 @@
 </template>
 
 <script setup lang="ts">
-import { TwitchViewer, TwitchViewerGroupCondition } from "castmate-plugin-twitch-shared"
-import { getTypeByConstructor, Schema, isStateValueExpr, isValueValueExpr, getTypeByName } from "castmate-schema"
+import { TwitchViewer, TwitchViewerGroupCondition } from "ShowRunner-plugin-twitch-shared"
+import { getTypeByConstructor, Schema, isStateValueExpr, isValueValueExpr, getTypeByName } from "ShowRunner-schema"
 import {
 	ValueCompareOperatorSelector,
 	BooleanExpressionValueEdit,
 	useViewerDataStore,
 	ViewerVariableSelector,
 	usePluginStore,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import { useModel, computed, watch } from "vue"
 
 import PButton from "primevue/button"

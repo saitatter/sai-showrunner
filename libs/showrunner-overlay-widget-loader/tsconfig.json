@@ -1,0 +1,31 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"useDefineForClassFields": true,
+		"module": "ESNext",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"skipLibCheck": true,
+
+		/* Bundler mode */
+		"moduleResolution": "Bundler",
+		"allowImportingTsExtensions": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"noEmit": true,
+		"jsx": "preserve",
+
+		/* Linting */
+		"strict": true,
+		// "noUnusedLocals": true,
+		// "noUnusedParameters": true,
+		// "noFallthroughCasesInSwitch": true
+		"paths": {
+			"ShowRunner-overlay-core": ["../ShowRunner-overlay-core/src/overlay-core-main.ts"],
+			"ShowRunner-plugin-overlays-overlays": ["../../plugins/overlays/overlay/src/main.ts"],
+			"ShowRunner-plugin-random-overlays": ["../../plugins/random/overlay/src/main.ts"],
+			"ShowRunner-plugin-twitch-overlays": ["../../plugins/twitch/overlay/src/main.ts"]
+		}
+	},
+	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
+	"references": [{ "path": "./tsconfig.node.json" }]
+}

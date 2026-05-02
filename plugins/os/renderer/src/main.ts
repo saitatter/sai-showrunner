@@ -1,5 +1,5 @@
-import { PowerShellCommand } from "castmate-plugin-os-shared"
-import { useDataInputStore } from "castmate-ui-core"
+import { PowerShellCommand } from "ShowRunner-plugin-os-shared"
+import { useDataInputStore } from "ShowRunner-ui-core"
 import PowerShellCommandInput from "./components/PowerShellCommandInput.vue"
 
 export function initPlugin() {

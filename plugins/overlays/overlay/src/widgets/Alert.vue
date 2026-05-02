@@ -16,16 +16,16 @@
 </template>
 
 <script setup lang="ts">
-import { MediaContainer, TimedReveal, declareWidgetOptions, handleOverlayRPC, useIsEditor } from "castmate-overlay-core"
+import { MediaContainer, TimedReveal, declareWidgetOptions, handleOverlayRPC, useIsEditor } from "ShowRunner-overlay-core"
 import {
 	OverlayBlockStyle,
 	OverlayTextAlignment,
 	OverlayTextStyle,
 	OverlayTransitionAnimation,
 	OverlayWidgetSize,
-} from "castmate-plugin-overlays-shared"
-import { Color, MediaFile } from "castmate-schema"
-import { Duration } from "castmate-schema"
+} from "ShowRunner-plugin-overlays-shared"
+import { Color, MediaFile } from "ShowRunner-schema"
+import { Duration } from "ShowRunner-schema"
 import { clearInterval } from "timers"
 import { nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import AlertTextBox from "../components/AlertTextBox.vue"

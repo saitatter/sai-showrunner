@@ -1,8 +1,8 @@
 import { EventSubWsListener } from "@twurple/eventsub-ws"
 import { TwitchAccount } from "./twitch-auth"
 import { ChatClient } from "@twurple/chat"
-import { Service, isCastMate, onLoad, onUnload, usePluginLogger } from "castmate-core"
-import { EventList } from "castmate-core/src/util/events"
+import { Service, isShowRunner, onLoad, onUnload, usePluginLogger } from "ShowRunner-core"
+import { EventList } from "ShowRunner-core/src/util/events"
 
 const logger = usePluginLogger("twitch")
 
@@ -141,7 +141,7 @@ export const TwitchAPIService = Service(
 
 			logger.log("Reauthing Channel")
 
-			if (isCastMate()) {
+			if (isShowRunner()) {
 				this._eventsub?.stop()
 
 				this._eventsub = new EventSubWsListener({
@@ -153,7 +153,7 @@ export const TwitchAPIService = Service(
 			//@ts-ignore Damned type system
 			await this.onChannelReauthList.run(channelAccount, this)
 
-			if (isCastMate()) {
+			if (isShowRunner()) {
 				this.eventsub.onSubscriptionCreateFailure((sub, error) => {
 					logger.error("ERROR WITH EVENTSUB", sub.id)
 					logger.error(error)
@@ -174,7 +174,7 @@ export const TwitchAPIService = Service(
 			//Restart the bot stuffs since we've changed main channel.
 			await this.onReauthBot()
 
-			if (isCastMate()) {
+			if (isShowRunner()) {
 				this.eventsub.onStreamOnline(channelAccount.twitchId, async (ev) => {
 					await this.onStreamOnline.run(channelAccount, this)
 				})

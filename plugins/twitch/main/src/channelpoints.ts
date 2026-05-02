@@ -11,9 +11,9 @@ import {
 	template,
 	templateSchema,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { TwitchAccount } from "./twitch-auth"
-import { Color } from "castmate-schema"
+import { Color } from "ShowRunner-schema"
 import {
 	ChannelPointRewardConfig,
 	ChannelPointRewardData,
@@ -22,7 +22,7 @@ import {
 	ChannelPointRewardTemplate,
 	TwitchViewer,
 	TwitchViewerGroup,
-} from "castmate-plugin-twitch-shared"
+} from "ShowRunner-plugin-twitch-shared"
 import { EventSubChannelRewardEvent } from "@twurple/eventsub-base"
 import { HelixCreateCustomRewardData, HelixCustomReward } from "@twurple/api"
 import { nanoid } from "nanoid/non-secure"
@@ -32,9 +32,9 @@ import { inTwitchViewerGroup } from "./group"
 import { getRawData } from "@twurple/common"
 import * as fs from "fs/promises"
 import * as path from "path"
-import { ensureDirectory, loadYAML, resolveProjectPath, writeYAML } from "castmate-core/src/io/file-system"
+import { ensureDirectory, loadYAML, resolveProjectPath, writeYAML } from "ShowRunner-core/src/io/file-system"
 import _debounce from "lodash/debounce"
-import { PluginManager } from "castmate-core/src/plugins/plugin-manager"
+import { PluginManager } from "ShowRunner-core/src/plugins/plugin-manager"
 
 //Helper interface to work with both EventSubChannelRewardEvent and HelixCustomReward
 interface TwurpleReward {
@@ -269,7 +269,7 @@ export class ChannelPointReward extends Resource<ChannelPointRewardConfig, Chann
 		return result
 	}
 
-	static async createNonCastmateReward(reward: HelixCustomReward) {
+	static async createNonShowRunnerReward(reward: HelixCustomReward) {
 		const result = new ChannelPointReward()
 
 		const rewardData = rewardDataFromTwurple(reward)
@@ -431,7 +431,7 @@ export function setupChannelPointRewards() {
 		ChannelPointReward.initialize()
 	})
 
-	async function clearNonCastMateRewards() {
+	async function clearNonShowRunnerRewards() {
 		const ids = new Set<string>()
 
 		for (const reward of ChannelPointReward.storage) {
@@ -449,21 +449,21 @@ export function setupChannelPointRewards() {
 			const channelAccount = TwitchAccount.channel
 			const channelId = channelAccount.config.twitchId
 
-			await clearNonCastMateRewards()
+			await clearNonShowRunnerRewards()
 
 			//Unforunately there's no way to query for rewards not controlled by this client id
 			//We can only query for all rewards and rewards we control
 			//Query both.
 			const rewards = await channelAccount.apiClient.channelPoints.getCustomRewards(channelId)
-			const castMateRewards = await channelAccount.apiClient.channelPoints.getCustomRewards(channelId, true)
+			const ShowRunnerRewards = await channelAccount.apiClient.channelPoints.getCustomRewards(channelId, true)
 
-			//Filter for non-castmate controllable rewards
-			const nonCastMateRewards = rewards.filter((r) => castMateRewards.find((o) => o.id == r.id) == null)
+			//Filter for non-ShowRunner controllable rewards
+			const nonShowRunnerRewards = rewards.filter((r) => ShowRunnerRewards.find((o) => o.id == r.id) == null)
 
-			//Load all the non-castmate rewards into resources
-			await Promise.all(nonCastMateRewards.map((r) => ChannelPointReward.createNonCastmateReward(r)))
+			//Load all the non-ShowRunner rewards into resources
+			await Promise.all(nonShowRunnerRewards.map((r) => ChannelPointReward.createNonShowRunnerReward(r)))
 
-			for (const reward of castMateRewards) {
+			for (const reward of ShowRunnerRewards) {
 				const cpr = ChannelPointReward.getByTwitchId(reward.id)
 
 				//This reward is controllable but doesn't have a locally stored resource, create it now
@@ -476,7 +476,7 @@ export function setupChannelPointRewards() {
 			for (const reward of ChannelPointReward.storage) {
 				if (!reward.config.controllable) continue
 
-				const twitchReward = castMateRewards.find((r) => r.id == reward.config.twitchId)
+				const twitchReward = ShowRunnerRewards.find((r) => r.id == reward.config.twitchId)
 
 				try {
 					await reward.initializeFromTwurple(twitchReward)

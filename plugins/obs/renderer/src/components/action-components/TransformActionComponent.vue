@@ -6,11 +6,11 @@
 </template>
 
 <script setup lang="ts">
-import { Toggle } from "castmate-schema"
+import { Toggle } from "ShowRunner-schema"
 import BaseObsActionComponent from "./BaseObsActionComponent.vue"
 import ObsSourceRef from "./ObsSourceRef.vue"
 import { computed } from "vue"
-import { OBSSourceTransform } from "castmate-plugin-obs-shared"
+import { OBSSourceTransform } from "ShowRunner-plugin-obs-shared"
 
 const model = defineModel<{
 	obs: string

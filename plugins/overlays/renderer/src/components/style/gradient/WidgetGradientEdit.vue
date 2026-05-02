@@ -13,9 +13,9 @@
 </template>
 
 <script setup lang="ts">
-import { WidgetGradientStyle } from "castmate-plugin-overlays-shared"
+import { WidgetGradientStyle } from "ShowRunner-plugin-overlays-shared"
 import WidgetGradientBarEdit from "./WidgetGradientBarEdit.vue"
-import { CToggleButton, CAngleInput } from "castmate-ui-core"
+import { CToggleButton, CAngleInput } from "ShowRunner-ui-core"
 import { computed } from "vue"
 
 const props = defineProps<{}>()

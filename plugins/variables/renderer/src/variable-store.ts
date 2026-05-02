@@ -1,8 +1,8 @@
 import { MaybeRefOrGetter, computed, ref, toValue } from "vue"
-import { IPCVariableDefinition } from "castmate-plugin-variables-shared"
-import { handleIpcMessage, ipcParseSchema, useIpcCaller, useState } from "castmate-ui-core"
+import { IPCVariableDefinition } from "ShowRunner-plugin-variables-shared"
+import { handleIpcMessage, ipcParseSchema, useIpcCaller, useState } from "ShowRunner-ui-core"
 import { defineStore } from "pinia"
-import { Schema, getTypeByConstructor, getTypeByName } from "castmate-schema"
+import { Schema, getTypeByConstructor, getTypeByName } from "ShowRunner-schema"
 
 export interface RendererVariableDefinition<T = any> {
 	id: string
@@ -57,12 +57,10 @@ export const useVariableStore = defineStore("variables", () => {
 
 		handleIpcMessage("variables", "setVariable", (event, ipcDef: IPCVariableDefinition) => {
 			const def = parseDefinition(ipcDef)
-			console.log("Setting", def.id, def)
 			variables.value.set(def.id, def)
 		})
 
 		handleIpcMessage("variables", "deleteVariable", (event, id) => {
-			console.log("Deleting", id)
 			variables.value.delete(id)
 		})
 	}
@@ -73,9 +71,6 @@ export const useVariableStore = defineStore("variables", () => {
 	async function setVariableValue(id: string, value: any) {
 		const def = variables.value.get(id)
 		if (!def) return
-
-		//TODO: Serialize?
-		console.log("Setting Variable!", id, value)
 
 		await setVariableValueIPC(id, value)
 	}

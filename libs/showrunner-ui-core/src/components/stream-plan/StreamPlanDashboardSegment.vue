@@ -1,0 +1,95 @@
+<template>
+	<div class="segment flex flex-column" :class="{ active }">
+		<div class="flex-grow-1">
+			<div class="text-center">
+				{{ props.segment.name }}
+			</div>
+			<div class="flex flex-row">
+				<div class="flex-grow-1">
+					<div class="text-center">
+						<label class="text-color-secondary text-xs">Activation</label>
+					</div>
+					<graph-mini-preview
+						class="justify-content-center"
+						:graph="segment.activationAutomation.graph"
+					/>
+				</div>
+				<div class="flex-grow-1">
+					<div class="text-center">
+						<label class="text-color-secondary text-xs">Deactivation</label>
+					</div>
+					<graph-mini-preview
+						class="justify-content-center"
+						:graph="segment.deactivationAutomation.graph"
+					/>
+				</div>
+			</div>
+
+			<stream-plan-dashboard-segment-component
+				v-for="type in Object.keys(segment.components)"
+				:key="type"
+				:type="type"
+				:config="segment.components[type]"
+			/>
+		</div>
+		<div class="controls flex flex-row">
+			<p-button
+				size="small"
+				icon="mdi mdi-play"
+				:disabled="!activePlan"
+				@click="activate"
+				severity="success"
+			></p-button>
+			<div class="flex-grow-1" />
+			<p-button size="small" text icon="mdi mdi-pencil" @click="edit"></p-button>
+		</div>
+	</div>
+</template>
+
+<script setup lang="ts">
+import { StreamPlanSegment } from "ShowRunner-schema"
+import PButton from "primevue/button"
+
+import GraphMiniPreview from "../automation/GraphMiniPreview.vue"
+import { useStreamPlanStore, useSegmentEditDialog } from "./stream-plan-types"
+import { computed } from "vue"
+
+import StreamPlanDashboardSegmentComponent from "./StreamPlanDashboardSegmentComponent.vue"
+
+const planStore = useStreamPlanStore()
+
+const active = computed(() => {
+	return planStore.activeSegment?.id == props.segment.id
+})
+
+const props = defineProps<{
+	planId?: string
+	segment: StreamPlanSegment
+	activePlan: boolean
+}>()
+
+const editSegment = useSegmentEditDialog()
+
+function edit() {
+	if (!props.planId) return
+	editSegment(props.planId, props.segment.id)
+}
+
+function activate() {
+	planStore.setActiveSegment(props.segment.id)
+}
+</script>
+
+<style scoped>
+.segment {
+	border-radius: var(--border-radius);
+	border: solid 1px var(--surface-border);
+	padding: 0.25rem;
+	width: 15rem;
+	flex-shrink: 0;
+}
+
+.segment.active {
+	border-color: var(--success-color);
+}
+</style>

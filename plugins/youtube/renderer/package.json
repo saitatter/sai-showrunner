@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-youtube-renderer",
+	"name": "ShowRunner-plugin-youtube-renderer",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -12,15 +12,15 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
-		"castmate-plugin-youtube-shared": "workspace:^",
-		"castmate-schema": "workspace:^",
-		"castmate-ui-core": "workspace:^",
+		"ShowRunner-plugin-youtube-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^",
+		"ShowRunner-ui-core": "workspace:^",
 		"electron": "^34.2.0",
 		"pinia": "^2.1.7",
 		"vue": "^3.5.13"
 	},
 	"devDependencies": {
-		"@vitejs/plugin-vue": "4.6.2",
+		"@vitejs/plugin-vue": "^6.0.0",
 		"typescript": "*",
 		"vite": "^7.3.1",
 		"vue-tsc": "*"

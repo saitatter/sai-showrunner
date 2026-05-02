@@ -1,7 +1,7 @@
-import { ReactiveRef, onLoad, onSettingChanged, removeAllSubResource, usePluginLogger } from "castmate-core"
-import { LightResource, PlugResource } from "castmate-plugin-iot-main"
-import { LightColor } from "castmate-plugin-iot-shared"
-import { Toggle } from "castmate-schema"
+import { ReactiveRef, onLoad, onSettingChanged, removeAllSubResource, usePluginLogger } from "ShowRunner-core"
+import { LightResource, PlugResource } from "ShowRunner-plugin-iot-main"
+import { LightColor } from "ShowRunner-plugin-iot-shared"
+import { Toggle } from "ShowRunner-schema"
 import _clamp from "lodash/clamp"
 
 import { Client, Plug, LightState, LightStateInput, Bulb } from "tplink-smarthome-api"
@@ -35,7 +35,7 @@ class KasaLight extends LightResource {
 			this._config.kelvin.min = kasaBulb.colorTemperatureRange?.min
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Initializing state before parsing
 		this.state = {}
 		this.parseLightState(initialState)
 
@@ -163,6 +163,16 @@ export function setupLights(subnetMask: ReactiveRef<string>) {
 		})
 	}
 
+	function stopClient() {
+		if (!client) return
+		try {
+			client.stopDiscovery()
+		} catch (err) {
+			logger.warn("Error stopping Kasa discovery", err)
+		}
+		client.removeAllListeners()
+	}
+
 	async function setupDiscovery() {
 		logger.log("Starting TP-Link Kasa Discovery", subnetMask.value)
 		client.startDiscovery({
@@ -177,7 +187,7 @@ export function setupLights(subnetMask: ReactiveRef<string>) {
 	})
 
 	onSettingChanged(subnetMask, async () => {
-		client.stopDiscovery()
+		stopClient()
 		await clearResources()
 		setupClient()
 		setupDiscovery()

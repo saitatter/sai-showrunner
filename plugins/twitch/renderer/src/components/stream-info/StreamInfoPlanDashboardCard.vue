@@ -5,8 +5,8 @@
 </template>
 
 <script setup lang="ts">
-import { StreamInfo, StreamInfoSchema } from "castmate-plugin-twitch-shared"
-import { DataView } from "castmate-ui-core"
+import { StreamInfo, StreamInfoSchema } from "ShowRunner-plugin-twitch-shared"
+import { DataView } from "ShowRunner-ui-core"
 
 const props = defineProps<{
 	config: StreamInfo

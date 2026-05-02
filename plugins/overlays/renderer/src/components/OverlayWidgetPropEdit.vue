@@ -8,6 +8,21 @@
 					local-path="config"
 				/>
 				<section v-if="isShaderLayer" class="shader-preset-panel">
+					<h3>Shader Graph Editor</h3>
+					<button type="button" class="shader-graph-open-btn" @click="shaderGraphOpen = true">
+						<i class="mdi mdi-magic-staff" /> Open Shader Graph
+					</button>
+					<teleport to="body">
+						<div v-if="shaderGraphOpen" class="shader-graph-overlay">
+							<ShaderGraphEditor
+								v-model="shaderGraph"
+								@compile="onShaderGraphCompile"
+							/>
+							<button type="button" class="shader-graph-overlay__close" @click="shaderGraphOpen = false">
+								<i class="mdi mdi-close" /> Close
+							</button>
+						</div>
+					</teleport>
 					<h3>Bundled Shader Presets</h3>
 					<div class="shader-preset-panel__bundled">
 						<button
@@ -49,8 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { useOverlayWidgets } from "castmate-overlay-widget-loader"
-import { OverlayConfig } from "castmate-plugin-overlays-shared"
+import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
+import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
 import {
 	FlexScroller,
 	DataInput,
@@ -58,9 +73,13 @@ import {
 	useDataBinding,
 	DataBindingPath,
 	provideScrollAttachable,
-} from "castmate-ui-core"
+	useIpcCaller,
+} from "ShowRunner-ui-core"
 import { computed, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetTransformEdit from "./OverlayWidgetTransformEdit.vue"
+import ShaderGraphEditor from "./shader-graph/ShaderGraphEditor.vue"
+import type { ShaderGraph } from "./shader-graph/shader-nodes"
+import { useConfirm } from "primevue/useconfirm"
 
 const props = defineProps<{
 	modelValue: OverlayConfig
@@ -81,7 +100,6 @@ const selectedWidgetId = computed(() => {
 })
 
 const widgets = useOverlayWidgets()
-const SHADER_PRESETS_KEY = "showrunner.overlay.shaderPresets"
 const bundledShaderPresets = [
 	{ id: "aurora", name: "Aurora", description: "Soft waves for scene mood." },
 	{ id: "grid", name: "Grid", description: "Motion grid for tech overlays." },
@@ -92,6 +110,10 @@ const bundledShaderPresets = [
 ]
 const shaderPresetName = ref("")
 const shaderPresetNames = ref<string[]>([])
+const shaderPresets = ref<Record<string, string>>({})
+const listShaderPresets = useIpcCaller<() => Promise<Record<string, string>>>("overlays", "listShaderPresets")
+const saveShaderPresetCall = useIpcCaller<(preset: { name: string; source: string }) => Promise<Record<string, string>>>("overlays", "saveShaderPreset")
+const deleteShaderPresetCall = useIpcCaller<(name: string) => Promise<Record<string, string>>>("overlays", "deleteShaderPreset")
 
 const selectedWidgetIndex = computed(() => {
 	if (!selectedWidgetId.value) return
@@ -124,30 +146,20 @@ const shaderPresetHint = computed(() => {
 	return ""
 })
 
-function readShaderPresets(): Record<string, string> {
-	try {
-		return JSON.parse(localStorage.getItem(SHADER_PRESETS_KEY) || "{}") as Record<string, string>
-	} catch {
-		return {}
-	}
-}
-
-function writeShaderPresets(presets: Record<string, string>) {
-	localStorage.setItem(SHADER_PRESETS_KEY, JSON.stringify(presets))
+function setShaderPresets(presets: Record<string, string>) {
+	shaderPresets.value = presets
 	shaderPresetNames.value = Object.keys(presets).sort((a, b) => a.localeCompare(b))
 }
 
-function refreshShaderPresets() {
-	shaderPresetNames.value = Object.keys(readShaderPresets()).sort((a, b) => a.localeCompare(b))
+async function refreshShaderPresets() {
+	setShaderPresets(await listShaderPresets())
 }
 
-function saveShaderPreset() {
+async function saveShaderPreset() {
 	const name = shaderPresetName.value.trim()
 	const source = String(selectedWidget.value?.config?.customFragmentShader || "").trim()
 	if (!name || !source) return
-	const presets = readShaderPresets()
-	presets[name] = source
-	writeShaderPresets(presets)
+	setShaderPresets(await saveShaderPresetCall({ name, source }))
 	shaderPresetName.value = ""
 }
 
@@ -157,19 +169,42 @@ function applyBundledShaderPreset(name: string) {
 }
 
 function applyShaderPreset(name: string) {
-	const source = readShaderPresets()[name]
+	const source = shaderPresets.value[name]
 	if (!source || !selectedWidget.value) return
 	selectedWidget.value.config.preset = "custom"
 	selectedWidget.value.config.customFragmentShader = source
 }
 
+const confirm = useConfirm()
+
 function deleteShaderPreset(name: string) {
-	const presets = readShaderPresets()
-	delete presets[name]
-	writeShaderPresets(presets)
+	confirm.require({
+		header: `Delete Shader Preset?`,
+		message: `Are you sure you want to delete the shader preset "${name}"? This cannot be undone.`,
+		icon: "mdi mdi-delete",
+		async accept() {
+			setShaderPresets(await deleteShaderPresetCall(name))
+		},
+	})
 }
 
 onMounted(refreshShaderPresets)
+
+// ── Shader Graph Editor ──
+const shaderGraphOpen = ref(false)
+const shaderGraph = ref<ShaderGraph>({
+	nodes: [
+		{ id: "output", defId: "fragment_output", x: 600, y: 200 },
+		{ id: "uv", defId: "uv", x: 50, y: 200 },
+	],
+	wires: [],
+})
+
+function onShaderGraphCompile(glsl: string) {
+	if (!selectedWidget.value) return
+	selectedWidget.value.config.preset = "custom"
+	selectedWidget.value.config.customFragmentShader = glsl
+}
 </script>
 
 <style scoped>
@@ -301,5 +336,49 @@ onMounted(refreshShaderPresets)
 	font-size: 0.8rem;
 	margin: 0;
 	padding: 0.45rem 0.55rem;
+}
+
+.shader-graph-open-btn {
+	background: linear-gradient(135deg, #7c4dff, #00d1ff) !important;
+	border-color: #9b7dff !important;
+	color: #fff !important;
+	font-weight: 600;
+	padding: 0.55rem 0.75rem !important;
+}
+
+.shader-graph-open-btn:hover {
+	filter: brightness(1.15);
+}
+</style>
+
+<style>
+.shader-graph-overlay {
+	background: #0d0d0d;
+	display: flex;
+	flex-direction: column;
+	inset: 0;
+	position: fixed;
+	z-index: 1000;
+}
+
+.shader-graph-overlay__close {
+	align-items: center;
+	background: #333;
+	border: 1px solid #555;
+	border-radius: 4px;
+	color: #eee;
+	cursor: pointer;
+	display: flex;
+	font-size: 0.85rem;
+	gap: 0.3rem;
+	padding: 0.35rem 0.65rem;
+	position: absolute;
+	right: 0.8rem;
+	top: 0.4rem;
+	z-index: 10;
+}
+
+.shader-graph-overlay__close:hover {
+	background: #555;
 }
 </style>

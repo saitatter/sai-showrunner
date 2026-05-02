@@ -6,7 +6,7 @@ import {
 	definePlugin,
 	defineSetting,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { VoiceModClient } from "./client"
 
 export default definePlugin(
@@ -31,7 +31,9 @@ export default definePlugin(
 		async function tryConnect() {
 			try {
 				await voiceMod.connect(voiceModHost.value)
-			} catch (err) {}
+			} catch (err) {
+				logger.warn("VoiceMod is not reachable; retrying in the background.", err)
+			}
 		}
 
 		function retryConnection() {

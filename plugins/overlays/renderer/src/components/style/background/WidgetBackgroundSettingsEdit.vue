@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { WidgetBackgroundRepeat, WidgetBackgroundSettings } from "castmate-plugin-overlays-shared"
+import { WidgetBackgroundRepeat, WidgetBackgroundSettings } from "ShowRunner-plugin-overlays-shared"
 
 import {
 	CSelectButton,
@@ -84,7 +84,7 @@ import {
 	DataBindingPath,
 	NumberField,
 	useDefaultableModel,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import { computed } from "vue"
 
 const props = defineProps<{}>()

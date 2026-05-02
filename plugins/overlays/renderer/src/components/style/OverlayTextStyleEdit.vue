@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayTextStyle } from "castmate-plugin-overlays-shared"
+import { OverlayTextStyle } from "ShowRunner-plugin-overlays-shared"
 import FontSelect from "./FontSelect.vue"
 import PInputNumber from "primevue/inputnumber"
 import { useModel } from "vue"
@@ -34,9 +34,9 @@ import { useModel } from "vue"
 import OverlayTextStrokeEdit from "./OverlayTextStrokeEdit.vue"
 import OverlayTextShadowEdit from "./OverlayTextShadowEdit.vue"
 
-import { Color, declareSchema } from "castmate-schema"
+import { Color, declareSchema } from "ShowRunner-schema"
 
-import { LabelFloater, DataInput } from "castmate-ui-core"
+import { LabelFloater, DataInput } from "ShowRunner-ui-core"
 
 const props = defineProps<{
 	modelValue: OverlayTextStyle

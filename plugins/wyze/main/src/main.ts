@@ -1,5 +1,5 @@
-import { PlugResource, LightResource, PollingLight } from "castmate-plugin-iot-main"
-import { WyzeAccountConfig, WyzeAccountSecrets } from "castmate-plugin-wyze-shared"
+import { PlugResource, LightResource, PollingLight } from "ShowRunner-plugin-iot-main"
+import { WyzeAccountConfig, WyzeAccountSecrets } from "ShowRunner-plugin-wyze-shared"
 import {
 	defineAction,
 	defineTrigger,
@@ -18,12 +18,12 @@ import {
 	defineResourceSetting,
 	usePluginLogger,
 	coreAxios,
-} from "castmate-core"
+} from "ShowRunner-core"
 import axios from "axios"
 import md5 from "md5"
 import moment from "moment"
-import { Color, Toggle } from "castmate-schema"
-import { LightColor, LightConfig, PlugConfig } from "castmate-plugin-iot-shared"
+import { Color, Toggle } from "ShowRunner-schema"
+import { LightColor, LightConfig, PlugConfig } from "ShowRunner-plugin-iot-shared"
 import * as chromatism from "chromatism2"
 import _clamp from "lodash/clamp"
 
@@ -358,7 +358,7 @@ class WyzeLight extends LightResource<WyzeLightConfig> {
 			transitions: { available: false },
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Initializing state before parsing
 		this.state = {
 			on: desc.device_params.switch_state != 0,
 		}

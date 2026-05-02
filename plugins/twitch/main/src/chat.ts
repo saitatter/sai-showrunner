@@ -1,5 +1,5 @@
 import { ChatClient, ChatMessage, parseEmotePositions, toUserName, UserNotice } from "@twurple/chat"
-import { defineTrigger, defineAction, defineTransformTrigger, usePluginLogger, onLoad, EmoteCache } from "castmate-core"
+import { defineTrigger, defineAction, defineTransformTrigger, usePluginLogger, onLoad, EmoteCache } from "ShowRunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import { TwitchAPIService, onBotAuth, onChannelAuth } from "./api-harness"
 import {
@@ -10,11 +10,11 @@ import {
 	matchAndParseCommand,
 	EmoteParsedString,
 	Duration,
-} from "castmate-schema"
+} from "ShowRunner-schema"
 import { ViewerCache } from "./viewer-cache"
-import { TwitchViewer, TwitchViewerGroup, testViewer } from "castmate-plugin-twitch-shared"
+import { TwitchViewer, TwitchViewerGroup, testViewer } from "ShowRunner-plugin-twitch-shared"
 import { inTwitchViewerGroup } from "./group"
-import { OverlayWebsocketService } from "castmate-plugin-overlays-main"
+import { OverlayWebsocketService } from "ShowRunner-plugin-overlays-main"
 import { HelixChatAnnouncementColor } from "@twurple/api"
 
 function parseEmotesFromMsg(chatMessage: ChatMessage): EmoteParsedString {
@@ -374,7 +374,7 @@ export function setupChat() {
 					}
 				}
 			},
-			"castmate-usernotice-handler"
+			"ShowRunner-usernotice-handler"
 		)
 	})
 

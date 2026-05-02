@@ -12,9 +12,9 @@
 </template>
 
 <script setup lang="ts">
-import { useResource, useResourceIPCCaller } from "castmate-ui-core"
-import { AccountState, ResourceData } from "castmate-schema"
-import { TwitchAccountConfig } from "castmate-plugin-twitch-shared"
+import { useResource, useResourceIPCCaller } from "ShowRunner-ui-core"
+import { AccountState, ResourceData } from "ShowRunner-schema"
+import { TwitchAccountConfig } from "ShowRunner-plugin-twitch-shared"
 
 import PAvatar from "primevue/avatar"
 import PButton from "primevue/button"

@@ -5,12 +5,12 @@ import {
 	ProjectGroup,
 	ProjectItem,
 	useDockingStore,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import "./css/icons.css"
 import { computed, App } from "vue"
-import { SpellConfigSchema, SpellResourceConfig } from "castmate-plugin-spellcast-shared"
+import { SpellConfigSchema, SpellResourceConfig } from "ShowRunner-plugin-spellcast-shared"
 import SpellCastPage from "./components/SpellCastPage.vue"
-import { Color } from "castmate-schema"
+import { Color } from "ShowRunner-schema"
 
 export function initPlugin(app: App<Element>) {
 	const resourceStore = useResourceStore()

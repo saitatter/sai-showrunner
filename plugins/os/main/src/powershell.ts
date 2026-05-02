@@ -1,7 +1,7 @@
-import { PowerShellCommand } from "castmate-plugin-os-shared"
-import { defineAction, evaluateTemplate, globalLogger, registerSchemaTemplate, usePluginLogger } from "castmate-core"
-import { abortablePromise } from "castmate-core/src/util/abort-utils"
-import { getTemplateRegionString, parseTemplateString, trimTemplateJS, Directory } from "castmate-schema"
+import { PowerShellCommand } from "ShowRunner-plugin-os-shared"
+import { defineAction, evaluateTemplate, globalLogger, registerSchemaTemplate, usePluginLogger } from "ShowRunner-core"
+import { abortablePromise } from "ShowRunner-core/src/util/abort-utils"
+import { getTemplateRegionString, parseTemplateString, trimTemplateJS, Directory } from "ShowRunner-schema"
 import { ChildProcess, exec, spawn } from "child_process"
 
 //Templating

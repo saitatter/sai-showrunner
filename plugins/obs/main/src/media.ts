@@ -1,6 +1,6 @@
-import { ReactiveRef, abortableSleep, defineAction, sleep, usePluginLogger } from "castmate-core"
+import { ReactiveRef, abortableSleep, defineAction, sleep, usePluginLogger } from "ShowRunner-core"
 import { OBSConnection } from "./connection"
-import { Toggle } from "castmate-schema"
+import { Toggle } from "ShowRunner-schema"
 import { OBSFFmpegSourceSettings } from "./input-settings"
 
 export async function getMediaDuration(obs: OBSConnection, sourceName: string): Promise<number | undefined> {
@@ -11,16 +11,14 @@ export async function getMediaDuration(obs: OBSConnection, sourceName: string): 
 	return undefined
 }
 
-//HACK HACK HACK HACK
+//Workaround: OBS doesn't report media duration if the source hasn't been activated yet.
+//Triggering a restart forces OBS to load the media file so we can read its duration.
 export async function forceGetMediaDuration(obs: OBSConnection, sourceName: string): Promise<number | undefined> {
-	//Check to see if we can get the duration
 	let duration = await getMediaDuration(obs, sourceName)
 
 	if (duration != null) return duration
 
-	//Do the hack if we couldn't
-	//Why does this work???
-	//Best Guess: Asking for media restart even while not active will cause OBS to load the media
+	//Trigger media load by requesting a restart
 	await obs.connection.call("TriggerMediaInputAction", {
 		inputName: sourceName,
 		mediaAction: "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
@@ -58,6 +56,7 @@ export function setupMedia(obsDefault: ReactiveRef<OBSConnection>) {
 					name: "Source",
 					required: true,
 					async enum(context: { obs: OBSConnection }) {
+						if (!context?.obs) return []
 						return await context.obs.getInputs(["ffmpeg_source", "vlc_source"])
 					},
 				},
@@ -147,6 +146,7 @@ export function setupMedia(obsDefault: ReactiveRef<OBSConnection>) {
 					name: "Source",
 					required: true,
 					async enum(context: { scene: string; obs: OBSConnection }) {
+						if (!context?.obs) return []
 						return await context.obs.getSceneSources(context.scene, "ffmpeg_source")
 					},
 				},

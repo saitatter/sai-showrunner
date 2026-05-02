@@ -1,5 +1,5 @@
-import { SoundOutputConfig } from "castmate-plugin-sound-shared"
-import { IPCSchema, SchemaObj } from "castmate-schema"
+import { SoundOutputConfig } from "ShowRunner-plugin-sound-shared"
+import { IPCSchema, SchemaObj } from "ShowRunner-schema"
 
 export interface OverlayWidgetSize {
 	width: number

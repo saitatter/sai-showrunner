@@ -6,10 +6,10 @@
 </template>
 
 <script setup lang="ts">
-import { WidgetBackgroundGradient, WidgetGradientStyle } from "castmate-plugin-overlays-shared"
+import { WidgetBackgroundGradient, WidgetGradientStyle } from "ShowRunner-plugin-overlays-shared"
 import WidgetBackgroundSettingsEdit from "./WidgetBackgroundSettingsEdit.vue"
 import WidgetGradientEdit from "../gradient/WidgetGradientEdit.vue"
-import { useDefaultableModel } from "castmate-ui-core"
+import { useDefaultableModel } from "ShowRunner-ui-core"
 
 const model = defineModel<WidgetBackgroundGradient>()
 

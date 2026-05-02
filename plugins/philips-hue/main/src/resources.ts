@@ -1,4 +1,4 @@
-import { LightResource, PlugResource } from "castmate-plugin-iot-main"
+import { LightResource, PlugResource } from "ShowRunner-plugin-iot-main"
 
 import {
 	ReactiveRef,
@@ -8,11 +8,11 @@ import {
 	onSettingChanged,
 	removeAllSubResource,
 	usePluginLogger,
-} from "castmate-core"
-import { Toggle } from "castmate-schema"
+} from "ShowRunner-core"
+import { Toggle } from "ShowRunner-schema"
 import axios, { Method } from "axios"
 import https from "https"
-import { LightColor, LightConfig } from "castmate-plugin-iot-shared"
+import { LightColor, LightConfig } from "ShowRunner-plugin-iot-shared"
 import _clamp from "lodash/clamp"
 import * as chromatism from "chromatism2"
 import { HUEApiGroupedLight, HUEApiLight, HUEApiLightState, HUEApiLightUpdate, HUEApiRoom } from "./api"

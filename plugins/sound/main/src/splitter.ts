@@ -1,4 +1,4 @@
-import { AudioSplit, AudioSplitterConfig } from "castmate-plugin-sound-shared"
+import { AudioSplit, AudioSplitterConfig } from "ShowRunner-plugin-sound-shared"
 import { SoundOutput } from "./output"
 import { nanoid } from "nanoid/non-secure"
 import {
@@ -9,7 +9,7 @@ import {
 	resolveProjectPath,
 	usePluginLogger,
 	writeYAML,
-} from "castmate-core"
+} from "ShowRunner-core"
 import fs from "fs/promises"
 
 const logger = usePluginLogger("sound")

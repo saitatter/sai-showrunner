@@ -1,0 +1,31 @@
+{
+	"name": "ShowRunner-overlay-core",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"main": "src/overlay-core-main.ts",
+	"devMain": "src/overlay-core-main.ts",
+	"types": "./dist/types/overlay-core-main.d.ts",
+	"scripts": {
+		"dev": "vite",
+		"build": "vue-tsc && vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@vueuse/core": "*",
+		"ShowRunner-plugin-overlays-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^",
+		"chromatism2": "*",
+		"nanoid": "^5.0.7",
+		"pinia": "^2.1.7",
+		"primevue": "^4.2.4",
+		"vue": "^3.5.13"
+	},
+	"devDependencies": {
+		"@vitejs/plugin-vue": "^6.0.0",
+		"ts-toolbelt": "*",
+		"typescript": "*",
+		"vite": "^7.3.1",
+		"vue-tsc": "*"
+	}
+}

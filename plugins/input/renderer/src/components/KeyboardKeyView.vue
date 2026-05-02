@@ -6,8 +6,8 @@
 </template>
 
 <script setup lang="ts">
-import { SharedDataViewProps } from "castmate-ui-core"
-import { KeyboardKey, Keys, SchemaKeyboardKey } from "castmate-plugin-input-shared"
+import { SharedDataViewProps } from "ShowRunner-ui-core"
+import { KeyboardKey, Keys, SchemaKeyboardKey } from "ShowRunner-plugin-input-shared"
 import { computed } from "vue"
 
 const props = defineProps<

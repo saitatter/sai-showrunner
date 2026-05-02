@@ -1,8 +1,8 @@
-import { defineAction, defineState, defineTrigger } from "castmate-core"
+import { defineAction, defineState, defineTrigger } from "ShowRunner-core"
 import { TwitchAPIService, onChannelAuth } from "./api-harness"
 import { TwitchAccount } from "./twitch-auth"
-import { abortableSleep, setAbortableTimeout } from "castmate-core/src/util/abort-utils"
-import { Duration } from "castmate-schema"
+import { abortableSleep, setAbortableTimeout } from "ShowRunner-core/src/util/abort-utils"
+import { Duration } from "ShowRunner-schema"
 import _maxBy from "lodash/maxBy"
 export function setupPolls() {
 	const pollId = defineState("pollId", {

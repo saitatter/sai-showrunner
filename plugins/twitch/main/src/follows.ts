@@ -1,7 +1,7 @@
-import { defineState, defineTrigger, startPerfTime, usePluginLogger } from "castmate-core"
+import { defineState, defineTrigger, startPerfTime, usePluginLogger } from "ShowRunner-core"
 import { onChannelAuth } from "./api-harness"
 import { ViewerCache } from "./viewer-cache"
-import { TwitchViewer, TwitchViewerGroup } from "castmate-plugin-twitch-shared"
+import { TwitchViewer, TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
 import { inTwitchViewerGroup } from "./group"
 import { TwitchAccount } from "./twitch-auth"
 

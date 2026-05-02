@@ -6,10 +6,10 @@
 
 <script setup lang="ts">
 import * as chromatism from "chromatism2"
-import { Color } from "castmate-schema"
-import { declareWidgetOptions, useCallDashboardRPC, useCastMateBridge, useIsEditor } from "castmate-dashboard-core"
+import { Color } from "ShowRunner-schema"
+import { declareWidgetOptions, useCallDashboardRPC, useShowRunnerBridge, useIsEditor } from "ShowRunner-dashboard-core"
 import { computed, CSSProperties, onMounted, ref, watch } from "vue"
-import { DashboardWidgetSize } from "castmate-plugin-dashboards-shared"
+import { DashboardWidgetSize } from "ShowRunner-plugin-dashboards-shared"
 
 defineOptions({
 	widget: declareWidgetOptions({

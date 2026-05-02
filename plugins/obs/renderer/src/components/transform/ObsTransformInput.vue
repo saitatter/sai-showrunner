@@ -152,8 +152,8 @@
 </template>
 
 <script setup lang="ts">
-import { OBSSourceTransform, SchemaOBSSourceTransform, OBSBoundsType, OBSAlignment } from "castmate-plugin-obs-shared"
-import { SharedDataInputProps, CAutocomplete, LabelFloater, useDataBinding } from "castmate-ui-core"
+import { OBSSourceTransform, SchemaOBSSourceTransform, OBSBoundsType, OBSAlignment } from "ShowRunner-plugin-obs-shared"
+import { SharedDataInputProps, CAutocomplete, LabelFloater, useDataBinding } from "ShowRunner-ui-core"
 import { useModel, computed } from "vue"
 
 import ObsTransformDataGroup from "./ObsTransformDataGroup.vue"

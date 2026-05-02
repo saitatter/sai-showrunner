@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { TemplateToggle, useDataBinding, useDataUIBinding } from "castmate-ui-core"
+import { TemplateToggle, useDataBinding, useDataUIBinding } from "ShowRunner-ui-core"
 
 import PInputText from "primevue/inputtext"
 import PButton from "primevue/button"

@@ -1,4 +1,4 @@
-import { SchemaBase, registerType } from "castmate-schema"
+import { SchemaBase, registerType } from "ShowRunner-schema"
 
 export interface OverlayWidget {
 	overlayId: string
@@ -25,7 +25,7 @@ export interface SchemaOverlayWidget extends SchemaBase<OverlayWidget> {
 	widgetType?: WidgetTypeId | WidgetTypeId[]
 }
 
-declare module "castmate-schema" {
+declare module "ShowRunner-schema" {
 	interface SchemaTypeMap {
 		OverlayWidget: [SchemaOverlayWidget, OverlayWidget]
 	}

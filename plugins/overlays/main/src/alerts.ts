@@ -1,7 +1,7 @@
-import { abortableSleep, defineAction } from "castmate-core"
-import { OverlayWidget } from "castmate-plugin-overlays-shared"
+import { abortableSleep, defineAction } from "ShowRunner-core"
+import { OverlayWidget } from "ShowRunner-plugin-overlays-shared"
 import { OverlayWebsocketService } from "./websocket-bridge"
-import { Duration } from "castmate-schema"
+import { Duration } from "ShowRunner-schema"
 import { Overlay } from "./overlay-resource"
 
 export function setupAlerts() {

@@ -20,7 +20,7 @@
 		// "noUnusedParameters": true,
 		// "noFallthroughCasesInSwitch": true
 		"paths": {
-			"castmate-ui-core": ["../../../libs/castmate-ui-core/src/main.ts"]
+			"ShowRunner-ui-core": ["../../../libs/ShowRunner-ui-core/src/main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

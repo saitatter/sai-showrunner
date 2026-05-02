@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardSection, DashboardWidget } from "castmate-plugin-dashboards-shared"
+import { DashboardSection, DashboardWidget } from "ShowRunner-plugin-dashboards-shared"
 import { DashboardSectionView, DashboardWidgetView } from "../dashboard-types"
 import { computed, ComputedRef, inject, ref, useModel } from "vue"
 
@@ -44,14 +44,14 @@ import PMenu from "primevue/menu"
 import type { MenuItem } from "primevue/menuitem"
 import PInputText from "primevue/inputtext"
 import PButton from "primevue/button"
-import { stopPropagation, GridDocumentDataCollection } from "castmate-ui-core"
+import { stopPropagation, GridDocumentDataCollection } from "ShowRunner-ui-core"
 
-import { DashboardWidgetInfo, useDashboardWidgets } from "castmate-dashboard-widget-loader"
+import { DashboardWidgetInfo, useDashboardWidgets } from "ShowRunner-dashboard-widget-loader"
 
 import DashboardWidgetEdit from "./DashboardWidgetEdit.vue"
 
 import { nanoid } from "nanoid/non-secure"
-import { constructDefault } from "castmate-schema"
+import { constructDefault } from "ShowRunner-schema"
 import { config } from "process"
 
 const props = defineProps<{

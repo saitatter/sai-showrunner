@@ -8,7 +8,7 @@ import {
 	onProfilesChanged,
 	resetRouter,
 	coreAxios,
-} from "castmate-core"
+} from "ShowRunner-core"
 import axios from "axios"
 
 export default definePlugin(
@@ -42,9 +42,31 @@ export default definePlugin(
 						name: "URL",
 						required: true,
 					},
-					//TODO: Query
-					//TODO: Headers
-					//TODO: Body
+					query: {
+						type: String,
+						template: true,
+						name: "Query String",
+						required: false,
+					},
+					headers: {
+						type: String,
+						template: true,
+						name: "Headers (JSON)",
+						required: false,
+					},
+					body: {
+						type: String,
+						template: true,
+						name: "Body",
+						required: false,
+					},
+					contentType: {
+						type: String,
+						name: "Content Type",
+						enum: ["application/json", "application/x-www-form-urlencoded", "text/plain"],
+						required: false,
+						default: "application/json",
+					},
 				},
 			},
 			result: {
@@ -52,10 +74,37 @@ export default definePlugin(
 				properties: {},
 			},
 			async invoke(config, contextData, abortSignal) {
-				//TODO: Cancel Token
+				const parsed = new URL(config.url)
+				if (config.query) {
+					// Append user-provided query string, properly handling existing params
+					const extra = new URLSearchParams(config.query)
+					extra.forEach((value, key) => parsed.searchParams.append(key, value))
+				}
+				let url = parsed.toString()
+
+				let headers: Record<string, string> = {}
+				if (config.headers) {
+					let parsed: unknown
+					try {
+						parsed = JSON.parse(config.headers)
+					} catch {
+						throw new Error("Headers must be valid JSON")
+					}
+					if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+						throw new Error("Headers must be a JSON object")
+					}
+					headers = parsed as Record<string, string>
+				}
+
+				if (config.body && config.contentType) {
+					headers["content-type"] ??= config.contentType
+				}
+
 				const resp = await coreAxios.request({
 					method: config.method,
-					url: config.url,
+					url,
+					headers: Object.keys(headers).length > 0 ? headers : undefined,
+					data: config.body || undefined,
 				})
 
 				return resp.data

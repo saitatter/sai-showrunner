@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { useState, MainPageCardItem } from "castmate-ui-core"
+import { useState, MainPageCardItem } from "ShowRunner-ui-core"
 import { useChannelAccountResource } from "../../main"
 import PAvatar from "primevue/avatar"
 

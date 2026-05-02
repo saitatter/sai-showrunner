@@ -1,0 +1,17 @@
+<template>
+	<span class="data-label" v-if="schema.name && !noLabel">{{ schema.name }}: </span>
+	<span> {{ getCommandInfoString(props.modelValue) }}</span>
+</template>
+
+<script setup lang="ts">
+import { SchemaCommand } from "ShowRunner-schema"
+import { SharedDataViewProps } from "../DataInputTypes"
+import { Command, getCommandInfoString } from "ShowRunner-schema"
+
+const props = defineProps<
+	{
+		modelValue: Command | undefined
+		schema: SchemaCommand
+	} & SharedDataViewProps
+>()
+</script>

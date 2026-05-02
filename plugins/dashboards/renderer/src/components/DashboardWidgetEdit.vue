@@ -10,12 +10,12 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardWidget } from "castmate-plugin-dashboards-shared"
+import { DashboardWidget } from "ShowRunner-plugin-dashboards-shared"
 import { DashboardWidgetView } from "../dashboard-types"
 import { computed, CSSProperties, provide, useModel } from "vue"
-import { useDashboardWidgets } from "castmate-dashboard-widget-loader"
-import { CastMateBridgeImplementation } from "castmate-dashboard-core"
-import { useFullState } from "castmate-ui-core"
+import { useDashboardWidgets } from "ShowRunner-dashboard-widget-loader"
+import { ShowRunnerBridgeImplementation } from "ShowRunner-dashboard-core"
+import { useFullState } from "ShowRunner-ui-core"
 import { useRemoteDashboardConfig } from "../config/dashboard-config"
 
 const props = defineProps<{
@@ -34,7 +34,7 @@ const state = useFullState()
 
 provide("isEditor", true)
 
-provide<CastMateBridgeImplementation>("castmate-bridge", {
+provide<ShowRunnerBridgeImplementation>("ShowRunner-bridge", {
 	acquireState(plugin, state) {},
 	releaseState(plugin, state) {},
 	config: computed(() => props.modelValue),

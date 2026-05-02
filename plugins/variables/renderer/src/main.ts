@@ -1,4 +1,4 @@
-import { ProjectGroupItem, useDockingStore, useProjectStore, useViewerDataStore } from "castmate-ui-core"
+import { ProjectGroupItem, useDockingStore, useProjectStore, useViewerDataStore } from "ShowRunner-ui-core"
 import { computed } from "vue"
 import VariablesPageVue from "./components/VariablesPage.vue"
 import { useVariableStore } from "./variable-store"

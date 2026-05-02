@@ -32,8 +32,8 @@ import {
 	useDataBinding,
 	useUndoCommitter,
 	useCommitUndo,
-} from "castmate-ui-core"
-import { KeyboardKey, SchemaKeyboardKey, Keys, getKeyboardKey, KeyCombo } from "castmate-plugin-input-shared"
+} from "ShowRunner-ui-core"
+import { KeyboardKey, SchemaKeyboardKey, Keys, getKeyboardKey, KeyCombo } from "ShowRunner-plugin-input-shared"
 import { computed, ref, useModel } from "vue"
 import PButton from "primevue/button"
 

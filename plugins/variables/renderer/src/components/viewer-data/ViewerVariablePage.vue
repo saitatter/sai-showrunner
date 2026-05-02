@@ -63,7 +63,7 @@ import {
 import PDataTable from "primevue/datatable"
 import PColumn from "primevue/column"
 import PButton from "primevue/button"
-import { DataView, useIpcCaller, useLazyViewerQuery, useViewerDataStore, CContextMenu } from "castmate-ui-core"
+import { DataView, useIpcCaller, useLazyViewerQuery, useViewerDataStore, CContextMenu } from "ShowRunner-ui-core"
 import { computed, ref, watch, onMounted, effect } from "vue"
 import { useDialog } from "primevue/usedialog"
 import ViewerVariableEditDialog from "./ViewerVariableEditDialog.vue"

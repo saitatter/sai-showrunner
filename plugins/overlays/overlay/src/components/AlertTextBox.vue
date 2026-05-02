@@ -26,16 +26,16 @@ import {
 	OverlayTextAlignment,
 	OverlayTextStyle,
 	OverlayTransitionAnimation,
-} from "castmate-plugin-overlays-shared"
+} from "ShowRunner-plugin-overlays-shared"
 import {
 	MediaContainer,
 	TimedReveal,
 	declareWidgetOptions,
 	useIsEditor,
 	animationFromTransition,
-} from "castmate-overlay-core"
+} from "ShowRunner-overlay-core"
 import { ref } from "vue"
-import { Duration } from "castmate-schema"
+import { Duration } from "ShowRunner-schema"
 
 const props = defineProps<{
 	boxConfig: {

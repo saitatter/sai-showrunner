@@ -1,92 +1,209 @@
-# ShowRunner Implementation Roadmap
+# ShowRunner v1.0 — Graph-Only Engine (Breaking Change)
 
-This roadmap tracks the next implementation pass after the initial YouTube, Moderation Docker, overlay URL, and node editor MVP work.
+Completely remove `SequenceRunner` and the old sequence model. All automations run exclusively through `GraphCompiler` → `GraphVM`.
 
-## Working Rules
+---
 
-- Work stays on feature branches until explicitly merged.
-- Use separate semantic commits for each completed feature or fix.
-- Keep upstream CastMate package names where they are technical module identifiers.
-- Prefer additive changes over broad rewrites while the fork is still close to upstream.
-- Run `corepack yarn check` after each meaningful batch.
+## Phase 1: Remove Old Sequencer (Core)
 
-## Priority 1: Node Editor V2
+### 1.1 Relocate shared types
+- [ ] Move `SequenceDebugger` interface from `sequence.ts` → `libs/showrunner-core/src/graph-engine/types.ts`
+- [ ] Move `SequenceResolvers` (rename to `ActionResolvers`) → `libs/showrunner-core/src/queue-system/resolvers.ts`
+- [ ] Keep `SequenceContext`, `SequenceSource`, `QueuedSequence` in schema (rename to `ExecutionContext`, `AutomationSource`, `QueuedAutomation`)
+- [ ] Update all imports across the codebase
 
-1. Done: Add canvas zoom controls.
-2. Done: Add canvas pan with middle mouse.
-3. Done: Add fit-to-content and reset-view buttons.
-4. Done: Add search/filter for the node action palette.
-5. Done: Allow dropping a new action directly onto the canvas.
-6. Done: Allow inserting an action between two connected nodes.
-7. Done: Show explicit connection handles on action nodes.
-8. Done: Add keyboard shortcuts for delete, duplicate, and fit view.
-9. Done: Add undo-friendly mutations for node editor operations.
-10. Done: Persist node editor view state per automation.
-10a. Done: Extract node canvas, drag, context menu, and preview behavior into focused composables.
+### 1.2 Delete old runner
+- [ ] Delete `libs/showrunner-core/src/queue-system/sequence.ts` (SequenceRunner class)
+- [ ] Delete `libs/showrunner-core/src/queue-system/__tests__/sequence.test.ts`
+- [ ] Remove `SequenceRunner` export from `libs/showrunner-core/src/index.ts`
 
-## Priority 2: Automation Timeline / DAW Feel
+### 1.3 Simplify action-queue.ts
+- [ ] Remove dual-path: `runNext()`, `queueOrRun()`, `runTestSequence()` use only GraphVM
+- [ ] Remove `private runner: SequenceRunner | null` field
+- [ ] Remove `private testSequences = new Map<string, SequenceRunner>()`
+- [ ] Require `automation.graph` — throw if missing (fail-fast in dev)
 
-11. Done: Add a running playhead preview for automation execution.
-11a. Done: Add progress, elapsed time, and duration-aware pacing to the node preview playhead.
-12. Done: Show action durations and offsets more clearly in node mode.
-13. Done: Add snap-to-grid controls for node movement.
-14. Done: Add action grouping lanes for time, flow, and floating sequences.
-15. Done: Add a compact node activity log beside the editor.
+### 1.4 Delete migration bridge
+- [ ] Delete `libs/showrunner-core/src/graph-engine/migration.ts`
+- [ ] Delete `libs/showrunner-core/src/graph-engine/__tests__/migration.test.ts`
+- [ ] Remove exports from `libs/showrunner-core/src/graph-engine/index.ts`
 
-## Priority 3: Integrations
+---
 
-16. Done: Add a YouTube connection checklist with clearer OAuth state.
-17. Done: Add YouTube live chat auto-start option after successful login.
-18. Done: Add YouTube quota/error hints in the integration page.
-18a. Done: Add YouTube API diagnostics with search cooldown, estimated quota, last API error, and retry state.
-19. Done: Add Twitch account status card under Integrations.
-20. Done: Add Moderation Docker connection presets for local and Docker host networking.
-21. Done: Add Moderation Docker latest decision feed in the integration page.
-22. Done: Add decision-only moderation action for Twitch/YouTube chat automations.
-23. Done: Add native Moderation Docker queue page with override actions.
+## Phase 2: Schema Cleanup
 
-## Priority 4: Overlay Studio
+### 2.1 Remove old sequence types
+- [ ] Remove from `libs/showrunner-schema/src/types/sequence.ts`:
+  - `Sequence`, `FloatingSequence`, `ActionStack`, `TimeAction`, `FlowAction`, `InstantAction`
+  - `OffsetActions`, `TimeActionInfo`, `SubFlow`
+  - `isActionStack()`, `isFlowAction()`, `isTimeAction()`, `isInstantAction()`
+  - `getActionById()`, `getActionAndPathById()`, `assignNewIds()`, `getSequenceResultVariables()`, `getActionResultVariables()`
+- [ ] Keep (possibly rename): `ActionInfo`, `SequenceContext` → `ExecutionContext`, `SequenceSource` → `AutomationSource`, `QueuedSequence` → `QueuedAutomation`, `SequenceProvider` → `AutomationProvider`
 
-24. Done: Add overlay browser source copy/open controls to the overlay list.
-25. Done: Add preview frame sizing presets for common OBS canvases.
-26. Done: Add quick label templates for YouTube/Twitch state.
-27. Done: Add a visible save/live preview status indicator.
-27a. Done: Back the live preview indicator with real overlay websocket subscriber presence.
-28. Done: Add shader-capable scene overlay planning in docs before implementation.
-29. Done: Add native Chat Feed widget for approved chat messages.
-30. Done: Add automation action that pushes approved messages to Chat Feed.
-30a. Done: Allow chat push actions to target a specific Chat Feed widget.
-31. Done: Add bundled WebGL Shader Layer widget.
-31a. Done: Add a local custom fragment shader editor mode for Shader Layer.
-31b. Done: Add local Shader Layer preset save/load for custom fragment sources.
-31c. Done: Add richer bundled shader presets with visual preset cards and custom-source validation hints.
-31d. Done: Add Paid Alert widget and `Push Paid Alert` automation action.
-31e. Done: Add Scene Banner widget and begin/end scene overlay automation actions.
+### 2.2 Simplify AutomationData
+- [x] Remove `sequence: Sequence` field — `graph: AutomationGraph` becomes mandatory
+- [x] Remove `floatingSequences: FloatingSequence[]` — subgraphs replace this
+- [x] Update `createInlineAutomation()` to return empty graph: `{ graph: { nodes: [], edges: [], entryNodeId: "" }, subgraphs: [] }`
+- [x] Remove `findActionById()`, `findActionAndSequenceById()`, `getActionByParsedPath()` traversal helpers
 
-## Priority 5: UI Cleanup
+### 2.3 Update queues.ts
+- [ ] Replace `QueuedSequence` → `QueuedAutomation` in `ActionQueueState`
+- [ ] Update `ActionQueueConfig` types
 
-32. Done: Make the Integrations group the obvious home for Twitch, YouTube, OBS, and Moderation.
-33. Verified: Twitch, YouTube, OBS, and Moderation are already grouped under Integrations; avoid risky nav moves until the next wider sidebar cleanup.
-34. Done: Replace ambiguous icon-only buttons with tooltips where missing.
-35. Done: Document the new first-run setup path and local test commands.
-36. Done: Document moderation/chat overlay migration path.
+---
 
-## Current Batch
+## Phase 3: UI Cleanup (NodeAutomationEdit.vue)
 
-Current batch complete:
+### 3.1 Remove legacy rendering path
+- [ ] Remove `isActionStack`, `isFlowAction`, `isTimeAction` imports & usage
+- [ ] Remove `addSequence()` function and all `Sequence | FloatingSequence` processing
+- [ ] Remove old node-building code that iterates `ActionStack`, `TimeAction`, etc.
+- [ ] Remove `addFloatingSequence()`, `deleteFloatingSequence()`, `runFloatingSequence()`
+- [ ] Remove `cloneActionForNodeEditor()` (old sequence cloning logic)
 
-1. Done: Add automation templates for Twitch/YouTube chat -> moderation filter -> targeted Chat Feed.
-2. Done: Add overlay runtime websocket presence to the widget list, not only the editor header.
-3. Done: Add local Shader Layer preset save/load once the local editor UX is stable.
-4. Done: Add moderation queue filters/search and richer override audit details.
-5. Done: Extract node preview timing into `useAutomationPreview`.
-6. Done: Extract node canvas, drag, and context menu behavior into composables.
-7. Done: Add richer shader preset workflow, YouTube API diagnostics, paid alerts, and scene banner events.
+### 3.2 Graph-only buildGraph()
+- [ ] `buildGraph()` always uses `buildGraphFromAutomationGraph()`
+- [ ] Remove fallback path that builds nodes from `automation.sequence`
+- [ ] Simplify `edges` computed — no conditional branch
 
-Next batch:
+### 3.3 Cleanup other UI files
+- [ ] `ActionConfigEdit.vue` — remove `SubFlow` import if unused
+- [x] `TimeActionEdit.vue` — remove or convert to graph-native time/delay node editor
+- [x] `OffsetSequenceEdit.vue` — likely removable entirely (offsets not in graph model)
+- [x] `automation-dragdrop.ts` — rewrite for graph nodes (no more `FloatingSequence`)
 
-1. Build a common context menu surface shared by Nodes and Timeline.
-2. Add node type styling improvements for triggers, actions, paid alerts, moderation filters, and overlay actions.
-3. Add automation templates for YouTube paid alert -> Paid Alert widget and scene begin/end flows.
-4. Add richer manual YouTube discovery controls for stream IDs/live chat IDs.
-5. Add deeper OBS preview validation for Chat Feed, Paid Alert, Scene Banner, and Shader Layer widgets.
+### 3.4 Simplification Batch Status
+- [x] Profile triggers open directly in the node graph editor.
+- [x] Legacy `AutomationEdit.vue`, sequence drop zones, time offset editors, and sequence mini preview were removed.
+- [x] Inline automation previews now summarize graph data instead of reading `automation.sequence`.
+- [x] Shader graph and node graph share the same themed collapsible context menu shell.
+- [x] Renderer save/error feedback is routed through `useAppFeedback()` for toast + dev-only logging.
+- [x] Reduced safe `@ts-expect-error` usage in resource registration and array wrappers.
+- [ ] Continue shrinking remaining console noise in media/viewer-data/satellite/drag utilities.
+- [ ] Rename queue terminology from `QueuedSequence` to `QueuedAutomation`.
+- [ ] Add one-time persistence migration to strip stale `sequence`/`floatingSequences` fields from existing user JSON.
+
+---
+
+## Phase 4: Data Migration (one-time, on load)
+
+### 4.1 Upgrade migration in old-migration.ts
+- [ ] Keep existing `old-migration.ts` for pre-v1.0 data → graph conversion
+- [ ] On app startup: auto-migrate any `automation.sequence` → `automation.graph` and persist
+- [ ] After migration: delete `sequence` field from stored JSON files
+- [ ] Version field: add `schemaVersion: 2` to AutomationData
+
+### 4.2 Migration tests
+- [ ] Test round-trip: legacy fixtures → migrate → graph → compile → VM runs correctly
+- [ ] Test that v1.0 app opens pre-existing user profiles without errors
+
+---
+
+## Phase 5: Polish & Bug Fixes
+
+### 5.1 Expression editor
+- [ ] Inline expression builder UI for If/While/For/Switch conditions
+- [ ] Autocomplete for variable names, port references, builtin functions
+- [ ] Syntax highlighting in expression text input
+- [ ] Validation (red border + error tooltip for invalid expressions)
+
+### 5.2 Node editor UX
+- [ ] Keyboard `Delete` key handler for selected nodes/edges
+- [ ] Multi-select (Shift+click or box select) → bulk delete
+- [ ] Copy/paste nodes (Ctrl+C/V) with edge reconnection
+- [ ] Undo/redo stack (Ctrl+Z / Ctrl+Shift+Z) per automation
+- [ ] Snap-to-grid option (toggle in toolbar)
+- [ ] Auto-layout algorithm (dagre or elkjs) for messy graphs
+- [ ] Minimap for large graphs
+
+### 5.3 Execution visualization
+- [ ] Highlight active node during test-run (pulse animation)
+- [ ] Show execution time per node after test-run completes
+- [ ] Error node highlight (red glow) when action throws
+- [ ] Breadcrumb trail showing execution path
+
+### 5.4 Subgraph improvements
+- [ ] Subgraph parameters editor (name, type, default value)
+- [ ] Input/output port rendering on SubgraphCall nodes
+- [ ] Double-click SubgraphCall → navigate into subgraph
+- [ ] Collapse selection into subgraph (refactoring tool)
+
+### 5.5 Data wires
+- [ ] Visual data-wire drawing (separate from exec edges)
+- [ ] Type-safe data ports (color-coded by type)
+- [ ] Wire validation: prevent connecting incompatible types
+- [ ] Show data flow values on hover during test-run
+
+### 5.6 Performance & reliability
+- [ ] Compile-on-save with error reporting (don't wait until run)
+- [ ] Program cache invalidation (recompile only on graph change)
+- [ ] VM timeout per-automation (configurable, default 30s)
+- [ ] Infinite loop detection beyond `maxIterations` (surface to user)
+- [ ] Abort propagation: cancel running actions cleanly on queue stop
+
+### 5.7 Misc fixes
+- [x] Fix `@ts-ignore` usages across codebase (replaced with `@ts-expect-error` + descriptions)
+- [ ] Remove dead code references to `castmate` naming (run-clean-youtube.ps1 \u2705 done)
+- [ ] Consolidate duplicate `NodeAutomationEdit.vue` if any remain in packages/castmate
+- [x] Update `docs/graph-execution-engine.md` to reflect final implementation
+- [ ] Bump version to `1.0.0-beta1` in all package.json files
+
+### 5.8 Queue UX: Graph Scheduler, Not Separate Logic
+- [ ] Keep queues as the runtime/scheduler for alerts, paid events, scene banners, and other non-overlapping stream moments.
+- [ ] Hide queue complexity from everyday automation editing by controlling queues through graph-native nodes:
+  - `Add to Queue`
+  - `Queue Item Started`
+  - `Complete Queue Item`
+  - `Cancel Queue Item`
+  - `Clear Queue`
+- [ ] Treat queue worker automations as normal graphs: a queue item starts a graph, the graph drives overlays/sounds/OBS, then completes or cancels the item.
+- [ ] Simplify the sidebar around the streamer workflow:
+  - `Automations`
+  - `Queues`
+  - `Overlays`
+  - `Variables`
+  - `Integrations`
+- [ ] Make the `Queues` page observational first: show configured queues, the currently running item, pending items, recent completed/cancelled items, and the automation graph used when an item starts.
+- [ ] Add queue node styling in the automation editor so queue nodes are visually distinct from triggers, filters, overlays, paid alerts, and scene actions.
+- [ ] Add queue preview/debug visibility: when test-running a graph, show when an item is enqueued, when it starts, and when it completes/cancels.
+- [ ] Add starter templates:
+  - `Paid Event -> Add to Alerts Queue`
+  - `Queue Item Started -> Paid Alert Overlay -> Sound -> Complete`
+  - `Scene Begin -> Add to Scene Queue`
+  - `Queue Item Started -> Scene Banner -> Shader Layer -> Complete`
+- [ ] Document the mental model: queues remain powerful, but users should experience them as graph scheduling nodes rather than a second automation system.
+
+---
+
+## Phase 6: Release Prep
+
+- [ ] Update `DEVELOPERS.md` with new graph engine architecture
+- [ ] Write `MIGRATION.md` guide for existing users
+- [ ] Update `release.config.cjs` for major version bump
+- [ ] Tag `v1.0.0-beta1` for testing
+- [ ] Run full E2E: create automation, add control flow, test-run, verify
+- [ ] Announce breaking change in changelog
+
+---
+
+## File Deletion Summary
+
+| File | Reason |
+|------|--------|
+| `libs/showrunner-core/src/queue-system/sequence.ts` | Old runner, replaced by GraphVM |
+| `libs/showrunner-core/src/queue-system/__tests__/sequence.test.ts` | Tests for deleted runner |
+| `libs/showrunner-core/src/graph-engine/migration.ts` | Bridge code, no longer needed post-migration |
+| `libs/showrunner-core/src/graph-engine/__tests__/migration.test.ts` | Tests for deleted migration |
+| `libs/showrunner-ui-core/src/components/automation/OffsetSequenceEdit.vue` | Offset concept removed |
+| `libs/showrunner-ui-core/src/components/automation/TimeActionEdit.vue` | Replaced by delay node config |
+
+## Renames
+
+| Old | New |
+|-----|-----|
+| `SequenceDebugger` | `ExecutionDebugger` |
+| `SequenceResolvers` | `ActionResolvers` |
+| `SequenceContext` | `ExecutionContext` |
+| `SequenceSource` | `AutomationSource` |
+| `QueuedSequence` | `QueuedAutomation` |
+| `SequenceProvider` | `AutomationProvider` |

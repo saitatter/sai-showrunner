@@ -15,10 +15,10 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardResourceSlot } from "castmate-plugin-dashboards-shared"
+import { DashboardResourceSlot } from "ShowRunner-plugin-dashboards-shared"
 import { computed, useModel } from "vue"
 import { DashboardResourceSlotView } from "../dashboard-types"
-import { usePropagationStop } from "castmate-ui-core"
+import { usePropagationStop } from "ShowRunner-ui-core"
 import PInputText from "primevue/inputtext"
 
 const props = defineProps<{

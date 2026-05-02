@@ -1,4 +1,4 @@
-import { SchemaBase, registerType } from "castmate-schema"
+import { SchemaBase, registerType } from "ShowRunner-schema"
 
 export type PowerShellCommand = string
 
@@ -16,7 +16,7 @@ export interface SchemaPowerShellCommand extends SchemaBase<PowerShellCommand> {
 	template?: boolean
 }
 
-declare module "castmate-schema" {
+declare module "ShowRunner-schema" {
 	interface SchemaTypeMap {
 		PowerShellCommand: [SchemaPowerShellCommand, PowerShellCommand]
 	}

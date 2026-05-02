@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-spellcast-main",
+	"name": "ShowRunner-plugin-spellcast-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,10 +13,10 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"castmate-core": "workspace:^",
-		"castmate-plugin-spellcast-shared": "workspace:^",
-		"castmate-plugin-twitch-main": "workspace:^",
-		"castmate-plugin-twitch-shared": "workspace:^",
-		"castmate-schema": "workspace:^"
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-spellcast-shared": "workspace:^",
+		"ShowRunner-plugin-twitch-main": "workspace:^",
+		"ShowRunner-plugin-twitch-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^"
 	}
 }

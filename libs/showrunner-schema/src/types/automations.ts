@@ -1,0 +1,45 @@
+import { AutomationGraph, SubgraphDefinition } from "./graph"
+
+export interface AutomationDataWire {
+	id: string
+	fromNode: string
+	fromPort: string
+	toNode: string
+	toPort: string
+}
+
+export interface AutomationVariableNode {
+	id: string
+	name: string
+	type: "string" | "number" | "boolean" | "color"
+	value: string | number | boolean
+	x: number
+	y: number
+}
+
+export interface AutomationData {
+	graph: AutomationGraph
+	subgraphs: SubgraphDefinition[]
+	dataWires: AutomationDataWire[]
+	variableNodes: AutomationVariableNode[]
+	testContext?: any
+}
+
+export interface InlineAutomation extends AutomationData {
+	queue?: string
+	description?: string
+}
+
+export function createInlineAutomation(): InlineAutomation {
+	return {
+		graph: { nodes: [], edges: [], entryNodeId: "" },
+		subgraphs: [],
+		dataWires: [],
+		variableNodes: [],
+		queue: undefined,
+	}
+}
+
+export interface AutomationConfig extends AutomationData {
+	name: string
+}

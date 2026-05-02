@@ -1,9 +1,9 @@
-import { defineAction, defineTrigger } from "castmate-core"
+import { defineAction, defineTrigger } from "ShowRunner-core"
 import { onChannelAuth } from "./api-harness"
 import { TwitchAccount } from "./twitch-auth"
 import { ViewerCache } from "./viewer-cache"
-import { TwitchViewer, TwitchViewerGroup } from "castmate-plugin-twitch-shared"
-import { Duration } from "castmate-schema"
+import { TwitchViewer, TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
+import { Duration } from "ShowRunner-schema"
 import { inTwitchViewerGroup } from "./group"
 
 export function setupModeration() {

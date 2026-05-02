@@ -11,17 +11,17 @@ import {
 	ReactiveEffect,
 	Service,
 	usePluginLogger,
-} from "castmate-core"
-import { SatelliteService } from "castmate-core"
-import { TwitchAccount, ViewerCache } from "castmate-plugin-twitch-main"
-import { SatelliteConnectionOption } from "castmate-schema"
+} from "ShowRunner-core"
+import { SatelliteService } from "ShowRunner-core"
+import { TwitchAccount, ViewerCache } from "ShowRunner-plugin-twitch-main"
+import { SatelliteConnectionOption } from "ShowRunner-schema"
 import { nanoid } from "nanoid"
 import { Dashboard } from "./dashboard-resource"
 import { createDashboardConfigEvaluator, DashboardConfigEvaluator } from "./dashboard-config-eval"
-import { DashboardConfig } from "castmate-plugin-dashboards-shared"
+import { DashboardConfig } from "ShowRunner-plugin-dashboards-shared"
 import { DashboardWidgetManager } from "./dashboard-widgets"
 
-const API_BASE_URL = "https://api.castmate.io"
+const API_BASE_URL = "https://api.ShowRunner.io"
 
 interface RemoteDashboardInfo {
 	ownerId: string

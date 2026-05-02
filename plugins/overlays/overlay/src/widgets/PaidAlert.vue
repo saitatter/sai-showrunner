@@ -23,7 +23,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue"
-import { declareWidgetOptions, handleOverlayMessage, useCastMateBridge, useIsEditor } from "castmate-overlay-core"
+import { declareWidgetOptions, handleOverlayMessage, useShowRunnerBridge, useIsEditor } from "ShowRunner-overlay-core"
 
 interface PaidAlertMessage {
 	id?: string
@@ -78,7 +78,7 @@ const props = defineProps<{
 }>()
 
 const isEditor = useIsEditor()
-const bridge = useCastMateBridge()
+const bridge = useShowRunnerBridge()
 const activeAlert = ref<PaidAlertMessage>()
 let clearTimer = 0
 

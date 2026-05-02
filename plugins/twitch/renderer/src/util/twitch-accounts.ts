@@ -1,6 +1,6 @@
-import { TwitchAccountConfig } from "castmate-plugin-twitch-shared"
-import { AccountState, ResourceData } from "castmate-schema"
-import { useResource } from "castmate-ui-core"
+import { TwitchAccountConfig } from "ShowRunner-plugin-twitch-shared"
+import { AccountState, ResourceData } from "ShowRunner-schema"
+import { useResource } from "ShowRunner-ui-core"
 
 export function useChannelAccountResource() {
 	return useResource<ResourceData<TwitchAccountConfig, AccountState>>("TwitchAccount", "channel")

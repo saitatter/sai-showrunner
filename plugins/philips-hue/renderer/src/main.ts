@@ -1,4 +1,4 @@
-import { usePluginStore } from "castmate-ui-core"
+import { usePluginStore } from "ShowRunner-ui-core"
 import HueHubSearch from "./components/HueHubSearch.vue"
 import "./css/icons.css"
 

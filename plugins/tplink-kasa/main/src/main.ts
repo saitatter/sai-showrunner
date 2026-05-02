@@ -1,4 +1,4 @@
-import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSetting } from "castmate-core"
+import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSetting } from "ShowRunner-core"
 import { setupLights } from "./resources"
 
 export default definePlugin(

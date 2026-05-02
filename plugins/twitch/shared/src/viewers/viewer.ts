@@ -1,4 +1,4 @@
-import { Color, SchemaBase, registerType } from "castmate-schema"
+import { Color, SchemaBase, registerType } from "ShowRunner-schema"
 
 export type TwitchViewerName = `@${string}` | `${string}`
 
@@ -65,7 +65,7 @@ export interface SchemaTwitchViewer extends SchemaBase<TwitchViewerUnresolved> {
 	template?: boolean
 }
 
-declare module "castmate-schema" {
+declare module "ShowRunner-schema" {
 	interface SchemaTypeMap {
 		TwitchViewer: [SchemaTwitchViewer, TwitchViewerUnresolved]
 	}

@@ -1,4 +1,4 @@
-import { PlugConfig, PlugState } from "castmate-plugin-iot-shared"
+import { PlugConfig, PlugState } from "ShowRunner-plugin-iot-shared"
 import {
 	Resource,
 	ResourceStorage,
@@ -9,8 +9,8 @@ import {
 	defineSatelliteResourceSlotHandler,
 	isSatellite,
 	usePluginLogger,
-} from "castmate-core"
-import { Toggle } from "castmate-schema"
+} from "ShowRunner-core"
+import { Toggle } from "ShowRunner-schema"
 
 export class PlugResource<Config extends PlugConfig = PlugConfig, State extends PlugState = PlugState> extends Resource<
 	Config,
@@ -50,8 +50,10 @@ export class PollingPlug<
 		this.stopPolling()
 		this.poller = setInterval(async () => {
 			try {
-				this.poll()
-			} catch (err) {}
+				await this.poll()
+			} catch (err) {
+				console.error("Error polling plug", err)
+			}
 		}, interval * 1000)
 	}
 

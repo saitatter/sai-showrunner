@@ -52,7 +52,7 @@ import {
 	isViewerGroupPropertyRule,
 	isGroupCondition,
 	SchemaTwitchViewerGroup,
-} from "castmate-plugin-twitch-shared"
+} from "ShowRunner-plugin-twitch-shared"
 import TwitchViewerGroupLogicOp from "./TwitchViewerGroupLogicOp.vue"
 import TwitchViewerGroupResourceRef from "./TwitchViewerGroupResourceRef.vue"
 import TwitchViewerGroupInlineGroup from "./TwitchViewerGroupInlineGroup.vue"

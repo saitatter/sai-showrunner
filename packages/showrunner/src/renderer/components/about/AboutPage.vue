@@ -1,0 +1,29 @@
+<template>
+	<scrolling-tab-body>
+		<h1>About ShowRunner</h1>
+		<h3>v{{ version }}</h3>
+
+		<p>
+			<a href="https://github.com/saitatter/sai-showrunner" target="_blank"> ShowRunner GitHub </a>
+			<br />
+			<a href="https://www.github.com/LordTocs/ShowRunner" target="_blank"> Upstream Project </a>
+			<br />
+			<a href="https://discord.gg/txt4DUzYJM" target="_blank"> Help Discord </a>
+			<br />
+			<a href="https://github.com/saitatter/sai-showrunner/blob/main/LICENSE.md" target="_blank"> License </a>
+		</p>
+	</scrolling-tab-body>
+</template>
+
+<script setup lang="ts">
+import { ScrollingTabBody, useIpcCaller, useIpcMessage } from "ShowRunner-ui-core"
+import { onMounted, ref } from "vue"
+
+const version = ref("")
+
+const getVersion = useIpcCaller<() => string>("windowFuncs", "getVersion")
+
+onMounted(async () => {
+	version.value = await getVersion()
+})
+</script>

@@ -8,8 +8,8 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaTwitchViewer, TwitchViewer, TwitchViewerUnresolved } from "castmate-plugin-twitch-shared"
-import { defaultStringIsTemplate, SharedDataViewProps } from "castmate-ui-core"
+import { SchemaTwitchViewer, TwitchViewer, TwitchViewerUnresolved } from "ShowRunner-plugin-twitch-shared"
+import { defaultStringIsTemplate, SharedDataViewProps } from "ShowRunner-ui-core"
 import { useViewerStore } from "../../util/viewer"
 import { computedAsync } from "@vueuse/core"
 

@@ -6,16 +6,16 @@
 				<h1>YouTube Live</h1>
 			</div>
 			<div class="youtube-page__actions">
-				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="connect">
+				<button class="youtube-page__button youtube-page__button--secondary" type="button" :disabled="busy" @click="connect">
 					Connect
 				</button>
-				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="toggleLiveChat">
+				<button class="youtube-page__button youtube-page__button--secondary" type="button" :disabled="busy" @click="toggleLiveChat">
 					{{ status.liveChatRunning ? "Stop Chat" : "Start Chat" }}
 				</button>
-				<button class="youtube-page__button youtube-page__button--secondary" type="button" @click="discover">
+				<button class="youtube-page__button youtube-page__button--secondary" type="button" :disabled="busy" @click="discover">
 					Discover Live
 				</button>
-				<button class="youtube-page__button" type="button" @click="simulate">Simulate Chat</button>
+				<button class="youtube-page__button" type="button" :disabled="busy" @click="simulate">Simulate Chat</button>
 			</div>
 		</header>
 
@@ -91,6 +91,9 @@
 
 			<div class="youtube-page__panel">
 				<h2>Broadcast</h2>
+				<p v-if="manualDiscoverySuggestion" class="youtube-page__hint">
+					{{ manualDiscoverySuggestion }}
+				</p>
 				<dl>
 					<div>
 						<dt>Status</dt>
@@ -138,6 +141,30 @@
 			</div>
 		</section>
 
+		<section class="youtube-page__panel youtube-page__manual">
+			<div class="youtube-page__setting-header">
+				<div>
+					<h2>Manual Live Chat</h2>
+					<p class="youtube-page__muted">
+						Use this when auto-discovery cannot see your stream yet. Live Chat ID is enough to start ingest.
+					</p>
+				</div>
+				<button class="youtube-page__button youtube-page__button--secondary" type="button" :disabled="busy" @click="applyManualBroadcast">
+					Use Manual IDs
+				</button>
+			</div>
+			<div class="youtube-page__manual-grid">
+				<label>
+					<span>Broadcast ID</span>
+					<input v-model="manualBroadcastId" type="text" placeholder="Optional video/broadcast ID" />
+				</label>
+				<label>
+					<span>Live Chat ID</span>
+					<input v-model="manualLiveChatId" type="text" placeholder="Required for chat ingest" />
+				</label>
+			</div>
+		</section>
+
 		<section class="youtube-page__panel">
 			<h2>Latest Message</h2>
 			<p v-if="!status.latestMessage?.message" class="youtube-page__muted">No YouTube chat messages yet.</p>
@@ -161,8 +188,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
-import { useIpcCaller } from "castmate-ui-core"
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { useIpcCaller } from "ShowRunner-ui-core"
 import { useToast } from "primevue/usetoast"
 
 interface YouTubeStatus {
@@ -214,6 +241,7 @@ const saveYouTubeSettings = useIpcCaller<(settings: { clientId: string; clientSe
 )
 const connectYouTube = useIpcCaller<() => Promise<unknown>>("youtube", "connect")
 const discoverBroadcast = useIpcCaller<() => Promise<unknown>>("youtube", "discoverBroadcast")
+const setManualBroadcast = useIpcCaller<(manual: { broadcastId: string; liveChatId: string }) => Promise<unknown>>("youtube", "setManualBroadcast")
 const startLiveChat = useIpcCaller<() => Promise<unknown>>("youtube", "startLiveChat")
 const stopLiveChat = useIpcCaller<() => Promise<unknown>>("youtube", "stopLiveChat")
 const simulateChatMessage = useIpcCaller<() => Promise<unknown>>("youtube", "simulateChatMessage")
@@ -221,9 +249,14 @@ const status = ref<YouTubeStatus>({})
 const clientId = ref("")
 const clientSecret = ref("")
 const autoStartLiveChat = ref(false)
+const manualBroadcastId = ref("")
+const manualLiveChatId = ref("")
 const showAdvanced = ref(false)
 const toast = useToast()
+const busy = ref(false)
 const activityLog = ref<{ id: string; severity: "success" | "info" | "warn" | "error"; summary: string; detail: string }[]>([])
+const lastSeenApiErrorAt = ref("")
+let refreshTimer: ReturnType<typeof window.setInterval> | undefined
 
 const hasBundledClientId = computed(() => Boolean(status.value.settings?.hasBundledClientId))
 const hasBundledClientSecret = computed(() => Boolean(status.value.settings?.hasBundledClientSecret))
@@ -265,13 +298,31 @@ const statusHint = computed(() => {
 	if (/quota|rate|limit/i.test(message)) return "YouTube API quota/rate limit was hit. Wait for quota reset or reduce polling frequency."
 	if (/client_secret/i.test(message)) return "Your Google OAuth client likely requires the generated Desktop client secret."
 	if (/access_denied|verification/i.test(message)) return "Your Google app is still in testing. Add your Google account as a test user in OAuth consent screen."
+	if (/No active YouTube broadcast|live chat was found|live chat is not available/i.test(message)) return "Auto-discovery did not find an ingestable chat. Paste a Broadcast ID or Live Chat ID in Manual Live Chat."
 	return message && status.value.connection?.status === "error" ? message : ""
+})
+const manualDiscoverySuggestion = computed(() => {
+	if (hasActiveBroadcast.value) return ""
+	const message = status.value.connection?.statusMessage || ""
+	if (/No active YouTube broadcast|not available|not found/i.test(message)) {
+		return "Auto-discovery could not find a usable live chat. Use Manual Live Chat below with the stream Broadcast ID or Live Chat ID."
+	}
+	return ""
 })
 
 async function refresh() {
-	status.value = await getStatus()
+	const nextStatus = await getStatus()
+	status.value = nextStatus
 	clientId.value = status.value.settings?.clientId ?? ""
 	autoStartLiveChat.value = Boolean(status.value.settings?.autoStartLiveChat)
+	manualBroadcastId.value = status.value.broadcast?.id ?? manualBroadcastId.value
+	manualLiveChatId.value = status.value.broadcast?.liveChatId ?? manualLiveChatId.value
+	const apiErrorAt = status.value.diagnostics?.lastApiErrorAt
+	if (apiErrorAt && apiErrorAt !== lastSeenApiErrorAt.value && status.value.diagnostics?.lastApiError) {
+		lastSeenApiErrorAt.value = apiErrorAt
+		addActivity("error", "YouTube API error", status.value.diagnostics.lastApiError)
+		toast.add({ severity: "error", summary: "YouTube API error", detail: status.value.diagnostics.lastApiError, life: 6000 })
+	}
 }
 
 async function saveSettings() {
@@ -318,6 +369,20 @@ async function discover() {
 		await discoverBroadcast()
 		await refresh()
 	})
+	if (!hasActiveBroadcast.value) {
+		addActivity("warn", "No active YouTube live chat found.", "Use Manual Live Chat with a Broadcast ID or Live Chat ID.")
+		toast.add({ severity: "warn", summary: "No active YouTube chat", detail: "Try Manual Live Chat IDs below.", life: 5000 })
+	}
+}
+
+async function applyManualBroadcast() {
+	await runWithFeedback("success", "Manual YouTube live chat saved.", async () => {
+		await setManualBroadcast({
+			broadcastId: manualBroadcastId.value,
+			liveChatId: manualLiveChatId.value,
+		})
+		await refresh()
+	})
 }
 
 async function simulate() {
@@ -328,6 +393,7 @@ async function simulate() {
 }
 
 async function runWithFeedback(severity: "success" | "info", successMessage: string, action: () => Promise<void>) {
+	busy.value = true
 	try {
 		await action()
 		addActivity(severity, successMessage)
@@ -337,6 +403,8 @@ async function runWithFeedback(severity: "success" | "info", successMessage: str
 		addActivity("error", "YouTube action failed.", detail)
 		toast.add({ severity: "error", summary: "YouTube action failed", detail, life: 6000 })
 		throw error
+	} finally {
+		busy.value = false
 	}
 }
 
@@ -356,7 +424,14 @@ function formatTime(value: string) {
 	return date.toLocaleTimeString()
 }
 
-onMounted(refresh)
+onMounted(() => {
+	void refresh()
+	refreshTimer = window.setInterval(() => void refresh(), 5000)
+})
+
+onBeforeUnmount(() => {
+	if (refreshTimer) window.clearInterval(refreshTimer)
+})
 </script>
 
 <style scoped>
@@ -451,7 +526,8 @@ onMounted(refresh)
 	justify-content: space-between;
 }
 
-.youtube-page__settings label {
+.youtube-page__settings label,
+.youtube-page__manual label {
 	display: grid;
 	gap: 0.4rem;
 }
@@ -462,12 +538,24 @@ onMounted(refresh)
 	justify-content: space-between;
 }
 
-.youtube-page__settings input {
+.youtube-page__settings input,
+.youtube-page__manual input {
 	background: var(--surface-950);
 	border: 1px solid var(--surface-700);
 	border-radius: 4px;
 	color: var(--text-color);
 	padding: 0.6rem 0.7rem;
+}
+
+.youtube-page__manual {
+	display: grid;
+	gap: 0.8rem;
+}
+
+.youtube-page__manual-grid {
+	display: grid;
+	gap: 0.75rem;
+	grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
 }
 
 .youtube-page__source {

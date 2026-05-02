@@ -1,4 +1,4 @@
-import { useDataInputStore } from "castmate-ui-core"
+import { useDataInputStore } from "ShowRunner-ui-core"
 
 export async function initPlugin() {
 	const inputStore = useDataInputStore()

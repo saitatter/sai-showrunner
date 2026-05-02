@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-variables-main",
+  "name": "ShowRunner-plugin-variables-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,10 +13,10 @@
     "typescript": "*"
   },
   "dependencies": {
-    "castmate-core": "workspace:^",
-    "castmate-plugin-twitch-main": "workspace:^",
-    "castmate-plugin-twitch-shared": "workspace:^",
-    "castmate-plugin-variables-shared": "workspace:^",
-    "castmate-schema": "workspace:^"
+    "ShowRunner-core": "workspace:^",
+    "ShowRunner-plugin-twitch-main": "workspace:^",
+    "ShowRunner-plugin-twitch-shared": "workspace:^",
+    "ShowRunner-plugin-variables-shared": "workspace:^",
+    "ShowRunner-schema": "workspace:^"
   }
 }

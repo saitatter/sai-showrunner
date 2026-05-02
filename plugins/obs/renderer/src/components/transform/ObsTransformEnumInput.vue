@@ -7,8 +7,8 @@
 </template>
 
 <script setup lang="ts" generic="T">
-import { OBSWSSourceTransform } from "castmate-plugin-obs-shared"
-import { LabelFloater, CAutocomplete, useDataBinding } from "castmate-ui-core"
+import { OBSWSSourceTransform } from "ShowRunner-plugin-obs-shared"
+import { LabelFloater, CAutocomplete, useDataBinding } from "ShowRunner-ui-core"
 import { useModel, computed } from "vue"
 
 const props = defineProps<{

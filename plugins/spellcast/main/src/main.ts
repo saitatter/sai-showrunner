@@ -6,8 +6,8 @@ import {
 	definePlugin,
 	reactiveRef,
 	onCloudPubSubMessage,
-} from "castmate-core"
-import { TwitchViewer } from "castmate-plugin-twitch-shared"
+} from "ShowRunner-core"
+import { TwitchViewer } from "ShowRunner-plugin-twitch-shared"
 import { setupSpells, SpellHook } from "./spell"
 
 export default definePlugin(

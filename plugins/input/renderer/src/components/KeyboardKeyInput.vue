@@ -35,8 +35,8 @@ import {
 	usePropagationStop,
 	useDataBinding,
 	getDataLabel,
-} from "castmate-ui-core"
-import { KeyboardKey, SchemaKeyboardKey, Keys, getKeyboardKey } from "castmate-plugin-input-shared"
+} from "ShowRunner-ui-core"
+import { KeyboardKey, SchemaKeyboardKey, Keys, getKeyboardKey } from "ShowRunner-plugin-input-shared"
 import { computed, ref, useModel } from "vue"
 import PButton from "primevue/button"
 

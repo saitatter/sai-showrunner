@@ -14,7 +14,7 @@ export default defineConfig({
 		cssCodeSplit: true,
 		lib: {
 			entry: "src/main.ts",
-			name: "castmate-ui-core",
+			name: "ShowRunner-ui-core",
 		},
 		rollupOptions: {
 			external: ["vue"],

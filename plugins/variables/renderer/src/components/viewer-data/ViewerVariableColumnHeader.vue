@@ -4,8 +4,8 @@
 </template>
 
 <script setup lang="ts">
-import { ViewerVariable } from "castmate-schema"
-import { CContextMenu, useViewerDataStore } from "castmate-ui-core"
+import { ViewerVariable } from "ShowRunner-schema"
+import { CContextMenu, useViewerDataStore } from "ShowRunner-ui-core"
 import { MenuItem } from "primevue/menuitem"
 import { useConfirm } from "primevue/useconfirm"
 import { computed, ref } from "vue"

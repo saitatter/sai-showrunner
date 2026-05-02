@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-iot-shared",
+  "name": "ShowRunner-plugin-iot-shared",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,8 +13,8 @@
     "typescript": "*"
   },
   "dependencies": {
-    "castmate-core": "workspace:^",
-    "castmate-schema": "workspace:^",
+    "ShowRunner-core": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
     "chromatism2": "*"
   }
 }

@@ -1,6 +1,6 @@
 import * as Events from "events"
 
-declare namespace CastmatePluginInputNative {
+declare namespace ShowRunnerPluginInputNative {
 	type MouseButton = "left" | "right" | "middle" | "mouse4" | "mouse5"
 
 	interface InputInterfaceEvents {
@@ -29,4 +29,4 @@ declare namespace CastmatePluginInputNative {
 	}
 }
 
-export = CastmatePluginInputNative
+export = ShowRunnerPluginInputNative

@@ -16,9 +16,9 @@ import {
 	unexposeSchema,
 	usePluginLogger,
 	writeYAML,
-} from "castmate-core"
-import { IPCVariableDefinition } from "castmate-plugin-variables-shared"
-import { Schema, getTypeByConstructor, getTypeByName, isValidJSName } from "castmate-schema"
+} from "ShowRunner-core"
+import { IPCVariableDefinition } from "ShowRunner-plugin-variables-shared"
+import { Schema, getTypeByConstructor, getTypeByName, isValidJSName } from "ShowRunner-schema"
 import _debounce from "lodash/debounce"
 
 import variablePlugin from "./variable-plugin"

@@ -1,5 +1,5 @@
 {
-    "name": "castmate-plugin-tplink-kasa",
+    "name": "ShowRunner-plugin-tplink-kasa",
     "private": true,
     "version": "0.0.1",
     "type": "module",

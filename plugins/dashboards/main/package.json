@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-dashboards-main",
+	"name": "ShowRunner-plugin-dashboards-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,9 +13,9 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"castmate-core": "workspace:^",
-		"castmate-plugin-dashboards-shared": "workspace:^",
-		"castmate-plugin-twitch-main": "workspace:^",
-		"castmate-schema": "workspace:^"
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-dashboards-shared": "workspace:^",
+		"ShowRunner-plugin-twitch-main": "workspace:^",
+		"ShowRunner-schema": "workspace:^"
 	}
 }

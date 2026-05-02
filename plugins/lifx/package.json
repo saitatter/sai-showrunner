@@ -1,5 +1,5 @@
 {
-    "name": "castmate-plugin-lifx",
+    "name": "ShowRunner-plugin-lifx",
     "private": true,
     "version": "0.0.1",
     "type": "module",

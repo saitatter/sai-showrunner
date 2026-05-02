@@ -21,8 +21,8 @@
 </template>
 
 <script setup lang="ts">
-import { AudioSplitterConfig, AudioSplit } from "castmate-plugin-sound-shared"
-import { ScrollingTabBody, DocumentDataCollection, useCommitUndo } from "castmate-ui-core"
+import { AudioSplitterConfig, AudioSplit } from "ShowRunner-plugin-sound-shared"
+import { ScrollingTabBody, DocumentDataCollection, useCommitUndo } from "ShowRunner-ui-core"
 import { AudioSplitterView, AudioSplitView } from "./splitter-types"
 import AudioSplitEdit from "./AudioSplitEdit.vue"
 import { nanoid } from "nanoid"

@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-time-main",
+  "name": "ShowRunner-plugin-time-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,9 +13,9 @@
     "typescript": "*"
   },
   "dependencies": {
-    "castmate-core": "workspace:^",
-    "castmate-plugin-time-shared": "workspace:^",
-    "castmate-plugin-variables-main": "workspace:^",
-    "castmate-schema": "workspace:^"
+    "ShowRunner-core": "workspace:^",
+    "ShowRunner-plugin-time-shared": "workspace:^",
+    "ShowRunner-plugin-variables-main": "workspace:^",
+    "ShowRunner-schema": "workspace:^"
   }
 }

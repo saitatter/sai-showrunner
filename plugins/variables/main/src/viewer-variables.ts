@@ -1,7 +1,7 @@
-import { defineAction, usePluginLogger, ViewerData } from "castmate-core"
-import { TwitchViewer } from "castmate-plugin-twitch-shared"
-import { DynamicType } from "castmate-schema"
-import { ViewerCache as TwitchViewerCache } from "castmate-plugin-twitch-main"
+import { defineAction, usePluginLogger, ViewerData } from "ShowRunner-core"
+import { TwitchViewer } from "ShowRunner-plugin-twitch-shared"
+import { DynamicType } from "ShowRunner-schema"
+import { ViewerCache as TwitchViewerCache } from "ShowRunner-plugin-twitch-main"
 
 export function setupViewerVariables() {
 	const logger = usePluginLogger()

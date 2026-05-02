@@ -3,7 +3,7 @@ import {
 	YouTubeChatMessage,
 	YouTubeMembershipEvent,
 	YouTubePaidEvent,
-} from "castmate-plugin-youtube-shared"
+} from "ShowRunner-plugin-youtube-shared"
 import { YouTubeAuthService } from "./youtube-auth"
 
 interface YouTubeLiveBroadcastsResponse {
@@ -218,13 +218,13 @@ export class YouTubeLiveChatService {
 		}
 	}
 
-	async start() {
+	async start(preferredBroadcast?: YouTubeBroadcastState) {
 		this.stop()
 		const sessionId = ++this.sessionId
 		this.stopped = false
 		this.nextPageToken = undefined
 
-		const broadcast = await this.discoverActiveBroadcast()
+		const broadcast = preferredBroadcast?.liveChatId ? preferredBroadcast : await this.discoverActiveBroadcast()
 		if (!this.isActiveSession(sessionId)) return
 		this.handlers.onBroadcast(broadcast)
 		if (!broadcast.liveChatId) {
@@ -277,7 +277,9 @@ export class YouTubeLiveChatService {
 			}
 
 			const delay = Math.max(1000, data.pollingIntervalMillis || 5000)
-			this.timer = setTimeout(() => void this.poll(liveChatId, sessionId), delay)
+			this.timer = setTimeout(() => {
+				this.poll(liveChatId, sessionId).catch((err) => this.handlers.onError(err instanceof Error ? err : new Error(String(err))))
+			}, delay)
 		} catch (error) {
 			if (!this.isActiveSession(sessionId)) return
 			const normalizedError = error instanceof Error ? error : new Error(String(error))
@@ -287,7 +289,9 @@ export class YouTubeLiveChatService {
 			this.errorAttempts += 1
 			this.diagnostics.nextRetryAt = new Date(Date.now() + delay).toISOString()
 			this.handlers.onError(normalizedError)
-			this.timer = setTimeout(() => void this.poll(liveChatId, sessionId), delay)
+			this.timer = setTimeout(() => {
+				this.poll(liveChatId, sessionId).catch((err) => this.handlers.onError(err instanceof Error ? err : new Error(String(err))))
+			}, delay)
 		}
 	}
 

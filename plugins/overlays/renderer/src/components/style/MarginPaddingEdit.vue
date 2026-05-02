@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import EdgeEdit from "./EdgeEdit.vue"
-import { OverlayBlockStyle, OverlayEdgeInfo } from "castmate-plugin-overlays-shared"
+import { OverlayBlockStyle, OverlayEdgeInfo } from "ShowRunner-plugin-overlays-shared"
 import { computed, ref, useModel } from "vue"
 
 const props = withDefaults(

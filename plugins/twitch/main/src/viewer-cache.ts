@@ -5,7 +5,7 @@ import {
 	Service,
 	ViewerData,
 	defineRendererCallable,
-	isCastMate,
+	isShowRunner,
 	isSatellite,
 	measurePerf,
 	measurePerfFunc,
@@ -18,8 +18,8 @@ import {
 	startPerfTime,
 	template,
 	usePluginLogger,
-} from "castmate-core"
-import { Color, registerTypeFromString } from "castmate-schema"
+} from "ShowRunner-core"
+import { Color, registerTypeFromString } from "ShowRunner-schema"
 import { TwitchAccount } from "./twitch-auth"
 import { onChannelAuth } from "./api-harness"
 import {
@@ -35,7 +35,7 @@ import {
 	TwitchViewerData,
 	TwitchViewerDisplayData,
 	TwitchViewerUnresolved,
-} from "castmate-plugin-twitch-shared"
+} from "ShowRunner-plugin-twitch-shared"
 import { HelixChannelFollower, HelixPaginatedResultWithTotal } from "@twurple/api"
 
 const logger = usePluginLogger("twitch")
@@ -188,7 +188,7 @@ export const ViewerCache = Service(
 		onViewerSeen = new EventList<(viewer: TwitchViewerUnresolved) => any>()
 
 		constructor() {
-			if (isCastMate()) {
+			if (isShowRunner()) {
 				ViewerData.getInstance()?.registerProvider({
 					id: "twitch",
 					onDataChanged: async (id, column, value) => {
@@ -549,7 +549,7 @@ export const ViewerCache = Service(
 		}
 
 		private async querySubInfo(...userIds: string[]) {
-			if (!isCastMate()) return
+			if (!isShowRunner()) return
 
 			const perf1 = startPerfTime("Query Subs Gather Users")
 			const ids = getNValues(this.unknownSubInfo, userIds, 100)

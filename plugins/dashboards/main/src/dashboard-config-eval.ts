@@ -8,10 +8,10 @@ import {
 	ignoreReactivity,
 	remoteTemplateSchema,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { DashboardWidgetManager } from "./dashboard-widgets"
-import { DashboardConfig } from "castmate-plugin-dashboards-shared"
-import { filterPromiseAll } from "castmate-schema"
+import { DashboardConfig } from "ShowRunner-plugin-dashboards-shared"
+import { filterPromiseAll } from "ShowRunner-schema"
 
 const logger = usePluginLogger("dashboards")
 

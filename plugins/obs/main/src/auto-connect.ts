@@ -1,4 +1,4 @@
-import { defineIPCFunc, usePluginLogger, getLocalIP } from "castmate-core"
+import { defineIPCFunc, usePluginLogger, getLocalIP } from "ShowRunner-core"
 import { Window } from "node-screenshots"
 
 import jsQR from "jsqr"
@@ -52,7 +52,9 @@ export async function testOBSConnectionDetails(hostname: string, port: number, p
 
 	try {
 		await socket.connect(`ws://${hostname}:${port}`, password)
-		socket.disconnect().catch((err) => {})
+		socket.disconnect().catch((err) => {
+			logger.warn("Error disconnecting OBS test socket", err)
+		})
 		return true
 	} catch (err) {
 		return false

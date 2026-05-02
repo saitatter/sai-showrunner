@@ -18,8 +18,8 @@
 </template>
 
 <script setup lang="ts">
-import { PowerShellCommand, SchemaPowerShellCommand } from "castmate-plugin-os-shared"
-import { SharedDataInputProps, TemplateToggle, DataInputBase, useDataBinding, useDataUIBinding } from "castmate-ui-core"
+import { PowerShellCommand, SchemaPowerShellCommand } from "ShowRunner-plugin-os-shared"
+import { SharedDataInputProps, TemplateToggle, DataInputBase, useDataBinding, useDataUIBinding } from "ShowRunner-ui-core"
 import { ref, useModel } from "vue"
 import PButton from "primevue/button"
 import PInputText from "primevue/inputtext"

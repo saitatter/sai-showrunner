@@ -1,4 +1,4 @@
-import { handleIpcMessage, ipcInvoke, useIpcCaller } from "castmate-ui-core"
+import { handleIpcMessage, ipcInvoke, useIpcCaller } from "ShowRunner-ui-core"
 import { defineStore } from "pinia"
 import { ref } from "vue"
 
@@ -17,7 +17,6 @@ export const useSoundPlayerStore = defineStore("soundPlayer", () => {
 		handleIpcMessage("sound", "abortSoundInRenderer", (event, id: string) => {
 			const playing = playingSounds.value[id]
 			if (playing) {
-				console.log("Aborting Sound", id)
 				playing.audioElem.pause()
 				//delete playingSounds.value[id]
 			}
@@ -35,7 +34,6 @@ export const useSoundPlayerStore = defineStore("soundPlayer", () => {
 				audioElem.addEventListener(
 					"canplaythrough",
 					(event) => {
-						console.log("Starting Sound", id)
 						audioElem.play()
 					},
 					{ once: true }
@@ -46,7 +44,6 @@ export const useSoundPlayerStore = defineStore("soundPlayer", () => {
 				})
 
 				const finishSound = () => {
-					console.log("Signaling Finished", id)
 					soundFinishedInRenderer(id)
 					delete playingSounds.value[id]
 				}

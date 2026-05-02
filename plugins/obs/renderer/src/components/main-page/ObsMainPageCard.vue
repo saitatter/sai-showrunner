@@ -19,15 +19,15 @@
 </template>
 
 <script setup lang="ts">
-import { OBSConnectionConfig, OBSConnectionState } from "castmate-plugin-obs-shared"
-import { ResourceData } from "castmate-schema"
+import { OBSConnectionConfig, OBSConnectionState } from "ShowRunner-plugin-obs-shared"
+import { ResourceData } from "ShowRunner-schema"
 import {
 	MainPageCard,
 	usePluginStore,
 	useResourceArray,
 	useResourceCreateDialog,
 	useSettingValue,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import { computed } from "vue"
 
 import PMessage from "primevue/message"

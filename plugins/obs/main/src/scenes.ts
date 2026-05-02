@@ -1,4 +1,4 @@
-import { ReactiveRef, defineAction } from "castmate-core"
+import { ReactiveRef, defineAction } from "ShowRunner-core"
 import { OBSConnection } from "./connection"
 
 export function setupScenes(obsDefault: ReactiveRef<OBSConnection>) {

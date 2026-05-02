@@ -24,12 +24,12 @@ import {
 	useOptionalDefaultableModel,
 	CDropdown,
 	CDurationInput,
-} from "castmate-ui-core"
-import { OverlayTransitionAnimation, SchemaOverlayTransitionAnimation } from "castmate-plugin-overlays-shared"
+} from "ShowRunner-ui-core"
+import { OverlayTransitionAnimation, SchemaOverlayTransitionAnimation } from "ShowRunner-plugin-overlays-shared"
 import { computed, useModel } from "vue"
 
 import { MenuItem } from "primevue/menuitem"
-import { revealers } from "castmate-overlay-core"
+import { revealers } from "ShowRunner-overlay-core"
 
 const props = defineProps<
 	{

@@ -1,7 +1,7 @@
 import axios from "axios"
-import { coreAxios } from "castmate-core"
-import { TwitchAccount } from "castmate-plugin-twitch-main"
-import { Color } from "castmate-schema"
+import { coreAxios } from "ShowRunner-core"
+import { TwitchAccount } from "ShowRunner-plugin-twitch-main"
+import { Color } from "ShowRunner-schema"
 
 const baseURL = "https://api.spellcast.gg/"
 

@@ -11,7 +11,7 @@ import {
 	usePluginStore,
 	useProjectStore,
 	useResourceStore,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 
 import "./css/icons.css"
 
@@ -28,7 +28,7 @@ import {
 	WidgetBackgroundStyle,
 	WidgetBorderRadius,
 	WidgetOutlineStyle,
-} from "castmate-plugin-overlays-shared"
+} from "ShowRunner-plugin-overlays-shared"
 import OverlayTextStyleInput from "./components/style/OverlayTextStyleInput.vue"
 import OverlayBlockStyleInput from "./components/style/OverlayBlockStyleInput.vue"
 import OverlayTextAlignInput from "./components/style/OverlayTextAlignInput.vue"

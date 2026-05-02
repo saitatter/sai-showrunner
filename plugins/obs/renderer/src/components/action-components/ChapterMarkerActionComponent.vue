@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { Toggle } from "castmate-schema"
+import { Toggle } from "ShowRunner-schema"
 import BaseObsActionComponent from "./BaseObsActionComponent.vue"
 import { computed } from "vue"
 

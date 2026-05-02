@@ -51,14 +51,14 @@ import PButton from "primevue/button"
 import PInputText from "primevue/inputtext"
 //import { FilterMatchMode } from "primevue/api"
 import { computed, onMounted, ref, watch, watchEffect } from "vue"
-import { useResource, useResourceIPCCaller } from "castmate-ui-core"
-import { ResourceData } from "castmate-schema"
+import { useResource, useResourceIPCCaller } from "ShowRunner-ui-core"
+import { ResourceData } from "ShowRunner-schema"
 import {
 	TwitchViewer,
 	TwitchViewerDisplayData,
 	TwitchViewerGroupConfig,
 	TwitchViewerUnresolved,
-} from "castmate-plugin-twitch-shared"
+} from "ShowRunner-plugin-twitch-shared"
 import { useViewerStore } from "../../util/viewer"
 import { useConfirm } from "primevue/useconfirm"
 import TwitchViewerInput from "../viewer/TwitchViewerInput.vue"

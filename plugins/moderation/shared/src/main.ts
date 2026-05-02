@@ -99,4 +99,6 @@ export interface ModerationActionResult {
 	approved: boolean
 	blocked: boolean
 	flagged: boolean
+	backendError: boolean
+	errorMessage: string
 }

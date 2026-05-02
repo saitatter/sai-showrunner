@@ -8,8 +8,8 @@
 </template>
 
 <script setup lang="ts">
-import { WidgetBackgroundStyle } from "castmate-plugin-overlays-shared"
-import { Color } from "castmate-schema"
+import { WidgetBackgroundStyle } from "ShowRunner-plugin-overlays-shared"
+import { Color } from "ShowRunner-schema"
 import {
 	CColorPicker,
 	DropDownPanel,
@@ -18,7 +18,7 @@ import {
 	useDataUIBinding,
 	useDefaultableModel,
 	useOptionalDefaultableModel,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import { Ref, ref } from "vue"
 
 // Dear Future Tocs: I'm so sorry.

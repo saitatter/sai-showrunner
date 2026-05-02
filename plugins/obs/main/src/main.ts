@@ -13,8 +13,8 @@ import {
 	defineResourceSetting,
 	defineReactiveState,
 	usePluginLogger,
-} from "castmate-core"
-import { Color, Toggle } from "castmate-schema"
+} from "ShowRunner-core"
+import { Color, Toggle } from "ShowRunner-schema"
 import { OBSConnection, setupConnections, onOBSWebsocketEvent } from "./connection"
 import { setupSources } from "./sources"
 import { setupScenes } from "./scenes"

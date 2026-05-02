@@ -22,14 +22,14 @@ import {
 	ReactiveRef,
 	useState,
 	ignoreReactivity,
-} from "castmate-core"
+} from "ShowRunner-core"
 import {
 	StreamInfo,
 	StreamInfoSchema,
 	TwitchCategory,
 	TwitchStreamTags,
 	TwitchViewer,
-} from "castmate-plugin-twitch-shared"
+} from "ShowRunner-plugin-twitch-shared"
 import { TwitchAccount } from "./twitch-auth"
 import { HelixChannelUpdate } from "@twurple/api"
 import { onChannelAuth, onStreamOffline, onStreamOnline } from "./api-harness"
@@ -108,7 +108,9 @@ export const StreamInfoManager = Service(
 						this.categoryRef.value = await CategoryCache.getInstance().getCategoryById(
 							resolvedInfo.category
 						)
-					} catch (err) {}
+					} catch (err) {
+						logger.error("Error fetching category by ID", resolvedInfo.category, err)
+					}
 				}
 			})
 		}

@@ -11,14 +11,8 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue"
-import { declareWidgetOptions } from "castmate-overlay-core"
-
-const vertexShaderSource = `
-attribute vec2 a_position;
-void main() {
-	gl_Position = vec4(a_position, 0.0, 1.0);
-}
-`
+import { declareWidgetOptions } from "ShowRunner-overlay-core"
+import { ShaderRenderer } from "./shader-renderer"
 
 const presets: Record<string, string> = {
 	aurora: `
@@ -192,144 +186,55 @@ const props = defineProps<{
 
 const canvas = ref<HTMLCanvasElement>()
 const errorMessage = ref("")
-let gl: WebGLRenderingContext | undefined
-let program: WebGLProgram | undefined
-let positionBuffer: WebGLBuffer | undefined
-let animationFrame = 0
-let resizeObserver: ResizeObserver | undefined
-let startedAt = performance.now()
+let renderer: ShaderRenderer | undefined
+
+function getFragmentSource() {
+	if (props.config.preset === "custom" && props.config.customFragmentShader?.trim()) {
+		return props.config.customFragmentShader
+	}
+	return presets[props.config.preset] || presets.aurora
+}
 
 watch(
 	() => [props.config.preset, props.config.customFragmentShader],
 	() => {
-		if (!gl) return
-		compilePreset()
+		if (!renderer) return
+		if (props.config.preset === "custom" && !props.config.customFragmentShader?.trim()) {
+			errorMessage.value = "Custom shader is empty. Pick a bundled preset or paste a fragment shader source."
+			return
+		}
+		const err = renderer.compileShader(getFragmentSource())
+		errorMessage.value = err ?? ""
 	},
 )
 
 onMounted(() => {
+	if (!canvas.value) return
 	try {
-		gl = canvas.value?.getContext("webgl", { alpha: true }) ?? undefined
-		if (!gl) throw new Error("WebGL is not available.")
-		positionBuffer = gl.createBuffer() ?? undefined
-		if (!positionBuffer) throw new Error("Failed to create WebGL buffer.")
-		gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW)
-		compilePreset()
-		resizeObserver = new ResizeObserver(resize)
-		if (canvas.value) resizeObserver.observe(canvas.value)
-		render()
+		renderer = new ShaderRenderer({
+			canvas: canvas.value,
+			fragmentSource: getFragmentSource(),
+			getAccentColor: () => hexToVec3(props.config.accentColor, [0.57, 0.27, 1]),
+			getSecondaryColor: () => hexToVec3(props.config.secondaryColor, [0, 0.82, 1]),
+			getIntensity: () => Number(props.config.intensity ?? 0.8),
+			getSpeed: () => Number(props.config.speed ?? 1),
+		})
 	} catch (error) {
 		errorMessage.value = error instanceof Error ? error.message : String(error)
 	}
 })
 
 onUnmounted(() => {
-	cancelAnimationFrame(animationFrame)
-	resizeObserver?.disconnect()
-	if (gl && positionBuffer) gl.deleteBuffer(positionBuffer)
-	if (gl && program) gl.deleteProgram(program)
+	renderer?.dispose()
 })
 
-function compilePreset() {
-	if (!gl) return
-	if (props.config.preset === "custom" && !props.config.customFragmentShader?.trim()) {
-		errorMessage.value = "Custom shader is empty. Pick a bundled preset or paste a fragment shader source."
-		return
-	}
-	const source =
-		props.config.preset === "custom" && props.config.customFragmentShader
-			? props.config.customFragmentShader
-			: presets[props.config.preset] || presets.aurora
-
-	try {
-		const nextProgram = createProgram(gl, source)
-		if (program) gl.deleteProgram(program)
-		program = nextProgram
-		startedAt = performance.now()
-		errorMessage.value = ""
-	} catch (error) {
-		errorMessage.value = error instanceof Error ? error.message : String(error)
-	}
-}
-
-function render() {
-	if (!gl || !program || !canvas.value) return
-	resize()
-	const positionLocation = gl.getAttribLocation(program, "a_position")
-	gl.clearColor(0, 0, 0, 0)
-	gl.clear(gl.COLOR_BUFFER_BIT)
-	gl.useProgram(program)
-	gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer ?? null)
-	gl.enableVertexAttribArray(positionLocation)
-	gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0)
-	gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), canvas.value.width, canvas.value.height)
-	gl.uniform1f(gl.getUniformLocation(program, "u_time"), (performance.now() - startedAt) / 1000)
-	gl.uniform3fv(gl.getUniformLocation(program, "u_accent"), hexToVec3(props.config.accentColor, [0.57, 0.27, 1]))
-	gl.uniform3fv(gl.getUniformLocation(program, "u_secondary"), hexToVec3(props.config.secondaryColor, [0, 0.82, 1]))
-	gl.uniform1f(gl.getUniformLocation(program, "u_intensity"), Number(props.config.intensity ?? 0.8))
-	gl.uniform1f(gl.getUniformLocation(program, "u_speed"), Number(props.config.speed ?? 1))
-	gl.drawArrays(gl.TRIANGLES, 0, 6)
-	animationFrame = requestAnimationFrame(render)
-}
-
-function resize() {
-	if (!gl || !canvas.value) return
-	const pixelRatio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2))
-	const width = Math.max(1, Math.floor(canvas.value.clientWidth * pixelRatio))
-	const height = Math.max(1, Math.floor(canvas.value.clientHeight * pixelRatio))
-	if (canvas.value.width === width && canvas.value.height === height) return
-	canvas.value.width = width
-	canvas.value.height = height
-	gl.viewport(0, 0, width, height)
-}
-
-function createShader(context: WebGLRenderingContext, type: number, source: string) {
-	const shader = context.createShader(type)
-	if (!shader) throw new Error("Failed to create shader.")
-	context.shaderSource(shader, source)
-	context.compileShader(shader)
-	if (!context.getShaderParameter(shader, context.COMPILE_STATUS)) {
-		const message = context.getShaderInfoLog(shader) || "Shader compilation failed."
-		context.deleteShader(shader)
-		throw new Error(message)
-	}
-	return shader
-}
-
-function createProgram(context: WebGLRenderingContext, fragmentSource: string) {
-	const nextProgram = context.createProgram()
-	if (!nextProgram) throw new Error("Failed to create shader program.")
-	const vertexShader = createShader(context, context.VERTEX_SHADER, vertexShaderSource)
-	const fragmentShader = createShader(context, context.FRAGMENT_SHADER, fragmentSource)
-	try {
-		context.attachShader(nextProgram, vertexShader)
-		context.attachShader(nextProgram, fragmentShader)
-		context.linkProgram(nextProgram)
-		if (!context.getProgramParameter(nextProgram, context.LINK_STATUS)) {
-			throw new Error(context.getProgramInfoLog(nextProgram) || "Shader linking failed.")
-		}
-		return nextProgram
-	} catch (error) {
-		context.deleteProgram(nextProgram)
-		throw error
-	} finally {
-		context.deleteShader(vertexShader)
-		context.deleteShader(fragmentShader)
-	}
-}
-
-function hexToVec3(hex: string, fallback: [number, number, number]) {
+function hexToVec3(hex: string, fallback: [number, number, number]): [number, number, number] {
 	const match = String(hex || "").match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
 	if (!match) return fallback
 	let value = match[1]
 	if (value.length === 3) value = value.split("").map((char) => char + char).join("")
 	const parsed = Number.parseInt(value, 16)
-	return [((parsed >> 16) & 255) / 255, ((parsed >> 8) & 255) / 255, (parsed & 255) / 255] as [
-		number,
-		number,
-		number,
-	]
+	return [((parsed >> 16) & 255) / 255, ((parsed >> 8) & 255) / 255, (parsed & 255) / 255]
 }
 </script>
 

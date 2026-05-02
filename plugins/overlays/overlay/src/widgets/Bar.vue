@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { declareWidgetOptions, useMediaResolver } from "castmate-overlay-core"
+import { declareWidgetOptions, useMediaResolver } from "ShowRunner-overlay-core"
 import {
 	getBackgroundCSS,
 	getBorderCSS,
@@ -30,7 +30,7 @@ import {
 	WidgetBorderRadius,
 	WidgetBorderStyle,
 	WidgetOutlineStyle,
-} from "castmate-plugin-overlays-shared"
+} from "ShowRunner-plugin-overlays-shared"
 import { computed, CSSProperties } from "vue"
 
 const mediaResolver = useMediaResolver()

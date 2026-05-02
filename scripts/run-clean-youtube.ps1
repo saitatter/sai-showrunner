@@ -40,7 +40,7 @@ try {
 	if (!$SkipBuild) {
 		node .\vite-util\multi-vite.mjs build
 	}
-	corepack yarn workspace castmate run inspect
+	corepack yarn workspace ShowRunner run inspect
 } finally {
 	Pop-Location
 }

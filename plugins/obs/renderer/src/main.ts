@@ -7,9 +7,9 @@ import {
 	useProjectStore,
 	useDockingStore,
 	ProjectGroup,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import "./css/icons.css"
-import { OBSSourceTransform } from "castmate-plugin-obs-shared"
+import { OBSSourceTransform } from "ShowRunner-plugin-obs-shared"
 import { computed } from "vue"
 
 export { default as DashboardObsCard } from "./components/DashboardObsCard.vue"

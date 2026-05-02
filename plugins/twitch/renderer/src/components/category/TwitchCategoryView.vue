@@ -7,8 +7,8 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaTwitchCategory, TwitchCategoryUnresolved } from "castmate-plugin-twitch-shared"
-import { SharedDataViewProps } from "castmate-ui-core"
+import { SchemaTwitchCategory, TwitchCategoryUnresolved } from "ShowRunner-plugin-twitch-shared"
+import { SharedDataViewProps } from "ShowRunner-ui-core"
 import { computedAsync } from "@vueuse/core"
 import { useCategoryStore } from "../../util/category"
 

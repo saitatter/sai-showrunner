@@ -19,8 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import { TTSVoiceConfig } from "castmate-plugin-sound-shared"
-import { ScrollingTabBody, DataInput, ResourceProxyFactory } from "castmate-ui-core"
+import { TTSVoiceConfig } from "ShowRunner-plugin-sound-shared"
+import { ScrollingTabBody, DataInput, ResourceProxyFactory } from "ShowRunner-ui-core"
 import { TTSVoiceView } from "./tts-types"
 import { ref, useModel } from "vue"
 import PInputText from "primevue/inputtext"

@@ -1,4 +1,4 @@
-import { EventList, getPluginSetting } from "castmate-core"
+import { EventList, getPluginSetting } from "ShowRunner-core"
 import dgram from "node:dgram"
 
 export class TwinklyDiscovery {

@@ -1,11 +1,11 @@
 import { ApiClient } from "@twurple/api"
 import { EventSubWsListener } from "@twurple/eventsub-ws"
 import { TwitchAccount } from "./twitch-auth"
-import { defineState, defineTrigger, usePluginLogger } from "castmate-core"
-import { Range } from "castmate-schema"
+import { defineState, defineTrigger, usePluginLogger } from "ShowRunner-core"
+import { Range } from "ShowRunner-schema"
 import { TwitchAPIService, onBotAuth, onChannelAuth } from "./api-harness"
 import { ViewerCache } from "./viewer-cache"
-import { TwitchViewer, TwitchViewerGroup } from "castmate-plugin-twitch-shared"
+import { TwitchViewer, TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
 import { inTwitchViewerGroup, isEmptyTwitchViewerGroup } from "./group"
 
 export function setupSubscriptions() {
@@ -206,6 +206,9 @@ export function setupSubscriptions() {
 				.then((viewer) => {
 					lastSubscriber.value = viewer
 				})
+				.catch((err) => {
+					logger.error("Error resolving subscriber viewer", err)
+				})
 
 			await subscription({
 				tier,
@@ -240,6 +243,9 @@ export function setupSubscriptions() {
 				.getResolvedViewer(subInfo.userId)
 				.then((viewer) => {
 					lastSubscriber.value = viewer
+				})
+				.catch((err) => {
+					logger.error("Error resolving resubscriber viewer", err)
 				})
 
 			subscription({

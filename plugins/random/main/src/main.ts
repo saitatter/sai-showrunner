@@ -6,9 +6,9 @@ import {
 	definePlugin,
 	defineFlowAction,
 	usePluginLogger,
-} from "castmate-core"
-import { OverlayWebsocketService, handleWidgetRPC } from "castmate-plugin-overlays-main"
-import { OverlayWidget } from "castmate-plugin-overlays-shared"
+} from "ShowRunner-core"
+import { OverlayWebsocketService, handleWidgetRPC } from "ShowRunner-plugin-overlays-main"
+import { OverlayWidget } from "ShowRunner-plugin-overlays-shared"
 export default definePlugin(
 	{
 		id: "random",

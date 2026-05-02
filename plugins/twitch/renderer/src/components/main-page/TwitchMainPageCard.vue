@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { MainPageCard } from "castmate-ui-core"
+import { MainPageCard } from "ShowRunner-ui-core"
 
 import UnauthedTwitchAccountError from "./UnauthedTwitchAccountError.vue"
 import TwitchStats from "./TwitchStats.vue"

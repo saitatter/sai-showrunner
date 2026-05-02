@@ -1,4 +1,4 @@
-import { useResourceStore } from "castmate-ui-core"
+import { useResourceStore } from "ShowRunner-ui-core"
 import "./css/icons.css"
 import WyzeAccountSettings from "./components/WyzeAccountSettings.vue"
 

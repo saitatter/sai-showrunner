@@ -1,6 +1,6 @@
 import { computed, ref } from "vue"
-import { TwitchCategory, StreamInfo } from "castmate-plugin-twitch-shared"
-import { handleIpcMessage, useIpcCaller } from "castmate-ui-core"
+import { TwitchCategory, StreamInfo } from "ShowRunner-plugin-twitch-shared"
+import { handleIpcMessage, useIpcCaller } from "ShowRunner-ui-core"
 import { defineStore } from "pinia"
 
 export const useCategoryStore = defineStore("twitch-categories", () => {

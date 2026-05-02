@@ -1,5 +1,5 @@
-import { sleep, usePluginLogger } from "castmate-core"
-import { Color } from "castmate-schema"
+import { sleep, usePluginLogger } from "ShowRunner-core"
+import { Color } from "ShowRunner-schema"
 import { createSocket, Socket } from "node:dgram"
 import * as chromatism from "chromatism2"
 import { networkInterfaces } from "node:os"
@@ -109,7 +109,9 @@ function sendCommand(socket: Socket, ip: string, data: object) {
 				resolve(bytes)
 			})
 		})
-	} catch (err) {}
+	} catch (err) {
+		logger.error("Error Sending Govee Command", ip, err)
+	}
 }
 
 export interface GoveeEventMap {
@@ -202,7 +204,9 @@ export class GoveeLan extends EventEmitter<GoveeEventMap> {
 		assert(this.socket)
 		try {
 			return await sendMulticastQuery(this.socket)
-		} catch (err) {}
+		} catch (err) {
+			logger.error("Error Polling Govee Devices", err)
+		}
 	}
 
 	async sendOnOff(ip: string, on: boolean) {

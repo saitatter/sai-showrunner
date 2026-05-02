@@ -17,14 +17,14 @@ import {
 	ViewerData,
 	ipcConvertSchema,
 	defineIPCFunc,
-} from "castmate-core"
-import { OverlayConfig } from "castmate-plugin-overlays-shared"
+} from "ShowRunner-core"
+import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
 import { Overlay } from "./overlay-resource"
 import * as express from "express"
 import { app } from "electron"
 import HttpProxy from "http-proxy"
 import { OverlayConfigEvaluator, createOverlayEvaluator } from "./config-evaluation"
-import { MediaFile, ViewerDataObserver } from "castmate-schema"
+import { MediaFile, ViewerDataObserver } from "ShowRunner-schema"
 import { nanoid } from "nanoid/non-secure"
 
 const logger = usePluginLogger("overlays")
@@ -58,11 +58,24 @@ export const OverlayWebsocketService = Service(
 
 		getOverlayPresence(overlayId: string) {
 			const openData = this.openOverlays.get(overlayId)
+			const overlay = Overlay.storage.getById(overlayId)
+			const subscribers = openData?.sockets.length ?? 0
+			const connected = subscribers > 0
 
 			return {
 				overlayId,
-				connected: Boolean(openData?.sockets.length),
-				subscribers: openData?.sockets.length ?? 0,
+				connected,
+				subscribers,
+				widgets:
+					overlay?.config.widgets.map((widget) => ({
+						id: widget.id,
+						name: widget.name,
+						plugin: widget.plugin,
+						widget: widget.widget,
+						visible: widget.visible,
+						connected: connected && widget.visible,
+						subscribers: widget.visible ? subscribers : 0,
+					})) ?? [],
 			}
 		}
 
@@ -399,7 +412,7 @@ export function setupWebsockets() {
 		onLoad(() => {
 			logger.log("Serving Overlays Statically")
 		})
-		//Serve the static files for the SPA app built by castmate-obs-overlay package
+		//Serve the static files for the SPA app built by ShowRunner-obs-overlay package
 		router.get("/:id", (req, res, next) => {
 			const overlay = Overlay.storage.getById(req.params.id)
 
@@ -440,8 +453,6 @@ export function setupWebsockets() {
 		devProxy.on("error", (err) => {
 			logger.error("Error Proxying", err)
 		})
-
-		console.log("REACHED PROXY SETUP CALL---------------------------------------")
 
 		defineWebsocketProxy("/overlays/", devProxy)
 

@@ -9,9 +9,9 @@ import {
 	remoteTemplateSchema,
 	serializeSchema,
 	usePluginLogger,
-} from "castmate-core"
-import { OverlayConfig } from "castmate-plugin-overlays-shared"
-import { filterPromiseAll } from "castmate-schema"
+} from "ShowRunner-core"
+import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
+import { filterPromiseAll } from "ShowRunner-schema"
 import { OverlayWidgetManager } from "./overlay-resource"
 
 const logger = usePluginLogger("overlays")

@@ -1,4 +1,4 @@
-import { LightColor, LightConfig, LightState } from "castmate-plugin-iot-shared"
+import { LightColor, LightConfig, LightState } from "ShowRunner-plugin-iot-shared"
 import {
 	Resource,
 	ResourceStorage,
@@ -11,9 +11,9 @@ import {
 	isSatellite,
 	registerSchemaTemplate,
 	template,
-} from "castmate-core"
-import { Duration, Toggle } from "castmate-schema"
-import { SatelliteResourceSymbol } from "castmate-core"
+} from "ShowRunner-core"
+import { Duration, Toggle } from "ShowRunner-schema"
+import { SatelliteResourceSymbol } from "ShowRunner-core"
 
 export class LightResource<
 	Config extends LightConfig = LightConfig,
@@ -34,8 +34,10 @@ export class PollingLight<
 		this.stopPolling()
 		this.poller = setInterval(async () => {
 			try {
-				this.poll()
-			} catch (err) {}
+				await this.poll()
+			} catch (err) {
+				console.error("Error polling light", err)
+			}
 		}, interval * 1000)
 	}
 

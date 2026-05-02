@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-minecraft-main",
+  "name": "ShowRunner-plugin-minecraft-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,9 +13,9 @@
     "typescript": "*"
   },
   "dependencies": {
-    "castmate-core": "workspace:^",
-    "castmate-plugin-minecraft-shared": "workspace:^",
-    "castmate-schema": "workspace:^",
+    "ShowRunner-core": "workspace:^",
+    "ShowRunner-plugin-minecraft-shared": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
     "ts-rcon": "^1.2.1"
   }
 }

@@ -1,5 +1,5 @@
 {
-    "name": "castmate-plugin-philips-hue",
+    "name": "ShowRunner-plugin-philips-hue",
     "private": true,
     "version": "0.0.1",
     "type": "module",

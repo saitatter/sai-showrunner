@@ -3,7 +3,13 @@
 		<div class="drag-handle">
 			<i class="text-color-secondary mdi mdi-drag" style="font-size: 2rem"></i>
 		</div>
-		<span class="flex-grow-1">{{ model.name }}</span>
+		<div class="widget-list-item__body">
+			<span>{{ model.name }}</span>
+			<small :class="presenceClass">
+				<i :class="presenceIcon" />
+				{{ presenceText }}
+			</small>
+		</div>
 		<c-toggle-button
 			on-icon="mdi mdi-eye-outline"
 			off-icon="mdi mdi-eye-off-outline"
@@ -31,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayWidgetConfig } from "castmate-plugin-overlays-shared"
+import { OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
 import type { MenuItem } from "primevue/menuitem"
 import PToggleButton from "primevue/togglebutton"
 import { computed, ref, useModel } from "vue"
@@ -42,7 +48,7 @@ import {
 	usePropModel,
 	CToggleButton,
 	useUndoCommitter,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 
 import { useDialog } from "primevue/usedialog"
 
@@ -50,6 +56,12 @@ const props = defineProps<{
 	modelValue: OverlayWidgetConfig
 	selected: boolean
 	localPath: string
+	presence?: {
+		id: string
+		connected: boolean
+		subscribers: number
+		visible: boolean
+	}
 }>()
 
 const contextMenu = ref<InstanceType<typeof CContextMenu>>()
@@ -64,6 +76,22 @@ const dialog = useDialog()
 
 const visibleModel = usePropModel(model, "visible")
 const lockedModel = usePropModel(model, "locked")
+
+const presenceText = computed(() => {
+	if (!props.presence?.visible) return "Hidden in overlay"
+	if (props.presence.connected) return `Connected (${props.presence.subscribers})`
+	return "OBS source disconnected"
+})
+
+const presenceIcon = computed(() => {
+	if (!props.presence?.visible) return "mdi mdi-eye-off-outline"
+	return props.presence.connected ? "mdi mdi-broadcast" : "mdi mdi-broadcast-off"
+})
+
+const presenceClass = computed(() => ({
+	live: Boolean(props.presence?.connected),
+	offline: !props.presence?.connected,
+}))
 
 const contextItems = computed<MenuItem[]>(() => {
 	return [
@@ -118,6 +146,32 @@ function onContext(ev: Event) {
 	flex-direction: row;
 	align-items: center;
 	padding: 0 0.5rem;
+}
+
+.widget-list-item__body {
+	display: grid;
+	flex: 1;
+	gap: 0.1rem;
+	min-width: 0;
+}
+
+.widget-list-item__body > span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.widget-list-item__body small {
+	align-items: center;
+	color: var(--text-color-secondary);
+	display: flex;
+	font-size: 0.7rem;
+	gap: 0.3rem;
+	line-height: 1;
+}
+
+.widget-list-item__body small.live {
+	color: #54d98c;
 }
 
 .widget-list-item.selected {

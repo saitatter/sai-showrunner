@@ -40,6 +40,11 @@ module.exports = {
 				},
 			},
 		],
-		"@semantic-release/github",
+		[
+			"@semantic-release/github",
+			{
+				draftRelease: true,
+			},
+		],
 	],
 }

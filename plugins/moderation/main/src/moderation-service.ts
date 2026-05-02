@@ -1,4 +1,4 @@
-import { ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, usePluginLogger, writeYAML } from "castmate-core"
+import { ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, usePluginLogger, writeYAML } from "ShowRunner-core"
 import {
 	ModerationActionInput,
 	ModerationActionResult,
@@ -8,7 +8,7 @@ import {
 	ModerationQueueState,
 	ModerationSettings,
 	ModerationStatus,
-} from "castmate-plugin-moderation-shared"
+} from "ShowRunner-plugin-moderation-shared"
 import WebSocket from "ws"
 
 const DEFAULT_SETTINGS: ModerationSettings = {
@@ -78,7 +78,7 @@ export class ModerationService {
 		} catch (error) {
 			this.status.health = "error"
 			this.status.statusMessage = error instanceof Error ? error.message : String(error)
-			this.logger.warn("Moderation docker health check failed.", error)
+			this.logger.error("Moderation docker health check failed.", error)
 		}
 
 		return this.getStatus()
@@ -118,7 +118,7 @@ export class ModerationService {
 		} catch (error) {
 			this.status.health = "error"
 			this.status.statusMessage = error instanceof Error ? error.message : String(error)
-			this.logger.warn("Failed to forward chat message to moderation docker.", error)
+			this.logger.error("Failed to forward chat message to moderation docker.", error)
 		}
 	}
 
@@ -180,13 +180,16 @@ export class ModerationService {
 		} catch (error) {
 			this.status.health = "error"
 			this.status.statusMessage = error instanceof Error ? error.message : String(error)
-			this.logger.warn("Failed to moderate chat message.", error)
+			this.logger.error("Failed to moderate chat message.", error)
 			return this.toActionResult({
 				messageId,
-				verdict: "flag",
+				verdict: "error",
+				status: "error",
 				confidence: 0,
 				category: "error",
 				reason: this.status.statusMessage,
+				backendError: true,
+				errorMessage: this.status.statusMessage,
 			})
 		}
 	}
@@ -265,7 +268,7 @@ export class ModerationService {
 			socket.on("error", (error) => {
 				this.status.connected = false
 				this.status.statusMessage = error.message
-				this.logger.warn("Moderation websocket error.", error)
+				this.logger.error("Moderation websocket error.", error)
 			})
 			socket.on("close", () => {
 				this.status.connected = false
@@ -302,12 +305,13 @@ export class ModerationService {
 			})
 			if (this.recentDecisions.length > 10) this.recentDecisions.pop()
 		} catch (error) {
-			this.logger.debug("Ignoring non-JSON moderation websocket payload.", raw, error)
+			this.logger.log("Ignoring non-JSON moderation websocket payload.", raw, error)
 		}
 	}
 
 	private scheduleReconnect() {
 		if (!this.settings.enabled || this.reconnectTimer) return
+		this.logger.log("Scheduling moderation websocket reconnect in 5s")
 		this.reconnectTimer = setTimeout(() => {
 			this.reconnectTimer = undefined
 			this.connectDashboardSocket()
@@ -322,8 +326,12 @@ export class ModerationService {
 
 	private closeSocket() {
 		if (!this.socket) return
-		this.socket.removeAllListeners()
-		this.socket.close()
+		try {
+			this.socket.removeAllListeners()
+			this.socket.close()
+		} catch (err) {
+			this.logger.error("Error closing moderation websocket", err)
+		}
 		this.socket = undefined
 	}
 
@@ -340,8 +348,9 @@ export class ModerationService {
 		return { "content-type": "application/json", ...this.authHeaders() }
 	}
 
-	private authHeaders() {
-		return this.settings.apiToken ? { authorization: `Bearer ${this.settings.apiToken}` } : {}
+	private authHeaders(): Record<string, string> {
+		if (this.settings.apiToken) return { authorization: `Bearer ${this.settings.apiToken}` }
+		return {}
 	}
 
 	private withToken(value: string) {
@@ -361,23 +370,30 @@ export class ModerationService {
 
 	private toActionResult(payload: Record<string, unknown>): ModerationActionResult {
 		const verdict = String(payload.verdict || "flag").toLowerCase()
+		const status = String(payload.status || "").toLowerCase()
+		const backendError = Boolean(payload.backendError) || verdict === "error" || status === "error"
 		return {
 			verdict,
 			status:
-				verdict === "allow"
+				status ||
+				(verdict === "allow"
 					? "approved"
 					: verdict === "block"
 						? "blocked"
 						: verdict === "disabled"
 							? "disabled"
-							: "flagged",
+							: backendError
+								? "error"
+								: "flagged"),
 			confidence: Number(payload.confidence ?? 0),
 			category: String(payload.category || "unknown"),
 			reason: String(payload.reason || ""),
 			messageId: String(payload.messageId || ""),
 			approved: verdict === "allow",
 			blocked: verdict === "block",
-			flagged: verdict === "flag",
+			flagged: !backendError && verdict === "flag",
+			backendError,
+			errorMessage: String(payload.errorMessage || (backendError ? payload.reason || "" : "")),
 		}
 	}
 }

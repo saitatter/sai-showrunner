@@ -24,10 +24,10 @@
 </template>
 
 <script setup lang="ts">
-import { TemplateNumber } from "castmate-schema"
-import { LabelFloater, TemplateToggle, CContextMenu, useDataBinding, NumberField } from "castmate-ui-core"
+import { TemplateNumber } from "ShowRunner-schema"
+import { LabelFloater, TemplateToggle, CContextMenu, useDataBinding, NumberField } from "ShowRunner-ui-core"
 import { useModel, ref, computed, onMounted } from "vue"
-import { OBSWSSourceTransform } from "castmate-plugin-obs-shared"
+import { OBSWSSourceTransform } from "ShowRunner-plugin-obs-shared"
 import type { MenuItem } from "primevue/menuitem"
 
 const props = defineProps<{

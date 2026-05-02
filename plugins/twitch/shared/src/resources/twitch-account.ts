@@ -1,4 +1,4 @@
-import { AccountConfig } from "castmate-schema"
+import { AccountConfig } from "ShowRunner-schema"
 
 export interface TwitchAccountSecrets {
 	accessToken: string

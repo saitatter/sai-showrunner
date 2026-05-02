@@ -13,7 +13,7 @@ import {
 	defineState,
 	onUnload,
 	Service,
-} from "castmate-core"
+} from "ShowRunner-core"
 import OBSWebSocket, { OBSEventTypes, OBSWebSocketError } from "obs-websocket-js"
 import {
 	OBSConnectionConfig,
@@ -21,9 +21,9 @@ import {
 	OBSSceneListItem,
 	OBSWSInput,
 	OBSWSSceneItem,
-} from "castmate-plugin-obs-shared"
+} from "ShowRunner-plugin-obs-shared"
 
-import { isProcessRunning } from "castmate-plugin-os-main"
+import { isProcessRunning } from "ShowRunner-plugin-os-main"
 
 import { nanoid } from "nanoid/non-secure"
 import _flatten from "lodash/flatten"
@@ -94,10 +94,10 @@ function openObs(installDir: string) {
 					cwd: `${installDir}\\bin\\64bit\\`,
 				},
 				(err, stdout, stderr) => {
-					console.log(stdout)
-					console.error(stderr)
+					if (stdout) logger.log(stdout)
+					if (stderr) logger.error(stderr)
 					if (err) {
-						console.error(err)
+						logger.error("Error starting OBS", err)
 						return resolve(false)
 					}
 					resolve(true)
@@ -166,7 +166,9 @@ export const OBSEventService = Service(
 				for (const fn of eventHandlers) {
 					try {
 						await fn(obs, ...args)
-					} catch (err) {}
+					} catch (err) {
+						logger.error(`Error in OBS event handler for ${eventName}`, err)
+					}
 				}
 			})
 		}
@@ -212,7 +214,7 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 				local: isLocalHost(config.host),
 			}
 		} else {
-			//@ts-ignore
+			// @ts-expect-error Initializing with empty config before connection
 			this._config = {}
 		}
 
@@ -310,11 +312,9 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 			this.connection.on("VirtualcamStateChanged", ({ outputActive }) => {
 				this.state.virtualCamming = outputActive
 			})
-		} catch (err) {}
-
-		this.connection.on("StudioModeStateChanged", ({ studioModeEnabled }) => {
-			this.state.studioModeEnabled = studioModeEnabled
-		})
+		} catch (err) {
+			logger.error("VirtualcamStateChanged event not supported by this OBS version", err)
+		}
 
 		this.connection.on("StudioModeStateChanged", ({ studioModeEnabled }) => {
 			this.state.studioModeEnabled = studioModeEnabled
@@ -330,7 +330,9 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 			this.connection.on("VendorEvent", (ev) => {
 				logger.log("OBS Vendor Event", ev.vendorName, ev.eventType, ev.eventData)
 			})
-		} catch (err) {}
+		} catch (err) {
+			logger.error("VendorEvent not supported by this OBS version", err)
+		}
 
 		OBSEventService.getInstance().addEventHandlers(this)
 	}
@@ -340,8 +342,8 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 			try {
 				await this.queryInitialState()
 				return
-			} catch (err) {
-				if (err.code == 207) {
+			} catch (err: any) {
+				if (err?.code == 207) {
 					logger.log(err.message)
 				} else {
 					logger.error("Error Trying Initial State Check", err)
@@ -358,7 +360,9 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 		try {
 			const replayStatus = await this.connection.call("GetReplayBufferStatus")
 			this.state.replayBuffering = replayStatus.outputActive
-		} catch {}
+		} catch (err) {
+			logger.error("Replay buffer status not available", err)
+		}
 
 		this.state.streaming = streamStatus.outputActive
 		this.state.recording = recordStatus.outputActive
@@ -608,8 +612,6 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 	async findBrowserByUrlPattern(urlPattern: string) {
 		if (!this.state.connected) return undefined
 
-		console.log("Attempting Browser Find")
-
 		const { inputs } = await this.connection.call("GetInputList", {
 			inputKind: "browser_source",
 		})
@@ -624,8 +626,6 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 		)
 
 		const urlRegex = new RegExp(urlPattern)
-
-		console.log("Checking Pattern", urlPattern)
 
 		const input = inputSettingsAndName.find((i) => {
 			return (i.inputSettings.url as string | undefined)?.match?.(urlRegex)
@@ -686,7 +686,7 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 	}
 
 	/**
-	 * Returns the localhost if castmate is on the same computer as OBS, otherwise returns the IP of OBS
+	 * Returns the localhost if ShowRunner is on the same computer as OBS, otherwise returns the IP of OBS
 	 */
 	getRemoteHost() {
 		if (this.isLocal) return "localhost"
@@ -712,7 +712,7 @@ export function setupRunningPolling() {
 
 	onUnload(() => {
 		if (poller) {
-			//@ts-ignore
+			// @ts-expect-error Timer type mismatch between Node and browser
 			clearInterval(poller)
 		}
 	})
