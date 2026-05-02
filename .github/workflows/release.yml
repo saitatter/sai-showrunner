@@ -19,6 +19,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: yarn
+          cache-dependency-path: yarn.lock
 
       - name: Enable Corepack
         run: corepack enable
@@ -51,16 +53,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Verify Windows artifacts
-        shell: pwsh
-        run: |
-          $files = Get-ChildItem -Path release -File |
-            Where-Object {
-              $_.Name -like "*.exe" -or
-              $_.Name -like "*.zip"
-            }
-          if (-not $files) {
-            throw "No Windows package artifacts found in release/."
-          }
+        run: yarn release:smoke-artifacts
 
   release:
     runs-on: ubuntu-latest
@@ -80,6 +73,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: yarn
+          cache-dependency-path: yarn.lock
 
       - name: Enable Corepack
         run: corepack enable
@@ -114,6 +109,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: yarn
+          cache-dependency-path: yarn.lock
 
       - name: Enable Corepack
         run: corepack enable
@@ -145,9 +142,18 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: Smoke packaged artifacts
+        run: yarn release:smoke-artifacts
+
       - name: Upload Windows artifacts
         shell: pwsh
         run: |
+          $forbidden = Get-ChildItem -Path release -File |
+            Where-Object { $_.Name -eq "builder-debug.yml" }
+          if ($forbidden) {
+            throw "builder-debug.yml must not be published as a release asset."
+          }
+
           $files = Get-ChildItem -Path release -File |
             Where-Object {
               $_.Name -eq "latest.yml" -or
@@ -160,5 +166,6 @@ jobs:
             throw "No Windows package artifacts found in release/."
           }
           gh release upload "${{ needs.release.outputs.tag }}" $files --clobber
+          gh release edit "${{ needs.release.outputs.tag }}" --draft=false --latest
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}

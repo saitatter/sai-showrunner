@@ -13,6 +13,7 @@
 		"dev:clean:youtube": "node ./scripts/run-clean-youtube.mjs",
 		"overlay:smoke": "vitest run packages/showrunner-obs-overlay/src/loader/utils/__tests__",
 		"release:dry-run": "semantic-release --dry-run --no-ci",
+		"release:smoke-artifacts": "node ./scripts/smoke-release-artifacts.cjs",
 		"satdev": "yarn workspace ShowRunner-satellite dev",
 		"test": "vitest run",
 		"test:semantic-release": "vitest run scripts/semantic-release",
