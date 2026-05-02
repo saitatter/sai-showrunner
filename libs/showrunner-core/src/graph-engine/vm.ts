@@ -15,7 +15,7 @@ export interface GraphVMOptions {
 interface CallFrame {
 	returnPC: number
 	localSnapshot: any[]
-	outputSlots: Record<string, number>
+	callNodeId?: string
 }
 
 export type VMCompletion = "complete" | "aborted" | "error"
@@ -237,8 +237,19 @@ export class GraphVM {
 			const source = wireMap[wireKey]
 			if (source) {
 				const sourceResult = this.nodeResults.get(source.fromNodeId)
-				resolved[key] = sourceResult?.[source.fromPort]
+				resolved[key] = getPathValue(sourceResult, source.fromPort)
 			}
+		}
+
+		for (const wireKey of Object.keys(wireMap)) {
+			const [toNodeId, ...toPortParts] = wireKey.split(":")
+			if (toNodeId !== node.id) continue
+			const toPort = toPortParts.join(":")
+			if (!toPort || Object.prototype.hasOwnProperty.call(resolved, toPort)) continue
+
+			const source = wireMap[wireKey]
+			const sourceResult = this.nodeResults.get(source.fromNodeId)
+			setPathValue(resolved, toPort, getPathValue(sourceResult, source.fromPort))
 		}
 
 		return resolved
@@ -257,7 +268,7 @@ export class GraphVM {
 		this.callStack.push({
 			returnPC: this.pc + 1,
 			localSnapshot: [...this.locals],
-			outputSlots: {},
+			callNodeId: instr.nodeId,
 		})
 
 		// Set parameter values from inputs — map by name for reliable binding
@@ -282,8 +293,17 @@ export class GraphVM {
 			return
 		}
 
+		const outputs: Record<string, any> = {}
+		const outputExprs = instr.arg1 as Record<string, Expression> | undefined
+		for (const key of Object.keys(outputExprs ?? {})) {
+			outputs[key] = this.evalExpr(outputExprs?.[key])
+		}
+
 		// Restore locals
 		this.locals = frame.localSnapshot
+		if (frame.callNodeId) {
+			this.nodeResults.set(frame.callNodeId, outputs)
+		}
 		this.pc = frame.returnPC
 	}
 
@@ -316,4 +336,40 @@ export class GraphVM {
 			}
 		})
 	}
+}
+
+function getPathValue(source: any, path: string) {
+	if (source == null) return undefined
+	const parts = parsePath(path)
+	let cursor = source
+	for (const part of parts) {
+		if (cursor == null) return undefined
+		cursor = cursor[part as keyof typeof cursor]
+	}
+	return cursor
+}
+
+function setPathValue(target: Record<string, any>, path: string, value: any) {
+	const parts = parsePath(path)
+	if (parts.length === 0) return
+
+	let cursor: any = target
+	for (let i = 0; i < parts.length - 1; i++) {
+		const part = parts[i]
+		const nextPart = parts[i + 1]
+		if (cursor[part] == null || typeof cursor[part] !== "object") {
+			cursor[part] = typeof nextPart === "number" ? [] : {}
+		}
+		cursor = cursor[part]
+	}
+	cursor[parts[parts.length - 1]] = value
+}
+
+function parsePath(path: string): Array<string | number> {
+	const parts: Array<string | number> = []
+	for (const match of path.matchAll(/([^.[\]]+)|\[(\d+)\]/g)) {
+		if (match[1]) parts.push(match[1])
+		else if (match[2]) parts.push(Number(match[2]))
+	}
+	return parts
 }

@@ -116,6 +116,36 @@ describe("Graph Integration (compile → VM → action)", () => {
 		expect(receivedConfig.amount).toBe(42)
 	})
 
+	it("resolves data wires into nested config paths", async () => {
+		let receivedConfig: any = null
+		mockGetAction.mockImplementation((_plugin: string, action: string) => {
+			if (action === "producer") {
+				return mockAction(async () => ({ payload: { message: "nested hello" } }))
+			}
+			return mockAction(async (config) => {
+				receivedConfig = config
+				return {}
+			})
+		})
+
+		const graph: AutomationGraph = {
+			nodes: [
+				{ id: "a1", type: "action", plugin: "p", action: "producer", config: {}, x: 0, y: 0 },
+				{ id: "a2", type: "action", plugin: "p", action: "consumer", config: { payload: { message: "" } }, x: 1, y: 0 },
+			],
+			edges: [{ id: "e1", from: "a1", to: "a2" }],
+			entryNodeId: "a1",
+		}
+		const dataWires: AutomationDataWire[] = [
+			{ id: "w1", fromNode: "a1", fromPort: "payload.message", toNode: "a2", toPort: "payload.message" },
+		]
+
+		const program = new GraphCompiler().compile(graph, undefined, dataWires)
+		await new GraphVM(program, { contextState: {} }).execute()
+
+		expect(receivedConfig.payload.message).toBe("nested hello")
+	})
+
 	it("executes correct branch in if-then-else", async () => {
 		const calls: string[] = []
 		mockGetAction.mockImplementation((_p: string, action: string) =>
