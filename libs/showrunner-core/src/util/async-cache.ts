@@ -45,7 +45,9 @@ export class AsyncDictCache<T extends object, K extends keyof T> {
 				this.data.set(obj[this.key], obj)
 			}
 			this.lastCacheTime = Date.now()
-		} catch (err) {}
+		} catch (err) {
+			console.error("[AsyncCache] Update failed", err)
+		}
 	}
 
 	async fetch() {

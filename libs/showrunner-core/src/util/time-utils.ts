@@ -177,7 +177,9 @@ export function createTriggerScheduler<
 						//Reschedule the existing triggers
 						scheduleTriggers(scheduledTriggers)
 					}
-				} catch (err) {}
+				} catch (err) {
+					logger.error("Validation query failed", err)
+				}
 			},
 			validationAdvance
 		)

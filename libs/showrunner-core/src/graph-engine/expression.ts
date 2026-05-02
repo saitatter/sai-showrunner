@@ -85,13 +85,13 @@ function evalBinary(op: string, left: any, right: any): any {
 		case "*":
 			return left * right
 		case "/":
-			if (right === 0) return NaN
+			if (right === 0) throw new Error("Division by zero")
 			return left / right
 		case "%":
-			if (right === 0) return NaN
+			if (right === 0) throw new Error("Modulo by zero")
 			return left % right
 		default:
-			return undefined
+			throw new Error(`Unknown binary operator: ${op}`)
 	}
 }
 
@@ -104,7 +104,7 @@ function evalUnary(op: string, operand: any): any {
 		case "typeof":
 			return typeof operand
 		default:
-			return undefined
+			throw new Error(`Unknown unary operator: ${op}`)
 	}
 }
 
@@ -163,6 +163,6 @@ function evalBuiltin(fn: BuiltinFn, args: any[]): any {
 			return args[0]
 		}
 		default:
-			return undefined
+			throw new Error(`Unknown builtin function: ${fn}`)
 	}
 }

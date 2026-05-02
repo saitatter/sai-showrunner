@@ -90,7 +90,7 @@ export function isTimeAction(action: InstantAction | TimeAction | ActionStack | 
 	return "offsets" in action
 }
 
-export function isInstantAction(action: InstantAction | TimeAction | ActionStack | FlowAction): action is TimeAction {
+export function isInstantAction(action: InstantAction | TimeAction | ActionStack | FlowAction): action is InstantAction {
 	return !isActionStack(action) && !isFlowAction(action) && !isTimeAction(action)
 }
 

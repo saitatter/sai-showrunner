@@ -141,7 +141,9 @@ export const MediaManager = Service(
 				if (realFile.indexOf(tempFolder) == 0) {
 					return path.relative(tempFolder, realFile)
 				}
-			} catch (err) {}
+			} catch (err) {
+				// Path resolution failed — not a temp file
+			}
 			return false
 		}
 
@@ -156,7 +158,9 @@ export const MediaManager = Service(
 				if (realFile.indexOf(mediaFolder) == 0) {
 					return path.relative(mediaFolder, realFile)
 				}
-			} catch (err) {}
+			} catch (err) {
+				// Path resolution failed — not a media folder file
+			}
 			return false
 		}
 

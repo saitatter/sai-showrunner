@@ -62,7 +62,9 @@ export function useClipboard(
 		if (actions.length === 0 && copiedVarNodes.length === 0) return
 		const payload = JSON.stringify({ actions, variableNodes: copiedVarNodes, wires: copiedWires })
 		inMemoryClipboard = payload
-		navigator.clipboard.writeText(payload).catch(() => {})
+		navigator.clipboard.writeText(payload).catch((err) => {
+			console.warn("[Clipboard] Failed to write to system clipboard, using in-memory fallback", err)
+		})
 		logActivity("Copied", `${actions.length + copiedVarNodes.length} node${(actions.length + copiedVarNodes.length) === 1 ? "" : "s"}`)
 	}
 

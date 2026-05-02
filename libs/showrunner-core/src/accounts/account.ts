@@ -96,7 +96,9 @@ export class Account<
 		const accountDir = (this.constructor as AccountConstructor).accountDirectory
 		try {
 			await super.setConfig(await loadYAML("accounts", accountDir, `${this.id}.yaml`))
-		} catch (err) {}
+		} catch (err) {
+			// Expected on first run when no config file exists yet
+		}
 	}
 
 	async checkCachedCreds(): Promise<boolean> {

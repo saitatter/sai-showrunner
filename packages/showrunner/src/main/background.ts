@@ -8,7 +8,7 @@ import { initializeShowRunner, finializeShowRunnerSetup, loadAutomations, setupS
 import { finishInitDashboards } from "ShowRunner-plugin-dashboards-main"
 import { loadPlugins } from "./plugins"
 
-const isDevelopment = false //!app.isPackaged // true //TODO: import.meta.env.DEV
+const isDevelopment = !app.isPackaged
 
 app.setName("ShowRunner")
 if (process.platform === "win32") app.setAppUserModelId("com.saitatter.showrunner")

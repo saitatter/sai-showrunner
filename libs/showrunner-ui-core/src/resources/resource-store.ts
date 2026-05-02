@@ -117,7 +117,9 @@ export const useResourceStore = defineStore("resources", () => {
 			for (let i = 0; i < typeNames.length; ++i) {
 				resourceMap.value.set(typeNames[i], convertResourcesToStorage(resourceArrays[i]))
 			}
-		} catch (err) {}
+		} catch (err) {
+			console.error("[ResourceStore] Failed to load resources", err)
+		}
 	}
 
 	function registerSettingComponent(resourceType: string, component: Component) {
