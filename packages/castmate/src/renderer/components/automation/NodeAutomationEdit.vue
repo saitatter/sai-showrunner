@@ -114,6 +114,26 @@
 							:d="edge.path"
 							vector-effect="non-scaling-stroke"
 						/>
+						<template v-for="(guide, gi) in alignmentGuides" :key="`guide-${gi}`">
+							<line
+								v-if="guide.axis === 'x'"
+								class="node-automation__alignment-guide"
+								:x1="guide.position"
+								:y1="guide.from - 8"
+								:x2="guide.position"
+								:y2="guide.to + 8"
+								vector-effect="non-scaling-stroke"
+							/>
+							<line
+								v-else
+								class="node-automation__alignment-guide"
+								:x1="guide.from - 8"
+								:y1="guide.position"
+								:x2="guide.to + 8"
+								:y2="guide.position"
+								vector-effect="non-scaling-stroke"
+							/>
+						</template>
 					</svg>
 
 					<button
@@ -123,15 +143,15 @@
 						:class="[
 							`node-automation__node--${node.kind}`,
 							{
-								selected: selectedNodeId === node.id,
+								selected: selectedNodeIds.has(node.id),
 								'drop-target': dropTargetNodeId === node.id,
 								'preview-active': playheadNodeId === node.id,
 							},
 						]"
-						:style="{ transform: `translate(${node.x}px, ${node.y}px)` }"
+						:style="{ transform: `translate(${node.x}px, ${node.y}px)`, height: `${node.height}px` }"
 						type="button"
 						@pointerdown.stop="startDrag($event, node)"
-						@click.stop="selectedNodeId = node.id"
+						@click.stop="selectNode($event, node.id)"
 						@contextmenu.prevent.stop="openNodeContext($event, node)"
 						@dragover.prevent.stop="dropTargetNodeId = node.id"
 						@dragleave.stop="clearDropTarget(node.id)"
@@ -146,12 +166,28 @@
 							<small>{{ node.subtitle }}</small>
 						</span>
 						<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
+						<dl v-if="node.configLines?.length" class="node-automation__node-config">
+							<div v-for="(line, li) in node.configLines" :key="li" class="node-automation__node-config-line">
+								<dt>{{ line.label }}</dt>
+								<dd>{{ line.value }}</dd>
+							</div>
+						</dl>
 						<span
 							v-if="node.id !== 'trigger'"
 							class="node-automation__handle node-automation__handle--out"
 							title="Drop an action here to insert after this node"
 						/>
 					</button>
+
+					<div
+						v-if="rubberBand"
+						class="node-automation__rubber-band"
+						:style="{
+							transform: `translate(${rubberBand.x}px, ${rubberBand.y}px)`,
+							width: `${rubberBand.width}px`,
+							height: `${rubberBand.height}px`,
+						}"
+					/>
 				</div>
 
 				<div
@@ -244,7 +280,7 @@
 						class="node-automation__icon-button"
 						type="button"
 						aria-label="Close context"
-						@click="selectedNodeId = undefined"
+						@click="clearSelection()"
 						v-tooltip="'Close context'"
 					>
 						<i class="mdi mdi-close" />
@@ -399,6 +435,7 @@ import {
 	TriggerConfigEdit,
 	useCommitUndo,
 	usePluginStore,
+	ActionDefinition,
 } from "castmate-ui-core"
 import {
 	ActionStack,
@@ -410,6 +447,7 @@ import {
 	isActionStack,
 	isFlowAction,
 	isTimeAction,
+	isObjectSchema,
 	constructDefault,
 } from "castmate-schema"
 import { useNodeActivity } from "./useNodeActivity"
@@ -417,6 +455,11 @@ import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./us
 import { useNodeContextMenu } from "./useNodeContextMenu"
 import { useNodeDrag } from "./useNodeDrag"
 import { useAutomationPreview } from "./useAutomationPreview"
+
+interface ConfigLine {
+	label: string
+	value: string
+}
 
 interface NodeData extends NodePosition {
 	id: string
@@ -426,6 +469,8 @@ interface NodeData extends NodePosition {
 	icon: string
 	badge?: string
 	path?: string
+	configLines?: ConfigLine[]
+	height: number
 }
 
 interface EdgeData {
@@ -452,10 +497,12 @@ const model = useModel(props, "modelValue")
 const view = useModel(props, "view")
 const mode = ref<"nodes" | "timeline">("nodes")
 const selectedNodeId = ref<string>()
+const selectedNodeIds = ref<Set<string>>(new Set())
 const selectedActionToAdd = ref("")
 const actionPaletteQuery = ref("")
 const dropTargetNodeId = ref<string>()
 const dropTargetEdgeId = ref<string>()
+const rubberBand = ref<{ x: number; y: number; width: number; height: number } | null>(null)
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
@@ -465,16 +512,23 @@ const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
 
 const NODE_WIDTH = 220
-const NODE_HEIGHT = 74
+const NODE_BASE_HEIGHT = 74
+const CONFIG_LINE_HEIGHT = 20
+const MAX_CONFIG_LINES = 4
 const H_GAP = 285
 const V_GAP = 128
+
+function computeNodeHeight(configLines?: ConfigLine[]): number {
+	if (!configLines || configLines.length === 0) return NODE_BASE_HEIGHT
+	return NODE_BASE_HEIGHT + configLines.length * CONFIG_LINE_HEIGHT + 4
+}
 
 const nodePositions = computed(() => {
 	view.value.nodePositions ??= {}
 	return view.value.nodePositions
 })
 
-const graph = computed(() => buildGraph(model.value))
+const graph = computed(() => buildGraph(model.value, pluginStore.pluginMap))
 const nodes = computed(() =>
 	graph.value.nodes.map((node) => ({
 		...node,
@@ -488,9 +542,9 @@ const edges = computed<EdgeData[]>(() => {
 		const to = byId.get(edge.to)
 		if (!from || !to) return []
 		const startX = from.x + NODE_WIDTH
-		const startY = from.y + NODE_HEIGHT / 2
+		const startY = from.y + from.height / 2
 		const endX = to.x
-		const endY = to.y + NODE_HEIGHT / 2
+		const endY = to.y + to.height / 2
 		const midX = startX + Math.max(60, (endX - startX) / 2)
 		return [
 			{
@@ -516,7 +570,7 @@ const lanes = computed<LaneData[]>(() => {
 		const minX = Math.min(...group.nodes.map((node) => node.x))
 		const minY = Math.min(...group.nodes.map((node) => node.y))
 		const maxX = Math.max(...group.nodes.map((node) => node.x + NODE_WIDTH))
-		const maxY = Math.max(...group.nodes.map((node) => node.y + NODE_HEIGHT))
+		const maxY = Math.max(...group.nodes.map((node) => node.y + node.height))
 		return {
 			id,
 			kind: group.kind,
@@ -524,7 +578,7 @@ const lanes = computed<LaneData[]>(() => {
 			x: Math.max(12, minX - 18),
 			y: Math.max(12, minY - 34),
 			width: Math.max(NODE_WIDTH + 36, maxX - minX + 36),
-			height: Math.max(NODE_HEIGHT + 58, maxY - minY + 58),
+			height: Math.max(NODE_BASE_HEIGHT + 58, maxY - minY + 58),
 		}
 	})
 })
@@ -593,13 +647,13 @@ const viewBox = computed(() => {
 })
 const canvasSize = computed(() => ({
 	width: Math.max(1280, ...nodes.value.map((node) => node.x + NODE_WIDTH + 160)),
-	height: Math.max(720, ...nodes.value.map((node) => node.y + NODE_HEIGHT + 160)),
+	height: Math.max(720, ...nodes.value.map((node) => node.y + node.height + 160)),
 }))
 const graphBounds = computed(() => {
 	const minX = Math.min(42, ...nodes.value.map((node) => node.x))
 	const minY = Math.min(88, ...nodes.value.map((node) => node.y))
 	const maxX = Math.max(...nodes.value.map((node) => node.x + NODE_WIDTH))
-	const maxY = Math.max(...nodes.value.map((node) => node.y + NODE_HEIGHT))
+	const maxY = Math.max(...nodes.value.map((node) => node.y + node.height))
 	return { minX, minY, width: maxX - minX, height: maxY - minY }
 })
 const {
@@ -629,16 +683,77 @@ const {
 	toggleContextGroup,
 	isContextGroupOpen,
 } = useNodeContextMenu(nodes, pluginStore, getCanvasPointFromClient, getNodeLane)
-const { startDrag, resetSelectedNodePosition } = useNodeDrag(
+const { startDrag, resetSelectedNodePosition, alignmentGuides } = useNodeDrag(
 	nodePositions,
 	selectedNodeId,
+	selectedNodeIds,
 	zoom,
 	snapCoordinate,
 	closeContextMenu,
-	commitUndo
+	commitUndo,
+	nodes,
+	NODE_WIDTH
 )
 
-function buildGraph(automation: AutomationConfig) {
+function summarizeConfigValue(value: unknown): string {
+	if (value == null) return "—"
+	if (typeof value === "string") return value.length > 28 ? value.slice(0, 25) + "…" : value || "—"
+	if (typeof value === "number" || typeof value === "boolean") return String(value)
+	if (Array.isArray(value)) return `[${value.length} item${value.length === 1 ? "" : "s"}]`
+	if (typeof value === "object") {
+		const keys = Object.keys(value)
+		if (keys.length === 0) return "{}"
+		return `{${keys.slice(0, 2).join(", ")}${keys.length > 2 ? "…" : ""}}`
+	}
+	return String(value)
+}
+
+function extractConfigSummary(
+	action: AnyAction,
+	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
+): ConfigLine[] {
+	const actionDef = pluginMap.get(action.plugin)?.actions?.[action.action]
+	if (!actionDef) return []
+
+	const lines: ConfigLine[] = []
+	const schema = actionDef.config
+	if (schema && isObjectSchema(schema) && action.config) {
+		for (const [key, propSchema] of Object.entries(schema.properties)) {
+			if (lines.length >= MAX_CONFIG_LINES) break
+			const value = (action.config as Record<string, unknown>)[key]
+			if (value == null && !propSchema.required) continue
+			const label = ("name" in propSchema && propSchema.name) ? String(propSchema.name) : titleCase(key)
+			lines.push({ label, value: summarizeConfigValue(value) })
+		}
+	}
+
+	if (isFlowAction(action) && actionDef.type === "flow") {
+		const flowDef = actionDef as { flowConfig?: { type: ObjectConstructor; properties: Record<string, { name?: string }> } }
+		action.subFlows.forEach((flow, i) => {
+			if (lines.length >= MAX_CONFIG_LINES) return
+			let branchLabel = `Branch ${i + 1}`
+			if (flowDef.flowConfig && isObjectSchema(flowDef.flowConfig) && flow.config) {
+				const firstProp = Object.entries(flowDef.flowConfig.properties)[0]
+				if (firstProp) {
+					const val = (flow.config as Record<string, unknown>)[firstProp[0]]
+					if (val != null) branchLabel += `: ${summarizeConfigValue(val)}`
+				}
+			}
+			lines.push({ label: "↳", value: branchLabel })
+		})
+	}
+
+	if (isTimeAction(action)) {
+		action.offsets.forEach((offset, i) => {
+			if (lines.length >= MAX_CONFIG_LINES) return
+			lines.push({ label: "↳", value: `+${offset.offset}s → ${offset.actions.length} action${offset.actions.length === 1 ? "" : "s"}` })
+		})
+	}
+
+	return lines
+}
+
+function buildGraph(automation: AutomationConfig, pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>) {
 	const nodes: NodeData[] = []
 	const edges: Omit<EdgeData, "path">[] = []
 
@@ -651,9 +766,10 @@ function buildGraph(automation: AutomationConfig) {
 		icon: "mdi mdi-flash",
 		x: 42,
 		y: 88,
+		height: NODE_BASE_HEIGHT,
 	})
 
-	const mainNodes = addSequence(nodes, edges, automation.sequence, "sequence", 1, 0, "Main")
+	const mainNodes = addSequence(nodes, edges, automation.sequence, "sequence", 1, 0, "Main", pluginMap)
 	if (mainNodes[0]) edges.push({ id: `${triggerId}:${mainNodes[0]}`, from: triggerId, to: mainNodes[0] })
 
 	automation.floatingSequences?.forEach((sequence, index) => {
@@ -668,8 +784,9 @@ function buildGraph(automation: AutomationConfig) {
 			x: 42,
 			y: 280 + index * V_GAP,
 			path: `floatingSequences[${index}]`,
+			height: NODE_BASE_HEIGHT,
 		})
-		const childNodes = addSequence(nodes, edges, sequence, `floatingSequences[${index}]`, 1, index + 2, `Floating ${index + 1}`)
+		const childNodes = addSequence(nodes, edges, sequence, `floatingSequences[${index}]`, 1, index + 2, `Floating ${index + 1}`, pluginMap)
 		if (childNodes[0]) edges.push({ id: `${floatingId}:${childNodes[0]}`, from: floatingId, to: childNodes[0] })
 	})
 
@@ -683,11 +800,12 @@ function addSequence(
 	path: string,
 	column: number,
 	row: number,
-	group: string
+	group: string,
+	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
 ) {
 	const ids: string[] = []
 	sequence.actions.forEach((action, index) => {
-		const node = createNode(action, `${path}.actions[${index}]`, column + index, row, group)
+		const node = createNode(action, `${path}.actions[${index}]`, column + index, row, group, pluginMap)
 		nodes.push(node)
 		ids.push(node.id)
 
@@ -697,7 +815,7 @@ function addSequence(
 
 		if (isActionStack(action)) {
 			action.stack.forEach((stackAction, stackIndex) => {
-				const child = createNode(stackAction, `${node.path}.stack[${stackIndex}]`, column + index, row + stackIndex + 1, "Stack")
+				const child = createNode(stackAction, `${node.path}.stack[${stackIndex}]`, column + index, row + stackIndex + 1, "Stack", pluginMap)
 				nodes.push(child)
 				edges.push({ id: `${node.id}:${child.id}`, from: node.id, to: child.id })
 			})
@@ -712,7 +830,8 @@ function addSequence(
 					`${node.path}.offsets[${offsetIndex}]`,
 					column + index + 1,
 					row + offsetIndex + 1,
-					`+${offset.offset}s`
+					`+${offset.offset}s`,
+					pluginMap
 				)
 				if (children[0]) edges.push({ id: `${node.id}:${children[0]}`, from: node.id, to: children[0] })
 			})
@@ -727,7 +846,8 @@ function addSequence(
 					`${node.path}.subFlows[${flowIndex}]`,
 					column + index + 1,
 					row + flowIndex + 1,
-					`Flow ${flowIndex + 1}`
+					`Flow ${flowIndex + 1}`,
+					pluginMap
 				)
 				if (children[0]) edges.push({ id: `${node.id}:${children[0]}`, from: node.id, to: children[0] })
 			})
@@ -736,7 +856,14 @@ function addSequence(
 	return ids
 }
 
-function createNode(action: AnyAction | ActionStack, path: string, column: number, row: number, group: string): NodeData {
+function createNode(
+	action: AnyAction | ActionStack,
+	path: string,
+	column: number,
+	row: number,
+	group: string,
+	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
+): NodeData {
 	if (isActionStack(action)) {
 		const stackCount = action.stack.length
 		return {
@@ -749,11 +876,13 @@ function createNode(action: AnyAction | ActionStack, path: string, column: numbe
 			x: 42 + column * H_GAP,
 			y: 88 + row * V_GAP,
 			path,
+			height: NODE_BASE_HEIGHT,
 		}
 	}
 
 	const timingSummary = getTimingSummary(action)
 	const flowSummary = getFlowSummary(action)
+	const configLines = extractConfigSummary(action, pluginMap)
 
 	return {
 		id: action.id,
@@ -765,6 +894,8 @@ function createNode(action: AnyAction | ActionStack, path: string, column: numbe
 		x: 42 + column * H_GAP,
 		y: 88 + row * V_GAP,
 		path,
+		configLines,
+		height: computeNodeHeight(configLines),
 	}
 }
 
@@ -814,8 +945,34 @@ function getNodeLane(node: NodeData): Pick<LaneData, "id" | "kind" | "label"> {
 	return { id: "main", kind: "main", label: "Main Flow" }
 }
 
+function selectNode(event: MouseEvent | PointerEvent, nodeId: string) {
+	if (event.ctrlKey || event.metaKey) {
+		const next = new Set(selectedNodeIds.value)
+		if (next.has(nodeId)) {
+			next.delete(nodeId)
+			selectedNodeId.value = next.size > 0 ? [...next][next.size - 1] : undefined
+		} else {
+			next.add(nodeId)
+			selectedNodeId.value = nodeId
+		}
+		selectedNodeIds.value = next
+	} else {
+		focusNode(nodeId)
+	}
+}
+
+function focusNode(nodeId: string) {
+	selectedNodeId.value = nodeId
+	selectedNodeIds.value = new Set([nodeId])
+}
+
+function clearSelection() {
+	selectedNodeId.value = undefined
+	selectedNodeIds.value = new Set()
+}
+
 function openNodeContext(event: MouseEvent, node: NodeData) {
-	selectedNodeId.value = node.id
+	selectNode(event, node.id)
 	detailsOpen.value = true
 	configOpen.value = true
 	actionsOpen.value = false
@@ -827,7 +984,7 @@ function openCanvasContextMenu(event: MouseEvent) {
 	if (target.closest(".node-automation__canvas-controls") || target.closest(".node-automation__context-menu")) return
 	const nodeElement = target.closest(".node-automation__node")
 	if (nodeElement) return
-	selectedNodeId.value = undefined
+	clearSelection()
 	openContextMenu(event)
 }
 
@@ -842,11 +999,64 @@ function handleCanvasPointerDown(event: PointerEvent) {
 		target.classList.contains("node-automation__surface") ||
 		target.classList.contains("node-automation__edges")
 
-	if (isCanvasTarget) selectedNodeId.value = undefined
+	if (isCanvasTarget) clearSelection()
 	if (event.button === 1 && isCanvasTarget) {
 		event.preventDefault()
 		startPan(event)
 	}
+	if (event.button === 0 && isCanvasTarget) {
+		startRubberBand(event)
+	}
+}
+
+function startRubberBand(event: PointerEvent) {
+	const canvas = canvasRef.value
+	if (!canvas) return
+
+	const origin = getCanvasPointFromClientPosition(event.clientX, event.clientY)
+	const startX = event.clientX
+	const startY = event.clientY
+	let didMove = false
+
+	canvas.setPointerCapture(event.pointerId)
+
+	function onMove(moveEvent: PointerEvent) {
+		const dx = Math.abs(moveEvent.clientX - startX)
+		const dy = Math.abs(moveEvent.clientY - startY)
+		if (!didMove && dx < 4 && dy < 4) return
+		didMove = true
+
+		const current = getCanvasPointFromClientPosition(moveEvent.clientX, moveEvent.clientY)
+		const x = Math.min(origin.x, current.x)
+		const y = Math.min(origin.y, current.y)
+		const width = Math.abs(current.x - origin.x)
+		const height = Math.abs(current.y - origin.y)
+		rubberBand.value = { x, y, width, height }
+
+		// Select nodes within the rectangle
+		const ids = new Set<string>()
+		for (const node of nodes.value) {
+			const nodeRight = node.x + NODE_WIDTH
+			const nodeBottom = node.y + node.height
+			if (node.x < x + width && nodeRight > x && node.y < y + height && nodeBottom > y) {
+				ids.add(node.id)
+			}
+		}
+		selectedNodeIds.value = ids
+		selectedNodeId.value = ids.size > 0 ? [...ids][0] : undefined
+	}
+
+	function onUp(upEvent: PointerEvent) {
+		canvas.releasePointerCapture(upEvent.pointerId)
+		canvas.removeEventListener("pointermove", onMove)
+		canvas.removeEventListener("pointerup", onUp)
+		canvas.removeEventListener("pointercancel", onUp)
+		rubberBand.value = null
+	}
+
+	canvas.addEventListener("pointermove", onMove)
+	canvas.addEventListener("pointerup", onUp)
+	canvas.addEventListener("pointercancel", onUp)
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -898,7 +1108,7 @@ async function addActionFromPalette() {
 	insertAction(action)
 	logActivity("Added action", `${selection.plugin}/${selection.action}`)
 
-	selectedNodeId.value = action.id
+	focusNode(action.id)
 	configOpen.value = true
 	commitUndo()
 }
@@ -915,7 +1125,7 @@ async function selectActionFromContext(actionKey: string) {
 		nodePositions.value[action.id] = contextMenu.value.canvasPoint
 	}
 	logActivity("Added action", `${selection.plugin}/${selection.action}`)
-	selectedNodeId.value = action.id
+	focusNode(action.id)
 	configOpen.value = true
 	closeContextMenu()
 	commitUndo()
@@ -937,7 +1147,7 @@ async function selectTriggerFromContext(triggerKey: string) {
 		testContext: contextSchema ? await constructDefault(contextSchema) : model.value.testContext,
 	})
 
-	selectedNodeId.value = "trigger"
+	focusNode("trigger")
 	configOpen.value = true
 	closeContextMenu()
 	logActivity("Changed trigger", `${pluginId}/${triggerId}`)
@@ -957,7 +1167,7 @@ async function dropActionOnCanvas(event: DragEvent) {
 	model.value.sequence.actions.push(action)
 	nodePositions.value[action.id] = getCanvasPoint(event)
 	logActivity("Dropped action", `${action.plugin}/${action.action} on canvas`)
-	selectedNodeId.value = action.id
+	focusNode(action.id)
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
 	commitUndo()
@@ -973,7 +1183,7 @@ async function dropActionOnNode(event: DragEvent, node: NodeData) {
 		y: snapCoordinate(node.y),
 	}
 	logActivity("Inserted action", `${action.plugin}/${action.action} after ${node.title}`)
-	selectedNodeId.value = action.id
+	focusNode(action.id)
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
 	commitUndo()
@@ -996,7 +1206,7 @@ async function dropActionOnEdge(event: DragEvent, edge: EdgeData) {
 		y: snapCoordinate(((fromNode?.y ?? 88) + (toNode?.y ?? 88)) / 2),
 	}
 	logActivity("Inserted on edge", `${action.plugin}/${action.action}`)
-	selectedNodeId.value = action.id
+	focusNode(action.id)
 	configOpen.value = true
 	dropTargetEdgeId.value = undefined
 	commitUndo()
@@ -1038,7 +1248,7 @@ function duplicateSelectedAction() {
 	const clonedAction = cloneActionForNodeEditor(actionInfo.action)
 	position.items.splice(position.index + 1, 0, clonedAction)
 	logActivity("Duplicated node", selectedNode.value?.title || actionInfo.action.id)
-	selectedNodeId.value = clonedAction.id
+	focusNode(clonedAction.id)
 	configOpen.value = true
 	commitUndo()
 }
@@ -1052,6 +1262,7 @@ function deleteSelectedAction() {
 		logActivity("Deleted node", selectedNode.value?.title || removed[0].id)
 	}
 	selectedNodeId.value = undefined
+	selectedNodeIds.value = new Set()
 	if (removed.length) commitUndo()
 }
 
@@ -1341,6 +1552,15 @@ onUnmounted(() => {
 	z-index: 0;
 }
 
+.node-automation__rubber-band {
+	background: rgb(139 53 230 / 0.12);
+	border: 1.5px dashed #e9aaff;
+	border-radius: 3px;
+	pointer-events: none;
+	position: absolute;
+	z-index: 5;
+}
+
 .node-automation__lane span {
 	background: rgb(16 16 16 / 0.86);
 	border: 1px solid rgb(255 255 255 / 0.12);
@@ -1399,6 +1619,13 @@ onUnmounted(() => {
 	stroke: rgb(46 212 122 / 0.15);
 }
 
+.node-automation__alignment-guide {
+	pointer-events: none;
+	stroke: #ff6b6b;
+	stroke-dasharray: 4 3;
+	stroke-width: 1px;
+}
+
 .node-automation__node {
 	align-items: center;
 	background: #181818;
@@ -1408,9 +1635,10 @@ onUnmounted(() => {
 	color: white;
 	cursor: grab;
 	display: grid;
-	gap: 0.65rem;
+	gap: 0.45rem 0.65rem;
 	grid-template-columns: 2rem minmax(0, 1fr) auto;
-	height: 74px;
+	grid-template-rows: auto;
+	min-height: 74px;
 	padding: 0.7rem;
 	position: absolute;
 	text-align: left;
@@ -1522,6 +1750,43 @@ onUnmounted(() => {
 	font-size: 0.7rem;
 	font-weight: 700;
 	padding: 0.2rem 0.35rem;
+}
+
+.node-automation__node-config {
+	border-top: 1px solid rgb(255 255 255 / 0.1);
+	display: grid;
+	gap: 0;
+	grid-column: 1 / -1;
+	margin: 0;
+	padding-top: 0.3rem;
+}
+
+.node-automation__node-config-line {
+	display: flex;
+	gap: 0.35rem;
+	line-height: 1.25;
+}
+
+.node-automation__node-config-line dt {
+	color: #b0b0b0;
+	flex-shrink: 0;
+	font-size: 0.68rem;
+	font-weight: 600;
+	max-width: 5.5rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node-automation__node-config-line dd {
+	color: #e9e9e9;
+	flex: 1;
+	font-size: 0.68rem;
+	margin: 0;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .node-automation__context-menu {
