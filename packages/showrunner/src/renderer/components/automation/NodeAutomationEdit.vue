@@ -95,7 +95,9 @@
 							<span :style="{ width: `${playheadProgress}%` }" />
 						</div>
 						<strong>{{ currentPreviewStep?.node.title || "Preview idle" }}</strong>
-						<small>{{ playheadElapsedLabel }} / {{ previewTotalLabel }}</small>
+						<small>
+							<span v-if="currentPreviewRouteLabel">{{ currentPreviewRouteLabel }} • </span>{{ playheadElapsedLabel }} / {{ previewTotalLabel }}
+						</small>
 					</div>
 				</div>
 
@@ -170,9 +172,9 @@
 							class="node-automation__edge-label"
 						>
 							<rect
-								:x="(edge.labelX ?? 0) - 30"
+								:x="(edge.labelX ?? 0) - ((edge.labelWidth ?? 60) / 2)"
 								:y="(edge.labelY ?? 0) - 11"
-								width="60"
+								:width="edge.labelWidth ?? 60"
 								height="22"
 								rx="11"
 							/>
@@ -1052,17 +1054,25 @@ const edges = computed<EdgeData[]>(() => {
 		const toY = toNode ? toNode.y + toNode.height / 2 : 0
 		const cpOffset = Math.min(80, Math.abs(toX - fromX) / 2)
 		const path = `M${fromX},${fromY} C${fromX + cpOffset},${fromY} ${toX - cpOffset},${toY} ${toX},${toY}`
+		const label = getEdgeLabel(e)
 		return {
 			id: e.id,
 			from: e.from,
 			to: e.to,
 			port: e.port,
-			label: getEdgeLabel(e.port),
+			label,
+			labelWidth: getEdgeLabelWidth(label),
 			labelX: (fromX + toX) / 2,
 			labelY: (fromY + toY) / 2 - 10,
 			path,
 		}
 	}).filter((e) => e.path)
+})
+const currentPreviewRouteLabel = computed(() => {
+	const nodeId = currentPreviewStep.value?.node.id
+	if (!nodeId || !model.value.graph) return undefined
+	const incoming = model.value.graph.edges.find((edge) => edge.to === nodeId)
+	return incoming ? getEdgeLabel(incoming) : undefined
 })
 const lanes = computed<LaneData[]>(() => {
 	const groups = new Map<string, { kind: LaneData["kind"]; label: string; nodes: NodeData[] }>()
@@ -1276,10 +1286,26 @@ function isExecPortConnected(nodeId: string, portKey: string): boolean {
 	return model.value.graph.edges.some((e) => e.from === nodeId && e.port === portKey)
 }
 
-function getEdgeLabel(port?: string) {
+function getEdgeLabel(edgeOrPort?: { from?: string; port?: string } | string) {
+	const from = typeof edgeOrPort === "string" ? undefined : edgeOrPort?.from
+	const port = typeof edgeOrPort === "string" ? edgeOrPort : edgeOrPort?.port
 	if (!port) return undefined
-	if (port.startsWith("case:")) return `case ${port.slice(5)}`
+	if (port === "then") return "then"
+	if (port === "else") return "else"
+	if (port === "default") return "default"
+	if (port === "body") return "loop body"
+	if (port === "next") return "done"
+	if (port.startsWith("case:")) {
+		const source = model.value.graph?.nodes.find((node) => node.id === from && node.type === "switch")
+		const match = source?.type === "switch" ? source.cases.find((item) => item.port === port) : undefined
+		return match ? `case: ${String(match.value)}` : `case ${port.slice(5)}`
+	}
 	return port
+}
+
+function getEdgeLabelWidth(label?: string) {
+	if (!label) return undefined
+	return Math.max(60, Math.min(150, label.length * 8 + 24))
 }
 
 const removingWireIds = ref(new Set<string>())
