@@ -7,7 +7,6 @@ import { createWindow } from "./electron/electron-helpers"
 import { initializeShowRunner, finializeShowRunnerSetup, loadAutomations, setupShowRunnerDirectories } from "ShowRunner-core"
 import { finishInitDashboards } from "ShowRunner-plugin-dashboards-main"
 import { loadPlugins } from "./plugins"
-import { checkMigration, finishMigration, migrateAllOldAutomations } from "./migration/old-migration"
 
 const isDevelopment = false //!app.isPackaged // true //TODO: import.meta.env.DEV
 
@@ -74,17 +73,10 @@ app.whenReady().then(async () => {
 	//Creat initial systems
 	await initializeShowRunner()
 
-	//Check if we need to migrate
-	await checkMigration()
-
-	//Load plugins (migrating settings as we go)
+	//Load plugins
 	await loadPlugins()
 
-	await migrateAllOldAutomations()
-
 	await loadAutomations()
-
-	await finishMigration()
 
 	await finializeShowRunnerSetup()
 
