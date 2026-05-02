@@ -23,7 +23,8 @@
 				class="node-automation__canvas"
 				:class="{ panning: isPanning }"
 				@pointerdown="handleCanvasPointerDown"
-				@dragover.prevent
+				@dragover.prevent="updateGhostNode"
+				@dragleave="ghostNode = null"
 				@drop.prevent="dropActionOnCanvas"
 				@wheel.ctrl.prevent="zoomFromWheel"
 				@contextmenu.prevent="openCanvasContextMenu"
@@ -160,12 +161,13 @@
 							@dragover.prevent.stop="dropTargetEdgeId = edge.id"
 							@dragleave.stop="clearDropEdge(edge.id)"
 							@drop.prevent.stop="dropActionOnEdge($event, edge)"
+							@click.stop="selectedEdgeId = edge.id"
 						/>
 						<path
 							v-for="edge in edges"
 							:key="`${edge.id}:line`"
 							class="node-automation__edge"
-							:class="{ active: dropTargetEdgeId === edge.id }"
+							:class="{ active: dropTargetEdgeId === edge.id, selected: selectedEdgeId === edge.id }"
 							:d="edge.path"
 							vector-effect="non-scaling-stroke"
 						/>
@@ -235,6 +237,17 @@
 							title="Drop an action here to insert after this node"
 						/>
 					</button>
+
+					<div
+						v-if="ghostNode"
+						class="node-automation__ghost-node"
+						:style="{
+							transform: `translate(${ghostNode.x}px, ${ghostNode.y}px)`,
+						}"
+					>
+						<i class="mdi mdi-plus" />
+						<span>Drop here</span>
+					</div>
 
 					<div
 						v-if="rubberBand"
@@ -591,6 +604,8 @@ const selectedActionToAdd = ref("")
 const actionPaletteQuery = ref("")
 const dropTargetNodeId = ref<string>()
 const dropTargetEdgeId = ref<string>()
+const selectedEdgeId = ref<string>()
+const ghostNode = ref<{ x: number; y: number } | null>(null)
 const rubberBand = ref<{ x: number; y: number; width: number; height: number } | null>(null)
 const canvasSearchOpen = ref(false)
 const canvasSearchQuery = ref("")
@@ -1089,11 +1104,13 @@ function selectNode(event: MouseEvent | PointerEvent, nodeId: string) {
 function focusNode(nodeId: string) {
 	selectedNodeId.value = nodeId
 	selectedNodeIds.value = new Set([nodeId])
+	selectedEdgeId.value = undefined
 }
 
 function clearSelection() {
 	selectedNodeId.value = undefined
 	selectedNodeIds.value = new Set()
+	selectedEdgeId.value = undefined
 }
 
 function openNodeContext(event: MouseEvent, node: NodeData) {
@@ -1559,6 +1576,7 @@ async function dropActionOnCanvas(event: DragEvent) {
 	focusNode(action.id)
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
+	ghostNode.value = null
 	commitUndo()
 }
 
@@ -1679,6 +1697,10 @@ function getNodePosition(nodeId: string) {
 
 function getCanvasPoint(event: DragEvent): NodePosition {
 	return getCanvasPointFromClient(event.clientX, event.clientY)
+}
+
+function updateGhostNode(event: DragEvent) {
+	ghostNode.value = getCanvasPoint(event)
 }
 
 function getCanvasPointFromClient(clientX: number, clientY: number): NodePosition {
@@ -2107,6 +2129,24 @@ onUnmounted(() => {
 	z-index: 5;
 }
 
+.node-automation__ghost-node {
+	align-items: center;
+	background: rgb(139 53 230 / 0.18);
+	border: 2px dashed #e9aaff;
+	border-radius: 10px;
+	color: #e9aaff;
+	display: flex;
+	font-size: 0.8rem;
+	gap: 0.35rem;
+	height: 74px;
+	justify-content: center;
+	opacity: 0.7;
+	pointer-events: none;
+	position: absolute;
+	width: 220px;
+	z-index: 4;
+}
+
 .node-automation__lane span {
 	background: rgb(16 16 16 / 0.86);
 	border: 1px solid rgb(255 255 255 / 0.12);
@@ -2151,6 +2191,11 @@ onUnmounted(() => {
 .node-automation__edge.active {
 	stroke: #2ed47a;
 	stroke-width: 4px;
+}
+
+.node-automation__edge.selected {
+	stroke: #ffcc00;
+	stroke-width: 3.5px;
 }
 
 .node-automation__edge-hit {
