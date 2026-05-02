@@ -139,7 +139,9 @@ class SevenTVEmoteProvider implements EmoteProvider {
 			const globalSet = sevenTVToEmoteSet(globalResp.data)
 			const userSet = sevenTVToEmoteSet(userResp.data.emote_set)
 			this.emoteSets = [globalSet, userSet]
-		} catch (err) {}
+		} catch (err) {
+			console.error("Error initializing 7TV emotes", err)
+		}
 	}
 
 	reset() {
@@ -151,6 +153,8 @@ class SevenTVEmoteProvider implements EmoteProvider {
 			for (const set of this.emoteSets) {
 				this.onSetAdded?.(set)
 			}
+		}).catch((err) => {
+			console.error("Error resetting 7TV emotes", err)
 		})
 	}
 

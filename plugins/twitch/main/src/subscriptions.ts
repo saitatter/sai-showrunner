@@ -206,6 +206,9 @@ export function setupSubscriptions() {
 				.then((viewer) => {
 					lastSubscriber.value = viewer
 				})
+				.catch((err) => {
+					logger.error("Error resolving subscriber viewer", err)
+				})
 
 			await subscription({
 				tier,
@@ -240,6 +243,9 @@ export function setupSubscriptions() {
 				.getResolvedViewer(subInfo.userId)
 				.then((viewer) => {
 					lastSubscriber.value = viewer
+				})
+				.catch((err) => {
+					logger.error("Error resolving resubscriber viewer", err)
 				})
 
 			subscription({

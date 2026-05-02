@@ -68,6 +68,8 @@ class TwitchNativeEmoteProvider implements EmoteProvider {
 			for (const set of this.emoteSets) {
 				this.onSetAdded?.(set)
 			}
+		}).catch((err) => {
+			console.error("Error resetting Twitch native emotes", err)
 		})
 	}
 
