@@ -166,7 +166,9 @@ export const OBSEventService = Service(
 				for (const fn of eventHandlers) {
 					try {
 						await fn(obs, ...args)
-					} catch (err) {}
+					} catch (err) {
+						logger.error(`Error in OBS event handler for ${eventName}`, err)
+					}
 				}
 			})
 		}
@@ -310,11 +312,9 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 			this.connection.on("VirtualcamStateChanged", ({ outputActive }) => {
 				this.state.virtualCamming = outputActive
 			})
-		} catch (err) {}
-
-		this.connection.on("StudioModeStateChanged", ({ studioModeEnabled }) => {
-			this.state.studioModeEnabled = studioModeEnabled
-		})
+		} catch (err) {
+			logger.warn("VirtualcamStateChanged event not supported by this OBS version", err)
+		}
 
 		this.connection.on("StudioModeStateChanged", ({ studioModeEnabled }) => {
 			this.state.studioModeEnabled = studioModeEnabled
@@ -330,7 +330,9 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 			this.connection.on("VendorEvent", (ev) => {
 				logger.log("OBS Vendor Event", ev.vendorName, ev.eventType, ev.eventData)
 			})
-		} catch (err) {}
+		} catch (err) {
+			logger.warn("VendorEvent not supported by this OBS version", err)
+		}
 
 		OBSEventService.getInstance().addEventHandlers(this)
 	}
@@ -358,7 +360,9 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 		try {
 			const replayStatus = await this.connection.call("GetReplayBufferStatus")
 			this.state.replayBuffering = replayStatus.outputActive
-		} catch {}
+		} catch (err) {
+			logger.warn("Replay buffer status not available", err)
+		}
 
 		this.state.streaming = streamStatus.outputActive
 		this.state.recording = recordStatus.outputActive
