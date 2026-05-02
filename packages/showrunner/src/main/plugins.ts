@@ -43,10 +43,8 @@ import moderationPlugin from "../../../../plugins/moderation/main/src/main"
 
 import ShowRunnerPlugin from "./builtin-plugin"
 import { WebService, Plugin } from "ShowRunner-core"
-import { migratePlugin } from "./migration/old-migration"
 
 export async function loadPlugin(plugin: Plugin) {
-	await migratePlugin(plugin.id)
 	await PluginManager.getInstance().registerPlugin(plugin)
 }
 

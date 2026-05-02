@@ -29,14 +29,16 @@ export const ZOOM_STEP = 0.1
 
 export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRef<GraphBounds>, commitUndo: () => void) {
 	const canvasRef = ref<HTMLElement>()
-	const zoom = ref(view.value.nodeView?.zoom ?? 1)
-	const pan = ref(view.value.nodeView?.pan ?? { x: 0, y: 0 })
+	const nodeView = view.value?.nodeView
+	const zoom = ref(nodeView?.zoom ?? 1)
+	const pan = ref(nodeView?.pan ?? { x: 0, y: 0 })
 	const isPanning = ref(false)
-	const snapToGrid = ref(view.value.nodeView?.snapToGrid ?? true)
+	const snapToGrid = ref(nodeView?.snapToGrid ?? true)
 
 	watch(
 		[zoom, pan, snapToGrid],
 		() => {
+			if (!view.value) return
 			view.value.nodeView = {
 				zoom: zoom.value,
 				pan: pan.value,

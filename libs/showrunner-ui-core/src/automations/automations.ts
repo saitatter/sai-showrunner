@@ -294,12 +294,12 @@ export function useOpenAutomationDocument() {
 
 	return (id: string) => {
 		const resource = resourceStore.value?.resources?.get(id)
-		if (!resource) return
+		const config: AutomationConfig = resource?.config ?? { name: "Untitled", sequence: { actions: [] }, floatingSequences: [] }
 
 		dockingStore.openDocument(
-			resource.id,
-			resource.config,
-			createAutomationViewData(resource),
+			id,
+			config,
+			createAutomationViewData({ id, config, state: {} }),
 			"automation",
 			"mdi mdi-cogs"
 		)
