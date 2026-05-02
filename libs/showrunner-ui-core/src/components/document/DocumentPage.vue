@@ -25,7 +25,7 @@ const props = defineProps<{
 
 const document = useDocument(() => props.pageData.documentId)
 const documentStore = useDocumentStore()
-const documentComponent = useDocumentComponent(document.value?.type)
+const documentComponent = useDocumentComponent(() => document.value?.type)
 provideDocument(() => props.pageData.documentId)
 
 provideBaseDataBinding(() => document.value?.view)
