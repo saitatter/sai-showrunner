@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid/non-secure"
-import { Sequence, StreamPlanConfig, StreamPlanState, SequenceProvider } from "ShowRunner-schema"
+import { createInlineAutomation, Sequence, StreamPlanConfig, StreamPlanState, SequenceProvider } from "ShowRunner-schema"
 import { FileResource } from "../resources/file-resource"
 import { Service } from "../util/service"
 import { ActionQueueManager } from "../queue-system/action-queue"
@@ -25,8 +25,8 @@ export class StreamPlan extends FileResource<StreamPlanConfig, StreamPlanState> 
 
 		this._config = {
 			name: name ?? "",
-			activationAutomation: { sequence: { actions: [] }, floatingSequences: [], queue: undefined },
-			deactivationAutomation: { sequence: { actions: [] }, floatingSequences: [], queue: undefined },
+			activationAutomation: createInlineAutomation(),
+			deactivationAutomation: createInlineAutomation(),
 			segments: [],
 		}
 

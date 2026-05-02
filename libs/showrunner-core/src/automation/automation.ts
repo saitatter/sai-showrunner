@@ -1,4 +1,4 @@
-import { AutomationConfig } from "ShowRunner-schema"
+import { AutomationConfig, createInlineAutomation } from "ShowRunner-schema"
 import { FileResource } from "../resources/file-resource"
 import { ResourceStorage } from "../resources/resource"
 import { nanoid } from "nanoid/non-secure"
@@ -16,8 +16,7 @@ export class Automation extends FileResource<AutomationConfig> {
 
 		this._config = {
 			name: name ?? "",
-			sequence: { actions: [] },
-			floatingSequences: [],
+			...createInlineAutomation(),
 		}
 
 		this.state = {}

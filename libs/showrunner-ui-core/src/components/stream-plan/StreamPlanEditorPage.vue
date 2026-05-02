@@ -41,7 +41,7 @@
 import StreamPlanSegmentEdit from "./StreamPlanSegmentEdit.vue"
 import ScrollingTabBody from "../docking/ScrollingTabBody.vue"
 import DocumentDataCollection from "../drag/DocumentDataCollection.vue"
-import { StreamPlanConfig } from "ShowRunner-schema"
+import { createInlineAutomation, StreamPlanConfig } from "ShowRunner-schema"
 import { StreamPlanSegmentView, StreamPlanView } from "./stream-plan-types"
 import { useModel } from "vue"
 
@@ -71,8 +71,8 @@ function createNewSegment(): [StreamPlanSegment, StreamPlanSegmentView] {
 					category: undefined,
 				},
 			},
-			activationAutomation: { sequence: { actions: [] }, floatingSequences: [], queue: undefined },
-			deactivationAutomation: { sequence: { actions: [] }, floatingSequences: [], queue: undefined },
+			activationAutomation: createInlineAutomation(),
+			deactivationAutomation: createInlineAutomation(),
 		},
 		{
 			id,
