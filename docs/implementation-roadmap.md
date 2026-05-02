@@ -103,7 +103,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 ## Phase 5: Polish & Bug Fixes
 
 ### 5.1 Expression editor
-- [ ] Inline expression builder UI for If/While/For/Switch conditions
+- [x] Inline expression builder UI for common If/While/For/Switch fields
 - [ ] Autocomplete for variable names, port references, builtin functions
 - [ ] Syntax highlighting in expression text input
 - [ ] Validation (red border + error tooltip for invalid expressions)
@@ -133,7 +133,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Visual data-wire drawing (separate from exec edges)
 - [ ] Type-safe data ports (color-coded by type)
 - [ ] Wire validation: prevent connecting incompatible types
-- [ ] Show data flow values on hover during test-run
+- [x] Show data flow values on hover during test-run
 
 ### 5.6 Performance & reliability
 - [ ] Compile-on-save with error reporting (don't wait until run)
@@ -153,7 +153,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Keep queues as the runtime/scheduler for alerts, paid events, scene banners, and other non-overlapping stream moments.
 - [ ] Hide queue complexity from everyday automation editing by controlling queues through graph-native nodes:
   - [x] `Add to Queue`
-  - [ ] `Queue Item Started`
+  - [x] `Queue Item Started`
   - [x] `Complete Queue Item`
   - [x] `Cancel Queue Item`
   - [x] `Clear Queue`
