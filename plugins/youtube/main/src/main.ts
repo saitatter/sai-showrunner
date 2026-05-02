@@ -279,6 +279,7 @@ export default definePlugin(
 			} catch (error) {
 				connection.value = {
 					...connection.value,
+					status: "error",
 					statusMessage: error instanceof Error ? error.message : String(error),
 				}
 				throw error
@@ -319,16 +320,26 @@ export default definePlugin(
 				...connection.value,
 				statusMessage: "Discovering active YouTube broadcast...",
 			}
-			const nextBroadcast = await liveChat.discoverActiveBroadcast()
-			broadcast.value = nextBroadcast
-			connection.value = {
-				...connection.value,
-				statusMessage:
-					nextBroadcast.status === "live"
-						? "Active YouTube live chat discovered."
-						: nextBroadcast.status === "unknown"
-							? "A live broadcast was found, but live chat is not available yet."
-							: "No active YouTube broadcast was found.",
+			try {
+				const nextBroadcast = await liveChat.discoverActiveBroadcast()
+				broadcast.value = nextBroadcast
+				connection.value = {
+					...connection.value,
+					statusMessage:
+						nextBroadcast.status === "live"
+							? "Active YouTube live chat discovered."
+							: nextBroadcast.status === "unknown"
+								? "A live broadcast was found, but live chat is not available yet. You can enter Broadcast ID or Live Chat ID manually."
+								: "No active YouTube broadcast was found. Try manual Broadcast ID or Live Chat ID.",
+				}
+			} catch (error) {
+				connection.value = {
+					...connection.value,
+					status: "error",
+					statusMessage: error instanceof Error ? error.message : String(error),
+				}
+				logger.error("YouTube broadcast discovery failed.", error)
+				throw error
 			}
 			return {
 				connection: connection.value,
@@ -568,8 +579,8 @@ export default definePlugin(
 				onError(error) {
 					connection.value = {
 						...connection.value,
-						status: error.message.includes("quota") ? "quotaLimited" : connection.value.status,
-						statusMessage: error.message,
+						status: error.message.includes("quota") ? "quotaLimited" : "error",
+						statusMessage: `YouTube live chat ingest failed: ${error.message}`,
 					}
 					logger.error("YouTube live chat ingest failed.", error)
 				},

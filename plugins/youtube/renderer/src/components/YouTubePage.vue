@@ -91,6 +91,9 @@
 
 			<div class="youtube-page__panel">
 				<h2>Broadcast</h2>
+				<p v-if="manualDiscoverySuggestion" class="youtube-page__hint">
+					{{ manualDiscoverySuggestion }}
+				</p>
 				<dl>
 					<div>
 						<dt>Status</dt>
@@ -185,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useIpcCaller } from "ShowRunner-ui-core"
 import { useToast } from "primevue/usetoast"
 
@@ -252,6 +255,8 @@ const showAdvanced = ref(false)
 const toast = useToast()
 const busy = ref(false)
 const activityLog = ref<{ id: string; severity: "success" | "info" | "warn" | "error"; summary: string; detail: string }[]>([])
+const lastSeenApiErrorAt = ref("")
+let refreshTimer: ReturnType<typeof window.setInterval> | undefined
 
 const hasBundledClientId = computed(() => Boolean(status.value.settings?.hasBundledClientId))
 const hasBundledClientSecret = computed(() => Boolean(status.value.settings?.hasBundledClientSecret))
@@ -293,15 +298,31 @@ const statusHint = computed(() => {
 	if (/quota|rate|limit/i.test(message)) return "YouTube API quota/rate limit was hit. Wait for quota reset or reduce polling frequency."
 	if (/client_secret/i.test(message)) return "Your Google OAuth client likely requires the generated Desktop client secret."
 	if (/access_denied|verification/i.test(message)) return "Your Google app is still in testing. Add your Google account as a test user in OAuth consent screen."
+	if (/No active YouTube broadcast|live chat was found|live chat is not available/i.test(message)) return "Auto-discovery did not find an ingestable chat. Paste a Broadcast ID or Live Chat ID in Manual Live Chat."
 	return message && status.value.connection?.status === "error" ? message : ""
+})
+const manualDiscoverySuggestion = computed(() => {
+	if (hasActiveBroadcast.value) return ""
+	const message = status.value.connection?.statusMessage || ""
+	if (/No active YouTube broadcast|not available|not found/i.test(message)) {
+		return "Auto-discovery could not find a usable live chat. Use Manual Live Chat below with the stream Broadcast ID or Live Chat ID."
+	}
+	return ""
 })
 
 async function refresh() {
-	status.value = await getStatus()
+	const nextStatus = await getStatus()
+	status.value = nextStatus
 	clientId.value = status.value.settings?.clientId ?? ""
 	autoStartLiveChat.value = Boolean(status.value.settings?.autoStartLiveChat)
 	manualBroadcastId.value = status.value.broadcast?.id ?? manualBroadcastId.value
 	manualLiveChatId.value = status.value.broadcast?.liveChatId ?? manualLiveChatId.value
+	const apiErrorAt = status.value.diagnostics?.lastApiErrorAt
+	if (apiErrorAt && apiErrorAt !== lastSeenApiErrorAt.value && status.value.diagnostics?.lastApiError) {
+		lastSeenApiErrorAt.value = apiErrorAt
+		addActivity("error", "YouTube API error", status.value.diagnostics.lastApiError)
+		toast.add({ severity: "error", summary: "YouTube API error", detail: status.value.diagnostics.lastApiError, life: 6000 })
+	}
 }
 
 async function saveSettings() {
@@ -348,6 +369,10 @@ async function discover() {
 		await discoverBroadcast()
 		await refresh()
 	})
+	if (!hasActiveBroadcast.value) {
+		addActivity("warn", "No active YouTube live chat found.", "Use Manual Live Chat with a Broadcast ID or Live Chat ID.")
+		toast.add({ severity: "warn", summary: "No active YouTube chat", detail: "Try Manual Live Chat IDs below.", life: 5000 })
+	}
 }
 
 async function applyManualBroadcast() {
@@ -399,7 +424,14 @@ function formatTime(value: string) {
 	return date.toLocaleTimeString()
 }
 
-onMounted(refresh)
+onMounted(() => {
+	void refresh()
+	refreshTimer = window.setInterval(() => void refresh(), 5000)
+})
+
+onBeforeUnmount(() => {
+	if (refreshTimer) window.clearInterval(refreshTimer)
+})
 </script>
 
 <style scoped>
