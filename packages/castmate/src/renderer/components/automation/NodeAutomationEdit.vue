@@ -307,6 +307,20 @@
 						<i class="mdi mdi-magnify" />
 						<input v-model="contextMenuQuery" type="search" placeholder="Search triggers or actions..." />
 					</label>
+					<section v-if="recentlyUsed.length && !contextMenuQuery" class="node-automation__menu-section">
+						<div class="node-automation__menu-section-header" style="cursor: default; font-size: 0.8rem; opacity: 0.7;">
+							<span><i class="mdi mdi-history" /> Recently Used</span>
+						</div>
+						<div class="node-automation__menu-items">
+							<button v-for="item in recentlyUsed" :key="`recent-${item.key}`" type="button" @click="item.kind === 'trigger' ? selectTriggerFromContext(item.key) : selectActionFromContext(item.key)">
+								<i :class="item.icon" :style="{ color: item.color }" />
+								<span>
+									<strong>{{ item.name }}</strong>
+								</span>
+								<em :class="item.kind === 'trigger' ? 'trigger' : ''">{{ item.kind === 'trigger' ? 'Trigger' : 'Action' }}</em>
+							</button>
+						</div>
+					</section>
 					<section class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('triggers')" @click="toggleContextGroup('triggers')">
 							<span><i class="mdi mdi-flash" /> Triggers</span>
@@ -360,6 +374,12 @@
 								</div>
 							</div>
 						</div>
+					</section>
+					<section class="node-automation__menu-section">
+						<button type="button" class="node-automation__menu-utility-btn" @click="addFloatingSequence">
+							<i class="mdi mdi-plus-circle-outline" />
+							<span>New Floating Sequence</span>
+						</button>
 					</section>
 				</div>
 				<svg
@@ -553,6 +573,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, useModel, watch } from "vue"
+import { nanoid } from "nanoid"
 import {
 	ActionSelection,
 	AutomationConfig,
@@ -650,6 +671,8 @@ const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
 const activityOpen = ref(true)
+const recentlyUsed = ref<{ key: string; kind: "action" | "trigger"; name: string; icon: string; color: string }[]>([])
+const MAX_RECENT = 5
 const { activityLog, logActivity } = useNodeActivity()
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
@@ -1329,6 +1352,13 @@ function handleKeydown(event: KeyboardEvent) {
 		deleteSelectedAction()
 	}
 
+	if ((event.key === "Delete" || event.key === "Backspace") && selectedNode.value?.kind === "floating") {
+		event.preventDefault()
+		deleteFloatingSequence(selectedNode.value.id)
+		selectedNodeId.value = undefined
+		selectedNodeIds.value = new Set()
+	}
+
 	if ((event.key === "Delete" || event.key === "Backspace") && selectedEdgeId.value && !canEditSelectedAction.value) {
 		event.preventDefault()
 		deleteSelectedEdge()
@@ -1642,12 +1672,20 @@ async function addActionFromPalette() {
 	commitUndo()
 }
 
+function trackRecentlyUsed(key: string, kind: "action" | "trigger", name: string, icon: string, color: string) {
+	recentlyUsed.value = [{ key, kind, name, icon, color }, ...recentlyUsed.value.filter((r) => r.key !== key)].slice(0, MAX_RECENT)
+}
+
 async function selectActionFromContext(actionKey: string) {
 	const selection = parseActionSelection(actionKey)
 	if (!selection) return
 
 	const action = await pluginStore.createAction(selection)
 	if (!action) return
+
+	const plugin = pluginStore.pluginMap.get(selection.plugin)
+	const actionDef = plugin?.actions?.[selection.action]
+	trackRecentlyUsed(actionKey, "action", actionDef?.name ?? selection.action, actionDef?.icon ?? "mdi mdi-play", String(plugin?.color ?? "#e9aaff"))
 
 	insertAction(action, contextMenu.value.nodeId)
 	if (!contextMenu.value.nodeId && contextMenu.value.canvasPoint) {
@@ -1662,8 +1700,11 @@ async function selectActionFromContext(actionKey: string) {
 
 async function selectTriggerFromContext(triggerKey: string) {
 	const [pluginId, triggerId] = triggerKey.split(":")
-	const trigger = pluginStore.pluginMap.get(pluginId)?.triggers?.[triggerId]
+	const plugin = pluginStore.pluginMap.get(pluginId)
+	const trigger = plugin?.triggers?.[triggerId]
 	if (!pluginId || !triggerId || !trigger) return
+
+	trackRecentlyUsed(triggerKey, "trigger", trigger.name ?? triggerId, trigger.icon ?? "mdi mdi-flash", String(plugin?.color ?? "#e9aaff"))
 
 	const nextConfig = await constructDefault(trigger.config)
 	const contextSchema = typeof trigger.context === "function" ? await trigger.context(nextConfig) : trigger.context
@@ -1855,6 +1896,29 @@ function cloneActionForNodeEditor(action: AnyAction | ActionStack) {
 	const clonedSequence = { actions: [structuredClone(action)] }
 	assignNewIds(clonedSequence)
 	return clonedSequence.actions[0]
+}
+
+function addFloatingSequence() {
+	const canvasPoint = contextMenu.value.canvasPoint ?? { x: 100, y: 200 }
+	const floatingSequence: FloatingSequence = {
+		actions: [],
+		x: canvasPoint.x,
+		y: canvasPoint.y,
+		id: nanoid(),
+	}
+	model.value.floatingSequences.push(floatingSequence)
+	closeContextMenu()
+	logActivity("Added", "Floating Sequence")
+	commitUndo()
+}
+
+function deleteFloatingSequence(floatingId: string) {
+	const idx = model.value.floatingSequences.findIndex((f) => f.id === floatingId)
+	if (idx >= 0) {
+		model.value.floatingSequences.splice(idx, 1)
+		logActivity("Deleted", "Floating Sequence")
+		commitUndo()
+	}
 }
 
 const CLIPBOARD_MIME = "application/showrunner-nodes"
@@ -2706,6 +2770,24 @@ onUnmounted(() => {
 	justify-content: space-between;
 	padding: 0.45rem 0.55rem;
 	width: 100%;
+}
+
+.node-automation__menu-utility-btn {
+	align-items: center;
+	background: var(--surface-c);
+	border: 0;
+	border-bottom: 1px solid var(--surface-d);
+	color: var(--text-color-secondary);
+	cursor: pointer;
+	display: flex;
+	gap: 0.4rem;
+	padding: 0.5rem 0.55rem;
+	width: 100%;
+}
+
+.node-automation__menu-utility-btn:hover {
+	background: var(--surface-d);
+	color: var(--text-color);
 }
 
 .node-automation__menu-section-header span,
