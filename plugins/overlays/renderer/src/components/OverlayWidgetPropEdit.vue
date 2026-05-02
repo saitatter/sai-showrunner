@@ -8,6 +8,21 @@
 					local-path="config"
 				/>
 				<section v-if="isShaderLayer" class="shader-preset-panel">
+					<h3>Shader Graph Editor</h3>
+					<button type="button" class="shader-graph-open-btn" @click="shaderGraphOpen = true">
+						<i class="mdi mdi-magic-staff" /> Open Shader Graph
+					</button>
+					<teleport to="body">
+						<div v-if="shaderGraphOpen" class="shader-graph-overlay">
+							<ShaderGraphEditor
+								v-model="shaderGraph"
+								@compile="onShaderGraphCompile"
+							/>
+							<button type="button" class="shader-graph-overlay__close" @click="shaderGraphOpen = false">
+								<i class="mdi mdi-close" /> Close
+							</button>
+						</div>
+					</teleport>
 					<h3>Bundled Shader Presets</h3>
 					<div class="shader-preset-panel__bundled">
 						<button
@@ -61,6 +76,8 @@ import {
 } from "castmate-ui-core"
 import { computed, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetTransformEdit from "./OverlayWidgetTransformEdit.vue"
+import ShaderGraphEditor from "./shader-graph/ShaderGraphEditor.vue"
+import type { ShaderGraph } from "./shader-graph/shader-nodes"
 import { useConfirm } from "primevue/useconfirm"
 
 const props = defineProps<{
@@ -180,6 +197,22 @@ function deleteShaderPreset(name: string) {
 }
 
 onMounted(refreshShaderPresets)
+
+// ── Shader Graph Editor ──
+const shaderGraphOpen = ref(false)
+const shaderGraph = ref<ShaderGraph>({
+	nodes: [
+		{ id: "output", defId: "fragment_output", x: 600, y: 200 },
+		{ id: "uv", defId: "uv", x: 50, y: 200 },
+	],
+	wires: [],
+})
+
+function onShaderGraphCompile(glsl: string) {
+	if (!selectedWidget.value) return
+	selectedWidget.value.config.preset = "custom"
+	selectedWidget.value.config.customFragmentShader = glsl
+}
 </script>
 
 <style scoped>
@@ -311,5 +344,49 @@ onMounted(refreshShaderPresets)
 	font-size: 0.8rem;
 	margin: 0;
 	padding: 0.45rem 0.55rem;
+}
+
+.shader-graph-open-btn {
+	background: linear-gradient(135deg, #7c4dff, #00d1ff) !important;
+	border-color: #9b7dff !important;
+	color: #fff !important;
+	font-weight: 600;
+	padding: 0.55rem 0.75rem !important;
+}
+
+.shader-graph-open-btn:hover {
+	filter: brightness(1.15);
+}
+</style>
+
+<style>
+.shader-graph-overlay {
+	background: #0d0d0d;
+	display: flex;
+	flex-direction: column;
+	inset: 0;
+	position: fixed;
+	z-index: 1000;
+}
+
+.shader-graph-overlay__close {
+	align-items: center;
+	background: #333;
+	border: 1px solid #555;
+	border-radius: 4px;
+	color: #eee;
+	cursor: pointer;
+	display: flex;
+	font-size: 0.85rem;
+	gap: 0.3rem;
+	padding: 0.35rem 0.65rem;
+	position: absolute;
+	right: 0.8rem;
+	top: 0.4rem;
+	z-index: 10;
+}
+
+.shader-graph-overlay__close:hover {
+	background: #555;
 }
 </style>
