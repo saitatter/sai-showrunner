@@ -123,6 +123,7 @@
 					<button type="button" aria-label="Close" @click="closeCanvasSearch"><i class="mdi mdi-close" /></button>
 				</div>
 
+
 				<div
 					class="node-automation__surface"
 					:style="{
@@ -320,6 +321,38 @@
 						</div>
 					</section>
 				</div>
+				<svg
+					class="node-automation__minimap"
+					:viewBox="minimapViewBox"
+					preserveAspectRatio="xMidYMid meet"
+					@pointerdown.stop="startMinimapNav"
+				>
+					<rect
+						v-for="node in nodes"
+						:key="`mm-${node.id}`"
+						:x="node.x"
+						:y="node.y"
+						:width="NODE_WIDTH"
+						:height="node.height"
+						:class="`node-automation__minimap-node--${node.kind}`"
+						rx="3"
+					/>
+					<path
+						v-for="edge in edges"
+						:key="`mm-${edge.id}`"
+						:d="edge.path"
+						class="node-automation__minimap-edge"
+						fill="none"
+					/>
+					<rect
+						class="node-automation__minimap-viewport"
+						:x="minimapViewport.x"
+						:y="minimapViewport.y"
+						:width="minimapViewport.width"
+						:height="minimapViewport.height"
+						rx="2"
+					/>
+				</svg>
 			</section>
 
 			<aside class="node-automation__details" :class="{ empty: !selectedNode }">
@@ -721,6 +754,28 @@ const graphBounds = computed(() => {
 	const maxX = Math.max(...nodes.value.map((node) => node.x + NODE_WIDTH))
 	const maxY = Math.max(...nodes.value.map((node) => node.y + node.height))
 	return { minX, minY, width: maxX - minX, height: maxY - minY }
+})
+const MINIMAP_PADDING = 40
+const minimapViewBox = computed(() => {
+	const b = graphBounds.value
+	return `${b.minX - MINIMAP_PADDING} ${b.minY - MINIMAP_PADDING} ${b.width + MINIMAP_PADDING * 2} ${b.height + MINIMAP_PADDING * 2}`
+})
+const minimapViewport = computed(() => {
+	const canvas = canvasRef.value
+	if (!canvas) return { x: 0, y: 0, width: 400, height: 300 }
+	const scrollLeft = canvas.scrollLeft
+	const scrollTop = canvas.scrollTop
+	const w = canvas.clientWidth
+	const h = canvas.clientHeight
+	const z = zoom.value
+	const px = pan.value.x
+	const py = pan.value.y
+	return {
+		x: (scrollLeft - px) / z,
+		y: (scrollTop - py) / z,
+		width: w / z,
+		height: h / z,
+	}
 })
 const {
 	canvasRef,
@@ -1281,10 +1336,54 @@ function cycleSearchResult(direction: 1 | -1) {
 	canvasSearchIndex.value = (canvasSearchIndex.value + direction + results.length) % results.length
 	const node = results[canvasSearchIndex.value]
 	focusNode(node.id)
-	// Auto-pan so the node is visible
+	scrollToNode(node)
+}
+
+function scrollToNode(node: NodeData) {
+	const canvas = canvasRef.value
+	if (!canvas) return
 	const pos = nodePositions.value[node.id] ?? node
-	panX.value = -(pos.x + NODE_WIDTH / 2) * zoom.value + (containerRef.value?.clientWidth ?? 0) / 2
-	panY.value = -(pos.y + node.height / 2) * zoom.value + (containerRef.value?.clientHeight ?? 0) / 2
+	const centerX = (pos.x + NODE_WIDTH / 2) * zoom.value + pan.value.x - canvas.clientWidth / 2
+	const centerY = (pos.y + node.height / 2) * zoom.value + pan.value.y - canvas.clientHeight / 2
+	canvas.scrollTo({ left: Math.max(0, centerX), top: Math.max(0, centerY), behavior: "smooth" })
+}
+
+function startMinimapNav(event: PointerEvent) {
+	const svg = event.currentTarget as SVGSVGElement
+	if (!svg || !canvasRef.value) return
+
+	function navToPoint(clientX: number, clientY: number) {
+		const canvas = canvasRef.value!
+		const pt = svg.createSVGPoint()
+		pt.x = clientX
+		pt.y = clientY
+		const ctm = svg.getScreenCTM()
+		if (!ctm) return
+		const svgPt = pt.matrixTransform(ctm.inverse())
+		const z = zoom.value
+		const px = pan.value.x
+		const py = pan.value.y
+		canvas.scrollTo({
+			left: Math.max(0, svgPt.x * z + px - canvas.clientWidth / 2),
+			top: Math.max(0, svgPt.y * z + py - canvas.clientHeight / 2),
+		})
+	}
+
+	navToPoint(event.clientX, event.clientY)
+	svg.setPointerCapture(event.pointerId)
+
+	function onMove(e: PointerEvent) {
+		navToPoint(e.clientX, e.clientY)
+	}
+	function onUp(e: PointerEvent) {
+		svg.releasePointerCapture(e.pointerId)
+		svg.removeEventListener("pointermove", onMove)
+		svg.removeEventListener("pointerup", onUp)
+		svg.removeEventListener("pointercancel", onUp)
+	}
+	svg.addEventListener("pointermove", onMove)
+	svg.addEventListener("pointerup", onUp)
+	svg.addEventListener("pointercancel", onUp)
 }
 
 watch(canvasSearchQuery, () => {
@@ -1292,9 +1391,7 @@ watch(canvasSearchQuery, () => {
 	if (canvasSearchResults.value.length) {
 		const node = canvasSearchResults.value[0]
 		focusNode(node.id)
-		const pos = nodePositions.value[node.id] ?? node
-		panX.value = -(pos.x + NODE_WIDTH / 2) * zoom.value + (containerRef.value?.clientWidth ?? 0) / 2
-		panY.value = -(pos.y + node.height / 2) * zoom.value + (containerRef.value?.clientHeight ?? 0) / 2
+		scrollToNode(node)
 	}
 })
 
@@ -1886,6 +1983,39 @@ onUnmounted(() => {
 
 .node-automation__node.search-match {
 	box-shadow: 0 0 0 2px #ffcc00;
+}
+
+.node-automation__minimap {
+	background: rgb(0 0 0 / 0.5);
+	border: 1px solid rgb(255 255 255 / 0.12);
+	border-radius: 4px;
+	bottom: 0.75rem;
+	cursor: crosshair;
+	float: right;
+	height: 120px;
+	pointer-events: auto;
+	position: sticky;
+	width: 180px;
+	z-index: 18;
+}
+
+.node-automation__minimap-node--trigger { fill: #4fc3f7; }
+.node-automation__minimap-node--action { fill: #81c784; }
+.node-automation__minimap-node--stack { fill: #ba68c8; }
+.node-automation__minimap-node--time { fill: #ffb74d; }
+.node-automation__minimap-node--flow { fill: #4dd0e1; }
+.node-automation__minimap-node--floating { fill: #a1887f; }
+
+.node-automation__minimap-edge {
+	stroke: rgb(255 255 255 / 0.25);
+	stroke-width: 1.5;
+}
+
+.node-automation__minimap-viewport {
+	fill: rgb(255 255 255 / 0.08);
+	stroke: rgb(255 255 255 / 0.55);
+	stroke-width: 2;
+	vector-effect: non-scaling-stroke;
 }
 
 .node-automation__preview-status {
