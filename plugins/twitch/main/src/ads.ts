@@ -9,11 +9,11 @@ import {
 	onProfilesChanged,
 	startPerfTime,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import { CommercialLength } from "@twurple/api"
 import { onChannelAuth, onStreamOnline } from "./api-harness"
-import { Duration, Timer, getTimeRemaining, isTimerStarted } from "castmate-schema"
+import { Duration, Timer, getTimeRemaining, isTimerStarted } from "ShowRunner-schema"
 import _isEqual from "lodash/isEqual"
 
 export function setupAds() {

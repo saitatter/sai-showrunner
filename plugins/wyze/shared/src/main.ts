@@ -1,4 +1,4 @@
-import { AccountConfig, AccountSecrets } from "castmate-schema"
+import { AccountConfig, AccountSecrets } from "ShowRunner-schema"
 
 export interface WyzeAccountSecrets extends AccountSecrets {
 	accessToken?: string

@@ -42,9 +42,9 @@ async function servePackageSpawn(config, name) {
 }
 
 async function build() {
-	await buildPackageSpawn("castmate-obs-overlay")
-	await buildPackageSpawn("castmate")
-	//await buildPackageSpawn("castmate-satellite")
+	await buildPackageSpawn("ShowRunner-obs-overlay")
+	await buildPackageSpawn("ShowRunner")
+	//await buildPackageSpawn("ShowRunner-satellite")
 }
 
 async function serve() {
@@ -56,10 +56,10 @@ async function serve() {
 		},
 	}
 
-	const castmateDev = await servePackageSpawn({ port: 5173, ...config }, "castmate")
-	const overlayDev = await servePackageSpawn({ port: 5174, host: true, ...config }, "castmate-obs-overlay")
+	const ShowRunnerDev = await servePackageSpawn({ port: 5173, ...config }, "ShowRunner")
+	const overlayDev = await servePackageSpawn({ port: 5174, host: true, ...config }, "ShowRunner-obs-overlay")
 
-	castmateDev.on("close", () => {
+	ShowRunnerDev.on("close", () => {
 		overlayDev.kill("SIGTERM")
 	})
 }

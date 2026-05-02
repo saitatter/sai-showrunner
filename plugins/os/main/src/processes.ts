@@ -1,5 +1,5 @@
-import { defineAction } from "castmate-core"
-import { Directory, FilePath } from "castmate-schema"
+import { defineAction } from "ShowRunner-core"
+import { Directory, FilePath } from "ShowRunner-schema"
 import { ChildProcess, exec, spawn } from "child_process"
 import * as path from "path"
 

@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-remote-main",
+	"name": "ShowRunner-plugin-remote-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,9 +13,9 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"castmate-core": "workspace:^",
-		"castmate-plugin-dashboards-main": "workspace:^",
-		"castmate-plugin-remote-shared": "workspace:^",
-		"castmate-schema": "workspace:^"
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-dashboards-main": "workspace:^",
+		"ShowRunner-plugin-remote-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^"
 	}
 }

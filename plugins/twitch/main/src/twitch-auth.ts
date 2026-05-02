@@ -1,5 +1,5 @@
-import { TwitchAccountConfig, TwitchAccountSecrets } from "castmate-plugin-twitch-shared"
-import { Account, AccountConstructor, ResourceStorage, isSatellite, loadYAML, usePluginLogger } from "castmate-core"
+import { TwitchAccountConfig, TwitchAccountSecrets } from "ShowRunner-plugin-twitch-shared"
+import { Account, AccountConstructor, ResourceStorage, isSatellite, loadYAML, usePluginLogger } from "ShowRunner-core"
 import { getTokenInfo, AuthProvider, AccessTokenWithUserId, AccessTokenMaybeWithUserId } from "@twurple/auth"
 import { BrowserWindow } from "electron"
 import { ApiClient, UserIdResolvable } from "@twurple/api"

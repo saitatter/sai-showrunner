@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-wyze-renderer",
+  "name": "ShowRunner-plugin-wyze-renderer",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@vueuse/core": "*",
-    "castmate-schema": "workspace:^",
-    "castmate-ui-core": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
+    "ShowRunner-ui-core": "workspace:^",
     "chromatism2": "*",
     "electron": "^34.2.0",
     "nanoid": "^5.0.7",

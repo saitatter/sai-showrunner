@@ -1,6 +1,6 @@
-import { ReactiveRef, defineAction } from "castmate-core"
+import { ReactiveRef, defineAction } from "ShowRunner-core"
 import { OBSConnection } from "./connection"
-import { Toggle } from "castmate-schema"
+import { Toggle } from "ShowRunner-schema"
 
 export function setupToggles(obsDefault: ReactiveRef<OBSConnection>) {
 	defineAction({

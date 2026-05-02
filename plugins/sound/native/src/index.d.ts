@@ -1,6 +1,6 @@
 import * as Events from "events"
 
-declare namespace CastmatePluginSoundNative {
+declare namespace ShowRunnerPluginSoundNative {
 	interface AudioDeviceInterfaceEvents {
 		"device-added": (device: AudioDevice) => void | Promise<void>
 		"device-removed": (deviceId: string) => void | Promise<void>
@@ -45,4 +45,4 @@ declare namespace CastmatePluginSoundNative {
 	}
 }
 
-export = CastmatePluginSoundNative
+export = ShowRunnerPluginSoundNative

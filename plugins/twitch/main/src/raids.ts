@@ -1,8 +1,8 @@
-import { createTriggerScheduler, defineAction, defineState, defineTrigger, onProfilesChanged } from "castmate-core"
-import { Duration, Range, Timer } from "castmate-schema"
+import { createTriggerScheduler, defineAction, defineState, defineTrigger, onProfilesChanged } from "ShowRunner-core"
+import { Duration, Range, Timer } from "ShowRunner-schema"
 import { onChannelAuth } from "./api-harness"
 import { ViewerCache } from "./viewer-cache"
-import { TwitchViewer, TwitchViewerGroup } from "castmate-plugin-twitch-shared"
+import { TwitchViewer, TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
 import { inTwitchViewerGroup } from "./group"
 import { TwitchAccount } from "./twitch-auth"
 

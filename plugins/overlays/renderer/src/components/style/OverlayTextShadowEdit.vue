@@ -41,9 +41,9 @@
 <script setup lang="ts">
 import { useModel } from "vue"
 
-import { OverlayShadowStyle } from "castmate-plugin-overlays-shared"
-import { LabelFloater, DataInput, CNumberInput } from "castmate-ui-core"
-import { Color, declareSchema } from "castmate-schema"
+import { OverlayShadowStyle } from "ShowRunner-plugin-overlays-shared"
+import { LabelFloater, DataInput, CNumberInput } from "ShowRunner-ui-core"
+import { Color, declareSchema } from "ShowRunner-schema"
 
 import PButton from "primevue/button"
 

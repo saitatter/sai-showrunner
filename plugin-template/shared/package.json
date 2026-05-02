@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-{{name}}-shared",
+	"name": "ShowRunner-plugin-{{name}}-shared",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -14,7 +14,7 @@
 	},
 	"dependencies": {
 		"axios": "*",
-		"castmate-core": "workspace:^",
-		"castmate-schema": "workspace:^"
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-schema": "workspace:^"
 	}
 }

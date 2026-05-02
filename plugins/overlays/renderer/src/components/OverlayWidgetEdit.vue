@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayWidgetConfig } from "castmate-plugin-overlays-shared"
+import { OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
 import {
 	PanAreaResizable,
 	useDocumentSelection,
@@ -32,11 +32,11 @@ import {
 	useMediaStore,
 	useDataBinding,
 	useViewerDataStore,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import { ComputedRef, computed, inject, markRaw, onMounted, provide, ref, useModel, watch } from "vue"
-import { useOverlayWidgets } from "castmate-overlay-widget-loader"
+import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
 import { useRemoteOverlayConfig } from "../config/overlay-config"
-import { CastMateBridgeImplementation } from "castmate-overlay-core"
+import { ShowRunnerBridgeImplementation } from "ShowRunner-overlay-core"
 
 import { useDialog } from "primevue/usedialog"
 import type { MenuItem } from "primevue/menuitem"
@@ -93,7 +93,7 @@ const viewerData = useViewerDataStore()
 //TODO: Is this bad?
 const state = useFullState()
 
-provide<CastMateBridgeImplementation>("castmate-bridge", {
+provide<ShowRunnerBridgeImplementation>("ShowRunner-bridge", {
 	acquireState(plugin, state) {},
 	releaseState(plugin, state) {},
 	config: computed(() => props.modelValue),

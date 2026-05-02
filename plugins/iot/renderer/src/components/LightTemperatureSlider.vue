@@ -19,10 +19,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, useModel } from "vue"
-import { KB, LightColor, LightColorObj, kelvinToCSS } from "castmate-plugin-iot-shared"
-import { Color } from "castmate-schema"
+import { KB, LightColor, LightColorObj, kelvinToCSS } from "ShowRunner-plugin-iot-shared"
+import { Color } from "ShowRunner-schema"
 import { useEventListener } from "@vueuse/core"
-import { useCommitUndo, usePropagationStop } from "castmate-ui-core"
+import { useCommitUndo, usePropagationStop } from "ShowRunner-ui-core"
 
 const props = defineProps<{
 	modelValue: LightColor | undefined

@@ -1,4 +1,4 @@
-import { definePluginDashboard } from "castmate-dashboard-core"
+import { definePluginDashboard } from "ShowRunner-dashboard-core"
 
 import Button from "./widgets/Button.vue"
 

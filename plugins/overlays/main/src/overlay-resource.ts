@@ -13,7 +13,7 @@ import {
 	remoteTemplateSchema,
 	sleep,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import {
 	InitialOverlayConfig,
 	IPCOverlayWidgetDescriptor,
@@ -22,14 +22,14 @@ import {
 	OverlayWidget,
 	OverlayWidgetConfig,
 	OverlayWidgetOptions,
-} from "castmate-plugin-overlays-shared"
-import { Schema, SchemaObj, Toggle, filterPromiseAll } from "castmate-schema"
+} from "ShowRunner-plugin-overlays-shared"
+import { Schema, SchemaObj, Toggle, filterPromiseAll } from "ShowRunner-schema"
 import { nanoid } from "nanoid/non-secure"
 import { setupConfigEval } from "./config-evaluation"
 import { OverlayWebsocketService } from "./websocket-bridge"
-import { OBSConnection } from "castmate-plugin-obs-main"
+import { OBSConnection } from "ShowRunner-plugin-obs-main"
 
-import { SoundOutput } from "castmate-plugin-sound-main"
+import { SoundOutput } from "ShowRunner-plugin-sound-main"
 
 const logger = usePluginLogger("overlays")
 

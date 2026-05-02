@@ -1,6 +1,6 @@
-import { defineIPCFunc, ipcParseSchema, Service, usePluginLogger } from "castmate-core"
-import { DashboardWidgetDescriptor, IPCDashboardWidgetDescriptor } from "castmate-plugin-dashboards-shared"
-import { SchemaObj } from "castmate-schema"
+import { defineIPCFunc, ipcParseSchema, Service, usePluginLogger } from "ShowRunner-core"
+import { DashboardWidgetDescriptor, IPCDashboardWidgetDescriptor } from "ShowRunner-plugin-dashboards-shared"
+import { SchemaObj } from "ShowRunner-schema"
 
 const logger = usePluginLogger("dashboards")
 

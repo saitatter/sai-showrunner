@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-sound-native",
+	"name": "ShowRunner-plugin-sound-native",
 	"version": "0.0.1",
 	"description": "",
 	"main": "src/index.js",

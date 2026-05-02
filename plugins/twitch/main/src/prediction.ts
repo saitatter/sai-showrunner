@@ -1,6 +1,6 @@
-import { defineAction, defineState, defineTrigger } from "castmate-core"
+import { defineAction, defineState, defineTrigger } from "ShowRunner-core"
 import { onChannelAuth } from "./api-harness"
-import { Duration } from "castmate-schema"
+import { Duration } from "ShowRunner-schema"
 
 export function setupPredictions() {
 	defineAction({

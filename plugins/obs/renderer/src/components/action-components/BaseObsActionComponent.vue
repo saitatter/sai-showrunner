@@ -10,9 +10,9 @@
 </template>
 
 <script setup lang="ts">
-import { OBSConnectionConfig, OBSConnectionState } from "castmate-plugin-obs-shared"
-import { ResourceData } from "castmate-schema"
-import { useResource } from "castmate-ui-core"
+import { OBSConnectionConfig, OBSConnectionState } from "ShowRunner-plugin-obs-shared"
+import { ResourceData } from "ShowRunner-schema"
+import { useResource } from "ShowRunner-ui-core"
 
 const props = defineProps<{
 	obs: string | undefined

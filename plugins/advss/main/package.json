@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-advss-main",
+	"name": "ShowRunner-plugin-advss-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,10 +13,10 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"castmate-core": "workspace:^",
-		"castmate-plugin-advss-shared": "workspace:^",
-		"castmate-plugin-obs-main": "workspace:^",
-		"castmate-plugin-obs-shared": "workspace:^",
-		"castmate-schema": "workspace:^"
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-advss-shared": "workspace:^",
+		"ShowRunner-plugin-obs-main": "workspace:^",
+		"ShowRunner-plugin-obs-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^"
 	}
 }

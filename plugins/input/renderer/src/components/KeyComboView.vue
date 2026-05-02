@@ -4,8 +4,8 @@
 </template>
 
 <script setup lang="ts">
-import { KeyCombo, SchemaKeyCombo } from "castmate-plugin-input-shared"
-import { SharedDataViewProps } from "castmate-ui-core"
+import { KeyCombo, SchemaKeyCombo } from "ShowRunner-plugin-input-shared"
+import { SharedDataViewProps } from "ShowRunner-ui-core"
 import { computed } from "vue"
 
 const props = defineProps<

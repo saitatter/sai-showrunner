@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-sound-main",
+  "name": "ShowRunner-plugin-sound-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,9 +13,9 @@
     "typescript": "*"
   },
   "dependencies": {
-    "castmate-core": "workspace:^",
-    "castmate-plugin-sound-native": "workspace:^",
-    "castmate-plugin-sound-shared": "workspace:^",
-    "castmate-schema": "workspace:^"
+    "ShowRunner-core": "workspace:^",
+    "ShowRunner-plugin-sound-native": "workspace:^",
+    "ShowRunner-plugin-sound-shared": "workspace:^",
+    "ShowRunner-schema": "workspace:^"
   }
 }

@@ -3,7 +3,7 @@ import {
 	YouTubeChatMessage,
 	YouTubeMembershipEvent,
 	YouTubePaidEvent,
-} from "castmate-plugin-youtube-shared"
+} from "ShowRunner-plugin-youtube-shared"
 import { YouTubeAuthService } from "./youtube-auth"
 
 interface YouTubeLiveBroadcastsResponse {

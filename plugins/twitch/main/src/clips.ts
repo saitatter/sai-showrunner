@@ -1,4 +1,4 @@
-import { defineAction } from "castmate-core"
+import { defineAction } from "ShowRunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import { TwitchAPIService, onChannelAuth } from "./api-harness"
 

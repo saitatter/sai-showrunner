@@ -14,8 +14,8 @@ import {
 	defineState,
 	AsyncCache,
 	AsyncDictCache,
-} from "castmate-core"
-import { Range } from "castmate-schema"
+} from "ShowRunner-core"
+import { Range } from "ShowRunner-schema"
 import querystring from "node:querystring"
 import {
 	createEntityPoller,

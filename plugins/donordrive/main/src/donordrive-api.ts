@@ -1,4 +1,4 @@
-import { usePluginLogger } from "castmate-core"
+import { usePluginLogger } from "ShowRunner-core"
 import querystring from "node:querystring"
 import { clearInterval } from "node:timers"
 

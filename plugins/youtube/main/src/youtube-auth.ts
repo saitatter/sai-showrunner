@@ -10,8 +10,8 @@ import {
 	resolveProjectPath,
 	writeSecretYAML,
 	writeYAML,
-} from "castmate-core"
-import { YouTubeSecrets, YouTubeSettings } from "castmate-plugin-youtube-shared"
+} from "ShowRunner-core"
+import { YouTubeSecrets, YouTubeSettings } from "ShowRunner-plugin-youtube-shared"
 
 const DEFAULT_SCOPES = [
 	"https://www.googleapis.com/auth/youtube.readonly",

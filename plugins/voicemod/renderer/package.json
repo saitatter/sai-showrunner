@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-voicemod-renderer",
+  "name": "ShowRunner-plugin-voicemod-renderer",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@vueuse/core": "*",
-    "castmate-schema": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
     "chromatism2": "*",
     "electron": "^34.2.0",
     "nanoid": "^5.0.7",

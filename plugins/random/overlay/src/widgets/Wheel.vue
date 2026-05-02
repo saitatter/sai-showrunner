@@ -57,15 +57,15 @@ import {
 	useCallOverlayRPC,
 	useIsEditor,
 	useSoundPlayer,
-} from "castmate-overlay-core"
+} from "ShowRunner-overlay-core"
 import {
 	OverlayBlockStyle,
 	OverlayTextAlignment,
 	OverlayTextStyle,
 	OverlayWidgetSize,
-} from "castmate-plugin-overlays-shared"
-import { MediaFile } from "castmate-schema"
-import { Color } from "castmate-schema"
+} from "ShowRunner-plugin-overlays-shared"
+import { MediaFile } from "ShowRunner-schema"
+import { Color } from "ShowRunner-schema"
 import { computed, onMounted, ref, watch } from "vue"
 
 const defaultStyle = [

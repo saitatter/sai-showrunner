@@ -5,8 +5,8 @@ import {
 	resolveProjectPath,
 	ResourceStorage,
 	usePluginLogger,
-} from "castmate-core"
-import { BlueSkyAccountConfig, BlueSkyAccountSecrets } from "castmate-plugin-bluesky-shared"
+} from "ShowRunner-core"
+import { BlueSkyAccountConfig, BlueSkyAccountSecrets } from "ShowRunner-plugin-bluesky-shared"
 
 import { CredentialSession, Agent } from "@atproto/api"
 import { nanoid } from "nanoid/non-secure"

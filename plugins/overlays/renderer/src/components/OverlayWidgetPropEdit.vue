@@ -64,8 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { useOverlayWidgets } from "castmate-overlay-widget-loader"
-import { OverlayConfig } from "castmate-plugin-overlays-shared"
+import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
+import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
 import {
 	FlexScroller,
 	DataInput,
@@ -73,7 +73,7 @@ import {
 	useDataBinding,
 	DataBindingPath,
 	provideScrollAttachable,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import { computed, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetTransformEdit from "./OverlayWidgetTransformEdit.vue"
 import ShaderGraphEditor from "./shader-graph/ShaderGraphEditor.vue"

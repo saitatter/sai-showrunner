@@ -4,7 +4,7 @@ import {
 	TwitchCategoryUnresolved,
 	TwitchStreamTags,
 	TwitchViewer,
-} from "castmate-plugin-twitch-shared"
+} from "ShowRunner-plugin-twitch-shared"
 import {
 	Service,
 	defineRendererCallable,
@@ -14,7 +14,7 @@ import {
 	registerSchemaUnexpose,
 	template,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import fuzzysort from "fuzzysort"
 import { HelixGame } from "@twurple/api"

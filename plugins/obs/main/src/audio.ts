@@ -1,6 +1,6 @@
-import { ReactiveRef, defineAction } from "castmate-core"
+import { ReactiveRef, defineAction } from "ShowRunner-core"
 import { OBSConnection } from "./connection"
-import { Toggle } from "castmate-schema"
+import { Toggle } from "ShowRunner-schema"
 
 //Converts a slider position to DB value in exactly the same way OBS does it.
 function sliderToDB(sliderPos: number) {

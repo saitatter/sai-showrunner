@@ -1,8 +1,8 @@
 import { TwitchAccount } from "./twitch-auth"
 import axios, { AxiosResponse } from "axios"
-import { EmoteCache, EmoteProvider, coreAxios, onLoad } from "castmate-core"
+import { EmoteCache, EmoteProvider, coreAxios, onLoad } from "ShowRunner-core"
 import { onChannelAuth } from "./api-harness"
-import { EmoteImageURLs, EmoteInfo, EmoteSet } from "castmate-schema"
+import { EmoteImageURLs, EmoteInfo, EmoteSet } from "ShowRunner-schema"
 
 interface SevenTVFile {
 	name: string

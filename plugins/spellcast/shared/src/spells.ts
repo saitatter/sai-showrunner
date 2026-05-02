@@ -1,4 +1,4 @@
-import { Color, SchemaType, declareSchema } from "castmate-schema"
+import { Color, SchemaType, declareSchema } from "ShowRunner-schema"
 
 export const SpellConfigSchema = declareSchema({
 	type: Object,

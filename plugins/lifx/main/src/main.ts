@@ -8,10 +8,10 @@ import {
 	removeAllSubResource,
 	onSettingChanged,
 	usePluginLogger,
-} from "castmate-core"
-import { LightResource, PollingLight } from "castmate-plugin-iot-main/src/light"
-import { LightColor, LightState } from "castmate-plugin-iot-shared"
-import { Toggle } from "castmate-schema"
+} from "ShowRunner-core"
+import { LightResource, PollingLight } from "ShowRunner-plugin-iot-main/src/light"
+import { LightColor, LightState } from "ShowRunner-plugin-iot-shared"
+import { Toggle } from "ShowRunner-schema"
 import EventEmitter from "events"
 import { Client, Light } from "lifx-lan-client"
 

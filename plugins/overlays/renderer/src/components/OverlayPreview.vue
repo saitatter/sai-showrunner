@@ -14,10 +14,10 @@
 </template>
 
 <script setup lang="ts">
-import { usePanState } from "castmate-ui-core"
-import { OverlayPreviewConfig } from "castmate-plugin-overlays-shared"
+import { usePanState } from "ShowRunner-ui-core"
+import { OverlayPreviewConfig } from "ShowRunner-plugin-overlays-shared"
 import { ComputedRef, computed, inject } from "vue"
-import { ObsPreview } from "castmate-plugin-obs-renderer"
+import { ObsPreview } from "ShowRunner-plugin-obs-renderer"
 import { OverlayEditorView } from "./overlay-edit-types"
 
 const props = defineProps<{

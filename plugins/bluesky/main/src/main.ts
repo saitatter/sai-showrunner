@@ -6,7 +6,7 @@ import {
 	definePlugin,
 	defineResourceSetting,
 	definePluginResource,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { BlueSkyAccount } from "./bluesky-account"
 
 export default definePlugin(

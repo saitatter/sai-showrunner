@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-aitum-main",
+	"name": "ShowRunner-plugin-aitum-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,10 +13,10 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"castmate-core": "workspace:^",
-		"castmate-plugin-aitum-shared": "workspace:^",
-		"castmate-plugin-obs-main": "workspace:^",
-		"castmate-plugin-obs-shared": "workspace:^",
-		"castmate-schema": "workspace:^"
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-aitum-shared": "workspace:^",
+		"ShowRunner-plugin-obs-main": "workspace:^",
+		"ShowRunner-plugin-obs-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^"
 	}
 }

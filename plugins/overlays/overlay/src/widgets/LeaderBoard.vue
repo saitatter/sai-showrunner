@@ -38,15 +38,15 @@ import {
 	useMediaResolver,
 	useViewerDataTable,
 	useViewerVariableSchemas,
-} from "castmate-overlay-core"
+} from "ShowRunner-overlay-core"
 import {
 	getBackgroundCSS,
 	OverlayBlockStyle,
 	OverlayTextAlignment,
 	OverlayTextStyle,
 	WidgetBackgroundStyle,
-} from "castmate-plugin-overlays-shared"
-import { ViewerVariableName } from "castmate-schema"
+} from "ShowRunner-plugin-overlays-shared"
+import { ViewerVariableName } from "ShowRunner-schema"
 import { computed } from "vue"
 import SchemaSpan from "../components/SchemaSpan.vue"
 

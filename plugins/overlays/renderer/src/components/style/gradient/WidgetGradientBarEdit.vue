@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { getGradientStopCSS, WidgetGradientStyle } from "castmate-plugin-overlays-shared"
+import { getGradientStopCSS, WidgetGradientStyle } from "ShowRunner-plugin-overlays-shared"
 import { computed, useTemplateRef } from "vue"
 
 import WidgetGradientStopEdit from "./WidgetGradientStopEdit.vue"

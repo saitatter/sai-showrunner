@@ -180,13 +180,13 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, reactive, ref } from "vue"
-import { useIpcCaller } from "castmate-ui-core"
+import { useIpcCaller } from "ShowRunner-ui-core"
 import {
 	ModerationOverrideRequest,
 	ModerationQueueState,
 	ModerationSettings,
 	ModerationStatus,
-} from "castmate-plugin-moderation-shared"
+} from "ShowRunner-plugin-moderation-shared"
 import { useToast } from "primevue/usetoast"
 
 const getStatus = useIpcCaller<() => Promise<ModerationStatus>>("moderation", "getStatus")

@@ -22,20 +22,20 @@ import {
 	onCloudPubSubConnect,
 	onCloudPubSubBeforeDisconnect,
 	ResourceRegistry,
-} from "castmate-core"
+} from "ShowRunner-core"
 import {
 	SpellConfig,
 	SpellConfigSchema,
 	SpellResourceConfig,
 	SpellResourceState,
-} from "castmate-plugin-spellcast-shared"
+} from "ShowRunner-plugin-spellcast-shared"
 import { nanoid } from "nanoid/non-secure"
 import _debounce from "lodash/debounce"
-import { onChannelAuth } from "castmate-plugin-twitch-main"
+import { onChannelAuth } from "ShowRunner-plugin-twitch-main"
 import { SpellCastSpell, SpellCastSpellData, createSpell, deleteSpell, getSpells, updateSpell } from "./api"
 import fs from "fs/promises"
 import path from "path"
-import { TwitchViewer } from "castmate-plugin-twitch-shared"
+import { TwitchViewer } from "ShowRunner-plugin-twitch-shared"
 
 const logger = usePluginLogger("spellcast")
 

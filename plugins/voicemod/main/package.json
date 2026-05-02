@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-voicemod-main",
+  "name": "ShowRunner-plugin-voicemod-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,8 +13,8 @@
     "typescript": "*"
   },
   "dependencies": {
-    "castmate-core": "workspace:^",
-    "castmate-schema": "workspace:^",
+    "ShowRunner-core": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
     "nanoid": "^5.0.7",
     "ws": "*"
   }

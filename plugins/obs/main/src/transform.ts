@@ -1,10 +1,10 @@
-import { ReactiveRef, defineAction, registerSchemaTemplate, templateNumber, usePluginLogger } from "castmate-core"
+import { ReactiveRef, defineAction, registerSchemaTemplate, templateNumber, usePluginLogger } from "ShowRunner-core"
 import {
 	OBSSourceTransform,
 	ResolvedOBSSourceTransform,
 	createEmptyOBSSourceTransform,
 	transformToOBSWS,
-} from "castmate-plugin-obs-shared"
+} from "ShowRunner-plugin-obs-shared"
 import { OBSConnection } from "./connection"
 
 export function setupTransforms(obsDefault: ReactiveRef<OBSConnection>) {

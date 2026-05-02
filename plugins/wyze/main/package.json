@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-wyze-main",
+  "name": "ShowRunner-plugin-wyze-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -14,9 +14,9 @@
     "typescript": "*"
   },
   "dependencies": {
-    "castmate-core": "workspace:^",
-    "castmate-plugin-wyze-shared": "workspace:^",
-    "castmate-schema": "workspace:^",
+    "ShowRunner-core": "workspace:^",
+    "ShowRunner-plugin-wyze-shared": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
     "chromatism2": "*",
     "md5": "^2.3.0",
     "moment": "^2.29.4"

@@ -18,8 +18,8 @@
 </template>
 
 <script setup lang="ts">
-import { LightColor } from "castmate-plugin-iot-shared"
-import { Toggle } from "castmate-schema"
+import { LightColor } from "ShowRunner-plugin-iot-shared"
+import { Toggle } from "ShowRunner-schema"
 import { computed } from "vue"
 
 const props = defineProps<{

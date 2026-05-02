@@ -162,7 +162,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue"
-import { useIpcCaller } from "castmate-ui-core"
+import { useIpcCaller } from "ShowRunner-ui-core"
 import { useToast } from "primevue/usetoast"
 
 interface YouTubeStatus {

@@ -1,5 +1,5 @@
-import { KeyboardKey, KeyCombo } from "castmate-plugin-input-shared"
-import { useDataInputStore } from "castmate-ui-core"
+import { KeyboardKey, KeyCombo } from "ShowRunner-plugin-input-shared"
+import { useDataInputStore } from "ShowRunner-ui-core"
 import KeyboardKeyInputVue from "./components/KeyboardKeyInput.vue"
 import KeyComboInputVue from "./components/KeyComboInput.vue"
 import KeyboardKeyViewVue from "./components/KeyboardKeyView.vue"

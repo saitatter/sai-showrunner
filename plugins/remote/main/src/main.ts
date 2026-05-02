@@ -9,9 +9,9 @@ import {
 	ProfileManager,
 	Profile,
 	usePluginLogger,
-} from "castmate-core"
-import { handleDashboardWidgetRPC } from "castmate-plugin-dashboards-main/src/dashboard-access"
-import { isString } from "castmate-schema"
+} from "ShowRunner-core"
+import { handleDashboardWidgetRPC } from "ShowRunner-plugin-dashboards-main/src/dashboard-access"
+import { isString } from "ShowRunner-schema"
 
 export default definePlugin(
 	{

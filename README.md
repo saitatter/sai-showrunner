@@ -11,7 +11,7 @@
 
 > Desktop-first broadcaster production suite for Twitch, YouTube, OBS, overlays, stream automations, and SAI services.
 
-ShowRunner is an AGPL-3.0 fork of [CastMate](https://github.com/LordTocs/CastMate). It preserves the upstream architecture, plugin boundaries, and license notices while shaping the app into the SAI streaming toolchain — adding YouTube integration, AI-powered moderation, an overlay studio, and a node-based automation editor.
+ShowRunner is an AGPL-3.0 fork of [ShowRunner](https://github.com/LordTocs/ShowRunner). It preserves the upstream architecture, plugin boundaries, and license notices while shaping the app into the SAI streaming toolchain — adding YouTube integration, AI-powered moderation, an overlay studio, and a node-based automation editor.
 
 ---
 
@@ -27,7 +27,7 @@ ShowRunner is an AGPL-3.0 fork of [CastMate](https://github.com/LordTocs/CastMat
 ### 🔀 Automation Workflow
 
 - Node-based automation editor for graph-style trigger/action flows with data wires and variable nodes
-- Timeline editor for detailed action sequencing (upstream CastMate mode)
+- Timeline editor for detailed action sequencing (upstream ShowRunner mode)
 - Right-click command menu for triggers and actions with collapsible groups
 - Node-native operations: insert, duplicate, delete, reorder, fit view, snap, preview
 - Copy/paste support for nodes, variable nodes, and wires across automations
@@ -52,7 +52,7 @@ ShowRunner is an AGPL-3.0 fork of [CastMate](https://github.com/LordTocs/CastMat
 
 ### 🖥️ Desktop UI
 
-- CastMate-style production workspace with profiles, integrations, overlays, variables, media, audio, and automations
+- ShowRunner-style production workspace with profiles, integrations, overlays, variables, media, audio, and automations
 - ShowRunner branding, taskbar icon, and first-run setup flow
 - Activity/log surfaces for integration errors and successful operations
 - In-app update support using GitHub Releases and Electron updater metadata
@@ -248,7 +248,7 @@ ShowRunner checks GitHub Releases for newer versions and uses Electron updater m
 PRs are welcome! Please:
 
 - Keep commits small and conventional
-- Preserve upstream CastMate license notices
+- Preserve upstream ShowRunner license notices
 - Run `corepack yarn check` before submitting TypeScript/Vue changes
 - Use feature branches instead of committing directly to `main`
 
@@ -256,7 +256,7 @@ PRs are welcome! Please:
 
 ## 🙏 Credits
 
-- Original upstream project: **LordTocs / [CastMate](https://github.com/LordTocs/CastMate)**
+- Original upstream project: **LordTocs / [ShowRunner](https://github.com/LordTocs/ShowRunner)**
 - ShowRunner is an AGPL-3.0 fork — not an independent reimplementation
 
 ---

@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-overlays-main",
+	"name": "ShowRunner-plugin-overlays-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -14,12 +14,12 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"castmate-core": "workspace:^",
-		"castmate-plugin-obs-main": "workspace:^",
-		"castmate-plugin-overlays-shared": "workspace:^",
-		"castmate-plugin-sound-main": "workspace:^",
-		"castmate-schema": "workspace:^",
-		"castmate-ws-rpc": "workspace:^",
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-obs-main": "workspace:^",
+		"ShowRunner-plugin-overlays-shared": "workspace:^",
+		"ShowRunner-plugin-sound-main": "workspace:^",
+		"ShowRunner-schema": "workspace:^",
+		"ShowRunner-ws-rpc": "workspace:^",
 		"express": "^4.19.1",
 		"http-proxy": "^1.18.1"
 	}

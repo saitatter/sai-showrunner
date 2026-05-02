@@ -1,6 +1,6 @@
-import { ReactiveRef, abortableSleep, defineAction, sleep, usePluginLogger } from "castmate-core"
+import { ReactiveRef, abortableSleep, defineAction, sleep, usePluginLogger } from "ShowRunner-core"
 import { OBSConnection } from "./connection"
-import { Toggle } from "castmate-schema"
+import { Toggle } from "ShowRunner-schema"
 import { OBSFFmpegSourceSettings } from "./input-settings"
 
 export async function getMediaDuration(obs: OBSConnection, sourceName: string): Promise<number | undefined> {

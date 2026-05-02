@@ -35,10 +35,10 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayBlockStyle, SchemaOverlayBlockStyle } from "castmate-plugin-overlays-shared"
+import { OverlayBlockStyle, SchemaOverlayBlockStyle } from "ShowRunner-plugin-overlays-shared"
 import MarginPaddingEdit from "./MarginPaddingEdit.vue"
 import { computed, ref, useModel } from "vue"
-import { SharedDataInputProps, useDataBinding, CSelectButton } from "castmate-ui-core"
+import { SharedDataInputProps, useDataBinding, CSelectButton } from "ShowRunner-ui-core"
 import PSelectButton from "primevue/selectbutton"
 
 const props = defineProps<

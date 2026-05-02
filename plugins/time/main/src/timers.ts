@@ -8,9 +8,9 @@ import {
 	registerSchemaExpose,
 	scheduleReactiveTrigger,
 	usePluginLogger,
-} from "castmate-core"
-import { VariableManager } from "castmate-plugin-variables-main"
-import { Duration, ValueCompareOperator, Timer, getTimeRemaining, isTimer, isTimerStarted } from "castmate-schema"
+} from "ShowRunner-core"
+import { VariableManager } from "ShowRunner-plugin-variables-main"
+import { Duration, ValueCompareOperator, Timer, getTimeRemaining, isTimer, isTimerStarted } from "ShowRunner-schema"
 
 //Schedules a reactive effect to wake up at a certain duration remaining.
 function scheduleTimerWakeup(timer: Timer, duration: Duration) {

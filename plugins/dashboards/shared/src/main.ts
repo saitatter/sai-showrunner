@@ -1,4 +1,4 @@
-import { IPCSchema, SchemaObj } from "castmate-schema"
+import { IPCSchema, SchemaObj } from "ShowRunner-schema"
 
 export interface DashboardWidgetSize {
 	width: number

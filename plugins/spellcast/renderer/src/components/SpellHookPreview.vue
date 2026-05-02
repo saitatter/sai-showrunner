@@ -10,8 +10,8 @@
 </template>
 
 <script setup lang="ts">
-import { SpellResourceConfig, SpellResourceState } from "castmate-plugin-spellcast-shared"
-import { ResourceData } from "castmate-schema"
+import { SpellResourceConfig, SpellResourceState } from "ShowRunner-plugin-spellcast-shared"
+import { ResourceData } from "ShowRunner-schema"
 
 const props = defineProps<{
 	spell: ResourceData<SpellResourceConfig, SpellResourceState> | undefined

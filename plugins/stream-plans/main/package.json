@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-stream-plans-main",
+	"name": "ShowRunner-plugin-stream-plans-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,8 +13,8 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"castmate-core": "workspace:^",
-		"castmate-plugin-stream-plans-shared": "workspace:^",
-		"castmate-schema": "workspace:^"
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-stream-plans-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^"
 	}
 }

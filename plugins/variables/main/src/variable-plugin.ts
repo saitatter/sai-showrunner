@@ -1,4 +1,4 @@
-import { definePlugin, usePluginLogger } from "castmate-core"
+import { definePlugin, usePluginLogger } from "ShowRunner-core"
 import { setupVariableActions } from "./actions"
 import { setupViewerVariables } from "./viewer-variables"
 

@@ -1,7 +1,7 @@
-import { ReactiveRef, onLoad, onSettingChanged, removeAllSubResource, usePluginLogger } from "castmate-core"
-import { LightResource, PlugResource } from "castmate-plugin-iot-main"
-import { LightColor } from "castmate-plugin-iot-shared"
-import { Toggle } from "castmate-schema"
+import { ReactiveRef, onLoad, onSettingChanged, removeAllSubResource, usePluginLogger } from "ShowRunner-core"
+import { LightResource, PlugResource } from "ShowRunner-plugin-iot-main"
+import { LightColor } from "ShowRunner-plugin-iot-shared"
+import { Toggle } from "ShowRunner-schema"
 import _clamp from "lodash/clamp"
 
 import { Client, Plug, LightState, LightStateInput, Bulb } from "tplink-smarthome-api"

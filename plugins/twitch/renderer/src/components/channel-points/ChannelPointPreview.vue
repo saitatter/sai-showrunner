@@ -19,8 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import { ChannelPointRewardConfig, ChannelPointRewardState } from "castmate-plugin-twitch-shared"
-import { ResourceData } from "castmate-schema"
+import { ChannelPointRewardConfig, ChannelPointRewardState } from "ShowRunner-plugin-twitch-shared"
+import { ResourceData } from "ShowRunner-schema"
 type ChannelPointResource = ResourceData<ChannelPointRewardConfig, ChannelPointRewardState>
 const props = defineProps<{
 	reward: ChannelPointResource

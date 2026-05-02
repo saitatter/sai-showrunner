@@ -33,9 +33,9 @@
 </template>
 
 <script setup lang="ts">
-import { TwitchAccountConfig } from "castmate-plugin-twitch-shared"
-import { AccountState, ResourceData } from "castmate-schema"
-import { AccountWidget } from "castmate-ui-core"
+import { TwitchAccountConfig } from "ShowRunner-plugin-twitch-shared"
+import { AccountState, ResourceData } from "ShowRunner-schema"
+import { AccountWidget } from "ShowRunner-ui-core"
 import { useBotAccountResource, useChannelAccountResource } from "../../util/twitch-accounts"
 
 const channelAccount = useChannelAccountResource()

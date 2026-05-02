@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaWidgetBorderRadius, WidgetBorderRadius } from "castmate-plugin-overlays-shared"
+import { SchemaWidgetBorderRadius, WidgetBorderRadius } from "ShowRunner-plugin-overlays-shared"
 import {
 	SharedDataInputProps,
 	useDataBinding,
@@ -43,7 +43,7 @@ import {
 	useDragValue,
 	LabelFloater,
 	getDataLabel,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import { computed, onMounted, Ref, ref, watch } from "vue"
 import WidgetSizeEditable from "./WidgetSizeEditable.vue"
 import PButton from "primevue/button"

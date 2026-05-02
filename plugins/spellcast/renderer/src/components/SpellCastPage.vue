@@ -52,7 +52,7 @@ import PButton from "primevue/button"
 
 import SpellEnableSwitch from "./SpellEnableSwitch.vue"
 
-import { ResourceData } from "castmate-schema"
+import { ResourceData } from "ShowRunner-schema"
 import SpellHookPreview from "./SpellHookPreview.vue"
 import {
 	useResourceArray,
@@ -61,10 +61,10 @@ import {
 	useResourceDeleteDialog,
 	useResourceStore,
 	useResource,
-} from "castmate-ui-core"
-import { SpellConfig, SpellResourceConfig } from "castmate-plugin-spellcast-shared"
+} from "ShowRunner-ui-core"
+import { SpellConfig, SpellResourceConfig } from "ShowRunner-plugin-spellcast-shared"
 
-import { useChannelAccountResource } from "castmate-plugin-twitch-renderer"
+import { useChannelAccountResource } from "ShowRunner-plugin-twitch-renderer"
 
 type SpellHookResource = ResourceData<SpellResourceConfig>
 const spells = useResourceArray<SpellHookResource>("SpellHook")

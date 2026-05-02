@@ -19,8 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import { declareWidgetOptions } from "castmate-overlay-core"
-import { OverlayBlockStyle, OverlayTextAlignment, OverlayTextStyle } from "castmate-plugin-overlays-shared"
+import { declareWidgetOptions } from "ShowRunner-overlay-core"
+import { OverlayBlockStyle, OverlayTextAlignment, OverlayTextStyle } from "ShowRunner-plugin-overlays-shared"
 
 defineOptions({
 	widget: declareWidgetOptions({

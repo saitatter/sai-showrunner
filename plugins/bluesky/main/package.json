@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-bluesky-main",
+	"name": "ShowRunner-plugin-bluesky-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -14,8 +14,8 @@
 	},
 	"dependencies": {
 		"@atproto/api": "^0.13.16",
-		"castmate-core": "workspace:^",
-		"castmate-plugin-bluesky-shared": "workspace:^",
-		"castmate-schema": "workspace:^"
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-bluesky-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^"
 	}
 }

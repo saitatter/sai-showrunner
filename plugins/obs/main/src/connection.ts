@@ -13,7 +13,7 @@ import {
 	defineState,
 	onUnload,
 	Service,
-} from "castmate-core"
+} from "ShowRunner-core"
 import OBSWebSocket, { OBSEventTypes, OBSWebSocketError } from "obs-websocket-js"
 import {
 	OBSConnectionConfig,
@@ -21,9 +21,9 @@ import {
 	OBSSceneListItem,
 	OBSWSInput,
 	OBSWSSceneItem,
-} from "castmate-plugin-obs-shared"
+} from "ShowRunner-plugin-obs-shared"
 
-import { isProcessRunning } from "castmate-plugin-os-main"
+import { isProcessRunning } from "ShowRunner-plugin-os-main"
 
 import { nanoid } from "nanoid/non-secure"
 import _flatten from "lodash/flatten"
@@ -686,7 +686,7 @@ export class OBSConnection extends FileResource<OBSConnectionConfig, OBSConnecti
 	}
 
 	/**
-	 * Returns the localhost if castmate is on the same computer as OBS, otherwise returns the IP of OBS
+	 * Returns the localhost if ShowRunner is on the same computer as OBS, otherwise returns the IP of OBS
 	 */
 	getRemoteHost() {
 		if (this.isLocal) return "localhost"

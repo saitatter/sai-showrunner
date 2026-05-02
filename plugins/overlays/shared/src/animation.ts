@@ -1,4 +1,4 @@
-import { Duration, SchemaBase, registerType } from "castmate-schema"
+import { Duration, SchemaBase, registerType } from "ShowRunner-schema"
 
 export interface OverlayTransitionAnimation {
 	duration: Duration
@@ -21,7 +21,7 @@ export interface SchemaOverlayTransitionAnimation extends SchemaBase<OverlayTran
 
 registerType("OverlayTransitionAnimation", { constructor: OverlayTransitionAnimation })
 
-declare module "castmate-schema" {
+declare module "ShowRunner-schema" {
 	interface SchemaTypeMap {
 		OverlayTransitionAnimation: [SchemaOverlayTransitionAnimation, OverlayTransitionAnimation]
 	}

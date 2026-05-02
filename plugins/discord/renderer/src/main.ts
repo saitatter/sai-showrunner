@@ -1,4 +1,4 @@
-import { useResourceStore, ResourceSettingList, ResourceSchemaEdit } from "castmate-ui-core"
+import { useResourceStore, ResourceSettingList, ResourceSchemaEdit } from "ShowRunner-ui-core"
 import "./css/discord.css"
 
 export function initPlugin() {

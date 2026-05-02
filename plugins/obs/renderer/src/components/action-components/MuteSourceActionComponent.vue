@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 import BaseObsActionComponent from "./BaseObsActionComponent.vue"
-import { Toggle } from "castmate-schema"
+import { Toggle } from "ShowRunner-schema"
 import { computed } from "vue"
 
 const model = defineModel<{

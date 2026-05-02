@@ -1,6 +1,6 @@
-import { MediaManager, ReactiveRef, WebService, defineAction, ensureDirectory } from "castmate-core"
+import { MediaManager, ReactiveRef, WebService, defineAction, ensureDirectory } from "ShowRunner-core"
 import { OBSConnection } from "./connection"
-import { Directory, MediaFile, Toggle } from "castmate-schema"
+import { Directory, MediaFile, Toggle } from "ShowRunner-schema"
 import path from "path"
 
 export function setupSources(obsDefault: ReactiveRef<OBSConnection>) {

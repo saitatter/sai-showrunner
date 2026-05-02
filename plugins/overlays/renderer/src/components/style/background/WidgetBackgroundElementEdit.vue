@@ -18,7 +18,7 @@ import {
 	isWidgetBackgroundGradient,
 	isWidgetBackgroundImage,
 	WidgetBackgroundStyleElement,
-} from "castmate-plugin-overlays-shared"
+} from "ShowRunner-plugin-overlays-shared"
 import PButton from "primevue/button"
 import WidgetGradientBackgroundEdit from "./WidgetGradientBackgroundEdit.vue"
 import WidgetImageBackgroundEdit from "./WidgetImageBackgroundEdit.vue"

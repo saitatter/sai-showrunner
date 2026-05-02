@@ -20,7 +20,7 @@
 		// "noUnusedParameters": true,
 		// "noFallthroughCasesInSwitch": true
 		"paths": {
-			"castmate-dashboard-core": ["../../../libs/castmate-dashboard-core/src/dashboard-core-main.ts"]
+			"ShowRunner-dashboard-core": ["../../../libs/ShowRunner-dashboard-core/src/dashboard-core-main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

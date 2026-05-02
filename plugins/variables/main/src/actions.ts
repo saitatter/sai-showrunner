@@ -1,6 +1,6 @@
-import { defineAction, exposeSchema, onLoad, onUnload, usePluginLogger } from "castmate-core"
+import { defineAction, exposeSchema, onLoad, onUnload, usePluginLogger } from "ShowRunner-core"
 import { VariableManager } from "./variable-manager"
-import { Duration, DynamicType, Range } from "castmate-schema"
+import { Duration, DynamicType, Range } from "ShowRunner-schema"
 
 export function setupVariableActions() {
 	const logger = usePluginLogger()

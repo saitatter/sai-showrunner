@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-iot-renderer",
+  "name": "ShowRunner-plugin-iot-renderer",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -13,9 +13,9 @@
   },
   "dependencies": {
     "@vueuse/core": "*",
-    "castmate-plugin-iot-shared": "workspace:^",
-    "castmate-schema": "workspace:^",
-    "castmate-ui-core": "workspace:^",
+    "ShowRunner-plugin-iot-shared": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
+    "ShowRunner-ui-core": "workspace:^",
     "chromatism2": "*",
     "electron": "^34.2.0",
     "nanoid": "^5.0.7",

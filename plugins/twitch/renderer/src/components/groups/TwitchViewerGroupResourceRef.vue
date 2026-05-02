@@ -19,10 +19,10 @@
 </template>
 
 <script setup lang="ts">
-import { DataInput, ResourceProxyFactory } from "castmate-ui-core"
-import { TwitchViewerGroupRule } from "castmate-plugin-twitch-shared"
+import { DataInput, ResourceProxyFactory } from "ShowRunner-ui-core"
+import { TwitchViewerGroupRule } from "ShowRunner-plugin-twitch-shared"
 import { computed, useModel } from "vue"
-import { Schema } from "castmate-schema"
+import { Schema } from "ShowRunner-schema"
 import PButton from "primevue/button"
 
 const props = defineProps<{

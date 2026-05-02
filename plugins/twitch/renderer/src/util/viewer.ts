@@ -1,5 +1,5 @@
-import { TwitchViewerDisplayData } from "castmate-plugin-twitch-shared"
-import { useIpcCaller } from "castmate-ui-core"
+import { TwitchViewerDisplayData } from "ShowRunner-plugin-twitch-shared"
+import { useIpcCaller } from "ShowRunner-ui-core"
 import { defineStore } from "pinia"
 
 export const useViewerStore = defineStore("twitch-viewers", () => {

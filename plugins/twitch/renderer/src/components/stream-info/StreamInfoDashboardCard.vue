@@ -9,11 +9,11 @@
 </template>
 
 <script setup lang="ts">
-import { MainPageCard, DataInput } from "castmate-ui-core"
+import { MainPageCard, DataInput } from "ShowRunner-ui-core"
 import { useCategoryStore } from "../../util/category"
 import PButton from "primevue/button"
 import { onMounted, ref, watch, watchEffect } from "vue"
-import { StreamInfo, StreamInfoSchema } from "castmate-plugin-twitch-shared"
+import { StreamInfo, StreamInfoSchema } from "ShowRunner-plugin-twitch-shared"
 import { useToast } from "primevue/usetoast"
 
 const categoryStore = useCategoryStore()

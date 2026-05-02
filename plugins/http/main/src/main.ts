@@ -8,7 +8,7 @@ import {
 	onProfilesChanged,
 	resetRouter,
 	coreAxios,
-} from "castmate-core"
+} from "ShowRunner-core"
 import axios from "axios"
 
 export default definePlugin(

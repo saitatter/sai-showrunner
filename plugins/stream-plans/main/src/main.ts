@@ -1,4 +1,4 @@
-import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, StreamPlanManager } from "castmate-core"
+import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, StreamPlanManager } from "ShowRunner-core"
 
 export default definePlugin(
 	{

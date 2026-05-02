@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-discord-main",
+  "name": "ShowRunner-plugin-discord-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,9 +13,9 @@
     "typescript": "*"
   },
   "dependencies": {
-    "castmate-core": "workspace:^",
-    "castmate-plugin-discord-shared": "workspace:^",
-    "castmate-schema": "workspace:^",
+    "ShowRunner-core": "workspace:^",
+    "ShowRunner-plugin-discord-shared": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
     "discord.js": "^14.13.0"
   }
 }

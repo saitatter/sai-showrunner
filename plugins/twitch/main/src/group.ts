@@ -9,7 +9,7 @@ import {
 	definePluginResource,
 	onLoad,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import {
 	TwitchViewerGroupConfig,
 	TwitchViewerGroup,
@@ -19,11 +19,11 @@ import {
 	isGroupResourceRef,
 	isInlineViewerGroup,
 	isGroupCondition,
-} from "castmate-plugin-twitch-shared"
+} from "ShowRunner-plugin-twitch-shared"
 import { nanoid } from "nanoid/non-secure"
 import { ViewerCache } from "./viewer-cache"
 import { TwitchAccount } from "./twitch-auth"
-import { evaluateHalfBooleanExpression } from "castmate-core/src/util/boolean-helpers"
+import { evaluateHalfBooleanExpression } from "ShowRunner-core/src/util/boolean-helpers"
 
 const logger = usePluginLogger("twitch")
 

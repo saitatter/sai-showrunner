@@ -1,5 +1,5 @@
-import { EmoteCache, defineAction } from "castmate-core"
-import { OverlayWidget } from "castmate-plugin-overlays-shared"
+import { EmoteCache, defineAction } from "ShowRunner-core"
+import { OverlayWidget } from "ShowRunner-plugin-overlays-shared"
 import { OverlayWebsocketService } from "./websocket-bridge"
 
 export function setupEmoteBouncer() {

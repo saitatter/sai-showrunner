@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayConfig } from "castmate-plugin-overlays-shared"
+import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
 import {
 	useDocumentSelection,
 	FlexScroller,
@@ -76,14 +76,14 @@ import {
 	useDocumentId,
 	useSettingValue,
 	useIpcCaller,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import { computed, onBeforeUnmount, onMounted, ref, useModel } from "vue"
 import PButton from "primevue/button"
 import PMenu from "primevue/menu"
-import { OverlayWidgetInfo, useOverlayWidgets } from "castmate-overlay-widget-loader"
+import { OverlayWidgetInfo, useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
 import type { MenuItem } from "primevue/menuitem"
 import { nanoid } from "nanoid/non-secure"
-import { constructDefault } from "castmate-schema"
+import { constructDefault } from "ShowRunner-schema"
 import _cloneDeep from "lodash/cloneDeep"
 import OverlayWidgetListItem from "./OverlayWidgetListItem.vue"
 
@@ -99,7 +99,7 @@ const overlayWidgets = useOverlayWidgets()
 
 const commitUndo = useCommitUndo()
 const overlayId = useDocumentId()
-const port = useSettingValue({ plugin: "castmate", setting: "port" })
+const port = useSettingValue({ plugin: "ShowRunner", setting: "port" })
 const overlayUrl = computed(() => `http://localhost:${port.value ?? 8181}/overlays/${overlayId.value}`)
 
 interface OverlayPresence {

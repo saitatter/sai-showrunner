@@ -8,13 +8,13 @@
 </template>
 
 <script setup lang="ts">
-import { MediaMetadata, normalizeMediaPath } from "castmate-schema"
+import { MediaMetadata, normalizeMediaPath } from "ShowRunner-schema"
 import { ComputedRef, MaybeRefOrGetter, computed, onMounted, ref, shallowRef, toValue, watch } from "vue"
 import * as fs from "fs/promises"
-import { MediaFile } from "castmate-schema"
-import { useMediaStore } from "castmate-ui-core"
+import { MediaFile } from "ShowRunner-schema"
+import { useMediaStore } from "ShowRunner-ui-core"
 import { useElementSize } from "@vueuse/core"
-import { Duration } from "castmate-schema"
+import { Duration } from "ShowRunner-schema"
 import path from "path"
 
 const props = defineProps<{

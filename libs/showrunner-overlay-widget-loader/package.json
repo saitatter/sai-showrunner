@@ -1,0 +1,35 @@
+{
+	"name": "ShowRunner-overlay-widget-loader",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"main": "src/overlay-widget-loader.ts",
+	"devMain": "src/overlay-widget-loader.ts",
+	"types": "./dist/types/overlay-widget-loader.d.ts",
+	"scripts": {
+		"dev": "vite",
+		"build": "vue-tsc && vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@vueuse/core": "*",
+		"ShowRunner-overlay-core": "workspace:^",
+		"ShowRunner-plugin-overlays-overlays": "workspace:^",
+		"ShowRunner-plugin-random-overlays": "workspace:^",
+		"ShowRunner-plugin-twitch-overlays": "workspace:^",
+		"ShowRunner-schema": "workspace:^",
+		"chromatism2": "*",
+		"electron": "^34.2.0",
+		"nanoid": "^5.0.7",
+		"pinia": "^2.1.7",
+		"primevue": "^4.2.4",
+		"vue": "^3.5.13"
+	},
+	"devDependencies": {
+		"@vitejs/plugin-vue": "4.6.2",
+		"ts-toolbelt": "*",
+		"typescript": "*",
+		"vite": "^7.3.1",
+		"vue-tsc": "*"
+	}
+}

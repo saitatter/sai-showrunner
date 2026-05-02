@@ -6,7 +6,7 @@ import {
 	definePlugin,
 	defineSetting,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { VoiceModClient } from "./client"
 
 export default definePlugin(

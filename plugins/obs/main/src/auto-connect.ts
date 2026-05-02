@@ -1,4 +1,4 @@
-import { defineIPCFunc, usePluginLogger, getLocalIP } from "castmate-core"
+import { defineIPCFunc, usePluginLogger, getLocalIP } from "ShowRunner-core"
 import { Window } from "node-screenshots"
 
 import jsQR from "jsqr"

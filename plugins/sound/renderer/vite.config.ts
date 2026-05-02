@@ -1,7 +1,7 @@
 import { defineConfig } from "vite"
 import vue from "@vitejs/plugin-vue"
 import dts from "vite-plugin-dts"
-import { libraryPlugin } from "castmate-vite"
+import { libraryPlugin } from "ShowRunner-vite"
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -10,13 +10,13 @@ export default defineConfig({
 		dts({
 			insertTypesEntry: true,
 		}),
-		libraryPlugin("castmate-ui-core"),
+		libraryPlugin("ShowRunner-ui-core"),
 	],
 	build: {
 		cssCodeSplit: true,
 		lib: {
 			entry: "src/main.ts",
-			name: "castmate-plugin-sound-renderer",
+			name: "ShowRunner-plugin-sound-renderer",
 		},
 		rollupOptions: {
 			external: ["vue"],

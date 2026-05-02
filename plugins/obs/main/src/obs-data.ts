@@ -1,6 +1,6 @@
-import { Color, Directory, FilePath, registerType, Schema, SchemaObj } from "castmate-schema"
+import { Color, Directory, FilePath, registerType, Schema, SchemaObj } from "ShowRunner-schema"
 
-import { OBSProperty, OBSPropertyPathType, OBSPropertyListType, OBSPropertyFormat } from "castmate-plugin-obs-shared"
+import { OBSProperty, OBSPropertyPathType, OBSPropertyListType, OBSPropertyFormat } from "ShowRunner-plugin-obs-shared"
 
 export interface SceneSource {
 	value: number

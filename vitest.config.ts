@@ -7,7 +7,7 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			castmate_schema: "./libs/castmate-schema/src",
+			ShowRunner_schema: "./libs/ShowRunner-schema/src",
 		},
 	},
 })

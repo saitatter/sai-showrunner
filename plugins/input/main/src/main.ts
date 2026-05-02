@@ -1,7 +1,7 @@
-import { defineAction, defineTrigger, onLoad, onUnload, definePlugin } from "castmate-core"
+import { defineAction, defineTrigger, onLoad, onUnload, definePlugin } from "ShowRunner-core"
 
 import { setupKeyboard } from "./keyboard"
-import { InputInterface } from "castmate-plugin-input-native"
+import { InputInterface } from "ShowRunner-plugin-input-native"
 
 import { setupMouse } from "./mouse"
 

@@ -1,4 +1,4 @@
-import { DataFactory, SchemaBase, mapKeys, registerType } from "castmate-schema"
+import { DataFactory, SchemaBase, mapKeys, registerType } from "ShowRunner-schema"
 
 interface KeyInfo {
 	windowsVKCode: number
@@ -382,7 +382,7 @@ export interface SchemaKeyCombo extends SchemaBase<KeyCombo> {
 	type: KeyComboFactory
 }
 
-declare module "castmate-schema" {
+declare module "ShowRunner-schema" {
 	interface SchemaTypeMap {
 		KeyCombo: [SchemaKeyCombo, KeyCombo]
 		KeyboardKey: [SchemaKeyboardKey, KeyboardKey]

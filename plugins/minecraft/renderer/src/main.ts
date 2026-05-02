@@ -1,4 +1,4 @@
-import { useResourceStore, ResourceSettingList, ResourceSchemaEdit } from "castmate-ui-core"
+import { useResourceStore, ResourceSettingList, ResourceSchemaEdit } from "ShowRunner-ui-core"
 
 export function initPlugin() {
 	const resourceStore = useResourceStore()

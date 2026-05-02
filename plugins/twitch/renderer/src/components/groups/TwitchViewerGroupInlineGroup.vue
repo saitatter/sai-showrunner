@@ -26,12 +26,12 @@
 </template>
 
 <script setup lang="ts">
-import { TwitchViewer, TwitchViewerGroupInlineList } from "castmate-plugin-twitch-shared"
+import { TwitchViewer, TwitchViewerGroupInlineList } from "ShowRunner-plugin-twitch-shared"
 
 import { useModel } from "vue"
-import { DataInput, DataBindingPath } from "castmate-ui-core"
+import { DataInput, DataBindingPath } from "ShowRunner-ui-core"
 import PButton from "primevue/button"
-import { declareSchema } from "castmate-schema"
+import { declareSchema } from "ShowRunner-schema"
 
 const props = defineProps<{
 	modelValue: TwitchViewerGroupInlineList

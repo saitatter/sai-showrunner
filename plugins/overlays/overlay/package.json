@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-overlays-overlays",
+	"name": "ShowRunner-plugin-overlays-overlays",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -13,8 +13,8 @@
 	},
 	"dependencies": {
 		"@vueuse/core": "*",
-		"castmate-overlay-core": "workspace:^",
-		"castmate-schema": "workspace:^",
+		"ShowRunner-overlay-core": "workspace:^",
+		"ShowRunner-schema": "workspace:^",
 		"chromatism2": "*",
 		"electron": "^34.2.0",
 		"nanoid": "^5.0.7",

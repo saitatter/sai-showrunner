@@ -54,9 +54,9 @@
 </template>
 
 <script setup lang="ts">
-import { MainPageCard, MainPageCardItem, useResourceEditDialog, useResourceIPCCaller, useState } from "castmate-ui-core"
-import { OBSConnectionConfig, OBSConnectionState } from "castmate-plugin-obs-shared"
-import { ResourceData } from "castmate-schema"
+import { MainPageCard, MainPageCardItem, useResourceEditDialog, useResourceIPCCaller, useState } from "ShowRunner-ui-core"
+import { OBSConnectionConfig, OBSConnectionState } from "ShowRunner-plugin-obs-shared"
+import { ResourceData } from "ShowRunner-schema"
 
 import PButton from "primevue/button"
 import PMenu from "primevue/menu"

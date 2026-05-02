@@ -12,12 +12,12 @@ import {
 	defineSecret,
 	AsyncCache,
 	coreAxios,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { PhilipsHUEGroup, PhilipsHUELight, setupResources } from "./resources"
 import { setupDiscovery } from "./discovery"
 import { setupHueEvents } from "./events"
-import { defineSettingComponent } from "castmate-core"
-import { LightResource } from "castmate-plugin-iot-main"
+import { defineSettingComponent } from "ShowRunner-core"
+import { LightResource } from "ShowRunner-plugin-iot-main"
 import { HUEScene } from "./api"
 
 export default definePlugin(

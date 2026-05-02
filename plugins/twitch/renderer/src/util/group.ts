@@ -4,8 +4,8 @@ import {
 	isGroupResourceRef,
 	isInlineViewerGroup,
 	isViewerGroupPropertyRule,
-} from "castmate-plugin-twitch-shared"
-import { useResourceStore } from "castmate-ui-core"
+} from "ShowRunner-plugin-twitch-shared"
+import { useResourceStore } from "ShowRunner-ui-core"
 //TODO: Uhhhh i18n??
 
 export function getGroupPhrase(group: TwitchViewerGroup, resourceStore: ReturnType<typeof useResourceStore>) {

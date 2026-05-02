@@ -1,4 +1,4 @@
-import { ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, usePluginLogger, writeYAML } from "castmate-core"
+import { ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, usePluginLogger, writeYAML } from "ShowRunner-core"
 import {
 	ModerationActionInput,
 	ModerationActionResult,
@@ -8,7 +8,7 @@ import {
 	ModerationQueueState,
 	ModerationSettings,
 	ModerationStatus,
-} from "castmate-plugin-moderation-shared"
+} from "ShowRunner-plugin-moderation-shared"
 import WebSocket from "ws"
 
 const DEFAULT_SETTINGS: ModerationSettings = {

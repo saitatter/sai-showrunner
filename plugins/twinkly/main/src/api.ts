@@ -1,6 +1,6 @@
 import axios from "axios"
-import { coreAxios, usePluginLogger } from "castmate-core"
-import { LightColor } from "castmate-plugin-iot-shared"
+import { coreAxios, usePluginLogger } from "ShowRunner-core"
+import { LightColor } from "ShowRunner-plugin-iot-shared"
 import crypto from "crypto"
 
 const logger = usePluginLogger("twinkly")

@@ -1,5 +1,5 @@
-import { defineState, defineTrigger, startPerfTime, usePluginLogger } from "castmate-core"
-import { Range } from "castmate-schema"
+import { defineState, defineTrigger, startPerfTime, usePluginLogger } from "ShowRunner-core"
+import { Range } from "ShowRunner-schema"
 import { onChannelAuth } from "./api-harness"
 import {
 	EventSubBase,

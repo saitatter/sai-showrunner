@@ -1,9 +1,9 @@
-import { definePlugin } from "castmate-core"
+import { definePlugin } from "ShowRunner-core"
 
 import { setupOverlayResources } from "./overlay-resource"
 import { setupWebsockets } from "./websocket-bridge"
 
-import { OverlayTextStyle } from "castmate-plugin-overlays-shared"
+import { OverlayTextStyle } from "ShowRunner-plugin-overlays-shared"
 import { setupEmoteBouncer } from "./emote-bouncer"
 import { setupAlerts } from "./alerts"
 import { setupChatFeed } from "./chat-feed"

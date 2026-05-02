@@ -6,7 +6,7 @@ This roadmap tracks the next implementation pass after the initial YouTube, Mode
 
 - Work stays on feature branches until explicitly merged.
 - Use separate semantic commits for each completed feature or fix.
-- Keep upstream CastMate package names where they are technical module identifiers.
+- Keep upstream ShowRunner package names where they are technical module identifiers.
 - Prefer additive changes over broad rewrites while the fork is still close to upstream.
 - Run `corepack yarn check` after each meaningful batch.
 

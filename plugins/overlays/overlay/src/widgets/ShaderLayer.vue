@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue"
-import { declareWidgetOptions } from "castmate-overlay-core"
+import { declareWidgetOptions } from "ShowRunner-overlay-core"
 
 const vertexShaderSource = `
 attribute vec2 a_position;

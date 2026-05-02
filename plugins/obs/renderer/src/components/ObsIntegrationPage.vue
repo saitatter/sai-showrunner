@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { ResourceSettingList } from "castmate-ui-core"
+import { ResourceSettingList } from "ShowRunner-ui-core"
 </script>
 
 <style scoped>

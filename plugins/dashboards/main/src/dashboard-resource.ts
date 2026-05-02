@@ -5,15 +5,15 @@ import {
 	SatelliteResources,
 	SatelliteService,
 	usePluginLogger,
-} from "castmate-core"
-import { DashboardConfig, DashboardResourceSlot, InitialDashboardConfig } from "castmate-plugin-dashboards-shared"
+} from "ShowRunner-core"
+import { DashboardConfig, DashboardResourceSlot, InitialDashboardConfig } from "ShowRunner-plugin-dashboards-shared"
 import { nanoid } from "nanoid/non-secure"
-import { coreAxios } from "castmate-core"
+import { coreAxios } from "ShowRunner-core"
 import _isEqual from "lodash/isEqual"
-import { TwitchAccount } from "castmate-plugin-twitch-main"
+import { TwitchAccount } from "ShowRunner-plugin-twitch-main"
 import { DashboardAccessService } from "./dashboard-access"
 
-const API_BASE_URL = "https://api.castmate.io"
+const API_BASE_URL = "https://api.ShowRunner.io"
 
 const logger = usePluginLogger("dashboards")
 

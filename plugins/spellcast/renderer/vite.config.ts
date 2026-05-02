@@ -14,7 +14,7 @@ export default defineConfig({
 		cssCodeSplit: true,
 		lib: {
 			entry: "src/main.ts",
-			name: "castmate-plugin-spellcast-renderer",
+			name: "ShowRunner-plugin-spellcast-renderer",
 		},
 		rollupOptions: {
 			external: ["vue"],

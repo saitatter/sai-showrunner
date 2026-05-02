@@ -1,11 +1,11 @@
 import { AxiosInstance } from "axios"
-import { LightResource } from "castmate-plugin-iot-main"
-import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSetting } from "castmate-core"
+import { LightResource } from "ShowRunner-plugin-iot-main"
+import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSetting } from "ShowRunner-core"
 import bonjour, { Bonjour, Browser, RemoteService } from "bonjour"
-import { PollingLight } from "castmate-plugin-iot-main"
+import { PollingLight } from "ShowRunner-plugin-iot-main"
 import axios from "axios"
-import { LightColor, LightConfig } from "castmate-plugin-iot-shared"
-import { Toggle } from "castmate-schema"
+import { LightColor, LightConfig } from "ShowRunner-plugin-iot-shared"
+import { Toggle } from "ShowRunner-schema"
 
 function elgatoToKelvin(value: number) {
 	return Math.round((-4100 * value) / 201 + 1993300 / 201)

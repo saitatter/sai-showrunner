@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayConfig } from "castmate-plugin-overlays-shared"
+import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
 import { OverlayEditorView } from "./overlay-edit-types"
 import {
 	DataInput,
@@ -135,7 +135,7 @@ import {
 	ExpanderSlider,
 	viewRef,
 	useIpcCaller,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import { computed, onBeforeUnmount, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetPropEdit from "./OverlayWidgetPropEdit.vue"
 import OverlayWidgetList from "./OverlayWidgetList.vue"
@@ -171,7 +171,7 @@ const overlayPresence = ref<OverlayPresence>({
 	subscribers: 0,
 })
 
-const port = useSettingValue({ plugin: "castmate", setting: "port" })
+const port = useSettingValue({ plugin: "ShowRunner", setting: "port" })
 const defaultObsSetting = useSettingValue({ plugin: "obs", setting: "obsDefault" })
 
 const splitterPos = viewRef<number>("splitterPos", 350)

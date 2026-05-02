@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-moderation-renderer",
+	"name": "ShowRunner-plugin-moderation-renderer",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -12,9 +12,9 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
-		"castmate-plugin-moderation-shared": "workspace:^",
-		"castmate-schema": "workspace:^",
-		"castmate-ui-core": "workspace:^",
+		"ShowRunner-plugin-moderation-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^",
+		"ShowRunner-ui-core": "workspace:^",
 		"electron": "^34.2.0",
 		"pinia": "^2.1.7",
 		"vue": "^3.5.13"

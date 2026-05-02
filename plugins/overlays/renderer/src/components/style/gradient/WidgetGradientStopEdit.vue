@@ -9,8 +9,8 @@
 
 <script setup lang="ts">
 import { useElementSize, useEventListener } from "@vueuse/core"
-import { WidgetGradientStop } from "castmate-plugin-overlays-shared"
-import { Color } from "castmate-schema"
+import { WidgetGradientStop } from "ShowRunner-plugin-overlays-shared"
+import { Color } from "ShowRunner-schema"
 import {
 	ClientPosition,
 	DOMPos,
@@ -20,7 +20,7 @@ import {
 	CColorPicker,
 	usePropagationStop,
 	usePropagationImmediateStop,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import { ref, useTemplateRef } from "vue"
 
 const model = defineModel<WidgetGradientStop>()

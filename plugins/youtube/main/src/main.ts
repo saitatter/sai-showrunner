@@ -8,9 +8,9 @@ import {
 	onLoad,
 	showrunnerChatModerationEvents,
 	usePluginLogger,
-} from "castmate-core"
-import { Command, getCommandDataSchema, matchAndParseCommand } from "castmate-schema"
-import { YouTubeBroadcastState, YouTubeChatMessage, YouTubeConnectionState } from "castmate-plugin-youtube-shared"
+} from "ShowRunner-core"
+import { Command, getCommandDataSchema, matchAndParseCommand } from "ShowRunner-schema"
+import { YouTubeBroadcastState, YouTubeChatMessage, YouTubeConnectionState } from "ShowRunner-plugin-youtube-shared"
 import { YouTubeAuthService } from "./youtube-auth"
 import { YouTubeLiveChatService } from "./youtube-live-chat"
 

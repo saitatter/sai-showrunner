@@ -1,4 +1,4 @@
-import { usePluginStore } from "castmate-ui-core"
+import { usePluginStore } from "ShowRunner-ui-core"
 import RandomFlowActionComponent from "./components/RandomFlowActionComponent.vue"
 
 export async function initPlugin() {

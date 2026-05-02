@@ -1,5 +1,5 @@
 {
-    "name": "castmate-plugin-twitch",
+    "name": "ShowRunner-plugin-twitch",
     "private": true,
     "version": "0.0.1",
     "type": "module",

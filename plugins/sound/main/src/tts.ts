@@ -7,11 +7,11 @@ import {
 	ensureDirectory,
 	onLoad,
 	usePluginLogger,
-} from "castmate-core"
-import { TTSVoiceConfig, TTSVoiceProviderConfig } from "castmate-plugin-sound-shared"
-import { Schema, SchemaType, declareSchema } from "castmate-schema"
+} from "ShowRunner-core"
+import { TTSVoiceConfig, TTSVoiceProviderConfig } from "ShowRunner-plugin-sound-shared"
+import { Schema, SchemaType, declareSchema } from "ShowRunner-schema"
 import { nanoid } from "nanoid/non-secure"
-import { OsTTSInterface, OsTTSVoice } from "castmate-plugin-sound-native"
+import { OsTTSInterface, OsTTSVoice } from "ShowRunner-plugin-sound-native"
 import { app } from "electron"
 import * as path from "path"
 
@@ -52,7 +52,7 @@ export class TTSVoice extends FileResource<TTSVoiceConfig> {
 		const provider = TTSVoiceProvider.storage.getById(this.config.voiceProvider)
 		if (!provider) return
 
-		const cachePath = path.join(app.getPath("temp"), "castmate-tts")
+		const cachePath = path.join(app.getPath("temp"), "ShowRunner-tts")
 		await ensureDirectory(cachePath)
 
 		const filename = path.join(cachePath, `${nanoid()}.wav`)
@@ -151,8 +151,8 @@ export function setupTTS() {
 	}
 
 	onLoad(async () => {
-		ensureDirectory(path.join(app.getPath("temp"), "castmate-tts"))
-		logger.log(`TTS Cache Path: `, path.join(app.getPath("temp"), "castmate-tts"))
+		ensureDirectory(path.join(app.getPath("temp"), "ShowRunner-tts"))
+		logger.log(`TTS Cache Path: `, path.join(app.getPath("temp"), "ShowRunner-tts"))
 
 		await getOsVoices()
 	})

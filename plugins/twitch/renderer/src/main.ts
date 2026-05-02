@@ -9,19 +9,19 @@ import {
 	useProjectStore,
 	useResourceStore,
 	useStreamPlanStore,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import {
 	TwitchViewer,
 	TwitchViewerGroup,
 	TwitchCategory,
 	ChannelPointRewardConfig,
 	TwitchStreamTags,
-} from "castmate-plugin-twitch-shared"
+} from "ShowRunner-plugin-twitch-shared"
 import TwitchViewerGroupInput from "./components/TwitchViewerGroupInput.vue"
 import { computed, App } from "vue"
 import ChannelPointsEditPageVue from "./components/channel-points/ChannelPointsEditPage.vue"
 import TwitchAccountSettingsVue from "./components/account/TwitchAccountSettings.vue"
-import { Color, Duration, ResourceData } from "castmate-schema"
+import { Color, Duration, ResourceData } from "ShowRunner-schema"
 import TwitchViewerInputVue from "./components/viewer/TwitchViewerInput.vue"
 import GroupPageVue from "./components/groups/GroupPage.vue"
 import TwitchCategoryInputVue from "./components/category/TwitchCategoryInput.vue"

@@ -1,4 +1,4 @@
-import { LightResource } from "castmate-plugin-iot-main"
+import { LightResource } from "ShowRunner-plugin-iot-main"
 import {
 	defineAction,
 	defineTrigger,
@@ -9,11 +9,11 @@ import {
 	defineSetting,
 	AsyncCache,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import axios, { AxiosInstance } from "axios"
 import { TwinklyDiscovery } from "./discovery"
-import { PollingLight } from "castmate-plugin-iot-main/src/light"
-import { LightColor, LightConfig } from "castmate-plugin-iot-shared"
+import { PollingLight } from "ShowRunner-plugin-iot-main/src/light"
+import { LightColor, LightConfig } from "ShowRunner-plugin-iot-shared"
 
 import {
 	TwinklyAuthToken,
@@ -26,7 +26,7 @@ import {
 	setTwinklyMovie,
 	turnTwinklyOff,
 } from "./api"
-import { Toggle } from "castmate-schema"
+import { Toggle } from "ShowRunner-schema"
 
 const logger = usePluginLogger("twinkly")
 

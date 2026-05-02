@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-random-main",
+	"name": "ShowRunner-plugin-random-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,9 +13,9 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"castmate-core": "workspace:^",
-		"castmate-plugin-overlays-main": "workspace:^",
-		"castmate-plugin-random-shared": "workspace:^",
-		"castmate-schema": "workspace:^"
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-overlays-main": "workspace:^",
+		"ShowRunner-plugin-random-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^"
 	}
 }

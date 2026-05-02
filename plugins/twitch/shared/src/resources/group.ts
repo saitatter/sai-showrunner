@@ -1,4 +1,4 @@
-import { ExpressionValue, SchemaBase, ValueCompareOperator, registerType } from "castmate-schema"
+import { ExpressionValue, SchemaBase, ValueCompareOperator, registerType } from "ShowRunner-schema"
 
 export interface TwitchViewerGroupConfig {
 	name: string
@@ -71,7 +71,7 @@ export interface SchemaTwitchViewerGroup extends SchemaBase<TwitchViewerGroup> {
 	anonymous?: boolean
 }
 
-declare module "castmate-schema" {
+declare module "ShowRunner-schema" {
 	interface SchemaTypeMap {
 		TwitchViewerGroup: [SchemaTwitchViewerGroup, TwitchViewerGroup]
 	}

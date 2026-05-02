@@ -1,4 +1,4 @@
-import { SchemaBase, registerType } from "castmate-schema"
+import { SchemaBase, registerType } from "ShowRunner-schema"
 
 export type TwitchCategoryUnresolved = string
 
@@ -34,7 +34,7 @@ registerType("TwitchCategory", {
 	constructor: TwitchCategory,
 })
 
-declare module "castmate-schema" {
+declare module "ShowRunner-schema" {
 	interface SchemaTypeMap {
 		TwitchCategory: [SchemaTwitchCategory, TwitchCategoryUnresolved]
 	}

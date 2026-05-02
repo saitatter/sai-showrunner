@@ -17,8 +17,8 @@
 
 <script setup lang="ts">
 import PInputNumber from "primevue/inputnumber"
-import { LabelFloater } from "castmate-ui-core"
-import { DashboardWidgetSize } from "castmate-plugin-dashboards-shared"
+import { LabelFloater } from "ShowRunner-ui-core"
+import { DashboardWidgetSize } from "ShowRunner-plugin-dashboards-shared"
 import { useModel } from "vue"
 
 const props = defineProps<{

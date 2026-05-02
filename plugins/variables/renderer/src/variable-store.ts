@@ -1,8 +1,8 @@
 import { MaybeRefOrGetter, computed, ref, toValue } from "vue"
-import { IPCVariableDefinition } from "castmate-plugin-variables-shared"
-import { handleIpcMessage, ipcParseSchema, useIpcCaller, useState } from "castmate-ui-core"
+import { IPCVariableDefinition } from "ShowRunner-plugin-variables-shared"
+import { handleIpcMessage, ipcParseSchema, useIpcCaller, useState } from "ShowRunner-ui-core"
 import { defineStore } from "pinia"
-import { Schema, getTypeByConstructor, getTypeByName } from "castmate-schema"
+import { Schema, getTypeByConstructor, getTypeByName } from "ShowRunner-schema"
 
 export interface RendererVariableDefinition<T = any> {
 	id: string

@@ -7,9 +7,9 @@ import {
 	useSetting,
 	getSettingValue,
 	defineTransformTrigger,
-} from "castmate-core"
-import { OBSConnection, onOBSWebsocketEvent } from "castmate-plugin-obs-main"
-import { Command, getCommandDataSchema, matchAndParseCommand } from "castmate-schema"
+} from "ShowRunner-core"
+import { OBSConnection, onOBSWebsocketEvent } from "ShowRunner-plugin-obs-main"
+import { Command, getCommandDataSchema, matchAndParseCommand } from "ShowRunner-schema"
 
 export default definePlugin(
 	{

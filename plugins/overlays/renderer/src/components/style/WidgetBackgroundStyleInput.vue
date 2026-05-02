@@ -40,7 +40,7 @@ import {
 	WidgetBackgroundImage,
 	WidgetBackgroundStyle,
 	WidgetBackgroundStyleElement,
-} from "castmate-plugin-overlays-shared"
+} from "ShowRunner-plugin-overlays-shared"
 import {
 	SharedDataInputProps,
 	useDataBinding,
@@ -49,7 +49,7 @@ import {
 	InputBox,
 	LabelFloater,
 	getDataLabel,
-} from "castmate-ui-core"
+} from "ShowRunner-ui-core"
 import PButton from "primevue/button"
 
 import WidgetBackgroundElementEdit from "./background/WidgetBackgroundElementEdit.vue"

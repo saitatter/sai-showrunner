@@ -1,4 +1,4 @@
-import { defineAction, definePlugin, defineRendererCallable, onLoad, showrunnerChatModerationEvents } from "castmate-core"
+import { defineAction, definePlugin, defineRendererCallable, onLoad, showrunnerChatModerationEvents } from "ShowRunner-core"
 import { ModerationService } from "./moderation-service"
 
 export { ModerationService } from "./moderation-service"

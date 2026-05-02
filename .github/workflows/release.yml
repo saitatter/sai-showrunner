@@ -77,7 +77,7 @@ jobs:
         run: yarn setup-vite
 
       - name: Rebuild native dependencies
-        run: yarn workspace castmate-core run rebuild
+        run: yarn workspace ShowRunner-core run rebuild
 
       - name: Build renderer and packages
         run: node ./vite-util/multi-vite.mjs build
@@ -87,7 +87,7 @@ jobs:
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
 
       - name: Package Windows app
-        run: yarn workspace castmate run electron:build -- --config.extraMetadata.version=${{ needs.release.outputs.version }} --publish never
+        run: yarn workspace ShowRunner run electron:build -- --config.extraMetadata.version=${{ needs.release.outputs.version }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 

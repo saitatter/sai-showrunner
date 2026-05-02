@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import { useDataBinding } from "castmate-ui-core"
+import { useDataBinding } from "ShowRunner-ui-core"
 import { StyleValue } from "vue"
 
 const props = defineProps<{

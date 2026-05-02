@@ -1,4 +1,4 @@
-import { Color, SchemaBase, registerType } from "castmate-schema"
+import { Color, SchemaBase, registerType } from "ShowRunner-schema"
 import _cloneDeep from "lodash/cloneDeep"
 
 import { CSSProperties } from "vue"
@@ -531,7 +531,7 @@ export interface SchemaWidgetOutlineStyle extends SchemaBase<WidgetBackgroundSty
 	type: WidgetOutlineStyleFactory
 }
 
-declare module "castmate-schema" {
+declare module "ShowRunner-schema" {
 	interface SchemaTypeMap {
 		OverlayTextStyle: [SchemaOverlayTextStyle, OverlayTextStyle]
 		OverlayBlockStyle: [SchemaOverlayBlockStyle, OverlayBlockStyle]

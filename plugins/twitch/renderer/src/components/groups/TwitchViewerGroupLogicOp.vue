@@ -47,7 +47,7 @@ import {
 	TwitchViewerGroupAnd,
 	TwitchViewerGroupOr,
 	isInlineViewerGroup,
-} from "castmate-plugin-twitch-shared"
+} from "ShowRunner-plugin-twitch-shared"
 import { computed, useModel, ref } from "vue"
 import TwitchViewerGroupRuleNegator from "./TwitchViewerGroupRuleNegator.vue"
 

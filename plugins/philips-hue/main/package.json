@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-philips-hue-main",
+  "name": "ShowRunner-plugin-philips-hue-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -14,10 +14,10 @@
     "typescript": "*"
   },
   "dependencies": {
-    "castmate-core": "workspace:^",
-    "castmate-plugin-iot-main": "workspace:^",
-    "castmate-plugin-iot-shared": "workspace:^",
-    "castmate-schema": "workspace:^",
+    "ShowRunner-core": "workspace:^",
+    "ShowRunner-plugin-iot-main": "workspace:^",
+    "ShowRunner-plugin-iot-shared": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
     "eventsource": "^2.0.2"
   }
 }

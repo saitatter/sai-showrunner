@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-dashboards-dashboard",
+	"name": "ShowRunner-plugin-dashboards-dashboard",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -13,8 +13,8 @@
 	},
 	"dependencies": {
 		"@vueuse/core": "*",
-		"castmate-dashboard-core": "workspace:^",
-		"castmate-schema": "workspace:^",
+		"ShowRunner-dashboard-core": "workspace:^",
+		"ShowRunner-schema": "workspace:^",
 		"chromatism2": "*",
 		"electron": "^34.2.0",
 		"nanoid": "^5.0.7",

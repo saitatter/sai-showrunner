@@ -1,7 +1,7 @@
-import { useResolvedWidgetConfig } from "castmate-overlay-core"
-import { useOverlayWidgets } from "castmate-overlay-widget-loader"
-import { OverlayConfig, OverlayWidgetConfig } from "castmate-plugin-overlays-shared"
-import { handleIpcMessage, useIpcCaller, useIpcMessage } from "castmate-ui-core"
+import { useResolvedWidgetConfig } from "ShowRunner-overlay-core"
+import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
+import { OverlayConfig, OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
+import { handleIpcMessage, useIpcCaller, useIpcMessage } from "ShowRunner-ui-core"
 import { nanoid } from "nanoid/non-secure"
 import { defineStore } from "pinia"
 import {

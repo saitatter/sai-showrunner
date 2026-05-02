@@ -8,7 +8,7 @@ import {
 	defineSatellitePlugin,
 	onLoad,
 	onUnload,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import { setupChat } from "./chat"
 import { setupSubscriptions } from "./subscriptions"

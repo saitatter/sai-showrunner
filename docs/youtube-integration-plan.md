@@ -1,6 +1,6 @@
 # YouTube Integration Plan
 
-SAI Showrunner is an AGPL-3.0 fork of CastMate. The YouTube work should follow the existing ShowRunner plugin architecture instead of adding a separate service layer. The Twitch plugin is the primary reference for auth, resources, triggers, overlays, and renderer registration.
+SAI Showrunner is an AGPL-3.0 fork of ShowRunner. The YouTube work should follow the existing ShowRunner plugin architecture instead of adding a separate service layer. The Twitch plugin is the primary reference for auth, resources, triggers, overlays, and renderer registration.
 
 ## Goals
 
@@ -59,10 +59,10 @@ Local build setup:
 $env:SHOWRUNNER_YOUTUBE_CLIENT_ID = "your-google-oauth-client-id.apps.googleusercontent.com"
 $env:SHOWRUNNER_YOUTUBE_CLIENT_SECRET = "your-google-oauth-client-secret"
 corepack yarn setup-vite
-corepack yarn workspace castmate-core run rebuild
+corepack yarn workspace ShowRunner-core run rebuild
 node .\vite-util\multi-vite.mjs build
 $env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
-corepack yarn workspace castmate run electron:build -- --publish never
+corepack yarn workspace ShowRunner run electron:build -- --publish never
 ```
 
 ## MVP Events

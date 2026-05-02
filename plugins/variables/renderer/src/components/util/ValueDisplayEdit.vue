@@ -19,8 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import { Schema } from "castmate-schema"
-import { DataView, DataInput, usePropagationStop } from "castmate-ui-core"
+import { Schema } from "ShowRunner-schema"
+import { DataView, DataInput, usePropagationStop } from "ShowRunner-ui-core"
 import { nextTick, ref } from "vue"
 import _cloneDeep from "lodash/cloneDeep"
 import PButton from "primevue/button"

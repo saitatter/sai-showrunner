@@ -1,5 +1,5 @@
-import { defineTrigger, onLoad } from "castmate-core"
-import { TwitchViewer, TwitchViewerGroup, TwitchViewerUnresolved } from "castmate-plugin-twitch-shared"
+import { defineTrigger, onLoad } from "ShowRunner-core"
+import { TwitchViewer, TwitchViewerGroup, TwitchViewerUnresolved } from "ShowRunner-plugin-twitch-shared"
 import { inTwitchViewerGroup } from "./group"
 import { ViewerCache, onViewerSeen } from "./viewer-cache"
 import { onChannelAuth, onStreamOnline } from "./api-harness"

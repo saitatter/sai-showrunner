@@ -12,10 +12,10 @@
 
 <script setup lang="ts">
 import { computedAsync } from "@vueuse/core"
-import { TwitchViewerUnresolved } from "castmate-plugin-twitch-shared"
+import { TwitchViewerUnresolved } from "ShowRunner-plugin-twitch-shared"
 import { useViewerStore } from "../../util/viewer"
 import PAvatar from "primevue/avatar"
-import { defaultStringIsTemplate } from "castmate-ui-core"
+import { defaultStringIsTemplate } from "ShowRunner-ui-core"
 
 const model = defineModel<{
 	streamer: TwitchViewerUnresolved | undefined

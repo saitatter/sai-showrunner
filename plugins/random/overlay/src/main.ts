@@ -1,4 +1,4 @@
-import { definePluginOverlays } from "castmate-overlay-core"
+import { definePluginOverlays } from "ShowRunner-overlay-core"
 
 import WheelVue from "./widgets/Wheel.vue"
 

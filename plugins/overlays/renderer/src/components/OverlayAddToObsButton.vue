@@ -28,13 +28,13 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayConfig } from "castmate-plugin-overlays-shared"
+import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
 import { computed, onMounted, ref, watch } from "vue"
 
 import PButton from "primevue/button"
-import { NameDialog, useResource, useResourceIPCCaller, useSettingValue } from "castmate-ui-core"
-import { ResourceData } from "castmate-schema"
-import { OBSConnectionConfig, OBSConnectionState } from "castmate-plugin-obs-shared"
+import { NameDialog, useResource, useResourceIPCCaller, useSettingValue } from "ShowRunner-ui-core"
+import { ResourceData } from "ShowRunner-schema"
+import { OBSConnectionConfig, OBSConnectionState } from "ShowRunner-plugin-obs-shared"
 import { asyncComputed } from "@vueuse/core"
 import { useDialog } from "primevue/usedialog"
 
@@ -77,7 +77,7 @@ const hasObs = computed(() => {
 	return obs.value?.state?.connected
 })
 
-const port = useSettingValue<string>({ plugin: "castmate", setting: "port" })
+const port = useSettingValue<string>({ plugin: "ShowRunner", setting: "port" })
 
 const overlay = useResource<ResourceData<OverlayConfig>>("Overlay", () => props.overlayId)
 const overlayConfig = computed(() => overlay.value?.config)

@@ -1,8 +1,8 @@
-import { EmoteCache, EmoteProvider, Service, onLoad } from "castmate-core"
+import { EmoteCache, EmoteProvider, Service, onLoad } from "ShowRunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import { HelixChannelEmote, HelixEmote } from "@twurple/api"
 import { onChannelAuth } from "./api-harness"
-import { EmoteImageURLs, EmoteInfo, EmoteSet } from "castmate-schema"
+import { EmoteImageURLs, EmoteInfo, EmoteSet } from "ShowRunner-schema"
 
 export function helixToEmoteInfo(helixEmote: HelixEmote): EmoteInfo {
 	const result: EmoteInfo = {

@@ -11,9 +11,9 @@
 
 <script setup lang="ts">
 import * as chromatism from "chromatism2"
-import { declareWidgetOptions, useCallDashboardRPC, useCastMateBridge, useIsEditor } from "castmate-dashboard-core"
-import { DashboardWidgetSize } from "castmate-plugin-dashboards-shared"
-import { Color } from "castmate-schema"
+import { declareWidgetOptions, useCallDashboardRPC, useShowRunnerBridge, useIsEditor } from "ShowRunner-dashboard-core"
+import { DashboardWidgetSize } from "ShowRunner-plugin-dashboards-shared"
+import { Color } from "ShowRunner-schema"
 import { computed, CSSProperties, onMounted, ref, watch } from "vue"
 import { useElementSize, useMutationObserver } from "@vueuse/core"
 

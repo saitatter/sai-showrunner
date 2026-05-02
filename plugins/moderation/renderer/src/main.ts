@@ -1,5 +1,5 @@
 import { App, computed } from "vue"
-import { ProjectGroup, useDockingStore, useProjectStore } from "castmate-ui-core"
+import { ProjectGroup, useDockingStore, useProjectStore } from "ShowRunner-ui-core"
 import ModerationPage from "./components/ModerationPage.vue"
 
 export async function initPlugin(app: App<Element>) {

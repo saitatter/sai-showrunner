@@ -15,11 +15,11 @@
 </template>
 
 <script setup lang="ts">
-import { useDashboardWidgets } from "castmate-dashboard-widget-loader"
-import { DashboardConfig } from "castmate-plugin-dashboards-shared"
-import { useRawDocumentSelection } from "castmate-ui-core"
+import { useDashboardWidgets } from "ShowRunner-dashboard-widget-loader"
+import { DashboardConfig } from "ShowRunner-plugin-dashboards-shared"
+import { useRawDocumentSelection } from "ShowRunner-ui-core"
 import { computed, useModel } from "vue"
-import { DataInput, FlexScroller } from "castmate-ui-core"
+import { DataInput, FlexScroller } from "ShowRunner-ui-core"
 
 import DashboardWidgetSizeEdit from "./DashboardWidgetSizeEdit.vue"
 import DashboardSectionPropEdit from "./DashboardSectionPropEdit.vue"

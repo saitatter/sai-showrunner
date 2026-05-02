@@ -1,6 +1,6 @@
-import { abortableSleep, defineAction } from "castmate-core"
-import { InputInterface, MouseButton } from "castmate-plugin-input-native"
-import { Duration } from "castmate-schema"
+import { abortableSleep, defineAction } from "ShowRunner-core"
+import { InputInterface, MouseButton } from "ShowRunner-plugin-input-native"
+import { Duration } from "ShowRunner-schema"
 
 export function setupMouse(inputInterface: InputInterface) {
 	defineAction({

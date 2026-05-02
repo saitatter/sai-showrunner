@@ -1,5 +1,5 @@
 {
-  "name": "castmate-plugin-time-renderer",
+  "name": "ShowRunner-plugin-time-renderer",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@vueuse/core": "*",
-    "castmate-plugin-time-shared": "workspace:^",
-    "castmate-schema": "workspace:^",
+    "ShowRunner-plugin-time-shared": "workspace:^",
+    "ShowRunner-schema": "workspace:^",
     "chromatism2": "*",
     "electron": "^34.2.0",
     "nanoid": "^5.0.7",

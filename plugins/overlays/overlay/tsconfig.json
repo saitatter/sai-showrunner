@@ -20,7 +20,7 @@
 		// "noUnusedParameters": true,
 		// "noFallthroughCasesInSwitch": true
 		"paths": {
-			"castmate-overlay-core": ["../../../libs/castmate-overlay-core/src/overlay-core-main.ts"]
+			"ShowRunner-overlay-core": ["../../../libs/ShowRunner-overlay-core/src/overlay-core-main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

@@ -1,7 +1,7 @@
-import { OverlayWidgetComponent } from "castmate-overlay-core"
-import { OverlayWidgetConfig } from "castmate-plugin-overlays-shared"
-import { RemoteTemplateResolutionContext, resolveRemoteTemplateSchema } from "castmate-schema"
-import { PanState } from "castmate-ui-core"
+import { OverlayWidgetComponent } from "ShowRunner-overlay-core"
+import { OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
+import { RemoteTemplateResolutionContext, resolveRemoteTemplateSchema } from "ShowRunner-schema"
+import { PanState } from "ShowRunner-ui-core"
 import { ComputedRef, MaybeRefOrGetter, Ref, computed, ref, toValue } from "vue"
 
 export interface OverlayEditView {

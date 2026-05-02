@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-spellcast-renderer",
+	"name": "ShowRunner-plugin-spellcast-renderer",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -13,10 +13,10 @@
 	},
 	"dependencies": {
 		"@vueuse/core": "*",
-		"castmate-plugin-spellcast-shared": "workspace:^",
-		"castmate-plugin-twitch-renderer": "workspace:^",
-		"castmate-schema": "workspace:^",
-		"castmate-ui-core": "workspace:^",
+		"ShowRunner-plugin-spellcast-shared": "workspace:^",
+		"ShowRunner-plugin-twitch-renderer": "workspace:^",
+		"ShowRunner-schema": "workspace:^",
+		"ShowRunner-ui-core": "workspace:^",
 		"chromatism2": "*",
 		"electron": "^34.2.0",
 		"nanoid": "^5.0.7",

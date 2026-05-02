@@ -1,6 +1,6 @@
 import { WebSocket } from "ws"
 import { nanoid } from "nanoid/non-secure"
-import { usePluginLogger } from "castmate-core"
+import { usePluginLogger } from "ShowRunner-core"
 
 const logger = usePluginLogger("voicemod")
 
@@ -119,7 +119,7 @@ export class VoiceModClient {
 			this.socket.on("open", async () => {
 				logger.log("Voicemod Connection Opened")
 
-				await this._callRPC("registerClient", { clientKey: "castmate" })
+				await this._callRPC("registerClient", { clientKey: "ShowRunner" })
 				this.connected = true
 				this.pinger = setInterval(() => {
 					if (this.socket?.readyState == 1) {

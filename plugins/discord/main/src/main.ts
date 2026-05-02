@@ -1,4 +1,4 @@
-import { DiscordWebhookConfig } from "castmate-plugin-discord-shared"
+import { DiscordWebhookConfig } from "ShowRunner-plugin-discord-shared"
 import {
 	defineAction,
 	defineTrigger,
@@ -10,10 +10,10 @@ import {
 	definePluginResource,
 	defineResourceSetting,
 	usePluginLogger,
-} from "castmate-core"
+} from "ShowRunner-core"
 import { WebhookClient } from "discord.js"
 import { nanoid } from "nanoid/non-secure"
-import { FilePath } from "castmate-schema"
+import { FilePath } from "ShowRunner-schema"
 import * as fs from "fs"
 import { Stream } from "stream"
 

@@ -22,14 +22,14 @@ import {
 	ReactiveRef,
 	useState,
 	ignoreReactivity,
-} from "castmate-core"
+} from "ShowRunner-core"
 import {
 	StreamInfo,
 	StreamInfoSchema,
 	TwitchCategory,
 	TwitchStreamTags,
 	TwitchViewer,
-} from "castmate-plugin-twitch-shared"
+} from "ShowRunner-plugin-twitch-shared"
 import { TwitchAccount } from "./twitch-auth"
 import { HelixChannelUpdate } from "@twurple/api"
 import { onChannelAuth, onStreamOffline, onStreamOnline } from "./api-harness"

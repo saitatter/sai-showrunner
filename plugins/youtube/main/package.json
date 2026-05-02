@@ -1,5 +1,5 @@
 {
-	"name": "castmate-plugin-youtube-main",
+	"name": "ShowRunner-plugin-youtube-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,9 +13,9 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"castmate-core": "workspace:^",
-		"castmate-plugin-youtube-shared": "workspace:^",
-		"castmate-schema": "workspace:^",
+		"ShowRunner-core": "workspace:^",
+		"ShowRunner-plugin-youtube-shared": "workspace:^",
+		"ShowRunner-schema": "workspace:^",
 		"electron": "^34.2.0"
 	}
 }
