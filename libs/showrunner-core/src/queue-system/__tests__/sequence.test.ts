@@ -16,7 +16,7 @@ vi.mock("../../util/ipc-schema", () => ({
 
 // Mock globalLogger
 vi.mock("../../logging/logging", () => ({
-	globalLogger: { log: vi.fn(), error: vi.fn() },
+	globalLogger: { log: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
 // Mock reactivity (not needed in tests)
@@ -72,9 +72,9 @@ describe("SequenceRunner - wire validation", () => {
 		const runner = new SequenceRunner(sequence as any, { contextState: {} }, undefined, wires)
 		// The runner should have filtered to only the valid wire
 		// We can verify by checking globalLogger was called for invalid wires
-		expect(globalLogger.log).toHaveBeenCalledTimes(2)
-		expect(globalLogger.log).toHaveBeenCalledWith(expect.stringContaining("missing"))
-		expect(globalLogger.log).toHaveBeenCalledWith(expect.stringContaining("ghost"))
+		expect(globalLogger.warn).toHaveBeenCalledTimes(2)
+		expect(globalLogger.warn).toHaveBeenCalledWith(expect.stringContaining("missing"))
+		expect(globalLogger.warn).toHaveBeenCalledWith(expect.stringContaining("ghost"))
 	})
 
 	it("should keep all wires when all nodes exist", () => {
@@ -84,7 +84,7 @@ describe("SequenceRunner - wire validation", () => {
 		]
 
 		new SequenceRunner(sequence as any, { contextState: {} }, undefined, wires)
-		expect(globalLogger.log).not.toHaveBeenCalled()
+		expect(globalLogger.warn).not.toHaveBeenCalled()
 	})
 
 	it("should include variable node ids when validating wires", () => {
@@ -95,7 +95,7 @@ describe("SequenceRunner - wire validation", () => {
 		]
 
 		new SequenceRunner(sequence as any, { contextState: {} }, undefined, wires, variables)
-		expect(globalLogger.log).not.toHaveBeenCalled()
+		expect(globalLogger.warn).not.toHaveBeenCalled()
 	})
 
 	it("should handle empty wires array without error", () => {
@@ -115,7 +115,7 @@ describe("SequenceRunner - wire validation", () => {
 		const wires: AutomationDataWire[] = [makeWire("s1", "out", "s2", "in")]
 
 		new SequenceRunner(sequence as any, { contextState: {} }, undefined, wires)
-		expect(globalLogger.log).not.toHaveBeenCalled()
+		expect(globalLogger.warn).not.toHaveBeenCalled()
 	})
 
 	it("should recognize flow action sub-flow actions as valid wire targets", () => {
@@ -131,7 +131,7 @@ describe("SequenceRunner - wire validation", () => {
 		const wires: AutomationDataWire[] = [makeWire("flow1", "out", "inner1", "in")]
 
 		new SequenceRunner(sequence as any, { contextState: {} }, undefined, wires)
-		expect(globalLogger.log).not.toHaveBeenCalled()
+		expect(globalLogger.warn).not.toHaveBeenCalled()
 	})
 })
 
@@ -331,7 +331,7 @@ describe("SequenceRunner - wire resolution", () => {
 
 		// a2 should keep original value since the port didn't exist
 		expect(mockInvoke.mock.calls[1][0]).toEqual(expect.objectContaining({ val: "original" }))
-		expect(globalLogger.log).toHaveBeenCalledWith(expect.stringContaining("nonExistentPort"))
+		expect(globalLogger.warn).toHaveBeenCalledWith(expect.stringContaining("nonExistentPort"))
 	})
 
 	it("should wrap primitive results so _result port works", async () => {

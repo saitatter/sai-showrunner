@@ -71,7 +71,9 @@ export async function initializeLogging() {
 
 export interface Logger {
 	log(...args: any[]): void
+	warn(...args: any[]): void
 	error(...args: any[]): void
+	debug(...args: any[]): void
 }
 
 function logArg(arg: any) {
@@ -88,8 +90,14 @@ export const globalLogger: Logger = {
 	log(...args: any[]) {
 		winstonLogger?.log("info", args.map(logArg).join(" "), { messageColored: args.map(logArgColored).join(" ") })
 	},
+	warn(...args: any[]) {
+		winstonLogger?.log("warn", args.map(logArg).join(" "), { messageColored: args.map(logArgColored).join(" ") })
+	},
 	error(...args: any[]) {
 		winstonLogger?.log("error", args.map(logArg).join(" "), { messageColored: args.map(logArgColored).join(" ") })
+	},
+	debug(...args: any[]) {
+		winstonLogger?.log("debug", args.map(logArg).join(" "), { messageColored: args.map(logArgColored).join(" ") })
 	},
 }
 
@@ -111,8 +119,20 @@ export function usePluginLogger(pluginId?: string) {
 				messageColored: args.map(logArgColored).join(" "),
 			})
 		},
+		warn(...args) {
+			winstonLogger?.log("warn", args.map(logArg).join(" "), {
+				plugin: finalPluginId,
+				messageColored: args.map(logArgColored).join(" "),
+			})
+		},
 		error(...args) {
 			winstonLogger?.log("error", args.map(logArg).join(" "), {
+				plugin: finalPluginId,
+				messageColored: args.map(logArgColored).join(" "),
+			})
+		},
+		debug(...args) {
+			winstonLogger?.log("debug", args.map(logArg).join(" "), {
 				plugin: finalPluginId,
 				messageColored: args.map(logArgColored).join(" "),
 			})
