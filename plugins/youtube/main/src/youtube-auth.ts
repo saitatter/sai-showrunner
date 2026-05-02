@@ -138,25 +138,37 @@ export class YouTubeAuthService {
 		return this.secrets.accessToken
 	}
 
-	async authorizedFetch<T>(url: string | URL) {
+	async authorizedFetch<T>(url: string | URL, init?: RequestInit) {
 		const accessToken = await this.getAccessToken()
 		if (!accessToken) throw new Error("YouTube access token is missing.")
-		let response = await fetch(url, {
-			headers: {
-				authorization: `Bearer ${accessToken}`,
-			},
-		})
+		const headers = { ...init?.headers, authorization: `Bearer ${accessToken}` } as Record<string, string>
+		let response = await fetch(url, { ...init, headers })
 
 		if (response.status === 401 && this.secrets.refreshToken) {
 			await this.refreshOnce()
-			response = await fetch(url, {
-				headers: {
-					authorization: `Bearer ${this.secrets.accessToken}`,
-				},
-			})
+			headers.authorization = `Bearer ${this.secrets.accessToken}`
+			response = await fetch(url, { ...init, headers })
 		}
 
 		return readJsonResponse<T>(response)
+	}
+
+	async authorizedRequest(url: string | URL, init?: RequestInit) {
+		const accessToken = await this.getAccessToken()
+		if (!accessToken) throw new Error("YouTube access token is missing.")
+		const headers = { ...init?.headers, authorization: `Bearer ${accessToken}` } as Record<string, string>
+		let response = await fetch(url, { ...init, headers })
+
+		if (response.status === 401 && this.secrets.refreshToken) {
+			await this.refreshOnce()
+			headers.authorization = `Bearer ${this.secrets.accessToken}`
+			response = await fetch(url, { ...init, headers })
+		}
+
+		if (!response.ok) {
+			const body = await response.text()
+			throw new Error(body || `Request failed with ${response.status}`)
+		}
 	}
 
 	async login() {

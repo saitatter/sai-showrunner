@@ -1,4 +1,5 @@
 import {
+	defineAction,
 	definePlugin,
 	defineRendererCallable,
 	defineState,
@@ -317,6 +318,124 @@ export default definePlugin(
 				statusMessage: "YouTube live chat ingest stopped.",
 			}
 			return connection.value
+		})
+
+		// ── YouTube Actions ───────────────────────────────────────────────
+
+		defineAction({
+			id: "sendChatMessage",
+			name: "Send Chat Message",
+			description: "Send a message to the active YouTube live chat.",
+			icon: "mdi mdi-message-text-outline",
+			config: {
+				type: Object,
+				properties: {
+					message: { type: String, template: true, required: true, default: "", name: "Message" },
+				},
+			},
+			async invoke(config, context, abortSignal) {
+				const liveChatId = broadcast.value.liveChatId
+				if (!liveChatId) throw new Error("No active YouTube live chat to send a message to.")
+
+				const url = new URL("https://www.googleapis.com/youtube/v3/liveChat/messages")
+				url.searchParams.set("part", "snippet")
+
+				await auth.authorizedFetch(url, {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						snippet: {
+							liveChatId,
+							type: "textMessageEvent",
+							textMessageDetails: {
+								messageText: config.message,
+							},
+						},
+					}),
+				})
+			},
+		})
+
+		defineAction({
+			id: "deleteMessage",
+			name: "Delete Chat Message",
+			description: "Delete a YouTube live chat message by its ID.",
+			icon: "mdi mdi-message-minus",
+			config: {
+				type: Object,
+				properties: {
+					messageId: { type: String, template: true, required: true, default: "", name: "Message ID" },
+				},
+			},
+			async invoke(config, context, abortSignal) {
+				const url = new URL("https://www.googleapis.com/youtube/v3/liveChat/messages")
+				url.searchParams.set("id", config.messageId)
+
+				await auth.authorizedRequest(url, { method: "DELETE" })
+			},
+		})
+
+		defineAction({
+			id: "banUser",
+			name: "Ban User from Chat",
+			description: "Ban a user from the active YouTube live chat.",
+			icon: "mdi mdi-account-cancel",
+			config: {
+				type: Object,
+				properties: {
+					channelId: { type: String, template: true, required: true, default: "", name: "Channel ID" },
+					banDurationSeconds: {
+						type: Number,
+						name: "Duration (seconds)",
+						default: 0,
+						required: false,
+					},
+				},
+			},
+			async invoke(config, context, abortSignal) {
+				const liveChatId = broadcast.value.liveChatId
+				if (!liveChatId) throw new Error("No active YouTube live chat to ban a user from.")
+
+				const url = new URL("https://www.googleapis.com/youtube/v3/liveChat/bans")
+				url.searchParams.set("part", "snippet")
+
+				const banType = config.banDurationSeconds && config.banDurationSeconds > 0 ? "temporary" : "permanent"
+				const snippet: Record<string, unknown> = {
+					liveChatId,
+					type: banType,
+					bannedUserDetails: {
+						channelId: config.channelId,
+					},
+				}
+				if (banType === "temporary") {
+					snippet.banDurationSeconds = config.banDurationSeconds
+				}
+
+				await auth.authorizedFetch(url, {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ snippet }),
+				})
+			},
+		})
+
+		defineAction({
+			id: "removeBan",
+			name: "Unban User from Chat",
+			description: "Remove a ban from a YouTube live chat user.",
+			icon: "mdi mdi-account-check",
+			config: {
+				type: Object,
+				properties: {
+					banId: { type: String, template: true, required: true, default: "", name: "Ban ID" },
+				},
+			},
+			async invoke(config, context, abortSignal) {
+				const url = new URL("https://www.googleapis.com/youtube/v3/liveChat/bans")
+				url.searchParams.set("id", config.banId)
+
+				await auth.authorizedRequest(url, { method: "DELETE" })
+			},
 		})
 
 		defineRendererCallable("simulateChatMessage", async () => {
