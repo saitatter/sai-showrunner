@@ -148,6 +148,31 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Update `docs/graph-execution-engine.md` to reflect final implementation
 - [ ] Bump version to `1.0.0-beta1` in all package.json files
 
+### 5.8 Queue UX: Graph Scheduler, Not Separate Logic
+- [ ] Keep queues as the runtime/scheduler for alerts, paid events, scene banners, and other non-overlapping stream moments.
+- [ ] Hide queue complexity from everyday automation editing by controlling queues through graph-native nodes:
+  - `Add to Queue`
+  - `Queue Item Started`
+  - `Complete Queue Item`
+  - `Cancel Queue Item`
+  - `Clear Queue`
+- [ ] Treat queue worker automations as normal graphs: a queue item starts a graph, the graph drives overlays/sounds/OBS, then completes or cancels the item.
+- [ ] Simplify the sidebar around the streamer workflow:
+  - `Automations`
+  - `Queues`
+  - `Overlays`
+  - `Variables`
+  - `Integrations`
+- [ ] Make the `Queues` page observational first: show configured queues, the currently running item, pending items, recent completed/cancelled items, and the automation graph used when an item starts.
+- [ ] Add queue node styling in the automation editor so queue nodes are visually distinct from triggers, filters, overlays, paid alerts, and scene actions.
+- [ ] Add queue preview/debug visibility: when test-running a graph, show when an item is enqueued, when it starts, and when it completes/cancels.
+- [ ] Add starter templates:
+  - `Paid Event -> Add to Alerts Queue`
+  - `Queue Item Started -> Paid Alert Overlay -> Sound -> Complete`
+  - `Scene Begin -> Add to Scene Queue`
+  - `Queue Item Started -> Scene Banner -> Shader Layer -> Complete`
+- [ ] Document the mental model: queues remain powerful, but users should experience them as graph scheduling nodes rather than a second automation system.
+
 ---
 
 ## Phase 6: Release Prep
