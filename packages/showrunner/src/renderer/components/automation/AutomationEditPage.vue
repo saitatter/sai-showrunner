@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { AutomationConfig } from "ShowRunner-schema"
 import { AutomationResourceView } from "ShowRunner-ui-core"
-import { computed, onErrorCaptured, ref, useModel, watchEffect } from "vue"
+import { computed, onErrorCaptured, ref, useModel } from "vue"
 import NodeAutomationEdit from "./NodeAutomationEdit.vue"
 
 const props = defineProps<{
@@ -73,10 +73,6 @@ const debugSummary = computed(() =>
 		nodeView: (safeView.value as any).nodeView ?? null,
 	})
 )
-
-watchEffect(() => {
-	console.debug("[ShowRunner AutomationEditPage]", JSON.parse(debugSummary.value))
-})
 
 onErrorCaptured((error, instance, info) => {
 	renderError.value = error instanceof Error ? error.stack || error.message : String(error)

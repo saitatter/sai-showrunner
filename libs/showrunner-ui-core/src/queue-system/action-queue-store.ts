@@ -22,24 +22,20 @@ export const useActionQueueStore = defineStore("actionQueues", () => {
 
 	async function initialize() {
 		handleIpcMessage("actionQueue", "markTestSequenceStart", (event, sequenceId: string) => {
-			console.log("Sequence", sequenceId, "Started")
 			activeTestSequences.value[sequenceId] = { running: true, activeIds: {}, nodeResults: {}, nodeErrors: {} }
 		})
 
 		handleIpcMessage("actionQueue", "markTestSequenceEnd", (event, sequenceId: string) => {
-			console.log("Sequence", sequenceId, "Ended")
 			delete activeTestSequences.value[sequenceId]
 		})
 
 		handleIpcMessage("actionQueue", "markTestActionStart", (event, sequenceId: string, id: string) => {
-			console.log("Action", id, "Started")
 			const testRun = activeTestSequences.value[sequenceId]
 			if (!testRun) return //TODO: Handle out of order??
 			testRun.activeIds[id] = Date.now()
 		})
 
 		handleIpcMessage("actionQueue", "markTestActionEnd", (event, sequenceId: string, id: string) => {
-			console.log("Action", id, "Ended")
 			const testRun = activeTestSequences.value[sequenceId]
 			if (!testRun) return
 			const time = Date.now()

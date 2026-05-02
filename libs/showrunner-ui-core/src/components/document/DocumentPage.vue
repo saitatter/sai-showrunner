@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onErrorCaptured, ref, watch, watchEffect } from "vue"
+import { computed, onErrorCaptured, ref, watch } from "vue"
 import {
 	provideBaseDataBinding,
 	provideDocument,
@@ -89,10 +89,6 @@ const debugSummary = computed(() =>
 		registeredComponents: [...documentStore.documentComponents.keys()],
 	})
 )
-
-watchEffect(() => {
-	console.debug("[ShowRunner DocumentPage]", JSON.parse(debugSummary.value))
-})
 
 onErrorCaptured((error, instance, info) => {
 	documentError.value = error instanceof Error ? error.stack || error.message : String(error)
