@@ -176,6 +176,8 @@ describe("GraphCompiler", () => {
 			const program = compiler.compile(graph)
 
 			expect(program.instructions.some((i) => i.op === OpCode.ITER_NEXT)).toBe(true)
+			const iterNext = program.instructions.find((i) => i.op === OpCode.ITER_NEXT)
+			expect(iterNext?.arg1).toEqual({ indexSlot: expect.any(Number), collSlot: expect.any(Number) })
 			expect(program.instructions.some((i) => i.op === OpCode.YIELD)).toBe(true)
 		})
 	})
@@ -328,7 +330,8 @@ describe("GraphCompiler", () => {
 				},
 			])
 
-			expect(program.instructions.some((i) => i.op === OpCode.CALL)).toBe(true)
+			const call = program.instructions.find((i) => i.op === OpCode.CALL)
+			expect(call?.arg0).toBe(0)
 			expect(program.subgraphs.length).toBe(1)
 			expect(program.subgraphs[0].id).toBe("sg1")
 		})

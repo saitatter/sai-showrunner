@@ -1,5 +1,5 @@
 import type { Expression, GraphNode } from "ShowRunner-schema"
-import { OpCode, type Instruction, type Program, type CompiledSubgraph } from "./compiler"
+import { OpCode, type Instruction, type IterNextArgs, type Program } from "./compiler"
 import { evalExpression, type EvalContext } from "./expression"
 import type { ExecutionDebugger } from "../queue-system/resolvers"
 import { PluginManager } from "../plugins/plugin-manager"
@@ -34,6 +34,7 @@ export class GraphVM {
 	private aborted = false
 	private maxIterations: number
 	private maxCallDepth: number
+	private localSlotsByName = new Map<string, number>()
 
 	constructor(
 		private program: Program,
@@ -45,6 +46,10 @@ export class GraphVM {
 		this.maxIterations = options?.maxIterations ?? 10000
 		this.maxCallDepth = options?.maxCallDepth ?? 32
 		this.locals = new Array(program.localSlotCount).fill(undefined)
+		for (let i = 0; i < program.slotNames.length; i++) {
+			const name = program.slotNames[i]
+			if (name) this.localSlotsByName.set(name, i)
+		}
 	}
 
 	/**
@@ -141,8 +146,7 @@ export class GraphVM {
 
 			case OpCode.ITER_NEXT: {
 				const itemSlot = instr.arg0!
-				const indexSlot = instr.arg1!
-				const collSlot = (instr as any).__collSlot as number
+				const { indexSlot, collSlot } = instr.arg1 as IterNextArgs
 				const collection = this.locals[collSlot]
 				const index = this.locals[indexSlot]
 
@@ -214,6 +218,7 @@ export class GraphVM {
 			}
 		} catch (err) {
 			this.dbg?.logError(node.id, err)
+			throw err
 		} finally {
 			this.dbg?.markEnd(node.id)
 		}
@@ -230,9 +235,9 @@ export class GraphVM {
 			throw new Error(`Max call depth (${this.maxCallDepth}) exceeded`)
 		}
 
-		const subgraphId = (instr as any).__subgraphId as string
-		const sg = this.program.subgraphs.find((s) => s.id === subgraphId)
-		if (!sg) throw new Error(`Subgraph not found: ${subgraphId}`)
+		const subgraphIndex = instr.arg0!
+		const sg = this.program.subgraphs[subgraphIndex]
+		if (!sg) throw new Error(`Subgraph not found at index: ${subgraphIndex}`)
 
 		// Push frame
 		this.callStack.push({
@@ -271,23 +276,12 @@ export class GraphVM {
 	private evalExpr(expr: Expression | undefined): any {
 		if (!expr) return undefined
 		const ctx: EvalContext = {
-			locals: this.buildLocalsMap(),
+			localValues: this.locals,
+			localSlotsByName: this.localSlotsByName,
 			contextState: this.context.contextState,
 			nodeResults: this.nodeResults,
 		}
 		return evalExpression(expr, ctx)
-	}
-
-	private buildLocalsMap(): Map<string, any> {
-		// Use the compiler-provided slot→name mapping for proper variable resolution
-		const map = new Map<string, any>()
-		const slotNames = this.program.slotNames
-		for (let i = 0; i < this.locals.length; i++) {
-			if (this.locals[i] !== undefined && slotNames[i]) {
-				map.set(slotNames[i], this.locals[i])
-			}
-		}
-		return map
 	}
 
 	private checkIterationLimit(nodeId?: string) {

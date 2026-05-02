@@ -5,6 +5,8 @@ import type { Expression } from "ShowRunner-schema"
 function mkCtx(overrides: Partial<EvalContext> = {}): EvalContext {
 	return {
 		locals: overrides.locals ?? new Map(),
+		localValues: overrides.localValues,
+		localSlotsByName: overrides.localSlotsByName,
 		contextState: overrides.contextState ?? {},
 		nodeResults: overrides.nodeResults ?? new Map(),
 	}
@@ -40,6 +42,14 @@ describe("evalExpression", () => {
 		it("locals take priority over contextState", () => {
 			const locals = new Map([["x", "local"]])
 			expect(evalExpression({ type: "variable", name: "x" }, mkCtx({ locals, contextState: { x: "ctx" } }))).toBe("local")
+		})
+		it("resolves local variables from VM slot values", () => {
+			const ctx = mkCtx({
+				localValues: ["slot-local"],
+				localSlotsByName: new Map([["x", 0]]),
+				contextState: { x: "ctx" },
+			})
+			expect(evalExpression({ type: "variable", name: "x" }, ctx)).toBe("slot-local")
 		})
 		it("returns undefined for missing variable", () => {
 			expect(evalExpression({ type: "variable", name: "missing" }, mkCtx())).toBeUndefined()
@@ -177,8 +187,14 @@ describe("evalExpression", () => {
 		it("min", () => {
 			expect(evalExpression({ type: "call", fn: "min", args: [{ type: "literal", value: 3 }, { type: "literal", value: 1 }, { type: "literal", value: 5 }] }, mkCtx())).toBe(1)
 		})
+		it("min returns zero when no finite numbers are provided", () => {
+			expect(evalExpression({ type: "call", fn: "min", args: [{ type: "literal", value: "nope" }] }, mkCtx())).toBe(0)
+		})
 		it("max", () => {
 			expect(evalExpression({ type: "call", fn: "max", args: [{ type: "literal", value: 3 }, { type: "literal", value: 1 }, { type: "literal", value: 5 }] }, mkCtx())).toBe(5)
+		})
+		it("max returns zero when no finite numbers are provided", () => {
+			expect(evalExpression({ type: "call", fn: "max", args: [] }, mkCtx())).toBe(0)
 		})
 		it("keys", () => {
 			const expr: Expression = { type: "call", fn: "keys", args: [{ type: "literal", value: { a: 1, b: 2 } }] }

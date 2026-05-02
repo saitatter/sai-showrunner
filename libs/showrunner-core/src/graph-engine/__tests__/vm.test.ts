@@ -171,13 +171,12 @@ describe("GraphVM", () => {
 		it("iterates over array via ITER_NEXT", async () => {
 			// Manually construct a forEach-like program:
 			// slot 0 = item, slot 1 = index, slot 2 = collection
-			const iterNextInstr: any = {
+			const iterNextInstr = {
 				op: OpCode.ITER_NEXT,
 				nodeId: "fe",
 				arg0: 0, // item slot
-				arg1: 1, // index slot
+				arg1: { indexSlot: 1, collSlot: 2 },
 				arg2: 7, // exit target
-				__collSlot: 2,
 			}
 			const program = makeProgram([
 				// Store collection in slot 2
@@ -199,13 +198,12 @@ describe("GraphVM", () => {
 		})
 
 		it("exits immediately on empty array", async () => {
-			const iterNextInstr: any = {
+			const iterNextInstr = {
 				op: OpCode.ITER_NEXT,
 				nodeId: "fe",
 				arg0: 0,
-				arg1: 1,
+				arg1: { indexSlot: 1, collSlot: 2 },
 				arg2: 5, // exit target
-				__collSlot: 2,
 			}
 			const program = makeProgram([
 				{ op: OpCode.EVAL, arg1: { type: "literal", value: [] } },
@@ -226,7 +224,7 @@ describe("GraphVM", () => {
 			// Manually build: CALL to subgraph at PC=3, then HALT. Subgraph: RET.
 			const program: Program = {
 				instructions: [
-					{ op: OpCode.CALL, nodeId: "call1", arg0: -1, arg1: {} },
+					{ op: OpCode.CALL, nodeId: "call1", arg0: 0, arg1: {} },
 					{ op: OpCode.HALT },
 					// Subgraph body starts at PC=2
 					{ op: OpCode.RET, arg1: undefined },
@@ -236,8 +234,6 @@ describe("GraphVM", () => {
 				localSlotCount: 5,
 				slotNames: new Array(5).fill(""),
 			}
-			// Patch CALL instruction to reference subgraph
-			;(program.instructions[0] as any).__subgraphId = "sg1"
 
 			const vm = new GraphVM(program, { contextState: {} })
 			const result = await vm.execute()
@@ -248,7 +244,7 @@ describe("GraphVM", () => {
 			// Recursive: CALL self forever
 			const program: Program = {
 				instructions: [
-					{ op: OpCode.CALL, nodeId: "call1", arg0: -1, arg1: {} },
+					{ op: OpCode.CALL, nodeId: "call1", arg0: 0, arg1: {} },
 					{ op: OpCode.HALT },
 				],
 				actionNodes: [],
@@ -256,7 +252,6 @@ describe("GraphVM", () => {
 				localSlotCount: 5,
 				slotNames: new Array(5).fill(""),
 			}
-			;(program.instructions[0] as any).__subgraphId = "sg1"
 
 			const vm = new GraphVM(program, { contextState: {} }, undefined, undefined, { maxCallDepth: 5 })
 			const result = await vm.execute()

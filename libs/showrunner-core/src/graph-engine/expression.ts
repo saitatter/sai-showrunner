@@ -2,7 +2,11 @@ import type { Expression, BuiltinFn } from "ShowRunner-schema"
 
 export interface EvalContext {
 	/** Local variables (loop counters, subgraph params) */
-	locals: Map<string, any>
+	locals?: Map<string, any>
+	/** VM local slot values; used to avoid rebuilding a locals Map per expression. */
+	localValues?: readonly any[]
+	/** Local slot lookup by variable name. */
+	localSlotsByName?: ReadonlyMap<string, number>
 	/** Context state from trigger / upstream */
 	contextState: Record<string, any>
 	/** Node output results for port references */
@@ -19,7 +23,9 @@ export function evalExpression(expr: Expression, ctx: EvalContext): any {
 			return expr.value
 
 		case "variable": {
-			if (ctx.locals.has(expr.name)) return ctx.locals.get(expr.name)
+			const slot = ctx.localSlotsByName?.get(expr.name)
+			if (slot != null && ctx.localValues && ctx.localValues[slot] !== undefined) return ctx.localValues[slot]
+			if (ctx.locals?.has(expr.name)) return ctx.locals.get(expr.name)
 			if (expr.name in ctx.contextState) return ctx.contextState[expr.name]
 			return undefined
 		}
@@ -130,10 +136,14 @@ function evalBuiltin(fn: BuiltinFn, args: any[]): any {
 			return Math.round(Number(args[0]) || 0)
 		case "abs":
 			return Math.abs(Number(args[0]) || 0)
-		case "min":
-			return Math.min(...args.map(Number).filter(Number.isFinite))
-		case "max":
-			return Math.max(...args.map(Number).filter(Number.isFinite))
+		case "min": {
+			const numbers = args.map(Number).filter(Number.isFinite)
+			return numbers.length > 0 ? Math.min(...numbers) : 0
+		}
+		case "max": {
+			const numbers = args.map(Number).filter(Number.isFinite)
+			return numbers.length > 0 ? Math.max(...numbers) : 0
+		}
 		case "keys":
 			if (args[0] != null && typeof args[0] === "object") return Object.keys(args[0])
 			return []

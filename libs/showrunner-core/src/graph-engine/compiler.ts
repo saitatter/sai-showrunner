@@ -52,6 +52,11 @@ export interface Instruction {
 	arg2?: any
 }
 
+export interface IterNextArgs {
+	indexSlot: number
+	collSlot: number
+}
+
 export interface CompiledSubgraph {
 	id: string
 	name: string
@@ -99,6 +104,7 @@ export class GraphCompiler {
 	private maxIterations: number
 	private edgeMap = new Map<string, GraphEdge[]>() // from nodeId → outgoing edges
 	private nodeMap = new Map<string, GraphNode>()
+	private subgraphIndexById = new Map<string, number>()
 	/** Maps nodeId → instruction index where it was first compiled (for merge points) */
 	private nodePC = new Map<string, number>()
 
@@ -110,6 +116,7 @@ export class GraphCompiler {
 	compile(graph: AutomationGraph, subgraphs?: SubgraphDefinition[]): Program {
 		this.reset()
 		this.buildMaps(graph.nodes, graph.edges)
+		this.subgraphIndexById = new Map((subgraphs ?? []).map((sg, index) => [sg.id, index]))
 
 		// Compile subgraphs first
 		const compiledSubgraphs: CompiledSubgraph[] = []
@@ -156,6 +163,7 @@ export class GraphCompiler {
 		this.pendingJumps = []
 		this.edgeMap = new Map()
 		this.nodeMap = new Map()
+		this.subgraphIndexById = new Map()
 	}
 
 	private buildMaps(nodes: GraphNode[], edges: GraphEdge[]) {
@@ -373,12 +381,11 @@ export class GraphCompiler {
 
 		this.placeLabel(headerLabel)
 		// ITER_NEXT: check index < collection.length, load item
-		this.emit({ op: OpCode.ITER_NEXT, nodeId: node.id, arg0: itemSlot, arg1: indexSlot, arg2: -1 })
+		const iterArgs: IterNextArgs = { indexSlot, collSlot }
+		this.emit({ op: OpCode.ITER_NEXT, nodeId: node.id, arg0: itemSlot, arg1: iterArgs, arg2: -1 })
 		// Store collSlot reference for VM
 		this.instructions[this.instructions.length - 1].arg2 = -1 // placeholder for exit
 		this.pendingJumps.push({ instrIndex: this.instructions.length - 1, labelId: exitLabel })
-		// VM needs collSlot — encode in a secondary way
-		;(this.instructions[this.instructions.length - 1] as any).__collSlot = collSlot
 
 		this.loopExitStack.push([exitLabel])
 		this.loopHeaderStack.push([headerLabel])
@@ -452,9 +459,9 @@ export class GraphCompiler {
 
 	private compileSubgraphCall(node: GraphNode, visited: Set<string>) {
 		if (node.type !== "subgraphCall") return
-		this.emit({ op: OpCode.CALL, nodeId: node.id, arg0: -1, arg1: node.inputs })
-		// arg0 will be resolved to subgraph index at link time — store subgraphId for now
-		;(this.instructions[this.instructions.length - 1] as any).__subgraphId = node.subgraphId
+		const subgraphIndex = this.subgraphIndexById.get(node.subgraphId)
+		if (subgraphIndex == null) throw new Error(`Subgraph not found: ${node.subgraphId}`)
+		this.emit({ op: OpCode.CALL, nodeId: node.id, arg0: subgraphIndex, arg1: node.inputs })
 
 		const next = this.getEdgeTarget(node.id, undefined)
 		if (next) this.compileNode(next, visited)
@@ -524,13 +531,6 @@ export class GraphCompiler {
 				} else {
 					instr.arg0 = target
 				}
-			}
-		}
-
-		// Resolve subgraph call indices
-		for (const instr of this.instructions) {
-			if (instr.op === OpCode.CALL && (instr as any).__subgraphId) {
-				// Already handled by VM via subgraphId lookup
 			}
 		}
 	}
