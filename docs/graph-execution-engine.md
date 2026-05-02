@@ -167,7 +167,7 @@ type Expression =
 
 type BinaryOp = "==" | "!=" | ">" | "<" | ">=" | "<=" | "&&" | "||" | "+" | "-" | "*" | "/" | "%"
 type UnaryOp = "!" | "-" | "typeof"
-type BuiltinFn = "len" | "includes" | "startsWith" | "toString" | "toNumber" | "floor" | "ceil" | "round" | "abs" | "min" | "max" | "keys" | "values"
+type BuiltinFn = "len" | "includes" | "startsWith" | "endsWith" | "toString" | "toNumber" | "toBoolean" | "floor" | "ceil" | "round" | "abs" | "min" | "max" | "keys" | "values" | "slice" | "concat"
 ```
 
 ## Compiler

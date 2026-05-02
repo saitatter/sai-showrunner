@@ -11,7 +11,7 @@
 
 > Desktop-first broadcaster production suite for Twitch, YouTube, OBS, overlays, stream automations, and SAI services.
 
-ShowRunner is an AGPL-3.0 fork of [ShowRunner](https://github.com/LordTocs/ShowRunner). It preserves the upstream architecture, plugin boundaries, and license notices while shaping the app into the SAI streaming toolchain — adding YouTube integration, AI-powered moderation, an overlay studio, and a node-based automation editor.
+ShowRunner is an AGPL-3.0 fork of [CastMate](https://github.com/LordTocs/CastMate). It preserves the upstream architecture, plugin boundaries, and license notices while shaping the app into the SAI streaming toolchain — adding YouTube integration, AI-powered moderation, an overlay studio, and a node-based automation editor.
 
 ---
 
@@ -252,7 +252,7 @@ ShowRunner checks GitHub Releases for newer versions and uses Electron updater m
 PRs are welcome! Please:
 
 - Keep commits small and conventional
-- Preserve upstream ShowRunner license notices
+- Preserve upstream CastMate license notices
 - Run `corepack yarn check` before submitting TypeScript/Vue changes
 - Use feature branches instead of committing directly to `main`
 
@@ -260,7 +260,7 @@ PRs are welcome! Please:
 
 ## 🙏 Credits
 
-- Original upstream project: **LordTocs / [ShowRunner](https://github.com/LordTocs/ShowRunner)**
+- Original upstream project: **LordTocs / [CastMate](https://github.com/LordTocs/CastMate)**
 - ShowRunner is an AGPL-3.0 fork — not an independent reimplementation
 
 ---

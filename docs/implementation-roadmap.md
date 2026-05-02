@@ -1,13 +1,13 @@
 # ShowRunner v1.0 — Graph-Only Engine (Breaking Change)
 
-Eliminăm complet `SequenceRunner` și modelul vechi de sequence. Toate automations rulează exclusiv prin `GraphCompiler` → `GraphVM`.
+Completely remove `SequenceRunner` and the old sequence model. All automations run exclusively through `GraphCompiler` → `GraphVM`.
 
 ---
 
 ## Phase 1: Remove Old Sequencer (Core)
 
 ### 1.1 Relocate shared types
-- [ ] Move `SequenceDebugger` interface din `sequence.ts` → `libs/showrunner-core/src/graph-engine/types.ts`
+- [ ] Move `SequenceDebugger` interface from `sequence.ts` → `libs/showrunner-core/src/graph-engine/types.ts`
 - [ ] Move `SequenceResolvers` (rename to `ActionResolvers`) → `libs/showrunner-core/src/queue-system/resolvers.ts`
 - [ ] Keep `SequenceContext`, `SequenceSource`, `QueuedSequence` in schema (rename to `ExecutionContext`, `AutomationSource`, `QueuedAutomation`)
 - [ ] Update all imports across the codebase
