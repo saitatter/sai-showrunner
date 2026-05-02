@@ -22,6 +22,8 @@
 				ref="canvasRef"
 				class="node-automation__canvas"
 				:class="{ panning: isPanning }"
+				role="application"
+				aria-label="Node editor canvas"
 				@pointerdown="handleCanvasPointerDown"
 				@dragover.prevent="updateGhostNode"
 				@dragleave="ghostNode = null"
@@ -150,7 +152,7 @@
 						<span>{{ lane.label }}</span>
 					</div>
 
-					<svg class="node-automation__edges" :viewBox="viewBox">
+					<svg class="node-automation__edges" :viewBox="viewBox" role="img" aria-label="Node connections">
 						<path
 							v-for="edge in edges"
 							:key="`${edge.id}:hit`"
@@ -209,6 +211,10 @@
 						]"
 						:style="{ transform: `translate(${node.x}px, ${node.y}px)`, height: `${node.height}px` }"
 						type="button"
+						role="treeitem"
+						:aria-selected="selectedNodeIds.has(node.id)"
+						:aria-label="`${node.kind} node: ${node.title} — ${node.subtitle}`"
+						tabindex="0"
 						@pointerdown.stop="startDrag($event, node)"
 						@click.stop="selectNode($event, node.id)"
 						@contextmenu.prevent.stop="openNodeContext($event, node)"
@@ -517,6 +523,7 @@
 					</ol>
 				</section>
 			</aside>
+			<div aria-live="polite" class="sr-only">{{ screenReaderAnnouncement }}</div>
 		</div>
 
 		<data-binding-path v-else local-path="automation">
@@ -652,6 +659,14 @@ const canvasSearchResults = computed(() => {
 	})
 })
 const canvasSearchMatchIds = computed(() => new Set(canvasSearchResults.value.map((n) => n.id)))
+const screenReaderAnnouncement = computed(() => {
+	if (selectedNodeIds.value.size === 0) return ""
+	if (selectedNodeIds.value.size === 1) {
+		const node = nodes.value.find((n) => n.id === selectedNodeId.value)
+		return node ? `Selected ${node.kind} node: ${node.title}` : ""
+	}
+	return `${selectedNodeIds.value.size} nodes selected`
+})
 const edges = computed<EdgeData[]>(() => {
 	const byId = new Map(nodes.value.map((node) => [node.id, node]))
 	return graph.value.edges.flatMap((edge) => {
@@ -2271,6 +2286,11 @@ onUnmounted(() => {
 	box-shadow: 0 0 0 3px rgb(255 223 107 / 0.2), 0 12px 28px rgb(0 0 0 / 0.35);
 }
 
+.node-automation__node:focus-visible {
+	outline: 2px solid #80bdff;
+	outline-offset: 2px;
+}
+
 .node-automation__node.preview-active {
 	border-color: #2ed47a;
 	box-shadow: 0 0 0 4px rgb(46 212 122 / 0.28), 0 0 30px rgb(46 212 122 / 0.22), 0 12px 28px rgb(0 0 0 / 0.35);
@@ -2771,5 +2791,17 @@ onUnmounted(() => {
 .node-automation__classic {
 	flex: 1;
 	min-height: 0;
+}
+
+.sr-only {
+	border: 0;
+	clip: rect(0, 0, 0, 0);
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	padding: 0;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
 }
 </style>
