@@ -41,10 +41,10 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Keep (possibly rename): `ActionInfo`, `SequenceContext` → `ExecutionContext`, `SequenceSource` → `AutomationSource`, `QueuedSequence` → `QueuedAutomation`, `SequenceProvider` → `AutomationProvider`
 
 ### 2.2 Simplify AutomationData
-- [ ] Remove `sequence: Sequence` field — `graph: AutomationGraph` becomes mandatory
-- [ ] Remove `floatingSequences: FloatingSequence[]` — subgraphs replace this
-- [ ] Update `createInlineAutomation()` to return empty graph: `{ graph: { nodes: [], edges: [], entryNodeId: "" }, subgraphs: [] }`
-- [ ] Remove `findActionById()`, `findActionAndSequenceById()`, `getActionByParsedPath()` traversal helpers
+- [x] Remove `sequence: Sequence` field — `graph: AutomationGraph` becomes mandatory
+- [x] Remove `floatingSequences: FloatingSequence[]` — subgraphs replace this
+- [x] Update `createInlineAutomation()` to return empty graph: `{ graph: { nodes: [], edges: [], entryNodeId: "" }, subgraphs: [] }`
+- [x] Remove `findActionById()`, `findActionAndSequenceById()`, `getActionByParsedPath()` traversal helpers
 
 ### 2.3 Update queues.ts
 - [ ] Replace `QueuedSequence` → `QueuedAutomation` in `ActionQueueState`
@@ -68,9 +68,20 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 
 ### 3.3 Cleanup other UI files
 - [ ] `ActionConfigEdit.vue` — remove `SubFlow` import if unused
-- [ ] `TimeActionEdit.vue` — remove or convert to graph-native time/delay node editor
-- [ ] `OffsetSequenceEdit.vue` — likely removable entirely (offsets not in graph model)
-- [ ] `automation-dragdrop.ts` — rewrite for graph nodes (no more `FloatingSequence`)
+- [x] `TimeActionEdit.vue` — remove or convert to graph-native time/delay node editor
+- [x] `OffsetSequenceEdit.vue` — likely removable entirely (offsets not in graph model)
+- [x] `automation-dragdrop.ts` — rewrite for graph nodes (no more `FloatingSequence`)
+
+### 3.4 Simplification Batch Status
+- [x] Profile triggers open directly in the node graph editor.
+- [x] Legacy `AutomationEdit.vue`, sequence drop zones, time offset editors, and sequence mini preview were removed.
+- [x] Inline automation previews now summarize graph data instead of reading `automation.sequence`.
+- [x] Shader graph and node graph share the same themed collapsible context menu shell.
+- [x] Renderer save/error feedback is routed through `useAppFeedback()` for toast + dev-only logging.
+- [x] Reduced safe `@ts-expect-error` usage in resource registration and array wrappers.
+- [ ] Continue shrinking remaining console noise in media/viewer-data/satellite/drag utilities.
+- [ ] Rename queue terminology from `QueuedSequence` to `QueuedAutomation`.
+- [ ] Add one-time persistence migration to strip stale `sequence`/`floatingSequences` fields from existing user JSON.
 
 ---
 
