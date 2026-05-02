@@ -119,7 +119,7 @@
 					<h3>{{ queueConfig.label }} <small>{{ filteredQueue(queueConfig.key).length }}</small></h3>
 					<p v-if="!filteredQueue(queueConfig.key).length" class="moderation-page__muted">No matching messages.</p>
 					<ul v-else class="moderation-page__feed moderation-page__feed--queue">
-						<li v-for="entry in filteredQueue(queueConfig.key)" :key="`${queueConfig.key}:${entry.messageId}:${entry.verdict}`">
+						<li v-for="entry in filteredQueue(queueConfig.key).slice(0, queueVisibleCount[queueConfig.key])" :key="`${queueConfig.key}:${entry.messageId}:${entry.verdict}`">
 							<div>
 								<strong>{{ entry.username || "unknown" }}</strong>
 								<span>{{ entry.platform }} · {{ entry.verdict }}</span>
@@ -138,6 +138,14 @@
 							</div>
 						</li>
 					</ul>
+					<button
+						v-if="filteredQueue(queueConfig.key).length > queueVisibleCount[queueConfig.key]"
+						type="button"
+						class="moderation-page__show-more"
+						@click="queueVisibleCount[queueConfig.key] += QUEUE_PAGE_SIZE"
+					>
+						Show more ({{ filteredQueue(queueConfig.key).length - queueVisibleCount[queueConfig.key] }} remaining)
+					</button>
 				</div>
 			</div>
 		</section>
@@ -228,6 +236,13 @@ const queueConfigs: { key: keyof ModerationQueueState; label: string }[] = [
 	{ key: "rejected", label: "Rejected" },
 	{ key: "latest", label: "Latest" },
 ]
+const QUEUE_PAGE_SIZE = 50
+const queueVisibleCount = reactive<Record<string, number>>({
+	pending: QUEUE_PAGE_SIZE,
+	approved: QUEUE_PAGE_SIZE,
+	rejected: QUEUE_PAGE_SIZE,
+	latest: QUEUE_PAGE_SIZE,
+})
 let refreshTimer: ReturnType<typeof setInterval> | undefined
 
 async function refresh() {
@@ -606,5 +621,16 @@ onBeforeUnmount(() => {
 	color: var(--text-color-secondary);
 	font-size: 0.85rem;
 	overflow-wrap: anywhere;
+}
+
+.moderation-page__show-more {
+	background: var(--surface-700);
+	border: 1px solid var(--surface-600);
+	border-radius: 4px;
+	color: var(--text-color-secondary);
+	cursor: pointer;
+	font-size: 0.82rem;
+	padding: 0.45rem;
+	width: 100%;
 }
 </style>
