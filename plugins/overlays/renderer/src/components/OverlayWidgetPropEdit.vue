@@ -61,6 +61,7 @@ import {
 } from "castmate-ui-core"
 import { computed, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetTransformEdit from "./OverlayWidgetTransformEdit.vue"
+import { useConfirm } from "primevue/useconfirm"
 
 const props = defineProps<{
 	modelValue: OverlayConfig
@@ -163,10 +164,19 @@ function applyShaderPreset(name: string) {
 	selectedWidget.value.config.customFragmentShader = source
 }
 
+const confirm = useConfirm()
+
 function deleteShaderPreset(name: string) {
-	const presets = readShaderPresets()
-	delete presets[name]
-	writeShaderPresets(presets)
+	confirm.require({
+		header: `Delete Shader Preset?`,
+		message: `Are you sure you want to delete the shader preset "${name}"? This cannot be undone.`,
+		icon: "mdi mdi-delete",
+		accept() {
+			const presets = readShaderPresets()
+			delete presets[name]
+			writeShaderPresets(presets)
+		},
+	})
 }
 
 onMounted(refreshShaderPresets)
