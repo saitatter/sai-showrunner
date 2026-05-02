@@ -23,7 +23,7 @@ vi.mock("../../util/ipc-schema", () => ({
 
 import { GraphCompiler } from "../compiler"
 import { GraphVM } from "../vm"
-import type { AutomationGraph, AutomationDataWire } from "ShowRunner-schema"
+import type { AutomationGraph, AutomationDataWire, SubgraphDefinition } from "ShowRunner-schema"
 
 function mockAction(invokeFn: (...args: any[]) => Promise<any>) {
 	return {
@@ -288,6 +288,69 @@ describe("Graph Integration (compile → VM → action)", () => {
 
 		expect(contextState.lastUser).toBe("abc123")
 		expect(contextState.lastScore).toBe(99)
+	})
+
+	it("exposes subgraph return outputs to caller nodes", async () => {
+		let receivedConfig: any = null
+		mockGetAction.mockImplementation((_plugin: string, action: string) => {
+			if (action === "consumer") {
+				return mockAction(async (config) => {
+					receivedConfig = config
+					return {}
+				})
+			}
+			return mockAction(async () => ({}))
+		})
+
+		const graph: AutomationGraph = {
+			nodes: [
+				{
+					id: "call1",
+					type: "subgraphCall",
+					subgraphId: "sg1",
+					inputs: { name: { type: "literal", value: "ShowRunner" } },
+					x: 0,
+					y: 0,
+				},
+				{ id: "consumer", type: "action", plugin: "p", action: "consumer", config: { text: "" }, x: 1, y: 0 },
+			],
+			edges: [{ id: "e1", from: "call1", to: "consumer" }],
+			entryNodeId: "call1",
+		}
+		const subgraphs: SubgraphDefinition[] = [
+			{
+				id: "sg1",
+				name: "Greeting",
+				parameters: [{ name: "name", type: "string" }],
+				outputs: [{ name: "message", type: "string" }],
+				nodes: [
+					{
+						id: "ret",
+						type: "return",
+						outputs: {
+							message: {
+								type: "binary",
+								op: "+",
+								left: { type: "literal", value: "Hello " },
+								right: { type: "variable", name: "name" },
+							},
+						},
+						x: 0,
+						y: 0,
+					},
+				],
+				edges: [],
+				entryNodeId: "ret",
+			},
+		]
+		const dataWires: AutomationDataWire[] = [
+			{ id: "w1", fromNode: "call1", fromPort: "message", toNode: "consumer", toPort: "text" },
+		]
+
+		const program = new GraphCompiler().compile(graph, subgraphs, dataWires)
+		await new GraphVM(program, { contextState: {} }).execute()
+
+		expect(receivedConfig.text).toBe("Hello ShowRunner")
 	})
 
 	it("debugger hooks fire in correct order", async () => {

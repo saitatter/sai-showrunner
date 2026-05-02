@@ -127,17 +127,17 @@ export class GraphCompiler {
 		this.buildMaps(graph.nodes, graph.edges)
 		this.subgraphIndexById = new Map((subgraphs ?? []).map((sg, index) => [sg.id, index]))
 
-		// Compile subgraphs first
+		// Compile main graph first so the VM starts at the automation entry point.
+		this.compileFromEntry(graph.entryNodeId)
+		this.emit({ op: OpCode.HALT })
+
+		// Compile subgraphs after HALT. CALL instructions jump into these entry PCs.
 		const compiledSubgraphs: CompiledSubgraph[] = []
 		if (subgraphs) {
 			for (const sg of subgraphs) {
 				compiledSubgraphs.push(this.compileSubgraph(sg))
 			}
 		}
-
-		// Compile main graph
-		this.compileFromEntry(graph.entryNodeId)
-		this.emit({ op: OpCode.HALT })
 
 		// Resolve all jump labels
 		this.resolveLabels()
@@ -185,6 +185,7 @@ export class GraphCompiler {
 		this.edgeMap = new Map()
 		this.nodeMap = new Map()
 		this.subgraphIndexById = new Map()
+		this.nodePC = new Map()
 	}
 
 	private buildMaps(nodes: GraphNode[], edges: GraphEdge[]) {
@@ -508,8 +509,10 @@ export class GraphCompiler {
 		// Build maps for subgraph nodes
 		const prevEdgeMap = this.edgeMap
 		const prevNodeMap = this.nodeMap
+		const prevNodePC = this.nodePC
 		this.edgeMap = new Map()
 		this.nodeMap = new Map()
+		this.nodePC = new Map()
 		this.buildMaps(sg.nodes, sg.edges)
 
 		const paramSlots: number[] = []
@@ -525,6 +528,7 @@ export class GraphCompiler {
 		// Restore maps
 		this.edgeMap = prevEdgeMap
 		this.nodeMap = prevNodeMap
+		this.nodePC = prevNodePC
 
 		return {
 			id: sg.id,
