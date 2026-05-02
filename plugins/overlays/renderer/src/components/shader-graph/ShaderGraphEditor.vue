@@ -533,12 +533,16 @@ onMounted(() => {
 onUnmounted(() => {
 	window.removeEventListener("keydown", onKeyDown)
 	cancelAnimationFrame(previewFrame)
-	if (previewGl && previewProgram) previewGl.deleteProgram(previewProgram)
+	if (previewGl) {
+		if (previewProgram) previewGl.deleteProgram(previewProgram)
+		if (previewBuffer) previewGl.deleteBuffer(previewBuffer)
+	}
 })
 
 // ─── Live Preview ────────────────────────────────────────────────────
 let previewGl: WebGLRenderingContext | null = null
 let previewProgram: WebGLProgram | null = null
+let previewBuffer: WebGLBuffer | null = null
 let previewFrame = 0
 let previewStartedAt = 0
 
@@ -548,8 +552,8 @@ function updateLivePreview(glsl: string) {
 	if (!previewGl) {
 		previewGl = canvas.getContext("webgl", { alpha: true })
 		if (!previewGl) return
-		const buf = previewGl.createBuffer()
-		previewGl.bindBuffer(previewGl.ARRAY_BUFFER, buf)
+		previewBuffer = previewGl.createBuffer()
+		previewGl.bindBuffer(previewGl.ARRAY_BUFFER, previewBuffer)
 		previewGl.bufferData(previewGl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), previewGl.STATIC_DRAW)
 	}
 	try {

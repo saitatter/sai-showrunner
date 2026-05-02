@@ -817,7 +817,7 @@ const NODE_BASE_HEIGHT = 74
 const CONFIG_LINE_HEIGHT = 20
 const PORT_LINE_HEIGHT = 18
 const MAX_CONFIG_LINES = 4
-const MAX_PORTS = 5
+const MAX_PORTS = 8
 const H_GAP = 285
 const V_GAP = 128
 
@@ -1569,34 +1569,28 @@ function handleKeydown(event: KeyboardEvent) {
 		return
 	}
 
-	if ((event.key === "Delete" || event.key === "Backspace") && canEditSelectedAction.value) {
-		event.preventDefault()
-		deleteSelectedAction()
-	}
-
-	if ((event.key === "Delete" || event.key === "Backspace") && selectedNode.value?.kind === "floating") {
-		event.preventDefault()
-		deleteFloatingSequence(selectedNode.value.id)
-		selectedNodeId.value = undefined
-		selectedNodeIds.value = new Set()
-	}
-
-	if ((event.key === "Delete" || event.key === "Backspace") && selectedNode.value?.kind === "variable") {
-		event.preventDefault()
-		deleteVariableNode(selectedNode.value.id)
-		selectedNodeId.value = undefined
-		selectedNodeIds.value = new Set()
-	}
-
-	if ((event.key === "Delete" || event.key === "Backspace") && selectedEdgeId.value && !canEditSelectedAction.value) {
-		event.preventDefault()
-		deleteSelectedEdge()
-	}
-
-	if ((event.key === "Delete" || event.key === "Backspace") && selectedDataWireId.value) {
-		event.preventDefault()
-		animateWireRemoval(selectedDataWireId.value)
-		selectedDataWireId.value = undefined
+	if (event.key === "Delete" || event.key === "Backspace") {
+		if (canEditSelectedAction.value) {
+			event.preventDefault()
+			deleteSelectedAction()
+		} else if (selectedNode.value?.kind === "floating") {
+			event.preventDefault()
+			deleteFloatingSequence(selectedNode.value.id)
+			selectedNodeId.value = undefined
+			selectedNodeIds.value = new Set()
+		} else if (selectedNode.value?.kind === "variable") {
+			event.preventDefault()
+			deleteVariableNode(selectedNode.value.id)
+			selectedNodeId.value = undefined
+			selectedNodeIds.value = new Set()
+		} else if (selectedEdgeId.value) {
+			event.preventDefault()
+			deleteSelectedEdge()
+		} else if (selectedDataWireId.value) {
+			event.preventDefault()
+			animateWireRemoval(selectedDataWireId.value)
+			selectedDataWireId.value = undefined
+		}
 	}
 
 	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d" && canEditSelectedAction.value) {
@@ -2077,17 +2071,28 @@ function deleteSelectedEdge() {
 	if (!edgeId) return
 	const edge = edges.value.find((e) => e.id === edgeId)
 	if (!edge) return
-	// Delete the downstream node
+
 	const toId = edge.to
 	if (toId === "trigger") return
+
+	// Split: detach the downstream node (and everything after it) into a new floating sequence
 	const result = findActionAndSequenceById(toId, model.value)
 	if (result) {
 		const idx = result.sequence.actions.findIndex((a) => a.id === toId)
 		if (idx >= 0) {
-			result.sequence.actions.splice(idx, 1)
-			delete nodePositions.value[toId]
-			logActivity("Deleted via edge", nodes.value.find((n) => n.id === toId)?.title ?? toId)
-			commitUndo()
+			const detached = result.sequence.actions.splice(idx)
+			if (detached.length > 0) {
+				const firstPos = nodePositions.value[detached[0].id]
+				const floatingSeq: FloatingSequence = {
+					actions: detached,
+					id: nanoid(),
+					x: firstPos?.x ?? 100,
+					y: (firstPos?.y ?? 200) + 60,
+				}
+				model.value.floatingSequences.push(floatingSeq)
+				logActivity("Split sequence", `${detached.length} node${detached.length === 1 ? "" : "s"} detached`)
+				commitUndo()
+			}
 		}
 	}
 	selectedEdgeId.value = undefined
@@ -2309,7 +2314,8 @@ function cutSelectedNodes() {
 			const vnIdx = variableNodes.value.findIndex((v) => v.id === id)
 			if (vnIdx >= 0) variableNodes.value.splice(vnIdx, 1)
 		}
-		// Remove connected wires
+		// Clean up position and connected wires
+		delete nodePositions.value[id]
 		dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
 	}
 	clearSelection()
