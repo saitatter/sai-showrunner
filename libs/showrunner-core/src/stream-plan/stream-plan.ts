@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid/non-secure"
-import { createInlineAutomation, Sequence, StreamPlanConfig, StreamPlanState, SequenceProvider } from "ShowRunner-schema"
+import { createInlineAutomation, StreamPlanConfig, StreamPlanState } from "ShowRunner-schema"
 import { FileResource } from "../resources/file-resource"
 import { Service } from "../util/service"
 import { ActionQueueManager } from "../queue-system/action-queue"
@@ -33,21 +33,6 @@ export class StreamPlan extends FileResource<StreamPlanConfig, StreamPlanState> 
 		this.state = {
 			active: false,
 		}
-	}
-
-	getSequence(id: string): Sequence | undefined {
-		if (id == "activation") return this.config.activationAutomation.sequence
-		if (id == "deactivation") return this.config.deactivationAutomation.sequence
-
-		const split = id.split(".")
-
-		const segment = this.config.segments.find((s) => s.id == split[0])
-		if (segment) {
-			if (split[1] == "activation") return segment.activationAutomation.sequence
-			if (split[1] == "deactivation") return segment.deactivationAutomation.sequence
-		}
-
-		return undefined
 	}
 
 	private async deactivateSegment(id: string) {

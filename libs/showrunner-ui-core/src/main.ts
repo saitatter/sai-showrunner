@@ -55,12 +55,10 @@ export { default as CToggleButton } from "./components/data/base-components/CTog
 export { default as CAngleInput } from "./components/data/base-components/numerics/CAngleInput.vue"
 export { default as CBooleanExpression } from "./components/data/base-components/CBooleanExpression.vue"
 
-export { default as AutomationEdit } from "./components/automation/AutomationEdit.vue"
 export { default as ActionConfigEdit } from "./components/automation/ActionConfigEdit.vue"
 export { default as TriggerConfigEdit } from "./components/automation/TriggerConfigEdit.vue"
 export { default as GraphMiniPreview } from "./components/automation/GraphMiniPreview.vue"
 export { default as InlineAutomationEdit } from "./components/automation/InlineAutomation.vue"
-export { default as SequenceMiniPreview } from "./components/automation/mini/SequenceMiniPreview.vue"
 
 export { default as ExpanderSlider } from "./components/util/ExpanderSlider.vue"
 export { default as SelectDummy } from "./components/util/SelectDummy.vue"

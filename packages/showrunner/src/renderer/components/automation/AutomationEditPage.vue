@@ -26,7 +26,7 @@ const renderError = ref("")
 
 const safeModel = computed({
 	get() {
-		model.value ??= { name: "", sequence: { actions: [] }, floatingSequences: [], graph: { nodes: [], edges: [], entryNodeId: "" } }
+		model.value ??= { name: "", graph: { nodes: [], edges: [], entryNodeId: "" }, subgraphs: [], dataWires: [], variableNodes: [] }
 		model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" }
 		model.value.subgraphs ??= []
 		model.value.dataWires ??= []

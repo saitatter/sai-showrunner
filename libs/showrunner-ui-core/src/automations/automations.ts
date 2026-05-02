@@ -120,10 +120,10 @@ export function useOpenAutomationDocument() {
 		const resource = resourceStore.value?.resources?.get(id)
 		const config: AutomationConfig = resource?.config ?? {
 			name: "Untitled",
-			sequence: { actions: [] },
-			floatingSequences: [],
 			graph: { nodes: [], edges: [], entryNodeId: "" },
 			subgraphs: [],
+			dataWires: [],
+			variableNodes: [],
 		}
 		config.graph ??= { nodes: [], edges: [], entryNodeId: "" }
 		config.subgraphs ??= []

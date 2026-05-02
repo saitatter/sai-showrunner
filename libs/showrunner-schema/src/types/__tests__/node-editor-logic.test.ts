@@ -7,20 +7,15 @@ import {
 	isFlowAction,
 	isTimeAction,
 } from "../../types/sequence"
-import {
-	findActionById,
-	findActionAndSequenceById,
-	createInlineAutomation,
-} from "../../types/automations"
+import { createInlineAutomation } from "../../types/automations"
 import type {
 	Sequence,
 	InstantAction,
 	TimeAction,
 	ActionStack,
 	FlowAction,
-	FloatingSequence,
 } from "../../types/sequence"
-import type { AutomationData, AutomationDataWire } from "../../types/automations"
+import type { AutomationDataWire } from "../../types/automations"
 
 // Helpers
 function makeAction(id: string): InstantAction {
@@ -131,56 +126,6 @@ describe("getActionAndPathById", () => {
 	})
 })
 
-describe("findActionAndSequenceById", () => {
-	it("should find action in main sequence", () => {
-		const automation: AutomationData = {
-			sequence: { actions: [makeAction("a1")] },
-			floatingSequences: [],
-		}
-		const result = findActionAndSequenceById("a1", automation)
-		expect(result?.action.id).toBe("a1")
-		expect(result?.path).toBe("sequence.actions[0]")
-	})
-
-	it("should find action in floating sequence", () => {
-		const floating: FloatingSequence = { id: "fs1", x: 0, y: 0, actions: [makeAction("f1")] }
-		const automation: AutomationData = {
-			sequence: { actions: [] },
-			floatingSequences: [floating],
-		}
-		const result = findActionAndSequenceById("f1", automation)
-		expect(result?.action.id).toBe("f1")
-		expect(result?.path).toContain("floatingSequences[0]")
-	})
-
-	it("should return undefined for missing action", () => {
-		const automation: AutomationData = {
-			sequence: { actions: [makeAction("a1")] },
-			floatingSequences: [],
-		}
-		expect(findActionAndSequenceById("missing", automation)).toBeUndefined()
-	})
-})
-
-describe("findActionById", () => {
-	it("should find in main sequence", () => {
-		const automation: AutomationData = {
-			sequence: { actions: [makeAction("a1")] },
-			floatingSequences: [],
-		}
-		expect(findActionById("a1", automation)?.id).toBe("a1")
-	})
-
-	it("should find in floating sequence", () => {
-		const floating: FloatingSequence = { id: "fs1", x: 0, y: 0, actions: [makeAction("f1")] }
-		const automation: AutomationData = {
-			sequence: { actions: [] },
-			floatingSequences: [floating],
-		}
-		expect(findActionById("f1", automation)?.id).toBe("f1")
-	})
-})
-
 describe("assignNewIds", () => {
 	it("should assign new ids to all actions", () => {
 		const seq: Sequence = { actions: [makeAction("old1"), makeAction("old2")] }
@@ -218,8 +163,10 @@ describe("assignNewIds", () => {
 describe("createInlineAutomation", () => {
 	it("should create empty automation", () => {
 		const auto = createInlineAutomation()
-		expect(auto.sequence.actions).toEqual([])
-		expect(auto.floatingSequences).toEqual([])
+		expect(auto.graph).toEqual({ nodes: [], edges: [], entryNodeId: "" })
+		expect(auto.subgraphs).toEqual([])
+		expect(auto.dataWires).toEqual([])
+		expect(auto.variableNodes).toEqual([])
 		expect(auto.queue).toBeUndefined()
 	})
 })

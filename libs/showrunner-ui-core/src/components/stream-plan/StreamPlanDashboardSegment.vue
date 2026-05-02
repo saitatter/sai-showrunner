@@ -9,20 +9,18 @@
 					<div class="text-center">
 						<label class="text-color-secondary text-xs">Activation</label>
 					</div>
-					<sequence-mini-preview
+					<graph-mini-preview
 						class="justify-content-center"
-						:sequence="segment.activationAutomation.sequence"
-						:max-length="3"
+						:graph="segment.activationAutomation.graph"
 					/>
 				</div>
 				<div class="flex-grow-1">
 					<div class="text-center">
 						<label class="text-color-secondary text-xs">Deactivation</label>
 					</div>
-					<sequence-mini-preview
+					<graph-mini-preview
 						class="justify-content-center"
-						:sequence="segment.deactivationAutomation.sequence"
-						:max-length="3"
+						:graph="segment.deactivationAutomation.graph"
 					/>
 				</div>
 			</div>
@@ -52,7 +50,7 @@
 import { StreamPlanSegment } from "ShowRunner-schema"
 import PButton from "primevue/button"
 
-import SequenceMiniPreview from "../automation/mini/SequenceMiniPreview.vue"
+import GraphMiniPreview from "../automation/GraphMiniPreview.vue"
 import { useStreamPlanStore, useSegmentEditDialog } from "./stream-plan-types"
 import { computed } from "vue"
 
