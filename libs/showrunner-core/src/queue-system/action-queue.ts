@@ -177,7 +177,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		this.runner = new SequenceRunner(
 			automation.sequence,
 			{ contextState: finalContext },
-			undefined,
+			undefined, // debugger (not used in queue execution)
 			automation.dataWires,
 			automation.variableNodes
 		)

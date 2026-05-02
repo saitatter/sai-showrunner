@@ -84,11 +84,16 @@ export default definePlugin(
 
 				let headers: Record<string, string> = {}
 				if (config.headers) {
+					let parsed: unknown
 					try {
-						headers = JSON.parse(config.headers)
+						parsed = JSON.parse(config.headers)
 					} catch {
 						throw new Error("Headers must be valid JSON")
 					}
+					if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+						throw new Error("Headers must be a JSON object")
+					}
+					headers = parsed as Record<string, string>
 				}
 
 				if (config.body && config.contentType) {

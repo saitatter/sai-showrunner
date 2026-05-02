@@ -80,7 +80,7 @@ export class SequenceRunner {
 
 			const validWires = dataWires.filter((w) => {
 				if (!actionIds.has(w.fromNode) || !actionIds.has(w.toNode)) {
-					globalLogger.warn(`Data wire ${w.id} references missing node, skipping`)
+					globalLogger.log(`Data wire ${w.id} references missing node, skipping`)
 					return false
 				}
 				return true
@@ -167,11 +167,11 @@ export class SequenceRunner {
 		for (const wire of incomingWires) {
 			const sourceResult = this.nodeResults.get(wire.fromNode)
 			if (sourceResult === undefined) {
-				globalLogger.warn(`Data wire: source node "${wire.fromNode}" has no result (wire ${wire.id})`)
+				globalLogger.log(`Data wire: source node "${wire.fromNode}" has no result (wire ${wire.id})`)
 				continue
 			}
 			if (!(wire.fromPort in sourceResult)) {
-				globalLogger.warn(`Data wire: port "${wire.fromPort}" not found in node "${wire.fromNode}" result (wire ${wire.id})`)
+				globalLogger.log(`Data wire: port "${wire.fromPort}" not found in node "${wire.fromNode}" result (wire ${wire.id})`)
 				continue
 			}
 			resolved[wire.toPort] = sourceResult[wire.fromPort]
