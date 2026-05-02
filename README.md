@@ -86,7 +86,7 @@ $env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
 corepack yarn build
 ```
 
-Generated Windows artifacts are written to `release/`.
+Generated Windows artifacts are written to `release/`. Linux and macOS packages are intentionally not produced by the current release pipeline.
 
 ---
 
@@ -234,6 +234,8 @@ ShowRunner checks GitHub Releases for newer versions and uses Electron updater m
 | Platform | Supported assets |
 |----------|------------------|
 | Windows | `SAI.Showrunner-<version>-x64.exe`, `latest.yml`, `.blockmap`, `.zip` |
+
+Linux and macOS builds are deferred until their packaging, updater metadata, and native dependencies are tested end to end. Current public releases should only contain Windows assets.
 
 ---
 

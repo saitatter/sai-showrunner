@@ -16,3 +16,12 @@ Protect `main` in GitHub repository settings with these rules:
   - `package-windows` must smoke packaged artifacts, upload assets, and publish the draft release.
 
 The release workflow intentionally creates draft GitHub releases first. The draft is only published after Windows assets are built, smoke-checked, uploaded, and verified to exclude `builder-debug.yml`.
+
+Only Windows packages are published for now:
+
+- `SAI.Showrunner-<version>-x64.exe`
+- `SAI.Showrunner-<version>-x64.exe.blockmap`
+- `SAI.Showrunner-<version>-x64.zip`
+- `latest.yml`
+
+Do not add Linux or macOS release assets until those packages and updater metadata are tested in CI.
