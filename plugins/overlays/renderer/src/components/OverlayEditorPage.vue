@@ -136,7 +136,7 @@ import {
 	viewRef,
 	useIpcCaller,
 } from "ShowRunner-ui-core"
-import { computed, onBeforeUnmount, onMounted, ref, useModel, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, useModel } from "vue"
 import OverlayWidgetPropEdit from "./OverlayWidgetPropEdit.vue"
 import OverlayWidgetList from "./OverlayWidgetList.vue"
 import OverlayPreviewMenu from "./OverlayPreviewMenu.vue"
@@ -162,6 +162,12 @@ interface OverlayPresence {
 	overlayId: string
 	connected: boolean
 	subscribers: number
+	widgets?: Array<{
+		id: string
+		connected: boolean
+		subscribers: number
+		visible: boolean
+	}>
 }
 
 const getOverlayPresence = useIpcCaller<(overlayId: string) => Promise<OverlayPresence>>("overlays", "getOverlayPresence")
@@ -188,7 +194,15 @@ const overlayUrl = computed(() => {
 let overlayPresenceTimer: ReturnType<typeof setInterval> | undefined
 
 async function refreshOverlayPresence() {
-	overlayPresence.value = await getOverlayPresence(overlayId.value)
+	try {
+		overlayPresence.value = await getOverlayPresence(overlayId.value)
+	} catch {
+		overlayPresence.value = {
+			overlayId: overlayId.value,
+			connected: false,
+			subscribers: 0,
+		}
+	}
 }
 
 function openOverlayDebug() {
@@ -227,7 +241,6 @@ const previewMenuContainer = ref<HTMLElement>()
 
 function previewMenuToggle(ev: MouseEvent) {
 	if (!previewMenuOpen.value && model.value.preview == null) {
-		console.log("Creating Whole Preview")
 		model.value.preview = {
 			offsetX: 0,
 			offsetY: 0,
@@ -244,15 +257,6 @@ function settingsMenuToggle(ev: MouseEvent) {
 	settingsMenuOpen.value = !settingsMenuOpen.value
 }
 
-onMounted(() => {
-	watch(
-		() => props.modelValue.preview,
-		() => {
-			console.log("Preview", props.modelValue.preview)
-		},
-		{ immediate: true, deep: true }
-	)
-})
 </script>
 
 <style scoped>

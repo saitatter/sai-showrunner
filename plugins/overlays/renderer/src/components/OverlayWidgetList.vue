@@ -18,6 +18,7 @@
 							@click="widgetClick(index, $event)"
 							@delete="deleteWidget(index)"
 							:local-path="`[${index}]`"
+							:presence="widgetPresenceById.get(item.id)"
 						/>
 					</template>
 				</draggable-collection>
@@ -35,6 +36,10 @@
 					<i :class="overlayPresence.connected ? 'mdi mdi-broadcast' : 'mdi mdi-broadcast-off'" />
 					{{ overlayPresence.connected ? `Connected (${overlayPresence.subscribers})` : "Disconnected" }}
 				</small>
+				<p v-if="!overlayPresence.connected" class="browser-source-card__hint">
+					OBS is not connected to this overlay yet. Copy this URL into an OBS Browser Source to make Chat Feed,
+					Paid Alert, Scene Banner, and Shader Layer widgets go live.
+				</p>
 			</div>
 			<div class="browser-source-card__actions">
 				<button type="button" @click="copyOverlayUrl" v-tooltip="'Copy Browser Source URL'">
@@ -106,14 +111,44 @@ interface OverlayPresence {
 	overlayId: string
 	connected: boolean
 	subscribers: number
+	widgets: OverlayWidgetPresence[]
+}
+
+interface OverlayWidgetPresence {
+	id: string
+	name: string
+	plugin: string
+	widget: string
+	visible: boolean
+	connected: boolean
+	subscribers: number
 }
 
 const getOverlayPresence = useIpcCaller<(overlayId: string) => Promise<OverlayPresence>>("overlays", "getOverlayPresence")
-const overlayPresence = ref<OverlayPresence>({ overlayId: overlayId.value, connected: false, subscribers: 0 })
+const overlayPresence = ref<OverlayPresence>({ overlayId: overlayId.value, connected: false, subscribers: 0, widgets: [] })
 let overlayPresenceTimer: ReturnType<typeof setInterval> | undefined
 
+const widgetPresenceById = computed(() => new Map(overlayPresence.value.widgets.map((widget) => [widget.id, widget])))
+
 async function refreshOverlayPresence() {
-	overlayPresence.value = await getOverlayPresence(overlayId.value)
+	try {
+		overlayPresence.value = await getOverlayPresence(overlayId.value)
+	} catch {
+		overlayPresence.value = {
+			overlayId: overlayId.value,
+			connected: false,
+			subscribers: 0,
+			widgets: model.value.widgets.map((widget) => ({
+				id: widget.id,
+				name: widget.name,
+				plugin: widget.plugin,
+				widget: widget.widget,
+				visible: widget.visible,
+				connected: false,
+				subscribers: 0,
+			})),
+		}
+	}
 }
 
 async function addWidget(widget: OverlayWidgetInfo) {
@@ -196,8 +231,6 @@ const addMenuItems = computed<MenuItem[]>(() => {
 })
 
 function popAddMenu(ev: MouseEvent) {
-	console.log(overlayWidgets.widgets)
-
 	addMenu.value?.toggle(ev)
 }
 
@@ -309,6 +342,17 @@ onBeforeUnmount(() => {
 
 .browser-source-card small.live {
 	color: #54d98c;
+}
+
+.browser-source-card__hint {
+	background: color-mix(in srgb, #ffdf6b 12%, transparent);
+	border: 1px solid color-mix(in srgb, #ffdf6b 38%, var(--surface-700));
+	border-radius: 4px;
+	color: var(--text-color);
+	font-size: 0.75rem;
+	line-height: 1.35;
+	margin: 0.45rem 0 0;
+	padding: 0.45rem 0.55rem;
 }
 
 .browser-source-card__actions {
