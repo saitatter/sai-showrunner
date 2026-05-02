@@ -1,0 +1,76 @@
+{
+	"app": {
+		"name": "ShowRunner"
+	},
+	"common": {
+		"save": "Save",
+		"cancel": "Cancel",
+		"delete": "Delete",
+		"close": "Close",
+		"loading": "Loading…",
+		"search": "Search",
+		"confirm": "Confirm",
+		"actions": "Actions",
+		"settings": "Settings",
+		"connect": "Connect",
+		"disconnect": "Disconnect",
+		"refresh": "Refresh",
+		"enabled": "Enabled",
+		"disabled": "Disabled",
+		"unknown": "Unknown",
+		"none": "None",
+		"error": "Error",
+		"success": "Success"
+	},
+	"moderation": {
+		"title": "Moderation Docker",
+		"eyebrow": "Integration",
+		"health": "Health",
+		"sendTest": "Send Test Event",
+		"settingsSaved": "Moderation settings saved.",
+		"healthCheckDone": "Moderation health check finished.",
+		"testSent": "Moderation test event sent.",
+		"queueRefreshed": "Moderation queue refreshed.",
+		"actionFailed": "Moderation action failed.",
+		"loadingStatus": "Loading moderation status…",
+		"noMessages": "No matching messages.",
+		"showMore": "Show more ({remaining} remaining)",
+		"queue": {
+			"title": "Moderation Queue",
+			"refresh": "Refresh Queue",
+			"pending": "Pending",
+			"approved": "Approved",
+			"rejected": "Rejected",
+			"latest": "Latest"
+		},
+		"override": {
+			"approve": "Approve",
+			"block": "Block",
+			"falsePositive": "False Positive"
+		},
+		"connection": {
+			"title": "Connection",
+			"enable": "Enable moderation docker",
+			"apiUrl": "API URL",
+			"apiToken": "API Token",
+			"wsUrl": "Dashboard WebSocket URL",
+			"forwardYouTube": "Forward YouTube chat"
+		}
+	},
+	"youtube": {
+		"title": "YouTube Live",
+		"eyebrow": "Platform Integration",
+		"connect": "Connect",
+		"startChat": "Start Chat",
+		"stopChat": "Stop Chat",
+		"discoverLive": "Discover Live",
+		"simulateChat": "Simulate Chat",
+		"settingsSaved": "YouTube settings saved.",
+		"connected": "Connected to YouTube.",
+		"chatStarted": "YouTube chat ingest started.",
+		"chatStopped": "YouTube chat ingest stopped.",
+		"discoveryDone": "YouTube broadcast discovery finished.",
+		"simulateSent": "Simulated YouTube chat message.",
+		"actionFailed": "YouTube action failed."
+	}
+}

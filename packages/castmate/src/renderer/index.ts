@@ -18,6 +18,7 @@ import { createApp } from "vue"
 import App from "./App.vue"
 
 import PrimeVue from "primevue/config"
+import { i18n } from "./i18n"
 import DialogService from "primevue/dialogservice"
 import ConfirmationService from "primevue/confirmationservice"
 
@@ -152,6 +153,7 @@ app.directive("tooltip", Tooltip)
 
 //app.use(router)
 app.use(pinia)
+app.use(i18n)
 
 const initStore = useInitStore()
 const pluginStore = usePluginStore()
