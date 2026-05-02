@@ -250,6 +250,7 @@
 							`node-automation__node--${node.kind}`,
 							{
 								selected: selectedNodeIds.has(node.id),
+								missing: node.missing,
 								'drop-target': dropTargetNodeId === node.id,
 								'preview-active': playheadNodeId === node.id,
 								'search-match': canvasSearchMatchIds.has(node.id),
@@ -683,10 +684,22 @@
 							</button>
 							<div v-if="configOpen" class="node-automation__config">
 								<action-config-edit
-									v-if="selectedActionDef"
+									v-if="selectedActionDef && !selectedActionMissing"
 									v-model="selectedActionDef"
 									:local-path="selectedActionPath"
 								/>
+								<div v-else-if="selectedActionMissing" class="node-automation__missing-schema">
+									<i class="mdi mdi-alert-circle-outline" />
+									<strong>Missing action schema</strong>
+									<span>{{ selectedActionInfo?.plugin }} / {{ selectedActionInfo?.action }}</span>
+									<small>The plugin or action was removed or renamed. The node is preserved so you can reconnect it or delete it safely.</small>
+								</div>
+								<div v-else-if="selectedTriggerMissing" class="node-automation__missing-schema">
+									<i class="mdi mdi-alert-circle-outline" />
+									<strong>Missing trigger schema</strong>
+									<span>{{ model.plugin }} / {{ model.trigger }}</span>
+									<small>The trigger was removed or renamed. Pick a new trigger from the context menu to repair this automation.</small>
+								</div>
 								<trigger-config-edit v-else-if="selectedNode.id === 'trigger'" v-model="model" />
 								<div v-else-if="selectedNode.kind === 'variable' && selectedVariableNode" class="node-automation__variable-edit">
 									<label>
@@ -1110,6 +1123,16 @@ const selectedActionPath = computed(() => {
 })
 const selectedActionDef = computed(() => {
 	return selectedActionInfo.value
+})
+const selectedActionMissing = computed(() => {
+	const action = selectedActionInfo.value
+	if (!action) return false
+	return !pluginStore.pluginMap.get(action.plugin)?.actions?.[action.action]
+})
+const selectedTriggerMissing = computed(() => {
+	if (selectedNode.value?.id !== "trigger") return false
+	if (!model.value.plugin || !model.value.trigger) return false
+	return !pluginStore.pluginMap.get(model.value.plugin)?.triggers?.[model.value.trigger]
 })
 const canEditSelectedAction = computed(() => {
 	return Boolean(selectedActionInfo.value)
@@ -2813,6 +2836,12 @@ onUnmounted(() => {
 	box-shadow: 0 0 0 2px rgb(239 83 80 / 0.3), 0 0 12px rgb(239 83 80 / 0.2);
 }
 
+.node-automation__node.missing {
+	background: #2a1717;
+	border-color: #ef5350;
+	box-shadow: 0 0 0 2px rgb(239 83 80 / 0.16);
+}
+
 @keyframes pulse-border {
 	from { opacity: 0.7; }
 	to { opacity: 1; }
@@ -2878,6 +2907,11 @@ onUnmounted(() => {
 
 .node-automation__node--trigger .node-automation__node-badge {
 	background: #ffdf6b;
+}
+
+.node-automation__node.missing .node-automation__node-badge {
+	background: #ef5350;
+	color: #fff;
 }
 
 .node-automation__node-icon {
@@ -3353,6 +3387,27 @@ onUnmounted(() => {
 	max-height: 52vh;
 	overflow: auto;
 	padding: 0.55rem;
+}
+
+.node-automation__missing-schema {
+	align-items: start;
+	background: rgba(239, 83, 80, 0.1);
+	border: 1px solid rgba(239, 83, 80, 0.35);
+	border-radius: 5px;
+	color: #ffd8d8;
+	display: grid;
+	gap: 0.35rem;
+	padding: 0.75rem;
+}
+
+.node-automation__missing-schema i {
+	color: #ff7777;
+	font-size: 1.4rem;
+}
+
+.node-automation__missing-schema span,
+.node-automation__missing-schema small {
+	color: #ffbcbc;
 }
 
 .node-automation__quick-actions {

@@ -31,6 +31,7 @@ export interface NodeData {
 	subtitle: string
 	icon: string
 	badge?: string
+	missing?: boolean
 	path?: string
 	configLines?: ConfigLine[]
 	inputPorts?: PortDef[]
@@ -242,10 +243,34 @@ export function graphNodeToNodeData(
 
 	switch (gn.type) {
 		case "action": {
-			title = titleCase((gn as any).action)
-			subtitle = `${(gn as any).plugin} / ${(gn as any).action}`
-			configLines = extractConfigSummary(gn as any, pluginMap)
-			const ports = extractPorts(gn as any, pluginMap)
+			const action = gn as any
+			const plugin = pluginMap.get(action.plugin)
+			const actionDef = plugin?.actions?.[action.action]
+			if (!actionDef) {
+				return {
+					id: gn.id,
+					kind: "action",
+					title: "Missing action",
+					subtitle: `${action.plugin || "unknown"} / ${action.action || "unknown"}`,
+					icon: "mdi mdi-alert-circle-outline",
+					badge: "Missing",
+					missing: true,
+					x: action.x ?? 0,
+					y: action.y ?? 0,
+					configLines: [
+						{ label: "plugin", value: action.plugin || "unknown" },
+						{ label: "action", value: action.action || "unknown" },
+					],
+					height: computeNodeHeight([
+						{ label: "plugin", value: action.plugin || "unknown" },
+						{ label: "action", value: action.action || "unknown" },
+					]),
+				}
+			}
+			title = actionDef.name ?? titleCase(action.action)
+			subtitle = `${plugin?.name ?? action.plugin} / ${action.action}`
+			configLines = extractConfigSummary(action, pluginMap)
+			const ports = extractPorts(action, pluginMap)
 			inputPorts = ports.inputPorts
 			outputPorts = ports.outputPorts
 			break
@@ -351,21 +376,37 @@ export function buildGraph(
 	const triggerNode: NodeData = {
 		id: triggerId,
 		kind: "trigger",
-		title: automation.trigger ? titleCase(automation.trigger) : "Start",
-		subtitle: automation.plugin ? `${automation.plugin} trigger` : "Entry point",
-		icon: "mdi mdi-flash",
+		title: getTriggerMissing(automation, pluginMap) ? "Missing trigger" : automation.trigger ? titleCase(automation.trigger) : "Start",
+		subtitle: automation.plugin ? `${automation.plugin} / ${automation.trigger ?? "trigger"}` : "Entry point",
+		icon: getTriggerMissing(automation, pluginMap) ? "mdi mdi-alert-circle-outline" : "mdi mdi-flash",
+		badge: getTriggerMissing(automation, pluginMap) ? "Missing" : undefined,
+		missing: getTriggerMissing(automation, pluginMap),
 		x: 42,
 		y: 88,
+		configLines: getTriggerMissing(automation, pluginMap)
+			? [
+				{ label: "plugin", value: automation.plugin || "unknown" },
+				{ label: "trigger", value: automation.trigger || "unknown" },
+			]
+			: undefined,
 		outputPorts: getTriggerOutputPorts(automation, pluginMap),
 		height: NODE_BASE_HEIGHT,
 	}
-	triggerNode.height = computeNodeHeight(undefined, undefined, triggerNode.outputPorts)
+	triggerNode.height = computeNodeHeight(triggerNode.configLines, undefined, triggerNode.outputPorts)
 	const nodes = [triggerNode, ...graphNodes]
 	const edges = [...graphEdges]
 	if (automation.graph?.entryNodeId) {
 		edges.push({ id: `${triggerId}:${automation.graph.entryNodeId}`, from: triggerId, to: automation.graph.entryNodeId })
 	}
 	return { nodes, edges }
+}
+
+function getTriggerMissing(
+	automation: AutomationConfig,
+	pluginMap: Map<string, { triggers?: Record<string, { context?: unknown }> }>
+) {
+	if (!automation.plugin || !automation.trigger) return false
+	return !pluginMap.get(automation.plugin)?.triggers?.[automation.trigger]
 }
 
 function getTriggerOutputPorts(
