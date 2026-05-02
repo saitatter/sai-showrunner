@@ -181,10 +181,8 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		}
 
 		const compiler = new GraphCompiler()
-		const program = compiler.compile(automation.graph, automation.subgraphs)
+		const program = compiler.compile(automation.graph, automation.subgraphs, automation.dataWires)
 		this.activeVM = new GraphVM(program, { contextState: finalContext })
-
-		//Sequence Set
 		this.state.running = seqItem
 
 		const doRun = async () => {
@@ -312,7 +310,7 @@ export const ActionQueueManager = Service(
 
 				const finalContext = await exposeSchema(contextSchema, contextData)
 				const compiler = new GraphCompiler()
-				const program = compiler.compile(automation.graph, automation.subgraphs)
+				const program = compiler.compile(automation.graph, automation.subgraphs, automation.dataWires)
 				const vm = new GraphVM(program, { contextState: finalContext })
 				await wrapper(async () => await vm.execute(), { type, id, subId })
 			}
@@ -347,7 +345,7 @@ export const ActionQueueManager = Service(
 			}
 
 			const compiler = new GraphCompiler()
-			const program = compiler.compile(automation.graph, automation.subgraphs)
+			const program = compiler.compile(automation.graph, automation.subgraphs, automation.dataWires)
 			const vm = new GraphVM(program, { contextState: context }, new TestRunnerDebugger(id))
 			this.testVMs.set(id, vm)
 

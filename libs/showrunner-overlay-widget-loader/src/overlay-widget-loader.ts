@@ -16,8 +16,6 @@ export const useOverlayWidgets = defineStore("ShowRunner-overlay-widgets", () =>
 	function loadPluginWidgets(opts: OverlayPluginOptions) {
 		for (const widget of opts.widgets) {
 			widgets.value.set(`${opts.id}.${widget.widget.id}`, { plugin: opts.id, component: markRaw(widget) })
-
-			console.log("Loading Overlay Widget", opts.id, widget.widget.id, widget.widget.name)
 		}
 	}
 

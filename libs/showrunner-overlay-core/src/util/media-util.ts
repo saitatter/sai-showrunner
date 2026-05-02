@@ -84,7 +84,6 @@ export function useSoundPlayer() {
 		playSound(mediaFile: string) {
 			if (!mediaFile) return
 
-			console.log("Playing", mediaFile)
 			const url = mediaResolver(mediaFile)
 
 			const audio = new Audio(url)

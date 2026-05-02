@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import { OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
-import { CSSProperties, computed, onMounted, provide } from "vue"
+import { CSSProperties, computed, provide } from "vue"
 import { useWebsocketBridge } from "./utils/websocket"
 import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
 import { OverlayWidgetComponent, useResolvedWidgetConfig } from "ShowRunner-overlay-core"
@@ -42,10 +42,6 @@ const resolvedConfig = useResolvedWidgetConfig(() => props.widgetConfig.config, 
 
 const bridge = useWebsocketBridge()
 provide("ShowRunner-bridge", bridge.getBridge(props.widgetConfig.id))
-
-onMounted(() => {
-	console.log(props.widgetConfig, widgetComponent)
-})
 </script>
 
 <style scoped>

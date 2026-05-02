@@ -54,7 +54,6 @@ export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 		websocket.addEventListener("open", () => {
 			isConnecting = false
 			connectionStatus.value = "connected"
-			console.log("WebSocket connected")
 		})
 
 		websocket.addEventListener("error", (err) => {
@@ -68,7 +67,6 @@ export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 			connectionStatus.value = "reconnecting"
 			reconnectTimer = setTimeout(() => {
 				reconnectTimer = undefined
-				console.log("Connection Closed: Attempting Reconnect")
 				connect()
 			}, 1000)
 		})
@@ -88,7 +86,6 @@ export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 	}
 
 	rpcs.handle("overlays_setConfig", (configData: OverlayConfig) => {
-		console.log("Config Set", configData)
 		config.value = configData
 		document.title = `ShowRunner Overlay -- ${configData.name}`
 	})

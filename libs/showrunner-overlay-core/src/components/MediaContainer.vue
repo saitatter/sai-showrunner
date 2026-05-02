@@ -77,14 +77,12 @@ onMounted(() => {
 useEventListener(video, "loadedmetadata", () => {
 	if (!video.value) return
 
-	console.log("Video Info Loaded", video.value.videoWidth, video.value.videoHeight)
 	aspectRatio.value = video.value.videoWidth / video.value.videoHeight
 })
 
 useEventListener(img, "load", () => {
 	if (!img.value) return
 
-	console.log("Image Data Loaded", img.value.naturalWidth, img.value.naturalHeight)
 	aspectRatio.value = img.value.naturalWidth / img.value.naturalHeight
 })
 
@@ -127,7 +125,6 @@ defineExpose({
 				return
 			}
 
-			console.log("Starting Video Restart")
 			needsPlay.value = true
 
 			//video.value.pause()

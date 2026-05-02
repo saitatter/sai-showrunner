@@ -225,9 +225,23 @@ export class GraphVM {
 	}
 
 	private resolveActionConfig(node: GraphNode & { type: "action" }): any {
-		// For now, just return config as-is. Wire resolution will be added
-		// once we integrate with the data wire system from the compiled graph.
-		return node.config ?? {}
+		const config = node.config ?? {}
+		const wireMap = this.program.wireMap
+		if (!wireMap || Object.keys(wireMap).length === 0) return config
+
+		// Deep clone config and substitute wired inputs
+		const resolved = structuredClone(config)
+
+		for (const key of Object.keys(resolved)) {
+			const wireKey = `${node.id}:${key}`
+			const source = wireMap[wireKey]
+			if (source) {
+				const sourceResult = this.nodeResults.get(source.fromNodeId)
+				resolved[key] = sourceResult?.[source.fromPort]
+			}
+		}
+
+		return resolved
 	}
 
 	private execCall(instr: Instruction) {

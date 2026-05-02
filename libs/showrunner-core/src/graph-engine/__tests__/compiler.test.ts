@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { GraphCompiler, OpCode } from "../compiler"
-import type { AutomationGraph, GraphNode, GraphEdge } from "ShowRunner-schema"
+import type { AutomationGraph, GraphNode, GraphEdge, AutomationDataWire } from "ShowRunner-schema"
 
 function makeGraph(nodes: GraphNode[], edges: GraphEdge[], entryNodeId: string): AutomationGraph {
 	return { nodes, edges, entryNodeId }
@@ -503,6 +503,62 @@ describe("GraphCompiler", () => {
 			// a4 should appear at most once in EXEC instructions
 			const a4Execs = program.instructions.filter((i) => i.op === OpCode.EXEC && i.nodeId === "a4")
 			expect(a4Execs.length).toBeLessThanOrEqual(1)
+		})
+	})
+
+	describe("wire map", () => {
+		it("builds wireMap from dataWires", () => {
+			const graph = makeGraph(
+				[
+					{ id: "a1", type: "action", plugin: "p", action: "a", config: {}, x: 0, y: 0 },
+					{ id: "a2", type: "action", plugin: "p", action: "b", config: {}, x: 1, y: 0 },
+				],
+				[{ id: "e1", from: "a1", to: "a2" }],
+				"a1"
+			)
+			const dataWires: AutomationDataWire[] = [
+				{ id: "w1", fromNode: "a1", fromPort: "result", toNode: "a2", toPort: "input" },
+			]
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph, undefined, dataWires)
+
+			expect(program.wireMap["a2:input"]).toEqual({ fromNodeId: "a1", fromPort: "result" })
+		})
+
+		it("produces empty wireMap when no dataWires", () => {
+			const graph = makeGraph(
+				[{ id: "a1", type: "action", plugin: "p", action: "a", config: {}, x: 0, y: 0 }],
+				[],
+				"a1"
+			)
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph)
+
+			expect(program.wireMap).toEqual({})
+		})
+
+		it("handles multiple wires to same node", () => {
+			const graph = makeGraph(
+				[
+					{ id: "a1", type: "action", plugin: "p", action: "a", config: {}, x: 0, y: 0 },
+					{ id: "a2", type: "action", plugin: "p", action: "b", config: {}, x: 0, y: 1 },
+					{ id: "a3", type: "action", plugin: "p", action: "c", config: {}, x: 1, y: 0 },
+				],
+				[
+					{ id: "e1", from: "a1", to: "a3" },
+					{ id: "e2", from: "a2", to: "a3" },
+				],
+				"a1"
+			)
+			const dataWires: AutomationDataWire[] = [
+				{ id: "w1", fromNode: "a1", fromPort: "x", toNode: "a3", toPort: "inputA" },
+				{ id: "w2", fromNode: "a2", fromPort: "y", toNode: "a3", toPort: "inputB" },
+			]
+			const compiler = new GraphCompiler()
+			const program = compiler.compile(graph, undefined, dataWires)
+
+			expect(program.wireMap["a3:inputA"]).toEqual({ fromNodeId: "a1", fromPort: "x" })
+			expect(program.wireMap["a3:inputB"]).toEqual({ fromNodeId: "a2", fromPort: "y" })
 		})
 	})
 })

@@ -18,6 +18,7 @@ function makeProgram(instructions: Instruction[], localSlots = 10): Program {
 		subgraphs: [],
 		localSlotCount: localSlots,
 		slotNames: new Array(localSlots).fill(""),
+		wireMap: {},
 	}
 }
 
@@ -233,6 +234,7 @@ describe("GraphVM", () => {
 				subgraphs: [{ id: "sg1", name: "Sub1", entryPC: 2, paramSlots: [], paramNames: [], outputExprs: {} }],
 				localSlotCount: 5,
 				slotNames: new Array(5).fill(""),
+				wireMap: {},
 			}
 
 			const vm = new GraphVM(program, { contextState: {} })
@@ -251,6 +253,7 @@ describe("GraphVM", () => {
 				subgraphs: [{ id: "sg1", name: "Recursive", entryPC: 0, paramSlots: [], paramNames: [], outputExprs: {} }],
 				localSlotCount: 5,
 				slotNames: new Array(5).fill(""),
+				wireMap: {},
 			}
 
 			const vm = new GraphVM(program, { contextState: {} }, undefined, undefined, { maxCallDepth: 5 })

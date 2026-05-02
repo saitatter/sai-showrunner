@@ -51,6 +51,11 @@ export function useDynamicSheet(cssRules: MaybeRefOrGetter<CSSSheetRules>) {
 				if (sheetElement == null) return
 				if (sheetElement.sheet == null) return
 
+				// Clear existing rules before inserting new ones
+				for (let i = sheetElement.sheet.cssRules.length - 1; i >= 0; --i) {
+					sheetElement.sheet.deleteRule(i)
+				}
+
 				for (let ruleName in rules) {
 					const ruleStr = `${ruleName} { ${createStyleString(rules[ruleName])} }`
 

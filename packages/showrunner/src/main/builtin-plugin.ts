@@ -169,7 +169,7 @@ export default definePlugin(
 				if (!config.automation.config.graph) return
 
 				const compiler = new GraphCompiler()
-				const program = compiler.compile(config.automation.config.graph, config.automation.config.subgraphs)
+				const program = compiler.compile(config.automation.config.graph, config.automation.config.subgraphs, config.automation.config.dataWires)
 				const vm = new GraphVM(program, contextData)
 
 				const onabort = () => vm.abort()

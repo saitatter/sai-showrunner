@@ -1,5 +1,6 @@
 import type {
 	AutomationGraph,
+	AutomationDataWire,
 	GraphNode,
 	GraphEdge,
 	SubgraphDefinition,
@@ -67,6 +68,12 @@ export interface CompiledSubgraph {
 	outputExprs: Record<string, Expression>
 }
 
+/** Maps incoming wire target "toNodeId:toPort" → source location */
+export interface WireSource {
+	fromNodeId: string
+	fromPort: string
+}
+
 export interface Program {
 	instructions: Instruction[]
 	/** Ordered node references for EXEC — maps nodeIndex to graph node */
@@ -77,6 +84,8 @@ export interface Program {
 	localSlotCount: number
 	/** Maps slot index → variable name(s) for expression resolution */
 	slotNames: string[]
+	/** Maps "toNodeId:toPort" → wire source for data resolution at runtime */
+	wireMap: Record<string, WireSource>
 }
 
 // ─── Compiler ─────────────────────────────────────────────────────────────────
@@ -113,7 +122,7 @@ export class GraphCompiler {
 		this.maxIterations = options.maxIterations ?? 10000
 	}
 
-	compile(graph: AutomationGraph, subgraphs?: SubgraphDefinition[]): Program {
+	compile(graph: AutomationGraph, subgraphs?: SubgraphDefinition[], dataWires?: AutomationDataWire[]): Program {
 		this.reset()
 		this.buildMaps(graph.nodes, graph.edges)
 		this.subgraphIndexById = new Map((subgraphs ?? []).map((sg, index) => [sg.id, index]))
@@ -142,12 +151,24 @@ export class GraphCompiler {
 			}
 		}
 
+		// Build wire map: "toNodeId:toPort" → { fromNodeId, fromPort }
+		const wireMap: Record<string, WireSource> = {}
+		if (dataWires) {
+			for (const wire of dataWires) {
+				wireMap[`${wire.toNode}:${wire.toPort}`] = {
+					fromNodeId: wire.fromNode,
+					fromPort: wire.fromPort,
+				}
+			}
+		}
+
 		return {
 			instructions: this.instructions,
 			actionNodes: this.actionNodes,
 			subgraphs: compiledSubgraphs,
 			localSlotCount: this.nextSlot,
 			slotNames,
+			wireMap,
 		}
 	}
 

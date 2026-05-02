@@ -94,7 +94,7 @@ export function useShowRunnerState<T = any>(
 
 				bridge.acquireState(newConfig.p, newConfig.s)
 			},
-			{ immediate: true, deep: true }
+			{ immediate: true }
 		)
 	})
 
@@ -225,22 +225,35 @@ export function useViewerDataTable(
 				const loadTable = async () => {
 					const data = await bridge.queryViewerData(0, newCount, newSortBy, newSortOrder)
 					tableData.value = data
-					console.log(data)
 				}
 
 				const initialQuery = loadTable()
 
 				observer = bridge.observeViewerData({
 					async onNewViewerData(provider, id, viewerData) {
-						//TODO: Do Better
-						await loadTable()
+						// Incremental insert: add row and re-sort instead of full reload
+						const newRow: ViewerDataRow = { [provider]: id, [`${provider}_name`]: id, ...viewerData }
+						const compareFn = (a: ViewerDataRow, b: ViewerDataRow) =>
+							orderFactor * String(a[newSortBy] ?? "").localeCompare(String(b[newSortBy] ?? ""))
+						const idx = sortedIndex(tableData.value, newRow, compareFn)
+						tableData.value.splice(idx, 0, newRow)
+						// Trim to count limit
+						if (tableData.value.length > newCount) {
+							tableData.value.length = newCount
+						}
 					},
 					async onViewerDataChanged(provider, id, varName, value) {
-						//TODO: Do Better
-						await loadTable()
+						// Incremental update: find existing row and patch the changed variable
+						const row = tableData.value.find((r) => r[provider] === id)
+						if (row) {
+							row[varName] = value
+						}
 					},
 					onViewerDataRemoved(provider, id) {
-						//TODO, not implemented
+						const idx = tableData.value.findIndex((r) => r[provider] === id)
+						if (idx >= 0) {
+							tableData.value.splice(idx, 1)
+						}
 					},
 					onViewerVariableDeleted(variable) {
 						for (const viewer of tableData.value) {
