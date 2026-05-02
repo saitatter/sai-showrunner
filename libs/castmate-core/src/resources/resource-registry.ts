@@ -100,8 +100,7 @@ defineIPCFunc("resources", "callIPCMember", async (type: string, id: string, fun
 	if (!resourceType.ipcFuncs.includes(func))
 		throw new Error(`Resource type ${type} does not include an IPC func ${func}`)
 
-	//@ts-ignore SHUT UP THIS WORKS
-	return await (resource as CallableResource)[func](...args)
+	return await (resource as unknown as CallableResource)[func](...args)
 })
 
 const rendererAddResourceType = defineCallableIPC<(name: string) => void>("resources", "addResourceType")

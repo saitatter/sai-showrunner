@@ -131,7 +131,7 @@ export class Account<
 		await super.initialize()
 		await ensureDirectory(resolveProjectPath("accounts", this.accountDirectory))
 
-		//@ts-ignore It will, that's how inheritence works...
+		// @ts-expect-error — static `this` doesn't satisfy ResourceConstructor<T>
 		ResourceRegistry.getInstance().exposeIPCFunction(this, "login")
 	}
 

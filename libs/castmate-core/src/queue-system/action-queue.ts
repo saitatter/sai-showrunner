@@ -208,12 +208,11 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 	static async initialize() {
 		await super.initialize()
 
-		//@ts-ignore
+		// @ts-expect-error — ActionQueue class doesn't satisfy ResourceConstructor<T>
 		ResourceRegistry.getInstance().exposeIPCFunction(ActionQueue, "skip")
-		//@ts-ignore
+		// @ts-expect-error — ActionQueue class doesn't satisfy ResourceConstructor<T>
 		ResourceRegistry.getInstance().exposeIPCFunction(ActionQueue, "replay")
-
-		//@ts-ignore
+		// @ts-expect-error — ActionQueue class doesn't satisfy ResourceConstructor<T>
 		ResourceRegistry.getInstance().exposeIPCFunction(ActionQueue, "spliceQueue")
 	}
 }

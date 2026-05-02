@@ -57,15 +57,9 @@ export function useIpcMessage(
 }
 
 export function isProduction() {
-	//@ts-ignore
-	console.log(import.meta?.env)
-	//@ts-ignore
 	return !!import.meta?.env?.PROD
 }
 
 export function isDev() {
-	//@ts-ignore
-	console.log(import.meta?.env)
-	//@ts-ignore
 	return !!import.meta?.env?.DEV
 }

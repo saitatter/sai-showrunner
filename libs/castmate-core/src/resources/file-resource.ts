@@ -108,8 +108,7 @@ export async function loadFileResources<T extends FileIshConstructor>(resourceCo
 		try {
 			const data = await loadYAML(fullFile)
 			const resource = new resourceConstructor()
-			//@ts-ignore
-			resource._id = id
+			;(resource as any)._id = id
 
 			if ((await resource.load(data)) === false) {
 				logger.error("Load Failed", id)

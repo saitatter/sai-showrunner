@@ -35,14 +35,13 @@ export function measurePerf<This, T extends (this: This, ...args: any[]) => any>
 			result = original.call(this, ...args)
 
 			if (isPromise(result)) {
-				//@ts-ignore Type system too stupid again.
 				return (async () => {
 					try {
 						return await result
 					} finally {
 						perf.stop(logger)
 					}
-				})()
+				})() as ReturnType<T>
 			} else {
 				perf.stop(logger)
 				return result
@@ -66,7 +65,6 @@ export function measurePerfFunc<T extends (...args: any[]) => any>(func: T, name
 			result = func(...args)
 
 			if (isPromise(result)) {
-				//@ts-ignore Type system too stupid again.
 				return (async () => {
 					try {
 						return await result

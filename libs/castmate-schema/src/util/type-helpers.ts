@@ -1,8 +1,7 @@
 export function mapMap<K, V, T>(map: Map<K, V>, mapFunc: (key: K, value: V) => T): Map<K, T> {
 	const result: Map<K, T> = new Map()
 	for (let key of map.keys()) {
-		//@ts-ignore type system too stupid to realize we have the key
-		result.set(key, mapFunc(key, map.get(key)))
+		result.set(key, mapFunc(key, map.get(key)!))
 	}
 	return result
 }
@@ -11,8 +10,7 @@ export function mapRecord<V, T>(map: Map<string, V>, mapFunc: (key: string, valu
 	const result: Record<string, T> = {}
 
 	for (let key of map.keys()) {
-		//@ts-ignore type system too stupid to realize we have the key
-		result[key] = mapFunc(key, map.get(key))
+		result[key] = mapFunc(key, map.get(key)!)
 	}
 
 	return result
