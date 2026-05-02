@@ -76,6 +76,8 @@ export function getPortPosition(
 
 /** Check if two port types are compatible for connection */
 export function areTypesCompatible(fromType: string, toType: string): boolean {
+	fromType = normalizePortType(fromType)
+	toType = normalizePortType(toType)
 	if (fromType === toType) return true
 	if (fromType === "any" || toType === "any") return true
 	// Numeric promotions
@@ -85,9 +87,32 @@ export function areTypesCompatible(fromType: string, toType: string): boolean {
 	return false
 }
 
+function normalizePortType(type: string): string {
+	const normalized = String(type || "any").trim().toLowerCase()
+	switch (normalized) {
+		case "string":
+		case "str":
+			return "str"
+		case "number":
+		case "num":
+			return "num"
+		case "boolean":
+		case "bool":
+			return "bool"
+		case "object":
+		case "obj":
+			return "obj"
+		case "array":
+		case "list":
+			return "list"
+		default:
+			return normalized || "any"
+	}
+}
+
 /** Color for port type (used for wire coloring) */
 export function portTypeColor(type: string): string {
-	switch (type) {
+	switch (normalizePortType(type)) {
 		case "str": return "#81c784"
 		case "num": return "#4fc3f7"
 		case "bool": return "#ffb74d"
@@ -223,6 +248,7 @@ export function usePortConnections(
 
 		const drag = wireDrag.value
 		if (!drag) return
+		updateDragPoint(event)
 
 		// Find the port under the cursor
 		const target = findPortUnderCursor(event, drag)
@@ -280,7 +306,12 @@ export function usePortConnections(
 
 	function findPortUnderCursor(event: PointerEvent, drag: WireDragState): PortAddress | undefined {
 		const targetKind = drag.fromKind === "out" ? "in" : "out"
-		const SNAP_RADIUS = 18 / zoom.value
+		const elementTarget = findPortFromEventTarget(event, targetKind)
+		if (elementTarget && isCompatibleTarget(drag, elementTarget)) {
+			return elementTarget
+		}
+
+		const SNAP_RADIUS = 34 / zoom.value
 
 		for (const node of nodes.value) {
 			if (node.id === drag.fromNode && targetKind === drag.fromKind) continue
@@ -292,21 +323,49 @@ export function usePortConnections(
 				const dx = pos.x - drag.currentX
 				const dy = pos.y - drag.currentY
 				if (Math.sqrt(dx * dx + dy * dy) < SNAP_RADIUS) {
-					// Type compatibility check
-					const fromPorts = drag.fromKind === "out"
-						? nodes.value.find((n) => n.id === drag.fromNode)?.outputPorts
-						: nodes.value.find((n) => n.id === drag.fromNode)?.inputPorts
-					const fromPortDef = fromPorts?.find((p) => p.key === drag.fromPort)
-					if (fromPortDef && areTypesCompatible(
-						drag.fromKind === "out" ? fromPortDef.type : port.type,
-						drag.fromKind === "out" ? port.type : fromPortDef.type
-					)) {
+					if (isCompatibleTarget(drag, { nodeId: node.id, portKey: port.key, kind: targetKind })) {
 						return { nodeId: node.id, portKey: port.key, kind: targetKind }
 					}
 				}
 			}
 		}
 		return undefined
+	}
+
+	function updateDragPoint(event: PointerEvent) {
+		if (!wireDrag.value || !canvasRef.value) return
+		const surface = canvasRef.value.querySelector<HTMLElement>(".node-automation__surface")
+		if (!surface) return
+		const rect = surface.getBoundingClientRect()
+		wireDrag.value.currentX = (event.clientX - rect.left) / zoom.value
+		wireDrag.value.currentY = (event.clientY - rect.top) / zoom.value
+	}
+
+	function findPortFromEventTarget(event: PointerEvent, expectedKind: "in" | "out"): PortAddress | undefined {
+		const element = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-port-node-id]")
+		if (!element) return undefined
+		const nodeId = element.dataset.portNodeId
+		const portKey = element.dataset.portKey
+		const kind = element.dataset.portKind
+		if (!nodeId || !portKey || kind !== expectedKind) return undefined
+		return { nodeId, portKey, kind: expectedKind }
+	}
+
+	function getPortDef(address: PortAddress) {
+		const node = nodes.value.find((n) => n.id === address.nodeId)
+		const ports = address.kind === "out" ? node?.outputPorts : node?.inputPorts
+		return ports?.find((p) => p.key === address.portKey)
+	}
+
+	function isCompatibleTarget(drag: WireDragState, target: PortAddress): boolean {
+		if (target.nodeId === drag.fromNode) return false
+		const fromAddress: PortAddress = { nodeId: drag.fromNode, portKey: drag.fromPort, kind: drag.fromKind }
+		const fromPortDef = getPortDef(fromAddress)
+		const targetPortDef = getPortDef(target)
+		if (!fromPortDef || !targetPortDef) return false
+		const sourceType = drag.fromKind === "out" ? fromPortDef.type : targetPortDef.type
+		const destinationType = drag.fromKind === "out" ? targetPortDef.type : fromPortDef.type
+		return areTypesCompatible(sourceType, destinationType)
 	}
 
 	function deleteDataWire(wireId: string) {

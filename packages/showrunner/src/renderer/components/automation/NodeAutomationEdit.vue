@@ -328,6 +328,10 @@
 										<span
 											class="node-automation__port-dot node-automation__port-dot--in"
 											:class="{ connected: isPortConnected(node.id, port.key, 'in') }"
+											:data-port-node-id="node.id"
+											:data-port-key="port.key"
+											data-port-kind="in"
+											:data-port-type="port.type"
 											:style="{ borderColor: portTypeColor(port.type), background: isPortConnected(node.id, port.key, 'in') ? portTypeColor(port.type) : portTypeColor(port.type) + '44' }"
 											@pointerdown.stop="startWireDrag(node.id, port.key, 'in', $event)"
 										/>
@@ -343,12 +347,20 @@
 											v-if="port.type === 'flow'"
 											class="node-automation__port-dot node-automation__port-dot--out node-automation__port-dot--exec"
 											:class="{ connected: isExecPortConnected(node.id, port.key) }"
+											:data-port-node-id="node.id"
+											:data-port-key="port.key"
+											data-port-kind="out"
+											:data-port-type="port.type"
 											@pointerdown.stop="startExecEdgeDrag(node.id, port.key, $event)"
 										/>
 										<span
 											v-else
 											class="node-automation__port-dot node-automation__port-dot--out"
 											:class="{ connected: isPortConnected(node.id, port.key, 'out') }"
+											:data-port-node-id="node.id"
+											:data-port-key="port.key"
+											data-port-kind="out"
+											:data-port-type="port.type"
 											:style="{ borderColor: portTypeColor(port.type), background: isPortConnected(node.id, port.key, 'out') ? portTypeColor(port.type) : portTypeColor(port.type) + '44' }"
 											@pointerdown.stop="startWireDrag(node.id, port.key, 'out', $event)"
 										/>
