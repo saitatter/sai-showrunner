@@ -8,6 +8,9 @@ import { ipcParseSchema } from "./ipc-schema"
 
 export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 	let websocket: WebSocket | undefined = undefined
+	let reconnectTimer: ReturnType<typeof setTimeout> | undefined = undefined
+	let isConnecting = false
+	const connectionStatus = ref<"idle" | "connecting" | "connected" | "reconnecting">("idle")
 	const rpcs = new RPCHandler()
 
 	const config = ref<OverlayConfig>({
@@ -26,20 +29,46 @@ export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 
 	const overlayId = ref(window.location.href.substring(window.location.href.lastIndexOf("/") + 1))
 
-	const sender = (data: RPCMessage) => websocket?.send(JSON.stringify(data))
+	const sender = (data: RPCMessage) => {
+		if (websocket && websocket.readyState === WebSocket.OPEN) {
+			websocket.send(JSON.stringify(data))
+		}
+	}
 
 	function connect() {
+		if (isConnecting) return
+		isConnecting = true
+
+		// Clear any pending reconnect
+		if (reconnectTimer !== undefined) {
+			clearTimeout(reconnectTimer)
+			reconnectTimer = undefined
+		}
+
+		const wasConnected = connectionStatus.value === "connected" || connectionStatus.value === "reconnecting"
+		connectionStatus.value = wasConnected ? "reconnecting" : "connecting"
+
 		console.log("Connecting To ", `ws://${window.location.host}?overlay=${overlayId.value}`)
 		websocket = new WebSocket(`ws://${window.location.host}?overlay=${overlayId.value}`)
+
+		websocket.addEventListener("open", () => {
+			isConnecting = false
+			connectionStatus.value = "connected"
+			console.log("WebSocket connected")
+		})
 
 		websocket.addEventListener("error", (err) => {
 			console.error("WebSocket Error:", err)
 		})
 
 		websocket.addEventListener("close", () => {
-			setTimeout(() => {
+			isConnecting = false
+			websocket = undefined
+			if (reconnectTimer !== undefined) return // Already scheduled
+			connectionStatus.value = "reconnecting"
+			reconnectTimer = setTimeout(() => {
+				reconnectTimer = undefined
 				console.log("Connection Closed: Attempting Reconnect")
-				websocket = undefined
 				connect()
 			}, 1000)
 		})
@@ -274,6 +303,7 @@ export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 	return {
 		overlayId: computed(() => overlayId.value),
 		config: computed(() => config.value),
+		connectionStatus: computed(() => connectionStatus.value),
 		initialize,
 		getBridge,
 	}

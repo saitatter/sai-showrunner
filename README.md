@@ -26,6 +26,8 @@ ShowRunner is an AGPL-3.0 fork of [ShowRunner](https://github.com/LordTocs/ShowR
 
 ### 🔀 Automation Workflow
 
+- **Graph execution engine** — compiles node graphs to a flat instruction program (16 opcodes) and executes via a stack-based VM with abort support, yield scheduling, and subgraph calls
+- Safe expression DSL (no `eval()`) with literals, variables, port references, binary/unary ops, member/index access, and 18 builtin functions
 - Node-based automation editor for graph-style trigger/action flows with data wires and variable nodes
 - Timeline editor for detailed action sequencing (upstream ShowRunner mode)
 - Right-click command menu for triggers and actions with collapsible groups
@@ -36,10 +38,12 @@ ShowRunner is an AGPL-3.0 fork of [ShowRunner](https://github.com/LordTocs/ShowR
 ### 🎨 Overlay Studio
 
 - OBS browser source URLs with copy/open controls and live presence indicators
+- WebSocket reconnection hardening with duplicate-connect guard, status tracking, and safe-send checks
 - Native `Chat Feed` widget for approved Twitch/YouTube messages
 - Native `Paid Alert` widget for YouTube paid messages, donations, and support events
 - Native `Scene Banner` widget for begin/end/intermission style overlays
 - Native `Shader Layer` widget with bundled WebGL presets, local shader presets, live params, and fallback rendering
+- Demo mode (`?demo=true`) and status indicator (`?statusVisible=true`) for overlay development
 - Runtime overlay delivery through ShowRunner state/actions instead of direct Streamer.bot wiring
 
 ### 🛡️ Moderation
