@@ -218,13 +218,13 @@ export class YouTubeLiveChatService {
 		}
 	}
 
-	async start() {
+	async start(preferredBroadcast?: YouTubeBroadcastState) {
 		this.stop()
 		const sessionId = ++this.sessionId
 		this.stopped = false
 		this.nextPageToken = undefined
 
-		const broadcast = await this.discoverActiveBroadcast()
+		const broadcast = preferredBroadcast?.liveChatId ? preferredBroadcast : await this.discoverActiveBroadcast()
 		if (!this.isActiveSession(sessionId)) return
 		this.handlers.onBroadcast(broadcast)
 		if (!broadcast.liveChatId) {

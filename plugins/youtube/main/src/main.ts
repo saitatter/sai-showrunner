@@ -275,13 +275,38 @@ export default definePlugin(
 				statusMessage: "Starting YouTube live chat ingest...",
 			}
 			try {
-				await liveChat.start()
+				await liveChat.start(broadcast.value.liveChatId ? broadcast.value : undefined)
 			} catch (error) {
 				connection.value = {
 					...connection.value,
 					statusMessage: error instanceof Error ? error.message : String(error),
 				}
 				throw error
+			}
+			return {
+				connection: connection.value,
+				broadcast: broadcast.value,
+			}
+		})
+
+		defineRendererCallable("setManualBroadcast", async (manual: { broadcastId?: string; liveChatId?: string; title?: string }) => {
+			const liveChatId = manual.liveChatId?.trim()
+			const broadcastId = manual.broadcastId?.trim()
+			if (!liveChatId && !broadcastId) {
+				broadcast.value = offlineBroadcast
+			} else {
+				broadcast.value = {
+					id: broadcastId || broadcast.value.id,
+					title: manual.title?.trim() || broadcast.value.title || "Manual YouTube live chat",
+					liveChatId,
+					status: liveChatId ? "live" : "unknown",
+				}
+			}
+			connection.value = {
+				...connection.value,
+				statusMessage: liveChatId
+					? "Manual YouTube live chat ID is ready for ingest."
+					: "Manual YouTube broadcast ID saved; live chat ID is still needed to ingest chat.",
 			}
 			return {
 				connection: connection.value,
