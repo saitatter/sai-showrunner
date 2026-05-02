@@ -7,6 +7,8 @@ import { MaybeRefOrGetter, computed, ref, toValue, inject, ComputedRef, nextTick
 export interface TestSequenceData {
 	running: boolean
 	activeIds: Record<string, number> //Maps active ids to their start time
+	nodeResults: Record<string, any> //Maps node ids to their last execution result
+	nodeErrors: Record<string, string> //Maps node ids to their error message
 }
 
 export const useActionQueueStore = defineStore("actionQueues", () => {
@@ -21,7 +23,7 @@ export const useActionQueueStore = defineStore("actionQueues", () => {
 	async function initialize() {
 		handleIpcMessage("actionQueue", "markTestSequenceStart", (event, sequenceId: string) => {
 			console.log("Sequence", sequenceId, "Started")
-			activeTestSequences.value[sequenceId] = { running: true, activeIds: {} }
+			activeTestSequences.value[sequenceId] = { running: true, activeIds: {}, nodeResults: {}, nodeErrors: {} }
 		})
 
 		handleIpcMessage("actionQueue", "markTestSequenceEnd", (event, sequenceId: string) => {
@@ -56,6 +58,18 @@ export const useActionQueueStore = defineStore("actionQueues", () => {
 			} else {
 				delete testRun.activeIds[id]
 			}
+		})
+
+		handleIpcMessage("actionQueue", "markTestActionResult", (event, sequenceId: string, id: string, result: any) => {
+			const testRun = activeTestSequences.value[sequenceId]
+			if (!testRun) return
+			testRun.nodeResults[id] = result
+		})
+
+		handleIpcMessage("actionQueue", "markTestActionError", (event, sequenceId: string, id: string, error: string) => {
+			const testRun = activeTestSequences.value[sequenceId]
+			if (!testRun) return
+			testRun.nodeErrors[id] = error
 		})
 	}
 
@@ -94,4 +108,14 @@ export function useActionTestTime(actionId: MaybeRefOrGetter<string>) {
 	const testSeq = useParentTestSequence()
 
 	return computed(() => testSeq.value?.activeIds?.[toValue(actionId)])
+}
+
+export function useActionTestResult(actionId: MaybeRefOrGetter<string>) {
+	const testSeq = useParentTestSequence()
+	return computed(() => testSeq.value?.nodeResults?.[toValue(actionId)])
+}
+
+export function useActionTestError(actionId: MaybeRefOrGetter<string>) {
+	const testSeq = useParentTestSequence()
+	return computed(() => testSeq.value?.nodeErrors?.[toValue(actionId)])
 }

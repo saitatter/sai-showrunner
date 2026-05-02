@@ -227,6 +227,9 @@
 								'preview-active': playheadNodeId === node.id,
 								'search-match': canvasSearchMatchIds.has(node.id),
 								'search-dimmed': canvasSearchQuery && !canvasSearchMatchIds.has(node.id),
+								'test-running': activeTestSequence.value?.activeIds?.[node.id] != null,
+								'test-success': !activeTestSequence.value?.activeIds?.[node.id] && activeTestSequence.value?.nodeResults?.[node.id] != null && !activeTestSequence.value?.nodeErrors?.[node.id],
+								'test-error': !!activeTestSequence.value?.nodeErrors?.[node.id],
 							},
 						]"
 						:style="{ transform: `translate(${node.x}px, ${node.y}px)`, height: `${node.height}px`, width: `${node.width ?? NODE_WIDTH}px` }"
@@ -269,6 +272,16 @@
 							>{{ node.subtitle }}</small>
 						</span>
 						<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
+						<span
+							v-if="activeTestSequence.value?.nodeErrors?.[node.id]"
+							class="node-automation__test-badge node-automation__test-badge--error"
+							:title="activeTestSequence.value.nodeErrors[node.id]"
+						>✗</span>
+						<span
+							v-else-if="activeTestSequence.value?.nodeResults?.[node.id] != null"
+							class="node-automation__test-badge node-automation__test-badge--ok"
+							:title="JSON.stringify(activeTestSequence.value.nodeResults[node.id], null, 2)"
+						>✓</span>
 						<dl v-if="node.configLines?.length" class="node-automation__node-config">
 							<div v-for="(line, li) in node.configLines" :key="li" class="node-automation__node-config-line">
 								<dt>{{ line.label }}</dt>
@@ -728,6 +741,7 @@ import {
 	useCommitUndo,
 	usePluginStore,
 	ActionDefinition,
+	useParentTestSequence,
 } from "ShowRunner-ui-core"
 import {
 	ActionStack,
@@ -820,6 +834,7 @@ const MAX_RECENT = 5
 const { activityLog, logActivity } = useNodeActivity()
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
+const activeTestSequence = useParentTestSequence()
 
 const NODE_WIDTH = 220
 const NODE_BASE_HEIGHT = 74
@@ -2964,6 +2979,27 @@ onUnmounted(() => {
 	box-shadow: 0 0 0 4px rgb(46 212 122 / 0.28), 0 0 30px rgb(46 212 122 / 0.22), 0 12px 28px rgb(0 0 0 / 0.35);
 }
 
+.node-automation__node.test-running {
+	border-color: #4fc3f7;
+	box-shadow: 0 0 0 3px rgb(79 195 247 / 0.3), 0 0 20px rgb(79 195 247 / 0.15);
+	animation: pulse-border 0.8s ease-in-out infinite alternate;
+}
+
+.node-automation__node.test-success {
+	border-color: #66bb6a;
+	box-shadow: 0 0 0 2px rgb(102 187 106 / 0.25);
+}
+
+.node-automation__node.test-error {
+	border-color: #ef5350;
+	box-shadow: 0 0 0 2px rgb(239 83 80 / 0.3), 0 0 12px rgb(239 83 80 / 0.2);
+}
+
+@keyframes pulse-border {
+	from { opacity: 0.7; }
+	to { opacity: 1; }
+}
+
 .node-automation__node.drop-target {
 	border-color: #2ed47a;
 	box-shadow: 0 0 0 4px rgb(46 212 122 / 0.22), 0 12px 28px rgb(0 0 0 / 0.35);
@@ -3045,6 +3081,26 @@ onUnmounted(() => {
 	font-size: 0.7rem;
 	font-weight: 700;
 	padding: 0.2rem 0.35rem;
+}
+
+.node-automation__test-badge {
+	border-radius: 50%;
+	font-size: 0.65rem;
+	font-weight: 700;
+	height: 18px;
+	line-height: 18px;
+	text-align: center;
+	width: 18px;
+}
+
+.node-automation__test-badge--ok {
+	background: #66bb6a;
+	color: #fff;
+}
+
+.node-automation__test-badge--error {
+	background: #ef5350;
+	color: #fff;
 }
 
 .node-automation__node-config {
