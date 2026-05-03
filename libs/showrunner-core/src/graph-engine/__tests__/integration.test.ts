@@ -176,6 +176,31 @@ describe("Graph Integration (compile → VM → action)", () => {
 		expect(receivedConfig).toEqual({ payload: { viewer: { name: "ViewerName" } } })
 	})
 
+	it("resolves trigger data wires from execution context", async () => {
+		let receivedConfig: any = null
+		mockGetAction.mockReturnValue(mockAction(async (config) => {
+			receivedConfig = config
+			return {}
+		}))
+
+		const graph: AutomationGraph = {
+			nodes: [
+				{ id: "paid-alert", type: "action", plugin: "p", action: "consumer", config: { viewerName: "", amount: "" }, x: 0, y: 0 },
+			],
+			edges: [],
+			entryNodeId: "paid-alert",
+		}
+		const dataWires: AutomationDataWire[] = [
+			{ id: "w1", fromNode: "trigger", fromPort: "viewerName", toNode: "paid-alert", toPort: "viewerName" },
+			{ id: "w2", fromNode: "trigger", fromPort: "payload.amount", toNode: "paid-alert", toPort: "amount" },
+		]
+
+		const program = new GraphCompiler().compile(graph, undefined, dataWires)
+		await new GraphVM(program, { contextState: { viewerName: "SaiTatter", payload: { amount: "10.00" } } }).execute()
+
+		expect(receivedConfig).toEqual({ viewerName: "SaiTatter", amount: "10.00" })
+	})
+
 	it("resolves data wires for action node ids that contain colons", async () => {
 		let receivedConfig: any = null
 		mockGetAction.mockImplementation((_plugin: string, action: string) => {

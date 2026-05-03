@@ -1,4 +1,4 @@
-import type { AutomationConfig, GraphNode } from "ShowRunner-schema"
+import type { AutomationConfig, AutomationDataWire, GraphNode } from "ShowRunner-schema"
 
 export interface AutomationStarterTemplate {
 	id: string
@@ -17,15 +17,21 @@ export const automationStarterTemplates: AutomationStarterTemplate[] = [
 		create() {
 			return createTemplate("YouTube Paid Alert", "youtube", "superChat", [
 				actionNode("push-paid-alert", "overlays", "pushPaidAlert", 360, 120, {
-					eventId: "{{ messageId }}",
+					eventId: "",
 					platform: "youtube",
-					viewerName: "{{ viewerName }}",
-					amount: "{{ amountMicros }}",
-					currency: "{{ currency }}",
+					viewerName: "",
+					amount: "",
+					currency: "USD",
 					title: "New Super Chat",
-					message: "{{ message }}",
+					message: "",
 				}),
-			])
+			], undefined, triggerWires("push-paid-alert", {
+				messageId: "eventId",
+				viewerName: "viewerName",
+				amountMicros: "amount",
+				currency: "currency",
+				message: "message",
+			}))
 		},
 	},
 	{
@@ -38,13 +44,17 @@ export const automationStarterTemplates: AutomationStarterTemplate[] = [
 				actionNode("push-paid-alert", "overlays", "pushPaidAlert", 360, 120, {
 					eventId: "twitch-sub-{{ viewer }}-{{ totalMonths }}",
 					platform: "twitch",
-					viewerName: "{{ viewer }}",
-					amount: "{{ totalMonths }} months",
+					viewerName: "",
+					amount: "",
 					currency: "",
 					title: "New Subscriber",
-					message: "{{ message }}",
+					message: "",
 				}),
-			])
+			], undefined, triggerWires("push-paid-alert", {
+				viewer: "viewerName",
+				totalMonths: "amount",
+				message: "message",
+			}))
 		},
 	},
 	{
@@ -57,13 +67,17 @@ export const automationStarterTemplates: AutomationStarterTemplate[] = [
 				actionNode("push-paid-alert", "overlays", "pushPaidAlert", 360, 120, {
 					eventId: "twitch-bits-{{ viewer }}-{{ bits }}",
 					platform: "twitch",
-					viewerName: "{{ viewer }}",
-					amount: "{{ bits }}",
+					viewerName: "",
+					amount: "",
 					currency: "bits",
 					title: "Bits Cheered",
-					message: "{{ message }}",
+					message: "",
 				}),
-			])
+			], undefined, triggerWires("push-paid-alert", {
+				viewer: "viewerName",
+				bits: "amount",
+				message: "message",
+			}))
 		},
 	},
 	{
@@ -110,7 +124,8 @@ function createTemplate(
 	plugin: string,
 	trigger: string,
 	nodes: GraphNode[],
-	edges = nodes.length > 1 ? nodes.slice(0, -1).map((node, index) => ({ id: `${node.id}:${nodes[index + 1].id}`, from: node.id, to: nodes[index + 1].id })) : []
+	edges = nodes.length > 1 ? nodes.slice(0, -1).map((node, index) => ({ id: `${node.id}:${nodes[index + 1].id}`, from: node.id, to: nodes[index + 1].id })) : [],
+	dataWires: AutomationDataWire[] = []
 ): AutomationConfig {
 	return {
 		name,
@@ -125,9 +140,19 @@ function createTemplate(
 			entryNodeId: nodes[0]?.id ?? "",
 		},
 		subgraphs: [],
-		dataWires: [],
+		dataWires,
 		variableNodes: [],
 	}
+}
+
+function triggerWires(toNode: string, ports: Record<string, string>): AutomationDataWire[] {
+	return Object.entries(ports).map(([fromPort, toPort]) => ({
+		id: `trigger:${fromPort}->${toNode}:${toPort}`,
+		fromNode: "trigger",
+		fromPort,
+		toNode,
+		toPort,
+	}))
 }
 
 function actionNode(

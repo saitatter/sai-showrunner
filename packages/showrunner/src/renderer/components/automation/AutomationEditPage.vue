@@ -164,9 +164,11 @@ function validateAutomationGraph(config: AutomationConfig): string[] {
 		if (!nodeIds.has(edge?.to)) issues.push(`Edge ${edge?.id || "(missing id)"} ends at missing node: ${edge?.to || "(empty)"}`)
 	}
 
+	const dataWireSourceIds = new Set(nodeIds)
+	dataWireSourceIds.add("trigger")
 	for (const wire of config.dataWires ?? []) {
 		if (!wire || typeof wire.id !== "string" || !wire.id.trim()) issues.push("A data wire is missing an id.")
-		if (!nodeIds.has(wire?.fromNode)) issues.push(`Data wire ${wire?.id || "(missing id)"} starts at missing node: ${wire?.fromNode || "(empty)"}`)
+		if (!dataWireSourceIds.has(wire?.fromNode)) issues.push(`Data wire ${wire?.id || "(missing id)"} starts at missing node: ${wire?.fromNode || "(empty)"}`)
 		if (!nodeIds.has(wire?.toNode)) issues.push(`Data wire ${wire?.id || "(missing id)"} ends at missing node: ${wire?.toNode || "(empty)"}`)
 		if (!wire?.fromPort || !wire?.toPort) issues.push(`Data wire ${wire?.id || "(missing id)"} is missing a port.`)
 	}
@@ -190,7 +192,9 @@ function repairAutomation(config: AutomationConfig): AutomationConfig {
 	repaired.name ||= ""
 	repaired.graph = repairGraphModel(repaired.graph)
 	repaired.subgraphs = Array.isArray(repaired.subgraphs) ? repaired.subgraphs.map(repairSubgraph).filter(Boolean) as SubgraphDefinition[] : []
-	repaired.dataWires = repairDataWires(repaired.dataWires, new Set(repaired.graph.nodes.map((node) => node.id)))
+	const mainWireNodeIds = new Set(repaired.graph.nodes.map((node) => node.id))
+	mainWireNodeIds.add("trigger")
+	repaired.dataWires = repairDataWires(repaired.dataWires, mainWireNodeIds)
 	repaired.variableNodes = repairVariableNodes(repaired.variableNodes)
 	return repaired
 }

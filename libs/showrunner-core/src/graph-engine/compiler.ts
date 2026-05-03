@@ -177,6 +177,7 @@ export class GraphCompiler {
 			wireMap,
 			wireTargetNodeIds: [
 				...new Set([
+					"trigger",
 					...graph.nodes.map((node) => node.id),
 					...(subgraphs ?? []).flatMap((subgraph) => subgraph.nodes.map((node) => node.id)),
 				]),

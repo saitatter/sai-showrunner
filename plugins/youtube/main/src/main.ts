@@ -105,8 +105,10 @@ export default definePlugin(
 			context: {
 				type: Object,
 				properties: {
+					viewerId: { type: String, required: true, name: "Viewer ID", default: "youtube-channel-id" },
 					viewerName: { type: String, required: true, name: "Viewer Name", default: "Viewer Name" },
 					message: { type: String, required: true, name: "Message", default: "Thanks for the stream!" },
+					messageId: { type: String, required: true, name: "Message ID", default: "youtube-paid-message-id", view: false },
 					amountMicros: { type: Number, required: true, name: "Amount Micros", default: 1000000 },
 					currency: { type: String, required: true, name: "Currency", default: "USD" },
 				},
@@ -128,8 +130,10 @@ export default definePlugin(
 			context: {
 				type: Object,
 				properties: {
+					viewerId: { type: String, required: true, name: "Viewer ID", default: "youtube-channel-id" },
 					viewerName: { type: String, required: true, name: "Viewer Name", default: "Viewer Name" },
 					message: { type: String, required: true, name: "Sticker", default: "Super Sticker" },
+					messageId: { type: String, required: true, name: "Message ID", default: "youtube-sticker-message-id", view: false },
 					amountMicros: { type: Number, required: true, name: "Amount Micros", default: 1000000 },
 					currency: { type: String, required: true, name: "Currency", default: "USD" },
 				},
@@ -553,16 +557,20 @@ export default definePlugin(
 				},
 				async onSuperChat(event) {
 					await superChat({
+						viewerId: event.viewerId,
 						viewerName: event.viewerName,
 						message: event.message,
+						messageId: event.id,
 						amountMicros: event.amountMicros,
 						currency: event.currency,
 					})
 				},
 				async onSuperSticker(event) {
 					await superSticker({
+						viewerId: event.viewerId,
 						viewerName: event.viewerName,
 						message: event.message,
+						messageId: event.id,
 						amountMicros: event.amountMicros,
 						currency: event.currency,
 					})

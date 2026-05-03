@@ -286,6 +286,9 @@ export class GraphVM {
 	}
 
 	private resolveWireSource(source: WireSource) {
+		if (source.fromNodeId === "trigger") {
+			return getPathValue(this.context.contextState, source.fromPort)
+		}
 		if (source.fromNodeId.startsWith("__param:")) {
 			const slot = this.localSlotsByName.get(source.fromNodeId.slice("__param:".length))
 			const value = slot == null ? undefined : this.locals[slot]
