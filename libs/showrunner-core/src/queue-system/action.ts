@@ -7,6 +7,7 @@ import {
 	IPCDurationConfig,
 	MaybePromise,
 	mapKeys,
+	validateActionResultSchema,
 } from "showrunner-schema"
 import { AnalyticsService, ignoreReactivity, PluginManager } from "../index"
 import { Color } from "showrunner-schema"
@@ -288,6 +289,7 @@ export function defineAction<ConfigSchema extends Schema, ResultSchema extends S
 	if (!initingPlugin) {
 		throw new Error("Can only be used while initing a plugin")
 	}
+	validateActionResultSchema(spec.id, spec.result)
 
 	const logger = usePluginLogger()
 

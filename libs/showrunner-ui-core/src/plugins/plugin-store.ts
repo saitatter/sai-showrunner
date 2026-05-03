@@ -13,6 +13,7 @@ import {
 	IPCDurationConfig,
 	IPCSettingsDefinition,
 	IPCStateDefinition,
+	validateActionResultSchema,
 } from "showrunner-schema"
 
 import { computed, ref, unref, type MaybeRefOrGetter, toValue, Component, markRaw, onMounted, onUnmounted } from "vue"
@@ -64,9 +65,7 @@ function ipcParseActionDefinition(def: IPCActionDefinition): ActionDefinition {
 	} else if (def.type == "regular") {
 		const resultSchema = def.result ? ipcParseSchema(def.result) : undefined
 
-		if (resultSchema && !(resultSchema.type == Object && "properties" in resultSchema)) {
-			throw new Error("Results Must be Objects")
-		}
+		validateActionResultSchema(def.id, resultSchema)
 
 		return {
 			type: "regular",

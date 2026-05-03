@@ -149,7 +149,7 @@ export function isObjectSchema(schema: unknown): schema is SchemaObj {
 	if (!("type" in schema)) return false
 	if (schema.type != Object) return false
 	if (!("properties" in schema)) return false
-	if (typeof schema.properties != "object") return false
+	if (!schema.properties || typeof schema.properties != "object") return false
 	return true
 }
 
