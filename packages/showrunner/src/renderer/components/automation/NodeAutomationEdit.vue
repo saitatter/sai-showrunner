@@ -459,6 +459,21 @@
 							</button>
 						</div>
 					</section>
+					<section v-if="contextMenuSearchResults.length" class="node-automation__menu-section">
+						<div class="node-automation__menu-section-header" style="cursor: default; font-size: 0.8rem; opacity: 0.7;">
+							<span><i class="mdi mdi-filter-variant" /> Matching Nodes</span>
+						</div>
+						<div class="node-automation__menu-items">
+							<button v-for="item in contextMenuSearchResults" :key="`search-${item.kind}-${item.key}`" type="button" @click="selectContextSearchResult(item)">
+								<i :class="item.icon" :style="{ color: item.color }" />
+								<span>
+									<strong>{{ item.name }}</strong>
+									<small>{{ item.detail }}</small>
+								</span>
+								<em :class="item.kind === 'trigger' ? 'trigger' : ''">{{ item.label }}</em>
+							</button>
+						</div>
+					</section>
 					<!-- Integrations: Triggers + Actions grouped by plugin -->
 					<section class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('integrations')" @click="toggleContextGroup('integrations')">
@@ -1235,6 +1250,29 @@ const CONSTANT_TYPE_INFO: Record<string, { icon: string; portType: string; color
 	color: { icon: "mdi mdi-palette", portType: "color", color: "#f06292" },
 }
 const SUBGRAPH_PARAM_TYPES: SubgraphParamType[] = ["string", "number", "boolean", "array", "object", "color", "any"]
+type VariableNodeType = "string" | "number" | "boolean" | "color"
+type ControlFlowNodeType = Exclude<GraphNodeType, "action" | "subgraphCall">
+type ContextSearchResult =
+	| { kind: "action" | "trigger"; key: string; name: string; detail: string; label: string; icon: string; color: string; searchText: string }
+	| { kind: "variable"; key: string; name: string; detail: string; label: string; icon: string; color: string; searchText: string; variableType: VariableNodeType }
+	| { kind: "control"; key: string; name: string; detail: string; label: string; icon: string; color: string; searchText: string; controlType: ControlFlowNodeType }
+	| { kind: "subgraph"; key: string; name: string; detail: string; label: string; icon: string; color: string; searchText: string; subgraphId: string }
+const CONTEXT_VARIABLE_ITEMS: Array<Omit<Extract<ContextSearchResult, { kind: "variable" }>, "searchText">> = [
+	{ kind: "variable", key: "string", name: "String Variable", detail: "Data", label: "Variable", icon: "mdi mdi-format-text", color: "#81c784", variableType: "string" },
+	{ kind: "variable", key: "number", name: "Number Variable", detail: "Data", label: "Variable", icon: "mdi mdi-numeric", color: "#4fc3f7", variableType: "number" },
+	{ kind: "variable", key: "boolean", name: "Boolean Variable", detail: "Data", label: "Variable", icon: "mdi mdi-toggle-switch-outline", color: "#ffb74d", variableType: "boolean" },
+	{ kind: "variable", key: "color", name: "Color Variable", detail: "Data", label: "Variable", icon: "mdi mdi-palette", color: "#f06292", variableType: "color" },
+]
+const CONTEXT_CONTROL_ITEMS: Array<Omit<Extract<ContextSearchResult, { kind: "control" }>, "searchText">> = [
+	{ kind: "control", key: "if", name: "If / Else", detail: "Conditional branch", label: "Control", icon: "mdi mdi-source-branch", color: "#64b5f6", controlType: "if" },
+	{ kind: "control", key: "switch", name: "Switch", detail: "Multi-way branch", label: "Control", icon: "mdi mdi-source-fork", color: "#64b5f6", controlType: "switch" },
+	{ kind: "control", key: "for", name: "For Loop", detail: "Counter-based loop", label: "Control", icon: "mdi mdi-repeat", color: "#68d391", controlType: "for" },
+	{ kind: "control", key: "forEach", name: "For Each", detail: "Iterate over collection", label: "Control", icon: "mdi mdi-format-list-numbered", color: "#68d391", controlType: "forEach" },
+	{ kind: "control", key: "while", name: "While Loop", detail: "Condition-based loop", label: "Control", icon: "mdi mdi-sync", color: "#68d391", controlType: "while" },
+	{ kind: "control", key: "break", name: "Break", detail: "Exit current loop", label: "Control", icon: "mdi mdi-debug-step-out", color: "#ef9a9a", controlType: "break" },
+	{ kind: "control", key: "continue", name: "Continue", detail: "Next iteration", label: "Control", icon: "mdi mdi-skip-next", color: "#ef9a9a", controlType: "continue" },
+	{ kind: "control", key: "return", name: "Return", detail: "End execution", label: "Control", icon: "mdi mdi-keyboard-return", color: "#ef9a9a", controlType: "return" },
+]
 
 const graph = computed(() => {
 	if (activeSubgraph.value) {
@@ -1518,12 +1556,55 @@ const {
 	contextMenuSubtitle,
 	actionContextGroups,
 	triggerContextGroups,
+	contextMenuSearchItems,
 	openContextMenu,
 	openContextMenuAt,
 	closeContextMenu: closeContextMenuBase,
 	toggleContextGroup,
 	isContextGroupOpen,
 } = useNodeContextMenu(nodes, pluginStore, getCanvasPointFromClient, getNodeLane)
+const contextMenuSearchResults = computed<ContextSearchResult[]>(() => {
+	const query = contextMenuQuery.value.trim().toLowerCase()
+	if (!query) return []
+
+	const integrationItems: ContextSearchResult[] = contextMenuSearchItems.value
+		.filter((item) => !pendingFlowConnection.value || item.kind === "action")
+		.map((item) => ({
+			kind: item.kind,
+			key: item.key,
+			name: item.name,
+			detail: item.pluginName,
+			label: item.kind === "trigger" ? "Trigger" : "Action",
+			icon: item.icon,
+			color: item.color,
+			searchText: item.searchText,
+		}))
+	const variableItems: ContextSearchResult[] = pendingFlowConnection.value
+		? []
+		: CONTEXT_VARIABLE_ITEMS.map((item) => withContextSearchText(item))
+	const controlItems: ContextSearchResult[] = CONTEXT_CONTROL_ITEMS.map((item) => withContextSearchText(item))
+	const subgraphItems: ContextSearchResult[] = subgraphsList.value.map((subgraph) => withContextSearchText({
+		kind: "subgraph",
+		key: subgraph.id,
+		name: subgraph.name || "Unnamed",
+		detail: "Call subgraph",
+		label: "Subgraph",
+		icon: "mdi mdi-function",
+		color: "#ce93d8",
+		subgraphId: subgraph.id,
+	}))
+
+	return [...integrationItems, ...variableItems, ...controlItems, ...subgraphItems]
+		.filter((item) => item.searchText.includes(query))
+		.slice(0, 32)
+})
+
+function withContextSearchText<T extends Omit<ContextSearchResult, "searchText">>(item: T): T & { searchText: string } {
+	return {
+		...item,
+		searchText: `${item.name} ${item.detail} ${item.label} ${item.key}`.toLowerCase(),
+	}
+}
 
 function closeContextMenu() {
 	pendingFlowConnection.value = null
@@ -2208,6 +2289,26 @@ async function selectTriggerFromContext(triggerKey: string) {
 	configOpen.value = true
 	closeContextMenu()
 	commitUndo()
+}
+
+async function selectContextSearchResult(item: ContextSearchResult) {
+	switch (item.kind) {
+		case "action":
+			await selectActionFromContext(item.key)
+			break
+		case "trigger":
+			await selectTriggerFromContext(item.key)
+			break
+		case "variable":
+			addVariableNode(item.variableType)
+			break
+		case "control":
+			addControlFlowNode(item.controlType)
+			break
+		case "subgraph":
+			addSubgraphCallNode(item.subgraphId)
+			break
+	}
 }
 
 function startActionPaletteDrag(event: DragEvent, actionKey: string) {

@@ -85,10 +85,6 @@ export function areTypesCompatible(fromType: string, toType: string): boolean {
 	toType = normalizePortType(toType)
 	if (fromType === toType) return true
 	if (fromType === "any" || toType === "any") return true
-	// Numeric promotions
-	if (fromType === "num" && toType === "str") return true
-	if (fromType === "bool" && toType === "str") return true
-	if (fromType === "bool" && toType === "num") return true
 	return false
 }
 

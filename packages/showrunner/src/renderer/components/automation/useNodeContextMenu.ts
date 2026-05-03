@@ -19,6 +19,10 @@ export interface ContextMenuGroup {
 	items: ContextMenuItem[]
 }
 
+export interface ContextMenuSearchItem extends ContextMenuItem {
+	kind: "action" | "trigger"
+}
+
 interface MenuNode {
 	id: string
 	title: string
@@ -67,6 +71,13 @@ export function useNodeContextMenu(
 			icon: entry.icon || "mdi mdi-flash",
 		}))
 	)
+	const contextMenuSearchItems = computed<ContextMenuSearchItem[]>(() => {
+		if (!contextMenuSearch.value) return []
+		return [
+			...triggerContextGroups.value.flatMap((group) => group.items.map((item) => ({ ...item, kind: "trigger" as const }))),
+			...actionContextGroups.value.flatMap((group) => group.items.map((item) => ({ ...item, kind: "action" as const }))),
+		].sort((a, b) => a.name.localeCompare(b.name))
+	})
 
 	function openContextMenu(event: MouseEvent, nodeId?: string) {
 		openContextMenuAt(event.clientX, event.clientY, getCanvasPointFromClient(event.clientX, event.clientY), nodeId)
@@ -149,6 +160,7 @@ export function useNodeContextMenu(
 		contextMenuSubtitle,
 		actionContextGroups,
 		triggerContextGroups,
+		contextMenuSearchItems,
 		openContextMenu,
 		openContextMenuAt,
 		closeContextMenu,
