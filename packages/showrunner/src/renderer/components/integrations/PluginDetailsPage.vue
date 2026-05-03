@@ -21,6 +21,11 @@
 		</div>
 
 		<template v-else>
+			<label class="plugin-details__search">
+				<i class="mdi mdi-magnify" />
+				<input v-model="filterQuery" type="search" placeholder="Search integration details" />
+			</label>
+
 			<nav class="plugin-details__tabs" aria-label="Plugin detail sections">
 				<button
 					v-for="tab in detailTabs"
@@ -53,8 +58,8 @@
 
 			<section v-else-if="activeTab === 'usage'" class="plugin-details__section">
 				<h3>Used In Automations</h3>
-				<div v-if="usage.length" class="plugin-details__usage-list">
-					<article v-for="item in usage" :key="item.key" class="plugin-details__usage">
+				<div v-if="filteredUsage.length" class="plugin-details__usage-list">
+					<article v-for="item in filteredUsage" :key="item.key" class="plugin-details__usage">
 						<div>
 							<strong>{{ item.automationName }}</strong>
 							<small>{{ item.kind }} · {{ item.name }}</small>
@@ -62,13 +67,13 @@
 						<pre v-if="item.config">{{ item.config }}</pre>
 					</article>
 				</div>
-				<p v-else class="plugin-details__empty">No current automations use this plugin.</p>
+				<p v-else class="plugin-details__empty">{{ emptyText("No current automations use this plugin.") }}</p>
 			</section>
 
 			<section v-else-if="activeTab === 'settings'" class="plugin-details__section">
 				<h3>Settings</h3>
-				<div v-if="settingRows.length" class="plugin-details__rows">
-					<article v-for="row in settingRows" :key="row.id" class="plugin-details__row">
+				<div v-if="filteredSettingRows.length" class="plugin-details__rows">
+					<article v-for="row in filteredSettingRows" :key="row.id" class="plugin-details__row">
 						<div>
 							<strong>{{ row.name }}</strong>
 							<small>{{ row.id }} · {{ row.type }}</small>
@@ -76,13 +81,13 @@
 						<code>{{ row.value }}</code>
 					</article>
 				</div>
-				<p v-else class="plugin-details__empty">No plugin settings registered.</p>
+				<p v-else class="plugin-details__empty">{{ emptyText("No plugin settings registered.") }}</p>
 			</section>
 
 			<section v-else-if="activeTab === 'actions'" class="plugin-details__section">
 				<h3>Actions</h3>
-				<div v-if="actionRows.length" class="plugin-details__rows">
-					<article v-for="row in actionRows" :key="row.id" class="plugin-details__row">
+				<div v-if="filteredActionRows.length" class="plugin-details__rows">
+					<article v-for="row in filteredActionRows" :key="row.id" class="plugin-details__row">
 						<div>
 							<strong>{{ row.name }}</strong>
 							<small>{{ row.id }} · {{ row.type }}</small>
@@ -93,13 +98,13 @@
 						</div>
 					</article>
 				</div>
-				<p v-else class="plugin-details__empty">No actions registered.</p>
+				<p v-else class="plugin-details__empty">{{ emptyText("No actions registered.") }}</p>
 			</section>
 
 			<section v-else-if="activeTab === 'triggers'" class="plugin-details__section">
 				<h3>Triggers</h3>
-				<div v-if="triggerRows.length" class="plugin-details__rows">
-					<article v-for="row in triggerRows" :key="row.id" class="plugin-details__row">
+				<div v-if="filteredTriggerRows.length" class="plugin-details__rows">
+					<article v-for="row in filteredTriggerRows" :key="row.id" class="plugin-details__row">
 						<div>
 							<strong>{{ row.name }}</strong>
 							<small>{{ row.id }}</small>
@@ -110,13 +115,13 @@
 						</div>
 					</article>
 				</div>
-				<p v-else class="plugin-details__empty">No triggers registered.</p>
+				<p v-else class="plugin-details__empty">{{ emptyText("No triggers registered.") }}</p>
 			</section>
 
 			<section v-else-if="activeTab === 'state'" class="plugin-details__section">
 				<h3>State</h3>
-				<div v-if="stateRows.length" class="plugin-details__rows">
-					<article v-for="row in stateRows" :key="row.id" class="plugin-details__row">
+				<div v-if="filteredStateRows.length" class="plugin-details__rows">
+					<article v-for="row in filteredStateRows" :key="row.id" class="plugin-details__row">
 						<div>
 							<strong>{{ row.name }}</strong>
 							<small>{{ row.id }}</small>
@@ -124,7 +129,7 @@
 						<code>{{ row.value }}</code>
 					</article>
 				</div>
-				<p v-else class="plugin-details__empty">No runtime state registered.</p>
+				<p v-else class="plugin-details__empty">{{ emptyText("No runtime state registered.") }}</p>
 			</section>
 		</template>
 	</div>
@@ -149,14 +154,16 @@ const enabled = computed(() => pluginStore.isPluginEnabled(pluginId.value))
 const pluginIconClass = computed(() => pluginIcon(pluginId.value, plugin.value?.icon))
 type DetailTab = "overview" | "usage" | "settings" | "actions" | "triggers" | "state"
 const activeTab = ref<DetailTab>("overview")
+const filterQuery = ref("")
+const normalizedFilterQuery = computed(() => filterQuery.value.trim().toLocaleLowerCase())
 
 const detailTabs = computed<Array<{ id: DetailTab; label: string; icon: string; count?: number }>>(() => [
 	{ id: "overview", label: "Overview", icon: "mdi mdi-information-outline" },
-	{ id: "usage", label: "Usage", icon: "mdi mdi-graph-outline", count: usage.value.length },
-	{ id: "settings", label: "Settings", icon: "mdi mdi-cog-outline", count: settingRows.value.length },
-	{ id: "actions", label: "Actions", icon: "mdi mdi-lightning-bolt-outline", count: actionRows.value.length },
-	{ id: "triggers", label: "Triggers", icon: "mdi mdi-bell-ring-outline", count: triggerRows.value.length },
-	{ id: "state", label: "State", icon: "mdi mdi-database-outline", count: stateRows.value.length },
+	{ id: "usage", label: "Usage", icon: "mdi mdi-graph-outline", count: filteredUsage.value.length },
+	{ id: "settings", label: "Settings", icon: "mdi mdi-cog-outline", count: filteredSettingRows.value.length },
+	{ id: "actions", label: "Actions", icon: "mdi mdi-lightning-bolt-outline", count: filteredActionRows.value.length },
+	{ id: "triggers", label: "Triggers", icon: "mdi mdi-bell-ring-outline", count: filteredTriggerRows.value.length },
+	{ id: "state", label: "State", icon: "mdi mdi-database-outline", count: filteredStateRows.value.length },
 ])
 
 const settingRows = computed(() => {
@@ -255,6 +262,22 @@ const usage = computed(() => {
 	return items.sort((a, b) => a.automationName.localeCompare(b.automationName) || a.name.localeCompare(b.name))
 })
 
+const filteredSettingRows = computed(() => filterRows(settingRows.value))
+const filteredStateRows = computed(() => filterRows(stateRows.value))
+const filteredActionRows = computed(() => filterRows(actionRows.value))
+const filteredTriggerRows = computed(() => filterRows(triggerRows.value))
+const filteredUsage = computed(() => filterRows(usage.value))
+
+function filterRows<T>(rows: T[]): T[] {
+	const query = normalizedFilterQuery.value
+	if (!query) return rows
+	return rows.filter((row) => JSON.stringify(row).toLocaleLowerCase().includes(query))
+}
+
+function emptyText(fallback: string) {
+	return normalizedFilterQuery.value ? `No matches for "${filterQuery.value.trim()}".` : fallback
+}
+
 function togglePlugin() {
 	if (!plugin.value) return
 	pluginStore.togglePluginEnabled(plugin.value.id)
@@ -304,6 +327,7 @@ function maskSecret(value: unknown) {
 .plugin-details__header,
 .plugin-details__section,
 .plugin-details__stats,
+.plugin-details__search,
 .plugin-details__tabs {
 	background: var(--surface-b);
 	border: 1px solid var(--surface-d);
@@ -374,6 +398,23 @@ function maskSecret(value: unknown) {
 	gap: 0.5rem;
 	grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
 	padding: 0.75rem;
+}
+
+.plugin-details__search {
+	align-items: center;
+	display: flex;
+	gap: 0.5rem;
+	padding: 0.55rem 0.7rem;
+}
+
+.plugin-details__search input {
+	background: transparent;
+	border: 0;
+	color: var(--text-color);
+	font: inherit;
+	min-width: 0;
+	outline: none;
+	width: 100%;
 }
 
 .plugin-details__tabs {
