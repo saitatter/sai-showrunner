@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { MainPageCard } from "ShowRunner-ui-core"
+import { MainPageCard } from "showrunner-ui-core"
 
 import UnauthedTwitchAccountError from "./UnauthedTwitchAccountError.vue"
 import TwitchStats from "./TwitchStats.vue"

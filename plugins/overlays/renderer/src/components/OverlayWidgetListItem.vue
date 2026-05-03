@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
+import { OverlayWidgetConfig } from "showrunner-plugin-overlays-shared"
 import type { MenuItem } from "primevue/menuitem"
 import PToggleButton from "primevue/togglebutton"
 import { computed, ref, useModel } from "vue"
@@ -48,7 +48,7 @@ import {
 	usePropModel,
 	CToggleButton,
 	useUndoCommitter,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 
 import { useDialog } from "primevue/usedialog"
 

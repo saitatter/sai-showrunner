@@ -1,6 +1,6 @@
-import { defineAction, exposeSchema, onLoad, onUnload, usePluginLogger } from "ShowRunner-core"
+import { defineAction, exposeSchema, onLoad, onUnload, usePluginLogger } from "showrunner-core"
 import { VariableManager } from "./variable-manager"
-import { Duration, DynamicType, Range } from "ShowRunner-schema"
+import { Duration, DynamicType, Range } from "showrunner-schema"
 
 export function setupVariableActions() {
 	const logger = usePluginLogger()

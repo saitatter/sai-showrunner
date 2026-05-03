@@ -14,9 +14,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, useModel } from "vue"
-import { HSB, HSBColor, LightColor, LightColorObj } from "ShowRunner-plugin-iot-shared"
+import { HSB, HSBColor, LightColor, LightColorObj } from "showrunner-plugin-iot-shared"
 import { useEventListener, useElementSize } from "@vueuse/core"
-import { useCommitUndo, usePropagationStop } from "ShowRunner-ui-core"
+import { useCommitUndo, usePropagationStop } from "showrunner-ui-core"
 const props = defineProps<{
 	modelValue: LightColor | undefined
 }>()

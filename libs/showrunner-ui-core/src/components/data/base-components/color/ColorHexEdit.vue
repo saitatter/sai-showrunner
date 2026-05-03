@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { Color, isHexColor } from "ShowRunner-schema"
+import { Color, isHexColor } from "showrunner-schema"
 import PInputText from "primevue/inputtext"
 import { computed, onMounted, ref, watch } from "vue"
 import { useTextUndoCommitter } from "../../../../main"

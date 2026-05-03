@@ -19,8 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import { ChannelPointRewardConfig, ChannelPointRewardState } from "ShowRunner-plugin-twitch-shared"
-import { ResourceData } from "ShowRunner-schema"
+import { ChannelPointRewardConfig, ChannelPointRewardState } from "showrunner-plugin-twitch-shared"
+import { ResourceData } from "showrunner-schema"
 type ChannelPointResource = ResourceData<ChannelPointRewardConfig, ChannelPointRewardState>
 const props = defineProps<{
 	reward: ChannelPointResource

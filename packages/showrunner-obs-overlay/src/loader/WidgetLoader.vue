@@ -13,11 +13,11 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
+import { OverlayWidgetConfig } from "showrunner-plugin-overlays-shared"
 import { CSSProperties, computed, provide } from "vue"
 import { useWebsocketBridge } from "./utils/websocket"
-import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
-import { OverlayWidgetComponent, useResolvedWidgetConfig } from "ShowRunner-overlay-core"
+import { useOverlayWidgets } from "showrunner-overlay-widget-loader"
+import { OverlayWidgetComponent, useResolvedWidgetConfig } from "showrunner-overlay-core"
 
 const props = defineProps<{
 	widgetConfig: OverlayWidgetConfig
@@ -37,7 +37,7 @@ const widgetStore = useOverlayWidgets()
 const widgetComponent = computed<OverlayWidgetComponent | undefined>(
 	() => widgetStore.getWidget(props.widgetConfig.plugin, props.widgetConfig.widget)?.component
 )
-//@ts-ignore
+// @ts-expect-error Widget component metadata type is broader than useResolvedWidgetConfig accepts here.
 const resolvedConfig = useResolvedWidgetConfig(() => props.widgetConfig.config, widgetComponent)
 
 const bridge = useWebsocketBridge()

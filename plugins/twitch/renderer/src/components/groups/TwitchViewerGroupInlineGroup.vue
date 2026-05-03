@@ -26,12 +26,12 @@
 </template>
 
 <script setup lang="ts">
-import { TwitchViewer, TwitchViewerGroupInlineList } from "ShowRunner-plugin-twitch-shared"
+import { TwitchViewer, TwitchViewerGroupInlineList } from "showrunner-plugin-twitch-shared"
 
 import { useModel } from "vue"
-import { DataInput, DataBindingPath } from "ShowRunner-ui-core"
+import { DataInput, DataBindingPath } from "showrunner-ui-core"
 import PButton from "primevue/button"
-import { declareSchema } from "ShowRunner-schema"
+import { declareSchema } from "showrunner-schema"
 
 const props = defineProps<{
 	modelValue: TwitchViewerGroupInlineList

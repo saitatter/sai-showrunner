@@ -1,4 +1,4 @@
-import { LightResource } from "ShowRunner-plugin-iot-main"
+import { LightResource } from "showrunner-plugin-iot-main"
 import {
 	defineAction,
 	defineTrigger,
@@ -9,11 +9,11 @@ import {
 	defineSetting,
 	AsyncCache,
 	usePluginLogger,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import axios, { AxiosInstance } from "axios"
 import { TwinklyDiscovery } from "./discovery"
-import { PollingLight } from "ShowRunner-plugin-iot-main/src/light"
-import { LightColor, LightConfig } from "ShowRunner-plugin-iot-shared"
+import { PollingLight } from "showrunner-plugin-iot-main/src/light"
+import { LightColor, LightConfig } from "showrunner-plugin-iot-shared"
 
 import {
 	TwinklyAuthToken,
@@ -26,7 +26,7 @@ import {
 	setTwinklyMovie,
 	turnTwinklyOff,
 } from "./api"
-import { Toggle } from "ShowRunner-schema"
+import { Toggle } from "showrunner-schema"
 
 const logger = usePluginLogger("twinkly")
 

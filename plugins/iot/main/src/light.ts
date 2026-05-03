@@ -1,4 +1,4 @@
-import { LightColor, LightConfig, LightState } from "ShowRunner-plugin-iot-shared"
+import { LightColor, LightConfig, LightState } from "showrunner-plugin-iot-shared"
 import {
 	Resource,
 	ResourceStorage,
@@ -11,9 +11,9 @@ import {
 	isSatellite,
 	registerSchemaTemplate,
 	template,
-} from "ShowRunner-core"
-import { Duration, Toggle } from "ShowRunner-schema"
-import { SatelliteResourceSymbol } from "ShowRunner-core"
+} from "showrunner-core"
+import { Duration, Toggle } from "showrunner-schema"
+import { SatelliteResourceSymbol } from "showrunner-core"
 
 export class LightResource<
 	Config extends LightConfig = LightConfig,

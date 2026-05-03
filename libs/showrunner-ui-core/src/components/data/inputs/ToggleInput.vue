@@ -31,10 +31,10 @@
 </template>
 
 <script setup lang="ts">
-import { Toggle } from "ShowRunner-schema"
+import { Toggle } from "showrunner-schema"
 import { computed, onMounted, ref, useModel } from "vue"
 import ToggleSwitch from "../base-components/ToggleSwitch.vue"
-import { SchemaToggle } from "ShowRunner-schema"
+import { SchemaToggle } from "showrunner-schema"
 import { SharedDataInputProps, defaultStringIsTemplate, getDataLabel, hasDataLabel } from "../DataInputTypes"
 import TemplateToggle from "../base-components/TemplateToggle.vue"
 import DataInputBaseMenu from "../base-components/DataInputBaseMenu.vue"

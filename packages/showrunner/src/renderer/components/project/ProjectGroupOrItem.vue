@@ -4,7 +4,7 @@
 </template>
 
 <script setup lang="ts">
-import { ProjectGroupItem } from "ShowRunner-ui-core"
+import { ProjectGroupItem } from "showrunner-ui-core"
 
 import ProjectGroup from "./ProjectGroup.vue"
 import ProjectItem from "./ProjectItem.vue"

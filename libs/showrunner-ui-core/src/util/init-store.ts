@@ -1,4 +1,4 @@
-import { createDelayedResolver } from "ShowRunner-schema"
+import { createDelayedResolver } from "showrunner-schema"
 import { ipcInvoke } from "./electron"
 import { ipcRenderer } from "electron"
 import { defineStore } from "pinia"

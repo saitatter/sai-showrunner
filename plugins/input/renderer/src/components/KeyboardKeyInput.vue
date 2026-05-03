@@ -35,8 +35,8 @@ import {
 	usePropagationStop,
 	useDataBinding,
 	getDataLabel,
-} from "ShowRunner-ui-core"
-import { KeyboardKey, SchemaKeyboardKey, Keys, getKeyboardKey } from "ShowRunner-plugin-input-shared"
+} from "showrunner-ui-core"
+import { KeyboardKey, SchemaKeyboardKey, Keys, getKeyboardKey } from "showrunner-plugin-input-shared"
 import { computed, ref, useModel } from "vue"
 import PButton from "primevue/button"
 

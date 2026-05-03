@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { ActionInfo } from "ShowRunner-schema"
+import { ActionInfo } from "showrunner-schema"
 import { ActionSelection, useAction, useActionColors, DataView } from "../../../main"
 import { computed, ref } from "vue"
 import PPopover from "primevue/popover"

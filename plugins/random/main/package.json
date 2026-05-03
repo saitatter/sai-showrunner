@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-random-main",
+	"name": "showrunner-plugin-random-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,9 +13,9 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"ShowRunner-core": "workspace:^",
-		"ShowRunner-plugin-overlays-main": "workspace:^",
-		"ShowRunner-plugin-random-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^"
+		"showrunner-core": "workspace:^",
+		"showrunner-plugin-overlays-main": "workspace:^",
+		"showrunner-plugin-random-shared": "workspace:^",
+		"showrunner-schema": "workspace:^"
 	}
 }

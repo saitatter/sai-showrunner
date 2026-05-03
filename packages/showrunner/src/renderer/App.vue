@@ -32,14 +32,14 @@ import {
 	useSaveAllTabs,
 	useUndoActiveTab,
 	useAppFeedback,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import ProjectView from "./components/project/ProjectView.vue"
 
 import PProgressSpinner from "primevue/progressspinner"
 
 import PConfirmDialog from "primevue/confirmdialog"
 
-import { setupGenericLoginService, useInitStore } from "ShowRunner-ui-core"
+import { setupGenericLoginService, useInitStore } from "showrunner-ui-core"
 import { onMounted } from "vue"
 import { useDialog } from "primevue/usedialog"
 import MigrationDialog from "./components/migration/MigrationDialog.vue"

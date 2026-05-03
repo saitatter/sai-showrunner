@@ -20,10 +20,10 @@
 		// "noUnusedParameters": true,
 		// "noFallthroughCasesInSwitch": true
 		"paths": {
-			"ShowRunner-overlay-core": ["../ShowRunner-overlay-core/src/overlay-core-main.ts"],
-			"ShowRunner-plugin-overlays-overlays": ["../../plugins/overlays/overlay/src/main.ts"],
-			"ShowRunner-plugin-random-overlays": ["../../plugins/random/overlay/src/main.ts"],
-			"ShowRunner-plugin-twitch-overlays": ["../../plugins/twitch/overlay/src/main.ts"]
+			"showrunner-overlay-core": ["../showrunner-overlay-core/src/overlay-core-main.ts"],
+			"showrunner-plugin-overlays-overlays": ["../../plugins/overlays/overlay/src/main.ts"],
+			"showrunner-plugin-random-overlays": ["../../plugins/random/overlay/src/main.ts"],
+			"showrunner-plugin-twitch-overlays": ["../../plugins/twitch/overlay/src/main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

@@ -13,7 +13,7 @@ declare module "primevue/usedialog" {
 }
 import { PrimeVueDialogSymbol, useDialog } from "primevue/usedialog"
 import { DynamicDialogCloseOptions, DynamicDialogOptions } from "primevue/dynamicdialogoptions"
-import { createDelayedResolver } from "ShowRunner-schema"
+import { createDelayedResolver } from "showrunner-schema"
 import SaveAskDialog from "../components/dialogs/SaveAskDialog.vue"
 
 export type DynamicDialogInstance = ReturnType<DialogServiceMethods["open"]> & { visible: boolean; key: string }

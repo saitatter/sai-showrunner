@@ -1,4 +1,4 @@
-import { Color, SchemaBase, registerType } from "ShowRunner-schema"
+import { Color, SchemaBase, registerType } from "showrunner-schema"
 import _cloneDeep from "lodash/cloneDeep"
 
 import { CSSProperties } from "vue"
@@ -531,7 +531,7 @@ export interface SchemaWidgetOutlineStyle extends SchemaBase<WidgetBackgroundSty
 	type: WidgetOutlineStyleFactory
 }
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaTypeMap {
 		OverlayTextStyle: [SchemaOverlayTextStyle, OverlayTextStyle]
 		OverlayBlockStyle: [SchemaOverlayBlockStyle, OverlayBlockStyle]

@@ -1,5 +1,5 @@
 {
-  "name": "ShowRunner-plugin-voicemod-renderer",
+  "name": "showrunner-plugin-voicemod-renderer",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "@vueuse/core": "*",
-    "ShowRunner-schema": "workspace:^",
     "chromatism2": "*",
     "electron": "^34.2.0",
     "nanoid": "^5.0.7",
     "pinia": "^2.1.7",
+    "showrunner-schema": "workspace:^",
     "vue": "^3.5.13"
   },
   "devDependencies": {

@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { MediaFile, normalizeMediaPath } from "ShowRunner-schema"
+import { MediaFile, normalizeMediaPath } from "showrunner-schema"
 import { computed, ref } from "vue"
 import MediaTree from "./MediaTree.vue"
 import { usePropagationStop } from "../../main"

@@ -5,7 +5,7 @@
 			<h2 class="my-2 text-center">{{ updateData.version }} - {{ updateData.name }}</h2>
 		</div>
 		<flex-scroller class="flex-grow-1 update-notes mb-3" inner-class="px-4" style="height: 50vh">
-			<div ref="notes" v-html="updateData.notes"></div>
+			<div ref="notes" v-html="sanitizedNotes"></div>
 		</flex-scroller>
 		<div class="flex flex-row">
 			<p-button @click="doUpdate" :loading="updating">Update!</p-button>
@@ -16,12 +16,14 @@
 </template>
 
 <script setup lang="ts">
-import { UpdateData } from "ShowRunner-schema"
-import { useIpcCaller, FlexScroller, useDialogRef } from "ShowRunner-ui-core"
-import { nextTick, onMounted, ref } from "vue"
+import { UpdateData } from "showrunner-schema"
+import { useIpcCaller, FlexScroller, useDialogRef } from "showrunner-ui-core"
+import { computed, nextTick, onMounted, ref } from "vue"
 import PButton from "primevue/button"
+import { releaseNotesToSanitizedHtml } from "../../util/sanitize-html"
 
 const updateData = ref<UpdateData>()
+const sanitizedNotes = computed(() => releaseNotesToSanitizedHtml(updateData.value))
 
 const getUpdateData = useIpcCaller<() => UpdateData | undefined>("info", "getUpdateInfo")
 
@@ -32,13 +34,11 @@ const notes = ref<HTMLElement>()
 onMounted(async () => {
 	updateData.value = await getUpdateData()
 	nextTick(() => {
-		//nextTick(() => {
-		console.log("Release Notes?", notes)
 		const links = notes.value?.querySelectorAll("a") ?? []
 		for (const link of links) {
 			link.target = "_blank"
+			link.rel = "noreferrer"
 		}
-		//})
 	})
 })
 

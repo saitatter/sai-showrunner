@@ -62,8 +62,8 @@ import {
 	useBaseDataBinding,
 	useCommitUndo,
 	CBooleanExpression,
-} from "ShowRunner-ui-core"
-import { ProfileConfig, createInlineAutomation } from "ShowRunner-schema"
+} from "showrunner-ui-core"
+import { ProfileConfig, createInlineAutomation } from "showrunner-schema"
 import TriggerEdit from "./TriggerEdit.vue"
 import { computed, ref, useModel } from "vue"
 import PButton from "primevue/button"

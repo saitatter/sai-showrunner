@@ -20,7 +20,7 @@
 		// "noUnusedParameters": true,
 		// "noFallthroughCasesInSwitch": true
 		"paths": {
-			"ShowRunner-dashboard-core": ["../../../libs/ShowRunner-dashboard-core/src/dashboard-core-main.ts"]
+			"showrunner-dashboard-core": ["../../../libs/showrunner-dashboard-core/src/dashboard-core-main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

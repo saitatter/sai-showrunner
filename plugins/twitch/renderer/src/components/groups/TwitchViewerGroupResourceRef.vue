@@ -19,10 +19,10 @@
 </template>
 
 <script setup lang="ts">
-import { DataInput, ResourceProxyFactory } from "ShowRunner-ui-core"
-import { TwitchViewerGroupRule } from "ShowRunner-plugin-twitch-shared"
+import { DataInput, ResourceProxyFactory } from "showrunner-ui-core"
+import { TwitchViewerGroupRule } from "showrunner-plugin-twitch-shared"
 import { computed, useModel } from "vue"
-import { Schema } from "ShowRunner-schema"
+import { Schema } from "showrunner-schema"
 import PButton from "primevue/button"
 
 const props = defineProps<{

@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { ResourceSettingList } from "ShowRunner-ui-core"
+import { ResourceSettingList } from "showrunner-ui-core"
 </script>
 
 <style scoped>

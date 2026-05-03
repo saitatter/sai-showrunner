@@ -9,11 +9,11 @@ import {
 	onProfilesChanged,
 	startPerfTime,
 	usePluginLogger,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import { CommercialLength } from "@twurple/api"
 import { onChannelAuth, onStreamOnline } from "./api-harness"
-import { Duration, Timer, getTimeRemaining, isTimerStarted } from "ShowRunner-schema"
+import { Duration, Timer, getTimeRemaining, isTimerStarted } from "showrunner-schema"
 import _isEqual from "lodash/isEqual"
 
 export function setupAds() {

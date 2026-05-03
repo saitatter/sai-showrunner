@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import type { MenuItem } from "primevue/menuitem"
 import { computed, useModel } from "vue"
-import { getAllCommandArgTypes, CommandArgument } from "ShowRunner-schema"
+import { getAllCommandArgTypes, CommandArgument } from "showrunner-schema"
 import PDropdown from "primevue/dropdown"
 import LabelFloater from "../LabelFloater.vue"
 import VariableNameInput from "../VariableNameInput.vue"

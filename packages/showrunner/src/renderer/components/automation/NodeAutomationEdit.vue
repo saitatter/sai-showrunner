@@ -131,6 +131,16 @@
 					<small>{{ activeSubgraph.nodes.length }} nodes, {{ activeSubgraph.dataWires?.length ?? 0 }} data wires</small>
 				</div>
 
+				<div v-if="invalidDataWireIssues.length" class="node-automation__wire-health" @click.stop @pointerdown.stop>
+					<i class="mdi mdi-alert-circle-outline" />
+					<div>
+						<strong>{{ invalidDataWireIssues.length }} invalid data wire{{ invalidDataWireIssues.length === 1 ? "" : "s" }}</strong>
+						<small>{{ invalidDataWireIssues[0].message }}</small>
+					</div>
+					<button type="button" @click="selectDataWireIssue(invalidDataWireIssues[0])">Select</button>
+					<button type="button" @click="cleanupInvalidDataWires">Clean up</button>
+				</div>
+
 				<div
 					class="node-automation__surface"
 					:style="{
@@ -164,7 +174,8 @@
 							@dragover.prevent.stop="dropTargetEdgeId = edge.id"
 							@dragleave.stop="clearDropEdge(edge.id)"
 							@drop.prevent.stop="dropActionOnEdge($event, edge)"
-							@click.stop="selectedEdgeId = edge.id"
+							@pointerdown.stop="startExecEdgeDrag(edge.from, edge.port, $event)"
+							@click.stop="selectFlowEdge(edge.id)"
 						/>
 						<path
 							v-for="edge in visibleFlowEdges"
@@ -201,7 +212,7 @@
 							class="node-automation__data-wire-hit"
 							:d="wire.path"
 							vector-effect="non-scaling-stroke"
-							@click.stop="selectedDataWireId = wire.id"
+							@click.stop="selectDataWire(wire.id)"
 						>
 							<title>{{ dataWireTitle(wire) }}</title>
 						</path>
@@ -221,10 +232,13 @@
 						<path
 							v-if="dragWirePath"
 							class="node-automation__data-wire node-automation__data-wire--dragging"
+							:class="{ invalid: dragWirePath.valid === false }"
 							:d="dragWirePath.path"
 							:stroke="dragWirePath.color"
 							vector-effect="non-scaling-stroke"
-						/>
+						>
+							<title>{{ dragWirePath.validationMessage || "Release on a compatible input port to connect." }}</title>
+						</path>
 
 						<!-- In-progress execution edge drag -->
 						<path
@@ -318,7 +332,7 @@
 								@dblclick.stop="node.kind === 'variable' && startInlineEdit(node.id)"
 							>{{ node.subtitle }}</small>
 						</span>
-						<span v-if="node.kind === 'trigger'" class="node-automation__node-run" title="Run automation" @click.stop="runMainExecution">
+						<span v-if="node.kind === 'trigger'" class="node-automation__node-run" title="Run automation" @click.stop="runMainExecution" v-tooltip="'Run automation'">
 							<i class="mdi mdi-play" />
 						</span>
 						<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
@@ -349,11 +363,12 @@
 									<li v-for="port in node.inputPorts" :key="port.key" class="node-automation__port node-automation__port--in">
 										<span
 											class="node-automation__port-dot node-automation__port-dot--in"
-											:class="{ connected: isPortConnected(node.id, port.key, 'in') }"
+											:class="[{ connected: isPortConnected(node.id, port.key, 'in') }, dataPortDragClass(node.id, port.key, 'in')]"
 											:data-port-node-id="node.id"
 											:data-port-key="port.key"
 											data-port-kind="in"
 											:data-port-type="port.type"
+											:title="dataPortDragTitle(node.id, port.key, 'in')"
 											:style="{ borderColor: portTypeColor(port.type), background: isPortConnected(node.id, port.key, 'in') ? portTypeColor(port.type) : portTypeColor(port.type) + '44' }"
 											@pointerdown.stop="startWireDrag(node.id, port.key, 'in', $event)"
 										/>
@@ -378,11 +393,12 @@
 										<span
 											v-else
 											class="node-automation__port-dot node-automation__port-dot--out"
-											:class="{ connected: isPortConnected(node.id, port.key, 'out') }"
+											:class="[{ connected: isPortConnected(node.id, port.key, 'out') }, dataPortDragClass(node.id, port.key, 'out')]"
 											:data-port-node-id="node.id"
 											:data-port-key="port.key"
 											data-port-kind="out"
 											:data-port-type="port.type"
+											:title="dataPortDragTitle(node.id, port.key, 'out')"
 											:style="{ borderColor: portTypeColor(port.type), background: isPortConnected(node.id, port.key, 'out') ? portTypeColor(port.type) : portTypeColor(port.type) + '44' }"
 											@pointerdown.stop="startWireDrag(node.id, port.key, 'out', $event)"
 										/>
@@ -427,7 +443,9 @@
 
 				<div
 					v-if="contextMenu.open"
+					ref="contextMenuRootRef"
 					class="node-automation__context-menu-anchor"
+					@keydown="handleContextMenuKeydown"
 				>
 					<collapsible-context-menu
 						:x="contextMenu.x"
@@ -442,12 +460,12 @@
 								<input v-model="contextMenuQuery" type="search" placeholder="Search triggers or actions..." />
 							</label>
 						</template>
-					<section v-if="recentlyUsed.length && !contextMenuQuery" class="node-automation__menu-section">
+					<section v-if="recentContextItems.length && !contextMenuQuery" class="node-automation__menu-section">
 						<div class="node-automation__menu-section-header" style="cursor: default; font-size: 0.8rem; opacity: 0.7;">
 							<span><i class="mdi mdi-history" /> Recently Used</span>
 						</div>
 						<div class="node-automation__menu-items">
-							<button v-for="item in recentlyUsed" :key="`recent-${item.key}`" type="button" @click="item.kind === 'trigger' ? selectTriggerFromContext(item.key) : selectActionFromContext(item.key)">
+							<button v-for="item in recentContextItems" :key="`recent-${item.key}`" type="button" @click="item.kind === 'trigger' ? selectTriggerFromContext(item.key) : selectActionFromContext(item.key)">
 								<i :class="item.icon" :style="{ color: item.color }" />
 								<span>
 									<strong>{{ item.name }}</strong>
@@ -456,15 +474,61 @@
 							</button>
 						</div>
 					</section>
+					<section v-if="contextMenuSearchResults.length" class="node-automation__menu-section">
+						<div class="node-automation__menu-section-header" style="cursor: default; font-size: 0.8rem; opacity: 0.7;">
+							<span><i class="mdi mdi-filter-variant" /> Matching Nodes</span>
+						</div>
+						<div class="node-automation__menu-items">
+							<button v-for="item in contextMenuSearchResults" :key="`search-${item.kind}-${item.key}`" type="button" @click="selectContextSearchResult(item)">
+								<i :class="item.icon" :style="{ color: item.color }" />
+								<span>
+									<strong>{{ item.name }}</strong>
+									<small>{{ item.detail }}</small>
+								</span>
+								<em :class="item.kind === 'trigger' ? 'trigger' : ''">{{ item.label }}</em>
+							</button>
+						</div>
+					</section>
+					<section v-else-if="hiddenPluginSearchHint" class="node-automation__menu-section node-automation__menu-hint">
+						<i class="mdi mdi-eye-off-outline" />
+						<span>{{ hiddenPluginSearchHint }}</span>
+					</section>
+					<section v-if="actionCategoryGroups.length" class="node-automation__menu-section">
+						<button type="button" class="node-automation__menu-section-header" data-context-section="categories" :aria-expanded="isContextGroupOpen('categories')" @click="toggleContextGroup('categories')">
+							<span><i class="mdi mdi-shape-outline" /> Categories</span>
+							<i :class="isContextGroupOpen('categories') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						</button>
+						<div v-if="isContextGroupOpen('categories')" class="node-automation__menu-groups">
+							<div v-for="group in actionCategoryGroups" :key="group.id" class="node-automation__menu-group">
+								<button type="button" class="node-automation__menu-group-header" :aria-expanded="isContextGroupOpen(`category:${group.id}`)" @click="toggleContextGroup(`category:${group.id}`)">
+									<span>
+										<i :class="group.icon" :style="{ color: group.color }" />
+										{{ group.name }}
+									</span>
+									<i :class="isContextGroupOpen(`category:${group.id}`) ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+								</button>
+								<div v-if="isContextGroupOpen(`category:${group.id}`)" class="node-automation__menu-items">
+									<button v-for="item in group.items" :key="`category-${group.id}-${item.key}`" type="button" @click="selectActionFromContext(item.key)">
+										<i :class="item.icon" :style="{ color: item.color }" />
+										<span>
+											<strong>{{ item.name }}</strong>
+											<small>{{ item.pluginName }}</small>
+										</span>
+										<em>Action</em>
+									</button>
+								</div>
+							</div>
+						</div>
+					</section>
 					<!-- Integrations: Triggers + Actions grouped by plugin -->
 					<section class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('integrations')" @click="toggleContextGroup('integrations')">
+						<button type="button" class="node-automation__menu-section-header" data-context-section="integrations" :aria-expanded="isContextGroupOpen('integrations')" @click="toggleContextGroup('integrations')">
 							<span><i class="mdi mdi-puzzle-outline" /> Integrations</span>
 							<i :class="isContextGroupOpen('integrations') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
 						<div v-if="isContextGroupOpen('integrations')">
 							<!-- Triggers sub-section -->
-							<section class="node-automation__menu-section" style="border: 0; border-radius: 0;">
+							<section v-if="!pendingFlowConnection" class="node-automation__menu-section" style="border: 0; border-radius: 0;">
 								<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('triggers')" @click="toggleContextGroup('triggers')">
 									<span><i class="mdi mdi-flash" /> Triggers</span>
 									<i :class="isContextGroupOpen('triggers') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
@@ -522,12 +586,30 @@
 						</div>
 					</section>
 					<!-- Data: Variables + Constants -->
-					<section class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('data')" @click="toggleContextGroup('data')">
+					<section v-if="!pendingFlowConnection" class="node-automation__menu-section">
+						<button type="button" class="node-automation__menu-section-header" data-context-section="data" :aria-expanded="isContextGroupOpen('data')" @click="toggleContextGroup('data')">
 							<span><i class="mdi mdi-database-outline" /> Data</span>
 							<i :class="isContextGroupOpen('data') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
 						<div v-if="isContextGroupOpen('data')">
+							<div v-if="conversionContextItems.length" class="node-automation__menu-subtitle">
+								<i class="mdi mdi-swap-horizontal" />
+								<span>Conversions</span>
+							</div>
+							<div v-if="conversionContextItems.length" class="node-automation__menu-items">
+								<button v-for="item in conversionContextItems" :key="`conversion-${item.key}`" type="button" @click="selectActionFromContext(item.key)">
+									<i :class="item.icon" :style="{ color: item.color }" />
+									<span>
+										<strong>{{ item.name }}</strong>
+										<small>{{ item.pluginName }}</small>
+									</span>
+									<em>Convert</em>
+								</button>
+							</div>
+							<div class="node-automation__menu-subtitle">
+								<i class="mdi mdi-variable" />
+								<span>Variables</span>
+							</div>
 							<div class="node-automation__menu-items">
 								<button type="button" @click="addVariableNode('string')">
 									<i class="mdi mdi-format-text" style="color: #81c784" />
@@ -554,7 +636,7 @@
 					</section>
 					<!-- Flow: Control Flow Nodes + Subgraphs -->
 					<section class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('flow')" @click="toggleContextGroup('flow')">
+						<button type="button" class="node-automation__menu-section-header" data-context-section="flow" :aria-expanded="isContextGroupOpen('flow')" @click="toggleContextGroup('flow')">
 							<span><i class="mdi mdi-vector-polyline" /> Flow</span>
 							<i :class="isContextGroupOpen('flow') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
@@ -732,7 +814,7 @@
 											type="text"
 											:value="selectedVariableNode?.name"
 											placeholder="Variable name..."
-											@change="updateVariableNodeName(selectedVariableNode!.id, ($event.target as HTMLInputElement).value)"
+											@change="updateSelectedVariableNodeName(($event.target as HTMLInputElement).value)"
 										/>
 									</label>
 									<label>
@@ -741,19 +823,19 @@
 											v-if="selectedVariableNode?.type === 'string'"
 											type="text"
 											:value="selectedVariableNode.value"
-											@change="updateVariableNodeValue(selectedVariableNode!.id, ($event.target as HTMLInputElement).value)"
+											@change="updateSelectedVariableNodeValue(($event.target as HTMLInputElement).value)"
 										/>
 										<input
 											v-else-if="selectedVariableNode?.type === 'number'"
 											type="number"
 											:value="selectedVariableNode.value"
 											step="any"
-											@change="updateVariableNodeValue(selectedVariableNode!.id, Number(($event.target as HTMLInputElement).value))"
+											@change="updateSelectedVariableNodeValue(Number(($event.target as HTMLInputElement).value))"
 										/>
 										<select
 											v-else-if="selectedVariableNode?.type === 'boolean'"
 											:value="String(selectedVariableNode.value)"
-											@change="updateVariableNodeValue(selectedVariableNode!.id, ($event.target as HTMLSelectElement).value === 'true')"
+											@change="updateSelectedVariableNodeValue(($event.target as HTMLSelectElement).value === 'true')"
 										>
 											<option value="true">true</option>
 											<option value="false">false</option>
@@ -762,7 +844,7 @@
 											v-else-if="selectedVariableNode?.type === 'color'"
 											type="color"
 											:value="selectedVariableNode.value"
-											@change="updateVariableNodeValue(selectedVariableNode!.id, ($event.target as HTMLInputElement).value)"
+											@change="updateSelectedVariableNodeValue(($event.target as HTMLInputElement).value)"
 										/>
 									</label>
 								</div>
@@ -1055,26 +1137,13 @@
 					</div>
 				</section>
 
-				<section class="node-automation__context-section">
-					<button type="button" class="node-automation__context-header" :aria-expanded="activityOpen" @click="activityOpen = !activityOpen">
-						<span><i class="mdi mdi-history" /> Node Activity</span>
-						<i :class="activityOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
-					</button>
-					<ol v-if="activityOpen" class="node-automation__activity">
-						<li v-for="entry in activityLog" :key="entry.id">
-							<strong>{{ entry.title }}</strong>
-							<span>{{ entry.detail }}</span>
-						</li>
-					</ol>
-				</section>
-
 				<section v-if="activeTestExecution?.executionPath?.length" class="node-automation__context-section">
 					<div class="node-automation__execution-header">
 						<span><i class="mdi mdi-map-marker-path" /> Execution Path</span>
 						<small>{{ activeTestExecution.running ? "Running" : "Last run" }}</small>
 					</div>
 					<ol class="node-automation__execution-path">
-						<li v-for="nodeId in activeTestExecution.executionPath" :key="`${nodeId}:${activeTestExecution.nodeDurations[nodeId] ?? 'active'}`">
+						<li v-for="(nodeId, execIdx) in activeTestExecution.executionPath" :key="`${execIdx}:${nodeId}`">
 							<span>{{ nodeTitleById(nodeId) }}</span>
 							<small v-if="activeTestExecution.nodeErrors[nodeId]" class="error">{{ activeTestExecution.nodeErrors[nodeId] }}</small>
 							<small v-else-if="activeTestExecution.nodeDurations[nodeId] != null">{{ formatNodeDuration(activeTestExecution.nodeDurations[nodeId]) }}</small>
@@ -1104,7 +1173,7 @@ import {
 	ActionDefinition,
 	useActionQueueStore,
 	CollapsibleContextMenu,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import {
 	ActionInfo,
 	isObjectSchema,
@@ -1118,16 +1187,17 @@ import {
 	type GraphNodeType,
 	type SubgraphParamType,
 	type SubgraphDefinition,
-} from "ShowRunner-schema"
-import { useNodeActivity } from "./useNodeActivity"
+} from "showrunner-schema"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
 import { useNodeContextMenu } from "./useNodeContextMenu"
 import { useNodeDrag } from "./useNodeDrag"
 import { useAutomationPreview } from "./useAutomationPreview"
-import { usePortConnections, portTypeColor, type DataWire, type PortDef } from "./usePortConnections"
+import { areTypesCompatible, usePortConnections, portTypeColor, wouldCreateDataWireCycle, type DataWire, type PortDef } from "./usePortConnections"
 import { useExecEdges } from "./useExecEdges"
 import { useClipboard } from "./useClipboard"
+import { connectFlowToNode as connectGraphFlowToNode, isTerminalControlFlowNode, resolveContextActionPosition } from "./automation-graph-editing"
 import ExpressionTextInput from "./ExpressionTextInput.vue"
+import { EXPRESSION_BUILTINS } from "./expression-tokenizer"
 import {
 	type ConfigLine,
 	type NodeData,
@@ -1169,16 +1239,21 @@ const canvasSearchOpen = ref(false)
 const canvasSearchQuery = ref("")
 const canvasSearchIndex = ref(0)
 const canvasSearchInputRef = ref<HTMLInputElement>()
+const contextMenuRootRef = ref<HTMLElement>()
+const contextMenuFocusIndex = ref(-1)
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
-const activityOpen = ref(true)
 const subgraphsOpen = ref(false)
 const focusedSubgraphId = ref<string>()
 const activeSubgraphId = ref<string>()
 const recentlyUsed = ref<{ key: string; kind: "action" | "trigger"; name: string; icon: string; color: string }[]>([])
+const pendingFlowConnection = ref<{ fromNode: string; fromPort?: string; canvasPoint: NodePosition } | null>(null)
+const recentContextItems = computed(() =>
+	(pendingFlowConnection.value ? recentlyUsed.value.filter((item) => item.kind === "action") : recentlyUsed.value)
+		.filter((item) => isPluginEnabledForContextKey(item.key))
+)
 const MAX_RECENT = 5
-const { activityLog, logActivity } = useNodeActivity()
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
 const actionQueueStore = useActionQueueStore()
@@ -1243,6 +1318,29 @@ const CONSTANT_TYPE_INFO: Record<string, { icon: string; portType: string; color
 	color: { icon: "mdi mdi-palette", portType: "color", color: "#f06292" },
 }
 const SUBGRAPH_PARAM_TYPES: SubgraphParamType[] = ["string", "number", "boolean", "array", "object", "color", "any"]
+type VariableNodeType = "string" | "number" | "boolean" | "color"
+type ControlFlowNodeType = Exclude<GraphNodeType, "action" | "subgraphCall">
+type ContextSearchResult =
+	| { kind: "action" | "trigger"; key: string; name: string; detail: string; label: string; icon: string; color: string; searchText: string }
+	| { kind: "variable"; key: string; name: string; detail: string; label: string; icon: string; color: string; searchText: string; variableType: VariableNodeType }
+	| { kind: "control"; key: string; name: string; detail: string; label: string; icon: string; color: string; searchText: string; controlType: ControlFlowNodeType }
+	| { kind: "subgraph"; key: string; name: string; detail: string; label: string; icon: string; color: string; searchText: string; subgraphId: string }
+const CONTEXT_VARIABLE_ITEMS: Array<Omit<Extract<ContextSearchResult, { kind: "variable" }>, "searchText">> = [
+	{ kind: "variable", key: "string", name: "String Variable", detail: "Data", label: "Variable", icon: "mdi mdi-format-text", color: "#81c784", variableType: "string" },
+	{ kind: "variable", key: "number", name: "Number Variable", detail: "Data", label: "Variable", icon: "mdi mdi-numeric", color: "#4fc3f7", variableType: "number" },
+	{ kind: "variable", key: "boolean", name: "Boolean Variable", detail: "Data", label: "Variable", icon: "mdi mdi-toggle-switch-outline", color: "#ffb74d", variableType: "boolean" },
+	{ kind: "variable", key: "color", name: "Color Variable", detail: "Data", label: "Variable", icon: "mdi mdi-palette", color: "#f06292", variableType: "color" },
+]
+const CONTEXT_CONTROL_ITEMS: Array<Omit<Extract<ContextSearchResult, { kind: "control" }>, "searchText">> = [
+	{ kind: "control", key: "if", name: "If / Else", detail: "Conditional branch", label: "Control", icon: "mdi mdi-source-branch", color: "#64b5f6", controlType: "if" },
+	{ kind: "control", key: "switch", name: "Switch", detail: "Multi-way branch", label: "Control", icon: "mdi mdi-source-fork", color: "#64b5f6", controlType: "switch" },
+	{ kind: "control", key: "for", name: "For Loop", detail: "Counter-based loop", label: "Control", icon: "mdi mdi-repeat", color: "#68d391", controlType: "for" },
+	{ kind: "control", key: "forEach", name: "For Each", detail: "Iterate over collection", label: "Control", icon: "mdi mdi-format-list-numbered", color: "#68d391", controlType: "forEach" },
+	{ kind: "control", key: "while", name: "While Loop", detail: "Condition-based loop", label: "Control", icon: "mdi mdi-sync", color: "#68d391", controlType: "while" },
+	{ kind: "control", key: "break", name: "Break", detail: "Exit current loop", label: "Control", icon: "mdi mdi-debug-step-out", color: "#ef9a9a", controlType: "break" },
+	{ kind: "control", key: "continue", name: "Continue", detail: "Next iteration", label: "Control", icon: "mdi mdi-skip-next", color: "#ef9a9a", controlType: "continue" },
+	{ kind: "control", key: "return", name: "Return", detail: "End execution", label: "Control", icon: "mdi mdi-keyboard-return", color: "#ef9a9a", controlType: "return" },
+]
 
 const graph = computed(() => {
 	if (activeSubgraph.value) {
@@ -1323,10 +1421,7 @@ const edges = computed<EdgeData[]>(() => {
 		}
 	}).filter((e) => e.path)
 })
-const visibleFlowEdges = computed(() => {
-	const pairsWithData = new Set(dataWires.value.map((wire) => `${wire.fromNode}->${wire.toNode}`))
-	return edges.value.filter((edge) => pairsWithData.has(`${edge.from}->${edge.to}`))
-})
+const visibleFlowEdges = computed(() => edges.value)
 const currentPreviewRouteLabel = computed(() => {
 	const nodeId = currentPreviewStep.value?.node.id
 	if (!nodeId || !activeGraph.value) return undefined
@@ -1385,7 +1480,7 @@ const expressionSuggestions = computed(() => {
 			if (port.type !== "flow") suggestions.add(`${node.id}.${port.key}`)
 		}
 	}
-	for (const builtin of ["len", "includes", "toString", "toNumber", "toBoolean", "min", "max"]) {
+	for (const builtin of EXPRESSION_BUILTINS) {
 		suggestions.add(`${builtin}(...)`)
 	}
 	return [...suggestions].sort((a, b) => a.localeCompare(b))
@@ -1432,6 +1527,7 @@ const canEditSelectedAction = computed(() => {
 })
 const actionPalette = computed(() =>
 	[...pluginStore.pluginMap.values()]
+		.filter((plugin) => pluginStore.isPluginEnabled(plugin.id))
 		.map((plugin) => ({
 			id: plugin.id,
 			name: plugin.name,
@@ -1514,23 +1610,178 @@ const {
 	execDragWirePath,
 	startExecEdgeDrag,
 	deleteExecEdge,
-} = useExecEdges(graphRef, nodes, canvasRef, zoom, commitUndo)
+} = useExecEdges(graphRef, nodes, canvasRef, zoom, commitUndo, openPendingFlowContext)
 const {
 	copySelectedNodes,
 	cutSelectedNodes,
 	pasteNodes,
-} = useClipboard(model, graphRef, selectedNodeIds, selectedNodeId, variableNodes, dataWires, nodePositions, canvasRef, zoom, commitUndo, logActivity, clearSelection)
+} = useClipboard(model, graphRef, selectedNodeIds, selectedNodeId, variableNodes, dataWires, nodePositions, canvasRef, zoom, commitUndo, clearSelection)
 const {
 	contextMenu,
 	contextMenuQuery,
 	contextMenuSubtitle,
 	actionContextGroups,
+	actionCategoryGroups,
+	conversionContextItems,
 	triggerContextGroups,
+	contextMenuSearchItems,
+	disabledContextMenuSearchItems,
 	openContextMenu,
-	closeContextMenu,
+	openContextMenuAt,
+	closeContextMenu: closeContextMenuBase,
 	toggleContextGroup,
 	isContextGroupOpen,
 } = useNodeContextMenu(nodes, pluginStore, getCanvasPointFromClient, getNodeLane)
+
+watch(
+	() => contextMenu.value.open,
+	(open) => {
+		if (!open) return
+		contextMenuFocusIndex.value = -1
+		nextTick(() => {
+			contextMenuRootRef.value?.querySelector<HTMLInputElement>("input[type='search']")?.focus()
+		})
+	}
+)
+
+watch(contextMenuQuery, () => {
+	contextMenuFocusIndex.value = -1
+})
+
+const contextMenuSearchResults = computed<ContextSearchResult[]>(() => {
+	const query = contextMenuQuery.value.trim().toLowerCase()
+	if (!query) return []
+
+	const integrationItems: ContextSearchResult[] = contextMenuSearchItems.value
+		.filter((item) => !pendingFlowConnection.value || item.kind === "action")
+		.map((item) => ({
+			kind: item.kind,
+			key: item.key,
+			name: item.name,
+			detail: item.pluginName,
+			label: item.kind === "trigger" ? "Trigger" : "Action",
+			icon: item.icon,
+			color: item.color,
+			searchText: item.searchText,
+		}))
+	const variableItems: ContextSearchResult[] = pendingFlowConnection.value
+		? []
+		: CONTEXT_VARIABLE_ITEMS.map((item) => withContextSearchText(item))
+	const controlItems: ContextSearchResult[] = CONTEXT_CONTROL_ITEMS.map((item) => withContextSearchText(item))
+	const subgraphItems: ContextSearchResult[] = subgraphsList.value.map((subgraph) => withContextSearchText({
+		kind: "subgraph",
+		key: subgraph.id,
+		name: subgraph.name || "Unnamed",
+		detail: "Call subgraph",
+		label: "Subgraph",
+		icon: "mdi mdi-function",
+		color: "#ce93d8",
+		subgraphId: subgraph.id,
+	}))
+
+	return [...integrationItems, ...variableItems, ...controlItems, ...subgraphItems]
+		.filter((item) => item.searchText.includes(query))
+		.slice(0, 32)
+})
+
+const hiddenPluginSearchHint = computed(() => {
+	const query = contextMenuQuery.value.trim()
+	if (!query || contextMenuSearchResults.value.length) return ""
+	const matches = disabledContextMenuSearchItems.value.filter((item) => !pendingFlowConnection.value || item.kind === "action")
+	if (!matches.length) return ""
+	const pluginNames = [...new Set(matches.map((item) => item.pluginName))].slice(0, 3)
+	return `Matches exist in disabled plugins: ${pluginNames.join(", ")}. Turn them on in Integrations to add new nodes.`
+})
+
+function withContextSearchText<T extends Omit<ContextSearchResult, "searchText">>(item: T): T & { searchText: string } {
+	return {
+		...item,
+		searchText: `${item.name} ${item.detail} ${item.label} ${item.key}`.toLowerCase(),
+	}
+}
+
+function closeContextMenu() {
+	pendingFlowConnection.value = null
+	closeContextMenuBase()
+}
+
+function isPluginEnabledForContextKey(key: string) {
+	const [pluginId] = key.split(":")
+	return !pluginId || pluginStore.isPluginEnabled(pluginId)
+}
+
+function handleContextMenuKeydown(event: KeyboardEvent) {
+	if (!contextMenu.value.open) return
+	if (event.key === "Escape") {
+		event.preventDefault()
+		closeContextMenu()
+		return
+	}
+	if (event.key === "ArrowDown") {
+		event.preventDefault()
+		moveContextMenuFocus(1)
+		return
+	}
+	if (event.key === "ArrowUp") {
+		event.preventDefault()
+		moveContextMenuFocus(-1)
+		return
+	}
+	if (event.key === "Enter") {
+		event.preventDefault()
+		activateContextMenuFocus()
+		return
+	}
+	if ((event.ctrlKey || event.metaKey) && ["1", "2", "3", "4"].includes(event.key)) {
+		event.preventDefault()
+		openContextMenuSection(event.key)
+	}
+}
+
+function moveContextMenuFocus(delta: number) {
+	const buttons = getContextMenuButtons()
+	if (!buttons.length) return
+	const current = buttons.indexOf(document.activeElement as HTMLButtonElement)
+	const start = current >= 0 ? current : contextMenuFocusIndex.value
+	const fallback = delta > 0 ? 0 : buttons.length - 1
+	const next = start >= 0 ? (start + delta + buttons.length) % buttons.length : fallback
+	contextMenuFocusIndex.value = next
+	buttons[next].focus({ preventScroll: true })
+	buttons[next].scrollIntoView({ block: "nearest" })
+}
+
+function activateContextMenuFocus() {
+	const buttons = getContextMenuButtons()
+	if (!buttons.length) return
+	const active = buttons.indexOf(document.activeElement as HTMLButtonElement)
+	const index = active >= 0 ? active : Math.max(0, contextMenuFocusIndex.value)
+	buttons[Math.min(index, buttons.length - 1)].click()
+}
+
+function openContextMenuSection(shortcut: string) {
+	const sectionByShortcut: Record<string, string> = {
+		"1": "categories",
+		"2": "integrations",
+		"3": "data",
+		"4": "flow",
+	}
+	const section = sectionByShortcut[shortcut]
+	if (!section) return
+	if (!isContextGroupOpen(section)) toggleContextGroup(section)
+	nextTick(() => {
+		const sectionButton = contextMenuRootRef.value?.querySelector<HTMLButtonElement>(
+			`[data-context-section="${section}"]`
+		)
+		sectionButton?.focus({ preventScroll: true })
+	})
+}
+
+function getContextMenuButtons() {
+	return Array.from(
+		contextMenuRootRef.value?.querySelectorAll<HTMLButtonElement>(".node-automation__menu-items button") ?? []
+	).filter((button) => !button.disabled && button.offsetParent !== null)
+}
+
 const { startDrag, resetSelectedNodePosition, alignmentGuides } = useNodeDrag(
 	nodePositions,
 	selectedNodeId,
@@ -1546,6 +1797,7 @@ const {
 	wireDrag,
 	dataWirePaths,
 	dragWirePath,
+	dragPortPreview,
 	startWireDrag,
 	deleteDataWire,
 } = usePortConnections(nodes, dataWires, zoom, pan, canvasRef, commitUndo)
@@ -1560,9 +1812,72 @@ const connectedPorts = computed(() => {
 	}
 	return set
 })
+const invalidDataWireIssues = computed(() => {
+	return dataWires.value.flatMap((wire) => {
+		const source = resolveDataWirePort(wire.fromNode, wire.fromPort, "out")
+		const target = resolveDataWirePort(wire.toNode, wire.toPort, "in")
+		if (!source) return [{ id: wire.id, message: `Missing source port: ${nodeTitleById(wire.fromNode)}.${wire.fromPort}` }]
+		if (!target) return [{ id: wire.id, message: `Missing target port: ${nodeTitleById(wire.toNode)}.${wire.toPort}` }]
+		if (!areTypesCompatible(source.type, target.type)) {
+			return [{ id: wire.id, message: `Incompatible data wire: ${source.type} -> ${target.type}` }]
+		}
+		const otherWires = dataWires.value.filter((item) => item.id !== wire.id)
+		if (wouldCreateDataWireCycle(otherWires, wire.fromNode, wire.toNode)) {
+			return [{ id: wire.id, message: "Data wire creates a circular dependency." }]
+		}
+		return []
+	})
+})
 
 function isPortConnected(nodeId: string, portKey: string, kind: "in" | "out"): boolean {
 	return connectedPorts.value.has(`${nodeId}:${portKey}:${kind}`)
+}
+
+function resolveDataWirePort(nodeId: string, portKey: string, kind: "in" | "out") {
+	if (kind === "out" && nodeId === "trigger") {
+		const node = nodes.value.find((item) => item.id === nodeId)
+		return node?.outputPorts?.find((port) => port.key === portKey)
+	}
+	if (kind === "out" && nodeId.startsWith("__param:")) {
+		const paramName = nodeId.slice("__param:".length)
+		const param = activeSubgraph.value?.parameters.find((item) => item.name === paramName)
+		if (param && portKey === "value") return { key: portKey, label: param.name, type: param.type } satisfies PortDef
+	}
+	if (kind === "in" && nodeId.startsWith("__output:")) {
+		const outputName = nodeId.slice("__output:".length)
+		const output = activeSubgraph.value?.outputs.find((item) => item.name === outputName)
+		if (output && portKey === "value") return { key: portKey, label: output.name, type: output.type } satisfies PortDef
+	}
+	const node = nodes.value.find((item) => item.id === nodeId)
+	const ports = kind === "in" ? node?.inputPorts : node?.outputPorts
+	return ports?.find((port) => port.key === portKey)
+}
+
+function selectDataWireIssue(issue: { id: string }) {
+	selectedDataWireId.value = issue.id
+	selectedEdgeId.value = undefined
+	selectedNodeId.value = undefined
+	selectedNodeIds.value = new Set()
+}
+
+function cleanupInvalidDataWires() {
+	const invalidIds = new Set(invalidDataWireIssues.value.map((issue) => issue.id))
+	if (!invalidIds.size) return
+	dataWires.value = dataWires.value.filter((wire) => !invalidIds.has(wire.id))
+	selectedDataWireId.value = undefined
+	commitUndo()
+}
+
+function dataPortDragClass(nodeId: string, portKey: string, kind: "in" | "out") {
+	const preview = dragPortPreview.value
+	if (!preview || preview.nodeId !== nodeId || preview.portKey !== portKey || preview.kind !== kind) return undefined
+	return preview.valid ? "drag-valid" : "drag-invalid"
+}
+
+function dataPortDragTitle(nodeId: string, portKey: string, kind: "in" | "out") {
+	const preview = dragPortPreview.value
+	if (!preview || preview.nodeId !== nodeId || preview.portKey !== portKey || preview.kind !== kind) return undefined
+	return preview.message ?? "Release to connect this data port."
 }
 
 function dataWireTitle(wire: DataWire & { validationMessage?: string }) {
@@ -1681,7 +1996,41 @@ function clearSelection() {
 	selectedEdgeId.value = undefined
 }
 
+function clearNodeSelection() {
+	selectedNodeId.value = undefined
+	selectedNodeIds.value = new Set()
+}
+
+function selectFlowEdge(edgeId: string) {
+	clearNodeSelection()
+	selectedDataWireId.value = undefined
+	selectedEdgeId.value = edgeId
+}
+
+function selectDataWire(wireId: string) {
+	clearNodeSelection()
+	selectedEdgeId.value = undefined
+	selectedDataWireId.value = wireId
+}
+
+function openPendingFlowContext(drop: {
+	fromNode: string
+	fromPort?: string
+	canvasPoint: NodePosition
+	clientPoint: { x: number; y: number }
+}) {
+	pendingFlowConnection.value = {
+		fromNode: drop.fromNode,
+		fromPort: drop.fromPort,
+		canvasPoint: drop.canvasPoint,
+	}
+	clearSelection()
+	actionsOpen.value = true
+	openContextMenuAt(drop.clientPoint.x, drop.clientPoint.y, drop.canvasPoint)
+}
+
 function openNodeContext(event: MouseEvent, node: NodeData) {
+	pendingFlowConnection.value = null
 	selectNode(event, node.id)
 	detailsOpen.value = true
 	configOpen.value = true
@@ -1694,6 +2043,7 @@ function openCanvasContextMenu(event: MouseEvent) {
 	if (target.closest(".node-automation__canvas-controls") || target.closest(".node-automation__context-menu")) return
 	const nodeElement = target.closest(".node-automation__node")
 	if (nodeElement) return
+	pendingFlowConnection.value = null
 	clearSelection()
 	openContextMenu(event)
 }
@@ -1751,7 +2101,7 @@ function startRubberBand(event: PointerEvent) {
 		// Select nodes within the rectangle
 		const ids = new Set<string>()
 		for (const node of nodes.value) {
-			const nodeRight = node.x + NODE_WIDTH
+			const nodeRight = node.x + (node.width ?? NODE_WIDTH)
 			const nodeBottom = node.y + node.height
 			if (node.x < x + width && nodeRight > x && node.y < y + height && nodeBottom > y) {
 				ids.add(node.id)
@@ -1876,7 +2226,7 @@ function navigateToAdjacentNode(direction: "ArrowLeft" | "ArrowRight" | "ArrowUp
 	const current = selectedNode.value ?? nodes.value[0]
 	if (!current) return
 
-	const cx = current.x + NODE_WIDTH / 2
+	const cx = current.x + (current.width ?? NODE_WIDTH) / 2
 	const cy = current.y + current.height / 2
 	const candidates = nodes.value.filter((n) => n.id !== current.id)
 
@@ -1884,7 +2234,7 @@ function navigateToAdjacentNode(direction: "ArrowLeft" | "ArrowRight" | "ArrowUp
 	let bestScore = Infinity
 
 	for (const node of candidates) {
-		const nx = node.x + NODE_WIDTH / 2
+		const nx = node.x + (node.width ?? NODE_WIDTH) / 2
 		const ny = node.y + node.height / 2
 		const dx = nx - cx
 		const dy = ny - cy
@@ -2115,7 +2465,6 @@ async function addActionFromPalette() {
 	if (!action) return
 
 	insertAction(action)
-	logActivity("Added action", `${selection.plugin}/${selection.action}`)
 
 	focusNode(action.id)
 	configOpen.value = true
@@ -2141,10 +2490,11 @@ async function selectActionFromContext(actionKey: string) {
 	const actionDef = plugin?.actions?.[selection.action]
 	trackRecentlyUsed(actionKey, "action", actionDef?.name ?? selection.action, actionDef?.icon ?? "mdi mdi-play", String(plugin?.color ?? "#e9aaff"))
 
-	const position = !contextMenu.value.nodeId ? contextMenu.value.canvasPoint : undefined
-	insertAction(action, contextMenu.value.nodeId, position)
+	const pendingFlow = pendingFlowConnection.value
+	const contextAnchorNode = contextMenu.value.nodeId ? nodes.value.find((node) => node.id === contextMenu.value.nodeId) : undefined
+	const position = resolveContextActionPosition(pendingFlow, contextMenu.value, contextAnchorNode, H_GAP)
+	insertAction(action, pendingFlow?.fromNode ?? contextMenu.value.nodeId, position, pendingFlow?.fromPort)
 	if (position) nodePositions.value[action.id] = position
-	logActivity("Added action", `${selection.plugin}/${selection.action}`)
 	focusNode(action.id)
 	configOpen.value = true
 	closeContextMenu()
@@ -2174,8 +2524,27 @@ async function selectTriggerFromContext(triggerKey: string) {
 	focusNode("trigger")
 	configOpen.value = true
 	closeContextMenu()
-	logActivity("Changed trigger", `${pluginId}/${triggerId}`)
 	commitUndo()
+}
+
+async function selectContextSearchResult(item: ContextSearchResult) {
+	switch (item.kind) {
+		case "action":
+			await selectActionFromContext(item.key)
+			break
+		case "trigger":
+			await selectTriggerFromContext(item.key)
+			break
+		case "variable":
+			addVariableNode(item.variableType)
+			break
+		case "control":
+			addControlFlowNode(item.controlType)
+			break
+		case "subgraph":
+			addSubgraphCallNode(item.subgraphId)
+			break
+	}
 }
 
 function startActionPaletteDrag(event: DragEvent, actionKey: string) {
@@ -2194,7 +2563,6 @@ async function dropActionOnCanvas(event: DragEvent) {
 	const position = getCanvasPoint(event)
 	addGraphActionNode(action, position)
 	nodePositions.value[action.id] = position
-	logActivity("Dropped action", `${action.plugin}/${action.action} on canvas`)
 	focusNode(action.id)
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
@@ -2216,7 +2584,6 @@ async function dropActionOnNode(event: DragEvent, node: NodeData) {
 	}
 	insertAction(action, node.id, position)
 	nodePositions.value[action.id] = position
-	logActivity("Inserted action", `${action.plugin}/${action.action} after ${node.title}`)
 	focusNode(action.id)
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
@@ -2239,7 +2606,6 @@ async function dropActionOnEdge(event: DragEvent, edge: EdgeData) {
 	}
 	insertActionOnEdge(action, edge, position)
 	nodePositions.value[action.id] = position
-	logActivity("Inserted on edge", `${action.plugin}/${action.action}`)
 	focusNode(action.id)
 	configOpen.value = true
 	dropTargetEdgeId.value = undefined
@@ -2290,7 +2656,11 @@ function addGraphActionNode(action: ActionInfo, position: NodePosition) {
 	return node
 }
 
-function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, position?: NodePosition) {
+function connectFlowToNode(fromNode: string, fromPort: string | undefined, toNode: string, isTerminal = false) {
+	connectGraphFlowToNode(ensureGraph(), fromNode, fromPort, toNode, isTerminal)
+}
+
+function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, position?: NodePosition, afterPort?: string) {
 	const graph = ensureGraph()
 	const canAnchorFlow = afterNodeId === "trigger" || Boolean(afterNodeId && graph.nodes.some((node) => node.id === afterNodeId))
 	const flowAnchorId = canAnchorFlow ? afterNodeId : undefined
@@ -2312,14 +2682,7 @@ function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, po
 		return node
 	}
 
-	const outgoing = graph.edges.find((edge) => edge.from === flowAnchorId && edge.port == null)
-	if (outgoing) {
-		const previousTo = outgoing.to
-		outgoing.to = node.id
-		graph.edges.push({ id: `${node.id}:${previousTo}`, from: node.id, to: previousTo })
-	} else {
-		graph.edges.push({ id: `${flowAnchorId}:${node.id}`, from: flowAnchorId, to: node.id })
-	}
+	connectFlowToNode(flowAnchorId, afterPort, node.id)
 	return node
 }
 
@@ -2366,20 +2729,29 @@ function duplicateSelectedAction() {
 	}
 	insertAction(clonedAction, actionInfo.id, position)
 	nodePositions.value[clonedAction.id] = position
-	logActivity("Duplicated node", selectedNode.value?.title || actionInfo.id)
 	focusNode(clonedAction.id)
 	configOpen.value = true
 	commitUndo()
 }
 
 function deleteSelectedAction() {
-	// Multi-select: delete all selected action nodes
+	// Multi-select: delete all selected action/variable nodes
 	const idsToDelete = selectedNodeIds.value.size > 1
 		? [...selectedNodeIds.value].filter((id) => id !== "trigger")
 		: selectedActionInfo.value ? [selectedNodeId.value!] : []
 
 	if (idsToDelete.length > 0) {
-		deleteGraphNodes(idsToDelete)
+		// Also remove variable nodes that are in the selection
+		const varIds = idsToDelete.filter((id) => variableNodes.value.some((vn) => vn.id === id))
+		if (varIds.length) {
+			variableNodes.value = variableNodes.value.filter((vn) => !varIds.includes(vn.id))
+			dataWires.value = dataWires.value.filter((w) => !varIds.includes(w.fromNode) && !varIds.includes(w.toNode))
+		}
+		deleteGraphNodes(idsToDelete.filter((id) => !varIds.includes(id)))
+		if (varIds.length && !idsToDelete.filter((id) => !varIds.includes(id)).length) {
+			clearSelection()
+			commitUndo()
+		}
 		return
 	}
 }
@@ -2396,7 +2768,6 @@ function deleteGraphNodes(ids: string[]) {
 	if (graph.entryNodeId && idSet.has(graph.entryNodeId)) {
 		graph.entryNodeId = graph.nodes[0]?.id ?? ""
 	}
-	logActivity("Deleted", `${ids.length} node${ids.length === 1 ? "" : "s"}`)
 	clearSelection()
 	commitUndo()
 }
@@ -2426,7 +2797,6 @@ function moveSelectedAction(direction: -1 | 1) {
 	if (!node) return
 	node.x = snapCoordinate(node.x + direction * H_GAP)
 	nodePositions.value[node.id] = { x: node.x, y: node.y }
-	logActivity(direction < 0 ? "Moved node left" : "Moved node right", selectedNode.value?.title || node.id)
 	commitUndo()
 }
 
@@ -2463,7 +2833,6 @@ function addSubgraph() {
 	})
 	focusedSubgraphId.value = id
 	subgraphsOpen.value = true
-	logActivity("Added", "Subgraph")
 	commitUndo()
 }
 
@@ -2472,7 +2841,6 @@ function focusSubgraph(id: string) {
 	if (!subgraph) return
 	focusedSubgraphId.value = id
 	subgraphsOpen.value = true
-	logActivity("Focused subgraph", subgraph.name || id)
 }
 
 function openSubgraphCanvas(id: string) {
@@ -2484,13 +2852,11 @@ function openSubgraphCanvas(id: string) {
 	clearSelection()
 	closeContextMenu()
 	subgraphsOpen.value = true
-	logActivity("Opened subgraph canvas", subgraph.name || id)
 }
 
 function openMainCanvas() {
 	activeSubgraphId.value = undefined
 	clearSelection()
-	logActivity("Opened main canvas", model.value.name || "Automation")
 }
 
 function deleteSubgraph(id: string) {
@@ -2509,7 +2875,6 @@ function deleteSubgraph(id: string) {
 		}
 		if (focusedSubgraphId.value === id) focusedSubgraphId.value = undefined
 		if (activeSubgraphId.value === id) activeSubgraphId.value = undefined
-		logActivity("Deleted", "Subgraph")
 		commitUndo()
 	}
 }
@@ -2518,7 +2883,6 @@ function updateSubgraphName(id: string, name: string) {
 	const subgraph = findSubgraph(id)
 	if (!subgraph) return
 	subgraph.name = name.trim() || "Unnamed Subgraph"
-	logActivity("Renamed subgraph", subgraph.name)
 	commitUndo()
 }
 
@@ -2532,7 +2896,6 @@ function addSubgraphParam(id: string, collection: "parameters" | "outputs") {
 		default: collection === "parameters" ? "" : undefined,
 	})
 	focusedSubgraphId.value = id
-	logActivity("Added subgraph port", `${subgraph.name || id} ${prefix}`)
 	commitUndo()
 }
 
@@ -2541,7 +2904,6 @@ function deleteSubgraphParam(id: string, collection: "parameters" | "outputs", i
 	if (!subgraph) return
 	subgraph[collection].splice(index, 1)
 	focusedSubgraphId.value = id
-	logActivity("Deleted subgraph port", subgraph.name || id)
 	commitUndo()
 }
 
@@ -2606,10 +2968,13 @@ function addSubgraphCallNode(subgraphId: string) {
 		subgraphId,
 		inputs: {},
 	})
-	if (!graph.entryNodeId) graph.entryNodeId = id
+	if (pendingFlowConnection.value) {
+		connectFlowToNode(pendingFlowConnection.value.fromNode, pendingFlowConnection.value.fromPort, id)
+	} else if (!graph.entryNodeId) {
+		graph.entryNodeId = id
+	}
 	focusedSubgraphId.value = subgraphId
 	closeContextMenu()
-	logActivity("Added", "Subgraph Call")
 	commitUndo()
 }
 
@@ -2675,7 +3040,6 @@ function collapseSelectionToSubgraph() {
 		[...selectedNodeIds.value].filter((id) => id !== "trigger" && graph.nodes.some((node) => node.id === id))
 	)
 	if (selectedGraphIds.size === 0) {
-		logActivity("Subgraph skipped", "Select one or more graph nodes first")
 		return
 	}
 
@@ -2767,7 +3131,6 @@ function collapseSelectionToSubgraph() {
 	focusedSubgraphId.value = subgraphId
 	subgraphsOpen.value = true
 	focusNode(callNodeId)
-	logActivity("Collapsed subgraph", `${selectedNodes.length} node${selectedNodes.length === 1 ? "" : "s"}`)
 }
 
 function addControlFlowNode(type: GraphNodeType) {
@@ -2809,13 +3172,13 @@ function addControlFlowNode(type: GraphNodeType) {
 
 	graph.nodes.push(newNode)
 
-	// Set entry if first node
-	if (graph.nodes.length === 1) {
+	if (pendingFlowConnection.value) {
+		connectFlowToNode(pendingFlowConnection.value.fromNode, pendingFlowConnection.value.fromPort, id, isTerminalControlFlowNode(type))
+	} else if (graph.nodes.length === 1) {
 		graph.entryNodeId = id
 	}
 
 	closeContextMenu()
-	logActivity("Added", GRAPH_NODE_INFO[type].label)
 	commitUndo()
 }
 
@@ -2970,7 +3333,6 @@ function addVariableNode(type: "string" | "number" | "boolean" | "color") {
 	}
 	variableNodes.value.push(vn)
 	closeContextMenu()
-	logActivity("Added", `${type} variable`)
 	commitUndo()
 }
 
@@ -2980,7 +3342,6 @@ function deleteVariableNode(id: string) {
 		variableNodes.value.splice(idx, 1)
 		// Also remove any wires connected to this node
 		dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
-		logActivity("Deleted", "Variable node")
 		commitUndo()
 	}
 }
@@ -2993,6 +3354,12 @@ function updateVariableNodeValue(id: string, value: string | number | boolean) {
 	}
 }
 
+function updateSelectedVariableNodeValue(value: string | number | boolean) {
+	const id = selectedVariableNode.value?.id
+	if (!id) return
+	updateVariableNodeValue(id, value)
+}
+
 function updateVariableNodeName(id: string, name: string) {
 	const vn = variableNodes.value.find((v) => v.id === id)
 	if (vn) {
@@ -3001,14 +3368,21 @@ function updateVariableNodeName(id: string, name: string) {
 	}
 }
 
+function updateSelectedVariableNodeName(name: string) {
+	const id = selectedVariableNode.value?.id
+	if (!id) return
+	updateVariableNodeName(id, name)
+}
+
 const inlineEditNodeId = ref<string>()
 const inlineEditInput = ref<HTMLInputElement>()
 
 function startInlineEdit(nodeId: string) {
 	inlineEditNodeId.value = nodeId
 	nextTick(() => {
-		inlineEditInput.value?.focus()
-		inlineEditInput.value?.select()
+		const el = Array.isArray(inlineEditInput.value) ? inlineEditInput.value[0] : inlineEditInput.value
+		el?.focus()
+		el?.select()
 	})
 }
 
@@ -3272,6 +3646,63 @@ onUnmounted(() => {
 	color: rgb(255 255 255 / 0.62);
 }
 
+.node-automation__wire-health {
+	align-items: center;
+	background: rgb(61 33 25 / 0.94);
+	border: 1px solid rgb(239 154 154 / 0.5);
+	border-radius: 6px;
+	box-shadow: 0 12px 28px rgb(0 0 0 / 0.32);
+	color: #fff4f4;
+	display: grid;
+	gap: 0.45rem;
+	grid-template-columns: auto minmax(0, 1fr) auto auto;
+	left: 0.75rem;
+	max-width: min(42rem, calc(100% - 1.5rem));
+	padding: 0.55rem 0.65rem;
+	pointer-events: auto;
+	position: sticky;
+	top: 4.25rem;
+	z-index: 22;
+}
+
+.node-automation__wire-health > i {
+	color: #ef9a9a;
+	font-size: 1.15rem;
+}
+
+.node-automation__wire-health div {
+	display: grid;
+	min-width: 0;
+}
+
+.node-automation__wire-health strong,
+.node-automation__wire-health small {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node-automation__wire-health small {
+	color: #ffd6d6;
+	font-size: 0.72rem;
+}
+
+.node-automation__wire-health button {
+	background: rgb(255 255 255 / 0.1);
+	border: 1px solid rgb(255 255 255 / 0.18);
+	border-radius: 4px;
+	color: #fff;
+	cursor: pointer;
+	font-size: 0.72rem;
+	font-weight: 700;
+	padding: 0.25rem 0.5rem;
+}
+
+.node-automation__wire-health button:hover {
+	background: rgb(239 83 80 / 0.32);
+	border-color: rgb(239 154 154 / 0.72);
+}
+
 .node-automation__node.search-dimmed {
 	opacity: 0.3;
 }
@@ -3296,6 +3727,7 @@ onUnmounted(() => {
 
 .node-automation__minimap-node--trigger { fill: #4fc3f7; }
 .node-automation__minimap-node--action { fill: #81c784; }
+.node-automation__minimap-node--conversion { fill: #4dd0e1; }
 .node-automation__minimap-node--queue { fill: #ffcf5a; }
 .node-automation__minimap-node--stack { fill: #ba68c8; }
 .node-automation__minimap-node--time { fill: #ffb74d; }
@@ -3668,6 +4100,11 @@ onUnmounted(() => {
 	border-color: #7d32d4;
 }
 
+.node-automation__node--conversion {
+	background: color-mix(in srgb, #4dd0e1 10%, #151515);
+	border-color: #4dd0e1;
+}
+
 .node-automation__node--queue {
 	background: color-mix(in srgb, #ffcf5a 12%, #151515);
 	border-color: #ffcf5a;
@@ -3712,8 +4149,37 @@ onUnmounted(() => {
 }
 
 .node-automation__node--variable {
+	background: linear-gradient(135deg, rgb(38 50 56 / 0.96), rgb(20 28 31 / 0.96));
 	border-color: #90a4ae;
-	min-width: 140px;
+	border-radius: 6px;
+	border-style: dashed;
+	box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06), 0 8px 20px rgb(0 0 0 / 0.3);
+	min-width: 150px;
+	padding-left: 0.85rem;
+	padding-right: 0.85rem;
+}
+
+.node-automation__node--variable::before {
+	background: currentColor;
+	border-radius: 999px;
+	content: "";
+	height: calc(100% - 1.2rem);
+	left: 0.45rem;
+	opacity: 0.28;
+	position: absolute;
+	top: 0.6rem;
+	width: 0.22rem;
+}
+
+.node-automation__node--variable .node-automation__node-icon {
+	background: rgb(255 255 255 / 0.16);
+	border-radius: 999px;
+}
+
+.node-automation__node--variable .node-automation__node-badge {
+	background: rgb(144 164 174 / 0.25);
+	border: 1px solid rgb(144 164 174 / 0.45);
+	color: #d9edf4;
 }
 
 .node-automation__node--trigger .node-automation__node-badge {
@@ -3918,6 +4384,18 @@ onUnmounted(() => {
 	transform: scale(1.4);
 }
 
+.node-automation__port-dot.drag-valid {
+	box-shadow: 0 0 0 4px rgb(46 212 122 / 0.3), 0 0 10px rgb(46 212 122 / 0.55);
+	transform: scale(1.5);
+}
+
+.node-automation__port-dot.drag-invalid {
+	background: #ef5350 !important;
+	border-color: #ffb3b3 !important;
+	box-shadow: 0 0 0 4px rgb(239 83 80 / 0.28), 0 0 12px rgb(239 83 80 / 0.65);
+	transform: scale(1.55);
+}
+
 .node-automation__port-dot--in {
 	border-color: #4a8a4d;
 }
@@ -4032,6 +4510,14 @@ onUnmounted(() => {
 	overflow: hidden;
 }
 
+.node-automation__menu-hint {
+	align-items: center;
+	color: var(--text-color-secondary);
+	display: flex;
+	gap: 0.5rem;
+	padding: 0.7rem;
+}
+
 .node-automation__menu-section-header,
 .node-automation__menu-group-header {
 	align-items: center;
@@ -4078,6 +4564,18 @@ onUnmounted(() => {
 	display: grid;
 }
 
+.node-automation__menu-subtitle {
+	align-items: center;
+	color: var(--text-color-secondary);
+	display: flex;
+	font-size: 0.72rem;
+	font-weight: 700;
+	gap: 0.35rem;
+	letter-spacing: 0;
+	padding: 0.45rem 0.5rem 0.1rem;
+	text-transform: uppercase;
+}
+
 .node-automation__menu-group + .node-automation__menu-group {
 	border-top: 1px solid var(--surface-d);
 }
@@ -4111,6 +4609,13 @@ onUnmounted(() => {
 .node-automation__menu-items button:hover {
 	background: color-mix(in srgb, #8b35e6 24%, var(--surface-a));
 	border-color: #8b35e6;
+}
+
+.node-automation__menu-items button:focus-visible {
+	background: color-mix(in srgb, #8b35e6 28%, var(--surface-a));
+	border-color: rgb(233 170 255 / 0.7);
+	outline: 2px solid rgb(233 170 255 / 0.45);
+	outline-offset: 1px;
 }
 
 .node-automation__menu-items span {
@@ -4452,31 +4957,6 @@ onUnmounted(() => {
 	background: #2a2a2a;
 	border-color: #e9aaff;
 	color: #fff;
-}
-
-.node-automation__activity {
-	display: grid;
-	gap: 0.55rem;
-	list-style: none;
-	margin: 0;
-	padding: 0.65rem;
-}
-
-.node-automation__activity li {
-	background: #101010;
-	border: 1px solid #303030;
-	border-radius: 4px;
-	display: grid;
-	gap: 0.2rem;
-	padding: 0.55rem;
-}
-
-.node-automation__activity span {
-	color: #bbb;
-	font-size: 0.8rem;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .node-automation__execution-header {

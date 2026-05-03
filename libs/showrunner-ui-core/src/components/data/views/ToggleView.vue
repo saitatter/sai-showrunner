@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import { SharedDataViewProps } from "../DataInputTypes"
 import { computed } from "vue"
-import { SchemaToggle } from "ShowRunner-schema"
+import { SchemaToggle } from "showrunner-schema"
 
 const props = defineProps<
 	{

@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { ActionInfo } from "ShowRunner-schema"
+import { ActionInfo } from "showrunner-schema"
 import { useAction, DataInput, useDataBinding } from "../../main"
 import { useModel } from "vue"
 import ReturnNamer from "../data/returns/ReturnNamer.vue"

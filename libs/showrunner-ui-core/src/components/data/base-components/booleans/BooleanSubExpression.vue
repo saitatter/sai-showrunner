@@ -14,13 +14,13 @@
 </template>
 
 <script setup lang="ts">
-import { BooleanSubExpression, BooleanValueExpression, BooleanExpressionGroup } from "ShowRunner-schema"
+import { BooleanSubExpression, BooleanValueExpression, BooleanExpressionGroup } from "showrunner-schema"
 import BooleanGroupExpression from "./BooleanGroupExpression.vue"
 import BooleanValueExpressionEditor from "./BooleanValueExpressionEditor.vue"
 import { useModel } from "vue"
-import { isBooleanGroup } from "ShowRunner-schema"
-import { isBooleanRangeExpr } from "ShowRunner-schema"
-import { isBooleanValueExpr } from "ShowRunner-schema"
+import { isBooleanGroup } from "showrunner-schema"
+import { isBooleanRangeExpr } from "showrunner-schema"
+import { isBooleanValueExpr } from "showrunner-schema"
 import { useDataBinding } from "../../../../main"
 
 const props = defineProps<{

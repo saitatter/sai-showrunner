@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-{{name}}-renderer",
+	"name": "showrunner-plugin-{{name}}-renderer",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -13,9 +13,9 @@
 	},
 	"dependencies": {
 		"@vueuse/core": "*",
-		"ShowRunner-plugin-{{name}}-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
-		"ShowRunner-ui-core": "workspace:^",
+		"showrunner-plugin-{{name}}-shared": "workspace:^",
+		"showrunner-schema": "workspace:^",
+		"showrunner-ui-core": "workspace:^",
 		"chromatism2": "*",
 		"electron": "^34.2.0",
 		"nanoid": "^5.0.7",

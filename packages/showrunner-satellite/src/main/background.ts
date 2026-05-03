@@ -11,7 +11,7 @@ import {
 	setupShowRunnerDirectories,
 	initializeShowRunnerSatellite,
 	finializeShowRunnerSatelliteSetup,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { loadPlugins } from "./plugins"
 
 const isDevelopment = !app.isPackaged // true //TODO: import.meta.env.DEV
@@ -48,7 +48,6 @@ app.whenReady().then(async () => {
 
 	if (isDevelopment && !process.env.IS_TEST) {
 		// Install Vue Devtools
-		console.log("Trying to install dev tools")
 		try {
 			await installExtension(VUEJS_DEVTOOLS)
 		} catch (err) {
@@ -86,7 +85,6 @@ if (isDevelopment) {
 	if (process.platform === "win32") {
 		process.on("message", (data) => {
 			if (data === "graceful-exit") {
-				console.log("Graceful Exit")
 				quit()
 			}
 		})

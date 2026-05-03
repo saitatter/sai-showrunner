@@ -1,6 +1,6 @@
-import { AutomationSource, Color, ExposedSchemaType, ResolvedSchemaType, SchemaObj, TriggerData } from "ShowRunner-schema"
+import { AutomationSource, Color, ExposedSchemaType, ResolvedSchemaType, SchemaObj, TriggerData } from "showrunner-schema"
 import { SemanticVersion } from "../util/type-helpers"
-import { Schema, SchemaType } from "ShowRunner-schema"
+import { Schema, SchemaType } from "showrunner-schema"
 import { initingPlugin } from "../plugins/plugin-init"
 import {
 	deserializeSchema,
@@ -11,7 +11,7 @@ import {
 	ipcRegisterSchema,
 	serializeSchema,
 } from "../util/ipc-schema"
-import { IPCTriggerDefinition } from "ShowRunner-schema"
+import { IPCTriggerDefinition } from "showrunner-schema"
 import { ProfileManager } from "../profile/profile-system"
 import { ActionQueue, ActionQueueManager } from "./action-queue"
 import { isFunction } from "lodash"

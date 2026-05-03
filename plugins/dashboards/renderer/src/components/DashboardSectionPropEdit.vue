@@ -12,8 +12,8 @@
 
 <script setup lang="ts">
 import PInputNumber from "primevue/inputnumber"
-import { LabelFloater } from "ShowRunner-ui-core"
-import { DashboardSection } from "ShowRunner-plugin-dashboards-shared"
+import { LabelFloater } from "showrunner-ui-core"
+import { DashboardSection } from "showrunner-plugin-dashboards-shared"
 import { useModel } from "vue"
 
 const props = defineProps<{

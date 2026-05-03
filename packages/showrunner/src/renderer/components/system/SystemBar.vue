@@ -49,11 +49,12 @@ import {
 	useSaveActiveTab,
 	useSaveAllTabs,
 	useCloseAllTabs,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { useOpenSettings } from "../settings/SettingsTypes"
 import InputTestPage from "../test/InputTestPage.vue"
 import { useDialog } from "primevue/usedialog"
 import AboutPage from "../about/AboutPage.vue"
+import UpdatePage from "../updates/UpdatePage.vue"
 import { automationStarterTemplates, type AutomationStarterTemplate } from "../automation/automation-starter-templates"
 
 const closeAllTabs = useCloseAllTabs()
@@ -85,7 +86,6 @@ async function toggleMax() {
 
 const windowState = ref<string>("unmaximized")
 useIpcMessage("windowFuncs", "stateChanged", (event, state: string) => {
-	console.log("Window State", state)
 	windowState.value = state
 })
 
@@ -256,6 +256,13 @@ const menuItems = computed<MenuItem[]>(() => {
 			},
 		},
 		{
+			label: "Updates",
+			icon: "mdi mdi-update",
+			command() {
+				dockingStore.openPage("updates", "Updates", "mdi mdi-update", UpdatePage)
+			},
+		},
+		{
 			label: "Discord",
 			icon: "di di-discord",
 			command() {
@@ -292,6 +299,8 @@ const menuItems = computed<MenuItem[]>(() => {
 	padding: 0 !important;
 	border-radius: 0 !important;
 	min-height: 48px;
+	position: relative;
+	z-index: 1000;
 }
 
 .system-bar__brand {
@@ -333,5 +342,9 @@ const menuItems = computed<MenuItem[]>(() => {
 
 .system-bar :deep(.p-submenu-list .p-menuitem-separator) {
 	border-top-color: var(--surface-400);
+}
+
+.system-bar :deep(.p-submenu-list) {
+	z-index: 1001;
 }
 </style>

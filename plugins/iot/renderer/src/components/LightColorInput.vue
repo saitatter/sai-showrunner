@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { LightColor, SchemaLightcolor } from "ShowRunner-plugin-iot-shared"
+import { LightColor, SchemaLightcolor } from "showrunner-plugin-iot-shared"
 import {
 	InputBox,
 	SharedDataInputProps,
@@ -45,7 +45,7 @@ import {
 	usePropagationStop,
 	useDataBinding,
 	useDataUIBinding,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { ref, useModel } from "vue"
 import LightColorWheel from "./LightColorWheel.vue"
 import LightTemperatureSlider from "./LightTemperatureSlider.vue"

@@ -1,4 +1,4 @@
-import { DelayedResolver, MaybePromise, createDelayedResolver } from "ShowRunner-schema"
+import { DelayedResolver, MaybePromise, createDelayedResolver } from "showrunner-schema"
 import { defineCallableIPC, defineIPCFunc } from "./electron"
 import { Service } from "./service"
 import { nanoid } from "nanoid/non-secure"

@@ -1,4 +1,4 @@
-import { Color, SchemaType, declareSchema } from "ShowRunner-schema"
+import { Color, SchemaType, declareSchema } from "showrunner-schema"
 
 export const SpellConfigSchema = declareSchema({
 	type: Object,

@@ -1,6 +1,6 @@
 import "./css/icons.css"
 
-import { AccountSettingList, useResourceStore } from "ShowRunner-ui-core"
+import { AccountSettingList, useResourceStore } from "showrunner-ui-core"
 
 export function initPlugin() {
 	//Init Renderer Module

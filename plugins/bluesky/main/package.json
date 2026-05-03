@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-bluesky-main",
+	"name": "showrunner-plugin-bluesky-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -14,8 +14,8 @@
 	},
 	"dependencies": {
 		"@atproto/api": "^0.13.16",
-		"ShowRunner-core": "workspace:^",
-		"ShowRunner-plugin-bluesky-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^"
+		"showrunner-core": "workspace:^",
+		"showrunner-plugin-bluesky-shared": "workspace:^",
+		"showrunner-schema": "workspace:^"
 	}
 }

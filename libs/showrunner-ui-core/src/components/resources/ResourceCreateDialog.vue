@@ -26,7 +26,7 @@ import { computed, onMounted, ref } from "vue"
 import { provideScrollAttachable, useDialogRef, useResourceData } from "../../main"
 import PButton from "primevue/button"
 import PInputText from "primevue/inputtext"
-import { constructDefault } from "ShowRunner-schema"
+import { constructDefault } from "showrunner-schema"
 import PInputGroup from "primevue/inputgroup"
 import PFloatLabel from "primevue/floatlabel"
 

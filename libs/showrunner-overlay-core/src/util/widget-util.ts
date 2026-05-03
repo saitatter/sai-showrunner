@@ -1,4 +1,4 @@
-import { RemoteTemplateResolutionContext, SchemaObj, resolveRemoteTemplateSchema } from "ShowRunner-schema"
+import { RemoteTemplateResolutionContext, SchemaObj, resolveRemoteTemplateSchema } from "showrunner-schema"
 import {
 	Component,
 	ComputedRef,
@@ -10,7 +10,7 @@ import {
 	ref,
 	toValue,
 } from "vue"
-import { OverlayWidgetConfig, OverlayWidgetOptions } from "ShowRunner-plugin-overlays-shared"
+import { OverlayWidgetConfig, OverlayWidgetOptions } from "showrunner-plugin-overlays-shared"
 
 export function declareWidgetOptions<PropSchema extends SchemaObj>(opts: OverlayWidgetOptions<PropSchema>) {
 	return opts

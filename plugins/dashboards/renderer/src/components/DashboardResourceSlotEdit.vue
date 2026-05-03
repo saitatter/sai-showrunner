@@ -15,10 +15,10 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardResourceSlot } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardResourceSlot } from "showrunner-plugin-dashboards-shared"
 import { computed, useModel } from "vue"
 import { DashboardResourceSlotView } from "../dashboard-types"
-import { usePropagationStop } from "ShowRunner-ui-core"
+import { usePropagationStop } from "showrunner-ui-core"
 import PInputText from "primevue/inputtext"
 
 const props = defineProps<{

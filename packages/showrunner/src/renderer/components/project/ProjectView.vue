@@ -1,48 +1,21 @@
 <template>
-	<flex-scroller class="project-view">
-		<project-group-or-item v-for="pi in projectStore.projectItems" :group-or-item="pi" />
+	<flex-scroller class="project-view" :class="{ 'project-view--compact': interfacePreferences.preferences.compactProjectSidebar }">
+		<project-group-or-item v-for="pi in visibleProjectItems" :key="pi.id" :group-or-item="pi" />
 	</flex-scroller>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
+import { computed } from "vue"
 import ProjectGroupOrItem from "./ProjectGroupOrItem.vue"
-import { ToggleInput, useProjectStore, FlexScroller } from "ShowRunner-ui-core"
-import { type Toggle } from "ShowRunner-schema"
+import { useProjectStore, FlexScroller } from "showrunner-ui-core"
+import { useInterfacePreferencesStore } from "../../util/interface-preferences"
+import { useProjectSidebarVisibility } from "../../util/project-sidebar-visibility"
 
 const projectStore = useProjectStore()
+const interfacePreferences = useInterfacePreferencesStore()
+const { isVisible } = useProjectSidebarVisibility()
 
-const profiles = ref([
-	{
-		id: "abc",
-		name: "Prof 1",
-		active: false,
-		state: "toggle" as Toggle,
-	},
-	{
-		id: "bcd",
-		name: "Prof 2",
-		active: false,
-		state: "toggle" as Toggle,
-	},
-	{
-		id: "cde",
-		name: "Prof 3",
-		active: true,
-		state: "toggle" as Toggle,
-	},
-])
-
-const overlays = ref([
-	{
-		id: "def",
-		name: "Overlay 1",
-	},
-	{
-		id: "efg",
-		name: "Overlay 2",
-	},
-])
+const visibleProjectItems = computed(() => projectStore.projectItems.filter((projectItem) => isVisible(projectItem)))
 </script>
 
 <style scoped>
@@ -51,5 +24,19 @@ const overlays = ref([
 	height: 100%;
 	background-color: var(--surface-b);
 	flex-shrink: 0;
+}
+
+.project-view--compact {
+	font-size: 0.88rem;
+	width: 250px;
+}
+
+.project-view--compact :deep(.project-category-header),
+.project-view--compact :deep(.project-item) {
+	height: 1.55rem;
+}
+
+.project-view--compact :deep(.project-item) {
+	padding-right: 0.35rem;
 }
 </style>

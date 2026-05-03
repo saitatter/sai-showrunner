@@ -14,7 +14,7 @@ export default defineConfig({
 		cssCodeSplit: true,
 		lib: {
 			entry: "src/main.ts",
-			name: "ShowRunner-widget-loader",
+			name: "showrunner-widget-loader",
 		},
 		rollupOptions: {
 			external: ["vue"],

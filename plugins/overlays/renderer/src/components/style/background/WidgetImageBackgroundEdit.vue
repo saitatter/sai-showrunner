@@ -28,11 +28,11 @@
 </template>
 
 <script setup lang="ts">
-import { WidgetBackgroundImage } from "ShowRunner-plugin-overlays-shared"
+import { WidgetBackgroundImage } from "showrunner-plugin-overlays-shared"
 import WidgetBackgroundSettingsEdit from "./WidgetBackgroundSettingsEdit.vue"
 
-import { MediaFile, SchemaMediaFile, MediaMetadata } from "ShowRunner-schema"
-import { FilterInputBox, MediaDropDown, useDefaultableModel, useMediaStore, useUndoCommitter } from "ShowRunner-ui-core"
+import { MediaFile, SchemaMediaFile, MediaMetadata } from "showrunner-schema"
+import { FilterInputBox, MediaDropDown, useDefaultableModel, useMediaStore, useUndoCommitter } from "showrunner-ui-core"
 import { computed, ref } from "vue"
 
 const props = defineProps<{}>()

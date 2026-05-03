@@ -37,9 +37,9 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayConfig, OverlayWidget, OverlayWidgetConfig, SchemaOverlayWidget } from "ShowRunner-plugin-overlays-shared"
-import { ResourceData } from "ShowRunner-schema"
-import { DataInputBase, SharedDataInputProps, CAutocomplete, useResourceArray, useDataBinding } from "ShowRunner-ui-core"
+import { OverlayConfig, OverlayWidget, OverlayWidgetConfig, SchemaOverlayWidget } from "showrunner-plugin-overlays-shared"
+import { ResourceData } from "showrunner-schema"
+import { DataInputBase, SharedDataInputProps, CAutocomplete, useResourceArray, useDataBinding } from "showrunner-ui-core"
 import { computed, useModel } from "vue"
 
 const props = defineProps<

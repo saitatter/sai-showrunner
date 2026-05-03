@@ -6,7 +6,7 @@
 
 <script setup lang="ts">
 import DataInputBase from "../base-components/DataInputBase.vue"
-import { Directory, SchemaDirectory } from "ShowRunner-schema"
+import { Directory, SchemaDirectory } from "showrunner-schema"
 import { SharedDataInputProps } from "../DataInputTypes"
 import { InputBox, useIpcCaller, usePropagationStop } from "../../../main"
 import { ref, useModel } from "vue"

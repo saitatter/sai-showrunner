@@ -11,25 +11,30 @@
 			<slot name="icon">
 				<i :class="group.icon" class="px-1" v-if="group.icon"></i>
 			</slot>
-			<span style="flex: 1">{{ group.title }}</span>
+			<span class="project-category-title">{{ group.title }}</span>
+			<plugin-visibility-toggle v-if="showPluginToggle" :item="{ id: group.id }" />
 			<p-button icon="mdi mdi-dots-vertical" class="p-0" v-if="!isOutside && hasMenu" @click="menuClick" text />
 			<c-context-menu ref="contextMenu" :items="menuItems" />
 			<p-menu ref="menu" :model="menuItems" :popup="true" v-if="hasMenu" />
 		</div>
 		<div class="project-category-content" v-show="expanded">
-			<project-group-or-item :indent="indent + 1" v-for="gi of group.items" :group-or-item="gi" :key="gi.id" />
+			<project-group-or-item :indent="indent + 1" v-for="gi of visibleGroupItems" :group-or-item="gi" :key="gi.id" />
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { ProjectGroup, CContextMenu } from "ShowRunner-ui-core"
+import { ProjectGroup, CContextMenu } from "showrunner-ui-core"
 import ProjectGroupOrItem from "./ProjectGroupOrItem.vue"
-import { computed, ref, toRaw } from "vue"
+import { computed, ref } from "vue"
 import type { MenuItem } from "primevue/menuitem"
 import PButton from "primevue/button"
 import PMenu from "primevue/menu"
 import { useMouseInElement } from "@vueuse/core"
+import { usePluginStore } from "showrunner-ui-core"
+import PluginVisibilityToggle from "../integrations/PluginVisibilityToggle.vue"
+import { useInterfacePreferencesStore } from "../../util/interface-preferences"
+import { useProjectSidebarVisibility } from "../../util/project-sidebar-visibility"
 
 const props = withDefaults(
 	defineProps<{
@@ -42,6 +47,11 @@ const props = withDefaults(
 )
 
 const contextMenu = ref<InstanceType<typeof CContextMenu>>()
+const pluginStore = usePluginStore()
+const interfacePreferences = useInterfacePreferencesStore()
+const { isVisible } = useProjectSidebarVisibility(() => props.group.id)
+const visibleGroupItems = computed(() => props.group.items.filter((item) => isVisible(item, props.group.id)))
+const showPluginToggle = computed(() => interfacePreferences.preferences.showPluginSwitches && pluginStore.pluginMap.has(props.group.id))
 const menuItems = computed<MenuItem[]>(() => {
 	const items: MenuItem[] = []
 
@@ -77,7 +87,8 @@ function showContext(ev: MouseEvent) {
 	contextMenu.value?.show(ev)
 }
 
-const expanded = ref(false)
+const isPluginCategory = computed(() => props.group.id.startsWith("plugins-"))
+const expanded = ref(isPluginCategory.value && !interfacePreferences.preferences.collapseIntegrationCategoriesByDefault)
 </script>
 
 <style scoped>
@@ -93,6 +104,14 @@ const expanded = ref(false)
 	height: 2rem;
 	padding-left: calc(var(--indent) * 1em);
 	user-select: none;
+}
+
+.project-category-title {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .project-category-header:hover {

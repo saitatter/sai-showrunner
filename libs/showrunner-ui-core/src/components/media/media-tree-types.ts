@@ -1,4 +1,4 @@
-import { MediaFile, MediaMetadata, normalizeMediaPath } from "ShowRunner-schema"
+import { MediaFile, MediaMetadata, normalizeMediaPath } from "showrunner-schema"
 import path from "path"
 import { MediaStore, useMediaStore } from "../../main"
 import { computed, MaybeRefOrGetter, toValue } from "vue"

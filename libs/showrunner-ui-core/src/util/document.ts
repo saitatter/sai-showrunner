@@ -1,4 +1,4 @@
-import { getByPath } from "ShowRunner-schema"
+import { getByPath } from "showrunner-schema"
 import { nanoid } from "nanoid/non-secure"
 import { defineStore } from "pinia"
 import {

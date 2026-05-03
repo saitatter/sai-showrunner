@@ -4,7 +4,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaBoolean } from "ShowRunner-schema"
+import { SchemaBoolean } from "showrunner-schema"
 import { SharedDataViewProps } from "../DataInputTypes"
 
 const props = defineProps<

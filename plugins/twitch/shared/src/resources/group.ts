@@ -1,4 +1,4 @@
-import { ExpressionValue, SchemaBase, ValueCompareOperator, registerType } from "ShowRunner-schema"
+import { ExpressionValue, SchemaBase, ValueCompareOperator, registerType } from "showrunner-schema"
 
 export interface TwitchViewerGroupConfig {
 	name: string
@@ -71,7 +71,7 @@ export interface SchemaTwitchViewerGroup extends SchemaBase<TwitchViewerGroup> {
 	anonymous?: boolean
 }
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaTypeMap {
 		TwitchViewerGroup: [SchemaTwitchViewerGroup, TwitchViewerGroup]
 	}

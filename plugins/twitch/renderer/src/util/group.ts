@@ -4,8 +4,8 @@ import {
 	isGroupResourceRef,
 	isInlineViewerGroup,
 	isViewerGroupPropertyRule,
-} from "ShowRunner-plugin-twitch-shared"
-import { useResourceStore } from "ShowRunner-ui-core"
+} from "showrunner-plugin-twitch-shared"
+import { useResourceStore } from "showrunner-ui-core"
 //TODO: Uhhhh i18n??
 
 export function getGroupPhrase(group: TwitchViewerGroup, resourceStore: ReturnType<typeof useResourceStore>) {

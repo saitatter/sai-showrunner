@@ -80,7 +80,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Shader graph and node graph share the same themed collapsible context menu shell.
 - [x] Renderer save/error feedback is routed through `useAppFeedback()` for toast + dev-only logging.
 - [x] Reduced safe `@ts-expect-error` usage in resource registration and array wrappers.
-- [ ] Continue shrinking remaining console noise in media/viewer-data/satellite/drag utilities.
+- [x] Continue shrinking remaining console noise in media/viewer-data/satellite/drag utilities.
 - [x] Rename queue terminology from `QueuedSequence` to `QueuedAutomation` in queue runtime/state.
 - [x] Add one-time persistence migration to strip stale `sequence`/`floatingSequences` fields from existing user JSON.
 
@@ -105,7 +105,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 ### 5.1 Expression editor
 - [x] Inline expression builder UI for common If/While/For/Switch fields
 - [x] Autocomplete for variable names, port references, builtin functions
-- [ ] Syntax highlighting in expression text input
+- [x] Syntax highlighting in expression text input
 - [x] Validation feedback for common expression fields
 
 ### 5.2 Node editor UX
@@ -132,7 +132,11 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 ### 5.5 Data wires
 - [x] Visual data-wire drawing (separate from exec edges)
 - [x] Type-safe data ports (color-coded by type)
-- [ ] Wire validation: prevent connecting incompatible types
+- [x] Wire validation: prevent connecting incompatible types
+- [x] Show invalid direct-drop feedback while hovering an incompatible data port.
+- [x] Surface stale/invalid existing data wires in an editor health panel with one-click cleanup.
+- [x] Keep implicit data-wire conversions disabled; type changes must go through explicit conversion nodes.
+- [x] Add built-in conversion nodes for safe scalar and JSON conversions.
 - [x] Show data flow values on hover during test-run
 
 ### 5.6 Performance & reliability
@@ -144,8 +148,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 
 ### 5.7 Misc fixes
 - [x] Fix `@ts-ignore` usages across codebase (replaced with `@ts-expect-error` + descriptions)
-- [ ] Remove dead code references to `castmate` naming (run-clean-youtube.ps1 \u2705 done)
-- [ ] Consolidate duplicate `NodeAutomationEdit.vue` if any remain in packages/castmate
+- [ ] Remove dead code references to `castmate` naming (native binding names remain for compatibility)
+- [x] Consolidate duplicate `NodeAutomationEdit.vue` if any remain in packages/castmate
 - [x] Update `docs/graph-execution-engine.md` to reflect final implementation
 - [ ] Bump version to `1.0.0-beta1` in all package.json files
 
@@ -168,23 +172,104 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add queue node styling in the automation editor so queue nodes are visually distinct from triggers, filters, overlays, paid alerts, and scene actions.
 - [x] Add queue preview/debug visibility for queue action nodes through test-run path, result badges, and per-node durations.
 - [x] Add starter templates for paid alerts and scene banners from `File -> New Automation From Starter`.
-- [ ] Add queue-worker starter templates:
+- [x] Add queue-worker starter templates:
   - `Paid Event -> Add to Alerts Queue`
   - `Queue Item Started -> Paid Alert Overlay -> Sound -> Complete`
   - `Scene Begin -> Add to Scene Queue`
   - `Queue Item Started -> Scene Banner -> Shader Layer -> Complete`
-- [ ] Document the mental model: queues remain powerful, but users should experience them as graph scheduling nodes rather than a second automation system.
+- [x] Document the mental model: queues remain powerful, but users should experience them as graph scheduling nodes rather than a second automation system.
+
+### 5.9 Integrations, Plugin Visibility & Sidebar Preferences
+- [x] Group plugins under `Integrations` categories instead of showing them as a flat secondary system.
+- [x] Add per-plugin on/off toggles with green enabled and red disabled states.
+- [x] Hide disabled plugin actions/triggers from automation context menus and command palettes.
+- [x] Keep existing automations renderable even when their plugin is hidden from new-node menus.
+- [x] Move native integrations (Twitch, YouTube, OBS, Moderation) into integration categories while allowing direct native shortcuts to be hidden.
+- [x] Add plugin detail pages with overview, usage, settings, actions, triggers, and state tabs.
+- [x] Add `Settings -> Interface` preferences for compact sidebar, disabled integration visibility, native shortcut hiding, category collapse defaults, and sidebar plugin switches.
+- [ ] Add search/filter to integration categories and plugin detail pages once plugin count grows further.
+- [ ] Add an optional "show hidden plugins" hint in automation search when a query matches only disabled plugins.
+- [ ] Decide whether plugin visibility should remain local UI preference or become project/profile-level configuration.
+- [ ] Expose plugin-specific diagnostics/config editors where a plugin currently relies on implicit resource state.
+
+### 5.10 Updates, Settings & App Shell
+- [x] Add in-app updates page with current version, latest version, release notes, and update action.
+- [x] Treat missing `dev-app-update.yml` as a development-build state instead of a user-facing hard failure.
+- [x] Sanitize release notes before rendering in the update page.
+- [x] Return structured release note data from core update metadata instead of raw HTML.
+- [x] Stabilize blank Settings page layout and add useful interface preferences.
+- [x] Clean up Updates page layout so controls align and content stays inside the page shell.
+- [ ] Add packaged-build smoke test for update metadata, release notes, and update availability.
+- [ ] Add graceful offline/timeout messaging for update checks.
+- [ ] Add a release-notes empty state that explains development builds without exposing file paths.
+
+### 5.11 PR Review Fixes & Reliability
+- [x] Cache rendered port positions for data-wire drawing/dragging to avoid repeated DOM queries and layout thrashing.
+- [x] Preserve trigger and subgraph output data wires during health checks and cleanup.
+- [x] Prevent terminal control nodes (`Return`, `Break`, `Continue`) from reconnecting to the previous downstream node during flow insertion.
+- [x] Place context-menu-created action nodes at the click position even when the menu was opened from an existing node.
+- [x] Make string-to-number conversion treat empty strings as invalid and use the fallback.
+- [x] Make JSON stringify conversion always return valid JSON (`null` on unsupported/cyclic values).
+- [ ] Add focused tests for terminal flow insertion and context-menu placement.
+- [ ] Add a larger-graph performance smoke test for data-wire drag/render behavior.
+
+### 5.12 Next Polish / Bug Fix Backlog
+- [x] Add focused UI tests for automation context-menu search, including collapsed groups and disabled plugins.
+- [x] Add conversion-node runtime tests for scalar parsing, JSON parsing, and fallback behavior.
+- [x] Add visible invalid-drop feedback when the pointer is directly over an incompatible data port.
+- [x] Surface stale/invalid existing data wires in an editor health panel with a one-click cleanup action.
+- [x] Reduce remaining settings/plugin initialization console noise.
+- [x] Audit action result schemas so every useful output is exposed as a typed data port.
+- [x] Add node-menu categories for data transforms, overlays, queues, OBS, chat, and utility actions.
+- [x] Add keyboard-first command menu navigation: up/down, enter, escape, and section shortcuts.
+- [x] Add onboarding starter graphs for OBS scene changes, chat commands, moderation actions, and stream-plan events.
+- [x] Add manual regression checklist for queue starter templates, conversion nodes, hidden plugins, and incompatible wires.
+- [ ] Add manual visual QA checklist for Settings, Updates, Integrations, plugin details, and automation context menu layout.
+- [ ] Add persisted UI preference reset action in Settings.
+- [ ] Add empty-state copy for integration categories with no visible plugins after filtering/hiding.
+- [ ] Audit all remaining production `console.*` output after the beta polish pass.
+- [ ] Audit remaining `@ts-expect-error` comments and remove any that are no longer needed.
 
 ---
 
-## Phase 6: Release Prep
+## Phase 6: Beta Stabilization Plan
+
+### 6.1 Must Fix Before Beta
+- [ ] Add tests for terminal flow insertion so `Return`, `Break`, and `Continue` never get outgoing edges when inserted into an existing flow.
+- [ ] Add tests for context-menu node placement from canvas, node, edge, and pending flow contexts.
+- [ ] Verify migration/opening behavior for old automations with stale `sequence`, `floatingSequences`, variable nodes, and data wires.
+- [ ] Run packaged app smoke test for Settings, Updates, Integrations, starter templates, and graph editor.
+- [ ] Confirm disabled plugins are hidden from new-node menus but existing nodes still render and save.
+- [ ] Confirm update checks behave cleanly in development, offline, no-update, update-available, and downloaded states.
+
+### 6.2 Should Fix Before Beta
+- [ ] Add integration search/filter across grouped plugin categories and plugin detail tabs.
+- [ ] Add "hidden plugin match" hint in automation context-menu search.
+- [ ] Add Settings reset controls for interface preferences and plugin visibility.
+- [ ] Tighten plugin detail page density for actions/triggers with many ports.
+- [ ] Add visual regression screenshots or Playwright smoke coverage for Updates, Settings, Integrations, and node editor context menu.
+- [ ] Finish console-noise audit in drag/drop, renderer startup, media, satellite, and plugin initialization paths.
+- [ ] Finish low-risk `@ts-expect-error` cleanup pass.
+
+### 6.3 Nice To Have After Beta
+- [ ] Decide whether plugin visibility should be local-only, profile-level, or project-level.
+- [ ] Add import/export for queue workflow starter templates.
+- [ ] Add integration diagnostics panels for plugin resource/config state.
+- [ ] Add large-graph performance profiling for minimap, data wires, selection, and auto-layout.
+- [ ] Add richer queue observability: retry/cancel reason, worker graph link, and per-item execution timeline.
+
+---
+
+## Phase 7: Release Prep
 
 - [x] Update `DEVELOPERS.md` with new graph engine architecture
 - [x] Write `MIGRATION.md` guide for existing users
+- [x] Open beta polish PR against `main`
 - [ ] Update `release.config.cjs` for major version bump
 - [ ] Tag `v1.0.0-beta1` for testing
-- [ ] Run full E2E: create automation, add control flow, test-run, verify
+- [ ] Run full E2E: create automation, add control flow, test-run, save, reopen, verify
 - [ ] Announce breaking change in changelog
+- [ ] Prepare release notes for graph-only architecture, queue starters, integrations visibility, conversion nodes, and update UI.
 
 ---
 

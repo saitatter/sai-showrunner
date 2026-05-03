@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaViewerVariableName, ViewerVariableName } from "ShowRunner-schema"
+import { SchemaViewerVariableName, ViewerVariableName } from "showrunner-schema"
 import DataInputBase from "../base-components/DataInputBase.vue"
 import EnumInput from "../base-components/EnumInput.vue"
 import { SharedDataInputProps } from "../DataInputTypes"

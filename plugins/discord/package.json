@@ -1,5 +1,5 @@
 {
-    "name": "ShowRunner-plugin-discord",
+    "name": "showrunner-plugin-discord",
     "private": true,
     "version": "0.0.1",
     "type": "module",

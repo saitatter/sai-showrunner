@@ -1,4 +1,4 @@
-import { SoundOutputConfig, WebAudioDeviceInfo } from "ShowRunner-plugin-sound-shared"
+import { SoundOutputConfig, WebAudioDeviceInfo } from "showrunner-plugin-sound-shared"
 import {
 	NameDialog,
 	NamedData,
@@ -14,7 +14,7 @@ import {
 	useProjectStore,
 	useResourceData,
 	useResourceStore,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 
 import SoundActionComponent from "./components/SoundActionComponent.vue"
 import { useSoundPlayerStore } from "./player-store"
@@ -23,9 +23,9 @@ import VoiceEditPageVue from "./components/tts/VoiceEditPage.vue"
 import _cloneDeep from "lodash/cloneDeep"
 import { AudioSplitterView } from "./components/splitters/splitter-types"
 
-import { ResourceData } from "ShowRunner-schema"
+import { ResourceData } from "showrunner-schema"
 
-import { AudioSplitterConfig } from "ShowRunner-plugin-sound-shared"
+import { AudioSplitterConfig } from "showrunner-plugin-sound-shared"
 import _isMatch from "lodash/isMatch"
 import AudioSplitterEditPage from "./components/splitters/AudioSplitterEditPage.vue"
 

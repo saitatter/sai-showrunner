@@ -1,5 +1,5 @@
-import { RetryTimer, definePluginResource, defineResourceSetting } from "ShowRunner-core"
-import { RCONConnectionConfig, RCONConnectionState } from "ShowRunner-plugin-minecraft-shared"
+import { RetryTimer, definePluginResource, defineResourceSetting } from "showrunner-core"
+import { RCONConnectionConfig, RCONConnectionState } from "showrunner-plugin-minecraft-shared"
 import {
 	defineAction,
 	defineTrigger,
@@ -8,7 +8,7 @@ import {
 	definePlugin,
 	FileResource,
 	ResourceStorage,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import RCon from "ts-rcon"
 import { nanoid } from "nanoid/non-secure"
 export class RCONConnection extends FileResource<RCONConnectionConfig, RCONConnectionState> {

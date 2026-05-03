@@ -1,4 +1,4 @@
-import { Duration, Toggle, Timer, isTimerStarted, offsetTimer, pauseTimer, setTimer, startTimer } from "ShowRunner-schema"
+import { Duration, Toggle, Timer, isTimerStarted, offsetTimer, pauseTimer, setTimer, startTimer } from "showrunner-schema"
 import {
 	defineAction,
 	defineTrigger,
@@ -7,9 +7,9 @@ import {
 	definePlugin,
 	abortableSleep,
 	usePluginLogger,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { setupTimers } from "./timers"
-import { VariableManager } from "ShowRunner-plugin-variables-main"
+import { VariableManager } from "showrunner-plugin-variables-main"
 
 export default definePlugin(
 	{

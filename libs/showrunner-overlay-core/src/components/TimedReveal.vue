@@ -8,7 +8,7 @@
 import { computed, ref, onBeforeUnmount } from "vue"
 import Revealer from "./Revealer.vue"
 import { RevealAnimation, animationFromTransition } from "../util/animation-util"
-import { OverlayTransitionAnimation } from "ShowRunner-plugin-overlays-shared"
+import { OverlayTransitionAnimation } from "showrunner-plugin-overlays-shared"
 
 const props = withDefaults(
 	defineProps<{

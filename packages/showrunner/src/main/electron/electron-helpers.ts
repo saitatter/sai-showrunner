@@ -1,4 +1,4 @@
-import { usePluginLogger } from "ShowRunner-core"
+import { usePluginLogger } from "showrunner-core"
 import { BrowserWindow, app, shell, ipcMain } from "electron"
 import path from "path"
 

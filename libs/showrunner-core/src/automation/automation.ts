@@ -1,4 +1,4 @@
-import { AutomationConfig, createInlineAutomation, normalizeAutomationConfig } from "ShowRunner-schema"
+import { AutomationConfig, createInlineAutomation, normalizeAutomationConfig } from "showrunner-schema"
 import { FileResource } from "../resources/file-resource"
 import { ResourceStorage } from "../resources/resource"
 import { nanoid } from "nanoid/non-secure"

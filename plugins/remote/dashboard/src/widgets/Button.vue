@@ -11,9 +11,9 @@
 
 <script setup lang="ts">
 import * as chromatism from "chromatism2"
-import { declareWidgetOptions, useCallDashboardRPC, useShowRunnerBridge, useIsEditor } from "ShowRunner-dashboard-core"
-import { DashboardWidgetSize } from "ShowRunner-plugin-dashboards-shared"
-import { Color } from "ShowRunner-schema"
+import { declareWidgetOptions, useCallDashboardRPC, useShowRunnerBridge, useIsEditor } from "showrunner-dashboard-core"
+import { DashboardWidgetSize } from "showrunner-plugin-dashboards-shared"
+import { Color } from "showrunner-schema"
 import { computed, CSSProperties, onMounted, ref, watch } from "vue"
 import { useElementSize, useMutationObserver } from "@vueuse/core"
 
@@ -66,8 +66,6 @@ const frontSize = useElementSize(buttonFront)
 function calculateSize() {
 	if (!buttonLabel.value) return
 
-	console.log("Updating SIZE!")
-
 	const buttonLbl = buttonLabel.value
 
 	buttonLabel.value.style.display = "inline-block"
@@ -92,10 +90,8 @@ function calculateSize() {
 		buttonLbl.style.fontSize = fontSize + "cqh"
 	}
 
-	//@ts-ignore
-	buttonLbl.style.display = null
-	//@ts-ignore
-	buttonLbl.style.lineHeight = null
+	buttonLbl.style.removeProperty("display")
+	buttonLbl.style.removeProperty("line-height")
 }
 
 onMounted(() => {

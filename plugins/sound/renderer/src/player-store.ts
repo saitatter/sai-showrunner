@@ -1,4 +1,4 @@
-import { handleIpcMessage, ipcInvoke, useIpcCaller } from "ShowRunner-ui-core"
+import { handleIpcMessage, ipcInvoke, useIpcCaller } from "showrunner-ui-core"
 import { defineStore } from "pinia"
 import { ref } from "vue"
 

@@ -10,8 +10,8 @@ import {
 	resolveProjectPath,
 	writeSecretYAML,
 	writeYAML,
-} from "ShowRunner-core"
-import { YouTubeSecrets, YouTubeSettings } from "ShowRunner-plugin-youtube-shared"
+} from "showrunner-core"
+import { YouTubeSecrets, YouTubeSettings } from "showrunner-plugin-youtube-shared"
 
 const DEFAULT_SCOPES = [
 	"https://www.googleapis.com/auth/youtube.readonly",

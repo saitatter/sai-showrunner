@@ -24,12 +24,12 @@ import {
 	useOptionalDefaultableModel,
 	CDropdown,
 	CDurationInput,
-} from "ShowRunner-ui-core"
-import { OverlayTransitionAnimation, SchemaOverlayTransitionAnimation } from "ShowRunner-plugin-overlays-shared"
+} from "showrunner-ui-core"
+import { OverlayTransitionAnimation, SchemaOverlayTransitionAnimation } from "showrunner-plugin-overlays-shared"
 import { computed, useModel } from "vue"
 
 import { MenuItem } from "primevue/menuitem"
-import { revealers } from "ShowRunner-overlay-core"
+import { revealers } from "showrunner-overlay-core"
 
 const props = defineProps<
 	{

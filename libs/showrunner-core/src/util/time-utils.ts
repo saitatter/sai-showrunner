@@ -2,7 +2,7 @@ import { isPromise } from "util/types"
 import { Logger, usePluginLogger } from "../logging/logging"
 import { onProfilesChanged } from "../plugins/plugin"
 import { TriggerFunc } from "../queue-system/trigger"
-import { declareSchema, Duration, getTimeRemaining, isTimerStarted, Schema, SchemaType, Timer } from "ShowRunner-schema"
+import { declareSchema, Duration, getTimeRemaining, isTimerStarted, Schema, SchemaType, Timer } from "showrunner-schema"
 import { ReactiveRef, runOnChange } from "../reactivity/reactivity"
 
 export interface PerfTimer {

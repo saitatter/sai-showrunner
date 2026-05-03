@@ -1,7 +1,7 @@
-import { KeyCombo, KeyboardKey, Keys, MirrorKey, UnmirrorKey, VKToKey } from "ShowRunner-plugin-input-shared"
-import { abortableSleep, defineAction, defineTrigger, onLoad, onProfilesChanged } from "ShowRunner-core"
-import { Duration } from "ShowRunner-schema"
-import { InputInterface } from "ShowRunner-plugin-input-native"
+import { KeyCombo, KeyboardKey, Keys, MirrorKey, UnmirrorKey, VKToKey } from "showrunner-plugin-input-shared"
+import { abortableSleep, defineAction, defineTrigger, onLoad, onProfilesChanged } from "showrunner-core"
+import { Duration } from "showrunner-schema"
+import { InputInterface } from "showrunner-plugin-input-native"
 
 function isComboPressed(inputInterface: InputInterface, combo: KeyCombo) {
 	for (const keyName of combo) {

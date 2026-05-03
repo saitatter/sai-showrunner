@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
-import type { AutomationGraph } from "ShowRunner-schema"
+import type { AutomationGraph } from "showrunner-schema"
 
 const props = defineProps<{
 	graph?: AutomationGraph

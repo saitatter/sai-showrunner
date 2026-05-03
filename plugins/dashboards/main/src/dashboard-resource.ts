@@ -5,12 +5,12 @@ import {
 	SatelliteResources,
 	SatelliteService,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { DashboardConfig, DashboardResourceSlot, InitialDashboardConfig } from "ShowRunner-plugin-dashboards-shared"
+} from "showrunner-core"
+import { DashboardConfig, DashboardResourceSlot, InitialDashboardConfig } from "showrunner-plugin-dashboards-shared"
 import { nanoid } from "nanoid/non-secure"
-import { coreAxios } from "ShowRunner-core"
+import { coreAxios } from "showrunner-core"
 import _isEqual from "lodash/isEqual"
-import { TwitchAccount } from "ShowRunner-plugin-twitch-main"
+import { TwitchAccount } from "showrunner-plugin-twitch-main"
 import { DashboardAccessService } from "./dashboard-access"
 
 const API_BASE_URL = "https://api.ShowRunner.io"

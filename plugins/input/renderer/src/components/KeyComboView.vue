@@ -4,8 +4,8 @@
 </template>
 
 <script setup lang="ts">
-import { KeyCombo, SchemaKeyCombo } from "ShowRunner-plugin-input-shared"
-import { SharedDataViewProps } from "ShowRunner-ui-core"
+import { KeyCombo, SchemaKeyCombo } from "showrunner-plugin-input-shared"
+import { SharedDataViewProps } from "showrunner-ui-core"
 import { computed } from "vue"
 
 const props = defineProps<

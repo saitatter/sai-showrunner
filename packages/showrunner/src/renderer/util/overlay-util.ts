@@ -1,8 +1,8 @@
-import { useDashboardWidgets } from "ShowRunner-dashboard-widget-loader"
-import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
-import { IPCDashboardWidgetDescriptor } from "ShowRunner-plugin-dashboards-shared"
-import { IPCOverlayWidgetDescriptor } from "ShowRunner-plugin-overlays-shared"
-import { ipcConvertSchema, useIpcCaller } from "ShowRunner-ui-core"
+import { useDashboardWidgets } from "showrunner-dashboard-widget-loader"
+import { useOverlayWidgets } from "showrunner-overlay-widget-loader"
+import { IPCDashboardWidgetDescriptor } from "showrunner-plugin-dashboards-shared"
+import { IPCOverlayWidgetDescriptor } from "showrunner-plugin-overlays-shared"
+import { ipcConvertSchema, useIpcCaller } from "showrunner-ui-core"
 
 export function sendOverlaysToMain() {
 	const setWidgets = useIpcCaller<(widgets: IPCOverlayWidgetDescriptor[]) => any>("overlays", "setWidgets")

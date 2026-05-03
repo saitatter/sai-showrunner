@@ -1,4 +1,4 @@
-import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSatellitePlugin } from "ShowRunner-core"
+import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSatellitePlugin } from "showrunner-core"
 import { setupLights, LightResource, PollingLight } from "./light"
 import { setupPlugs, PlugResource, PollingPlug } from "./plug"
 

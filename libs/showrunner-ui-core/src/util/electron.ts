@@ -46,12 +46,10 @@ export function useIpcMessage(
 ) {
 	const channel = `${category}_${event}`
 	onMounted(() => {
-		console.log("Mounted", channel)
 		ipcRenderer.on(channel, handler)
 	})
 
 	onUnmounted(() => {
-		console.log("Unounted", channel)
 		ipcRenderer.off(channel, handler)
 	})
 }

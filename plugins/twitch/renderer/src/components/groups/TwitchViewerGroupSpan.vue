@@ -12,10 +12,10 @@
 </template>
 
 <script setup lang="ts">
-import { TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
+import { TwitchViewerGroup } from "showrunner-plugin-twitch-shared"
 import { computed } from "vue"
 import { getGroupSpanItems, isGroupSpanGroupResource, isGroupSpanViewer } from "../../util/group"
-import { useResource, useResourceData } from "ShowRunner-ui-core"
+import { useResource, useResourceData } from "showrunner-ui-core"
 import TwitchViewerSpan from "../viewer/TwitchViewerSpan.vue"
 
 const props = withDefaults(

@@ -42,9 +42,9 @@ import {
 	useResource,
 	useResourceArray,
 	useResourceStore,
-} from "ShowRunner-ui-core"
-import { ProfileConfig } from "ShowRunner-schema"
-import { ResourceData } from "ShowRunner-schema"
+} from "showrunner-ui-core"
+import { ProfileConfig } from "showrunner-schema"
+import { ResourceData } from "showrunner-schema"
 
 const step = ref("twitch")
 

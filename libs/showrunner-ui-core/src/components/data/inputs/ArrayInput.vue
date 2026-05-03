@@ -38,13 +38,13 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaArray } from "ShowRunner-schema"
+import { SchemaArray } from "showrunner-schema"
 import { getDataLabel, SharedDataInputProps } from "../DataInputTypes"
 import { useModel } from "vue"
 import DataInput from "../DataInput.vue"
 import PButton from "primevue/button"
 import _cloneDeep from "lodash/cloneDeep"
-import { constructDefault } from "ShowRunner-schema"
+import { constructDefault } from "showrunner-schema"
 import { useCommitUndo, useDataBinding } from "../../../main"
 
 const props = defineProps<

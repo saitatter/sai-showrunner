@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import { BooleanExpression, SchemaBooleanExpression } from "ShowRunner-schema"
+import { BooleanExpression, SchemaBooleanExpression } from "showrunner-schema"
 import { ref, useModel } from "vue"
 import BooleanGroupExpression from "../base-components/booleans/BooleanGroupExpression.vue"
 import { getDataLabel, SharedDataInputProps, useDataBinding } from "../../../main"

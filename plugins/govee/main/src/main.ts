@@ -11,8 +11,8 @@ import {
 	usePluginLogger,
 	sleep,
 	timeout,
-} from "ShowRunner-core"
-import { LightResource, PlugResource } from "ShowRunner-plugin-iot-main"
+} from "showrunner-core"
+import { LightResource, PlugResource } from "showrunner-plugin-iot-main"
 import {
 	GoveeCloudDevice,
 	GoveeCloudDeviceStateResponse,
@@ -21,11 +21,11 @@ import {
 	setColor,
 	setPowerState,
 } from "./cloud"
-import { LightColor, LightConfig, PlugConfig } from "ShowRunner-plugin-iot-shared"
+import { LightColor, LightConfig, PlugConfig } from "showrunner-plugin-iot-shared"
 
 import * as chromatism from "chromatism2"
-import { createDelayedResolver, DelayedResolver, Toggle } from "ShowRunner-schema"
-import { PollingPlug } from "ShowRunner-plugin-iot-main/src/plug"
+import { createDelayedResolver, DelayedResolver, Toggle } from "showrunner-schema"
+import { PollingPlug } from "showrunner-plugin-iot-main/src/plug"
 
 interface GoveeBulbConfig extends LightConfig {
 	model: string

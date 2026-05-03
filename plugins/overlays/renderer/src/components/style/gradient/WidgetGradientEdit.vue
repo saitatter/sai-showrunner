@@ -13,9 +13,9 @@
 </template>
 
 <script setup lang="ts">
-import { WidgetGradientStyle } from "ShowRunner-plugin-overlays-shared"
+import { WidgetGradientStyle } from "showrunner-plugin-overlays-shared"
 import WidgetGradientBarEdit from "./WidgetGradientBarEdit.vue"
-import { CToggleButton, CAngleInput } from "ShowRunner-ui-core"
+import { CToggleButton, CAngleInput } from "showrunner-ui-core"
 import { computed } from "vue"
 
 const props = defineProps<{}>()

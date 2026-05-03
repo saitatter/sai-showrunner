@@ -8,13 +8,13 @@ import {
 	filterPromiseAll,
 	getTypeByConstructor,
 	getTypeByName,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { Service } from "../util/service"
 import sqlite from "better-sqlite3"
 import { ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, writeYAML } from "../io/file-system"
 import { deserializeSchema, exposeSchema, ipcConvertSchema, ipcParseSchema, serializeSchema } from "../util/ipc-schema"
 import { usePluginLogger } from "../logging/logging"
-import { ViewerVariable } from "ShowRunner-schema"
+import { ViewerVariable } from "showrunner-schema"
 import { defineCallableIPC, defineIPCFunc } from "../util/electron"
 import { startPerfTime } from "../util/time-utils"
 

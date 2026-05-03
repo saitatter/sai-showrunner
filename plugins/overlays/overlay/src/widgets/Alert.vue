@@ -16,16 +16,16 @@
 </template>
 
 <script setup lang="ts">
-import { MediaContainer, TimedReveal, declareWidgetOptions, handleOverlayRPC, useIsEditor } from "ShowRunner-overlay-core"
+import { MediaContainer, TimedReveal, declareWidgetOptions, handleOverlayRPC, useIsEditor } from "showrunner-overlay-core"
 import {
 	OverlayBlockStyle,
 	OverlayTextAlignment,
 	OverlayTextStyle,
 	OverlayTransitionAnimation,
 	OverlayWidgetSize,
-} from "ShowRunner-plugin-overlays-shared"
-import { Color, MediaFile } from "ShowRunner-schema"
-import { Duration } from "ShowRunner-schema"
+} from "showrunner-plugin-overlays-shared"
+import { Color, MediaFile } from "showrunner-schema"
+import { Duration } from "showrunner-schema"
 import { clearInterval } from "timers"
 import { nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import AlertTextBox from "../components/AlertTextBox.vue"

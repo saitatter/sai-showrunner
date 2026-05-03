@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import { TwitchViewerUnresolved } from "ShowRunner-plugin-twitch-shared"
+import { TwitchViewerUnresolved } from "showrunner-plugin-twitch-shared"
 import { computedAsync } from "@vueuse/core"
 import { useViewerStore } from "../../util/viewer"
 

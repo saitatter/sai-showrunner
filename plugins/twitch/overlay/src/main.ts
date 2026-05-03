@@ -1,4 +1,4 @@
-import { definePluginOverlays } from "ShowRunner-overlay-core"
+import { definePluginOverlays } from "showrunner-overlay-core"
 
 export default definePluginOverlays({
 	id: "twitch",

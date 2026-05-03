@@ -26,16 +26,16 @@ import {
 	OverlayTextAlignment,
 	OverlayTextStyle,
 	OverlayTransitionAnimation,
-} from "ShowRunner-plugin-overlays-shared"
+} from "showrunner-plugin-overlays-shared"
 import {
 	MediaContainer,
 	TimedReveal,
 	declareWidgetOptions,
 	useIsEditor,
 	animationFromTransition,
-} from "ShowRunner-overlay-core"
+} from "showrunner-overlay-core"
 import { ref } from "vue"
-import { Duration } from "ShowRunner-schema"
+import { Duration } from "showrunner-schema"
 
 const props = defineProps<{
 	boxConfig: {

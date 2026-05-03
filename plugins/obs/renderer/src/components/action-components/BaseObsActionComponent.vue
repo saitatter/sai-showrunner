@@ -10,9 +10,9 @@
 </template>
 
 <script setup lang="ts">
-import { OBSConnectionConfig, OBSConnectionState } from "ShowRunner-plugin-obs-shared"
-import { ResourceData } from "ShowRunner-schema"
-import { useResource } from "ShowRunner-ui-core"
+import { OBSConnectionConfig, OBSConnectionState } from "showrunner-plugin-obs-shared"
+import { ResourceData } from "showrunner-schema"
+import { useResource } from "showrunner-ui-core"
 
 const props = defineProps<{
 	obs: string | undefined

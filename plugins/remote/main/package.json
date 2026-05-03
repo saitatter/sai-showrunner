@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-remote-main",
+	"name": "showrunner-plugin-remote-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,9 +13,9 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"ShowRunner-core": "workspace:^",
-		"ShowRunner-plugin-dashboards-main": "workspace:^",
-		"ShowRunner-plugin-remote-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^"
+		"showrunner-core": "workspace:^",
+		"showrunner-plugin-dashboards-main": "workspace:^",
+		"showrunner-plugin-remote-shared": "workspace:^",
+		"showrunner-schema": "workspace:^"
 	}
 }

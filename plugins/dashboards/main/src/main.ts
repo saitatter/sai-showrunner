@@ -1,4 +1,4 @@
-import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSatellitePlugin } from "ShowRunner-core"
+import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSatellitePlugin } from "showrunner-core"
 import { Dashboard, setupDashboardResources } from "./dashboard-resource"
 import { DashboardWidgetManager } from "./dashboard-widgets"
 import { setupConfigEval } from "./dashboard-config-eval"

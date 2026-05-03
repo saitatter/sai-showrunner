@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-time",
+	"name": "showrunner-plugin-time",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",

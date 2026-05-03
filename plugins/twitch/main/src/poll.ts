@@ -1,8 +1,8 @@
-import { defineAction, defineState, defineTrigger } from "ShowRunner-core"
+import { defineAction, defineState, defineTrigger } from "showrunner-core"
 import { TwitchAPIService, onChannelAuth } from "./api-harness"
 import { TwitchAccount } from "./twitch-auth"
-import { abortableSleep, setAbortableTimeout } from "ShowRunner-core/src/util/abort-utils"
-import { Duration } from "ShowRunner-schema"
+import { abortableSleep, setAbortableTimeout } from "showrunner-core/src/util/abort-utils"
+import { Duration } from "showrunner-schema"
 import _maxBy from "lodash/maxBy"
 export function setupPolls() {
 	const pollId = defineState("pollId", {

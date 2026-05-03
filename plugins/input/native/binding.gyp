@@ -1,7 +1,7 @@
 {
     "targets": [
         {
-            "target_name": "ShowRunner-plugin-input-native",
+            "target_name": "showrunner-plugin-input-native",
             "cflags!": [ "-fno-exceptions" ],
             "cflags_cc!": [ "-fno-exceptions" ],
             "sources": [ "src/native-index.cc", "src/input-interface.cc" ],

@@ -1,6 +1,6 @@
-import { ReactiveRef, abortableSleep, defineAction, sleep, usePluginLogger } from "ShowRunner-core"
+import { ReactiveRef, abortableSleep, defineAction, sleep, usePluginLogger } from "showrunner-core"
 import { OBSConnection } from "./connection"
-import { Toggle } from "ShowRunner-schema"
+import { Toggle } from "showrunner-schema"
 import { OBSFFmpegSourceSettings } from "./input-settings"
 
 export async function getMediaDuration(obs: OBSConnection, sourceName: string): Promise<number | undefined> {

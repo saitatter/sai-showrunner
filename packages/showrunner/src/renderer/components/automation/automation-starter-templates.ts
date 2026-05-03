@@ -1,4 +1,4 @@
-import type { AutomationConfig, AutomationDataWire, GraphNode } from "ShowRunner-schema"
+import type { AutomationConfig, AutomationDataWire, GraphNode } from "showrunner-schema"
 
 export interface AutomationStarterTemplate {
 	id: string
@@ -97,6 +97,90 @@ export const automationStarterTemplates: AutomationStarterTemplate[] = [
 		},
 	},
 	{
+		id: "obs-scene-change",
+		name: "OBS Scene Change",
+		description: "Manual starter that changes the current OBS scene.",
+		icon: "mdi mdi-broadcast",
+		create() {
+			return createTemplate("OBS Scene Change", "ShowRunner", "autoRun", [
+				actionNode("change-scene", "obs", "scene", 360, 120, {
+					obs: undefined,
+					scene: "",
+				}),
+			])
+		},
+	},
+	{
+		id: "twitch-chat-command-reply",
+		name: "Twitch Chat Command Reply",
+		description: "Chat command -> send a chat response.",
+		icon: "mdi mdi-chat-processing-outline",
+		create() {
+			return createTemplate("Twitch Chat Command Reply", "twitch", "chat", [
+				actionNode("send-chat-reply", "twitch", "chat", 360, 120, {
+					message: "Hey {{ viewerName }}, thanks for using the command!",
+				}),
+			], undefined, [], {
+				command: {
+					mode: "command",
+					match: "!hello",
+					arguments: [],
+					hasMessage: false,
+				},
+				cooldown: undefined,
+				group: {},
+			})
+		},
+	},
+	{
+		id: "twitch-chat-moderation-review",
+		name: "Twitch Chat Moderation Review",
+		description: "Chat command context -> moderation docker filter action.",
+		icon: "mdi mdi-shield-search",
+		create() {
+			return createTemplate("Twitch Chat Moderation Review", "twitch", "chat", [
+				actionNode("moderate-chat", "moderation", "moderateChatMessage", 360, 120, {
+					platform: "",
+					messageId: "",
+					viewerId: "",
+					viewerName: "",
+					message: "",
+					badges: "",
+					isModerator: false,
+					isMember: false,
+					isOwner: false,
+				}),
+			], undefined, triggerWires("moderate-chat", {
+				platform: "platform",
+				messageId: "messageId",
+				viewerId: "viewerId",
+				viewerName: "viewerName",
+				message: "message",
+				badges: "badges",
+			}), {
+				command: {
+					mode: "command",
+					match: "!moderate",
+					arguments: [],
+					hasMessage: true,
+				},
+				cooldown: undefined,
+				group: {},
+			})
+		},
+	},
+	{
+		id: "stream-plan-next-segment",
+		name: "Stream Plan Next Segment",
+		description: "Manual starter that advances the active stream plan.",
+		icon: "mdi mdi-notebook-arrow-right-outline",
+		create() {
+			return createTemplate("Stream Plan Next Segment", "ShowRunner", "autoRun", [
+				actionNode("next-stream-plan-segment", "stream-plans", "nextSegment", 360, 120, {}),
+			])
+		},
+	},
+	{
 		id: "ending-scene-banner",
 		name: "Ending Scene Banner",
 		description: "Starter graph that publishes a scene.end banner after a closing message.",
@@ -117,6 +201,104 @@ export const automationStarterTemplates: AutomationStarterTemplate[] = [
 			])
 		},
 	},
+	{
+		id: "youtube-paid-event-alerts-queue",
+		name: "Paid Event -> Add to Alerts Queue",
+		description: "Super Chat -> Add to Queue for a paid alert worker automation.",
+		icon: "mdi mdi-tray-plus",
+		create() {
+			return createTemplate("Paid Event -> Add to Alerts Queue", "youtube", "superChat", [
+				actionNode("queue-paid-alert", "ShowRunner", "addToQueue", 360, 120, {
+					queue: undefined,
+					automation: undefined,
+					payload: {
+						eventId: "{{ messageId }}",
+						platform: "youtube",
+						viewerName: "{{ viewerName }}",
+						amount: "{{ amountMicros }}",
+						currency: "{{ currency }}",
+						title: "New Super Chat",
+						message: "{{ message }}",
+					},
+				}),
+			])
+		},
+	},
+	{
+		id: "paid-alert-queue-worker",
+		name: "Queue Item Started -> Paid Alert Overlay -> Sound -> Complete",
+		description: "Queue worker graph for paid alerts with optional sound.",
+		icon: "mdi mdi-cash-clock",
+		create() {
+			return createTemplate("Paid Alert Queue Worker", "ShowRunner", "queueItemStarted", [
+				actionNode("push-paid-alert", "overlays", "pushPaidAlert", 360, 120, {
+					targetWidget: undefined,
+					eventId: "{{ payload.eventId }}",
+					platform: "{{ payload.platform }}",
+					viewerName: "{{ payload.viewerName }}",
+					amount: "{{ payload.amount }}",
+					currency: "{{ payload.currency }}",
+					title: "{{ payload.title }}",
+					message: "{{ payload.message }}",
+				}),
+				actionNode("play-alert-sound", "sound", "sound", 640, 120, {
+					output: undefined,
+					sound: "",
+					volume: 100,
+					startTime: 0,
+				}),
+				actionNode("complete-paid-alert", "ShowRunner", "completeQueueItem", 920, 120, {}),
+			], [
+				edge("push-paid-alert", "play-alert-sound"),
+				edge("play-alert-sound", "complete-paid-alert"),
+			])
+		},
+	},
+	{
+		id: "scene-begin-scene-queue",
+		name: "Scene Begin -> Add to Scene Queue",
+		description: "Scene start event -> Add to Queue for a scene worker automation.",
+		icon: "mdi mdi-tray-plus",
+		create() {
+			return createTemplate("Scene Begin -> Add to Scene Queue", "ShowRunner", "autoRun", [
+				actionNode("queue-scene-banner", "ShowRunner", "addToQueue", 360, 120, {
+					queue: undefined,
+					automation: undefined,
+					payload: {
+						sceneKey: "starting-soon",
+						title: "Starting Soon",
+						subtitle: "Stream begins shortly",
+						accentColor: "#9146ff",
+					},
+				}),
+			])
+		},
+	},
+	{
+		id: "scene-banner-queue-worker",
+		name: "Queue Item Started -> Scene Banner -> Shader Layer -> Complete",
+		description: "Queue worker graph for scene banners with an optional shader layer.",
+		icon: "mdi mdi-layers-triple-outline",
+		create() {
+			return createTemplate("Scene Banner Queue Worker", "ShowRunner", "queueItemStarted", [
+				actionNode("begin-scene-banner", "overlays", "beginSceneOverlay", 360, 120, {
+					targetWidget: undefined,
+					sceneKey: "{{ payload.sceneKey }}",
+					title: "{{ payload.title }}",
+					subtitle: "{{ payload.subtitle }}",
+					accentColor: "{{ payload.accentColor }}",
+				}),
+				actionNode("show-shader-layer", "overlays", "widgetVisibility", 640, 120, {
+					widget: undefined,
+					enabled: true,
+				}),
+				actionNode("complete-scene-banner", "ShowRunner", "completeQueueItem", 920, 120, {}),
+			], [
+				edge("begin-scene-banner", "show-shader-layer"),
+				edge("show-shader-layer", "complete-scene-banner"),
+			])
+		},
+	},
 ]
 
 function createTemplate(
@@ -125,14 +307,15 @@ function createTemplate(
 	trigger: string,
 	nodes: GraphNode[],
 	edges = nodes.length > 1 ? nodes.slice(0, -1).map((node, index) => ({ id: `${node.id}:${nodes[index + 1].id}`, from: node.id, to: nodes[index + 1].id })) : [],
-	dataWires: AutomationDataWire[] = []
+	dataWires: AutomationDataWire[] = [],
+	config: Record<string, unknown> = {}
 ): AutomationConfig {
 	return {
 		name,
 		schemaVersion: 2,
 		plugin,
 		trigger,
-		config: {},
+		config,
 		stop: false,
 		graph: {
 			nodes,
@@ -153,6 +336,10 @@ function triggerWires(toNode: string, ports: Record<string, string>): Automation
 		toNode,
 		toPort,
 	}))
+}
+
+function edge(from: string, to: string) {
+	return { id: `${from}:${to}`, from, to }
 }
 
 function actionNode(

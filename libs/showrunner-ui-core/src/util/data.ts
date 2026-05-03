@@ -21,7 +21,7 @@ import {
 	isArray,
 	BooleanExpression,
 	ViewerVariableName,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { defineStore } from "pinia"
 import {
 	type Component,
@@ -88,7 +88,7 @@ export const ResourceProxyFactory = {
 	},
 }
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaResource {
 		resourceType: string
 	}

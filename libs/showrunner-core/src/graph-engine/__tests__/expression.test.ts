@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { evalExpression, type EvalContext } from "../expression"
-import type { Expression } from "ShowRunner-schema"
+import type { Expression } from "showrunner-schema"
 
 function mkCtx(overrides: Partial<EvalContext> = {}): EvalContext {
 	return {

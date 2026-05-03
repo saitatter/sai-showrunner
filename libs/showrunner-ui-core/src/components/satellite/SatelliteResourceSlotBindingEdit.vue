@@ -6,7 +6,7 @@
 import { computed } from "vue"
 import { useResourceSlotBinding, useResourceSlotBindingModel } from "../../satellite/satellite-resources"
 import DataInput from "../data/DataInput.vue"
-import { Schema } from "ShowRunner-schema"
+import { Schema } from "showrunner-schema"
 import { ResourceProxyFactory } from "../../main"
 
 const props = defineProps<{

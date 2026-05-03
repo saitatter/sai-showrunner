@@ -1,7 +1,7 @@
 import { defineConfig } from "vite"
 import vue from "@vitejs/plugin-vue"
 import dts from "vite-plugin-dts"
-import { libraryPlugin } from "ShowRunner-vite"
+import { libraryPlugin } from "showrunner-vite"
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -10,13 +10,13 @@ export default defineConfig({
 		dts({
 			insertTypesEntry: true,
 		}),
-		libraryPlugin("ShowRunner-ui-core"),
+		libraryPlugin("showrunner-ui-core"),
 	],
 	build: {
 		cssCodeSplit: true,
 		lib: {
 			entry: "src/main.ts",
-			name: "ShowRunner-plugin-sound-renderer",
+			name: "showrunner-plugin-sound-renderer",
 		},
 		rollupOptions: {
 			external: ["vue"],

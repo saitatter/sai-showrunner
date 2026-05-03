@@ -18,6 +18,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
+import { tokenizeExpression } from "./expression-tokenizer"
 
 const props = defineProps<{
 	modelValue: string
@@ -47,32 +48,6 @@ function onInput(event: Event) {
 	emit("update:modelValue", localValue.value)
 }
 
-function tokenizeExpression(source: string) {
-	const result: Array<{ text: string; kind: string }> = []
-	const pattern =
-		/(\{\{|\}\}|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b(?:true|false|null|undefined)\b|\b(?:len|includes|toString|toNumber|toBoolean|min|max|keys|values|sum|avg|round|floor|ceil|abs|clamp)\b(?=\s*\()|\d+(?:\.\d+)?|[=!<>]=?|&&|\|\||[()+\-*/%.,[\]]|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\[\d+\])*)/g
-	let cursor = 0
-	for (const match of source.matchAll(pattern)) {
-		const index = match.index ?? 0
-		if (index > cursor) result.push({ text: source.slice(cursor, index), kind: "plain" })
-		result.push({ text: match[0], kind: classifyToken(match[0]) })
-		cursor = index + match[0].length
-	}
-	if (cursor < source.length) result.push({ text: source.slice(cursor), kind: "plain" })
-	return result.length ? result : [{ text: "", kind: "plain" }]
-}
-
-function classifyToken(token: string) {
-	if (/^["']/.test(token)) return "string"
-	if (/^\d/.test(token)) return "number"
-	if (/^(true|false|null|undefined)$/.test(token)) return "literal"
-	if (/^(len|includes|toString|toNumber|toBoolean|min|max|keys|values|sum|avg|round|floor|ceil|abs|clamp)$/.test(token)) {
-		return "builtin"
-	}
-	if (/^(\{\{|\}\}|[=!<>]=?|&&|\|\||[()+\-*/%.,[\]])$/.test(token)) return "operator"
-	if (token.includes(".") || token.includes("[")) return "path"
-	return "identifier"
-}
 </script>
 
 <style scoped>

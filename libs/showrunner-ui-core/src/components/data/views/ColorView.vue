@@ -4,8 +4,8 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaColor } from "ShowRunner-schema"
-import { Color } from "ShowRunner-schema"
+import { SchemaColor } from "showrunner-schema"
+import { Color } from "showrunner-schema"
 import { SharedDataViewProps } from "../DataInputTypes"
 
 const props = defineProps<

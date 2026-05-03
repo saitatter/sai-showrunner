@@ -8,9 +8,9 @@ import {
 	registerSchemaExpose,
 	scheduleReactiveTrigger,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { VariableManager } from "ShowRunner-plugin-variables-main"
-import { Duration, ValueCompareOperator, Timer, getTimeRemaining, isTimer, isTimerStarted } from "ShowRunner-schema"
+} from "showrunner-core"
+import { VariableManager } from "showrunner-plugin-variables-main"
+import { Duration, ValueCompareOperator, Timer, getTimeRemaining, isTimer, isTimerStarted } from "showrunner-schema"
 
 //Schedules a reactive effect to wake up at a certain duration remaining.
 function scheduleTimerWakeup(timer: Timer, duration: Duration) {

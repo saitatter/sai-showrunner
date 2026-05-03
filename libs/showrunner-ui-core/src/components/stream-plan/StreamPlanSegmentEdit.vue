@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { StreamPlanSegment } from "ShowRunner-schema"
+import { StreamPlanSegment } from "showrunner-schema"
 import { StreamPlanSegmentView, useStreamPlanStore } from "./stream-plan-types"
 import { computed, useModel } from "vue"
 import { InlineAutomationEdit, useDataBinding, usePropagationStop, DataBindingPath } from "../../main"

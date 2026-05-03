@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-bluesky-renderer",
+	"name": "showrunner-plugin-bluesky-renderer",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -13,13 +13,13 @@
 	},
 	"dependencies": {
 		"@vueuse/core": "*",
-		"ShowRunner-plugin-bluesky-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
-		"ShowRunner-ui-core": "workspace:^",
 		"chromatism2": "*",
 		"electron": "^34.2.0",
 		"nanoid": "*",
 		"pinia": "*",
+		"showrunner-plugin-bluesky-shared": "workspace:^",
+		"showrunner-schema": "workspace:^",
+		"showrunner-ui-core": "workspace:^",
 		"vue": "^3.5.13"
 	},
 	"devDependencies": {

@@ -1,4 +1,4 @@
-import { RemoteTemplateResolutionContext, SchemaObj, resolveRemoteTemplateSchema } from "ShowRunner-schema"
+import { RemoteTemplateResolutionContext, SchemaObj, resolveRemoteTemplateSchema } from "showrunner-schema"
 import {
 	Component,
 	ComputedRef,
@@ -10,7 +10,7 @@ import {
 	ref,
 	toValue,
 } from "vue"
-import { DashboardWidgetOptions } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardWidgetOptions } from "showrunner-plugin-dashboards-shared"
 
 export function declareWidgetOptions<PropSchema extends SchemaObj>(opts: DashboardWidgetOptions<PropSchema>) {
 	return opts

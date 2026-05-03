@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid/non-secure"
-import { createInlineAutomation, normalizeInlineAutomation, StreamPlanConfig, StreamPlanState } from "ShowRunner-schema"
+import { createInlineAutomation, normalizeInlineAutomation, StreamPlanConfig, StreamPlanState } from "showrunner-schema"
 import { FileResource } from "../resources/file-resource"
 import { Service } from "../util/service"
 import { ActionQueueManager } from "../queue-system/action-queue"

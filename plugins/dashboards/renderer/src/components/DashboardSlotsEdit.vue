@@ -16,8 +16,8 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardResourceSlot } from "ShowRunner-plugin-dashboards-shared"
-import { DocumentDataCollection, useSatelliteResourceStore } from "ShowRunner-ui-core"
+import { DashboardResourceSlot } from "showrunner-plugin-dashboards-shared"
+import { DocumentDataCollection, useSatelliteResourceStore } from "showrunner-ui-core"
 import { computed, ref, useModel } from "vue"
 import PButton from "primevue/button"
 import PMenu from "primevue/menu"

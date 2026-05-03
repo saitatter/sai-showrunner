@@ -32,8 +32,8 @@ import {
 	useDataBinding,
 	useUndoCommitter,
 	useCommitUndo,
-} from "ShowRunner-ui-core"
-import { KeyboardKey, SchemaKeyboardKey, Keys, getKeyboardKey, KeyCombo } from "ShowRunner-plugin-input-shared"
+} from "showrunner-ui-core"
+import { KeyboardKey, SchemaKeyboardKey, Keys, getKeyboardKey, KeyCombo } from "showrunner-plugin-input-shared"
 import { computed, ref, useModel } from "vue"
 import PButton from "primevue/button"
 

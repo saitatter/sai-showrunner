@@ -1,4 +1,4 @@
-import { MaybePromise } from "ShowRunner-schema"
+import { MaybePromise } from "showrunner-schema"
 
 export class RetryTimer {
 	private retryTimeout: NodeJS.Timeout | null = null

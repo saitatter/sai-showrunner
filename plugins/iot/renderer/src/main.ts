@@ -1,5 +1,5 @@
-import { useDataInputStore, usePluginStore, useResourceStore } from "ShowRunner-ui-core"
-import { LightColor, dummy } from "ShowRunner-plugin-iot-shared"
+import { useDataInputStore, usePluginStore, useResourceStore } from "showrunner-ui-core"
+import { LightColor, dummy } from "showrunner-plugin-iot-shared"
 import LightColorInputVue from "./components/LightColorInput.vue"
 import LightActionComponentVue from "./components/LightActionComponent.vue"
 import "./css/icons.css"

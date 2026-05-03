@@ -1,5 +1,5 @@
 {
-  "name": "ShowRunner-plugin-http-shared",
+  "name": "showrunner-plugin-http-shared",
   "version": "1.0.0",
   "description": "",
   "main": "src/index.ts",
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "axios": "*",
-    "ShowRunner-core": "workspace:^",
-    "ShowRunner-schema": "workspace:^"
+    "showrunner-core": "workspace:^",
+    "showrunner-schema": "workspace:^"
   }
 }

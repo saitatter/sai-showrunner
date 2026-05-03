@@ -7,11 +7,11 @@ import {
 	ensureDirectory,
 	onLoad,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { TTSVoiceConfig, TTSVoiceProviderConfig } from "ShowRunner-plugin-sound-shared"
-import { Schema, SchemaType, declareSchema } from "ShowRunner-schema"
+} from "showrunner-core"
+import { TTSVoiceConfig, TTSVoiceProviderConfig } from "showrunner-plugin-sound-shared"
+import { Schema, SchemaType, declareSchema } from "showrunner-schema"
 import { nanoid } from "nanoid/non-secure"
-import { OsTTSInterface, OsTTSVoice } from "ShowRunner-plugin-sound-native"
+import { OsTTSInterface, OsTTSVoice } from "showrunner-plugin-sound-native"
 import { app } from "electron"
 import * as path from "path"
 

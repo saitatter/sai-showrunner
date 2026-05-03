@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaObj } from "ShowRunner-schema"
+import { SchemaObj } from "showrunner-schema"
 import DataView from "../DataView.vue"
 import { SharedDataViewProps } from "../DataInputTypes"
 const props = defineProps<

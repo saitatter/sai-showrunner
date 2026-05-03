@@ -47,9 +47,6 @@ export function useDragEnter(
 		const fromIn = ft.fromElement != null && elem.contains(ft.fromElement)
 		const toIn = ft.toElement != null && elem.contains(ft.toElement)
 
-		//Left as
-		//console.log("Enter", ft.fromElement?.className, "->", ft.toElement?.className, fromIn, toIn)
-
 		if (fromIn) {
 			return
 		}
@@ -75,9 +72,6 @@ export function useDragLeave(
 
 		const fromIn = ft.fromElement != null && elem.contains(ft.fromElement)
 		const toIn = ft.toElement != null && elem.contains(ft.toElement)
-
-		//Left for debug purposes since from and to don't really make sense here
-		//console.log("Leave", ft.fromElement?.className, "->", ft.toElement?.className, fromIn, toIn)
 
 		if (fromIn) {
 			return
@@ -221,8 +215,6 @@ export function useDragValue(
 	useEventListener(element, "mousedown", (ev) => {
 		const pos = getInternalMousePos(toValue(element), ev)
 
-		console.log("Drag Value Start")
-
 		dragging.value = true
 		dragStart.value = pos
 		dragStartValue.value = numRef.value ?? 0
@@ -274,7 +266,6 @@ export function useDragValue(
 		"mousemove",
 		(ev: MouseEvent) => {
 			updateNumber(ev)
-			console.log("Drag Value Move")
 		}
 	)
 
@@ -285,7 +276,6 @@ export function useDragValue(
 			updateNumber(ev)
 			dragging.value = false
 			dragComplete?.()
-			console.log("Drag Value End")
 		}
 	)
 
@@ -339,7 +329,6 @@ export function useDragAngle(
 		"mousemove",
 		(ev: MouseEvent) => {
 			updateNumber(ev)
-			//console.log("Drag Value Move")
 		}
 	)
 
@@ -350,7 +339,6 @@ export function useDragAngle(
 			updateNumber(ev)
 			dragging.value = false
 			dragComplete?.()
-			//console.log("Drag Value End")
 		}
 	)
 

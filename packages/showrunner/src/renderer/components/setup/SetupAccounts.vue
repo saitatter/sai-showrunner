@@ -25,10 +25,10 @@
 </template>
 
 <script setup lang="ts">
-import { TwitchAccountConfig } from "ShowRunner-plugin-twitch-shared"
-import { AccountState, ResourceData } from "ShowRunner-schema"
+import { TwitchAccountConfig } from "showrunner-plugin-twitch-shared"
+import { AccountState, ResourceData } from "showrunner-schema"
 
-import { AccountWidget, useResourceArray, useResourceStore } from "ShowRunner-ui-core"
+import { AccountWidget, useResourceArray, useResourceStore } from "showrunner-ui-core"
 import { computed, onMounted, useModel, watch } from "vue"
 import MigrationCheckBox from "../migration/MigrationCheckBox.vue"
 

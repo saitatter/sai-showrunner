@@ -10,7 +10,7 @@ import {
 	watch,
 	watchEffect,
 } from "vue"
-import { DashboardConfig, DashboardWidget } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardConfig, DashboardWidget } from "showrunner-plugin-dashboards-shared"
 
 export interface ShowRunnerBridgeImplementation {
 	acquireState(plugin: string, state: string): void

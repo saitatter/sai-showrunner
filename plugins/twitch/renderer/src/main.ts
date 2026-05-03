@@ -9,19 +9,19 @@ import {
 	useProjectStore,
 	useResourceStore,
 	useStreamPlanStore,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import {
 	TwitchViewer,
 	TwitchViewerGroup,
 	TwitchCategory,
 	ChannelPointRewardConfig,
 	TwitchStreamTags,
-} from "ShowRunner-plugin-twitch-shared"
+} from "showrunner-plugin-twitch-shared"
 import TwitchViewerGroupInput from "./components/TwitchViewerGroupInput.vue"
 import { computed, App } from "vue"
 import ChannelPointsEditPageVue from "./components/channel-points/ChannelPointsEditPage.vue"
 import TwitchAccountSettingsVue from "./components/account/TwitchAccountSettings.vue"
-import { Color, Duration, ResourceData } from "ShowRunner-schema"
+import { Color, Duration, ResourceData } from "showrunner-schema"
 import TwitchViewerInputVue from "./components/viewer/TwitchViewerInput.vue"
 import GroupPageVue from "./components/groups/GroupPage.vue"
 import TwitchCategoryInputVue from "./components/category/TwitchCategoryInput.vue"

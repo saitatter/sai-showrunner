@@ -1,4 +1,4 @@
-import { ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, usePluginLogger, writeYAML } from "ShowRunner-core"
+import { ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, usePluginLogger, writeYAML } from "showrunner-core"
 import {
 	ModerationActionInput,
 	ModerationActionResult,
@@ -8,7 +8,7 @@ import {
 	ModerationQueueState,
 	ModerationSettings,
 	ModerationStatus,
-} from "ShowRunner-plugin-moderation-shared"
+} from "showrunner-plugin-moderation-shared"
 import WebSocket from "ws"
 
 const DEFAULT_SETTINGS: ModerationSettings = {

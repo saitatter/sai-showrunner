@@ -33,9 +33,9 @@
 </template>
 
 <script setup lang="ts">
-import { TwitchAccountConfig } from "ShowRunner-plugin-twitch-shared"
-import { AccountState, ResourceData } from "ShowRunner-schema"
-import { AccountWidget } from "ShowRunner-ui-core"
+import { TwitchAccountConfig } from "showrunner-plugin-twitch-shared"
+import { AccountState, ResourceData } from "showrunner-schema"
+import { AccountWidget } from "showrunner-ui-core"
 import { useBotAccountResource, useChannelAccountResource } from "../../util/twitch-accounts"
 
 const channelAccount = useChannelAccountResource()

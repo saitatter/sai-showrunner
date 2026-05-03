@@ -1,7 +1,7 @@
-import { getTypeByName, IPCDefaultable, IPCDynamicTypable, IPCEnumable, IPCSchema, Schema } from "ShowRunner-schema"
+import { getTypeByName, IPCDefaultable, IPCDynamicTypable, IPCEnumable, IPCSchema, Schema } from "showrunner-schema"
 import { markRaw, toRaw } from "vue"
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaResource {
 		resourceType: string
 	}
@@ -87,7 +87,7 @@ export function ipcParseSchema(ipcSchema: IPCSchema): Schema {
 			throw new Error(`Unknown IPC Type ${ipcSchema.type}`)
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Runtime schema constructors are resolved from IPC metadata.
 		return {
 			...ipcSchema,
 			...ipcParseSchemaDefault(ipcSchema),

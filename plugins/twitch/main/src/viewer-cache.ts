@@ -18,8 +18,8 @@ import {
 	startPerfTime,
 	template,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { Color, registerTypeFromString } from "ShowRunner-schema"
+} from "showrunner-core"
+import { Color, registerTypeFromString } from "showrunner-schema"
 import { TwitchAccount } from "./twitch-auth"
 import { onChannelAuth } from "./api-harness"
 import {
@@ -35,7 +35,7 @@ import {
 	TwitchViewerData,
 	TwitchViewerDisplayData,
 	TwitchViewerUnresolved,
-} from "ShowRunner-plugin-twitch-shared"
+} from "showrunner-plugin-twitch-shared"
 import { HelixChannelFollower, HelixPaginatedResultWithTotal } from "@twurple/api"
 
 const logger = usePluginLogger("twitch")

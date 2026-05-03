@@ -17,12 +17,12 @@
 </template>
 
 <script setup lang="ts">
-import { AudioSplit } from "ShowRunner-plugin-sound-shared"
+import { AudioSplit } from "showrunner-plugin-sound-shared"
 import { AudioSplitView } from "./splitter-types"
 import { computed } from "vue"
-import { ResourceProxyFactory, useDataBinding, usePropagationStop, DataInput, CToggleButton } from "ShowRunner-ui-core"
+import { ResourceProxyFactory, useDataBinding, usePropagationStop, DataInput, CToggleButton } from "showrunner-ui-core"
 import PButton from "primevue/button"
-import { declareSchema } from "ShowRunner-schema"
+import { declareSchema } from "showrunner-schema"
 
 const model = defineModel<AudioSplit>({ required: true })
 const view = defineModel<AudioSplitView>("view", { required: true })

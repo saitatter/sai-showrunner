@@ -6,7 +6,7 @@ import {
 	definePlugin,
 	defineSetting,
 	usePluginLogger,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { VoiceModClient } from "./client"
 
 export default definePlugin(

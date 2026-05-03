@@ -22,14 +22,14 @@ import {
 	ReactiveRef,
 	useState,
 	ignoreReactivity,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import {
 	StreamInfo,
 	StreamInfoSchema,
 	TwitchCategory,
 	TwitchStreamTags,
 	TwitchViewer,
-} from "ShowRunner-plugin-twitch-shared"
+} from "showrunner-plugin-twitch-shared"
 import { TwitchAccount } from "./twitch-auth"
 import { HelixChannelUpdate } from "@twurple/api"
 import { onChannelAuth, onStreamOffline, onStreamOnline } from "./api-harness"

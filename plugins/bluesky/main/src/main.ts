@@ -6,7 +6,7 @@ import {
 	definePlugin,
 	defineResourceSetting,
 	definePluginResource,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { BlueSkyAccount } from "./bluesky-account"
 
 export default definePlugin(

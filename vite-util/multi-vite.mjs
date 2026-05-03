@@ -42,9 +42,9 @@ async function servePackageSpawn(config, name) {
 }
 
 async function build() {
-	await buildPackageSpawn("ShowRunner-obs-overlay")
+	await buildPackageSpawn("showrunner-obs-overlay")
 	await buildPackageSpawn("ShowRunner")
-	//await buildPackageSpawn("ShowRunner-satellite")
+	//await buildPackageSpawn("showrunner-satellite")
 }
 
 async function serve() {
@@ -57,7 +57,7 @@ async function serve() {
 	}
 
 	const ShowRunnerDev = await servePackageSpawn({ port: 5173, ...config }, "ShowRunner")
-	const overlayDev = await servePackageSpawn({ port: 5174, host: true, ...config }, "ShowRunner-obs-overlay")
+	const overlayDev = await servePackageSpawn({ port: 5174, host: true, ...config }, "showrunner-obs-overlay")
 
 	ShowRunnerDev.on("close", () => {
 		overlayDev.kill("SIGTERM")

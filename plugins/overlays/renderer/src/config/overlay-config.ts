@@ -1,7 +1,7 @@
-import { useResolvedWidgetConfig } from "ShowRunner-overlay-core"
-import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
-import { OverlayConfig, OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
-import { handleIpcMessage, useIpcCaller, useIpcMessage } from "ShowRunner-ui-core"
+import { useResolvedWidgetConfig } from "showrunner-overlay-core"
+import { useOverlayWidgets } from "showrunner-overlay-widget-loader"
+import { OverlayConfig, OverlayWidgetConfig } from "showrunner-plugin-overlays-shared"
+import { handleIpcMessage, useIpcCaller, useIpcMessage } from "showrunner-ui-core"
 import { nanoid } from "nanoid/non-secure"
 import { defineStore } from "pinia"
 import {

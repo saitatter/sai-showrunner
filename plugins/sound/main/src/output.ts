@@ -1,4 +1,4 @@
-import { SoundOutputConfig, WebAudioDeviceInfo } from "ShowRunner-plugin-sound-shared"
+import { SoundOutputConfig, WebAudioDeviceInfo } from "showrunner-plugin-sound-shared"
 import {
 	Resource,
 	ResourceStorage,
@@ -10,9 +10,9 @@ import {
 	SatelliteResources,
 	defineSatelliteResourceSlotHandler,
 	SatelliteMedia,
-} from "ShowRunner-core"
-import { AudioDevice, AudioDeviceInterface } from "ShowRunner-plugin-sound-native"
-import { defineCallableIPC, defineIPCRPC } from "ShowRunner-core/src/util/electron"
+} from "showrunner-core"
+import { AudioDevice, AudioDeviceInterface } from "showrunner-plugin-sound-native"
+import { defineCallableIPC, defineIPCRPC } from "showrunner-core/src/util/electron"
 import { RendererSoundPlayer } from "./renderer-sound-player"
 import { nanoid } from "nanoid/non-secure"
 

@@ -8,7 +8,7 @@ import {
 	defineSatellitePlugin,
 	onLoad,
 	onUnload,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import { setupChat } from "./chat"
 import { setupSubscriptions } from "./subscriptions"

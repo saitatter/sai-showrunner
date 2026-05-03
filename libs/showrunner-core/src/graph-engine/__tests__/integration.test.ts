@@ -23,7 +23,7 @@ vi.mock("../../util/ipc-schema", () => ({
 
 import { GraphCompiler } from "../compiler"
 import { GraphVM } from "../vm"
-import type { AutomationGraph, AutomationDataWire, SubgraphDefinition } from "ShowRunner-schema"
+import type { AutomationGraph, AutomationDataWire, SubgraphDefinition } from "showrunner-schema"
 
 function mockAction(invokeFn: (...args: any[]) => Promise<any>) {
 	return {

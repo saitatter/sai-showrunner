@@ -1,4 +1,4 @@
-import { usePluginLogger } from "ShowRunner-core"
+import { usePluginLogger } from "showrunner-core"
 import querystring from "node:querystring"
 import { clearInterval } from "node:timers"
 

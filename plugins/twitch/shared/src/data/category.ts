@@ -1,4 +1,4 @@
-import { SchemaBase, registerType } from "ShowRunner-schema"
+import { SchemaBase, registerType } from "showrunner-schema"
 
 export type TwitchCategoryUnresolved = string
 
@@ -34,7 +34,7 @@ registerType("TwitchCategory", {
 	constructor: TwitchCategory,
 })
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaTypeMap {
 		TwitchCategory: [SchemaTwitchCategory, TwitchCategoryUnresolved]
 	}

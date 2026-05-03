@@ -20,11 +20,11 @@
 		// "noUnusedParameters": true,
 		// "noFallthroughCasesInSwitch": true
 		"paths": {
-			"ShowRunner-ui-core": ["../../../libs/ShowRunner-ui-core/src/main.ts"],
-			"ShowRunner-dashboard-widget-loader": [
-				"../../../libs/ShowRunner-dashboard-widget-loader/src/dashboard-widget-loader.ts"
+			"showrunner-ui-core": ["../../../libs/showrunner-ui-core/src/main.ts"],
+			"showrunner-dashboard-widget-loader": [
+				"../../../libs/showrunner-dashboard-widget-loader/src/dashboard-widget-loader.ts"
 			],
-			"ShowRunner-dashboard-core": ["../../../libs/ShowRunner-dashboard-core/src/dashboard-core-main.ts"]
+			"showrunner-dashboard-core": ["../../../libs/showrunner-dashboard-core/src/dashboard-core-main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

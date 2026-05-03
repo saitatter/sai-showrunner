@@ -1,4 +1,4 @@
-import { BooleanExpression, constructDefault, Toggle, hashString } from "ShowRunner-schema"
+import { BooleanExpression, constructDefault, Toggle, hashString } from "showrunner-schema"
 import {
 	ActionQueue,
 	ActionQueueManager,
@@ -20,8 +20,15 @@ import {
 	usePluginLogger,
 	GraphVM,
 	compileAutomationProgram,
-} from "ShowRunner-core"
-import { getExpressionHash } from "ShowRunner-core/src/util/boolean-helpers"
+} from "showrunner-core"
+import { getExpressionHash } from "showrunner-core/src/util/boolean-helpers"
+import {
+	convertJsonStringToArray,
+	convertJsonStringToObject,
+	convertStringToBoolean,
+	convertStringToNumber,
+	safeJsonStringify,
+} from "./conversion-utils"
 
 interface ConditionalTrigger {
 	conditionHash: number
@@ -59,6 +66,232 @@ export default definePlugin(
 				WebService.getInstance().updatePort(port.value)
 			}
 		)
+
+		defineAction({
+			id: "convertNumberToString",
+			name: "Convert Number To String",
+			icon: "mdi mdi-swap-horizontal",
+			description: "Converts a number into text.",
+			config: {
+				type: Object,
+				properties: {
+					value: { type: Number, name: "Number", required: true },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					value: { type: String, name: "Text" },
+				},
+			},
+			async invoke(config) {
+				return { value: String(config.value ?? 0) }
+			},
+		})
+
+		defineAction({
+			id: "convertBooleanToString",
+			name: "Convert Boolean To String",
+			icon: "mdi mdi-swap-horizontal",
+			description: "Converts true or false into text.",
+			config: {
+				type: Object,
+				properties: {
+					value: { type: Boolean, name: "Boolean", required: true },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					value: { type: String, name: "Text" },
+				},
+			},
+			async invoke(config) {
+				return { value: config.value ? "true" : "false" }
+			},
+		})
+
+		defineAction({
+			id: "convertStringToNumber",
+			name: "Convert String To Number",
+			icon: "mdi mdi-swap-horizontal",
+			description: "Parses text into a number. Invalid text returns the fallback value.",
+			config: {
+				type: Object,
+				properties: {
+					value: { type: String, name: "Text", required: true },
+					fallback: { type: Number, name: "Fallback", default: 0 },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					value: { type: Number, name: "Number" },
+					converted: { type: Boolean, name: "Converted" },
+				},
+			},
+			async invoke(config) {
+				return convertStringToNumber(config.value, config.fallback)
+			},
+		})
+
+		defineAction({
+			id: "convertBooleanToNumber",
+			name: "Convert Boolean To Number",
+			icon: "mdi mdi-swap-horizontal",
+			description: "Converts true to 1 and false to 0.",
+			config: {
+				type: Object,
+				properties: {
+					value: { type: Boolean, name: "Boolean", required: true },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					value: { type: Number, name: "Number" },
+				},
+			},
+			async invoke(config) {
+				return { value: config.value ? 1 : 0 }
+			},
+		})
+
+		defineAction({
+			id: "convertNumberToBoolean",
+			name: "Convert Number To Boolean",
+			icon: "mdi mdi-swap-horizontal",
+			description: "Converts zero to false and any other finite number to true.",
+			config: {
+				type: Object,
+				properties: {
+					value: { type: Number, name: "Number", required: true },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					value: { type: Boolean, name: "Boolean" },
+				},
+			},
+			async invoke(config) {
+				return { value: Number.isFinite(config.value) && Number(config.value) !== 0 }
+			},
+		})
+
+		defineAction({
+			id: "convertStringToBoolean",
+			name: "Convert String To Boolean",
+			icon: "mdi mdi-swap-horizontal",
+			description: "Parses common boolean text. Unknown values return the fallback value.",
+			config: {
+				type: Object,
+				properties: {
+					value: { type: String, name: "Text", required: true },
+					fallback: { type: Boolean, name: "Fallback", default: false },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					value: { type: Boolean, name: "Boolean" },
+					converted: { type: Boolean, name: "Converted" },
+				},
+			},
+			async invoke(config) {
+				return convertStringToBoolean(config.value, config.fallback)
+			},
+		})
+
+		defineAction({
+			id: "convertObjectToJsonString",
+			name: "Convert Object To JSON String",
+			icon: "mdi mdi-code-json",
+			description: "Serializes an object into JSON text.",
+			config: {
+				type: Object,
+				properties: {
+					value: { type: Object, name: "Object", required: true },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					value: { type: String, name: "JSON" },
+				},
+			},
+			async invoke(config) {
+				return { value: safeJsonStringify(config.value ?? {}) }
+			},
+		})
+
+		defineAction({
+			id: "convertArrayToJsonString",
+			name: "Convert Array To JSON String",
+			icon: "mdi mdi-code-json",
+			description: "Serializes an array into JSON text.",
+			config: {
+				type: Object,
+				properties: {
+					value: { type: Array, name: "Array", required: true },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					value: { type: String, name: "JSON" },
+				},
+			},
+			async invoke(config) {
+				return { value: safeJsonStringify(Array.isArray(config.value) ? config.value : []) }
+			},
+		})
+
+		defineAction({
+			id: "convertJsonStringToObject",
+			name: "Convert JSON String To Object",
+			icon: "mdi mdi-code-json",
+			description: "Parses JSON text into an object. Invalid or non-object JSON returns an empty object.",
+			config: {
+				type: Object,
+				properties: {
+					value: { type: String, name: "JSON", required: true },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					value: { type: Object, name: "Object" },
+					converted: { type: Boolean, name: "Converted" },
+				},
+			},
+			async invoke(config) {
+				return convertJsonStringToObject(config.value)
+			},
+		})
+
+		defineAction({
+			id: "convertJsonStringToArray",
+			name: "Convert JSON String To Array",
+			icon: "mdi mdi-code-json",
+			description: "Parses JSON text into an array. Invalid or non-array JSON returns an empty array.",
+			config: {
+				type: Object,
+				properties: {
+					value: { type: String, name: "JSON", required: true },
+				},
+			},
+			result: {
+				type: Object,
+				properties: {
+					value: { type: Array, name: "Array" },
+					converted: { type: Boolean, name: "Converted" },
+				},
+			},
+			async invoke(config) {
+				return convertJsonStringToArray(config.value)
+			},
+		})
 
 		defineAction({
 			id: "addToQueue",

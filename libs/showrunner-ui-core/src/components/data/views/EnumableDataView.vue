@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaBase, Enumable, EnumItem } from "ShowRunner-schema"
+import { SchemaBase, Enumable, EnumItem } from "showrunner-schema"
 import { SharedDataViewProps } from "../../../main"
 import { computed, ref, watch, onMounted } from "vue"
 import _isFunction from "lodash/isFunction"

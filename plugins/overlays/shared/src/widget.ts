@@ -1,4 +1,4 @@
-import { SchemaBase, registerType } from "ShowRunner-schema"
+import { SchemaBase, registerType } from "showrunner-schema"
 
 export interface OverlayWidget {
 	overlayId: string
@@ -25,7 +25,7 @@ export interface SchemaOverlayWidget extends SchemaBase<OverlayWidget> {
 	widgetType?: WidgetTypeId | WidgetTypeId[]
 }
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaTypeMap {
 		OverlayWidget: [SchemaOverlayWidget, OverlayWidget]
 	}

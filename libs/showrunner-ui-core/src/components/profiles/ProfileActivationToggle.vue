@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ProfileState, ProfileConfig, ResourceData } from "ShowRunner-schema"
+import { ProfileState, ProfileConfig, ResourceData } from "showrunner-schema"
 import { ProjectItem, ToggleSwitch, useResource, useResourceStore } from "../../main"
 import { computed } from "vue"
 

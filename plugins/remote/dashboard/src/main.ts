@@ -1,4 +1,4 @@
-import { definePluginDashboard } from "ShowRunner-dashboard-core"
+import { definePluginDashboard } from "showrunner-dashboard-core"
 
 import Button from "./widgets/Button.vue"
 

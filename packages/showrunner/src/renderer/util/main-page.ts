@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { computed } from "vue"
-import { ProjectItem, useDockingStore, useProjectStore } from "ShowRunner-ui-core"
+import { ProjectItem, useDockingStore, useProjectStore } from "showrunner-ui-core"
 import MainPage from "../components/main/MainPage.vue"
 
 export const useMainPageStore = defineStore("main-page", () => {

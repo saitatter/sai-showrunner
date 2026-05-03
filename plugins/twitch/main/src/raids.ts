@@ -1,8 +1,8 @@
-import { createTriggerScheduler, defineAction, defineState, defineTrigger, onProfilesChanged } from "ShowRunner-core"
-import { Duration, Range, Timer } from "ShowRunner-schema"
+import { createTriggerScheduler, defineAction, defineState, defineTrigger, onProfilesChanged } from "showrunner-core"
+import { Duration, Range, Timer } from "showrunner-schema"
 import { onChannelAuth } from "./api-harness"
 import { ViewerCache } from "./viewer-cache"
-import { TwitchViewer, TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
+import { TwitchViewer, TwitchViewerGroup } from "showrunner-plugin-twitch-shared"
 import { inTwitchViewerGroup } from "./group"
 import { TwitchAccount } from "./twitch-auth"
 

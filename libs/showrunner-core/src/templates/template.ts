@@ -32,7 +32,7 @@ import {
 	isTimerStarted,
 	parseTemplateString,
 	trimTemplateJS,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import escapeRegExp from "lodash/escapeRegExp"
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
@@ -152,7 +152,7 @@ export type SchemaRemoteTemplater<T extends DataConstructorOrFactory> = (
 	schema: SchemaTypeByConstructor<T>
 ) => Promise<RemoteTemplateTypeByConstructor<T> | undefined>
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface DataTypeMetaData<T = any> {
 		template?: SchemaTemplater<T>
 		remoteTemplate?: SchemaRemoteTemplater<T>

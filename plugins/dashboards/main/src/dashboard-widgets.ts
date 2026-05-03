@@ -1,6 +1,6 @@
-import { defineIPCFunc, ipcParseSchema, Service, usePluginLogger } from "ShowRunner-core"
-import { DashboardWidgetDescriptor, IPCDashboardWidgetDescriptor } from "ShowRunner-plugin-dashboards-shared"
-import { SchemaObj } from "ShowRunner-schema"
+import { defineIPCFunc, ipcParseSchema, Service, usePluginLogger } from "showrunner-core"
+import { DashboardWidgetDescriptor, IPCDashboardWidgetDescriptor } from "showrunner-plugin-dashboards-shared"
+import { SchemaObj } from "showrunner-schema"
 
 const logger = usePluginLogger("dashboards")
 

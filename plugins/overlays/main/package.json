@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-overlays-main",
+	"name": "showrunner-plugin-overlays-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -14,13 +14,13 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"ShowRunner-core": "workspace:^",
-		"ShowRunner-plugin-obs-main": "workspace:^",
-		"ShowRunner-plugin-overlays-shared": "workspace:^",
-		"ShowRunner-plugin-sound-main": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
-		"ShowRunner-ws-rpc": "workspace:^",
 		"express": "^4.19.1",
-		"http-proxy": "^1.18.1"
+		"http-proxy": "^1.18.1",
+		"showrunner-core": "workspace:^",
+		"showrunner-plugin-obs-main": "workspace:^",
+		"showrunner-plugin-overlays-shared": "workspace:^",
+		"showrunner-plugin-sound-main": "workspace:^",
+		"showrunner-schema": "workspace:^",
+		"showrunner-ws-rpc": "workspace:^"
 	}
 }

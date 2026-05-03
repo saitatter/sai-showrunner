@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-overlays-shared",
+	"name": "showrunner-plugin-overlays-shared",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,9 +13,9 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"ShowRunner-core": "workspace:^",
-		"ShowRunner-plugin-sound-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
-		"axios": "*"
+		"axios": "*",
+		"showrunner-core": "workspace:^",
+		"showrunner-plugin-sound-shared": "workspace:^",
+		"showrunner-schema": "workspace:^"
 	}
 }

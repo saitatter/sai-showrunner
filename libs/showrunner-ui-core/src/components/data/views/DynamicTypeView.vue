@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaDynamicType, Schema } from "ShowRunner-schema"
+import { SchemaDynamicType, Schema } from "showrunner-schema"
 import { SharedDataViewProps } from "../../../main"
 import { ref, watch, onMounted } from "vue"
 import DataView from "../DataView.vue"

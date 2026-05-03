@@ -15,7 +15,7 @@
 
 <script setup lang="ts">
 import { useResource, useResourceIPCCaller } from "../../resources/resource-store"
-import { ResourceData, AccountConfig, AccountState } from "ShowRunner-schema"
+import { ResourceData, AccountConfig, AccountState } from "showrunner-schema"
 import PButton from "primevue/button"
 import PAvatar from "primevue/avatar"
 import { ref } from "vue"

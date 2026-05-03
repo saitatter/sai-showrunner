@@ -1,7 +1,7 @@
-import { defineAction, usePluginLogger, ViewerData } from "ShowRunner-core"
-import { TwitchViewer } from "ShowRunner-plugin-twitch-shared"
-import { DynamicType } from "ShowRunner-schema"
-import { ViewerCache as TwitchViewerCache } from "ShowRunner-plugin-twitch-main"
+import { defineAction, usePluginLogger, ViewerData } from "showrunner-core"
+import { TwitchViewer } from "showrunner-plugin-twitch-shared"
+import { DynamicType } from "showrunner-schema"
+import { ViewerCache as TwitchViewerCache } from "showrunner-plugin-twitch-main"
 
 export function setupViewerVariables() {
 	const logger = usePluginLogger()

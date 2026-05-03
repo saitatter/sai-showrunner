@@ -1,4 +1,4 @@
-import { AutomationConfig, ResourceData } from "ShowRunner-schema"
+import { AutomationConfig, ResourceData } from "showrunner-schema"
 import { App, computed, markRaw } from "vue"
 import {
 	AutomationView,

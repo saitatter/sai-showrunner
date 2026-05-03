@@ -1,6 +1,6 @@
 import { MaybeRefOrGetter, computed, inject, markRaw, provide, ref, toValue } from "vue"
 import { defineStore } from "pinia"
-import { normalizeMediaPath } from "ShowRunner-schema"
+import { normalizeMediaPath } from "showrunner-schema"
 
 export function provideWebMediaResolver() {
 	provide("mediaResolver", (mediaFile: string) => {

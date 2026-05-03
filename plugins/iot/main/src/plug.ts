@@ -1,4 +1,4 @@
-import { PlugConfig, PlugState } from "ShowRunner-plugin-iot-shared"
+import { PlugConfig, PlugState } from "showrunner-plugin-iot-shared"
 import {
 	Resource,
 	ResourceStorage,
@@ -9,8 +9,8 @@ import {
 	defineSatelliteResourceSlotHandler,
 	isSatellite,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { Toggle } from "ShowRunner-schema"
+} from "showrunner-core"
+import { Toggle } from "showrunner-schema"
 
 export class PlugResource<Config extends PlugConfig = PlugConfig, State extends PlugState = PlugState> extends Resource<
 	Config,

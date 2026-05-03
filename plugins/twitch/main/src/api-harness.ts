@@ -1,8 +1,8 @@
 import { EventSubWsListener } from "@twurple/eventsub-ws"
 import { TwitchAccount } from "./twitch-auth"
 import { ChatClient } from "@twurple/chat"
-import { Service, isShowRunner, onLoad, onUnload, usePluginLogger } from "ShowRunner-core"
-import { EventList } from "ShowRunner-core/src/util/events"
+import { Service, isShowRunner, onLoad, onUnload, usePluginLogger } from "showrunner-core"
+import { EventList } from "showrunner-core/src/util/events"
 
 const logger = usePluginLogger("twitch")
 

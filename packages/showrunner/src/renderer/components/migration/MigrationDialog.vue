@@ -81,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { declareSchema } from "ShowRunner-schema"
+import { declareSchema } from "showrunner-schema"
 import {
 	AccountWidget,
 	DataInput,
@@ -90,36 +90,33 @@ import {
 	useIpcMessage,
 	useResourceArray,
 	useResourceStore,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { computed, ref, watch } from "vue"
 
 import PProgressSpinner from "primevue/progressspinner"
 
 import PButton from "primevue/button"
-import { OBSConnectionConfig, OBSConnectionState } from "ShowRunner-plugin-obs-shared"
-import { ResourceData } from "ShowRunner-schema"
-import { SchemaType } from "ShowRunner-schema"
+import { OBSConnectionConfig, OBSConnectionState } from "showrunner-plugin-obs-shared"
+import { ResourceData } from "showrunner-schema"
+import { SchemaType } from "showrunner-schema"
 
 import MigrationCheckBox from "./MigrationCheckBox.vue"
-import { TwitchAccountConfig } from "ShowRunner-plugin-twitch-shared"
-import { AccountState } from "ShowRunner-schema"
+import { TwitchAccountConfig } from "showrunner-plugin-twitch-shared"
+import { AccountState } from "showrunner-schema"
 
 const beginMigration = useIpcCaller<() => any>("oldMigration", "beginMigrate")
 const finishMigration = useIpcCaller<() => any>("oldMigration", "finishMigrate")
 
 useIpcMessage("oldMigration", "migrateBackupComplete", () => {
-	console.log("Backup Complete")
 	backupCreated.value = true
 	migratingSettings.value = true
 })
 
 useIpcMessage("oldMigration", "migrateSettingsComplete", () => {
-	console.log("Migration of Settings Complete")
 	migratedSettings.value = true
 })
 
 useIpcMessage("oldMigration", "migrateProfilesComplete", () => {
-	console.log("Migration of Profiles Complete")
 	migratedProfiles.value = true
 })
 

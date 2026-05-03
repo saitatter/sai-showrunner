@@ -21,7 +21,7 @@
 <script setup lang="ts">
 import SystemBar from "./components/system/SystemBar.vue"
 
-import { AccountWidget, useInitStore, usePrimarySatelliteConnection } from "ShowRunner-ui-core"
+import { AccountWidget, useInitStore, usePrimarySatelliteConnection } from "showrunner-ui-core"
 
 import PProgressSpinner from "primevue/progressspinner"
 import PConfirmDialog from "primevue/confirmdialog"

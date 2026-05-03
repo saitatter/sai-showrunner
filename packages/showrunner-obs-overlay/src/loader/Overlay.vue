@@ -9,8 +9,8 @@
 import WidgetLoader from "./WidgetLoader.vue"
 import { computed, onMounted } from "vue"
 import { useWebsocketBridge } from "./utils/websocket"
-import { loadOverlayWidgets } from "ShowRunner-overlay-widget-loader"
-import { provideWebMediaResolver } from "ShowRunner-overlay-core"
+import { loadOverlayWidgets } from "showrunner-overlay-widget-loader"
+import { provideWebMediaResolver } from "showrunner-overlay-core"
 import { readFlag } from "./utils/runtime-helpers"
 
 const bridge = useWebsocketBridge()

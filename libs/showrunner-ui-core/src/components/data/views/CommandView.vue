@@ -4,9 +4,9 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaCommand } from "ShowRunner-schema"
+import { SchemaCommand } from "showrunner-schema"
 import { SharedDataViewProps } from "../DataInputTypes"
-import { Command, getCommandInfoString } from "ShowRunner-schema"
+import { Command, getCommandInfoString } from "showrunner-schema"
 
 const props = defineProps<
 	{

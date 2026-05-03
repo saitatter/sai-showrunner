@@ -11,14 +11,14 @@ import {
 	ReactiveEffect,
 	Service,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { SatelliteService } from "ShowRunner-core"
-import { TwitchAccount, ViewerCache } from "ShowRunner-plugin-twitch-main"
-import { SatelliteConnectionOption } from "ShowRunner-schema"
+} from "showrunner-core"
+import { SatelliteService } from "showrunner-core"
+import { TwitchAccount, ViewerCache } from "showrunner-plugin-twitch-main"
+import { SatelliteConnectionOption } from "showrunner-schema"
 import { nanoid } from "nanoid"
 import { Dashboard } from "./dashboard-resource"
 import { createDashboardConfigEvaluator, DashboardConfigEvaluator } from "./dashboard-config-eval"
-import { DashboardConfig } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardConfig } from "showrunner-plugin-dashboards-shared"
 import { DashboardWidgetManager } from "./dashboard-widgets"
 
 const API_BASE_URL = "https://api.ShowRunner.io"

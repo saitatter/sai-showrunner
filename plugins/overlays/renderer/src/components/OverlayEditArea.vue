@@ -56,8 +56,8 @@ import {
 	useDataUIBinding,
 	useOrderedRefs,
 	useCommitUndo,
-} from "ShowRunner-ui-core"
-import { OverlayConfig, OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
+} from "showrunner-ui-core"
+import { OverlayConfig, OverlayWidgetConfig } from "showrunner-plugin-overlays-shared"
 import { OverlayEditorView } from "./overlay-edit-types"
 import { computed, provide, ref, useModel } from "vue"
 import { useElementSize } from "@vueuse/core"

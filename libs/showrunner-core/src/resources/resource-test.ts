@@ -1,4 +1,4 @@
-import { ResolvedSchemaType, Schema, SchemaType, constructDefault } from "ShowRunner-schema"
+import { ResolvedSchemaType, Schema, SchemaType, constructDefault } from "showrunner-schema"
 import { ReactiveGet, ReactiveSet } from "../reactivity/reactivity"
 
 interface ResourceMetaData<ConfigSchema extends Schema, StateSchema extends Schema> {

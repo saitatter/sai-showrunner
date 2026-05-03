@@ -7,7 +7,7 @@ import {
 	createInlineAutomation,
 	AutomationGraph,
 	normalizeInlineAutomation,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { Resource, ResourceStorage } from "../resources/resource"
 import { FileResource } from "../resources/file-resource"
 import { nanoid } from "nanoid/non-secure"

@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
+import { OverlayConfig } from "showrunner-plugin-overlays-shared"
 import { OverlayEditorView } from "./overlay-edit-types"
 import {
 	DataInput,
@@ -135,7 +135,7 @@ import {
 	ExpanderSlider,
 	viewRef,
 	useIpcCaller,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { computed, onBeforeUnmount, onMounted, ref, useModel } from "vue"
 import OverlayWidgetPropEdit from "./OverlayWidgetPropEdit.vue"
 import OverlayWidgetList from "./OverlayWidgetList.vue"

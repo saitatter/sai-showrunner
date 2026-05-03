@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-dashboard-core",
+	"name": "showrunner-dashboard-core",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -13,12 +13,12 @@
 	},
 	"dependencies": {
 		"@vueuse/core": "*",
-		"ShowRunner-plugin-dashboards-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
 		"chromatism2": "*",
 		"nanoid": "^5.0.7",
 		"pinia": "^2.1.7",
 		"primevue": "^4.2.4",
+		"showrunner-plugin-dashboards-shared": "workspace:^",
+		"showrunner-schema": "workspace:^",
 		"vue": "^3.5.13"
 	},
 	"devDependencies": {

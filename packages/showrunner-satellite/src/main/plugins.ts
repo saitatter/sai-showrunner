@@ -1,18 +1,18 @@
-import { PluginManager, Plugin } from "ShowRunner-core"
+import { PluginManager, Plugin } from "showrunner-core"
 
-import { twitchSatellite } from "ShowRunner-plugin-twitch-main"
-import { dashboardSatellite } from "ShowRunner-plugin-dashboards-main"
+import { twitchSatellite } from "showrunner-plugin-twitch-main"
+import { dashboardSatellite } from "showrunner-plugin-dashboards-main"
 
-import { satelliteIoTPlugin } from "ShowRunner-plugin-iot-main"
-import huePlugin from "ShowRunner-plugin-philips-hue-main"
-import kasaPlugin from "ShowRunner-plugin-tplink-kasa-main"
-import elgatoPlugin from "ShowRunner-plugin-elgato-main"
-import lifxPlugin from "ShowRunner-plugin-lifx-main"
-import wyzePlugin from "ShowRunner-plugin-wyze-main"
-import goveePlugin from "ShowRunner-plugin-govee-main"
-import twinklyPlugin from "ShowRunner-plugin-twinkly-main"
+import { satelliteIoTPlugin } from "showrunner-plugin-iot-main"
+import huePlugin from "showrunner-plugin-philips-hue-main"
+import kasaPlugin from "showrunner-plugin-tplink-kasa-main"
+import elgatoPlugin from "showrunner-plugin-elgato-main"
+import lifxPlugin from "showrunner-plugin-lifx-main"
+import wyzePlugin from "showrunner-plugin-wyze-main"
+import goveePlugin from "showrunner-plugin-govee-main"
+import twinklyPlugin from "showrunner-plugin-twinkly-main"
 
-import soundPlugin from "ShowRunner-plugin-sound-main"
+import soundPlugin from "showrunner-plugin-sound-main"
 
 export async function loadPlugin(plugin: Plugin) {
 	await PluginManager.getInstance().registerPlugin(plugin)
@@ -20,7 +20,6 @@ export async function loadPlugin(plugin: Plugin) {
 
 export async function loadPlugins() {
 	await loadPlugin(twitchSatellite)
-	console.log("Load Dashboard Satellite")
 	await loadPlugin(dashboardSatellite)
 
 	await loadPlugin(satelliteIoTPlugin)

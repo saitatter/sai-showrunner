@@ -1,4 +1,4 @@
-import { ResolvedSchemaType, Schema, SchemaObj, SchemaType } from "ShowRunner-schema"
+import { ResolvedSchemaType, Schema, SchemaObj, SchemaType } from "showrunner-schema"
 
 declare function defineOverlayWidget<PropSchema extends SchemaObj>(opts: {
 	id: string

@@ -1,5 +1,5 @@
 {
-    "name": "ShowRunner-plugin-minecraft",
+    "name": "showrunner-plugin-minecraft",
     "private": true,
     "version": "0.0.1",
     "type": "module",

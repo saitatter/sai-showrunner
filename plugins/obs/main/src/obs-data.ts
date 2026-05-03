@@ -1,6 +1,6 @@
-import { Color, Directory, FilePath, registerType, Schema, SchemaObj } from "ShowRunner-schema"
+import { Color, Directory, FilePath, registerType, Schema, SchemaObj } from "showrunner-schema"
 
-import { OBSProperty, OBSPropertyPathType, OBSPropertyListType, OBSPropertyFormat } from "ShowRunner-plugin-obs-shared"
+import { OBSProperty, OBSPropertyPathType, OBSPropertyListType, OBSPropertyFormat } from "showrunner-plugin-obs-shared"
 
 export interface SceneSource {
 	value: number

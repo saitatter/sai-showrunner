@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from "vue"
-import { ImageFormats } from "ShowRunner-schema"
+import { ImageFormats } from "showrunner-schema"
 import path from "path"
 import { useMediaUrl } from "../util/media-util"
 import { useIsEditor } from "../util/editor-util"

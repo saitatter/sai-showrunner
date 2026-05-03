@@ -1,6 +1,6 @@
-import { abortableSleep, defineAction } from "ShowRunner-core"
-import { InputInterface, MouseButton } from "ShowRunner-plugin-input-native"
-import { Duration } from "ShowRunner-schema"
+import { abortableSleep, defineAction } from "showrunner-core"
+import { InputInterface, MouseButton } from "showrunner-plugin-input-native"
+import { Duration } from "showrunner-schema"
 
 export function setupMouse(inputInterface: InputInterface) {
 	defineAction({

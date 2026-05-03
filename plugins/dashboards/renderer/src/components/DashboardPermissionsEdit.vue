@@ -5,9 +5,9 @@
 </template>
 
 <script setup lang="ts">
-import { declareSchema } from "ShowRunner-schema"
-import { DataInput } from "ShowRunner-ui-core"
-import { TwitchViewer, TwitchViewerUnresolved } from "ShowRunner-plugin-twitch-shared"
+import { declareSchema } from "showrunner-schema"
+import { DataInput } from "showrunner-ui-core"
+import { TwitchViewer, TwitchViewerUnresolved } from "showrunner-plugin-twitch-shared"
 import { useModel } from "vue"
 
 const editSchema = declareSchema({

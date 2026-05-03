@@ -1,4 +1,4 @@
-import { defineIPCFunc, usePluginLogger, getLocalIP } from "ShowRunner-core"
+import { defineIPCFunc, usePluginLogger, getLocalIP } from "showrunner-core"
 import { Window } from "node-screenshots"
 
 import jsQR from "jsqr"

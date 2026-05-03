@@ -4,9 +4,9 @@
 
 <script setup lang="ts">
 import PButton from "primevue/button"
-import { SatelliteConnectionOption } from "ShowRunner-schema"
-import { usePluginStore, useSatelliteConnection } from "ShowRunner-ui-core"
-import { useChannelAccountResource } from "ShowRunner-plugin-twitch-renderer"
+import { SatelliteConnectionOption } from "showrunner-schema"
+import { usePluginStore, useSatelliteConnection } from "showrunner-ui-core"
+import { useChannelAccountResource } from "showrunner-plugin-twitch-renderer"
 
 const props = defineProps<{
 	option: SatelliteConnectionOption

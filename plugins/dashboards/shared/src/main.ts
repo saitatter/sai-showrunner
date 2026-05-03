@@ -1,4 +1,4 @@
-import { IPCSchema, SchemaObj } from "ShowRunner-schema"
+import { IPCSchema, SchemaObj } from "showrunner-schema"
 
 export interface DashboardWidgetSize {
 	width: number

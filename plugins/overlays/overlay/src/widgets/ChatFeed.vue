@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue"
-import { declareWidgetOptions, handleOverlayMessage, useShowRunnerBridge, useIsEditor } from "ShowRunner-overlay-core"
+import { declareWidgetOptions, handleOverlayMessage, useShowRunnerBridge, useIsEditor } from "showrunner-overlay-core"
 
 interface ChatFeedMessage {
 	id?: string

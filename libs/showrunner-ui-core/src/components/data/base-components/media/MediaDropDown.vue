@@ -34,7 +34,7 @@ import DropDownPanel from "../DropDownPanel.vue"
 
 import MediaTreeRoot from "../../../media/MediaTreeRoot.vue"
 import { usePropagationStop } from "../../../../main"
-import { MediaFile } from "ShowRunner-schema"
+import { MediaFile } from "showrunner-schema"
 import { useElementSize } from "@vueuse/core"
 
 const stopPropagation = usePropagationStop()

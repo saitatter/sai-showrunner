@@ -16,7 +16,7 @@
 import { ref, computed, onBeforeUnmount, useModel } from "vue"
 import { useEventListener, useElementSize } from "@vueuse/core"
 import { useCommitUndo, usePropagationStop } from "../../../../main"
-import { Color } from "ShowRunner-schema"
+import { Color } from "showrunner-schema"
 import { useColorProperties } from "./color-utils"
 import * as chromatism from "chromatism2"
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { GraphCompiler, OpCode } from "../compiler"
-import type { AutomationGraph, GraphNode, GraphEdge, AutomationDataWire } from "ShowRunner-schema"
+import type { AutomationGraph, GraphNode, GraphEdge, AutomationDataWire } from "showrunner-schema"
 
 function makeGraph(nodes: GraphNode[], edges: GraphEdge[], entryNodeId: string): AutomationGraph {
 	return { nodes, edges, entryNodeId }

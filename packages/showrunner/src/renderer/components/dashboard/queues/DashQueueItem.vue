@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { asyncComputed } from "@vueuse/core"
-import { QueuedAutomation, ResourceData, ProfileConfig } from "ShowRunner-schema"
+import { QueuedAutomation, ResourceData, ProfileConfig } from "showrunner-schema"
 import {
 	useColors,
 	useResourceData,
@@ -47,7 +47,7 @@ import {
 	useTriggerColors,
 	DataView,
 	FlexScroller,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import PButton from "primevue/button"
 import { computed } from "vue"
 import { isFunction } from "lodash"

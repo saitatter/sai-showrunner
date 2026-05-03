@@ -8,7 +8,7 @@ import renderer from "vite-plugin-electron-renderer"
 import { fileURLToPath } from "node:url"
 import { nodeResolve } from "@rollup/plugin-node-resolve"
 
-import { library, plugins } from "ShowRunner-vite"
+import { library, plugins } from "showrunner-vite"
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const dist = path.join(dirname, "dist")
@@ -48,8 +48,8 @@ export default defineConfig({
 							"@twurple/eventsub-ws",
 							"ws",
 							"discord.js",
-							"ShowRunner-plugin-sound-native",
-							"ShowRunner-plugin-input-native",
+							"showrunner-plugin-sound-native",
+							"showrunner-plugin-input-native",
 							"node-screenshots",
 							"better-sqlite3",
 							"@azure/web-pubsub-client",
@@ -71,8 +71,8 @@ export default defineConfig({
 				args.startup([".", "--no-sandbox"])
 			},
 		}),
-		//subpackage("ShowRunner-overlay-components"),
-		library("ShowRunner-ui-core"),
+		//subpackage("showrunner-overlay-components"),
+		library("showrunner-ui-core"),
 		plugins("../../plugins"),
 	],
 	build: {

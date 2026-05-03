@@ -28,7 +28,7 @@
 
 <script setup lang="ts">
 import CContextMenu from "../../util/CContextMenu.vue"
-import { SchemaRange, SchemaBase, Range } from "ShowRunner-schema"
+import { SchemaRange, SchemaBase, Range } from "showrunner-schema"
 import { computed, useModel, ref } from "vue"
 import PButton from "primevue/button"
 import PMenu from "primevue/menu"

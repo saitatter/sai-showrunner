@@ -4,7 +4,7 @@ import {
 	TwitchCategoryUnresolved,
 	TwitchStreamTags,
 	TwitchViewer,
-} from "ShowRunner-plugin-twitch-shared"
+} from "showrunner-plugin-twitch-shared"
 import {
 	Service,
 	defineRendererCallable,
@@ -14,7 +14,7 @@ import {
 	registerSchemaUnexpose,
 	template,
 	usePluginLogger,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import fuzzysort from "fuzzysort"
 import { HelixGame } from "@twurple/api"

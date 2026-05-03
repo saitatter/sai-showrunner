@@ -38,15 +38,15 @@ import {
 	useMediaResolver,
 	useViewerDataTable,
 	useViewerVariableSchemas,
-} from "ShowRunner-overlay-core"
+} from "showrunner-overlay-core"
 import {
 	getBackgroundCSS,
 	OverlayBlockStyle,
 	OverlayTextAlignment,
 	OverlayTextStyle,
 	WidgetBackgroundStyle,
-} from "ShowRunner-plugin-overlays-shared"
-import { ViewerVariableName } from "ShowRunner-schema"
+} from "showrunner-plugin-overlays-shared"
+import { ViewerVariableName } from "showrunner-schema"
 import { computed } from "vue"
 import SchemaSpan from "../components/SchemaSpan.vue"
 

@@ -1,4 +1,4 @@
-import type { AutomationData } from "ShowRunner-schema"
+import type { AutomationData } from "showrunner-schema"
 import { GraphCompiler, type Program } from "./compiler"
 
 const MAX_CACHE_ENTRIES = 128

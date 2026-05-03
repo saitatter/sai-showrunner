@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { AccountWidget } from "ShowRunner-ui-core"
+import { AccountWidget } from "showrunner-ui-core"
 
 const props = defineProps<{}>()
 </script>

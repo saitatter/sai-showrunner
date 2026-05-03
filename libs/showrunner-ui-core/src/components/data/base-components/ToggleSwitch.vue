@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-import { Toggle } from "ShowRunner-schema"
+import { Toggle } from "showrunner-schema"
 import { useModel, computed } from "vue"
 import { usePropagationStop } from "../../../main"
 

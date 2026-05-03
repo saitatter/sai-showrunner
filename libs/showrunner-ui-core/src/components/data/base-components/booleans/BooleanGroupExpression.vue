@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { BooleanSubExpressionGroup, BooleanValueExpression } from "ShowRunner-schema"
+import { BooleanSubExpressionGroup, BooleanValueExpression } from "showrunner-schema"
 import BooleanGroupOperatorSelector from "./BooleanGroupOperatorSelector.vue"
 import BooleanValueExpressionEditor from "./BooleanValueExpressionEditor.vue"
 
@@ -53,7 +53,7 @@ import { computed, ref, useModel } from "vue"
 import PButton from "primevue/button"
 import { useDrop } from "../../../../main"
 import { nanoid } from "nanoid/non-secure"
-import { BooleanExpressionGroup } from "ShowRunner-schema"
+import { BooleanExpressionGroup } from "showrunner-schema"
 import { useBooleanExpressionEvaluator } from "./boolean-helpers"
 
 const props = withDefaults(

@@ -1,4 +1,4 @@
-import { computed, ref, type ComputedRef, type Ref } from "vue"
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, type ComputedRef, type Ref } from "vue"
 
 /**
  * A data-flow connection between an output port of one node and an input port of another.
@@ -46,6 +46,16 @@ export interface PortNodeInfo {
 	configLines?: { label: string; value: string }[]
 }
 
+export interface DataWireValidation {
+	valid: boolean
+	message?: string
+}
+
+interface PortPosition {
+	x: number
+	y: number
+}
+
 const NODE_WIDTH = 220
 const NODE_BASE_HEIGHT = 74
 const CONFIG_LINE_HEIGHT = 20
@@ -80,10 +90,23 @@ export function areTypesCompatible(fromType: string, toType: string): boolean {
 	toType = normalizePortType(toType)
 	if (fromType === toType) return true
 	if (fromType === "any" || toType === "any") return true
-	// Numeric promotions
-	if (fromType === "num" && toType === "str") return true
-	if (fromType === "bool" && toType === "str") return true
-	if (fromType === "bool" && toType === "num") return true
+	return false
+}
+
+export function wouldCreateDataWireCycle(wires: DataWire[], fromNode: string, toNode: string): boolean {
+	const visited = new Set<string>()
+	const stack = [toNode]
+	while (stack.length > 0) {
+		const current = stack.pop()!
+		if (current === fromNode) return true
+		if (visited.has(current)) continue
+		visited.add(current)
+		for (const wire of wires) {
+			if (wire.fromNode === current) {
+				stack.push(wire.toNode)
+			}
+		}
+	}
 	return false
 }
 
@@ -136,40 +159,88 @@ export function usePortConnections(
 	commitUndo: () => void
 ) {
 	const wireDrag = ref<WireDragState | null>(null)
+	const layoutVersion = ref(0)
 	/** Wire that was disconnected at drag start (for restoring on cancel) */
 	let disconnectedWire: DataWire | null = null
+	let layoutFrame: number | undefined
+	let resizeObserver: ResizeObserver | undefined
+
+	function scheduleLayoutRefresh() {
+		if (layoutFrame != null) cancelAnimationFrame(layoutFrame)
+		nextTick(() => {
+			layoutFrame = requestAnimationFrame(() => {
+				layoutVersion.value += 1
+				layoutFrame = undefined
+			})
+		})
+	}
+
+	onMounted(() => {
+		scheduleLayoutRefresh()
+		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
+		if (surface && typeof ResizeObserver !== "undefined") {
+			resizeObserver = new ResizeObserver(scheduleLayoutRefresh)
+			resizeObserver.observe(surface)
+		}
+	})
+
+	onUnmounted(() => {
+		if (layoutFrame != null) cancelAnimationFrame(layoutFrame)
+		resizeObserver?.disconnect()
+	})
+
+	watch(nodes, scheduleLayoutRefresh, { deep: true, flush: "post" })
+	watch(dataWires, scheduleLayoutRefresh, { deep: true, flush: "post" })
+
+	const renderedPortPositions = computed(() => {
+		layoutVersion.value
+		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
+		const positions = new Map<string, PortPosition>()
+		if (!surface) return positions
+
+		const surfaceRect = surface.getBoundingClientRect()
+		const elements = surface.querySelectorAll<HTMLElement>("[data-port-node-id]")
+		for (const element of elements) {
+			const nodeId = element.dataset.portNodeId
+			const portKey = element.dataset.portKey
+			const kind = element.dataset.portKind
+			if (!nodeId || !portKey || (kind !== "in" && kind !== "out")) continue
+
+			const portRect = element.getBoundingClientRect()
+			positions.set(portPositionKey(nodeId, portKey, kind), {
+				x: (portRect.left + portRect.width / 2 - surfaceRect.left) / zoom.value,
+				y: (portRect.top + portRect.height / 2 - surfaceRect.top) / zoom.value,
+			})
+		}
+		return positions
+	})
 
 	/** Computed: wire paths for rendering */
 	const dataWirePaths = computed(() => {
 		const byId = new Map(nodes.value.map((n) => [n.id, n]))
+		const portPositions = renderedPortPositions.value
 		return dataWires.value.flatMap((wire) => {
 			const fromNode = byId.get(wire.fromNode)
 			const toNode = byId.get(wire.toNode)
 			if (!fromNode || !toNode) return []
-			const start = getPortPosition(fromNode, wire.fromPort, "out")
-			const end = getPortPosition(toNode, wire.toPort, "in")
+			const start =
+				getRenderedPortPosition(portPositions, wire.fromNode, wire.fromPort, "out") ?? getPortPosition(fromNode, wire.fromPort, "out")
+			const end = getRenderedPortPosition(portPositions, wire.toNode, wire.toPort, "in") ?? getPortPosition(toNode, wire.toPort, "in")
 			if (!start || !end) return []
 			const fromPort = fromNode.outputPorts?.find((p) => p.key === wire.fromPort)
 			const toPort = toNode.inputPorts?.find((p) => p.key === wire.toPort)
 			const sourceType = fromPort?.type ?? "any"
-			const targetType = toPort?.type ?? "any"
-			const valid = Boolean(fromPort && toPort && areTypesCompatible(sourceType, targetType))
+			const validation = validateResolvedWire(fromPort, toPort)
 			return [{
 				id: wire.id,
 				path: bezierPath(start.x, start.y, end.x, end.y),
-				color: valid ? portTypeColor(sourceType) : "#ef5350",
+				color: validation.valid ? portTypeColor(sourceType) : "#ef5350",
 				fromNode: wire.fromNode,
 				fromPort: wire.fromPort,
 				toNode: wire.toNode,
 				toPort: wire.toPort,
-				valid,
-				validationMessage: valid
-					? undefined
-					: !fromPort
-						? `Missing output port: ${wire.fromPort}`
-						: !toPort
-							? `Missing input port: ${wire.toPort}`
-							: `Incompatible wire: ${sourceType} -> ${targetType}`,
+				valid: validation.valid,
+				validationMessage: validation.message,
 			}]
 		})
 	})
@@ -183,11 +254,25 @@ export function usePortConnections(
 		const startY = drag.fromY
 		const endX = drag.currentX
 		const endY = drag.currentY
+		const target = findNearestPortForDrag(drag)
+		const validation = target ? validateDragTarget(drag, target) : { valid: true }
 		return {
 			path: isFromOutput
 				? bezierPath(startX, startY, endX, endY)
 				: bezierPath(endX, endY, startX, startY),
-			color: "#fff8",
+			color: validation.valid ? "#fff8" : "#ef5350",
+			valid: validation.valid,
+			validationMessage: validation.message,
+		}
+	})
+	const dragPortPreview = computed(() => {
+		const drag = wireDrag.value
+		if (!drag) return undefined
+		const target = findNearestPortForDrag(drag)
+		if (!target) return undefined
+		return {
+			...target,
+			...validateDragTarget(drag, target),
 		}
 	})
 
@@ -196,7 +281,8 @@ export function usePortConnections(
 		event.preventDefault()
 		const node = nodes.value.find((n) => n.id === nodeId)
 		if (!node) return
-		const pos = getPortPosition(node, portKey, kind)
+		const portPositions = renderedPortPositions.value
+		const pos = getRenderedPortPosition(portPositions, nodeId, portKey, kind) ?? getPortPosition(node, portKey, kind)
 		if (!pos) return
 
 		disconnectedWire = null
@@ -207,7 +293,10 @@ export function usePortConnections(
 			if (existingIdx >= 0) {
 				const existing = dataWires.value[existingIdx]
 				const fromNode = nodes.value.find((n) => n.id === existing.fromNode)
-				const fromPos = fromNode ? getPortPosition(fromNode, existing.fromPort, "out") : undefined
+				const fromPos = fromNode
+					? getRenderedPortPosition(portPositions, existing.fromNode, existing.fromPort, "out") ??
+						getPortPosition(fromNode, existing.fromPort, "out")
+					: undefined
 				disconnectedWire = { ...existing }
 				dataWires.value.splice(existingIdx, 1)
 				if (fromPos && fromNode) {
@@ -268,9 +357,9 @@ export function usePortConnections(
 			const fromPort = drag.fromKind === "out" ? drag.fromPort : target.portKey
 			const toNode = drag.fromKind === "out" ? target.nodeId : drag.fromNode
 			const toPort = drag.fromKind === "out" ? target.portKey : drag.fromPort
+			const validation = validateDragTarget(drag, target)
 
-			// Don't connect a node to itself
-			if (fromNode !== toNode && !wouldCreateCycle(fromNode, toNode)) {
+			if (validation.valid) {
 				// Remove existing wire to this input (one wire per input port)
 				const existingIdx = dataWires.value.findIndex((w) => w.toNode === toNode && w.toPort === toPort)
 				if (existingIdx >= 0) dataWires.value.splice(existingIdx, 1)
@@ -295,23 +384,8 @@ export function usePortConnections(
 		wireDrag.value = null
 	}
 
-	/** Check if adding an edge fromNode→toNode would create a cycle in the data wire graph */
 	function wouldCreateCycle(fromNode: string, toNode: string): boolean {
-		// Walk forward from toNode through existing wires; if we reach fromNode, it's a cycle
-		const visited = new Set<string>()
-		const stack = [toNode]
-		while (stack.length > 0) {
-			const current = stack.pop()!
-			if (current === fromNode) return true
-			if (visited.has(current)) continue
-			visited.add(current)
-			for (const wire of dataWires.value) {
-				if (wire.fromNode === current) {
-					stack.push(wire.toNode)
-				}
-			}
-		}
-		return false
+		return wouldCreateDataWireCycle(dataWires.value, fromNode, toNode)
 	}
 
 	function findPortUnderCursor(event: PointerEvent, drag: WireDragState): PortAddress | undefined {
@@ -322,6 +396,7 @@ export function usePortConnections(
 		}
 
 		const SNAP_RADIUS = 34 / zoom.value
+		const portPositions = renderedPortPositions.value
 
 		for (const node of nodes.value) {
 			if (node.id === drag.fromNode && targetKind === drag.fromKind) continue
@@ -329,9 +404,11 @@ export function usePortConnections(
 			if (!ports) continue
 			for (const port of ports) {
 				const pos = getPortPosition(node, port.key, targetKind)
-				if (!pos) continue
-				const dx = pos.x - drag.currentX
-				const dy = pos.y - drag.currentY
+				const renderedPos = getRenderedPortPosition(portPositions, node.id, port.key, targetKind)
+				const portPosition = renderedPos ?? pos
+				if (!portPosition) continue
+				const dx = portPosition.x - drag.currentX
+				const dy = portPosition.y - drag.currentY
 				if (Math.sqrt(dx * dx + dy * dy) < SNAP_RADIUS) {
 					if (isCompatibleTarget(drag, { nodeId: node.id, portKey: port.key, kind: targetKind })) {
 						return { nodeId: node.id, portKey: port.key, kind: targetKind }
@@ -340,6 +417,33 @@ export function usePortConnections(
 			}
 		}
 		return undefined
+	}
+
+	function findNearestPortForDrag(drag: WireDragState): PortAddress | undefined {
+		const targetKind = drag.fromKind === "out" ? "in" : "out"
+		const SNAP_RADIUS = 34 / zoom.value
+		const portPositions = renderedPortPositions.value
+
+		let nearest: { address: PortAddress; distance: number } | undefined
+		for (const node of nodes.value) {
+			const ports = targetKind === "in" ? node.inputPorts : node.outputPorts
+			if (!ports) continue
+			for (const port of ports) {
+				const renderedPos = getRenderedPortPosition(portPositions, node.id, port.key, targetKind)
+				const portPosition = renderedPos ?? getPortPosition(node, port.key, targetKind)
+				if (!portPosition) continue
+				const dx = portPosition.x - drag.currentX
+				const dy = portPosition.y - drag.currentY
+				const distance = Math.sqrt(dx * dx + dy * dy)
+				if (distance < SNAP_RADIUS && (!nearest || distance < nearest.distance)) {
+					nearest = {
+						address: { nodeId: node.id, portKey: port.key, kind: targetKind },
+						distance,
+					}
+				}
+			}
+		}
+		return nearest?.address
 	}
 
 	function updateDragPoint(event: PointerEvent) {
@@ -361,6 +465,10 @@ export function usePortConnections(
 		return { nodeId, portKey, kind: expectedKind }
 	}
 
+	function getRenderedPortPosition(positions: Map<string, PortPosition>, nodeId: string, portKey: string, kind: "in" | "out") {
+		return positions.get(portPositionKey(nodeId, portKey, kind))
+	}
+
 	function getPortDef(address: PortAddress) {
 		const node = nodes.value.find((n) => n.id === address.nodeId)
 		const ports = address.kind === "out" ? node?.outputPorts : node?.inputPorts
@@ -368,14 +476,29 @@ export function usePortConnections(
 	}
 
 	function isCompatibleTarget(drag: WireDragState, target: PortAddress): boolean {
-		if (target.nodeId === drag.fromNode) return false
+		return validateDragTarget(drag, target).valid
+	}
+
+	function validateDragTarget(drag: WireDragState, target: PortAddress): DataWireValidation {
 		const fromAddress: PortAddress = { nodeId: drag.fromNode, portKey: drag.fromPort, kind: drag.fromKind }
 		const fromPortDef = getPortDef(fromAddress)
 		const targetPortDef = getPortDef(target)
-		if (!fromPortDef || !targetPortDef) return false
+		if (target.nodeId === drag.fromNode) {
+			return { valid: false, message: "Data wires cannot connect a node to itself." }
+		}
+		if (!fromPortDef || !targetPortDef) return { valid: false, message: "Missing source or target port." }
 		const sourceType = drag.fromKind === "out" ? fromPortDef.type : targetPortDef.type
 		const destinationType = drag.fromKind === "out" ? targetPortDef.type : fromPortDef.type
-		return areTypesCompatible(sourceType, destinationType)
+		if (!areTypesCompatible(sourceType, destinationType)) {
+			return { valid: false, message: `Incompatible wire: ${sourceType} -> ${destinationType}` }
+		}
+
+		const fromNode = drag.fromKind === "out" ? drag.fromNode : target.nodeId
+		const toNode = drag.fromKind === "out" ? target.nodeId : drag.fromNode
+		if (wouldCreateCycle(fromNode, toNode)) {
+			return { valid: false, message: "Data wire would create a circular dependency." }
+		}
+		return { valid: true }
 	}
 
 	function deleteDataWire(wireId: string) {
@@ -390,9 +513,23 @@ export function usePortConnections(
 		wireDrag,
 		dataWirePaths,
 		dragWirePath,
+		dragPortPreview,
 		startWireDrag,
 		deleteDataWire,
 	}
+}
+
+function portPositionKey(nodeId: string, portKey: string, kind: "in" | "out") {
+	return `${kind}:${nodeId}:${portKey}`
+}
+
+function validateResolvedWire(fromPort: PortDef | undefined, toPort: PortDef | undefined): DataWireValidation {
+	if (!fromPort) return { valid: false, message: "Missing output port." }
+	if (!toPort) return { valid: false, message: "Missing input port." }
+	if (!areTypesCompatible(fromPort.type, toPort.type)) {
+		return { valid: false, message: `Incompatible wire: ${fromPort.type} -> ${toPort.type}` }
+	}
+	return { valid: true }
 }
 
 function bezierPath(x1: number, y1: number, x2: number, y2: number): string {

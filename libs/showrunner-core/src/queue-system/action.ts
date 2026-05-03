@@ -7,10 +7,11 @@ import {
 	IPCDurationConfig,
 	MaybePromise,
 	mapKeys,
-} from "ShowRunner-schema"
+	validateActionResultSchema,
+} from "showrunner-schema"
 import { AnalyticsService, ignoreReactivity, PluginManager } from "../index"
-import { Color } from "ShowRunner-schema"
-import { Schema, SchemaType } from "ShowRunner-schema"
+import { Color } from "showrunner-schema"
+import { Schema, SchemaType } from "showrunner-schema"
 import { initingPlugin } from "../plugins/plugin-init"
 import { type Plugin } from "../plugins/plugin"
 import { SemanticVersion, isArray } from "../util/type-helpers"
@@ -288,6 +289,7 @@ export function defineAction<ConfigSchema extends Schema, ResultSchema extends S
 	if (!initingPlugin) {
 		throw new Error("Can only be used while initing a plugin")
 	}
+	validateActionResultSchema(spec.id, spec.result)
 
 	const logger = usePluginLogger()
 

@@ -1,4 +1,4 @@
-import { OverlayTransitionAnimation } from "ShowRunner-plugin-overlays-shared"
+import { OverlayTransitionAnimation } from "showrunner-plugin-overlays-shared"
 import { CSSProperties } from "vue"
 
 export interface RevealAnimation {

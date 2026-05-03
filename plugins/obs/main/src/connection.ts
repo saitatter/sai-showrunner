@@ -13,7 +13,7 @@ import {
 	defineState,
 	onUnload,
 	Service,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import OBSWebSocket, { OBSEventTypes, OBSWebSocketError } from "obs-websocket-js"
 import {
 	OBSConnectionConfig,
@@ -21,9 +21,9 @@ import {
 	OBSSceneListItem,
 	OBSWSInput,
 	OBSWSSceneItem,
-} from "ShowRunner-plugin-obs-shared"
+} from "showrunner-plugin-obs-shared"
 
-import { isProcessRunning } from "ShowRunner-plugin-os-main"
+import { isProcessRunning } from "showrunner-plugin-os-main"
 
 import { nanoid } from "nanoid/non-secure"
 import _flatten from "lodash/flatten"

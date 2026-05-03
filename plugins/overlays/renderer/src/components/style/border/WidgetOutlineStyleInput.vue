@@ -40,8 +40,8 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaWidgetOutlineStyle, WidgetOutlineStyle } from "ShowRunner-plugin-overlays-shared"
-import { isHexColor } from "ShowRunner-schema"
+import { SchemaWidgetOutlineStyle, WidgetOutlineStyle } from "showrunner-plugin-overlays-shared"
+import { isHexColor } from "showrunner-schema"
 import {
 	SharedDataInputProps,
 	DataInputBase,
@@ -53,7 +53,7 @@ import {
 	useDataUIBinding,
 	useDataBinding,
 	CColorPicker,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { MenuItem } from "primevue/menuitem"
 import { computed, ref, useTemplateRef } from "vue"
 

@@ -1,7 +1,7 @@
-import { OverlayPluginOptions, OverlayWidgetComponent } from "ShowRunner-overlay-core"
-import overlaysPlugin from "ShowRunner-plugin-overlays-overlays"
-import randomPlugin from "ShowRunner-plugin-random-overlays"
-import twitchPlugin from "ShowRunner-plugin-twitch-overlays"
+import { OverlayPluginOptions, OverlayWidgetComponent } from "showrunner-overlay-core"
+import overlaysPlugin from "showrunner-plugin-overlays-overlays"
+import randomPlugin from "showrunner-plugin-random-overlays"
+import twitchPlugin from "showrunner-plugin-twitch-overlays"
 import { defineStore } from "pinia"
 import { ref, Component, computed, markRaw } from "vue"
 

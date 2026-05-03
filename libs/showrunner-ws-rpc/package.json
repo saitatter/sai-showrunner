@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-ws-rpc",
+	"name": "showrunner-ws-rpc",
 	"version": "0.0.1",
 	"description": "",
 	"main": "src/ws-rpc-main.ts",
@@ -15,8 +15,8 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"ShowRunner-schema": "workspace:^",
 		"lodash": "^4.17.21",
+		"showrunner-schema": "workspace:^",
 		"ws": "^8.16.0"
 	}
 }

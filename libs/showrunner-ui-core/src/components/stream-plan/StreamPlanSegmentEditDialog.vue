@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 import { createStreamPlanSegmentView, DocumentSelection, useDialogRef } from "../../main"
-import { createInlineAutomation, StreamPlanSegment } from "ShowRunner-schema"
+import { createInlineAutomation, StreamPlanSegment } from "showrunner-schema"
 import { StreamPlanSegmentView } from "./stream-plan-types"
 
 import { computed, onMounted, provide, ref } from "vue"

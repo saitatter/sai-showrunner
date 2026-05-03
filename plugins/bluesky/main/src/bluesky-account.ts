@@ -5,8 +5,8 @@ import {
 	resolveProjectPath,
 	ResourceStorage,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { BlueSkyAccountConfig, BlueSkyAccountSecrets } from "ShowRunner-plugin-bluesky-shared"
+} from "showrunner-core"
+import { BlueSkyAccountConfig, BlueSkyAccountSecrets } from "showrunner-plugin-bluesky-shared"
 
 import { CredentialSession, Agent } from "@atproto/api"
 import { nanoid } from "nanoid/non-secure"

@@ -4,7 +4,7 @@
  */
 import { type Ref } from "vue"
 import { nanoid } from "nanoid"
-import { useAppFeedback } from "ShowRunner-ui-core"
+import { useAppFeedback } from "showrunner-ui-core"
 import {
 	AutomationConfig,
 	type AutomationDataWire,
@@ -12,7 +12,7 @@ import {
 	type AutomationVariableNode,
 	type GraphEdge,
 	type GraphNode,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import type { NodePosition } from "./useNodeCanvas"
 import type { NodeData } from "./useNodeRendering"
 
@@ -34,7 +34,6 @@ export function useClipboard(
 	canvasRef: Ref<HTMLElement | undefined>,
 	zoomRef: Ref<number>,
 	commitUndo: () => void,
-	logActivity: (action: string, detail: string) => void,
 	clearSelection: () => void,
 ) {
 	let inMemoryClipboard = ""
@@ -66,7 +65,6 @@ export function useClipboard(
 		navigator.clipboard.writeText(payload).catch((err) => {
 			feedback.warn("Using in-memory clipboard fallback", err instanceof Error ? err.message : String(err), 2500)
 		})
-		logActivity("Copied", `${graphNodes.length + copiedVarNodes.length} node${(graphNodes.length + copiedVarNodes.length) === 1 ? "" : "s"}`)
 	}
 
 	function cutSelectedNodes() {
@@ -83,7 +81,6 @@ export function useClipboard(
 			dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
 		}
 		clearSelection()
-		logActivity("Cut", `${idsToDelete.length} node${idsToDelete.length === 1 ? "" : "s"}`)
 		commitUndo()
 	}
 
@@ -165,7 +162,6 @@ export function useClipboard(
 
 			selectedNodeIds.value = new Set(newIds)
 			selectedNodeId.value = newIds[0]
-			logActivity("Pasted", `${newIds.length} node${newIds.length === 1 ? "" : "s"}`)
 			commitUndo()
 		}
 

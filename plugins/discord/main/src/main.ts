@@ -1,4 +1,4 @@
-import { DiscordWebhookConfig } from "ShowRunner-plugin-discord-shared"
+import { DiscordWebhookConfig } from "showrunner-plugin-discord-shared"
 import {
 	defineAction,
 	defineTrigger,
@@ -10,10 +10,10 @@ import {
 	definePluginResource,
 	defineResourceSetting,
 	usePluginLogger,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { WebhookClient } from "discord.js"
 import { nanoid } from "nanoid/non-secure"
-import { FilePath } from "ShowRunner-schema"
+import { FilePath } from "showrunner-schema"
 import * as fs from "fs"
 import { Stream } from "stream"
 
@@ -34,7 +34,7 @@ class DiscordWebHook extends FileResource<DiscordWebhookConfig> {
 
 			this.client = new WebhookClient({ url: config.webhookUrl })
 		} else {
-			//@ts-ignore
+			// @ts-expect-error Empty config is filled by load() before use.
 			this._config = {}
 		}
 	}

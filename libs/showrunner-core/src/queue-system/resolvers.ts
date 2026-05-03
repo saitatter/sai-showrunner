@@ -1,4 +1,4 @@
-import { AutomationSource, InlineAutomation, Schema } from "ShowRunner-schema"
+import { AutomationSource, InlineAutomation, Schema } from "showrunner-schema"
 import { Service } from "../util/service"
 
 /**

@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { Duration } from "ShowRunner-schema"
+import { Duration } from "showrunner-schema"
 import DurationField from "./DurationField.vue"
 import { useDataBinding } from "../../../main"
 

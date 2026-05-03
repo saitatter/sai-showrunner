@@ -4,8 +4,8 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaDuration } from "ShowRunner-schema"
-import { Duration } from "ShowRunner-schema"
+import { SchemaDuration } from "showrunner-schema"
+import { Duration } from "showrunner-schema"
 import { SharedDataViewProps } from "../DataInputTypes"
 import DurationLabel from "../base-components/DurationLabel.vue"
 const props = defineProps<

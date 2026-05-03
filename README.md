@@ -132,6 +132,12 @@ Ready-made starters are available from `File → New Automation From Starter`:
 | `Twitch Bits Alert` | Twitch bits → Paid Alert widget |
 | `Starting Soon Scene Banner` | Publish a `scene.begin` banner |
 | `Ending Scene Banner` | Publish begin/end scene banner events |
+| `Paid Event -> Add to Alerts Queue` | YouTube paid event → queue worker automation |
+| `Queue Item Started -> Paid Alert Overlay -> Sound -> Complete` | Worker graph for queued paid alerts |
+| `Scene Begin -> Add to Scene Queue` | Scene event → queue worker automation |
+| `Queue Item Started -> Scene Banner -> Shader Layer -> Complete` | Worker graph for queued scene banners |
+
+Queues are the graph scheduler for moments that should not overlap, such as paid alerts, scene banners, and other timed stream beats. Everyday editing should still feel graph-native: an event graph uses `Add to Queue`, a worker graph starts with `Queue Item Started`, and the worker ends naturally or with `Complete Queue Item`.
 
 Recommended moderated chat flow:
 
@@ -145,7 +151,7 @@ Twitch/YouTube chat trigger
 
 `Filter Chat Message` sends `deliveryMode: "decisionOnly"` to `POST /v1/chat-events`, so moderation updates the queue and returns a verdict without publishing directly to an overlay.
 
-The starters intentionally leave overlay widget targets empty. After creating one, select each overlay action node and choose the target `Paid Alert`, `Scene Banner`, or future queue worker widget from the config panel.
+The starters intentionally leave queue, worker automation, overlay widget, and sound targets empty. After creating one, select each queue or overlay action node and choose the target resource from the config panel.
 
 ---
 

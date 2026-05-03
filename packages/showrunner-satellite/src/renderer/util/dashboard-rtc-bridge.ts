@@ -1,15 +1,15 @@
-import { DashboardConfig } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardConfig } from "showrunner-plugin-dashboards-shared"
 import {
 	useOnSatelliteMessage,
 	usePrimarySatelliteConnection,
 	useSatelliteConnection,
 	useSatelliteResourceStore,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { defineStore } from "pinia"
 import { computed, MaybeRefOrGetter, ref, toValue, watch } from "vue"
 
-import { RPCHandler, RPCMessage } from "ShowRunner-ws-rpc"
-import { ShowRunnerBridgeImplementation } from "ShowRunner-dashboard-core"
+import { RPCHandler, RPCMessage } from "showrunner-ws-rpc"
+import { ShowRunnerBridgeImplementation } from "showrunner-dashboard-core"
 
 export const useDashboardRTCBridge = defineStore("dashboard-rtc-bridge", () => {
 	const satelliteStore = useSatelliteConnection()
@@ -37,8 +37,6 @@ export const useDashboardRTCBridge = defineStore("dashboard-rtc-bridge", () => {
 	satelliteStore.registerRPCHandler(
 		"dashboard_setConfig",
 		async (connectionId: string, configData: DashboardConfig) => {
-			console.log("Dashboard Config Set", configData)
-
 			//Find new and deleted resource slots
 			const existingSlots = config.value.resourceSlots ?? []
 			const updatedSlots = configData.resourceSlots ?? []
@@ -199,7 +197,6 @@ export const useDashboardRTCBridge = defineStore("dashboard-rtc-bridge", () => {
 				}
 			},
 			async callRPC(id, ...args) {
-				console.log("CALLING RPC", id, args)
 				if (!connection.value?.id) throw new Error("No RPC CONNECTION")
 				return await satelliteStore.callRPC(
 					connection.value.id,

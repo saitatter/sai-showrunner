@@ -6,10 +6,10 @@
 </template>
 
 <script setup lang="ts">
-import { WidgetBackgroundGradient, WidgetGradientStyle } from "ShowRunner-plugin-overlays-shared"
+import { WidgetBackgroundGradient, WidgetGradientStyle } from "showrunner-plugin-overlays-shared"
 import WidgetBackgroundSettingsEdit from "./WidgetBackgroundSettingsEdit.vue"
 import WidgetGradientEdit from "../gradient/WidgetGradientEdit.vue"
-import { useDefaultableModel } from "ShowRunner-ui-core"
+import { useDefaultableModel } from "showrunner-ui-core"
 
 const model = defineModel<WidgetBackgroundGradient>()
 

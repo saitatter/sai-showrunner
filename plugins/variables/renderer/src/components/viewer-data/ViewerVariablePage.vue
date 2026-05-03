@@ -63,7 +63,7 @@ import {
 import PDataTable from "primevue/datatable"
 import PColumn from "primevue/column"
 import PButton from "primevue/button"
-import { DataView, useIpcCaller, useLazyViewerQuery, useViewerDataStore, CContextMenu } from "ShowRunner-ui-core"
+import { DataView, useIpcCaller, useLazyViewerQuery, useViewerDataStore, CContextMenu } from "showrunner-ui-core"
 import { computed, ref, watch, onMounted, effect } from "vue"
 import { useDialog } from "primevue/usedialog"
 import ViewerVariableEditDialog from "./ViewerVariableEditDialog.vue"
@@ -85,13 +85,6 @@ const sortOrder = ref<number>()
 
 const { viewers, updateRange, loading } = useLazyViewerQuery(sortField, sortOrder)
 
-// effect(() => {
-// 	console.log(sortField.value, " -> ", sortOrder.value)
-// 	for (let i = 0; i < viewers.value.length; ++i) {
-// 		console.log(`  ${i}:`, { ...viewers.value[i] })
-// 	}
-// })
-
 function createNew() {
 	dialog.open(ViewerVariableEditDialog, {
 		props: {
@@ -102,12 +95,9 @@ function createNew() {
 			modal: true,
 		},
 		async onClose(options) {
-			console.log("Close!", options)
 			if (!options?.data) {
 				return
 			}
-
-			console.log("CREATE!", options.data)
 
 			await viewerDataStore.createViewerVariable(options.data)
 		},

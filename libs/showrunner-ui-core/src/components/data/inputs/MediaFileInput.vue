@@ -30,16 +30,16 @@
 <script setup lang="ts">
 import DataInputBase from "../base-components/DataInputBase.vue"
 
-import { SchemaMediaFile, SchemaBase, normalizeMediaPath } from "ShowRunner-schema"
+import { SchemaMediaFile, SchemaBase, normalizeMediaPath } from "showrunner-schema"
 import { computed, nextTick, ref, useModel } from "vue"
 import { DropDownPanel, useMediaStore, usePropagationStop } from "../../../main"
-import { MediaMetadata } from "ShowRunner-schema"
+import { MediaMetadata } from "showrunner-schema"
 import { SharedDataInputProps } from "../DataInputTypes"
 
 import FilterInputBox from "../base-components/FilterInputBox.vue"
 
 import MediaDropDown from "../base-components/media/MediaDropDown.vue"
-import { MediaFile } from "ShowRunner-schema"
+import { MediaFile } from "showrunner-schema"
 import { useDataBinding, useUndoCommitter } from "../../../util/data-binding"
 
 const props = defineProps<

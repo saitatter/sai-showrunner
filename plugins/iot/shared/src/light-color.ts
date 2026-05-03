@@ -1,4 +1,4 @@
-import { Color, SchemaBase, registerType } from "ShowRunner-schema"
+import { Color, SchemaBase, registerType } from "showrunner-schema"
 import * as chromatism from "chromatism2"
 /**
  * hsb(hue(0-360),sat(0,100), bri(0,100))
@@ -99,7 +99,7 @@ export interface SchemaLightcolor extends SchemaBase<LightColor> {
 	template?: boolean
 }
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaTypeMap {
 		LightColor: [SchemaLightcolor, LightColor]
 	}

@@ -1,9 +1,9 @@
 import { defineStore } from "pinia"
 import { ComputedRef, MaybeRefOrGetter, computed, ref, toValue } from "vue"
-import { RPCHandler, RPCMessage } from "ShowRunner-ws-rpc"
-import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
-import { ShowRunnerBridgeImplementation, useOverlaySoundPlayer } from "ShowRunner-overlay-core"
-import { ViewerDataRow, ViewerDataObserver, IPCSchema } from "ShowRunner-schema"
+import { RPCHandler, RPCMessage } from "showrunner-ws-rpc"
+import { OverlayConfig } from "showrunner-plugin-overlays-shared"
+import { ShowRunnerBridgeImplementation, useOverlaySoundPlayer } from "showrunner-overlay-core"
+import { ViewerDataRow, ViewerDataObserver, IPCSchema } from "showrunner-schema"
 import { ipcParseSchema } from "./ipc-schema"
 
 export const useWebsocketBridge = defineStore("websocket-bridge", () => {
@@ -48,7 +48,6 @@ export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 		const wasConnected = connectionStatus.value === "connected" || connectionStatus.value === "reconnecting"
 		connectionStatus.value = wasConnected ? "reconnecting" : "connecting"
 
-		console.log("Connecting To ", `ws://${window.location.host}?overlay=${overlayId.value}`)
 		websocket = new WebSocket(`ws://${window.location.host}?overlay=${overlayId.value}`)
 
 		websocket.addEventListener("open", () => {

@@ -20,11 +20,11 @@
 		// "noUnusedParameters": true,
 		// "noFallthroughCasesInSwitch": true
 		"paths": {
-			"ShowRunner-dashboard-core": ["../ShowRunner-dashboard-core/src/dashboard-core-main.ts"],
-			"ShowRunner-plugin-dashboards-dashboard": ["../../plugins/dashboards/dashboard/src/main.ts"],
-			"ShowRunner-plugin-remote-dashboard": ["../../plugins/dashboards/dashboard/src/main.ts"]
-			// "ShowRunner-plugin-random-overlays": ["../../plugins/random/overlay/src/main.ts"],
-			// "ShowRunner-plugin-twitch-overlays": ["../../plugins/twitch/overlay/src/main.ts"]
+			"showrunner-dashboard-core": ["../showrunner-dashboard-core/src/dashboard-core-main.ts"],
+			"showrunner-plugin-dashboards-dashboard": ["../../plugins/dashboards/dashboard/src/main.ts"],
+			"showrunner-plugin-remote-dashboard": ["../../plugins/dashboards/dashboard/src/main.ts"]
+			// "showrunner-plugin-random-overlays": ["../../plugins/random/overlay/src/main.ts"],
+			// "showrunner-plugin-twitch-overlays": ["../../plugins/twitch/overlay/src/main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

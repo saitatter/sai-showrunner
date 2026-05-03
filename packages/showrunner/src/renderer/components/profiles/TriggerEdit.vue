@@ -83,7 +83,7 @@
 <script setup lang="ts">
 import { computed, markRaw, ref, useModel, onMounted, watch, provide } from "vue"
 import PButton from "primevue/button"
-import { type TriggerData, type AutomationConfig, ActionQueueConfig, Color, ResourceData } from "ShowRunner-schema"
+import { type TriggerData, type AutomationConfig, ActionQueueConfig, Color, ResourceData } from "showrunner-schema"
 import {
 	useTrigger,
 	DataInput,
@@ -101,12 +101,12 @@ import {
 	useDataUIBinding,
 	CTextInput,
 	useResource,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import isFunction from "lodash/isFunction"
 import { useVModel, asyncComputed } from "@vueuse/core"
-import { Schema } from "ShowRunner-schema"
+import { Schema } from "showrunner-schema"
 import _debounce from "lodash/debounce"
-import { constructDefault } from "ShowRunner-schema"
+import { constructDefault } from "showrunner-schema"
 import NodeAutomationEdit from "../automation/NodeAutomationEdit.vue"
 
 const stopPropagation = usePropagationStop()

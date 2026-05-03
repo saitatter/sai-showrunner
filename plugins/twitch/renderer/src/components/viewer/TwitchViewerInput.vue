@@ -56,8 +56,8 @@ import {
 	stopPropagation,
 	defaultStringIsTemplate,
 	useDataBinding,
-} from "ShowRunner-ui-core"
-import { TwitchViewerUnresolved, SchemaTwitchViewer, TwitchViewerDisplayData } from "ShowRunner-plugin-twitch-shared"
+} from "showrunner-ui-core"
+import { TwitchViewerUnresolved, SchemaTwitchViewer, TwitchViewerDisplayData } from "showrunner-plugin-twitch-shared"
 import { computed, onMounted, ref, useModel, watch, nextTick } from "vue"
 import { useViewerStore } from "../../util/viewer"
 import _debounce from "lodash/debounce"

@@ -35,7 +35,7 @@ import PMenubar from "primevue/menubar"
 import type { MenuItem } from "primevue/menuitem"
 import { computed, onMounted, ref } from "vue"
 import { ipcRenderer } from "electron"
-import { useIpcMessage, isDev } from "ShowRunner-ui-core"
+import { useIpcMessage, isDev } from "showrunner-ui-core"
 import { useDialog } from "primevue/usedialog"
 import { usePageStore } from "../../util/page-store"
 
@@ -65,7 +65,6 @@ async function toggleMax() {
 
 const windowState = ref<string>("unmaximized")
 useIpcMessage("windowFuncs", "stateChanged", (event, state: string) => {
-	console.log("Window State", state)
 	windowState.value = state
 })
 

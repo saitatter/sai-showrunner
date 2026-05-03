@@ -75,8 +75,8 @@ import {
 	useResourceEditDialog,
 	useResourceCreateDialog,
 	useResourceDeleteDialog,
-} from "ShowRunner-ui-core"
-import { ActionQueueState, ActionQueueConfig, AutomationSource, ResourceData } from "ShowRunner-schema"
+} from "showrunner-ui-core"
+import { ActionQueueState, ActionQueueConfig, AutomationSource, ResourceData } from "showrunner-schema"
 import PButton from "primevue/button"
 import PDataTable from "primevue/datatable"
 import PColumn from "primevue/column"

@@ -19,6 +19,18 @@ export interface ContextMenuGroup {
 	items: ContextMenuItem[]
 }
 
+export interface ContextMenuSearchItem extends ContextMenuItem {
+	kind: "action" | "trigger"
+}
+
+interface ActionCategoryDefinition {
+	id: string
+	name: string
+	icon: string
+	color: string
+	matches: (item: ContextMenuItem) => boolean
+}
+
 interface MenuNode {
 	id: string
 	title: string
@@ -30,6 +42,7 @@ interface MenuLane {
 
 interface PluginStoreLike {
 	pluginMap: Map<string, any>
+	isPluginEnabled?: (pluginId: string) => boolean
 }
 
 export function useNodeContextMenu(
@@ -47,6 +60,13 @@ export function useNodeContextMenu(
 	const contextMenuOpenGroups = ref<Record<string, boolean>>({
 		triggers: true,
 		actions: true,
+		categories: true,
+		"category:data-transforms": true,
+		"category:queues": true,
+		"category:overlays": true,
+		"category:obs": true,
+		"category:chat": true,
+		"category:utility": true,
 	})
 
 	const contextMenuSearch = computed(() => contextMenuQuery.value.trim().toLowerCase())
@@ -61,22 +81,59 @@ export function useNodeContextMenu(
 			icon: entry.icon || "mdi mdi-play",
 		}))
 	)
+	const actionCategoryGroups = computed(() =>
+		buildActionCategoryGroups(actionContextGroups.value.flatMap((group) => group.items))
+	)
+	const conversionContextItems = computed(() =>
+		actionContextGroups.value
+			.flatMap((group) => group.items)
+			.filter((item) => {
+				const actionId = item.key.split(":").slice(1).join(":")
+				return CONVERSION_ACTION_IDS.has(actionId)
+			})
+			.sort((a, b) => a.name.localeCompare(b.name))
+	)
 	const triggerContextGroups = computed(() =>
 		buildContextGroups("triggers", (plugin) => plugin.triggers, (entry) => ({
 			name: entry.name,
 			icon: entry.icon || "mdi mdi-flash",
 		}))
 	)
+	const contextMenuSearchItems = computed<ContextMenuSearchItem[]>(() => {
+		if (!contextMenuSearch.value) return []
+		return [
+			...triggerContextGroups.value.flatMap((group) => group.items.map((item) => ({ ...item, kind: "trigger" as const }))),
+			...actionContextGroups.value.flatMap((group) => group.items.map((item) => ({ ...item, kind: "action" as const }))),
+		].sort((a, b) => a.name.localeCompare(b.name))
+	})
+	const disabledContextMenuSearchItems = computed<ContextMenuSearchItem[]>(() => {
+		const query = contextMenuSearch.value
+		if (!query) return []
+		return [
+			...buildSearchItemsForPlugins("triggers", (plugin) => plugin.triggers, (entry) => ({
+				name: entry.name,
+				icon: entry.icon || "mdi mdi-flash",
+			}), false).map((item) => ({ ...item, kind: "trigger" as const })),
+			...buildSearchItemsForPlugins("actions", (plugin) => filterRegularActions(plugin.actions), (entry) => ({
+				name: entry.name,
+				icon: entry.icon || "mdi mdi-play",
+			}), false).map((item) => ({ ...item, kind: "action" as const })),
+		].sort((a, b) => a.name.localeCompare(b.name))
+	})
 
 	function openContextMenu(event: MouseEvent, nodeId?: string) {
+		openContextMenuAt(event.clientX, event.clientY, getCanvasPointFromClient(event.clientX, event.clientY), nodeId)
+	}
+
+	function openContextMenuAt(clientX: number, clientY: number, canvasPoint?: NodePosition, nodeId?: string) {
 		const menuWidth = 340
 		const menuHeight = 520
 		contextMenu.value = {
 			open: true,
-			x: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
-			y: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8)),
+			x: Math.max(8, Math.min(clientX, window.innerWidth - menuWidth - 8)),
+			y: Math.max(8, Math.min(clientY, window.innerHeight - menuHeight - 8)),
 			nodeId,
-			canvasPoint: getCanvasPointFromClient(event.clientX, event.clientY),
+			canvasPoint,
 		}
 		contextMenuQuery.value = ""
 
@@ -106,6 +163,7 @@ export function useNodeContextMenu(
 	): ContextMenuGroup[] {
 		const query = contextMenuSearch.value
 		return [...pluginStore.pluginMap.values()]
+			.filter((plugin) => pluginStore.isPluginEnabled?.(plugin.id) ?? true)
 			.map((plugin) => {
 				const items = Object.entries(getEntries(plugin) || {})
 					.map(([id, entry]) => {
@@ -135,6 +193,54 @@ export function useNodeContextMenu(
 			.sort((a, b) => a.name.localeCompare(b.name))
 	}
 
+	function buildSearchItemsForPlugins(
+		kind: "actions" | "triggers",
+		getEntries: (plugin: any) => Record<string, any>,
+		getMeta: (entry: any) => { name: string; icon: string },
+		enabled: boolean
+	): ContextMenuItem[] {
+		const query = contextMenuSearch.value
+		return [...pluginStore.pluginMap.values()]
+			.filter((plugin) => (pluginStore.isPluginEnabled?.(plugin.id) ?? true) === enabled)
+			.flatMap((plugin) =>
+				Object.entries(getEntries(plugin) || {})
+					.map(([id, entry]) => {
+						const meta = getMeta(entry)
+						return {
+							key: `${plugin.id}:${id}`,
+							pluginId: plugin.id,
+							pluginName: plugin.name,
+							name: meta.name,
+							icon: meta.icon,
+							color: String(plugin.color || "#e9aaff"),
+							searchText: `${kind} ${plugin.name} ${plugin.id} ${meta.name} ${id}`.toLowerCase(),
+						}
+					})
+					.filter((item) => item.searchText.includes(query))
+			)
+	}
+
+	function buildActionCategoryGroups(items: ContextMenuItem[]): ContextMenuGroup[] {
+		const grouped = new Map<string, ContextMenuItem[]>()
+		for (const item of items) {
+			const category = ACTION_CATEGORY_DEFINITIONS.find((definition) => definition.matches(item))
+			if (!category) continue
+			const list = grouped.get(category.id) ?? []
+			list.push(item)
+			grouped.set(category.id, list)
+		}
+
+		return ACTION_CATEGORY_DEFINITIONS
+			.map((definition) => ({
+				id: definition.id,
+				name: definition.name,
+				icon: definition.icon,
+				color: definition.color,
+				items: (grouped.get(definition.id) ?? []).sort((a, b) => a.name.localeCompare(b.name)),
+			}))
+			.filter((group) => group.items.length)
+	}
+
 	function filterRegularActions(actions: Record<string, any> | undefined) {
 		return Object.fromEntries(Object.entries(actions ?? {}).filter(([, action]) => action?.type === "regular"))
 	}
@@ -144,10 +250,90 @@ export function useNodeContextMenu(
 		contextMenuQuery,
 		contextMenuSubtitle,
 		actionContextGroups,
+		actionCategoryGroups,
+		conversionContextItems,
 		triggerContextGroups,
+		contextMenuSearchItems,
+		disabledContextMenuSearchItems,
 		openContextMenu,
+		openContextMenuAt,
 		closeContextMenu,
 		toggleContextGroup,
 		isContextGroupOpen,
 	}
+}
+
+const CONVERSION_ACTION_IDS = new Set([
+	"convertNumberToString",
+	"convertBooleanToString",
+	"convertStringToNumber",
+	"convertBooleanToNumber",
+	"convertNumberToBoolean",
+	"convertStringToBoolean",
+	"convertObjectToJsonString",
+	"convertArrayToJsonString",
+	"convertJsonStringToObject",
+	"convertJsonStringToArray",
+])
+
+const ACTION_CATEGORY_DEFINITIONS: ActionCategoryDefinition[] = [
+	{
+		id: "data-transforms",
+		name: "Data Transforms",
+		icon: "mdi mdi-swap-horizontal",
+		color: "#81c784",
+		matches: (item) => {
+			const text = categoryText(item)
+			return text.includes("convert") || text.includes("parse") || text.includes("json") || text.includes("stringify")
+		},
+	},
+	{
+		id: "queues",
+		name: "Queues",
+		icon: "mdi mdi-tray-full",
+		color: "#ffcf5a",
+		matches: (item) => categoryText(item).includes("queue"),
+	},
+	{
+		id: "overlays",
+		name: "Overlays",
+		icon: "mdi mdi-layers-outline",
+		color: "#ce93d8",
+		matches: (item) => {
+			const text = categoryText(item)
+			return item.pluginId.toLowerCase() === "overlays" || text.includes("overlay") || text.includes("alert") || text.includes("banner") || text.includes("shader")
+		},
+	},
+	{
+		id: "obs",
+		name: "OBS",
+		icon: "mdi mdi-broadcast",
+		color: "#64b5f6",
+		matches: (item) => item.pluginId.toLowerCase() === "obs",
+	},
+	{
+		id: "chat",
+		name: "Chat",
+		icon: "mdi mdi-message-text-outline",
+		color: "#4dd0e1",
+		matches: (item) => {
+			const pluginId = item.pluginId.toLowerCase()
+			const text = categoryText(item)
+			return ["twitch", "youtube", "discord", "moderation"].includes(pluginId) || text.includes("chat") || text.includes("message") || text.includes("announce") || text.includes("shoutout")
+		},
+	},
+	{
+		id: "utility",
+		name: "Utility",
+		icon: "mdi mdi-toolbox-outline",
+		color: "#b0bec5",
+		matches: (item) => {
+			const pluginId = item.pluginId.toLowerCase()
+			return ["http", "os", "random", "time", "variables", "input", "sound", "remote"].includes(pluginId)
+		},
+	},
+]
+
+function categoryText(item: ContextMenuItem) {
+	return `${item.pluginId} ${item.pluginName} ${item.key} ${item.name} ${item.searchText}`.toLowerCase()
 }

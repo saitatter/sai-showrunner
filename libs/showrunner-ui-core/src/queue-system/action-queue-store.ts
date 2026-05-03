@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { useIpcCaller, handleIpcMessage } from "../main"
-import { AutomationData } from "ShowRunner-schema"
+import { AutomationData } from "showrunner-schema"
 import { nanoid } from "nanoid/non-secure"
 import { MaybeRefOrGetter, computed, ref, toValue, inject, ComputedRef, nextTick } from "vue"
 

@@ -1,5 +1,5 @@
 import _cloneDeep from "lodash/cloneDeep"
-import { ProfileConfig, ProfileState, ResourceData } from "ShowRunner-schema"
+import { ProfileConfig, ProfileState, ResourceData } from "showrunner-schema"
 import {
 	ProfileView,
 	ProjectGroup,

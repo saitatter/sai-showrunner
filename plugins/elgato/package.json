@@ -1,5 +1,5 @@
 {
-    "name": "ShowRunner-plugin-elgato",
+    "name": "showrunner-plugin-elgato",
     "private": true,
     "version": "0.0.1",
     "type": "module",

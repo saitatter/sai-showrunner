@@ -13,7 +13,8 @@ import {
 	IPCDurationConfig,
 	IPCSettingsDefinition,
 	IPCStateDefinition,
-} from "ShowRunner-schema"
+	validateActionResultSchema,
+} from "showrunner-schema"
 
 import { computed, ref, unref, type MaybeRefOrGetter, toValue, Component, markRaw, onMounted, onUnmounted } from "vue"
 
@@ -64,9 +65,7 @@ function ipcParseActionDefinition(def: IPCActionDefinition): ActionDefinition {
 	} else if (def.type == "regular") {
 		const resultSchema = def.result ? ipcParseSchema(def.result) : undefined
 
-		if (resultSchema && !(resultSchema.type == Object && "properties" in resultSchema)) {
-			throw new Error("Results Must be Objects")
-		}
+		validateActionResultSchema(def.id, resultSchema)
 
 		return {
 			type: "regular",
@@ -209,9 +208,26 @@ export interface SettingsChange {
 }
 
 export type SettingUpdateWatcher = (plugin: string, setting: string, value: any) => any
+const PLUGIN_VISIBILITY_STORAGE_KEY = "showrunner.disabledPlugins.v1"
+
+function loadDisabledPluginIds() {
+	if (typeof window === "undefined") return new Set<string>()
+	try {
+		const parsed = JSON.parse(window.localStorage.getItem(PLUGIN_VISIBILITY_STORAGE_KEY) || "[]")
+		return new Set(Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [])
+	} catch {
+		return new Set<string>()
+	}
+}
+
+function saveDisabledPluginIds(ids: Set<string>) {
+	if (typeof window === "undefined") return
+	window.localStorage.setItem(PLUGIN_VISIBILITY_STORAGE_KEY, JSON.stringify([...ids].sort()))
+}
 
 export const usePluginStore = defineStore("plugins", () => {
 	const pluginMap = ref<Map<string, PluginDefinition>>(new Map())
+	const disabledPluginIds = ref<Set<string>>(new Set())
 
 	const getPluginIds = useIpcCaller<() => string[]>("plugins", "getPluginIds")
 	const getPlugin = useIpcCaller<(id: string) => IPCPluginDefinition>("plugins", "getPlugin")
@@ -220,8 +236,8 @@ export const usePluginStore = defineStore("plugins", () => {
 	const settingsUpdateWatchers = new Array<SettingUpdateWatcher>()
 
 	async function initialize() {
+		loadPluginVisibility()
 		handleIpcMessage("plugins", "registerPlugin", (event, plugin: IPCPluginDefinition) => {
-			//console.log("Registering Late Plugin", plugin.id)
 			pluginMap.value.set(plugin.id, ipcParsePluginDefinition(plugin))
 		})
 
@@ -271,7 +287,6 @@ export const usePluginStore = defineStore("plugins", () => {
 		})
 
 		const ids = await getPluginIds()
-		console.log("Received Plugin Ids", ids)
 
 		const plugins = await Promise.allSettled(ids.map((id) => getPlugin(id)))
 
@@ -284,8 +299,35 @@ export const usePluginStore = defineStore("plugins", () => {
 				console.error(pluginResult.reason)
 			}
 		}
+	}
 
-		console.log("Loaded All Plugins", JSON.stringify(ids))
+	function isPluginEnabled(pluginId: string) {
+		return !disabledPluginIds.value.has(pluginId)
+	}
+
+	function setPluginEnabled(pluginId: string, enabled: boolean) {
+		const next = new Set(disabledPluginIds.value)
+		if (enabled) next.delete(pluginId)
+		else next.add(pluginId)
+		disabledPluginIds.value = next
+		savePluginVisibility()
+	}
+
+	function togglePluginEnabled(pluginId: string) {
+		setPluginEnabled(pluginId, !isPluginEnabled(pluginId))
+	}
+
+	function resetPluginVisibility() {
+		disabledPluginIds.value = new Set()
+		savePluginVisibility()
+	}
+
+	function loadPluginVisibility() {
+		disabledPluginIds.value = loadDisabledPluginIds()
+	}
+
+	function savePluginVisibility() {
+		saveDisabledPluginIds(disabledPluginIds.value)
 	}
 
 	function getAction(selection: ActionSelection): ActionDefinition | undefined {
@@ -295,6 +337,7 @@ export const usePluginStore = defineStore("plugins", () => {
 
 	async function createAction(selection: ActionSelection): Promise<ActionInfo | undefined> {
 		if (!selection.plugin || !selection.action) return undefined
+		if (!isPluginEnabled(selection.plugin)) return undefined
 		const action = getAction(selection)
 		if (!action) return undefined
 		if (action.type !== "regular") return undefined
@@ -340,7 +383,6 @@ export const usePluginStore = defineStore("plugins", () => {
 		if (actionDef.type != "regular") return
 		actionDef.actionComponent = markRaw(component)
 		actionDef.componentExtraProps = extraProps
-		console.log("Set Action Component", plugin, action, component)
 	}
 
 	function setFlowActionComponent<Props, C extends Component<Props>>(
@@ -362,7 +404,6 @@ export const usePluginStore = defineStore("plugins", () => {
 		if (actionDef.type != "flow") return
 		actionDef.flowComponent = markRaw(component)
 		actionDef.flowComponentExtraProps = extraProps
-		console.log("Set Flow Action Component", plugin, action, component)
 	}
 
 	function setTriggerHeaderComponent(plugin: string, trigger: string, component: Component) {
@@ -392,7 +433,6 @@ export const usePluginStore = defineStore("plugins", () => {
 			return
 		}
 
-		console.log("Setting Component", plugin, key, component)
 		settingDef.component = markRaw(component)
 	}
 
@@ -414,9 +454,14 @@ export const usePluginStore = defineStore("plugins", () => {
 
 	return {
 		pluginMap: computed(() => pluginMap.value),
+		disabledPluginIds: computed(() => disabledPluginIds.value),
 		initialize,
 		createAction,
 		getAction,
+		isPluginEnabled,
+		setPluginEnabled,
+		togglePluginEnabled,
+		resetPluginVisibility,
 		setActionComponent,
 		setFlowActionComponent,
 		setSettingComponent,
@@ -466,7 +511,6 @@ export function useTriggerColors(selection: MaybeRefOrGetter<TriggerSelection | 
 		darkestColor: darkestTriggerColor,
 		lighterColor: lighterTriggerColor,
 	} = useColors(trigger)
-	//console.log("Using Trigger Colors", toValue(selection), triggerColor.value)
 
 	const style = computed(() => {
 		return {

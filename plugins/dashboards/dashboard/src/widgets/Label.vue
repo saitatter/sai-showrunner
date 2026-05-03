@@ -6,10 +6,10 @@
 
 <script setup lang="ts">
 import * as chromatism from "chromatism2"
-import { Color } from "ShowRunner-schema"
-import { declareWidgetOptions, useCallDashboardRPC, useShowRunnerBridge, useIsEditor } from "ShowRunner-dashboard-core"
+import { Color } from "showrunner-schema"
+import { declareWidgetOptions, useCallDashboardRPC, useShowRunnerBridge, useIsEditor } from "showrunner-dashboard-core"
 import { computed, CSSProperties, onMounted, ref, watch } from "vue"
-import { DashboardWidgetSize } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardWidgetSize } from "showrunner-plugin-dashboards-shared"
 
 defineOptions({
 	widget: declareWidgetOptions({

@@ -8,10 +8,10 @@ import {
 	removeAllSubResource,
 	onSettingChanged,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { LightResource, PollingLight } from "ShowRunner-plugin-iot-main/src/light"
-import { LightColor, LightState } from "ShowRunner-plugin-iot-shared"
-import { Toggle } from "ShowRunner-schema"
+} from "showrunner-core"
+import { LightResource, PollingLight } from "showrunner-plugin-iot-main/src/light"
+import { LightColor, LightState } from "showrunner-plugin-iot-shared"
+import { Toggle } from "showrunner-schema"
 import EventEmitter from "events"
 import { Client, Light } from "lifx-lan-client"
 

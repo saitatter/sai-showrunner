@@ -1,4 +1,4 @@
-import { EmoteParsedString, EmoteSet, createEmoteRegex, parseEmotesRegex } from "ShowRunner-schema"
+import { EmoteParsedString, EmoteSet, createEmoteRegex, parseEmotesRegex } from "showrunner-schema"
 import { Service } from "../util/service"
 import { usePluginLogger } from "../logging/logging"
 

@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { MediaFile } from "ShowRunner-schema"
+import { MediaFile } from "showrunner-schema"
 import MediaTreeFile from "./MediaTreeFile.vue"
 import MediaTreeFolder from "./MediaTreeFolder.vue"
 import { MediaTreeItem } from "./media-tree-types"

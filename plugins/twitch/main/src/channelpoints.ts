@@ -11,9 +11,9 @@ import {
 	template,
 	templateSchema,
 	usePluginLogger,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { TwitchAccount } from "./twitch-auth"
-import { Color } from "ShowRunner-schema"
+import { Color } from "showrunner-schema"
 import {
 	ChannelPointRewardConfig,
 	ChannelPointRewardData,
@@ -22,7 +22,7 @@ import {
 	ChannelPointRewardTemplate,
 	TwitchViewer,
 	TwitchViewerGroup,
-} from "ShowRunner-plugin-twitch-shared"
+} from "showrunner-plugin-twitch-shared"
 import { EventSubChannelRewardEvent } from "@twurple/eventsub-base"
 import { HelixCreateCustomRewardData, HelixCustomReward } from "@twurple/api"
 import { nanoid } from "nanoid/non-secure"
@@ -32,9 +32,9 @@ import { inTwitchViewerGroup } from "./group"
 import { getRawData } from "@twurple/common"
 import * as fs from "fs/promises"
 import * as path from "path"
-import { ensureDirectory, loadYAML, resolveProjectPath, writeYAML } from "ShowRunner-core/src/io/file-system"
+import { ensureDirectory, loadYAML, resolveProjectPath, writeYAML } from "showrunner-core/src/io/file-system"
 import _debounce from "lodash/debounce"
-import { PluginManager } from "ShowRunner-core/src/plugins/plugin-manager"
+import { PluginManager } from "showrunner-core/src/plugins/plugin-manager"
 
 //Helper interface to work with both EventSubChannelRewardEvent and HelixCustomReward
 interface TwurpleReward {

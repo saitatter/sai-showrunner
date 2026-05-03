@@ -189,7 +189,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue"
-import { useIpcCaller } from "ShowRunner-ui-core"
+import { useIpcCaller } from "showrunner-ui-core"
 import { useToast } from "primevue/usetoast"
 
 interface YouTubeStatus {

@@ -1,5 +1,5 @@
-import { defineState, defineTrigger, startPerfTime, usePluginLogger } from "ShowRunner-core"
-import { Range } from "ShowRunner-schema"
+import { defineState, defineTrigger, startPerfTime, usePluginLogger } from "showrunner-core"
+import { Range } from "showrunner-schema"
 import { onChannelAuth } from "./api-harness"
 import {
 	EventSubBase,

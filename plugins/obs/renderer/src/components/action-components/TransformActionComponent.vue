@@ -6,11 +6,11 @@
 </template>
 
 <script setup lang="ts">
-import { Toggle } from "ShowRunner-schema"
+import { Toggle } from "showrunner-schema"
 import BaseObsActionComponent from "./BaseObsActionComponent.vue"
 import ObsSourceRef from "./ObsSourceRef.vue"
 import { computed } from "vue"
-import { OBSSourceTransform } from "ShowRunner-plugin-obs-shared"
+import { OBSSourceTransform } from "showrunner-plugin-obs-shared"
 
 const model = defineModel<{
 	obs: string

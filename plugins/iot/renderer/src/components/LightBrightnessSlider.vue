@@ -19,10 +19,10 @@
 
 <script setup lang="ts">
 import { ref, computed, useModel } from "vue"
-import { LightColor, LightColorObj } from "ShowRunner-plugin-iot-shared"
-import { Color } from "ShowRunner-schema"
+import { LightColor, LightColorObj } from "showrunner-plugin-iot-shared"
+import { Color } from "showrunner-schema"
 import { useEventListener } from "@vueuse/core"
-import { useCommitUndo, usePropagationStop } from "ShowRunner-ui-core"
+import { useCommitUndo, usePropagationStop } from "showrunner-ui-core"
 
 const props = defineProps<{
 	modelValue: LightColor | undefined
@@ -35,12 +35,11 @@ const parsedModel = computed<LightColorObj | undefined>({
 		return LightColor.parse(model.value)
 	},
 	set(v) {
-		if (v == null) {
-			model.value = undefined
-			return
-		}
-		console.log("New Value", v)
-		model.value = LightColor.serialize(v)
+	if (v == null) {
+		model.value = undefined
+		return
+	}
+	model.value = LightColor.serialize(v)
 	},
 })
 
@@ -110,7 +109,6 @@ useEventListener(
 		const localX = ev.clientX - rect.left
 		const localY = ev.clientY - rect.top
 
-		console.log("Move", localX, localY)
 		brightness.value = posToBrightness(localX, localY)
 	}
 )

@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { computed, MaybeRefOrGetter, Ref, ref, toValue } from "vue"
-import { MediaMetadata, normalizeMediaPath } from "ShowRunner-schema"
+import { MediaMetadata, normalizeMediaPath } from "showrunner-schema"
 import { ProjectItem, handleIpcMessage, useDockingStore, useIpcCaller, useIpcMessage, useProjectStore } from "../main"
 import MediaBrowserPage from "../components/media/MediaBrowserPage.vue"
 import { useFileDragDrop } from "../util/file-drop"
@@ -32,12 +32,10 @@ export const useMediaStore = defineStore("media", () => {
 
 	async function initialize() {
 		handleIpcMessage("media", "addMedia", (event, metadata: MediaMetadata) => {
-			console.log("Adding", metadata.path)
 			mediaMap.value[metadata.path] = metadata
 		})
 
 		handleIpcMessage("media", "removeMedia", (event, path: string) => {
-			console.log("Removing", path)
 			delete mediaMap.value[path]
 		})
 
@@ -91,7 +89,6 @@ export function useMediaDrop(
 			const basepath = toValue(subPath)
 
 			for (const file of files) {
-				console.log("DROP", file)
 				if (
 					!(
 						file.mimetype.startsWith("image") ||
@@ -108,15 +105,12 @@ export function useMediaDrop(
 				const proposedMediaPath = normalizeMediaPath(path.join(basepath, mediaName))
 
 				if (mediaStore.getMedia(proposedMediaPath)) {
-					console.log("ALREADY HAS PATH", proposedMediaPath)
 					continue
 				}
 
 				if (file.remote) {
-					console.log("DOWNLOAD", file.path, "to", proposedMediaPath)
 					mediaStore.downloadMedia(file.path, proposedMediaPath)
 				} else {
-					console.log("COPY", file.path, "to", proposedMediaPath)
 					mediaStore.copyMedia(file.path, proposedMediaPath)
 				}
 			}
