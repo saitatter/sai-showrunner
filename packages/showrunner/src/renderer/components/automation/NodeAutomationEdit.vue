@@ -164,7 +164,7 @@
 							@dragover.prevent.stop="dropTargetEdgeId = edge.id"
 							@dragleave.stop="clearDropEdge(edge.id)"
 							@drop.prevent.stop="dropActionOnEdge($event, edge)"
-							@click.stop="selectedEdgeId = edge.id"
+							@click.stop="selectFlowEdge(edge.id)"
 						/>
 						<path
 							v-for="edge in visibleFlowEdges"
@@ -201,7 +201,7 @@
 							class="node-automation__data-wire-hit"
 							:d="wire.path"
 							vector-effect="non-scaling-stroke"
-							@click.stop="selectedDataWireId = wire.id"
+							@click.stop="selectDataWire(wire.id)"
 						>
 							<title>{{ dataWireTitle(wire) }}</title>
 						</path>
@@ -1674,6 +1674,23 @@ function clearSelection() {
 	selectedNodeId.value = undefined
 	selectedNodeIds.value = new Set()
 	selectedEdgeId.value = undefined
+}
+
+function clearNodeSelection() {
+	selectedNodeId.value = undefined
+	selectedNodeIds.value = new Set()
+}
+
+function selectFlowEdge(edgeId: string) {
+	clearNodeSelection()
+	selectedDataWireId.value = undefined
+	selectedEdgeId.value = edgeId
+}
+
+function selectDataWire(wireId: string) {
+	clearNodeSelection()
+	selectedEdgeId.value = undefined
+	selectedDataWireId.value = wireId
 }
 
 function openPendingFlowContext(drop: {

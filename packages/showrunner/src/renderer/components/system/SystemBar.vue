@@ -292,6 +292,8 @@ const menuItems = computed<MenuItem[]>(() => {
 	padding: 0 !important;
 	border-radius: 0 !important;
 	min-height: 48px;
+	position: relative;
+	z-index: 1000;
 }
 
 .system-bar__brand {
@@ -333,5 +335,9 @@ const menuItems = computed<MenuItem[]>(() => {
 
 .system-bar :deep(.p-submenu-list .p-menuitem-separator) {
 	border-top-color: var(--surface-400);
+}
+
+.system-bar :deep(.p-submenu-list) {
+	z-index: 1001;
 }
 </style>
