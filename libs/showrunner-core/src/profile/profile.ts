@@ -6,6 +6,7 @@ import {
 	SchemaType,
 	createInlineAutomation,
 	AutomationGraph,
+	normalizeInlineAutomation,
 } from "ShowRunner-schema"
 import { Resource, ResourceStorage } from "../resources/resource"
 import { FileResource } from "../resources/file-resource"
@@ -51,7 +52,12 @@ export class Profile extends FileResource<ProfileConfig, ProfileState> {
 	}
 
 	async load(savedConfig: object): Promise<boolean> {
-		const result = await super.load(savedConfig)
+		const before = JSON.stringify(savedConfig)
+		const normalized = normalizeProfileConfig(savedConfig as Partial<ProfileConfig>)
+		const result = await super.load(normalized)
+		if (JSON.stringify(normalized) !== before) {
+			await this.save()
+		}
 		await this.setupReactivity()
 		return result
 	}
@@ -131,6 +137,14 @@ export class Profile extends FileResource<ProfileConfig, ProfileState> {
 			}
 		}
 	}
+}
+
+function normalizeProfileConfig(config: Partial<ProfileConfig>): ProfileConfig {
+	const base = config as ProfileConfig
+	base.triggers = Array.isArray(base.triggers) ? base.triggers.map((trigger) => normalizeInlineAutomation(trigger as any) as TriggerData) : []
+	base.activationAutomation = normalizeInlineAutomation((base.activationAutomation ?? createInlineAutomation()) as any)
+	base.deactivationAutomation = normalizeInlineAutomation((base.deactivationAutomation ?? createInlineAutomation()) as any)
+	return base
 }
 
 const logger = usePluginLogger("profiles")

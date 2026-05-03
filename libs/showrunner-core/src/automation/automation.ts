@@ -1,4 +1,4 @@
-import { AutomationConfig, createInlineAutomation } from "ShowRunner-schema"
+import { AutomationConfig, createInlineAutomation, normalizeAutomationConfig } from "ShowRunner-schema"
 import { FileResource } from "../resources/file-resource"
 import { ResourceStorage } from "../resources/resource"
 import { nanoid } from "nanoid/non-secure"
@@ -21,6 +21,16 @@ export class Automation extends FileResource<AutomationConfig> {
 		}
 
 		this.state = {}
+	}
+
+	async load(savedConfig: object): Promise<boolean> {
+		const before = JSON.stringify(savedConfig)
+		const normalized = normalizeAutomationConfig(savedConfig as Partial<AutomationConfig>)
+		const result = await super.load(normalized)
+		if (JSON.stringify(normalized) !== before) {
+			await this.save()
+		}
+		return result
 	}
 }
 

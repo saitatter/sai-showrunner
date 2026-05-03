@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid/non-secure"
-import { createInlineAutomation, StreamPlanConfig, StreamPlanState } from "ShowRunner-schema"
+import { createInlineAutomation, normalizeInlineAutomation, StreamPlanConfig, StreamPlanState } from "ShowRunner-schema"
 import { FileResource } from "../resources/file-resource"
 import { Service } from "../util/service"
 import { ActionQueueManager } from "../queue-system/action-queue"
@@ -33,6 +33,16 @@ export class StreamPlan extends FileResource<StreamPlanConfig, StreamPlanState> 
 		this.state = {
 			active: false,
 		}
+	}
+
+	async load(savedConfig: object): Promise<boolean> {
+		const before = JSON.stringify(savedConfig)
+		const normalized = normalizeStreamPlanConfig(savedConfig as Partial<StreamPlanConfig>)
+		const result = await super.load(normalized)
+		if (JSON.stringify(normalized) !== before) {
+			await this.save()
+		}
+		return result
 	}
 
 	private async deactivateSegment(id: string) {
@@ -108,6 +118,20 @@ export class StreamPlan extends FileResource<StreamPlanConfig, StreamPlanState> 
 
 		this.state.active = false
 	}
+}
+
+function normalizeStreamPlanConfig(config: Partial<StreamPlanConfig>): StreamPlanConfig {
+	const base = config as StreamPlanConfig
+	base.activationAutomation = normalizeInlineAutomation((base.activationAutomation ?? createInlineAutomation()) as any)
+	base.deactivationAutomation = normalizeInlineAutomation((base.deactivationAutomation ?? createInlineAutomation()) as any)
+	base.segments = Array.isArray(base.segments)
+		? base.segments.map((segment) => ({
+			...segment,
+			activationAutomation: normalizeInlineAutomation((segment.activationAutomation ?? createInlineAutomation()) as any),
+			deactivationAutomation: normalizeInlineAutomation((segment.deactivationAutomation ?? createInlineAutomation()) as any),
+		}))
+		: []
+	return base
 }
 
 export interface StreamPlanComponent<Config = any> {

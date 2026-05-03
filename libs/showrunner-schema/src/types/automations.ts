@@ -18,6 +18,7 @@ export interface AutomationVariableNode {
 }
 
 export interface AutomationData {
+	schemaVersion: 2
 	graph: AutomationGraph
 	subgraphs: SubgraphDefinition[]
 	dataWires: AutomationDataWire[]
@@ -32,6 +33,7 @@ export interface InlineAutomation extends AutomationData {
 
 export function createInlineAutomation(): InlineAutomation {
 	return {
+		schemaVersion: 2,
 		graph: { nodes: [], edges: [], entryNodeId: "" },
 		subgraphs: [],
 		dataWires: [],
