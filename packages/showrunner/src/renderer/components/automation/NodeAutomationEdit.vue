@@ -1190,7 +1190,7 @@ import { useAutomationPreview } from "./useAutomationPreview"
 import { areTypesCompatible, usePortConnections, portTypeColor, wouldCreateDataWireCycle, type DataWire, type PortDef } from "./usePortConnections"
 import { useExecEdges } from "./useExecEdges"
 import { useClipboard } from "./useClipboard"
-import { connectFlowToNode as connectGraphFlowToNode, isTerminalControlFlowNode } from "./automation-graph-editing"
+import { connectFlowToNode as connectGraphFlowToNode, isTerminalControlFlowNode, resolveContextActionPosition } from "./automation-graph-editing"
 import ExpressionTextInput from "./ExpressionTextInput.vue"
 import { EXPRESSION_BUILTINS } from "./expression-tokenizer"
 import {
@@ -2476,7 +2476,7 @@ async function selectActionFromContext(actionKey: string) {
 	trackRecentlyUsed(actionKey, "action", actionDef?.name ?? selection.action, actionDef?.icon ?? "mdi mdi-play", String(plugin?.color ?? "#e9aaff"))
 
 	const pendingFlow = pendingFlowConnection.value
-	const position = pendingFlow?.canvasPoint ?? contextMenu.value.canvasPoint
+	const position = resolveContextActionPosition(pendingFlow, contextMenu.value)
 	insertAction(action, pendingFlow?.fromNode ?? contextMenu.value.nodeId, position, pendingFlow?.fromPort)
 	if (position) nodePositions.value[action.id] = position
 	focusNode(action.id)

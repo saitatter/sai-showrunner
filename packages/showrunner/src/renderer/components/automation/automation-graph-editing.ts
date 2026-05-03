@@ -1,5 +1,17 @@
 import { nanoid } from "nanoid"
 import type { AutomationGraph, GraphNodeType } from "showrunner-schema"
+import type { NodePosition } from "./useNodeCanvas"
+
+export interface PendingFlowConnection {
+	fromNode: string
+	fromPort?: string
+	canvasPoint: NodePosition
+}
+
+export interface ContextMenuPlacement {
+	nodeId?: string
+	canvasPoint?: NodePosition
+}
 
 export function connectFlowToNode(
 	graph: AutomationGraph,
@@ -22,4 +34,8 @@ export function connectFlowToNode(
 
 export function isTerminalControlFlowNode(type: GraphNodeType) {
 	return type === "break" || type === "continue" || type === "return"
+}
+
+export function resolveContextActionPosition(pendingFlow: PendingFlowConnection | null | undefined, contextMenu: ContextMenuPlacement) {
+	return pendingFlow?.canvasPoint ?? contextMenu.canvasPoint
 }
