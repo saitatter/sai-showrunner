@@ -292,9 +292,11 @@ function maskSecret(value: unknown) {
 
 <style scoped>
 .plugin-details {
+	align-content: start;
 	display: grid;
 	gap: 1rem;
 	height: 100%;
+	grid-auto-rows: max-content;
 	overflow: auto;
 	padding: 1rem;
 }
@@ -435,6 +437,7 @@ function maskSecret(value: unknown) {
 }
 
 .plugin-details__section {
+	align-content: start;
 	display: grid;
 	gap: 0.75rem;
 	padding: 1rem;
