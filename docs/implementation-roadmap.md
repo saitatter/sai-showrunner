@@ -133,6 +133,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Visual data-wire drawing (separate from exec edges)
 - [x] Type-safe data ports (color-coded by type)
 - [x] Wire validation: prevent connecting incompatible types
+- [x] Show invalid direct-drop feedback while hovering an incompatible data port.
+- [x] Surface stale/invalid existing data wires in an editor health panel with one-click cleanup.
 - [x] Keep implicit data-wire conversions disabled; type changes must go through explicit conversion nodes.
 - [x] Add built-in conversion nodes for safe scalar and JSON conversions.
 - [x] Show data flow values on hover during test-run
@@ -187,12 +189,12 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Decide whether plugin visibility should remain local UI preference or become project/profile-level configuration.
 
 ### 5.10 Next Polish / Bug Fix Backlog
-- [ ] Add focused UI tests for automation context-menu search, including collapsed groups and disabled plugins.
-- [ ] Add conversion-node runtime tests for scalar parsing, JSON parsing, and fallback behavior.
-- [ ] Add visible invalid-drop feedback when the pointer is directly over an incompatible data port.
-- [ ] Surface stale/invalid existing data wires in an editor health panel with a one-click cleanup action.
-- [ ] Reduce remaining settings/plugin initialization console noise.
-- [ ] Audit action result schemas so every useful output is exposed as a typed data port.
+- [x] Add focused UI tests for automation context-menu search, including collapsed groups and disabled plugins.
+- [x] Add conversion-node runtime tests for scalar parsing, JSON parsing, and fallback behavior.
+- [x] Add visible invalid-drop feedback when the pointer is directly over an incompatible data port.
+- [x] Surface stale/invalid existing data wires in an editor health panel with a one-click cleanup action.
+- [x] Reduce remaining settings/plugin initialization console noise.
+- [x] Audit action result schemas so every useful output is exposed as a typed data port.
 - [ ] Add node-menu categories for data transforms, overlays, queues, OBS, chat, and utility actions.
 - [ ] Add keyboard-first command menu navigation: up/down, enter, escape, and section shortcuts.
 - [ ] Add onboarding starter graphs for OBS scene changes, chat commands, moderation actions, and stream-plan events.
