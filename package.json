@@ -14,6 +14,7 @@
 		"overlay:smoke": "vitest run packages/showrunner-obs-overlay/src/loader/utils/__tests__",
 		"release:dry-run": "semantic-release --dry-run --no-ci",
 		"release:smoke-artifacts": "node ./scripts/smoke-release-artifacts.cjs",
+		"beta:smoke-ui": "node ./scripts/smoke-packaged-beta-ui.cjs",
 		"satdev": "yarn workspace showrunner-satellite dev",
 		"test": "vitest run",
 		"test:semantic-release": "vitest run scripts/semantic-release",
