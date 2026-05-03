@@ -1,6 +1,6 @@
-import { MediaManager, ReactiveRef, WebService, defineAction, ensureDirectory } from "ShowRunner-core"
+import { MediaManager, ReactiveRef, WebService, defineAction, ensureDirectory } from "showrunner-core"
 import { OBSConnection } from "./connection"
-import { Directory, MediaFile, Toggle } from "ShowRunner-schema"
+import { Directory, MediaFile, Toggle } from "showrunner-schema"
 import path from "path"
 
 export function setupSources(obsDefault: ReactiveRef<OBSConnection>) {

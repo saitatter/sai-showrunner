@@ -1,6 +1,6 @@
 import { computed, ref, type ComputedRef, type Ref } from "vue"
-import { type AutomationConfig } from "ShowRunner-schema"
-import { usePluginStore } from "ShowRunner-ui-core"
+import { type AutomationConfig } from "showrunner-schema"
+import { usePluginStore } from "showrunner-ui-core"
 
 interface PreviewNode {
 	id: string

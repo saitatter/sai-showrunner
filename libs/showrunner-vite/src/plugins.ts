@@ -23,7 +23,7 @@ export function plugins(folder: string, sublib: string = "renderer"): PluginOpti
 
 		const packageJson = JSON.parse(fs.readFileSync(pluginPackageJsonPath, "utf8")) as PackageJSON
 
-		if (!packageJson.name.startsWith("ShowRunner-plugin")) {
+		if (!packageJson.name.startsWith("showrunner-plugin")) {
 			//ERROR OR SOMETHING?
 			continue
 		}

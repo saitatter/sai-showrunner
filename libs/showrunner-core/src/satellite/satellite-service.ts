@@ -5,12 +5,12 @@ import {
 	SatelliteConnectionRequest,
 	SatelliteConnectionResponse,
 	SatelliteConnectionService,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { defineCallableIPC, defineIPCFunc } from "../util/electron"
 import { Service } from "../util/service"
 import { PubSubManager } from "../pubsub/pubsub-service"
 import { usePluginLogger } from "../logging/logging"
-import { RPCHandler, RPCMessage } from "ShowRunner-ws-rpc"
+import { RPCHandler, RPCMessage } from "showrunner-ws-rpc"
 import { onLoad, onUnload } from "../plugins/plugin"
 import { EventList } from "../util/events"
 import { SatelliteResourceConstructor } from "./satellite-resource"

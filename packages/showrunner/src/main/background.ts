@@ -4,8 +4,8 @@ import installExtension, { VUEJS_DEVTOOLS } from "electron-devtools-installer"
 //import electronUpdater from "electron-updater"
 import { app, BrowserWindow, ipcMain, contentTracing } from "electron"
 import { createWindow } from "./electron/electron-helpers"
-import { initializeShowRunner, finializeShowRunnerSetup, loadAutomations, setupShowRunnerDirectories, defineIPCFunc } from "ShowRunner-core"
-import { finishInitDashboards } from "ShowRunner-plugin-dashboards-main"
+import { initializeShowRunner, finializeShowRunnerSetup, loadAutomations, setupShowRunnerDirectories, defineIPCFunc } from "showrunner-core"
+import { finishInitDashboards } from "showrunner-plugin-dashboards-main"
 import { loadPlugins } from "./plugins"
 
 const isDevelopment = !app.isPackaged

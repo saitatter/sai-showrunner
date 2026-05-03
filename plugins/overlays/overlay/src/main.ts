@@ -1,4 +1,4 @@
-import { definePluginOverlays } from "ShowRunner-overlay-core"
+import { definePluginOverlays } from "showrunner-overlay-core"
 
 import LabelVue from "./widgets/Label.vue"
 import EmoteBouncer from "./widgets/EmoteBouncer.vue"

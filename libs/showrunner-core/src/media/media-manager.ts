@@ -1,5 +1,5 @@
 import { Service } from "../util/service"
-import { ImageFormats, MediaMetadata, normalizeMediaPath, stillImageFormats } from "ShowRunner-schema"
+import { ImageFormats, MediaMetadata, normalizeMediaPath, stillImageFormats } from "showrunner-schema"
 import * as fs from "fs/promises"
 import * as fsSync from "fs"
 import path, * as pathTools from "path"

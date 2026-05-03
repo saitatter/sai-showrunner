@@ -1,4 +1,4 @@
-import { IPCDurationState, IPCInstantDurationState, getByPath } from "ShowRunner-schema"
+import { IPCDurationState, IPCInstantDurationState, getByPath } from "showrunner-schema"
 import { ActionSelection, ipcInvoke, useAction } from "../main"
 import { MaybeRefOrGetter, toValue, watch, ref, computed, onMounted, isRef } from "vue"
 

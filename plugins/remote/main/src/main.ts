@@ -9,9 +9,9 @@ import {
 	ProfileManager,
 	Profile,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { handleDashboardWidgetRPC } from "ShowRunner-plugin-dashboards-main/src/dashboard-access"
-import { isString } from "ShowRunner-schema"
+} from "showrunner-core"
+import { handleDashboardWidgetRPC } from "showrunner-plugin-dashboards-main/src/dashboard-access"
+import { isString } from "showrunner-schema"
 
 export default definePlugin(
 	{

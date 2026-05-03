@@ -1,5 +1,5 @@
-import { PlugResource, LightResource, PollingLight } from "ShowRunner-plugin-iot-main"
-import { WyzeAccountConfig, WyzeAccountSecrets } from "ShowRunner-plugin-wyze-shared"
+import { PlugResource, LightResource, PollingLight } from "showrunner-plugin-iot-main"
+import { WyzeAccountConfig, WyzeAccountSecrets } from "showrunner-plugin-wyze-shared"
 import {
 	defineAction,
 	defineTrigger,
@@ -18,12 +18,12 @@ import {
 	defineResourceSetting,
 	usePluginLogger,
 	coreAxios,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import axios from "axios"
 import md5 from "md5"
 import moment from "moment"
-import { Color, Toggle } from "ShowRunner-schema"
-import { LightColor, LightConfig, PlugConfig } from "ShowRunner-plugin-iot-shared"
+import { Color, Toggle } from "showrunner-schema"
+import { LightColor, LightConfig, PlugConfig } from "showrunner-plugin-iot-shared"
 import * as chromatism from "chromatism2"
 import _clamp from "lodash/clamp"
 

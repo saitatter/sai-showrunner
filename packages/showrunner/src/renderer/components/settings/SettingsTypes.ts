@@ -1,5 +1,5 @@
 import _cloneDeep from "lodash/cloneDeep"
-import { SettingsChange, useDockingStore, useDocumentStore, usePluginStore } from "ShowRunner-ui-core"
+import { SettingsChange, useDockingStore, useDocumentStore, usePluginStore } from "showrunner-ui-core"
 import SettingsPageVue from "./SettingsPage.vue"
 
 export interface SettingsDocumentData {

@@ -1,5 +1,5 @@
-import { TwitchViewerDisplayData } from "ShowRunner-plugin-twitch-shared"
-import { useIpcCaller } from "ShowRunner-ui-core"
+import { TwitchViewerDisplayData } from "showrunner-plugin-twitch-shared"
+import { useIpcCaller } from "showrunner-ui-core"
 import { defineStore } from "pinia"
 
 export const useViewerStore = defineStore("twitch-viewers", () => {

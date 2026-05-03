@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-moderation-renderer",
+	"name": "showrunner-plugin-moderation-renderer",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -12,11 +12,11 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
-		"ShowRunner-plugin-moderation-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
-		"ShowRunner-ui-core": "workspace:^",
 		"electron": "^34.2.0",
 		"pinia": "^2.1.7",
+		"showrunner-plugin-moderation-shared": "workspace:^",
+		"showrunner-schema": "workspace:^",
+		"showrunner-ui-core": "workspace:^",
 		"vue": "^3.5.13"
 	},
 	"devDependencies": {

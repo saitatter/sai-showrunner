@@ -8,10 +8,10 @@ import {
 	ignoreReactivity,
 	remoteTemplateSchema,
 	usePluginLogger,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { DashboardWidgetManager } from "./dashboard-widgets"
-import { DashboardConfig } from "ShowRunner-plugin-dashboards-shared"
-import { filterPromiseAll } from "ShowRunner-schema"
+import { DashboardConfig } from "showrunner-plugin-dashboards-shared"
+import { filterPromiseAll } from "showrunner-schema"
 
 const logger = usePluginLogger("dashboards")
 

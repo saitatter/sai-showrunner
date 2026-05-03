@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { useVModel } from "@vueuse/core"
 import { useDataViewComponent } from "../../util/data"
-import { Schema } from "ShowRunner-schema"
+import { Schema } from "showrunner-schema"
 import { SharedDataViewProps } from "./DataInputTypes"
 
 const props = defineProps<

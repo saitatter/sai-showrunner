@@ -1,5 +1,5 @@
 {
-    "name": "ShowRunner-plugin-twitch",
+    "name": "showrunner-plugin-twitch",
     "private": true,
     "version": "0.0.1",
     "type": "module",

@@ -19,8 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import { declareWidgetOptions } from "ShowRunner-overlay-core"
-import { OverlayBlockStyle, OverlayTextAlignment, OverlayTextStyle } from "ShowRunner-plugin-overlays-shared"
+import { declareWidgetOptions } from "showrunner-overlay-core"
+import { OverlayBlockStyle, OverlayTextAlignment, OverlayTextStyle } from "showrunner-plugin-overlays-shared"
 
 defineOptions({
 	widget: declareWidgetOptions({

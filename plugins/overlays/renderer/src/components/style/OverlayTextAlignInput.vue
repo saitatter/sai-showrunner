@@ -14,8 +14,8 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayTextAlignment, SchemaOverlayTextAlignment } from "ShowRunner-plugin-overlays-shared"
-import { SharedDataInputProps, useDataBinding, useOptionalDefaultableModel, useUndoCommitter } from "ShowRunner-ui-core"
+import { OverlayTextAlignment, SchemaOverlayTextAlignment } from "showrunner-plugin-overlays-shared"
+import { SharedDataInputProps, useDataBinding, useOptionalDefaultableModel, useUndoCommitter } from "showrunner-ui-core"
 import PSelectButton from "primevue/selectbutton"
 import { useModel } from "vue"
 

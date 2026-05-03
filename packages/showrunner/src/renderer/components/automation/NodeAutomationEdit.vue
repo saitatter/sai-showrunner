@@ -1094,7 +1094,7 @@ import {
 	ActionDefinition,
 	useActionQueueStore,
 	CollapsibleContextMenu,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import {
 	ActionInfo,
 	isObjectSchema,
@@ -1108,7 +1108,7 @@ import {
 	type GraphNodeType,
 	type SubgraphParamType,
 	type SubgraphDefinition,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
 import { useNodeContextMenu } from "./useNodeContextMenu"
 import { useNodeDrag } from "./useNodeDrag"

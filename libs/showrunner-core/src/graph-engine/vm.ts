@@ -1,4 +1,4 @@
-import type { Expression, GraphNode } from "ShowRunner-schema"
+import type { Expression, GraphNode } from "showrunner-schema"
 import { OpCode, type Instruction, type IterNextArgs, type Program, type WireSource } from "./compiler"
 import { evalExpression, type EvalContext } from "./expression"
 import type { ExecutionDebugger } from "../queue-system/resolvers"

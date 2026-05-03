@@ -25,7 +25,7 @@ import PInputText from "primevue/inputtext"
 import PIconField from "primevue/iconfield"
 import PInputIcon from "primevue/inputicon"
 
-import { MediaMetadata } from "ShowRunner-schema"
+import { MediaMetadata } from "showrunner-schema"
 import path from "path"
 import PButton from "primevue/button"
 

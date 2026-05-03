@@ -1,6 +1,6 @@
-import { DashboardPluginOptions, DashboardWidgetComponent } from "ShowRunner-dashboard-core"
-import dashboardPlugin from "ShowRunner-plugin-dashboards-dashboard"
-import remotePlugin from "ShowRunner-plugin-remote-dashboard"
+import { DashboardPluginOptions, DashboardWidgetComponent } from "showrunner-dashboard-core"
+import dashboardPlugin from "showrunner-plugin-dashboards-dashboard"
+import remotePlugin from "showrunner-plugin-remote-dashboard"
 
 import { defineStore } from "pinia"
 import { ref, computed, markRaw } from "vue"

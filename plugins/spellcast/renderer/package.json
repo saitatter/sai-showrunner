@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-spellcast-renderer",
+	"name": "showrunner-plugin-spellcast-renderer",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -13,14 +13,14 @@
 	},
 	"dependencies": {
 		"@vueuse/core": "*",
-		"ShowRunner-plugin-spellcast-shared": "workspace:^",
-		"ShowRunner-plugin-twitch-renderer": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
-		"ShowRunner-ui-core": "workspace:^",
 		"chromatism2": "*",
 		"electron": "^34.2.0",
 		"nanoid": "^5.0.7",
 		"pinia": "^2.1.7",
+		"showrunner-plugin-spellcast-shared": "workspace:^",
+		"showrunner-plugin-twitch-renderer": "workspace:^",
+		"showrunner-schema": "workspace:^",
+		"showrunner-ui-core": "workspace:^",
 		"vue": "^3.5.13"
 	},
 	"devDependencies": {

@@ -1,8 +1,8 @@
 import { MaybeRefOrGetter, computed, ref, toValue } from "vue"
-import { IPCVariableDefinition } from "ShowRunner-plugin-variables-shared"
-import { handleIpcMessage, ipcParseSchema, useIpcCaller, useState } from "ShowRunner-ui-core"
+import { IPCVariableDefinition } from "showrunner-plugin-variables-shared"
+import { handleIpcMessage, ipcParseSchema, useIpcCaller, useState } from "showrunner-ui-core"
 import { defineStore } from "pinia"
-import { Schema, getTypeByConstructor, getTypeByName } from "ShowRunner-schema"
+import { Schema, getTypeByConstructor, getTypeByName } from "showrunner-schema"
 
 export interface RendererVariableDefinition<T = any> {
 	id: string

@@ -1,4 +1,4 @@
-import { Duration, SchemaBase, registerType } from "ShowRunner-schema"
+import { Duration, SchemaBase, registerType } from "showrunner-schema"
 
 export interface OverlayTransitionAnimation {
 	duration: Duration
@@ -21,7 +21,7 @@ export interface SchemaOverlayTransitionAnimation extends SchemaBase<OverlayTran
 
 registerType("OverlayTransitionAnimation", { constructor: OverlayTransitionAnimation })
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaTypeMap {
 		OverlayTransitionAnimation: [SchemaOverlayTransitionAnimation, OverlayTransitionAnimation]
 	}

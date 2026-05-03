@@ -36,20 +36,20 @@
 
 <script setup lang="ts">
 import { computed, markRaw, onMounted, ref } from "vue"
-import { useDialogRef, DataInput, provideScrollAttachable, VariableNameInput, CDropdown } from "ShowRunner-ui-core"
+import { useDialogRef, DataInput, provideScrollAttachable, VariableNameInput, CDropdown } from "showrunner-ui-core"
 import _cloneDeep from "lodash/cloneDeep"
 
 import PDropdown from "primevue/dropdown"
 import PFloatLabel from "primevue/floatlabel"
 
 import { RendererVariableDefinition } from "../variable-store"
-import { getTypeByConstructor, getAllVariableTypes } from "ShowRunner-schema"
-import { getTypeByName } from "ShowRunner-schema"
+import { getTypeByConstructor, getAllVariableTypes } from "showrunner-schema"
+import { getTypeByName } from "showrunner-schema"
 
 import PButton from "primevue/button"
 import PCheckBox from "primevue/checkbox"
 import type { MenuItem } from "primevue/menuitem"
-import { constructDefault } from "ShowRunner-schema"
+import { constructDefault } from "showrunner-schema"
 
 const container = ref<HTMLElement>()
 const dialogRef = useDialogRef()

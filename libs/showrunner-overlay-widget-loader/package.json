@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-overlay-widget-loader",
+	"name": "showrunner-overlay-widget-loader",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -13,16 +13,16 @@
 	},
 	"dependencies": {
 		"@vueuse/core": "*",
-		"ShowRunner-overlay-core": "workspace:^",
-		"ShowRunner-plugin-overlays-overlays": "workspace:^",
-		"ShowRunner-plugin-random-overlays": "workspace:^",
-		"ShowRunner-plugin-twitch-overlays": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
 		"chromatism2": "*",
 		"electron": "^34.2.0",
 		"nanoid": "^5.0.7",
 		"pinia": "^2.1.7",
 		"primevue": "^4.2.4",
+		"showrunner-overlay-core": "workspace:^",
+		"showrunner-plugin-overlays-overlays": "workspace:^",
+		"showrunner-plugin-random-overlays": "workspace:^",
+		"showrunner-plugin-twitch-overlays": "workspace:^",
+		"showrunner-schema": "workspace:^",
 		"vue": "^3.5.13"
 	},
 	"devDependencies": {

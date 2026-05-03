@@ -1,5 +1,5 @@
-import { sleep, usePluginLogger } from "ShowRunner-core"
-import { Color } from "ShowRunner-schema"
+import { sleep, usePluginLogger } from "showrunner-core"
+import { Color } from "showrunner-schema"
 import { createSocket, Socket } from "node:dgram"
 import * as chromatism from "chromatism2"
 import { networkInterfaces } from "node:os"

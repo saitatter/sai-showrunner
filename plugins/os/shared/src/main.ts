@@ -1,4 +1,4 @@
-import { SchemaBase, registerType } from "ShowRunner-schema"
+import { SchemaBase, registerType } from "showrunner-schema"
 
 export type PowerShellCommand = string
 
@@ -16,7 +16,7 @@ export interface SchemaPowerShellCommand extends SchemaBase<PowerShellCommand> {
 	template?: boolean
 }
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaTypeMap {
 		PowerShellCommand: [SchemaPowerShellCommand, PowerShellCommand]
 	}

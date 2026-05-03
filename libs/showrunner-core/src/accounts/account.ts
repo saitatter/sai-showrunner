@@ -12,7 +12,7 @@ import { ResourceRegistry } from "../resources/resource-registry"
 import { EventList } from "../util/events"
 import util, { InspectOptions } from "util"
 
-import { AccountConfig, AccountSecrets, AccountState } from "ShowRunner-schema"
+import { AccountConfig, AccountSecrets, AccountState } from "showrunner-schema"
 
 export interface AccountConstructor extends ResourceConstructor {
 	new (...args: any[]): any

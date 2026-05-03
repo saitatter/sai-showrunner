@@ -5,9 +5,9 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardPage } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardPage } from "showrunner-plugin-dashboards-shared"
 import DashboardSection from "./DashboardSection.vue"
-import { FlexScroller } from "ShowRunner-ui-core"
+import { FlexScroller } from "showrunner-ui-core"
 
 const props = defineProps<{
 	page: DashboardPage

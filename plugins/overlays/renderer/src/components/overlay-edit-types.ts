@@ -1,7 +1,7 @@
-import { OverlayWidgetComponent } from "ShowRunner-overlay-core"
-import { OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
-import { RemoteTemplateResolutionContext, resolveRemoteTemplateSchema } from "ShowRunner-schema"
-import { PanState } from "ShowRunner-ui-core"
+import { OverlayWidgetComponent } from "showrunner-overlay-core"
+import { OverlayWidgetConfig } from "showrunner-plugin-overlays-shared"
+import { RemoteTemplateResolutionContext, resolveRemoteTemplateSchema } from "showrunner-schema"
+import { PanState } from "showrunner-ui-core"
 import { ComputedRef, MaybeRefOrGetter, Ref, computed, ref, toValue } from "vue"
 
 export interface OverlayEditView {

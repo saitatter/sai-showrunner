@@ -1,6 +1,6 @@
 import axios from "axios"
-import { coreAxios, usePluginLogger } from "ShowRunner-core"
-import { LightColor } from "ShowRunner-plugin-iot-shared"
+import { coreAxios, usePluginLogger } from "showrunner-core"
+import { LightColor } from "showrunner-plugin-iot-shared"
 import * as chromatism from "chromatism2"
 
 //https://govee-public.s3.amazonaws.com/developer-docs/GoveeDeveloperAPIReference.pdf

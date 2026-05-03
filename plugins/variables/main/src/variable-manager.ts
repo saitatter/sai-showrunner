@@ -16,9 +16,9 @@ import {
 	unexposeSchema,
 	usePluginLogger,
 	writeYAML,
-} from "ShowRunner-core"
-import { IPCVariableDefinition } from "ShowRunner-plugin-variables-shared"
-import { Schema, getTypeByConstructor, getTypeByName, isValidJSName } from "ShowRunner-schema"
+} from "showrunner-core"
+import { IPCVariableDefinition } from "showrunner-plugin-variables-shared"
+import { Schema, getTypeByConstructor, getTypeByName, isValidJSName } from "showrunner-schema"
 import _debounce from "lodash/debounce"
 
 import variablePlugin from "./variable-plugin"

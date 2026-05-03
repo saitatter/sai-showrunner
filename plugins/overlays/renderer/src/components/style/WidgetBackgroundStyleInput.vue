@@ -40,7 +40,7 @@ import {
 	WidgetBackgroundImage,
 	WidgetBackgroundStyle,
 	WidgetBackgroundStyleElement,
-} from "ShowRunner-plugin-overlays-shared"
+} from "showrunner-plugin-overlays-shared"
 import {
 	SharedDataInputProps,
 	useDataBinding,
@@ -49,7 +49,7 @@ import {
 	InputBox,
 	LabelFloater,
 	getDataLabel,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import PButton from "primevue/button"
 
 import WidgetBackgroundElementEdit from "./background/WidgetBackgroundElementEdit.vue"

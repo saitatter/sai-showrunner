@@ -1,4 +1,4 @@
-import { useDataInputStore } from "ShowRunner-ui-core"
+import { useDataInputStore } from "showrunner-ui-core"
 
 export async function initPlugin() {
 	const inputStore = useDataInputStore()

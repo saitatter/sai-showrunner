@@ -179,7 +179,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
-import { CollapsibleContextMenu } from "ShowRunner-ui-core"
+import { CollapsibleContextMenu } from "showrunner-ui-core"
 import {
 	SHADER_NODE_DEFS,
 	SHADER_NODE_DEF_MAP,

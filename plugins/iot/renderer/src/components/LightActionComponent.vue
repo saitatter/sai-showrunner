@@ -18,8 +18,8 @@
 </template>
 
 <script setup lang="ts">
-import { LightColor } from "ShowRunner-plugin-iot-shared"
-import { Toggle } from "ShowRunner-schema"
+import { LightColor } from "showrunner-plugin-iot-shared"
+import { Toggle } from "showrunner-schema"
 import { computed } from "vue"
 
 const props = defineProps<{

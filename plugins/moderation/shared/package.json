@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-moderation-shared",
+	"name": "showrunner-plugin-moderation-shared",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,6 +13,6 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"ShowRunner-schema": "workspace:^"
+		"showrunner-schema": "workspace:^"
 	}
 }

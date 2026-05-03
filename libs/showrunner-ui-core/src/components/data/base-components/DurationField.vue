@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { Duration, parseDurationParts } from "ShowRunner-schema"
+import { Duration, parseDurationParts } from "showrunner-schema"
 import { computed, onMounted, ref, useModel, watch } from "vue"
 import FakeInputString from "../../fake-input/FakeInputString.vue"
 import FakeInputBackbone from "../../fake-input/FakeInputBackbone.vue"

@@ -1,7 +1,7 @@
 {
     "targets": [
         {
-            "target_name": "ShowRunner-plugin-sound-native",
+            "target_name": "showrunner-plugin-sound-native",
             "cflags!": [ "-fno-exceptions" ],
             "cflags_cc!": [ "-fno-exceptions" ],
             "sources": [ "src/native-index.cc", "src/util.cc", "src/audio-interface.cc", "src/tts-interface.cc" ],

@@ -1,10 +1,10 @@
-import { ReactiveRef, defineAction, registerSchemaTemplate, templateNumber, usePluginLogger } from "ShowRunner-core"
+import { ReactiveRef, defineAction, registerSchemaTemplate, templateNumber, usePluginLogger } from "showrunner-core"
 import {
 	OBSSourceTransform,
 	ResolvedOBSSourceTransform,
 	createEmptyOBSSourceTransform,
 	transformToOBSWS,
-} from "ShowRunner-plugin-obs-shared"
+} from "showrunner-plugin-obs-shared"
 import { OBSConnection } from "./connection"
 
 export function setupTransforms(obsDefault: ReactiveRef<OBSConnection>) {

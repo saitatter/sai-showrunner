@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaTwitchViewerGroup, TwitchViewerGroupProperties } from "ShowRunner-plugin-twitch-shared"
+import { SchemaTwitchViewerGroup, TwitchViewerGroupProperties } from "showrunner-plugin-twitch-shared"
 
 import PTree from "primevue/tree"
 import PButton from "primevue/button"

@@ -1,6 +1,6 @@
 import { WebSocket } from "ws"
 import { nanoid } from "nanoid/non-secure"
-import { usePluginLogger } from "ShowRunner-core"
+import { usePluginLogger } from "showrunner-core"
 
 const logger = usePluginLogger("voicemod")
 

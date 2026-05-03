@@ -15,7 +15,7 @@
 import { computed } from "vue"
 import { usePlugin, useState } from "../../../../main"
 import DataView from "../../DataView.vue"
-import { Schema } from "ShowRunner-schema"
+import { Schema } from "showrunner-schema"
 
 const props = defineProps<{
 	modelValue: { plugin?: string; state: string } | undefined | null

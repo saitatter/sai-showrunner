@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { Schema, ExpressionValue, isStateValueExpr, isValueValueExpr, FullDataTypeMetaData } from "ShowRunner-schema"
+import { Schema, ExpressionValue, isStateValueExpr, isValueValueExpr, FullDataTypeMetaData } from "showrunner-schema"
 import PTabs from "primevue/tabs"
 import PTab from "primevue/tab"
 import PTabList from "primevue/tablist"
@@ -54,12 +54,12 @@ import PTabPanel from "primevue/tabpanel"
 import StateSelector from "../state/StateSelector.vue"
 import DataInput from "../../DataInput.vue"
 import { computed, useModel, watch } from "vue"
-import { getTypeByName } from "ShowRunner-schema"
+import { getTypeByName } from "showrunner-schema"
 
 import type { MenuItem } from "primevue/menuitem"
 import CDropdown from "../CDropdown.vue"
-import { getAllVariableTypes } from "ShowRunner-schema"
-import { getTypeByConstructor } from "ShowRunner-schema"
+import { getAllVariableTypes } from "showrunner-schema"
+import { getTypeByConstructor } from "showrunner-schema"
 import { useDataBinding } from "../../../../main"
 
 const props = defineProps<{

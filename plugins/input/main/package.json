@@ -1,5 +1,5 @@
 {
-  "name": "ShowRunner-plugin-input-main",
+  "name": "showrunner-plugin-input-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,9 +13,9 @@
     "typescript": "*"
   },
   "dependencies": {
-    "ShowRunner-core": "workspace:^",
-    "ShowRunner-plugin-input-native": "workspace:^",
-    "ShowRunner-plugin-input-shared": "workspace:^",
-    "ShowRunner-schema": "workspace:^"
+    "showrunner-core": "workspace:^",
+    "showrunner-plugin-input-native": "workspace:^",
+    "showrunner-plugin-input-shared": "workspace:^",
+    "showrunner-schema": "workspace:^"
   }
 }

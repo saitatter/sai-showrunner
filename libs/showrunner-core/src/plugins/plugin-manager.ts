@@ -1,4 +1,4 @@
-import { IPCPluginDefinition } from "ShowRunner-schema"
+import { IPCPluginDefinition } from "showrunner-schema"
 import { defineCallableIPC, defineIPCFunc } from "../util/electron"
 import { Service } from "../util/service"
 import { Plugin } from "./plugin"

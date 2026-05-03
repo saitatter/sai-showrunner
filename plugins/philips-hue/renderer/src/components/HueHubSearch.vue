@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import { useIpcCaller } from "ShowRunner-ui-core"
+import { useIpcCaller } from "showrunner-ui-core"
 import { computed, ref } from "vue"
 import PButton from "primevue/button"
 

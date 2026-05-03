@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { StreamPlanSegment } from "ShowRunner-schema"
+import { StreamPlanSegment } from "showrunner-schema"
 import PButton from "primevue/button"
 
 import GraphMiniPreview from "../automation/GraphMiniPreview.vue"

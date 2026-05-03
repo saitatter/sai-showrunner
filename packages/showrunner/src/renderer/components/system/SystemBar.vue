@@ -49,7 +49,7 @@ import {
 	useSaveActiveTab,
 	useSaveAllTabs,
 	useCloseAllTabs,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { useOpenSettings } from "../settings/SettingsTypes"
 import InputTestPage from "../test/InputTestPage.vue"
 import { useDialog } from "primevue/usedialog"

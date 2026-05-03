@@ -1,4 +1,4 @@
-import { Schema } from "ShowRunner-schema"
+import { Schema } from "showrunner-schema"
 import util from "util"
 
 export interface SharedDataInputProps {

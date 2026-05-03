@@ -47,7 +47,7 @@ import {
 	TwitchViewerGroupAnd,
 	TwitchViewerGroupOr,
 	isInlineViewerGroup,
-} from "ShowRunner-plugin-twitch-shared"
+} from "showrunner-plugin-twitch-shared"
 import { computed, useModel, ref } from "vue"
 import TwitchViewerGroupRuleNegator from "./TwitchViewerGroupRuleNegator.vue"
 

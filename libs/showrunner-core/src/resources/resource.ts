@@ -2,7 +2,7 @@ import _cloneDeep from "lodash/cloneDeep"
 import { ReactiveEffect, ReactiveGet, ReactiveSet, autoRerun, rawify } from "../reactivity/reactivity"
 import { ResourceRegistry } from "./resource-registry"
 import { defineCallableIPC } from "../util/electron"
-import { ResourceData } from "ShowRunner-schema"
+import { ResourceData } from "showrunner-schema"
 import { isObject } from "../util/type-helpers"
 import { globalLogger } from "../logging/logging"
 

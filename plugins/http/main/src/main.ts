@@ -8,7 +8,7 @@ import {
 	onProfilesChanged,
 	resetRouter,
 	coreAxios,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import axios from "axios"
 
 export default definePlugin(

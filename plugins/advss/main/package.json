@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-advss-main",
+	"name": "showrunner-plugin-advss-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,10 +13,10 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"ShowRunner-core": "workspace:^",
-		"ShowRunner-plugin-advss-shared": "workspace:^",
-		"ShowRunner-plugin-obs-main": "workspace:^",
-		"ShowRunner-plugin-obs-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^"
+		"showrunner-core": "workspace:^",
+		"showrunner-plugin-advss-shared": "workspace:^",
+		"showrunner-plugin-obs-main": "workspace:^",
+		"showrunner-plugin-obs-shared": "workspace:^",
+		"showrunner-schema": "workspace:^"
 	}
 }

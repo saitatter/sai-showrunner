@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaBase } from "ShowRunner-schema"
+import { SchemaBase } from "showrunner-schema"
 import { SharedDataViewProps } from "../../../main"
 
 const props = defineProps<

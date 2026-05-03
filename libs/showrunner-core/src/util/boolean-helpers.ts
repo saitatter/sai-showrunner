@@ -14,7 +14,7 @@ import {
 	isBooleanRangeExpr,
 	getTypeByName,
 	hashString,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { PluginManager } from "../plugins/plugin-manager"
 import { unexposeSchema } from "./ipc-schema"
 import { templateSchema } from "../templates/template"

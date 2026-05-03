@@ -1,11 +1,11 @@
 import { AxiosInstance } from "axios"
-import { LightResource } from "ShowRunner-plugin-iot-main"
-import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSetting } from "ShowRunner-core"
+import { LightResource } from "showrunner-plugin-iot-main"
+import { defineAction, defineTrigger, onLoad, onUnload, definePlugin, defineSetting } from "showrunner-core"
 import bonjour, { Bonjour, Browser, RemoteService } from "bonjour"
-import { PollingLight } from "ShowRunner-plugin-iot-main"
+import { PollingLight } from "showrunner-plugin-iot-main"
 import axios from "axios"
-import { LightColor, LightConfig } from "ShowRunner-plugin-iot-shared"
-import { Toggle } from "ShowRunner-schema"
+import { LightColor, LightConfig } from "showrunner-plugin-iot-shared"
+import { Toggle } from "showrunner-schema"
 
 function elgatoToKelvin(value: number) {
 	return Math.round((-4100 * value) / 201 + 1993300 / 201)

@@ -1,4 +1,4 @@
-import { BooleanExpression, constructDefault, Toggle, hashString } from "ShowRunner-schema"
+import { BooleanExpression, constructDefault, Toggle, hashString } from "showrunner-schema"
 import {
 	ActionQueue,
 	ActionQueueManager,
@@ -20,8 +20,8 @@ import {
 	usePluginLogger,
 	GraphVM,
 	compileAutomationProgram,
-} from "ShowRunner-core"
-import { getExpressionHash } from "ShowRunner-core/src/util/boolean-helpers"
+} from "showrunner-core"
+import { getExpressionHash } from "showrunner-core/src/util/boolean-helpers"
 
 interface ConditionalTrigger {
 	conditionHash: number

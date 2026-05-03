@@ -1,5 +1,5 @@
-import { defineAction } from "ShowRunner-core"
-import { Directory, FilePath } from "ShowRunner-schema"
+import { defineAction } from "showrunner-core"
+import { Directory, FilePath } from "showrunner-schema"
 import { ChildProcess, exec, spawn } from "child_process"
 import * as path from "path"
 

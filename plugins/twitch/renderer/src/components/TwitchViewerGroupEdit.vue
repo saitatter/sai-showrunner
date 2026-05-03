@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaTwitchViewerGroup, TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
+import { SchemaTwitchViewerGroup, TwitchViewerGroup } from "showrunner-plugin-twitch-shared"
 import { useModel } from "vue"
 import TwitchViewerGroupLogicOp from "./groups/TwitchViewerGroupLogicOp.vue"
 import PButton from "primevue/button"

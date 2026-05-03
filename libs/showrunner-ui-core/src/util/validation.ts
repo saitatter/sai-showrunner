@@ -1,4 +1,4 @@
-import { Schema, getTypeByConstructor } from "ShowRunner-schema"
+import { Schema, getTypeByConstructor } from "showrunner-schema"
 import { toValue, computed, MaybeRefOrGetter } from "vue"
 
 export function useValidator<T>(value: MaybeRefOrGetter<T>, schema: MaybeRefOrGetter<Schema>) {

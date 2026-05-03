@@ -30,15 +30,15 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaType } from "ShowRunner-schema"
-import { declareSchema } from "ShowRunner-schema"
-import { DataInput, useIpcCaller, useResource, useResourceStore, useSettingValue, usePluginStore } from "ShowRunner-ui-core"
+import { SchemaType } from "showrunner-schema"
+import { declareSchema } from "showrunner-schema"
+import { DataInput, useIpcCaller, useResource, useResourceStore, useSettingValue, usePluginStore } from "showrunner-ui-core"
 import { ref, onMounted, computed, useModel, watch } from "vue"
 
 import MigrationCheckBox from "../migration/MigrationCheckBox.vue"
 import PButton from "primevue/button"
-import { ResourceData } from "ShowRunner-schema"
-import { OBSConnectionConfig, OBSConnectionState } from "ShowRunner-plugin-obs-shared"
+import { ResourceData } from "showrunner-schema"
+import { OBSConnectionConfig, OBSConnectionState } from "showrunner-plugin-obs-shared"
 
 const props = defineProps<{
 	ready: boolean

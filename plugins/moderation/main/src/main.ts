@@ -1,4 +1,4 @@
-import { defineAction, definePlugin, defineRendererCallable, onLoad, showrunnerChatModerationEvents } from "ShowRunner-core"
+import { defineAction, definePlugin, defineRendererCallable, onLoad, showrunnerChatModerationEvents } from "showrunner-core"
 import { ModerationService } from "./moderation-service"
 
 export { ModerationService } from "./moderation-service"

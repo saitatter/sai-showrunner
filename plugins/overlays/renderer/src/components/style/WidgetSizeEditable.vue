@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { nextTick, ref, useModel } from "vue"
-import { DropDownPanel, NumberField, useDataBinding } from "ShowRunner-ui-core"
+import { DropDownPanel, NumberField, useDataBinding } from "showrunner-ui-core"
 
 const props = defineProps<{
 	localPath: string

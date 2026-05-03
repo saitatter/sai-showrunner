@@ -15,7 +15,7 @@
 
 <script setup lang="ts">
 import { useDataComponent } from "../../util/data"
-import { Schema } from "ShowRunner-schema"
+import { Schema } from "showrunner-schema"
 import { SharedDataInputProps } from "./DataInputTypes"
 import { ref, useModel } from "vue"
 

@@ -1,4 +1,4 @@
-import { EventList, getPluginSetting } from "ShowRunner-core"
+import { EventList, getPluginSetting } from "showrunner-core"
 import dgram from "node:dgram"
 
 export class TwinklyDiscovery {

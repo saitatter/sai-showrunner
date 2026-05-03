@@ -1,15 +1,15 @@
-import { DashboardConfig } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardConfig } from "showrunner-plugin-dashboards-shared"
 import {
 	useOnSatelliteMessage,
 	usePrimarySatelliteConnection,
 	useSatelliteConnection,
 	useSatelliteResourceStore,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { defineStore } from "pinia"
 import { computed, MaybeRefOrGetter, ref, toValue, watch } from "vue"
 
-import { RPCHandler, RPCMessage } from "ShowRunner-ws-rpc"
-import { ShowRunnerBridgeImplementation } from "ShowRunner-dashboard-core"
+import { RPCHandler, RPCMessage } from "showrunner-ws-rpc"
+import { ShowRunnerBridgeImplementation } from "showrunner-dashboard-core"
 
 export const useDashboardRTCBridge = defineStore("dashboard-rtc-bridge", () => {
 	const satelliteStore = useSatelliteConnection()

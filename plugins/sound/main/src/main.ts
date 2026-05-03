@@ -6,11 +6,11 @@ import {
 	defineSetting,
 	definePluginResource,
 	probeMedia,
-} from "ShowRunner-core"
-import { MediaManager } from "ShowRunner-core"
-import { Duration, MediaFile } from "ShowRunner-schema"
+} from "showrunner-core"
+import { MediaManager } from "showrunner-core"
+import { Duration, MediaFile } from "showrunner-schema"
 import { RendererSoundPlayer } from "./renderer-sound-player"
-import { AudioDeviceInterface } from "ShowRunner-plugin-sound-native"
+import { AudioDeviceInterface } from "showrunner-plugin-sound-native"
 import { SoundOutput, setupOutput } from "./output"
 import { TTSVoice, setupTTS } from "./tts"
 import { setupSplitters } from "./splitter"

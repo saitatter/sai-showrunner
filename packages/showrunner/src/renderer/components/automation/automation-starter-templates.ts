@@ -1,4 +1,4 @@
-import type { AutomationConfig, AutomationDataWire, GraphNode } from "ShowRunner-schema"
+import type { AutomationConfig, AutomationDataWire, GraphNode } from "showrunner-schema"
 
 export interface AutomationStarterTemplate {
 	id: string

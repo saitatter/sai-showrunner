@@ -11,7 +11,7 @@ import {
 	setupShowRunnerDirectories,
 	initializeShowRunnerSatellite,
 	finializeShowRunnerSatelliteSetup,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { loadPlugins } from "./plugins"
 
 const isDevelopment = !app.isPackaged // true //TODO: import.meta.env.DEV

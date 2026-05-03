@@ -1,9 +1,9 @@
-import { definePlugin } from "ShowRunner-core"
+import { definePlugin } from "showrunner-core"
 
 import { setupOverlayResources } from "./overlay-resource"
 import { setupWebsockets } from "./websocket-bridge"
 
-import { OverlayTextStyle } from "ShowRunner-plugin-overlays-shared"
+import { OverlayTextStyle } from "showrunner-plugin-overlays-shared"
 import { setupEmoteBouncer } from "./emote-bouncer"
 import { setupAlerts } from "./alerts"
 import { setupChatFeed } from "./chat-feed"

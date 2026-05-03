@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { declareWidgetOptions, useMediaResolver } from "ShowRunner-overlay-core"
+import { declareWidgetOptions, useMediaResolver } from "showrunner-overlay-core"
 import {
 	getBackgroundCSS,
 	getBorderCSS,
@@ -30,7 +30,7 @@ import {
 	WidgetBorderRadius,
 	WidgetBorderStyle,
 	WidgetOutlineStyle,
-} from "ShowRunner-plugin-overlays-shared"
+} from "showrunner-plugin-overlays-shared"
 import { computed, CSSProperties } from "vue"
 
 const mediaResolver = useMediaResolver()

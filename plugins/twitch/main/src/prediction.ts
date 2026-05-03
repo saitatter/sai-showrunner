@@ -1,6 +1,6 @@
-import { defineAction, defineState, defineTrigger } from "ShowRunner-core"
+import { defineAction, defineState, defineTrigger } from "showrunner-core"
 import { onChannelAuth } from "./api-harness"
-import { Duration } from "ShowRunner-schema"
+import { Duration } from "showrunner-schema"
 
 export function setupPredictions() {
 	defineAction({

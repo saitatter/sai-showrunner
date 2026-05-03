@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { BooleanValueExpression } from "ShowRunner-schema"
+import { BooleanValueExpression } from "showrunner-schema"
 import { computed, ref, useModel } from "vue"
 import StateSelector from "../state/StateSelector.vue"
 import ValueCompareOperatorSelector from "./ValueCompareOperatorSelector.vue"
@@ -33,11 +33,11 @@ import PButton from "primevue/button"
 import { useBooleanExpressionEvaluator } from "./boolean-helpers"
 
 import ExpressionValueEdit from "./ExpressionValueEdit.vue"
-import { isStateValueExpr } from "ShowRunner-schema"
-import { isValueValueExpr } from "ShowRunner-schema"
-import { getTypeByName } from "ShowRunner-schema"
-import { Schema } from "ShowRunner-schema"
-import { getTypeByConstructor } from "ShowRunner-schema"
+import { isStateValueExpr } from "showrunner-schema"
+import { isValueValueExpr } from "showrunner-schema"
+import { getTypeByName } from "showrunner-schema"
+import { Schema } from "showrunner-schema"
+import { getTypeByConstructor } from "showrunner-schema"
 
 const props = defineProps<{
 	modelValue: BooleanValueExpression

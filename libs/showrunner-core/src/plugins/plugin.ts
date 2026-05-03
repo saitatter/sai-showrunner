@@ -1,5 +1,5 @@
 import { initingPlugin, setInitingPlugin } from "./plugin-init"
-import { ExposedSchemaType, ResolvedSchemaType } from "ShowRunner-schema"
+import { ExposedSchemaType, ResolvedSchemaType } from "showrunner-schema"
 import { Profile } from "./../profile/profile"
 import {
 	Color,
@@ -12,7 +12,7 @@ import {
 	awaitKeys,
 	IPCSettingsDefinition,
 	IPCStateDefinition,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { ActionDefinition, defineAction } from "../queue-system/action"
 import { TriggerDefinition, defineTrigger } from "../queue-system/trigger"
 import { defineCallableIPC, defineIPCFunc } from "../util/electron"

@@ -1,10 +1,10 @@
-import { useDashboardWidgets } from "ShowRunner-dashboard-widget-loader"
-import { DashboardWidget } from "ShowRunner-plugin-dashboards-shared"
-import { handleIpcMessage, useIpcCaller } from "ShowRunner-ui-core"
+import { useDashboardWidgets } from "showrunner-dashboard-widget-loader"
+import { DashboardWidget } from "showrunner-plugin-dashboards-shared"
+import { handleIpcMessage, useIpcCaller } from "showrunner-ui-core"
 import { nanoid } from "nanoid/non-secure"
 import { defineStore } from "pinia"
 import { MaybeRefOrGetter, Ref, WatchStopHandle, computed, onBeforeUnmount, onMounted, ref, toValue, watch } from "vue"
-import { useResolvedWidgetConfig } from "ShowRunner-dashboard-core"
+import { useResolvedWidgetConfig } from "showrunner-dashboard-core"
 
 const startEdit = useIpcCaller<(id: string, plugin: string, widget: string, initialConfig: object) => any>(
 	"dashboards",

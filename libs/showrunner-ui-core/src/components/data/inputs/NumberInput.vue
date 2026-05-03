@@ -43,7 +43,7 @@
 import DataInputBase from "../base-components/DataInputBase.vue"
 import NumberField from "../base-components/NumberField.vue"
 import PSlider from "primevue/slider"
-import { type SchemaBase, type SchemaNumber } from "ShowRunner-schema"
+import { type SchemaBase, type SchemaNumber } from "showrunner-schema"
 import { computed, ref, onMounted, useModel, watch, useTemplateRef } from "vue"
 import EnumInput from "../base-components/EnumInput.vue"
 import { SharedDataInputProps } from "../DataInputTypes"

@@ -7,8 +7,8 @@
 <script setup lang="ts">
 import { ref } from "vue"
 import ProjectGroupOrItem from "./ProjectGroupOrItem.vue"
-import { ToggleInput, useProjectStore, FlexScroller } from "ShowRunner-ui-core"
-import { type Toggle } from "ShowRunner-schema"
+import { ToggleInput, useProjectStore, FlexScroller } from "showrunner-ui-core"
+import { type Toggle } from "showrunner-schema"
 
 const projectStore = useProjectStore()
 

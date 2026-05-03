@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-donordrive-main",
+	"name": "showrunner-plugin-donordrive-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,8 +13,8 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"ShowRunner-core": "workspace:^",
-		"ShowRunner-plugin-donordrive-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^"
+		"showrunner-core": "workspace:^",
+		"showrunner-plugin-donordrive-shared": "workspace:^",
+		"showrunner-schema": "workspace:^"
 	}
 }

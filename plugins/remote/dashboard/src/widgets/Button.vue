@@ -11,9 +11,9 @@
 
 <script setup lang="ts">
 import * as chromatism from "chromatism2"
-import { declareWidgetOptions, useCallDashboardRPC, useShowRunnerBridge, useIsEditor } from "ShowRunner-dashboard-core"
-import { DashboardWidgetSize } from "ShowRunner-plugin-dashboards-shared"
-import { Color } from "ShowRunner-schema"
+import { declareWidgetOptions, useCallDashboardRPC, useShowRunnerBridge, useIsEditor } from "showrunner-dashboard-core"
+import { DashboardWidgetSize } from "showrunner-plugin-dashboards-shared"
+import { Color } from "showrunner-schema"
 import { computed, CSSProperties, onMounted, ref, watch } from "vue"
 import { useElementSize, useMutationObserver } from "@vueuse/core"
 

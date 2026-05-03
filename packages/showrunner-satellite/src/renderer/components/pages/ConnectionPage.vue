@@ -17,7 +17,7 @@ import {
 	useInitStore,
 	usePrimarySatelliteConnection,
 	useSatelliteConnection,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import PButton from "primevue/button"
 import RemoteDashGroup from "../connection/RemoteDashGroup.vue"
 import { onMounted, watch } from "vue"

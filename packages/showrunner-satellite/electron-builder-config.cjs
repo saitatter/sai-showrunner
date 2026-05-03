@@ -67,7 +67,7 @@ module.exports = {
 	],
 	extraFiles: [
 		// {
-		// 	from: "../ShowRunner-obs-overlay/dist/obs-overlay",
+		// 	from: "../showrunner-obs-overlay/dist/obs-overlay",
 		// 	to: "obs-overlay",
 		// },
 		// {

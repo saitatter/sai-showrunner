@@ -30,17 +30,17 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaTimer } from "ShowRunner-schema"
+import { SchemaTimer } from "showrunner-schema"
 import DataInputBase from "../base-components/DataInputBase.vue"
-import { Timer, Duration } from "ShowRunner-schema"
+import { Timer, Duration } from "showrunner-schema"
 import { computed, onBeforeUnmount, onMounted, ref, useModel, watch } from "vue"
 import { SharedDataInputProps } from "../DataInputTypes"
 import PButton from "primevue/button"
 import DurationField from "../base-components/DurationField.vue"
-import { getTimeRemaining } from "ShowRunner-schema"
-import { isTimerStarted } from "ShowRunner-schema"
-import { pauseTimer } from "ShowRunner-schema"
-import { startTimer } from "ShowRunner-schema"
+import { getTimeRemaining } from "showrunner-schema"
+import { isTimerStarted } from "showrunner-schema"
+import { pauseTimer } from "showrunner-schema"
+import { startTimer } from "showrunner-schema"
 import { useDataBinding, useDataUIBinding, useUndoCommitter } from "../../../util/data-binding"
 
 const props = defineProps<

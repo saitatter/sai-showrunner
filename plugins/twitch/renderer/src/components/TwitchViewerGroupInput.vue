@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaTwitchViewerGroup, TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
+import { SchemaTwitchViewerGroup, TwitchViewerGroup } from "showrunner-plugin-twitch-shared"
 import TwitchViewerGroupEdit from "./TwitchViewerGroupEdit.vue"
 import { useModel, ref, computed } from "vue"
 import {
@@ -25,7 +25,7 @@ import {
 	usePropagationStop,
 	useDataBinding,
 	SharedDataInputProps,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { getGroupPhrase } from "../util/group"
 import TwitchViewerGroupSpan from "./groups/TwitchViewerGroupSpan.vue"
 const props = defineProps<

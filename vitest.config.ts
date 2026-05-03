@@ -7,7 +7,7 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			ShowRunner_schema: "./libs/ShowRunner-schema/src",
+			showrunner_schema: "./libs/showrunner-schema/src",
 		},
 	},
 })

@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-stream-plans-main",
+	"name": "showrunner-plugin-stream-plans-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -13,8 +13,8 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"ShowRunner-core": "workspace:^",
-		"ShowRunner-plugin-stream-plans-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^"
+		"showrunner-core": "workspace:^",
+		"showrunner-plugin-stream-plans-shared": "workspace:^",
+		"showrunner-schema": "workspace:^"
 	}
 }

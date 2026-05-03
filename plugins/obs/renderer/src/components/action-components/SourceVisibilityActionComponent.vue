@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { Toggle } from "ShowRunner-schema"
+import { Toggle } from "showrunner-schema"
 import BaseObsActionComponent from "./BaseObsActionComponent.vue"
 import ObsSourceRef from "./ObsSourceRef.vue"
 import { computed } from "vue"

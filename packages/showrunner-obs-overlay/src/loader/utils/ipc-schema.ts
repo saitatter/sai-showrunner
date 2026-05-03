@@ -1,7 +1,7 @@
-import { getTypeByName, IPCDefaultable, IPCDynamicTypable, IPCEnumable, IPCSchema, Schema } from "ShowRunner-schema"
+import { getTypeByName, IPCDefaultable, IPCDynamicTypable, IPCEnumable, IPCSchema, Schema } from "showrunner-schema"
 import { markRaw, toRaw } from "vue"
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaResource {
 		resourceType: string
 	}

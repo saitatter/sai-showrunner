@@ -1,5 +1,5 @@
 import { Service } from "../util/service"
-import { createDelayedResolver, DelayedResolver, hashString } from "ShowRunner-schema"
+import { createDelayedResolver, DelayedResolver, hashString } from "showrunner-schema"
 import path from "path"
 import { ensureDirectory, resolveProjectPath } from "../io/file-system"
 import fs from "fs"

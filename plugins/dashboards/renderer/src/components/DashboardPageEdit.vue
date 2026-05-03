@@ -32,13 +32,13 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardPage, DashboardSection } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardPage, DashboardSection } from "showrunner-plugin-dashboards-shared"
 import { DashboardPageView, DashboardSectionView } from "../dashboard-types"
 import { computed, provide, ref, useModel } from "vue"
 
 import DashboardSectionEdit from "./DashboardSectionEdit.vue"
 
-import { stopPropagation, RowWrapDocumentDataCollection } from "ShowRunner-ui-core"
+import { stopPropagation, RowWrapDocumentDataCollection } from "showrunner-ui-core"
 
 import PInputText from "primevue/inputtext"
 import PButton from "primevue/button"

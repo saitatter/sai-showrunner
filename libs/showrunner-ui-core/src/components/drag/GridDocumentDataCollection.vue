@@ -57,7 +57,7 @@ import DataBindingPath from "../data/binding/DataBindingPath.vue"
 import SelectDummy from "../util/SelectDummy.vue"
 
 import { useOrderedRefs } from "./OrderedTemplateRefs"
-import { getByPath } from "ShowRunner-schema"
+import { getByPath } from "showrunner-schema"
 import { provideLocalPath } from "../../main"
 
 const props = withDefaults(

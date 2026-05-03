@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { usePrimarySatelliteConnection } from "ShowRunner-ui-core"
+import { usePrimarySatelliteConnection } from "showrunner-ui-core"
 import { onBeforeUnmount } from "vue"
 
 import DashboardDisplay from "../dashboard/DashboardDisplay.vue"

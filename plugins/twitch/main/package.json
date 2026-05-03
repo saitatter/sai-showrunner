@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-twitch-main",
+	"name": "showrunner-plugin-twitch-main",
 	"version": "1.0.0",
 	"description": "",
 	"main": "src/main.ts",
@@ -19,11 +19,11 @@
 		"@twurple/chat": "^8.0.3",
 		"@twurple/eventsub-base": "^8.0.3",
 		"@twurple/eventsub-ws": "^8.0.3",
-		"ShowRunner-core": "workspace:^",
-		"ShowRunner-plugin-overlays-main": "workspace:^",
-		"ShowRunner-plugin-twitch-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
 		"electron": "^34.2.0",
-		"fuzzysort": "^2.0.4"
+		"fuzzysort": "^2.0.4",
+		"showrunner-core": "workspace:^",
+		"showrunner-plugin-overlays-main": "workspace:^",
+		"showrunner-plugin-twitch-shared": "workspace:^",
+		"showrunner-schema": "workspace:^"
 	}
 }

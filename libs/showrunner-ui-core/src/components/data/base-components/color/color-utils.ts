@@ -1,4 +1,4 @@
-import { Color, isHexColor } from "ShowRunner-schema"
+import { Color, isHexColor } from "showrunner-schema"
 import { computed, ref, Ref, watch } from "vue"
 import { tryOnMounted } from "@vueuse/core"
 import * as chromatism from "chromatism2"

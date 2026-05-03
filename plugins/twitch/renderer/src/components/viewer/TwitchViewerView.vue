@@ -8,8 +8,8 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaTwitchViewer, TwitchViewer, TwitchViewerUnresolved } from "ShowRunner-plugin-twitch-shared"
-import { defaultStringIsTemplate, SharedDataViewProps } from "ShowRunner-ui-core"
+import { SchemaTwitchViewer, TwitchViewer, TwitchViewerUnresolved } from "showrunner-plugin-twitch-shared"
+import { defaultStringIsTemplate, SharedDataViewProps } from "showrunner-ui-core"
 import { useViewerStore } from "../../util/viewer"
 import { computedAsync } from "@vueuse/core"
 

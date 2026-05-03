@@ -41,13 +41,13 @@
 import StreamPlanSegmentEdit from "./StreamPlanSegmentEdit.vue"
 import ScrollingTabBody from "../docking/ScrollingTabBody.vue"
 import DocumentDataCollection from "../drag/DocumentDataCollection.vue"
-import { createInlineAutomation, StreamPlanConfig } from "ShowRunner-schema"
+import { createInlineAutomation, StreamPlanConfig } from "showrunner-schema"
 import { StreamPlanSegmentView, StreamPlanView } from "./stream-plan-types"
 import { useModel } from "vue"
 
 import PButton from "primevue/button"
 import { nanoid } from "nanoid/non-secure"
-import { StreamPlanSegment } from "ShowRunner-schema"
+import { StreamPlanSegment } from "showrunner-schema"
 import { createInlineAutomationView, InlineAutomationEdit } from "../../main"
 
 const props = defineProps<{

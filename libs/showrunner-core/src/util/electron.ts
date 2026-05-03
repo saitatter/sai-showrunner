@@ -1,4 +1,4 @@
-import { DelayedResolver, createDelayedResolver } from "ShowRunner-schema"
+import { DelayedResolver, createDelayedResolver } from "showrunner-schema"
 import { ipcMain, IpcMainInvokeEvent, WebContents, BrowserWindow } from "electron"
 import { nanoid } from "nanoid/non-secure"
 import { globalLogger } from "../logging/logging"

@@ -66,7 +66,7 @@ import {
 	DataInput,
 	usePrimarySatelliteConnection,
 	SettingsChange,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { computed, onBeforeMount, onMounted, ref } from "vue"
 import _cloneDeep from "lodash/cloneDeep"
 

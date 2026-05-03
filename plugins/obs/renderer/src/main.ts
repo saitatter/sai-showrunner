@@ -7,9 +7,9 @@ import {
 	useProjectStore,
 	useDockingStore,
 	ProjectGroup,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import "./css/icons.css"
-import { OBSSourceTransform } from "ShowRunner-plugin-obs-shared"
+import { OBSSourceTransform } from "showrunner-plugin-obs-shared"
 import { computed } from "vue"
 
 export { default as DashboardObsCard } from "./components/DashboardObsCard.vue"

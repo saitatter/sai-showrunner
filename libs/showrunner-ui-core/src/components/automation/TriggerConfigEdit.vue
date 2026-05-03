@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { addDefaults, constructDefault, isObjectSchema, TriggerData } from "ShowRunner-schema"
+import { addDefaults, constructDefault, isObjectSchema, TriggerData } from "showrunner-schema"
 import { useTrigger, DataInput, injectDataContextSchema } from "../../main"
 import { useModel, watch } from "vue"
 

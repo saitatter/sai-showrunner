@@ -1,6 +1,6 @@
-import { ReactiveRef, defineAction } from "ShowRunner-core"
+import { ReactiveRef, defineAction } from "showrunner-core"
 import { OBSConnection } from "./connection"
-import { Toggle } from "ShowRunner-schema"
+import { Toggle } from "showrunner-schema"
 
 //Converts a slider position to DB value in exactly the same way OBS does it.
 function sliderToDB(sliderPos: number) {

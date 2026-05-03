@@ -1,11 +1,11 @@
 import { ApiClient } from "@twurple/api"
 import { EventSubWsListener } from "@twurple/eventsub-ws"
 import { TwitchAccount } from "./twitch-auth"
-import { defineState, defineTrigger, usePluginLogger } from "ShowRunner-core"
-import { Range } from "ShowRunner-schema"
+import { defineState, defineTrigger, usePluginLogger } from "showrunner-core"
+import { Range } from "showrunner-schema"
 import { TwitchAPIService, onBotAuth, onChannelAuth } from "./api-harness"
 import { ViewerCache } from "./viewer-cache"
-import { TwitchViewer, TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
+import { TwitchViewer, TwitchViewerGroup } from "showrunner-plugin-twitch-shared"
 import { inTwitchViewerGroup, isEmptyTwitchViewerGroup } from "./group"
 
 export function setupSubscriptions() {

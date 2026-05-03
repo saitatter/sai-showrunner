@@ -37,7 +37,7 @@ import { computed, ref } from "vue"
 import SoundPlayer from "./SoundPlayer.vue"
 import CContextMenu from "../util/CContextMenu.vue"
 import type { MenuItem } from "primevue/menuitem"
-import { MediaFile } from "ShowRunner-schema"
+import { MediaFile } from "showrunner-schema"
 import { MediaFileItem } from "./media-tree-types"
 
 const props = defineProps<{

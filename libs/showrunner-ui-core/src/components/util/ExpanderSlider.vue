@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { Color } from "ShowRunner-schema"
+import { Color } from "showrunner-schema"
 import { computed, ref, useModel } from "vue"
 import { ClientPosition, DOMPos, getInternalMousePos } from "../../main"
 import { useEventListener } from "@vueuse/core"

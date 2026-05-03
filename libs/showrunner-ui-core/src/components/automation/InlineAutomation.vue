@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { InlineAutomation } from "ShowRunner-schema"
+import { InlineAutomation } from "showrunner-schema"
 import { InlineAutomationView } from "../../automations/automations.ts"
 import { useModel, ref, computed, watchEffect } from "vue"
 import ExpanderSlider from "../util/ExpanderSlider.vue"

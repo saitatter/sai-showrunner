@@ -1,5 +1,5 @@
-import { Service } from "ShowRunner-core"
-import { defineCallableIPC, defineIPCFunc } from "ShowRunner-core/src/util/electron"
+import { Service } from "showrunner-core"
+import { defineCallableIPC, defineIPCFunc } from "showrunner-core/src/util/electron"
 import { nanoid } from "nanoid/non-secure"
 
 const playSoundInRenderer = defineCallableIPC<

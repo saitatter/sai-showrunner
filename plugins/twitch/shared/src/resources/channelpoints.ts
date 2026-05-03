@@ -1,4 +1,4 @@
-import { Color, ResolvedSchemaType, Schema, SchemaType, declareSchema } from "ShowRunner-schema"
+import { Color, ResolvedSchemaType, Schema, SchemaType, declareSchema } from "showrunner-schema"
 
 export const ChannelPointRewardSchema = declareSchema({
 	type: Object,

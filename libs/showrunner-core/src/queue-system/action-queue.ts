@@ -11,7 +11,7 @@ import {
 	InlineAutomation,
 	addDefaults,
 	isTriggerData,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { nanoid } from "nanoid/non-secure"
 import { Service } from "../util/service"
 import { ExecutionDebugger, ActionResolvers } from "./resolvers"

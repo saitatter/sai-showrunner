@@ -8,9 +8,9 @@ import {
 	onLoad,
 	showrunnerChatModerationEvents,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { Command, getCommandDataSchema, matchAndParseCommand } from "ShowRunner-schema"
-import { YouTubeBroadcastState, YouTubeChatMessage, YouTubeConnectionState } from "ShowRunner-plugin-youtube-shared"
+} from "showrunner-core"
+import { Command, getCommandDataSchema, matchAndParseCommand } from "showrunner-schema"
+import { YouTubeBroadcastState, YouTubeChatMessage, YouTubeConnectionState } from "showrunner-plugin-youtube-shared"
 import { YouTubeAuthService } from "./youtube-auth"
 import { YouTubeLiveChatService } from "./youtube-live-chat"
 

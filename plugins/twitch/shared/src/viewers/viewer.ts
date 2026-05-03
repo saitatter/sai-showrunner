@@ -1,4 +1,4 @@
-import { Color, SchemaBase, registerType } from "ShowRunner-schema"
+import { Color, SchemaBase, registerType } from "showrunner-schema"
 
 export type TwitchViewerName = `@${string}` | `${string}`
 
@@ -65,7 +65,7 @@ export interface SchemaTwitchViewer extends SchemaBase<TwitchViewerUnresolved> {
 	template?: boolean
 }
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaTypeMap {
 		TwitchViewer: [SchemaTwitchViewer, TwitchViewerUnresolved]
 	}

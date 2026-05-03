@@ -7,9 +7,9 @@ import {
 	useSetting,
 	getSettingValue,
 	defineTransformTrigger,
-} from "ShowRunner-core"
-import { OBSConnection, onOBSWebsocketEvent } from "ShowRunner-plugin-obs-main"
-import { Command, getCommandDataSchema, matchAndParseCommand, Toggle } from "ShowRunner-schema"
+} from "showrunner-core"
+import { OBSConnection, onOBSWebsocketEvent } from "showrunner-plugin-obs-main"
+import { Command, getCommandDataSchema, matchAndParseCommand, Toggle } from "showrunner-schema"
 
 const aitumVerticalVendor = "aitum-vertical-canvas"
 

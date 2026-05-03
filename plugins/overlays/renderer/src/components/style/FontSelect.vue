@@ -16,7 +16,7 @@
 import PSelect from "primevue/select"
 import { getFonts } from "font-list"
 import { computed, onMounted, ref, useModel } from "vue"
-import { LabelFloater, useDataBinding, useUndoCommitter } from "ShowRunner-ui-core"
+import { LabelFloater, useDataBinding, useUndoCommitter } from "showrunner-ui-core"
 
 const props = defineProps<{
 	modelValue: string | undefined

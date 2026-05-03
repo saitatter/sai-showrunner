@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { ScrollingTabBody, useIpcCaller, useIpcMessage } from "ShowRunner-ui-core"
+import { ScrollingTabBody, useIpcCaller, useIpcMessage } from "showrunner-ui-core"
 import { onMounted, ref } from "vue"
 
 const version = ref("")

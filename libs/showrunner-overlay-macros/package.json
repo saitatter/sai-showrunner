@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-overlay-macros",
+	"name": "showrunner-overlay-macros",
 	"version": "0.0.1",
 	"description": "",
 	"main": "dist/index.js",

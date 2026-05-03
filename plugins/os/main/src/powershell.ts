@@ -1,7 +1,7 @@
-import { PowerShellCommand } from "ShowRunner-plugin-os-shared"
-import { defineAction, evaluateTemplate, globalLogger, registerSchemaTemplate, usePluginLogger } from "ShowRunner-core"
-import { abortablePromise } from "ShowRunner-core/src/util/abort-utils"
-import { getTemplateRegionString, parseTemplateString, trimTemplateJS, Directory } from "ShowRunner-schema"
+import { PowerShellCommand } from "showrunner-plugin-os-shared"
+import { defineAction, evaluateTemplate, globalLogger, registerSchemaTemplate, usePluginLogger } from "showrunner-core"
+import { abortablePromise } from "showrunner-core/src/util/abort-utils"
+import { getTemplateRegionString, parseTemplateString, trimTemplateJS, Directory } from "showrunner-schema"
 import { ChildProcess, exec, spawn } from "child_process"
 
 //Templating

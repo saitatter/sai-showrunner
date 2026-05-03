@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
-// Mock ShowRunner-core
-vi.mock("ShowRunner-core", () => ({
+// Mock showrunner-core
+vi.mock("showrunner-core", () => ({
 	ensureDirectory: vi.fn(),
 	ensureYAML: vi.fn(),
 	loadYAML: vi.fn(() => Promise.resolve({})),

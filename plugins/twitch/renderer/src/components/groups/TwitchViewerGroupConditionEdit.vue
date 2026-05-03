@@ -25,15 +25,15 @@
 </template>
 
 <script setup lang="ts">
-import { TwitchViewer, TwitchViewerGroupCondition } from "ShowRunner-plugin-twitch-shared"
-import { getTypeByConstructor, Schema, isStateValueExpr, isValueValueExpr, getTypeByName } from "ShowRunner-schema"
+import { TwitchViewer, TwitchViewerGroupCondition } from "showrunner-plugin-twitch-shared"
+import { getTypeByConstructor, Schema, isStateValueExpr, isValueValueExpr, getTypeByName } from "showrunner-schema"
 import {
 	ValueCompareOperatorSelector,
 	BooleanExpressionValueEdit,
 	useViewerDataStore,
 	ViewerVariableSelector,
 	usePluginStore,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { useModel, computed, watch } from "vue"
 
 import PButton from "primevue/button"

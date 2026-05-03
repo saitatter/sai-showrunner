@@ -1,4 +1,4 @@
-import { defineAction } from "ShowRunner-core"
+import { defineAction } from "showrunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import { TwitchAPIService, onChannelAuth } from "./api-harness"
 

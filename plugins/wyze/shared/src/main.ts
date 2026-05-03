@@ -1,4 +1,4 @@
-import { AccountConfig, AccountSecrets } from "ShowRunner-schema"
+import { AccountConfig, AccountSecrets } from "showrunner-schema"
 
 export interface WyzeAccountSecrets extends AccountSecrets {
 	accessToken?: string

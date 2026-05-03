@@ -5,7 +5,7 @@ import type {
 	GraphEdge,
 	SubgraphDefinition,
 	Expression,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 
 // ─── Instruction Set ──────────────────────────────────────────────────────────
 

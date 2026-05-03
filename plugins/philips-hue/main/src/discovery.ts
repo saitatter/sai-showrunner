@@ -9,7 +9,7 @@ import {
 	onSettingChanged,
 	sleep,
 	usePluginLogger,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import os from "os"
 
 const logger = usePluginLogger("philips-hue")

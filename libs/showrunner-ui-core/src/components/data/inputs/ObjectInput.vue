@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { type SchemaObj } from "ShowRunner-schema"
+import { type SchemaObj } from "showrunner-schema"
 import DataInput from "../DataInput.vue"
 import { getDataLabel, SharedDataInputProps } from "../DataInputTypes"
 import { computed } from "vue"

@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
+import { OverlayConfig } from "showrunner-plugin-overlays-shared"
 import {
 	useDocumentSelection,
 	FlexScroller,
@@ -81,14 +81,14 @@ import {
 	useDocumentId,
 	useSettingValue,
 	useIpcCaller,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { computed, onBeforeUnmount, onMounted, ref, useModel } from "vue"
 import PButton from "primevue/button"
 import PMenu from "primevue/menu"
-import { OverlayWidgetInfo, useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
+import { OverlayWidgetInfo, useOverlayWidgets } from "showrunner-overlay-widget-loader"
 import type { MenuItem } from "primevue/menuitem"
 import { nanoid } from "nanoid/non-secure"
-import { constructDefault } from "ShowRunner-schema"
+import { constructDefault } from "showrunner-schema"
 import _cloneDeep from "lodash/cloneDeep"
 import OverlayWidgetListItem from "./OverlayWidgetListItem.vue"
 

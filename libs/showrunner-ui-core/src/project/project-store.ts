@@ -2,7 +2,7 @@ import { defineStore } from "pinia"
 import { shallowRef, ComputedRef, computed, ref, App, VueElementConstructor, Component, Ref } from "vue"
 import { NamedData, useDockingStore, useResourceCreateDialog, useResourceData, useResourceStore } from "../main"
 import NameDialogVue from "../components/dialogs/NameDialog.vue"
-import { ResourceData } from "ShowRunner-schema"
+import { ResourceData } from "showrunner-schema"
 import ResourceEditDialog from "../components/resources/ResourceEditDialog.vue"
 import _isMatch from "lodash/isMatch"
 

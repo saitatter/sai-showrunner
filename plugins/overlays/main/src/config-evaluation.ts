@@ -9,9 +9,9 @@ import {
 	remoteTemplateSchema,
 	serializeSchema,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
-import { filterPromiseAll } from "ShowRunner-schema"
+} from "showrunner-core"
+import { OverlayConfig } from "showrunner-plugin-overlays-shared"
+import { filterPromiseAll } from "showrunner-schema"
 import { OverlayWidgetManager } from "./overlay-resource"
 
 const logger = usePluginLogger("overlays")

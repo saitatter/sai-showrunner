@@ -13,7 +13,7 @@ import {
 	useSatelliteConnection,
 	useSatelliteMedia,
 	useSatelliteResourceStore,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 
 import "./theme/ShowRunner/theme.scss"
 import "./css/theme-ext.css"
@@ -30,20 +30,20 @@ import Tooltip from "primevue/tooltip"
 
 import { createPinia } from "pinia"
 
-import { setupProxyDialogService } from "ShowRunner-ui-core"
+import { setupProxyDialogService } from "showrunner-ui-core"
 
-import { loadDashboardWidgets } from "ShowRunner-dashboard-widget-loader"
+import { loadDashboardWidgets } from "showrunner-dashboard-widget-loader"
 
-import { initSatellitePlugin as initSoundPlugin } from "ShowRunner-plugin-sound-renderer"
-import { initPlugin as initIoTPlugin } from "ShowRunner-plugin-iot-renderer"
-import { initPlugin as initTwinklyPlugin } from "ShowRunner-plugin-twinkly-renderer"
-import { initPlugin as initHuePlugin } from "ShowRunner-plugin-philips-hue-renderer"
-import { initPlugin as initWyzePlugin } from "ShowRunner-plugin-wyze-renderer"
-import { initPlugin as initLifxPlugin } from "ShowRunner-plugin-lifx-renderer"
-import { initPlugin as initGoveePlugin } from "ShowRunner-plugin-govee-renderer"
-import { initPlugin as initKasaPlugin } from "ShowRunner-plugin-tplink-kasa-renderer"
+import { initSatellitePlugin as initSoundPlugin } from "showrunner-plugin-sound-renderer"
+import { initPlugin as initIoTPlugin } from "showrunner-plugin-iot-renderer"
+import { initPlugin as initTwinklyPlugin } from "showrunner-plugin-twinkly-renderer"
+import { initPlugin as initHuePlugin } from "showrunner-plugin-philips-hue-renderer"
+import { initPlugin as initWyzePlugin } from "showrunner-plugin-wyze-renderer"
+import { initPlugin as initLifxPlugin } from "showrunner-plugin-lifx-renderer"
+import { initPlugin as initGoveePlugin } from "showrunner-plugin-govee-renderer"
+import { initPlugin as initKasaPlugin } from "showrunner-plugin-tplink-kasa-renderer"
 
-//import { initPlugin as initTwitchPlugin } from "ShowRunner-plugin-twitch-renderer"
+//import { initPlugin as initTwitchPlugin } from "showrunner-plugin-twitch-renderer"
 
 const pinia = createPinia()
 const app = createApp(App)

@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaObj } from "ShowRunner-schema"
+import { SchemaObj } from "showrunner-schema"
 import { computed, useModel } from "vue"
 import VariableNameInput from "../base-components/VariableNameInput.vue"
 import LabelFloater from "../base-components/LabelFloater.vue"

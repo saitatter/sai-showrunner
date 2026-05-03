@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { computed, MaybeRefOrGetter, Ref, ref, toValue } from "vue"
-import { MediaMetadata, normalizeMediaPath } from "ShowRunner-schema"
+import { MediaMetadata, normalizeMediaPath } from "showrunner-schema"
 import { ProjectItem, handleIpcMessage, useDockingStore, useIpcCaller, useIpcMessage, useProjectStore } from "../main"
 import MediaBrowserPage from "../components/media/MediaBrowserPage.vue"
 import { useFileDragDrop } from "../util/file-drop"

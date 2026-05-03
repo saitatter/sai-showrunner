@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { FlexScroller, SatelliteResourceSlotBindingEdit, useSatelliteResourceStore } from "ShowRunner-ui-core"
+import { FlexScroller, SatelliteResourceSlotBindingEdit, useSatelliteResourceStore } from "showrunner-ui-core"
 
 import PButton from "primevue/button"
 import { usePageStore } from "../../util/page-store"

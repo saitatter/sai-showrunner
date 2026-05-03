@@ -1,7 +1,7 @@
 import axios from "axios"
-import { coreAxios } from "ShowRunner-core"
-import { TwitchAccount } from "ShowRunner-plugin-twitch-main"
-import { Color } from "ShowRunner-schema"
+import { coreAxios } from "showrunner-core"
+import { TwitchAccount } from "showrunner-plugin-twitch-main"
+import { Color } from "showrunner-schema"
 
 const baseURL = "https://api.spellcast.gg/"
 

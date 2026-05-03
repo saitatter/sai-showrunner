@@ -49,7 +49,7 @@
 import DataInputBase from "../base-components/DataInputBase.vue"
 import PInputText from "primevue/inputtext"
 import PPassword from "primevue/password"
-import { type SchemaString, type SchemaBase } from "ShowRunner-schema"
+import { type SchemaString, type SchemaBase } from "showrunner-schema"
 import { SharedDataInputProps, defaultStringIsTemplate } from "../DataInputTypes"
 import { TemplateToggle } from "../../../main"
 import EnumInput from "../base-components/EnumInput.vue"

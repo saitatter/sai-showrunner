@@ -29,8 +29,8 @@
 </template>
 
 <script setup lang="ts">
-import { AutomationConfig, AutomationDataWire, AutomationGraph, AutomationVariableNode, GraphNode, SubgraphDefinition } from "ShowRunner-schema"
-import { AutomationResourceView, useAppFeedback, useDocumentId, useResourceStore } from "ShowRunner-ui-core"
+import { AutomationConfig, AutomationDataWire, AutomationGraph, AutomationVariableNode, GraphNode, SubgraphDefinition } from "showrunner-schema"
+import { AutomationResourceView, useAppFeedback, useDocumentId, useResourceStore } from "showrunner-ui-core"
 import { computed, onErrorCaptured, ref, toRaw, useModel } from "vue"
 import NodeAutomationEdit from "./NodeAutomationEdit.vue"
 

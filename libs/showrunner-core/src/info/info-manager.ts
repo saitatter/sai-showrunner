@@ -5,7 +5,7 @@ import { app } from "electron"
 import { defineIPCFunc } from "../util/electron"
 
 import electronUpdater, { autoUpdater, UpdateInfo, CancellationToken } from "electron-updater"
-import { UpdateData } from "ShowRunner-schema"
+import { UpdateData } from "showrunner-schema"
 import { globalLogger, usePluginLogger } from "../logging/logging"
 import path from "path"
 

@@ -34,9 +34,9 @@
 <script setup lang="ts">
 import { useModel } from "vue"
 
-import { OverlayStrokeStyle } from "ShowRunner-plugin-overlays-shared"
-import { LabelFloater, DataInput, CNumberInput } from "ShowRunner-ui-core"
-import { Color, declareSchema } from "ShowRunner-schema"
+import { OverlayStrokeStyle } from "showrunner-plugin-overlays-shared"
+import { LabelFloater, DataInput, CNumberInput } from "showrunner-ui-core"
+import { Color, declareSchema } from "showrunner-schema"
 
 import PInputNumber from "primevue/inputnumber"
 import PButton from "primevue/button"

@@ -20,8 +20,8 @@
 		// "noUnusedParameters": true,
 		// "noFallthroughCasesInSwitch": true
 		"paths": {
-			"ShowRunner-ui-core": ["../../../libs/ShowRunner-ui-core/src/main.ts"],
-			"ShowRunner-plugin-twitch-renderer": ["../../../plugins/twitch/renderer/src/main.ts"]
+			"showrunner-ui-core": ["../../../libs/showrunner-ui-core/src/main.ts"],
+			"showrunner-plugin-twitch-renderer": ["../../../plugins/twitch/renderer/src/main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

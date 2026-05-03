@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { ProjectItem, NameDialog, CContextMenu } from "ShowRunner-ui-core"
+import { ProjectItem, NameDialog, CContextMenu } from "showrunner-ui-core"
 import type { MenuItem } from "primevue/menuitem"
 import { computed, ref } from "vue"
 import { useDialog } from "primevue/usedialog"

@@ -1,4 +1,4 @@
-import { definePlugin, usePluginLogger } from "ShowRunner-core"
+import { definePlugin, usePluginLogger } from "showrunner-core"
 import { setupVariableActions } from "./actions"
 import { setupViewerVariables } from "./viewer-variables"
 

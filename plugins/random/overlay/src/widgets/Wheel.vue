@@ -57,15 +57,15 @@ import {
 	useCallOverlayRPC,
 	useIsEditor,
 	useSoundPlayer,
-} from "ShowRunner-overlay-core"
+} from "showrunner-overlay-core"
 import {
 	OverlayBlockStyle,
 	OverlayTextAlignment,
 	OverlayTextStyle,
 	OverlayWidgetSize,
-} from "ShowRunner-plugin-overlays-shared"
-import { MediaFile } from "ShowRunner-schema"
-import { Color } from "ShowRunner-schema"
+} from "showrunner-plugin-overlays-shared"
+import { MediaFile } from "showrunner-schema"
+import { Color } from "showrunner-schema"
 import { computed, onMounted, ref, watch } from "vue"
 
 const defaultStyle = [

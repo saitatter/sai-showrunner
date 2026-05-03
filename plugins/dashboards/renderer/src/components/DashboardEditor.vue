@@ -47,10 +47,10 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardConfig, DashboardPage } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardConfig, DashboardPage } from "showrunner-plugin-dashboards-shared"
 import { DashboardPageView, DashboardView } from "../dashboard-types"
 import DashboardPropertiesEdit from "./DashboardPropertiesEdit.vue"
-import { ScrollingTabBody, DocumentDataCollection } from "ShowRunner-ui-core"
+import { ScrollingTabBody, DocumentDataCollection } from "showrunner-ui-core"
 import { computed, useModel } from "vue"
 
 import PButton from "primevue/button"

@@ -20,44 +20,44 @@
 		/* "noUnusedParameters": true, */
 		/* "noFallthroughCasesInSwitch": true */
 		"paths": {
-			"ShowRunner-ui-core": ["../../libs/ShowRunner-ui-core/src/main.ts"],
-			"ShowRunner-overlay-widget-loader": [
-				"../../libs/ShowRunner-overlay-widget-loader/src/overlay-widget-loader.ts"
+			"showrunner-ui-core": ["../../libs/showrunner-ui-core/src/main.ts"],
+			"showrunner-overlay-widget-loader": [
+				"../../libs/showrunner-overlay-widget-loader/src/overlay-widget-loader.ts"
 			],
-			"ShowRunner-dashboard-widget-loader": [
-				"../../libs/ShowRunner-dashboard-widget-loader/src/dashboard-widget-loader.ts"
+			"showrunner-dashboard-widget-loader": [
+				"../../libs/showrunner-dashboard-widget-loader/src/dashboard-widget-loader.ts"
 			],
-			"ShowRunner-overlay-core": ["../../libs/ShowRunner-overlay-core/src/overlay-core-main.ts"],
-			//TODO: "ShowRunner-plugin-*-renderer": ["../../plugins/*/renderer/src/main.ts"]
-			"ShowRunner-plugin-advss-renderer": ["../../plugins/advss/renderer/src/main.ts"],
-			"ShowRunner-plugin-aitum-renderer": ["../../plugins/aitum/renderer/src/main.ts"],
-			"ShowRunner-plugin-bluesky-renderer": ["../../plugins/bluesky/renderer/src/main.ts"],
-			"ShowRunner-plugin-dashboards-renderer": ["../../plugins/dashboards/renderer/src/main.ts"],
-			"ShowRunner-plugin-discord-renderer": ["../../plugins/discord/renderer/src/main.ts"],
-			"ShowRunner-plugin-donordrive-renderer": ["../../plugins/donordrive/renderer/src/main.ts"],
-			"ShowRunner-plugin-http-renderer": ["../../plugins/http/renderer/src/main.ts"],
-			"ShowRunner-plugin-input-renderer": ["../../plugins/input/renderer/src/main.ts"],
-			"ShowRunner-plugin-iot-renderer": ["../../plugins/iot/renderer/src/main.ts"],
-			"ShowRunner-plugin-minecraft-renderer": ["../../plugins/minecraft/renderer/src/main.ts"],
-			"ShowRunner-plugin-obs-renderer": ["../../plugins/obs/renderer/src/main.ts"],
-			"ShowRunner-plugin-os-renderer": ["../../plugins/os/renderer/src/main.ts"],
-			"ShowRunner-plugin-sound-renderer": ["../../plugins/sound/renderer/src/main.ts"],
-			"ShowRunner-plugin-random-renderer": ["../../plugins/random/renderer/src/main.ts"],
-			"ShowRunner-plugin-remote-renderer": ["../../plugins/remote/renderer/src/main.ts"],
-			"ShowRunner-plugin-time-renderer": ["../../plugins/time/renderer/src/main.ts"],
-			"ShowRunner-plugin-twitch-renderer": ["../../plugins/twitch/renderer/src/main.ts"],
-			"ShowRunner-plugin-youtube-renderer": ["../../plugins/youtube/renderer/src/main.ts"],
-			"ShowRunner-plugin-voicemod-renderer": ["../../plugins/voicemod/renderer/src/main.ts"],
-			"ShowRunner-plugin-twinkly-renderer": ["../../plugins/twinkly/renderer/src/main.ts"],
-			"ShowRunner-plugin-philips-hue-renderer": ["../../plugins/philips-hue/renderer/src/main.ts"],
-			"ShowRunner-plugin-wyze-renderer": ["../../plugins/wyze/renderer/src/main.ts"],
-			"ShowRunner-plugin-lifx-renderer": ["../../plugins/lifx/renderer/src/main.ts"],
-			"ShowRunner-plugin-govee-renderer": ["../../plugins/govee/renderer/src/main.ts"],
-			"ShowRunner-plugin-tplink-kasa-renderer": ["../../plugins/tplink-kasa/renderer/src/main.ts"],
-			"ShowRunner-plugin-variables-renderer": ["../../plugins/variables/renderer/src/main.ts"],
-			"ShowRunner-plugin-overlays-renderer": ["../../plugins/overlays/renderer/src/main.ts"],
-			"ShowRunner-plugin-spellcast-renderer": ["../../plugins/spellcast/renderer/src/main.ts"],
-			"ShowRunner-plugin-stream-plans-renderer": ["../../plugins/stream-plans/renderer/src/main.ts"]
+			"showrunner-overlay-core": ["../../libs/showrunner-overlay-core/src/overlay-core-main.ts"],
+			//TODO: "showrunner-plugin-*-renderer": ["../../plugins/*/renderer/src/main.ts"]
+			"showrunner-plugin-advss-renderer": ["../../plugins/advss/renderer/src/main.ts"],
+			"showrunner-plugin-aitum-renderer": ["../../plugins/aitum/renderer/src/main.ts"],
+			"showrunner-plugin-bluesky-renderer": ["../../plugins/bluesky/renderer/src/main.ts"],
+			"showrunner-plugin-dashboards-renderer": ["../../plugins/dashboards/renderer/src/main.ts"],
+			"showrunner-plugin-discord-renderer": ["../../plugins/discord/renderer/src/main.ts"],
+			"showrunner-plugin-donordrive-renderer": ["../../plugins/donordrive/renderer/src/main.ts"],
+			"showrunner-plugin-http-renderer": ["../../plugins/http/renderer/src/main.ts"],
+			"showrunner-plugin-input-renderer": ["../../plugins/input/renderer/src/main.ts"],
+			"showrunner-plugin-iot-renderer": ["../../plugins/iot/renderer/src/main.ts"],
+			"showrunner-plugin-minecraft-renderer": ["../../plugins/minecraft/renderer/src/main.ts"],
+			"showrunner-plugin-obs-renderer": ["../../plugins/obs/renderer/src/main.ts"],
+			"showrunner-plugin-os-renderer": ["../../plugins/os/renderer/src/main.ts"],
+			"showrunner-plugin-sound-renderer": ["../../plugins/sound/renderer/src/main.ts"],
+			"showrunner-plugin-random-renderer": ["../../plugins/random/renderer/src/main.ts"],
+			"showrunner-plugin-remote-renderer": ["../../plugins/remote/renderer/src/main.ts"],
+			"showrunner-plugin-time-renderer": ["../../plugins/time/renderer/src/main.ts"],
+			"showrunner-plugin-twitch-renderer": ["../../plugins/twitch/renderer/src/main.ts"],
+			"showrunner-plugin-youtube-renderer": ["../../plugins/youtube/renderer/src/main.ts"],
+			"showrunner-plugin-voicemod-renderer": ["../../plugins/voicemod/renderer/src/main.ts"],
+			"showrunner-plugin-twinkly-renderer": ["../../plugins/twinkly/renderer/src/main.ts"],
+			"showrunner-plugin-philips-hue-renderer": ["../../plugins/philips-hue/renderer/src/main.ts"],
+			"showrunner-plugin-wyze-renderer": ["../../plugins/wyze/renderer/src/main.ts"],
+			"showrunner-plugin-lifx-renderer": ["../../plugins/lifx/renderer/src/main.ts"],
+			"showrunner-plugin-govee-renderer": ["../../plugins/govee/renderer/src/main.ts"],
+			"showrunner-plugin-tplink-kasa-renderer": ["../../plugins/tplink-kasa/renderer/src/main.ts"],
+			"showrunner-plugin-variables-renderer": ["../../plugins/variables/renderer/src/main.ts"],
+			"showrunner-plugin-overlays-renderer": ["../../plugins/overlays/renderer/src/main.ts"],
+			"showrunner-plugin-spellcast-renderer": ["../../plugins/spellcast/renderer/src/main.ts"],
+			"showrunner-plugin-stream-plans-renderer": ["../../plugins/stream-plans/renderer/src/main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

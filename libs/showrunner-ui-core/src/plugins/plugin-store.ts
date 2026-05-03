@@ -13,7 +13,7 @@ import {
 	IPCDurationConfig,
 	IPCSettingsDefinition,
 	IPCStateDefinition,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 
 import { computed, ref, unref, type MaybeRefOrGetter, toValue, Component, markRaw, onMounted, onUnmounted } from "vue"
 

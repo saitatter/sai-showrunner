@@ -14,8 +14,8 @@ import {
 	defineState,
 	AsyncCache,
 	AsyncDictCache,
-} from "ShowRunner-core"
-import { Range } from "ShowRunner-schema"
+} from "showrunner-core"
+import { Range } from "showrunner-schema"
 import querystring from "node:querystring"
 import {
 	createEntityPoller,

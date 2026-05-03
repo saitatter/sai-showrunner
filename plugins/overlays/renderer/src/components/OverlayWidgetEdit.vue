@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
+import { OverlayWidgetConfig } from "showrunner-plugin-overlays-shared"
 import {
 	PanAreaResizable,
 	useDocumentSelection,
@@ -32,11 +32,11 @@ import {
 	useMediaStore,
 	useDataBinding,
 	useViewerDataStore,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { ComputedRef, computed, inject, markRaw, onMounted, provide, ref, useModel, watch } from "vue"
-import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
+import { useOverlayWidgets } from "showrunner-overlay-widget-loader"
 import { useRemoteOverlayConfig } from "../config/overlay-config"
-import { ShowRunnerBridgeImplementation } from "ShowRunner-overlay-core"
+import { ShowRunnerBridgeImplementation } from "showrunner-overlay-core"
 
 import { useDialog } from "primevue/usedialog"
 import type { MenuItem } from "primevue/menuitem"

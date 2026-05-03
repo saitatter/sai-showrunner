@@ -14,7 +14,7 @@ export default defineConfig({
 		cssCodeSplit: true,
 		lib: {
 			entry: "src/main.ts",
-			name: "ShowRunner-ui-core",
+			name: "showrunner-ui-core",
 		},
 		rollupOptions: {
 			external: ["vue"],

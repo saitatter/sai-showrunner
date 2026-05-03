@@ -28,13 +28,13 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
+import { OverlayConfig } from "showrunner-plugin-overlays-shared"
 import { computed, onMounted, ref, watch } from "vue"
 
 import PButton from "primevue/button"
-import { NameDialog, useResource, useResourceIPCCaller, useSettingValue } from "ShowRunner-ui-core"
-import { ResourceData } from "ShowRunner-schema"
-import { OBSConnectionConfig, OBSConnectionState } from "ShowRunner-plugin-obs-shared"
+import { NameDialog, useResource, useResourceIPCCaller, useSettingValue } from "showrunner-ui-core"
+import { ResourceData } from "showrunner-schema"
+import { OBSConnectionConfig, OBSConnectionState } from "showrunner-plugin-obs-shared"
 import { asyncComputed } from "@vueuse/core"
 import { useDialog } from "primevue/usedialog"
 

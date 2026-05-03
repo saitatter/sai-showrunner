@@ -43,7 +43,7 @@
 import { computed, markRaw, onBeforeMount, onMounted, ref, useModel } from "vue"
 import { LabelFloater, TemplateToggle, defaultStringIsTemplate, getDataLabel } from "../../../main"
 import ErrorLabel from "./ErrorLabel.vue"
-import { Schema } from "ShowRunner-schema"
+import { Schema } from "showrunner-schema"
 import { useValidator } from "../../../util/validation"
 
 import type { MenuItem } from "primevue/menuitem"

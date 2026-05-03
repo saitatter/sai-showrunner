@@ -1,5 +1,5 @@
 {
-  "name": "ShowRunner-plugin-voicemod-main",
+  "name": "showrunner-plugin-voicemod-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,9 +13,9 @@
     "typescript": "*"
   },
   "dependencies": {
-    "ShowRunner-core": "workspace:^",
-    "ShowRunner-schema": "workspace:^",
     "nanoid": "^5.0.7",
+    "showrunner-core": "workspace:^",
+    "showrunner-schema": "workspace:^",
     "ws": "*"
   }
 }

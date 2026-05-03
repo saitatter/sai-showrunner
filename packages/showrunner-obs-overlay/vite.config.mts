@@ -3,7 +3,7 @@ import { defineConfig } from "vite"
 import path from "path"
 import { fileURLToPath } from "node:url"
 
-import { library, plugins } from "ShowRunner-vite"
+import { library, plugins } from "showrunner-vite"
 //import Inspect from "vite-plugin-inspect"
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -13,8 +13,8 @@ export default defineConfig({
 	base: "/overlays/",
 	plugins: [
 		vue(),
-		library("ShowRunner-overlay-core"),
-		library("ShowRunner-overlay-widget-loader"),
+		library("showrunner-overlay-core"),
+		library("showrunner-overlay-widget-loader"),
 		plugins("../../plugins", "overlay"),
 	],
 	resolve: {

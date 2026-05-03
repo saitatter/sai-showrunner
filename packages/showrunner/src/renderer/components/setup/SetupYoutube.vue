@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { useIpcCaller } from "ShowRunner-ui-core"
+import { useIpcCaller } from "showrunner-ui-core"
 import PButton from "primevue/button"
 import { computed, onMounted, ref, useModel, watch } from "vue"
 import MigrationCheckBox from "../migration/MigrationCheckBox.vue"

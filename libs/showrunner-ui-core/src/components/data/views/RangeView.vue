@@ -3,8 +3,8 @@
 </template>
 
 <script setup lang="ts">
-import { Range } from "ShowRunner-schema"
-import { SchemaRange } from "ShowRunner-schema"
+import { Range } from "showrunner-schema"
+import { SchemaRange } from "showrunner-schema"
 import { computed } from "vue"
 import { SharedDataViewProps } from "../DataInputTypes"
 

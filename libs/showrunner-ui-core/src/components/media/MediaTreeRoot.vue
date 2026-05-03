@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import { MediaFile, MediaMetadata } from "ShowRunner-schema"
+import { MediaFile, MediaMetadata } from "showrunner-schema"
 import { computed } from "vue"
 import { useMediaStore } from "../../main"
 import { useMediaFileTree } from "./media-tree-types"

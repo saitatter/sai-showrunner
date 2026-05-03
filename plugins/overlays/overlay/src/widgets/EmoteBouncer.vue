@@ -41,12 +41,12 @@
 <script setup lang="ts">
 import Matter, { Engine, Body, Bodies, World, Runner, Events, Composite, Vertices, Common } from "matter-js"
 
-import { declareWidgetOptions, handleOverlayMessage, handleOverlayRPC, useIsEditor } from "ShowRunner-overlay-core"
-import { Duration, EmoteInfo, EmoteParsedString } from "ShowRunner-schema"
-import { OverlayWidgetSize } from "ShowRunner-plugin-overlays-shared"
-import { Range } from "ShowRunner-schema"
+import { declareWidgetOptions, handleOverlayMessage, handleOverlayRPC, useIsEditor } from "showrunner-overlay-core"
+import { Duration, EmoteInfo, EmoteParsedString } from "showrunner-schema"
+import { OverlayWidgetSize } from "showrunner-plugin-overlays-shared"
+import { Range } from "showrunner-schema"
 import { onMounted, ref, watch } from "vue"
-import { template } from "ShowRunner-core"
+import { template } from "showrunner-core"
 
 defineOptions({
 	widget: declareWidgetOptions({

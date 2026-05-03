@@ -12,10 +12,10 @@ import {
 	useResourceData,
 	useResourceStore,
 } from "../../main"
-import { ResourceData, StreamPlanConfig, StreamPlanState, StreamPlanSegment } from "ShowRunner-schema"
+import { ResourceData, StreamPlanConfig, StreamPlanState, StreamPlanSegment } from "showrunner-schema"
 import { defineStore } from "pinia"
 import _cloneDeep from "lodash/cloneDeep"
-import { StreamPlan } from "ShowRunner-core"
+import { StreamPlan } from "showrunner-core"
 import { useDialog } from "primevue"
 import StreamPlanSegmentEditDialog from "./StreamPlanSegmentEditDialog.vue"
 

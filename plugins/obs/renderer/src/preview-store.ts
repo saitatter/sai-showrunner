@@ -1,4 +1,4 @@
-import { useIpcCaller, useResourceIPCCaller, useResourceStore } from "ShowRunner-ui-core"
+import { useIpcCaller, useResourceIPCCaller, useResourceStore } from "showrunner-ui-core"
 import { defineStore } from "pinia"
 import {
 	MaybeRefOrGetter,

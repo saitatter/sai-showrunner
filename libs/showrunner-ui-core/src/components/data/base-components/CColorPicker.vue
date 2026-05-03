@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { Color } from "ShowRunner-schema"
+import { Color } from "showrunner-schema"
 import { useDataBinding } from "../../../main"
 
 import LinearGradientPicker from "./color/LinearGradientPicker.vue"

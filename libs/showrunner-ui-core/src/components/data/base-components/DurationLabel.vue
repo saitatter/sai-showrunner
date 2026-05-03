@@ -3,8 +3,8 @@
 </template>
 
 <script setup lang="ts">
-import { formatDuration } from "ShowRunner-schema"
-import { Duration } from "ShowRunner-schema"
+import { formatDuration } from "showrunner-schema"
+import { Duration } from "showrunner-schema"
 import { computed } from "vue"
 
 const props = withDefaults(

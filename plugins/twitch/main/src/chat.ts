@@ -1,5 +1,5 @@
 import { ChatClient, ChatMessage, parseEmotePositions, toUserName, UserNotice } from "@twurple/chat"
-import { defineTrigger, defineAction, defineTransformTrigger, usePluginLogger, onLoad, EmoteCache } from "ShowRunner-core"
+import { defineTrigger, defineAction, defineTransformTrigger, usePluginLogger, onLoad, EmoteCache } from "showrunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import { TwitchAPIService, onBotAuth, onChannelAuth } from "./api-harness"
 import {
@@ -10,11 +10,11 @@ import {
 	matchAndParseCommand,
 	EmoteParsedString,
 	Duration,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { ViewerCache } from "./viewer-cache"
-import { TwitchViewer, TwitchViewerGroup, testViewer } from "ShowRunner-plugin-twitch-shared"
+import { TwitchViewer, TwitchViewerGroup, testViewer } from "showrunner-plugin-twitch-shared"
 import { inTwitchViewerGroup } from "./group"
-import { OverlayWebsocketService } from "ShowRunner-plugin-overlays-main"
+import { OverlayWebsocketService } from "showrunner-plugin-overlays-main"
 import { HelixChatAnnouncementColor } from "@twurple/api"
 
 function parseEmotesFromMsg(chatMessage: ChatMessage): EmoteParsedString {

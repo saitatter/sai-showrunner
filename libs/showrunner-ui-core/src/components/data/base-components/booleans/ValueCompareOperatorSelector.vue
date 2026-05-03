@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import { ValueCompareOperator } from "ShowRunner-schema"
+import { ValueCompareOperator } from "showrunner-schema"
 import { computed, onMounted, useModel, watch } from "vue"
 import CDropdown from "../CDropdown.vue"
 import type { MenuItem } from "primevue/menuitem"

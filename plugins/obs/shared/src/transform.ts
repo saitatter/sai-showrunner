@@ -1,4 +1,4 @@
-import { SchemaBase, TemplateNumber, registerType } from "ShowRunner-schema"
+import { SchemaBase, TemplateNumber, registerType } from "showrunner-schema"
 import { OBSBoundsType, OBSAlignment, OBSWSSourceTransform } from "./websocket-models"
 
 export interface OBSSourceTransform {
@@ -99,7 +99,7 @@ registerType("OBSSourceTransform", {
 	constructor: OBSSourceTransform,
 })
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaTypeMap {
 		OBSSourceTransform: [SchemaOBSSourceTransform, ResolvedOBSSourceTransform]
 	}

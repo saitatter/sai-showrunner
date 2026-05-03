@@ -29,13 +29,13 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayPreviewConfig } from "ShowRunner-plugin-overlays-shared"
+import { OverlayPreviewConfig } from "showrunner-plugin-overlays-shared"
 import { computed, useModel } from "vue"
 
-import { LabelFloater, DataInput, stopPropagation, useDataBinding, CNumberInput } from "ShowRunner-ui-core"
+import { LabelFloater, DataInput, stopPropagation, useDataBinding, CNumberInput } from "showrunner-ui-core"
 import PInputNumber from "primevue/inputnumber"
 import PToggleButton from "primevue/togglebutton"
-import { FilePath, declareSchema } from "ShowRunner-schema"
+import { FilePath, declareSchema } from "showrunner-schema"
 
 const props = defineProps<{
 	modelValue: OverlayPreviewConfig | undefined

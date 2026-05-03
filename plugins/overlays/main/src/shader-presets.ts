@@ -1,4 +1,4 @@
-import { defineRendererCallable, ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, writeYAML } from "ShowRunner-core"
+import { defineRendererCallable, ensureDirectory, ensureYAML, loadYAML, resolveProjectPath, writeYAML } from "showrunner-core"
 
 type ShaderPresetStore = Record<string, string>
 

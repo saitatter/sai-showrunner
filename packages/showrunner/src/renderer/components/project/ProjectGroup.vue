@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { ProjectGroup, CContextMenu } from "ShowRunner-ui-core"
+import { ProjectGroup, CContextMenu } from "showrunner-ui-core"
 import ProjectGroupOrItem from "./ProjectGroupOrItem.vue"
 import { computed, ref, toRaw } from "vue"
 import type { MenuItem } from "primevue/menuitem"

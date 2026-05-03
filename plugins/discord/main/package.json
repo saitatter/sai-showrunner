@@ -1,5 +1,5 @@
 {
-  "name": "ShowRunner-plugin-discord-main",
+  "name": "showrunner-plugin-discord-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,9 +13,9 @@
     "typescript": "*"
   },
   "dependencies": {
-    "ShowRunner-core": "workspace:^",
-    "ShowRunner-plugin-discord-shared": "workspace:^",
-    "ShowRunner-schema": "workspace:^",
-    "discord.js": "^14.13.0"
+    "discord.js": "^14.13.0",
+    "showrunner-core": "workspace:^",
+    "showrunner-plugin-discord-shared": "workspace:^",
+    "showrunner-schema": "workspace:^"
   }
 }

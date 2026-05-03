@@ -16,8 +16,8 @@
 </template>
 
 <script setup lang="ts">
-import { UpdateData } from "ShowRunner-schema"
-import { useIpcCaller, FlexScroller, useDialogRef } from "ShowRunner-ui-core"
+import { UpdateData } from "showrunner-schema"
+import { useIpcCaller, FlexScroller, useDialogRef } from "showrunner-ui-core"
 import { nextTick, onMounted, ref } from "vue"
 import PButton from "primevue/button"
 

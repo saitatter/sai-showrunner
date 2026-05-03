@@ -57,7 +57,7 @@ import {
 	useSettingWatcher,
 	useDocumentId,
 	useDocument,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { computed, ref, useModel, watch } from "vue"
 import { SettingsDocumentData, SettingsViewData } from "./SettingsTypes"
 import PInputText from "primevue/inputtext"

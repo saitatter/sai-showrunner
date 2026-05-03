@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { ResourceData, StreamPlanConfig, StreamPlanState, declareSchema } from "ShowRunner-schema"
+import { ResourceData, StreamPlanConfig, StreamPlanState, declareSchema } from "showrunner-schema"
 import MainPageCard from "../main-page/MainPageCard.vue"
 import DataInput from "../data/DataInput.vue"
 import { ResourceProxyFactory, usePropagationStop, useResourceData } from "../../main"

@@ -64,8 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { useOverlayWidgets } from "ShowRunner-overlay-widget-loader"
-import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
+import { useOverlayWidgets } from "showrunner-overlay-widget-loader"
+import { OverlayConfig } from "showrunner-plugin-overlays-shared"
 import {
 	FlexScroller,
 	DataInput,
@@ -74,7 +74,7 @@ import {
 	DataBindingPath,
 	provideScrollAttachable,
 	useIpcCaller,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { computed, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetTransformEdit from "./OverlayWidgetTransformEdit.vue"
 import ShaderGraphEditor from "./shader-graph/ShaderGraphEditor.vue"

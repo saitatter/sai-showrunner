@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-remote-dashboard",
+	"name": "showrunner-plugin-remote-dashboard",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -13,13 +13,13 @@
 	},
 	"dependencies": {
 		"@vueuse/core": "*",
-		"ShowRunner-dashboard-core": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
 		"chromatism2": "*",
 		"electron": "^34.2.0",
 		"nanoid": "^5.0.7",
 		"pinia": "^2.1.7",
 		"primevue": "^4.2.4",
+		"showrunner-dashboard-core": "workspace:^",
+		"showrunner-schema": "workspace:^",
 		"vue": "^3.5.13"
 	},
 	"devDependencies": {

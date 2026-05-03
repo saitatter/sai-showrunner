@@ -2,7 +2,7 @@ import { defineStore } from "pinia"
 import { usePrimarySatelliteConnection, useSatelliteConnection } from "./satellite-connection"
 import fs from "node:fs"
 import path from "path"
-import { hashString } from "ShowRunner-schema"
+import { hashString } from "showrunner-schema"
 import { handleIpcMessage, useInitStore, useIpcCaller } from "../main"
 import { markRaw, ref } from "vue"
 

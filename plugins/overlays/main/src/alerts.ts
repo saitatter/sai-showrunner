@@ -1,7 +1,7 @@
-import { abortableSleep, defineAction } from "ShowRunner-core"
-import { OverlayWidget } from "ShowRunner-plugin-overlays-shared"
+import { abortableSleep, defineAction } from "showrunner-core"
+import { OverlayWidget } from "showrunner-plugin-overlays-shared"
 import { OverlayWebsocketService } from "./websocket-bridge"
-import { Duration } from "ShowRunner-schema"
+import { Duration } from "showrunner-schema"
 import { Overlay } from "./overlay-resource"
 
 export function setupAlerts() {

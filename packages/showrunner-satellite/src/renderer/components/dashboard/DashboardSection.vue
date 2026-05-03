@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardSection } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardSection } from "showrunner-plugin-dashboards-shared"
 import DashboardWidget from "./DashboardWidget.vue"
 
 const props = defineProps<{

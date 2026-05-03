@@ -7,8 +7,8 @@
 </template>
 
 <script setup lang="ts" generic="T">
-import { OBSWSSourceTransform } from "ShowRunner-plugin-obs-shared"
-import { LabelFloater, CAutocomplete, useDataBinding } from "ShowRunner-ui-core"
+import { OBSWSSourceTransform } from "showrunner-plugin-obs-shared"
+import { LabelFloater, CAutocomplete, useDataBinding } from "showrunner-ui-core"
 import { useModel, computed } from "vue"
 
 const props = defineProps<{

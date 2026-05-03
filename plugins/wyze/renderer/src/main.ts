@@ -1,4 +1,4 @@
-import { useResourceStore } from "ShowRunner-ui-core"
+import { useResourceStore } from "showrunner-ui-core"
 import "./css/icons.css"
 import WyzeAccountSettings from "./components/WyzeAccountSettings.vue"
 

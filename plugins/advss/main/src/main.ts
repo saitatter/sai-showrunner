@@ -7,9 +7,9 @@ import {
 	useSetting,
 	getSettingValue,
 	defineTransformTrigger,
-} from "ShowRunner-core"
-import { OBSConnection, onOBSWebsocketEvent } from "ShowRunner-plugin-obs-main"
-import { Command, getCommandDataSchema, matchAndParseCommand } from "ShowRunner-schema"
+} from "showrunner-core"
+import { OBSConnection, onOBSWebsocketEvent } from "showrunner-plugin-obs-main"
+import { Command, getCommandDataSchema, matchAndParseCommand } from "showrunner-schema"
 
 export default definePlugin(
 	{

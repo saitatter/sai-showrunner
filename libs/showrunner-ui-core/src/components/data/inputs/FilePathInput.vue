@@ -6,7 +6,7 @@
 
 <script setup lang="ts">
 import DataInputBase from "../base-components/DataInputBase.vue"
-import { FilePath, SchemaFilePath } from "ShowRunner-schema"
+import { FilePath, SchemaFilePath } from "showrunner-schema"
 import { SharedDataInputProps } from "../DataInputTypes"
 import { InputBox, LabelFloater, useIpcCaller, usePropagationStop } from "../../../main"
 import TemplateToggle from "../base-components/TemplateToggle.vue"

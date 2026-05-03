@@ -1,8 +1,8 @@
-import { EmoteCache, EmoteProvider, Service, onLoad } from "ShowRunner-core"
+import { EmoteCache, EmoteProvider, Service, onLoad } from "showrunner-core"
 import { TwitchAccount } from "./twitch-auth"
 import { HelixChannelEmote, HelixEmote } from "@twurple/api"
 import { onChannelAuth } from "./api-harness"
-import { EmoteImageURLs, EmoteInfo, EmoteSet } from "ShowRunner-schema"
+import { EmoteImageURLs, EmoteInfo, EmoteSet } from "showrunner-schema"
 
 export function helixToEmoteInfo(helixEmote: HelixEmote): EmoteInfo {
 	const result: EmoteInfo = {

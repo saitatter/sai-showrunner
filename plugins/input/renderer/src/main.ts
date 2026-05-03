@@ -1,5 +1,5 @@
-import { KeyboardKey, KeyCombo } from "ShowRunner-plugin-input-shared"
-import { useDataInputStore } from "ShowRunner-ui-core"
+import { KeyboardKey, KeyCombo } from "showrunner-plugin-input-shared"
+import { useDataInputStore } from "showrunner-ui-core"
 import KeyboardKeyInputVue from "./components/KeyboardKeyInput.vue"
 import KeyComboInputVue from "./components/KeyComboInput.vue"
 import KeyboardKeyViewVue from "./components/KeyboardKeyView.vue"

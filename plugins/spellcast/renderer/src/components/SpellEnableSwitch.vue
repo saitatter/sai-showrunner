@@ -1,9 +1,9 @@
 <template><p-toggle-switch v-model="enableModel" /></template>
 
 <script setup lang="ts">
-import { SpellConfig, SpellResourceConfig } from "ShowRunner-plugin-spellcast-shared"
-import { ResourceData } from "ShowRunner-schema"
-import { useResource, useResourceIPCCaller } from "ShowRunner-ui-core"
+import { SpellConfig, SpellResourceConfig } from "showrunner-plugin-spellcast-shared"
+import { ResourceData } from "showrunner-schema"
+import { useResource, useResourceIPCCaller } from "showrunner-ui-core"
 
 import PToggleSwitch from "primevue/toggleswitch"
 import { computed } from "vue"

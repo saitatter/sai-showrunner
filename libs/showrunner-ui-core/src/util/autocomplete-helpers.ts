@@ -1,5 +1,5 @@
 import { MaybeRefOrGetter, computed, toValue } from "vue"
-import { getByPath } from "ShowRunner-schema"
+import { getByPath } from "showrunner-schema"
 
 export interface ItemType {
 	id: any

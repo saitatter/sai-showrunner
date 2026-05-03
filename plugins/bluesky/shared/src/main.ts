@@ -1,4 +1,4 @@
-import { AccountSecrets, AccountConfig } from "ShowRunner-schema"
+import { AccountSecrets, AccountConfig } from "showrunner-schema"
 
 export interface BlueSkyAccountConfig extends AccountConfig {
 	name: string

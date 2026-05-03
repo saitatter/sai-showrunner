@@ -19,15 +19,15 @@
 </template>
 
 <script setup lang="ts">
-import { OBSConnectionConfig, OBSConnectionState } from "ShowRunner-plugin-obs-shared"
-import { ResourceData } from "ShowRunner-schema"
+import { OBSConnectionConfig, OBSConnectionState } from "showrunner-plugin-obs-shared"
+import { ResourceData } from "showrunner-schema"
 import {
 	MainPageCard,
 	usePluginStore,
 	useResourceArray,
 	useResourceCreateDialog,
 	useSettingValue,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { computed } from "vue"
 
 import PMessage from "primevue/message"

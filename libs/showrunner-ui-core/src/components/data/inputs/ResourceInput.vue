@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import DataInputBase from "../base-components/DataInputBase.vue"
-import { SchemaResource, ResourceData } from "ShowRunner-schema"
+import { SchemaResource, ResourceData } from "showrunner-schema"
 import { ResourceProxy } from "../../../util/data"
 import { computed, nextTick, ref, useModel, watch } from "vue"
 import {

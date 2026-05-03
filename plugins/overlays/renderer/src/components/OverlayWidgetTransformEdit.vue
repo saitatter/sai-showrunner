@@ -56,9 +56,9 @@
 
 <script setup lang="ts">
 import PInputNumber from "primevue/inputnumber"
-import { OverlayWidgetPosition, OverlayWidgetSize } from "ShowRunner-plugin-overlays-shared"
+import { OverlayWidgetPosition, OverlayWidgetSize } from "showrunner-plugin-overlays-shared"
 
-import { LabelFloater, CNumberInput } from "ShowRunner-ui-core"
+import { LabelFloater, CNumberInput } from "showrunner-ui-core"
 import { useModel } from "vue"
 
 const props = defineProps<{

@@ -13,7 +13,7 @@ import {
 	remoteTemplateSchema,
 	sleep,
 	usePluginLogger,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import {
 	InitialOverlayConfig,
 	IPCOverlayWidgetDescriptor,
@@ -22,14 +22,14 @@ import {
 	OverlayWidget,
 	OverlayWidgetConfig,
 	OverlayWidgetOptions,
-} from "ShowRunner-plugin-overlays-shared"
-import { Schema, SchemaObj, Toggle, filterPromiseAll } from "ShowRunner-schema"
+} from "showrunner-plugin-overlays-shared"
+import { Schema, SchemaObj, Toggle, filterPromiseAll } from "showrunner-schema"
 import { nanoid } from "nanoid/non-secure"
 import { setupConfigEval } from "./config-evaluation"
 import { OverlayWebsocketService } from "./websocket-bridge"
-import { OBSConnection } from "ShowRunner-plugin-obs-main"
+import { OBSConnection } from "showrunner-plugin-obs-main"
 
-import { SoundOutput } from "ShowRunner-plugin-sound-main"
+import { SoundOutput } from "showrunner-plugin-sound-main"
 
 const logger = usePluginLogger("overlays")
 

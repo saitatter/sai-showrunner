@@ -1,4 +1,4 @@
-import { AccountConfig } from "ShowRunner-schema"
+import { AccountConfig } from "showrunner-schema"
 
 export interface TwitchAccountSecrets {
 	accessToken: string

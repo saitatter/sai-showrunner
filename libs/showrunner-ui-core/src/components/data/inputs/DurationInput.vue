@@ -6,8 +6,8 @@
 
 <script setup lang="ts">
 import DataInputBase from "../base-components/DataInputBase.vue"
-import { Duration } from "ShowRunner-schema"
-import { SchemaDuration } from "ShowRunner-schema"
+import { Duration } from "showrunner-schema"
+import { SchemaDuration } from "showrunner-schema"
 import DurationField from "../base-components/DurationField.vue"
 import { ref, useModel } from "vue"
 import { SharedDataInputProps } from "../DataInputTypes"

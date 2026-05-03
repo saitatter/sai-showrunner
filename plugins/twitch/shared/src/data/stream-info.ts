@@ -1,4 +1,4 @@
-import { SchemaBase, SchemaType, declareSchema, registerType } from "ShowRunner-schema"
+import { SchemaBase, SchemaType, declareSchema, registerType } from "showrunner-schema"
 import { TwitchCategory } from "./category"
 
 export type TwitchStreamTags = string[]
@@ -25,7 +25,7 @@ registerType("TwitchStreamTags", {
 	constructor: TwitchStreamTags,
 })
 
-declare module "ShowRunner-schema" {
+declare module "showrunner-schema" {
 	interface SchemaTypeMap {
 		TwitchStreamTags: [SchemaTwitchStreamTags, TwitchStreamTags]
 	}

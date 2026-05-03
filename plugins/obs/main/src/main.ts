@@ -13,8 +13,8 @@ import {
 	defineResourceSetting,
 	defineReactiveState,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { Color, Toggle } from "ShowRunner-schema"
+} from "showrunner-core"
+import { Color, Toggle } from "showrunner-schema"
 import { OBSConnection, setupConnections, onOBSWebsocketEvent } from "./connection"
 import { setupSources } from "./sources"
 import { setupScenes } from "./scenes"

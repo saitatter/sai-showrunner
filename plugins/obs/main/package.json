@@ -1,5 +1,5 @@
 {
-  "name": "ShowRunner-plugin-obs-main",
+  "name": "showrunner-plugin-obs-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,14 +13,14 @@
     "typescript": "*"
   },
   "dependencies": {
-    "ShowRunner-core": "workspace:^",
-    "ShowRunner-plugin-obs-shared": "workspace:^",
-    "ShowRunner-plugin-os-main": "workspace:^",
-    "ShowRunner-schema": "workspace:^",
     "eventemitter3": "^5.0.1",
     "jsqr": "^1.4.0",
     "node-screenshots": "^0.2.0",
     "obs-websocket-js": "^5.0.6",
-    "regedit": "^5.1.3"
+    "regedit": "^5.1.3",
+    "showrunner-core": "workspace:^",
+    "showrunner-plugin-obs-shared": "workspace:^",
+    "showrunner-plugin-os-main": "workspace:^",
+    "showrunner-schema": "workspace:^"
   }
 }

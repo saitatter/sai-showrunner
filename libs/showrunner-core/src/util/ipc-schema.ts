@@ -13,7 +13,7 @@ import {
 	ValueCompareOperator,
 	getTypeByConstructor,
 	getTypeByName,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { ResourceBase, isResourceConstructor } from "../resources/resource"
 import { isArray, isFunction, isObject, isString } from "lodash"
 import { ipcMain } from "electron"

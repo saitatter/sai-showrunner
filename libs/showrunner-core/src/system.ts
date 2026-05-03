@@ -30,7 +30,7 @@ import { setAppMode } from "./util/init-mode"
 //This shit is dynamic and vite hates it.
 export async function loadPlugin(name: string) {
 	try {
-		const module = await import(`ShowRunner-plugin-${name}-main`)
+		const module = await import(`showrunner-plugin-${name}-main`)
 		const plugin = module.default as Plugin
 
 		PluginManager.getInstance().registerPlugin(plugin)

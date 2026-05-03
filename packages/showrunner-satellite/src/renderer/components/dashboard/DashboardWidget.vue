@@ -15,11 +15,11 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardWidget } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardWidget } from "showrunner-plugin-dashboards-shared"
 
-import { useDashboardWidgets } from "ShowRunner-dashboard-widget-loader"
+import { useDashboardWidgets } from "showrunner-dashboard-widget-loader"
 import { computed, provide } from "vue"
-import { ShowRunnerBridgeImplementation, useResolvedWidgetConfig } from "ShowRunner-dashboard-core"
+import { ShowRunnerBridgeImplementation, useResolvedWidgetConfig } from "showrunner-dashboard-core"
 import { useDashboardRTCBridge } from "../../util/dashboard-rtc-bridge"
 
 const props = defineProps<{

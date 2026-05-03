@@ -1,9 +1,9 @@
-import { defineAction, defineTrigger } from "ShowRunner-core"
+import { defineAction, defineTrigger } from "showrunner-core"
 import { onChannelAuth } from "./api-harness"
 import { TwitchAccount } from "./twitch-auth"
 import { ViewerCache } from "./viewer-cache"
-import { TwitchViewer, TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
-import { Duration } from "ShowRunner-schema"
+import { TwitchViewer, TwitchViewerGroup } from "showrunner-plugin-twitch-shared"
+import { Duration } from "showrunner-schema"
 import { inTwitchViewerGroup } from "./group"
 
 export function setupModeration() {

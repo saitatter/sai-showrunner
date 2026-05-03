@@ -8,8 +8,8 @@
 </template>
 
 <script setup lang="ts">
-import { WidgetBackgroundStyle } from "ShowRunner-plugin-overlays-shared"
-import { Color } from "ShowRunner-schema"
+import { WidgetBackgroundStyle } from "showrunner-plugin-overlays-shared"
+import { Color } from "showrunner-schema"
 import {
 	CColorPicker,
 	DropDownPanel,
@@ -18,7 +18,7 @@ import {
 	useDataUIBinding,
 	useDefaultableModel,
 	useOptionalDefaultableModel,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { Ref, ref } from "vue"
 
 // Dear Future Tocs: I'm so sorry.

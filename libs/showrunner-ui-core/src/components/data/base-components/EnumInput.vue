@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { Enumable, EnumItem, Schema } from "ShowRunner-schema"
+import { Enumable, EnumItem, Schema } from "showrunner-schema"
 import { computed, onMounted, ref, useModel } from "vue"
 import _isFunction from "lodash/isFunction"
 import { isObject } from "@vueuse/core"

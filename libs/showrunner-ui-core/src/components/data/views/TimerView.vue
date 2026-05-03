@@ -5,7 +5,7 @@
 
 <script setup lang="ts">
 import { SharedDataViewProps } from "../DataInputTypes"
-import { formatDuration, SchemaTimer, Timer, isTimerStarted, getTimeRemaining } from "ShowRunner-schema"
+import { formatDuration, SchemaTimer, Timer, isTimerStarted, getTimeRemaining } from "showrunner-schema"
 import { computed, onMounted, watch, ref } from "vue"
 
 const props = defineProps<

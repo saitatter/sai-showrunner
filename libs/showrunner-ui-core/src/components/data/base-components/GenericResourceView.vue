@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ResourceData } from "ShowRunner-schema"
+import { ResourceData } from "showrunner-schema"
 import { useResource } from "../../../main"
 
 const props = defineProps<{

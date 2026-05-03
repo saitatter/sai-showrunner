@@ -11,7 +11,7 @@
 <script setup lang="ts">
 import PInputText from "primevue/inputtext"
 import { computed, onBeforeUnmount, onMounted, ref, useModel, watch } from "vue"
-import { isValidJSName } from "ShowRunner-schema"
+import { isValidJSName } from "showrunner-schema"
 import { useDataBinding, useDataUIBinding, useTextUndoCommitter } from "../../../main"
 
 const props = defineProps<{

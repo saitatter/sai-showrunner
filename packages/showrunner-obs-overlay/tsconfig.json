@@ -20,10 +20,10 @@
 		/* "noUnusedParameters": true, */
 		/* "noFallthroughCasesInSwitch": true */
 		"paths": {
-			"ShowRunner-overlay-widget-loader": [
-				"../../libs/ShowRunner-overlay-widget-loader/src/overlay-widget-loader.ts"
+			"showrunner-overlay-widget-loader": [
+				"../../libs/showrunner-overlay-widget-loader/src/overlay-widget-loader.ts"
 			],
-			"ShowRunner-overlay-core": ["../../libs/ShowRunner-overlay-core/src/overlay-core-main.ts"]
+			"showrunner-overlay-core": ["../../libs/showrunner-overlay-core/src/overlay-core-main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

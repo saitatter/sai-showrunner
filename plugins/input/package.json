@@ -1,5 +1,5 @@
 {
-    "name": "ShowRunner-plugin-input",
+    "name": "showrunner-plugin-input",
     "private": true,
     "version": "0.0.1",
     "type": "module",

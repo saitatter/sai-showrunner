@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaTwitchStreamTags, TwitchStreamTags } from "ShowRunner-plugin-twitch-shared"
+import { SchemaTwitchStreamTags, TwitchStreamTags } from "showrunner-plugin-twitch-shared"
 import {
 	SharedDataInputProps,
 	DataInputBaseMenu,
@@ -32,7 +32,7 @@ import {
 	TemplateToggle,
 	useDataBinding,
 	useCommitUndo,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { useModel, ref, computed } from "vue"
 
 import TwitchStreamTagLine from "./TwitchStreamTagLine.vue"

@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import DashboardPage from "./DashboardPage.vue"
 import YAML from "yaml"
-import { DashboardConfig } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardConfig } from "showrunner-plugin-dashboards-shared"
 import { computed, ref } from "vue"
 import { useDashboardRTCBridge } from "../../util/dashboard-rtc-bridge"
 import PButton from "primevue/button"

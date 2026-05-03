@@ -1,5 +1,5 @@
 {
-  "name": "ShowRunner-plugin-time-main",
+  "name": "showrunner-plugin-time-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,9 +13,9 @@
     "typescript": "*"
   },
   "dependencies": {
-    "ShowRunner-core": "workspace:^",
-    "ShowRunner-plugin-time-shared": "workspace:^",
-    "ShowRunner-plugin-variables-main": "workspace:^",
-    "ShowRunner-schema": "workspace:^"
+    "showrunner-core": "workspace:^",
+    "showrunner-plugin-time-shared": "workspace:^",
+    "showrunner-plugin-variables-main": "workspace:^",
+    "showrunner-schema": "workspace:^"
   }
 }

@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { OverlayTextStyle, SchemaOverlayTextStyle } from "ShowRunner-plugin-overlays-shared"
+import { OverlayTextStyle, SchemaOverlayTextStyle } from "showrunner-plugin-overlays-shared"
 import {
 	SharedDataInputProps,
 	InputBox,
@@ -35,7 +35,7 @@ import {
 	DropDownPanel,
 	usePropagationStop,
 	DataInputBaseMenu,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { CSSProperties, computed, ref, useModel } from "vue"
 import OverlayTextStyleEdit from "./OverlayTextStyleEdit.vue"
 

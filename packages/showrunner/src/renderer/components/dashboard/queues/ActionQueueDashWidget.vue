@@ -56,21 +56,21 @@
 </template>
 
 <script setup lang="ts">
-import { ActionQueueState, ActionQueueConfig, ResourceData } from "ShowRunner-schema"
+import { ActionQueueState, ActionQueueConfig, ResourceData } from "showrunner-schema"
 import {
 	useResource,
 	DraggableCollection,
 	useResourceIPCCaller,
 	useResourceStore,
 	MainPageCard,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 
 import DashQueueItem from "./DashQueueItem.vue"
 import { computed, nextTick, onMounted, ref, watch } from "vue"
-import { settableArray } from "ShowRunner-ui-core"
+import { settableArray } from "showrunner-ui-core"
 
 import PButton from "primevue/button"
-import { QueuedAutomation } from "ShowRunner-schema"
+import { QueuedAutomation } from "showrunner-schema"
 
 const props = defineProps<{
 	queueId: string

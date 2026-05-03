@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaBoolean } from "ShowRunner-schema"
+import { SchemaBoolean } from "showrunner-schema"
 import DataBindingPath from "../binding/DataBindingPath.vue"
 import PCheckBox from "primevue/checkbox"
 import PInputGroup from "primevue/inputgroup"

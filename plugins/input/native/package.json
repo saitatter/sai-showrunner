@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-input-native",
+	"name": "showrunner-plugin-input-native",
 	"version": "0.0.1",
 	"description": "",
 	"main": "src/index.js",

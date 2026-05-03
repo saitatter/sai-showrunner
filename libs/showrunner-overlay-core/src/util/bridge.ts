@@ -13,8 +13,8 @@ import {
 	watch,
 	watchEffect,
 } from "vue"
-import { OverlayConfig, OverlayWidgetConfig } from "ShowRunner-plugin-overlays-shared"
-import { constructDefault, Schema, ViewerDataObserver, ViewerDataRow, ViewerVariable } from "ShowRunner-schema"
+import { OverlayConfig, OverlayWidgetConfig } from "showrunner-plugin-overlays-shared"
+import { constructDefault, Schema, ViewerDataObserver, ViewerDataRow, ViewerVariable } from "showrunner-schema"
 import _cloneDeep from "lodash/cloneDeep"
 
 export type BridgeViewerData = ComputedRef<ViewerDataRow[]>

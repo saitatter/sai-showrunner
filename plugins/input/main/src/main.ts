@@ -1,4 +1,4 @@
-import { defineAction, defineTrigger, onLoad, onUnload, definePlugin } from "ShowRunner-core"
+import { defineAction, defineTrigger, onLoad, onUnload, definePlugin } from "showrunner-core"
 
 import { setupKeyboard } from "./keyboard"
 import { setupMouse } from "./mouse"
@@ -6,7 +6,7 @@ import { setupMouse } from "./mouse"
 let InputInterface: any
 
 try {
-	InputInterface = require("ShowRunner-plugin-input-native").InputInterface
+	InputInterface = require("showrunner-plugin-input-native").InputInterface
 } catch (e) {
 	console.warn("[input plugin] Native bindings not available — plugin disabled.", (e as Error).message)
 }

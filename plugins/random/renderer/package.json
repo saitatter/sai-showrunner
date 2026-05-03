@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-random-renderer",
+	"name": "showrunner-plugin-random-renderer",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -13,13 +13,13 @@
 	},
 	"dependencies": {
 		"@vueuse/core": "*",
-		"ShowRunner-plugin-random-shared": "workspace:^",
-		"ShowRunner-schema": "workspace:^",
-		"ShowRunner-ui-core": "workspace:^",
 		"chromatism2": "*",
 		"electron": "^34.2.0",
 		"nanoid": "^5.0.7",
 		"pinia": "^2.1.7",
+		"showrunner-plugin-random-shared": "workspace:^",
+		"showrunner-schema": "workspace:^",
+		"showrunner-ui-core": "workspace:^",
 		"vue": "^3.5.13"
 	},
 	"devDependencies": {

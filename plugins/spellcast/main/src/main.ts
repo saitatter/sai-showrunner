@@ -6,8 +6,8 @@ import {
 	definePlugin,
 	reactiveRef,
 	onCloudPubSubMessage,
-} from "ShowRunner-core"
-import { TwitchViewer } from "ShowRunner-plugin-twitch-shared"
+} from "showrunner-core"
+import { TwitchViewer } from "showrunner-plugin-twitch-shared"
 import { setupSpells, SpellHook } from "./spell"
 
 export default definePlugin(

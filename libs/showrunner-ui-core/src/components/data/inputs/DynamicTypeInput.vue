@@ -11,10 +11,10 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaDynamicType } from "ShowRunner-schema"
+import { SchemaDynamicType } from "showrunner-schema"
 import { SharedDataInputProps } from "../DataInputTypes"
 import { onMounted, ref, useModel, watch } from "vue"
-import { Schema } from "ShowRunner-schema"
+import { Schema } from "showrunner-schema"
 import DataInput from "../DataInput.vue"
 
 const props = defineProps<

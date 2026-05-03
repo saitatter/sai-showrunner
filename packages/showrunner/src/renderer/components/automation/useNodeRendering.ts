@@ -4,7 +4,7 @@
  */
 import {
 	ActionDefinition,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import {
 	type ActionGraphNode,
 	isObjectSchema,
@@ -13,7 +13,7 @@ import {
 	type GraphNodeType,
 	type AutomationConfig,
 	type SubgraphDefinition,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import type { PortDef } from "./usePortConnections"
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────

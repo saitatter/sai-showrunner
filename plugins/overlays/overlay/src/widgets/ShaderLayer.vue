@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue"
-import { declareWidgetOptions } from "ShowRunner-overlay-core"
+import { declareWidgetOptions } from "showrunner-overlay-core"
 import { ShaderRenderer } from "./shader-renderer"
 
 const presets: Record<string, string> = {

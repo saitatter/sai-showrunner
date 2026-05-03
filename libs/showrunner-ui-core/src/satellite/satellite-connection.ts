@@ -7,7 +7,7 @@ import fs from "node:fs"
 
 import _groupBy from "lodash/groupBy"
 
-import { RPCHandler } from "ShowRunner-ws-rpc"
+import { RPCHandler } from "showrunner-ws-rpc"
 
 import {
 	SatelliteConnectionICECandidate,
@@ -17,7 +17,7 @@ import {
 	SatelliteConnectionService,
 	SatelliteConnectionOption,
 	SatelliteConnectionInfo,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 
 //Look Here!: https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Signaling_and_video_calling#signaling_transaction_flow
 

@@ -14,12 +14,12 @@
 </template>
 
 <script setup lang="ts">
-import { useResourceArray, FlexScroller } from "ShowRunner-ui-core"
+import { useResourceArray, FlexScroller } from "showrunner-ui-core"
 
-import { TwitchMainPageCard } from "ShowRunner-plugin-twitch-renderer"
-import { ObsMainPageCard } from "ShowRunner-plugin-obs-renderer"
+import { TwitchMainPageCard } from "showrunner-plugin-twitch-renderer"
+import { ObsMainPageCard } from "showrunner-plugin-obs-renderer"
 import ActionQueueDashWidget from "../dashboard/queues/ActionQueueDashWidget.vue"
-import StreamPlanDashboardWidget from "../../../../../../libs/ShowRunner-ui-core/src/components/stream-plan/StreamPlanDashboardWidget.vue"
+import StreamPlanDashboardWidget from "../../../../../../libs/showrunner-ui-core/src/components/stream-plan/StreamPlanDashboardWidget.vue"
 
 const queues = useResourceArray("ActionQueue")
 const obsConnections = useResourceArray("OBSConnection")

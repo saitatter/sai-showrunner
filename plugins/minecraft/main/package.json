@@ -1,5 +1,5 @@
 {
-  "name": "ShowRunner-plugin-minecraft-main",
+  "name": "showrunner-plugin-minecraft-main",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.ts",
@@ -13,9 +13,9 @@
     "typescript": "*"
   },
   "dependencies": {
-    "ShowRunner-core": "workspace:^",
-    "ShowRunner-plugin-minecraft-shared": "workspace:^",
-    "ShowRunner-schema": "workspace:^",
+    "showrunner-core": "workspace:^",
+    "showrunner-plugin-minecraft-shared": "workspace:^",
+    "showrunner-schema": "workspace:^",
     "ts-rcon": "^1.2.1"
   }
 }

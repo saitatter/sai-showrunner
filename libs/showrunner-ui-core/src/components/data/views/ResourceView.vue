@@ -4,7 +4,7 @@
 </template>
 
 <script setup lang="ts">
-import { SchemaResource } from "ShowRunner-schema"
+import { SchemaResource } from "showrunner-schema"
 import { SharedDataViewProps } from "../DataInputTypes"
 import { useResourceData, useResourceStore } from "../../../main"
 import GenericResourceView from "../base-components/GenericResourceView.vue"

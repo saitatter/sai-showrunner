@@ -8,7 +8,7 @@
 
 //In 0.6 we should be unifying IPC, Websocket, and WebRTC bridges and moving View components to a non ui-core package.
 
-import { Duration, formatDuration, Schema } from "ShowRunner-schema"
+import { Duration, formatDuration, Schema } from "showrunner-schema"
 
 const props = defineProps<{
 	value: any

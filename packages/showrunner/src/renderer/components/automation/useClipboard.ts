@@ -4,7 +4,7 @@
  */
 import { type Ref } from "vue"
 import { nanoid } from "nanoid"
-import { useAppFeedback } from "ShowRunner-ui-core"
+import { useAppFeedback } from "showrunner-ui-core"
 import {
 	AutomationConfig,
 	type AutomationDataWire,
@@ -12,7 +12,7 @@ import {
 	type AutomationVariableNode,
 	type GraphEdge,
 	type GraphNode,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import type { NodePosition } from "./useNodeCanvas"
 import type { NodeData } from "./useNodeRendering"
 

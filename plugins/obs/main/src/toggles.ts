@@ -1,6 +1,6 @@
-import { ReactiveRef, defineAction } from "ShowRunner-core"
+import { ReactiveRef, defineAction } from "showrunner-core"
 import { OBSConnection } from "./connection"
-import { Toggle } from "ShowRunner-schema"
+import { Toggle } from "showrunner-schema"
 
 export function setupToggles(obsDefault: ReactiveRef<OBSConnection>) {
 	defineAction({

@@ -1,7 +1,7 @@
 {
     "targets": [
         {
-            "target_name": "ShowRunner-plugin-{{name}}-native",
+            "target_name": "showrunner-plugin-{{name}}-native",
             "cflags!": [ "-fno-exceptions" ],
             "cflags_cc!": [ "-fno-exceptions" ],
             "sources": [ "src/native-index.cc" ],

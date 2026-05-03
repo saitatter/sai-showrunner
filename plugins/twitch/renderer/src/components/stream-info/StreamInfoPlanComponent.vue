@@ -6,9 +6,9 @@
 </template>
 
 <script setup lang="ts">
-import { StreamInfo, StreamInfoSchema } from "ShowRunner-plugin-twitch-shared"
+import { StreamInfo, StreamInfoSchema } from "showrunner-plugin-twitch-shared"
 import { useModel } from "vue"
-import { DataInput, MainPageCard } from "ShowRunner-ui-core"
+import { DataInput, MainPageCard } from "showrunner-ui-core"
 
 const props = defineProps<{
 	modelValue: StreamInfo

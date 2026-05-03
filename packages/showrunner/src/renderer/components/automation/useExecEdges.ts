@@ -4,7 +4,7 @@
  */
 import { computed, ref, type Ref } from "vue"
 import { nanoid } from "nanoid"
-import type { AutomationGraph } from "ShowRunner-schema"
+import type { AutomationGraph } from "showrunner-schema"
 import type { NodeData } from "./useNodeRendering"
 import { NODE_WIDTH, NODE_BASE_HEIGHT } from "./useNodeRendering"
 

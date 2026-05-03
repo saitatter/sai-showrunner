@@ -1,5 +1,5 @@
 {
-	"name": "ShowRunner-plugin-stream-plans",
+	"name": "showrunner-plugin-stream-plans",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",

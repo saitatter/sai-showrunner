@@ -71,14 +71,14 @@
 
 <script setup lang="ts">
 import { computed, ref, useModel } from "vue"
-import { OBSConnectionConfig } from "ShowRunner-plugin-obs-shared"
+import { OBSConnectionConfig } from "showrunner-plugin-obs-shared"
 
 import PFloatLabel from "primevue/floatlabel"
 import PInputText from "primevue/inputtext"
 import PInputNumber from "primevue/inputnumber"
 import PPassword from "primevue/password"
 import PButton from "primevue/button"
-import { useIpcCaller } from "ShowRunner-ui-core"
+import { useIpcCaller } from "showrunner-ui-core"
 
 const props = defineProps<{
 	modelValue: OBSConnectionConfig

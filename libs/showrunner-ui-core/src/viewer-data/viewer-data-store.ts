@@ -1,4 +1,4 @@
-import { constructDefault, IPCViewerVariable, ViewerDataObserver, ViewerDataRow, ViewerVariable } from "ShowRunner-schema"
+import { constructDefault, IPCViewerVariable, ViewerDataObserver, ViewerDataRow, ViewerVariable } from "showrunner-schema"
 import { defineStore } from "pinia"
 import { computed, MaybeRefOrGetter, onBeforeUnmount, onMounted, ref, toValue, watch } from "vue"
 import {

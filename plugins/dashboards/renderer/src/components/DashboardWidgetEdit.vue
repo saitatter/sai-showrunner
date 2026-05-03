@@ -10,12 +10,12 @@
 </template>
 
 <script setup lang="ts">
-import { DashboardWidget } from "ShowRunner-plugin-dashboards-shared"
+import { DashboardWidget } from "showrunner-plugin-dashboards-shared"
 import { DashboardWidgetView } from "../dashboard-types"
 import { computed, CSSProperties, provide, useModel } from "vue"
-import { useDashboardWidgets } from "ShowRunner-dashboard-widget-loader"
-import { ShowRunnerBridgeImplementation } from "ShowRunner-dashboard-core"
-import { useFullState } from "ShowRunner-ui-core"
+import { useDashboardWidgets } from "showrunner-dashboard-widget-loader"
+import { ShowRunnerBridgeImplementation } from "showrunner-dashboard-core"
+import { useFullState } from "showrunner-ui-core"
 import { useRemoteDashboardConfig } from "../config/dashboard-config"
 
 const props = defineProps<{

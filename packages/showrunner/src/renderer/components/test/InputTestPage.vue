@@ -23,7 +23,7 @@ import {
 	declareSchema,
 	MediaFile,
 	constructDefault,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import {
 	ScrollingTabBody,
 	useDataInputStore,
@@ -35,18 +35,18 @@ import {
 	DataBindingDebugger,
 	createUndoStack,
 	CColorPicker,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { onBeforeMount, onMounted, ref } from "vue"
 import util from "util"
-import { TwitchCategory, TwitchViewer, TwitchViewerGroup } from "ShowRunner-plugin-twitch-shared"
-import { LightColor } from "ShowRunner-plugin-iot-shared"
-import { KeyCombo, KeyboardKey } from "ShowRunner-plugin-input-shared"
+import { TwitchCategory, TwitchViewer, TwitchViewerGroup } from "showrunner-plugin-twitch-shared"
+import { LightColor } from "showrunner-plugin-iot-shared"
+import { KeyCombo, KeyboardKey } from "showrunner-plugin-input-shared"
 
 import PInputText from "primevue/inputtext"
 import PButton from "primevue/button"
-import { Command } from "ShowRunner-schema"
-import { PowerShellCommand } from "ShowRunner-plugin-os-shared"
-import { OBSSourceTransform } from "ShowRunner-plugin-obs-shared"
+import { Command } from "showrunner-schema"
+import { PowerShellCommand } from "showrunner-plugin-os-shared"
+import { OBSSourceTransform } from "showrunner-plugin-obs-shared"
 
 const testSchema = declareSchema({
 	type: String,

@@ -1,6 +1,6 @@
 import { WebSocket } from "ws"
 import { customAlphabet } from "nanoid/non-secure"
-import { DelayedResolver, createDelayedResolver } from "ShowRunner-schema"
+import { DelayedResolver, createDelayedResolver } from "showrunner-schema"
 
 const idGen = customAlphabet("abcdefghijklmnop0123456789", 10)
 

@@ -1,4 +1,4 @@
-import { defineAction, defineTrigger, onLoad, onUnload, definePlugin } from "ShowRunner-core"
+import { defineAction, defineTrigger, onLoad, onUnload, definePlugin } from "showrunner-core"
 
 export default definePlugin(
 	{

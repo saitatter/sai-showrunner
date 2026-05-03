@@ -6,8 +6,8 @@
 </template>
 
 <script setup lang="ts">
-import { SharedDataViewProps } from "ShowRunner-ui-core"
-import { KeyboardKey, Keys, SchemaKeyboardKey } from "ShowRunner-plugin-input-shared"
+import { SharedDataViewProps } from "showrunner-ui-core"
+import { KeyboardKey, Keys, SchemaKeyboardKey } from "showrunner-plugin-input-shared"
 import { computed } from "vue"
 
 const props = defineProps<

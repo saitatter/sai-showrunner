@@ -8,7 +8,7 @@ vi.mock("electron", () => ({
 
 import { GraphCompiler, OpCode, type Program, type Instruction } from "../compiler"
 import { GraphVM } from "../vm"
-import type { AutomationGraph } from "ShowRunner-schema"
+import type { AutomationGraph } from "showrunner-schema"
 
 // Helper: build a minimal program manually (bypassing action execution)
 function makeProgram(instructions: Instruction[], localSlots = 10): Program {

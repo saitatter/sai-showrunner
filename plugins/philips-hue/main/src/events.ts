@@ -1,7 +1,7 @@
-import { ReactiveRef, RetryTimer, onLoad, onSettingChanged } from "ShowRunner-core"
+import { ReactiveRef, RetryTimer, onLoad, onSettingChanged } from "showrunner-core"
 import EventSource from "eventsource"
 import { HUEApiLight, HUEEventUpdateData } from "./api"
-import { LightResource, PlugResource } from "ShowRunner-plugin-iot-main"
+import { LightResource, PlugResource } from "showrunner-plugin-iot-main"
 import { PhilipsHUEGroup, PhilipsHUELight, PhilipsHUEPlug, injectResourceFromApi } from "./resources"
 
 interface HUEUpdateEvent {

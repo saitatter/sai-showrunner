@@ -21,7 +21,7 @@
 <script setup lang="ts">
 import DataInputBase from "../base-components/DataInputBase.vue"
 import InputBox from "../base-components/InputBox.vue"
-import { Color, isHexColor, SchemaColor } from "ShowRunner-schema"
+import { Color, isHexColor, SchemaColor } from "showrunner-schema"
 import { computed, onMounted, ref, useModel, watch } from "vue"
 import PColorPicker, { ColorPickerChangeEvent } from "primevue/colorpicker"
 import { SharedDataInputProps } from "../DataInputTypes"

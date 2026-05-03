@@ -23,9 +23,9 @@
 
 <script setup lang="ts">
 import WidgetSizeEditable from "./WidgetSizeEditable.vue"
-import { OverlayEdgeInfo } from "ShowRunner-plugin-overlays-shared"
+import { OverlayEdgeInfo } from "showrunner-plugin-overlays-shared"
 import { computed, ref, useModel } from "vue"
-import { useCommitUndo, useDataBinding, useDragValue } from "ShowRunner-ui-core"
+import { useCommitUndo, useDataBinding, useDragValue } from "showrunner-ui-core"
 
 const props = defineProps<{
 	modelValue: OverlayEdgeInfo

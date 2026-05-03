@@ -1,4 +1,4 @@
-import type { Expression, BuiltinFn } from "ShowRunner-schema"
+import type { Expression, BuiltinFn } from "showrunner-schema"
 
 export interface EvalContext {
 	/** Local variables (loop counters, subgraph params) */

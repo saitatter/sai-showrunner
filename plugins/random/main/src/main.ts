@@ -6,9 +6,9 @@ import {
 	definePlugin,
 	defineFlowAction,
 	usePluginLogger,
-} from "ShowRunner-core"
-import { OverlayWebsocketService, handleWidgetRPC } from "ShowRunner-plugin-overlays-main"
-import { OverlayWidget } from "ShowRunner-plugin-overlays-shared"
+} from "showrunner-core"
+import { OverlayWebsocketService, handleWidgetRPC } from "showrunner-plugin-overlays-main"
+import { OverlayWidget } from "showrunner-plugin-overlays-shared"
 export default definePlugin(
 	{
 		id: "random",

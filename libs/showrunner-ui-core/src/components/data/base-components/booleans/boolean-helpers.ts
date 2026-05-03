@@ -6,7 +6,7 @@ import {
 	ExpressionValue,
 	isBooleanGroup,
 	isBooleanValueExpr,
-} from "ShowRunner-schema"
+} from "showrunner-schema"
 import { MaybeRefOrGetter, computed, toValue } from "vue"
 import { usePluginStore } from "../../../../main"
 

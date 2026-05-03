@@ -1,11 +1,11 @@
-import { getResourceAsProjectGroup, useDocumentStore, useProjectStore, useResourceStore } from "ShowRunner-ui-core"
+import { getResourceAsProjectGroup, useDocumentStore, useProjectStore, useResourceStore } from "showrunner-ui-core"
 import { App } from "vue"
 import DashboardEditor from "./components/DashboardEditor.vue"
 
 import _cloneDeep from "lodash/cloneDeep"
 import { DashboardView } from "./dashboard-types"
-import { ResourceData } from "ShowRunner-schema"
-import { DashboardConfig } from "ShowRunner-plugin-dashboards-shared"
+import { ResourceData } from "showrunner-schema"
+import { DashboardConfig } from "showrunner-plugin-dashboards-shared"
 import { useDashboardRemoteConfigStore } from "./config/dashboard-config"
 
 export function initPlugin(app: App<Element>) {

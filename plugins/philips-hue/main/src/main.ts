@@ -12,12 +12,12 @@ import {
 	defineSecret,
 	AsyncCache,
 	coreAxios,
-} from "ShowRunner-core"
+} from "showrunner-core"
 import { PhilipsHUEGroup, PhilipsHUELight, setupResources } from "./resources"
 import { setupDiscovery } from "./discovery"
 import { setupHueEvents } from "./events"
-import { defineSettingComponent } from "ShowRunner-core"
-import { LightResource } from "ShowRunner-plugin-iot-main"
+import { defineSettingComponent } from "showrunner-core"
+import { LightResource } from "showrunner-plugin-iot-main"
 import { HUEScene } from "./api"
 
 export default definePlugin(

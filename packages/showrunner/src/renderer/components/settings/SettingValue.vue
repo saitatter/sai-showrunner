@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { SettingValue, usePluginStore, DataInput } from "ShowRunner-ui-core"
+import { SettingValue, usePluginStore, DataInput } from "showrunner-ui-core"
 import { useModel } from "vue"
 
 const pluginStore = usePluginStore

@@ -1,8 +1,8 @@
 import { computed } from "vue"
-import { ProjectItem } from "./../../../../../libs/ShowRunner-ui-core/src/project/project-store"
-import { ResourceSchemaEdit, useDockingStore, useProjectStore, useResourceStore } from "ShowRunner-ui-core"
+import { ProjectItem } from "./../../../../../libs/showrunner-ui-core/src/project/project-store"
+import { ResourceSchemaEdit, useDockingStore, useProjectStore, useResourceStore } from "showrunner-ui-core"
 import QueuePage from "../components/queues/QueuePage.vue"
-import { Duration } from "ShowRunner-schema"
+import { Duration } from "showrunner-schema"
 
 export function initializeQueues() {
 	const dockingStore = useDockingStore()

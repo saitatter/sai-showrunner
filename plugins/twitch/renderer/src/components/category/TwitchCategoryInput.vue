@@ -54,7 +54,7 @@ import {
 	TwitchCategory,
 	TwitchCategoryUnresolved,
 	TwitchCategoryData,
-} from "ShowRunner-plugin-twitch-shared"
+} from "showrunner-plugin-twitch-shared"
 import {
 	SharedDataInputProps,
 	AutocompleteDropList,
@@ -64,7 +64,7 @@ import {
 	useDataBinding,
 	useUndoCommitter,
 	useCommitUndo,
-} from "ShowRunner-ui-core"
+} from "showrunner-ui-core"
 import { computed, onMounted, ref, useModel, watch, nextTick } from "vue"
 import { useCategoryStore } from "../../util/category"
 import _debounce from "lodash/debounce"

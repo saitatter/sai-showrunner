@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import { usePrimarySatelliteConnection } from "ShowRunner-ui-core"
+import { usePrimarySatelliteConnection } from "showrunner-ui-core"
 import PProgressSpinner from "primevue/progressspinner"
 import { onMounted, watch } from "vue"
 import { usePageStore } from "../../util/page-store"

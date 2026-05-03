@@ -1,4 +1,4 @@
-import { ReactiveRef, defineAction } from "ShowRunner-core"
+import { ReactiveRef, defineAction } from "showrunner-core"
 import { OBSConnection } from "./connection"
 
 export function setupScenes(obsDefault: ReactiveRef<OBSConnection>) {

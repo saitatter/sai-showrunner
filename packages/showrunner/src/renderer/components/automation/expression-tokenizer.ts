@@ -1,4 +1,4 @@
-import type { BuiltinFn } from "ShowRunner-schema"
+import type { BuiltinFn } from "showrunner-schema"
 
 export type ExpressionTokenKind =
 	| "plain"

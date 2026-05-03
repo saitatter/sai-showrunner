@@ -17,14 +17,14 @@ import {
 	ViewerData,
 	ipcConvertSchema,
 	defineIPCFunc,
-} from "ShowRunner-core"
-import { OverlayConfig } from "ShowRunner-plugin-overlays-shared"
+} from "showrunner-core"
+import { OverlayConfig } from "showrunner-plugin-overlays-shared"
 import { Overlay } from "./overlay-resource"
 import * as express from "express"
 import { app } from "electron"
 import HttpProxy from "http-proxy"
 import { OverlayConfigEvaluator, createOverlayEvaluator } from "./config-evaluation"
-import { MediaFile, ViewerDataObserver } from "ShowRunner-schema"
+import { MediaFile, ViewerDataObserver } from "showrunner-schema"
 import { nanoid } from "nanoid/non-secure"
 
 const logger = usePluginLogger("overlays")
@@ -412,7 +412,7 @@ export function setupWebsockets() {
 		onLoad(() => {
 			logger.log("Serving Overlays Statically")
 		})
-		//Serve the static files for the SPA app built by ShowRunner-obs-overlay package
+		//Serve the static files for the SPA app built by showrunner-obs-overlay package
 		router.get("/:id", (req, res, next) => {
 			const overlay = Overlay.storage.getById(req.params.id)
 
