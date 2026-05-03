@@ -9,27 +9,6 @@
 			<p v-if="actionInfo.description">{{ actionInfo.description }}</p>
 		</div>
 		<data-input v-model="model.config" :schema="actionInfo.config" :context="model.config" local-path="config" />
-		<template v-if="isFlowAction(model) && actionInfo.type == 'flow'">
-			<div class="flow-title">
-				<span style="text-align: center; flex: 1">Flows</span>
-				<p-button text icon="mdi mdi-plus" size="small" @click="addFlow()"></p-button>
-			</div>
-
-			<data-binding-path local-path="subFlows">
-				<template v-if="actionInfo.flowConfig" v-for="(flow, i) in model.subFlows" :key="flow.id">
-					<div class="section-header">
-						<span style="padding-left: 1rem; flex: 1">Flow {{ i + 1 }}</span>
-						<p-button text icon="mdi mdi-delete" size="small" @click="deleteFlow(i)"></p-button>
-					</div>
-					<data-input
-						v-model="model.subFlows[i].config"
-						:schema="actionInfo.flowConfig"
-						:context="model.subFlows[i].config"
-						:local-path="`[${i}]`"
-					></data-input>
-				</template>
-			</data-binding-path>
-		</template>
 		<template v-if="actionInfo.type == 'regular' && actionInfo.result">
 			<div class="section-title">
 				<span style="text-align: center; flex: 1">Returns</span>
@@ -40,19 +19,13 @@
 </template>
 
 <script setup lang="ts">
-import { AnyAction, constructDefault, isFlowAction, getSequenceResultVariables } from "ShowRunner-schema"
+import { ActionInfo } from "ShowRunner-schema"
 import { useAction, DataInput, useDataBinding } from "../../main"
-import { computed, inject, provide, useModel } from "vue"
-import PButton from "primevue/button"
-import { SubFlow } from "ShowRunner-schema"
-import { nanoid } from "nanoid/non-secure"
+import { useModel } from "vue"
 import ReturnNamer from "../data/returns/ReturnNamer.vue"
-import { Sequence } from "ShowRunner-schema"
-import DataBindingPath from "../data/binding/DataBindingPath.vue"
 
 const props = defineProps<{
-	modelValue: AnyAction
-	sequence?: Sequence
+	modelValue: ActionInfo
 	localPath: string | undefined
 }>()
 
@@ -61,30 +34,6 @@ useDataBinding(() => props.localPath)
 const model = useModel(props, "modelValue")
 
 const actionInfo = useAction(() => props.modelValue)
-
-function deleteFlow(index: number) {
-	if (!isFlowAction(model.value)) return
-
-	model.value.subFlows.splice(index, 1)
-}
-
-const flowVariables = computed(() => {
-	if (!props.sequence) return []
-
-	return getSequenceResultVariables(props.sequence, props.modelValue.id)
-})
-
-provide("flowVariables", flowVariables)
-
-async function addFlow() {
-	if (!isFlowAction(model.value) || actionInfo.value?.type != "flow") return
-	const flow: SubFlow = {
-		id: nanoid(),
-		config: actionInfo.value.flowConfig ? await constructDefault(actionInfo.value.flowConfig) : {},
-		actions: [],
-	}
-	model.value.subFlows.push(flow)
-}
 </script>
 
 <style scoped>

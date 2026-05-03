@@ -1031,7 +1031,7 @@ import {
 	CollapsibleContextMenu,
 } from "ShowRunner-ui-core"
 import {
-	AnyAction,
+	ActionInfo,
 	isObjectSchema,
 	constructDefault,
 	type AutomationDataWire,
@@ -1311,6 +1311,7 @@ const actionPalette = computed(() =>
 			id: plugin.id,
 			name: plugin.name,
 			actions: Object.values(plugin.actions)
+				.filter((action) => action.type === "regular")
 				.map((action) => ({
 					key: `${plugin.id}:${action.id}`,
 					name: action.name,
@@ -2137,7 +2138,7 @@ function ensureGraph() {
 	return model.value.graph
 }
 
-function toGraphActionNode(action: AnyAction, position: NodePosition): Extract<GraphNode, { type: "action" }> {
+function toGraphActionNode(action: ActionInfo, position: NodePosition): Extract<GraphNode, { type: "action" }> {
 	return {
 		id: action.id,
 		type: "action",
@@ -2150,7 +2151,7 @@ function toGraphActionNode(action: AnyAction, position: NodePosition): Extract<G
 	}
 }
 
-function addGraphActionNode(action: AnyAction, position: NodePosition) {
+function addGraphActionNode(action: ActionInfo, position: NodePosition) {
 	const graph = ensureGraph()
 	const node = toGraphActionNode(action, position)
 	graph.nodes.push(node)
@@ -2158,7 +2159,7 @@ function addGraphActionNode(action: AnyAction, position: NodePosition) {
 	return node
 }
 
-function insertAction(action: AnyAction, afterNodeId = selectedNodeId.value, position?: NodePosition) {
+function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, position?: NodePosition) {
 	const graph = ensureGraph()
 	const anchor = afterNodeId && afterNodeId !== "trigger" ? nodes.value.find((node) => node.id === afterNodeId) : undefined
 	const fallbackPosition = position ?? {
@@ -2189,7 +2190,7 @@ function insertAction(action: AnyAction, afterNodeId = selectedNodeId.value, pos
 	return node
 }
 
-function insertActionOnEdge(action: AnyAction, edge: EdgeData, position: NodePosition) {
+function insertActionOnEdge(action: ActionInfo, edge: EdgeData, position: NodePosition) {
 	const graph = ensureGraph()
 	const node = addGraphActionNode(action, position)
 
@@ -2218,7 +2219,7 @@ function duplicateSelectedAction() {
 	const actionInfo = selectedActionInfo.value
 	if (!actionInfo) return
 
-	const clonedAction: AnyAction = {
+	const clonedAction: ActionInfo = {
 		id: nanoid(),
 		plugin: actionInfo.plugin,
 		action: actionInfo.action,

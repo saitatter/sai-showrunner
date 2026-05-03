@@ -56,7 +56,7 @@ export function useNodeContextMenu(
 		return "Add a trigger or drop a new action on the canvas."
 	})
 	const actionContextGroups = computed(() =>
-		buildContextGroups("actions", (plugin) => plugin.actions, (entry) => ({
+		buildContextGroups("actions", (plugin) => filterRegularActions(plugin.actions), (entry) => ({
 			name: entry.name,
 			icon: entry.icon || "mdi mdi-play",
 		}))
@@ -133,6 +133,10 @@ export function useNodeContextMenu(
 			})
 			.filter((group) => group.items.length)
 			.sort((a, b) => a.name.localeCompare(b.name))
+	}
+
+	function filterRegularActions(actions: Record<string, any> | undefined) {
+		return Object.fromEntries(Object.entries(actions ?? {}).filter(([, action]) => action?.type === "regular"))
 	}
 
 	return {

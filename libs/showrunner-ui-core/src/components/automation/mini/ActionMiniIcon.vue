@@ -21,25 +21,17 @@
 </template>
 
 <script setup lang="ts">
-import { AnyAction } from "ShowRunner-schema"
+import { ActionInfo } from "ShowRunner-schema"
 import { ActionSelection, useAction, useActionColors, DataView } from "../../../main"
-import { ActionStack } from "ShowRunner-schema"
 import { computed, ref } from "vue"
-import { isActionStack } from "ShowRunner-schema"
 import PPopover from "primevue/popover"
 
 const props = defineProps<{
 	id: string
-	action: AnyAction | ActionStack | undefined
+	action: ActionInfo | undefined
 }>()
 
 const highlightAction = computed(() => {
-	if (!props.action) return undefined
-
-	if (isActionStack(props.action)) {
-		return props.action.stack[0]
-	}
-
 	return props.action
 })
 

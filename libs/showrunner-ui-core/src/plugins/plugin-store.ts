@@ -9,10 +9,6 @@ import {
 	Color,
 	mapKeys,
 	constructDefault,
-	InstantAction,
-	TimeAction,
-	FlowAction,
-	AnyAction,
 	ActionInfo,
 	IPCDurationConfig,
 	IPCSettingsDefinition,
@@ -297,31 +293,17 @@ export const usePluginStore = defineStore("plugins", () => {
 		return pluginMap.value.get(selection.plugin)?.actions?.[selection.action]
 	}
 
-	async function createAction(selection: ActionSelection): Promise<AnyAction | undefined> {
+	async function createAction(selection: ActionSelection): Promise<ActionInfo | undefined> {
 		if (!selection.plugin || !selection.action) return undefined
 		const action = getAction(selection)
 		if (!action) return undefined
+		if (action.type !== "regular") return undefined
 
 		const result: Record<string, any> = {
 			id: nanoid(),
 			plugin: selection.plugin,
 			action: selection.action,
 			config: await constructDefault(action.config),
-		}
-
-		if (action.type == "flow") {
-			result.subFlows = [
-				{
-					id: nanoid(),
-					config: action.flowConfig ? await constructDefault(action.flowConfig) : {},
-					actions: [],
-				},
-				{
-					id: nanoid(),
-					config: action.flowConfig ? await constructDefault(action.flowConfig) : {},
-					actions: [],
-				},
-			]
 		}
 
 		if (action.type == "regular" && action.result) {
@@ -336,7 +318,7 @@ export const usePluginStore = defineStore("plugins", () => {
 		// 	result.offsets = []
 		// }
 
-		return result as AnyAction
+		return result as ActionInfo
 	}
 
 	function setActionComponent<Props, C extends Component<Props>>(
