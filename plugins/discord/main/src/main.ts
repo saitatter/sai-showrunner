@@ -34,7 +34,7 @@ class DiscordWebHook extends FileResource<DiscordWebhookConfig> {
 
 			this.client = new WebhookClient({ url: config.webhookUrl })
 		} else {
-			//@ts-ignore
+			// @ts-expect-error Empty config is filled by load() before use.
 			this._config = {}
 		}
 	}

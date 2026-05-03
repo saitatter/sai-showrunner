@@ -86,7 +86,6 @@ async function toggleMax() {
 
 const windowState = ref<string>("unmaximized")
 useIpcMessage("windowFuncs", "stateChanged", (event, state: string) => {
-	console.log("Window State", state)
 	windowState.value = state
 })
 

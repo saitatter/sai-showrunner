@@ -35,12 +35,11 @@ const parsedModel = computed<LightColorObj | undefined>({
 		return LightColor.parse(model.value)
 	},
 	set(v) {
-		if (v == null) {
-			model.value = undefined
-			return
-		}
-		console.log("New Value", v)
-		model.value = LightColor.serialize(v)
+	if (v == null) {
+		model.value = undefined
+		return
+	}
+	model.value = LightColor.serialize(v)
 	},
 })
 

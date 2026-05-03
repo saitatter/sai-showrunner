@@ -22,12 +22,10 @@ const icon = computed(() => {
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 
 function onPlay() {
-	console.log("On Play")
 	playing.value = true
 }
 
 function onPause() {
-	console.log("On Pause")
 	playing.value = false
 }
 
