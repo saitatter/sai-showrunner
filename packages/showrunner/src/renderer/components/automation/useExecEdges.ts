@@ -22,7 +22,8 @@ export function useExecEdges(
 	nodesRef: Ref<NodeData[]>,
 	canvasRef: Ref<HTMLElement | undefined>,
 	zoomRef: Ref<number>,
-	commitUndo: () => void
+	commitUndo: () => void,
+	onDropOnEmpty?: (drop: { fromNode: string; fromPort?: string; canvasPoint: { x: number; y: number }; clientPoint: { x: number; y: number } }) => void
 ) {
 	const execEdgeDrag = ref<ExecEdgeDragState | null>(null)
 
@@ -108,9 +109,27 @@ export function useExecEdges(
 				})
 				commitUndo()
 			}
+		} else if (onDropOnEmpty) {
+			const clientPoint = getClientPointFromCanvasPoint(drag.currentX, drag.currentY)
+			onDropOnEmpty({
+				fromNode: drag.fromNode,
+				fromPort: drag.fromPort,
+				canvasPoint: { x: drag.currentX, y: drag.currentY },
+				clientPoint,
+			})
 		}
 
 		execEdgeDrag.value = null
+	}
+
+	function getClientPointFromCanvasPoint(x: number, y: number) {
+		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
+		const rect = surface?.getBoundingClientRect()
+		if (!rect) return { x: 0, y: 0 }
+		return {
+			x: rect.left + x * zoomRef.value,
+			y: rect.top + y * zoomRef.value,
+		}
 	}
 
 	function findExecEdgeTarget(drag: ExecEdgeDragState): string | undefined {

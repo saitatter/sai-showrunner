@@ -442,12 +442,12 @@
 								<input v-model="contextMenuQuery" type="search" placeholder="Search triggers or actions..." />
 							</label>
 						</template>
-					<section v-if="recentlyUsed.length && !contextMenuQuery" class="node-automation__menu-section">
+					<section v-if="recentContextItems.length && !contextMenuQuery" class="node-automation__menu-section">
 						<div class="node-automation__menu-section-header" style="cursor: default; font-size: 0.8rem; opacity: 0.7;">
 							<span><i class="mdi mdi-history" /> Recently Used</span>
 						</div>
 						<div class="node-automation__menu-items">
-							<button v-for="item in recentlyUsed" :key="`recent-${item.key}`" type="button" @click="item.kind === 'trigger' ? selectTriggerFromContext(item.key) : selectActionFromContext(item.key)">
+							<button v-for="item in recentContextItems" :key="`recent-${item.key}`" type="button" @click="item.kind === 'trigger' ? selectTriggerFromContext(item.key) : selectActionFromContext(item.key)">
 								<i :class="item.icon" :style="{ color: item.color }" />
 								<span>
 									<strong>{{ item.name }}</strong>
@@ -464,7 +464,7 @@
 						</button>
 						<div v-if="isContextGroupOpen('integrations')">
 							<!-- Triggers sub-section -->
-							<section class="node-automation__menu-section" style="border: 0; border-radius: 0;">
+							<section v-if="!pendingFlowConnection" class="node-automation__menu-section" style="border: 0; border-radius: 0;">
 								<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('triggers')" @click="toggleContextGroup('triggers')">
 									<span><i class="mdi mdi-flash" /> Triggers</span>
 									<i :class="isContextGroupOpen('triggers') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
@@ -522,7 +522,7 @@
 						</div>
 					</section>
 					<!-- Data: Variables + Constants -->
-					<section class="node-automation__menu-section">
+					<section v-if="!pendingFlowConnection" class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('data')" @click="toggleContextGroup('data')">
 							<span><i class="mdi mdi-database-outline" /> Data</span>
 							<i :class="isContextGroupOpen('data') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
@@ -1162,6 +1162,10 @@ const subgraphsOpen = ref(false)
 const focusedSubgraphId = ref<string>()
 const activeSubgraphId = ref<string>()
 const recentlyUsed = ref<{ key: string; kind: "action" | "trigger"; name: string; icon: string; color: string }[]>([])
+const pendingFlowConnection = ref<{ fromNode: string; fromPort?: string; canvasPoint: NodePosition } | null>(null)
+const recentContextItems = computed(() =>
+	pendingFlowConnection.value ? recentlyUsed.value.filter((item) => item.kind === "action") : recentlyUsed.value
+)
 const MAX_RECENT = 5
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
@@ -1498,7 +1502,7 @@ const {
 	execDragWirePath,
 	startExecEdgeDrag,
 	deleteExecEdge,
-} = useExecEdges(graphRef, nodes, canvasRef, zoom, commitUndo)
+} = useExecEdges(graphRef, nodes, canvasRef, zoom, commitUndo, openPendingFlowContext)
 const {
 	copySelectedNodes,
 	cutSelectedNodes,
@@ -1511,10 +1515,17 @@ const {
 	actionContextGroups,
 	triggerContextGroups,
 	openContextMenu,
-	closeContextMenu,
+	openContextMenuAt,
+	closeContextMenu: closeContextMenuBase,
 	toggleContextGroup,
 	isContextGroupOpen,
 } = useNodeContextMenu(nodes, pluginStore, getCanvasPointFromClient, getNodeLane)
+
+function closeContextMenu() {
+	pendingFlowConnection.value = null
+	closeContextMenuBase()
+}
+
 const { startDrag, resetSelectedNodePosition, alignmentGuides } = useNodeDrag(
 	nodePositions,
 	selectedNodeId,
@@ -1665,7 +1676,24 @@ function clearSelection() {
 	selectedEdgeId.value = undefined
 }
 
+function openPendingFlowContext(drop: {
+	fromNode: string
+	fromPort?: string
+	canvasPoint: NodePosition
+	clientPoint: { x: number; y: number }
+}) {
+	pendingFlowConnection.value = {
+		fromNode: drop.fromNode,
+		fromPort: drop.fromPort,
+		canvasPoint: drop.canvasPoint,
+	}
+	clearSelection()
+	actionsOpen.value = true
+	openContextMenuAt(drop.clientPoint.x, drop.clientPoint.y, drop.canvasPoint)
+}
+
 function openNodeContext(event: MouseEvent, node: NodeData) {
+	pendingFlowConnection.value = null
 	selectNode(event, node.id)
 	detailsOpen.value = true
 	configOpen.value = true
@@ -1678,6 +1706,7 @@ function openCanvasContextMenu(event: MouseEvent) {
 	if (target.closest(".node-automation__canvas-controls") || target.closest(".node-automation__context-menu")) return
 	const nodeElement = target.closest(".node-automation__node")
 	if (nodeElement) return
+	pendingFlowConnection.value = null
 	clearSelection()
 	openContextMenu(event)
 }
@@ -2124,8 +2153,9 @@ async function selectActionFromContext(actionKey: string) {
 	const actionDef = plugin?.actions?.[selection.action]
 	trackRecentlyUsed(actionKey, "action", actionDef?.name ?? selection.action, actionDef?.icon ?? "mdi mdi-play", String(plugin?.color ?? "#e9aaff"))
 
-	const position = !contextMenu.value.nodeId ? contextMenu.value.canvasPoint : undefined
-	insertAction(action, contextMenu.value.nodeId, position)
+	const pendingFlow = pendingFlowConnection.value
+	const position = pendingFlow?.canvasPoint ?? (!contextMenu.value.nodeId ? contextMenu.value.canvasPoint : undefined)
+	insertAction(action, pendingFlow?.fromNode ?? contextMenu.value.nodeId, position, pendingFlow?.fromPort)
 	if (position) nodePositions.value[action.id] = position
 	focusNode(action.id)
 	configOpen.value = true
@@ -2268,7 +2298,21 @@ function addGraphActionNode(action: ActionInfo, position: NodePosition) {
 	return node
 }
 
-function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, position?: NodePosition) {
+function connectFlowToNode(fromNode: string, fromPort: string | undefined, toNode: string) {
+	const graph = ensureGraph()
+	const outgoing = graph.edges.find((edge) => edge.from === fromNode && (edge.port ?? undefined) === fromPort)
+	if (outgoing) {
+		const previousTo = outgoing.to
+		outgoing.to = toNode
+		if (previousTo && previousTo !== toNode) {
+			graph.edges.push({ id: nanoid(), from: toNode, to: previousTo })
+		}
+		return
+	}
+	graph.edges.push({ id: nanoid(), from: fromNode, to: toNode, port: fromPort })
+}
+
+function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, position?: NodePosition, afterPort?: string) {
 	const graph = ensureGraph()
 	const canAnchorFlow = afterNodeId === "trigger" || Boolean(afterNodeId && graph.nodes.some((node) => node.id === afterNodeId))
 	const flowAnchorId = canAnchorFlow ? afterNodeId : undefined
@@ -2290,14 +2334,7 @@ function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, po
 		return node
 	}
 
-	const outgoing = graph.edges.find((edge) => edge.from === flowAnchorId && edge.port == null)
-	if (outgoing) {
-		const previousTo = outgoing.to
-		outgoing.to = node.id
-		graph.edges.push({ id: `${node.id}:${previousTo}`, from: node.id, to: previousTo })
-	} else {
-		graph.edges.push({ id: `${flowAnchorId}:${node.id}`, from: flowAnchorId, to: node.id })
-	}
+	connectFlowToNode(flowAnchorId, afterPort, node.id)
 	return node
 }
 
@@ -2573,7 +2610,11 @@ function addSubgraphCallNode(subgraphId: string) {
 		subgraphId,
 		inputs: {},
 	})
-	if (!graph.entryNodeId) graph.entryNodeId = id
+	if (pendingFlowConnection.value) {
+		connectFlowToNode(pendingFlowConnection.value.fromNode, pendingFlowConnection.value.fromPort, id)
+	} else if (!graph.entryNodeId) {
+		graph.entryNodeId = id
+	}
 	focusedSubgraphId.value = subgraphId
 	closeContextMenu()
 	commitUndo()
@@ -2773,8 +2814,9 @@ function addControlFlowNode(type: GraphNodeType) {
 
 	graph.nodes.push(newNode)
 
-	// Set entry if first node
-	if (graph.nodes.length === 1) {
+	if (pendingFlowConnection.value) {
+		connectFlowToNode(pendingFlowConnection.value.fromNode, pendingFlowConnection.value.fromPort, id)
+	} else if (graph.nodes.length === 1) {
 		graph.entryNodeId = id
 	}
 

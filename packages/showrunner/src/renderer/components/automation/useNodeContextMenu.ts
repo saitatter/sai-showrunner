@@ -69,14 +69,18 @@ export function useNodeContextMenu(
 	)
 
 	function openContextMenu(event: MouseEvent, nodeId?: string) {
+		openContextMenuAt(event.clientX, event.clientY, getCanvasPointFromClient(event.clientX, event.clientY), nodeId)
+	}
+
+	function openContextMenuAt(clientX: number, clientY: number, canvasPoint?: NodePosition, nodeId?: string) {
 		const menuWidth = 340
 		const menuHeight = 520
 		contextMenu.value = {
 			open: true,
-			x: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
-			y: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8)),
+			x: Math.max(8, Math.min(clientX, window.innerWidth - menuWidth - 8)),
+			y: Math.max(8, Math.min(clientY, window.innerHeight - menuHeight - 8)),
 			nodeId,
-			canvasPoint: getCanvasPointFromClient(event.clientX, event.clientY),
+			canvasPoint,
 		}
 		contextMenuQuery.value = ""
 
@@ -146,6 +150,7 @@ export function useNodeContextMenu(
 		actionContextGroups,
 		triggerContextGroups,
 		openContextMenu,
+		openContextMenuAt,
 		closeContextMenu,
 		toggleContextGroup,
 		isContextGroupOpen,
