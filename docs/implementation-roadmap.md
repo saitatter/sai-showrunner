@@ -196,7 +196,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Reduce remaining settings/plugin initialization console noise.
 - [x] Audit action result schemas so every useful output is exposed as a typed data port.
 - [x] Add node-menu categories for data transforms, overlays, queues, OBS, chat, and utility actions.
-- [ ] Add keyboard-first command menu navigation: up/down, enter, escape, and section shortcuts.
+- [x] Add keyboard-first command menu navigation: up/down, enter, escape, and section shortcuts.
 - [ ] Add onboarding starter graphs for OBS scene changes, chat commands, moderation actions, and stream-plan events.
 - [ ] Add manual regression checklist for queue starter templates, conversion nodes, hidden plugins, and incompatible wires.
 
