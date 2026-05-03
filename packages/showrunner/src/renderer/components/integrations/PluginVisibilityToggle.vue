@@ -36,13 +36,15 @@ const enabledModel = computed({
 	display: inline-flex;
 	flex: 0 0 auto;
 	justify-content: center;
-	margin-left: 0.4rem;
+	margin-left: auto;
+	padding-left: 0.25rem;
 }
 
 .plugin-visibility-toggle :deep(.toggler) {
 	box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
-	transform: scale(0.82);
-	transform-origin: center right;
+	transform: scale(0.78);
+	transform-origin: center center;
+	vertical-align: middle;
 }
 
 .plugin-visibility-toggle :deep(.toggler.toggle-true) {

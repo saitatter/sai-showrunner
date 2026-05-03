@@ -8,7 +8,7 @@
 	>
 		<i class="chevron-spacer"></i>
 		<slot name="icon">
-			<i :class="item.icon" class="px-1" v-if="item.icon"></i>
+			<i :class="item.icon" class="px-1" v-if="item.icon" :style="item.iconColor ? { color: item.iconColor } : undefined"></i>
 			<i class="chevron-spacer" v-else></i>
 		</slot>
 		<div class="project-item-title">{{ item.title }}</div>

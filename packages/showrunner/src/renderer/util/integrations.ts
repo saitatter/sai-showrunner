@@ -11,20 +11,14 @@ export function initializeIntegrationVisibility() {
 	const projectStore = useProjectStore()
 	const dockingStore = useDockingStore()
 
-	projectStore.registerProjectGroupChild(
-		{
-			id: "integrations",
-			title: "Integrations",
-			icon: "mdi mdi-connection",
-		},
-		computed<ProjectGroup>(() => ({
-			id: "plugins",
-			title: "Plugins",
-			icon: "mdi mdi-puzzle-outline",
-			items: buildPluginCategoryGroups([...pluginStore.pluginMap.values()].filter((plugin) => !NATIVE_INTEGRATION_GROUP_PLUGIN_IDS.has(plugin.id)).map((plugin) => ({
+	const categoryGroups = computed(() => {
+		const plugins = [...pluginStore.pluginMap.values()]
+			.filter((plugin) => !NATIVE_INTEGRATION_GROUP_PLUGIN_IDS.has(plugin.id))
+			.map((plugin) => ({
 				id: plugin.id,
 				title: plugin.name,
 				icon: pluginIcon(plugin.id, plugin.icon),
+				iconColor: plugin.color || undefined,
 				endComponent: markRaw(PluginVisibilityToggle),
 				open() {
 					dockingStore.openPage(
@@ -35,8 +29,35 @@ export function initializeIntegrationVisibility() {
 						{ pluginId: plugin.id }
 					)
 				},
-			}))),
-		}))
+			}))
+		return buildPluginCategoryGroups(plugins)
+	})
+
+	for (const category of PLUGIN_CATEGORIES) {
+		projectStore.registerProjectGroupChild(
+			{
+				id: "integrations",
+				title: "Integrations",
+				icon: "mdi mdi-connection",
+			},
+			computed<ProjectGroup>(() => {
+				const group = categoryGroups.value.find((g) => g.id === `plugins-${category.id}`)
+				return group ?? { id: `plugins-${category.id}`, title: category.title, icon: category.icon, items: [] }
+			})
+		)
+	}
+
+	// "Other" category for uncategorized plugins
+	projectStore.registerProjectGroupChild(
+		{
+			id: "integrations",
+			title: "Integrations",
+			icon: "mdi mdi-connection",
+		},
+		computed<ProjectGroup>(() => {
+			const group = categoryGroups.value.find((g) => g.id === "plugins-other")
+			return group ?? { id: "plugins-other", title: "Other", icon: "mdi mdi-puzzle-outline", items: [] }
+		})
 	)
 }
 

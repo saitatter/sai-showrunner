@@ -10,6 +10,7 @@ export interface ProjectItem {
 	id: string
 	title: string
 	icon?: string
+	iconColor?: string
 	open?(): any
 	rename?(name: string): any
 	delete?(): any
