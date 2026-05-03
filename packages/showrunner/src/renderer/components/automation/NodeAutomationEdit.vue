@@ -1055,19 +1055,6 @@
 					</div>
 				</section>
 
-				<section class="node-automation__context-section">
-					<button type="button" class="node-automation__context-header" :aria-expanded="activityOpen" @click="activityOpen = !activityOpen">
-						<span><i class="mdi mdi-history" /> Node Activity</span>
-						<i :class="activityOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
-					</button>
-					<ol v-if="activityOpen" class="node-automation__activity">
-						<li v-for="entry in activityLog" :key="entry.id">
-							<strong>{{ entry.title }}</strong>
-							<span>{{ entry.detail }}</span>
-						</li>
-					</ol>
-				</section>
-
 				<section v-if="activeTestExecution?.executionPath?.length" class="node-automation__context-section">
 					<div class="node-automation__execution-header">
 						<span><i class="mdi mdi-map-marker-path" /> Execution Path</span>
@@ -1119,7 +1106,6 @@ import {
 	type SubgraphParamType,
 	type SubgraphDefinition,
 } from "ShowRunner-schema"
-import { useNodeActivity } from "./useNodeActivity"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
 import { useNodeContextMenu } from "./useNodeContextMenu"
 import { useNodeDrag } from "./useNodeDrag"
@@ -1172,13 +1158,11 @@ const canvasSearchInputRef = ref<HTMLInputElement>()
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
-const activityOpen = ref(true)
 const subgraphsOpen = ref(false)
 const focusedSubgraphId = ref<string>()
 const activeSubgraphId = ref<string>()
 const recentlyUsed = ref<{ key: string; kind: "action" | "trigger"; name: string; icon: string; color: string }[]>([])
 const MAX_RECENT = 5
-const { activityLog, logActivity } = useNodeActivity()
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
 const actionQueueStore = useActionQueueStore()
@@ -1519,7 +1503,7 @@ const {
 	copySelectedNodes,
 	cutSelectedNodes,
 	pasteNodes,
-} = useClipboard(model, graphRef, selectedNodeIds, selectedNodeId, variableNodes, dataWires, nodePositions, canvasRef, zoom, commitUndo, logActivity, clearSelection)
+} = useClipboard(model, graphRef, selectedNodeIds, selectedNodeId, variableNodes, dataWires, nodePositions, canvasRef, zoom, commitUndo, clearSelection)
 const {
 	contextMenu,
 	contextMenuQuery,
@@ -2115,7 +2099,6 @@ async function addActionFromPalette() {
 	if (!action) return
 
 	insertAction(action)
-	logActivity("Added action", `${selection.plugin}/${selection.action}`)
 
 	focusNode(action.id)
 	configOpen.value = true
@@ -2144,7 +2127,6 @@ async function selectActionFromContext(actionKey: string) {
 	const position = !contextMenu.value.nodeId ? contextMenu.value.canvasPoint : undefined
 	insertAction(action, contextMenu.value.nodeId, position)
 	if (position) nodePositions.value[action.id] = position
-	logActivity("Added action", `${selection.plugin}/${selection.action}`)
 	focusNode(action.id)
 	configOpen.value = true
 	closeContextMenu()
@@ -2174,7 +2156,6 @@ async function selectTriggerFromContext(triggerKey: string) {
 	focusNode("trigger")
 	configOpen.value = true
 	closeContextMenu()
-	logActivity("Changed trigger", `${pluginId}/${triggerId}`)
 	commitUndo()
 }
 
@@ -2194,7 +2175,6 @@ async function dropActionOnCanvas(event: DragEvent) {
 	const position = getCanvasPoint(event)
 	addGraphActionNode(action, position)
 	nodePositions.value[action.id] = position
-	logActivity("Dropped action", `${action.plugin}/${action.action} on canvas`)
 	focusNode(action.id)
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
@@ -2216,7 +2196,6 @@ async function dropActionOnNode(event: DragEvent, node: NodeData) {
 	}
 	insertAction(action, node.id, position)
 	nodePositions.value[action.id] = position
-	logActivity("Inserted action", `${action.plugin}/${action.action} after ${node.title}`)
 	focusNode(action.id)
 	configOpen.value = true
 	dropTargetNodeId.value = undefined
@@ -2239,7 +2218,6 @@ async function dropActionOnEdge(event: DragEvent, edge: EdgeData) {
 	}
 	insertActionOnEdge(action, edge, position)
 	nodePositions.value[action.id] = position
-	logActivity("Inserted on edge", `${action.plugin}/${action.action}`)
 	focusNode(action.id)
 	configOpen.value = true
 	dropTargetEdgeId.value = undefined
@@ -2366,7 +2344,6 @@ function duplicateSelectedAction() {
 	}
 	insertAction(clonedAction, actionInfo.id, position)
 	nodePositions.value[clonedAction.id] = position
-	logActivity("Duplicated node", selectedNode.value?.title || actionInfo.id)
 	focusNode(clonedAction.id)
 	configOpen.value = true
 	commitUndo()
@@ -2396,7 +2373,6 @@ function deleteGraphNodes(ids: string[]) {
 	if (graph.entryNodeId && idSet.has(graph.entryNodeId)) {
 		graph.entryNodeId = graph.nodes[0]?.id ?? ""
 	}
-	logActivity("Deleted", `${ids.length} node${ids.length === 1 ? "" : "s"}`)
 	clearSelection()
 	commitUndo()
 }
@@ -2426,7 +2402,6 @@ function moveSelectedAction(direction: -1 | 1) {
 	if (!node) return
 	node.x = snapCoordinate(node.x + direction * H_GAP)
 	nodePositions.value[node.id] = { x: node.x, y: node.y }
-	logActivity(direction < 0 ? "Moved node left" : "Moved node right", selectedNode.value?.title || node.id)
 	commitUndo()
 }
 
@@ -2463,7 +2438,6 @@ function addSubgraph() {
 	})
 	focusedSubgraphId.value = id
 	subgraphsOpen.value = true
-	logActivity("Added", "Subgraph")
 	commitUndo()
 }
 
@@ -2472,7 +2446,6 @@ function focusSubgraph(id: string) {
 	if (!subgraph) return
 	focusedSubgraphId.value = id
 	subgraphsOpen.value = true
-	logActivity("Focused subgraph", subgraph.name || id)
 }
 
 function openSubgraphCanvas(id: string) {
@@ -2484,13 +2457,11 @@ function openSubgraphCanvas(id: string) {
 	clearSelection()
 	closeContextMenu()
 	subgraphsOpen.value = true
-	logActivity("Opened subgraph canvas", subgraph.name || id)
 }
 
 function openMainCanvas() {
 	activeSubgraphId.value = undefined
 	clearSelection()
-	logActivity("Opened main canvas", model.value.name || "Automation")
 }
 
 function deleteSubgraph(id: string) {
@@ -2509,7 +2480,6 @@ function deleteSubgraph(id: string) {
 		}
 		if (focusedSubgraphId.value === id) focusedSubgraphId.value = undefined
 		if (activeSubgraphId.value === id) activeSubgraphId.value = undefined
-		logActivity("Deleted", "Subgraph")
 		commitUndo()
 	}
 }
@@ -2518,7 +2488,6 @@ function updateSubgraphName(id: string, name: string) {
 	const subgraph = findSubgraph(id)
 	if (!subgraph) return
 	subgraph.name = name.trim() || "Unnamed Subgraph"
-	logActivity("Renamed subgraph", subgraph.name)
 	commitUndo()
 }
 
@@ -2532,7 +2501,6 @@ function addSubgraphParam(id: string, collection: "parameters" | "outputs") {
 		default: collection === "parameters" ? "" : undefined,
 	})
 	focusedSubgraphId.value = id
-	logActivity("Added subgraph port", `${subgraph.name || id} ${prefix}`)
 	commitUndo()
 }
 
@@ -2541,7 +2509,6 @@ function deleteSubgraphParam(id: string, collection: "parameters" | "outputs", i
 	if (!subgraph) return
 	subgraph[collection].splice(index, 1)
 	focusedSubgraphId.value = id
-	logActivity("Deleted subgraph port", subgraph.name || id)
 	commitUndo()
 }
 
@@ -2609,7 +2576,6 @@ function addSubgraphCallNode(subgraphId: string) {
 	if (!graph.entryNodeId) graph.entryNodeId = id
 	focusedSubgraphId.value = subgraphId
 	closeContextMenu()
-	logActivity("Added", "Subgraph Call")
 	commitUndo()
 }
 
@@ -2675,7 +2641,6 @@ function collapseSelectionToSubgraph() {
 		[...selectedNodeIds.value].filter((id) => id !== "trigger" && graph.nodes.some((node) => node.id === id))
 	)
 	if (selectedGraphIds.size === 0) {
-		logActivity("Subgraph skipped", "Select one or more graph nodes first")
 		return
 	}
 
@@ -2767,7 +2732,6 @@ function collapseSelectionToSubgraph() {
 	focusedSubgraphId.value = subgraphId
 	subgraphsOpen.value = true
 	focusNode(callNodeId)
-	logActivity("Collapsed subgraph", `${selectedNodes.length} node${selectedNodes.length === 1 ? "" : "s"}`)
 }
 
 function addControlFlowNode(type: GraphNodeType) {
@@ -2815,7 +2779,6 @@ function addControlFlowNode(type: GraphNodeType) {
 	}
 
 	closeContextMenu()
-	logActivity("Added", GRAPH_NODE_INFO[type].label)
 	commitUndo()
 }
 
@@ -2970,7 +2933,6 @@ function addVariableNode(type: "string" | "number" | "boolean" | "color") {
 	}
 	variableNodes.value.push(vn)
 	closeContextMenu()
-	logActivity("Added", `${type} variable`)
 	commitUndo()
 }
 
@@ -2980,7 +2942,6 @@ function deleteVariableNode(id: string) {
 		variableNodes.value.splice(idx, 1)
 		// Also remove any wires connected to this node
 		dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
-		logActivity("Deleted", "Variable node")
 		commitUndo()
 	}
 }
@@ -4452,31 +4413,6 @@ onUnmounted(() => {
 	background: #2a2a2a;
 	border-color: #e9aaff;
 	color: #fff;
-}
-
-.node-automation__activity {
-	display: grid;
-	gap: 0.55rem;
-	list-style: none;
-	margin: 0;
-	padding: 0.65rem;
-}
-
-.node-automation__activity li {
-	background: #101010;
-	border: 1px solid #303030;
-	border-radius: 4px;
-	display: grid;
-	gap: 0.2rem;
-	padding: 0.55rem;
-}
-
-.node-automation__activity span {
-	color: #bbb;
-	font-size: 0.8rem;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .node-automation__execution-header {
