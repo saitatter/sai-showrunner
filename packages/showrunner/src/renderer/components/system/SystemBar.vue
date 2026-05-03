@@ -54,6 +54,7 @@ import { useOpenSettings } from "../settings/SettingsTypes"
 import InputTestPage from "../test/InputTestPage.vue"
 import { useDialog } from "primevue/usedialog"
 import AboutPage from "../about/AboutPage.vue"
+import UpdatePage from "../updates/UpdatePage.vue"
 import { automationStarterTemplates, type AutomationStarterTemplate } from "../automation/automation-starter-templates"
 
 const closeAllTabs = useCloseAllTabs()
@@ -253,6 +254,13 @@ const menuItems = computed<MenuItem[]>(() => {
 			icon: "mdi mdi-information",
 			command() {
 				dockingStore.openPage("about", "About", "mdi mdi-info", AboutPage)
+			},
+		},
+		{
+			label: "Updates",
+			icon: "mdi mdi-update",
+			command() {
+				dockingStore.openPage("updates", "Updates", "mdi mdi-update", UpdatePage)
 			},
 		},
 		{

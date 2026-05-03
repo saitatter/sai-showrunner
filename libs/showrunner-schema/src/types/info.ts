@@ -4,3 +4,13 @@ export interface UpdateData {
 	date: string
 	notes: string
 }
+
+export interface UpdateStatus {
+	currentVersion: string
+	latest?: UpdateData
+	update?: UpdateData
+	hasUpdate: boolean
+	checkedAt?: string
+	error?: string
+	checking: boolean
+}

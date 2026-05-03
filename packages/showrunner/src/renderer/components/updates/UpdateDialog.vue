@@ -32,13 +32,11 @@ const notes = ref<HTMLElement>()
 onMounted(async () => {
 	updateData.value = await getUpdateData()
 	nextTick(() => {
-		//nextTick(() => {
-		console.log("Release Notes?", notes)
 		const links = notes.value?.querySelectorAll("a") ?? []
 		for (const link of links) {
 			link.target = "_blank"
+			link.rel = "noreferrer"
 		}
-		//})
 	})
 })
 
