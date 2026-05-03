@@ -18,8 +18,8 @@ import {
 	defineFlowAction,
 	globalLogger,
 	usePluginLogger,
-	GraphCompiler,
 	GraphVM,
+	compileAutomationProgram,
 } from "ShowRunner-core"
 import { getExpressionHash } from "ShowRunner-core/src/util/boolean-helpers"
 
@@ -306,8 +306,7 @@ export default definePlugin(
 			async invoke(config, contextData, abortSignal) {
 				if (!config.automation.config.graph) return
 
-				const compiler = new GraphCompiler()
-				const program = compiler.compile(config.automation.config.graph, config.automation.config.subgraphs, config.automation.config.dataWires)
+				const program = compileAutomationProgram(config.automation.config)
 				const vm = new GraphVM(program, contextData, undefined, abortSignal)
 
 				const onabort = () => vm.abort()

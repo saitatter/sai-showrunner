@@ -22,7 +22,7 @@ import { ResourceRegistry } from "../resources/resource-registry"
 import { deserializeSchema, exposeSchema, serializeSchema } from "../util/ipc-schema"
 import { PluginManager } from "../plugins/plugin-manager"
 import { usePluginLogger } from "../logging/logging"
-import { GraphCompiler } from "../graph-engine/compiler"
+import { compileAutomationProgram } from "../graph-engine/program-cache"
 import { GraphVM } from "../graph-engine/vm"
 
 const logger = usePluginLogger("queues")
@@ -206,8 +206,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 			return
 		}
 
-		const compiler = new GraphCompiler()
-		const program = compiler.compile(automation.graph, automation.subgraphs, automation.dataWires)
+		const program = compileAutomationProgram(automation)
 		const abortController = new AbortController()
 		this.activeAbortController = abortController
 		this.activeVM = new GraphVM(program, { contextState: finalContext }, undefined, abortController.signal)
@@ -350,8 +349,7 @@ export const ActionQueueManager = Service(
 				}
 
 				const finalContext = await exposeSchema(contextSchema, contextData)
-				const compiler = new GraphCompiler()
-				const program = compiler.compile(automation.graph, automation.subgraphs, automation.dataWires)
+				const program = compileAutomationProgram(automation)
 				const vm = new GraphVM(program, { contextState: finalContext })
 				await wrapper(async () => await vm.execute(), { type, id, subId })
 			}
@@ -414,8 +412,7 @@ export const ActionQueueManager = Service(
 				return
 			}
 
-			const compiler = new GraphCompiler()
-			const program = compiler.compile(automation.graph, automation.subgraphs, automation.dataWires)
+			const program = compileAutomationProgram(automation)
 			const vm = new GraphVM(program, { contextState: context }, new TestRunnerDebugger(id))
 			this.testVMs.set(id, vm)
 

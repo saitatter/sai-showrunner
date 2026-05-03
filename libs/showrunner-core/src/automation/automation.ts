@@ -3,6 +3,7 @@ import { FileResource } from "../resources/file-resource"
 import { ResourceStorage } from "../resources/resource"
 import { nanoid } from "nanoid/non-secure"
 import { ActionResolvers } from "../queue-system/resolvers"
+import { validateAutomationProgram } from "../graph-engine/program-cache"
 
 export class Automation extends FileResource<AutomationConfig> {
 	static resourceDirectory: string = "./automations"
@@ -26,11 +27,24 @@ export class Automation extends FileResource<AutomationConfig> {
 	async load(savedConfig: object): Promise<boolean> {
 		const before = JSON.stringify(savedConfig)
 		const normalized = normalizeAutomationConfig(savedConfig as Partial<AutomationConfig>)
+		validateAutomationProgram(normalized)
 		const result = await super.load(normalized)
 		if (JSON.stringify(normalized) !== before) {
 			await this.save()
 		}
 		return result
+	}
+
+	async setConfig(config: AutomationConfig): Promise<boolean> {
+		const normalized = normalizeAutomationConfig(config)
+		validateAutomationProgram(normalized)
+		return super.setConfig(normalized)
+	}
+
+	async applyConfig(config: Partial<AutomationConfig>): Promise<boolean> {
+		const normalized = normalizeAutomationConfig({ ...this.config, ...config })
+		validateAutomationProgram(normalized)
+		return super.setConfig(normalized)
 	}
 }
 
