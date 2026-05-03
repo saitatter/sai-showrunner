@@ -37,8 +37,6 @@ export const useDashboardRTCBridge = defineStore("dashboard-rtc-bridge", () => {
 	satelliteStore.registerRPCHandler(
 		"dashboard_setConfig",
 		async (connectionId: string, configData: DashboardConfig) => {
-			console.log("Dashboard Config Set", configData)
-
 			//Find new and deleted resource slots
 			const existingSlots = config.value.resourceSlots ?? []
 			const updatedSlots = configData.resourceSlots ?? []
@@ -199,7 +197,6 @@ export const useDashboardRTCBridge = defineStore("dashboard-rtc-bridge", () => {
 				}
 			},
 			async callRPC(id, ...args) {
-				console.log("CALLING RPC", id, args)
 				if (!connection.value?.id) throw new Error("No RPC CONNECTION")
 				return await satelliteStore.callRPC(
 					connection.value.id,

@@ -15,7 +15,7 @@ function parseDefinition(def: IPCVariableDefinition): RendererVariableDefinition
 	const type = getTypeByName(def.type)
 	if (!type) throw new Error("Missing Type!")
 
-	//@ts-ignore TODO: How to get the compiler to agree with this?
+	// @ts-expect-error Runtime schema constructor is resolved from registered type metadata.
 	const schema: Schema = {
 		type: type.constructor,
 		required: true,

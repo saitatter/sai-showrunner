@@ -48,7 +48,6 @@ export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 		const wasConnected = connectionStatus.value === "connected" || connectionStatus.value === "reconnecting"
 		connectionStatus.value = wasConnected ? "reconnecting" : "connecting"
 
-		console.log("Connecting To ", `ws://${window.location.host}?overlay=${overlayId.value}`)
 		websocket = new WebSocket(`ws://${window.location.host}?overlay=${overlayId.value}`)
 
 		websocket.addEventListener("open", () => {

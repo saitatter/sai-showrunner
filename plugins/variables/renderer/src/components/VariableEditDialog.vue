@@ -110,7 +110,7 @@ onMounted(async () => {
 		variableDef.value = {
 			id: def.id,
 			serialized: def.serialized,
-			//@ts-ignore
+			// @ts-expect-error Runtime schema constructor is preserved from the existing variable definition.
 			schema: { type: def.schema.type, required: true },
 			defaultValue: _cloneDeep(def.defaultValue),
 		}

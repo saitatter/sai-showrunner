@@ -132,7 +132,6 @@ const ShowRunnerPreset = definePreset(Aura, {
 })
 
 //DialogService.install?.(app)
-console.log("Dialog service inited")
 app.use(PrimeVue, {
 	theme: {
 		preset: ShowRunnerPreset,

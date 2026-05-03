@@ -17,7 +17,6 @@ export interface DroppedFile {
 export type FileDropEvent = (files: DroppedFile[]) => any
 
 async function getMimeType(url: string) {
-	console.log("Getting Mimetype", url)
 	const response = await fetch(url, { method: "HEAD" })
 
 	if (!response.ok) return undefined
@@ -42,8 +41,6 @@ export function useFileDragDrop(
 		const toIn = isUnnestedChild(elem, ft.toElement, nestingClass)
 		const fromIn = isUnnestedChild(elem, ft.fromElement, nestingClass)
 
-		console.log("File Enter", ft, fromIn, toIn)
-
 		if (fromIn && !toIn) {
 			hoveringFiles.value = false
 		} else if (!fromIn && toIn) {
@@ -55,7 +52,6 @@ export function useFileDragDrop(
 		ev.preventDefault()
 		//ev.stopPropagation()
 
-		//console.log("FileEnter", ev, ev.dataTransfer.files)
 		//hoveringFiles.value = true
 	})
 
@@ -69,8 +65,6 @@ export function useFileDragDrop(
 		const toIn = isUnnestedChild(elem, ft.toElement, nestingClass)
 		const fromIn = isUnnestedChild(elem, ft.fromElement, nestingClass)
 
-		console.log("File Leave", ft, fromIn, toIn)
-
 		if (fromIn && !toIn) {
 			hoveringFiles.value = true
 		} else if (!fromIn && toIn) {
@@ -81,7 +75,6 @@ export function useFileDragDrop(
 
 		ev.preventDefault
 
-		//console.log("FileLeave", ev, ev.dataTransfer.files)
 		//hoveringFiles.value = false
 	})
 

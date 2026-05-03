@@ -85,13 +85,6 @@ const sortOrder = ref<number>()
 
 const { viewers, updateRange, loading } = useLazyViewerQuery(sortField, sortOrder)
 
-// effect(() => {
-// 	console.log(sortField.value, " -> ", sortOrder.value)
-// 	for (let i = 0; i < viewers.value.length; ++i) {
-// 		console.log(`  ${i}:`, { ...viewers.value[i] })
-// 	}
-// })
-
 function createNew() {
 	dialog.open(ViewerVariableEditDialog, {
 		props: {
@@ -102,12 +95,9 @@ function createNew() {
 			modal: true,
 		},
 		async onClose(options) {
-			console.log("Close!", options)
 			if (!options?.data) {
 				return
 			}
-
-			console.log("CREATE!", options.data)
 
 			await viewerDataStore.createViewerVariable(options.data)
 		},

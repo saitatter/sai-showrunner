@@ -37,7 +37,7 @@ const widgetStore = useOverlayWidgets()
 const widgetComponent = computed<OverlayWidgetComponent | undefined>(
 	() => widgetStore.getWidget(props.widgetConfig.plugin, props.widgetConfig.widget)?.component
 )
-//@ts-ignore
+// @ts-expect-error Widget component metadata type is broader than useResolvedWidgetConfig accepts here.
 const resolvedConfig = useResolvedWidgetConfig(() => props.widgetConfig.config, widgetComponent)
 
 const bridge = useWebsocketBridge()

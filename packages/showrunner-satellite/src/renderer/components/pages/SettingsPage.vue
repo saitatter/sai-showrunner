@@ -91,15 +91,12 @@ onBeforeMount(() => {
 		settings.value[plugin.id] = {}
 
 		for (const settingId in plugin.settings) {
-			console.log(plugin.id, settingId)
 			const setting = plugin.settings[settingId]
 			if (setting.type == "value" || setting.type == "secret") {
 				settings.value[plugin.id][settingId] = _cloneDeep(setting.value)
 			}
 		}
 	}
-
-	console.log("Settings", settings.value)
 })
 
 useSettingWatcher((plugin, setting, value) => {

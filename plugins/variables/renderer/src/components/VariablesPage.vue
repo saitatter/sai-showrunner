@@ -90,7 +90,6 @@ function createNew() {
 			modal: true,
 		},
 		async onClose(options) {
-			console.log("Close!", options)
 			if (!options) {
 				return
 			}
@@ -116,7 +115,6 @@ function deleteDialog(def: RendererVariableDefinition) {
 }
 
 function editDialog(def: RendererVariableDefinition) {
-	console.log(def)
 	dialog.open(VariableEditDialog, {
 		props: {
 			header: `Edit ${def.id}`,
@@ -127,12 +125,9 @@ function editDialog(def: RendererVariableDefinition) {
 		},
 		data: def,
 		async onClose(options) {
-			console.log("Close!", options)
 			if (!options || options?.type == "dialog-close") {
 				return
 			}
-
-			console.log("Setting Variable", def.id, options.data)
 
 			await variableStore.setVariableDefinition(def.id, options.data)
 		},

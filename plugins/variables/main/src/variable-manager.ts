@@ -153,7 +153,7 @@ export const VariableManager = Service(
 				const type = getTypeByName(serializedDef.type)
 				if (!type) continue
 
-				//@ts-ignore TODO: How to get the compiler to agree with this?
+				// @ts-expect-error Runtime schema constructor is resolved from registered type metadata.
 				const schema: Schema = {
 					type: type.constructor,
 					required: true,
@@ -200,7 +200,7 @@ export const VariableManager = Service(
 
 			logger.log("Adding new Variable", ipcDef.id)
 
-			//@ts-ignore TODO: How to get the compiler to agree with this?
+			// @ts-expect-error Runtime schema constructor is resolved from registered type metadata.
 			const schema: Schema = {
 				type: type.constructor,
 				required: true,
@@ -232,7 +232,7 @@ export const VariableManager = Service(
 			const existing = this.variables.get(originalId)
 			if (!existing) throw new Error(`Missing Variable ${originalId}`)
 
-			//@ts-ignore TODO: How to get the compiler to agree with this?
+			// @ts-expect-error Runtime schema constructor is resolved from registered type metadata.
 			const schema: Schema = {
 				type: type.constructor,
 				required: true,

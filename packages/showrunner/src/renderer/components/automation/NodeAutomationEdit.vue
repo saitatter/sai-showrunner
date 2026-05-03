@@ -221,10 +221,13 @@
 						<path
 							v-if="dragWirePath"
 							class="node-automation__data-wire node-automation__data-wire--dragging"
+							:class="{ invalid: dragWirePath.valid === false }"
 							:d="dragWirePath.path"
 							:stroke="dragWirePath.color"
 							vector-effect="non-scaling-stroke"
-						/>
+						>
+							<title>{{ dragWirePath.validationMessage || "Release on a compatible input port to connect." }}</title>
+						</path>
 
 						<!-- In-progress execution edge drag -->
 						<path
@@ -1114,6 +1117,7 @@ import { usePortConnections, portTypeColor, type DataWire, type PortDef } from "
 import { useExecEdges } from "./useExecEdges"
 import { useClipboard } from "./useClipboard"
 import ExpressionTextInput from "./ExpressionTextInput.vue"
+import { EXPRESSION_BUILTINS } from "./expression-tokenizer"
 import {
 	type ConfigLine,
 	type NodeData,
@@ -1373,7 +1377,7 @@ const expressionSuggestions = computed(() => {
 			if (port.type !== "flow") suggestions.add(`${node.id}.${port.key}`)
 		}
 	}
-	for (const builtin of ["len", "includes", "toString", "toNumber", "toBoolean", "min", "max"]) {
+	for (const builtin of EXPRESSION_BUILTINS) {
 		suggestions.add(`${builtin}(...)`)
 	}
 	return [...suggestions].sort((a, b) => a.localeCompare(b))

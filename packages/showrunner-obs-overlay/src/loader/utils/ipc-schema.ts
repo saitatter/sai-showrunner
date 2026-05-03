@@ -87,7 +87,7 @@ export function ipcParseSchema(ipcSchema: IPCSchema): Schema {
 			throw new Error(`Unknown IPC Type ${ipcSchema.type}`)
 		}
 
-		//@ts-ignore
+		// @ts-expect-error Runtime schema constructors are resolved from IPC metadata.
 		return {
 			...ipcSchema,
 			...ipcParseSchemaDefault(ipcSchema),

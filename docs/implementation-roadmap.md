@@ -80,7 +80,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Shader graph and node graph share the same themed collapsible context menu shell.
 - [x] Renderer save/error feedback is routed through `useAppFeedback()` for toast + dev-only logging.
 - [x] Reduced safe `@ts-expect-error` usage in resource registration and array wrappers.
-- [ ] Continue shrinking remaining console noise in media/viewer-data/satellite/drag utilities.
+- [x] Continue shrinking remaining console noise in media/viewer-data/satellite/drag utilities.
 - [x] Rename queue terminology from `QueuedSequence` to `QueuedAutomation` in queue runtime/state.
 - [x] Add one-time persistence migration to strip stale `sequence`/`floatingSequences` fields from existing user JSON.
 
@@ -105,7 +105,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 ### 5.1 Expression editor
 - [x] Inline expression builder UI for common If/While/For/Switch fields
 - [x] Autocomplete for variable names, port references, builtin functions
-- [ ] Syntax highlighting in expression text input
+- [x] Syntax highlighting in expression text input
 - [x] Validation feedback for common expression fields
 
 ### 5.2 Node editor UX
@@ -132,7 +132,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 ### 5.5 Data wires
 - [x] Visual data-wire drawing (separate from exec edges)
 - [x] Type-safe data ports (color-coded by type)
-- [ ] Wire validation: prevent connecting incompatible types
+- [x] Wire validation: prevent connecting incompatible types
 - [x] Show data flow values on hover during test-run
 
 ### 5.6 Performance & reliability
@@ -144,8 +144,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 
 ### 5.7 Misc fixes
 - [x] Fix `@ts-ignore` usages across codebase (replaced with `@ts-expect-error` + descriptions)
-- [ ] Remove dead code references to `castmate` naming (run-clean-youtube.ps1 \u2705 done)
-- [ ] Consolidate duplicate `NodeAutomationEdit.vue` if any remain in packages/castmate
+- [ ] Remove dead code references to `castmate` naming (native binding names remain for compatibility)
+- [x] Consolidate duplicate `NodeAutomationEdit.vue` if any remain in packages/castmate
 - [x] Update `docs/graph-execution-engine.md` to reflect final implementation
 - [ ] Bump version to `1.0.0-beta1` in all package.json files
 
@@ -168,12 +168,12 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add queue node styling in the automation editor so queue nodes are visually distinct from triggers, filters, overlays, paid alerts, and scene actions.
 - [x] Add queue preview/debug visibility for queue action nodes through test-run path, result badges, and per-node durations.
 - [x] Add starter templates for paid alerts and scene banners from `File -> New Automation From Starter`.
-- [ ] Add queue-worker starter templates:
+- [x] Add queue-worker starter templates:
   - `Paid Event -> Add to Alerts Queue`
   - `Queue Item Started -> Paid Alert Overlay -> Sound -> Complete`
   - `Scene Begin -> Add to Scene Queue`
   - `Queue Item Started -> Scene Banner -> Shader Layer -> Complete`
-- [ ] Document the mental model: queues remain powerful, but users should experience them as graph scheduling nodes rather than a second automation system.
+- [x] Document the mental model: queues remain powerful, but users should experience them as graph scheduling nodes rather than a second automation system.
 
 ---
 

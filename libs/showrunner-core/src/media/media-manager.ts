@@ -173,8 +173,6 @@ export const MediaManager = Service(
 
 			const localPath = path.join(baseMediaPath, defaultPath)
 
-			console.log(mediaPath, baseMediaPath, defaultPath, localPath)
-
 			return localPath
 		}
 

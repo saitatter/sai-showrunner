@@ -20,7 +20,6 @@ export async function loadPlugin(plugin: Plugin) {
 
 export async function loadPlugins() {
 	await loadPlugin(twitchSatellite)
-	console.log("Load Dashboard Satellite")
 	await loadPlugin(dashboardSatellite)
 
 	await loadPlugin(satelliteIoTPlugin)
