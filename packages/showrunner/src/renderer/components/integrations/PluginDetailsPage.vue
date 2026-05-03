@@ -491,7 +491,7 @@ function maskSecret(value: unknown) {
 .plugin-details__rows,
 .plugin-details__usage-list {
 	display: grid;
-	gap: 0.5rem;
+	gap: 0.35rem;
 }
 
 .plugin-details__row,
@@ -500,8 +500,9 @@ function maskSecret(value: unknown) {
 	border: 1px solid var(--surface-d);
 	border-radius: 4px;
 	display: grid;
-	gap: 0.5rem;
-	padding: 0.65rem;
+	gap: 0.45rem;
+	grid-template-columns: minmax(12rem, 0.45fr) minmax(0, 1fr);
+	padding: 0.5rem 0.6rem;
 }
 
 .plugin-details__row > div:first-child,
@@ -513,15 +514,16 @@ function maskSecret(value: unknown) {
 .plugin-details__chips {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.35rem;
+	gap: 0.25rem;
 }
 
 .plugin-details__chips span {
 	background: rgb(255 255 255 / 0.08);
 	border: 1px solid rgb(255 255 255 / 0.14);
 	border-radius: 3px;
-	font-size: 0.75rem;
-	padding: 0.2rem 0.4rem;
+	font-size: 0.7rem;
+	line-height: 1.2;
+	padding: 0.16rem 0.3rem;
 }
 
 .plugin-details__chips span.result {
@@ -548,5 +550,12 @@ function maskSecret(value: unknown) {
 	color: var(--text-color-secondary);
 	display: flex;
 	gap: 0.5rem;
+}
+
+@media (max-width: 900px) {
+	.plugin-details__row,
+	.plugin-details__usage {
+		grid-template-columns: 1fr;
+	}
 }
 </style>
