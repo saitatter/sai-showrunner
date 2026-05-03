@@ -34,12 +34,12 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 ## Phase 2: Schema Cleanup
 
 ### 2.1 Remove old sequence types
-- [ ] Remove from `libs/showrunner-schema/src/types/sequence.ts`:
+- [x] Remove from `libs/showrunner-schema/src/types/sequence.ts`:
   - `Sequence`, `FloatingSequence`, `ActionStack`, `TimeAction`, `FlowAction`, `InstantAction`
   - `OffsetActions`, `TimeActionInfo`, `SubFlow`
   - `isActionStack()`, `isFlowAction()`, `isTimeAction()`, `isInstantAction()`
   - `getActionById()`, `getActionAndPathById()`, `assignNewIds()`, `getSequenceResultVariables()`, `getActionResultVariables()`
-- [ ] Keep (possibly rename): `ActionInfo`, `SequenceContext` → `ExecutionContext`, `SequenceSource` → `AutomationSource`, `QueuedSequence` → `QueuedAutomation`, `SequenceProvider` → `AutomationProvider`
+- [x] Keep compatibility aliases while exposing primary graph/runtime names: `ActionInfo`, `ExecutionContext`, `AutomationSource`, `QueuedAutomation`, `AutomationProvider`
 
 ### 2.2 Simplify AutomationData
 - [x] Remove `sequence: Sequence` field — `graph: AutomationGraph` becomes mandatory
@@ -82,7 +82,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Reduced safe `@ts-expect-error` usage in resource registration and array wrappers.
 - [ ] Continue shrinking remaining console noise in media/viewer-data/satellite/drag utilities.
 - [x] Rename queue terminology from `QueuedSequence` to `QueuedAutomation` in queue runtime/state.
-- [ ] Add one-time persistence migration to strip stale `sequence`/`floatingSequences` fields from existing user JSON.
+- [x] Add one-time persistence migration to strip stale `sequence`/`floatingSequences` fields from existing user JSON.
 
 ---
 
@@ -90,9 +90,9 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 
 ### 4.1 Upgrade migration in old-migration.ts
 - [ ] Keep existing `old-migration.ts` for pre-v1.0 data → graph conversion
-- [ ] On app startup: auto-migrate any `automation.sequence` → `automation.graph` and persist
-- [ ] After migration: delete `sequence` field from stored JSON files
-- [ ] Version field: add `schemaVersion: 2` to AutomationData
+- [x] On app startup: auto-migrate any `automation.sequence` → `automation.graph` and persist
+- [x] After migration: delete `sequence` field from stored JSON files
+- [x] Version field: add `schemaVersion: 2` to AutomationData
 
 ### 4.2 Migration tests
 - [ ] Test round-trip: legacy fixtures → migrate → graph → compile → VM runs correctly
@@ -104,9 +104,9 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 
 ### 5.1 Expression editor
 - [x] Inline expression builder UI for common If/While/For/Switch fields
-- [ ] Autocomplete for variable names, port references, builtin functions
+- [x] Autocomplete for variable names, port references, builtin functions
 - [ ] Syntax highlighting in expression text input
-- [ ] Validation (red border + error tooltip for invalid expressions)
+- [x] Validation feedback for common expression fields
 
 ### 5.2 Node editor UX
 - [x] Keyboard `Delete` key handler for selected nodes/edges
@@ -124,20 +124,20 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Breadcrumb trail showing execution path
 
 ### 5.4 Subgraph improvements
-- [ ] Subgraph parameters editor (name, type, default value)
-- [ ] Input/output port rendering on SubgraphCall nodes
-- [ ] Double-click SubgraphCall → navigate into subgraph
-- [ ] Collapse selection into subgraph (refactoring tool)
+- [x] Subgraph parameters editor (name, type, default value)
+- [x] Input/output port rendering on SubgraphCall nodes
+- [x] Double-click SubgraphCall → focus subgraph details
+- [x] Collapse selection into subgraph (refactoring tool)
 
 ### 5.5 Data wires
-- [ ] Visual data-wire drawing (separate from exec edges)
-- [ ] Type-safe data ports (color-coded by type)
+- [x] Visual data-wire drawing (separate from exec edges)
+- [x] Type-safe data ports (color-coded by type)
 - [ ] Wire validation: prevent connecting incompatible types
 - [x] Show data flow values on hover during test-run
 
 ### 5.6 Performance & reliability
-- [ ] Compile-on-save with error reporting (don't wait until run)
-- [ ] Program cache invalidation (recompile only on graph change)
+- [x] Compile-on-save with error reporting (don't wait until run)
+- [x] Program cache invalidation (recompile only on graph change)
 - [x] VM timeout per queue worker automation (configurable, default 30s)
 - [x] Infinite loop detection beyond `maxIterations` returns visible test-run errors.
 - [x] Abort propagation: cancel running actions cleanly on queue stop.
@@ -167,7 +167,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Make the `Queues` page observational first: show configured queues, the currently running item, pending items, recent completed/cancelled items, and the automation graph used when an item starts.
 - [x] Add queue node styling in the automation editor so queue nodes are visually distinct from triggers, filters, overlays, paid alerts, and scene actions.
 - [x] Add queue preview/debug visibility for queue action nodes through test-run path, result badges, and per-node durations.
-- [ ] Add starter templates:
+- [x] Add starter templates for paid alerts and scene banners from `File -> New Automation From Starter`.
+- [ ] Add queue-worker starter templates:
   - `Paid Event -> Add to Alerts Queue`
   - `Queue Item Started -> Paid Alert Overlay -> Sound -> Complete`
   - `Scene Begin -> Add to Scene Queue`
@@ -178,8 +179,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 
 ## Phase 6: Release Prep
 
-- [ ] Update `DEVELOPERS.md` with new graph engine architecture
-- [ ] Write `MIGRATION.md` guide for existing users
+- [x] Update `DEVELOPERS.md` with new graph engine architecture
+- [x] Write `MIGRATION.md` guide for existing users
 - [ ] Update `release.config.cjs` for major version bump
 - [ ] Tag `v1.0.0-beta1` for testing
 - [ ] Run full E2E: create automation, add control flow, test-run, verify

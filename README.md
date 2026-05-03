@@ -121,19 +121,17 @@ Recommended setup order:
 
 ---
 
-## 📐 Automation Templates
+## 📐 Automation Starters
 
-Ready-made templates are available under `Automations`:
+Ready-made starters are available from `File → New Automation From Starter`:
 
 | Template | Use case |
 |----------|----------|
-| `Template: Twitch Moderated Chat Feed` | Twitch chat → moderation → chat feed |
-| `Template: YouTube Moderated Chat Feed` | YouTube chat → moderation → chat feed |
-| `Template: Approved Only Chat Feed` | Push already-approved messages to a target chat widget |
-| `Template: YouTube Paid Alert` | Super Chat / Super Sticker → paid alert |
-| `Template: Twitch Paid Alert` | Subs / bits / channel points → paid alert |
-| `Template: Scene Banner` | Scene begin/end automation |
-| `Template: Starting Soon / BRB / Ending` | Common stream-state overlays |
+| `YouTube Paid Alert` | YouTube Super Chat → Paid Alert widget |
+| `Twitch Sub Alert` | Twitch subscription → Paid Alert widget |
+| `Twitch Bits Alert` | Twitch bits → Paid Alert widget |
+| `Starting Soon Scene Banner` | Publish a `scene.begin` banner |
+| `Ending Scene Banner` | Publish begin/end scene banner events |
 
 Recommended moderated chat flow:
 
@@ -146,6 +144,21 @@ Twitch/YouTube chat trigger
 ```
 
 `Filter Chat Message` sends `deliveryMode: "decisionOnly"` to `POST /v1/chat-events`, so moderation updates the queue and returns a verdict without publishing directly to an overlay.
+
+The starters intentionally leave overlay widget targets empty. After creating one, select each overlay action node and choose the target `Paid Alert`, `Scene Banner`, or future queue worker widget from the config panel.
+
+---
+
+## 🧭 v1.0.0 Beta Notes
+
+The v1.0 beta line is graph-only for automations:
+
+- new and migrated automations persist `schemaVersion: 2`;
+- stale `sequence` and `floatingSequences` fields are stripped on load;
+- runtime execution is `GraphCompiler` → cached `Program` → `GraphVM`;
+- packaged releases currently publish Windows assets only.
+
+See [MIGRATION.md](MIGRATION.md) for the breaking-change guide.
 
 ---
 
