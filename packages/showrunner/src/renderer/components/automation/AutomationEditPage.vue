@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { AutomationConfig, AutomationDataWire, AutomationGraph, AutomationVariableNode, GraphNode, SubgraphDefinition } from "ShowRunner-schema"
 import { AutomationResourceView, useAppFeedback, useDocumentId, useResourceStore } from "ShowRunner-ui-core"
-import { computed, onErrorCaptured, ref, useModel } from "vue"
+import { computed, onErrorCaptured, ref, toRaw, useModel } from "vue"
 import NodeAutomationEdit from "./NodeAutomationEdit.vue"
 
 const props = defineProps<{
@@ -114,7 +114,7 @@ async function duplicateBackup() {
 		const backupId = await resourceStore.createResource("Automation", backupName)
 		if (!backupId) throw new Error("Could not create backup automation.")
 		await resourceStore.setResourceConfig("Automation", backupId, {
-			...structuredClone(safeModel.value),
+			...cloneAutomationConfig(safeModel.value),
 			name: backupName,
 		})
 		feedback.success("Automation backup created", backupName)
@@ -188,7 +188,7 @@ function validateAutomationGraph(config: AutomationConfig): string[] {
 }
 
 function repairAutomation(config: AutomationConfig): AutomationConfig {
-	const repaired = structuredClone(config)
+	const repaired = cloneAutomationConfig(config)
 	repaired.name ||= ""
 	repaired.graph = repairGraphModel(repaired.graph)
 	repaired.subgraphs = Array.isArray(repaired.subgraphs) ? repaired.subgraphs.map(repairSubgraph).filter(Boolean) as SubgraphDefinition[] : []
@@ -197,6 +197,10 @@ function repairAutomation(config: AutomationConfig): AutomationConfig {
 	repaired.dataWires = repairDataWires(repaired.dataWires, mainWireNodeIds)
 	repaired.variableNodes = repairVariableNodes(repaired.variableNodes)
 	return repaired
+}
+
+function cloneAutomationConfig(config: AutomationConfig): AutomationConfig {
+	return JSON.parse(JSON.stringify(toRaw(config))) as AutomationConfig
 }
 
 function repairGraphModel(graph: AutomationGraph | undefined): AutomationGraph {
