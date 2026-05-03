@@ -22,34 +22,18 @@ import {
 	compileAutomationProgram,
 } from "showrunner-core"
 import { getExpressionHash } from "showrunner-core/src/util/boolean-helpers"
+import {
+	convertJsonStringToArray,
+	convertJsonStringToObject,
+	convertStringToBoolean,
+	convertStringToNumber,
+	safeJsonStringify,
+} from "./conversion-utils"
 
 interface ConditionalTrigger {
 	conditionHash: number
 	lastEval: boolean | undefined
 	effect: ReactiveEffect
-}
-
-function parseBooleanText(value: unknown): boolean | undefined {
-	const normalized = String(value ?? "").trim().toLowerCase()
-	if (["true", "1", "yes", "y", "on"].includes(normalized)) return true
-	if (["false", "0", "no", "n", "off"].includes(normalized)) return false
-	return undefined
-}
-
-function safeJsonStringify(value: unknown): string {
-	try {
-		return JSON.stringify(value)
-	} catch {
-		return ""
-	}
-}
-
-function safeJsonParse(value: unknown): unknown {
-	try {
-		return JSON.parse(String(value ?? ""))
-	} catch {
-		return undefined
-	}
 }
 
 export default definePlugin(
@@ -147,9 +131,7 @@ export default definePlugin(
 				},
 			},
 			async invoke(config) {
-				const parsed = Number(String(config.value ?? "").trim())
-				const converted = Number.isFinite(parsed)
-				return { value: converted ? parsed : Number(config.fallback ?? 0), converted }
+				return convertStringToNumber(config.value, config.fallback)
 			},
 		})
 
@@ -217,11 +199,7 @@ export default definePlugin(
 				},
 			},
 			async invoke(config) {
-				const parsed = parseBooleanText(config.value)
-				return {
-					value: parsed ?? Boolean(config.fallback),
-					converted: parsed !== undefined,
-				}
+				return convertStringToBoolean(config.value, config.fallback)
 			},
 		})
 
@@ -288,9 +266,7 @@ export default definePlugin(
 				},
 			},
 			async invoke(config) {
-				const parsed = safeJsonParse(config.value)
-				const converted = parsed != null && typeof parsed === "object" && !Array.isArray(parsed)
-				return { value: converted ? parsed : {}, converted }
+				return convertJsonStringToObject(config.value)
 			},
 		})
 
@@ -313,9 +289,7 @@ export default definePlugin(
 				},
 			},
 			async invoke(config) {
-				const parsed = safeJsonParse(config.value)
-				const converted = Array.isArray(parsed)
-				return { value: converted ? parsed : [], converted }
+				return convertJsonStringToArray(config.value)
 			},
 		})
 
