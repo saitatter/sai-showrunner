@@ -131,6 +131,16 @@
 					<small>{{ activeSubgraph.nodes.length }} nodes, {{ activeSubgraph.dataWires?.length ?? 0 }} data wires</small>
 				</div>
 
+				<div v-if="invalidDataWireIssues.length" class="node-automation__wire-health" @click.stop @pointerdown.stop>
+					<i class="mdi mdi-alert-circle-outline" />
+					<div>
+						<strong>{{ invalidDataWireIssues.length }} invalid data wire{{ invalidDataWireIssues.length === 1 ? "" : "s" }}</strong>
+						<small>{{ invalidDataWireIssues[0].message }}</small>
+					</div>
+					<button type="button" @click="selectDataWireIssue(invalidDataWireIssues[0])">Select</button>
+					<button type="button" @click="cleanupInvalidDataWires">Clean up</button>
+				</div>
+
 				<div
 					class="node-automation__surface"
 					:style="{
@@ -1130,7 +1140,7 @@ import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./us
 import { useNodeContextMenu } from "./useNodeContextMenu"
 import { useNodeDrag } from "./useNodeDrag"
 import { useAutomationPreview } from "./useAutomationPreview"
-import { usePortConnections, portTypeColor, type DataWire, type PortDef } from "./usePortConnections"
+import { areTypesCompatible, usePortConnections, portTypeColor, wouldCreateDataWireCycle, type DataWire, type PortDef } from "./usePortConnections"
 import { useExecEdges } from "./useExecEdges"
 import { useClipboard } from "./useClipboard"
 import ExpressionTextInput from "./ExpressionTextInput.vue"
@@ -1650,9 +1660,51 @@ const connectedPorts = computed(() => {
 	}
 	return set
 })
+const invalidDataWireIssues = computed(() => {
+	return dataWires.value.flatMap((wire) => {
+		const source = resolveDataWirePort(wire.fromNode, wire.fromPort, "out")
+		const target = resolveDataWirePort(wire.toNode, wire.toPort, "in")
+		if (!source) return [{ id: wire.id, message: `Missing source port: ${nodeTitleById(wire.fromNode)}.${wire.fromPort}` }]
+		if (!target) return [{ id: wire.id, message: `Missing target port: ${nodeTitleById(wire.toNode)}.${wire.toPort}` }]
+		if (!areTypesCompatible(source.type, target.type)) {
+			return [{ id: wire.id, message: `Incompatible data wire: ${source.type} -> ${target.type}` }]
+		}
+		const otherWires = dataWires.value.filter((item) => item.id !== wire.id)
+		if (wouldCreateDataWireCycle(otherWires, wire.fromNode, wire.toNode)) {
+			return [{ id: wire.id, message: "Data wire creates a circular dependency." }]
+		}
+		return []
+	})
+})
 
 function isPortConnected(nodeId: string, portKey: string, kind: "in" | "out"): boolean {
 	return connectedPorts.value.has(`${nodeId}:${portKey}:${kind}`)
+}
+
+function resolveDataWirePort(nodeId: string, portKey: string, kind: "in" | "out") {
+	if (kind === "out" && nodeId.startsWith("__param:")) {
+		const paramName = nodeId.slice("__param:".length)
+		const param = activeSubgraph.value?.parameters.find((item) => item.name === paramName)
+		if (param && portKey === "value") return { key: portKey, label: param.name, type: param.type } satisfies PortDef
+	}
+	const node = nodes.value.find((item) => item.id === nodeId)
+	const ports = kind === "in" ? node?.inputPorts : node?.outputPorts
+	return ports?.find((port) => port.key === portKey)
+}
+
+function selectDataWireIssue(issue: { id: string }) {
+	selectedDataWireId.value = issue.id
+	selectedEdgeId.value = undefined
+	selectedNodeId.value = undefined
+	selectedNodeIds.value = new Set()
+}
+
+function cleanupInvalidDataWires() {
+	const invalidIds = new Set(invalidDataWireIssues.value.map((issue) => issue.id))
+	if (!invalidIds.size) return
+	dataWires.value = dataWires.value.filter((wire) => !invalidIds.has(wire.id))
+	selectedDataWireId.value = undefined
+	commitUndo()
 }
 
 function dataPortDragClass(nodeId: string, portKey: string, kind: "in" | "out") {
@@ -3417,6 +3469,63 @@ onUnmounted(() => {
 
 .node-automation__subgraph-breadcrumb small {
 	color: rgb(255 255 255 / 0.62);
+}
+
+.node-automation__wire-health {
+	align-items: center;
+	background: rgb(61 33 25 / 0.94);
+	border: 1px solid rgb(239 154 154 / 0.5);
+	border-radius: 6px;
+	box-shadow: 0 12px 28px rgb(0 0 0 / 0.32);
+	color: #fff4f4;
+	display: grid;
+	gap: 0.45rem;
+	grid-template-columns: auto minmax(0, 1fr) auto auto;
+	left: 0.75rem;
+	max-width: min(42rem, calc(100% - 1.5rem));
+	padding: 0.55rem 0.65rem;
+	pointer-events: auto;
+	position: sticky;
+	top: 4.25rem;
+	z-index: 22;
+}
+
+.node-automation__wire-health > i {
+	color: #ef9a9a;
+	font-size: 1.15rem;
+}
+
+.node-automation__wire-health div {
+	display: grid;
+	min-width: 0;
+}
+
+.node-automation__wire-health strong,
+.node-automation__wire-health small {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.node-automation__wire-health small {
+	color: #ffd6d6;
+	font-size: 0.72rem;
+}
+
+.node-automation__wire-health button {
+	background: rgb(255 255 255 / 0.1);
+	border: 1px solid rgb(255 255 255 / 0.18);
+	border-radius: 4px;
+	color: #fff;
+	cursor: pointer;
+	font-size: 0.72rem;
+	font-weight: 700;
+	padding: 0.25rem 0.5rem;
+}
+
+.node-automation__wire-health button:hover {
+	background: rgb(239 83 80 / 0.32);
+	border-color: rgb(239 154 154 / 0.72);
 }
 
 .node-automation__node.search-dimmed {
