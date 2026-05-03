@@ -84,6 +84,15 @@ export function useNodeContextMenu(
 	const actionCategoryGroups = computed(() =>
 		buildActionCategoryGroups(actionContextGroups.value.flatMap((group) => group.items))
 	)
+	const conversionContextItems = computed(() =>
+		actionContextGroups.value
+			.flatMap((group) => group.items)
+			.filter((item) => {
+				const actionId = item.key.split(":").slice(1).join(":")
+				return CONVERSION_ACTION_IDS.has(actionId)
+			})
+			.sort((a, b) => a.name.localeCompare(b.name))
+	)
 	const triggerContextGroups = computed(() =>
 		buildContextGroups("triggers", (plugin) => plugin.triggers, (entry) => ({
 			name: entry.name,
@@ -201,6 +210,7 @@ export function useNodeContextMenu(
 		contextMenuSubtitle,
 		actionContextGroups,
 		actionCategoryGroups,
+		conversionContextItems,
 		triggerContextGroups,
 		contextMenuSearchItems,
 		openContextMenu,
@@ -210,6 +220,19 @@ export function useNodeContextMenu(
 		isContextGroupOpen,
 	}
 }
+
+const CONVERSION_ACTION_IDS = new Set([
+	"convertNumberToString",
+	"convertBooleanToString",
+	"convertStringToNumber",
+	"convertBooleanToNumber",
+	"convertNumberToBoolean",
+	"convertStringToBoolean",
+	"convertObjectToJsonString",
+	"convertArrayToJsonString",
+	"convertJsonStringToObject",
+	"convertJsonStringToArray",
+])
 
 const ACTION_CATEGORY_DEFINITIONS: ActionCategoryDefinition[] = [
 	{

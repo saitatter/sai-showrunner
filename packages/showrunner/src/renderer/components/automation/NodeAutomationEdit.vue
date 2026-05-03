@@ -587,6 +587,24 @@
 							<i :class="isContextGroupOpen('data') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
 						<div v-if="isContextGroupOpen('data')">
+							<div v-if="conversionContextItems.length" class="node-automation__menu-subtitle">
+								<i class="mdi mdi-swap-horizontal" />
+								<span>Conversions</span>
+							</div>
+							<div v-if="conversionContextItems.length" class="node-automation__menu-items">
+								<button v-for="item in conversionContextItems" :key="`conversion-${item.key}`" type="button" @click="selectActionFromContext(item.key)">
+									<i :class="item.icon" :style="{ color: item.color }" />
+									<span>
+										<strong>{{ item.name }}</strong>
+										<small>{{ item.pluginName }}</small>
+									</span>
+									<em>Convert</em>
+								</button>
+							</div>
+							<div class="node-automation__menu-subtitle">
+								<i class="mdi mdi-variable" />
+								<span>Variables</span>
+							</div>
 							<div class="node-automation__menu-items">
 								<button type="button" @click="addVariableNode('string')">
 									<i class="mdi mdi-format-text" style="color: #81c784" />
@@ -1601,6 +1619,7 @@ const {
 	contextMenuSubtitle,
 	actionContextGroups,
 	actionCategoryGroups,
+	conversionContextItems,
 	triggerContextGroups,
 	contextMenuSearchItems,
 	openContextMenu,
@@ -4090,8 +4109,37 @@ onUnmounted(() => {
 }
 
 .node-automation__node--variable {
+	background: linear-gradient(135deg, rgb(38 50 56 / 0.96), rgb(20 28 31 / 0.96));
 	border-color: #90a4ae;
-	min-width: 140px;
+	border-radius: 999px 18px 999px 18px;
+	border-style: dashed;
+	box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06), 0 8px 20px rgb(0 0 0 / 0.3);
+	min-width: 150px;
+	padding-left: 0.95rem;
+	padding-right: 0.95rem;
+}
+
+.node-automation__node--variable::before {
+	background: currentColor;
+	border-radius: 999px;
+	content: "";
+	height: calc(100% - 1.2rem);
+	left: 0.45rem;
+	opacity: 0.28;
+	position: absolute;
+	top: 0.6rem;
+	width: 0.22rem;
+}
+
+.node-automation__node--variable .node-automation__node-icon {
+	background: rgb(255 255 255 / 0.16);
+	border-radius: 999px;
+}
+
+.node-automation__node--variable .node-automation__node-badge {
+	background: rgb(144 164 174 / 0.25);
+	border: 1px solid rgb(144 164 174 / 0.45);
+	color: #d9edf4;
 }
 
 .node-automation__node--trigger .node-automation__node-badge {
@@ -4466,6 +4514,18 @@ onUnmounted(() => {
 .node-automation__menu-groups {
 	background: var(--surface-b);
 	display: grid;
+}
+
+.node-automation__menu-subtitle {
+	align-items: center;
+	color: var(--text-color-secondary);
+	display: flex;
+	font-size: 0.72rem;
+	font-weight: 700;
+	gap: 0.35rem;
+	letter-spacing: 0;
+	padding: 0.45rem 0.5rem 0.1rem;
+	text-transform: uppercase;
 }
 
 .node-automation__menu-group + .node-automation__menu-group {

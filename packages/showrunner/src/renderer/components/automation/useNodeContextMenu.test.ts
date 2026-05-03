@@ -146,4 +146,10 @@ describe("useNodeContextMenu", () => {
 		expect(menu.actionCategoryGroups.value.map((group) => group.id)).toEqual(["queues"])
 		expect(menu.actionCategoryGroups.value[0].items.map((item) => item.key)).toEqual(["ShowRunner:addToQueue"])
 	})
+
+	it("surfaces conversion actions as explicit data-menu items", () => {
+		const menu = createContextMenu()
+
+		expect(menu.conversionContextItems.value.map((item) => item.key)).toEqual(["ShowRunner:convertStringToNumber"])
+	})
 })
