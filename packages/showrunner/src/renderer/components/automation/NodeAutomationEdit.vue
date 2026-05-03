@@ -813,7 +813,7 @@
 											type="text"
 											:value="selectedVariableNode?.name"
 											placeholder="Variable name..."
-											@change="updateVariableNodeName(selectedVariableNode!.id, ($event.target as HTMLInputElement).value)"
+											@change="updateSelectedVariableNodeName(($event.target as HTMLInputElement).value)"
 										/>
 									</label>
 									<label>
@@ -822,19 +822,19 @@
 											v-if="selectedVariableNode?.type === 'string'"
 											type="text"
 											:value="selectedVariableNode.value"
-											@change="updateVariableNodeValue(selectedVariableNode!.id, ($event.target as HTMLInputElement).value)"
+											@change="updateSelectedVariableNodeValue(($event.target as HTMLInputElement).value)"
 										/>
 										<input
 											v-else-if="selectedVariableNode?.type === 'number'"
 											type="number"
 											:value="selectedVariableNode.value"
 											step="any"
-											@change="updateVariableNodeValue(selectedVariableNode!.id, Number(($event.target as HTMLInputElement).value))"
+											@change="updateSelectedVariableNodeValue(Number(($event.target as HTMLInputElement).value))"
 										/>
 										<select
 											v-else-if="selectedVariableNode?.type === 'boolean'"
 											:value="String(selectedVariableNode.value)"
-											@change="updateVariableNodeValue(selectedVariableNode!.id, ($event.target as HTMLSelectElement).value === 'true')"
+											@change="updateSelectedVariableNodeValue(($event.target as HTMLSelectElement).value === 'true')"
 										>
 											<option value="true">true</option>
 											<option value="false">false</option>
@@ -843,7 +843,7 @@
 											v-else-if="selectedVariableNode?.type === 'color'"
 											type="color"
 											:value="selectedVariableNode.value"
-											@change="updateVariableNodeValue(selectedVariableNode!.id, ($event.target as HTMLInputElement).value)"
+											@change="updateSelectedVariableNodeValue(($event.target as HTMLInputElement).value)"
 										/>
 									</label>
 								</div>
@@ -3352,12 +3352,24 @@ function updateVariableNodeValue(id: string, value: string | number | boolean) {
 	}
 }
 
+function updateSelectedVariableNodeValue(value: string | number | boolean) {
+	const id = selectedVariableNode.value?.id
+	if (!id) return
+	updateVariableNodeValue(id, value)
+}
+
 function updateVariableNodeName(id: string, name: string) {
 	const vn = variableNodes.value.find((v) => v.id === id)
 	if (vn) {
 		vn.name = name
 		commitUndo()
 	}
+}
+
+function updateSelectedVariableNodeName(name: string) {
+	const id = selectedVariableNode.value?.id
+	if (!id) return
+	updateVariableNodeName(id, name)
 }
 
 const inlineEditNodeId = ref<string>()
