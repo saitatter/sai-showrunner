@@ -54,6 +54,7 @@ import { useOpenSettings } from "../settings/SettingsTypes"
 import InputTestPage from "../test/InputTestPage.vue"
 import { useDialog } from "primevue/usedialog"
 import AboutPage from "../about/AboutPage.vue"
+import { automationStarterTemplates, type AutomationStarterTemplate } from "../automation/automation-starter-templates"
 
 const closeAllTabs = useCloseAllTabs()
 
@@ -144,6 +145,13 @@ function tryCreateAutomation() {
 	})
 }
 
+async function createAutomationFromTemplate(template: AutomationStarterTemplate) {
+	const config = template.create()
+	const id = await resourceStore.createResource("Automation", config.name)
+	await resourceStore.setResourceConfig("Automation", id, config)
+	openAutomation(id)
+}
+
 const menuItems = computed<MenuItem[]>(() => {
 	const result: MenuItem[] = []
 
@@ -168,6 +176,18 @@ const menuItems = computed<MenuItem[]>(() => {
 			command() {
 				tryCreateAutomation()
 			},
+		},
+		{
+			label: "New Automation From Starter",
+			icon: "mdi mdi-lightning-bolt-outline",
+			items: automationStarterTemplates.map((template) => ({
+				label: template.name,
+				icon: template.icon,
+				title: template.description,
+				command() {
+					void createAutomationFromTemplate(template)
+				},
+			})),
 		},
 		{
 			separator: true,
