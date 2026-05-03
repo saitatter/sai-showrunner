@@ -12,6 +12,7 @@
 				<i :class="group.icon" class="px-1" v-if="group.icon"></i>
 			</slot>
 			<span style="flex: 1">{{ group.title }}</span>
+			<plugin-visibility-toggle v-if="showPluginToggle" :item="{ id: group.id }" />
 			<p-button icon="mdi mdi-dots-vertical" class="p-0" v-if="!isOutside && hasMenu" @click="menuClick" text />
 			<c-context-menu ref="contextMenu" :items="menuItems" />
 			<p-menu ref="menu" :model="menuItems" :popup="true" v-if="hasMenu" />
@@ -30,6 +31,8 @@ import type { MenuItem } from "primevue/menuitem"
 import PButton from "primevue/button"
 import PMenu from "primevue/menu"
 import { useMouseInElement } from "@vueuse/core"
+import { usePluginStore } from "showrunner-ui-core"
+import PluginVisibilityToggle from "../integrations/PluginVisibilityToggle.vue"
 
 const props = withDefaults(
 	defineProps<{
@@ -42,6 +45,8 @@ const props = withDefaults(
 )
 
 const contextMenu = ref<InstanceType<typeof CContextMenu>>()
+const pluginStore = usePluginStore()
+const showPluginToggle = computed(() => pluginStore.pluginMap.has(props.group.id))
 const menuItems = computed<MenuItem[]>(() => {
 	const items: MenuItem[] = []
 

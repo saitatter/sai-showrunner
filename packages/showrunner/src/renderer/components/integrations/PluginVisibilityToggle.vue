@@ -1,48 +1,29 @@
 <template>
-	<button
-		type="button"
-		class="plugin-visibility-toggle"
-		:class="{ enabled }"
+	<toggle-switch
+		v-model="enabledModel"
+		false-icon="mdi mdi-eye-off-outline"
+		toggle-icon="mdi mdi-eye-outline"
+		true-icon="mdi mdi-eye-outline"
 		:title="enabled ? 'Shown in automation node menus' : 'Hidden from automation node menus'"
-		@click.stop.prevent="toggle"
-	>
-		<i :class="enabled ? 'mdi mdi-eye-outline' : 'mdi mdi-eye-off-outline'" />
-	</button>
+	/>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue"
-import { ProjectItem, usePluginStore } from "showrunner-ui-core"
+import { ProjectItem, ToggleSwitch, usePluginStore } from "showrunner-ui-core"
 
 const props = defineProps<{
-	item: ProjectItem
+	item: Pick<ProjectItem, "id">
 }>()
 
 const pluginStore = usePluginStore()
 const enabled = computed(() => pluginStore.isPluginEnabled(props.item.id))
-
-function toggle() {
-	pluginStore.togglePluginEnabled(props.item.id)
-}
+const enabledModel = computed({
+	get() {
+		return enabled.value
+	},
+	set(value) {
+		pluginStore.setPluginEnabled(props.item.id, value !== false)
+	},
+})
 </script>
-
-<style scoped>
-.plugin-visibility-toggle {
-	align-items: center;
-	background: rgb(255 255 255 / 0.08);
-	border: 1px solid rgb(255 255 255 / 0.16);
-	border-radius: 4px;
-	color: var(--text-color-secondary);
-	cursor: pointer;
-	display: flex;
-	height: 1.35rem;
-	justify-content: center;
-	width: 1.8rem;
-}
-
-.plugin-visibility-toggle.enabled {
-	background: rgb(46 212 122 / 0.14);
-	border-color: rgb(46 212 122 / 0.45);
-	color: #9df5be;
-}
-</style>
