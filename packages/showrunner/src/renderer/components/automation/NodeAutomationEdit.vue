@@ -486,6 +486,33 @@
 							</button>
 						</div>
 					</section>
+					<section v-if="actionCategoryGroups.length" class="node-automation__menu-section">
+						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('categories')" @click="toggleContextGroup('categories')">
+							<span><i class="mdi mdi-shape-outline" /> Categories</span>
+							<i :class="isContextGroupOpen('categories') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						</button>
+						<div v-if="isContextGroupOpen('categories')" class="node-automation__menu-groups">
+							<div v-for="group in actionCategoryGroups" :key="group.id" class="node-automation__menu-group">
+								<button type="button" class="node-automation__menu-group-header" :aria-expanded="isContextGroupOpen(`category:${group.id}`)" @click="toggleContextGroup(`category:${group.id}`)">
+									<span>
+										<i :class="group.icon" :style="{ color: group.color }" />
+										{{ group.name }}
+									</span>
+									<i :class="isContextGroupOpen(`category:${group.id}`) ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+								</button>
+								<div v-if="isContextGroupOpen(`category:${group.id}`)" class="node-automation__menu-items">
+									<button v-for="item in group.items" :key="`category-${group.id}-${item.key}`" type="button" @click="selectActionFromContext(item.key)">
+										<i :class="item.icon" :style="{ color: item.color }" />
+										<span>
+											<strong>{{ item.name }}</strong>
+											<small>{{ item.pluginName }}</small>
+										</span>
+										<em>Action</em>
+									</button>
+								</div>
+							</div>
+						</div>
+					</section>
 					<!-- Integrations: Triggers + Actions grouped by plugin -->
 					<section class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('integrations')" @click="toggleContextGroup('integrations')">
@@ -1569,6 +1596,7 @@ const {
 	contextMenuQuery,
 	contextMenuSubtitle,
 	actionContextGroups,
+	actionCategoryGroups,
 	triggerContextGroups,
 	contextMenuSearchItems,
 	openContextMenu,

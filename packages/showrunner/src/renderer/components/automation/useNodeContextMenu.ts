@@ -23,6 +23,14 @@ export interface ContextMenuSearchItem extends ContextMenuItem {
 	kind: "action" | "trigger"
 }
 
+interface ActionCategoryDefinition {
+	id: string
+	name: string
+	icon: string
+	color: string
+	matches: (item: ContextMenuItem) => boolean
+}
+
 interface MenuNode {
 	id: string
 	title: string
@@ -52,6 +60,13 @@ export function useNodeContextMenu(
 	const contextMenuOpenGroups = ref<Record<string, boolean>>({
 		triggers: true,
 		actions: true,
+		categories: true,
+		"category:data-transforms": true,
+		"category:queues": true,
+		"category:overlays": true,
+		"category:obs": true,
+		"category:chat": true,
+		"category:utility": true,
 	})
 
 	const contextMenuSearch = computed(() => contextMenuQuery.value.trim().toLowerCase())
@@ -65,6 +80,9 @@ export function useNodeContextMenu(
 			name: entry.name,
 			icon: entry.icon || "mdi mdi-play",
 		}))
+	)
+	const actionCategoryGroups = computed(() =>
+		buildActionCategoryGroups(actionContextGroups.value.flatMap((group) => group.items))
 	)
 	const triggerContextGroups = computed(() =>
 		buildContextGroups("triggers", (plugin) => plugin.triggers, (entry) => ({
@@ -152,6 +170,27 @@ export function useNodeContextMenu(
 			.sort((a, b) => a.name.localeCompare(b.name))
 	}
 
+	function buildActionCategoryGroups(items: ContextMenuItem[]): ContextMenuGroup[] {
+		const grouped = new Map<string, ContextMenuItem[]>()
+		for (const item of items) {
+			const category = ACTION_CATEGORY_DEFINITIONS.find((definition) => definition.matches(item))
+			if (!category) continue
+			const list = grouped.get(category.id) ?? []
+			list.push(item)
+			grouped.set(category.id, list)
+		}
+
+		return ACTION_CATEGORY_DEFINITIONS
+			.map((definition) => ({
+				id: definition.id,
+				name: definition.name,
+				icon: definition.icon,
+				color: definition.color,
+				items: (grouped.get(definition.id) ?? []).sort((a, b) => a.name.localeCompare(b.name)),
+			}))
+			.filter((group) => group.items.length)
+	}
+
 	function filterRegularActions(actions: Record<string, any> | undefined) {
 		return Object.fromEntries(Object.entries(actions ?? {}).filter(([, action]) => action?.type === "regular"))
 	}
@@ -161,6 +200,7 @@ export function useNodeContextMenu(
 		contextMenuQuery,
 		contextMenuSubtitle,
 		actionContextGroups,
+		actionCategoryGroups,
 		triggerContextGroups,
 		contextMenuSearchItems,
 		openContextMenu,
@@ -169,4 +209,66 @@ export function useNodeContextMenu(
 		toggleContextGroup,
 		isContextGroupOpen,
 	}
+}
+
+const ACTION_CATEGORY_DEFINITIONS: ActionCategoryDefinition[] = [
+	{
+		id: "data-transforms",
+		name: "Data Transforms",
+		icon: "mdi mdi-swap-horizontal",
+		color: "#81c784",
+		matches: (item) => {
+			const text = categoryText(item)
+			return text.includes("convert") || text.includes("parse") || text.includes("json") || text.includes("stringify")
+		},
+	},
+	{
+		id: "queues",
+		name: "Queues",
+		icon: "mdi mdi-tray-full",
+		color: "#ffcf5a",
+		matches: (item) => categoryText(item).includes("queue"),
+	},
+	{
+		id: "overlays",
+		name: "Overlays",
+		icon: "mdi mdi-layers-outline",
+		color: "#ce93d8",
+		matches: (item) => {
+			const text = categoryText(item)
+			return item.pluginId.toLowerCase() === "overlays" || text.includes("overlay") || text.includes("alert") || text.includes("banner") || text.includes("shader")
+		},
+	},
+	{
+		id: "obs",
+		name: "OBS",
+		icon: "mdi mdi-broadcast",
+		color: "#64b5f6",
+		matches: (item) => item.pluginId.toLowerCase() === "obs",
+	},
+	{
+		id: "chat",
+		name: "Chat",
+		icon: "mdi mdi-message-text-outline",
+		color: "#4dd0e1",
+		matches: (item) => {
+			const pluginId = item.pluginId.toLowerCase()
+			const text = categoryText(item)
+			return ["twitch", "youtube", "discord", "moderation"].includes(pluginId) || text.includes("chat") || text.includes("message") || text.includes("announce") || text.includes("shoutout")
+		},
+	},
+	{
+		id: "utility",
+		name: "Utility",
+		icon: "mdi mdi-toolbox-outline",
+		color: "#b0bec5",
+		matches: (item) => {
+			const pluginId = item.pluginId.toLowerCase()
+			return ["http", "os", "random", "time", "variables", "input", "sound", "remote"].includes(pluginId)
+		},
+	},
+]
+
+function categoryText(item: ContextMenuItem) {
+	return `${item.pluginId} ${item.pluginName} ${item.key} ${item.name} ${item.searchText}`.toLowerCase()
 }
