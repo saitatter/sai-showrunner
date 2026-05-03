@@ -1,21 +1,26 @@
 <template>
-	<scrolling-tab-body>
-		<div class="updates-page">
+	<div class="updates-page">
+		<div class="updates-page__inner">
 			<div class="updates-page__header">
 				<div>
 					<h1>Updates</h1>
 					<p>Current version: v{{ status?.currentVersion ?? "unknown" }}</p>
 				</div>
 				<div class="updates-page__actions">
-					<p-button icon="mdi mdi-refresh" :disabled="!status?.canCheckForUpdates" :loading="checking" @click="checkNow">Check for updates</p-button>
-					<p-button
+					<button type="button" class="updates-page__button" :disabled="!status?.canCheckForUpdates || checking" @click="checkNow">
+						<i :class="checking ? 'mdi mdi-loading mdi-spin' : 'mdi mdi-refresh'" />
+						<span>Check for updates</span>
+					</button>
+					<button
 						v-if="status?.hasUpdate"
-						icon="mdi mdi-download"
-						:loading="updating"
+						type="button"
+						class="updates-page__button updates-page__button--primary"
+						:disabled="updating"
 						@click="installUpdate"
 					>
-						Update and restart
-					</p-button>
+						<i :class="updating ? 'mdi mdi-loading mdi-spin' : 'mdi mdi-download'" />
+						<span>Update and restart</span>
+					</button>
 				</div>
 			</div>
 
@@ -41,14 +46,13 @@
 				</flex-scroller>
 			</section>
 		</div>
-	</scrolling-tab-body>
+	</div>
 </template>
 
 <script setup lang="ts">
 import { UpdateStatus } from "showrunner-schema"
-import { FlexScroller, ScrollingTabBody, useAppFeedback, useIpcCaller } from "showrunner-ui-core"
+import { FlexScroller, useAppFeedback, useIpcCaller } from "showrunner-ui-core"
 import { computed, nextTick, onMounted, ref, watch } from "vue"
-import PButton from "primevue/button"
 import { sanitizeReleaseNotes } from "../../util/sanitize-html"
 
 const status = ref<UpdateStatus>()
@@ -156,14 +160,19 @@ onMounted(async () => {
 
 <style scoped>
 .updates-page {
+	box-sizing: border-box;
+	height: 100%;
+	overflow: auto;
+	padding: 1rem;
+	width: 100%;
+}
+
+.updates-page__inner {
 	display: flex;
 	flex-direction: column;
 	gap: 1rem;
-	margin: 0 auto;
 	max-width: 980px;
-	padding: 1rem;
-	width: min(980px, 100%);
-	box-sizing: border-box;
+	width: 100%;
 }
 
 .updates-page__header {
@@ -194,6 +203,36 @@ onMounted(async () => {
 	flex-wrap: wrap;
 	gap: 0.5rem;
 	justify-content: flex-end;
+}
+
+.updates-page__button {
+	align-items: center;
+	background: var(--surface-b);
+	border: 1px solid var(--surface-d);
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	display: inline-flex;
+	font: inherit;
+	gap: 0.4rem;
+	min-height: 2rem;
+	padding: 0.4rem 0.7rem;
+	white-space: nowrap;
+}
+
+.updates-page__button:hover:not(:disabled) {
+	background: var(--highlight-bg);
+}
+
+.updates-page__button:disabled {
+	cursor: default;
+	opacity: 0.55;
+}
+
+.updates-page__button--primary {
+	background: var(--primary-color);
+	border-color: var(--primary-color);
+	color: var(--primary-color-text);
 }
 
 .updates-page__status {
@@ -267,10 +306,6 @@ onMounted(async () => {
 
 .updates-page__empty {
 	padding: 1rem;
-}
-
-.updates-page :deep(.p-button) {
-	white-space: nowrap;
 }
 
 @media (max-width: 640px) {

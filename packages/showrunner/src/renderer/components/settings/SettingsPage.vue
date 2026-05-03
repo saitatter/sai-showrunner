@@ -1,13 +1,12 @@
 <template>
-	<scrolling-tab-body v-model:scroll-x="view.scrollX" v-model:scroll-y="view.scrollY">
-		<div class="settings-page">
-			<div class="settings-page__search">
+	<div ref="pageRef" class="settings-page" @scroll="rememberScroll">
+		<div class="settings-page__search">
 			<span class="p-input-icon-left">
 				<i class="pi pi-search" />
-				<p-input-text v-model="view.filter" placeholder="search" />
+				<p-input-text v-model="filterModel" placeholder="search" />
 			</span>
-			</div>
-			<div class="settings-page__content">
+		</div>
+		<div class="settings-page__content">
 			<template v-for="pluginSettings of filteredSettings" :key="pluginSettings.pluginId">
 				<h1
 					:style="{ borderBottom: `solid 2px ${pluginStore.pluginMap.get(pluginSettings.pluginId)?.color}` }"
@@ -46,16 +45,14 @@
 			<div v-if="filteredSettings.length === 0" class="settings-page__empty">
 				<i class="mdi mdi-cog-outline" />
 				<strong>No settings found</strong>
-				<small>{{ view.filter ? "Try a different search." : "No plugin settings are currently registered." }}</small>
-			</div>
+				<small>{{ filterModel ? "Try a different search." : "No plugin settings are currently registered." }}</small>
 			</div>
 		</div>
-	</scrolling-tab-body>
+	</div>
 </template>
 
 <script setup lang="ts">
 import {
-	ScrollingTabBody,
 	usePluginStore,
 	DataInput,
 	useResourceStore,
@@ -64,7 +61,7 @@ import {
 	useDocumentId,
 	useDocument,
 } from "showrunner-ui-core"
-import { computed, useModel } from "vue"
+import { computed, nextTick, onMounted, ref, useModel } from "vue"
 import { SettingsDocumentData, SettingsViewData } from "./SettingsTypes"
 import PInputText from "primevue/inputtext"
 
@@ -75,6 +72,16 @@ const props = defineProps<{
 
 const model = useModel(props, "modelValue")
 const view = useModel(props, "view")
+const pageRef = ref<HTMLElement>()
+const filterModel = computed({
+	get() {
+		return view.value?.filter ?? ""
+	},
+	set(value: string) {
+		if (!view.value) return
+		view.value.filter = value
+	},
+})
 
 const pluginStore = usePluginStore()
 const resourceStore = useResourceStore()
@@ -126,11 +133,29 @@ const filteredSettings = computed(() => {
 	}
 	return result
 })
+
+function rememberScroll(event: Event) {
+	const element = event.currentTarget as HTMLElement
+	if (!view.value) return
+	view.value.scrollX = element.scrollLeft
+	view.value.scrollY = element.scrollTop
+}
+
+onMounted(async () => {
+	await nextTick()
+	if (!pageRef.value || !view.value) return
+	pageRef.value.scrollLeft = view.value.scrollX
+	pageRef.value.scrollTop = view.value.scrollY
+})
 </script>
 
 <style scoped>
 .settings-page {
+	box-sizing: border-box;
+	height: 100%;
+	overflow: auto;
 	padding: 0.75rem 1rem 1rem;
+	width: 100%;
 }
 
 .settings-page__search {
