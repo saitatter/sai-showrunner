@@ -106,6 +106,20 @@ export function useNodeContextMenu(
 			...actionContextGroups.value.flatMap((group) => group.items.map((item) => ({ ...item, kind: "action" as const }))),
 		].sort((a, b) => a.name.localeCompare(b.name))
 	})
+	const disabledContextMenuSearchItems = computed<ContextMenuSearchItem[]>(() => {
+		const query = contextMenuSearch.value
+		if (!query) return []
+		return [
+			...buildSearchItemsForPlugins("triggers", (plugin) => plugin.triggers, (entry) => ({
+				name: entry.name,
+				icon: entry.icon || "mdi mdi-flash",
+			}), false).map((item) => ({ ...item, kind: "trigger" as const })),
+			...buildSearchItemsForPlugins("actions", (plugin) => filterRegularActions(plugin.actions), (entry) => ({
+				name: entry.name,
+				icon: entry.icon || "mdi mdi-play",
+			}), false).map((item) => ({ ...item, kind: "action" as const })),
+		].sort((a, b) => a.name.localeCompare(b.name))
+	})
 
 	function openContextMenu(event: MouseEvent, nodeId?: string) {
 		openContextMenuAt(event.clientX, event.clientY, getCanvasPointFromClient(event.clientX, event.clientY), nodeId)
@@ -179,6 +193,33 @@ export function useNodeContextMenu(
 			.sort((a, b) => a.name.localeCompare(b.name))
 	}
 
+	function buildSearchItemsForPlugins(
+		kind: "actions" | "triggers",
+		getEntries: (plugin: any) => Record<string, any>,
+		getMeta: (entry: any) => { name: string; icon: string },
+		enabled: boolean
+	): ContextMenuItem[] {
+		const query = contextMenuSearch.value
+		return [...pluginStore.pluginMap.values()]
+			.filter((plugin) => (pluginStore.isPluginEnabled?.(plugin.id) ?? true) === enabled)
+			.flatMap((plugin) =>
+				Object.entries(getEntries(plugin) || {})
+					.map(([id, entry]) => {
+						const meta = getMeta(entry)
+						return {
+							key: `${plugin.id}:${id}`,
+							pluginId: plugin.id,
+							pluginName: plugin.name,
+							name: meta.name,
+							icon: meta.icon,
+							color: String(plugin.color || "#e9aaff"),
+							searchText: `${kind} ${plugin.name} ${plugin.id} ${meta.name} ${id}`.toLowerCase(),
+						}
+					})
+					.filter((item) => item.searchText.includes(query))
+			)
+	}
+
 	function buildActionCategoryGroups(items: ContextMenuItem[]): ContextMenuGroup[] {
 		const grouped = new Map<string, ContextMenuItem[]>()
 		for (const item of items) {
@@ -213,6 +254,7 @@ export function useNodeContextMenu(
 		conversionContextItems,
 		triggerContextGroups,
 		contextMenuSearchItems,
+		disabledContextMenuSearchItems,
 		openContextMenu,
 		openContextMenuAt,
 		closeContextMenu,

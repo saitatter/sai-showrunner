@@ -113,6 +113,14 @@ describe("useNodeContextMenu", () => {
 		expect(menu.contextMenuSearchItems.value).toEqual([])
 	})
 
+	it("reports search matches that only exist in disabled plugins", () => {
+		const menu = createContextMenu(["obs"])
+
+		menu.contextMenuQuery.value = "scene"
+
+		expect(menu.disabledContextMenuSearchItems.value.map((item) => item.key)).toEqual(["obs:sceneBegin", "obs:scene"])
+	})
+
 	it("keeps enabled plugin actions available while filtering out flow actions", () => {
 		const menu = createContextMenu()
 

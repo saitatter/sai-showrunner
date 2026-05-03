@@ -488,6 +488,10 @@
 							</button>
 						</div>
 					</section>
+					<section v-else-if="hiddenPluginSearchHint" class="node-automation__menu-section node-automation__menu-hint">
+						<i class="mdi mdi-eye-off-outline" />
+						<span>{{ hiddenPluginSearchHint }}</span>
+					</section>
 					<section v-if="actionCategoryGroups.length" class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" data-context-section="categories" :aria-expanded="isContextGroupOpen('categories')" @click="toggleContextGroup('categories')">
 							<span><i class="mdi mdi-shape-outline" /> Categories</span>
@@ -1620,6 +1624,7 @@ const {
 	conversionContextItems,
 	triggerContextGroups,
 	contextMenuSearchItems,
+	disabledContextMenuSearchItems,
 	openContextMenu,
 	openContextMenuAt,
 	closeContextMenu: closeContextMenuBase,
@@ -1676,6 +1681,15 @@ const contextMenuSearchResults = computed<ContextSearchResult[]>(() => {
 	return [...integrationItems, ...variableItems, ...controlItems, ...subgraphItems]
 		.filter((item) => item.searchText.includes(query))
 		.slice(0, 32)
+})
+
+const hiddenPluginSearchHint = computed(() => {
+	const query = contextMenuQuery.value.trim()
+	if (!query || contextMenuSearchResults.value.length) return ""
+	const matches = disabledContextMenuSearchItems.value.filter((item) => !pendingFlowConnection.value || item.kind === "action")
+	if (!matches.length) return ""
+	const pluginNames = [...new Set(matches.map((item) => item.pluginName))].slice(0, 3)
+	return `Matches exist in disabled plugins: ${pluginNames.join(", ")}. Turn them on in Integrations to add new nodes.`
 })
 
 function withContextSearchText<T extends Omit<ContextSearchResult, "searchText">>(item: T): T & { searchText: string } {
@@ -4480,6 +4494,14 @@ onUnmounted(() => {
 	border: 1px solid var(--surface-d);
 	border-radius: 2px;
 	overflow: hidden;
+}
+
+.node-automation__menu-hint {
+	align-items: center;
+	color: var(--text-color-secondary);
+	display: flex;
+	gap: 0.5rem;
+	padding: 0.7rem;
 }
 
 .node-automation__menu-section-header,
