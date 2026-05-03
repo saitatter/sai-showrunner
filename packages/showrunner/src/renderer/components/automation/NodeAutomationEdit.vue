@@ -331,7 +331,7 @@
 								@dblclick.stop="node.kind === 'variable' && startInlineEdit(node.id)"
 							>{{ node.subtitle }}</small>
 						</span>
-						<span v-if="node.kind === 'trigger'" class="node-automation__node-run" title="Run automation" @click.stop="runMainExecution">
+						<span v-if="node.kind === 'trigger'" class="node-automation__node-run" title="Run automation" @click.stop="runMainExecution" v-tooltip="'Run automation'">
 							<i class="mdi mdi-play" />
 						</span>
 						<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
@@ -1138,7 +1138,7 @@
 						<small>{{ activeTestExecution.running ? "Running" : "Last run" }}</small>
 					</div>
 					<ol class="node-automation__execution-path">
-						<li v-for="nodeId in activeTestExecution.executionPath" :key="`${nodeId}:${activeTestExecution.nodeDurations[nodeId] ?? 'active'}`">
+						<li v-for="(nodeId, execIdx) in activeTestExecution.executionPath" :key="`${execIdx}:${nodeId}`">
 							<span>{{ nodeTitleById(nodeId) }}</span>
 							<small v-if="activeTestExecution.nodeErrors[nodeId]" class="error">{{ activeTestExecution.nodeErrors[nodeId] }}</small>
 							<small v-else-if="activeTestExecution.nodeDurations[nodeId] != null">{{ formatNodeDuration(activeTestExecution.nodeDurations[nodeId]) }}</small>
@@ -1415,10 +1415,7 @@ const edges = computed<EdgeData[]>(() => {
 		}
 	}).filter((e) => e.path)
 })
-const visibleFlowEdges = computed(() => {
-	const pairsWithData = new Set(dataWires.value.map((wire) => `${wire.fromNode}->${wire.toNode}`))
-	return edges.value.filter((edge) => pairsWithData.has(`${edge.from}->${edge.to}`))
-})
+const visibleFlowEdges = computed(() => edges.value)
 const currentPreviewRouteLabel = computed(() => {
 	const nodeId = currentPreviewStep.value?.node.id
 	if (!nodeId || !activeGraph.value) return undefined
@@ -2075,7 +2072,7 @@ function startRubberBand(event: PointerEvent) {
 		// Select nodes within the rectangle
 		const ids = new Set<string>()
 		for (const node of nodes.value) {
-			const nodeRight = node.x + NODE_WIDTH
+			const nodeRight = node.x + (node.width ?? NODE_WIDTH)
 			const nodeBottom = node.y + node.height
 			if (node.x < x + width && nodeRight > x && node.y < y + height && nodeBottom > y) {
 				ids.add(node.id)
@@ -2200,7 +2197,7 @@ function navigateToAdjacentNode(direction: "ArrowLeft" | "ArrowRight" | "ArrowUp
 	const current = selectedNode.value ?? nodes.value[0]
 	if (!current) return
 
-	const cx = current.x + NODE_WIDTH / 2
+	const cx = current.x + (current.width ?? NODE_WIDTH) / 2
 	const cy = current.y + current.height / 2
 	const candidates = nodes.value.filter((n) => n.id !== current.id)
 
@@ -2208,7 +2205,7 @@ function navigateToAdjacentNode(direction: "ArrowLeft" | "ArrowRight" | "ArrowUp
 	let bestScore = Infinity
 
 	for (const node of candidates) {
-		const nx = node.x + NODE_WIDTH / 2
+		const nx = node.x + (node.width ?? NODE_WIDTH) / 2
 		const ny = node.y + node.height / 2
 		const dx = nx - cx
 		const dy = ny - cy
@@ -2718,13 +2715,23 @@ function duplicateSelectedAction() {
 }
 
 function deleteSelectedAction() {
-	// Multi-select: delete all selected action nodes
+	// Multi-select: delete all selected action/variable nodes
 	const idsToDelete = selectedNodeIds.value.size > 1
 		? [...selectedNodeIds.value].filter((id) => id !== "trigger")
 		: selectedActionInfo.value ? [selectedNodeId.value!] : []
 
 	if (idsToDelete.length > 0) {
-		deleteGraphNodes(idsToDelete)
+		// Also remove variable nodes that are in the selection
+		const varIds = idsToDelete.filter((id) => variableNodes.value.some((vn) => vn.id === id))
+		if (varIds.length) {
+			variableNodes.value = variableNodes.value.filter((vn) => !varIds.includes(vn.id))
+			dataWires.value = dataWires.value.filter((w) => !varIds.includes(w.fromNode) && !varIds.includes(w.toNode))
+		}
+		deleteGraphNodes(idsToDelete.filter((id) => !varIds.includes(id)))
+		if (varIds.length && !idsToDelete.filter((id) => !varIds.includes(id)).length) {
+			clearSelection()
+			commitUndo()
+		}
 		return
 	}
 }
@@ -3341,8 +3348,9 @@ const inlineEditInput = ref<HTMLInputElement>()
 function startInlineEdit(nodeId: string) {
 	inlineEditNodeId.value = nodeId
 	nextTick(() => {
-		inlineEditInput.value?.focus()
-		inlineEditInput.value?.select()
+		const el = Array.isArray(inlineEditInput.value) ? inlineEditInput.value[0] : inlineEditInput.value
+		el?.focus()
+		el?.select()
 	})
 }
 
