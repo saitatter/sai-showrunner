@@ -8,34 +8,19 @@ function fail(message) {
 	process.exitCode = 1
 }
 
-function hasFile(predicate) {
-	if (!fs.existsSync(releaseDir)) return false
-	return fs.readdirSync(releaseDir, { withFileTypes: true }).some((entry) => entry.isFile() && predicate(entry.name))
-}
-
-function releaseUploadCandidates() {
-	if (!fs.existsSync(releaseDir)) return []
-	return fs
-		.readdirSync(releaseDir, { withFileTypes: true })
-		.filter((entry) => entry.isFile())
-		.map((entry) => entry.name)
-		.filter(
-			(name) =>
-				name === "latest.yml" ||
-				name.endsWith(".exe") ||
-				name.endsWith(".exe.blockmap") ||
-				name.endsWith(".zip")
-		)
-}
-
 if (!fs.existsSync(releaseDir)) {
 	fail(`Release directory does not exist: ${releaseDir}`)
 	process.exit()
 }
 
-const candidates = releaseUploadCandidates()
-const forbiddenAssets = candidates.filter((name) => name === "builder-debug.yml")
-if (forbiddenAssets.length > 0) fail(`Forbidden release upload asset found: ${forbiddenAssets.join(", ")}`)
+const releaseFiles = fs
+	.readdirSync(releaseDir, { withFileTypes: true })
+	.filter((entry) => entry.isFile())
+	.map((entry) => entry.name)
+
+function hasFile(predicate) {
+	return releaseFiles.some(predicate)
+}
 
 if (!hasFile((name) => name.endsWith(".exe"))) fail("Missing Windows installer .exe asset.")
 if (!hasFile((name) => name.endsWith(".zip"))) fail("Missing Windows portable .zip asset.")
