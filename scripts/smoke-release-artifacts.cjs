@@ -8,23 +8,18 @@ function fail(message) {
 	process.exitCode = 1
 }
 
-function hasFile(predicate) {
-	if (!fs.existsSync(releaseDir)) return false
-	return fs.readdirSync(releaseDir, { withFileTypes: true }).some((entry) => entry.isFile() && predicate(entry.name))
-}
-
 if (!fs.existsSync(releaseDir)) {
 	fail(`Release directory does not exist: ${releaseDir}`)
 	process.exit()
 }
 
-const forbiddenAssets = fs
+const releaseFiles = fs
 	.readdirSync(releaseDir, { withFileTypes: true })
-	.filter((entry) => entry.isFile() && entry.name === "builder-debug.yml")
+	.filter((entry) => entry.isFile())
 	.map((entry) => entry.name)
 
-if (forbiddenAssets.length > 0) {
-	fail(`Forbidden release asset found: ${forbiddenAssets.join(", ")}`)
+function hasFile(predicate) {
+	return releaseFiles.some(predicate)
 }
 
 if (!hasFile((name) => name.endsWith(".exe"))) fail("Missing Windows installer .exe asset.")

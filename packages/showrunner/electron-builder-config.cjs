@@ -38,6 +38,10 @@ module.exports = {
 				target: "portable",
 				arch: ["x64"],
 			},
+			{
+				target: "zip",
+				arch: ["x64"],
+			},
 		],
 		artifactName: "${productName}_${version}.${ext}",
 	},
