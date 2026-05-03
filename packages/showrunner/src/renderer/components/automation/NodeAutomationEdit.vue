@@ -352,11 +352,12 @@
 									<li v-for="port in node.inputPorts" :key="port.key" class="node-automation__port node-automation__port--in">
 										<span
 											class="node-automation__port-dot node-automation__port-dot--in"
-											:class="{ connected: isPortConnected(node.id, port.key, 'in') }"
+											:class="[{ connected: isPortConnected(node.id, port.key, 'in') }, dataPortDragClass(node.id, port.key, 'in')]"
 											:data-port-node-id="node.id"
 											:data-port-key="port.key"
 											data-port-kind="in"
 											:data-port-type="port.type"
+											:title="dataPortDragTitle(node.id, port.key, 'in')"
 											:style="{ borderColor: portTypeColor(port.type), background: isPortConnected(node.id, port.key, 'in') ? portTypeColor(port.type) : portTypeColor(port.type) + '44' }"
 											@pointerdown.stop="startWireDrag(node.id, port.key, 'in', $event)"
 										/>
@@ -381,11 +382,12 @@
 										<span
 											v-else
 											class="node-automation__port-dot node-automation__port-dot--out"
-											:class="{ connected: isPortConnected(node.id, port.key, 'out') }"
+											:class="[{ connected: isPortConnected(node.id, port.key, 'out') }, dataPortDragClass(node.id, port.key, 'out')]"
 											:data-port-node-id="node.id"
 											:data-port-key="port.key"
 											data-port-kind="out"
 											:data-port-type="port.type"
+											:title="dataPortDragTitle(node.id, port.key, 'out')"
 											:style="{ borderColor: portTypeColor(port.type), background: isPortConnected(node.id, port.key, 'out') ? portTypeColor(port.type) : portTypeColor(port.type) + '44' }"
 											@pointerdown.stop="startWireDrag(node.id, port.key, 'out', $event)"
 										/>
@@ -1633,6 +1635,7 @@ const {
 	wireDrag,
 	dataWirePaths,
 	dragWirePath,
+	dragPortPreview,
 	startWireDrag,
 	deleteDataWire,
 } = usePortConnections(nodes, dataWires, zoom, pan, canvasRef, commitUndo)
@@ -1650,6 +1653,18 @@ const connectedPorts = computed(() => {
 
 function isPortConnected(nodeId: string, portKey: string, kind: "in" | "out"): boolean {
 	return connectedPorts.value.has(`${nodeId}:${portKey}:${kind}`)
+}
+
+function dataPortDragClass(nodeId: string, portKey: string, kind: "in" | "out") {
+	const preview = dragPortPreview.value
+	if (!preview || preview.nodeId !== nodeId || preview.portKey !== portKey || preview.kind !== kind) return undefined
+	return preview.valid ? "drag-valid" : "drag-invalid"
+}
+
+function dataPortDragTitle(nodeId: string, portKey: string, kind: "in" | "out") {
+	const preview = dragPortPreview.value
+	if (!preview || preview.nodeId !== nodeId || preview.portKey !== portKey || preview.kind !== kind) return undefined
+	return preview.message ?? "Release to connect this data port."
 }
 
 function dataWireTitle(wire: DataWire & { validationMessage?: string }) {
@@ -4054,6 +4069,18 @@ onUnmounted(() => {
 .node-automation__port-dot:hover {
 	box-shadow: 0 0 6px 2px currentColor;
 	transform: scale(1.4);
+}
+
+.node-automation__port-dot.drag-valid {
+	box-shadow: 0 0 0 4px rgb(46 212 122 / 0.3), 0 0 10px rgb(46 212 122 / 0.55);
+	transform: scale(1.5);
+}
+
+.node-automation__port-dot.drag-invalid {
+	background: #ef5350 !important;
+	border-color: #ffb3b3 !important;
+	box-shadow: 0 0 0 4px rgb(239 83 80 / 0.28), 0 0 12px rgb(239 83 80 / 0.65);
+	transform: scale(1.55);
 }
 
 .node-automation__port-dot--in {

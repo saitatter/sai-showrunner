@@ -236,6 +236,16 @@ export function usePortConnections(
 			validationMessage: validation.message,
 		}
 	})
+	const dragPortPreview = computed(() => {
+		const drag = wireDrag.value
+		if (!drag) return undefined
+		const target = findNearestPortForDrag(drag)
+		if (!target) return undefined
+		return {
+			...target,
+			...validateDragTarget(drag, target),
+		}
+	})
 
 	function startWireDrag(nodeId: string, portKey: string, kind: "in" | "out", event: PointerEvent) {
 		event.stopPropagation()
@@ -486,6 +496,7 @@ export function usePortConnections(
 		wireDrag,
 		dataWirePaths,
 		dragWirePath,
+		dragPortPreview,
 		startWireDrag,
 		deleteDataWire,
 	}
