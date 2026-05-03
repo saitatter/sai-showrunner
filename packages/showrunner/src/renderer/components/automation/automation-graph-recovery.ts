@@ -96,6 +96,9 @@ function repairSubgraph(subgraph: SubgraphDefinition): SubgraphDefinition | unde
 	for (const param of subgraph.parameters ?? []) {
 		if (param?.name) wireNodeIds.add(`__param:${param.name}`)
 	}
+	for (const output of subgraph.outputs ?? []) {
+		if (output?.name) wireNodeIds.add(`__output:${output.name}`)
+	}
 	return {
 		...subgraph,
 		nodes: repaired.nodes,

@@ -53,7 +53,7 @@
 import { UpdateStatus } from "showrunner-schema"
 import { FlexScroller, useAppFeedback, useIpcCaller } from "showrunner-ui-core"
 import { computed, nextTick, onMounted, ref, watch } from "vue"
-import { sanitizeReleaseNotes } from "../../util/sanitize-html"
+import { releaseNotesToSanitizedHtml } from "../../util/sanitize-html"
 
 const status = ref<UpdateStatus>()
 const checking = ref(false)
@@ -67,8 +67,7 @@ const checkForUpdates = useIpcCaller<() => Promise<UpdateStatus>>("info", "check
 const updateShowRunner = useIpcCaller<() => Promise<void>>("info", "updateShowRunner")
 
 const latestInfo = computed(() => status.value?.latest ?? status.value?.update)
-const releaseNotes = computed(() => latestInfo.value?.notes?.trim() ?? "")
-const sanitizedReleaseNotes = computed(() => sanitizeReleaseNotes(releaseNotes.value))
+const sanitizedReleaseNotes = computed(() => releaseNotesToSanitizedHtml(latestInfo.value))
 
 const latestVersionLabel = computed(() => {
 	const latest = latestInfo.value?.version

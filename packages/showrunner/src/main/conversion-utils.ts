@@ -31,9 +31,9 @@ export function convertStringToBoolean(value: unknown, fallback: unknown = false
 
 export function safeJsonStringify(value: unknown): string {
 	try {
-		return JSON.stringify(value)
+		return JSON.stringify(value) ?? "null"
 	} catch {
-		return ""
+		return "null"
 	}
 }
 

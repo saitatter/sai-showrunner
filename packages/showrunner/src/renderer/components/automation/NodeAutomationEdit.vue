@@ -1818,10 +1818,19 @@ function isPortConnected(nodeId: string, portKey: string, kind: "in" | "out"): b
 }
 
 function resolveDataWirePort(nodeId: string, portKey: string, kind: "in" | "out") {
+	if (kind === "out" && nodeId === "trigger") {
+		const node = nodes.value.find((item) => item.id === nodeId)
+		return node?.outputPorts?.find((port) => port.key === portKey)
+	}
 	if (kind === "out" && nodeId.startsWith("__param:")) {
 		const paramName = nodeId.slice("__param:".length)
 		const param = activeSubgraph.value?.parameters.find((item) => item.name === paramName)
 		if (param && portKey === "value") return { key: portKey, label: param.name, type: param.type } satisfies PortDef
+	}
+	if (kind === "in" && nodeId.startsWith("__output:")) {
+		const outputName = nodeId.slice("__output:".length)
+		const output = activeSubgraph.value?.outputs.find((item) => item.name === outputName)
+		if (output && portKey === "value") return { key: portKey, label: output.name, type: output.type } satisfies PortDef
 	}
 	const node = nodes.value.find((item) => item.id === nodeId)
 	const ports = kind === "in" ? node?.inputPorts : node?.outputPorts

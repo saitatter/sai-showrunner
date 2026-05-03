@@ -1,8 +1,14 @@
+export interface UpdateReleaseNote {
+	version?: string
+	note: string
+}
+
 export interface UpdateData {
 	version: string
 	name: string
 	date: string
 	notes: string
+	releaseNotes?: UpdateReleaseNote[]
 }
 
 export interface UpdateStatus {

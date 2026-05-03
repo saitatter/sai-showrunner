@@ -32,10 +32,11 @@ describe("conversion utils", () => {
 
 	it("serializes JSON safely", () => {
 		expect(safeJsonStringify({ a: 1 })).toBe('{"a":1}')
+		expect(safeJsonStringify(() => undefined)).toBe("null")
 
 		const cyclic: Record<string, unknown> = {}
 		cyclic.self = cyclic
-		expect(safeJsonStringify(cyclic)).toBe("")
+		expect(safeJsonStringify(cyclic)).toBe("null")
 	})
 
 	it("parses JSON objects and arrays with converted flags", () => {

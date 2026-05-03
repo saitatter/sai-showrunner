@@ -5,7 +5,7 @@ import { app } from "electron"
 import { defineIPCFunc } from "../util/electron"
 
 import { autoUpdater, UpdateInfo } from "electron-updater"
-import { UpdateData, UpdateStatus } from "showrunner-schema"
+import { UpdateData, UpdateReleaseNote, UpdateStatus } from "showrunner-schema"
 import { globalLogger, usePluginLogger } from "../logging/logging"
 import path from "path"
 
@@ -17,27 +17,30 @@ interface StartInfo {
 
 const logger = usePluginLogger("info-manager")
 
-function formatReleaseNotes(releaseNotes: UpdateInfo["releaseNotes"]) {
+function normalizeReleaseNotes(releaseNotes: UpdateInfo["releaseNotes"]): Pick<UpdateData, "notes" | "releaseNotes"> {
 	if (Array.isArray(releaseNotes)) {
-		return releaseNotes
-			.map((releaseNote) => {
-				const title = releaseNote.version ? `<h3>${releaseNote.version}</h3>` : ""
-				return `${title}${releaseNote.note ?? ""}`
-			})
-			.join("\n")
+		const structuredNotes: UpdateReleaseNote[] = releaseNotes.map((releaseNote) => ({
+			...(releaseNote.version ? { version: releaseNote.version } : {}),
+			note: releaseNote.note ?? "",
+		}))
+		return {
+			notes: structuredNotes.map((releaseNote) => [releaseNote.version, releaseNote.note].filter(Boolean).join("\n")).join("\n\n"),
+			releaseNotes: structuredNotes,
+		}
 	}
 
-	return releaseNotes ?? ""
+	return { notes: releaseNotes ?? "" }
 }
 
 function toUpdateData(updateInfo: UpdateInfo | undefined): UpdateData | undefined {
 	if (!updateInfo) return undefined
 
+	const releaseNotes = normalizeReleaseNotes(updateInfo.releaseNotes)
 	return {
 		version: updateInfo.version,
 		name: updateInfo.releaseName ?? "",
 		date: updateInfo.releaseDate ?? "",
-		notes: formatReleaseNotes(updateInfo.releaseNotes),
+		...releaseNotes,
 	}
 }
 

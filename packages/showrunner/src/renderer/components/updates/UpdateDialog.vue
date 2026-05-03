@@ -20,10 +20,10 @@ import { UpdateData } from "showrunner-schema"
 import { useIpcCaller, FlexScroller, useDialogRef } from "showrunner-ui-core"
 import { computed, nextTick, onMounted, ref } from "vue"
 import PButton from "primevue/button"
-import { sanitizeReleaseNotes } from "../../util/sanitize-html"
+import { releaseNotesToSanitizedHtml } from "../../util/sanitize-html"
 
 const updateData = ref<UpdateData>()
-const sanitizedNotes = computed(() => sanitizeReleaseNotes(updateData.value?.notes ?? ""))
+const sanitizedNotes = computed(() => releaseNotesToSanitizedHtml(updateData.value))
 
 const getUpdateData = useIpcCaller<() => UpdateData | undefined>("info", "getUpdateInfo")
 
