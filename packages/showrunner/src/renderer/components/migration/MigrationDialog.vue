@@ -108,18 +108,15 @@ const beginMigration = useIpcCaller<() => any>("oldMigration", "beginMigrate")
 const finishMigration = useIpcCaller<() => any>("oldMigration", "finishMigrate")
 
 useIpcMessage("oldMigration", "migrateBackupComplete", () => {
-	console.log("Backup Complete")
 	backupCreated.value = true
 	migratingSettings.value = true
 })
 
 useIpcMessage("oldMigration", "migrateSettingsComplete", () => {
-	console.log("Migration of Settings Complete")
 	migratedSettings.value = true
 })
 
 useIpcMessage("oldMigration", "migrateProfilesComplete", () => {
-	console.log("Migration of Profiles Complete")
 	migratedProfiles.value = true
 })
 

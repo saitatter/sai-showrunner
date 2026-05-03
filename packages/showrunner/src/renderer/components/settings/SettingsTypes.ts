@@ -39,8 +39,6 @@ export function initSettingsDocuments() {
 			}
 		}
 
-		console.log("Update Changes", changes)
-
 		await pluginStore.updateSettings(changes)
 	})
 }
@@ -59,15 +57,12 @@ export function useOpenSettings() {
 			model.settings[plugin.id] = {}
 
 			for (const settingId in plugin.settings) {
-				console.log(plugin.id, settingId)
 				const setting = plugin.settings[settingId]
 				if (setting.type == "value" || setting.type == "secret") {
 					model.settings[plugin.id][settingId] = _cloneDeep(setting.value)
 				}
 			}
 		}
-
-		console.log(model)
 
 		dockingStore.openDocument("settings", model, { scrollX: 0, scrollY: 0, filter: "" }, "settings", "mdi mdi-cog")
 	}

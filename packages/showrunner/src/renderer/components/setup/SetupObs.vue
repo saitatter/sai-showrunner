@@ -105,7 +105,6 @@ onMounted(() => {
 })
 
 async function saveSettings() {
-	console.log("Settings Saved", obsConfig.value)
 	if (!mainObs.value) {
 		const newId = await resourceStore.createResource("OBSConnection", {
 			name: "Main OBS",

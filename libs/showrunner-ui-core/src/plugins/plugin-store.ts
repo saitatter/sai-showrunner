@@ -239,7 +239,6 @@ export const usePluginStore = defineStore("plugins", () => {
 	async function initialize() {
 		loadPluginVisibility()
 		handleIpcMessage("plugins", "registerPlugin", (event, plugin: IPCPluginDefinition) => {
-			//console.log("Registering Late Plugin", plugin.id)
 			pluginMap.value.set(plugin.id, ipcParsePluginDefinition(plugin))
 		})
 
@@ -289,7 +288,6 @@ export const usePluginStore = defineStore("plugins", () => {
 		})
 
 		const ids = await getPluginIds()
-		console.log("Received Plugin Ids", ids)
 
 		const plugins = await Promise.allSettled(ids.map((id) => getPlugin(id)))
 
@@ -302,8 +300,6 @@ export const usePluginStore = defineStore("plugins", () => {
 				console.error(pluginResult.reason)
 			}
 		}
-
-		console.log("Loaded All Plugins", JSON.stringify(ids))
 	}
 
 	function isPluginEnabled(pluginId: string) {
@@ -383,7 +379,6 @@ export const usePluginStore = defineStore("plugins", () => {
 		if (actionDef.type != "regular") return
 		actionDef.actionComponent = markRaw(component)
 		actionDef.componentExtraProps = extraProps
-		console.log("Set Action Component", plugin, action, component)
 	}
 
 	function setFlowActionComponent<Props, C extends Component<Props>>(
@@ -405,7 +400,6 @@ export const usePluginStore = defineStore("plugins", () => {
 		if (actionDef.type != "flow") return
 		actionDef.flowComponent = markRaw(component)
 		actionDef.flowComponentExtraProps = extraProps
-		console.log("Set Flow Action Component", plugin, action, component)
 	}
 
 	function setTriggerHeaderComponent(plugin: string, trigger: string, component: Component) {
@@ -435,7 +429,6 @@ export const usePluginStore = defineStore("plugins", () => {
 			return
 		}
 
-		console.log("Setting Component", plugin, key, component)
 		settingDef.component = markRaw(component)
 	}
 
@@ -513,7 +506,6 @@ export function useTriggerColors(selection: MaybeRefOrGetter<TriggerSelection | 
 		darkestColor: darkestTriggerColor,
 		lighterColor: lighterTriggerColor,
 	} = useColors(trigger)
-	//console.log("Using Trigger Colors", toValue(selection), triggerColor.value)
 
 	const style = computed(() => {
 		return {
