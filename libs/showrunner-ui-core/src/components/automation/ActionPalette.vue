@@ -141,6 +141,7 @@ function buildGroups<TEntry extends { id: string; name: string; icon?: string; c
 	getIcon: (entry: TEntry) => string
 ) {
 	return [...pluginStore.pluginMap.values()]
+		.filter((plugin) => pluginStore.isPluginEnabled(plugin.id))
 		.map<CommandMenuGroup>((plugin) => ({
 			id: plugin.id,
 			name: plugin.name,

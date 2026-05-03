@@ -78,6 +78,7 @@ import { loadDashboardWidgets } from "showrunner-dashboard-widget-loader"
 
 import { useMainPageStore } from "./util/main-page"
 import { initializeQueues } from "./util/queues"
+import { initializeIntegrationVisibility } from "./util/integrations"
 import { initSettingsDocuments } from "./components/settings/SettingsTypes"
 import Tooltip from "primevue/tooltip"
 import ToastService from "primevue/toastservice"
@@ -199,6 +200,7 @@ async function init() {
 	initSettingsDocuments()
 
 	initializeQueues()
+	initializeIntegrationVisibility()
 
 	await initOverlaysPlugin(app)
 

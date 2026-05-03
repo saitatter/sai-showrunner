@@ -34,6 +34,7 @@ interface MenuLane {
 
 interface PluginStoreLike {
 	pluginMap: Map<string, any>
+	isPluginEnabled?: (pluginId: string) => boolean
 }
 
 export function useNodeContextMenu(
@@ -121,6 +122,7 @@ export function useNodeContextMenu(
 	): ContextMenuGroup[] {
 		const query = contextMenuSearch.value
 		return [...pluginStore.pluginMap.values()]
+			.filter((plugin) => pluginStore.isPluginEnabled?.(plugin.id) ?? true)
 			.map((plugin) => {
 				const items = Object.entries(getEntries(plugin) || {})
 					.map(([id, entry]) => {

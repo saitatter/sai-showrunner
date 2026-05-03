@@ -133,6 +133,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Visual data-wire drawing (separate from exec edges)
 - [x] Type-safe data ports (color-coded by type)
 - [x] Wire validation: prevent connecting incompatible types
+- [x] Keep implicit data-wire conversions disabled; type changes must go through explicit conversion nodes.
+- [x] Add built-in conversion nodes for safe scalar and JSON conversions.
 - [x] Show data flow values on hover during test-run
 
 ### 5.6 Performance & reliability
@@ -174,6 +176,27 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
   - `Scene Begin -> Add to Scene Queue`
   - `Queue Item Started -> Scene Banner -> Shader Layer -> Complete`
 - [x] Document the mental model: queues remain powerful, but users should experience them as graph scheduling nodes rather than a second automation system.
+
+### 5.9 Integrations & Plugin Visibility
+- [x] List every loaded plugin under `Integrations -> Plugin Visibility`.
+- [x] Add per-plugin visibility toggle for automation node menus.
+- [x] Hide disabled plugin actions/triggers from automation context menus and command palettes.
+- [x] Keep existing automations renderable even when their plugin is hidden from new-node menus.
+- [ ] Add search/filter to the `Integrations -> Plugin Visibility` list once plugin count grows further.
+- [ ] Add an optional "show hidden plugins" hint in automation search when a query matches only disabled plugins.
+- [ ] Decide whether plugin visibility should remain local UI preference or become project/profile-level configuration.
+
+### 5.10 Next Polish / Bug Fix Backlog
+- [ ] Add focused UI tests for automation context-menu search, including collapsed groups and disabled plugins.
+- [ ] Add conversion-node runtime tests for scalar parsing, JSON parsing, and fallback behavior.
+- [ ] Add visible invalid-drop feedback when the pointer is directly over an incompatible data port.
+- [ ] Surface stale/invalid existing data wires in an editor health panel with a one-click cleanup action.
+- [ ] Reduce remaining settings/plugin initialization console noise.
+- [ ] Audit action result schemas so every useful output is exposed as a typed data port.
+- [ ] Add node-menu categories for data transforms, overlays, queues, OBS, chat, and utility actions.
+- [ ] Add keyboard-first command menu navigation: up/down, enter, escape, and section shortcuts.
+- [ ] Add onboarding starter graphs for OBS scene changes, chat commands, moderation actions, and stream-plan events.
+- [ ] Add manual regression checklist for queue starter templates, conversion nodes, hidden plugins, and incompatible wires.
 
 ---
 

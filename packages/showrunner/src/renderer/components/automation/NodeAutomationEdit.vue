@@ -1183,7 +1183,8 @@ const activeSubgraphId = ref<string>()
 const recentlyUsed = ref<{ key: string; kind: "action" | "trigger"; name: string; icon: string; color: string }[]>([])
 const pendingFlowConnection = ref<{ fromNode: string; fromPort?: string; canvasPoint: NodePosition } | null>(null)
 const recentContextItems = computed(() =>
-	pendingFlowConnection.value ? recentlyUsed.value.filter((item) => item.kind === "action") : recentlyUsed.value
+	(pendingFlowConnection.value ? recentlyUsed.value.filter((item) => item.kind === "action") : recentlyUsed.value)
+		.filter((item) => isPluginEnabledForContextKey(item.key))
 )
 const MAX_RECENT = 5
 const pluginStore = usePluginStore()
@@ -1462,6 +1463,7 @@ const canEditSelectedAction = computed(() => {
 })
 const actionPalette = computed(() =>
 	[...pluginStore.pluginMap.values()]
+		.filter((plugin) => pluginStore.isPluginEnabled(plugin.id))
 		.map((plugin) => ({
 			id: plugin.id,
 			name: plugin.name,
@@ -1609,6 +1611,11 @@ function withContextSearchText<T extends Omit<ContextSearchResult, "searchText">
 function closeContextMenu() {
 	pendingFlowConnection.value = null
 	closeContextMenuBase()
+}
+
+function isPluginEnabledForContextKey(key: string) {
+	const [pluginId] = key.split(":")
+	return !pluginId || pluginStore.isPluginEnabled(pluginId)
 }
 
 const { startDrag, resetSelectedNodePosition, alignmentGuides } = useNodeDrag(
