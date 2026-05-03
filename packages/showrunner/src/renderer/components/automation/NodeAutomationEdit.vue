@@ -442,7 +442,9 @@
 
 				<div
 					v-if="contextMenu.open"
+					ref="contextMenuRootRef"
 					class="node-automation__context-menu-anchor"
+					@keydown="handleContextMenuKeydown"
 				>
 					<collapsible-context-menu
 						:x="contextMenu.x"
@@ -487,7 +489,7 @@
 						</div>
 					</section>
 					<section v-if="actionCategoryGroups.length" class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('categories')" @click="toggleContextGroup('categories')">
+						<button type="button" class="node-automation__menu-section-header" data-context-section="categories" :aria-expanded="isContextGroupOpen('categories')" @click="toggleContextGroup('categories')">
 							<span><i class="mdi mdi-shape-outline" /> Categories</span>
 							<i :class="isContextGroupOpen('categories') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
@@ -515,7 +517,7 @@
 					</section>
 					<!-- Integrations: Triggers + Actions grouped by plugin -->
 					<section class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('integrations')" @click="toggleContextGroup('integrations')">
+						<button type="button" class="node-automation__menu-section-header" data-context-section="integrations" :aria-expanded="isContextGroupOpen('integrations')" @click="toggleContextGroup('integrations')">
 							<span><i class="mdi mdi-puzzle-outline" /> Integrations</span>
 							<i :class="isContextGroupOpen('integrations') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
@@ -580,7 +582,7 @@
 					</section>
 					<!-- Data: Variables + Constants -->
 					<section v-if="!pendingFlowConnection" class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('data')" @click="toggleContextGroup('data')">
+						<button type="button" class="node-automation__menu-section-header" data-context-section="data" :aria-expanded="isContextGroupOpen('data')" @click="toggleContextGroup('data')">
 							<span><i class="mdi mdi-database-outline" /> Data</span>
 							<i :class="isContextGroupOpen('data') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
@@ -611,7 +613,7 @@
 					</section>
 					<!-- Flow: Control Flow Nodes + Subgraphs -->
 					<section class="node-automation__menu-section">
-						<button type="button" class="node-automation__menu-section-header" :aria-expanded="isContextGroupOpen('flow')" @click="toggleContextGroup('flow')">
+						<button type="button" class="node-automation__menu-section-header" data-context-section="flow" :aria-expanded="isContextGroupOpen('flow')" @click="toggleContextGroup('flow')">
 							<span><i class="mdi mdi-vector-polyline" /> Flow</span>
 							<i :class="isContextGroupOpen('flow') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
@@ -1213,6 +1215,8 @@ const canvasSearchOpen = ref(false)
 const canvasSearchQuery = ref("")
 const canvasSearchIndex = ref(0)
 const canvasSearchInputRef = ref<HTMLInputElement>()
+const contextMenuRootRef = ref<HTMLElement>()
+const contextMenuFocusIndex = ref(-1)
 const detailsOpen = ref(true)
 const configOpen = ref(true)
 const actionsOpen = ref(false)
@@ -1605,6 +1609,18 @@ const {
 	toggleContextGroup,
 	isContextGroupOpen,
 } = useNodeContextMenu(nodes, pluginStore, getCanvasPointFromClient, getNodeLane)
+
+watch(
+	() => contextMenu.value.open,
+	(open) => {
+		if (open) contextMenuFocusIndex.value = -1
+	}
+)
+
+watch(contextMenuQuery, () => {
+	contextMenuFocusIndex.value = -1
+})
+
 const contextMenuSearchResults = computed<ContextSearchResult[]>(() => {
 	const query = contextMenuQuery.value.trim().toLowerCase()
 	if (!query) return []
@@ -1656,6 +1672,78 @@ function closeContextMenu() {
 function isPluginEnabledForContextKey(key: string) {
 	const [pluginId] = key.split(":")
 	return !pluginId || pluginStore.isPluginEnabled(pluginId)
+}
+
+function handleContextMenuKeydown(event: KeyboardEvent) {
+	if (!contextMenu.value.open) return
+	if (event.key === "Escape") {
+		event.preventDefault()
+		closeContextMenu()
+		return
+	}
+	if (event.key === "ArrowDown") {
+		event.preventDefault()
+		moveContextMenuFocus(1)
+		return
+	}
+	if (event.key === "ArrowUp") {
+		event.preventDefault()
+		moveContextMenuFocus(-1)
+		return
+	}
+	if (event.key === "Enter") {
+		event.preventDefault()
+		activateContextMenuFocus()
+		return
+	}
+	if ((event.ctrlKey || event.metaKey) && ["1", "2", "3", "4"].includes(event.key)) {
+		event.preventDefault()
+		openContextMenuSection(event.key)
+	}
+}
+
+function moveContextMenuFocus(delta: number) {
+	const buttons = getContextMenuButtons()
+	if (!buttons.length) return
+	const current = buttons.indexOf(document.activeElement as HTMLButtonElement)
+	const start = current >= 0 ? current : contextMenuFocusIndex.value
+	const fallback = delta > 0 ? 0 : buttons.length - 1
+	const next = start >= 0 ? (start + delta + buttons.length) % buttons.length : fallback
+	contextMenuFocusIndex.value = next
+	buttons[next].focus({ preventScroll: true })
+	buttons[next].scrollIntoView({ block: "nearest" })
+}
+
+function activateContextMenuFocus() {
+	const buttons = getContextMenuButtons()
+	if (!buttons.length) return
+	const active = buttons.indexOf(document.activeElement as HTMLButtonElement)
+	const index = active >= 0 ? active : Math.max(0, contextMenuFocusIndex.value)
+	buttons[Math.min(index, buttons.length - 1)].click()
+}
+
+function openContextMenuSection(shortcut: string) {
+	const sectionByShortcut: Record<string, string> = {
+		"1": "categories",
+		"2": "integrations",
+		"3": "data",
+		"4": "flow",
+	}
+	const section = sectionByShortcut[shortcut]
+	if (!section) return
+	if (!isContextGroupOpen(section)) toggleContextGroup(section)
+	nextTick(() => {
+		const sectionButton = contextMenuRootRef.value?.querySelector<HTMLButtonElement>(
+			`[data-context-section="${section}"]`
+		)
+		sectionButton?.focus({ preventScroll: true })
+	})
+}
+
+function getContextMenuButtons() {
+	return Array.from(
+		contextMenuRootRef.value?.querySelectorAll<HTMLButtonElement>(".node-automation__menu-items button") ?? []
+	).filter((button) => !button.disabled && button.offsetParent !== null)
 }
 
 const { startDrag, resetSelectedNodePosition, alignmentGuides } = useNodeDrag(
@@ -4413,6 +4501,13 @@ onUnmounted(() => {
 .node-automation__menu-items button:hover {
 	background: color-mix(in srgb, #8b35e6 24%, var(--surface-a));
 	border-color: #8b35e6;
+}
+
+.node-automation__menu-items button:focus-visible {
+	background: color-mix(in srgb, #8b35e6 28%, var(--surface-a));
+	border-color: rgb(233 170 255 / 0.7);
+	outline: 2px solid rgb(233 170 255 / 0.45);
+	outline-offset: 1px;
 }
 
 .node-automation__menu-items span {
