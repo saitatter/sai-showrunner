@@ -10,7 +10,9 @@ export interface UpdateStatus {
 	latest?: UpdateData
 	update?: UpdateData
 	hasUpdate: boolean
+	canCheckForUpdates: boolean
 	checkedAt?: string
 	error?: string
+	message?: string
 	checking: boolean
 }

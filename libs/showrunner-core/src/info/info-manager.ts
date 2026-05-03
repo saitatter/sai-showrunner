@@ -7,6 +7,7 @@ import { defineIPCFunc } from "../util/electron"
 import { autoUpdater, UpdateInfo } from "electron-updater"
 import { UpdateData, UpdateStatus } from "showrunner-schema"
 import { globalLogger, usePluginLogger } from "../logging/logging"
+import path from "path"
 
 import semver from "semver"
 
@@ -53,13 +54,13 @@ export const InfoService = Service(
 		latestUpdateInfo: UpdateInfo | undefined = undefined
 		lastUpdateCheck: string | undefined = undefined
 		lastUpdateError: string | undefined = undefined
+		lastUpdateMessage: string | undefined = undefined
 		updateChecking: boolean = false
 
 		constructor() {
 			autoUpdater.autoInstallOnAppQuit = false
 			autoUpdater.autoDownload = false
-			//globalLogger.log("Update Config", path.join(app.getAppPath(), "dev-app-update.yml"))
-			if (!app.isPackaged) {
+			if (!app.isPackaged && fs.existsSync(this.devUpdateConfigPath)) {
 				autoUpdater.forceDevUpdateConfig = true
 			}
 
@@ -102,10 +103,20 @@ export const InfoService = Service(
 				latest: toUpdateData(this.latestUpdateInfo ?? this.updateInfo),
 				update: toUpdateData(this.updateInfo),
 				hasUpdate: this.updateInfo != null,
+				canCheckForUpdates: this.canCheckForUpdates,
 				checkedAt: this.lastUpdateCheck,
 				error: this.lastUpdateError,
+				message: this.lastUpdateMessage,
 				checking: this.updateChecking,
 			}
+		}
+
+		get devUpdateConfigPath() {
+			return path.join(app.getAppPath(), "dev-app-update.yml")
+		}
+
+		get canCheckForUpdates() {
+			return app.isPackaged || fs.existsSync(this.devUpdateConfigPath)
 		}
 
 		private async checkStartup() {
@@ -134,8 +145,17 @@ export const InfoService = Service(
 				return this.updateInfo != null
 			}
 
+			if (!this.canCheckForUpdates) {
+				this.lastUpdateCheck = new Date().toISOString()
+				this.lastUpdateError = undefined
+				this.lastUpdateMessage = "Update checks run in packaged builds. Add dev-app-update.yml to test updater metadata during development."
+				this.updateInfo = undefined
+				return false
+			}
+
 			this.updateChecking = true
 			this.lastUpdateError = undefined
+			this.lastUpdateMessage = undefined
 			try {
 				const result = await autoUpdater.checkForUpdates()
 				this.lastUpdateCheck = new Date().toISOString()

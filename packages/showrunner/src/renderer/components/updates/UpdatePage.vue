@@ -7,7 +7,7 @@
 					<p>Current version: v{{ status?.currentVersion ?? "unknown" }}</p>
 				</div>
 				<div class="updates-page__actions">
-					<p-button icon="mdi mdi-refresh" :loading="checking" @click="checkNow">Check for updates</p-button>
+					<p-button icon="mdi mdi-refresh" :disabled="!status?.canCheckForUpdates" :loading="checking" @click="checkNow">Check for updates</p-button>
 					<p-button
 						v-if="status?.hasUpdate"
 						icon="mdi mdi-download"
@@ -78,12 +78,14 @@ const checkedAtLabel = computed(() => {
 
 const statusClass = computed(() => {
 	if (status.value?.error) return "updates-page__status--error"
+	if (status.value && !status.value.canCheckForUpdates) return "updates-page__status--muted"
 	if (status.value?.hasUpdate) return "updates-page__status--available"
 	return "updates-page__status--current"
 })
 
 const statusTitle = computed(() => {
 	if (status.value?.error) return "Update check failed"
+	if (status.value && !status.value.canCheckForUpdates) return "Development build"
 	if (status.value?.hasUpdate) return "Update available"
 	if (status.value?.checkedAt) return "You're up to date"
 	return "Ready to check"
@@ -91,6 +93,7 @@ const statusTitle = computed(() => {
 
 const statusDetail = computed(() => {
 	if (status.value?.error) return status.value.error
+	if (status.value?.message) return status.value.message
 	if (status.value?.hasUpdate && status.value.update) {
 		return `v${status.value.currentVersion} -> v${status.value.update.version}`
 	}
@@ -156,8 +159,11 @@ onMounted(async () => {
 	display: flex;
 	flex-direction: column;
 	gap: 1rem;
-	max-width: 960px;
-	padding-bottom: 1rem;
+	margin: 0 auto;
+	max-width: 980px;
+	padding: 1rem;
+	width: min(980px, 100%);
+	box-sizing: border-box;
 }
 
 .updates-page__header {
@@ -182,7 +188,9 @@ onMounted(async () => {
 }
 
 .updates-page__actions {
+	align-items: center;
 	display: flex;
+	flex: 0 0 auto;
 	flex-wrap: wrap;
 	gap: 0.5rem;
 	justify-content: flex-end;
@@ -193,9 +201,9 @@ onMounted(async () => {
 	border: 1px solid var(--surface-400);
 	border-left-width: 4px;
 	border-radius: var(--border-radius);
-	display: flex;
+	display: grid;
 	gap: 1rem;
-	justify-content: space-between;
+	grid-template-columns: minmax(0, 1fr) auto;
 	padding: 0.9rem 1rem;
 }
 
@@ -209,6 +217,10 @@ onMounted(async () => {
 
 .updates-page__status--error {
 	border-left-color: var(--red-400);
+}
+
+.updates-page__status--muted {
+	border-left-color: var(--surface-500);
 }
 
 .updates-page__meta {
@@ -255,5 +267,29 @@ onMounted(async () => {
 
 .updates-page__empty {
 	padding: 1rem;
+}
+
+.updates-page :deep(.p-button) {
+	white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+	.updates-page__header,
+	.updates-page__section-title {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.updates-page__actions {
+		justify-content: flex-start;
+	}
+
+	.updates-page__status {
+		grid-template-columns: 1fr;
+	}
+
+	.updates-page__meta {
+		text-align: left;
+	}
 }
 </style>
