@@ -317,6 +317,11 @@ export const usePluginStore = defineStore("plugins", () => {
 		setPluginEnabled(pluginId, !isPluginEnabled(pluginId))
 	}
 
+	function resetPluginVisibility() {
+		disabledPluginIds.value = new Set()
+		savePluginVisibility()
+	}
+
 	function loadPluginVisibility() {
 		disabledPluginIds.value = loadDisabledPluginIds()
 	}
@@ -456,6 +461,7 @@ export const usePluginStore = defineStore("plugins", () => {
 		isPluginEnabled,
 		setPluginEnabled,
 		togglePluginEnabled,
+		resetPluginVisibility,
 		setActionComponent,
 		setFlowActionComponent,
 		setSettingComponent,

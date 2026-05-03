@@ -9,8 +9,14 @@
 		<div class="settings-page__content">
 			<section v-if="filteredInterfacePreferences.length" class="settings-page__section">
 				<div class="settings-page__section-header">
-					<i class="mdi mdi-tune-variant" />
-					<h1>Interface</h1>
+					<div>
+						<i class="mdi mdi-tune-variant" />
+						<h1>Interface</h1>
+					</div>
+					<div class="settings-page__section-actions">
+						<button type="button" @click="interfacePreferences.resetPreferences">Reset interface</button>
+						<button type="button" @click="pluginStore.resetPluginVisibility">Enable all plugins</button>
+					</div>
 				</div>
 				<div class="interface-preferences">
 					<label v-for="preference of filteredInterfacePreferences" :key="preference.key" class="interface-preference">
@@ -216,12 +222,40 @@ onMounted(async () => {
 	align-items: center;
 	display: flex;
 	gap: 0.5rem;
+	justify-content: space-between;
+}
+
+.settings-page__section-header > div:first-child {
+	align-items: center;
+	display: flex;
+	gap: 0.5rem;
 }
 
 .settings-page__section-header h1 {
 	font-size: 1.35rem;
 	line-height: 1;
 	margin: 0;
+}
+
+.settings-page__section-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	justify-content: flex-end;
+}
+
+.settings-page__section-actions button {
+	background: var(--surface-b);
+	border: 1px solid var(--surface-border);
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	font: inherit;
+	padding: 0.35rem 0.55rem;
+}
+
+.settings-page__section-actions button:hover {
+	background: var(--highlight-bg);
 }
 
 .interface-preferences {
