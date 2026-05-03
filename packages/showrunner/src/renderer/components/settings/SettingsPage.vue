@@ -7,6 +7,26 @@
 			</span>
 		</div>
 		<div class="settings-page__content">
+			<section v-if="filteredInterfacePreferences.length" class="settings-page__section">
+				<div class="settings-page__section-header">
+					<i class="mdi mdi-tune-variant" />
+					<h1>Interface</h1>
+				</div>
+				<div class="interface-preferences">
+					<label v-for="preference of filteredInterfacePreferences" :key="preference.key" class="interface-preference">
+						<span class="interface-preference__copy">
+							<strong>{{ preference.title }}</strong>
+							<small>{{ preference.description }}</small>
+						</span>
+						<input
+							type="checkbox"
+							role="switch"
+							:checked="interfacePreferences.preferences[preference.key]"
+							@change="setInterfacePreference(preference.key, $event)"
+						/>
+					</label>
+				</div>
+			</section>
 			<template v-for="pluginSettings of filteredSettings" :key="pluginSettings.pluginId">
 				<h1
 					:style="{ borderBottom: `solid 2px ${pluginStore.pluginMap.get(pluginSettings.pluginId)?.color}` }"
@@ -42,7 +62,7 @@
 					</template>
 				</div>
 			</template>
-			<div v-if="filteredSettings.length === 0" class="settings-page__empty">
+			<div v-if="filteredSettings.length === 0 && filteredInterfacePreferences.length === 0" class="settings-page__empty">
 				<i class="mdi mdi-cog-outline" />
 				<strong>No settings found</strong>
 				<small>{{ filterModel ? "Try a different search." : "No plugin settings are currently registered." }}</small>
@@ -64,6 +84,7 @@ import {
 import { computed, nextTick, onMounted, ref, useModel } from "vue"
 import { SettingsDocumentData, SettingsViewData } from "./SettingsTypes"
 import PInputText from "primevue/inputtext"
+import { InterfacePreferences, useInterfacePreferencesStore } from "../../util/interface-preferences"
 
 const props = defineProps<{
 	modelValue: SettingsDocumentData
@@ -85,6 +106,7 @@ const filterModel = computed({
 
 const pluginStore = usePluginStore()
 const resourceStore = useResourceStore()
+const interfacePreferences = useInterfacePreferencesStore()
 
 const documentId = useDocumentId()
 
@@ -134,6 +156,20 @@ const filteredSettings = computed(() => {
 	return result
 })
 
+const filteredInterfacePreferences = computed(() => {
+	const filterValue = (view.value?.filter ?? "").toLocaleLowerCase()
+	if (!filterValue) return interfacePreferences.preferenceList
+
+	return interfacePreferences.preferenceList.filter((preference) => {
+		return `${preference.title} ${preference.description}`.toLocaleLowerCase().includes(filterValue)
+	})
+})
+
+function setInterfacePreference(key: keyof InterfacePreferences, event: Event) {
+	const input = event.currentTarget as HTMLInputElement
+	interfacePreferences.setPreference(key, input.checked)
+}
+
 function rememberScroll(event: Event) {
 	const element = event.currentTarget as HTMLElement
 	if (!view.value) return
@@ -165,6 +201,59 @@ onMounted(async () => {
 .settings-page__content {
 	display: grid;
 	gap: 0.5rem;
+}
+
+.settings-page__section {
+	background: var(--surface-a);
+	border: 1px solid var(--surface-border);
+	border-radius: 6px;
+	display: grid;
+	gap: 0.75rem;
+	padding: 0.85rem;
+}
+
+.settings-page__section-header {
+	align-items: center;
+	display: flex;
+	gap: 0.5rem;
+}
+
+.settings-page__section-header h1 {
+	font-size: 1.35rem;
+	line-height: 1;
+	margin: 0;
+}
+
+.interface-preferences {
+	display: grid;
+	gap: 0.5rem;
+}
+
+.interface-preference {
+	align-items: center;
+	background: var(--surface-b);
+	border: 1px solid var(--surface-border);
+	border-radius: 5px;
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: minmax(0, 1fr) auto;
+	padding: 0.7rem 0.75rem;
+}
+
+.interface-preference__copy {
+	display: grid;
+	gap: 0.2rem;
+	min-width: 0;
+}
+
+.interface-preference__copy small {
+	color: var(--text-color-secondary);
+}
+
+.interface-preference input {
+	accent-color: #4f8f4a;
+	height: 1.1rem;
+	width: 2.2rem;
 }
 
 .settings-page__empty {

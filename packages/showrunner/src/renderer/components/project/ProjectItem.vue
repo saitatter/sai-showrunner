@@ -13,18 +13,19 @@
 		</slot>
 		<div class="project-item-title">{{ item.title }}</div>
 		<slot name="end">
-			<component v-if="item.endComponent" :is="item.endComponent" :item="item" />
+			<component v-if="showEndComponent" :is="item.endComponent" :item="item" />
 		</slot>
 		<c-context-menu ref="contextMenu" :items="menuItems" />
 	</div>
 </template>
 
 <script setup lang="ts">
-import { ProjectItem, NameDialog, CContextMenu } from "showrunner-ui-core"
+import { ProjectItem, NameDialog, CContextMenu, usePluginStore } from "showrunner-ui-core"
 import type { MenuItem } from "primevue/menuitem"
 import { computed, ref } from "vue"
 import { useDialog } from "primevue/usedialog"
 import { useConfirm } from "primevue/useconfirm"
+import { useInterfacePreferencesStore } from "../../util/interface-preferences"
 
 const props = withDefaults(
 	defineProps<{
@@ -36,6 +37,13 @@ const props = withDefaults(
 const dialog = useDialog()
 const confirm = useConfirm()
 const contextMenu = ref<InstanceType<typeof CContextMenu>>()
+const pluginStore = usePluginStore()
+const interfacePreferences = useInterfacePreferencesStore()
+const showEndComponent = computed(() => {
+	if (!props.item.endComponent) return false
+	if (pluginStore.pluginMap.has(props.item.id)) return interfacePreferences.preferences.showPluginSwitches
+	return true
+})
 const menuItems = computed<MenuItem[]>(() => {
 	const items: MenuItem[] = []
 
@@ -72,7 +80,6 @@ const menuItems = computed<MenuItem[]>(() => {
 			label: "Delete",
 			icon: "mdi mdi-delete",
 			command: (event) => {
-				console.log("Delete?")
 				confirm.require({
 					header: `Delete ${props.item.title}?`,
 					message: `Are you sure you want to delete ${props.item.title}?`,

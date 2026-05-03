@@ -4,8 +4,6 @@ import PluginDetailsPage from "../components/integrations/PluginDetailsPage.vue"
 import PluginVisibilityToggle from "../components/integrations/PluginVisibilityToggle.vue"
 import { pluginIcon } from "./plugin-icons"
 
-const NATIVE_INTEGRATION_GROUP_PLUGIN_IDS = new Set(["moderation", "obs", "twitch", "youtube"])
-
 export function initializeIntegrationVisibility() {
 	const pluginStore = usePluginStore()
 	const projectStore = useProjectStore()
@@ -13,7 +11,6 @@ export function initializeIntegrationVisibility() {
 
 	const categoryGroups = computed(() => {
 		const plugins = [...pluginStore.pluginMap.values()]
-			.filter((plugin) => !NATIVE_INTEGRATION_GROUP_PLUGIN_IDS.has(plugin.id))
 			.map((plugin) => ({
 				id: plugin.id,
 				title: plugin.name,
