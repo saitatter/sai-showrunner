@@ -51,6 +51,11 @@ export interface DataWireValidation {
 	message?: string
 }
 
+interface PortPosition {
+	x: number
+	y: number
+}
+
 const NODE_WIDTH = 220
 const NODE_BASE_HEIGHT = 74
 const CONFIG_LINE_HEIGHT = 20
@@ -187,16 +192,40 @@ export function usePortConnections(
 	watch(nodes, scheduleLayoutRefresh, { deep: true, flush: "post" })
 	watch(dataWires, scheduleLayoutRefresh, { deep: true, flush: "post" })
 
+	const renderedPortPositions = computed(() => {
+		layoutVersion.value
+		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
+		const positions = new Map<string, PortPosition>()
+		if (!surface) return positions
+
+		const surfaceRect = surface.getBoundingClientRect()
+		const elements = surface.querySelectorAll<HTMLElement>("[data-port-node-id]")
+		for (const element of elements) {
+			const nodeId = element.dataset.portNodeId
+			const portKey = element.dataset.portKey
+			const kind = element.dataset.portKind
+			if (!nodeId || !portKey || (kind !== "in" && kind !== "out")) continue
+
+			const portRect = element.getBoundingClientRect()
+			positions.set(portPositionKey(nodeId, portKey, kind), {
+				x: (portRect.left + portRect.width / 2 - surfaceRect.left) / zoom.value,
+				y: (portRect.top + portRect.height / 2 - surfaceRect.top) / zoom.value,
+			})
+		}
+		return positions
+	})
+
 	/** Computed: wire paths for rendering */
 	const dataWirePaths = computed(() => {
-		layoutVersion.value
 		const byId = new Map(nodes.value.map((n) => [n.id, n]))
+		const portPositions = renderedPortPositions.value
 		return dataWires.value.flatMap((wire) => {
 			const fromNode = byId.get(wire.fromNode)
 			const toNode = byId.get(wire.toNode)
 			if (!fromNode || !toNode) return []
-			const start = getRenderedPortPosition(wire.fromNode, wire.fromPort, "out") ?? getPortPosition(fromNode, wire.fromPort, "out")
-			const end = getRenderedPortPosition(wire.toNode, wire.toPort, "in") ?? getPortPosition(toNode, wire.toPort, "in")
+			const start =
+				getRenderedPortPosition(portPositions, wire.fromNode, wire.fromPort, "out") ?? getPortPosition(fromNode, wire.fromPort, "out")
+			const end = getRenderedPortPosition(portPositions, wire.toNode, wire.toPort, "in") ?? getPortPosition(toNode, wire.toPort, "in")
 			if (!start || !end) return []
 			const fromPort = fromNode.outputPorts?.find((p) => p.key === wire.fromPort)
 			const toPort = toNode.inputPorts?.find((p) => p.key === wire.toPort)
@@ -252,7 +281,8 @@ export function usePortConnections(
 		event.preventDefault()
 		const node = nodes.value.find((n) => n.id === nodeId)
 		if (!node) return
-		const pos = getRenderedPortPosition(nodeId, portKey, kind) ?? getPortPosition(node, portKey, kind)
+		const portPositions = renderedPortPositions.value
+		const pos = getRenderedPortPosition(portPositions, nodeId, portKey, kind) ?? getPortPosition(node, portKey, kind)
 		if (!pos) return
 
 		disconnectedWire = null
@@ -264,7 +294,8 @@ export function usePortConnections(
 				const existing = dataWires.value[existingIdx]
 				const fromNode = nodes.value.find((n) => n.id === existing.fromNode)
 				const fromPos = fromNode
-					? getRenderedPortPosition(existing.fromNode, existing.fromPort, "out") ?? getPortPosition(fromNode, existing.fromPort, "out")
+					? getRenderedPortPosition(portPositions, existing.fromNode, existing.fromPort, "out") ??
+						getPortPosition(fromNode, existing.fromPort, "out")
 					: undefined
 				disconnectedWire = { ...existing }
 				dataWires.value.splice(existingIdx, 1)
@@ -365,6 +396,7 @@ export function usePortConnections(
 		}
 
 		const SNAP_RADIUS = 34 / zoom.value
+		const portPositions = renderedPortPositions.value
 
 		for (const node of nodes.value) {
 			if (node.id === drag.fromNode && targetKind === drag.fromKind) continue
@@ -372,7 +404,7 @@ export function usePortConnections(
 			if (!ports) continue
 			for (const port of ports) {
 				const pos = getPortPosition(node, port.key, targetKind)
-				const renderedPos = getRenderedPortPosition(node.id, port.key, targetKind)
+				const renderedPos = getRenderedPortPosition(portPositions, node.id, port.key, targetKind)
 				const portPosition = renderedPos ?? pos
 				if (!portPosition) continue
 				const dx = portPosition.x - drag.currentX
@@ -390,13 +422,14 @@ export function usePortConnections(
 	function findNearestPortForDrag(drag: WireDragState): PortAddress | undefined {
 		const targetKind = drag.fromKind === "out" ? "in" : "out"
 		const SNAP_RADIUS = 34 / zoom.value
+		const portPositions = renderedPortPositions.value
 
 		let nearest: { address: PortAddress; distance: number } | undefined
 		for (const node of nodes.value) {
 			const ports = targetKind === "in" ? node.inputPorts : node.outputPorts
 			if (!ports) continue
 			for (const port of ports) {
-				const renderedPos = getRenderedPortPosition(node.id, port.key, targetKind)
+				const renderedPos = getRenderedPortPosition(portPositions, node.id, port.key, targetKind)
 				const portPosition = renderedPos ?? getPortPosition(node, port.key, targetKind)
 				if (!portPosition) continue
 				const dx = portPosition.x - drag.currentX
@@ -432,24 +465,8 @@ export function usePortConnections(
 		return { nodeId, portKey, kind: expectedKind }
 	}
 
-	function getRenderedPortPosition(nodeId: string, portKey: string, kind: "in" | "out") {
-		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
-		if (!surface) return undefined
-
-		const elements = surface.querySelectorAll<HTMLElement>("[data-port-node-id]")
-		const element = [...elements].find((item) =>
-			item.dataset.portNodeId === nodeId &&
-			item.dataset.portKey === portKey &&
-			item.dataset.portKind === kind
-		)
-		if (!element) return undefined
-
-		const surfaceRect = surface.getBoundingClientRect()
-		const portRect = element.getBoundingClientRect()
-		return {
-			x: (portRect.left + portRect.width / 2 - surfaceRect.left) / zoom.value,
-			y: (portRect.top + portRect.height / 2 - surfaceRect.top) / zoom.value,
-		}
+	function getRenderedPortPosition(positions: Map<string, PortPosition>, nodeId: string, portKey: string, kind: "in" | "out") {
+		return positions.get(portPositionKey(nodeId, portKey, kind))
 	}
 
 	function getPortDef(address: PortAddress) {
@@ -500,6 +517,10 @@ export function usePortConnections(
 		startWireDrag,
 		deleteDataWire,
 	}
+}
+
+function portPositionKey(nodeId: string, portKey: string, kind: "in" | "out") {
+	return `${kind}:${nodeId}:${portKey}`
 }
 
 function validateResolvedWire(fromPort: PortDef | undefined, toPort: PortDef | undefined): DataWireValidation {
