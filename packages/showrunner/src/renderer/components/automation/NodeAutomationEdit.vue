@@ -1190,6 +1190,7 @@ import { useAutomationPreview } from "./useAutomationPreview"
 import { areTypesCompatible, usePortConnections, portTypeColor, wouldCreateDataWireCycle, type DataWire, type PortDef } from "./usePortConnections"
 import { useExecEdges } from "./useExecEdges"
 import { useClipboard } from "./useClipboard"
+import { connectFlowToNode as connectGraphFlowToNode, isTerminalControlFlowNode } from "./automation-graph-editing"
 import ExpressionTextInput from "./ExpressionTextInput.vue"
 import { EXPRESSION_BUILTINS } from "./expression-tokenizer"
 import {
@@ -2640,17 +2641,7 @@ function addGraphActionNode(action: ActionInfo, position: NodePosition) {
 }
 
 function connectFlowToNode(fromNode: string, fromPort: string | undefined, toNode: string, isTerminal = false) {
-	const graph = ensureGraph()
-	const outgoing = graph.edges.find((edge) => edge.from === fromNode && (edge.port ?? undefined) === fromPort)
-	if (outgoing) {
-		const previousTo = outgoing.to
-		outgoing.to = toNode
-		if (!isTerminal && previousTo && previousTo !== toNode) {
-			graph.edges.push({ id: nanoid(), from: toNode, to: previousTo })
-		}
-		return
-	}
-	graph.edges.push({ id: nanoid(), from: fromNode, to: toNode, port: fromPort })
+	connectGraphFlowToNode(ensureGraph(), fromNode, fromPort, toNode, isTerminal)
 }
 
 function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, position?: NodePosition, afterPort?: string) {
@@ -3173,10 +3164,6 @@ function addControlFlowNode(type: GraphNodeType) {
 
 	closeContextMenu()
 	commitUndo()
-}
-
-function isTerminalControlFlowNode(type: GraphNodeType) {
-	return type === "break" || type === "continue" || type === "return"
 }
 
 async function runMainExecution() {
