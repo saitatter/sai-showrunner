@@ -12,6 +12,7 @@ import {
 	type GraphNode,
 	type GraphNodeType,
 	type AutomationConfig,
+	type SubgraphDefinition,
 } from "ShowRunner-schema"
 import type { PortDef } from "./usePortConnections"
 
@@ -210,7 +211,8 @@ export function summarizeExpression(expr: any): string {
 
 export function graphNodeToNodeData(
 	gn: GraphNode,
-	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
+	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>,
+	subgraphs: SubgraphDefinition[] = []
 ): NodeData {
 	const info = GRAPH_NODE_INFO[gn.type]
 	let title = info.label
@@ -323,7 +325,13 @@ export function graphNodeToNodeData(
 			break
 		case "subgraphCall":
 			title = "Call Subgraph"
-			subtitle = (gn as any).subgraphId
+			{
+				const subgraph = subgraphs.find((item) => item.id === (gn as any).subgraphId)
+				title = subgraph?.name || title
+				subtitle = subgraph ? `${subgraph.parameters.length} in / ${subgraph.outputs.length} out` : (gn as any).subgraphId
+				inputPorts = subgraph?.parameters.map((param) => ({ key: param.name, label: param.name, type: param.type }))
+				outputPorts = subgraph?.outputs.map((param) => ({ key: param.name, label: param.name, type: param.type }))
+			}
 			break
 	}
 
@@ -344,9 +352,10 @@ export function graphNodeToNodeData(
 
 export function buildGraphFromAutomationGraph(
 	automationGraph: AutomationGraph,
-	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
+	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>,
+	subgraphs: SubgraphDefinition[] = []
 ) {
-	const nodes: NodeData[] = automationGraph.nodes.map((gn) => graphNodeToNodeData(gn, pluginMap))
+	const nodes: NodeData[] = automationGraph.nodes.map((gn) => graphNodeToNodeData(gn, pluginMap, subgraphs))
 	const edges: Omit<EdgeData, "path">[] = automationGraph.edges.map((e) => ({
 		id: e.id,
 		from: e.from,
@@ -364,7 +373,8 @@ export function buildGraph(
 	if (!automation) return { nodes: [], edges: [] }
 	const { nodes: graphNodes, edges: graphEdges } = buildGraphFromAutomationGraph(
 		automation.graph ?? { nodes: [], edges: [], entryNodeId: "" },
-		pluginMap
+		pluginMap,
+		automation.subgraphs ?? []
 	)
 	const triggerId = "trigger"
 	const triggerNode: NodeData = {

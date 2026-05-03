@@ -274,6 +274,7 @@
 						tabindex="0"
 						@pointerdown.stop="startDrag($event, node)"
 						@click.stop="selectNode($event, node.id)"
+						@dblclick.stop="openSubgraphFromNode(node.id)"
 						@contextmenu.prevent.stop="openNodeContext($event, node)"
 						@dragover.prevent.stop="dropTargetNodeId = node.id"
 						@dragleave.stop="clearDropTarget(node.id)"
@@ -963,6 +964,10 @@
 								<i class="mdi mdi-crosshairs-gps" />
 								Reset Visual Position
 							</button>
+							<button type="button" :disabled="selectedNodeIds.size < 1" @click="collapseSelectionToSubgraph">
+								<i class="mdi mdi-function" />
+								Collapse Selection to Subgraph
+							</button>
 						</div>
 					</section>
 				</template>
@@ -977,15 +982,55 @@
 					</button>
 					<div v-if="subgraphsOpen" class="node-automation__subgraphs">
 						<ul v-if="subgraphsList.length" class="node-automation__subgraph-list">
-							<li v-for="sg in subgraphsList" :key="sg.id" class="node-automation__subgraph-item">
-								<span class="node-automation__subgraph-name">
+							<li
+								v-for="sg in subgraphsList"
+								:key="sg.id"
+								class="node-automation__subgraph-item"
+								:class="{ focused: focusedSubgraphId === sg.id }"
+							>
+								<label class="node-automation__subgraph-name">
 									<i class="mdi mdi-function" />
-									{{ sg.name || 'Unnamed' }}
-								</span>
+									<input
+										type="text"
+										:value="sg.name"
+										placeholder="Subgraph name"
+										@change="updateSubgraphName(sg.id, ($event.target as HTMLInputElement).value)"
+									/>
+								</label>
 								<span class="node-automation__subgraph-meta">
 									{{ sg.parameters.length }} param{{ sg.parameters.length === 1 ? '' : 's' }},
+									{{ sg.outputs.length }} output{{ sg.outputs.length === 1 ? '' : 's' }},
 									{{ sg.nodes.length }} node{{ sg.nodes.length === 1 ? '' : 's' }}
 								</span>
+								<div class="node-automation__subgraph-tools">
+									<button type="button" title="Focus subgraph details" @click="focusSubgraph(sg.id)">
+										<i class="mdi mdi-crosshairs-gps" /> Focus
+									</button>
+									<button type="button" title="Add a call node for this subgraph" @click="addSubgraphCallNode(sg.id)">
+										<i class="mdi mdi-plus-box-outline" /> Call
+									</button>
+								</div>
+								<div class="node-automation__subgraph-params">
+									<strong>Inputs</strong>
+									<div v-for="(param, pi) in sg.parameters" :key="`in-${sg.id}-${pi}`">
+										<input :value="param.name" placeholder="name" @change="updateSubgraphParam(sg.id, 'parameters', pi, 'name', ($event.target as HTMLInputElement).value)" />
+										<select :value="param.type" @change="updateSubgraphParam(sg.id, 'parameters', pi, 'type', ($event.target as HTMLSelectElement).value)">
+											<option v-for="type in SUBGRAPH_PARAM_TYPES" :key="type" :value="type">{{ type }}</option>
+										</select>
+										<input :value="String(param.default ?? '')" placeholder="default" @change="updateSubgraphParam(sg.id, 'parameters', pi, 'default', ($event.target as HTMLInputElement).value)" />
+										<button type="button" class="danger" @click="deleteSubgraphParam(sg.id, 'parameters', pi)"><i class="mdi mdi-close" /></button>
+									</div>
+									<button type="button" @click="addSubgraphParam(sg.id, 'parameters')"><i class="mdi mdi-plus" /> Input</button>
+									<strong>Outputs</strong>
+									<div v-for="(param, pi) in sg.outputs" :key="`out-${sg.id}-${pi}`">
+										<input :value="param.name" placeholder="name" @change="updateSubgraphParam(sg.id, 'outputs', pi, 'name', ($event.target as HTMLInputElement).value)" />
+										<select :value="param.type" @change="updateSubgraphParam(sg.id, 'outputs', pi, 'type', ($event.target as HTMLSelectElement).value)">
+											<option v-for="type in SUBGRAPH_PARAM_TYPES" :key="type" :value="type">{{ type }}</option>
+										</select>
+										<button type="button" class="danger" @click="deleteSubgraphParam(sg.id, 'outputs', pi)"><i class="mdi mdi-close" /></button>
+									</div>
+									<button type="button" @click="addSubgraphParam(sg.id, 'outputs')"><i class="mdi mdi-plus" /> Output</button>
+								</div>
 								<button type="button" class="danger" title="Delete subgraph" @click="deleteSubgraph(sg.id)">
 									<i class="mdi mdi-trash-can-outline" />
 								</button>
@@ -1059,6 +1104,7 @@ import {
 	type GraphEdge,
 	type AutomationGraph,
 	type GraphNodeType,
+	type SubgraphParamType,
 } from "ShowRunner-schema"
 import { useNodeActivity } from "./useNodeActivity"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
@@ -1113,6 +1159,7 @@ const configOpen = ref(true)
 const actionsOpen = ref(false)
 const activityOpen = ref(true)
 const subgraphsOpen = ref(false)
+const focusedSubgraphId = ref<string>()
 const recentlyUsed = ref<{ key: string; kind: "action" | "trigger"; name: string; icon: string; color: string }[]>([])
 const MAX_RECENT = 5
 const { activityLog, logActivity } = useNodeActivity()
@@ -1164,6 +1211,7 @@ const CONSTANT_TYPE_INFO: Record<string, { icon: string; portType: string; color
 	boolean: { icon: "mdi mdi-toggle-switch-outline", portType: "bool", color: "#ffb74d" },
 	color: { icon: "mdi mdi-palette", portType: "color", color: "#f06292" },
 }
+const SUBGRAPH_PARAM_TYPES: SubgraphParamType[] = ["string", "number", "boolean", "array", "object", "color", "any"]
 
 const graph = computed(() => buildGraph(model.value, pluginStore.pluginMap, getPreviewConfiguredDurationSeconds))
 const nodes = computed(() => {
@@ -2348,6 +2396,10 @@ function getCanvasPointFromClient(clientX: number, clientY: number): NodePositio
 
 const subgraphsList = computed(() => model.value.subgraphs ?? [])
 
+function findSubgraph(id: string) {
+	return model.value.subgraphs?.find((subgraph) => subgraph.id === id)
+}
+
 function addSubgraph() {
 	if (!model.value.subgraphs) model.value.subgraphs = []
 	const id = nanoid()
@@ -2360,8 +2412,18 @@ function addSubgraph() {
 		edges: [],
 		entryNodeId: "",
 	})
+	focusedSubgraphId.value = id
+	subgraphsOpen.value = true
 	logActivity("Added", "Subgraph")
 	commitUndo()
+}
+
+function focusSubgraph(id: string) {
+	const subgraph = findSubgraph(id)
+	if (!subgraph) return
+	focusedSubgraphId.value = id
+	subgraphsOpen.value = true
+	logActivity("Focused subgraph", subgraph.name || id)
 }
 
 function deleteSubgraph(id: string) {
@@ -2375,9 +2437,90 @@ function deleteSubgraph(id: string) {
 				(n) => !(n.type === "subgraphCall" && n.subgraphId === id)
 			)
 		}
+		if (focusedSubgraphId.value === id) focusedSubgraphId.value = undefined
 		logActivity("Deleted", "Subgraph")
 		commitUndo()
 	}
+}
+
+function updateSubgraphName(id: string, name: string) {
+	const subgraph = findSubgraph(id)
+	if (!subgraph) return
+	subgraph.name = name.trim() || "Unnamed Subgraph"
+	logActivity("Renamed subgraph", subgraph.name)
+	commitUndo()
+}
+
+function addSubgraphParam(id: string, collection: "parameters" | "outputs") {
+	const subgraph = findSubgraph(id)
+	if (!subgraph) return
+	const prefix = collection === "parameters" ? "input" : "output"
+	subgraph[collection].push({
+		name: `${prefix}${subgraph[collection].length + 1}`,
+		type: "string",
+		default: collection === "parameters" ? "" : undefined,
+	})
+	focusedSubgraphId.value = id
+	logActivity("Added subgraph port", `${subgraph.name || id} ${prefix}`)
+	commitUndo()
+}
+
+function deleteSubgraphParam(id: string, collection: "parameters" | "outputs", index: number) {
+	const subgraph = findSubgraph(id)
+	if (!subgraph) return
+	subgraph[collection].splice(index, 1)
+	focusedSubgraphId.value = id
+	logActivity("Deleted subgraph port", subgraph.name || id)
+	commitUndo()
+}
+
+function updateSubgraphParam(
+	id: string,
+	collection: "parameters" | "outputs",
+	index: number,
+	field: "name" | "type" | "default",
+	value: string
+) {
+	const subgraph = findSubgraph(id)
+	const param = subgraph?.[collection][index]
+	if (!subgraph || !param) return
+	if (field === "name") {
+		param.name = value.trim() || `${collection === "parameters" ? "input" : "output"}${index + 1}`
+	} else if (field === "type") {
+		param.type = SUBGRAPH_PARAM_TYPES.includes(value as SubgraphParamType) ? value as SubgraphParamType : "any"
+		if (collection === "parameters") param.default = coerceSubgraphDefault(param.type, param.default)
+	} else if (collection === "parameters") {
+		param.default = coerceSubgraphDefault(param.type, value)
+	}
+	focusedSubgraphId.value = id
+	commitUndo()
+}
+
+function coerceSubgraphDefault(type: SubgraphParamType, value: unknown) {
+	if (type === "number") {
+		const numberValue = Number(value)
+		return Number.isFinite(numberValue) ? numberValue : 0
+	}
+	if (type === "boolean") return value === true || String(value).toLowerCase() === "true"
+	if (type === "array") {
+		if (Array.isArray(value)) return value
+		try {
+			const parsed = JSON.parse(String(value || "[]"))
+			return Array.isArray(parsed) ? parsed : []
+		} catch {
+			return []
+		}
+	}
+	if (type === "object") {
+		if (value && typeof value === "object" && !Array.isArray(value)) return value
+		try {
+			const parsed = JSON.parse(String(value || "{}"))
+			return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {}
+		} catch {
+			return {}
+		}
+	}
+	return value == null ? "" : String(value)
 }
 
 function addSubgraphCallNode(subgraphId: string) {
@@ -2394,9 +2537,72 @@ function addSubgraphCallNode(subgraphId: string) {
 		subgraphId,
 		inputs: {},
 	})
+	focusedSubgraphId.value = subgraphId
 	closeContextMenu()
 	logActivity("Added", "Subgraph Call")
 	commitUndo()
+}
+
+function openSubgraphFromNode(nodeId: string) {
+	const graphNode = model.value.graph?.nodes.find((node) => node.id === nodeId)
+	if (graphNode?.type !== "subgraphCall") return
+	focusSubgraph(graphNode.subgraphId)
+}
+
+function collapseSelectionToSubgraph() {
+	const graph = model.value.graph
+	if (!graph) return
+	const selectedGraphIds = new Set(
+		[...selectedNodeIds.value].filter((id) => id !== "trigger" && graph.nodes.some((node) => node.id === id))
+	)
+	if (selectedGraphIds.size === 0) {
+		logActivity("Subgraph skipped", "Select one or more graph nodes first")
+		return
+	}
+
+	if (!model.value.subgraphs) model.value.subgraphs = []
+	commitUndo()
+
+	const selectedNodes = graph.nodes.filter((node) => selectedGraphIds.has(node.id))
+	const internalEdges = graph.edges.filter((edge) => selectedGraphIds.has(edge.from) && selectedGraphIds.has(edge.to))
+	const incomingEdges = graph.edges.filter((edge) => !selectedGraphIds.has(edge.from) && selectedGraphIds.has(edge.to))
+	const outgoingEdges = graph.edges.filter((edge) => selectedGraphIds.has(edge.from) && !selectedGraphIds.has(edge.to))
+	const entryNodeId = selectedGraphIds.has(graph.entryNodeId)
+		? graph.entryNodeId
+		: selectedNodes.find((node) => !internalEdges.some((edge) => edge.to === node.id))?.id ?? selectedNodes[0]?.id ?? ""
+	const x = Math.round(selectedNodes.reduce((sum, node) => sum + (node.x ?? 0), 0) / selectedNodes.length)
+	const y = Math.round(selectedNodes.reduce((sum, node) => sum + (node.y ?? 0), 0) / selectedNodes.length)
+	const subgraphId = nanoid()
+	const callNodeId = nanoid()
+
+	model.value.subgraphs.push({
+		id: subgraphId,
+		name: `Subgraph ${model.value.subgraphs.length + 1}`,
+		parameters: [],
+		outputs: [],
+		nodes: structuredClone(selectedNodes),
+		edges: structuredClone(internalEdges),
+		entryNodeId,
+	})
+
+	graph.nodes = [
+		...graph.nodes.filter((node) => !selectedGraphIds.has(node.id)),
+		{ id: callNodeId, type: "subgraphCall", x, y, subgraphId, inputs: {} },
+	]
+	graph.edges = graph.edges.filter((edge) => !selectedGraphIds.has(edge.from) && !selectedGraphIds.has(edge.to))
+	for (const edge of incomingEdges) {
+		graph.edges.push({ id: `${edge.from}:${callNodeId}:${edge.port ?? "out"}`, from: edge.from, to: callNodeId, port: edge.port })
+	}
+	const firstOutgoing = outgoingEdges[0]
+	if (firstOutgoing) {
+		graph.edges.push({ id: `${callNodeId}:${firstOutgoing.to}`, from: callNodeId, to: firstOutgoing.to })
+	}
+	if (selectedGraphIds.has(graph.entryNodeId)) graph.entryNodeId = callNodeId
+	dataWires.value = dataWires.value.filter((wire) => !selectedGraphIds.has(wire.fromNode) && !selectedGraphIds.has(wire.toNode))
+	focusedSubgraphId.value = subgraphId
+	subgraphsOpen.value = true
+	focusNode(callNodeId)
+	logActivity("Collapsed subgraph", `${selectedNodes.length} node${selectedNodes.length === 1 ? "" : "s"}`)
 }
 
 function addControlFlowNode(type: GraphNodeType) {
@@ -3951,8 +4157,31 @@ onUnmounted(() => {
 	padding: 0.5rem 0.6rem;
 }
 
+.node-automation__subgraph-item.focused {
+	border-color: #e9aaff;
+	box-shadow: 0 0 0 1px rgba(233, 170, 255, 0.25);
+}
+
 .node-automation__subgraph-name {
+	align-items: center;
+	display: flex;
+	gap: 0.45rem;
 	font-weight: 500;
+}
+
+.node-automation__subgraph-name input,
+.node-automation__subgraph-params input,
+.node-automation__subgraph-params select {
+	background: #070707;
+	border: 1px solid #333;
+	border-radius: 4px;
+	color: #eee;
+	min-width: 0;
+	padding: 0.35rem 0.45rem;
+}
+
+.node-automation__subgraph-name input {
+	width: 100%;
 }
 
 .node-automation__subgraph-meta {
@@ -3961,7 +4190,44 @@ onUnmounted(() => {
 	grid-column: 1;
 }
 
-.node-automation__subgraph-item .danger {
+.node-automation__subgraph-tools {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	grid-column: 1 / -1;
+}
+
+.node-automation__subgraph-tools button,
+.node-automation__subgraph-params button {
+	background: #1e1e1e;
+	border: 1px solid #3b3b3b;
+	border-radius: 4px;
+	color: #ddd;
+	cursor: pointer;
+	padding: 0.35rem 0.5rem;
+}
+
+.node-automation__subgraph-params {
+	display: grid;
+	gap: 0.35rem;
+	grid-column: 1 / -1;
+	margin-top: 0.35rem;
+}
+
+.node-automation__subgraph-params > div {
+	display: grid;
+	gap: 0.35rem;
+	grid-template-columns: minmax(0, 1fr) 6.5rem minmax(0, 1fr) auto;
+}
+
+.node-automation__subgraph-params strong {
+	color: #ddd;
+	font-size: 0.75rem;
+	margin-top: 0.25rem;
+	text-transform: uppercase;
+}
+
+.node-automation__subgraph-item > .danger {
 	background: transparent;
 	border: none;
 	color: #ef5350;
