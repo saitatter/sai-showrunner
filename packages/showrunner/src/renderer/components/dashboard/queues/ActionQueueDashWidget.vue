@@ -43,7 +43,7 @@
 					key-prop="id"
 					direction="horizontal"
 					handle-class="queue-drag-handle"
-					data-type="queued-sequence"
+					data-type="queued-automation"
 					local-path=""
 				>
 					<template #item="{ item, index }">
@@ -78,7 +78,7 @@ const props = defineProps<{
 
 const queue = useResource<ResourceData<ActionQueueConfig, ActionQueueState>>("ActionQueue", () => props.queueId)
 
-const spliceQueue = useResourceIPCCaller<(index: number, deleteCount: number, ...sequence: QueuedAutomation[]) => any>(
+const spliceQueue = useResourceIPCCaller<(index: number, deleteCount: number, ...items: QueuedAutomation[]) => any>(
 	"ActionQueue",
 	() => props.queueId,
 	"spliceQueue"

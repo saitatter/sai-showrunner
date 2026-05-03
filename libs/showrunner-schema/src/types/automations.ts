@@ -1,12 +1,4 @@
-import { AutomationGraph, SubgraphDefinition } from "./graph"
-
-export interface AutomationDataWire {
-	id: string
-	fromNode: string
-	fromPort: string
-	toNode: string
-	toPort: string
-}
+import { AutomationDataWire, AutomationGraph, SubgraphDefinition } from "./graph"
 
 export interface AutomationVariableNode {
 	id: string

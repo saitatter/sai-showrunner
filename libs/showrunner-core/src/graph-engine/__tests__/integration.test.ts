@@ -60,7 +60,7 @@ describe("Graph Integration (compile → VM → action)", () => {
 		expect(vm.getNodeResults().get("a1")).toEqual({ message: "hello" })
 	})
 
-	it("chains two actions in sequence", async () => {
+	it("chains two actions in execution order", async () => {
 		const calls: string[] = []
 		mockGetAction.mockImplementation((_plugin: string, action: string) => {
 			return mockAction(async (config) => {
@@ -337,8 +337,8 @@ describe("Graph Integration (compile → VM → action)", () => {
 		}
 
 		const dbg = {
-			sequenceStarted: vi.fn(),
-			sequenceEnded: vi.fn(),
+			executionStarted: vi.fn(),
+			executionEnded: vi.fn(),
 			markStart: vi.fn(),
 			markEnd: vi.fn(),
 			logResult: vi.fn(),
@@ -445,13 +445,63 @@ describe("Graph Integration (compile → VM → action)", () => {
 		expect(receivedConfig.text).toBe("Hello ShowRunner")
 	})
 
+	it("passes data wires through subgraph input and output ports", async () => {
+		let receivedConfig: any = null
+		mockGetAction.mockImplementation((_plugin: string, action: string) => {
+			if (action === "producer") {
+				return mockAction(async () => ({ payload: { message: "from wire" } }))
+			}
+			if (action === "echo") {
+				return mockAction(async (config) => ({ echoed: config.text }))
+			}
+			return mockAction(async (config) => {
+				receivedConfig = config
+				return {}
+			})
+		})
+
+		const graph: AutomationGraph = {
+			nodes: [
+				{ id: "producer", type: "action", plugin: "p", action: "producer", config: {}, x: 0, y: 0 },
+				{ id: "call1", type: "subgraphCall", subgraphId: "sg1", inputs: {}, x: 1, y: 0 },
+				{ id: "consumer", type: "action", plugin: "p", action: "consumer", config: { text: "" }, x: 2, y: 0 },
+			],
+			edges: [
+				{ id: "e1", from: "producer", to: "call1" },
+				{ id: "e2", from: "call1", to: "consumer" },
+			],
+			entryNodeId: "producer",
+		}
+		const subgraphs: SubgraphDefinition[] = [
+			{
+				id: "sg1",
+				name: "Echo",
+				parameters: [{ name: "text", type: "string" }],
+				outputs: [{ name: "message", type: "string", expression: { type: "port", nodeId: "echo", port: "echoed" } }],
+				nodes: [{ id: "echo", type: "action", plugin: "p", action: "echo", config: { text: "" }, x: 0, y: 0 }],
+				edges: [],
+				dataWires: [{ id: "sgw1", fromNode: "__param:text", fromPort: "value", toNode: "echo", toPort: "text" }],
+				entryNodeId: "echo",
+			},
+		]
+		const dataWires: AutomationDataWire[] = [
+			{ id: "w1", fromNode: "producer", fromPort: "payload.message", toNode: "call1", toPort: "text" },
+			{ id: "w2", fromNode: "call1", fromPort: "message", toNode: "consumer", toPort: "text" },
+		]
+
+		const program = new GraphCompiler().compile(graph, subgraphs, dataWires)
+		await new GraphVM(program, { contextState: {} }).execute()
+
+		expect(receivedConfig.text).toBe("from wire")
+	})
+
 	it("debugger hooks fire in correct order", async () => {
 		mockGetAction.mockReturnValue(mockAction(async () => ({ ok: true })))
 
 		const callOrder: string[] = []
 		const dbg = {
-			sequenceStarted: vi.fn(() => callOrder.push("seqStart")),
-			sequenceEnded: vi.fn(() => callOrder.push("seqEnd")),
+			executionStarted: vi.fn(() => callOrder.push("execStart")),
+			executionEnded: vi.fn(() => callOrder.push("execEnd")),
 			markStart: vi.fn(() => callOrder.push("markStart")),
 			markEnd: vi.fn(() => callOrder.push("markEnd")),
 			logResult: vi.fn(() => callOrder.push("logResult")),
@@ -466,7 +516,7 @@ describe("Graph Integration (compile → VM → action)", () => {
 
 		await new GraphVM(new GraphCompiler().compile(graph), { contextState: {} }, dbg).execute()
 
-		expect(callOrder).toEqual(["seqStart", "markStart", "logResult", "markEnd", "seqEnd"])
+		expect(callOrder).toEqual(["execStart", "markStart", "logResult", "markEnd", "execEnd"])
 	})
 
 	it("aborts mid-execution via AbortSignal", async () => {

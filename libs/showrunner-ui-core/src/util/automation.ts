@@ -8,8 +8,6 @@ export interface TriggerView {
 	automationView: AutomationView
 }
 
-export interface SequenceView {}
-
 export interface AutomationView {
 	panState: PanState
 }

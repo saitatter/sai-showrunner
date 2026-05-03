@@ -76,7 +76,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 	}
 
 	/**
-	 * If a queue is paused it will finish running the current sequence, but not start a new one.
+	 * If a queue is paused it will finish running the current automation, but not start a new one.
 	 */
 	get isPaused() {
 		return this.config.paused
@@ -162,8 +162,8 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		this.state.queue.splice(0)
 	}
 
-	spliceQueue(index: number, deleteCount: number, ...sequence: QueuedAutomation[]) {
-		this.state.queue.splice(index, deleteCount, ...sequence)
+	spliceQueue(index: number, deleteCount: number, ...items: QueuedAutomation[]) {
+		this.state.queue.splice(index, deleteCount, ...items)
 	}
 
 	replay(id: string) {
@@ -173,7 +173,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		this.enqueue(played.source, played.queueContext.contextState)
 	}
 
-	private getNextSequence(): QueuedAutomation | undefined {
+	private getNextAutomation(): QueuedAutomation | undefined {
 		return this.state.queue.shift()
 	}
 
@@ -182,27 +182,27 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 			return
 		}
 
-		const seqItem = this.getNextSequence()
+		const queueItem = this.getNextAutomation()
 
-		if (!seqItem) return
+		if (!queueItem) return
 
-		const resolver = ActionResolvers.getInstance().getResolver(seqItem.source.type)
+		const resolver = ActionResolvers.getInstance().getResolver(queueItem.source.type)
 
 		if (!resolver) return
 
-		const automation = resolver.getAutomation(seqItem.source.id, seqItem.source.subId)
-		const contextSchema = await resolver.getContextSchema(seqItem.source.id, seqItem.source.subId)
-		const wrapper = resolver.getRunWrapper(seqItem.source.id, seqItem.source.subId)
+		const automation = resolver.getAutomation(queueItem.source.id, queueItem.source.subId)
+		const contextSchema = await resolver.getContextSchema(queueItem.source.id, queueItem.source.subId)
+		const wrapper = resolver.getRunWrapper(queueItem.source.id, queueItem.source.subId)
 
 		if (!automation) return
 		if (!contextSchema) return
 
-		const deserializedContext = await deserializeSchema(contextSchema, seqItem.queueContext.contextState)
+		const deserializedContext = await deserializeSchema(contextSchema, queueItem.queueContext.contextState)
 		const finalContext = await exposeSchema(contextSchema, deserializedContext)
 
 		if (!automation.graph) {
-			logger.error("Automation missing graph — cannot execute", seqItem.source)
-			this.pushToHistory(seqItem)
+			logger.error("Automation missing graph — cannot execute", queueItem.source)
+			this.pushToHistory(queueItem)
 			return
 		}
 
@@ -210,20 +210,20 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		const abortController = new AbortController()
 		this.activeAbortController = abortController
 		this.activeVM = new GraphVM(program, { contextState: finalContext }, undefined, abortController.signal)
-		this.state.running = seqItem
+		this.state.running = queueItem
 
 		const doRun = async () => {
 			try {
-				ActionQueueManager.getInstance().emitQueueItemStarted(this, seqItem)
+				ActionQueueManager.getInstance().emitQueueItemStarted(this, queueItem)
 				const timeoutMs = Math.max(0, this.timeout * 1000)
 				if (timeoutMs > 0) {
 					this.activeTimeout = setTimeout(() => {
-						logger.error("Queue automation timed out", seqItem.source, this.timeout)
+						logger.error("Queue automation timed out", queueItem.source, this.timeout)
 						abortController.abort()
 						this.activeVM?.abort()
 					}, timeoutMs)
 				}
-				await wrapper(async () => await this.activeVM?.execute(), seqItem.source)
+				await wrapper(async () => await this.activeVM?.execute(), queueItem.source)
 			} finally {
 				if (this.activeTimeout) {
 					clearTimeout(this.activeTimeout)
@@ -233,7 +233,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 				this.activeVM = null
 				this.activeAbortController = null
 				this.state.running = undefined
-				this.pushToHistory(seqItem)
+				this.pushToHistory(queueItem)
 				if (!this.isPaused) {
 					this.runNext()
 				}
@@ -263,48 +263,48 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 	}
 }
 
-const markTestActionStart = defineCallableIPC<(sequenceId: string, id: string) => void>(
+const markTestActionStart = defineCallableIPC<(executionId: string, id: string) => void>(
 	"actionQueue",
 	"markTestActionStart"
 )
-const markTestActionEnd = defineCallableIPC<(sequenceId: string, id: string) => void>(
+const markTestActionEnd = defineCallableIPC<(executionId: string, id: string) => void>(
 	"actionQueue",
 	"markTestActionEnd"
 )
-const markTestSequenceStart = defineCallableIPC<(sequenceId: string) => void>("actionQueue", "markTestSequenceStart")
-const markTestSequenceEnd = defineCallableIPC<(sequenceId: string) => void>("actionQueue", "markTestSequenceEnd")
-const markTestActionResult = defineCallableIPC<(sequenceId: string, id: string, result: any) => void>(
+const markTestExecutionStart = defineCallableIPC<(executionId: string) => void>("actionQueue", "markTestExecutionStart")
+const markTestExecutionEnd = defineCallableIPC<(executionId: string) => void>("actionQueue", "markTestExecutionEnd")
+const markTestActionResult = defineCallableIPC<(executionId: string, id: string, result: any) => void>(
 	"actionQueue",
 	"markTestActionResult"
 )
-const markTestActionError = defineCallableIPC<(sequenceId: string, id: string, error: string) => void>(
+const markTestActionError = defineCallableIPC<(executionId: string, id: string, error: string) => void>(
 	"actionQueue",
 	"markTestActionError"
 )
 
 class TestRunnerDebugger implements ExecutionDebugger {
-	constructor(private sequenceId: string) {}
+	constructor(private executionId: string) {}
 
 	markStart(id: string) {
-		markTestActionStart(this.sequenceId, id)
+		markTestActionStart(this.executionId, id)
 	}
 
 	markEnd(id: string) {
-		markTestActionEnd(this.sequenceId, id)
+		markTestActionEnd(this.executionId, id)
 	}
 	logResult(id: string, result: any) {
-		markTestActionResult(this.sequenceId, id, result)
+		markTestActionResult(this.executionId, id, result)
 	}
 	logError(id: string, err: any) {
-		markTestActionError(this.sequenceId, id, err instanceof Error ? err.message : String(err))
+		markTestActionError(this.executionId, id, err instanceof Error ? err.message : String(err))
 	}
 
-	sequenceStarted() {
-		markTestSequenceStart(this.sequenceId)
+	executionStarted() {
+		markTestExecutionStart(this.executionId)
 	}
 
-	sequenceEnded() {
-		markTestSequenceEnd(this.sequenceId)
+	executionEnded() {
+		markTestExecutionEnd(this.executionId)
 	}
 }
 
@@ -314,13 +314,13 @@ export const ActionQueueManager = Service(
 		private queueItemStartedListeners = new Set<(event: QueueAutomationEvent) => void | Promise<void>>()
 
 		constructor() {
-			defineIPCFunc("actionQueue", "runTestSequence", (id: string, automation: AutomationData) => {
-				this.runTestSequence(id, automation)
+			defineIPCFunc("actionQueue", "runTestExecution", (id: string, automation: AutomationData) => {
+				this.runTestExecution(id, automation)
 				return id
 			})
 
-			defineIPCFunc("actionQueue", "stopTestSequence", (id: string) => {
-				return this.stopTestSequence(id)
+			defineIPCFunc("actionQueue", "stopTestExecution", (id: string) => {
+				return this.stopTestExecution(id)
 			})
 		}
 
@@ -384,7 +384,7 @@ export const ActionQueueManager = Service(
 			}
 		}
 
-		async runTestSequence(id: string, automation: AutomationData) {
+		async runTestExecution(id: string, automation: AutomationData) {
 			if (this.testVMs.has(id)) return
 
 			let context: any = {}
@@ -423,7 +423,7 @@ export const ActionQueueManager = Service(
 			vm.execute().then(runnerComplete).catch(runnerComplete)
 		}
 
-		stopTestSequence(id: string) {
+		stopTestExecution(id: string) {
 			const vm = this.testVMs.get(id)
 			if (!vm) return false
 

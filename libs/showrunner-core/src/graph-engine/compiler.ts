@@ -86,6 +86,8 @@ export interface Program {
 	slotNames: string[]
 	/** Maps "toNodeId:toPort" → wire source for data resolution at runtime */
 	wireMap: Record<string, WireSource>
+	/** All graph node ids that may receive data wires, including subgraph calls and control nodes. */
+	wireTargetNodeIds: string[]
 }
 
 // ─── Compiler ─────────────────────────────────────────────────────────────────
@@ -126,6 +128,10 @@ export class GraphCompiler {
 		this.reset()
 		this.buildMaps(graph.nodes, graph.edges)
 		this.subgraphIndexById = new Map((subgraphs ?? []).map((sg, index) => [sg.id, index]))
+		const allDataWires = [
+			...(dataWires ?? []),
+			...(subgraphs ?? []).flatMap((subgraph) => subgraph.dataWires ?? []),
+		]
 
 		// Compile main graph first so the VM starts at the automation entry point.
 		this.compileFromEntry(graph.entryNodeId)
@@ -153,8 +159,8 @@ export class GraphCompiler {
 
 		// Build wire map: "toNodeId:toPort" → { fromNodeId, fromPort }
 		const wireMap: Record<string, WireSource> = {}
-		if (dataWires) {
-			for (const wire of dataWires) {
+		if (allDataWires.length) {
+			for (const wire of allDataWires) {
 				wireMap[`${wire.toNode}:${wire.toPort}`] = {
 					fromNodeId: wire.fromNode,
 					fromPort: wire.fromPort,
@@ -169,6 +175,12 @@ export class GraphCompiler {
 			localSlotCount: this.nextSlot,
 			slotNames,
 			wireMap,
+			wireTargetNodeIds: [
+				...new Set([
+					...graph.nodes.map((node) => node.id),
+					...(subgraphs ?? []).flatMap((subgraph) => subgraph.nodes.map((node) => node.id)),
+				]),
+			],
 		}
 	}
 
@@ -523,7 +535,12 @@ export class GraphCompiler {
 
 		this.compileFromEntry(sg.entryNodeId)
 		// Implicit return at end
-		this.emit({ op: OpCode.RET, arg1: undefined })
+		const implicitOutputs = Object.fromEntries(
+			(sg.outputs ?? [])
+				.filter((output) => output.expression)
+				.map((output) => [output.name, output.expression])
+		)
+		this.emit({ op: OpCode.RET, arg1: Object.keys(implicitOutputs).length ? implicitOutputs : undefined })
 
 		// Restore maps
 		this.edgeMap = prevEdgeMap

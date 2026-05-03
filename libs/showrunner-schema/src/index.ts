@@ -16,7 +16,7 @@ export * from "./ipc/trigger"
 export * from "./ipc/plugin"
 
 export * from "./types/profile"
-export * from "./types/sequence"
+export * from "./types/execution"
 export * from "./types/resource"
 export * from "./types/account"
 export * from "./types/queues"

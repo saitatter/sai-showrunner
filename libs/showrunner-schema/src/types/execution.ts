@@ -18,18 +18,6 @@ export interface ExecutionContext {
 	contextState: Record<string, any>
 }
 
-/** @deprecated Use AutomationSource. */
-export type SequenceSource = AutomationSource
-
-/** @deprecated Use AutomationProvider. */
-export type SequenceProvider = AutomationProvider
-
-/** @deprecated Use QueuedAutomation. */
-export type QueuedSequence = QueuedAutomation
-
-/** @deprecated Use ExecutionContext. */
-export type SequenceContext = ExecutionContext
-
 export interface ActionInfo {
 	id: string
 	plugin: string

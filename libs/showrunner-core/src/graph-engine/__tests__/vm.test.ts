@@ -276,10 +276,10 @@ describe("GraphVM", () => {
 	})
 
 	describe("debugger hooks", () => {
-		it("calls sequenceStarted and sequenceEnded", async () => {
+		it("calls executionStarted and executionEnded", async () => {
 			const dbg = {
-				sequenceStarted: vi.fn(),
-				sequenceEnded: vi.fn(),
+				executionStarted: vi.fn(),
+				executionEnded: vi.fn(),
 				markStart: vi.fn(),
 				markEnd: vi.fn(),
 				logResult: vi.fn(),
@@ -289,14 +289,14 @@ describe("GraphVM", () => {
 			const vm = new GraphVM(program, { contextState: {} }, dbg)
 			await vm.execute()
 
-			expect(dbg.sequenceStarted).toHaveBeenCalledOnce()
-			expect(dbg.sequenceEnded).toHaveBeenCalledOnce()
+			expect(dbg.executionStarted).toHaveBeenCalledOnce()
+			expect(dbg.executionEnded).toHaveBeenCalledOnce()
 		})
 
 		it("reports global VM errors with a global node id", async () => {
 			const dbg = {
-				sequenceStarted: vi.fn(),
-				sequenceEnded: vi.fn(),
+				executionStarted: vi.fn(),
+				executionEnded: vi.fn(),
 				markStart: vi.fn(),
 				markEnd: vi.fn(),
 				logResult: vi.fn(),

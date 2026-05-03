@@ -65,11 +65,11 @@ export class GraphVM {
 	 * Run the program to completion. Returns "complete", "aborted", or "error".
 	 */
 	async execute(): Promise<VMCompletion> {
-		this.dbg?.sequenceStarted()
+		this.dbg?.executionStarted()
 		try {
 			while (this.pc < this.program.instructions.length) {
 				if (this.aborted || this.abortSignal?.aborted) {
-					this.dbg?.sequenceEnded()
+					this.dbg?.executionEnded()
 					return "aborted"
 				}
 
@@ -77,11 +77,11 @@ export class GraphVM {
 				const advance = await this.step(instr)
 				if (advance) this.pc++
 			}
-			this.dbg?.sequenceEnded()
+			this.dbg?.executionEnded()
 			return "complete"
 		} catch (err) {
 			this.dbg?.logError?.("__global", err)
-			this.dbg?.sequenceEnded()
+			this.dbg?.executionEnded()
 			return "error"
 		}
 	}
@@ -246,8 +246,7 @@ export class GraphVM {
 		const resolved = structuredClone(config)
 
 		for (const { toPort, source } of wires) {
-			const sourceResult = this.nodeResults.get(source.fromNodeId)
-			setPathValue(resolved, toPort, getPathValue(sourceResult, source.fromPort))
+			setPathValue(resolved, toPort, this.resolveWireSource(source))
 		}
 
 		return resolved
@@ -271,16 +270,29 @@ export class GraphVM {
 
 		// Set parameter values from inputs — map by name for reliable binding
 		const inputs = instr.arg1 as Record<string, Expression> | undefined
-		if (inputs) {
-			for (let i = 0; i < sg.paramNames.length; i++) {
-				const paramName = sg.paramNames[i]
-				if (paramName && inputs[paramName]) {
-					this.locals[sg.paramSlots[i]] = this.evalExpr(inputs[paramName])
-				}
+		const wiredInputs = new Map((this.nodeWireInputs.get(instr.nodeId ?? "") ?? []).map((wire) => [wire.toPort, wire.source]))
+		for (let i = 0; i < sg.paramNames.length; i++) {
+			const paramName = sg.paramNames[i]
+			if (!paramName) continue
+			const wiredSource = wiredInputs.get(paramName)
+			if (wiredSource) {
+				this.locals[sg.paramSlots[i]] = this.resolveWireSource(wiredSource)
+			} else if (inputs?.[paramName]) {
+				this.locals[sg.paramSlots[i]] = this.evalExpr(inputs[paramName])
 			}
 		}
 
 		this.pc = sg.entryPC
+	}
+
+	private resolveWireSource(source: WireSource) {
+		if (source.fromNodeId.startsWith("__param:")) {
+			const slot = this.localSlotsByName.get(source.fromNodeId.slice("__param:".length))
+			const value = slot == null ? undefined : this.locals[slot]
+			return source.fromPort === "value" ? value : getPathValue(value, source.fromPort)
+		}
+		const sourceResult = this.nodeResults.get(source.fromNodeId)
+		return getPathValue(sourceResult, source.fromPort)
 	}
 
 	private execReturn(instr: Instruction) {
@@ -333,7 +345,7 @@ export class GraphVM {
 
 function buildNodeWireInputs(program: Program): Map<string, Array<{ toPort: string; source: WireSource }>> {
 	const byNode = new Map<string, Array<{ toPort: string; source: WireSource }>>()
-	const nodeIds = [...new Set(program.actionNodes.map((node) => node.id))].sort((a, b) => b.length - a.length)
+	const nodeIds = [...new Set(program.wireTargetNodeIds ?? program.actionNodes.map((node) => node.id))].sort((a, b) => b.length - a.length)
 
 	for (const [wireKey, source] of Object.entries(program.wireMap ?? {})) {
 		const nodeId = nodeIds.find((id) => wireKey.startsWith(`${id}:`))

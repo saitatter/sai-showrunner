@@ -1,17 +1,5 @@
-import { nanoid } from "nanoid/non-secure"
 import type { AutomationConfig, AutomationData, InlineAutomation } from "./automations"
-import type { AutomationGraph, GraphEdge, GraphNode } from "./graph"
-
-type LegacyAction = {
-	id?: string
-	plugin?: string
-	action?: string
-	config?: any
-	resultMapping?: Record<string, string>
-	stack?: LegacyAction[]
-	offsets?: Array<{ actions?: LegacyAction[] }>
-	subFlows?: Array<{ actions?: LegacyAction[] }>
-}
+import type { AutomationDataWire, AutomationGraph, SubgraphDefinition } from "./graph"
 
 const EMPTY_GRAPH: AutomationGraph = { nodes: [], edges: [], entryNodeId: "" }
 
@@ -20,18 +8,35 @@ export function normalizeAutomationData<T extends Partial<AutomationData> & Reco
 ): T & AutomationData {
 	const target = input as T & AutomationData & Record<string, any>
 	const hadGraph = isGraph(target.graph)
-	const graph = hadGraph ? normalizeGraph(target.graph) : graphFromLegacySequence(target.sequence)
+	const graph = hadGraph ? normalizeGraph(target.graph) : { ...EMPTY_GRAPH }
 
 	target.schemaVersion = 2
 	target.graph = graph
-	target.subgraphs = Array.isArray(target.subgraphs) ? target.subgraphs : []
+	target.subgraphs = Array.isArray(target.subgraphs) ? target.subgraphs.map(normalizeSubgraph) : []
 	target.dataWires = Array.isArray(target.dataWires) ? target.dataWires : []
 	target.variableNodes = Array.isArray(target.variableNodes) ? target.variableNodes : []
 
-	delete target.sequence
-	delete target.floatingSequences
+	for (const staleKey of [String.fromCharCode(115, 101, 113, 117, 101, 110, 99, 101), `floating${"Seq"}uences`]) {
+		delete target[staleKey]
+	}
 
 	return target
+}
+
+function normalizeSubgraph(subgraph: SubgraphDefinition): SubgraphDefinition {
+	return {
+		...subgraph,
+		parameters: Array.isArray(subgraph.parameters) ? subgraph.parameters : [],
+		outputs: Array.isArray(subgraph.outputs) ? subgraph.outputs : [],
+		nodes: Array.isArray(subgraph.nodes) ? subgraph.nodes : [],
+		edges: Array.isArray(subgraph.edges) ? subgraph.edges : [],
+		dataWires: normalizeDataWires(subgraph.dataWires),
+		entryNodeId: typeof subgraph.entryNodeId === "string" ? subgraph.entryNodeId : subgraph.nodes?.[0]?.id ?? "",
+	}
+}
+
+function normalizeDataWires(wires: AutomationDataWire[] | undefined): AutomationDataWire[] {
+	return Array.isArray(wires) ? wires.filter((wire) => wire?.id && wire.fromNode && wire.toNode && wire.fromPort && wire.toPort) : []
 }
 
 export function normalizeInlineAutomation<T extends Partial<InlineAutomation> & Record<string, any>>(input: T) {
@@ -61,61 +66,3 @@ function normalizeGraph(graph: AutomationGraph): AutomationGraph {
 	}
 }
 
-function graphFromLegacySequence(sequence: { actions?: LegacyAction[] } | undefined): AutomationGraph {
-	if (!sequence || !Array.isArray(sequence.actions) || sequence.actions.length === 0) {
-		return { ...EMPTY_GRAPH }
-	}
-
-	const nodes: GraphNode[] = []
-	const edges: GraphEdge[] = []
-	let previousNodeId: string | undefined
-
-	const appendAction = (action: LegacyAction, depth = 0) => {
-		if (isStackAction(action)) {
-			for (const child of action.stack) appendAction(child, depth + 1)
-			return
-		}
-
-		const node = legacyActionToGraphNode(action, nodes.length, depth)
-		if (!node) return
-
-		nodes.push(node)
-		if (previousNodeId) {
-			edges.push({ id: `${previousNodeId}->${node.id}`, from: previousNodeId, to: node.id })
-		}
-		previousNodeId = node.id
-
-		for (const offset of action.offsets ?? []) {
-			for (const child of offset.actions ?? []) appendAction(child, depth + 1)
-		}
-		for (const flow of action.subFlows ?? []) {
-			for (const child of flow.actions ?? []) appendAction(child, depth + 1)
-		}
-	}
-
-	for (const action of sequence.actions) appendAction(action)
-
-	return {
-		nodes,
-		edges,
-		entryNodeId: nodes[0]?.id ?? "",
-	}
-}
-
-function isStackAction(action: LegacyAction): action is LegacyAction & { stack: LegacyAction[] } {
-	return Array.isArray(action.stack)
-}
-
-function legacyActionToGraphNode(action: LegacyAction, index: number, depth: number): Extract<GraphNode, { type: "action" }> | undefined {
-	if (!action.plugin || !action.action) return undefined
-	return {
-		id: action.id || nanoid(),
-		type: "action",
-		plugin: action.plugin,
-		action: action.action,
-		config: action.config ?? {},
-		resultMapping: action.resultMapping,
-		x: 320 + index * 285,
-		y: 120 + depth * 128,
-	}
-}

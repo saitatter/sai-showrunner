@@ -7,7 +7,7 @@ function makeGraph(nodes: GraphNode[], edges: GraphEdge[], entryNodeId: string):
 }
 
 describe("GraphCompiler", () => {
-	describe("linear sequence", () => {
+	describe("linear graph", () => {
 		it("compiles single action to EXEC + HALT", () => {
 			const graph = makeGraph(
 				[{ id: "a1", type: "action", plugin: "test", action: "say", config: {}, x: 0, y: 0 }],

@@ -6,8 +6,8 @@ import { Service } from "../util/service"
  * Used by both GraphVM and the test runner UI.
  */
 export interface ExecutionDebugger {
-	sequenceStarted(): void
-	sequenceEnded(): void
+	executionStarted(): void
+	executionEnded(): void
 	markStart(id: string): void
 	markEnd(id: string): void
 	logResult(id: string, result: any): void

@@ -122,6 +122,14 @@
 					<button type="button" aria-label="Close" @click="closeCanvasSearch"><i class="mdi mdi-close" /></button>
 				</div>
 
+				<div v-if="activeSubgraph" class="node-automation__subgraph-breadcrumb">
+					<button type="button" @click="openMainCanvas">
+						<i class="mdi mdi-arrow-left" /> Main graph
+					</button>
+					<span>/</span>
+					<strong>{{ activeSubgraph.name || "Unnamed Subgraph" }}</strong>
+					<small>{{ activeSubgraph.nodes.length }} nodes, {{ activeSubgraph.dataWires?.length ?? 0 }} data wires</small>
+				</div>
 
 				<div
 					class="node-automation__surface"
@@ -201,7 +209,7 @@
 							v-for="wire in dataWirePaths"
 							:key="`dw:${wire.id}`"
 							class="node-automation__data-wire"
-							:class="{ selected: selectedDataWireId === wire.id, removing: removingWireIds.has(wire.id) }"
+							:class="{ selected: selectedDataWireId === wire.id, removing: removingWireIds.has(wire.id), invalid: wire.valid === false }"
 							:d="wire.path"
 							:stroke="wire.color"
 							vector-effect="non-scaling-stroke"
@@ -261,9 +269,9 @@
 								'preview-active': playheadNodeId === node.id,
 								'search-match': canvasSearchMatchIds.has(node.id),
 								'search-dimmed': canvasSearchQuery && !canvasSearchMatchIds.has(node.id),
-								'test-running': activeTestSequence?.activeIds?.[node.id] != null,
-								'test-success': !activeTestSequence?.activeIds?.[node.id] && activeTestSequence?.nodeResults?.[node.id] != null && !activeTestSequence?.nodeErrors?.[node.id],
-								'test-error': !!activeTestSequence?.nodeErrors?.[node.id],
+								'test-running': activeTestExecution?.activeIds?.[node.id] != null,
+								'test-success': !activeTestExecution?.activeIds?.[node.id] && activeTestExecution?.nodeResults?.[node.id] != null && !activeTestExecution?.nodeErrors?.[node.id],
+								'test-error': !!activeTestExecution?.nodeErrors?.[node.id],
 							},
 						]"
 						:style="{ transform: `translate(${node.x}px, ${node.y}px)`, height: `${node.height}px`, width: `${node.width ?? NODE_WIDTH}px` }"
@@ -282,7 +290,7 @@
 					>
 						<span
 							class="node-automation__handle node-automation__handle--in"
-							:class="{ 'connectable': !!model.graph }"
+							:class="{ 'connectable': !!activeGraph }"
 						/>
 						<span class="node-automation__node-icon">
 							<i :class="node.icon" />
@@ -309,25 +317,25 @@
 								@dblclick.stop="node.kind === 'variable' && startInlineEdit(node.id)"
 							>{{ node.subtitle }}</small>
 						</span>
-						<span v-if="node.kind === 'trigger'" class="node-automation__node-run" title="Run automation" @click.stop="runMainSequence">
+						<span v-if="node.kind === 'trigger'" class="node-automation__node-run" title="Run automation" @click.stop="runMainExecution">
 							<i class="mdi mdi-play" />
 						</span>
 						<span v-if="node.badge" class="node-automation__node-badge">{{ node.badge }}</span>
 						<span
-							v-if="activeTestSequence?.nodeErrors?.[node.id]"
+							v-if="activeTestExecution?.nodeErrors?.[node.id]"
 							class="node-automation__test-badge node-automation__test-badge--error"
-							:title="activeTestSequence.nodeErrors[node.id]"
+							:title="activeTestExecution.nodeErrors[node.id]"
 						>✗</span>
 						<span
-							v-else-if="activeTestSequence?.nodeResults?.[node.id] != null"
+							v-else-if="activeTestExecution?.nodeResults?.[node.id] != null"
 							class="node-automation__test-badge node-automation__test-badge--ok"
-							:title="JSON.stringify(activeTestSequence.nodeResults[node.id], null, 2)"
+							:title="JSON.stringify(activeTestExecution.nodeResults[node.id], null, 2)"
 						>✓</span>
 						<span
-							v-if="activeTestSequence?.nodeDurations?.[node.id] != null"
+							v-if="activeTestExecution?.nodeDurations?.[node.id] != null"
 							class="node-automation__test-duration"
-							:title="`Last test-run duration: ${formatNodeDuration(activeTestSequence.nodeDurations[node.id])}`"
-						>{{ formatNodeDuration(activeTestSequence.nodeDurations[node.id]) }}</span>
+							:title="`Last test-run duration: ${formatNodeDuration(activeTestExecution.nodeDurations[node.id])}`"
+						>{{ formatNodeDuration(activeTestExecution.nodeDurations[node.id]) }}</span>
 						<dl v-if="node.configLines?.length" class="node-automation__node-config">
 							<div v-for="(line, li) in node.configLines" :key="li" class="node-automation__node-config-line">
 								<dt>{{ line.label }}</dt>
@@ -384,9 +392,9 @@
 						<span
 							v-if="node.id !== 'trigger'"
 							class="node-automation__handle node-automation__handle--out"
-							:class="{ 'connectable': !!model.graph }"
+							:class="{ 'connectable': !!activeGraph }"
 							title="Drag to connect to another node"
-							@pointerdown.stop="model.graph && startExecEdgeDrag(node.id, undefined, $event)"
+							@pointerdown.stop="activeGraph && startExecEdgeDrag(node.id, undefined, $event)"
 						/>
 						<span
 							class="node-automation__resize-handle"
@@ -773,12 +781,12 @@
 										</label>
 										<label v-if="expressionMode(selectedControlNode.condition) === 'variable' || expressionMode(selectedControlNode.condition) === 'equals'">
 											<span>Variable</span>
-											<input
-												type="text"
+											<expression-text-input
 												list="node-expression-suggestions"
-												:value="expressionVariable(selectedControlNode.condition)"
+												:model-value="expressionVariable(selectedControlNode.condition)"
 												placeholder="message.approved"
-												@change="setControlExpressionVariable(selectedControlNode, 'condition', ($event.target as HTMLInputElement).value)"
+												:invalid="Boolean(expressionValidationMessage(selectedControlNode.condition))"
+												@change="setControlExpressionVariable(selectedControlNode, 'condition', $event)"
 											/>
 										</label>
 										<label v-if="expressionMode(selectedControlNode.condition) === 'equals'">
@@ -850,12 +858,12 @@
 										</label>
 										<label>
 											<span>Collection variable</span>
-											<input
-												type="text"
+											<expression-text-input
 												list="node-expression-suggestions"
-												:value="expressionVariable(selectedControlNode.collection)"
+												:model-value="expressionVariable(selectedControlNode.collection)"
 												placeholder="items"
-												@change="setControlExpressionVariable(selectedControlNode, 'collection', ($event.target as HTMLInputElement).value)"
+												:invalid="Boolean(expressionValidationMessage(selectedControlNode.collection))"
+												@change="setControlExpressionVariable(selectedControlNode, 'collection', $event)"
 											/>
 										</label>
 										<div class="node-automation__expression-summary" :class="{ invalid: Boolean(expressionValidationMessage(selectedControlNode.collection)) }">
@@ -866,12 +874,12 @@
 									<template v-else-if="selectedControlNode.type === 'switch'">
 										<label>
 											<span>Switch variable</span>
-											<input
-												type="text"
+											<expression-text-input
 												list="node-expression-suggestions"
-												:value="expressionVariable(selectedControlNode.expression)"
+												:model-value="expressionVariable(selectedControlNode.expression)"
 												placeholder="platform"
-												@change="setControlExpressionVariable(selectedControlNode, 'expression', ($event.target as HTMLInputElement).value)"
+												:invalid="Boolean(expressionValidationMessage(selectedControlNode.expression))"
+												@change="setControlExpressionVariable(selectedControlNode, 'expression', $event)"
 											/>
 										</label>
 										<div class="node-automation__expression-summary" :class="{ invalid: Boolean(expressionValidationMessage(selectedControlNode.expression)) }">
@@ -1003,6 +1011,9 @@
 									{{ sg.nodes.length }} node{{ sg.nodes.length === 1 ? '' : 's' }}
 								</span>
 								<div class="node-automation__subgraph-tools">
+									<button type="button" title="Open subgraph canvas" @click="openSubgraphCanvas(sg.id)">
+										<i class="mdi mdi-open-in-app" /> Open
+									</button>
 									<button type="button" title="Focus subgraph details" @click="focusSubgraph(sg.id)">
 										<i class="mdi mdi-crosshairs-gps" /> Focus
 									</button>
@@ -1056,16 +1067,16 @@
 					</ol>
 				</section>
 
-				<section v-if="activeTestSequence?.executionPath?.length" class="node-automation__context-section">
+				<section v-if="activeTestExecution?.executionPath?.length" class="node-automation__context-section">
 					<div class="node-automation__execution-header">
 						<span><i class="mdi mdi-map-marker-path" /> Execution Path</span>
-						<small>{{ activeTestSequence.running ? "Running" : "Last run" }}</small>
+						<small>{{ activeTestExecution.running ? "Running" : "Last run" }}</small>
 					</div>
 					<ol class="node-automation__execution-path">
-						<li v-for="nodeId in activeTestSequence.executionPath" :key="`${nodeId}:${activeTestSequence.nodeDurations[nodeId] ?? 'active'}`">
+						<li v-for="nodeId in activeTestExecution.executionPath" :key="`${nodeId}:${activeTestExecution.nodeDurations[nodeId] ?? 'active'}`">
 							<span>{{ nodeTitleById(nodeId) }}</span>
-							<small v-if="activeTestSequence.nodeErrors[nodeId]" class="error">{{ activeTestSequence.nodeErrors[nodeId] }}</small>
-							<small v-else-if="activeTestSequence.nodeDurations[nodeId] != null">{{ formatNodeDuration(activeTestSequence.nodeDurations[nodeId]) }}</small>
+							<small v-if="activeTestExecution.nodeErrors[nodeId]" class="error">{{ activeTestExecution.nodeErrors[nodeId] }}</small>
+							<small v-else-if="activeTestExecution.nodeDurations[nodeId] != null">{{ formatNodeDuration(activeTestExecution.nodeDurations[nodeId]) }}</small>
 							<small v-else>running</small>
 						</li>
 					</ol>
@@ -1105,6 +1116,7 @@ import {
 	type AutomationGraph,
 	type GraphNodeType,
 	type SubgraphParamType,
+	type SubgraphDefinition,
 } from "ShowRunner-schema"
 import { useNodeActivity } from "./useNodeActivity"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
@@ -1114,6 +1126,7 @@ import { useAutomationPreview } from "./useAutomationPreview"
 import { usePortConnections, portTypeColor, type DataWire, type PortDef } from "./usePortConnections"
 import { useExecEdges } from "./useExecEdges"
 import { useClipboard } from "./useClipboard"
+import ExpressionTextInput from "./ExpressionTextInput.vue"
 import {
 	type ConfigLine,
 	type NodeData,
@@ -1126,6 +1139,7 @@ import {
 	GRAPH_NODE_INFO,
 	summarizeExpression,
 	buildGraph,
+	buildGraphFromAutomationGraph,
 	getNodeLane,
 } from "./useNodeRendering"
 
@@ -1160,17 +1174,25 @@ const actionsOpen = ref(false)
 const activityOpen = ref(true)
 const subgraphsOpen = ref(false)
 const focusedSubgraphId = ref<string>()
+const activeSubgraphId = ref<string>()
 const recentlyUsed = ref<{ key: string; kind: "action" | "trigger"; name: string; icon: string; color: string }[]>([])
 const MAX_RECENT = 5
 const { activityLog, logActivity } = useNodeActivity()
 const pluginStore = usePluginStore()
 const commitUndo = useCommitUndo()
 const actionQueueStore = useActionQueueStore()
-const activeTestSequenceId = ref<string>()
-const activeTestSequence = computed(() => {
-	if (!activeTestSequenceId.value) return undefined
-	return actionQueueStore.activeTestSequences[activeTestSequenceId.value]
+const activeTestExecutionId = ref<string>()
+const activeTestExecution = computed(() => {
+	if (!activeTestExecutionId.value) return undefined
+	return actionQueueStore.activeTestExecutions[activeTestExecutionId.value]
 })
+const subgraphsList = computed(() => model.value.subgraphs ?? [])
+const activeSubgraph = computed(() => {
+	if (!activeSubgraphId.value) return undefined
+	return model.value.subgraphs?.find((subgraph) => subgraph.id === activeSubgraphId.value)
+})
+const isEditingSubgraph = computed(() => Boolean(activeSubgraph.value))
+const activeGraph = computed<AutomationGraph | undefined>(() => activeSubgraph.value ?? model.value.graph)
 
 const nodePositions = computed(() => {
 	if (!view.value) return {}
@@ -1185,11 +1207,19 @@ const nodeSizes = computed(() => {
 const dataWires = computed({
 	get: () => {
 		if (!model.value) return []
+		if (activeSubgraph.value) {
+			activeSubgraph.value.dataWires ??= []
+			return activeSubgraph.value.dataWires
+		}
 		model.value.dataWires ??= []
 		return model.value.dataWires!
 	},
 	set: (v: AutomationDataWire[]) => {
 		if (!model.value) return
+		if (activeSubgraph.value) {
+			activeSubgraph.value.dataWires = v
+			return
+		}
 		model.value.dataWires = v
 	},
 })
@@ -1213,7 +1243,12 @@ const CONSTANT_TYPE_INFO: Record<string, { icon: string; portType: string; color
 }
 const SUBGRAPH_PARAM_TYPES: SubgraphParamType[] = ["string", "number", "boolean", "array", "object", "color", "any"]
 
-const graph = computed(() => buildGraph(model.value, pluginStore.pluginMap, getPreviewConfiguredDurationSeconds))
+const graph = computed(() => {
+	if (activeSubgraph.value) {
+		return buildGraphFromAutomationGraph(activeSubgraph.value, pluginStore.pluginMap, model.value.subgraphs ?? [])
+	}
+	return buildGraph(model.value, pluginStore.pluginMap, getPreviewConfiguredDurationSeconds)
+})
 const nodes = computed(() => {
 	const actionNodes = graph.value.nodes.map((node) => ({
 		...node,
@@ -1261,7 +1296,7 @@ const screenReaderAnnouncement = computed(() => {
 	return `${selectedNodeIds.value.size} nodes selected`
 })
 const edges = computed<EdgeData[]>(() => {
-	if (!model.value.graph) return []
+	if (!activeGraph.value) return []
 	// Build edges from the graph data, computing SVG paths
 	const nodeMap = new Map(nodes.value.map((n) => [n.id, n]))
 	return graph.value.edges.map((e) => {
@@ -1289,8 +1324,8 @@ const edges = computed<EdgeData[]>(() => {
 })
 const currentPreviewRouteLabel = computed(() => {
 	const nodeId = currentPreviewStep.value?.node.id
-	if (!nodeId || !model.value.graph) return undefined
-	const incoming = model.value.graph.edges.find((edge) => edge.to === nodeId)
+	if (!nodeId || !activeGraph.value) return undefined
+	const incoming = activeGraph.value.edges.find((edge) => edge.to === nodeId)
 	return incoming ? getEdgeLabel(incoming) : undefined
 })
 const lanes = computed<LaneData[]>(() => {
@@ -1328,7 +1363,7 @@ const selectedVariableNode = computed(() => {
 })
 const selectedControlNode = computed(() => {
 	if (!selectedNodeId.value) return undefined
-	const node = model.value.graph?.nodes.find((item) => item.id === selectedNodeId.value)
+	const node = activeGraph.value?.nodes.find((item) => item.id === selectedNodeId.value)
 	return node && node.type !== "action" ? node : undefined
 })
 const previewNodes = computed(() => nodes.value.filter((node) => node.id !== "trigger").sort((a, b) => a.x - b.x || a.y - b.y))
@@ -1364,14 +1399,15 @@ const {
 } = useAutomationPreview(model, previewNodes)
 const selectedActionInfo = computed(() => {
 	if (!selectedNodeId.value || selectedNodeId.value === "trigger") return undefined
-	const index = model.value.graph?.nodes.findIndex((node) => node.id === selectedNodeId.value && node.type === "action") ?? -1
+	const index = activeGraph.value?.nodes.findIndex((node) => node.id === selectedNodeId.value && node.type === "action") ?? -1
 	if (index < 0) return undefined
-	return model.value.graph!.nodes[index] as Extract<GraphNode, { type: "action" }>
+	return activeGraph.value!.nodes[index] as Extract<GraphNode, { type: "action" }>
 })
 const selectedActionPath = computed(() => {
-	if (!selectedActionInfo.value || !model.value.graph) return undefined
-	const index = model.value.graph.nodes.findIndex((node) => node.id === selectedActionInfo.value?.id)
-	return index >= 0 ? `graph.nodes[${index}]` : undefined
+	if (!selectedActionInfo.value || !activeGraph.value) return undefined
+	const index = activeGraph.value.nodes.findIndex((node) => node.id === selectedActionInfo.value?.id)
+	if (index < 0) return undefined
+	return activeSubgraph.value ? `subgraphs[${model.value.subgraphs?.findIndex((sg) => sg.id === activeSubgraph.value?.id) ?? 0}].nodes[${index}]` : `graph.nodes[${index}]`
 })
 const selectedActionDef = computed(() => {
 	return selectedActionInfo.value
@@ -1467,7 +1503,7 @@ const {
 	startPan,
 	getCanvasPointFromClient: getCanvasPointFromClientPosition,
 } = useNodeCanvas(view, graphBounds, commitUndo)
-const graphRef = computed(() => model.value?.graph)
+const graphRef = computed(() => activeGraph.value)
 const {
 	execEdgeDrag,
 	execDragWirePath,
@@ -1478,7 +1514,7 @@ const {
 	copySelectedNodes,
 	cutSelectedNodes,
 	pasteNodes,
-} = useClipboard(model, selectedNodeIds, selectedNodeId, variableNodes, dataWires, nodePositions, canvasRef, zoom, commitUndo, logActivity, clearSelection)
+} = useClipboard(model, graphRef, selectedNodeIds, selectedNodeId, variableNodes, dataWires, nodePositions, canvasRef, zoom, commitUndo, logActivity, clearSelection)
 const {
 	contextMenu,
 	contextMenuQuery,
@@ -1524,19 +1560,20 @@ function isPortConnected(nodeId: string, portKey: string, kind: "in" | "out"): b
 	return connectedPorts.value.has(`${nodeId}:${portKey}:${kind}`)
 }
 
-function dataWireTitle(wire: DataWire) {
+function dataWireTitle(wire: DataWire & { validationMessage?: string }) {
 	const value = getWireRuntimeValue(wire)
 	const fromNode = nodeTitleById(wire.fromNode)
 	const toNode = nodeTitleById(wire.toNode)
-	if (value === undefined) return `${fromNode}.${wire.fromPort} -> ${toNode}.${wire.toPort}`
-	return `${fromNode}.${wire.fromPort} -> ${toNode}.${wire.toPort}\nValue: ${summarizeRuntimeValue(value)}`
+	const validation = "validationMessage" in wire && wire.validationMessage ? `\n${wire.validationMessage}` : ""
+	if (value === undefined) return `${fromNode}.${wire.fromPort} -> ${toNode}.${wire.toPort}${validation}`
+	return `${fromNode}.${wire.fromPort} -> ${toNode}.${wire.toPort}${validation}\nValue: ${summarizeRuntimeValue(value)}`
 }
 
 function getWireRuntimeValue(wire: DataWire) {
 	const variable = variableNodes.value.find((node) => node.id === wire.fromNode)
 	if (variable && wire.fromPort === "value") return variable.value
 
-	const result = activeTestSequence.value?.nodeResults?.[wire.fromNode]
+	const result = activeTestExecution.value?.nodeResults?.[wire.fromNode]
 	return getRuntimePathValue(result, wire.fromPort)
 }
 
@@ -1568,8 +1605,8 @@ function summarizeRuntimeValue(value: unknown) {
 }
 
 function isExecPortConnected(nodeId: string, portKey: string): boolean {
-	if (!model.value.graph) return false
-	return model.value.graph.edges.some((e) => e.from === nodeId && e.port === portKey)
+	if (!activeGraph.value) return false
+	return activeGraph.value.edges.some((e) => e.from === nodeId && e.port === portKey)
 }
 
 function getEdgeLabel(edgeOrPort?: { from?: string; port?: string } | string) {
@@ -1582,7 +1619,7 @@ function getEdgeLabel(edgeOrPort?: { from?: string; port?: string } | string) {
 	if (port === "body") return "loop body"
 	if (port === "next") return "done"
 	if (port.startsWith("case:")) {
-		const source = model.value.graph?.nodes.find((node) => node.id === from && node.type === "switch")
+		const source = activeGraph.value?.nodes.find((node) => node.id === from && node.type === "switch")
 		const match = source?.type === "switch" ? source.cases.find((item) => item.port === port) : undefined
 		return match ? `case: ${String(match.value)}` : `case ${port.slice(5)}`
 	}
@@ -1744,7 +1781,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 	if (event.key === "Delete" || event.key === "Backspace") {
 		const hasMultipleActionNodes = selectedNodeIds.value.size > 1 &&
-			[...selectedNodeIds.value].some((id) => id !== "trigger" && model.value.graph?.nodes.some((node) => node.id === id))
+			[...selectedNodeIds.value].some((id) => id !== "trigger" && activeGraph.value?.nodes.some((node) => node.id === id))
 		if (canEditSelectedAction.value || hasMultipleActionNodes) {
 			event.preventDefault()
 			deleteSelectedAction()
@@ -2218,6 +2255,7 @@ async function createDraggedAction(event: DragEvent) {
 }
 
 function ensureGraph() {
+	if (activeSubgraph.value) return activeSubgraph.value
 	model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" }
 	return model.value.graph
 }
@@ -2336,15 +2374,16 @@ function deleteSelectedAction() {
 }
 
 function deleteGraphNodes(ids: string[]) {
-	if (!model.value.graph) return
+	const graph = activeGraph.value
+	if (!graph) return
 	const idSet = new Set(ids)
-	model.value.graph.nodes = model.value.graph.nodes.filter((n) => !idSet.has(n.id))
-	model.value.graph.edges = model.value.graph.edges.filter((e) => !idSet.has(e.from) && !idSet.has(e.to))
+	graph.nodes = graph.nodes.filter((n) => !idSet.has(n.id))
+	graph.edges = graph.edges.filter((e) => !idSet.has(e.from) && !idSet.has(e.to))
 	// Clean data wires too
 	dataWires.value = dataWires.value.filter((w) => !idSet.has(w.fromNode) && !idSet.has(w.toNode))
 	// Fix entry node if deleted
-	if (model.value.graph.entryNodeId && idSet.has(model.value.graph.entryNodeId)) {
-		model.value.graph.entryNodeId = model.value.graph.nodes[0]?.id ?? ""
+	if (graph.entryNodeId && idSet.has(graph.entryNodeId)) {
+		graph.entryNodeId = graph.nodes[0]?.id ?? ""
 	}
 	logActivity("Deleted", `${ids.length} node${ids.length === 1 ? "" : "s"}`)
 	clearSelection()
@@ -2357,7 +2396,7 @@ function deleteSelectedEdge() {
 	const edge = edges.value.find((e) => e.id === edgeId)
 	if (!edge) return
 
-	if (model.value.graph) {
+	if (activeGraph.value) {
 		deleteExecEdge(edgeId)
 		selectedEdgeId.value = undefined
 		return
@@ -2372,7 +2411,7 @@ function canMoveSelectedAction(direction: -1 | 1) {
 function moveSelectedAction(direction: -1 | 1) {
 	const nodeId = selectedActionInfo.value?.id
 	if (!nodeId || !canMoveSelectedAction(direction)) return
-	const node = model.value.graph?.nodes.find((graphNode) => graphNode.id === nodeId)
+	const node = activeGraph.value?.nodes.find((graphNode) => graphNode.id === nodeId)
 	if (!node) return
 	node.x = snapCoordinate(node.x + direction * H_GAP)
 	nodePositions.value[node.id] = { x: node.x, y: node.y }
@@ -2394,8 +2433,6 @@ function getCanvasPointFromClient(clientX: number, clientY: number): NodePositio
 
 // ─── Subgraph Management ──────────────────────────────────────────────────────
 
-const subgraphsList = computed(() => model.value.subgraphs ?? [])
-
 function findSubgraph(id: string) {
 	return model.value.subgraphs?.find((subgraph) => subgraph.id === id)
 }
@@ -2410,6 +2447,7 @@ function addSubgraph() {
 		outputs: [],
 		nodes: [],
 		edges: [],
+		dataWires: [],
 		entryNodeId: "",
 	})
 	focusedSubgraphId.value = id
@@ -2426,6 +2464,24 @@ function focusSubgraph(id: string) {
 	logActivity("Focused subgraph", subgraph.name || id)
 }
 
+function openSubgraphCanvas(id: string) {
+	const subgraph = findSubgraph(id)
+	if (!subgraph) return
+	focusedSubgraphId.value = id
+	activeSubgraphId.value = id
+	subgraph.dataWires ??= []
+	clearSelection()
+	closeContextMenu()
+	subgraphsOpen.value = true
+	logActivity("Opened subgraph canvas", subgraph.name || id)
+}
+
+function openMainCanvas() {
+	activeSubgraphId.value = undefined
+	clearSelection()
+	logActivity("Opened main canvas", model.value.name || "Automation")
+}
+
 function deleteSubgraph(id: string) {
 	if (!model.value.subgraphs) return
 	const idx = model.value.subgraphs.findIndex((s) => s.id === id)
@@ -2437,7 +2493,11 @@ function deleteSubgraph(id: string) {
 				(n) => !(n.type === "subgraphCall" && n.subgraphId === id)
 			)
 		}
+		for (const subgraph of model.value.subgraphs ?? []) {
+			subgraph.nodes = subgraph.nodes.filter((n) => !(n.type === "subgraphCall" && n.subgraphId === id))
+		}
 		if (focusedSubgraphId.value === id) focusedSubgraphId.value = undefined
+		if (activeSubgraphId.value === id) activeSubgraphId.value = undefined
 		logActivity("Deleted", "Subgraph")
 		commitUndo()
 	}
@@ -2524,12 +2584,10 @@ function coerceSubgraphDefault(type: SubgraphParamType, value: unknown) {
 }
 
 function addSubgraphCallNode(subgraphId: string) {
-	if (!model.value.graph) {
-		model.value.graph = { nodes: [], edges: [], entryNodeId: "" }
-	}
+	const graph = ensureGraph()
 	const canvasPoint = contextMenu.value.canvasPoint ?? { x: 100, y: 200 }
 	const id = nanoid()
-	model.value.graph.nodes.push({
+	graph.nodes.push({
 		id,
 		type: "subgraphCall",
 		x: canvasPoint.x,
@@ -2537,6 +2595,7 @@ function addSubgraphCallNode(subgraphId: string) {
 		subgraphId,
 		inputs: {},
 	})
+	if (!graph.entryNodeId) graph.entryNodeId = id
 	focusedSubgraphId.value = subgraphId
 	closeContextMenu()
 	logActivity("Added", "Subgraph Call")
@@ -2544,13 +2603,62 @@ function addSubgraphCallNode(subgraphId: string) {
 }
 
 function openSubgraphFromNode(nodeId: string) {
-	const graphNode = model.value.graph?.nodes.find((node) => node.id === nodeId)
+	const graphNode = activeGraph.value?.nodes.find((node) => node.id === nodeId)
 	if (graphNode?.type !== "subgraphCall") return
-	focusSubgraph(graphNode.subgraphId)
+	openSubgraphCanvas(graphNode.subgraphId)
+}
+
+function sanitizeSubgraphPortName(value: string, fallback: string) {
+	const cleaned = String(value || "")
+		.replace(/\[(\d+)\]/g, "_$1")
+		.replace(/[^a-zA-Z0-9_]/g, "_")
+		.replace(/^_+|_+$/g, "")
+	return cleaned || fallback
+}
+
+function uniqueSubgraphPortName(base: string, used: Set<string>) {
+	let candidate = sanitizeSubgraphPortName(base, "port")
+	let index = 2
+	while (used.has(candidate)) {
+		candidate = `${sanitizeSubgraphPortName(base, "port")}${index}`
+		index += 1
+	}
+	used.add(candidate)
+	return candidate
+}
+
+function portTypeToSubgraphType(type: string | undefined): SubgraphParamType {
+	switch (String(type || "any").toLowerCase()) {
+		case "str":
+		case "string":
+			return "string"
+		case "num":
+		case "number":
+			return "number"
+		case "bool":
+		case "boolean":
+			return "boolean"
+		case "list":
+		case "array":
+			return "array"
+		case "obj":
+		case "object":
+			return "object"
+		case "color":
+			return "color"
+		default:
+			return "any"
+	}
+}
+
+function getPortType(nodeId: string, portKey: string, kind: "in" | "out") {
+	const node = nodes.value.find((item) => item.id === nodeId)
+	const ports = kind === "in" ? node?.inputPorts : node?.outputPorts
+	return ports?.find((port) => port.key === portKey)?.type
 }
 
 function collapseSelectionToSubgraph() {
-	const graph = model.value.graph
+	const graph = activeGraph.value
 	if (!graph) return
 	const selectedGraphIds = new Set(
 		[...selectedNodeIds.value].filter((id) => id !== "trigger" && graph.nodes.some((node) => node.id === id))
@@ -2567,6 +2675,9 @@ function collapseSelectionToSubgraph() {
 	const internalEdges = graph.edges.filter((edge) => selectedGraphIds.has(edge.from) && selectedGraphIds.has(edge.to))
 	const incomingEdges = graph.edges.filter((edge) => !selectedGraphIds.has(edge.from) && selectedGraphIds.has(edge.to))
 	const outgoingEdges = graph.edges.filter((edge) => selectedGraphIds.has(edge.from) && !selectedGraphIds.has(edge.to))
+	const internalDataWires = dataWires.value.filter((wire) => selectedGraphIds.has(wire.fromNode) && selectedGraphIds.has(wire.toNode))
+	const incomingDataWires = dataWires.value.filter((wire) => !selectedGraphIds.has(wire.fromNode) && selectedGraphIds.has(wire.toNode))
+	const outgoingDataWires = dataWires.value.filter((wire) => selectedGraphIds.has(wire.fromNode) && !selectedGraphIds.has(wire.toNode))
 	const entryNodeId = selectedGraphIds.has(graph.entryNodeId)
 		? graph.entryNodeId
 		: selectedNodes.find((node) => !internalEdges.some((edge) => edge.to === node.id))?.id ?? selectedNodes[0]?.id ?? ""
@@ -2574,20 +2685,47 @@ function collapseSelectionToSubgraph() {
 	const y = Math.round(selectedNodes.reduce((sum, node) => sum + (node.y ?? 0), 0) / selectedNodes.length)
 	const subgraphId = nanoid()
 	const callNodeId = nanoid()
+	const usedInputNames = new Set<string>()
+	const usedOutputNames = new Set<string>()
+	const generatedInputs = incomingDataWires.map((wire) => {
+		const name = uniqueSubgraphPortName(wire.toPort, usedInputNames)
+		const type = portTypeToSubgraphType(getPortType(wire.toNode, wire.toPort, "in"))
+		return { wire, name, type }
+	})
+	const generatedOutputs = outgoingDataWires.map((wire) => {
+		const name = uniqueSubgraphPortName(wire.fromPort, usedOutputNames)
+		const type = portTypeToSubgraphType(getPortType(wire.fromNode, wire.fromPort, "out"))
+		return { wire, name, type }
+	})
+	const generatedInputWires: AutomationDataWire[] = generatedInputs.map(({ wire, name }) => ({
+		id: `${subgraphId}:param:${name}->${wire.toNode}:${wire.toPort}`,
+		fromNode: `__param:${name}`,
+		fromPort: "value",
+		toNode: wire.toNode,
+		toPort: wire.toPort,
+	}))
+	const callNodeInputs = Object.fromEntries(
+		generatedInputs.map(({ name }) => [name, { type: "variable", name } satisfies Expression])
+	)
 
 	model.value.subgraphs.push({
 		id: subgraphId,
 		name: `Subgraph ${model.value.subgraphs.length + 1}`,
-		parameters: [],
-		outputs: [],
+		parameters: generatedInputs.map(({ name, type }) => ({ name, type, default: coerceSubgraphDefault(type, undefined) })),
+		outputs: generatedOutputs.map(({ wire, name, type }) => ({
+			name,
+			type,
+			expression: { type: "port", nodeId: wire.fromNode, port: wire.fromPort },
+		})),
 		nodes: structuredClone(selectedNodes),
 		edges: structuredClone(internalEdges),
+		dataWires: [...structuredClone(internalDataWires), ...generatedInputWires],
 		entryNodeId,
 	})
 
 	graph.nodes = [
 		...graph.nodes.filter((node) => !selectedGraphIds.has(node.id)),
-		{ id: callNodeId, type: "subgraphCall", x, y, subgraphId, inputs: {} },
+		{ id: callNodeId, type: "subgraphCall", x, y, subgraphId, inputs: callNodeInputs },
 	]
 	graph.edges = graph.edges.filter((edge) => !selectedGraphIds.has(edge.from) && !selectedGraphIds.has(edge.to))
 	for (const edge of incomingEdges) {
@@ -2598,7 +2736,23 @@ function collapseSelectionToSubgraph() {
 		graph.edges.push({ id: `${callNodeId}:${firstOutgoing.to}`, from: callNodeId, to: firstOutgoing.to })
 	}
 	if (selectedGraphIds.has(graph.entryNodeId)) graph.entryNodeId = callNodeId
-	dataWires.value = dataWires.value.filter((wire) => !selectedGraphIds.has(wire.fromNode) && !selectedGraphIds.has(wire.toNode))
+	dataWires.value = [
+		...dataWires.value.filter((wire) => !selectedGraphIds.has(wire.fromNode) && !selectedGraphIds.has(wire.toNode)),
+		...generatedInputs.map(({ wire, name }) => ({
+			id: `${wire.fromNode}:${wire.fromPort}->${callNodeId}:${name}`,
+			fromNode: wire.fromNode,
+			fromPort: wire.fromPort,
+			toNode: callNodeId,
+			toPort: name,
+		})),
+		...generatedOutputs.map(({ wire, name }) => ({
+			id: `${callNodeId}:${name}->${wire.toNode}:${wire.toPort}`,
+			fromNode: callNodeId,
+			fromPort: name,
+			toNode: wire.toNode,
+			toPort: wire.toPort,
+		})),
+	]
 	focusedSubgraphId.value = subgraphId
 	subgraphsOpen.value = true
 	focusNode(callNodeId)
@@ -2610,9 +2764,7 @@ function addControlFlowNode(type: GraphNodeType) {
 	const id = nanoid()
 
 	// Ensure graph exists on the automation
-	if (!model.value.graph) {
-		model.value.graph = { nodes: [], edges: [], entryNodeId: "" }
-	}
+	const graph = ensureGraph()
 
 	let newNode: GraphNode
 	switch (type) {
@@ -2644,11 +2796,11 @@ function addControlFlowNode(type: GraphNodeType) {
 			return
 	}
 
-	model.value.graph.nodes.push(newNode)
+	graph.nodes.push(newNode)
 
 	// Set entry if first node
-	if (model.value.graph.nodes.length === 1) {
-		model.value.graph.entryNodeId = id
+	if (graph.nodes.length === 1) {
+		graph.entryNodeId = id
 	}
 
 	closeContextMenu()
@@ -2656,8 +2808,8 @@ function addControlFlowNode(type: GraphNodeType) {
 	commitUndo()
 }
 
-async function runMainSequence() {
-	activeTestSequenceId.value = await actionQueueStore.testSequence(model.value)
+async function runMainExecution() {
+	activeTestExecutionId.value = await actionQueueStore.testExecution(model.value)
 }
 
 function formatNodeDuration(durationMs: number) {
@@ -3077,6 +3229,38 @@ onUnmounted(() => {
 	background: rgb(255 255 255 / 0.12);
 }
 
+.node-automation__subgraph-breadcrumb {
+	align-items: center;
+	background: rgb(15 15 15 / 0.9);
+	border: 1px solid #7041a6;
+	border-radius: 6px;
+	color: #f2e8ff;
+	display: flex;
+	gap: 0.45rem;
+	left: 0.75rem;
+	padding: 0.35rem 0.55rem;
+	position: sticky;
+	top: 3.45rem;
+	width: max-content;
+	z-index: 4;
+}
+
+.node-automation__subgraph-breadcrumb button {
+	align-items: center;
+	background: #241333;
+	border: 1px solid #7041a6;
+	border-radius: 4px;
+	color: #f2e8ff;
+	cursor: pointer;
+	display: flex;
+	gap: 0.25rem;
+	padding: 0.3rem 0.55rem;
+}
+
+.node-automation__subgraph-breadcrumb small {
+	color: rgb(255 255 255 / 0.62);
+}
+
 .node-automation__node.search-dimmed {
 	opacity: 0.3;
 }
@@ -3332,6 +3516,12 @@ onUnmounted(() => {
 .node-automation__data-wire.selected {
 	stroke-width: 3.5px;
 	filter: drop-shadow(0 0 4px currentColor);
+}
+
+.node-automation__data-wire.invalid {
+	stroke-dasharray: 8 5;
+	stroke-width: 3px;
+	filter: drop-shadow(0 0 5px rgba(239, 83, 80, 0.6));
 }
 
 .node-automation__data-wire.removing {

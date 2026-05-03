@@ -4,7 +4,7 @@ import { AutomationData } from "ShowRunner-schema"
 import { nanoid } from "nanoid/non-secure"
 import { MaybeRefOrGetter, computed, ref, toValue, inject, ComputedRef, nextTick } from "vue"
 
-export interface TestSequenceData {
+export interface TestExecutionData {
 	running: boolean
 	activeIds: Record<string, number> //Maps active ids to their start time
 	nodeResults: Record<string, any> //Maps node ids to their last execution result
@@ -14,17 +14,17 @@ export interface TestSequenceData {
 }
 
 export const useActionQueueStore = defineStore("actionQueues", () => {
-	const runTestSequence = useIpcCaller<(id: string, automation: AutomationData) => void>(
+	const runTestExecution = useIpcCaller<(id: string, automation: AutomationData) => void>(
 		"actionQueue",
-		"runTestSequence"
+		"runTestExecution"
 	)
-	const stopTestSequence = useIpcCaller<(id: string) => void>("actionQueue", "stopTestSequence")
+	const stopTestExecution = useIpcCaller<(id: string) => void>("actionQueue", "stopTestExecution")
 
-	const activeTestSequences = ref<Record<string, TestSequenceData>>({})
+	const activeTestExecutions = ref<Record<string, TestExecutionData>>({})
 
 	async function initialize() {
-		handleIpcMessage("actionQueue", "markTestSequenceStart", (event, sequenceId: string) => {
-			activeTestSequences.value[sequenceId] = {
+		handleIpcMessage("actionQueue", "markTestExecutionStart", (event, executionId: string) => {
+			activeTestExecutions.value[executionId] = {
 				running: true,
 				activeIds: {},
 				nodeResults: {},
@@ -34,15 +34,15 @@ export const useActionQueueStore = defineStore("actionQueues", () => {
 			}
 		})
 
-		handleIpcMessage("actionQueue", "markTestSequenceEnd", (event, sequenceId: string) => {
-			const testRun = activeTestSequences.value[sequenceId]
+		handleIpcMessage("actionQueue", "markTestExecutionEnd", (event, executionId: string) => {
+			const testRun = activeTestExecutions.value[executionId]
 			if (!testRun) return
 			testRun.running = false
 			testRun.activeIds = {}
 		})
 
-		handleIpcMessage("actionQueue", "markTestActionStart", (event, sequenceId: string, id: string) => {
-			const testRun = activeTestSequences.value[sequenceId]
+		handleIpcMessage("actionQueue", "markTestActionStart", (event, executionId: string, id: string) => {
+			const testRun = activeTestExecutions.value[executionId]
 			if (!testRun) return //TODO: Handle out of order??
 			testRun.activeIds[id] = Date.now()
 			delete testRun.nodeErrors[id]
@@ -51,8 +51,8 @@ export const useActionQueueStore = defineStore("actionQueues", () => {
 			}
 		})
 
-		handleIpcMessage("actionQueue", "markTestActionEnd", (event, sequenceId: string, id: string) => {
-			const testRun = activeTestSequences.value[sequenceId]
+		handleIpcMessage("actionQueue", "markTestActionEnd", (event, executionId: string, id: string) => {
+			const testRun = activeTestExecutions.value[executionId]
 			if (!testRun) return
 			const time = Date.now()
 			const startTime = testRun.activeIds[id]
@@ -73,62 +73,61 @@ export const useActionQueueStore = defineStore("actionQueues", () => {
 			}
 		})
 
-		handleIpcMessage("actionQueue", "markTestActionResult", (event, sequenceId: string, id: string, result: any) => {
-			const testRun = activeTestSequences.value[sequenceId]
+		handleIpcMessage("actionQueue", "markTestActionResult", (event, executionId: string, id: string, result: any) => {
+			const testRun = activeTestExecutions.value[executionId]
 			if (!testRun) return
 			testRun.nodeResults[id] = result
 		})
 
-		handleIpcMessage("actionQueue", "markTestActionError", (event, sequenceId: string, id: string, error: string) => {
-			const testRun = activeTestSequences.value[sequenceId]
+		handleIpcMessage("actionQueue", "markTestActionError", (event, executionId: string, id: string, error: string) => {
+			const testRun = activeTestExecutions.value[executionId]
 			if (!testRun) return
 			testRun.nodeErrors[id] = error
 		})
 	}
 
-	async function testSequence(automation: AutomationData) {
+	async function testExecution(automation: AutomationData) {
 		const id = nanoid()
 
-		//TODO: Transform sequence for ipc??
-		await runTestSequence(id, automation)
+		await runTestExecution(id, automation)
 
 		return id
 	}
 
-	async function stopTest(id: string) {
-		stopTestSequence(id)
+	async function stopExecution(id: string) {
+		stopTestExecution(id)
 	}
 
-	return { initialize, testSequence, stopTest, activeTestSequences: computed(() => activeTestSequences.value) }
+	return { initialize, testExecution, stopExecution, activeTestExecutions: computed(() => activeTestExecutions.value) }
 })
 
-export function useActiveTestSequence(sequenceId: MaybeRefOrGetter<string>) {
+export function useActiveTestExecution(executionId: MaybeRefOrGetter<string>) {
 	const actionQueueStore = useActionQueueStore()
 
-	return computed<TestSequenceData | undefined>(() => {
-		return actionQueueStore.activeTestSequences[toValue(sequenceId)]
+	return computed<TestExecutionData | undefined>(() => {
+		return actionQueueStore.activeTestExecutions[toValue(executionId)]
 	})
 }
 
-export function useParentTestSequence() {
-	return inject<ComputedRef<TestSequenceData | undefined>>(
-		"activeTestSequence",
+export function useParentTestExecution() {
+	return inject<ComputedRef<TestExecutionData | undefined>>(
+		"activeTestExecution",
 		computed(() => undefined)
 	)
 }
 
 export function useActionTestTime(actionId: MaybeRefOrGetter<string>) {
-	const testSeq = useParentTestSequence()
+	const testExecution = useParentTestExecution()
 
-	return computed(() => testSeq.value?.activeIds?.[toValue(actionId)])
+	return computed(() => testExecution.value?.activeIds?.[toValue(actionId)])
 }
 
 export function useActionTestResult(actionId: MaybeRefOrGetter<string>) {
-	const testSeq = useParentTestSequence()
-	return computed(() => testSeq.value?.nodeResults?.[toValue(actionId)])
+	const testExecution = useParentTestExecution()
+	return computed(() => testExecution.value?.nodeResults?.[toValue(actionId)])
 }
 
 export function useActionTestError(actionId: MaybeRefOrGetter<string>) {
-	const testSeq = useParentTestSequence()
-	return computed(() => testSeq.value?.nodeErrors?.[toValue(actionId)])
+	const testExecution = useParentTestExecution()
+	return computed(() => testExecution.value?.nodeErrors?.[toValue(actionId)])
 }

@@ -148,6 +148,14 @@ export interface GraphEdge {
 	port?: string
 }
 
+export interface AutomationDataWire {
+	id: string
+	fromNode: string
+	fromPort: string
+	toNode: string
+	toPort: string
+}
+
 // ─── Graph & Subgraph Definitions ────────────────────────────────────────────
 
 export type SubgraphParamType = "string" | "number" | "boolean" | "array" | "object" | "any" | "color"
@@ -156,6 +164,7 @@ export interface SubgraphParam {
 	name: string
 	type: SubgraphParamType
 	default?: any
+	expression?: Expression
 }
 
 export interface SubgraphDefinition {
@@ -165,6 +174,7 @@ export interface SubgraphDefinition {
 	outputs: SubgraphParam[]
 	nodes: GraphNode[]
 	edges: GraphEdge[]
+	dataWires?: AutomationDataWire[]
 	entryNodeId: string
 }
 

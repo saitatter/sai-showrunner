@@ -7,7 +7,7 @@ import { ref } from "vue"
 
 // This monument to HTML mediocrity forces the DOM to select invisible text.
 // The oncopy event will only fire if there's a selection to copy, so if we want to copy
-// some non-text data structures like in the SequenceEditor we need to secretly select
+// some non-text data structures like in the graph editor we need to secretly select
 // some text in the dom so the oncopy event fires when Ctrl+C is pressed.
 
 const dummy = ref<HTMLElement>()

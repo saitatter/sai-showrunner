@@ -8,6 +8,7 @@ import { useAppFeedback } from "ShowRunner-ui-core"
 import {
 	AutomationConfig,
 	type AutomationDataWire,
+	type AutomationGraph,
 	type AutomationVariableNode,
 	type GraphEdge,
 	type GraphNode,
@@ -24,6 +25,7 @@ interface ClipboardPayload {
 
 export function useClipboard(
 	model: Ref<AutomationConfig>,
+	graphRef: Ref<AutomationGraph | undefined>,
 	selectedNodeIds: Ref<Set<string>>,
 	selectedNodeId: Ref<string | undefined>,
 	variableNodes: Ref<AutomationVariableNode[]>,
@@ -45,7 +47,7 @@ export function useClipboard(
 
 		for (const id of selectedIds) {
 			if (id === "trigger") continue
-			const node = model.value.graph?.nodes.find((graphNode) => graphNode.id === id)
+			const node = graphRef.value?.nodes.find((graphNode) => graphNode.id === id)
 			if (node) graphNodes.push(structuredClone(node))
 			const vn = variableNodes.value.find((v) => v.id === id)
 			if (vn) copiedVarNodes.push(structuredClone(vn))
@@ -54,7 +56,7 @@ export function useClipboard(
 		const copiedWires = dataWires.value.filter(
 			(w) => selectedIds.has(w.fromNode) && selectedIds.has(w.toNode)
 		).map((w) => structuredClone(w))
-		const copiedEdges = (model.value.graph?.edges ?? []).filter(
+		const copiedEdges = (graphRef.value?.edges ?? []).filter(
 			(edge) => selectedIds.has(edge.from) && selectedIds.has(edge.to)
 		).map((edge) => structuredClone(edge))
 
@@ -70,11 +72,11 @@ export function useClipboard(
 	function cutSelectedNodes() {
 		copySelectedNodes()
 		const idsToDelete = [...selectedNodeIds.value].filter((id) => id !== "trigger")
-		model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" }
+		const graph = graphRef.value ?? (model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" })
 		for (const id of idsToDelete) {
-			model.value.graph.nodes = model.value.graph.nodes.filter((node) => node.id !== id)
-			model.value.graph.edges = model.value.graph.edges.filter((edge) => edge.from !== id && edge.to !== id)
-			if (model.value.graph.entryNodeId === id) model.value.graph.entryNodeId = model.value.graph.nodes[0]?.id ?? ""
+			graph.nodes = graph.nodes.filter((node) => node.id !== id)
+			graph.edges = graph.edges.filter((edge) => edge.from !== id && edge.to !== id)
+			if (graph.entryNodeId === id) graph.entryNodeId = graph.nodes[0]?.id ?? ""
 			const vnIdx = variableNodes.value.findIndex((v) => v.id === id)
 			if (vnIdx >= 0) variableNodes.value.splice(vnIdx, 1)
 			delete nodePositions.value[id]
@@ -105,7 +107,7 @@ export function useClipboard(
 
 			const idMap = new Map<string, string>()
 			const newIds: string[] = []
-			model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" }
+			const graph = graphRef.value ?? (model.value.graph ??= { nodes: [], edges: [], entryNodeId: "" })
 
 			for (const node of parsed.graphNodes ?? []) {
 				const newId = nanoid()
@@ -116,8 +118,8 @@ export function useClipboard(
 					x: viewCenterX + (node.x - (parsed.graphNodes![0]?.x ?? 0)),
 					y: viewCenterY + (node.y - (parsed.graphNodes![0]?.y ?? 0)),
 				} as GraphNode
-				model.value.graph.nodes.push(cloned)
-				if (!model.value.graph.entryNodeId) model.value.graph.entryNodeId = cloned.id
+				graph.nodes.push(cloned)
+				if (!graph.entryNodeId) graph.entryNodeId = cloned.id
 				nodePositions.value[cloned.id] = { x: cloned.x, y: cloned.y }
 				newIds.push(cloned.id)
 			}
@@ -126,7 +128,7 @@ export function useClipboard(
 				const newFrom = idMap.get(edge.from)
 				const newTo = idMap.get(edge.to)
 				if (newFrom && newTo) {
-					model.value.graph.edges.push({
+					graph.edges.push({
 						id: `${newFrom}:${edge.port ?? "out"}:${newTo}`,
 						from: newFrom,
 						to: newTo,

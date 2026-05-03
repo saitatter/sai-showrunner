@@ -212,10 +212,15 @@ function repairGraphModel(graph: AutomationGraph | undefined): AutomationGraph {
 function repairSubgraph(subgraph: SubgraphDefinition): SubgraphDefinition | undefined {
 	if (!subgraph?.id || !Array.isArray(subgraph.nodes) || !Array.isArray(subgraph.edges)) return undefined
 	const repaired = repairGraphModel(subgraph)
+	const wireNodeIds = new Set(repaired.nodes.map((node) => node.id))
+	for (const param of subgraph.parameters ?? []) {
+		if (param?.name) wireNodeIds.add(`__param:${param.name}`)
+	}
 	return {
 		...subgraph,
 		nodes: repaired.nodes,
 		edges: repaired.edges,
+		dataWires: repairDataWires(subgraph.dataWires, wireNodeIds),
 		entryNodeId: repaired.entryNodeId,
 		parameters: Array.isArray(subgraph.parameters) ? subgraph.parameters : [],
 		outputs: Array.isArray(subgraph.outputs) ? subgraph.outputs : [],

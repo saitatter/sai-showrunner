@@ -149,17 +149,27 @@ export function usePortConnections(
 			const start = getPortPosition(fromNode, wire.fromPort, "out")
 			const end = getPortPosition(toNode, wire.toPort, "in")
 			if (!start || !end) return []
-			const color = portTypeColor(
-				fromNode.outputPorts?.find((p) => p.key === wire.fromPort)?.type ?? "any"
-			)
+			const fromPort = fromNode.outputPorts?.find((p) => p.key === wire.fromPort)
+			const toPort = toNode.inputPorts?.find((p) => p.key === wire.toPort)
+			const sourceType = fromPort?.type ?? "any"
+			const targetType = toPort?.type ?? "any"
+			const valid = Boolean(fromPort && toPort && areTypesCompatible(sourceType, targetType))
 			return [{
 				id: wire.id,
 				path: bezierPath(start.x, start.y, end.x, end.y),
-				color,
+				color: valid ? portTypeColor(sourceType) : "#ef5350",
 				fromNode: wire.fromNode,
 				fromPort: wire.fromPort,
 				toNode: wire.toNode,
 				toPort: wire.toPort,
+				valid,
+				validationMessage: valid
+					? undefined
+					: !fromPort
+						? `Missing output port: ${wire.fromPort}`
+						: !toPort
+							? `Missing input port: ${wire.toPort}`
+							: `Incompatible wire: ${sourceType} -> ${targetType}`,
 			}]
 		})
 	})
