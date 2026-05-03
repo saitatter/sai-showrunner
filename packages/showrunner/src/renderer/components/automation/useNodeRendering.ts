@@ -25,7 +25,7 @@ export interface ConfigLine {
 
 export interface NodeData {
 	id: string
-	kind: "trigger" | "action" | "queue" | "stack" | "time" | "flow" | "floating" | "variable" | "if" | "switch" | "for" | "forEach" | "while" | "break" | "continue" | "return"
+	kind: "trigger" | "action" | "conversion" | "queue" | "stack" | "time" | "flow" | "floating" | "variable" | "if" | "switch" | "for" | "forEach" | "while" | "break" | "continue" | "return"
 	title: string
 	subtitle: string
 	icon: string
@@ -193,6 +193,18 @@ export const GRAPH_NODE_INFO: Record<GraphNodeType, { icon: string; kind: NodeDa
 }
 
 const QUEUE_ACTION_IDS = new Set(["addToQueue", "completeQueueItem", "cancelQueueItem", "clearQueue", "skip", "pause"])
+const CONVERSION_ACTION_IDS = new Set([
+	"convertNumberToString",
+	"convertBooleanToString",
+	"convertStringToNumber",
+	"convertBooleanToNumber",
+	"convertNumberToBoolean",
+	"convertStringToBoolean",
+	"convertObjectToJsonString",
+	"convertArrayToJsonString",
+	"convertJsonStringToObject",
+	"convertJsonStringToArray",
+])
 
 export function summarizeExpression(expr: any): string {
 	if (!expr) return "—"
@@ -261,6 +273,22 @@ export function graphNodeToNodeData(
 					subtitle,
 					icon: actionDef.icon ?? "mdi mdi-tray-full",
 					badge: "Queue",
+					x: action.x ?? 0,
+					y: action.y ?? 0,
+					configLines,
+					inputPorts,
+					outputPorts,
+					height: computeNodeHeight(configLines, inputPorts, outputPorts),
+				}
+			}
+			if (action.plugin === "ShowRunner" && CONVERSION_ACTION_IDS.has(action.action)) {
+				return {
+					id: gn.id,
+					kind: "conversion",
+					title,
+					subtitle,
+					icon: actionDef.icon ?? "mdi mdi-swap-horizontal",
+					badge: "Convert",
 					x: action.x ?? 0,
 					y: action.y ?? 0,
 					configLines,
@@ -428,6 +456,7 @@ export function getNodeLane(node: NodeData): Pick<LaneData, "id" | "kind" | "lab
 	if (node.id === "trigger") return { id: "main", kind: "main", label: "Main Flow" }
 	if (node.kind === "if" || node.kind === "switch") return { id: "flow", kind: "flow", label: "Flow Branches" }
 	if (node.kind === "queue") return { id: "queue", kind: "flow", label: "Queue Scheduler" }
+	if (node.kind === "conversion") return { id: "conversion", kind: "flow", label: "Data Conversions" }
 	if (node.kind === "for" || node.kind === "forEach" || node.kind === "while") return { id: "time", kind: "time", label: "Loops" }
 	if (node.kind === "break" || node.kind === "continue" || node.kind === "return") return { id: "flow", kind: "flow", label: "Control" }
 	return { id: "main", kind: "main", label: "Main Flow" }
