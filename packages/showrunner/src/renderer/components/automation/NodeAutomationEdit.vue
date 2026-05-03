@@ -155,7 +155,7 @@
 
 					<svg class="node-automation__edges" :viewBox="viewBox" role="img" aria-label="Node connections">
 						<path
-							v-for="edge in edges"
+							v-for="edge in visibleFlowEdges"
 							:key="`${edge.id}:hit`"
 							class="node-automation__edge-hit"
 							:class="{ active: dropTargetEdgeId === edge.id }"
@@ -167,7 +167,7 @@
 							@click.stop="selectedEdgeId = edge.id"
 						/>
 						<path
-							v-for="edge in edges"
+							v-for="edge in visibleFlowEdges"
 							:key="`${edge.id}:line`"
 							class="node-automation__edge"
 							:class="{ active: dropTargetEdgeId === edge.id, selected: selectedEdgeId === edge.id }"
@@ -175,7 +175,7 @@
 							vector-effect="non-scaling-stroke"
 						/>
 						<g
-							v-for="edge in edges.filter((item) => item.label)"
+							v-for="edge in visibleFlowEdges.filter((item) => item.label)"
 							:key="`${edge.id}:label`"
 							class="node-automation__edge-label"
 						>
@@ -289,6 +289,7 @@
 						@drop.prevent.stop="dropActionOnNode($event, node)"
 					>
 						<span
+							v-if="node.kind !== 'variable'"
 							class="node-automation__handle node-automation__handle--in"
 							:class="{ 'connectable': !!activeGraph }"
 						/>
@@ -390,7 +391,7 @@
 							</div>
 						</div>
 						<span
-							v-if="node.id !== 'trigger'"
+							v-if="canStartFlowFromNode(node)"
 							class="node-automation__handle node-automation__handle--out"
 							:class="{ 'connectable': !!activeGraph }"
 							title="Drag to connect to another node"
@@ -1322,6 +1323,10 @@ const edges = computed<EdgeData[]>(() => {
 		}
 	}).filter((e) => e.path)
 })
+const visibleFlowEdges = computed(() => {
+	const pairsWithData = new Set(dataWires.value.map((wire) => `${wire.fromNode}->${wire.toNode}`))
+	return edges.value.filter((edge) => pairsWithData.has(`${edge.from}->${edge.to}`))
+})
 const currentPreviewRouteLabel = computed(() => {
 	const nodeId = currentPreviewStep.value?.node.id
 	if (!nodeId || !activeGraph.value) return undefined
@@ -1607,6 +1612,10 @@ function summarizeRuntimeValue(value: unknown) {
 function isExecPortConnected(nodeId: string, portKey: string): boolean {
 	if (!activeGraph.value) return false
 	return activeGraph.value.edges.some((e) => e.from === nodeId && e.port === portKey)
+}
+
+function canStartFlowFromNode(node: NodeData) {
+	return Boolean(activeGraph.value && node.id !== "trigger" && node.kind !== "variable")
 }
 
 function getEdgeLabel(edgeOrPort?: { from?: string; port?: string } | string) {
@@ -2283,16 +2292,18 @@ function addGraphActionNode(action: ActionInfo, position: NodePosition) {
 
 function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, position?: NodePosition) {
 	const graph = ensureGraph()
-	const anchor = afterNodeId && afterNodeId !== "trigger" ? nodes.value.find((node) => node.id === afterNodeId) : undefined
+	const canAnchorFlow = afterNodeId === "trigger" || Boolean(afterNodeId && graph.nodes.some((node) => node.id === afterNodeId))
+	const flowAnchorId = canAnchorFlow ? afterNodeId : undefined
+	const anchor = flowAnchorId && flowAnchorId !== "trigger" ? nodes.value.find((node) => node.id === flowAnchorId) : undefined
 	const fallbackPosition = position ?? {
 		x: snapCoordinate((anchor?.x ?? 42) + H_GAP),
 		y: snapCoordinate(anchor?.y ?? 88),
 	}
 	const node = addGraphActionNode(action, fallbackPosition)
 
-	if (!afterNodeId) return node
+	if (!flowAnchorId) return node
 
-	if (afterNodeId === "trigger") {
+	if (flowAnchorId === "trigger") {
 		const previousEntry = graph.entryNodeId && graph.entryNodeId !== node.id ? graph.entryNodeId : ""
 		graph.entryNodeId = node.id
 		if (previousEntry) {
@@ -2301,13 +2312,13 @@ function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, po
 		return node
 	}
 
-	const outgoing = graph.edges.find((edge) => edge.from === afterNodeId && edge.port == null)
+	const outgoing = graph.edges.find((edge) => edge.from === flowAnchorId && edge.port == null)
 	if (outgoing) {
 		const previousTo = outgoing.to
 		outgoing.to = node.id
 		graph.edges.push({ id: `${node.id}:${previousTo}`, from: node.id, to: previousTo })
 	} else {
-		graph.edges.push({ id: `${afterNodeId}:${node.id}`, from: afterNodeId, to: node.id })
+		graph.edges.push({ id: `${flowAnchorId}:${node.id}`, from: flowAnchorId, to: node.id })
 	}
 	return node
 }

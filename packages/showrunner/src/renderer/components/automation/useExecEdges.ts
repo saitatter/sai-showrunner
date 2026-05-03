@@ -44,6 +44,7 @@ export function useExecEdges(
 
 		const node = nodesRef.value.find((n) => n.id === nodeId)
 		if (!node) return
+		if (node.kind === "variable") return
 
 		let fromX: number
 		let fromY: number
@@ -117,6 +118,7 @@ export function useExecEdges(
 		for (const node of nodesRef.value) {
 			if (node.id === drag.fromNode) continue
 			if (node.id === "trigger") continue
+			if (node.kind === "variable") continue
 			const handleX = node.x - 6
 			const handleY = node.y + node.height / 2
 			const dx = drag.currentX - handleX
