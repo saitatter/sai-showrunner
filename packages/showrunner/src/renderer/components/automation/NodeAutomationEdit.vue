@@ -2475,7 +2475,7 @@ async function selectActionFromContext(actionKey: string) {
 	trackRecentlyUsed(actionKey, "action", actionDef?.name ?? selection.action, actionDef?.icon ?? "mdi mdi-play", String(plugin?.color ?? "#e9aaff"))
 
 	const pendingFlow = pendingFlowConnection.value
-	const position = pendingFlow?.canvasPoint ?? (!contextMenu.value.nodeId ? contextMenu.value.canvasPoint : undefined)
+	const position = pendingFlow?.canvasPoint ?? contextMenu.value.canvasPoint
 	insertAction(action, pendingFlow?.fromNode ?? contextMenu.value.nodeId, position, pendingFlow?.fromPort)
 	if (position) nodePositions.value[action.id] = position
 	focusNode(action.id)
@@ -2639,13 +2639,13 @@ function addGraphActionNode(action: ActionInfo, position: NodePosition) {
 	return node
 }
 
-function connectFlowToNode(fromNode: string, fromPort: string | undefined, toNode: string) {
+function connectFlowToNode(fromNode: string, fromPort: string | undefined, toNode: string, isTerminal = false) {
 	const graph = ensureGraph()
 	const outgoing = graph.edges.find((edge) => edge.from === fromNode && (edge.port ?? undefined) === fromPort)
 	if (outgoing) {
 		const previousTo = outgoing.to
 		outgoing.to = toNode
-		if (previousTo && previousTo !== toNode) {
+		if (!isTerminal && previousTo && previousTo !== toNode) {
 			graph.edges.push({ id: nanoid(), from: toNode, to: previousTo })
 		}
 		return
@@ -3166,13 +3166,17 @@ function addControlFlowNode(type: GraphNodeType) {
 	graph.nodes.push(newNode)
 
 	if (pendingFlowConnection.value) {
-		connectFlowToNode(pendingFlowConnection.value.fromNode, pendingFlowConnection.value.fromPort, id)
+		connectFlowToNode(pendingFlowConnection.value.fromNode, pendingFlowConnection.value.fromPort, id, isTerminalControlFlowNode(type))
 	} else if (graph.nodes.length === 1) {
 		graph.entryNodeId = id
 	}
 
 	closeContextMenu()
 	commitUndo()
+}
+
+function isTerminalControlFlowNode(type: GraphNodeType) {
+	return type === "break" || type === "continue" || type === "return"
 }
 
 async function runMainExecution() {
