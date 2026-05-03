@@ -148,12 +148,6 @@ jobs:
       - name: Upload Windows artifacts
         shell: pwsh
         run: |
-          $forbidden = Get-ChildItem -Path release -File |
-            Where-Object { $_.Name -eq "builder-debug.yml" }
-          if ($forbidden) {
-            throw "builder-debug.yml must not be published as a release asset."
-          }
-
           $files = Get-ChildItem -Path release -File |
             Where-Object {
               $_.Name -eq "latest.yml" -or
@@ -162,6 +156,10 @@ jobs:
               $_.Name -like "*.zip"
             } |
             ForEach-Object { $_.FullName }
+          $forbidden = $files | Where-Object { [System.IO.Path]::GetFileName($_) -eq "builder-debug.yml" }
+          if ($forbidden) {
+            throw "builder-debug.yml must not be published as a release asset."
+          }
           if (-not $files) {
             throw "No Windows package artifacts found in release/."
           }
