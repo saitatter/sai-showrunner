@@ -59,6 +59,7 @@ export const InfoService = Service(
 		lastUpdateError: string | undefined = undefined
 		lastUpdateMessage: string | undefined = undefined
 		updateChecking: boolean = false
+		updateDownloaded: boolean = false
 
 		constructor() {
 			autoUpdater.autoInstallOnAppQuit = false
@@ -66,6 +67,9 @@ export const InfoService = Service(
 			if (!app.isPackaged && fs.existsSync(this.devUpdateConfigPath)) {
 				autoUpdater.forceDevUpdateConfig = true
 			}
+			autoUpdater.on("update-downloaded", () => {
+				this.updateDownloaded = true
+			})
 
 			defineIPCFunc("info", "isFirstTimeStartup", () => {
 				return this.firstTimeStartup
@@ -96,6 +100,7 @@ export const InfoService = Service(
 					throw new Error("No ShowRunner update is available.")
 				}
 				await autoUpdater.downloadUpdate()
+				this.updateDownloaded = true
 				autoUpdater.quitAndInstall()
 			})
 		}
@@ -111,6 +116,7 @@ export const InfoService = Service(
 				error: this.lastUpdateError,
 				message: this.lastUpdateMessage,
 				checking: this.updateChecking,
+				downloaded: this.updateDownloaded,
 			}
 		}
 
@@ -159,6 +165,7 @@ export const InfoService = Service(
 			this.updateChecking = true
 			this.lastUpdateError = undefined
 			this.lastUpdateMessage = undefined
+			this.updateDownloaded = false
 			try {
 				const result = await autoUpdater.checkForUpdates()
 				this.lastUpdateCheck = new Date().toISOString()

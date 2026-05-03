@@ -21,4 +21,5 @@ export interface UpdateStatus {
 	error?: string
 	message?: string
 	checking: boolean
+	downloaded?: boolean
 }

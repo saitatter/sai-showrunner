@@ -54,6 +54,7 @@ import { UpdateStatus } from "showrunner-schema"
 import { FlexScroller, useAppFeedback, useIpcCaller } from "showrunner-ui-core"
 import { computed, nextTick, onMounted, ref, watch } from "vue"
 import { releaseNotesToSanitizedHtml } from "../../util/sanitize-html"
+import { getUpdateStatusView } from "./update-status-view"
 
 const status = ref<UpdateStatus>()
 const checking = ref(false)
@@ -68,41 +69,17 @@ const updateShowRunner = useIpcCaller<() => Promise<void>>("info", "updateShowRu
 
 const latestInfo = computed(() => status.value?.latest ?? status.value?.update)
 const sanitizedReleaseNotes = computed(() => releaseNotesToSanitizedHtml(latestInfo.value))
-
-const latestVersionLabel = computed(() => {
-	const latest = latestInfo.value?.version
-	return latest ? `v${latest}` : "unknown"
-})
+const statusView = computed(() => getUpdateStatusView(status.value))
+const latestVersionLabel = computed(() => statusView.value.latestVersionLabel)
 
 const checkedAtLabel = computed(() => {
 	if (!status.value?.checkedAt) return ""
 	return `Last checked ${new Date(status.value.checkedAt).toLocaleString()}`
 })
 
-const statusClass = computed(() => {
-	if (status.value?.error) return "updates-page__status--error"
-	if (status.value && !status.value.canCheckForUpdates) return "updates-page__status--muted"
-	if (status.value?.hasUpdate) return "updates-page__status--available"
-	return "updates-page__status--current"
-})
-
-const statusTitle = computed(() => {
-	if (status.value?.error) return "Update check failed"
-	if (status.value && !status.value.canCheckForUpdates) return "Development build"
-	if (status.value?.hasUpdate) return "Update available"
-	if (status.value?.checkedAt) return "You're up to date"
-	return "Ready to check"
-})
-
-const statusDetail = computed(() => {
-	if (status.value?.error) return status.value.error
-	if (status.value?.message) return status.value.message
-	if (status.value?.hasUpdate && status.value.update) {
-		return `v${status.value.currentVersion} -> v${status.value.update.version}`
-	}
-	if (status.value?.checkedAt) return `ShowRunner v${status.value.currentVersion} is the current installed version.`
-	return "Check GitHub Releases to compare this build with the latest published update."
-})
+const statusClass = computed(() => statusView.value.statusClass)
+const statusTitle = computed(() => statusView.value.statusTitle)
+const statusDetail = computed(() => statusView.value.statusDetail)
 
 async function loadStatus() {
 	status.value = await getUpdateStatus()
