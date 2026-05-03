@@ -1,4 +1,4 @@
-import { computed, ref, type ComputedRef, type Ref } from "vue"
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, type ComputedRef, type Ref } from "vue"
 
 /**
  * A data-flow connection between an output port of one node and an input port of another.
@@ -136,18 +136,49 @@ export function usePortConnections(
 	commitUndo: () => void
 ) {
 	const wireDrag = ref<WireDragState | null>(null)
+	const layoutVersion = ref(0)
 	/** Wire that was disconnected at drag start (for restoring on cancel) */
 	let disconnectedWire: DataWire | null = null
+	let layoutFrame: number | undefined
+	let resizeObserver: ResizeObserver | undefined
+
+	function scheduleLayoutRefresh() {
+		if (layoutFrame != null) cancelAnimationFrame(layoutFrame)
+		nextTick(() => {
+			layoutFrame = requestAnimationFrame(() => {
+				layoutVersion.value += 1
+				layoutFrame = undefined
+			})
+		})
+	}
+
+	onMounted(() => {
+		scheduleLayoutRefresh()
+		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
+		if (surface && typeof ResizeObserver !== "undefined") {
+			resizeObserver = new ResizeObserver(scheduleLayoutRefresh)
+			resizeObserver.observe(surface)
+		}
+	})
+
+	onUnmounted(() => {
+		if (layoutFrame != null) cancelAnimationFrame(layoutFrame)
+		resizeObserver?.disconnect()
+	})
+
+	watch(nodes, scheduleLayoutRefresh, { deep: true, flush: "post" })
+	watch(dataWires, scheduleLayoutRefresh, { deep: true, flush: "post" })
 
 	/** Computed: wire paths for rendering */
 	const dataWirePaths = computed(() => {
+		layoutVersion.value
 		const byId = new Map(nodes.value.map((n) => [n.id, n]))
 		return dataWires.value.flatMap((wire) => {
 			const fromNode = byId.get(wire.fromNode)
 			const toNode = byId.get(wire.toNode)
 			if (!fromNode || !toNode) return []
-			const start = getPortPosition(fromNode, wire.fromPort, "out")
-			const end = getPortPosition(toNode, wire.toPort, "in")
+			const start = getRenderedPortPosition(wire.fromNode, wire.fromPort, "out") ?? getPortPosition(fromNode, wire.fromPort, "out")
+			const end = getRenderedPortPosition(wire.toNode, wire.toPort, "in") ?? getPortPosition(toNode, wire.toPort, "in")
 			if (!start || !end) return []
 			const fromPort = fromNode.outputPorts?.find((p) => p.key === wire.fromPort)
 			const toPort = toNode.inputPorts?.find((p) => p.key === wire.toPort)
@@ -196,7 +227,7 @@ export function usePortConnections(
 		event.preventDefault()
 		const node = nodes.value.find((n) => n.id === nodeId)
 		if (!node) return
-		const pos = getPortPosition(node, portKey, kind)
+		const pos = getRenderedPortPosition(nodeId, portKey, kind) ?? getPortPosition(node, portKey, kind)
 		if (!pos) return
 
 		disconnectedWire = null
@@ -207,7 +238,9 @@ export function usePortConnections(
 			if (existingIdx >= 0) {
 				const existing = dataWires.value[existingIdx]
 				const fromNode = nodes.value.find((n) => n.id === existing.fromNode)
-				const fromPos = fromNode ? getPortPosition(fromNode, existing.fromPort, "out") : undefined
+				const fromPos = fromNode
+					? getRenderedPortPosition(existing.fromNode, existing.fromPort, "out") ?? getPortPosition(fromNode, existing.fromPort, "out")
+					: undefined
 				disconnectedWire = { ...existing }
 				dataWires.value.splice(existingIdx, 1)
 				if (fromPos && fromNode) {
@@ -329,9 +362,11 @@ export function usePortConnections(
 			if (!ports) continue
 			for (const port of ports) {
 				const pos = getPortPosition(node, port.key, targetKind)
-				if (!pos) continue
-				const dx = pos.x - drag.currentX
-				const dy = pos.y - drag.currentY
+				const renderedPos = getRenderedPortPosition(node.id, port.key, targetKind)
+				const portPosition = renderedPos ?? pos
+				if (!portPosition) continue
+				const dx = portPosition.x - drag.currentX
+				const dy = portPosition.y - drag.currentY
 				if (Math.sqrt(dx * dx + dy * dy) < SNAP_RADIUS) {
 					if (isCompatibleTarget(drag, { nodeId: node.id, portKey: port.key, kind: targetKind })) {
 						return { nodeId: node.id, portKey: port.key, kind: targetKind }
@@ -359,6 +394,26 @@ export function usePortConnections(
 		const kind = element.dataset.portKind
 		if (!nodeId || !portKey || kind !== expectedKind) return undefined
 		return { nodeId, portKey, kind: expectedKind }
+	}
+
+	function getRenderedPortPosition(nodeId: string, portKey: string, kind: "in" | "out") {
+		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
+		if (!surface) return undefined
+
+		const elements = surface.querySelectorAll<HTMLElement>("[data-port-node-id]")
+		const element = [...elements].find((item) =>
+			item.dataset.portNodeId === nodeId &&
+			item.dataset.portKey === portKey &&
+			item.dataset.portKind === kind
+		)
+		if (!element) return undefined
+
+		const surfaceRect = surface.getBoundingClientRect()
+		const portRect = element.getBoundingClientRect()
+		return {
+			x: (portRect.left + portRect.width / 2 - surfaceRect.left) / zoom.value,
+			y: (portRect.top + portRect.height / 2 - surfaceRect.top) / zoom.value,
+		}
 	}
 
 	function getPortDef(address: PortAddress) {
