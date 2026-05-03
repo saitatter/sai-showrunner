@@ -604,6 +604,9 @@
 					</section>
 					</collapsible-context-menu>
 				</div>
+				<datalist id="node-expression-suggestions">
+					<option v-for="item in expressionSuggestions" :key="item" :value="item" />
+				</datalist>
 				<svg
 					class="node-automation__minimap"
 					:viewBox="minimapViewBox"
@@ -771,6 +774,7 @@
 											<span>Variable</span>
 											<input
 												type="text"
+												list="node-expression-suggestions"
 												:value="expressionVariable(selectedControlNode.condition)"
 												placeholder="message.approved"
 												@change="setControlExpressionVariable(selectedControlNode, 'condition', ($event.target as HTMLInputElement).value)"
@@ -785,6 +789,10 @@
 												@change="setControlExpressionCompareValue(selectedControlNode, 'condition', ($event.target as HTMLInputElement).value)"
 											/>
 										</label>
+										<div class="node-automation__expression-summary" :class="{ invalid: Boolean(expressionValidationMessage(selectedControlNode.condition)) }">
+											<code>{{ summarizeExpression(selectedControlNode.condition) }}</code>
+											<small>{{ expressionValidationMessage(selectedControlNode.condition) || "Expression looks valid" }}</small>
+										</div>
 										<label v-if="selectedControlNode.type === 'while'">
 											<span>Max iterations</span>
 											<input
@@ -843,22 +851,32 @@
 											<span>Collection variable</span>
 											<input
 												type="text"
+												list="node-expression-suggestions"
 												:value="expressionVariable(selectedControlNode.collection)"
 												placeholder="items"
 												@change="setControlExpressionVariable(selectedControlNode, 'collection', ($event.target as HTMLInputElement).value)"
 											/>
 										</label>
+										<div class="node-automation__expression-summary" :class="{ invalid: Boolean(expressionValidationMessage(selectedControlNode.collection)) }">
+											<code>{{ summarizeExpression(selectedControlNode.collection) }}</code>
+											<small>{{ expressionValidationMessage(selectedControlNode.collection) || "Expression looks valid" }}</small>
+										</div>
 									</template>
 									<template v-else-if="selectedControlNode.type === 'switch'">
 										<label>
 											<span>Switch variable</span>
 											<input
 												type="text"
+												list="node-expression-suggestions"
 												:value="expressionVariable(selectedControlNode.expression)"
 												placeholder="platform"
 												@change="setControlExpressionVariable(selectedControlNode, 'expression', ($event.target as HTMLInputElement).value)"
 											/>
 										</label>
+										<div class="node-automation__expression-summary" :class="{ invalid: Boolean(expressionValidationMessage(selectedControlNode.expression)) }">
+											<code>{{ summarizeExpression(selectedControlNode.expression) }}</code>
+											<small>{{ expressionValidationMessage(selectedControlNode.expression) || "Expression looks valid" }}</small>
+										</div>
 										<div class="node-automation__case-list">
 											<div v-for="(item, ci) in selectedControlNode.cases" :key="item.port">
 												<input
@@ -1266,6 +1284,24 @@ const selectedControlNode = computed(() => {
 	return node && node.type !== "action" ? node : undefined
 })
 const previewNodes = computed(() => nodes.value.filter((node) => node.id !== "trigger").sort((a, b) => a.x - b.x || a.y - b.y))
+const expressionSuggestions = computed(() => {
+	const suggestions = new Set<string>()
+	for (const node of variableNodes.value) {
+		if (node.name) suggestions.add(node.name)
+	}
+	for (const port of nodes.value.find((node) => node.id === "trigger")?.outputPorts ?? []) {
+		suggestions.add(port.key)
+	}
+	for (const node of nodes.value) {
+		for (const port of node.outputPorts ?? []) {
+			if (port.type !== "flow") suggestions.add(`${node.id}.${port.key}`)
+		}
+	}
+	for (const builtin of ["len", "includes", "toString", "toNumber", "toBoolean", "min", "max"]) {
+		suggestions.add(`${builtin}(...)`)
+	}
+	return [...suggestions].sort((a, b) => a.localeCompare(b))
+})
 const {
 	playheadNodeId,
 	isPreviewPlaying,
@@ -2446,6 +2482,28 @@ function expressionVariable(expr: Expression | undefined) {
 function expressionCompareValue(expr: Expression | undefined) {
 	if (expr?.type === "binary" && expr.right.type === "literal") return String(expr.right.value ?? "")
 	return ""
+}
+
+function expressionValidationMessage(expr: Expression | undefined): string | undefined {
+	if (!expr) return "Expression is empty."
+	if (expr.type === "variable") return validateVariableName(expr.name)
+	if (expr.type === "binary") {
+		return expressionValidationMessage(expr.left) || expressionValidationMessage(expr.right)
+	}
+	if (expr.type === "call" && expr.args.some((arg) => expressionValidationMessage(arg))) {
+		return "One function argument is invalid."
+	}
+	return undefined
+}
+
+function validateVariableName(name: string) {
+	const clean = String(name || "").trim()
+	if (!clean) return "Variable name is required."
+	if (clean.includes("(") || clean.includes(")")) return "Use the builder controls for function calls."
+	if (!/^[a-zA-Z_$][\w$]*(\.[a-zA-Z_$][\w$]*|\[\d+\])*$/.test(clean)) {
+		return "Use variable, nested.path, or items[0] format."
+	}
+	return undefined
 }
 
 function literalNumber(expr: Expression | undefined, fallback = 0) {
@@ -4108,6 +4166,35 @@ onUnmounted(() => {
 }
 
 .node-automation__case-list button.danger {
+	color: #ffb4b4;
+}
+
+.node-automation__expression-summary {
+	background: #101010;
+	border: 1px solid #303030;
+	border-radius: 5px;
+	display: grid;
+	gap: 0.25rem;
+	padding: 0.5rem;
+}
+
+.node-automation__expression-summary code {
+	color: #b8eaff;
+	font-family: "Cascadia Code", "Consolas", monospace;
+	font-size: 0.78rem;
+	overflow-wrap: anywhere;
+}
+
+.node-automation__expression-summary small {
+	color: #9fd0a7;
+	font-size: 0.72rem;
+}
+
+.node-automation__expression-summary.invalid {
+	border-color: rgba(239, 83, 80, 0.55);
+}
+
+.node-automation__expression-summary.invalid small {
 	color: #ffb4b4;
 }
 
