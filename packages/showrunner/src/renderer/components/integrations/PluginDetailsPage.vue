@@ -21,19 +21,37 @@
 		</div>
 
 		<template v-else>
-			<section v-if="plugin.description" class="plugin-details__section">
-				<p>{{ plugin.description }}</p>
-			</section>
+			<nav class="plugin-details__tabs" aria-label="Plugin detail sections">
+				<button
+					v-for="tab in detailTabs"
+					:key="tab.id"
+					type="button"
+					:class="{ active: activeTab === tab.id }"
+					@click="activeTab = tab.id"
+				>
+					<i :class="tab.icon" />
+					<span>{{ tab.label }}</span>
+					<em v-if="tab.count != null">{{ tab.count }}</em>
+				</button>
+			</nav>
 
-			<section class="plugin-details__stats">
-				<div><strong>{{ Object.keys(plugin.actions).length }}</strong><span>actions</span></div>
-				<div><strong>{{ Object.keys(plugin.triggers).length }}</strong><span>triggers</span></div>
-				<div><strong>{{ Object.keys(plugin.settings).length }}</strong><span>settings</span></div>
-				<div><strong>{{ Object.keys(plugin.state).length }}</strong><span>state values</span></div>
-				<div><strong>{{ usage.length }}</strong><span>graph uses</span></div>
-			</section>
+			<template v-if="activeTab === 'overview'">
+				<section class="plugin-details__section">
+					<h3>Overview</h3>
+					<p v-if="plugin.description">{{ plugin.description }}</p>
+					<p v-else class="plugin-details__empty">No plugin description registered.</p>
+				</section>
 
-			<section class="plugin-details__section">
+				<section class="plugin-details__stats">
+					<div><strong>{{ Object.keys(plugin.actions).length }}</strong><span>actions</span></div>
+					<div><strong>{{ Object.keys(plugin.triggers).length }}</strong><span>triggers</span></div>
+					<div><strong>{{ Object.keys(plugin.settings).length }}</strong><span>settings</span></div>
+					<div><strong>{{ Object.keys(plugin.state).length }}</strong><span>state values</span></div>
+					<div><strong>{{ usage.length }}</strong><span>graph uses</span></div>
+				</section>
+			</template>
+
+			<section v-else-if="activeTab === 'usage'" class="plugin-details__section">
 				<h3>Used In Automations</h3>
 				<div v-if="usage.length" class="plugin-details__usage-list">
 					<article v-for="item in usage" :key="item.key" class="plugin-details__usage">
@@ -47,7 +65,7 @@
 				<p v-else class="plugin-details__empty">No current automations use this plugin.</p>
 			</section>
 
-			<section class="plugin-details__section">
+			<section v-else-if="activeTab === 'settings'" class="plugin-details__section">
 				<h3>Settings</h3>
 				<div v-if="settingRows.length" class="plugin-details__rows">
 					<article v-for="row in settingRows" :key="row.id" class="plugin-details__row">
@@ -61,7 +79,7 @@
 				<p v-else class="plugin-details__empty">No plugin settings registered.</p>
 			</section>
 
-			<section class="plugin-details__section">
+			<section v-else-if="activeTab === 'actions'" class="plugin-details__section">
 				<h3>Actions</h3>
 				<div v-if="actionRows.length" class="plugin-details__rows">
 					<article v-for="row in actionRows" :key="row.id" class="plugin-details__row">
@@ -78,7 +96,7 @@
 				<p v-else class="plugin-details__empty">No actions registered.</p>
 			</section>
 
-			<section class="plugin-details__section">
+			<section v-else-if="activeTab === 'triggers'" class="plugin-details__section">
 				<h3>Triggers</h3>
 				<div v-if="triggerRows.length" class="plugin-details__rows">
 					<article v-for="row in triggerRows" :key="row.id" class="plugin-details__row">
@@ -95,7 +113,7 @@
 				<p v-else class="plugin-details__empty">No triggers registered.</p>
 			</section>
 
-			<section class="plugin-details__section">
+			<section v-else-if="activeTab === 'state'" class="plugin-details__section">
 				<h3>State</h3>
 				<div v-if="stateRows.length" class="plugin-details__rows">
 					<article v-for="row in stateRows" :key="row.id" class="plugin-details__row">
@@ -113,7 +131,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import { usePluginStore, useResourceStore } from "showrunner-ui-core"
 import { pluginIcon } from "../../util/plugin-icons"
 
@@ -129,6 +147,17 @@ const pluginId = computed(() => props.pageData?.pluginId ?? "")
 const plugin = computed(() => pluginStore.pluginMap.get(pluginId.value))
 const enabled = computed(() => pluginStore.isPluginEnabled(pluginId.value))
 const pluginIconClass = computed(() => pluginIcon(pluginId.value, plugin.value?.icon))
+type DetailTab = "overview" | "usage" | "settings" | "actions" | "triggers" | "state"
+const activeTab = ref<DetailTab>("overview")
+
+const detailTabs = computed<Array<{ id: DetailTab; label: string; icon: string; count?: number }>>(() => [
+	{ id: "overview", label: "Overview", icon: "mdi mdi-information-outline" },
+	{ id: "usage", label: "Usage", icon: "mdi mdi-graph-outline", count: usage.value.length },
+	{ id: "settings", label: "Settings", icon: "mdi mdi-cog-outline", count: settingRows.value.length },
+	{ id: "actions", label: "Actions", icon: "mdi mdi-lightning-bolt-outline", count: actionRows.value.length },
+	{ id: "triggers", label: "Triggers", icon: "mdi mdi-bell-ring-outline", count: triggerRows.value.length },
+	{ id: "state", label: "State", icon: "mdi mdi-database-outline", count: stateRows.value.length },
+])
 
 const settingRows = computed(() => {
 	if (!plugin.value) return []
@@ -272,7 +301,8 @@ function maskSecret(value: unknown) {
 
 .plugin-details__header,
 .plugin-details__section,
-.plugin-details__stats {
+.plugin-details__stats,
+.plugin-details__tabs {
 	background: var(--surface-b);
 	border: 1px solid var(--surface-d);
 	border-radius: 6px;
@@ -344,6 +374,48 @@ function maskSecret(value: unknown) {
 	padding: 0.75rem;
 }
 
+.plugin-details__tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	padding: 0.45rem;
+}
+
+.plugin-details__tabs button {
+	align-items: center;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	color: var(--text-color-secondary);
+	cursor: pointer;
+	display: flex;
+	gap: 0.35rem;
+	min-height: 2rem;
+	padding: 0.35rem 0.6rem;
+}
+
+.plugin-details__tabs button:hover {
+	background: var(--surface-a);
+	color: var(--text-color);
+}
+
+.plugin-details__tabs button.active {
+	background: rgb(255 255 255 / 0.08);
+	border-color: rgb(255 255 255 / 0.16);
+	color: var(--text-color);
+}
+
+.plugin-details__tabs em {
+	background: rgb(255 255 255 / 0.12);
+	border-radius: 999px;
+	font-size: 0.72rem;
+	font-style: normal;
+	line-height: 1;
+	min-width: 1.25rem;
+	padding: 0.2rem 0.35rem;
+	text-align: center;
+}
+
 .plugin-details__stats div {
 	background: var(--surface-a);
 	border: 1px solid var(--surface-d);
@@ -386,6 +458,12 @@ function maskSecret(value: unknown) {
 	display: grid;
 	gap: 0.5rem;
 	padding: 0.65rem;
+}
+
+.plugin-details__row > div:first-child,
+.plugin-details__usage > div:first-child {
+	display: grid;
+	gap: 0.15rem;
 }
 
 .plugin-details__chips {
