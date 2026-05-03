@@ -174,6 +174,7 @@
 							@dragover.prevent.stop="dropTargetEdgeId = edge.id"
 							@dragleave.stop="clearDropEdge(edge.id)"
 							@drop.prevent.stop="dropActionOnEdge($event, edge)"
+							@pointerdown.stop="startExecEdgeDrag(edge.from, edge.port, $event)"
 							@click.stop="selectFlowEdge(edge.id)"
 						/>
 						<path
@@ -2490,7 +2491,8 @@ async function selectActionFromContext(actionKey: string) {
 	trackRecentlyUsed(actionKey, "action", actionDef?.name ?? selection.action, actionDef?.icon ?? "mdi mdi-play", String(plugin?.color ?? "#e9aaff"))
 
 	const pendingFlow = pendingFlowConnection.value
-	const position = resolveContextActionPosition(pendingFlow, contextMenu.value)
+	const contextAnchorNode = contextMenu.value.nodeId ? nodes.value.find((node) => node.id === contextMenu.value.nodeId) : undefined
+	const position = resolveContextActionPosition(pendingFlow, contextMenu.value, contextAnchorNode, H_GAP)
 	insertAction(action, pendingFlow?.fromNode ?? contextMenu.value.nodeId, position, pendingFlow?.fromPort)
 	if (position) nodePositions.value[action.id] = position
 	focusNode(action.id)

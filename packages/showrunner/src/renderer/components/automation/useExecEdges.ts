@@ -13,6 +13,8 @@ interface ExecEdgeDragState {
 	fromPort: string | undefined
 	fromX: number
 	fromY: number
+	startClientX: number
+	startClientY: number
 	currentX: number
 	currentY: number
 }
@@ -65,6 +67,8 @@ export function useExecEdges(
 			fromPort: port,
 			fromX,
 			fromY,
+			startClientX: event.clientX,
+			startClientY: event.clientY,
 			currentX: fromX,
 			currentY: fromY,
 		}
@@ -82,7 +86,7 @@ export function useExecEdges(
 		execEdgeDrag.value.currentY = (event.clientY - rect.top) / zoomRef.value
 	}
 
-	function onExecEdgeEnd() {
+	function onExecEdgeEnd(event: PointerEvent) {
 		window.removeEventListener("pointermove", onExecEdgeMove)
 		window.removeEventListener("pointerup", onExecEdgeEnd)
 
@@ -91,6 +95,7 @@ export function useExecEdges(
 			execEdgeDrag.value = null
 			return
 		}
+		updateDragPointFromEvent(drag, event)
 
 		const targetNode = findExecEdgeTarget(drag)
 		if (targetNode && targetNode !== drag.fromNode) {
@@ -109,8 +114,8 @@ export function useExecEdges(
 				})
 				commitUndo()
 			}
-		} else if (onDropOnEmpty) {
-			const clientPoint = getClientPointFromCanvasPoint(drag.currentX, drag.currentY)
+		} else if (onDropOnEmpty && didDragMove(drag, event)) {
+			const clientPoint = { x: event.clientX, y: event.clientY }
 			onDropOnEmpty({
 				fromNode: drag.fromNode,
 				fromPort: drag.fromPort,
@@ -122,14 +127,18 @@ export function useExecEdges(
 		execEdgeDrag.value = null
 	}
 
-	function getClientPointFromCanvasPoint(x: number, y: number) {
+	function updateDragPointFromEvent(drag: ExecEdgeDragState, event: PointerEvent) {
 		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
 		const rect = surface?.getBoundingClientRect()
-		if (!rect) return { x: 0, y: 0 }
-		return {
-			x: rect.left + x * zoomRef.value,
-			y: rect.top + y * zoomRef.value,
-		}
+		if (!rect) return
+		drag.currentX = (event.clientX - rect.left) / zoomRef.value
+		drag.currentY = (event.clientY - rect.top) / zoomRef.value
+	}
+
+	function didDragMove(drag: ExecEdgeDragState, event: PointerEvent) {
+		const dx = event.clientX - drag.startClientX
+		const dy = event.clientY - drag.startClientY
+		return Math.sqrt(dx * dx + dy * dy) > 8
 	}
 
 	function findExecEdgeTarget(drag: ExecEdgeDragState): string | undefined {

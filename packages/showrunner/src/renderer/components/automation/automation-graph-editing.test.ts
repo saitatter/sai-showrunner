@@ -36,7 +36,18 @@ describe("automation graph editing", () => {
 		expect(resolveContextActionPosition(null, { canvasPoint: { x: 320, y: 180 } })).toEqual({ x: 320, y: 180 })
 	})
 
-	it("keeps node context-menu actions at the click position instead of falling back to zero", () => {
+	it("places node context-menu actions to the right of the anchor node", () => {
+		expect(
+			resolveContextActionPosition(
+				null,
+				{ nodeId: "node-1", canvasPoint: { x: 420, y: 260 } },
+				{ x: 120, y: 180 },
+				285
+			)
+		).toEqual({ x: 405, y: 180 })
+	})
+
+	it("keeps node context-menu actions at the click position when the anchor node is unavailable", () => {
 		expect(resolveContextActionPosition(null, { nodeId: "node-1", canvasPoint: { x: 420, y: 260 } })).toEqual({
 			x: 420,
 			y: 260,

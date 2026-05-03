@@ -13,6 +13,11 @@ export interface ContextMenuPlacement {
 	canvasPoint?: NodePosition
 }
 
+export interface ContextMenuAnchorNode {
+	x: number
+	y: number
+}
+
 export function connectFlowToNode(
 	graph: AutomationGraph,
 	fromNode: string,
@@ -36,6 +41,15 @@ export function isTerminalControlFlowNode(type: GraphNodeType) {
 	return type === "break" || type === "continue" || type === "return"
 }
 
-export function resolveContextActionPosition(pendingFlow: PendingFlowConnection | null | undefined, contextMenu: ContextMenuPlacement) {
-	return pendingFlow?.canvasPoint ?? contextMenu.canvasPoint
+export function resolveContextActionPosition(
+	pendingFlow: PendingFlowConnection | null | undefined,
+	contextMenu: ContextMenuPlacement,
+	anchorNode?: ContextMenuAnchorNode,
+	anchorOffsetX = 0
+) {
+	if (pendingFlow?.canvasPoint) return pendingFlow.canvasPoint
+	if (contextMenu.nodeId && anchorNode) {
+		return { x: anchorNode.x + anchorOffsetX, y: anchorNode.y }
+	}
+	return contextMenu.canvasPoint
 }
