@@ -36,7 +36,7 @@
 					<span v-if="checkedAtLabel">{{ checkedAtLabel }}</span>
 				</div>
 				<flex-scroller class="updates-page__notes-body" inner-class="updates-page__notes-inner">
-					<div v-if="releaseNotes" ref="notes" class="updates-page__release-notes" v-html="releaseNotes"></div>
+					<div v-if="sanitizedReleaseNotes" ref="notes" class="updates-page__release-notes" v-html="sanitizedReleaseNotes"></div>
 					<p v-else class="updates-page__empty">Release notes will appear here after checking for updates.</p>
 				</flex-scroller>
 			</section>
@@ -49,6 +49,7 @@ import { UpdateStatus } from "showrunner-schema"
 import { FlexScroller, ScrollingTabBody, useAppFeedback, useIpcCaller } from "showrunner-ui-core"
 import { computed, nextTick, onMounted, ref, watch } from "vue"
 import PButton from "primevue/button"
+import { sanitizeReleaseNotes } from "../../util/sanitize-html"
 
 const status = ref<UpdateStatus>()
 const checking = ref(false)
@@ -63,6 +64,7 @@ const updateShowRunner = useIpcCaller<() => Promise<void>>("info", "updateShowRu
 
 const latestInfo = computed(() => status.value?.latest ?? status.value?.update)
 const releaseNotes = computed(() => latestInfo.value?.notes?.trim() ?? "")
+const sanitizedReleaseNotes = computed(() => sanitizeReleaseNotes(releaseNotes.value))
 
 const latestVersionLabel = computed(() => {
 	const latest = latestInfo.value?.version
@@ -137,7 +139,7 @@ async function prepareReleaseNoteLinks() {
 	}
 }
 
-watch(releaseNotes, prepareReleaseNoteLinks)
+watch(sanitizedReleaseNotes, prepareReleaseNoteLinks)
 
 onMounted(async () => {
 	await loadStatus()

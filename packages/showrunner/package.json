@@ -16,6 +16,7 @@
 	"main": "dist/dist-electron/background.js",
 	"dependencies": {
 		"archiver": "^7.0.1",
+		"dompurify": "^3.4.2",
 		"showrunner-core": "workspace:^",
 		"showrunner-plugin-advss-main": "workspace:^",
 		"showrunner-plugin-aitum-main": "workspace:^",

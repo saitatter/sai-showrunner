@@ -2818,6 +2818,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/trusted-types@npm:^2.0.7":
+  version: 2.0.7
+  resolution: "@types/trusted-types@npm:2.0.7"
+  checksum: 10/8e4202766a65877efcf5d5a41b7dd458480b36195e580a3b1085ad21e948bc417d55d6f8af1fd2a7ad008015d4117d5fdfe432731157da3c68678487174e4ba3
+  languageName: node
+  linkType: hard
+
 "@types/verror@npm:^1.10.3":
   version: 1.10.10
   resolution: "@types/verror@npm:1.10.10"
@@ -5244,6 +5251,18 @@ __metadata:
   dependencies:
     esutils: "npm:^2.0.2"
   checksum: 10/b4b28f1df5c563f7d876e7461254a4597b8cabe915abe94d7c5d1633fed263fcf9a85e8d3836591fc2d040108e822b0d32758e5ec1fe31c590dc7e08086e3e48
+  languageName: node
+  linkType: hard
+
+"dompurify@npm:^3.4.2":
+  version: 3.4.2
+  resolution: "dompurify@npm:3.4.2"
+  dependencies:
+    "@types/trusted-types": "npm:^2.0.7"
+  dependenciesMeta:
+    "@types/trusted-types":
+      optional: true
+  checksum: 10/8681a27f17412e754b38d080e39abb36fb14dbf58194d520eedd45b47986323966a0391df540a2011bce72dd37d67f2a015246a58f39d48e3e8f6051274fb974
   languageName: node
   linkType: hard
 
@@ -13244,6 +13263,7 @@ __metadata:
     "@vueuse/core": "npm:*"
     archiver: "npm:^7.0.1"
     chromatism2: "npm:*"
+    dompurify: "npm:^3.4.2"
     electron: "npm:^34.2.0"
     electron-builder: "npm:^25.1.8"
     electron-devtools-installer: "npm:^3.2.0"

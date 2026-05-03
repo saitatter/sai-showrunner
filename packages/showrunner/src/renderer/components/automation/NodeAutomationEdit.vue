@@ -1629,7 +1629,11 @@ const {
 watch(
 	() => contextMenu.value.open,
 	(open) => {
-		if (open) contextMenuFocusIndex.value = -1
+		if (!open) return
+		contextMenuFocusIndex.value = -1
+		nextTick(() => {
+			contextMenuRootRef.value?.querySelector<HTMLInputElement>("input[type='search']")?.focus()
+		})
 	}
 )
 

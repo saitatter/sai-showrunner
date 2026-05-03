@@ -5,7 +5,7 @@
 			<h2 class="my-2 text-center">{{ updateData.version }} - {{ updateData.name }}</h2>
 		</div>
 		<flex-scroller class="flex-grow-1 update-notes mb-3" inner-class="px-4" style="height: 50vh">
-			<div ref="notes" v-html="updateData.notes"></div>
+			<div ref="notes" v-html="sanitizedNotes"></div>
 		</flex-scroller>
 		<div class="flex flex-row">
 			<p-button @click="doUpdate" :loading="updating">Update!</p-button>
@@ -18,10 +18,12 @@
 <script setup lang="ts">
 import { UpdateData } from "showrunner-schema"
 import { useIpcCaller, FlexScroller, useDialogRef } from "showrunner-ui-core"
-import { nextTick, onMounted, ref } from "vue"
+import { computed, nextTick, onMounted, ref } from "vue"
 import PButton from "primevue/button"
+import { sanitizeReleaseNotes } from "../../util/sanitize-html"
 
 const updateData = ref<UpdateData>()
+const sanitizedNotes = computed(() => sanitizeReleaseNotes(updateData.value?.notes ?? ""))
 
 const getUpdateData = useIpcCaller<() => UpdateData | undefined>("info", "getUpdateInfo")
 

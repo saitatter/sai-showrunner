@@ -6,7 +6,14 @@ export function parseBooleanText(value: unknown): boolean | undefined {
 }
 
 export function convertStringToNumber(value: unknown, fallback: unknown = 0) {
-	const parsed = Number(String(value ?? "").trim())
+	const text = String(value ?? "").trim()
+	if (text === "") {
+		return {
+			value: Number(fallback ?? 0),
+			converted: false,
+		}
+	}
+	const parsed = Number(text)
 	const converted = Number.isFinite(parsed)
 	return {
 		value: converted ? parsed : Number(fallback ?? 0),

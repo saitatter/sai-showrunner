@@ -20,7 +20,8 @@ describe("conversion utils", () => {
 	it("converts string to number with fallback on invalid input", () => {
 		expect(convertStringToNumber("42.5", 0)).toEqual({ value: 42.5, converted: true })
 		expect(convertStringToNumber("nope", 7)).toEqual({ value: 7, converted: false })
-		expect(convertStringToNumber("", 3)).toEqual({ value: 0, converted: true })
+		expect(convertStringToNumber("", 3)).toEqual({ value: 3, converted: false })
+		expect(convertStringToNumber("   ", 4)).toEqual({ value: 4, converted: false })
 	})
 
 	it("converts string to boolean with fallback on unknown text", () => {
