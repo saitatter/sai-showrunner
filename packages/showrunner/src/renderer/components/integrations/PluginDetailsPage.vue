@@ -2,15 +2,15 @@
 	<div class="plugin-details">
 		<header v-if="plugin" class="plugin-details__header">
 			<div class="plugin-details__identity">
-				<i :class="plugin.icon" :style="{ color: plugin.color }" />
+				<i :class="pluginIconClass" :style="{ color: plugin.color }" />
 				<div>
 					<p>Integration Plugin</p>
 					<h2>{{ plugin.name }}</h2>
 					<small>{{ plugin.id }} · {{ plugin.version || "unknown version" }}</small>
 				</div>
 			</div>
-			<button type="button" class="plugin-details__toggle" :class="{ enabled }" @click="togglePlugin">
-				<i :class="enabled ? 'mdi mdi-toggle-switch' : 'mdi mdi-toggle-switch-off-outline'" />
+			<button type="button" class="plugin-details__toggle" :class="{ enabled, disabled: !enabled }" @click="togglePlugin">
+				<i :class="enabled ? 'mdi mdi-power' : 'mdi mdi-power-off'" />
 				<span>{{ enabled ? "On" : "Off" }}</span>
 			</button>
 		</header>
@@ -115,6 +115,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import { usePluginStore, useResourceStore } from "showrunner-ui-core"
+import { pluginIcon } from "../../util/plugin-icons"
 
 const props = defineProps<{
 	pageData?: {
@@ -127,6 +128,7 @@ const resourceStore = useResourceStore()
 const pluginId = computed(() => props.pageData?.pluginId ?? "")
 const plugin = computed(() => pluginStore.pluginMap.get(pluginId.value))
 const enabled = computed(() => pluginStore.isPluginEnabled(pluginId.value))
+const pluginIconClass = computed(() => pluginIcon(pluginId.value, plugin.value?.icon))
 
 const settingRows = computed(() => {
 	if (!plugin.value) return []
@@ -315,10 +317,8 @@ function maskSecret(value: unknown) {
 
 .plugin-details__toggle {
 	align-items: center;
-	background: rgb(255 255 255 / 0.08);
-	border: 1px solid rgb(255 255 255 / 0.18);
+	border: 1px solid transparent;
 	border-radius: 4px;
-	color: var(--text-color);
 	cursor: pointer;
 	display: flex;
 	gap: 0.4rem;
@@ -326,9 +326,15 @@ function maskSecret(value: unknown) {
 }
 
 .plugin-details__toggle.enabled {
-	background: rgb(46 212 122 / 0.14);
-	border-color: rgb(46 212 122 / 0.45);
-	color: #9df5be;
+	background: rgb(21 128 61 / 0.28);
+	border-color: rgb(34 197 94 / 0.5);
+	color: #bbf7d0;
+}
+
+.plugin-details__toggle.disabled {
+	background: rgb(153 27 27 / 0.28);
+	border-color: rgb(248 113 113 / 0.5);
+	color: #fecaca;
 }
 
 .plugin-details__stats {

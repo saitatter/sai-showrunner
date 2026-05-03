@@ -2,6 +2,9 @@ import { computed, markRaw } from "vue"
 import { ProjectGroup, ProjectItem, useDockingStore, usePluginStore, useProjectStore } from "showrunner-ui-core"
 import PluginDetailsPage from "../components/integrations/PluginDetailsPage.vue"
 import PluginVisibilityToggle from "../components/integrations/PluginVisibilityToggle.vue"
+import { pluginIcon } from "./plugin-icons"
+
+const NATIVE_INTEGRATION_GROUP_PLUGIN_IDS = new Set(["moderation", "obs", "twitch", "youtube"])
 
 export function initializeIntegrationVisibility() {
 	const pluginStore = usePluginStore()
@@ -18,16 +21,16 @@ export function initializeIntegrationVisibility() {
 			id: "plugins",
 			title: "Plugins",
 			icon: "mdi mdi-puzzle-outline",
-			items: buildPluginCategoryGroups([...pluginStore.pluginMap.values()].map((plugin) => ({
+			items: buildPluginCategoryGroups([...pluginStore.pluginMap.values()].filter((plugin) => !NATIVE_INTEGRATION_GROUP_PLUGIN_IDS.has(plugin.id)).map((plugin) => ({
 				id: plugin.id,
 				title: plugin.name,
-				icon: plugin.icon,
+				icon: pluginIcon(plugin.id, plugin.icon),
 				endComponent: markRaw(PluginVisibilityToggle),
 				open() {
 					dockingStore.openPage(
 						`integration.${plugin.id}`,
 						plugin.name,
-						plugin.icon || "mdi mdi-puzzle-outline",
+						pluginIcon(plugin.id, plugin.icon),
 						PluginDetailsPage,
 						{ pluginId: plugin.id }
 					)

@@ -127,6 +127,10 @@ function showContext(ev: MouseEvent) {
 
 .project-item-title {
 	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	user-select: none;
 }
 

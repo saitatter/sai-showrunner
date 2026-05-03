@@ -11,7 +11,7 @@
 			<slot name="icon">
 				<i :class="group.icon" class="px-1" v-if="group.icon"></i>
 			</slot>
-			<span style="flex: 1">{{ group.title }}</span>
+			<span class="project-category-title">{{ group.title }}</span>
 			<plugin-visibility-toggle v-if="showPluginToggle" :item="{ id: group.id }" />
 			<p-button icon="mdi mdi-dots-vertical" class="p-0" v-if="!isOutside && hasMenu" @click="menuClick" text />
 			<c-context-menu ref="contextMenu" :items="menuItems" />
@@ -98,6 +98,14 @@ const expanded = ref(false)
 	height: 2rem;
 	padding-left: calc(var(--indent) * 1em);
 	user-select: none;
+}
+
+.project-category-title {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .project-category-header:hover {
