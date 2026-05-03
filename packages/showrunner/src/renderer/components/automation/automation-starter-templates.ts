@@ -97,6 +97,90 @@ export const automationStarterTemplates: AutomationStarterTemplate[] = [
 		},
 	},
 	{
+		id: "obs-scene-change",
+		name: "OBS Scene Change",
+		description: "Manual starter that changes the current OBS scene.",
+		icon: "mdi mdi-broadcast",
+		create() {
+			return createTemplate("OBS Scene Change", "ShowRunner", "autoRun", [
+				actionNode("change-scene", "obs", "scene", 360, 120, {
+					obs: undefined,
+					scene: "",
+				}),
+			])
+		},
+	},
+	{
+		id: "twitch-chat-command-reply",
+		name: "Twitch Chat Command Reply",
+		description: "Chat command -> send a chat response.",
+		icon: "mdi mdi-chat-processing-outline",
+		create() {
+			return createTemplate("Twitch Chat Command Reply", "twitch", "chat", [
+				actionNode("send-chat-reply", "twitch", "chat", 360, 120, {
+					message: "Hey {{ viewerName }}, thanks for using the command!",
+				}),
+			], undefined, [], {
+				command: {
+					mode: "command",
+					match: "!hello",
+					arguments: [],
+					hasMessage: false,
+				},
+				cooldown: undefined,
+				group: {},
+			})
+		},
+	},
+	{
+		id: "twitch-chat-moderation-review",
+		name: "Twitch Chat Moderation Review",
+		description: "Chat command context -> moderation docker filter action.",
+		icon: "mdi mdi-shield-search",
+		create() {
+			return createTemplate("Twitch Chat Moderation Review", "twitch", "chat", [
+				actionNode("moderate-chat", "moderation", "moderateChatMessage", 360, 120, {
+					platform: "",
+					messageId: "",
+					viewerId: "",
+					viewerName: "",
+					message: "",
+					badges: "",
+					isModerator: false,
+					isMember: false,
+					isOwner: false,
+				}),
+			], undefined, triggerWires("moderate-chat", {
+				platform: "platform",
+				messageId: "messageId",
+				viewerId: "viewerId",
+				viewerName: "viewerName",
+				message: "message",
+				badges: "badges",
+			}), {
+				command: {
+					mode: "command",
+					match: "!moderate",
+					arguments: [],
+					hasMessage: true,
+				},
+				cooldown: undefined,
+				group: {},
+			})
+		},
+	},
+	{
+		id: "stream-plan-next-segment",
+		name: "Stream Plan Next Segment",
+		description: "Manual starter that advances the active stream plan.",
+		icon: "mdi mdi-notebook-arrow-right-outline",
+		create() {
+			return createTemplate("Stream Plan Next Segment", "ShowRunner", "autoRun", [
+				actionNode("next-stream-plan-segment", "stream-plans", "nextSegment", 360, 120, {}),
+			])
+		},
+	},
+	{
 		id: "ending-scene-banner",
 		name: "Ending Scene Banner",
 		description: "Starter graph that publishes a scene.end banner after a closing message.",
@@ -223,14 +307,15 @@ function createTemplate(
 	trigger: string,
 	nodes: GraphNode[],
 	edges = nodes.length > 1 ? nodes.slice(0, -1).map((node, index) => ({ id: `${node.id}:${nodes[index + 1].id}`, from: node.id, to: nodes[index + 1].id })) : [],
-	dataWires: AutomationDataWire[] = []
+	dataWires: AutomationDataWire[] = [],
+	config: Record<string, unknown> = {}
 ): AutomationConfig {
 	return {
 		name,
 		schemaVersion: 2,
 		plugin,
 		trigger,
-		config: {},
+		config,
 		stop: false,
 		graph: {
 			nodes,
