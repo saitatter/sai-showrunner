@@ -4111,12 +4111,12 @@ onUnmounted(() => {
 .node-automation__node--variable {
 	background: linear-gradient(135deg, rgb(38 50 56 / 0.96), rgb(20 28 31 / 0.96));
 	border-color: #90a4ae;
-	border-radius: 999px 18px 999px 18px;
+	border-radius: 6px;
 	border-style: dashed;
 	box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06), 0 8px 20px rgb(0 0 0 / 0.3);
 	min-width: 150px;
-	padding-left: 0.95rem;
-	padding-right: 0.95rem;
+	padding-left: 0.85rem;
+	padding-right: 0.85rem;
 }
 
 .node-automation__node--variable::before {
