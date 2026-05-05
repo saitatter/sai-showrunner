@@ -5,6 +5,7 @@
 			`node-automation__node--${node.kind}`,
 			{
 				selected,
+				'annotation-member': annotationMember,
 				missing: node.missing,
 				'drop-target': dropTarget,
 				'preview-active': previewActive,
@@ -166,6 +167,7 @@ const props = defineProps<{
 	node: NodeData
 	nodeWidth: number
 	selected: boolean
+	annotationMember: boolean
 	dropTarget: boolean
 	previewActive: boolean
 	searchMatch: boolean
@@ -281,6 +283,10 @@ function portStyle(type: string, connected: boolean) {
 .node-automation__node.selected {
 	border-color: #ffdf6b;
 	box-shadow: 0 0 0 3px rgb(255 223 107 / 0.2), 0 12px 28px rgb(0 0 0 / 0.35);
+}
+
+.node-automation__node.annotation-member:not(.selected) {
+	box-shadow: 0 0 0 2px rgb(100 181 246 / 0.42), 0 10px 24px rgb(0 0 0 / 0.28);
 }
 
 .node-automation__node:focus-visible {
