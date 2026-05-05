@@ -132,25 +132,9 @@
 						:on-start-resize="startResize"
 					/>
 
-					<div
-						v-if="ghostNode"
-						class="node-automation__ghost-node"
-						:style="{
-							transform: `translate(${ghostNode.x}px, ${ghostNode.y}px)`,
-						}"
-					>
-						<i class="mdi mdi-plus" />
-						<span>Drop here</span>
-					</div>
-
-					<div
-						v-if="rubberBand"
-						class="node-automation__rubber-band"
-						:style="{
-							transform: `translate(${rubberBand.x}px, ${rubberBand.y}px)`,
-							width: `${rubberBand.width}px`,
-							height: `${rubberBand.height}px`,
-						}"
+					<node-automation-canvas-drag-preview
+						:ghost-node="ghostNode"
+						:rubber-band="rubberBand"
 					/>
 				</div>
 
@@ -336,6 +320,7 @@ import NodeAutomationCanvasOverlays from "./NodeAutomationCanvasOverlays.vue"
 import NodeAutomationEdges from "./NodeAutomationEdges.vue"
 import NodeAutomationAnnotationBlocks from "./NodeAutomationAnnotationBlocks.vue"
 import NodeAutomationNodeCard from "./NodeAutomationNodeCard.vue"
+import NodeAutomationCanvasDragPreview from "./NodeAutomationCanvasDragPreview.vue"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
