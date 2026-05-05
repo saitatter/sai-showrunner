@@ -46,45 +46,20 @@
 					:on-reset-playhead-preview="resetPlayheadPreview"
 				/>
 
-				<div v-if="canvasSearchOpen" class="node-automation__canvas-search" @click.stop @pointerdown.stop>
-					<i class="mdi mdi-magnify" />
-					<input
-						ref="canvasSearchInputRef"
-						v-model="canvasSearchQuery"
-						type="search"
-						placeholder="Find node…"
-						@keydown.enter.prevent="cycleSearchResult(1)"
-						@keydown.escape.prevent="closeCanvasSearch"
-						@keydown.up.prevent="cycleSearchResult(-1)"
-						@keydown.down.prevent="cycleSearchResult(1)"
-					/>
-					<span v-if="canvasSearchResults.length" class="node-automation__search-count">
-						{{ canvasSearchIndex + 1 }}/{{ canvasSearchResults.length }}
-					</span>
-					<span v-else-if="canvasSearchQuery" class="node-automation__search-count">0</span>
-					<button type="button" aria-label="Previous" @click="cycleSearchResult(-1)"><i class="mdi mdi-chevron-up" /></button>
-					<button type="button" aria-label="Next" @click="cycleSearchResult(1)"><i class="mdi mdi-chevron-down" /></button>
-					<button type="button" aria-label="Close" @click="closeCanvasSearch"><i class="mdi mdi-close" /></button>
-				</div>
-
-				<div v-if="activeSubgraph" class="node-automation__subgraph-breadcrumb">
-					<button type="button" @click="openMainCanvas">
-						<i class="mdi mdi-arrow-left" /> Main graph
-					</button>
-					<span>/</span>
-					<strong>{{ activeSubgraph.name || "Unnamed Subgraph" }}</strong>
-					<small>{{ activeSubgraph.nodes.length }} nodes, {{ activeSubgraph.dataWires?.length ?? 0 }} data wires</small>
-				</div>
-
-				<div v-if="invalidDataWireIssues.length" class="node-automation__wire-health" @click.stop @pointerdown.stop>
-					<i class="mdi mdi-alert-circle-outline" />
-					<div>
-						<strong>{{ invalidDataWireIssues.length }} invalid data wire{{ invalidDataWireIssues.length === 1 ? "" : "s" }}</strong>
-						<small>{{ invalidDataWireIssues[0].message }}</small>
-					</div>
-					<button type="button" @click="selectDataWireIssue(invalidDataWireIssues[0])">Select</button>
-					<button type="button" @click="cleanupInvalidDataWires">Clean up</button>
-				</div>
+				<node-automation-canvas-overlays
+					ref="canvasOverlaysRef"
+					v-model:canvas-search-query="canvasSearchQuery"
+					:canvas-search-open="canvasSearchOpen"
+					:canvas-search-index="canvasSearchIndex"
+					:canvas-search-result-count="canvasSearchResults.length"
+					:active-subgraph="activeSubgraph"
+					:invalid-data-wire-issues="invalidDataWireIssues"
+					:on-cycle-search-result="cycleSearchResult"
+					:on-close-canvas-search="closeCanvasSearch"
+					:on-open-main-canvas="openMainCanvas"
+					:on-select-data-wire-issue="selectDataWireIssue"
+					:on-cleanup-invalid-data-wires="cleanupInvalidDataWires"
+				/>
 
 				<div
 					class="node-automation__surface"
@@ -569,6 +544,7 @@ import NodeAutomationDetails from "./NodeAutomationDetails.vue"
 import NodeAutomationContextMenu from "./NodeAutomationContextMenu.vue"
 import NodeAutomationCanvasControls from "./NodeAutomationCanvasControls.vue"
 import NodeAutomationMinimap from "./NodeAutomationMinimap.vue"
+import NodeAutomationCanvasOverlays from "./NodeAutomationCanvasOverlays.vue"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
@@ -596,7 +572,7 @@ const rubberBand = ref<{ x: number; y: number; width: number; height: number } |
 const canvasSearchOpen = ref(false)
 const canvasSearchQuery = ref("")
 const canvasSearchIndex = ref(0)
-const canvasSearchInputRef = ref<HTMLInputElement>()
+const canvasOverlaysRef = ref<InstanceType<typeof NodeAutomationCanvasOverlays>>()
 const contextMenuRootRef = ref<HTMLElement>()
 const detailsOpen = ref(true)
 const configOpen = ref(true)
@@ -1445,7 +1421,7 @@ function openCanvasSearch() {
 	canvasSearchOpen.value = true
 	canvasSearchQuery.value = ""
 	canvasSearchIndex.value = 0
-	nextTick(() => canvasSearchInputRef.value?.focus())
+	nextTick(() => canvasOverlaysRef.value?.focusSearchInput())
 }
 
 function closeCanvasSearch() {
@@ -2568,153 +2544,6 @@ onUnmounted(() => {
 
 .node-automation__canvas.space-held {
 	cursor: grab;
-}
-
-.node-automation__canvas-search {
-	align-items: center;
-	background: rgb(0 0 0 / 0.72);
-	border: 1px solid rgb(255 255 255 / 0.12);
-	border-radius: 6px;
-	display: flex;
-	gap: 0.35rem;
-	padding: 0.3rem 0.5rem;
-	pointer-events: auto;
-	position: absolute;
-	right: 0.75rem;
-	top: 3.5rem;
-	z-index: 20;
-}
-
-.node-automation__canvas-search i {
-	color: rgb(255 255 255 / 0.6);
-	font-size: 1.1rem;
-}
-
-.node-automation__canvas-search input {
-	background: transparent;
-	border: none;
-	color: #eee;
-	font-size: 0.8rem;
-	outline: none;
-	width: 10rem;
-}
-
-.node-automation__canvas-search input::placeholder {
-	color: rgb(255 255 255 / 0.35);
-}
-
-.node-automation__search-count {
-	color: rgb(255 255 255 / 0.55);
-	font-size: 0.75rem;
-	min-width: 2.5rem;
-	text-align: center;
-	white-space: nowrap;
-}
-
-.node-automation__canvas-search button {
-	align-items: center;
-	background: transparent;
-	border: none;
-	border-radius: 3px;
-	color: rgb(255 255 255 / 0.7);
-	cursor: pointer;
-	display: flex;
-	font-size: 1rem;
-	justify-content: center;
-	padding: 0.15rem;
-}
-
-.node-automation__canvas-search button:hover {
-	background: rgb(255 255 255 / 0.12);
-}
-
-.node-automation__subgraph-breadcrumb {
-	align-items: center;
-	background: rgb(15 15 15 / 0.9);
-	border: 1px solid #7041a6;
-	border-radius: 6px;
-	color: #f2e8ff;
-	display: flex;
-	gap: 0.45rem;
-	left: 0.75rem;
-	padding: 0.35rem 0.55rem;
-	position: sticky;
-	top: 3.45rem;
-	width: max-content;
-	z-index: 4;
-}
-
-.node-automation__subgraph-breadcrumb button {
-	align-items: center;
-	background: #241333;
-	border: 1px solid #7041a6;
-	border-radius: 4px;
-	color: #f2e8ff;
-	cursor: pointer;
-	display: flex;
-	gap: 0.25rem;
-	padding: 0.3rem 0.55rem;
-}
-
-.node-automation__subgraph-breadcrumb small {
-	color: rgb(255 255 255 / 0.62);
-}
-
-.node-automation__wire-health {
-	align-items: center;
-	background: rgb(61 33 25 / 0.94);
-	border: 1px solid rgb(239 154 154 / 0.5);
-	border-radius: 6px;
-	box-shadow: 0 12px 28px rgb(0 0 0 / 0.32);
-	color: #fff4f4;
-	display: grid;
-	gap: 0.45rem;
-	grid-template-columns: auto minmax(0, 1fr) auto auto;
-	left: 0.75rem;
-	max-width: min(42rem, calc(100% - 1.5rem));
-	padding: 0.55rem 0.65rem;
-	pointer-events: auto;
-	position: sticky;
-	top: 4.25rem;
-	z-index: 22;
-}
-
-.node-automation__wire-health > i {
-	color: #ef9a9a;
-	font-size: 1.15rem;
-}
-
-.node-automation__wire-health div {
-	display: grid;
-	min-width: 0;
-}
-
-.node-automation__wire-health strong,
-.node-automation__wire-health small {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.node-automation__wire-health small {
-	color: #ffd6d6;
-	font-size: 0.72rem;
-}
-
-.node-automation__wire-health button {
-	background: rgb(255 255 255 / 0.1);
-	border: 1px solid rgb(255 255 255 / 0.18);
-	border-radius: 4px;
-	color: #fff;
-	cursor: pointer;
-	font-size: 0.72rem;
-	font-weight: 700;
-	padding: 0.25rem 0.5rem;
-}
-
-.node-automation__wire-health button:hover {
-	background: rgb(239 83 80 / 0.32);
-	border-color: rgb(239 154 154 / 0.72);
 }
 
 .node-automation__node.search-dimmed {
