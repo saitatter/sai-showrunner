@@ -84,18 +84,18 @@
 							:local-path="selectedActionPath"
 							:resolved-action-definition="selectedActionDefinition"
 						/>
-						<div v-else-if="selectedActionMissing" class="node-automation__missing-schema">
-							<i class="mdi mdi-alert-circle-outline" />
-							<strong>Missing action schema</strong>
-							<span>{{ selectedActionInfo?.plugin }} / {{ selectedActionInfo?.action }}</span>
-							<small>The plugin or action was removed or renamed. The node is preserved so you can reconnect it or delete it safely.</small>
-						</div>
-						<div v-else-if="selectedTriggerMissing" class="node-automation__missing-schema">
-							<i class="mdi mdi-alert-circle-outline" />
-							<strong>Missing trigger schema</strong>
-							<span>{{ selectedTriggerConfigModel?.plugin }} / {{ selectedTriggerConfigModel?.trigger }}</span>
-							<small>The trigger was removed or renamed. Pick a new trigger from the context menu to repair this automation.</small>
-						</div>
+						<missing-schema-notice
+							v-else-if="selectedActionMissing"
+							title="Missing action schema"
+							:source="`${selectedActionInfo?.plugin} / ${selectedActionInfo?.action}`"
+							message="The plugin or action was removed or renamed. The node is preserved so you can reconnect it or delete it safely."
+						/>
+						<missing-schema-notice
+							v-else-if="selectedTriggerMissing"
+							title="Missing trigger schema"
+							:source="`${selectedTriggerConfigModel?.plugin} / ${selectedTriggerConfigModel?.trigger}`"
+							message="The trigger was removed or renamed. Pick a new trigger from the context menu to repair this automation."
+						/>
 						<trigger-config-edit v-else-if="selectedNode.kind === 'trigger' && selectedTriggerConfigModel" v-model="selectedTriggerConfigModelModel" />
 						<div v-else-if="selectedNode.kind === 'variable' && selectedVariableNode" class="node-automation__variable-edit">
 							<label>
@@ -463,6 +463,7 @@ import {
 import type { AnnotationBlock } from "./useAnnotationBlocks"
 import type { NodeData } from "./useNodeRendering"
 import ExpressionTextInput from "./ExpressionTextInput.vue"
+import MissingSchemaNotice from "./MissingSchemaNotice.vue"
 
 interface ActionPalettePlugin {
 	id: string
@@ -698,27 +699,6 @@ const selectedTriggerConfigModelModel = computed({
 	max-height: 52vh;
 	overflow: auto;
 	padding: 0.55rem;
-}
-
-.node-automation__missing-schema {
-	align-items: start;
-	background: rgba(239, 83, 80, 0.1);
-	border: 1px solid rgba(239, 83, 80, 0.35);
-	border-radius: 5px;
-	color: #ffd8d8;
-	display: grid;
-	gap: 0.35rem;
-	padding: 0.75rem;
-}
-
-.node-automation__missing-schema i {
-	color: #ff7777;
-	font-size: 1.4rem;
-}
-
-.node-automation__missing-schema span,
-.node-automation__missing-schema small {
-	color: #ffbcbc;
 }
 
 .node-automation__quick-actions {
