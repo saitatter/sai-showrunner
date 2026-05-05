@@ -1,9 +1,31 @@
 import { describe, expect, it } from "vitest"
-import { graphBezierPath, graphPointFromClient, graphPortPositionKey } from "./graph"
+import {
+	findNearestGraphPort,
+	graphBezierPath,
+	graphDistance,
+	graphPointFromClient,
+	graphPortPositionKey,
+	graphWireId,
+	oppositeGraphPortKind,
+	resolveGraphWireEndpoints,
+} from "./graph"
 
 describe("graph geometry helpers", () => {
 	it("builds stable port position keys", () => {
 		expect(graphPortPositionKey("node", "value", "out")).toBe("out:node:value")
+	})
+
+	it("resolves graph wire direction from either end", () => {
+		expect(oppositeGraphPortKind("out")).toBe("in")
+		expect(resolveGraphWireEndpoints(
+			{ fromNode: "source", fromPort: "value", fromKind: "out" },
+			{ nodeId: "target", portKey: "input", kind: "in" }
+		)).toEqual({ fromNode: "source", fromPort: "value", toNode: "target", toPort: "input" })
+		expect(resolveGraphWireEndpoints(
+			{ fromNode: "target", fromPort: "input", fromKind: "in" },
+			{ nodeId: "source", portKey: "value", kind: "out" }
+		)).toEqual({ fromNode: "source", fromPort: "value", toNode: "target", toPort: "input" })
+		expect(graphWireId({ fromNode: "source", fromPort: "value", toNode: "target", toPort: "input" })).toBe("source:value->target:input")
 	})
 
 	it("builds cubic bezier wire paths", () => {
@@ -17,5 +39,21 @@ describe("graph geometry helpers", () => {
 		} as HTMLElement
 
 		expect(graphPointFromClient(surface, 140, 90, 2)).toEqual({ x: 20, y: 20 })
+	})
+
+	it("finds the nearest valid snap port", () => {
+		const nearest = findNearestGraphPort(
+			{ x: 10, y: 10 },
+			[
+				{ nodeId: "far", portKey: "value", kind: "in", position: { x: 80, y: 80 } },
+				{ nodeId: "invalid", portKey: "value", kind: "in", position: { x: 9, y: 9 } },
+				{ nodeId: "near", portKey: "value", kind: "in", position: { x: 14, y: 10 } },
+			],
+			20,
+			(candidate) => candidate.nodeId !== "invalid"
+		)
+
+		expect(graphDistance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(5)
+		expect(nearest?.nodeId).toBe("near")
 	})
 })

@@ -1,9 +1,14 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type ComputedRef, type Ref } from "vue"
 import {
 	collectRenderedGraphPortPositions,
+	findNearestGraphPort,
 	graphBezierPath,
 	graphPointFromClient,
 	graphPortPositionKey,
+	graphWireId,
+	oppositeGraphPortKind,
+	resolveGraphWireEndpoints,
+	type GraphPortCandidate,
 	type GraphPoint,
 } from "showrunner-ui-core/src/util/graph"
 
@@ -346,23 +351,17 @@ export function usePortConnections(
 		const target = findPortUnderCursor(event, drag)
 		let connected = false
 		if (target) {
-			const fromNode = drag.fromKind === "out" ? drag.fromNode : target.nodeId
-			const fromPort = drag.fromKind === "out" ? drag.fromPort : target.portKey
-			const toNode = drag.fromKind === "out" ? target.nodeId : drag.fromNode
-			const toPort = drag.fromKind === "out" ? target.portKey : drag.fromPort
+			const endpoints = resolveGraphWireEndpoints(drag, target)
 			const validation = validateDragTarget(drag, target)
 
 			if (validation.valid) {
 				// Remove existing wire to this input (one wire per input port)
-				const existingIdx = dataWires.value.findIndex((w) => w.toNode === toNode && w.toPort === toPort)
+				const existingIdx = dataWires.value.findIndex((w) => w.toNode === endpoints.toNode && w.toPort === endpoints.toPort)
 				if (existingIdx >= 0) dataWires.value.splice(existingIdx, 1)
 
 				dataWires.value.push({
-					id: `${fromNode}:${fromPort}->${toNode}:${toPort}`,
-					fromNode,
-					fromPort,
-					toNode,
-					toPort,
+					id: graphWireId(endpoints),
+					...endpoints,
 				})
 				connected = true
 				commitUndo()
@@ -382,61 +381,40 @@ export function usePortConnections(
 	}
 
 	function findPortUnderCursor(event: PointerEvent, drag: WireDragState): PortAddress | undefined {
-		const targetKind = drag.fromKind === "out" ? "in" : "out"
+		const targetKind = oppositeGraphPortKind(drag.fromKind)
 		const elementTarget = findPortFromEventTarget(event, targetKind)
 		if (elementTarget && isCompatibleTarget(drag, elementTarget)) {
 			return elementTarget
 		}
 
-		const SNAP_RADIUS = 34 / zoom.value
-		const portPositions = renderedPortPositions.value
-
-		for (const node of nodes.value) {
-			if (node.id === drag.fromNode && targetKind === drag.fromKind) continue
-			const ports = targetKind === "in" ? node.inputPorts : node.outputPorts
-			if (!ports) continue
-			for (const port of ports) {
-				const pos = getPortPosition(node, port.key, targetKind)
-				const renderedPos = getRenderedPortPosition(portPositions, node.id, port.key, targetKind)
-				const portPosition = renderedPos ?? pos
-				if (!portPosition) continue
-				const dx = portPosition.x - drag.currentX
-				const dy = portPosition.y - drag.currentY
-				if (Math.sqrt(dx * dx + dy * dy) < SNAP_RADIUS) {
-					if (isCompatibleTarget(drag, { nodeId: node.id, portKey: port.key, kind: targetKind })) {
-						return { nodeId: node.id, portKey: port.key, kind: targetKind }
-					}
-				}
-			}
-		}
-		return undefined
+		return findNearestPortForDrag(drag)
 	}
 
 	function findNearestPortForDrag(drag: WireDragState): PortAddress | undefined {
-		const targetKind = drag.fromKind === "out" ? "in" : "out"
+		const targetKind = oppositeGraphPortKind(drag.fromKind)
 		const SNAP_RADIUS = 34 / zoom.value
-		const portPositions = renderedPortPositions.value
+		const nearest = findNearestGraphPort(
+			{ x: drag.currentX, y: drag.currentY },
+			getPortCandidates(targetKind),
+			SNAP_RADIUS,
+			(candidate) => isCompatibleTarget(drag, candidate)
+		)
+		return nearest ? { nodeId: nearest.nodeId, portKey: nearest.portKey, kind: nearest.kind } : undefined
+	}
 
-		let nearest: { address: PortAddress; distance: number } | undefined
+	function getPortCandidates(targetKind: "in" | "out"): GraphPortCandidate[] {
+		const candidates: GraphPortCandidate[] = []
+		const portPositions = renderedPortPositions.value
 		for (const node of nodes.value) {
 			const ports = targetKind === "in" ? node.inputPorts : node.outputPorts
 			if (!ports) continue
 			for (const port of ports) {
-				const renderedPos = getRenderedPortPosition(portPositions, node.id, port.key, targetKind)
-				const portPosition = renderedPos ?? getPortPosition(node, port.key, targetKind)
-				if (!portPosition) continue
-				const dx = portPosition.x - drag.currentX
-				const dy = portPosition.y - drag.currentY
-				const distance = Math.sqrt(dx * dx + dy * dy)
-				if (distance < SNAP_RADIUS && (!nearest || distance < nearest.distance)) {
-					nearest = {
-						address: { nodeId: node.id, portKey: port.key, kind: targetKind },
-						distance,
-					}
-				}
+				const position = getRenderedPortPosition(portPositions, node.id, port.key, targetKind) ?? getPortPosition(node, port.key, targetKind)
+				if (!position) continue
+				candidates.push({ nodeId: node.id, portKey: port.key, kind: targetKind, position })
 			}
 		}
-		return nearest?.address
+		return candidates
 	}
 
 	function updateDragPoint(event: PointerEvent) {
@@ -486,8 +464,7 @@ export function usePortConnections(
 			return { valid: false, message: `Incompatible wire: ${sourceType} -> ${destinationType}` }
 		}
 
-		const fromNode = drag.fromKind === "out" ? drag.fromNode : target.nodeId
-		const toNode = drag.fromKind === "out" ? target.nodeId : drag.fromNode
+		const { fromNode, toNode } = resolveGraphWireEndpoints(drag, target)
 		if (wouldCreateCycle(fromNode, toNode)) {
 			return { valid: false, message: "Data wire would create a circular dependency." }
 		}

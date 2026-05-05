@@ -3,6 +3,31 @@ export interface GraphPoint {
 	y: number
 }
 
+export type GraphPortKind = "in" | "out"
+
+export interface GraphPortAddress {
+	nodeId: string
+	portKey: string
+	kind: GraphPortKind
+}
+
+export interface GraphPortCandidate extends GraphPortAddress {
+	position: GraphPoint
+}
+
+export interface GraphWireDragAddress {
+	fromNode: string
+	fromPort: string
+	fromKind: GraphPortKind
+}
+
+export interface GraphWireEndpoints {
+	fromNode: string
+	fromPort: string
+	toNode: string
+	toPort: string
+}
+
 export interface GraphPortPositionOptions {
 	selector: string
 	nodeIdDatasetKey: string
@@ -10,8 +35,46 @@ export interface GraphPortPositionOptions {
 	kindDatasetKey: string
 }
 
-export function graphPortPositionKey(nodeId: string, portKey: string, kind: "in" | "out") {
+export function graphPortPositionKey(nodeId: string, portKey: string, kind: GraphPortKind) {
 	return `${kind}:${nodeId}:${portKey}`
+}
+
+export function oppositeGraphPortKind(kind: GraphPortKind): GraphPortKind {
+	return kind === "out" ? "in" : "out"
+}
+
+export function graphWireId(endpoints: GraphWireEndpoints) {
+	return `${endpoints.fromNode}:${endpoints.fromPort}->${endpoints.toNode}:${endpoints.toPort}`
+}
+
+export function resolveGraphWireEndpoints(drag: GraphWireDragAddress, target: GraphPortAddress): GraphWireEndpoints {
+	return {
+		fromNode: drag.fromKind === "out" ? drag.fromNode : target.nodeId,
+		fromPort: drag.fromKind === "out" ? drag.fromPort : target.portKey,
+		toNode: drag.fromKind === "out" ? target.nodeId : drag.fromNode,
+		toPort: drag.fromKind === "out" ? target.portKey : drag.fromPort,
+	}
+}
+
+export function graphDistance(a: GraphPoint, b: GraphPoint) {
+	return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
+}
+
+export function findNearestGraphPort(
+	point: GraphPoint,
+	candidates: GraphPortCandidate[],
+	snapRadius: number,
+	isValidCandidate: (candidate: GraphPortCandidate) => boolean = () => true
+): GraphPortCandidate | undefined {
+	let nearest: { candidate: GraphPortCandidate; distance: number } | undefined
+	for (const candidate of candidates) {
+		const distance = graphDistance(candidate.position, point)
+		if (distance >= snapRadius || !isValidCandidate(candidate)) continue
+		if (!nearest || distance < nearest.distance) {
+			nearest = { candidate, distance }
+		}
+	}
+	return nearest?.candidate
 }
 
 export function graphBezierPath(

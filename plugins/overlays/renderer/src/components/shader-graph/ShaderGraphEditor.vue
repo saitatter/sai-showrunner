@@ -286,9 +286,14 @@ import {
 } from "showrunner-ui-core"
 import {
 	collectRenderedGraphPortPositions,
+	findNearestGraphPort,
 	graphBezierPath,
 	graphPointFromClient,
 	graphPortPositionKey,
+	graphWireId,
+	oppositeGraphPortKind,
+	resolveGraphWireEndpoints,
+	type GraphPortCandidate,
 } from "showrunner-ui-core/src/util/graph"
 import {
 	SHADER_NODE_DEFS,
@@ -568,39 +573,31 @@ function onWireUp(e: PointerEvent) {
 	const surface = canvasRef.value?.querySelector<HTMLElement>(".shader-graph__surface")
 	if (!surface) { dragWire.value = null; dragState = null; return }
 	const point = graphPointFromClient(surface, e.clientX, e.clientY, zoom.value)
-	const targetKind = dragState.fromKind === "out" ? "in" : "out"
+	const targetKind = oppositeGraphPortKind(dragState.fromKind)
 	const SNAP = 20
 	let connected = false
 
-	for (const node of graphNodes.value) {
-		if (node.id === dragState.fromNode) continue
-		const ports = targetKind === "in" ? node.inputs : node.outputs
-		for (const port of ports) {
-			const pos = getPortPos(node.id, port.key, targetKind)
-			if (!pos) continue
-			const dist = Math.sqrt((pos.x - point.x) ** 2 + (pos.y - point.y) ** 2)
-			if (dist < SNAP && areShaderTypesCompatible(dragState.type, port.type)) {
-				const fromNode = dragState.fromKind === "out" ? dragState.fromNode : node.id
-				const fromPort = dragState.fromKind === "out" ? dragState.fromPort : port.key
-				const toNode = dragState.fromKind === "out" ? node.id : dragState.fromNode
-				const toPort = dragState.fromKind === "out" ? port.key : dragState.fromPort
-				const nextWire = { id: `${fromNode}:${fromPort}->${toNode}:${toPort}`, fromNode, fromPort, toNode, toPort }
-				const nextWires = graph.value.wires.filter((w) => !(w.toNode === toNode && w.toPort === toPort))
-				if (wouldCreateShaderGraphCycle({ ...graph.value, wires: nextWires }, fromNode, toNode)) {
-					const message = `Connecting ${fromNode}:${fromPort} to ${toNode}:${toPort} would create a cycle.`
-					compileErrors.value = [message]
-					previewError.value = message
-					connected = true
-					break
-				}
-				graph.value.wires = [...nextWires, nextWire]
-				emitGraphUpdate()
-				autoCompile()
-				connected = true
-				break
-			}
+	const target = findNearestGraphPort(
+		point,
+		getShaderPortCandidates(targetKind),
+		SNAP,
+		(candidate) => candidate.nodeId !== dragState?.fromNode && isShaderWireTargetCompatible(dragState!, candidate)
+	)
+	if (target) {
+		const endpoints = resolveGraphWireEndpoints(dragState, target)
+		const nextWire = { id: graphWireId(endpoints), ...endpoints }
+		const nextWires = graph.value.wires.filter((w) => !(w.toNode === endpoints.toNode && w.toPort === endpoints.toPort))
+		if (wouldCreateShaderGraphCycle({ ...graph.value, wires: nextWires }, endpoints.fromNode, endpoints.toNode)) {
+			const message = `Connecting ${endpoints.fromNode}:${endpoints.fromPort} to ${endpoints.toNode}:${endpoints.toPort} would create a cycle.`
+			compileErrors.value = [message]
+			previewError.value = message
+			connected = true
+		} else {
+			graph.value.wires = [...nextWires, nextWire]
+			emitGraphUpdate()
+			autoCompile()
+			connected = true
 		}
-		if (connected) break
 	}
 
 	if (!connected) {
@@ -609,6 +606,25 @@ function onWireUp(e: PointerEvent) {
 	}
 	dragWire.value = null
 	dragState = null
+}
+
+function getShaderPortCandidates(targetKind: "in" | "out"): GraphPortCandidate[] {
+	const candidates: GraphPortCandidate[] = []
+	for (const node of graphNodes.value) {
+		const ports = targetKind === "in" ? node.inputs : node.outputs
+		for (const port of ports) {
+			const position = getPortPos(node.id, port.key, targetKind)
+			if (!position) continue
+			candidates.push({ nodeId: node.id, portKey: port.key, kind: targetKind, position })
+		}
+	}
+	return candidates
+}
+
+function isShaderWireTargetCompatible(drag: NonNullable<typeof dragState>, target: GraphPortCandidate) {
+	const node = graphNodes.value.find((item) => item.id === target.nodeId)
+	const targetPort = (target.kind === "in" ? node?.inputs : node?.outputs)?.find((port) => port.key === target.portKey)
+	return Boolean(targetPort && areShaderTypesCompatible(drag.type, targetPort.type))
 }
 
 function selectNode(nodeId: string) {
