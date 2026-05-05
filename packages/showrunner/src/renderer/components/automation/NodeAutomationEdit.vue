@@ -69,23 +69,14 @@
 						transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
 					}"
 				>
-					<div
-						v-for="block in annotationBlocks"
-						:key="block.id"
-						class="node-automation__annotation-block"
-						:class="{ selected: selectedAnnotationBlockId === block.id }"
-						:style="annotationBlockStyle(block)"
-						@pointerdown.stop="startAnnotationBlockDrag($event, block)"
-						@click.stop="selectAnnotationBlock(block.id)"
-					>
-						<span>{{ block.label || "Annotation" }}</span>
-						<button
-							type="button"
-							class="node-automation__annotation-resize"
-							title="Resize annotation block"
-							@pointerdown.stop="startAnnotationBlockResize($event, block)"
-						/>
-					</div>
+					<node-automation-annotation-blocks
+						:blocks="annotationBlocks"
+						:selected-block-id="selectedAnnotationBlockId"
+						:annotation-block-style="annotationBlockStyle"
+						:on-start-annotation-block-drag="startAnnotationBlockDrag"
+						:on-start-annotation-block-resize="startAnnotationBlockResize"
+						:on-select-annotation-block="selectAnnotationBlock"
+					/>
 
 					<node-automation-edges
 						v-model:drop-target-edge-id="dropTargetEdgeId"
@@ -458,6 +449,7 @@ import NodeAutomationCanvasControls from "./NodeAutomationCanvasControls.vue"
 import NodeAutomationMinimap from "./NodeAutomationMinimap.vue"
 import NodeAutomationCanvasOverlays from "./NodeAutomationCanvasOverlays.vue"
 import NodeAutomationEdges from "./NodeAutomationEdges.vue"
+import NodeAutomationAnnotationBlocks from "./NodeAutomationAnnotationBlocks.vue"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
