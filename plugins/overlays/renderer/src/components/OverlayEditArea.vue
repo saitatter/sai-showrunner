@@ -281,6 +281,8 @@ useDataUIBinding({
 	position: relative;
 	width: 100%;
 	height: 100%;
+	min-height: 0;
+	overflow: hidden;
 }
 .grid-paper {
 	background: linear-gradient(-90deg, var(--surface-d) 1px, transparent 1px),

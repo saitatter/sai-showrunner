@@ -78,6 +78,14 @@
 					>
 						<i class="mdi mdi-distribute-horizontal-center" />
 					</button>
+					<button
+						type="button"
+						aria-label="Add annotation block"
+						@click="addAnnotationBlock"
+						v-tooltip="selectedNodeIds.size ? 'Group selection in annotation block' : 'Add annotation block'"
+					>
+						<i class="mdi mdi-vector-rectangle" />
+					</button>
 					<span class="node-automation__control-divider" />
 					<button
 						type="button"
@@ -150,17 +158,21 @@
 					}"
 				>
 					<div
-						v-for="lane in lanes"
-						:key="lane.id"
-						class="node-automation__lane"
-						:class="`node-automation__lane--${lane.kind}`"
-						:style="{
-							transform: `translate(${lane.x}px, ${lane.y}px)`,
-							width: `${lane.width}px`,
-							height: `${lane.height}px`,
-						}"
+						v-for="block in annotationBlocks"
+						:key="block.id"
+						class="node-automation__annotation-block"
+						:class="{ selected: selectedAnnotationBlockId === block.id }"
+						:style="annotationBlockStyle(block)"
+						@pointerdown.stop="startAnnotationBlockDrag($event, block)"
+						@click.stop="selectAnnotationBlock(block.id)"
 					>
-						<span>{{ lane.label }}</span>
+						<span>{{ block.label || "Annotation" }}</span>
+						<button
+							type="button"
+							class="node-automation__annotation-resize"
+							title="Resize annotation block"
+							@pointerdown.stop="startAnnotationBlockResize($event, block)"
+						/>
 					</div>
 
 					<svg class="node-automation__edges" :viewBox="viewBox" role="img" aria-label="Node connections">
@@ -711,7 +723,7 @@
 						:key="`mm-${node.id}`"
 						:x="node.x"
 						:y="node.y"
-						:width="NODE_WIDTH"
+						:width="node.width ?? NODE_WIDTH"
 						:height="node.height"
 						:class="`node-automation__minimap-node--${node.kind}`"
 						rx="3"
@@ -743,14 +755,14 @@
 				</svg>
 			</section>
 
-			<aside class="node-automation__details" :class="{ empty: !selectedNode }">
+			<aside class="node-automation__details" :class="{ empty: !selectedNode && !selectedAnnotationBlock }">
 				<header class="node-automation__details-header">
 					<div>
-						<p class="node-automation__eyebrow">{{ selectedNode ? "Node Context" : "Flow Map" }}</p>
-						<h3>{{ selectedNode?.title || "Select a node" }}</h3>
+						<p class="node-automation__eyebrow">{{ selectedAnnotationBlock ? "Annotation Block" : selectedNode ? "Node Context" : "Flow Map" }}</p>
+						<h3>{{ selectedAnnotationBlock?.label || selectedNode?.title || "Select a node" }}</h3>
 					</div>
 					<button
-						v-if="selectedNode"
+						v-if="selectedNode || selectedAnnotationBlock"
 						class="node-automation__icon-button"
 						type="button"
 						aria-label="Close context"
@@ -760,6 +772,38 @@
 						<i class="mdi mdi-close" />
 					</button>
 				</header>
+
+				<template v-if="selectedAnnotationBlock">
+					<section class="node-automation__context-section">
+						<button type="button" class="node-automation__context-header" :aria-expanded="detailsOpen" @click="detailsOpen = !detailsOpen">
+							<span><i class="mdi mdi-vector-rectangle" /> Annotation</span>
+							<i :class="detailsOpen ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
+						</button>
+						<div v-if="detailsOpen" class="node-automation__annotation-edit">
+							<label>
+								<span>Label</span>
+								<input
+									type="text"
+									:value="selectedAnnotationBlock.label"
+									placeholder="Block label..."
+									@change="updateSelectedAnnotationBlockLabel(($event.target as HTMLInputElement).value)"
+								/>
+							</label>
+							<label>
+								<span>Color</span>
+								<input
+									type="color"
+									:value="selectedAnnotationBlock.color"
+									@change="updateSelectedAnnotationBlockColor(($event.target as HTMLInputElement).value)"
+								/>
+							</label>
+							<button type="button" class="danger" @click="deleteSelectedAnnotationBlock">
+								<i class="mdi mdi-trash-can-outline" />
+								Delete Block
+							</button>
+						</div>
+					</section>
+				</template>
 
 				<template v-if="selectedNode">
 					<section class="node-automation__context-section">
@@ -1063,7 +1107,7 @@
 						</div>
 					</section>
 				</template>
-				<p v-else class="node-automation__hint">
+				<p v-else-if="!selectedAnnotationBlock" class="node-automation__hint">
 					Left click selects a node. Right click opens the context menu to add nodes.
 				</p>
 
@@ -1203,9 +1247,7 @@ import {
 	type ConfigLine,
 	type NodeData,
 	type EdgeData,
-	type LaneData,
 	NODE_WIDTH,
-	NODE_BASE_HEIGHT,
 	H_GAP,
 	computeNodeHeight,
 	GRAPH_NODE_INFO,
@@ -1221,13 +1263,25 @@ const props = defineProps<{
 		nodePositions?: Record<string, NodePosition>
 		nodeView?: NodeEditorViewState
 		nodeSizes?: Record<string, { width?: number; height?: number }>
+		annotationBlocks?: AnnotationBlock[]
 	}
 }>()
+
+interface AnnotationBlock {
+	id: string
+	label: string
+	color: string
+	x: number
+	y: number
+	width: number
+	height: number
+}
 
 const model = useModel(props, "modelValue")
 const view = useModel(props, "view")
 const selectedNodeId = ref<string>()
 const selectedNodeIds = ref<Set<string>>(new Set())
+const selectedAnnotationBlockId = ref<string>()
 const selectedActionToAdd = ref("")
 const actionPaletteQuery = ref("")
 const dropTargetNodeId = ref<string>()
@@ -1280,6 +1334,11 @@ const nodeSizes = computed(() => {
 	if (!view.value) return {}
 	view.value.nodeSizes ??= {}
 	return view.value.nodeSizes!
+})
+const annotationBlocks = computed(() => {
+	if (!view.value) return []
+	view.value.annotationBlocks ??= []
+	return view.value.annotationBlocks
 })
 const dataWires = computed({
 	get: () => {
@@ -1430,35 +1489,8 @@ const currentPreviewRouteLabel = computed(() => {
 	const incoming = activeGraph.value.edges.find((edge) => edge.to === nodeId)
 	return incoming ? getEdgeLabel(incoming) : undefined
 })
-const lanes = computed<LaneData[]>(() => {
-	const groups = new Map<string, { kind: LaneData["kind"]; label: string; nodes: NodeData[] }>()
-	for (const node of nodes.value) {
-		const lane = getNodeLane(node)
-		const group = groups.get(lane.id)
-		if (group) {
-			group.nodes.push(node)
-		} else {
-			groups.set(lane.id, { kind: lane.kind, label: lane.label, nodes: [node] })
-		}
-	}
-
-	return [...groups.entries()].map(([id, group]) => {
-		const minX = Math.min(...group.nodes.map((node) => node.x))
-		const minY = Math.min(...group.nodes.map((node) => node.y))
-		const maxX = Math.max(...group.nodes.map((node) => node.x + (node.width ?? NODE_WIDTH)))
-		const maxY = Math.max(...group.nodes.map((node) => node.y + node.height))
-		return {
-			id,
-			kind: group.kind,
-			label: group.label,
-			x: Math.max(12, minX - 18),
-			y: Math.max(12, minY - 34),
-			width: Math.max(NODE_WIDTH + 36, maxX - minX + 36),
-			height: Math.max(NODE_BASE_HEIGHT + 58, maxY - minY + 58),
-		}
-	})
-})
 const selectedNode = computed(() => nodes.value.find((node) => node.id === selectedNodeId.value))
+const selectedAnnotationBlock = computed(() => annotationBlocks.value.find((block) => block.id === selectedAnnotationBlockId.value))
 const selectedVariableNode = computed(() => {
 	if (!selectedNodeId.value) return undefined
 	return variableNodes.value.find((vn) => vn.id === selectedNodeId.value)
@@ -1556,14 +1588,21 @@ const viewBox = computed(() => {
 	return `0 0 ${canvasSize.value.width} ${canvasSize.value.height}`
 })
 const canvasSize = computed(() => ({
-	width: Math.max(1280, ...nodes.value.map((node) => node.x + NODE_WIDTH + 160)),
-	height: Math.max(720, ...nodes.value.map((node) => node.y + node.height + 160)),
+	width: Math.max(
+		1280,
+		...nodes.value.map((node) => node.x + (node.width ?? NODE_WIDTH) + 160),
+		...annotationBlocks.value.map((block) => block.x + block.width + 160)
+	),
+	height: Math.max(720, ...nodes.value.map((node) => node.y + node.height + 160), ...annotationBlocks.value.map((block) => block.y + block.height + 160)),
 }))
 const graphBounds = computed(() => {
-	const minX = Math.min(42, ...nodes.value.map((node) => node.x))
-	const minY = Math.min(88, ...nodes.value.map((node) => node.y))
-	const maxX = Math.max(...nodes.value.map((node) => node.x + NODE_WIDTH))
-	const maxY = Math.max(...nodes.value.map((node) => node.y + node.height))
+	const minX = Math.min(42, ...nodes.value.map((node) => node.x), ...annotationBlocks.value.map((block) => block.x))
+	const minY = Math.min(88, ...nodes.value.map((node) => node.y), ...annotationBlocks.value.map((block) => block.y))
+	const maxX = Math.max(
+		...nodes.value.map((node) => node.x + (node.width ?? NODE_WIDTH)),
+		...annotationBlocks.value.map((block) => block.x + block.width)
+	)
+	const maxY = Math.max(...nodes.value.map((node) => node.y + node.height), ...annotationBlocks.value.map((block) => block.y + block.height))
 	return { minX, minY, width: maxX - minX, height: maxY - minY }
 })
 const MINIMAP_PADDING = 40
@@ -1971,6 +2010,7 @@ function animateWireRemoval(wireId: string) {
 function selectNode(event: MouseEvent | PointerEvent, nodeId: string) {
 	selectedEdgeId.value = undefined
 	selectedDataWireId.value = undefined
+	selectedAnnotationBlockId.value = undefined
 	if (event.ctrlKey || event.metaKey) {
 		const next = new Set(selectedNodeIds.value)
 		if (next.has(nodeId)) {
@@ -1990,17 +2030,21 @@ function focusNode(nodeId: string) {
 	selectedNodeId.value = nodeId
 	selectedNodeIds.value = new Set([nodeId])
 	selectedEdgeId.value = undefined
+	selectedAnnotationBlockId.value = undefined
 }
 
 function clearSelection() {
 	selectedNodeId.value = undefined
 	selectedNodeIds.value = new Set()
 	selectedEdgeId.value = undefined
+	selectedDataWireId.value = undefined
+	selectedAnnotationBlockId.value = undefined
 }
 
 function clearNodeSelection() {
 	selectedNodeId.value = undefined
 	selectedNodeIds.value = new Set()
+	selectedAnnotationBlockId.value = undefined
 }
 
 function selectFlowEdge(edgeId: string) {
@@ -2013,6 +2057,15 @@ function selectDataWire(wireId: string) {
 	clearNodeSelection()
 	selectedEdgeId.value = undefined
 	selectedDataWireId.value = wireId
+}
+
+function selectAnnotationBlock(blockId: string) {
+	selectedNodeId.value = undefined
+	selectedNodeIds.value = new Set()
+	selectedEdgeId.value = undefined
+	selectedDataWireId.value = undefined
+	selectedAnnotationBlockId.value = blockId
+	detailsOpen.value = true
 }
 
 function openPendingFlowContext(drop: {
@@ -2043,6 +2096,7 @@ function openNodeContext(event: MouseEvent, node: NodeData) {
 function openCanvasContextMenu(event: MouseEvent) {
 	const target = event.target as HTMLElement
 	if (target.closest(".node-automation__canvas-controls") || target.closest(".node-automation__context-menu")) return
+	if (target.closest(".node-automation__annotation-block")) return
 	const nodeElement = target.closest(".node-automation__node")
 	if (nodeElement) return
 	pendingFlowConnection.value = null
@@ -2314,7 +2368,7 @@ function scrollToNode(node: NodeData) {
 	const canvas = canvasRef.value
 	if (!canvas) return
 	const pos = nodePositions.value[node.id] ?? node
-	const centerX = (pos.x + NODE_WIDTH / 2) * zoom.value + pan.value.x - canvas.clientWidth / 2
+	const centerX = (pos.x + (node.width ?? NODE_WIDTH) / 2) * zoom.value + pan.value.x - canvas.clientWidth / 2
 	const centerY = (pos.y + node.height / 2) * zoom.value + pan.value.y - canvas.clientHeight / 2
 	canvas.scrollTo({ left: Math.max(0, centerX), top: Math.max(0, centerY), behavior: "smooth" })
 }
@@ -2381,7 +2435,7 @@ function fitToSelection() {
 	if (!selected.length) return
 	const minX = Math.min(...selected.map((n) => n.x))
 	const minY = Math.min(...selected.map((n) => n.y))
-	const maxX = Math.max(...selected.map((n) => n.x + NODE_WIDTH))
+	const maxX = Math.max(...selected.map((n) => n.x + (n.width ?? NODE_WIDTH)))
 	const maxY = Math.max(...selected.map((n) => n.y + n.height))
 	fitSelection({ minX, minY, width: maxX - minX, height: maxY - minY })
 }
@@ -2400,9 +2454,9 @@ function alignSelectedNodes(axis: "horizontal" | "vertical") {
 		}
 	} else {
 		// Align all selected to the average X
-		const avgX = selected.reduce((sum, n) => sum + n.x + NODE_WIDTH / 2, 0) / selected.length
+		const avgX = selected.reduce((sum, n) => sum + n.x + (n.width ?? NODE_WIDTH) / 2, 0) / selected.length
 		for (const node of selected) {
-			positions[node.id] = { x: avgX - NODE_WIDTH / 2, y: (positions[node.id] ?? node).y }
+			positions[node.id] = { x: avgX - (node.width ?? NODE_WIDTH) / 2, y: (positions[node.id] ?? node).y }
 		}
 	}
 	view.value = { ...view.value, nodePositions: positions }
@@ -2440,6 +2494,140 @@ function distributeSelectedNodes() {
 		}
 	}
 	view.value = { ...view.value, nodePositions: positions }
+}
+
+function addAnnotationBlock() {
+	const selected = nodes.value.filter((node) => selectedNodeIds.value.has(node.id))
+	const padding = 28
+	let x: number
+	let y: number
+	let width: number
+	let height: number
+
+	if (selected.length) {
+		const minX = Math.min(...selected.map((node) => node.x))
+		const minY = Math.min(...selected.map((node) => node.y))
+		const maxX = Math.max(...selected.map((node) => node.x + (node.width ?? NODE_WIDTH)))
+		const maxY = Math.max(...selected.map((node) => node.y + node.height))
+		x = snapCoordinate(minX - padding)
+		y = snapCoordinate(minY - padding - 18)
+		width = Math.max(240, maxX - minX + padding * 2)
+		height = Math.max(140, maxY - minY + padding * 2 + 18)
+	} else {
+		const viewport = minimapViewport.value
+		x = snapCoordinate(viewport.x + 96)
+		y = snapCoordinate(viewport.y + 96)
+		width = 360
+		height = 200
+	}
+
+	const block: AnnotationBlock = {
+		id: nanoid(),
+		label: selected.length ? "Group" : "Annotation",
+		color: "#64b5f6",
+		x,
+		y,
+		width,
+		height,
+	}
+
+	annotationBlocks.value.push(block)
+	selectAnnotationBlock(block.id)
+	commitUndo()
+}
+
+function annotationBlockStyle(block: AnnotationBlock) {
+	return {
+		transform: `translate(${block.x}px, ${block.y}px)`,
+		width: `${block.width}px`,
+		height: `${block.height}px`,
+		borderColor: block.color,
+		background: `color-mix(in srgb, ${block.color} 12%, transparent)`,
+	}
+}
+
+function startAnnotationBlockDrag(event: PointerEvent, block: AnnotationBlock) {
+	if ((event.target as HTMLElement).closest(".node-automation__annotation-resize")) return
+	event.preventDefault()
+	selectAnnotationBlock(block.id)
+
+	const startX = event.clientX
+	const startY = event.clientY
+	const originalX = block.x
+	const originalY = block.y
+	const target = event.currentTarget as HTMLElement
+	target.setPointerCapture(event.pointerId)
+
+	function onMove(moveEvent: PointerEvent) {
+		const dx = (moveEvent.clientX - startX) / zoom.value
+		const dy = (moveEvent.clientY - startY) / zoom.value
+		block.x = snapCoordinate(originalX + dx)
+		block.y = snapCoordinate(originalY + dy)
+	}
+
+	function onUp(upEvent: PointerEvent) {
+		target.releasePointerCapture(upEvent.pointerId)
+		target.removeEventListener("pointermove", onMove)
+		target.removeEventListener("pointerup", onUp)
+		target.removeEventListener("pointercancel", onUp)
+		commitUndo()
+	}
+
+	target.addEventListener("pointermove", onMove)
+	target.addEventListener("pointerup", onUp)
+	target.addEventListener("pointercancel", onUp)
+}
+
+function startAnnotationBlockResize(event: PointerEvent, block: AnnotationBlock) {
+	event.preventDefault()
+	selectAnnotationBlock(block.id)
+
+	const startX = event.clientX
+	const startY = event.clientY
+	const startWidth = block.width
+	const startHeight = block.height
+	const target = event.currentTarget as HTMLElement
+	target.setPointerCapture(event.pointerId)
+
+	function onMove(moveEvent: PointerEvent) {
+		const dx = (moveEvent.clientX - startX) / zoom.value
+		const dy = (moveEvent.clientY - startY) / zoom.value
+		block.width = Math.max(160, Math.round(startWidth + dx))
+		block.height = Math.max(96, Math.round(startHeight + dy))
+	}
+
+	function onUp(upEvent: PointerEvent) {
+		target.releasePointerCapture(upEvent.pointerId)
+		target.removeEventListener("pointermove", onMove)
+		target.removeEventListener("pointerup", onUp)
+		target.removeEventListener("pointercancel", onUp)
+		commitUndo()
+	}
+
+	target.addEventListener("pointermove", onMove)
+	target.addEventListener("pointerup", onUp)
+	target.addEventListener("pointercancel", onUp)
+}
+
+function updateSelectedAnnotationBlockLabel(label: string) {
+	if (!selectedAnnotationBlock.value) return
+	selectedAnnotationBlock.value.label = label.trim() || "Annotation"
+	commitUndo()
+}
+
+function updateSelectedAnnotationBlockColor(color: string) {
+	if (!selectedAnnotationBlock.value) return
+	selectedAnnotationBlock.value.color = color || "#64b5f6"
+	commitUndo()
+}
+
+function deleteSelectedAnnotationBlock() {
+	const id = selectedAnnotationBlockId.value
+	if (!id) return
+	const index = annotationBlocks.value.findIndex((block) => block.id === id)
+	if (index >= 0) annotationBlocks.value.splice(index, 1)
+	selectedAnnotationBlockId.value = undefined
+	commitUndo()
 }
 
 function handleWindowClick(event: MouseEvent) {
@@ -3816,14 +4004,6 @@ onUnmounted(() => {
 	z-index: 1;
 }
 
-.node-automation__lane {
-	background: rgb(255 255 255 / 0.035);
-	border: 1px solid rgb(255 255 255 / 0.1);
-	border-radius: 8px;
-	position: absolute;
-	z-index: 0;
-}
-
 .node-automation__rubber-band {
 	background: rgb(139 53 230 / 0.12);
 	border: 1.5px dashed #e9aaff;
@@ -3851,38 +4031,59 @@ onUnmounted(() => {
 	z-index: 4;
 }
 
-.node-automation__lane span {
-	background: rgb(16 16 16 / 0.86);
-	border: 1px solid rgb(255 255 255 / 0.12);
-	border-radius: 999px;
-	color: #e9e9e9;
-	font-size: 0.72rem;
-	font-weight: 700;
-	left: 0.75rem;
-	letter-spacing: 0;
-	padding: 0.2rem 0.5rem;
+.node-automation__annotation-block {
+	border: 2px dashed;
+	border-radius: 6px;
+	box-sizing: border-box;
+	cursor: move;
 	position: absolute;
+	z-index: 0;
+}
+
+.node-automation__annotation-block.selected {
+	border-style: solid;
+	box-shadow: 0 0 0 2px rgb(255 255 255 / 0.16);
+}
+
+.node-automation__annotation-block span {
+	background: rgb(16 16 16 / 0.9);
+	border: 1px solid rgb(255 255 255 / 0.14);
+	border-radius: 4px;
+	color: #f4f4f4;
+	font-size: 0.75rem;
+	font-weight: 700;
+	left: 0.65rem;
+	letter-spacing: 0;
+	max-width: calc(100% - 2rem);
+	overflow: hidden;
+	padding: 0.18rem 0.45rem;
+	position: absolute;
+	text-overflow: ellipsis;
 	top: 0.45rem;
+	white-space: nowrap;
 }
 
-.node-automation__lane--main {
-	border-color: rgb(233 170 255 / 0.3);
+.node-automation__annotation-resize {
+	background: rgb(16 16 16 / 0.72);
+	border: 1px solid rgb(255 255 255 / 0.18);
+	border-radius: 3px;
+	bottom: 0.35rem;
+	cursor: nwse-resize;
+	height: 0.9rem;
+	position: absolute;
+	right: 0.35rem;
+	width: 0.9rem;
 }
 
-.node-automation__lane--floating {
-	border-color: rgb(255 155 215 / 0.35);
-}
-
-.node-automation__lane--stack {
-	border-color: rgb(255 223 107 / 0.35);
-}
-
-.node-automation__lane--time {
-	border-color: rgb(104 211 145 / 0.35);
-}
-
-.node-automation__lane--flow {
-	border-color: rgb(100 181 246 / 0.35);
+.node-automation__annotation-resize::after {
+	border-bottom: 2px solid rgb(255 255 255 / 0.65);
+	border-right: 2px solid rgb(255 255 255 / 0.65);
+	bottom: 0.18rem;
+	content: "";
+	height: 0.38rem;
+	position: absolute;
+	right: 0.18rem;
+	width: 0.38rem;
 }
 
 .node-automation__edge {
@@ -5062,12 +5263,14 @@ onUnmounted(() => {
 	margin: 0;
 }
 
+.node-automation__annotation-edit,
 .node-automation__variable-edit,
 .node-automation__control-edit {
 	display: grid;
 	gap: 0.55rem;
 }
 
+.node-automation__annotation-edit label,
 .node-automation__variable-edit label,
 .node-automation__control-edit label {
 	display: flex;
@@ -5075,6 +5278,7 @@ onUnmounted(() => {
 	gap: 0.3rem;
 }
 
+.node-automation__annotation-edit label span,
 .node-automation__variable-edit label span,
 .node-automation__control-edit label span {
 	color: var(--text-color-secondary);
@@ -5083,6 +5287,7 @@ onUnmounted(() => {
 	text-transform: uppercase;
 }
 
+.node-automation__annotation-edit input,
 .node-automation__variable-edit input,
 .node-automation__variable-edit select,
 .node-automation__control-edit input,

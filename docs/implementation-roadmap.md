@@ -224,6 +224,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add keyboard-first command menu navigation: up/down, enter, escape, and section shortcuts.
 - [x] Add onboarding starter graphs for OBS scene changes, chat commands, moderation actions, and stream-plan events.
 - [x] Add manual regression checklist for queue starter templates, conversion nodes, hidden plugins, and incompatible wires.
+- [x] Replace automatic graph lanes with user-created colored annotation blocks in the node editor view.
 - [ ] Add manual visual QA checklist for Settings, Updates, Integrations, plugin details, and automation context menu layout.
 - [ ] Add persisted UI preference reset action in Settings.
 - [ ] Add empty-state copy for integration categories with no visible plugins after filtering/hiding.
@@ -270,7 +271,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Update command-menu UX so `Add Trigger` creates a new trigger node, while action insertion continues to work from canvas, edge, or node context.
 - [ ] Add runtime tests for independent trigger executions, concurrent runs, data-context isolation, and disabled-plugin rendering behavior.
 - [ ] Add editor tests for selecting, configuring, deleting, copying, and reconnecting multiple trigger nodes.
-- [ ] Decide whether annotated blocks remain automatic visual lanes or become user-created group/comment frames with persisted labels, colors, and membership.
+- [ ] Extend annotation blocks with optional persisted membership, collapse/expand, and move-with-group behavior.
 
 ---
 

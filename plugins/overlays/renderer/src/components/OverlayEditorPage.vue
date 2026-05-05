@@ -1,7 +1,7 @@
 <template>
 	<div class="overlay-editor" ref="editorDiv">
 		<div class="overlay-editor-header">
-			<div class="pt-4 px-1 flex flex-row w-full justify-content-center gap-1">
+			<div class="overlay-editor-toolbar">
 				<div ref="settingsMenuContainer">
 					<p-button icon="mdi mdi-cog" @click="settingsMenuToggle" v-tooltip="'Overlay size settings'"></p-button>
 				</div>
@@ -99,8 +99,8 @@
 				</div>
 			</div>
 		</div>
-		<div class="flex flex-row flex-grow-1" ref="slideDiv">
-			<overlay-edit-area v-model="model" v-model:view="view" style="flex: 1" />
+		<div class="overlay-editor-main" ref="slideDiv">
+			<overlay-edit-area class="overlay-editor-stage" v-model="model" v-model:view="view" />
 			<expander-slider direction="vertical" invert v-model="splitterPos" :container="slideDiv" />
 			<div class="overlay-properties" :style="{ width: `${splitterPos}px` }">
 				<p-splitter layout="vertical" class="h-full">
@@ -263,19 +263,62 @@ function settingsMenuToggle(ev: MouseEvent) {
 .overlay-editor-header {
 	display: flex;
 	flex-direction: row;
-	min-height: 5rem;
+	flex: 0 0 auto;
 	background-color: var(--surface-b);
+	border-bottom: 1px solid var(--surface-border);
+	min-height: 0;
 }
 
 .overlay-editor {
 	display: flex;
 	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	overflow: hidden;
+	width: 100%;
+}
+
+.overlay-editor-toolbar {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.45rem;
+	padding: 0.65rem;
+	width: 100%;
+}
+
+.overlay-editor-toolbar > .flex-grow-1 {
+	flex: 1 1 22rem;
+	min-width: 16rem;
+}
+
+.overlay-editor-main {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.overlay-editor-stage {
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
 }
 
 .overlay-properties {
 	background-color: var(--surface-b);
+	flex: 0 0 auto;
+	min-height: 0;
+	min-width: 18rem;
+	overflow: hidden;
 	user-select: none;
 	width: 350px;
+}
+
+.overlay-properties :deep(.p-splitter) {
+	border: 0;
+	min-height: 0;
 }
 
 .overlay-size-presets {
@@ -295,6 +338,7 @@ function settingsMenuToggle(ev: MouseEvent) {
 
 .overlay-url {
 	display: grid;
+	flex: 1 1 18rem;
 	gap: 0.2rem;
 	min-width: 18rem;
 }
@@ -317,6 +361,7 @@ function settingsMenuToggle(ev: MouseEvent) {
 
 .overlay-status {
 	display: grid;
+	flex: 0 0 auto;
 	gap: 0.25rem;
 	min-width: 10rem;
 }
