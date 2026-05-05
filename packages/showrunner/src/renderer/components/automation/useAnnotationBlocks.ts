@@ -1,7 +1,6 @@
-import { computed, type ComputedRef, type Ref } from "vue"
+import { computed, type Ref } from "vue"
 import { nanoid } from "nanoid"
 import type { NodePosition } from "./useNodeCanvas"
-import type { NodeData } from "./useNodeRendering"
 
 export interface AnnotationBlock {
 	id: string
@@ -19,8 +18,6 @@ interface AnnotationBlockView {
 
 interface UseAnnotationBlocksOptions {
 	view: Ref<AnnotationBlockView>
-	nodes: ComputedRef<NodeData[]>
-	selectedNodeIds: Ref<Set<string>>
 	selectedAnnotationBlockId: Ref<string | undefined>
 	getZoom: () => number
 	snapCoordinate: (value: number) => number
@@ -31,8 +28,6 @@ interface UseAnnotationBlocksOptions {
 
 export function useAnnotationBlocks({
 	view,
-	nodes,
-	selectedNodeIds,
 	selectedAnnotationBlockId,
 	getZoom,
 	snapCoordinate,
@@ -49,39 +44,19 @@ export function useAnnotationBlocks({
 		annotationBlocks.value.find((block) => block.id === selectedAnnotationBlockId.value)
 	)
 
-	function addAnnotationBlock() {
-		const selected = nodes.value.filter((node) => selectedNodeIds.value.has(node.id))
-		const padding = 28
-		let x: number
-		let y: number
-		let width: number
-		let height: number
-
-		if (selected.length) {
-			const minX = Math.min(...selected.map((node) => node.x))
-			const minY = Math.min(...selected.map((node) => node.y))
-			const maxX = Math.max(...selected.map((node) => node.x + (node.width ?? 220)))
-			const maxY = Math.max(...selected.map((node) => node.y + node.height))
-			x = snapCoordinate(minX - padding)
-			y = snapCoordinate(minY - padding - 18)
-			width = Math.max(240, maxX - minX + padding * 2)
-			height = Math.max(140, maxY - minY + padding * 2 + 18)
-		} else {
-			const viewport = getViewport()
-			x = snapCoordinate(viewport.x + 96)
-			y = snapCoordinate(viewport.y + 96)
-			width = 360
-			height = 200
-		}
+	function addAnnotationBlock(position?: NodePosition) {
+		const viewport = getViewport()
+		const x = snapCoordinate(position?.x ?? viewport.x + 96)
+		const y = snapCoordinate(position?.y ?? viewport.y + 96)
 
 		const block: AnnotationBlock = {
 			id: nanoid(),
-			label: selected.length ? "Group" : "Annotation",
+			label: "Annotation",
 			color: "#64b5f6",
 			x,
 			y,
-			width,
-			height,
+			width: 360,
+			height: 200,
 		}
 
 		annotationBlocks.value.push(block)

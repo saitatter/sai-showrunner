@@ -166,6 +166,7 @@
 						:on-add-variable-node="addVariableNode"
 						:on-add-control-flow-node="addControlFlowNode"
 						:on-add-subgraph-call-node="addSubgraphCallNode"
+						:on-add-annotation-block="addAnnotationBlockFromContext"
 					/>
 				</div>
 				<datalist id="node-expression-suggestions">
@@ -656,8 +657,6 @@ const {
 	deleteSelectedAnnotationBlock,
 } = useAnnotationBlocks({
 	view,
-	nodes,
-	selectedNodeIds,
 	selectedAnnotationBlockId,
 	getZoom: () => zoom.value,
 	snapCoordinate: (value) => snapCoordinate(value),
@@ -1063,6 +1062,11 @@ function selectDataWire(wireId: string) {
 
 function selectAnnotationBlock(blockId: string) {
 	canvasSelection.selectAnnotationBlock(blockId)
+}
+
+function addAnnotationBlockFromContext() {
+	addAnnotationBlock(contextMenu.value.canvasPoint)
+	closeContextMenu()
 }
 
 function openPendingFlowContext(drop: {

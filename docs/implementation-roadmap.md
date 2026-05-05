@@ -277,7 +277,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Update command-menu UX so `Add Trigger` creates a new trigger node, while action insertion continues to work from canvas, edge, or node context.
 - [ ] Add runtime tests for independent trigger executions, concurrent runs, data-context isolation, and disabled-plugin rendering behavior.
 - [ ] Add editor tests for selecting, configuring, deleting, copying, and reconnecting multiple trigger nodes.
-- [ ] Extend annotation blocks with optional persisted membership, collapse/expand, and move-with-group behavior.
+- [ ] Extend manual annotation blocks with optional persisted membership, drag-selected-nodes-into-block, collapse/expand, and move-with-group behavior.
 
 ---
 

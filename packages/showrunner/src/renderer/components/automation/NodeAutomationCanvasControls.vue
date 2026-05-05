@@ -59,7 +59,7 @@
 			type="button"
 			aria-label="Add annotation block"
 			@click="onAddAnnotationBlock()"
-			v-tooltip="selectedNodeCount ? 'Group selection in annotation block' : 'Add annotation block'"
+			v-tooltip="'Add annotation block'"
 		>
 			<i class="mdi mdi-vector-rectangle" />
 		</button>
