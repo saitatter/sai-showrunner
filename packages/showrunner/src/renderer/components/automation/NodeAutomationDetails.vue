@@ -134,66 +134,23 @@
 					<span><i class="mdi mdi-dots-horizontal-circle-outline" /> Node Actions</span>
 					<i :class="actionsOpenModel ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 				</button>
-				<div v-if="actionsOpenModel" class="node-automation__quick-actions">
-					<div class="node-automation__action-picker">
-						<label>
-							<span>Add Action</span>
-							<input v-model="actionPaletteQueryModel" type="search" placeholder="Search plugin or action..." />
-							<select v-model="selectedActionToAddModel">
-								<option value="">Choose an action...</option>
-								<optgroup v-for="plugin in actionPalette" :key="plugin.id" :label="plugin.name">
-									<option v-for="action in plugin.actions" :key="action.key" :value="action.key">
-										{{ action.name }}
-									</option>
-								</optgroup>
-							</select>
-						</label>
-						<button type="button" :disabled="!selectedActionToAdd" @click="onAddActionFromPalette()">
-							<i class="mdi mdi-plus" />
-							Insert After Selection
-						</button>
-						<div class="node-automation__palette-list">
-							<button
-								v-for="action in flatActionPalette"
-								:key="action.key"
-								type="button"
-								draggable="true"
-								@click="selectedActionToAddModel = action.key"
-								@dragstart="onStartActionPaletteDrag($event, action.key)"
-							>
-								<i class="mdi mdi-drag" />
-								<span>{{ action.pluginName }}</span>
-								<strong>{{ action.name }}</strong>
-							</button>
-						</div>
-					</div>
-					<div class="node-automation__action-grid">
-						<button type="button" :disabled="!canEditSelectedAction" @click="onDuplicateSelectedAction()">
-							<i class="mdi mdi-content-duplicate" />
-							Duplicate
-						</button>
-						<button type="button" :disabled="!canMoveSelectedAction(-1)" @click="onMoveSelectedAction(-1)">
-							<i class="mdi mdi-arrow-left" />
-							Move Left
-						</button>
-						<button type="button" :disabled="!canMoveSelectedAction(1)" @click="onMoveSelectedAction(1)">
-							<i class="mdi mdi-arrow-right" />
-							Move Right
-						</button>
-						<button type="button" class="danger" :disabled="!canEditSelectedAction" @click="onDeleteSelectedAction()">
-							<i class="mdi mdi-trash-can-outline" />
-							Delete
-						</button>
-					</div>
-					<button type="button" @click="onResetSelectedNodePosition()">
-						<i class="mdi mdi-crosshairs-gps" />
-						Reset Visual Position
-					</button>
-					<button type="button" :disabled="selectedNodeIds.size < 1" @click="onCollapseSelectionToSubgraph()">
-						<i class="mdi mdi-function" />
-						Collapse Selection to Subgraph
-					</button>
-				</div>
+				<node-action-panel
+					v-if="actionsOpenModel"
+					v-model:action-palette-query="actionPaletteQueryModel"
+					v-model:selected-action-to-add="selectedActionToAddModel"
+					:action-palette="actionPalette"
+					:flat-action-palette="flatActionPalette"
+					:can-edit-selected-action="canEditSelectedAction"
+					:selected-node-count="selectedNodeIds.size"
+					:on-add-action-from-palette="onAddActionFromPalette"
+					:on-start-action-palette-drag="onStartActionPaletteDrag"
+					:on-duplicate-selected-action="onDuplicateSelectedAction"
+					:on-move-selected-action="onMoveSelectedAction"
+					:on-delete-selected-action="onDeleteSelectedAction"
+					:on-reset-selected-node-position="onResetSelectedNodePosition"
+					:on-collapse-selection-to-subgraph="onCollapseSelectionToSubgraph"
+					:can-move-selected-action="canMoveSelectedAction"
+				/>
 			</section>
 		</template>
 		<p v-else-if="!selectedAnnotationBlock" class="node-automation__hint">
@@ -259,6 +216,7 @@ import type { AnnotationBlock } from "./useAnnotationBlocks"
 import type { NodeData } from "./useNodeRendering"
 import ControlNodeConfig from "./ControlNodeConfig.vue"
 import MissingSchemaNotice from "./MissingSchemaNotice.vue"
+import NodeActionPanel from "./NodeActionPanel.vue"
 import SubgraphPanel from "./SubgraphPanel.vue"
 import VariableNodeConfig from "./VariableNodeConfig.vue"
 
@@ -496,103 +454,6 @@ const selectedTriggerConfigModelModel = computed({
 	max-height: 52vh;
 	overflow: auto;
 	padding: 0.55rem;
-}
-
-.node-automation__quick-actions {
-	display: grid;
-	gap: 0.5rem;
-	padding: 0.65rem;
-}
-
-.node-automation__action-picker {
-	display: grid;
-	gap: 0.5rem;
-}
-
-.node-automation__action-picker label {
-	display: grid;
-	gap: 0.3rem;
-}
-
-.node-automation__action-picker span {
-	color: #d9d9d9;
-	font-size: 0.78rem;
-}
-
-.node-automation__action-picker input,
-.node-automation__action-picker select {
-	background: #0e0e0e;
-	border: 1px solid #4d4d4d;
-	border-radius: 4px;
-	color: var(--text-color);
-	min-width: 0;
-	padding: 0.55rem;
-}
-
-.node-automation__action-grid {
-	display: grid;
-	gap: 0.5rem;
-	grid-template-columns: 1fr 1fr;
-}
-
-.node-automation__palette-list {
-	display: grid;
-	gap: 0.35rem;
-	max-height: 13rem;
-	overflow: auto;
-	padding-right: 0.15rem;
-}
-
-.node-automation__palette-list button {
-	align-items: center;
-	background: #151515;
-	border: 1px solid #3d3d3d;
-	border-radius: 4px;
-	color: var(--text-color);
-	cursor: grab;
-	display: grid;
-	gap: 0.4rem;
-	grid-template-columns: 1.25rem minmax(4rem, 0.7fr) minmax(0, 1fr);
-	padding: 0.45rem 0.5rem;
-	text-align: left;
-}
-
-.node-automation__palette-list button:active {
-	cursor: grabbing;
-}
-
-.node-automation__palette-list span,
-.node-automation__palette-list strong {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.node-automation__palette-list span {
-	color: #bbb;
-}
-
-.node-automation__quick-actions button {
-	align-items: center;
-	background: #2b173d;
-	border: 1px solid #7041a6;
-	border-radius: 4px;
-	color: var(--text-color);
-	cursor: pointer;
-	display: flex;
-	gap: 0.45rem;
-	padding: 0.65rem 0.75rem;
-	text-align: left;
-}
-
-.node-automation__quick-actions button.danger {
-	background: #3a171b;
-	border-color: #8f3744;
-}
-
-.node-automation__quick-actions button:disabled {
-	cursor: not-allowed;
-	opacity: 0.45;
 }
 
 .node-automation__details dl {
