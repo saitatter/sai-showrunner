@@ -18,6 +18,7 @@ import {
 } from "showrunner-schema"
 import type { PortDef } from "./usePortConnections"
 import { resolveActionDefinition } from "./actionLookup"
+import { isCoreConversionAction } from "./coreConversionActions"
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
@@ -196,18 +197,6 @@ export const GRAPH_NODE_INFO: Record<GraphNodeType, { icon: string; kind: NodeDa
 }
 
 const QUEUE_ACTION_IDS = new Set(["addToQueue", "completeQueueItem", "cancelQueueItem", "clearQueue", "skip", "pause"].map(normalizeActionLookupId))
-const CONVERSION_ACTION_IDS = new Set([
-	"convertNumberToString",
-	"convertBooleanToString",
-	"convertStringToNumber",
-	"convertBooleanToNumber",
-	"convertNumberToBoolean",
-	"convertStringToBoolean",
-	"convertObjectToJsonString",
-	"convertArrayToJsonString",
-	"convertJsonStringToObject",
-	"convertJsonStringToArray",
-].map(normalizeActionLookupId))
 
 export function summarizeExpression(expr: any): string {
 	if (!expr) return "—"
@@ -284,7 +273,7 @@ export function graphNodeToNodeData(
 					height: computeNodeHeight(configLines, inputPorts, outputPorts),
 				}
 			}
-			if (isBuiltinActionPlugin(action.plugin) && CONVERSION_ACTION_IDS.has(normalizeActionLookupId(action.action))) {
+			if (isCoreConversionAction(action.plugin, action.action)) {
 				return {
 					id: gn.id,
 					kind: "conversion",

@@ -6,6 +6,7 @@ import type {
 	GraphNode,
 	SubgraphDefinition,
 } from "showrunner-schema"
+import { isCoreConversionAction } from "./coreConversionActions"
 
 const VALID_NODE_TYPES = new Set(["action", "if", "switch", "for", "forEach", "while", "break", "continue", "return", "subgraphCall"])
 const VALID_VARIABLE_TYPES = new Set(["string", "number", "boolean", "color"])
@@ -18,6 +19,7 @@ export function validateAutomationGraph(config: AutomationConfig): string[] {
 	}
 
 	const nodeIds = new Set<string>()
+	const nodeById = new Map<string, GraphNode>()
 	for (const node of graph.nodes) {
 		if (!node || typeof node.id !== "string" || !node.id.trim()) {
 			issues.push("A graph node is missing an id.")
@@ -25,6 +27,7 @@ export function validateAutomationGraph(config: AutomationConfig): string[] {
 		}
 		if (nodeIds.has(node.id)) issues.push(`Duplicate node id: ${node.id}`)
 		nodeIds.add(node.id)
+		nodeById.set(node.id, node)
 		if (!VALID_NODE_TYPES.has(String(node.type))) issues.push(`Unsupported node type on ${node.id}: ${String(node.type)}`)
 	}
 
@@ -34,6 +37,9 @@ export function validateAutomationGraph(config: AutomationConfig): string[] {
 		if (!edge || typeof edge.id !== "string" || !edge.id.trim()) issues.push("A graph edge is missing an id.")
 		if (!nodeIds.has(edge?.from)) issues.push(`Edge ${edge?.id || "(missing id)"} starts at missing node: ${edge?.from || "(empty)"}`)
 		if (!nodeIds.has(edge?.to)) issues.push(`Edge ${edge?.id || "(missing id)"} ends at missing node: ${edge?.to || "(empty)"}`)
+		if (isConversionGraphNode(nodeById.get(edge?.from)) || isConversionGraphNode(nodeById.get(edge?.to))) {
+			issues.push(`Edge ${edge?.id || "(missing id)"} uses a data-only conversion node.`)
+		}
 	}
 
 	const variableNodeIds = new Set<string>()
@@ -85,7 +91,13 @@ function repairGraphModel(graph: AutomationGraph | undefined): AutomationGraph {
 	const nodes = dedupeNodes(graph.nodes)
 	const nodeIds = new Set(nodes.map((node) => node.id))
 	const edges = graph.edges
-		.filter((edge) => edge?.id && nodeIds.has(edge.from) && nodeIds.has(edge.to))
+		.filter((edge) =>
+			edge?.id &&
+			nodeIds.has(edge.from) &&
+			nodeIds.has(edge.to) &&
+			!isConversionGraphNode(nodes.find((node) => node.id === edge.from)) &&
+			!isConversionGraphNode(nodes.find((node) => node.id === edge.to))
+		)
 		.map((edge) => ({ id: String(edge.id), from: edge.from, to: edge.to, port: edge.port }))
 	return {
 		nodes,
@@ -137,4 +149,8 @@ function repairDataWires(wires: AutomationDataWire[] | undefined, sourceIds: Set
 function repairVariableNodes(nodes: AutomationVariableNode[] | undefined): AutomationVariableNode[] {
 	if (!Array.isArray(nodes)) return []
 	return nodes.filter((node) => node?.id && VALID_VARIABLE_TYPES.has(String(node.type)))
+}
+
+function isConversionGraphNode(node: GraphNode | undefined) {
+	return node?.type === "action" && isCoreConversionAction(node.plugin, node.action)
 }

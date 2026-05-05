@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid"
 import type { ActionInfo } from "showrunner-ui-core"
 import type { AutomationGraph, GraphNode, GraphNodeType } from "showrunner-schema"
+import { isCoreConversionAction } from "./coreConversionActions"
 import type { NodePosition } from "./useNodeCanvas"
 
 export interface PendingFlowConnection {
@@ -48,7 +49,7 @@ export function toGraphActionNode(action: ActionInfo, position: NodePosition): E
 export function addGraphActionNode(graph: AutomationGraph, action: ActionInfo, position: NodePosition) {
 	const node = toGraphActionNode(action, position)
 	graph.nodes.push(node)
-	if (!graph.entryNodeId) graph.entryNodeId = node.id
+	if (!graph.entryNodeId && !isDataOnlyAction(action)) graph.entryNodeId = node.id
 	return node
 }
 
@@ -92,6 +93,7 @@ export function insertActionInGraph(
 	}
 	const node = addGraphActionNode(graph, action, fallbackPosition)
 
+	if (isDataOnlyAction(action)) return node
 	if (!flowAnchorId) return node
 
 	if (flowAnchorId === "trigger") {
@@ -109,6 +111,8 @@ export function insertActionInGraph(
 
 export function insertActionOnGraphEdge(graph: AutomationGraph, action: ActionInfo, edge: FlowEdgeLike, position: NodePosition) {
 	const node = addGraphActionNode(graph, action, position)
+
+	if (isDataOnlyAction(action)) return node
 
 	if (edge.from === "trigger") {
 		const previousEntry = graph.entryNodeId && graph.entryNodeId !== node.id ? graph.entryNodeId : edge.to
@@ -133,6 +137,10 @@ export function insertActionOnGraphEdge(graph: AutomationGraph, action: ActionIn
 
 export function isTerminalControlFlowNode(type: GraphNodeType) {
 	return type === "break" || type === "continue" || type === "return"
+}
+
+export function isDataOnlyAction(action: Pick<ActionInfo, "plugin" | "action">) {
+	return isCoreConversionAction(action.plugin, action.action)
 }
 
 export function resolveContextActionPosition(

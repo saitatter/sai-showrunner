@@ -31,7 +31,7 @@
 		@drop.prevent.stop="onDropActionOnNode($event, node)"
 	>
 		<span
-			v-if="node.kind !== 'variable'"
+			v-if="node.kind !== 'variable' && node.kind !== 'conversion'"
 			class="node-automation__handle node-automation__handle--in"
 			:class="{ 'connectable': activeGraph }"
 		/>

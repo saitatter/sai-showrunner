@@ -32,6 +32,11 @@ export function getCoreConversionActionDefinition(pluginId: string, actionId: st
 	return CORE_CONVERSION_ACTION_DEFINITIONS[normalizeActionLookupId(actionId)]
 }
 
+export function isCoreConversionAction(pluginId: string | undefined, actionId: string | undefined) {
+	if (!pluginId || !actionId) return false
+	return normalizeActionLookupId(pluginId) === "showrunner" && normalizeActionLookupId(actionId) in CORE_CONVERSION_ACTION_DEFINITIONS
+}
+
 export function defaultCoreConversionConfig(actionId: string) {
 	switch (normalizeActionLookupId(actionId)) {
 		case "convertnumbertostring":

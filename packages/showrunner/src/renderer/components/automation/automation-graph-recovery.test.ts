@@ -97,4 +97,41 @@ describe("automation graph recovery", () => {
 		expect(validateAutomationGraph(config)).toEqual([])
 		expect(repairAutomation(config).dataWires).toEqual(config.dataWires)
 	})
+
+	it("rejects and repairs sequence edges attached to conversion nodes", () => {
+		const config: AutomationConfig = {
+			name: "conversion-flow",
+			schemaVersion: 2,
+			graph: {
+				nodes: [
+					{
+						id: "convert-1",
+						type: "action",
+						plugin: "ShowRunner",
+						action: "convertStringToNumber",
+						config: { value: "", fallback: 0 },
+						x: 100,
+						y: 100,
+					},
+					{
+						id: "action-1",
+						type: "action",
+						plugin: "youtube",
+						action: "sendChatMessage",
+						config: { message: "" },
+						x: 360,
+						y: 100,
+					},
+				],
+				edges: [{ id: "convert-1:action-1", from: "convert-1", to: "action-1" }],
+				entryNodeId: "action-1",
+			},
+			subgraphs: [],
+			dataWires: [],
+			variableNodes: [],
+		}
+
+		expect(validateAutomationGraph(config)).toContain("Edge convert-1:action-1 uses a data-only conversion node.")
+		expect(repairAutomation(config).graph.edges).toEqual([])
+	})
 })

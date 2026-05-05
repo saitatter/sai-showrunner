@@ -1027,7 +1027,7 @@ function isExecPortConnected(nodeId: string, portKey: string): boolean {
 }
 
 function canStartFlowFromNode(node: NodeData) {
-	return Boolean(activeGraph.value && node.kind !== "variable")
+	return Boolean(activeGraph.value && node.kind !== "variable" && node.kind !== "conversion")
 }
 
 function getEdgeLabel(edgeOrPort?: { from?: string; port?: string } | string) {
