@@ -51,7 +51,7 @@ export function useAnnotationBlocks({
 	const selectedAnnotationBlock = computed(() =>
 		annotationBlocks.value.find((block) => block.id === selectedAnnotationBlockId.value)
 	)
-	const selectedAnnotationBlockNodeCount = computed(() => selectedAnnotationBlock.value?.nodeIds?.length ?? 0)
+	const selectedAnnotationBlockNodeCount = computed(() => selectedAnnotationBlock.value ? getAnnotationBlockMemberCount(selectedAnnotationBlock.value) : 0)
 
 	function addAnnotationBlock(position?: NodePosition) {
 		const viewport = getViewport()
@@ -83,6 +83,10 @@ export function useAnnotationBlocks({
 		}
 	}
 
+	function getAnnotationBlockMemberCount(block: AnnotationBlock) {
+		return getExistingNodeIds(block.nodeIds ?? []).length
+	}
+
 	function startAnnotationBlockDrag(event: PointerEvent, block: AnnotationBlock) {
 		if ((event.target as HTMLElement).closest(".node-automation__annotation-resize")) return
 		event.preventDefault()
@@ -104,9 +108,10 @@ export function useAnnotationBlocks({
 			const offsetY = nextY - block.y
 			block.x = nextX
 			block.y = nextY
-			for (const nodeId of block.nodeIds ?? []) {
-				const position = nodePositions.value[nodeId] ?? nodes.value.find((node) => node.id === nodeId)
-				if (!position) continue
+		for (const nodeId of block.nodeIds ?? []) {
+			if (!nodes.value.some((node) => node.id === nodeId)) continue
+			const position = nodePositions.value[nodeId] ?? nodes.value.find((node) => node.id === nodeId)
+			if (!position) continue
 				nodePositions.value[nodeId] = {
 					x: Math.max(12, position.x + offsetX),
 					y: Math.max(12, position.y + offsetY),
@@ -231,6 +236,11 @@ export function useAnnotationBlocks({
 		return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 	}
 
+	function getExistingNodeIds(nodeIds: Iterable<string>) {
+		const existing = new Set(nodes.value.map((node) => node.id))
+		return [...nodeIds].filter((nodeId) => existing.has(nodeId))
+	}
+
 	function deleteSelectedAnnotationBlock() {
 		const id = selectedAnnotationBlockId.value
 		if (!id) return
@@ -246,6 +256,7 @@ export function useAnnotationBlocks({
 		selectedAnnotationBlockNodeCount,
 		addAnnotationBlock,
 		annotationBlockStyle,
+		getAnnotationBlockMemberCount,
 		startAnnotationBlockDrag,
 		startAnnotationBlockResize,
 		updateSelectedAnnotationBlockLabel,

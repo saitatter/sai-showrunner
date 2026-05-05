@@ -74,6 +74,7 @@
 						:selected-block-id="selectedAnnotationBlockId"
 						:drop-target-block-id="annotationBlockDropTargetId"
 						:annotation-block-style="annotationBlockStyle"
+						:get-annotation-block-member-count="getAnnotationBlockMemberCount"
 						:on-start-annotation-block-drag="startAnnotationBlockDrag"
 						:on-start-annotation-block-resize="startAnnotationBlockResize"
 						:on-select-annotation-block="selectAnnotationBlock"
@@ -668,6 +669,7 @@ const {
 	clearSelectedAnnotationBlockNodes,
 	addNodesToAnnotationBlock,
 	getAnnotationBlockForNodes,
+	getAnnotationBlockMemberCount,
 	deleteSelectedAnnotationBlock,
 } = useAnnotationBlocks({
 	view,

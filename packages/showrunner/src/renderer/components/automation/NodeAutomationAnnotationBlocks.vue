@@ -9,7 +9,7 @@
 		@click.stop="onSelectAnnotationBlock(block.id)"
 	>
 		<span>{{ block.label || "Annotation" }}</span>
-		<small v-if="block.nodeIds?.length">{{ block.nodeIds.length }} node{{ block.nodeIds.length === 1 ? '' : 's' }}</small>
+		<small v-if="getAnnotationBlockMemberCount(block)">{{ getAnnotationBlockMemberCount(block) }} node{{ getAnnotationBlockMemberCount(block) === 1 ? '' : 's' }}</small>
 		<button
 			type="button"
 			class="node-automation__annotation-resize"
@@ -28,6 +28,7 @@ defineProps<{
 	selectedBlockId?: string
 	dropTargetBlockId?: string
 	annotationBlockStyle: (block: AnnotationBlock) => StyleValue
+	getAnnotationBlockMemberCount: (block: AnnotationBlock) => number
 	onStartAnnotationBlockDrag: (event: PointerEvent, block: AnnotationBlock) => void
 	onStartAnnotationBlockResize: (event: PointerEvent, block: AnnotationBlock) => void
 	onSelectAnnotationBlock: (blockId: string) => void

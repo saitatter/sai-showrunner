@@ -116,4 +116,13 @@ describe("useAnnotationBlocks", () => {
 
 		expect(view.value.annotationBlocks?.[0].nodeIds).toEqual(["node-a", "node-b"])
 	})
+
+	it("counts only existing member nodes for legacy or stale block data", () => {
+		const { blocks, view } = createAnnotationBlocks()
+
+		blocks.addAnnotationBlock()
+		view.value.annotationBlocks![0].nodeIds = ["node-a", "missing-node"]
+
+		expect(blocks.getAnnotationBlockMemberCount(view.value.annotationBlocks![0])).toBe(1)
+	})
 })
