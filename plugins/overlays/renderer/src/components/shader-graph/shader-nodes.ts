@@ -53,6 +53,9 @@ export interface ShaderGraph {
 	outputNodeId?: string
 }
 
+export type ShaderUniformValue = number | [number, number] | [number, number, number] | [number, number, number, number]
+export type ShaderUniformValueMap = Record<string, ShaderUniformValue>
+
 // ─── Built-in Node Definitions ───────────────────────────────────────
 
 export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
@@ -121,6 +124,24 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		inputs: [],
 		outputs: [{ key: "value", label: "Value", type: "vec3", default: "vec3(1.0, 1.0, 1.0)" }],
 		compile: (_ins, outs) => [`// vec3 constant assigned via default`],
+	},
+	{
+		id: "uniform_float",
+		name: "Float Parameter",
+		category: "Input",
+		icon: "mdi mdi-tune-variant",
+		inputs: [],
+		outputs: [{ key: "value", label: "Value", type: "float", default: "1.0" }],
+		compile: (_ins, outs) => [`// float parameter assigned from uniform`],
+	},
+	{
+		id: "uniform_vec3",
+		name: "Color Parameter",
+		category: "Input",
+		icon: "mdi mdi-palette-advanced",
+		inputs: [],
+		outputs: [{ key: "value", label: "Color", type: "vec3", default: "vec3(1.0, 1.0, 1.0)" }],
+		compile: (_ins, outs) => [`// color parameter assigned from uniform`],
 	},
 
 	// ── Math ──
@@ -492,6 +513,41 @@ function getConstantNodeValue(node: ShaderNodeInstance, type: GlslType, fallback
 	return fallback || glslTypeDefault(type)
 }
 
+const BUILT_IN_UNIFORMS = new Set(["u_resolution", "u_time", "u_accent", "u_secondary", "u_intensity", "u_speed"])
+
+function getUniformName(node: ShaderNodeInstance) {
+	const rawName = typeof node.inputDefaults?.name === "string" ? node.inputDefaults.name : ""
+	const fallback = `parameter_${node.id}`
+	const safe = (rawName.trim() || fallback).replace(/[^a-zA-Z0-9_]/g, "_").replace(/^[^a-zA-Z_]+/, "")
+	const base = safe || fallback
+	const name = base.startsWith("u_") ? base : `u_${base}`
+	return BUILT_IN_UNIFORMS.has(name) ? `${name}_custom` : name
+}
+
+function parseVec3Literal(value: string): [number, number, number] {
+	const source = value.match(/vec3\s*\(([^)]*)\)/)?.[1] ?? value
+	const parts = source.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []
+	return [
+		Number.isFinite(parts[0]) ? parts[0] : 1,
+		Number.isFinite(parts[1]) ? parts[1] : 1,
+		Number.isFinite(parts[2]) ? parts[2] : 1,
+	]
+}
+
+export function collectShaderUniformDefaults(graph: ShaderGraph): ShaderUniformValueMap {
+	const uniforms: ShaderUniformValueMap = {}
+	for (const node of graph.nodes) {
+		if (node.defId === "uniform_float") {
+			const value = Number(getConstantNodeValue(node, "float", "1.0"))
+			uniforms[getUniformName(node)] = Number.isFinite(value) ? value : 1
+		}
+		if (node.defId === "uniform_vec3") {
+			uniforms[getUniformName(node)] = parseVec3Literal(getConstantNodeValue(node, "vec3", "vec3(1.0, 1.0, 1.0)"))
+		}
+	}
+	return uniforms
+}
+
 export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[] } {
 	const errors = validateShaderGraph(graph)
 	if (errors.length) return { glsl: "", errors }
@@ -529,6 +585,7 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 
 	// Generate code
 	const bodyLines: string[] = []
+	const uniformLines = new Set<string>()
 
 	for (const nodeId of sorted) {
 		const node = nodeMap.get(nodeId)!
@@ -567,10 +624,22 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 		}
 
 		// Emit node body
-		const lines =
-			node.defId === "float_const" ? [`${outs.value} = ${getConstantNodeValue(node, "float", "1.0")};`] :
-			node.defId === "vec3_const" ? [`${outs.value} = ${getConstantNodeValue(node, "vec3", "vec3(1.0, 1.0, 1.0)")};`] :
-			def.compile(ins, outs)
+		let lines: string[]
+		if (node.defId === "float_const") {
+			lines = [`${outs.value} = ${getConstantNodeValue(node, "float", "1.0")};`]
+		} else if (node.defId === "vec3_const") {
+			lines = [`${outs.value} = ${getConstantNodeValue(node, "vec3", "vec3(1.0, 1.0, 1.0)")};`]
+		} else if (node.defId === "uniform_float") {
+			const uniformName = getUniformName(node)
+			uniformLines.add(`uniform float ${uniformName};`)
+			lines = [`${outs.value} = ${uniformName};`]
+		} else if (node.defId === "uniform_vec3") {
+			const uniformName = getUniformName(node)
+			uniformLines.add(`uniform vec3 ${uniformName};`)
+			lines = [`${outs.value} = ${uniformName};`]
+		} else {
+			lines = def.compile(ins, outs)
+		}
 		for (const line of lines) {
 			bodyLines.push(`\t${line}`)
 		}
@@ -584,6 +653,7 @@ uniform vec3 u_accent;
 uniform vec3 u_secondary;
 uniform float u_intensity;
 uniform float u_speed;
+${[...uniformLines].join("\n")}
 
 void main() {
 ${bodyLines.join("\n")}

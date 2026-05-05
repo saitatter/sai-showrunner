@@ -1,9 +1,10 @@
-import type { ShaderGraph, ShaderNodeInstance, ShaderWire } from "./shader-nodes"
+import type { ShaderGraph, ShaderNodeInstance, ShaderUniformValueMap, ShaderWire } from "./shader-nodes"
 
 export interface ShaderLayerGraphConfig {
 	preset?: string
 	customFragmentShader?: string
 	shaderGraph?: unknown
+	shaderUniforms?: ShaderUniformValueMap
 }
 
 const DEFAULT_SHADER_GRAPH: ShaderGraph = {
@@ -94,10 +95,11 @@ export function persistShaderGraph(config: ShaderLayerGraphConfig, graph: Shader
 	config.shaderGraph = cloneShaderGraph(graph)
 }
 
-export function applyCompiledShaderGraph(config: ShaderLayerGraphConfig, graph: ShaderGraph, glsl: string) {
+export function applyCompiledShaderGraph(config: ShaderLayerGraphConfig, graph: ShaderGraph, glsl: string, uniforms: ShaderUniformValueMap = {}) {
 	persistShaderGraph(config, graph)
 	config.preset = "custom"
 	config.customFragmentShader = glsl
+	config.shaderUniforms = { ...uniforms }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -215,7 +215,16 @@
 							</div>
 						</header>
 
-						<label v-if="selectedNode.defId === 'float_const'" class="shader-graph__field">
+						<label v-if="selectedNode.defId === 'uniform_float' || selectedNode.defId === 'uniform_vec3'" class="shader-graph__field">
+							<span>Uniform Name</span>
+							<input
+								type="text"
+								:value="getNodeInputDefault(selectedNode, 'name', 'parameter')"
+								@input="setNodeInputDefault(selectedNode, 'name', ($event.target as HTMLInputElement).value)"
+							/>
+						</label>
+
+						<label v-if="selectedNode.defId === 'float_const' || selectedNode.defId === 'uniform_float'" class="shader-graph__field">
 							<span>Value</span>
 							<input
 								type="number"
@@ -225,7 +234,7 @@
 							/>
 						</label>
 
-						<label v-else-if="selectedNode.defId === 'vec3_const'" class="shader-graph__field">
+						<label v-if="selectedNode.defId === 'vec3_const' || selectedNode.defId === 'uniform_vec3'" class="shader-graph__field">
 							<span>Color</span>
 							<input
 								type="color"
@@ -234,7 +243,7 @@
 							/>
 						</label>
 
-						<p v-else class="shader-graph__empty-state">
+						<p v-if="!hasEditableNodeSettings(selectedNode)" class="shader-graph__empty-state">
 							This node has no editable settings yet.
 						</p>
 					</template>
@@ -278,11 +287,13 @@ import {
 	SHADER_NODE_DEF_MAP,
 	SHADER_NODE_CATEGORIES,
 	areShaderTypesCompatible,
+	collectShaderUniformDefaults,
 	compileShaderGraph,
 	type ShaderGraph,
 	type ShaderNodeInstance,
 	type ShaderNodeDef,
 	type GlslType,
+	type ShaderUniformValueMap,
 } from "./shader-nodes"
 import { createDefaultShaderGraph, cloneShaderGraph } from "./shader-graph-state"
 
@@ -292,7 +303,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	"update:modelValue": [graph: ShaderGraph]
-	"compile": [glsl: string]
+	"compile": [glsl: string, uniforms: ShaderUniformValueMap]
 }>()
 
 // ─── State ───────────────────────────────────────────────────────────
@@ -604,6 +615,10 @@ function setNodeInputDefault(node: ShaderNodeInstance, key: string, value: strin
 	autoCompile()
 }
 
+function hasEditableNodeSettings(node: ShaderNodeInstance) {
+	return ["float_const", "vec3_const", "uniform_float", "uniform_vec3"].includes(node.defId)
+}
+
 function vec3DefaultToHex(value: string) {
 	const parts = value.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []
 	const [r = 1, g = 1, b = 1] = parts
@@ -662,6 +677,7 @@ function autoCompile() {
 	if (result.glsl) {
 		compiledGlsl.value = result.glsl
 		lastGoodGlsl.value = result.glsl
+		currentPreviewUniforms = collectShaderUniformDefaults(graph.value)
 		updateLivePreview(result.glsl)
 	}
 }
@@ -669,7 +685,7 @@ function autoCompile() {
 function compileAndApply() {
 	autoCompile()
 	if (!compileErrors.value.length && compiledGlsl.value) {
-		emit("compile", compiledGlsl.value)
+		emit("compile", compiledGlsl.value, collectShaderUniformDefaults(graph.value))
 		sidePanelTab.value = "preview"
 	} else {
 		sidePanelTab.value = "errors"
@@ -747,6 +763,7 @@ let previewBuffer: WebGLBuffer | null = null
 let previewCanvas: HTMLCanvasElement | null = null
 let previewFrame = 0
 let previewStartedAt = 0
+let currentPreviewUniforms: ShaderUniformValueMap = {}
 const lastPreviewGlsl = ref("")
 
 function updateLivePreview(glsl: string) {
@@ -818,8 +835,20 @@ function renderPreview() {
 	gl.uniform3fv(gl.getUniformLocation(prog, "u_secondary"), [0, 0.82, 1.0])
 	gl.uniform1f(gl.getUniformLocation(prog, "u_intensity"), 0.8)
 	gl.uniform1f(gl.getUniformLocation(prog, "u_speed"), 1.0)
+	applyUniformValues(gl, prog, currentPreviewUniforms)
 	gl.drawArrays(gl.TRIANGLES, 0, 6)
 	previewFrame = requestAnimationFrame(renderPreview)
+}
+
+function applyUniformValues(gl: WebGLRenderingContext, prog: WebGLProgram, uniforms: ShaderUniformValueMap) {
+	for (const [name, value] of Object.entries(uniforms)) {
+		const location = gl.getUniformLocation(prog, name)
+		if (!location) continue
+		if (typeof value === "number") gl.uniform1f(location, value)
+		else if (value.length === 2) gl.uniform2fv(location, value)
+		else if (value.length === 3) gl.uniform3fv(location, value)
+		else if (value.length === 4) gl.uniform4fv(location, value)
+	}
 }
 
 const vertexSrc = `attribute vec2 a_position; void main() { gl_Position = vec4(a_position, 0.0, 1.0); }`

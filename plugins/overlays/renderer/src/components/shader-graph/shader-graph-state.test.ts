@@ -22,11 +22,12 @@ describe("shader graph config state", () => {
 		const config: ShaderLayerGraphConfig = { preset: "aurora", customFragmentShader: "old glsl" }
 		const graph = createDefaultShaderGraph()
 
-		applyCompiledShaderGraph(config, graph, "new glsl")
+		applyCompiledShaderGraph(config, graph, "new glsl", { u_amount: 0.5 })
 
 		expect(config.preset).toBe("custom")
 		expect(config.customFragmentShader).toBe("new glsl")
 		expect(config.shaderGraph).toEqual(graph)
+		expect(config.shaderUniforms).toEqual({ u_amount: 0.5 })
 	})
 
 	it("detects legacy custom GLSL that has no graph to restore", () => {

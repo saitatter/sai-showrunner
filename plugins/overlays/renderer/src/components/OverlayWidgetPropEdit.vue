@@ -81,7 +81,7 @@ import {
 import { computed, nextTick, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetTransformEdit from "./OverlayWidgetTransformEdit.vue"
 import ShaderGraphEditor from "./shader-graph/ShaderGraphEditor.vue"
-import type { ShaderGraph } from "./shader-graph/shader-nodes"
+import type { ShaderGraph, ShaderUniformValueMap } from "./shader-graph/shader-nodes"
 import {
 	applyCompiledShaderGraph,
 	createDefaultShaderGraph,
@@ -221,10 +221,10 @@ function openShaderGraph() {
 	shaderGraphOpen.value = true
 }
 
-function onShaderGraphCompile(glsl: string) {
+function onShaderGraphCompile(glsl: string, uniforms: ShaderUniformValueMap) {
 	const config = selectedShaderLayerConfig.value
 	if (!config) return
-	applyCompiledShaderGraph(config, shaderGraph.value, glsl)
+	applyCompiledShaderGraph(config, shaderGraph.value, glsl, uniforms)
 }
 
 watch(shaderGraph, (graph) => {

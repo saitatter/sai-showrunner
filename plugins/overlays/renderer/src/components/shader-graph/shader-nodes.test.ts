@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
 	areShaderTypesCompatible,
+	collectShaderUniformDefaults,
 	compileShaderGraph,
 	validateShaderGraph,
 	type ShaderGraph,
@@ -75,5 +76,25 @@ describe("shader graph compiler", () => {
 
 		expect(result.errors).toEqual([])
 		expect(result.glsl).toContain("= vec3(0.100, 0.200, 0.300);")
+	})
+
+	it("compiles custom uniform parameter nodes", () => {
+		const graph: ShaderGraph = {
+			nodes: [
+				{ id: "color", defId: "uniform_vec3", x: 0, y: 0, inputDefaults: { name: "alert_color", value: "vec3(0.250, 0.500, 0.750)" } },
+				{ id: "output", defId: "fragment_output", x: 220, y: 0 },
+			],
+			wires: [
+				{ id: "color:value->output:color", fromNode: "color", fromPort: "value", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		}
+
+		const result = compileShaderGraph(graph)
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("uniform vec3 u_alert_color;")
+		expect(result.glsl).toContain("= u_alert_color;")
+		expect(collectShaderUniformDefaults(graph)).toEqual({ u_alert_color: [0.25, 0.5, 0.75] })
 	})
 })

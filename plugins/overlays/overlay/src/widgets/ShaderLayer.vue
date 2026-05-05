@@ -175,6 +175,7 @@ const props = defineProps<{
 		preset: (typeof bundledPresetNames)[number]
 		customFragmentShader?: string
 		shaderGraph?: unknown
+		shaderUniforms?: Record<string, number | number[]>
 		accentColor: string
 		secondaryColor: string
 		intensity: number
@@ -219,6 +220,7 @@ onMounted(() => {
 			getSecondaryColor: () => hexToVec3(props.config.secondaryColor, [0, 0.82, 1]),
 			getIntensity: () => Number(props.config.intensity ?? 0.8),
 			getSpeed: () => Number(props.config.speed ?? 1),
+			getCustomUniforms: () => props.config.shaderUniforms ?? {},
 		})
 	} catch (error) {
 		errorMessage.value = error instanceof Error ? error.message : String(error)
