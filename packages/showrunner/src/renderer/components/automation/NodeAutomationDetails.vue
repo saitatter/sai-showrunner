@@ -103,146 +103,25 @@
 							@update:name="onUpdateVariableNodeName"
 							@update:value="onUpdateVariableNodeValue"
 						/>
-						<div v-else-if="selectedControlNode" class="node-automation__control-edit">
-							<template v-if="selectedControlNode.type === 'if' || selectedControlNode.type === 'while'">
-								<label>
-									<span>{{ selectedControlNode.type === 'if' ? 'Condition' : 'Loop while' }}</span>
-									<select
-										:value="expressionMode(selectedControlNode.condition)"
-										@change="setControlExpressionMode(selectedControlNode, 'condition', ($event.target as HTMLSelectElement).value)"
-									>
-										<option value="true">Always true</option>
-										<option value="false">Always false</option>
-										<option value="variable">Variable is truthy</option>
-										<option value="equals">Variable equals value</option>
-									</select>
-								</label>
-								<label v-if="expressionMode(selectedControlNode.condition) === 'variable' || expressionMode(selectedControlNode.condition) === 'equals'">
-									<span>Variable</span>
-									<expression-text-input
-										list="node-expression-suggestions"
-										:model-value="expressionVariable(selectedControlNode.condition)"
-										placeholder="message.approved"
-										:invalid="Boolean(expressionValidationMessage(selectedControlNode.condition))"
-										@change="setControlExpressionVariable(selectedControlNode, 'condition', $event)"
-									/>
-								</label>
-								<label v-if="expressionMode(selectedControlNode.condition) === 'equals'">
-									<span>Equals</span>
-									<input
-										type="text"
-										:value="expressionCompareValue(selectedControlNode.condition)"
-										placeholder="approved"
-										@change="setControlExpressionCompareValue(selectedControlNode, 'condition', ($event.target as HTMLInputElement).value)"
-									/>
-								</label>
-								<div class="node-automation__expression-summary" :class="{ invalid: Boolean(expressionValidationMessage(selectedControlNode.condition)) }">
-									<code>{{ summarizeExpression(selectedControlNode.condition) }}</code>
-									<small>{{ expressionValidationMessage(selectedControlNode.condition) || "Expression looks valid" }}</small>
-								</div>
-								<label v-if="selectedControlNode.type === 'while'">
-									<span>Max iterations</span>
-									<input
-										type="number"
-										min="1"
-										step="1"
-										:value="selectedControlNode.maxIterations ?? 1000"
-										@change="setControlNumber(selectedControlNode, 'maxIterations', Number(($event.target as HTMLInputElement).value))"
-									/>
-								</label>
-							</template>
-							<template v-else-if="selectedControlNode.type === 'for'">
-								<label>
-									<span>Counter</span>
-									<input
-										type="text"
-										:value="selectedControlNode.variable"
-										@change="setControlString(selectedControlNode, 'variable', ($event.target as HTMLInputElement).value)"
-									/>
-								</label>
-								<label>
-									<span>Start</span>
-									<input
-										type="number"
-										:value="literalNumber(selectedControlNode.start)"
-										@change="setControlLiteralNumber(selectedControlNode, 'start', Number(($event.target as HTMLInputElement).value))"
-									/>
-								</label>
-								<label>
-									<span>End</span>
-									<input
-										type="number"
-										:value="literalNumber(selectedControlNode.end)"
-										@change="setControlLiteralNumber(selectedControlNode, 'end', Number(($event.target as HTMLInputElement).value))"
-									/>
-								</label>
-								<label>
-									<span>Step</span>
-									<input
-										type="number"
-										:value="literalNumber(selectedControlNode.step, 1)"
-										@change="setControlLiteralNumber(selectedControlNode, 'step', Number(($event.target as HTMLInputElement).value))"
-									/>
-								</label>
-							</template>
-							<template v-else-if="selectedControlNode.type === 'forEach'">
-								<label>
-									<span>Item variable</span>
-									<input
-										type="text"
-										:value="selectedControlNode.variable"
-										@change="setControlString(selectedControlNode, 'variable', ($event.target as HTMLInputElement).value)"
-									/>
-								</label>
-								<label>
-									<span>Collection variable</span>
-									<expression-text-input
-										list="node-expression-suggestions"
-										:model-value="expressionVariable(selectedControlNode.collection)"
-										placeholder="items"
-										:invalid="Boolean(expressionValidationMessage(selectedControlNode.collection))"
-										@change="setControlExpressionVariable(selectedControlNode, 'collection', $event)"
-									/>
-								</label>
-								<div class="node-automation__expression-summary" :class="{ invalid: Boolean(expressionValidationMessage(selectedControlNode.collection)) }">
-									<code>{{ summarizeExpression(selectedControlNode.collection) }}</code>
-									<small>{{ expressionValidationMessage(selectedControlNode.collection) || "Expression looks valid" }}</small>
-								</div>
-							</template>
-							<template v-else-if="selectedControlNode.type === 'switch'">
-								<label>
-									<span>Switch variable</span>
-									<expression-text-input
-										list="node-expression-suggestions"
-										:model-value="expressionVariable(selectedControlNode.expression)"
-										placeholder="platform"
-										:invalid="Boolean(expressionValidationMessage(selectedControlNode.expression))"
-										@change="setControlExpressionVariable(selectedControlNode, 'expression', $event)"
-									/>
-								</label>
-								<div class="node-automation__expression-summary" :class="{ invalid: Boolean(expressionValidationMessage(selectedControlNode.expression)) }">
-									<code>{{ summarizeExpression(selectedControlNode.expression) }}</code>
-									<small>{{ expressionValidationMessage(selectedControlNode.expression) || "Expression looks valid" }}</small>
-								</div>
-								<div class="node-automation__case-list">
-									<div v-for="(item, ci) in selectedControlNode.cases" :key="item.port">
-										<input
-											type="text"
-											:value="String(item.value)"
-											placeholder="case value"
-											@change="setSwitchCaseValue(selectedControlNode, ci, ($event.target as HTMLInputElement).value)"
-										/>
-										<button type="button" class="danger" @click="deleteSwitchCase(selectedControlNode, ci)">
-											<i class="mdi mdi-trash-can-outline" />
-										</button>
-									</div>
-									<button type="button" @click="addSwitchCase(selectedControlNode)">
-										<i class="mdi mdi-plus" /> Add case
-									</button>
-								</div>
-							</template>
-							<p v-else class="node-automation__hint">This control node does not have editable fields yet.</p>
-						</div>
+						<control-node-config
+							v-else-if="selectedControlNode"
+							:node="selectedControlNode"
+							:expression-mode="expressionMode"
+							:expression-variable="expressionVariable"
+							:expression-compare-value="expressionCompareValue"
+							:expression-validation-message="expressionValidationMessage"
+							:summarize-expression="summarizeExpression"
+							:literal-number="literalNumber"
+							:set-control-expression-mode="setControlExpressionMode"
+							:set-control-expression-variable="setControlExpressionVariable"
+							:set-control-expression-compare-value="setControlExpressionCompareValue"
+							:set-control-string="setControlString"
+							:set-control-number="setControlNumber"
+							:set-control-literal-number="setControlLiteralNumber"
+							:set-switch-case-value="setSwitchCaseValue"
+							:add-switch-case="addSwitchCase"
+							:delete-switch-case="deleteSwitchCase"
+						/>
 						<p v-else class="node-automation__hint">
 							This node groups other actions. Select a child action node to edit its settings.
 						</p>
@@ -427,7 +306,7 @@ import {
 } from "showrunner-schema"
 import type { AnnotationBlock } from "./useAnnotationBlocks"
 import type { NodeData } from "./useNodeRendering"
-import ExpressionTextInput from "./ExpressionTextInput.vue"
+import ControlNodeConfig from "./ControlNodeConfig.vue"
 import MissingSchemaNotice from "./MissingSchemaNotice.vue"
 import VariableNodeConfig from "./VariableNodeConfig.vue"
 
@@ -986,92 +865,30 @@ const selectedTriggerConfigModelModel = computed({
 	margin: 0;
 }
 
-.node-automation__annotation-edit,
-.node-automation__control-edit {
+.node-automation__annotation-edit {
 	display: grid;
 	gap: 0.55rem;
 }
 
-.node-automation__annotation-edit label,
-.node-automation__control-edit label {
+.node-automation__annotation-edit label {
 	display: flex;
 	flex-direction: column;
 	gap: 0.3rem;
 }
 
-.node-automation__annotation-edit label span,
-.node-automation__control-edit label span {
+.node-automation__annotation-edit label span {
 	color: var(--text-color-secondary);
 	font-size: 0.75rem;
 	font-weight: 600;
 	text-transform: uppercase;
 }
 
-.node-automation__annotation-edit input,
-.node-automation__control-edit input,
-.node-automation__control-edit select {
+.node-automation__annotation-edit input {
 	background: var(--surface-a);
 	border: 1px solid var(--surface-d);
 	border-radius: 4px;
 	color: var(--text-color);
 	font-size: 0.85rem;
 	padding: 0.35rem 0.5rem;
-}
-
-.node-automation__case-list {
-	display: grid;
-	gap: 0.4rem;
-}
-
-.node-automation__case-list > div {
-	display: grid;
-	gap: 0.35rem;
-	grid-template-columns: 1fr auto;
-}
-
-.node-automation__case-list button {
-	align-items: center;
-	background: #262626;
-	border: 1px solid #3a3a3a;
-	border-radius: 4px;
-	color: var(--text-color);
-	cursor: pointer;
-	display: inline-flex;
-	gap: 0.25rem;
-	justify-content: center;
-	padding: 0.35rem 0.55rem;
-}
-
-.node-automation__case-list button.danger {
-	color: #ffb4b4;
-}
-
-.node-automation__expression-summary {
-	background: #101010;
-	border: 1px solid #303030;
-	border-radius: 5px;
-	display: grid;
-	gap: 0.25rem;
-	padding: 0.5rem;
-}
-
-.node-automation__expression-summary code {
-	color: #b8eaff;
-	font-family: "Cascadia Code", "Consolas", monospace;
-	font-size: 0.78rem;
-	overflow-wrap: anywhere;
-}
-
-.node-automation__expression-summary small {
-	color: #9fd0a7;
-	font-size: 0.72rem;
-}
-
-.node-automation__expression-summary.invalid {
-	border-color: rgba(239, 83, 80, 0.55);
-}
-
-.node-automation__expression-summary.invalid small {
-	color: #ffb4b4;
 }
 </style>
