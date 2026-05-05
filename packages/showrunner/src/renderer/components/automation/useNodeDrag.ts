@@ -13,6 +13,11 @@ export interface AlignmentGuide {
 	to: number
 }
 
+interface NodeDragCallbacks {
+	onDragMove?: (draggedIds: Set<string>) => void
+	onDragEnd?: (draggedIds: Set<string>, moved: boolean) => void
+}
+
 const SNAP_THRESHOLD = 6
 
 export function useNodeDrag(
@@ -24,7 +29,8 @@ export function useNodeDrag(
 	closeContextMenu: () => void,
 	commitUndo: () => void,
 	allNodes: ComputedRef<DraggableNode[]>,
-	nodeWidth: number
+	nodeWidth: number,
+	callbacks: NodeDragCallbacks = {}
 ) {
 	const alignmentGuides = ref<AlignmentGuide[]>([])
 
@@ -178,6 +184,7 @@ export function useNodeDrag(
 					y: Math.max(12, initial.y + offsetY),
 				}
 			}
+			callbacks.onDragMove?.(draggedIds)
 		}
 
 		function onUp(upEvent: PointerEvent) {
@@ -195,6 +202,7 @@ export function useNodeDrag(
 				}
 			}
 			if (moved) commitUndo()
+			callbacks.onDragEnd?.(draggedIds, moved)
 		}
 
 		target.addEventListener("pointermove", onMove)

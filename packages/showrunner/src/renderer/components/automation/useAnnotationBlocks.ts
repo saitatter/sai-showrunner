@@ -172,10 +172,17 @@ export function useAnnotationBlocks({
 
 	function addSelectionToSelectedAnnotationBlock() {
 		if (!selectedAnnotationBlock.value) return
-		const next = new Set(selectedAnnotationBlock.value.nodeIds ?? [])
-		for (const nodeId of selectedNodeIds.value) next.add(nodeId)
-		selectedAnnotationBlock.value.nodeIds = [...next]
+		addNodesToAnnotationBlock(selectedAnnotationBlock.value.id, selectedNodeIds.value)
 		commitUndo()
+	}
+
+	function addNodesToAnnotationBlock(blockId: string, nodeIds: Iterable<string>) {
+		const block = annotationBlocks.value.find((item) => item.id === blockId)
+		if (!block) return false
+		const next = new Set(block.nodeIds ?? [])
+		for (const nodeId of nodeIds) next.add(nodeId)
+		block.nodeIds = [...next]
+		return true
 	}
 
 	function clearSelectedAnnotationBlockNodes() {
@@ -189,6 +196,39 @@ export function useAnnotationBlocks({
 		const selected = selectedNodeIds.value
 		selectedAnnotationBlock.value.nodeIds = (selectedAnnotationBlock.value.nodeIds ?? []).filter((nodeId) => !selected.has(nodeId))
 		commitUndo()
+	}
+
+	function getAnnotationBlockForNodes(nodeIds: Iterable<string>) {
+		const bounds = getNodeBounds(nodeIds)
+		if (!bounds) return undefined
+		const centerX = bounds.x + bounds.width / 2
+		const centerY = bounds.y + bounds.height / 2
+		return annotationBlocks.value.find((block) =>
+			centerX >= block.x &&
+			centerX <= block.x + block.width &&
+			centerY >= block.y &&
+			centerY <= block.y + block.height
+		)
+	}
+
+	function getNodeBounds(nodeIds: Iterable<string>) {
+		const boxes = [...nodeIds].map((nodeId) => {
+			const node = nodes.value.find((item) => item.id === nodeId)
+			if (!node) return undefined
+			const position = nodePositions.value[nodeId] ?? node
+			return {
+				x: position.x,
+				y: position.y,
+				width: node.width ?? 220,
+				height: node.height,
+			}
+		}).filter((box): box is { x: number; y: number; width: number; height: number } => Boolean(box))
+		if (!boxes.length) return undefined
+		const minX = Math.min(...boxes.map((box) => box.x))
+		const minY = Math.min(...boxes.map((box) => box.y))
+		const maxX = Math.max(...boxes.map((box) => box.x + box.width))
+		const maxY = Math.max(...boxes.map((box) => box.y + box.height))
+		return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 	}
 
 	function deleteSelectedAnnotationBlock() {
@@ -211,8 +251,10 @@ export function useAnnotationBlocks({
 		updateSelectedAnnotationBlockLabel,
 		updateSelectedAnnotationBlockColor,
 		addSelectionToSelectedAnnotationBlock,
+		addNodesToAnnotationBlock,
 		clearSelectedAnnotationBlockNodes,
 		removeSelectionFromSelectedAnnotationBlock,
+		getAnnotationBlockForNodes,
 		deleteSelectedAnnotationBlock,
 	}
 }

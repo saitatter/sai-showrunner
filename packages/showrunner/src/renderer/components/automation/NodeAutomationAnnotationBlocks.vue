@@ -3,7 +3,7 @@
 		v-for="block in blocks"
 		:key="block.id"
 		class="node-automation__annotation-block"
-		:class="{ selected: selectedBlockId === block.id }"
+		:class="{ selected: selectedBlockId === block.id, 'drop-target': dropTargetBlockId === block.id }"
 		:style="annotationBlockStyle(block)"
 		@pointerdown.stop="onStartAnnotationBlockDrag($event, block)"
 		@click.stop="onSelectAnnotationBlock(block.id)"
@@ -26,6 +26,7 @@ import type { AnnotationBlock } from "./useAnnotationBlocks"
 defineProps<{
 	blocks: AnnotationBlock[]
 	selectedBlockId?: string
+	dropTargetBlockId?: string
 	annotationBlockStyle: (block: AnnotationBlock) => StyleValue
 	onStartAnnotationBlockDrag: (event: PointerEvent, block: AnnotationBlock) => void
 	onStartAnnotationBlockResize: (event: PointerEvent, block: AnnotationBlock) => void
@@ -46,6 +47,11 @@ defineProps<{
 .node-automation__annotation-block.selected {
 	border-style: solid;
 	box-shadow: 0 0 0 2px rgb(255 255 255 / 0.16);
+}
+
+.node-automation__annotation-block.drop-target {
+	border-style: solid;
+	box-shadow: 0 0 0 3px rgb(46 212 122 / 0.38);
 }
 
 .node-automation__annotation-block span {

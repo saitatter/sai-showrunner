@@ -6,11 +6,15 @@ function createAnnotationBlocks() {
 	const view = ref<{ annotationBlocks?: AnnotationBlock[] }>({})
 	const selectedAnnotationBlockId = ref<string>()
 	const selectedNodeIds = ref(new Set<string>())
+	const nodes = ref([
+		{ id: "node-a", x: 120, y: 130, height: 80, width: 220 },
+		{ id: "node-b", x: 180, y: 170, height: 80, width: 220 },
+	])
 	const nodePositions = computed(() => ({} as Record<string, { x: number; y: number }>))
 	let commitCount = 0
 	const blocks = useAnnotationBlocks({
 		view,
-		nodes: computed(() => []),
+		nodes: computed(() => nodes.value),
 		selectedAnnotationBlockId,
 		selectedNodeIds,
 		nodePositions,
@@ -91,5 +95,25 @@ describe("useAnnotationBlocks", () => {
 		blocks.removeSelectionFromSelectedAnnotationBlock()
 
 		expect(view.value.annotationBlocks?.[0].nodeIds).toEqual(["node-a", "node-c"])
+	})
+
+	it("finds a block containing the dragged node selection center", () => {
+		const { blocks, view } = createAnnotationBlocks()
+
+		blocks.addAnnotationBlock({ x: 100, y: 100 })
+
+		expect(blocks.getAnnotationBlockForNodes(new Set(["node-a", "node-b"]))?.id).toBe(view.value.annotationBlocks?.[0].id)
+	})
+
+	it("adds dragged nodes to a block without duplicating existing members", () => {
+		const { blocks, view } = createAnnotationBlocks()
+
+		blocks.addAnnotationBlock()
+		const blockId = view.value.annotationBlocks?.[0].id
+		expect(blockId).toBeTruthy()
+		blocks.addNodesToAnnotationBlock(blockId!, ["node-a"])
+		blocks.addNodesToAnnotationBlock(blockId!, ["node-a", "node-b"])
+
+		expect(view.value.annotationBlocks?.[0].nodeIds).toEqual(["node-a", "node-b"])
 	})
 })

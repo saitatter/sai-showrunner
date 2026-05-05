@@ -72,6 +72,7 @@
 					<node-automation-annotation-blocks
 						:blocks="annotationBlocks"
 						:selected-block-id="selectedAnnotationBlockId"
+						:drop-target-block-id="annotationBlockDropTargetId"
 						:annotation-block-style="annotationBlockStyle"
 						:on-start-annotation-block-drag="startAnnotationBlockDrag"
 						:on-start-annotation-block-resize="startAnnotationBlockResize"
@@ -337,6 +338,7 @@ const view = useModel(props, "view")
 const selectedNodeId = ref<string>()
 const selectedNodeIds = ref<Set<string>>(new Set())
 const selectedAnnotationBlockId = ref<string>()
+const annotationBlockDropTargetId = ref<string>()
 const selectedActionToAdd = ref("")
 const actionPaletteQuery = ref("")
 const dropTargetNodeId = ref<string>()
@@ -662,6 +664,8 @@ const {
 	addSelectionToSelectedAnnotationBlock,
 	removeSelectionFromSelectedAnnotationBlock,
 	clearSelectedAnnotationBlockNodes,
+	addNodesToAnnotationBlock,
+	getAnnotationBlockForNodes,
 	deleteSelectedAnnotationBlock,
 } = useAnnotationBlocks({
 	view,
@@ -796,7 +800,18 @@ const { startDrag, resetSelectedNodePosition, alignmentGuides } = useNodeDrag(
 	closeContextMenu,
 	commitUndo,
 	nodes,
-	NODE_WIDTH
+	NODE_WIDTH,
+	{
+		onDragMove: (draggedIds) => {
+			annotationBlockDropTargetId.value = getAnnotationBlockForNodes(draggedIds)?.id
+		},
+		onDragEnd: (draggedIds, moved) => {
+			const blockId = annotationBlockDropTargetId.value
+			annotationBlockDropTargetId.value = undefined
+			if (!moved || !blockId) return
+			if (addNodesToAnnotationBlock(blockId, draggedIds)) commitUndo()
+		},
+	}
 )
 const {
 	wireDrag,
