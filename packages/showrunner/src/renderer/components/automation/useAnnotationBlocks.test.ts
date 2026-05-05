@@ -28,7 +28,7 @@ function createAnnotationBlocks() {
 			commitCount += 1
 		},
 	})
-	return { blocks, view, selectedAnnotationBlockId, selectedNodeIds, getCommitCount: () => commitCount }
+	return { blocks, view, nodes, selectedAnnotationBlockId, selectedNodeIds, getCommitCount: () => commitCount }
 }
 
 describe("useAnnotationBlocks", () => {
@@ -61,6 +61,22 @@ describe("useAnnotationBlocks", () => {
 			y: 190,
 			width: 360,
 			height: 200,
+		})
+	})
+
+	it("creates annotation blocks around the current node selection", () => {
+		const { blocks, view, nodes, selectedNodeIds } = createAnnotationBlocks()
+		nodes.value[1] = { ...nodes.value[1], x: 520, y: 260 }
+		selectedNodeIds.value = new Set(["node-a", "node-b"])
+
+		blocks.addAnnotationBlock()
+
+		expect(view.value.annotationBlocks?.[0]).toMatchObject({
+			x: 80,
+			y: 90,
+			width: 700,
+			height: 290,
+			nodeIds: ["node-a", "node-b"],
 		})
 	})
 

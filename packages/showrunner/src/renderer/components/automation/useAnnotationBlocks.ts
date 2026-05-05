@@ -54,9 +54,12 @@ export function useAnnotationBlocks({
 	const selectedAnnotationBlockNodeCount = computed(() => selectedAnnotationBlock.value ? getAnnotationBlockMemberCount(selectedAnnotationBlock.value) : 0)
 
 	function addAnnotationBlock(position?: NodePosition) {
+		const selectedNodeIdsInGraph = getExistingNodeIds(selectedNodeIds.value)
+		const selectedBounds = getNodeBounds(selectedNodeIdsInGraph)
+		const padding = 40
 		const viewport = getViewport()
-		const x = snapCoordinate(position?.x ?? viewport.x + 96)
-		const y = snapCoordinate(position?.y ?? viewport.y + 96)
+		const x = selectedBounds ? snapCoordinate(selectedBounds.x - padding) : snapCoordinate(position?.x ?? viewport.x + 96)
+		const y = selectedBounds ? snapCoordinate(selectedBounds.y - padding) : snapCoordinate(position?.y ?? viewport.y + 96)
 
 		const block: AnnotationBlock = {
 			id: nanoid(),
@@ -64,8 +67,9 @@ export function useAnnotationBlocks({
 			color: "#64b5f6",
 			x,
 			y,
-			width: 360,
-			height: 200,
+			width: selectedBounds ? Math.max(360, Math.ceil(selectedBounds.width + padding * 2)) : 360,
+			height: selectedBounds ? Math.max(200, Math.ceil(selectedBounds.height + padding * 2)) : 200,
+			nodeIds: selectedNodeIdsInGraph.length ? selectedNodeIdsInGraph : undefined,
 		}
 
 		annotationBlocks.value.push(block)
