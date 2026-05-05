@@ -119,6 +119,7 @@ export class GraphCompiler {
 	private edgeMap = new Map<string, GraphEdge[]>() // from nodeId → outgoing edges
 	private nodeMap = new Map<string, GraphNode>()
 	private subgraphIndexById = new Map<string, number>()
+	private contextSourceNodeIds = new Set<string>(["trigger"])
 	/** Maps nodeId → instruction index where it was first compiled (for merge points) */
 	private nodePC = new Map<string, number>()
 
@@ -131,10 +132,15 @@ export class GraphCompiler {
 		graph: AutomationGraph,
 		subgraphs?: SubgraphDefinition[],
 		dataWires?: AutomationDataWire[],
-		triggerNodes?: Pick<AutomationTriggerNode, "id">[]
+		triggerNodes?: Pick<AutomationTriggerNode, "id">[],
+		entryNodeId?: string
 	): Program {
 		this.reset()
 		this.buildMaps(graph.nodes, graph.edges)
+		this.contextSourceNodeIds = new Set([
+			"trigger",
+			...(triggerNodes ?? []).map((node) => node.id).filter(Boolean),
+		])
 		this.subgraphIndexById = new Map((subgraphs ?? []).map((sg, index) => [sg.id, index]))
 		const allDataWires = [
 			...(dataWires ?? []),
@@ -142,7 +148,7 @@ export class GraphCompiler {
 		]
 
 		// Compile main graph first so the VM starts at the automation entry point.
-		this.compileFromEntry(graph.entryNodeId)
+		this.compileFromEntry(entryNodeId ?? graph.entryNodeId)
 		this.emit({ op: OpCode.HALT })
 
 		// Compile subgraphs after HALT. CALL instructions jump into these entry PCs.
@@ -183,12 +189,7 @@ export class GraphCompiler {
 			localSlotCount: this.nextSlot,
 			slotNames,
 			wireMap,
-			contextSourceNodeIds: [
-				...new Set([
-					"trigger",
-					...(triggerNodes ?? []).map((node) => node.id).filter(Boolean),
-				]),
-			],
+			contextSourceNodeIds: [...this.contextSourceNodeIds],
 			wireTargetNodeIds: [
 				...new Set([
 					"trigger",
@@ -213,6 +214,7 @@ export class GraphCompiler {
 		this.edgeMap = new Map()
 		this.nodeMap = new Map()
 		this.subgraphIndexById = new Map()
+		this.contextSourceNodeIds = new Set(["trigger"])
 		this.nodePC = new Map()
 	}
 
@@ -229,6 +231,11 @@ export class GraphCompiler {
 
 	private compileFromEntry(entryNodeId: string) {
 		const visited = new Set<string>()
+		if (this.contextSourceNodeIds.has(entryNodeId)) {
+			const next = this.getEdgeTarget(entryNodeId, undefined)
+			if (next) this.compileNode(next, visited)
+			return
+		}
 		this.compileNode(entryNodeId, visited)
 	}
 

@@ -227,6 +227,37 @@ describe("Graph Integration (compile → VM → action)", () => {
 		expect(receivedConfig).toEqual({ viewerName: "SaiTatter", amount: "10.00" })
 	})
 
+	it("starts execution from an explicit trigger node edge", async () => {
+		const calls: string[] = []
+		mockGetAction.mockImplementation((_plugin: string, action: string) => {
+			return mockAction(async () => {
+				calls.push(action)
+				return {}
+			})
+		})
+
+		const graph: AutomationGraph = {
+			nodes: [
+				{ id: "paid-alert", type: "action", plugin: "p", action: "paidAlert", config: {}, x: 0, y: 0 },
+				{ id: "scene-alert", type: "action", plugin: "p", action: "sceneAlert", config: {}, x: 0, y: 100 },
+			],
+			edges: [
+				{ id: "trigger-paid:paid-alert", from: "trigger:paid-event", to: "paid-alert" },
+				{ id: "trigger-scene:scene-alert", from: "trigger:scene-begin", to: "scene-alert" },
+			],
+			entryNodeId: "paid-alert",
+		}
+
+		const triggerNodes = [{ id: "trigger:paid-event" }, { id: "trigger:scene-begin" }]
+
+		await new GraphVM(
+			new GraphCompiler().compile(graph, undefined, undefined, triggerNodes, "trigger:scene-begin"),
+			{ contextState: {} }
+		).execute()
+
+		expect(calls).toEqual(["sceneAlert"])
+	})
+
 	it("resolves data wires for action node ids that contain colons", async () => {
 		let receivedConfig: any = null
 		mockGetAction.mockImplementation((_plugin: string, action: string) => {
