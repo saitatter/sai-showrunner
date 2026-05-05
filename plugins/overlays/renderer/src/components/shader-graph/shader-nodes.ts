@@ -378,21 +378,21 @@ export const SHADER_NODE_CATEGORIES = [...new Set(SHADER_NODE_DEFS.map((d) => d.
 
 // ─── GLSL Code Generation ────────────────────────────────────────────
 
-function glslTypeDefault(type: GlslType): string {
-	switch (type) {
-		case "float": return "0.0"
-		case "vec2": return "vec2(0.0)"
-		case "vec3": return "vec3(0.0)"
-		case "vec4": return "vec4(0.0, 0.0, 0.0, 1.0)"
-	}
+export function getShaderPortDef(graph: ShaderGraph, nodeId: string, portKey: string, kind: "in" | "out"): ShaderPortDef | undefined {
+	const node = graph.nodes.find((item) => item.id === nodeId)
+	if (!node) return undefined
+	const def = SHADER_NODE_DEF_MAP.get(node.defId)
+	if (!def) return undefined
+	const ports = kind === "in" ? def.inputs : def.outputs
+	return ports.find((port) => port.key === portKey)
 }
 
-export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[] } {
-	const errors: string[] = []
-	const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]))
-	const defMap = SHADER_NODE_DEF_MAP
+export function areShaderTypesCompatible(from: GlslType, to: GlslType): boolean {
+	return from === to
+}
 
-	// Build adjacency for topological sort (wires point fromNode → toNode)
+function sortShaderGraph(graph: ShaderGraph) {
+	const nodeIds = new Set(graph.nodes.map((node) => node.id))
 	const inDegree = new Map<string, number>()
 	const adjacency = new Map<string, string[]>()
 	for (const node of graph.nodes) {
@@ -400,13 +400,12 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 		adjacency.set(node.id, [])
 	}
 	for (const wire of graph.wires) {
-		if (!nodeMap.has(wire.fromNode) || !nodeMap.has(wire.toNode)) continue
-		adjacency.get(wire.fromNode)!.push(wire.toNode)
+		if (!nodeIds.has(wire.fromNode) || !nodeIds.has(wire.toNode)) continue
+		adjacency.get(wire.fromNode)?.push(wire.toNode)
 		inDegree.set(wire.toNode, (inDegree.get(wire.toNode) ?? 0) + 1)
 	}
 
-	// Kahn's algorithm
-	const queue = graph.nodes.filter((n) => (inDegree.get(n.id) ?? 0) === 0).map((n) => n.id)
+	const queue = graph.nodes.filter((node) => (inDegree.get(node.id) ?? 0) === 0).map((node) => node.id)
 	const sorted: string[] = []
 	while (queue.length > 0) {
 		const nodeId = queue.shift()!
@@ -418,10 +417,81 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 		}
 	}
 
-	if (sorted.length !== graph.nodes.length) {
-		errors.push("Shader graph contains a cycle.")
-		return { glsl: "", errors }
+	return sorted
+}
+
+export function validateShaderGraph(graph: ShaderGraph): string[] {
+	const errors: string[] = []
+	const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]))
+	const outputNodes = graph.nodes.filter((node) => node.defId === "fragment_output")
+
+	for (const node of graph.nodes) {
+		if (!SHADER_NODE_DEF_MAP.has(node.defId)) {
+			errors.push(`Node ${node.id} uses unknown shader node type "${node.defId}".`)
+		}
 	}
+
+	if (graph.outputNodeId) {
+		const outputNode = nodeMap.get(graph.outputNodeId)
+		if (!outputNode) errors.push(`Shader graph output node "${graph.outputNodeId}" is missing.`)
+		else if (outputNode.defId !== "fragment_output") errors.push(`Shader graph output node "${graph.outputNodeId}" is not a Fragment Output node.`)
+	} else if (outputNodes.length === 0) {
+		errors.push("Shader graph is missing a Fragment Output node.")
+	} else if (outputNodes.length > 1) {
+		errors.push("Shader graph has multiple Fragment Output nodes. Pick one output node before compiling.")
+	}
+
+	const inputTargets = new Set<string>()
+	for (const wire of graph.wires) {
+		const fromNode = nodeMap.get(wire.fromNode)
+		const toNode = nodeMap.get(wire.toNode)
+		if (!fromNode) {
+			errors.push(`Wire ${wire.id} starts at missing node "${wire.fromNode}".`)
+			continue
+		}
+		if (!toNode) {
+			errors.push(`Wire ${wire.id} ends at missing node "${wire.toNode}".`)
+			continue
+		}
+
+		const fromPort = getShaderPortDef(graph, wire.fromNode, wire.fromPort, "out")
+		const toPort = getShaderPortDef(graph, wire.toNode, wire.toPort, "in")
+		if (!fromPort) errors.push(`Wire ${wire.id} starts at missing output port "${wire.fromNode}:${wire.fromPort}".`)
+		if (!toPort) errors.push(`Wire ${wire.id} ends at missing input port "${wire.toNode}:${wire.toPort}".`)
+		if (fromPort && toPort && !areShaderTypesCompatible(fromPort.type, toPort.type)) {
+			errors.push(`Wire ${wire.id} connects incompatible types: ${fromPort.type} -> ${toPort.type}.`)
+		}
+
+		const inputKey = `${wire.toNode}:${wire.toPort}`
+		if (inputTargets.has(inputKey)) {
+			errors.push(`Input port "${inputKey}" has multiple incoming wires.`)
+		}
+		inputTargets.add(inputKey)
+	}
+
+	if (sortShaderGraph(graph).length !== graph.nodes.length) {
+		errors.push("Shader graph contains a cycle.")
+	}
+
+	return errors
+}
+
+function glslTypeDefault(type: GlslType): string {
+	switch (type) {
+		case "float": return "0.0"
+		case "vec2": return "vec2(0.0)"
+		case "vec3": return "vec3(0.0)"
+		case "vec4": return "vec4(0.0, 0.0, 0.0, 1.0)"
+	}
+}
+
+export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[] } {
+	const errors = validateShaderGraph(graph)
+	if (errors.length) return { glsl: "", errors }
+
+	const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]))
+	const defMap = SHADER_NODE_DEF_MAP
+	const sorted = sortShaderGraph(graph)
 
 	// Build variable names and collect GLSL lines
 	const varNames = new Map<string, Map<string, string>>() // nodeId → portKey → varName

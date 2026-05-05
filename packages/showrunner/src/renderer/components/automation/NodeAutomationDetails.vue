@@ -146,29 +146,6 @@
 				</section>
 			</data-binding-path>
 
-			<section class="node-automation__context-section">
-				<button type="button" class="node-automation__context-header" :aria-expanded="actionsOpenModel" @click="actionsOpenModel = !actionsOpenModel">
-					<span><i class="mdi mdi-dots-horizontal-circle-outline" /> Node Actions</span>
-					<i :class="actionsOpenModel ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
-				</button>
-				<node-action-panel
-					v-if="actionsOpenModel"
-					v-model:action-palette-query="actionPaletteQueryModel"
-					v-model:selected-action-to-add="selectedActionToAddModel"
-					:action-palette="actionPalette"
-					:flat-action-palette="flatActionPalette"
-					:can-edit-selected-action="canEditSelectedAction"
-					:selected-node-count="selectedNodeIds.size"
-					:on-add-action-from-palette="onAddActionFromPalette"
-					:on-start-action-palette-drag="onStartActionPaletteDrag"
-					:on-duplicate-selected-action="onDuplicateSelectedAction"
-					:on-move-selected-action="onMoveSelectedAction"
-					:on-delete-selected-action="onDeleteSelectedAction"
-					:on-reset-selected-node-position="onResetSelectedNodePosition"
-					:on-collapse-selection-to-subgraph="onCollapseSelectionToSubgraph"
-					:can-move-selected-action="canMoveSelectedAction"
-				/>
-			</section>
 		</template>
 		<p v-else-if="!selectedAnnotationBlock" class="node-automation__hint">
 			Left click selects a node. Right click opens the context menu to add nodes.
@@ -233,26 +210,8 @@ import type { AnnotationBlock } from "./useAnnotationBlocks"
 import type { NodeData } from "./useNodeRendering"
 import ControlNodeConfig from "./ControlNodeConfig.vue"
 import MissingSchemaNotice from "./MissingSchemaNotice.vue"
-import NodeActionPanel from "./NodeActionPanel.vue"
 import SubgraphPanel from "./SubgraphPanel.vue"
 import VariableNodeConfig from "./VariableNodeConfig.vue"
-
-interface ActionPalettePlugin {
-	id: string
-	name: string
-	actions: {
-		key: string
-		name: string
-		searchText?: string
-	}[]
-}
-
-interface FlatActionPaletteItem {
-	key: string
-	name: string
-	pluginName: string
-	searchText?: string
-}
 
 interface ActiveTestExecution {
 	running?: boolean
@@ -283,13 +242,7 @@ const props = defineProps<{
 	selectedNodeIds: Set<string>
 	detailsOpen: boolean
 	configOpen: boolean
-	actionsOpen: boolean
 	subgraphsOpen: boolean
-	actionPaletteQuery: string
-	selectedActionToAdd: string
-	actionPalette: ActionPalettePlugin[]
-	flatActionPalette: FlatActionPaletteItem[]
-	canEditSelectedAction: boolean
 	focusedSubgraphId?: string
 	subgraphsList: SubgraphDefinition[]
 	subgraphParamTypes: SubgraphParamType[]
@@ -320,14 +273,6 @@ const props = defineProps<{
 	setSwitchCaseValue: (node: Extract<GraphNode, { type: "switch" }>, index: number, value: string) => void
 	addSwitchCase: (node: Extract<GraphNode, { type: "switch" }>) => void
 	deleteSwitchCase: (node: Extract<GraphNode, { type: "switch" }>, index: number) => void
-	onAddActionFromPalette: () => void
-	onStartActionPaletteDrag: (event: DragEvent, actionKey: string) => void
-	onDuplicateSelectedAction: () => void
-	onMoveSelectedAction: (direction: -1 | 1) => void
-	onDeleteSelectedAction: () => void
-	onResetSelectedNodePosition: () => void
-	onCollapseSelectionToSubgraph: () => void
-	canMoveSelectedAction: (direction: -1 | 1) => boolean
 	onAddSubgraph: () => void
 	onFocusSubgraph: (id: string) => void
 	onOpenSubgraphCanvas: (id: string) => void
@@ -350,10 +295,7 @@ const props = defineProps<{
 const emit = defineEmits<{
 	"update:detailsOpen": [value: boolean]
 	"update:configOpen": [value: boolean]
-	"update:actionsOpen": [value: boolean]
 	"update:subgraphsOpen": [value: boolean]
-	"update:actionPaletteQuery": [value: string]
-	"update:selectedActionToAdd": [value: string]
 	"update:selectedActionDef": [value: ActionInfo | undefined]
 	"update:selectedTriggerConfigModel": [value: (AutomationTriggerNode & { testContext?: unknown }) | undefined]
 }>()
@@ -368,24 +310,9 @@ const configOpenModel = computed({
 	set: (value: boolean) => emit("update:configOpen", value),
 })
 
-const actionsOpenModel = computed({
-	get: () => props.actionsOpen,
-	set: (value: boolean) => emit("update:actionsOpen", value),
-})
-
 const subgraphsOpenModel = computed({
 	get: () => props.subgraphsOpen,
 	set: (value: boolean) => emit("update:subgraphsOpen", value),
-})
-
-const actionPaletteQueryModel = computed({
-	get: () => props.actionPaletteQuery,
-	set: (value: string) => emit("update:actionPaletteQuery", value),
-})
-
-const selectedActionToAddModel = computed({
-	get: () => props.selectedActionToAdd,
-	set: (value: string) => emit("update:selectedActionToAdd", value),
 })
 
 const selectedActionDefModel = computed({

@@ -9,7 +9,10 @@
 				/>
 				<section v-if="isShaderLayer" class="shader-preset-panel">
 					<h3>Shader Graph Editor</h3>
-					<button type="button" class="shader-graph-open-btn" @click="shaderGraphOpen = true">
+					<p v-if="legacyShaderGraphHint" class="shader-preset-panel__hint">
+						This custom shader was saved as GLSL only. The graph editor can start a new graph, but it cannot rebuild nodes from existing GLSL.
+					</p>
+					<button type="button" class="shader-graph-open-btn" @click="openShaderGraph">
 						<i class="mdi mdi-magic-staff" /> Open Shader Graph
 					</button>
 					<teleport to="body">
@@ -75,10 +78,18 @@ import {
 	provideScrollAttachable,
 	useIpcCaller,
 } from "showrunner-ui-core"
-import { computed, onMounted, ref, useModel, watch } from "vue"
+import { computed, nextTick, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetTransformEdit from "./OverlayWidgetTransformEdit.vue"
 import ShaderGraphEditor from "./shader-graph/ShaderGraphEditor.vue"
 import type { ShaderGraph } from "./shader-graph/shader-nodes"
+import {
+	applyCompiledShaderGraph,
+	createDefaultShaderGraph,
+	hasLegacyCustomShaderWithoutGraph,
+	normalizeShaderGraph,
+	persistShaderGraph,
+	type ShaderLayerGraphConfig,
+} from "./shader-graph/shader-graph-state"
 import { useConfirm } from "primevue/useconfirm"
 
 const props = defineProps<{
@@ -138,6 +149,7 @@ const selectedWidget = computed(() => {
 })
 
 const isShaderLayer = computed(() => selectedWidget.value?.plugin === "overlays" && selectedWidget.value?.widget === "shaderLayer")
+const selectedShaderLayerConfig = computed(() => selectedWidget.value?.config as ShaderLayerGraphConfig | undefined)
 const shaderPresetHint = computed(() => {
 	if (!isShaderLayer.value) return ""
 	if (selectedWidget.value?.config?.preset === "custom" && !String(selectedWidget.value?.config?.customFragmentShader || "").trim()) {
@@ -145,6 +157,7 @@ const shaderPresetHint = computed(() => {
 	}
 	return ""
 })
+const legacyShaderGraphHint = computed(() => isShaderLayer.value && hasLegacyCustomShaderWithoutGraph(selectedShaderLayerConfig.value))
 
 function setShaderPresets(presets: Record<string, string>) {
 	shaderPresets.value = presets
@@ -192,19 +205,37 @@ onMounted(refreshShaderPresets)
 
 // ── Shader Graph Editor ──
 const shaderGraphOpen = ref(false)
-const shaderGraph = ref<ShaderGraph>({
-	nodes: [
-		{ id: "output", defId: "fragment_output", x: 600, y: 200 },
-		{ id: "uv", defId: "uv", x: 50, y: 200 },
-	],
-	wires: [],
-})
+const shaderGraph = ref<ShaderGraph>(createDefaultShaderGraph())
+let loadingShaderGraph = false
+
+function loadSelectedShaderGraph() {
+	loadingShaderGraph = true
+	shaderGraph.value = normalizeShaderGraph(selectedShaderLayerConfig.value?.shaderGraph)
+	void nextTick(() => {
+		loadingShaderGraph = false
+	})
+}
+
+function openShaderGraph() {
+	loadSelectedShaderGraph()
+	shaderGraphOpen.value = true
+}
 
 function onShaderGraphCompile(glsl: string) {
-	if (!selectedWidget.value) return
-	selectedWidget.value.config.preset = "custom"
-	selectedWidget.value.config.customFragmentShader = glsl
+	const config = selectedShaderLayerConfig.value
+	if (!config) return
+	applyCompiledShaderGraph(config, shaderGraph.value, glsl)
 }
+
+watch(shaderGraph, (graph) => {
+	const config = selectedShaderLayerConfig.value
+	if (!shaderGraphOpen.value || loadingShaderGraph || !config) return
+	persistShaderGraph(config, graph)
+}, { deep: true })
+
+watch([selectedWidgetId, isShaderLayer], () => {
+	if (shaderGraphOpen.value) loadSelectedShaderGraph()
+})
 </script>
 
 <style scoped>

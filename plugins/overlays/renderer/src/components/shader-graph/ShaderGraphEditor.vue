@@ -9,13 +9,41 @@
 				<button type="button" @click="fitGraph" v-tooltip="'Fit graph'">
 					<i class="mdi mdi-fit-to-screen-outline" />
 				</button>
-				<button type="button" @click="showCode = !showCode" :class="{ active: showCode }">
+				<button type="button" @click="resetGraph" v-tooltip="'Reset graph'">
+					<i class="mdi mdi-restore" />
+				</button>
+				<button type="button" @click="sidePanelTab = 'code'" :class="{ active: sidePanelTab === 'code' }">
 					<i class="mdi mdi-code-tags" /> GLSL
 				</button>
 			</div>
 		</header>
 
 		<div class="shader-graph__body">
+			<aside class="shader-graph__palette">
+				<label class="shader-graph__palette-search">
+					<i class="mdi mdi-magnify" />
+					<input
+						v-model="paletteQuery"
+						type="search"
+						placeholder="Search nodes..."
+					/>
+				</label>
+				<div class="shader-graph__palette-list">
+					<template v-for="cat in filteredCategories" :key="cat.name">
+						<div class="shader-graph__palette-category">{{ cat.name }}</div>
+						<button
+							v-for="def in cat.defs"
+							:key="def.id"
+							type="button"
+							@click="addNodeFromPalette(def.id)"
+						>
+							<i :class="def.icon" />
+							{{ def.name }}
+						</button>
+					</template>
+				</div>
+			</aside>
+
 			<section
 				ref="canvasRef"
 				class="shader-graph__canvas"
@@ -154,24 +182,40 @@
 				</div>
 			</section>
 
-			<!-- GLSL output panel -->
-			<aside v-if="showCode" class="shader-graph__code">
-				<header>
-					<strong>Generated GLSL</strong>
-					<button type="button" @click="copyGlsl" v-tooltip="'Copy to clipboard'">
-						<i class="mdi mdi-content-copy" />
+			<aside class="shader-graph__side-panel">
+				<header class="shader-graph__tabs">
+					<button type="button" :class="{ active: sidePanelTab === 'preview' }" @click="sidePanelTab = 'preview'">
+						<i class="mdi mdi-eye-outline" /> Preview
+					</button>
+					<button type="button" :class="{ active: sidePanelTab === 'errors' }" @click="sidePanelTab = 'errors'">
+						<i class="mdi mdi-alert-circle-outline" /> Errors {{ compileErrors.length }}
+					</button>
+					<button type="button" :class="{ active: sidePanelTab === 'code' }" @click="sidePanelTab = 'code'">
+						<i class="mdi mdi-code-tags" /> GLSL
 					</button>
 				</header>
-				<pre><code>{{ compiledGlsl }}</code></pre>
-				<div v-if="compileErrors.length" class="shader-graph__errors">
-					<p v-for="(err, i) in compileErrors" :key="i"><i class="mdi mdi-alert" /> {{ err }}</p>
-				</div>
-			</aside>
 
-			<!-- Live preview -->
-			<aside class="shader-graph__preview-panel">
-				<header><strong>Live Preview</strong></header>
-				<canvas ref="livePreviewCanvas" class="shader-graph__live-preview" width="320" height="180" />
+				<section v-if="sidePanelTab === 'preview'" class="shader-graph__preview-panel">
+					<canvas ref="livePreviewCanvas" class="shader-graph__live-preview" width="320" height="180" />
+					<p v-if="previewError" class="shader-graph__preview-error">
+						<i class="mdi mdi-alert" /> {{ previewError }}
+					</p>
+				</section>
+
+				<section v-else-if="sidePanelTab === 'errors'" class="shader-graph__errors">
+					<p v-if="!compileErrors.length" class="shader-graph__empty-state">No shader graph errors.</p>
+					<p v-for="(err, i) in compileErrors" v-else :key="i"><i class="mdi mdi-alert" /> {{ err }}</p>
+				</section>
+
+				<section v-else class="shader-graph__code">
+					<header>
+						<strong>Generated GLSL</strong>
+						<button type="button" @click="copyGlsl" v-tooltip="'Copy to clipboard'">
+							<i class="mdi mdi-content-copy" />
+						</button>
+					</header>
+					<pre><code>{{ compiledGlsl }}</code></pre>
+				</section>
 			</aside>
 		</div>
 	</div>
@@ -184,13 +228,14 @@ import {
 	SHADER_NODE_DEFS,
 	SHADER_NODE_DEF_MAP,
 	SHADER_NODE_CATEGORIES,
+	areShaderTypesCompatible,
 	compileShaderGraph,
 	type ShaderGraph,
 	type ShaderNodeInstance,
-	type ShaderWire,
 	type ShaderNodeDef,
 	type GlslType,
 } from "./shader-nodes"
+import { createDefaultShaderGraph, cloneShaderGraph } from "./shader-graph-state"
 
 const props = defineProps<{
 	modelValue: ShaderGraph
@@ -212,9 +257,10 @@ const selectedWireId = ref<string>()
 const paletteOpen = ref(false)
 const palettePos = ref({ x: 0, y: 0 })
 const paletteQuery = ref("")
-const showCode = ref(false)
+const sidePanelTab = ref<"preview" | "errors" | "code">("preview")
 const compiledGlsl = ref("")
 const compileErrors = ref<string[]>([])
+const previewError = ref("")
 
 // Wire drag state
 const dragWire = ref<{ path: string; fromNode: string; fromPort: string; fromKind: "in" | "out"; type: GlslType } | null>(null)
@@ -232,6 +278,10 @@ const graph = computed({
 	get: () => props.modelValue,
 	set: (v) => emit("update:modelValue", v),
 })
+
+function emitGraphUpdate() {
+	emit("update:modelValue", cloneShaderGraph(graph.value))
+}
 
 interface GraphNode extends ShaderNodeInstance {
 	name: string
@@ -380,6 +430,8 @@ function startNodeDrag(e: PointerEvent, node: GraphNode) {
 	function onUp() {
 		target.removeEventListener("pointermove", onMove)
 		target.removeEventListener("pointerup", onUp)
+		emitGraphUpdate()
+		autoCompile()
 	}
 	target.addEventListener("pointermove", onMove)
 	target.addEventListener("pointerup", onUp)
@@ -444,6 +496,7 @@ function onWireUp(e: PointerEvent) {
 	const my = (e.clientY - rect.top) / zoom.value
 	const targetKind = dragState.fromKind === "out" ? "in" : "out"
 	const SNAP = 20
+	let connected = false
 
 	for (const node of graphNodes.value) {
 		if (node.id === dragState.fromNode) continue
@@ -452,7 +505,7 @@ function onWireUp(e: PointerEvent) {
 			const pos = getPortPos(node.id, port.key, targetKind)
 			if (!pos) continue
 			const dist = Math.sqrt((pos.x - mx) ** 2 + (pos.y - my) ** 2)
-			if (dist < SNAP && areTypesCompatible(dragState.type, port.type)) {
+			if (dist < SNAP && areShaderTypesCompatible(dragState.type, port.type)) {
 				const fromNode = dragState.fromKind === "out" ? dragState.fromNode : node.id
 				const fromPort = dragState.fromKind === "out" ? dragState.fromPort : port.key
 				const toNode = dragState.fromKind === "out" ? node.id : dragState.fromNode
@@ -461,18 +514,21 @@ function onWireUp(e: PointerEvent) {
 				const existing = graph.value.wires.findIndex((w) => w.toNode === toNode && w.toPort === toPort)
 				if (existing >= 0) graph.value.wires.splice(existing, 1)
 				graph.value.wires.push({ id: `${fromNode}:${fromPort}->${toNode}:${toPort}`, fromNode, fromPort, toNode, toPort })
+				emitGraphUpdate()
 				autoCompile()
+				connected = true
 				break
 			}
 		}
+		if (connected) break
 	}
 
+	if (!connected) {
+		emitGraphUpdate()
+		autoCompile()
+	}
 	dragWire.value = null
 	dragState = null
-}
-
-function areTypesCompatible(a: GlslType, b: GlslType): boolean {
-	return a === b
 }
 
 // ─── Palette ─────────────────────────────────────────────────────────
@@ -485,13 +541,26 @@ function openPalette(e: MouseEvent) {
 
 let nodeCounter = 0
 function addNode(defId: string) {
-	const surface = canvasRef.value?.querySelector<HTMLElement>(".shader-graph__surface")
-	if (!surface) return
-	const rect = surface.getBoundingClientRect()
-	const x = Math.round((palettePos.value.x - pan.value.x) / zoom.value)
-	const y = Math.round((palettePos.value.y - pan.value.y) / zoom.value)
-	graph.value.nodes.push({ id: `sn_${Date.now()}_${nodeCounter++}`, defId, x: Math.max(0, x), y: Math.max(0, y) })
+	addNodeAt(defId, {
+		x: Math.round((palettePos.value.x - pan.value.x) / zoom.value),
+		y: Math.round((palettePos.value.y - pan.value.y) / zoom.value),
+	})
 	paletteOpen.value = false
+}
+
+function addNodeFromPalette(defId: string) {
+	const canvas = canvasRef.value
+	const x = canvas ? (canvas.clientWidth * 0.5 - pan.value.x) / zoom.value : 240
+	const y = canvas ? (canvas.clientHeight * 0.45 - pan.value.y) / zoom.value : 200
+	addNodeAt(defId, { x: Math.round(x), y: Math.round(y) })
+}
+
+function addNodeAt(defId: string, position: { x: number; y: number }) {
+	if (!canvasRef.value) return
+	const id = `sn_${Date.now()}_${nodeCounter++}`
+	graph.value.nodes.push({ id, defId, x: Math.max(0, position.x), y: Math.max(0, position.y) })
+	if (defId === "fragment_output") graph.value.outputNodeId = id
+	emitGraphUpdate()
 	autoCompile()
 }
 
@@ -500,6 +569,10 @@ function autoCompile() {
 	const result = compileShaderGraph(graph.value)
 	compiledGlsl.value = result.glsl
 	compileErrors.value = result.errors
+	if (result.errors.length) {
+		previewError.value = result.errors[0]
+		return
+	}
 	if (!result.errors.length && result.glsl) {
 		updateLivePreview(result.glsl)
 	}
@@ -509,7 +582,17 @@ function compileAndApply() {
 	autoCompile()
 	if (!compileErrors.value.length && compiledGlsl.value) {
 		emit("compile", compiledGlsl.value)
+		sidePanelTab.value = "preview"
+	} else {
+		sidePanelTab.value = "errors"
 	}
+}
+
+function resetGraph() {
+	graph.value = createDefaultShaderGraph()
+	emitGraphUpdate()
+	autoCompile()
+	fitGraph()
 }
 
 function copyGlsl() {
@@ -523,6 +606,7 @@ function onKeyDown(e: KeyboardEvent) {
 		const idx = graph.value.wires.findIndex((w) => w.id === selectedWireId.value)
 		if (idx >= 0) graph.value.wires.splice(idx, 1)
 		selectedWireId.value = undefined
+		emitGraphUpdate()
 		autoCompile()
 	}
 	if ((e.key === "Delete" || e.key === "Backspace") && selectedNodeId.value) {
@@ -532,6 +616,7 @@ function onKeyDown(e: KeyboardEvent) {
 			graph.value.nodes = graph.value.nodes.filter((n) => n.id !== nodeId)
 			graph.value.wires = graph.value.wires.filter((w) => w.fromNode !== nodeId && w.toNode !== nodeId)
 			selectedNodeId.value = undefined
+			emitGraphUpdate()
 			autoCompile()
 		}
 	}
@@ -572,10 +657,11 @@ function updateLivePreview(glsl: string) {
 		if (previewProgram) previewGl.deleteProgram(previewProgram)
 		previewProgram = prog
 		previewStartedAt = performance.now()
+		previewError.value = ""
 		cancelAnimationFrame(previewFrame)
 		renderPreview()
-	} catch {
-		// Compile error — keep old preview
+	} catch (error) {
+		previewError.value = error instanceof Error ? error.message : String(error)
 	}
 }
 
@@ -703,6 +789,18 @@ function categoryColor(cat: string): string {
 	flex: 1;
 	min-height: 0;
 	position: relative;
+}
+
+.shader-graph__palette {
+	background: #101010;
+	border-right: 1px solid #333;
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
+	min-width: 220px;
+	overflow: hidden;
+	padding: 0.6rem;
+	width: 240px;
 }
 
 .shader-graph__canvas {
@@ -850,8 +948,13 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__palette-list {
+	flex: 1;
 	max-height: 300px;
 	overflow-y: auto;
+}
+
+.shader-graph__palette > .shader-graph__palette-list {
+	max-height: none;
 }
 
 .shader-graph__palette-category {
@@ -880,13 +983,46 @@ function categoryColor(cat: string): string {
 	background: #2a2a2a;
 }
 
-.shader-graph__code {
+.shader-graph__side-panel {
 	background: #111;
 	border-left: 1px solid #333;
 	display: flex;
 	flex-direction: column;
-	max-width: 380px;
-	min-width: 280px;
+	min-width: 320px;
+	overflow: hidden;
+	width: 360px;
+}
+
+.shader-graph__tabs {
+	background: #1a1a1a;
+	border-bottom: 1px solid #333;
+	display: flex;
+	gap: 0.25rem;
+	padding: 0.4rem;
+}
+
+.shader-graph__tabs button {
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	color: #bbb;
+	cursor: pointer;
+	font-size: 0.72rem;
+	padding: 0.3rem 0.45rem;
+}
+
+.shader-graph__tabs button.active,
+.shader-graph__tabs button:hover {
+	background: #2a2a2a;
+	border-color: #444;
+	color: #fff;
+}
+
+.shader-graph__code {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
 	overflow: hidden;
 }
 
@@ -920,9 +1056,10 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__errors {
-	background: #2d1111;
-	border-top: 1px solid #661111;
-	padding: 0.4rem;
+	background: #111;
+	flex: 1;
+	overflow: auto;
+	padding: 0.7rem;
 }
 
 .shader-graph__errors p {
@@ -932,22 +1069,39 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__preview-panel {
-	background: #111;
-	border-left: 1px solid #333;
+	background:
+		linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+		linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%),
+		linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%);
+	background-color: #0b0b0b;
+	background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+	background-size: 16px 16px;
 	display: flex;
 	flex-direction: column;
-	width: 340px;
-}
-
-.shader-graph__preview-panel header {
-	background: #1a1a1a;
-	border-bottom: 1px solid #333;
-	padding: 0.4rem 0.6rem;
+	gap: 0.6rem;
+	padding: 0.7rem;
 }
 
 .shader-graph__live-preview {
 	aspect-ratio: 16/9;
+	background: #050505;
+	border: 1px solid #333;
 	display: block;
 	width: 100%;
+}
+
+.shader-graph__preview-error {
+	background: #2d1111;
+	border: 1px solid #661111;
+	border-radius: 4px;
+	color: #ff9b9b;
+	font-size: 0.75rem;
+	margin: 0;
+	padding: 0.5rem;
+}
+
+.shader-graph__empty-state {
+	color: #999 !important;
 }
 </style>

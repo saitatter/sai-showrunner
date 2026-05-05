@@ -174,6 +174,7 @@ const props = defineProps<{
 	config: {
 		preset: (typeof bundledPresetNames)[number]
 		customFragmentShader?: string
+		shaderGraph?: unknown
 		accentColor: string
 		secondaryColor: string
 		intensity: number

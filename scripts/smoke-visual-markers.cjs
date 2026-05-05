@@ -28,6 +28,9 @@ const visualMarkers = [
 	["automation annotation blocks", "node-automation__annotation-block"],
 	["automation annotation drag remove feedback", "node-automation__annotation-block.remove-target"],
 	["automation flow edge health", "invalid sequence edge"],
+	["shader graph palette", "shader-graph__palette"],
+	["shader graph side panel", "shader-graph__side-panel"],
+	["shader graph preview fallback", "shader-graph__preview-error"],
 ]
 
 for (const [label, marker] of visualMarkers) {

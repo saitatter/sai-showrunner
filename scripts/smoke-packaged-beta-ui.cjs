@@ -41,6 +41,9 @@ const requiredMarkers = [
 	["graph editor shell", "node-automation"],
 	["annotation blocks", "node-automation__annotation-block"],
 	["graph health warning", "invalid sequence edge"],
+	["shader graph editor", "Shader Graph"],
+	["shader graph palette", "shader-graph__palette"],
+	["shader graph side panel", "shader-graph__side-panel"],
 ]
 
 for (const [label, marker] of requiredMarkers) {

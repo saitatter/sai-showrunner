@@ -192,10 +192,7 @@
 			<node-automation-details
 				v-model:details-open="detailsOpen"
 				v-model:config-open="configOpen"
-				v-model:actions-open="actionsOpen"
 				v-model:subgraphs-open="subgraphsOpen"
-				v-model:action-palette-query="actionPaletteQuery"
-				v-model:selected-action-to-add="selectedActionToAdd"
 				:selected-node="selectedNode"
 				:selected-annotation-block="selectedAnnotationBlock"
 				:selected-action-info="selectedActionInfo"
@@ -208,9 +205,6 @@
 				:selected-variable-node="selectedVariableNode"
 				:selected-control-node="selectedControlNode"
 				:selected-node-ids="selectedNodeIds"
-				:action-palette="actionPalette"
-				:flat-action-palette="flatActionPalette"
-				:can-edit-selected-action="canEditSelectedAction"
 				:focused-subgraph-id="focusedSubgraphId"
 				:subgraphs-list="subgraphsList"
 				:subgraph-param-types="SUBGRAPH_PARAM_TYPES"
@@ -241,14 +235,6 @@
 				:set-switch-case-value="setSwitchCaseValue"
 				:add-switch-case="addSwitchCase"
 				:delete-switch-case="deleteSwitchCase"
-				:on-add-action-from-palette="addActionFromPalette"
-				:on-start-action-palette-drag="startActionPaletteDrag"
-				:on-duplicate-selected-action="duplicateSelectedAction"
-				:on-move-selected-action="moveSelectedAction"
-				:on-delete-selected-action="deleteSelectedAction"
-				:on-reset-selected-node-position="resetSelectedNodePosition"
-				:on-collapse-selection-to-subgraph="collapseSelectionToSubgraph"
-				:can-move-selected-action="canMoveSelectedAction"
 				:on-add-subgraph="addSubgraph"
 				:on-focus-subgraph="focusSubgraph"
 				:on-open-subgraph-canvas="openSubgraphCanvas"
@@ -348,7 +334,6 @@ const selectedAnnotationBlockId = ref<string>()
 const annotationBlockDropTargetId = ref<string>()
 const annotationBlockRemoveTargetIds = ref(new Set<string>())
 const selectedActionToAdd = ref("")
-const actionPaletteQuery = ref("")
 const dropTargetNodeId = ref<string>()
 const dropTargetEdgeId = ref<string>()
 const selectedEdgeId = ref<string>()
@@ -362,7 +347,6 @@ const canvasOverlaysRef = ref<InstanceType<typeof NodeAutomationCanvasOverlays>>
 const contextMenuRootRef = ref<HTMLElement>()
 const detailsOpen = ref(true)
 const configOpen = ref(true)
-const actionsOpen = ref(false)
 const subgraphsOpen = ref(false)
 const focusedSubgraphId = ref<string>()
 const activeSubgraphId = ref<string>()
@@ -592,31 +576,6 @@ const selectedActionMissing = computed(() => {
 const canEditSelectedAction = computed(() => {
 	return Boolean(selectedActionInfo.value)
 })
-const actionPalette = computed(() =>
-	[...pluginStore.pluginMap.values()]
-		.filter((plugin) => pluginStore.isPluginEnabled(plugin.id))
-		.map((plugin) => ({
-			id: plugin.id,
-			name: plugin.name,
-			actions: Object.values(plugin.actions)
-				.filter((action) => action.type === "regular")
-				.map((action) => ({
-					key: `${plugin.id}:${action.id}`,
-					name: action.name,
-					searchText: `${plugin.name} ${plugin.id} ${action.name} ${action.id}`.toLowerCase(),
-				}))
-				.filter((action) => action.searchText.includes(actionPaletteSearch.value))
-				.sort((a, b) => a.name.localeCompare(b.name)),
-		}))
-		.filter((plugin) => plugin.actions.length || plugin.name.toLowerCase().includes(actionPaletteSearch.value))
-		.sort((a, b) => a.name.localeCompare(b.name))
-)
-const actionPaletteSearch = computed(() => actionPaletteQuery.value.trim().toLowerCase())
-const flatActionPalette = computed(() =>
-	actionPalette.value
-		.flatMap((plugin) => plugin.actions.map((action) => ({ ...action, pluginName: plugin.name })))
-		.slice(0, 24)
-)
 const viewBox = computed(() => {
 	return `0 0 ${canvasSize.value.width} ${canvasSize.value.height}`
 })
@@ -874,16 +833,12 @@ canvasSelection = useCanvasSelection({
 })
 
 const {
-	addActionFromPalette,
 	selectActionFromContext,
-	startActionPaletteDrag,
 	dropActionOnCanvas,
 	dropActionOnNode,
 	dropActionOnEdge,
 	duplicateSelectedAction,
 	deleteSelectedAction,
-	canMoveSelectedAction,
-	moveSelectedAction,
 	insertAction,
 } = useGraphActions({
 	activeGraph,
@@ -1139,7 +1094,6 @@ function openPendingFlowContext(drop: {
 		canvasPoint: drop.canvasPoint,
 	}
 	clearSelection()
-	actionsOpen.value = true
 	openContextMenuAt(drop.clientPoint.x, drop.clientPoint.y, drop.canvasPoint)
 }
 
@@ -1149,7 +1103,6 @@ function openNodeContext(event: MouseEvent, node: NodeData) {
 	selectNode(event, node.id)
 	detailsOpen.value = true
 	configOpen.value = true
-	actionsOpen.value = false
 	openContextMenu(event, node.id)
 }
 
