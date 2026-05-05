@@ -16,6 +16,7 @@ function makePluginStore(disabledIds: string[] = []) {
 					triggers: {},
 					actions: {
 						convertStringToNumber: { name: "Convert String To Number", icon: "mdi mdi-swap-horizontal", type: "regular" },
+						"convert-json-string-to-object": { name: "Convert JSON String To Object", icon: "mdi mdi-code-json", type: "regular" },
 						addToQueue: { name: "Add to Queue", icon: "mdi mdi-tray-plus", type: "regular" },
 					},
 				},
@@ -92,6 +93,13 @@ function createContextMenu(disabledIds: string[] = []) {
 }
 
 describe("useNodeContextMenu", () => {
+	it("keeps categories collapsed while data conversions are visible by default", () => {
+		const menu = createContextMenu()
+
+		expect(menu.isContextGroupOpen("categories")).toBe(false)
+		expect(menu.isContextGroupOpen("data")).toBe(true)
+	})
+
 	it("surfaces matching nodes in search even when their groups are collapsed", () => {
 		const menu = createContextMenu()
 
@@ -138,6 +146,7 @@ describe("useNodeContextMenu", () => {
 		)
 
 		expect(categoryItems["data-transforms"]).toContain("ShowRunner:convertStringToNumber")
+		expect(categoryItems["data-transforms"]).toContain("ShowRunner:convert-json-string-to-object")
 		expect(categoryItems.queues).toContain("ShowRunner:addToQueue")
 		expect(categoryItems.overlays).toContain("overlays:paidAlert")
 		expect(categoryItems.obs).toContain("obs:scene")
@@ -158,6 +167,9 @@ describe("useNodeContextMenu", () => {
 	it("surfaces conversion actions as explicit data-menu items", () => {
 		const menu = createContextMenu()
 
-		expect(menu.conversionContextItems.value.map((item) => item.key)).toEqual(["ShowRunner:convertStringToNumber"])
+		expect(menu.conversionContextItems.value.map((item) => item.key)).toEqual([
+			"ShowRunner:convert-json-string-to-object",
+			"ShowRunner:convertStringToNumber",
+		])
 	})
 })

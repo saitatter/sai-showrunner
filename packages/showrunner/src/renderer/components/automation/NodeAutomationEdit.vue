@@ -599,7 +599,7 @@
 						</div>
 					</section>
 					<!-- Data: Variables + Constants -->
-					<section v-if="!pendingFlowConnection" class="node-automation__menu-section">
+					<section v-if="conversionContextItems.length || !pendingFlowConnection" class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" data-context-section="data" :aria-expanded="isContextGroupOpen('data')" @click="toggleContextGroup('data')">
 							<span><i class="mdi mdi-database-outline" /> Data</span>
 							<i :class="isContextGroupOpen('data') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
@@ -619,11 +619,11 @@
 									<em>Convert</em>
 								</button>
 							</div>
-							<div class="node-automation__menu-subtitle">
+							<div v-if="!pendingFlowConnection" class="node-automation__menu-subtitle">
 								<i class="mdi mdi-variable" />
 								<span>Variables</span>
 							</div>
-							<div class="node-automation__menu-items">
+							<div v-if="!pendingFlowConnection" class="node-automation__menu-items">
 								<button type="button" @click="addVariableNode('string')">
 									<i class="mdi mdi-format-text" style="color: #81c784" />
 									<span><strong>String Variable</strong></span>

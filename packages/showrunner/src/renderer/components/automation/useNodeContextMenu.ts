@@ -60,7 +60,8 @@ export function useNodeContextMenu(
 	const contextMenuOpenGroups = ref<Record<string, boolean>>({
 		triggers: true,
 		actions: true,
-		categories: true,
+		categories: false,
+		data: true,
 		"category:data-transforms": true,
 		"category:queues": true,
 		"category:overlays": true,
@@ -89,7 +90,7 @@ export function useNodeContextMenu(
 			.flatMap((group) => group.items)
 			.filter((item) => {
 				const actionId = item.key.split(":").slice(1).join(":")
-				return CONVERSION_ACTION_IDS.has(actionId)
+				return isConversionActionId(actionId)
 			})
 			.sort((a, b) => a.name.localeCompare(b.name))
 	)
@@ -264,17 +265,21 @@ export function useNodeContextMenu(
 }
 
 const CONVERSION_ACTION_IDS = new Set([
-	"convertNumberToString",
-	"convertBooleanToString",
-	"convertStringToNumber",
-	"convertBooleanToNumber",
-	"convertNumberToBoolean",
-	"convertStringToBoolean",
-	"convertObjectToJsonString",
-	"convertArrayToJsonString",
-	"convertJsonStringToObject",
-	"convertJsonStringToArray",
+	"convertnumbertostring",
+	"convertbooleantostring",
+	"convertstringtonumber",
+	"convertbooleantonumber",
+	"convertnumbertoboolean",
+	"convertstringtoboolean",
+	"convertobjecttojsonstring",
+	"convertarraytojsonstring",
+	"convertjsonstringtoobject",
+	"convertjsonstringtoarray",
 ])
+
+function isConversionActionId(actionId: string) {
+	return CONVERSION_ACTION_IDS.has(actionId.replace(/[^a-z0-9]/gi, "").toLowerCase())
+}
 
 const ACTION_CATEGORY_DEFINITIONS: ActionCategoryDefinition[] = [
 	{
