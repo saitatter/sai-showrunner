@@ -322,6 +322,7 @@ import NodeAutomationAnnotationBlocks from "./NodeAutomationAnnotationBlocks.vue
 import NodeAutomationNodeCard from "./NodeAutomationNodeCard.vue"
 import NodeAutomationCanvasDragPreview from "./NodeAutomationCanvasDragPreview.vue"
 import { useCanvasSelection, type RubberBand } from "./useCanvasSelection"
+import { useCanvasKeyboard } from "./useCanvasKeyboard"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
@@ -823,6 +824,49 @@ canvasSelection = useCanvasSelection({
 	getCanvasPointFromClientPosition,
 })
 
+const {
+	handleKeydown,
+	handleKeyup,
+	openCanvasSearch,
+	closeCanvasSearch,
+	cycleSearchResult,
+	scrollToNode,
+} = useCanvasKeyboard({
+	nodes,
+	selectedNode,
+	selectedNodeId,
+	selectedNodeIds,
+	selectedEdgeId,
+	selectedDataWireId,
+	activeGraph,
+	canEditSelectedAction,
+	spaceHeld,
+	canvasRef,
+	canvasSearchOpen,
+	canvasSearchQuery,
+	canvasSearchIndex,
+	canvasSearchResults,
+	canvasOverlaysRef,
+	nodePositions,
+	zoom,
+	pan,
+	zoomStep: ZOOM_STEP,
+	contextMenuOpen: () => contextMenu.value.open,
+	closeContextMenu,
+	focusNode,
+	deleteSelectedAction,
+	deleteVariableNode,
+	deleteSelectedEdge,
+	animateWireRemoval,
+	duplicateSelectedAction,
+	copySelectedNodes,
+	cutSelectedNodes,
+	pasteNodes,
+	setZoom,
+	resetView,
+	fitGraph,
+})
+
 
 function dataPortDragClass(nodeId: string, portKey: string, kind: "in" | "out") {
 	const preview = dragPortPreview.value
@@ -948,199 +992,6 @@ function handleCanvasPointerDown(event: PointerEvent) {
 	canvasSelection.handleCanvasPointerDown(event)
 }
 
-function handleKeydown(event: KeyboardEvent) {
-	const target = event.target as HTMLElement | null
-	if (target?.closest("input, textarea, select, [contenteditable='true']")) return
-
-	if (event.code === "Space" && !event.ctrlKey && !event.metaKey) {
-		spaceHeld.value = true
-	}
-
-	if (event.key === "Escape" && contextMenu.value.open) {
-		event.preventDefault()
-		closeContextMenu()
-		return
-	}
-
-	if (event.key === "Delete" || event.key === "Backspace") {
-		const hasMultipleActionNodes = selectedNodeIds.value.size > 1 &&
-			[...selectedNodeIds.value].some((id) => id !== "trigger" && activeGraph.value?.nodes.some((node) => node.id === id))
-		if (canEditSelectedAction.value || hasMultipleActionNodes) {
-			event.preventDefault()
-			deleteSelectedAction()
-		} else if (selectedNode.value?.kind === "variable") {
-			event.preventDefault()
-			deleteVariableNode(selectedNode.value.id)
-			selectedNodeId.value = undefined
-			selectedNodeIds.value = new Set()
-		} else if (selectedEdgeId.value) {
-			event.preventDefault()
-			deleteSelectedEdge()
-		} else if (selectedDataWireId.value) {
-			event.preventDefault()
-			animateWireRemoval(selectedDataWireId.value)
-			selectedDataWireId.value = undefined
-		}
-	}
-
-	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d" && canEditSelectedAction.value) {
-		event.preventDefault()
-		duplicateSelectedAction()
-	}
-
-	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
-		event.preventDefault()
-		copySelectedNodes()
-	}
-
-	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x") {
-		event.preventDefault()
-		cutSelectedNodes()
-	}
-
-	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
-		event.preventDefault()
-		pasteNodes()
-	}
-
-	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
-		event.preventDefault()
-		selectedNodeIds.value = new Set(nodes.value.map((n) => n.id))
-		selectedNodeId.value = nodes.value[0]?.id
-	}
-
-	if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
-		event.preventDefault()
-		openCanvasSearch()
-	}
-
-	// Arrow key navigation between nodes
-	if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key) && !event.ctrlKey && !event.metaKey) {
-		event.preventDefault()
-		navigateToAdjacentNode(event.key as "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown", event.shiftKey)
-	}
-
-	// Zoom shortcuts
-	if ((event.ctrlKey || event.metaKey) && (event.key === "=" || event.key === "+")) {
-		event.preventDefault()
-		setZoom(zoom.value + ZOOM_STEP, true)
-	}
-	if ((event.ctrlKey || event.metaKey) && event.key === "-") {
-		event.preventDefault()
-		setZoom(zoom.value - ZOOM_STEP, true)
-	}
-	if ((event.ctrlKey || event.metaKey) && event.key === "0") {
-		event.preventDefault()
-		resetView()
-	}
-
-	if (event.key.toLowerCase() === "f" && !event.ctrlKey && !event.metaKey) {
-		event.preventDefault()
-		fitGraph()
-	}
-}
-
-function handleKeyup(event: KeyboardEvent) {
-	if (event.code === "Space") {
-		spaceHeld.value = false
-	}
-}
-
-function navigateToAdjacentNode(direction: "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown", extend: boolean) {
-	const current = selectedNode.value ?? nodes.value[0]
-	if (!current) return
-
-	const cx = current.x + (current.width ?? NODE_WIDTH) / 2
-	const cy = current.y + current.height / 2
-	const candidates = nodes.value.filter((n) => n.id !== current.id)
-
-	let best: NodeData | undefined
-	let bestScore = Infinity
-
-	for (const node of candidates) {
-		const nx = node.x + (node.width ?? NODE_WIDTH) / 2
-		const ny = node.y + node.height / 2
-		const dx = nx - cx
-		const dy = ny - cy
-
-		let inDirection = false
-		let primaryDist = 0
-		let crossDist = 0
-
-		switch (direction) {
-			case "ArrowRight":
-				inDirection = dx > 20
-				primaryDist = dx
-				crossDist = Math.abs(dy)
-				break
-			case "ArrowLeft":
-				inDirection = dx < -20
-				primaryDist = -dx
-				crossDist = Math.abs(dy)
-				break
-			case "ArrowDown":
-				inDirection = dy > 20
-				primaryDist = dy
-				crossDist = Math.abs(dx)
-				break
-			case "ArrowUp":
-				inDirection = dy < -20
-				primaryDist = -dy
-				crossDist = Math.abs(dx)
-				break
-		}
-
-		if (!inDirection) continue
-		const score = primaryDist + crossDist * 2
-		if (score < bestScore) {
-			bestScore = score
-			best = node
-		}
-	}
-
-	if (!best) return
-
-	if (extend) {
-		const next = new Set(selectedNodeIds.value)
-		next.add(best.id)
-		selectedNodeIds.value = next
-		selectedNodeId.value = best.id
-	} else {
-		focusNode(best.id)
-	}
-}
-
-function openCanvasSearch() {
-	canvasSearchOpen.value = true
-	canvasSearchQuery.value = ""
-	canvasSearchIndex.value = 0
-	nextTick(() => canvasOverlaysRef.value?.focusSearchInput())
-}
-
-function closeCanvasSearch() {
-	canvasSearchOpen.value = false
-	canvasSearchQuery.value = ""
-	canvasSearchIndex.value = 0
-}
-
-function cycleSearchResult(direction: 1 | -1) {
-	const results = canvasSearchResults.value
-	if (!results.length) return
-	canvasSearchIndex.value = (canvasSearchIndex.value + direction + results.length) % results.length
-	const node = results[canvasSearchIndex.value]
-	focusNode(node.id)
-	scrollToNode(node)
-}
-
-function scrollToNode(node: NodeData) {
-	const canvas = canvasRef.value
-	if (!canvas) return
-	const pos = nodePositions.value[node.id] ?? node
-	const centerX = (pos.x + (node.width ?? NODE_WIDTH) / 2) * zoom.value + pan.value.x - canvas.clientWidth / 2
-	const centerY = (pos.y + node.height / 2) * zoom.value + pan.value.y - canvas.clientHeight / 2
-	canvas.scrollTo({ left: Math.max(0, centerX), top: Math.max(0, centerY), behavior: "smooth" })
-}
-
 function startMinimapNav(event: PointerEvent) {
 	const svg = event.currentTarget as SVGSVGElement
 	if (!svg || !canvasRef.value) return
@@ -1178,15 +1029,6 @@ function startMinimapNav(event: PointerEvent) {
 	svg.addEventListener("pointerup", onUp)
 	svg.addEventListener("pointercancel", onUp)
 }
-
-watch(canvasSearchQuery, () => {
-	canvasSearchIndex.value = 0
-	if (canvasSearchResults.value.length) {
-		const node = canvasSearchResults.value[0]
-		focusNode(node.id)
-		scrollToNode(node)
-	}
-})
 
 function autoLayout() {
 	commitUndo()
