@@ -92,6 +92,17 @@ function createContextMenu(disabledIds: string[] = []) {
 	)
 }
 
+function createContextMenuWithoutShowRunner() {
+	const store = makePluginStore()
+	store.pluginMap.delete("ShowRunner")
+	return useNodeContextMenu(
+		computed(() => [{ id: "node-1", title: "Node 1" }]),
+		store,
+		(clientX, clientY) => ({ x: clientX, y: clientY }),
+		() => ({ id: "main" })
+	)
+}
+
 describe("useNodeContextMenu", () => {
 	it("keeps categories collapsed while data conversions are visible by default", () => {
 		const menu = createContextMenu()
@@ -168,7 +179,15 @@ describe("useNodeContextMenu", () => {
 		const menu = createContextMenu()
 
 		expect(menu.conversionContextItems.value.map((item) => item.key)).toEqual([
+			"ShowRunner:convertArrayToJsonString",
+			"ShowRunner:convertBooleanToNumber",
+			"ShowRunner:convertBooleanToString",
+			"ShowRunner:convertJsonStringToArray",
 			"ShowRunner:convert-json-string-to-object",
+			"ShowRunner:convertNumberToBoolean",
+			"ShowRunner:convertNumberToString",
+			"ShowRunner:convertObjectToJsonString",
+			"ShowRunner:convertStringToBoolean",
 			"ShowRunner:convertStringToNumber",
 		])
 	})
@@ -177,8 +196,22 @@ describe("useNodeContextMenu", () => {
 		const menu = createContextMenu(["ShowRunner"])
 
 		expect(menu.actionContextGroups.value.some((group) => group.id === "ShowRunner")).toBe(false)
+		expect(menu.conversionContextItems.value.map((item) => item.key)).toContain("ShowRunner:convertStringToNumber")
+	})
+
+	it("shows fallback core conversions when the builtin plugin is unavailable", () => {
+		const menu = createContextMenuWithoutShowRunner()
+
 		expect(menu.conversionContextItems.value.map((item) => item.key)).toEqual([
-			"ShowRunner:convert-json-string-to-object",
+			"ShowRunner:convertArrayToJsonString",
+			"ShowRunner:convertBooleanToNumber",
+			"ShowRunner:convertBooleanToString",
+			"ShowRunner:convertJsonStringToArray",
+			"ShowRunner:convertJsonStringToObject",
+			"ShowRunner:convertNumberToBoolean",
+			"ShowRunner:convertNumberToString",
+			"ShowRunner:convertObjectToJsonString",
+			"ShowRunner:convertStringToBoolean",
 			"ShowRunner:convertStringToNumber",
 		])
 	})

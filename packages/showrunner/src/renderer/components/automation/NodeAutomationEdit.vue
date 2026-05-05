@@ -506,6 +506,21 @@
 						<i class="mdi mdi-eye-off-outline" />
 						<span>{{ hiddenPluginSearchHint }}</span>
 					</section>
+					<section v-if="conversionContextItems.length" class="node-automation__menu-section">
+						<div class="node-automation__menu-section-header" style="cursor: default; font-size: 0.8rem;">
+							<span><i class="mdi mdi-swap-horizontal" /> Conversions</span>
+						</div>
+						<div class="node-automation__menu-items">
+							<button v-for="item in conversionContextItems" :key="`conversion-${item.key}`" type="button" @click="selectActionFromContext(item.key)">
+								<i :class="item.icon" :style="{ color: item.color }" />
+								<span>
+									<strong>{{ item.name }}</strong>
+									<small>{{ item.pluginName }}</small>
+								</span>
+								<em>Convert</em>
+							</button>
+						</div>
+					</section>
 					<section v-if="actionCategoryGroups.length" class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" data-context-section="categories" :aria-expanded="isContextGroupOpen('categories')" @click="toggleContextGroup('categories')">
 							<span><i class="mdi mdi-shape-outline" /> Categories</span>
@@ -599,31 +614,17 @@
 						</div>
 					</section>
 					<!-- Data: Variables + Constants -->
-					<section v-if="conversionContextItems.length || !pendingFlowConnection" class="node-automation__menu-section">
+					<section v-if="!pendingFlowConnection" class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" data-context-section="data" :aria-expanded="isContextGroupOpen('data')" @click="toggleContextGroup('data')">
 							<span><i class="mdi mdi-database-outline" /> Data</span>
 							<i :class="isContextGroupOpen('data') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
 						<div v-if="isContextGroupOpen('data')">
-							<div v-if="conversionContextItems.length" class="node-automation__menu-subtitle">
-								<i class="mdi mdi-swap-horizontal" />
-								<span>Conversions</span>
-							</div>
-							<div v-if="conversionContextItems.length" class="node-automation__menu-items">
-								<button v-for="item in conversionContextItems" :key="`conversion-${item.key}`" type="button" @click="selectActionFromContext(item.key)">
-									<i :class="item.icon" :style="{ color: item.color }" />
-									<span>
-										<strong>{{ item.name }}</strong>
-										<small>{{ item.pluginName }}</small>
-									</span>
-									<em>Convert</em>
-								</button>
-							</div>
-							<div v-if="!pendingFlowConnection" class="node-automation__menu-subtitle">
+							<div class="node-automation__menu-subtitle">
 								<i class="mdi mdi-variable" />
 								<span>Variables</span>
 							</div>
-							<div v-if="!pendingFlowConnection" class="node-automation__menu-items">
+							<div class="node-automation__menu-items">
 								<button type="button" @click="addVariableNode('string')">
 									<i class="mdi mdi-format-text" style="color: #81c784" />
 									<span><strong>String Variable</strong></span>
@@ -2698,7 +2699,7 @@ async function createContextAction(selection: ActionSelection) {
 	if (!isCoreConversionSelection(selection)) return undefined
 
 	const actionDef = pluginStore.getAction(selection)
-	if (!actionDef || actionDef.type !== "regular") return undefined
+	if (!actionDef || actionDef.type !== "regular") return createFallbackCoreConversionAction(selection)
 
 	const result: Record<string, any> = {
 		id: nanoid(),
@@ -2719,6 +2720,47 @@ async function createContextAction(selection: ActionSelection) {
 
 function isCoreConversionSelection(selection: ActionSelection) {
 	return selection.plugin?.toLowerCase() === "showrunner" && Boolean(selection.action && isConversionActionId(selection.action))
+}
+
+function createFallbackCoreConversionAction(selection: ActionSelection) {
+	if (!isCoreConversionSelection(selection) || !selection.action) return undefined
+	const actionId = selection.action
+	const resultMapping: Record<string, string> = { value: "value" }
+	if (["convertStringToNumber", "convertStringToBoolean", "convertJsonStringToObject", "convertJsonStringToArray"].includes(actionId)) {
+		resultMapping.converted = "converted"
+	}
+	return {
+		id: nanoid(),
+		plugin: "ShowRunner",
+		action: actionId,
+		config: defaultCoreConversionConfig(actionId),
+		resultMapping,
+	} as ActionInfo
+}
+
+function defaultCoreConversionConfig(actionId: string) {
+	switch (actionId) {
+		case "convertNumberToString":
+		case "convertNumberToBoolean":
+			return { value: 0 }
+		case "convertBooleanToString":
+		case "convertBooleanToNumber":
+			return { value: false }
+		case "convertStringToNumber":
+			return { value: "", fallback: 0 }
+		case "convertStringToBoolean":
+			return { value: "", fallback: false }
+		case "convertObjectToJsonString":
+			return { value: {} }
+		case "convertArrayToJsonString":
+			return { value: [] }
+		case "convertJsonStringToObject":
+			return { value: "{}" }
+		case "convertJsonStringToArray":
+			return { value: "[]" }
+		default:
+			return {}
+	}
 }
 
 async function selectTriggerFromContext(triggerKey: string) {

@@ -85,8 +85,8 @@ export function useNodeContextMenu(
 	const actionCategoryGroups = computed(() =>
 		buildActionCategoryGroups(actionContextGroups.value.flatMap((group) => group.items))
 	)
-	const conversionContextItems = computed(() =>
-		[...pluginStore.pluginMap.values()]
+	const conversionContextItems = computed(() => {
+		const pluginItems = [...pluginStore.pluginMap.values()]
 			.filter((plugin) => (pluginStore.isPluginEnabled?.(plugin.id) ?? true) || isBuiltinPlugin(plugin.id))
 			.flatMap((plugin) =>
 				Object.entries(filterRegularActions(plugin.actions))
@@ -101,9 +101,23 @@ export function useNodeContextMenu(
 						searchText: `actions ${plugin.name} ${plugin.id} ${action.name} ${id}`.toLowerCase(),
 					}))
 			)
+		const seen = new Set(pluginItems.map((item) => normalizeActionId(item.key.split(":").slice(1).join(":"))))
+		const fallbackItems = CORE_CONVERSION_ACTIONS
+			.filter((item) => !seen.has(normalizeActionId(item.id)))
+			.map((item) => ({
+				key: `ShowRunner:${item.id}`,
+				pluginId: "ShowRunner",
+				pluginName: "ShowRunner",
+				name: item.name,
+				icon: item.icon,
+				color: "#de84ff",
+				searchText: `actions ShowRunner ShowRunner ${item.name} ${item.id}`.toLowerCase(),
+			}))
+
+		return [...pluginItems, ...fallbackItems]
 			.filter((item) => !contextMenuSearch.value || item.searchText.includes(contextMenuSearch.value))
 			.sort((a, b) => a.name.localeCompare(b.name))
-	)
+	})
 	const triggerContextGroups = computed(() =>
 		buildContextGroups("triggers", (plugin) => plugin.triggers, (entry) => ({
 			name: entry.name,
@@ -288,12 +302,29 @@ const CONVERSION_ACTION_IDS = new Set([
 ])
 
 export function isConversionActionId(actionId: string) {
-	return CONVERSION_ACTION_IDS.has(actionId.replace(/[^a-z0-9]/gi, "").toLowerCase())
+	return CONVERSION_ACTION_IDS.has(normalizeActionId(actionId))
+}
+
+function normalizeActionId(actionId: string) {
+	return actionId.replace(/[^a-z0-9]/gi, "").toLowerCase()
 }
 
 function isBuiltinPlugin(pluginId: string) {
 	return pluginId.toLowerCase() === "showrunner"
 }
+
+export const CORE_CONVERSION_ACTIONS = [
+	{ id: "convertNumberToString", name: "Convert Number To String", icon: "mdi mdi-swap-horizontal" },
+	{ id: "convertBooleanToString", name: "Convert Boolean To String", icon: "mdi mdi-swap-horizontal" },
+	{ id: "convertStringToNumber", name: "Convert String To Number", icon: "mdi mdi-swap-horizontal" },
+	{ id: "convertBooleanToNumber", name: "Convert Boolean To Number", icon: "mdi mdi-swap-horizontal" },
+	{ id: "convertNumberToBoolean", name: "Convert Number To Boolean", icon: "mdi mdi-swap-horizontal" },
+	{ id: "convertStringToBoolean", name: "Convert String To Boolean", icon: "mdi mdi-swap-horizontal" },
+	{ id: "convertObjectToJsonString", name: "Convert Object To JSON String", icon: "mdi mdi-code-json" },
+	{ id: "convertArrayToJsonString", name: "Convert Array To JSON String", icon: "mdi mdi-code-json" },
+	{ id: "convertJsonStringToObject", name: "Convert JSON String To Object", icon: "mdi mdi-code-json" },
+	{ id: "convertJsonStringToArray", name: "Convert JSON String To Array", icon: "mdi mdi-code-json" },
+]
 
 const ACTION_CATEGORY_DEFINITIONS: ActionCategoryDefinition[] = [
 	{
