@@ -21,9 +21,13 @@ const visualMarkers = [
 	["settings interface section", "settings-page__section-actions"],
 	["updates status card", "updates-page__status--available"],
 	["integration detail search", "plugin-details__search"],
+	["integration toggle states", "plugin-details__toggle.enabled"],
 	["integration compact rows", "plugin-details__chips"],
 	["automation hidden plugin hint", "node-automation__menu-hint"],
 	["automation context menu", "node-automation__context-menu"],
+	["automation annotation blocks", "node-automation__annotation-block"],
+	["automation annotation drag remove feedback", "node-automation__annotation-block.remove-target"],
+	["automation flow edge health", "invalid sequence edge"],
 ]
 
 for (const [label, marker] of visualMarkers) {

@@ -30,9 +30,13 @@ const requiredMarkers = [
 	["Settings page", "Interface"],
 	["Updates page", "Current version"],
 	["Integrations page", "Integrations"],
+	["integration plugin toggle", "plugin-details__toggle"],
+	["integration detail search", "plugin-details__search"],
 	["starter template menu", "New Automation From Starter"],
 	["queue starter template", "Paid Event -> Add to Alerts Queue"],
 	["graph editor shell", "node-automation"],
+	["annotation blocks", "node-automation__annotation-block"],
+	["graph health warning", "invalid sequence edge"],
 ]
 
 for (const [label, marker] of requiredMarkers) {
