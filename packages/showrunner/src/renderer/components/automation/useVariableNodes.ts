@@ -1,4 +1,4 @@
-import { computed, nextTick, ref, type Ref } from "vue"
+import { computed, ref, type Ref } from "vue"
 import { nanoid } from "nanoid"
 import type { AutomationConfig, AutomationDataWire, AutomationVariableNode } from "showrunner-schema"
 import type { NodePosition } from "./useNodeCanvas"
@@ -83,7 +83,6 @@ export function useVariableNodes({
 	})
 
 	const inlineEditNodeId = ref<string>()
-	const inlineEditInput = ref<HTMLInputElement>()
 
 	function addVariableNode(type: VariableNodeType) {
 		const canvasPoint = getContextMenuCanvasPoint()
@@ -136,11 +135,6 @@ export function useVariableNodes({
 
 	function startInlineEdit(nodeId: string) {
 		inlineEditNodeId.value = nodeId
-		nextTick(() => {
-			const el = Array.isArray(inlineEditInput.value) ? inlineEditInput.value[0] : inlineEditInput.value
-			el?.focus()
-			el?.select()
-		})
 	}
 
 	function commitInlineEdit(event: Event, node: NodeData) {
@@ -170,7 +164,6 @@ export function useVariableNodes({
 		variableNodeData,
 		selectedVariableNode,
 		inlineEditNodeId,
-		inlineEditInput,
 		addVariableNode,
 		deleteVariableNode,
 		updateSelectedVariableNodeValue,
