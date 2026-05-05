@@ -1,4 +1,5 @@
 import type { ActionDefinition } from "showrunner-ui-core"
+import { normalizeActionLookupId, resolveMapById, resolveRecordById } from "showrunner-schema"
 
 export interface ActionPluginDefinition {
 	actions?: Record<string, ActionDefinition>
@@ -18,16 +19,11 @@ export function resolveActionFromRecord(
 	actions: Record<string, ActionDefinition> | undefined,
 	actionId: string | undefined
 ) {
-	if (!actions || !actionId) return undefined
-	return actions[actionId] ?? Object.entries(actions).find(([id]) => normalizeActionLookupId(id) === normalizeActionLookupId(actionId))?.[1]
-}
-
-export function normalizeActionLookupId(actionId: string) {
-	return actionId.replace(/[^a-z0-9]/gi, "").toLowerCase()
+	return resolveRecordById(actions, actionId)
 }
 
 function resolvePlugin(pluginMap: Map<string, ActionPluginDefinition>, pluginId: string) {
-	return pluginMap.get(pluginId) ?? [...pluginMap.entries()].find(([id]) => normalizeActionLookupId(id) === normalizeActionLookupId(pluginId))?.[1]
+	return resolveMapById(pluginMap, pluginId)
 }
 
 function resolveCoreActionDefinition(pluginId: string, actionId: string) {

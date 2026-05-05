@@ -14,9 +14,10 @@ import {
 	type AutomationConfig,
 	type AutomationTriggerNode,
 	type SubgraphDefinition,
+	normalizeActionLookupId,
 } from "showrunner-schema"
 import type { PortDef } from "./usePortConnections"
-import { normalizeActionLookupId, resolveActionDefinition } from "./actionLookup"
+import { resolveActionDefinition } from "./actionLookup"
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 

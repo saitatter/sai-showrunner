@@ -13,6 +13,8 @@ import {
 	IPCDurationConfig,
 	IPCSettingsDefinition,
 	IPCStateDefinition,
+	resolveMapById,
+	resolveRecordById,
 	validateActionResultSchema,
 } from "showrunner-schema"
 
@@ -332,7 +334,7 @@ export const usePluginStore = defineStore("plugins", () => {
 
 	function getAction(selection: ActionSelection): ActionDefinition | undefined {
 		if (!selection.plugin || !selection.action) return undefined
-		return resolveAction(resolvePlugin(pluginMap.value, selection.plugin)?.actions, selection.action)
+		return resolveRecordById(resolveMapById(pluginMap.value, selection.plugin)?.actions, selection.action)
 	}
 
 	async function createAction(selection: ActionSelection): Promise<ActionInfo | undefined> {
@@ -540,21 +542,8 @@ export function useAction(selection: MaybeRefOrGetter<ActionSelection | undefine
 		}
 
 		if (!selectionValue.plugin || !selectionValue.action) return undefined
-		return resolveAction(resolvePlugin(pluginStore.pluginMap, selectionValue.plugin)?.actions, selectionValue.action)
+		return resolveRecordById(resolveMapById(pluginStore.pluginMap, selectionValue.plugin)?.actions, selectionValue.action)
 	})
-}
-
-function resolveAction(actions: Record<string, ActionDefinition> | undefined, actionId: string | undefined) {
-	if (!actions || !actionId) return undefined
-	return actions[actionId] ?? Object.entries(actions).find(([id]) => normalizeActionLookupId(id) === normalizeActionLookupId(actionId))?.[1]
-}
-
-function normalizeActionLookupId(actionId: string) {
-	return actionId.replace(/[^a-z0-9]/gi, "").toLowerCase()
-}
-
-function resolvePlugin(pluginMap: Map<string, { actions?: Record<string, ActionDefinition> }>, pluginId: string) {
-	return pluginMap.get(pluginId) ?? [...pluginMap.entries()].find(([id]) => normalizeActionLookupId(id) === normalizeActionLookupId(pluginId))?.[1]
 }
 
 export function useFlowAction(selection: MaybeRefOrGetter<ActionSelection | undefined>) {

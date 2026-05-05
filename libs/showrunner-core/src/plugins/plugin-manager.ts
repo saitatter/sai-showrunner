@@ -1,4 +1,4 @@
-import { IPCPluginDefinition } from "showrunner-schema"
+import { IPCPluginDefinition, resolveMapById } from "showrunner-schema"
 import { defineCallableIPC, defineIPCFunc } from "../util/electron"
 import { Service } from "../util/service"
 import { Plugin } from "./plugin"
@@ -122,9 +122,9 @@ export const PluginManager = Service(
 		}
 
 		getAction(plugin: string, action: string) {
-			const actions = (this.plugins.get(plugin) ?? [...this.plugins.entries()].find(([id]) => normalizeActionLookupId(id) === normalizeActionLookupId(plugin))?.[1])?.actions
+			const actions = resolveMapById(this.plugins, plugin)?.actions
 			if (!actions) return undefined
-			return actions.get(action) ?? [...actions.entries()].find(([id]) => normalizeActionLookupId(id) === normalizeActionLookupId(action))?.[1]
+			return resolveMapById(actions, action)
 		}
 
 		getTrigger(plugin: string, trigger: string) {
@@ -140,7 +140,3 @@ export const PluginManager = Service(
 		}
 	}
 )
-
-function normalizeActionLookupId(actionId: string) {
-	return actionId.replace(/[^a-z0-9]/gi, "").toLowerCase()
-}
