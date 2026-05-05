@@ -4,6 +4,7 @@ import {
 	collectShaderUniformDefaults,
 	compileShaderGraph,
 	validateShaderGraph,
+	wouldCreateShaderGraphCycle,
 	type ShaderGraph,
 } from "./shader-nodes"
 
@@ -29,7 +30,7 @@ describe("shader graph compiler", () => {
 	})
 
 	it("reports cycles before generating GLSL", () => {
-		const result = compileShaderGraph({
+		const graph: ShaderGraph = {
 			nodes: [
 				{ id: "a", defId: "add", x: 0, y: 0 },
 				{ id: "b", defId: "add", x: 200, y: 0 },
@@ -40,10 +41,12 @@ describe("shader graph compiler", () => {
 				{ id: "b:result->a:a", fromNode: "b", fromPort: "result", toNode: "a", toPort: "a" },
 			],
 			outputNodeId: "output",
-		})
+		}
+		const result = compileShaderGraph(graph)
 
 		expect(result.glsl).toBe("")
 		expect(result.errors).toContain("Shader graph contains a cycle.")
+		expect(wouldCreateShaderGraphCycle({ ...graph, wires: [graph.wires[0]] }, "b", "a")).toBe(true)
 	})
 
 	it("reports incompatible wire types", () => {
@@ -96,5 +99,19 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("uniform vec3 u_alert_color;")
 		expect(result.glsl).toContain("= u_alert_color;")
 		expect(collectShaderUniformDefaults(graph)).toEqual({ u_alert_color: [0.25, 0.5, 0.75] })
+	})
+
+	it("reports duplicate custom uniform names", () => {
+		const errors = validateShaderGraph({
+			nodes: [
+				{ id: "amountA", defId: "uniform_float", x: 0, y: 0, inputDefaults: { name: "amount" } },
+				{ id: "amountB", defId: "uniform_float", x: 0, y: 120, inputDefaults: { name: "amount" } },
+				{ id: "output", defId: "fragment_output", x: 220, y: 0 },
+			],
+			wires: [],
+			outputNodeId: "output",
+		})
+
+		expect(errors).toContain('Uniform name "u_amount" is used by multiple parameter nodes.')
 	})
 })

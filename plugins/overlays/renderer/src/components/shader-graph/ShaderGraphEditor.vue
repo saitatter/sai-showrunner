@@ -289,6 +289,7 @@ import {
 	areShaderTypesCompatible,
 	collectShaderUniformDefaults,
 	compileShaderGraph,
+	wouldCreateShaderGraphCycle,
 	type ShaderGraph,
 	type ShaderNodeInstance,
 	type ShaderNodeDef,
@@ -577,10 +578,16 @@ function onWireUp(e: PointerEvent) {
 				const fromPort = dragState.fromKind === "out" ? dragState.fromPort : port.key
 				const toNode = dragState.fromKind === "out" ? node.id : dragState.fromNode
 				const toPort = dragState.fromKind === "out" ? port.key : dragState.fromPort
-				// Remove existing wire to target input
-				const existing = graph.value.wires.findIndex((w) => w.toNode === toNode && w.toPort === toPort)
-				if (existing >= 0) graph.value.wires.splice(existing, 1)
-				graph.value.wires.push({ id: `${fromNode}:${fromPort}->${toNode}:${toPort}`, fromNode, fromPort, toNode, toPort })
+				const nextWire = { id: `${fromNode}:${fromPort}->${toNode}:${toPort}`, fromNode, fromPort, toNode, toPort }
+				const nextWires = graph.value.wires.filter((w) => !(w.toNode === toNode && w.toPort === toPort))
+				if (wouldCreateShaderGraphCycle({ ...graph.value, wires: nextWires }, fromNode, toNode)) {
+					const message = `Connecting ${fromNode}:${fromPort} to ${toNode}:${toPort} would create a cycle.`
+					compileErrors.value = [message]
+					previewError.value = message
+					connected = true
+					break
+				}
+				graph.value.wires = [...nextWires, nextWire]
 				emitGraphUpdate()
 				autoCompile()
 				connected = true

@@ -441,6 +441,21 @@ function sortShaderGraph(graph: ShaderGraph) {
 	return sorted
 }
 
+export function shaderGraphHasCycle(graph: ShaderGraph): boolean {
+	return sortShaderGraph(graph).length !== graph.nodes.length
+}
+
+export function wouldCreateShaderGraphCycle(graph: ShaderGraph, fromNode: string, toNode: string): boolean {
+	if (fromNode === toNode) return true
+	return shaderGraphHasCycle({
+		...graph,
+		wires: [
+			...graph.wires,
+			{ id: "__candidate", fromNode, fromPort: "", toNode, toPort: "" },
+		],
+	})
+}
+
 export function validateShaderGraph(graph: ShaderGraph): string[] {
 	const errors: string[] = []
 	const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]))
@@ -450,6 +465,16 @@ export function validateShaderGraph(graph: ShaderGraph): string[] {
 		if (!SHADER_NODE_DEF_MAP.has(node.defId)) {
 			errors.push(`Node ${node.id} uses unknown shader node type "${node.defId}".`)
 		}
+	}
+
+	const uniformNames = new Set<string>()
+	for (const node of graph.nodes) {
+		if (node.defId !== "uniform_float" && node.defId !== "uniform_vec3") continue
+		const name = getUniformName(node)
+		if (uniformNames.has(name)) {
+			errors.push(`Uniform name "${name}" is used by multiple parameter nodes.`)
+		}
+		uniformNames.add(name)
 	}
 
 	if (graph.outputNodeId) {
@@ -490,7 +515,7 @@ export function validateShaderGraph(graph: ShaderGraph): string[] {
 		inputTargets.add(inputKey)
 	}
 
-	if (sortShaderGraph(graph).length !== graph.nodes.length) {
+	if (shaderGraphHasCycle(graph)) {
 		errors.push("Shader graph contains a cycle.")
 	}
 
