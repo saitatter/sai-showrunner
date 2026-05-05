@@ -2,6 +2,7 @@ import {
 	ProfileState,
 	ProfileConfig,
 	TriggerData,
+	AutomationTriggerNode,
 	Schema,
 	SchemaType,
 	createInlineAutomation,
@@ -132,10 +133,47 @@ export class Profile extends FileResource<ProfileConfig, ProfileState> {
 		trigger: TriggerFunc<Config, ContextData, InvokeContextData>
 	): IterableIterator<TriggerData<SchemaType<Config>>> {
 		for (const t of this.config.triggers) {
+			const triggerNodes = Array.isArray(t.triggerNodes) ? t.triggerNodes : []
+			if (triggerNodes.length) {
+				for (const triggerNode of triggerNodes) {
+					if (triggerNode.plugin != trigger.triggerDef.pluginId || triggerNode.trigger != trigger.triggerDef.id) continue
+					yield createGraphTriggerInvocation(t, triggerNode) as TriggerData<SchemaType<Config>>
+				}
+				continue
+			}
 			if (t.plugin == trigger.triggerDef.pluginId && t.trigger == trigger.triggerDef.id) {
 				yield t as TriggerData<SchemaType<Config>>
 			}
 		}
+	}
+}
+
+const GRAPH_TRIGGER_SUB_ID_PREFIX = "__graphTrigger:"
+
+function createGraphTriggerInvocation(parent: TriggerData, triggerNode: AutomationTriggerNode): TriggerData {
+	return {
+		...parent,
+		id: triggerNode.id,
+		plugin: triggerNode.plugin,
+		trigger: triggerNode.trigger,
+		config: triggerNode.config,
+		stop: triggerNode.stop ?? parent.stop,
+		automationSubId: makeGraphTriggerSubId(parent.id, triggerNode.id),
+	} as TriggerData & { automationSubId: string }
+}
+
+function makeGraphTriggerSubId(automationId: string, triggerNodeId: string) {
+	return `${GRAPH_TRIGGER_SUB_ID_PREFIX}${encodeURIComponent(automationId)}:${encodeURIComponent(triggerNodeId)}`
+}
+
+function parseGraphTriggerSubId(subId: string | undefined) {
+	if (!subId?.startsWith(GRAPH_TRIGGER_SUB_ID_PREFIX)) return undefined
+	const body = subId.slice(GRAPH_TRIGGER_SUB_ID_PREFIX.length)
+	const separator = body.indexOf(":")
+	if (separator < 0) return undefined
+	return {
+		automationId: decodeURIComponent(body.slice(0, separator)),
+		triggerNodeId: decodeURIComponent(body.slice(separator + 1)),
 	}
 }
 
@@ -145,6 +183,18 @@ function normalizeProfileConfig(config: Partial<ProfileConfig>): ProfileConfig {
 	base.activationAutomation = normalizeInlineAutomation((base.activationAutomation ?? createInlineAutomation()) as any)
 	base.deactivationAutomation = normalizeInlineAutomation((base.deactivationAutomation ?? createInlineAutomation()) as any)
 	return base
+}
+
+function getProfileTriggerTarget(profile: Profile, subId: string) {
+	const graphTrigger = parseGraphTriggerSubId(subId)
+	if (graphTrigger) {
+		const automation = profile.config.triggers.find((trigger) => trigger.id === graphTrigger.automationId)
+		const triggerNode = automation?.triggerNodes?.find((node) => node.id === graphTrigger.triggerNodeId)
+		return automation && triggerNode ? { automation, triggerNode } : undefined
+	}
+
+	const automation = profile.config.triggers.find((trigger) => trigger.id == subId)
+	return automation ? { automation } : undefined
 }
 
 const logger = usePluginLogger("profiles")
@@ -163,7 +213,7 @@ export async function setupProfiles() {
 			if (subId == "activation") return profile.config.activationAutomation
 			if (subId == "deactivation") return profile.config.deactivationAutomation
 
-			return profile.config.triggers.find((t) => t.id == subId)
+			return getProfileTriggerTarget(profile, subId)?.automation
 		},
 
 		async getContextSchema(id, subId) {
@@ -175,7 +225,8 @@ export async function setupProfiles() {
 			if (subId == "activation") return { type: Object, properties: {} }
 			if (subId == "deactivation") return { type: Object, properties: {} }
 
-			const trigger = profile.config.triggers.find((t) => t.id == subId)
+			const target = getProfileTriggerTarget(profile, subId)
+			const trigger = target?.triggerNode ?? target?.automation
 			if (!trigger) return undefined
 			if (!trigger.trigger) return undefined
 			if (!trigger.plugin) return undefined
@@ -201,7 +252,8 @@ export async function setupProfiles() {
 				return noWrap
 			}
 
-			const trigger = profile.config.triggers.find((t) => t.id == subId)
+			const target = getProfileTriggerTarget(profile, subId)
+			const trigger = target?.triggerNode ?? target?.automation
 			if (!trigger) {
 				//logger.log("Failed RunWrapper, MISSING TRIGGER", subId)
 				return noWrap
@@ -227,6 +279,14 @@ export async function setupProfiles() {
 			}
 
 			return triggerDef.runWrapper
+		},
+
+		getProgramOptions(id, subId) {
+			if (!subId) return {}
+			const profile = Profile.storage.getById(id)
+			if (!profile) return {}
+			const target = getProfileTriggerTarget(profile, subId)
+			return target?.triggerNode ? { entryNodeId: target.triggerNode.id } : {}
 		},
 	})
 }
