@@ -146,14 +146,15 @@ export function useAnnotationBlocks({
 		const startY = event.clientY
 		const startWidth = block.width
 		const startHeight = block.height
+		const minimumSize = getAnnotationBlockMinimumSize(block)
 		const target = event.currentTarget as HTMLElement
 		target.setPointerCapture(event.pointerId)
 
 		function onMove(moveEvent: PointerEvent) {
 			const dx = (moveEvent.clientX - startX) / getZoom()
 			const dy = (moveEvent.clientY - startY) / getZoom()
-			block.width = Math.max(160, Math.round(startWidth + dx))
-			block.height = Math.max(96, Math.round(startHeight + dy))
+			block.width = Math.max(minimumSize.width, Math.round(startWidth + dx))
+			block.height = Math.max(minimumSize.height, Math.round(startHeight + dy))
 		}
 
 		function onUp(upEvent: PointerEvent) {
@@ -239,6 +240,16 @@ export function useAnnotationBlocks({
 			centerY >= block.y &&
 			centerY <= block.y + block.height
 		)
+	}
+
+	function getAnnotationBlockMinimumSize(block: AnnotationBlock) {
+		const bounds = getNodeBounds(getExistingNodeIds(block.nodeIds ?? []))
+		if (!bounds) return { width: 160, height: 96 }
+		const padding = 40
+		return {
+			width: Math.max(160, Math.ceil(bounds.x + bounds.width - block.x + padding)),
+			height: Math.max(96, Math.ceil(bounds.y + bounds.height - block.y + padding)),
+		}
 	}
 
 	function getNodeBounds(nodeIds: Iterable<string>) {

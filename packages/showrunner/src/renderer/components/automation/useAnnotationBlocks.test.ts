@@ -166,4 +166,33 @@ describe("useAnnotationBlocks", () => {
 		expect(blocks.placeDraggedNodesInAnnotationBlock(undefined, ["node-a"])).toBe(true)
 		expect(view.value.annotationBlocks![0].nodeIds).toEqual(["node-b"])
 	})
+
+	it("keeps resized annotation blocks large enough to contain member nodes", () => {
+		const { blocks, view, nodes, selectedNodeIds } = createAnnotationBlocks()
+		nodes.value[1] = { ...nodes.value[1], x: 520, y: 260 }
+		selectedNodeIds.value = new Set(["node-a", "node-b"])
+		blocks.addAnnotationBlock()
+		const block = view.value.annotationBlocks![0]
+		const listeners = new Map<string, (event: any) => void>()
+		const target = {
+			setPointerCapture: () => undefined,
+			releasePointerCapture: () => undefined,
+			addEventListener: (name: string, listener: (event: any) => void) => listeners.set(name, listener),
+			removeEventListener: (name: string) => listeners.delete(name),
+		}
+
+		blocks.startAnnotationBlockResize({
+			clientX: 0,
+			clientY: 0,
+			pointerId: 1,
+			currentTarget: target,
+			preventDefault: () => undefined,
+		} as any, block)
+		listeners.get("pointermove")?.({ clientX: -1000, clientY: -1000 })
+
+		expect(block).toMatchObject({
+			width: 700,
+			height: 290,
+		})
+	})
 })
