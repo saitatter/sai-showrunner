@@ -42,7 +42,13 @@ defineProps<{
 	box-sizing: border-box;
 	cursor: move;
 	position: absolute;
+	transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 	z-index: 2;
+}
+
+.node-automation__annotation-block:hover {
+	background: rgb(100 181 246 / 0.08);
+	box-shadow: 0 0 0 2px rgb(255 255 255 / 0.1);
 }
 
 .node-automation__annotation-block.selected {
@@ -52,7 +58,7 @@ defineProps<{
 
 .node-automation__annotation-block.drop-target {
 	border-style: solid;
-	box-shadow: 0 0 0 3px rgb(46 212 122 / 0.38);
+	box-shadow: 0 0 0 3px rgb(46 212 122 / 0.42), 0 14px 30px rgb(0 0 0 / 0.32);
 }
 
 .node-automation__annotation-block span {
@@ -87,25 +93,30 @@ defineProps<{
 }
 
 .node-automation__annotation-resize {
-	background: rgb(16 16 16 / 0.72);
-	border: 1px solid rgb(255 255 255 / 0.18);
+	background: rgb(16 16 16 / 0.88);
+	border: 1px solid rgb(255 255 255 / 0.28);
 	border-radius: 3px;
 	bottom: 0.35rem;
 	cursor: nwse-resize;
-	height: 0.9rem;
+	height: 1.05rem;
 	position: absolute;
 	right: 0.35rem;
-	width: 0.9rem;
+	width: 1.05rem;
+}
+
+.node-automation__annotation-resize:hover {
+	background: #2b173d;
+	border-color: #e9aaff;
 }
 
 .node-automation__annotation-resize::after {
 	border-bottom: 2px solid rgb(255 255 255 / 0.65);
 	border-right: 2px solid rgb(255 255 255 / 0.65);
-	bottom: 0.18rem;
+	bottom: 0.2rem;
 	content: "";
-	height: 0.38rem;
+	height: 0.45rem;
 	position: absolute;
-	right: 0.18rem;
-	width: 0.38rem;
+	right: 0.2rem;
+	width: 0.45rem;
 }
 </style>
