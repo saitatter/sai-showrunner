@@ -203,6 +203,9 @@
 
 				<section v-if="sidePanelTab === 'preview'" class="shader-graph__preview-panel">
 					<canvas ref="livePreviewCanvas" class="shader-graph__live-preview" width="320" height="180" />
+					<p v-if="!previewError && !lastPreviewGlsl" class="shader-graph__preview-hint">
+						<i class="mdi mdi-information-outline" /> Compile a valid graph to preview it here.
+					</p>
 					<p v-if="previewError" class="shader-graph__preview-error">
 						<i class="mdi mdi-alert" /> {{ previewError }}
 					</p>
@@ -657,26 +660,32 @@ onMounted(() => {
 })
 onUnmounted(() => {
 	window.removeEventListener("keydown", onKeyDown)
-	cancelAnimationFrame(previewFrame)
-	if (previewGl) {
-		if (previewProgram) previewGl.deleteProgram(previewProgram)
-		if (previewBuffer) previewGl.deleteBuffer(previewBuffer)
-	}
+	disposePreview()
 })
 
 // ─── Live Preview ────────────────────────────────────────────────────
 let previewGl: WebGLRenderingContext | null = null
 let previewProgram: WebGLProgram | null = null
 let previewBuffer: WebGLBuffer | null = null
+let previewCanvas: HTMLCanvasElement | null = null
 let previewFrame = 0
 let previewStartedAt = 0
+const lastPreviewGlsl = ref("")
 
 function updateLivePreview(glsl: string) {
+	lastPreviewGlsl.value = glsl
 	const canvas = livePreviewCanvas.value
 	if (!canvas) return
+	if (previewCanvas !== canvas) {
+		disposePreview()
+		previewCanvas = canvas
+	}
 	if (!previewGl) {
 		previewGl = canvas.getContext("webgl", { alpha: true })
-		if (!previewGl) return
+		if (!previewGl) {
+			previewError.value = "WebGL preview is not available in this view."
+			return
+		}
 		previewBuffer = previewGl.createBuffer()
 		previewGl.bindBuffer(previewGl.ARRAY_BUFFER, previewBuffer)
 		previewGl.bufferData(previewGl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), previewGl.STATIC_DRAW)
@@ -693,6 +702,26 @@ function updateLivePreview(glsl: string) {
 		previewError.value = error instanceof Error ? error.message : String(error)
 	}
 }
+
+function disposePreview() {
+	cancelAnimationFrame(previewFrame)
+	if (previewGl) {
+		if (previewProgram) previewGl.deleteProgram(previewProgram)
+		if (previewBuffer) previewGl.deleteBuffer(previewBuffer)
+	}
+	previewGl = null
+	previewProgram = null
+	previewBuffer = null
+	previewCanvas = null
+}
+
+watch(sidePanelTab, (tab) => {
+	if (tab !== "preview") return
+	nextTick(() => {
+		if (lastPreviewGlsl.value) updateLivePreview(lastPreviewGlsl.value)
+		else autoCompile()
+	})
+})
 
 function renderPreview() {
 	const gl = previewGl
@@ -1125,6 +1154,16 @@ function categoryColor(cat: string): string {
 	border: 1px solid #661111;
 	border-radius: 4px;
 	color: #ff9b9b;
+	font-size: 0.75rem;
+	margin: 0;
+	padding: 0.5rem;
+}
+
+.shader-graph__preview-hint {
+	background: #161616;
+	border: 1px solid #333;
+	border-radius: 4px;
+	color: #aaa;
 	font-size: 0.75rem;
 	margin: 0;
 	padding: 0.5rem;
