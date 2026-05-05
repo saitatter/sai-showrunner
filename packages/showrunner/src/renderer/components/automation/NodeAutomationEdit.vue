@@ -415,6 +415,7 @@
 						/>
 						<span
 							class="node-automation__resize-handle"
+							title="Resize node"
 							@pointerdown.stop="startResize($event, node)"
 						/>
 					</button>
@@ -1219,7 +1220,7 @@ const props = defineProps<{
 	view: AutomationResourceView & {
 		nodePositions?: Record<string, NodePosition>
 		nodeView?: NodeEditorViewState
-		nodeSizes?: Record<string, { width: number }>
+		nodeSizes?: Record<string, { width?: number; height?: number }>
 	}
 }>()
 
@@ -1353,6 +1354,7 @@ const nodes = computed(() => {
 		...node,
 		...(nodePositions.value[node.id] ?? { x: node.x, y: node.y }),
 		width: nodeSizes.value[node.id]?.width ?? NODE_WIDTH,
+		height: Math.max(node.height, nodeSizes.value[node.id]?.height ?? node.height),
 	}))
 	// Add variable nodes
 	const varNodes: NodeData[] = variableNodes.value.map((vn) => {
@@ -1371,7 +1373,7 @@ const nodes = computed(() => {
 			y: pos.y,
 			inputPorts: inPorts,
 			outputPorts: outPorts,
-			height: computeNodeHeight(undefined, inPorts, outPorts),
+			height: Math.max(computeNodeHeight(undefined, inPorts, outPorts), nodeSizes.value[vn.id]?.height ?? 0),
 			width: nodeSizes.value[vn.id]?.width ?? 160,
 		}
 	})
@@ -1443,7 +1445,7 @@ const lanes = computed<LaneData[]>(() => {
 	return [...groups.entries()].map(([id, group]) => {
 		const minX = Math.min(...group.nodes.map((node) => node.x))
 		const minY = Math.min(...group.nodes.map((node) => node.y))
-		const maxX = Math.max(...group.nodes.map((node) => node.x + NODE_WIDTH))
+		const maxX = Math.max(...group.nodes.map((node) => node.x + (node.width ?? NODE_WIDTH)))
 		const maxY = Math.max(...group.nodes.map((node) => node.y + node.height))
 		return {
 			id,
@@ -3412,7 +3414,9 @@ function cancelInlineEdit() {
 function startResize(event: PointerEvent, node: NodeData) {
 	event.preventDefault()
 	const startX = event.clientX
+	const startY = event.clientY
 	const startWidth = node.width ?? NODE_WIDTH
+	const startHeight = node.height
 	const target = event.currentTarget as HTMLElement
 	target.setPointerCapture(event.pointerId)
 
@@ -3420,11 +3424,14 @@ function startResize(event: PointerEvent, node: NodeData) {
 	const allPorts = [...(node.inputPorts ?? []), ...(node.outputPorts ?? [])]
 	const maxLabelLen = allPorts.reduce((max, p) => Math.max(max, p.label.length), 0)
 	const minWidth = Math.max(120, 80 + maxLabelLen * 7)
+	const minHeight = computeNodeHeight(node.configLines, node.inputPorts, node.outputPorts)
 
 	function onMove(me: PointerEvent) {
 		const dx = (me.clientX - startX) / zoom.value
+		const dy = (me.clientY - startY) / zoom.value
 		const newWidth = Math.max(minWidth, Math.round(startWidth + dx))
-		nodeSizes.value[node.id] = { width: newWidth }
+		const newHeight = Math.max(minHeight, Math.round(startHeight + dy))
+		nodeSizes.value[node.id] = { ...(nodeSizes.value[node.id] ?? {}), width: newWidth, height: newHeight }
 	}
 	function onUp() {
 		target.removeEventListener("pointermove", onMove)
@@ -5146,19 +5153,21 @@ onUnmounted(() => {
 }
 
 .node-automation__resize-handle {
-	bottom: 0;
-	cursor: ew-resize;
+	border-bottom: 2px solid rgb(233 170 255 / 0.48);
+	border-right: 2px solid rgb(233 170 255 / 0.48);
+	bottom: 3px;
+	cursor: nwse-resize;
 	position: absolute;
-	right: -4px;
-	top: 0;
-	width: 8px;
+	height: 13px;
+	right: 3px;
+	width: 13px;
 	z-index: 10;
 }
 
 .node-automation__resize-handle:hover,
 .node-automation__resize-handle:active {
 	background: rgba(139, 53, 230, 0.4);
-	border-radius: 0 4px 4px 0;
+	border-radius: 3px;
 }
 
 .sr-only {

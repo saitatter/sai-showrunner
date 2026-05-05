@@ -258,6 +258,20 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Add large-graph performance profiling for minimap, data wires, selection, and auto-layout.
 - [ ] Add richer queue observability: retry/cancel reason, worker graph link, and per-item execution timeline.
 
+### 6.4 V2 Graph Model Improvements
+- [ ] Replace the single root `plugin`/`trigger` automation fields with a trigger-node collection while keeping a migration path for existing automations.
+- [ ] Model each trigger as a visible graph node with stable id, plugin id, trigger id, config, context schema, and output data ports.
+- [ ] Allow multiple trigger nodes in one automation graph, each with an independent execution entry edge.
+- [ ] Run simultaneous trigger activations as separate automation executions so branches can proceed in parallel without sharing mutable trigger context.
+- [ ] Scope trigger context data wires to the specific trigger node that produced them instead of the current global `trigger` virtual source.
+- [ ] Add graph validation for multi-trigger entry edges, missing trigger definitions, duplicate trigger ids, and stale data wires.
+- [ ] Add migration from legacy `trigger` virtual node wires to the first generated trigger node.
+- [ ] Update starter templates to create explicit trigger nodes instead of relying on the implicit root trigger.
+- [ ] Update command-menu UX so `Add Trigger` creates a new trigger node, while action insertion continues to work from canvas, edge, or node context.
+- [ ] Add runtime tests for independent trigger executions, concurrent runs, data-context isolation, and disabled-plugin rendering behavior.
+- [ ] Add editor tests for selecting, configuring, deleting, copying, and reconnecting multiple trigger nodes.
+- [ ] Decide whether annotated blocks remain automatic visual lanes or become user-created group/comment frames with persisted labels, colors, and membership.
+
 ---
 
 ## Phase 7: Release Prep
