@@ -89,6 +89,7 @@
 						:style="{ transform: `translate(${node.x}px, ${node.y}px)` }"
 						@pointerdown.stop="startNodeDrag($event, node)"
 						@click.stop="selectedNodeId = node.id"
+						@pointerup.stop="selectNode(node.id)"
 					>
 						<header class="shader-graph__node-header" :style="{ background: categoryColor(node.category) }">
 							<i :class="node.icon" />
@@ -190,6 +191,9 @@
 
 			<aside class="shader-graph__side-panel">
 				<header class="shader-graph__tabs">
+					<button type="button" :class="{ active: sidePanelTab === 'node' }" :disabled="!selectedNode" @click="sidePanelTab = 'node'">
+						<i class="mdi mdi-tune" /> Node
+					</button>
 					<button type="button" :class="{ active: sidePanelTab === 'preview' }" @click="sidePanelTab = 'preview'">
 						<i class="mdi mdi-eye-outline" /> Preview
 					</button>
@@ -201,7 +205,43 @@
 					</button>
 				</header>
 
-				<section v-if="sidePanelTab === 'preview'" class="shader-graph__preview-panel">
+				<section v-if="sidePanelTab === 'node'" class="shader-graph__node-inspector">
+					<template v-if="selectedNode && selectedNodeDef">
+						<header>
+							<i :class="selectedNodeDef.icon" />
+							<div>
+								<strong>{{ selectedNodeDef.name }}</strong>
+								<span>{{ selectedNodeDef.category }}</span>
+							</div>
+						</header>
+
+						<label v-if="selectedNode.defId === 'float_const'" class="shader-graph__field">
+							<span>Value</span>
+							<input
+								type="number"
+								step="0.01"
+								:value="getNodeInputDefault(selectedNode, 'value', '1.0')"
+								@input="setNodeInputDefault(selectedNode, 'value', ($event.target as HTMLInputElement).value || '0.0')"
+							/>
+						</label>
+
+						<label v-else-if="selectedNode.defId === 'vec3_const'" class="shader-graph__field">
+							<span>Color</span>
+							<input
+								type="color"
+								:value="vec3DefaultToHex(getNodeInputDefault(selectedNode, 'value', 'vec3(1.0, 1.0, 1.0)'))"
+								@input="setNodeInputDefault(selectedNode, 'value', hexToVec3(($event.target as HTMLInputElement).value))"
+							/>
+						</label>
+
+						<p v-else class="shader-graph__empty-state">
+							This node has no editable settings yet.
+						</p>
+					</template>
+					<p v-else class="shader-graph__empty-state">Select a node to edit its settings.</p>
+				</section>
+
+				<section v-else-if="sidePanelTab === 'preview'" class="shader-graph__preview-panel">
 					<canvas ref="livePreviewCanvas" class="shader-graph__live-preview" width="320" height="180" />
 					<p v-if="!previewError && !lastPreviewGlsl" class="shader-graph__preview-hint">
 						<i class="mdi mdi-information-outline" /> Compile a valid graph to preview it here.
@@ -266,7 +306,7 @@ const selectedWireId = ref<string>()
 const paletteOpen = ref(false)
 const palettePos = ref({ x: 0, y: 0 })
 const paletteQuery = ref("")
-const sidePanelTab = ref<"preview" | "errors" | "code">("preview")
+const sidePanelTab = ref<"node" | "preview" | "errors" | "code">("preview")
 const compiledGlsl = ref("")
 const lastGoodGlsl = ref("")
 const compileErrors = ref<string[]>([])
@@ -314,6 +354,9 @@ const graphNodes = computed<GraphNode[]>(() =>
 		}
 	})
 )
+
+const selectedNode = computed(() => graph.value.nodes.find((node) => node.id === selectedNodeId.value))
+const selectedNodeDef = computed(() => selectedNode.value ? SHADER_NODE_DEF_MAP.get(selectedNode.value.defId) : undefined)
 
 const NODE_W = 180
 
@@ -424,7 +467,7 @@ function fitGraph() {
 
 // ─── Node Drag ───────────────────────────────────────────────────────
 function startNodeDrag(e: PointerEvent, node: GraphNode) {
-	selectedNodeId.value = node.id
+	selectNode(node.id)
 	const startX = e.clientX
 	const startY = e.clientY
 	const startNodeX = node.x
@@ -542,6 +585,37 @@ function onWireUp(e: PointerEvent) {
 	}
 	dragWire.value = null
 	dragState = null
+}
+
+function selectNode(nodeId: string) {
+	selectedNodeId.value = nodeId
+	selectedWireId.value = undefined
+	sidePanelTab.value = "node"
+}
+
+function getNodeInputDefault(node: ShaderNodeInstance, key: string, fallback: string) {
+	const value = node.inputDefaults?.[key]
+	return value == null ? fallback : String(value)
+}
+
+function setNodeInputDefault(node: ShaderNodeInstance, key: string, value: string) {
+	node.inputDefaults = { ...(node.inputDefaults ?? {}), [key]: value }
+	emitGraphUpdate()
+	autoCompile()
+}
+
+function vec3DefaultToHex(value: string) {
+	const parts = value.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []
+	const [r = 1, g = 1, b = 1] = parts
+	return `#${[r, g, b].map((part) => Math.round(Math.max(0, Math.min(1, part)) * 255).toString(16).padStart(2, "0")).join("")}`
+}
+
+function hexToVec3(hex: string) {
+	const normalized = hex.replace("#", "")
+	const r = parseInt(normalized.slice(0, 2), 16) / 255
+	const g = parseInt(normalized.slice(2, 4), 16) / 255
+	const b = parseInt(normalized.slice(4, 6), 16) / 255
+	return `vec3(${r.toFixed(3)}, ${g.toFixed(3)}, ${b.toFixed(3)})`
 }
 
 // ─── Palette ─────────────────────────────────────────────────────────
@@ -1127,6 +1201,61 @@ function categoryColor(cat: string): string {
 	color: #ff6b6b;
 	font-size: 0.75rem;
 	margin: 0.15rem 0;
+}
+
+.shader-graph__node-inspector {
+	background: #111;
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 0.75rem;
+	overflow: auto;
+	padding: 0.7rem;
+}
+
+.shader-graph__node-inspector header {
+	align-items: center;
+	border-bottom: 1px solid #2d2d2d;
+	display: flex;
+	gap: 0.55rem;
+	padding-bottom: 0.65rem;
+}
+
+.shader-graph__node-inspector header i {
+	color: #d7b7ff;
+	font-size: 1.1rem;
+}
+
+.shader-graph__node-inspector header div {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+}
+
+.shader-graph__node-inspector header span {
+	color: #888;
+	font-size: 0.72rem;
+}
+
+.shader-graph__field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.shader-graph__field span {
+	color: #bbb;
+	font-size: 0.72rem;
+	font-weight: 600;
+}
+
+.shader-graph__field input {
+	background: #1c1c1c;
+	border: 1px solid #3a3a3a;
+	border-radius: 4px;
+	color: #eee;
+	min-height: 2rem;
+	padding: 0.25rem 0.45rem;
 }
 
 .shader-graph__preview-panel {

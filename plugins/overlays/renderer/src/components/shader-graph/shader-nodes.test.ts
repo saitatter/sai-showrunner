@@ -60,4 +60,20 @@ describe("shader graph compiler", () => {
 		expect(areShaderTypesCompatible("vec2", "vec3")).toBe(false)
 		expect(validateShaderGraph(graph)).toContain("Wire uv:uv->output:color connects incompatible types: vec2 -> vec3.")
 	})
+
+	it("compiles editable constant node defaults", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "color", defId: "vec3_const", x: 0, y: 0, inputDefaults: { value: "vec3(0.100, 0.200, 0.300)" } },
+				{ id: "output", defId: "fragment_output", x: 220, y: 0 },
+			],
+			wires: [
+				{ id: "color:value->output:color", fromNode: "color", fromPort: "value", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("= vec3(0.100, 0.200, 0.300);")
+	})
 })

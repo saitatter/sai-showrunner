@@ -485,6 +485,13 @@ function glslTypeDefault(type: GlslType): string {
 	}
 }
 
+function getConstantNodeValue(node: ShaderNodeInstance, type: GlslType, fallback: string) {
+	const value = node.inputDefaults?.value
+	if (typeof value === "number" && Number.isFinite(value)) return String(value)
+	if (typeof value === "string" && value.trim()) return value.trim()
+	return fallback || glslTypeDefault(type)
+}
+
 export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[] } {
 	const errors = validateShaderGraph(graph)
 	if (errors.length) return { glsl: "", errors }
@@ -560,7 +567,10 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 		}
 
 		// Emit node body
-		const lines = def.compile(ins, outs)
+		const lines =
+			node.defId === "float_const" ? [`${outs.value} = ${getConstantNodeValue(node, "float", "1.0")};`] :
+			node.defId === "vec3_const" ? [`${outs.value} = ${getConstantNodeValue(node, "vec3", "vec3(1.0, 1.0, 1.0)")};`] :
+			def.compile(ins, outs)
 		for (const line of lines) {
 			bodyLines.push(`\t${line}`)
 		}
