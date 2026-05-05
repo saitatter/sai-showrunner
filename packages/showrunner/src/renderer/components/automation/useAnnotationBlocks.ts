@@ -96,6 +96,11 @@ export function useAnnotationBlocks({
 		const startY = event.clientY
 		const originalX = block.x
 		const originalY = block.y
+		const memberStartPositions = new Map<string, NodePosition>()
+		for (const nodeId of block.nodeIds ?? []) {
+			const position = getNodePosition(nodeId)
+			if (position) memberStartPositions.set(nodeId, position)
+		}
 		const target = event.currentTarget as HTMLElement
 		target.setPointerCapture(event.pointerId)
 
@@ -104,14 +109,11 @@ export function useAnnotationBlocks({
 			const dy = (moveEvent.clientY - startY) / getZoom()
 			const nextX = snapCoordinate(originalX + dx)
 			const nextY = snapCoordinate(originalY + dy)
-			const offsetX = nextX - block.x
-			const offsetY = nextY - block.y
+			const offsetX = nextX - originalX
+			const offsetY = nextY - originalY
 			block.x = nextX
 			block.y = nextY
-		for (const nodeId of block.nodeIds ?? []) {
-			if (!nodes.value.some((node) => node.id === nodeId)) continue
-			const position = nodePositions.value[nodeId] ?? nodes.value.find((node) => node.id === nodeId)
-			if (!position) continue
+			for (const [nodeId, position] of memberStartPositions) {
 				nodePositions.value[nodeId] = {
 					x: Math.max(12, position.x + offsetX),
 					y: Math.max(12, position.y + offsetY),
@@ -185,9 +187,24 @@ export function useAnnotationBlocks({
 		const block = annotationBlocks.value.find((item) => item.id === blockId)
 		if (!block) return false
 		const next = new Set(block.nodeIds ?? [])
+		const previousSize = next.size
 		for (const nodeId of nodeIds) next.add(nodeId)
 		block.nodeIds = [...next]
-		return true
+		return next.size !== previousSize
+	}
+
+	function placeDraggedNodesInAnnotationBlock(blockId: string | undefined, nodeIds: Iterable<string>) {
+		const ids = new Set(nodeIds)
+		let changed = false
+		for (const block of annotationBlocks.value) {
+			const next = (block.nodeIds ?? []).filter((nodeId) => !ids.has(nodeId))
+			if (next.length !== (block.nodeIds ?? []).length) {
+				block.nodeIds = next
+				changed = true
+			}
+		}
+		if (blockId) changed = addNodesToAnnotationBlock(blockId, ids) || changed
+		return changed
 	}
 
 	function clearSelectedAnnotationBlockNodes() {
@@ -241,6 +258,13 @@ export function useAnnotationBlocks({
 		return [...nodeIds].filter((nodeId) => existing.has(nodeId))
 	}
 
+	function getNodePosition(nodeId: string): NodePosition | undefined {
+		const node = nodes.value.find((item) => item.id === nodeId)
+		if (!node) return undefined
+		const position = nodePositions.value[nodeId] ?? node
+		return { x: position.x, y: position.y }
+	}
+
 	function deleteSelectedAnnotationBlock() {
 		const id = selectedAnnotationBlockId.value
 		if (!id) return
@@ -263,6 +287,7 @@ export function useAnnotationBlocks({
 		updateSelectedAnnotationBlockColor,
 		addSelectionToSelectedAnnotationBlock,
 		addNodesToAnnotationBlock,
+		placeDraggedNodesInAnnotationBlock,
 		clearSelectedAnnotationBlockNodes,
 		removeSelectionFromSelectedAnnotationBlock,
 		getAnnotationBlockForNodes,

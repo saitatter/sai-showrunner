@@ -125,4 +125,29 @@ describe("useAnnotationBlocks", () => {
 
 		expect(blocks.getAnnotationBlockMemberCount(view.value.annotationBlocks![0])).toBe(1)
 	})
+
+	it("moves dragged nodes from one annotation block to another", () => {
+		const { blocks, view } = createAnnotationBlocks()
+
+		blocks.addAnnotationBlock({ x: 100, y: 100 })
+		const firstBlockId = view.value.annotationBlocks![0].id
+		blocks.addAnnotationBlock({ x: 500, y: 100 })
+		const secondBlockId = view.value.annotationBlocks![1].id
+		blocks.addNodesToAnnotationBlock(firstBlockId, ["node-a"])
+
+		expect(blocks.placeDraggedNodesInAnnotationBlock(secondBlockId, ["node-a"])).toBe(true)
+		expect(view.value.annotationBlocks![0].nodeIds).toEqual([])
+		expect(view.value.annotationBlocks![1].nodeIds).toEqual(["node-a"])
+	})
+
+	it("removes dragged nodes from annotation blocks when dropped outside any block", () => {
+		const { blocks, view } = createAnnotationBlocks()
+
+		blocks.addAnnotationBlock()
+		const blockId = view.value.annotationBlocks![0].id
+		blocks.addNodesToAnnotationBlock(blockId, ["node-a", "node-b"])
+
+		expect(blocks.placeDraggedNodesInAnnotationBlock(undefined, ["node-a"])).toBe(true)
+		expect(view.value.annotationBlocks![0].nodeIds).toEqual(["node-b"])
+	})
 })

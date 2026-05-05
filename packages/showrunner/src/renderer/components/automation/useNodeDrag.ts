@@ -15,7 +15,7 @@ export interface AlignmentGuide {
 
 interface NodeDragCallbacks {
 	onDragMove?: (draggedIds: Set<string>) => void
-	onDragEnd?: (draggedIds: Set<string>, moved: boolean) => void
+	onDragEnd?: (draggedIds: Set<string>, moved: boolean) => boolean | void
 }
 
 const SNAP_THRESHOLD = 6
@@ -201,8 +201,8 @@ export function useNodeDrag(
 					break
 				}
 			}
-			if (moved) commitUndo()
-			callbacks.onDragEnd?.(draggedIds, moved)
+			const callbackChanged = callbacks.onDragEnd?.(draggedIds, moved) === true
+			if (moved || callbackChanged) commitUndo()
 		}
 
 		target.addEventListener("pointermove", onMove)

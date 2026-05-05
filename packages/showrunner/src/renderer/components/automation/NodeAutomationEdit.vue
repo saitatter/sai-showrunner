@@ -666,7 +666,7 @@ const {
 	addSelectionToSelectedAnnotationBlock,
 	removeSelectionFromSelectedAnnotationBlock,
 	clearSelectedAnnotationBlockNodes,
-	addNodesToAnnotationBlock,
+	placeDraggedNodesInAnnotationBlock,
 	getAnnotationBlockForNodes,
 	getAnnotationBlockMemberCount,
 	deleteSelectedAnnotationBlock,
@@ -811,8 +811,8 @@ const { startDrag, resetSelectedNodePosition, alignmentGuides } = useNodeDrag(
 		onDragEnd: (draggedIds, moved) => {
 			const blockId = annotationBlockDropTargetId.value
 			annotationBlockDropTargetId.value = undefined
-			if (!moved || !blockId) return
-			if (addNodesToAnnotationBlock(blockId, draggedIds)) commitUndo()
+			if (!moved) return
+			return placeDraggedNodesInAnnotationBlock(blockId, draggedIds)
 		},
 	}
 )
