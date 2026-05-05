@@ -1224,7 +1224,6 @@ import {
 	isObjectSchema,
 	constructDefault,
 	type AutomationDataWire,
-	type AutomationVariableNode,
 	type Expression,
 	type GraphNode,
 	type GraphEdge,
@@ -1238,6 +1237,7 @@ import { isConversionActionId, useNodeContextMenu } from "./useNodeContextMenu"
 import { useNodeContextMenuSearch, type ContextSearchResult } from "./useNodeContextMenuSearch"
 import { useNodeDrag } from "./useNodeDrag"
 import { useAnnotationBlocks, type AnnotationBlock } from "./useAnnotationBlocks"
+import { useVariableNodes } from "./useVariableNodes"
 import { useGraphTriggerNodes } from "./useGraphTriggerNodes"
 import { useAutomationPreview } from "./useAutomationPreview"
 import { areTypesCompatible, usePortConnections, portTypeColor, wouldCreateDataWireCycle, type DataWire, type PortDef } from "./usePortConnections"
@@ -1346,26 +1346,31 @@ const dataWires = computed({
 		model.value.dataWires = v
 	},
 })
-const variableNodes = computed({
-	get: () => {
-		if (!model.value) return []
-		model.value.variableNodes ??= []
-		return model.value.variableNodes!
-	},
-	set: (v: AutomationVariableNode[]) => {
-		if (!model.value) return
-		model.value.variableNodes = v
-	},
+const {
+	variableNodes,
+	variableNodeData,
+	selectedVariableNode,
+	inlineEditNodeId,
+	inlineEditInput,
+	addVariableNode,
+	deleteVariableNode,
+	updateSelectedVariableNodeValue,
+	updateSelectedVariableNodeName,
+	startInlineEdit,
+	commitInlineEdit,
+	cancelInlineEdit,
+} = useVariableNodes({
+	model,
+	nodePositions,
+	nodeSizes,
+	dataWires,
+	selectedNodeId,
+	getContextMenuCanvasPoint: () => contextMenu.value.canvasPoint ?? { x: 100, y: 200 },
+	closeContextMenu,
+	commitUndo,
 })
 
-const CONSTANT_TYPE_INFO: Record<string, { icon: string; portType: string; color: string }> = {
-	string: { icon: "mdi mdi-format-text", portType: "str", color: "#81c784" },
-	number: { icon: "mdi mdi-numeric", portType: "num", color: "#4fc3f7" },
-	boolean: { icon: "mdi mdi-toggle-switch-outline", portType: "bool", color: "#ffb74d" },
-	color: { icon: "mdi mdi-palette", portType: "color", color: "#f06292" },
-}
 const SUBGRAPH_PARAM_TYPES: SubgraphParamType[] = ["string", "number", "boolean", "array", "object", "color", "any"]
-type VariableNodeType = "string" | "number" | "boolean" | "color"
 
 const graph = computed(() => {
 	if (activeSubgraph.value) {
@@ -1380,28 +1385,7 @@ const nodes = computed(() => {
 		width: nodeSizes.value[node.id]?.width ?? NODE_WIDTH,
 		height: Math.max(node.height, nodeSizes.value[node.id]?.height ?? node.height),
 	}))
-	// Add variable nodes
-	const varNodes: NodeData[] = variableNodes.value.map((vn) => {
-		const info = CONSTANT_TYPE_INFO[vn.type] ?? CONSTANT_TYPE_INFO.string
-		const pos = nodePositions.value[vn.id] ?? { x: vn.x, y: vn.y }
-		const inPorts: PortDef[] = [{ key: "value", label: "set", type: info.portType }]
-		const outPorts: PortDef[] = [{ key: "value", label: "value", type: info.portType }]
-		return {
-			id: vn.id,
-			kind: "variable" as const,
-			title: vn.name || vn.type.charAt(0).toUpperCase() + vn.type.slice(1),
-			subtitle: String(vn.value),
-			icon: info.icon,
-			badge: info.portType,
-			x: pos.x,
-			y: pos.y,
-			inputPorts: inPorts,
-			outputPorts: outPorts,
-			height: Math.max(computeNodeHeight(undefined, inPorts, outPorts), nodeSizes.value[vn.id]?.height ?? 0),
-			width: nodeSizes.value[vn.id]?.width ?? 160,
-		}
-	})
-	return [...actionNodes, ...varNodes]
+	return [...actionNodes, ...variableNodeData.value]
 })
 const canvasSearchResults = computed(() => {
 	const q = canvasSearchQuery.value.toLowerCase().trim()
@@ -1455,10 +1439,6 @@ const currentPreviewRouteLabel = computed(() => {
 	return incoming ? getEdgeLabel(incoming) : undefined
 })
 const selectedNode = computed(() => nodes.value.find((node) => node.id === selectedNodeId.value))
-const selectedVariableNode = computed(() => {
-	if (!selectedNodeId.value) return undefined
-	return variableNodes.value.find((vn) => vn.id === selectedNodeId.value)
-})
 const selectedControlNode = computed(() => {
 	if (!selectedNodeId.value) return undefined
 	const node = activeGraph.value?.nodes.find((item) => item.id === selectedNodeId.value)
@@ -3311,95 +3291,6 @@ function addSwitchCase(node: Extract<GraphNode, { type: "switch" }>) {
 function deleteSwitchCase(node: Extract<GraphNode, { type: "switch" }>, index: number) {
 	node.cases.splice(index, 1)
 	commitUndo()
-}
-
-function addVariableNode(type: "string" | "number" | "boolean" | "color") {
-	const canvasPoint = contextMenu.value.canvasPoint ?? { x: 100, y: 200 }
-	const defaults: Record<string, string | number | boolean> = { string: "", number: 0, boolean: true, color: "#ffffff" }
-	const vn: AutomationVariableNode = {
-		id: nanoid(),
-		name: "",
-		type,
-		value: defaults[type],
-		x: canvasPoint.x,
-		y: canvasPoint.y,
-	}
-	variableNodes.value.push(vn)
-	closeContextMenu()
-	commitUndo()
-}
-
-function deleteVariableNode(id: string) {
-	const idx = variableNodes.value.findIndex((vn) => vn.id === id)
-	if (idx >= 0) {
-		variableNodes.value.splice(idx, 1)
-		// Also remove any wires connected to this node
-		dataWires.value = dataWires.value.filter((w) => w.fromNode !== id && w.toNode !== id)
-		commitUndo()
-	}
-}
-
-function updateVariableNodeValue(id: string, value: string | number | boolean) {
-	const vn = variableNodes.value.find((v) => v.id === id)
-	if (vn) {
-		vn.value = value
-		commitUndo()
-	}
-}
-
-function updateSelectedVariableNodeValue(value: string | number | boolean) {
-	const id = selectedVariableNode.value?.id
-	if (!id) return
-	updateVariableNodeValue(id, value)
-}
-
-function updateVariableNodeName(id: string, name: string) {
-	const vn = variableNodes.value.find((v) => v.id === id)
-	if (vn) {
-		vn.name = name
-		commitUndo()
-	}
-}
-
-function updateSelectedVariableNodeName(name: string) {
-	const id = selectedVariableNode.value?.id
-	if (!id) return
-	updateVariableNodeName(id, name)
-}
-
-const inlineEditNodeId = ref<string>()
-const inlineEditInput = ref<HTMLInputElement>()
-
-function startInlineEdit(nodeId: string) {
-	inlineEditNodeId.value = nodeId
-	nextTick(() => {
-		const el = Array.isArray(inlineEditInput.value) ? inlineEditInput.value[0] : inlineEditInput.value
-		el?.focus()
-		el?.select()
-	})
-}
-
-function commitInlineEdit(event: Event, node: NodeData) {
-	const input = event.target as HTMLInputElement
-	const vn = variableNodes.value.find((v) => v.id === node.id)
-	if (vn) {
-		// Parse the value based on type
-		const raw = input.value
-		if (vn.type === "number") {
-			const num = Number(raw)
-			if (!isNaN(num)) vn.value = num
-		} else if (vn.type === "boolean") {
-			vn.value = raw === "true" || raw === "1"
-		} else {
-			vn.value = raw
-		}
-		commitUndo()
-	}
-	inlineEditNodeId.value = undefined
-}
-
-function cancelInlineEdit() {
-	inlineEditNodeId.value = undefined
 }
 
 function startResize(event: PointerEvent, node: NodeData) {
