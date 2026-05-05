@@ -114,6 +114,9 @@
 								>
 									<span
 										class="shader-graph__port-dot"
+										:data-shader-port-node-id="node.id"
+										:data-shader-port-key="port.key"
+										:data-shader-port-kind="'in'"
 										:style="{ background: typeColor(port.type) }"
 										@pointerdown.stop="startWireDrag($event, node.id, port.key, 'in', port.type)"
 									/>
@@ -131,6 +134,9 @@
 									<span class="shader-graph__port-name">{{ port.label }}</span>
 									<span
 										class="shader-graph__port-dot"
+										:data-shader-port-node-id="node.id"
+										:data-shader-port-key="port.key"
+										:data-shader-port-kind="'out'"
 										:style="{ background: typeColor(port.type) }"
 										@pointerdown.stop="startWireDrag($event, node.id, port.key, 'out', port.type)"
 									/>
@@ -313,6 +319,9 @@ const surfaceSize = computed(() => ({
 }))
 
 function getPortPos(nodeId: string, portKey: string, kind: "in" | "out"): { x: number; y: number } | undefined {
+	const rendered = getRenderedPortPos(nodeId, portKey, kind)
+	if (rendered) return rendered
+
 	const node = graphNodes.value.find((n) => n.id === nodeId)
 	if (!node) return undefined
 	const def = SHADER_NODE_DEF_MAP.get(node.defId)
@@ -585,6 +594,26 @@ function compileAndApply() {
 		sidePanelTab.value = "preview"
 	} else {
 		sidePanelTab.value = "errors"
+	}
+}
+
+function getRenderedPortPos(nodeId: string, portKey: string, kind: "in" | "out"): { x: number; y: number } | undefined {
+	const surface = canvasRef.value?.querySelector<HTMLElement>(".shader-graph__surface")
+	if (!surface) return undefined
+
+	const elements = surface.querySelectorAll<HTMLElement>("[data-shader-port-node-id]")
+	const element = [...elements].find((item) =>
+		item.dataset.shaderPortNodeId === nodeId &&
+		item.dataset.shaderPortKey === portKey &&
+		item.dataset.shaderPortKind === kind
+	)
+	if (!element) return undefined
+
+	const surfaceRect = surface.getBoundingClientRect()
+	const portRect = element.getBoundingClientRect()
+	return {
+		x: (portRect.left + portRect.width / 2 - surfaceRect.left) / zoom.value,
+		y: (portRect.top + portRect.height / 2 - surfaceRect.top) / zoom.value,
 	}
 }
 
