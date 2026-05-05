@@ -80,4 +80,16 @@ describe("useAnnotationBlocks", () => {
 
 		expect(view.value.annotationBlocks?.[0].nodeIds).toEqual([])
 	})
+
+	it("removes only the current node selection from the selected annotation block", () => {
+		const { blocks, view, selectedNodeIds } = createAnnotationBlocks()
+
+		blocks.addAnnotationBlock()
+		selectedNodeIds.value = new Set(["node-a", "node-b", "node-c"])
+		blocks.addSelectionToSelectedAnnotationBlock()
+		selectedNodeIds.value = new Set(["node-b"])
+		blocks.removeSelectionFromSelectedAnnotationBlock()
+
+		expect(view.value.annotationBlocks?.[0].nodeIds).toEqual(["node-a", "node-c"])
+	})
 })

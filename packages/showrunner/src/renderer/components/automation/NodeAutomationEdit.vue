@@ -214,6 +214,7 @@
 				:selected-annotation-block-node-count="selectedAnnotationBlockNodeCount"
 				:selected-node-count="selectedNodeIds.size"
 				:on-add-selection-to-annotation-block="addSelectionToSelectedAnnotationBlock"
+				:on-remove-selection-from-annotation-block="removeSelectionFromSelectedAnnotationBlock"
 				:on-clear-annotation-block-nodes="clearSelectedAnnotationBlockNodes"
 				:on-delete-annotation-block="deleteSelectedAnnotationBlock"
 				:on-update-variable-node-name="updateSelectedVariableNodeName"
@@ -659,6 +660,7 @@ const {
 	updateSelectedAnnotationBlockColor,
 	selectedAnnotationBlockNodeCount,
 	addSelectionToSelectedAnnotationBlock,
+	removeSelectionFromSelectedAnnotationBlock,
 	clearSelectedAnnotationBlockNodes,
 	deleteSelectedAnnotationBlock,
 } = useAnnotationBlocks({

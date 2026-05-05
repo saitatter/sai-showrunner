@@ -9,6 +9,7 @@
 		@click.stop="onSelectAnnotationBlock(block.id)"
 	>
 		<span>{{ block.label || "Annotation" }}</span>
+		<small v-if="block.nodeIds?.length">{{ block.nodeIds.length }} node{{ block.nodeIds.length === 1 ? '' : 's' }}</small>
 		<button
 			type="button"
 			class="node-automation__annotation-resize"
@@ -63,6 +64,19 @@ defineProps<{
 	text-overflow: ellipsis;
 	top: 0.45rem;
 	white-space: nowrap;
+}
+
+.node-automation__annotation-block small {
+	background: rgb(16 16 16 / 0.82);
+	border: 1px solid rgb(255 255 255 / 0.14);
+	border-radius: 999px;
+	bottom: 0.45rem;
+	color: #dbeafe;
+	font-size: 0.68rem;
+	font-weight: 700;
+	left: 0.65rem;
+	padding: 0.15rem 0.45rem;
+	position: absolute;
 }
 
 .node-automation__annotation-resize {

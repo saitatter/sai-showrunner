@@ -184,6 +184,13 @@ export function useAnnotationBlocks({
 		commitUndo()
 	}
 
+	function removeSelectionFromSelectedAnnotationBlock() {
+		if (!selectedAnnotationBlock.value) return
+		const selected = selectedNodeIds.value
+		selectedAnnotationBlock.value.nodeIds = (selectedAnnotationBlock.value.nodeIds ?? []).filter((nodeId) => !selected.has(nodeId))
+		commitUndo()
+	}
+
 	function deleteSelectedAnnotationBlock() {
 		const id = selectedAnnotationBlockId.value
 		if (!id) return
@@ -205,6 +212,7 @@ export function useAnnotationBlocks({
 		updateSelectedAnnotationBlockColor,
 		addSelectionToSelectedAnnotationBlock,
 		clearSelectedAnnotationBlockNodes,
+		removeSelectionFromSelectedAnnotationBlock,
 		deleteSelectedAnnotationBlock,
 	}
 }

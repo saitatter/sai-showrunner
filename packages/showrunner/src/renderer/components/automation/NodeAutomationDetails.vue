@@ -47,6 +47,10 @@
 							<i class="mdi mdi-selection-plus" />
 							Add Selection
 						</button>
+						<button type="button" :disabled="selectedNodeCount < 1 || selectedAnnotationBlockNodeCount < 1" @click="onRemoveSelectionFromAnnotationBlock()">
+							<i class="mdi mdi-selection-remove" />
+							Remove Selection
+						</button>
 						<button type="button" :disabled="selectedAnnotationBlockNodeCount < 1" @click="onClearAnnotationBlockNodes()">
 							<i class="mdi mdi-selection-remove" />
 							Clear Nodes
@@ -294,6 +298,7 @@ const props = defineProps<{
 	selectedAnnotationBlockNodeCount: number
 	selectedNodeCount: number
 	onAddSelectionToAnnotationBlock: () => void
+	onRemoveSelectionFromAnnotationBlock: () => void
 	onClearAnnotationBlockNodes: () => void
 	onDeleteAnnotationBlock: () => void
 	onUpdateVariableNodeName: (value: string) => void
