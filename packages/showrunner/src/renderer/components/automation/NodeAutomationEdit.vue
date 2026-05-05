@@ -506,21 +506,6 @@
 						<i class="mdi mdi-eye-off-outline" />
 						<span>{{ hiddenPluginSearchHint }}</span>
 					</section>
-					<section v-if="conversionContextItems.length" class="node-automation__menu-section">
-						<div class="node-automation__menu-section-header" style="cursor: default; font-size: 0.8rem;">
-							<span><i class="mdi mdi-swap-horizontal" /> Conversions</span>
-						</div>
-						<div class="node-automation__menu-items">
-							<button v-for="item in conversionContextItems" :key="`conversion-${item.key}`" type="button" @click="selectActionFromContext(item.key)">
-								<i :class="item.icon" :style="{ color: item.color }" />
-								<span>
-									<strong>{{ item.name }}</strong>
-									<small>{{ item.pluginName }}</small>
-								</span>
-								<em>Convert</em>
-							</button>
-						</div>
-					</section>
 					<section v-if="actionCategoryGroups.length" class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" data-context-section="categories" :aria-expanded="isContextGroupOpen('categories')" @click="toggleContextGroup('categories')">
 							<span><i class="mdi mdi-shape-outline" /> Categories</span>
@@ -613,18 +598,32 @@
 							</section>
 						</div>
 					</section>
-					<!-- Data: Variables + Constants -->
-					<section v-if="!pendingFlowConnection" class="node-automation__menu-section">
+					<!-- Data: Variables + Conversions -->
+					<section v-if="conversionContextItems.length || !pendingFlowConnection" class="node-automation__menu-section">
 						<button type="button" class="node-automation__menu-section-header" data-context-section="data" :aria-expanded="isContextGroupOpen('data')" @click="toggleContextGroup('data')">
 							<span><i class="mdi mdi-database-outline" /> Data</span>
 							<i :class="isContextGroupOpen('data') ? 'mdi mdi-chevron-up' : 'mdi mdi-chevron-down'" />
 						</button>
 						<div v-if="isContextGroupOpen('data')">
-							<div class="node-automation__menu-subtitle">
+							<div v-if="conversionContextItems.length" class="node-automation__menu-subtitle">
+								<i class="mdi mdi-swap-horizontal" />
+								<span>Conversions</span>
+							</div>
+							<div v-if="conversionContextItems.length" class="node-automation__menu-items">
+								<button v-for="item in conversionContextItems" :key="`conversion-${item.key}`" type="button" @click="selectActionFromContext(item.key)">
+									<i :class="item.icon" :style="{ color: item.color }" />
+									<span>
+										<strong>{{ item.name }}</strong>
+										<small>{{ item.pluginName }}</small>
+									</span>
+									<em>Convert</em>
+								</button>
+							</div>
+							<div v-if="!pendingFlowConnection" class="node-automation__menu-subtitle">
 								<i class="mdi mdi-variable" />
 								<span>Variables</span>
 							</div>
-							<div class="node-automation__menu-items">
+							<div v-if="!pendingFlowConnection" class="node-automation__menu-items">
 								<button type="button" @click="addVariableNode('string')">
 									<i class="mdi mdi-format-text" style="color: #81c784" />
 									<span><strong>String Variable</strong></span>
