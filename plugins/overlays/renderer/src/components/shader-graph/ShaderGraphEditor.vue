@@ -218,7 +218,7 @@
 
 				<section v-else class="shader-graph__code">
 					<header>
-						<strong>Generated GLSL</strong>
+						<strong>{{ compileErrors.length ? "Last Valid GLSL" : "Generated GLSL" }}</strong>
 						<button type="button" @click="copyGlsl" v-tooltip="'Copy to clipboard'">
 							<i class="mdi mdi-content-copy" />
 						</button>
@@ -268,6 +268,7 @@ const palettePos = ref({ x: 0, y: 0 })
 const paletteQuery = ref("")
 const sidePanelTab = ref<"preview" | "errors" | "code">("preview")
 const compiledGlsl = ref("")
+const lastGoodGlsl = ref("")
 const compileErrors = ref<string[]>([])
 const previewError = ref("")
 
@@ -579,13 +580,14 @@ function addNodeAt(defId: string, position: { x: number; y: number }) {
 // ─── Compile ─────────────────────────────────────────────────────────
 function autoCompile() {
 	const result = compileShaderGraph(graph.value)
-	compiledGlsl.value = result.glsl
 	compileErrors.value = result.errors
 	if (result.errors.length) {
 		previewError.value = result.errors[0]
 		return
 	}
-	if (!result.errors.length && result.glsl) {
+	if (result.glsl) {
+		compiledGlsl.value = result.glsl
+		lastGoodGlsl.value = result.glsl
 		updateLivePreview(result.glsl)
 	}
 }
@@ -628,7 +630,8 @@ function resetGraph() {
 }
 
 function copyGlsl() {
-	if (compiledGlsl.value) navigator.clipboard.writeText(compiledGlsl.value).catch(() => {})
+	const source = compiledGlsl.value || lastGoodGlsl.value
+	if (source) navigator.clipboard.writeText(source).catch(() => {})
 }
 
 // ─── Keyboard ────────────────────────────────────────────────────────
