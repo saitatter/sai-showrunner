@@ -1090,6 +1090,7 @@ function selectDataWire(wireId: string) {
 }
 
 function selectAnnotationBlock(blockId: string) {
+	flushFocusedDetailsControl()
 	canvasSelection.selectAnnotationBlock(blockId)
 }
 
@@ -1114,6 +1115,7 @@ function openPendingFlowContext(drop: {
 }
 
 function openNodeContext(event: MouseEvent, node: NodeData) {
+	flushFocusedDetailsControl()
 	pendingFlowConnection.value = null
 	selectNode(event, node.id)
 	detailsOpen.value = true
@@ -1123,6 +1125,7 @@ function openNodeContext(event: MouseEvent, node: NodeData) {
 }
 
 function openCanvasContextMenu(event: MouseEvent) {
+	flushFocusedDetailsControl()
 	const target = event.target as HTMLElement
 	if (target.closest(".node-automation__canvas-controls") || target.closest(".node-automation__context-menu")) return
 	if (target.closest(".node-automation__annotation-block")) return
@@ -1134,7 +1137,16 @@ function openCanvasContextMenu(event: MouseEvent) {
 }
 
 function handleCanvasPointerDown(event: PointerEvent) {
+	flushFocusedDetailsControl()
 	canvasSelection.handleCanvasPointerDown(event)
+}
+
+function flushFocusedDetailsControl() {
+	const active = document.activeElement
+	if (!(active instanceof HTMLElement)) return
+	if (!active.closest(".node-automation__details")) return
+	if (!active.matches("input, textarea, select")) return
+	active.dispatchEvent(new Event("change", { bubbles: true }))
 }
 
 function startMinimapNav(event: PointerEvent) {

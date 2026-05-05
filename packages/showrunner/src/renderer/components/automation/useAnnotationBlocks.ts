@@ -167,13 +167,17 @@ export function useAnnotationBlocks({
 
 	function updateSelectedAnnotationBlockLabel(label: string) {
 		if (!selectedAnnotationBlock.value) return
-		selectedAnnotationBlock.value.label = label.trim() || "Annotation"
+		const nextLabel = label.trim() || "Annotation"
+		if (selectedAnnotationBlock.value.label === nextLabel) return
+		selectedAnnotationBlock.value.label = nextLabel
 		commitUndo()
 	}
 
 	function updateSelectedAnnotationBlockColor(color: string) {
 		if (!selectedAnnotationBlock.value) return
-		selectedAnnotationBlock.value.color = color || "#64b5f6"
+		const nextColor = color || "#64b5f6"
+		if (selectedAnnotationBlock.value.color === nextColor) return
+		selectedAnnotationBlock.value.color = nextColor
 		commitUndo()
 	}
 

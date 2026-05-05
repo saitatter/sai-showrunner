@@ -30,6 +30,7 @@
 							type="text"
 							:value="selectedAnnotationBlock.label"
 							placeholder="Block label..."
+							@input="onUpdateAnnotationBlockLabel(($event.target as HTMLInputElement).value)"
 							@change="onUpdateAnnotationBlockLabel(($event.target as HTMLInputElement).value)"
 						/>
 					</label>
@@ -38,6 +39,7 @@
 						<input
 							type="color"
 							:value="selectedAnnotationBlock.color"
+							@input="onUpdateAnnotationBlockColor(($event.target as HTMLInputElement).value)"
 							@change="onUpdateAnnotationBlockColor(($event.target as HTMLInputElement).value)"
 						/>
 					</label>
