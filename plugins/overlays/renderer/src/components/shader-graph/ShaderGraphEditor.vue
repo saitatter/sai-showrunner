@@ -281,7 +281,15 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
-import { CollapsibleContextMenu } from "showrunner-ui-core"
+import {
+	CollapsibleContextMenu,
+} from "showrunner-ui-core"
+import {
+	collectRenderedGraphPortPositions,
+	graphBezierPath,
+	graphPointFromClient,
+	graphPortPositionKey,
+} from "showrunner-ui-core/src/util/graph"
 import {
 	SHADER_NODE_DEFS,
 	SHADER_NODE_DEF_MAP,
@@ -410,7 +418,7 @@ const wirePaths = computed(() =>
 		const portDef = fromDef?.outputs.find((p) => p.key === wire.fromPort)
 		return [{
 			id: wire.id,
-			path: bezier(from.x, from.y, to.x, to.y),
+			path: shaderWirePath(from.x, from.y, to.x, to.y),
 			color: typeColor(portDef?.type ?? "float"),
 		}]
 	})
@@ -520,7 +528,7 @@ function startWireDrag(e: PointerEvent, nodeId: string, portKey: string, kind: "
 			const fromPos = getPortPos(wire.fromNode, wire.fromPort, "out")
 			if (fromPos) {
 				dragState = { fromNode: wire.fromNode, fromPort: wire.fromPort, fromKind: "out", fromX: fromPos.x, fromY: fromPos.y, type }
-				dragWire.value = { path: bezier(fromPos.x, fromPos.y, pos.x, pos.y), fromNode: wire.fromNode, fromPort: wire.fromPort, fromKind: "out", type }
+				dragWire.value = { path: shaderWirePath(fromPos.x, fromPos.y, pos.x, pos.y), fromNode: wire.fromNode, fromPort: wire.fromPort, fromKind: "out", type }
 				window.addEventListener("pointermove", onWireMove)
 				window.addEventListener("pointerup", onWireUp)
 				return
@@ -529,7 +537,7 @@ function startWireDrag(e: PointerEvent, nodeId: string, portKey: string, kind: "
 	}
 
 	dragState = { fromNode: nodeId, fromPort: portKey, fromKind: kind, fromX: pos.x, fromY: pos.y, type }
-	dragWire.value = { path: bezier(pos.x, pos.y, pos.x, pos.y), fromNode: nodeId, fromPort: portKey, fromKind: kind, type }
+	dragWire.value = { path: shaderWirePath(pos.x, pos.y, pos.x, pos.y), fromNode: nodeId, fromPort: portKey, fromKind: kind, type }
 	window.addEventListener("pointermove", onWireMove)
 	window.addEventListener("pointerup", onWireUp)
 }
@@ -538,12 +546,12 @@ function onWireMove(e: PointerEvent) {
 	if (!dragState || !canvasRef.value) return
 	const surface = canvasRef.value.querySelector<HTMLElement>(".shader-graph__surface")
 	if (!surface) return
-	const rect = surface.getBoundingClientRect()
-	const mx = (e.clientX - rect.left) / zoom.value
-	const my = (e.clientY - rect.top) / zoom.value
+	const point = graphPointFromClient(surface, e.clientX, e.clientY, zoom.value)
 	const isOut = dragState.fromKind === "out"
 	dragWire.value = {
-		path: isOut ? bezier(dragState.fromX, dragState.fromY, mx, my) : bezier(mx, my, dragState.fromX, dragState.fromY),
+		path: isOut
+			? shaderWirePath(dragState.fromX, dragState.fromY, point.x, point.y)
+			: shaderWirePath(point.x, point.y, dragState.fromX, dragState.fromY),
 		fromNode: dragState.fromNode,
 		fromPort: dragState.fromPort,
 		fromKind: dragState.fromKind,
@@ -559,9 +567,7 @@ function onWireUp(e: PointerEvent) {
 	// Find port under cursor
 	const surface = canvasRef.value?.querySelector<HTMLElement>(".shader-graph__surface")
 	if (!surface) { dragWire.value = null; dragState = null; return }
-	const rect = surface.getBoundingClientRect()
-	const mx = (e.clientX - rect.left) / zoom.value
-	const my = (e.clientY - rect.top) / zoom.value
+	const point = graphPointFromClient(surface, e.clientX, e.clientY, zoom.value)
 	const targetKind = dragState.fromKind === "out" ? "in" : "out"
 	const SNAP = 20
 	let connected = false
@@ -572,7 +578,7 @@ function onWireUp(e: PointerEvent) {
 		for (const port of ports) {
 			const pos = getPortPos(node.id, port.key, targetKind)
 			if (!pos) continue
-			const dist = Math.sqrt((pos.x - mx) ** 2 + (pos.y - my) ** 2)
+			const dist = Math.sqrt((pos.x - point.x) ** 2 + (pos.y - point.y) ** 2)
 			if (dist < SNAP && areShaderTypesCompatible(dragState.type, port.type)) {
 				const fromNode = dragState.fromKind === "out" ? dragState.fromNode : node.id
 				const fromPort = dragState.fromKind === "out" ? dragState.fromPort : port.key
@@ -703,20 +709,12 @@ function getRenderedPortPos(nodeId: string, portKey: string, kind: "in" | "out")
 	const surface = canvasRef.value?.querySelector<HTMLElement>(".shader-graph__surface")
 	if (!surface) return undefined
 
-	const elements = surface.querySelectorAll<HTMLElement>("[data-shader-port-node-id]")
-	const element = [...elements].find((item) =>
-		item.dataset.shaderPortNodeId === nodeId &&
-		item.dataset.shaderPortKey === portKey &&
-		item.dataset.shaderPortKind === kind
-	)
-	if (!element) return undefined
-
-	const surfaceRect = surface.getBoundingClientRect()
-	const portRect = element.getBoundingClientRect()
-	return {
-		x: (portRect.left + portRect.width / 2 - surfaceRect.left) / zoom.value,
-		y: (portRect.top + portRect.height / 2 - surfaceRect.top) / zoom.value,
-	}
+	return collectRenderedGraphPortPositions(surface, zoom.value, {
+		selector: "[data-shader-port-node-id]",
+		nodeIdDatasetKey: "shaderPortNodeId",
+		portKeyDatasetKey: "shaderPortKey",
+		kindDatasetKey: "shaderPortKind",
+	}).get(graphPortPositionKey(nodeId, portKey, kind))
 }
 
 function resetGraph() {
@@ -880,9 +878,8 @@ function compileProgram(gl: WebGLRenderingContext, fragmentSrc: string): WebGLPr
 }
 
 // ─── Utils ───────────────────────────────────────────────────────────
-function bezier(x1: number, y1: number, x2: number, y2: number): string {
-	const cp = Math.max(50, Math.abs(x2 - x1) * 0.4)
-	return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`
+function shaderWirePath(x1: number, y1: number, x2: number, y2: number): string {
+	return graphBezierPath(x1, y1, x2, y2, { minControl: 50 })
 }
 
 function typeColor(type: GlslType): string {

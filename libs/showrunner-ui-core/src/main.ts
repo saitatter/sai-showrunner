@@ -105,6 +105,7 @@ export * from "./util/arrays"
 export * from "./util/generic-login"
 export * from "./util/init-store"
 export * from "./util/events"
+export * from "./util/graph"
 export * from "./util/data-binding"
 export * from "./components/drag/OrderedTemplateRefs"
 

@@ -1,4 +1,11 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type ComputedRef, type Ref } from "vue"
+import {
+	collectRenderedGraphPortPositions,
+	graphBezierPath,
+	graphPointFromClient,
+	graphPortPositionKey,
+	type GraphPoint,
+} from "showrunner-ui-core/src/util/graph"
 
 /**
  * A data-flow connection between an output port of one node and an input port of another.
@@ -49,11 +56,6 @@ export interface PortNodeInfo {
 export interface DataWireValidation {
 	valid: boolean
 	message?: string
-}
-
-interface PortPosition {
-	x: number
-	y: number
 }
 
 const NODE_WIDTH = 220
@@ -195,24 +197,15 @@ export function usePortConnections(
 	const renderedPortPositions = computed(() => {
 		layoutVersion.value
 		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
-		const positions = new Map<string, PortPosition>()
+		const positions = new Map<string, GraphPoint>()
 		if (!surface) return positions
 
-		const surfaceRect = surface.getBoundingClientRect()
-		const elements = surface.querySelectorAll<HTMLElement>("[data-port-node-id]")
-		for (const element of elements) {
-			const nodeId = element.dataset.portNodeId
-			const portKey = element.dataset.portKey
-			const kind = element.dataset.portKind
-			if (!nodeId || !portKey || (kind !== "in" && kind !== "out")) continue
-
-			const portRect = element.getBoundingClientRect()
-			positions.set(portPositionKey(nodeId, portKey, kind), {
-				x: (portRect.left + portRect.width / 2 - surfaceRect.left) / zoom.value,
-				y: (portRect.top + portRect.height / 2 - surfaceRect.top) / zoom.value,
-			})
-		}
-		return positions
+		return collectRenderedGraphPortPositions(surface, zoom.value, {
+			selector: "[data-port-node-id]",
+			nodeIdDatasetKey: "portNodeId",
+			portKeyDatasetKey: "portKey",
+			kindDatasetKey: "portKind",
+		})
 	})
 
 	/** Computed: wire paths for rendering */
@@ -233,7 +226,7 @@ export function usePortConnections(
 			const validation = validateResolvedWire(fromPort, toPort)
 			return [{
 				id: wire.id,
-				path: bezierPath(start.x, start.y, end.x, end.y),
+				path: graphBezierPath(start.x, start.y, end.x, end.y),
 				color: validation.valid ? portTypeColor(sourceType) : "#ef5350",
 				fromNode: wire.fromNode,
 				fromPort: wire.fromPort,
@@ -258,8 +251,8 @@ export function usePortConnections(
 		const validation = target ? validateDragTarget(drag, target) : { valid: true }
 		return {
 			path: isFromOutput
-				? bezierPath(startX, startY, endX, endY)
-				: bezierPath(endX, endY, startX, startY),
+				? graphBezierPath(startX, startY, endX, endY)
+				: graphBezierPath(endX, endY, startX, startY),
 			color: validation.valid ? "#fff8" : "#ef5350",
 			valid: validation.valid,
 			validationMessage: validation.message,
@@ -450,9 +443,9 @@ export function usePortConnections(
 		if (!wireDrag.value || !canvasRef.value) return
 		const surface = canvasRef.value.querySelector<HTMLElement>(".node-automation__surface")
 		if (!surface) return
-		const rect = surface.getBoundingClientRect()
-		wireDrag.value.currentX = (event.clientX - rect.left) / zoom.value
-		wireDrag.value.currentY = (event.clientY - rect.top) / zoom.value
+		const point = graphPointFromClient(surface, event.clientX, event.clientY, zoom.value)
+		wireDrag.value.currentX = point.x
+		wireDrag.value.currentY = point.y
 	}
 
 	function findPortFromEventTarget(event: PointerEvent, expectedKind: "in" | "out"): PortAddress | undefined {
@@ -465,8 +458,8 @@ export function usePortConnections(
 		return { nodeId, portKey, kind: expectedKind }
 	}
 
-	function getRenderedPortPosition(positions: Map<string, PortPosition>, nodeId: string, portKey: string, kind: "in" | "out") {
-		return positions.get(portPositionKey(nodeId, portKey, kind))
+	function getRenderedPortPosition(positions: Map<string, GraphPoint>, nodeId: string, portKey: string, kind: "in" | "out") {
+		return positions.get(graphPortPositionKey(nodeId, portKey, kind))
 	}
 
 	function getPortDef(address: PortAddress) {
@@ -519,10 +512,6 @@ export function usePortConnections(
 	}
 }
 
-function portPositionKey(nodeId: string, portKey: string, kind: "in" | "out") {
-	return `${kind}:${nodeId}:${portKey}`
-}
-
 function validateResolvedWire(fromPort: PortDef | undefined, toPort: PortDef | undefined): DataWireValidation {
 	if (!fromPort) return { valid: false, message: "Missing output port." }
 	if (!toPort) return { valid: false, message: "Missing input port." }
@@ -530,10 +519,4 @@ function validateResolvedWire(fromPort: PortDef | undefined, toPort: PortDef | u
 		return { valid: false, message: `Incompatible wire: ${fromPort.type} -> ${toPort.type}` }
 	}
 	return { valid: true }
-}
-
-function bezierPath(x1: number, y1: number, x2: number, y2: number): string {
-	const dx = Math.abs(x2 - x1)
-	const cp = Math.max(60, dx * 0.4)
-	return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`
 }
