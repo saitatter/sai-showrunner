@@ -97,47 +97,12 @@
 							message="The trigger was removed or renamed. Pick a new trigger from the context menu to repair this automation."
 						/>
 						<trigger-config-edit v-else-if="selectedNode.kind === 'trigger' && selectedTriggerConfigModel" v-model="selectedTriggerConfigModelModel" />
-						<div v-else-if="selectedNode.kind === 'variable' && selectedVariableNode" class="node-automation__variable-edit">
-							<label>
-								<span>Name</span>
-								<input
-									type="text"
-									:value="selectedVariableNode?.name"
-									placeholder="Variable name..."
-									@change="onUpdateVariableNodeName(($event.target as HTMLInputElement).value)"
-								/>
-							</label>
-							<label>
-								<span>Value</span>
-								<input
-									v-if="selectedVariableNode?.type === 'string'"
-									type="text"
-									:value="selectedVariableNode.value"
-									@change="onUpdateVariableNodeValue(($event.target as HTMLInputElement).value)"
-								/>
-								<input
-									v-else-if="selectedVariableNode?.type === 'number'"
-									type="number"
-									:value="selectedVariableNode.value"
-									step="any"
-									@change="onUpdateVariableNodeValue(Number(($event.target as HTMLInputElement).value))"
-								/>
-								<select
-									v-else-if="selectedVariableNode?.type === 'boolean'"
-									:value="String(selectedVariableNode.value)"
-									@change="onUpdateVariableNodeValue(($event.target as HTMLSelectElement).value === 'true')"
-								>
-									<option value="true">true</option>
-									<option value="false">false</option>
-								</select>
-								<input
-									v-else-if="selectedVariableNode?.type === 'color'"
-									type="color"
-									:value="selectedVariableNode.value"
-									@change="onUpdateVariableNodeValue(($event.target as HTMLInputElement).value)"
-								/>
-							</label>
-						</div>
+						<variable-node-config
+							v-else-if="selectedNode.kind === 'variable' && selectedVariableNode"
+							:variable-node="selectedVariableNode"
+							@update:name="onUpdateVariableNodeName"
+							@update:value="onUpdateVariableNodeValue"
+						/>
 						<div v-else-if="selectedControlNode" class="node-automation__control-edit">
 							<template v-if="selectedControlNode.type === 'if' || selectedControlNode.type === 'while'">
 								<label>
@@ -464,6 +429,7 @@ import type { AnnotationBlock } from "./useAnnotationBlocks"
 import type { NodeData } from "./useNodeRendering"
 import ExpressionTextInput from "./ExpressionTextInput.vue"
 import MissingSchemaNotice from "./MissingSchemaNotice.vue"
+import VariableNodeConfig from "./VariableNodeConfig.vue"
 
 interface ActionPalettePlugin {
 	id: string
@@ -1021,14 +987,12 @@ const selectedTriggerConfigModelModel = computed({
 }
 
 .node-automation__annotation-edit,
-.node-automation__variable-edit,
 .node-automation__control-edit {
 	display: grid;
 	gap: 0.55rem;
 }
 
 .node-automation__annotation-edit label,
-.node-automation__variable-edit label,
 .node-automation__control-edit label {
 	display: flex;
 	flex-direction: column;
@@ -1036,7 +1000,6 @@ const selectedTriggerConfigModelModel = computed({
 }
 
 .node-automation__annotation-edit label span,
-.node-automation__variable-edit label span,
 .node-automation__control-edit label span {
 	color: var(--text-color-secondary);
 	font-size: 0.75rem;
@@ -1045,8 +1008,6 @@ const selectedTriggerConfigModelModel = computed({
 }
 
 .node-automation__annotation-edit input,
-.node-automation__variable-edit input,
-.node-automation__variable-edit select,
 .node-automation__control-edit input,
 .node-automation__control-edit select {
 	background: var(--surface-a);
