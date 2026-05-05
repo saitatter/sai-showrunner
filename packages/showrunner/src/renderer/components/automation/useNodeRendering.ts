@@ -12,6 +12,7 @@ import {
 	type GraphNode,
 	type GraphNodeType,
 	type AutomationConfig,
+	type AutomationTriggerNode,
 	type SubgraphDefinition,
 } from "showrunner-schema"
 import type { PortDef } from "./usePortConnections"
@@ -404,49 +405,73 @@ export function buildGraph(
 		pluginMap,
 		automation.subgraphs ?? []
 	)
-	const triggerId = "trigger"
-	const triggerNode: NodeData = {
-		id: triggerId,
-		kind: "trigger",
-		title: getTriggerMissing(automation, pluginMap) ? "Missing trigger" : automation.trigger ? titleCase(automation.trigger) : "Start",
-		subtitle: automation.plugin ? `${automation.plugin} / ${automation.trigger ?? "trigger"}` : "Entry point",
-		icon: getTriggerMissing(automation, pluginMap) ? "mdi mdi-alert-circle-outline" : "mdi mdi-flash",
-		badge: getTriggerMissing(automation, pluginMap) ? "Missing" : undefined,
-		missing: getTriggerMissing(automation, pluginMap),
-		x: 42,
-		y: 88,
-		configLines: getTriggerMissing(automation, pluginMap)
-			? [
-				{ label: "plugin", value: automation.plugin || "unknown" },
-				{ label: "trigger", value: automation.trigger || "unknown" },
-			]
-			: undefined,
-		outputPorts: getTriggerOutputPorts(automation, pluginMap),
-		height: NODE_BASE_HEIGHT,
-	}
-	triggerNode.height = computeNodeHeight(triggerNode.configLines, undefined, triggerNode.outputPorts)
-	const nodes = [triggerNode, ...graphNodes]
+	const triggerNodes = getRenderableTriggerNodes(automation).map((trigger) => triggerNodeToNodeData(trigger, pluginMap))
+	const nodes = [...triggerNodes, ...graphNodes]
 	const edges = [...graphEdges]
-	if (automation.graph?.entryNodeId) {
+	if (automation.graph?.entryNodeId && !edges.some((edge) => triggerNodes.some((trigger) => edge.from === trigger.id))) {
+		const triggerId = triggerNodes[0]?.id ?? "trigger"
 		edges.push({ id: `${triggerId}:${automation.graph.entryNodeId}`, from: triggerId, to: automation.graph.entryNodeId })
 	}
 	return { nodes, edges }
 }
 
+function getRenderableTriggerNodes(automation: AutomationConfig): AutomationTriggerNode[] {
+	if (Array.isArray(automation.triggerNodes) && automation.triggerNodes.length) return automation.triggerNodes
+	return [
+		{
+			id: "trigger",
+			plugin: (automation as any).plugin,
+			trigger: (automation as any).trigger,
+			config: (automation as any).config ?? {},
+			stop: (automation as any).stop,
+			x: 42,
+			y: 88,
+		},
+	]
+}
+
+function triggerNodeToNodeData(
+	trigger: AutomationTriggerNode,
+	pluginMap: Map<string, { triggers?: Record<string, { context?: unknown }> }>
+): NodeData {
+	const missing = getTriggerMissing(trigger, pluginMap)
+	const node: NodeData = {
+		id: trigger.id,
+		kind: "trigger",
+		title: missing ? "Missing trigger" : trigger.trigger ? titleCase(trigger.trigger) : "Start",
+		subtitle: trigger.plugin ? `${trigger.plugin} / ${trigger.trigger ?? "trigger"}` : "Entry point",
+		icon: missing ? "mdi mdi-alert-circle-outline" : "mdi mdi-flash",
+		badge: missing ? "Missing" : undefined,
+		missing,
+		x: trigger.x,
+		y: trigger.y,
+		configLines: missing
+			? [
+				{ label: "plugin", value: trigger.plugin || "unknown" },
+				{ label: "trigger", value: trigger.trigger || "unknown" },
+			]
+			: undefined,
+		outputPorts: getTriggerOutputPorts(trigger, pluginMap),
+		height: NODE_BASE_HEIGHT,
+	}
+	node.height = computeNodeHeight(node.configLines, undefined, node.outputPorts)
+	return node
+}
+
 function getTriggerMissing(
-	automation: AutomationConfig,
+	trigger: Pick<AutomationTriggerNode, "plugin" | "trigger">,
 	pluginMap: Map<string, { triggers?: Record<string, { context?: unknown }> }>
 ) {
-	if (!automation.plugin || !automation.trigger) return false
-	return !pluginMap.get(automation.plugin)?.triggers?.[automation.trigger]
+	if (!trigger.plugin || !trigger.trigger) return false
+	return !pluginMap.get(trigger.plugin)?.triggers?.[trigger.trigger]
 }
 
 function getTriggerOutputPorts(
-	automation: AutomationConfig,
+	trigger: Pick<AutomationTriggerNode, "plugin" | "trigger">,
 	pluginMap: Map<string, { triggers?: Record<string, { context?: unknown }> }>
 ): PortDef[] | undefined {
-	if (!automation.plugin || !automation.trigger) return undefined
-	const context = pluginMap.get(automation.plugin)?.triggers?.[automation.trigger]?.context
+	if (!trigger.plugin || !trigger.trigger) return undefined
+	const context = pluginMap.get(trigger.plugin)?.triggers?.[trigger.trigger]?.context
 	if (!context || typeof context === "function") return undefined
 	const ports = schemaToPorts(context)
 	return ports.length ? ports : undefined

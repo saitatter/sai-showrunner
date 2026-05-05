@@ -1,7 +1,8 @@
-import type { AutomationConfig, AutomationData, InlineAutomation } from "./automations"
+import type { AutomationConfig, AutomationData, AutomationTriggerNode, InlineAutomation } from "./automations"
 import type { AutomationDataWire, AutomationGraph, SubgraphDefinition } from "./graph"
 
 const EMPTY_GRAPH: AutomationGraph = { nodes: [], edges: [], entryNodeId: "" }
+const LEGACY_TRIGGER_NODE_ID = "trigger"
 
 export function normalizeAutomationData<T extends Partial<AutomationData> & Record<string, any>>(
 	input: T
@@ -15,6 +16,7 @@ export function normalizeAutomationData<T extends Partial<AutomationData> & Reco
 	target.subgraphs = Array.isArray(target.subgraphs) ? target.subgraphs.map(normalizeSubgraph) : []
 	target.dataWires = Array.isArray(target.dataWires) ? target.dataWires : []
 	target.variableNodes = Array.isArray(target.variableNodes) ? target.variableNodes : []
+	target.triggerNodes = normalizeTriggerNodes(target.triggerNodes, target)
 
 	for (const staleKey of [String.fromCharCode(115, 101, 113, 117, 101, 110, 99, 101), `floating${"Seq"}uences`]) {
 		delete target[staleKey]
@@ -37,6 +39,43 @@ function normalizeSubgraph(subgraph: SubgraphDefinition): SubgraphDefinition {
 
 function normalizeDataWires(wires: AutomationDataWire[] | undefined): AutomationDataWire[] {
 	return Array.isArray(wires) ? wires.filter((wire) => wire?.id && wire.fromNode && wire.toNode && wire.fromPort && wire.toPort) : []
+}
+
+function normalizeTriggerNodes(value: unknown, legacySource: Record<string, any>): AutomationTriggerNode[] {
+	const triggerNodes = Array.isArray(value)
+		? value
+			.filter((node) => node && typeof node === "object")
+			.map((node) => normalizeTriggerNode(node as Partial<AutomationTriggerNode> & Record<string, any>))
+			.filter((node): node is AutomationTriggerNode => Boolean(node))
+		: []
+
+	if (triggerNodes.length) return triggerNodes
+	if (!legacySource.plugin && !legacySource.trigger) return []
+
+	return [
+		{
+			id: LEGACY_TRIGGER_NODE_ID,
+			plugin: typeof legacySource.plugin === "string" ? legacySource.plugin : undefined,
+			trigger: typeof legacySource.trigger === "string" ? legacySource.trigger : undefined,
+			config: legacySource.config ?? {},
+			stop: typeof legacySource.stop === "boolean" ? legacySource.stop : undefined,
+			x: 42,
+			y: 88,
+		},
+	]
+}
+
+function normalizeTriggerNode(node: Partial<AutomationTriggerNode> & Record<string, any>): AutomationTriggerNode | undefined {
+	if (typeof node.id !== "string" || !node.id) return undefined
+	return {
+		id: node.id,
+		plugin: typeof node.plugin === "string" ? node.plugin : undefined,
+		trigger: typeof node.trigger === "string" ? node.trigger : undefined,
+		config: node.config ?? {},
+		stop: typeof node.stop === "boolean" ? node.stop : undefined,
+		x: typeof node.x === "number" && Number.isFinite(node.x) ? node.x : 42,
+		y: typeof node.y === "number" && Number.isFinite(node.y) ? node.y : 88,
+	}
 }
 
 export function normalizeInlineAutomation<T extends Partial<InlineAutomation> & Record<string, any>>(input: T) {

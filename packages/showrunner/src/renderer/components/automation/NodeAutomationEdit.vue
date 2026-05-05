@@ -2780,8 +2780,20 @@ async function selectTriggerFromContext(triggerKey: string) {
 		stop: model.value.stop ?? false,
 		testContext: contextSchema ? await constructDefault(contextSchema) : model.value.testContext,
 	})
+	const currentTriggerNode = Array.isArray(model.value.triggerNodes) && model.value.triggerNodes[0]
+		? model.value.triggerNodes[0]
+		: { id: "trigger", x: 42, y: 88 }
+	model.value.triggerNodes = [
+		{
+			...currentTriggerNode,
+			plugin: pluginId,
+			trigger: triggerId,
+			config: nextConfig,
+			stop: model.value.stop ?? false,
+		},
+	]
 
-	focusNode("trigger")
+	focusNode(currentTriggerNode.id)
 	configOpen.value = true
 	closeContextMenu()
 	commitUndo()
