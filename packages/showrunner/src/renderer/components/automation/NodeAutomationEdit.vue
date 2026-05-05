@@ -54,11 +54,14 @@
 					:canvas-search-result-count="canvasSearchResults.length"
 					:active-subgraph="activeSubgraph"
 					:invalid-data-wire-issues="invalidDataWireIssues"
+					:invalid-flow-edge-issues="invalidFlowEdgeIssues"
 					:on-cycle-search-result="cycleSearchResult"
 					:on-close-canvas-search="closeCanvasSearch"
 					:on-open-main-canvas="openMainCanvas"
 					:on-select-data-wire-issue="selectDataWireIssue"
 					:on-cleanup-invalid-data-wires="cleanupInvalidDataWires"
+					:on-select-flow-edge-issue="selectFlowEdgeIssue"
+					:on-cleanup-invalid-flow-edges="cleanupInvalidFlowEdges"
 				/>
 
 				<div
@@ -290,6 +293,7 @@ import { useGraphTriggerNodes } from "./useGraphTriggerNodes"
 import { useAutomationPreview } from "./useAutomationPreview"
 import { usePortConnections } from "./usePortConnections"
 import { useDataWireHealth } from "./useDataWireHealth"
+import { getInvalidFlowEdgeIssues, type InvalidFlowEdgeIssue } from "./useFlowEdgeHealth"
 import { useExecEdges } from "./useExecEdges"
 import { useClipboard } from "./useClipboard"
 import {
@@ -514,6 +518,7 @@ const edges = computed<EdgeData[]>(() => {
 	}).filter((e) => e.path)
 })
 const visibleFlowEdges = computed(() => edges.value)
+const invalidFlowEdgeIssues = computed(() => getInvalidFlowEdgeIssues(visibleFlowEdges.value, nodes.value))
 const currentPreviewRouteLabel = computed(() => {
 	const nodeId = currentPreviewStep.value?.node.id
 	if (!nodeId || !activeGraph.value) return undefined
@@ -1089,6 +1094,24 @@ function selectFlowEdge(edgeId: string) {
 	clearNodeSelection()
 	selectedDataWireId.value = undefined
 	selectedEdgeId.value = edgeId
+}
+
+function selectFlowEdgeIssue(issue: InvalidFlowEdgeIssue) {
+	selectFlowEdge(issue.id)
+}
+
+function cleanupInvalidFlowEdges() {
+	const invalidIssues = invalidFlowEdgeIssues.value
+	if (!invalidIssues.length || !activeGraph.value) return
+	const invalidIds = new Set(invalidIssues.map((issue) => issue.id))
+	activeGraph.value.edges = activeGraph.value.edges.filter((edge) => !invalidIds.has(edge.id))
+	for (const issue of invalidIssues) {
+		if (issue.from === "trigger" && activeGraph.value.entryNodeId === issue.to) {
+			activeGraph.value.entryNodeId = ""
+		}
+	}
+	selectedEdgeId.value = undefined
+	commitUndo()
 }
 
 function selectDataWire(wireId: string) {

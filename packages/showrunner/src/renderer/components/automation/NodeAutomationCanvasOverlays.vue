@@ -38,6 +38,16 @@
 		<button type="button" @click="onSelectDataWireIssue(invalidDataWireIssues[0])">Select</button>
 		<button type="button" @click="onCleanupInvalidDataWires()">Clean up</button>
 	</div>
+
+	<div v-if="invalidFlowEdgeIssues.length" class="node-automation__wire-health" @click.stop @pointerdown.stop>
+		<i class="mdi mdi-alert-circle-outline" />
+		<div>
+			<strong>{{ invalidFlowEdgeIssues.length }} invalid sequence edge{{ invalidFlowEdgeIssues.length === 1 ? "" : "s" }}</strong>
+			<small>{{ invalidFlowEdgeIssues[0].message }}</small>
+		</div>
+		<button type="button" @click="onSelectFlowEdgeIssue(invalidFlowEdgeIssues[0])">Select</button>
+		<button type="button" @click="onCleanupInvalidFlowEdges()">Clean up</button>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -49,6 +59,11 @@ interface InvalidDataWireIssue {
 	message: string
 }
 
+interface InvalidFlowEdgeIssue {
+	id: string
+	message: string
+}
+
 const props = defineProps<{
 	canvasSearchOpen: boolean
 	canvasSearchQuery: string
@@ -56,11 +71,14 @@ const props = defineProps<{
 	canvasSearchResultCount: number
 	activeSubgraph?: SubgraphDefinition
 	invalidDataWireIssues: InvalidDataWireIssue[]
+	invalidFlowEdgeIssues: InvalidFlowEdgeIssue[]
 	onCycleSearchResult: (direction: -1 | 1) => void
 	onCloseCanvasSearch: () => void
 	onOpenMainCanvas: () => void
 	onSelectDataWireIssue: (issue: InvalidDataWireIssue) => void
 	onCleanupInvalidDataWires: () => void
+	onSelectFlowEdgeIssue: (issue: InvalidFlowEdgeIssue) => void
+	onCleanupInvalidFlowEdges: () => void
 }>()
 
 const emit = defineEmits<{
@@ -191,6 +209,10 @@ defineExpose({
 	position: sticky;
 	top: 4.25rem;
 	z-index: 22;
+}
+
+.node-automation__wire-health + .node-automation__wire-health {
+	top: 7.35rem;
 }
 
 .node-automation__wire-health > i {
