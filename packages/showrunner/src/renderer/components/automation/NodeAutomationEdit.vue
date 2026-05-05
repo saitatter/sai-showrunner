@@ -322,6 +322,7 @@ import { useControlFlowNodes } from "./useControlFlowNodes"
 import { useSubgraphCollapse } from "./useSubgraphCollapse"
 import { useNodeResize } from "./useNodeResize"
 import { resolveActionDefinition } from "./actionLookup"
+import { useSubgraphCallNodes } from "./useSubgraphCallNodes"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
@@ -919,6 +920,21 @@ const {
 	focusedSubgraphId,
 	subgraphsOpen,
 	focusNode,
+	commitUndo,
+})
+
+const {
+	addSubgraphCallNode,
+	openSubgraphFromNode,
+} = useSubgraphCallNodes({
+	activeGraph,
+	focusedSubgraphId,
+	pendingFlowConnection,
+	getContextMenuCanvasPoint: () => contextMenu.value.canvasPoint,
+	ensureGraph,
+	connectFlowToNode,
+	openSubgraphCanvas,
+	closeContextMenu,
 	commitUndo,
 })
 
@@ -1535,36 +1551,6 @@ function updateGhostNode(event: DragEvent) {
 
 function getCanvasPointFromClient(clientX: number, clientY: number): NodePosition {
 	return getCanvasPointFromClientPosition(clientX, clientY)
-}
-
-// ─── Subgraph Management ──────────────────────────────────────────────────────
-
-function addSubgraphCallNode(subgraphId: string) {
-	const graph = ensureGraph()
-	const canvasPoint = contextMenu.value.canvasPoint ?? { x: 100, y: 200 }
-	const id = nanoid()
-	graph.nodes.push({
-		id,
-		type: "subgraphCall",
-		x: canvasPoint.x,
-		y: canvasPoint.y,
-		subgraphId,
-		inputs: {},
-	})
-	if (pendingFlowConnection.value) {
-		connectFlowToNode(pendingFlowConnection.value.fromNode, pendingFlowConnection.value.fromPort, id)
-	} else if (!graph.entryNodeId) {
-		graph.entryNodeId = id
-	}
-	focusedSubgraphId.value = subgraphId
-	closeContextMenu()
-	commitUndo()
-}
-
-function openSubgraphFromNode(nodeId: string) {
-	const graphNode = activeGraph.value?.nodes.find((node) => node.id === nodeId)
-	if (graphNode?.type !== "subgraphCall") return
-	openSubgraphCanvas(graphNode.subgraphId)
 }
 
 async function runMainExecution() {
