@@ -1,6 +1,7 @@
 import type {
 	AutomationGraph,
 	AutomationDataWire,
+	AutomationTriggerNode,
 	GraphNode,
 	GraphEdge,
 	SubgraphDefinition,
@@ -86,6 +87,8 @@ export interface Program {
 	slotNames: string[]
 	/** Maps "toNodeId:toPort" → wire source for data resolution at runtime */
 	wireMap: Record<string, WireSource>
+	/** Node ids that resolve data-wire outputs from the trigger execution context. */
+	contextSourceNodeIds?: string[]
 	/** All graph node ids that may receive data wires, including subgraph calls and control nodes. */
 	wireTargetNodeIds: string[]
 }
@@ -124,7 +127,12 @@ export class GraphCompiler {
 		this.maxIterations = options.maxIterations ?? 10000
 	}
 
-	compile(graph: AutomationGraph, subgraphs?: SubgraphDefinition[], dataWires?: AutomationDataWire[]): Program {
+	compile(
+		graph: AutomationGraph,
+		subgraphs?: SubgraphDefinition[],
+		dataWires?: AutomationDataWire[],
+		triggerNodes?: Pick<AutomationTriggerNode, "id">[]
+	): Program {
 		this.reset()
 		this.buildMaps(graph.nodes, graph.edges)
 		this.subgraphIndexById = new Map((subgraphs ?? []).map((sg, index) => [sg.id, index]))
@@ -175,9 +183,16 @@ export class GraphCompiler {
 			localSlotCount: this.nextSlot,
 			slotNames,
 			wireMap,
+			contextSourceNodeIds: [
+				...new Set([
+					"trigger",
+					...(triggerNodes ?? []).map((node) => node.id).filter(Boolean),
+				]),
+			],
 			wireTargetNodeIds: [
 				...new Set([
 					"trigger",
+					...(triggerNodes ?? []).map((node) => node.id).filter(Boolean),
 					...graph.nodes.map((node) => node.id),
 					...(subgraphs ?? []).flatMap((subgraph) => subgraph.nodes.map((node) => node.id)),
 				]),

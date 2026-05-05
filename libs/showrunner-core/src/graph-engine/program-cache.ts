@@ -10,18 +10,18 @@ interface CachedProgram {
 
 const programCache = new Map<string, CachedProgram>()
 
-export function compileAutomationProgram(automation: Pick<AutomationData, "graph" | "subgraphs" | "dataWires">): Program {
+export function compileAutomationProgram(automation: Pick<AutomationData, "graph" | "subgraphs" | "dataWires" | "triggerNodes">): Program {
 	const signature = getAutomationProgramSignature(automation)
 	const cached = programCache.get(signature)
 	if (cached) return cached.program
 
-	const program = new GraphCompiler().compile(automation.graph, automation.subgraphs, automation.dataWires)
+	const program = new GraphCompiler().compile(automation.graph, automation.subgraphs, automation.dataWires, automation.triggerNodes)
 	programCache.set(signature, { signature, program })
 	trimProgramCache()
 	return program
 }
 
-export function validateAutomationProgram(automation: Pick<AutomationData, "graph" | "subgraphs" | "dataWires">) {
+export function validateAutomationProgram(automation: Pick<AutomationData, "graph" | "subgraphs" | "dataWires" | "triggerNodes">) {
 	compileAutomationProgram(automation)
 }
 
@@ -29,11 +29,12 @@ export function clearAutomationProgramCache() {
 	programCache.clear()
 }
 
-function getAutomationProgramSignature(automation: Pick<AutomationData, "graph" | "subgraphs" | "dataWires">) {
+function getAutomationProgramSignature(automation: Pick<AutomationData, "graph" | "subgraphs" | "dataWires" | "triggerNodes">) {
 	return JSON.stringify({
 		graph: automation.graph,
 		subgraphs: automation.subgraphs ?? [],
 		dataWires: automation.dataWires ?? [],
+		triggerNodes: automation.triggerNodes ?? [],
 	})
 }
 
