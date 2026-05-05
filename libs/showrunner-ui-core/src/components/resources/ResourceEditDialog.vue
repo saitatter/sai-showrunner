@@ -15,8 +15,9 @@
 				</p-float-label>
 			</p-input-group>
 		</template>
+		<small v-if="nameError" class="p-error">{{ nameError }}</small>
 		<div class="flex justify-content-end mt-1">
-			<p-button :label="isCreate ? 'Create' : 'Save'" @click="submit"></p-button>
+			<p-button :label="isCreate ? 'Create' : 'Save'" :disabled="Boolean(nameError)" @click="submit"></p-button>
 		</div>
 	</div>
 </template>
@@ -49,6 +50,22 @@ const resourceId = computed<string | undefined>(() => {
 const resource = useResourceData(resourceType)
 
 const isCreate = computed(() => resourceId.value == null)
+const requiresName = computed(() => {
+	const schema = resource.value?.configSchema
+	if (!schema || schema.type !== Object || !("properties" in schema)) return false
+	const nameSchema = schema.properties.name
+	return Boolean(nameSchema && nameSchema.type === String && nameSchema.required)
+})
+const nameError = computed(() => {
+	if (typeof config.value === "string") {
+		return config.value.trim() ? "" : "Name cannot be empty."
+	}
+	if (config.value && typeof config.value === "object" && (requiresName.value || "name" in config.value)) {
+		const name = config.value.name
+		return typeof name === "string" && name.trim() ? "" : "Name cannot be empty."
+	}
+	return ""
+})
 
 provideScrollAttachable(container)
 
@@ -68,6 +85,15 @@ onMounted(async () => {
 })
 
 function submit() {
+	if (nameError.value) return
+	if (typeof config.value === "string") {
+		dialogRef?.value?.close(config.value.trim())
+		return
+	}
+	if (config.value && typeof config.value === "object" && "name" in config.value && typeof config.value.name === "string") {
+		dialogRef?.value?.close({ ...config.value, name: config.value.name.trim() })
+		return
+	}
 	dialogRef?.value?.close(config.value)
 }
 </script>

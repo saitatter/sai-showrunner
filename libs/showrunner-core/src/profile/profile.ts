@@ -10,6 +10,7 @@ import {
 	normalizeInlineAutomation,
 } from "showrunner-schema"
 import { Resource, ResourceStorage } from "../resources/resource"
+import { normalizeRequiredResourceName } from "../resources/resource-name"
 import { FileResource } from "../resources/file-resource"
 import { nanoid } from "nanoid/non-secure"
 import { evaluateBooleanExpression } from "../util/boolean-helpers"
@@ -30,7 +31,8 @@ export class Profile extends FileResource<ProfileConfig, ProfileState> {
 	constructor(name?: string) {
 		super()
 
-		if (name) {
+		if (name !== undefined) {
+			name = normalizeRequiredResourceName(name, "Profile name")
 			this._id = nanoid()
 		}
 
@@ -64,12 +66,16 @@ export class Profile extends FileResource<ProfileConfig, ProfileState> {
 	}
 
 	async setConfig(config: ProfileConfig): Promise<boolean> {
+		config = { ...config, name: normalizeRequiredResourceName(config.name, "Profile name") }
 		const result = await super.setConfig(config)
 		await this.setupReactivity()
 		return result
 	}
 
 	async applyConfig(config: Partial<ProfileConfig>): Promise<boolean> {
+		if ("name" in config) {
+			config = { ...config, name: normalizeRequiredResourceName(config.name, "Profile name") }
+		}
 		const result = await super.applyConfig(config)
 		await this.setupReactivity()
 		return result

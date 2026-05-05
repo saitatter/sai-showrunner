@@ -7,15 +7,16 @@
 					<label for="l"> {{ props.label }} </label>
 				</p-float-label>
 			</p-input-group>
+			<small v-if="nameError" class="p-error">{{ nameError }}</small>
 			<div class="flex justify-content-end mt-1">
-				<p-button type="submit" label="Create"></p-button>
+				<p-button type="submit" label="Create" :disabled="Boolean(nameError)"></p-button>
 			</div>
 		</form>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject, type Ref, onMounted } from "vue"
+import { computed, onMounted, ref } from "vue"
 import PInputText from "primevue/inputtext"
 import PButton from "primevue/button"
 import PInputGroup from "primevue/inputgroup"
@@ -34,9 +35,17 @@ const props = withDefaults(
 )
 
 const name = ref<string>("")
+const normalizedName = computed(() => name.value.trim())
+const nameError = computed(() => normalizedName.value ? "" : `${props.label} cannot be empty.`)
+
+onMounted(() => {
+	const existingName = dialogRef.value?.data?.existingName
+	if (typeof existingName === "string") name.value = existingName
+})
 
 function create() {
-	dialogRef.value?.close(name.value)
+	if (nameError.value) return
+	dialogRef.value?.close(normalizedName.value)
 }
 
 /*

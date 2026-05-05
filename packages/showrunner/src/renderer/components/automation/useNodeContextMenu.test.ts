@@ -1,5 +1,5 @@
 import { computed } from "vue"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { useNodeContextMenu } from "./useNodeContextMenu"
 
 function makePluginStore(disabledIds: string[] = []) {
@@ -104,11 +104,24 @@ function createContextMenuWithoutShowRunner() {
 }
 
 describe("useNodeContextMenu", () => {
-	it("keeps categories collapsed while data conversions are visible by default", () => {
+	it("keeps categories and data collapsed by default", () => {
 		const menu = createContextMenu()
 
 		expect(menu.isContextGroupOpen("categories")).toBe(false)
+		expect(menu.isContextGroupOpen("data")).toBe(false)
+	})
+
+	it("resets data to collapsed when reopening the context menu", () => {
+		const menu = createContextMenu()
+
+		menu.toggleContextGroup("data")
 		expect(menu.isContextGroupOpen("data")).toBe(true)
+
+		vi.stubGlobal("window", { innerWidth: 1200, innerHeight: 800 })
+		menu.openContextMenuAt(10, 10)
+		vi.unstubAllGlobals()
+
+		expect(menu.isContextGroupOpen("data")).toBe(false)
 	})
 
 	it("surfaces matching nodes in search even when their groups are collapsed", () => {

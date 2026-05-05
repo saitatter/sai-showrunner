@@ -1,5 +1,6 @@
 import {
 	FileResource,
+	normalizeRequiredResourceName,
 	PluginManager,
 	ReactiveEffect,
 	ResourceStorage,
@@ -41,6 +42,7 @@ export class Overlay extends FileResource<OverlayConfig> {
 		super()
 
 		if (initialConfig) {
+			initialConfig = { ...initialConfig, name: normalizeRequiredResourceName(initialConfig.name, "Overlay name") }
 			this._id = nanoid()
 		}
 
@@ -52,6 +54,7 @@ export class Overlay extends FileResource<OverlayConfig> {
 	}
 
 	async setConfig(config: OverlayConfig): Promise<boolean> {
+		config = { ...config, name: normalizeRequiredResourceName(config.name, "Overlay name") }
 		const result = await super.setConfig(config)
 		OverlayWebsocketService.getInstance().overlayConfigChanged(this.id)
 
@@ -64,6 +67,9 @@ export class Overlay extends FileResource<OverlayConfig> {
 	}
 
 	async applyConfig(config: Partial<OverlayConfig>): Promise<boolean> {
+		if ("name" in config) {
+			config = { ...config, name: normalizeRequiredResourceName(config.name, "Overlay name") }
+		}
 		const result = await super.applyConfig(config)
 		OverlayWebsocketService.getInstance().overlayConfigChanged(this.id)
 

@@ -82,7 +82,7 @@ export function useNodeContextMenu(
 		triggers: true,
 		actions: true,
 		categories: false,
-		data: true,
+		data: false,
 		"category:data-transforms": true,
 		"category:queues": true,
 		"category:overlays": true,
@@ -182,6 +182,7 @@ export function useNodeContextMenu(
 			canvasPoint,
 		}
 		contextMenuQuery.value = ""
+		contextMenuOpenGroups.value.data = false
 
 		if (nodeId) {
 			const node = nodes.value.find((entry) => entry.id === nodeId)
