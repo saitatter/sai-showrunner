@@ -309,18 +309,7 @@ export function useNodeContextMenu(
 	}
 }
 
-const CONVERSION_ACTION_IDS = new Set([
-	"convertnumbertostring",
-	"convertbooleantostring",
-	"convertstringtonumber",
-	"convertbooleantonumber",
-	"convertnumbertoboolean",
-	"convertstringtoboolean",
-	"convertobjecttojsonstring",
-	"convertarraytojsonstring",
-	"convertjsonstringtoobject",
-	"convertjsonstringtoarray",
-])
+const CONVERSION_ACTION_IDS = new Set(CORE_CONVERSION_ACTIONS.map((action) => normalizeActionId(action.id)))
 
 export function isConversionActionId(actionId: string) {
 	return CONVERSION_ACTION_IDS.has(normalizeActionId(actionId))
