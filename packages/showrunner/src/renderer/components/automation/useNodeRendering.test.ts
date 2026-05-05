@@ -150,4 +150,31 @@ describe("useNodeRendering", () => {
 		expect(rendered.nodes[0].inputPorts?.map((port) => port.key)).toEqual(["value"])
 		expect(rendered.nodes[0].outputPorts?.map((port) => port.key)).toEqual(["value"])
 	})
+
+	it("renders core conversion nodes when plugin metadata is unavailable", () => {
+		const graph: AutomationGraph = {
+			entryNodeId: "convert-1",
+			nodes: [
+				{
+					id: "convert-1",
+					type: "action",
+					plugin: "ShowRunner",
+					action: "convertJsonStringToObject",
+					config: { value: "{}" },
+					x: 10,
+					y: 20,
+				},
+			],
+			edges: [],
+		}
+		const rendered = buildGraphFromAutomationGraph(graph, new Map())
+
+		expect(rendered.nodes[0]).toMatchObject({
+			kind: "conversion",
+			title: "Convert JSON String To Object",
+		})
+		expect(rendered.nodes[0].missing).toBeUndefined()
+		expect(rendered.nodes[0].inputPorts?.map((port) => port.key)).toEqual(["value"])
+		expect(rendered.nodes[0].outputPorts?.map((port) => port.key)).toEqual(["value", "converted"])
+	})
 })
