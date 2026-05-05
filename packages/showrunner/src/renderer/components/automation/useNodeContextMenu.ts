@@ -41,8 +41,28 @@ interface MenuLane {
 	id: string
 }
 
+interface MenuAction {
+	name: string
+	icon?: string
+	type?: string
+}
+
+interface MenuTrigger {
+	name: string
+	icon?: string
+}
+
+interface MenuPlugin {
+	id: string
+	name: string
+	icon: string
+	color?: string
+	actions?: Record<string, MenuAction>
+	triggers?: Record<string, MenuTrigger>
+}
+
 interface PluginStoreLike {
-	pluginMap: Map<string, any>
+	pluginMap: Map<string, MenuPlugin>
 	isPluginEnabled?: (pluginId: string) => boolean
 }
 
@@ -182,10 +202,10 @@ export function useNodeContextMenu(
 		return contextMenuOpenGroups.value[key] ?? false
 	}
 
-	function buildContextGroups(
+	function buildContextGroups<Entry extends MenuAction | MenuTrigger>(
 		kind: "actions" | "triggers",
-		getEntries: (plugin: any) => Record<string, any>,
-		getMeta: (entry: any) => { name: string; icon: string }
+		getEntries: (plugin: MenuPlugin) => Record<string, Entry> | undefined,
+		getMeta: (entry: Entry) => { name: string; icon: string }
 	): ContextMenuGroup[] {
 		const query = contextMenuSearch.value
 		return [...pluginStore.pluginMap.values()]
@@ -219,10 +239,10 @@ export function useNodeContextMenu(
 			.sort((a, b) => a.name.localeCompare(b.name))
 	}
 
-	function buildSearchItemsForPlugins(
+	function buildSearchItemsForPlugins<Entry extends MenuAction | MenuTrigger>(
 		kind: "actions" | "triggers",
-		getEntries: (plugin: any) => Record<string, any>,
-		getMeta: (entry: any) => { name: string; icon: string },
+		getEntries: (plugin: MenuPlugin) => Record<string, Entry> | undefined,
+		getMeta: (entry: Entry) => { name: string; icon: string },
 		enabled: boolean
 	): ContextMenuItem[] {
 		const query = contextMenuSearch.value
@@ -267,7 +287,7 @@ export function useNodeContextMenu(
 			.filter((group) => group.items.length)
 	}
 
-	function filterRegularActions(actions: Record<string, any> | undefined) {
+	function filterRegularActions(actions: Record<string, MenuAction> | undefined) {
 		return Object.fromEntries(Object.entries(actions ?? {}).filter(([, action]) => action?.type === "regular"))
 	}
 

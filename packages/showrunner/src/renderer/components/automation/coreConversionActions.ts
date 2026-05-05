@@ -1,5 +1,5 @@
 import type { ActionDefinition } from "showrunner-ui-core"
-import { normalizeActionLookupId } from "showrunner-schema"
+import { normalizeActionLookupId, type Schema } from "showrunner-schema"
 
 export const CORE_CONVERSION_ACTIONS = [
 	{ id: "convertNumberToString", name: "Convert Number To String", icon: "mdi mdi-swap-horizontal" },
@@ -65,7 +65,7 @@ export function defaultCoreConversionResultMapping(actionId: string) {
 	return resultMapping
 }
 
-function coreConversionAction(id: string, name: string, icon: string, configProperties: Record<string, any>, resultProperties: Record<string, any>): ActionDefinition {
+function coreConversionAction(id: string, name: string, icon: string, configProperties: Record<string, Schema>, resultProperties: Record<string, Schema>): ActionDefinition {
 	return {
 		id,
 		name,
