@@ -848,10 +848,10 @@
 								<div v-else-if="selectedTriggerMissing" class="node-automation__missing-schema">
 									<i class="mdi mdi-alert-circle-outline" />
 									<strong>Missing trigger schema</strong>
-									<span>{{ model.plugin }} / {{ model.trigger }}</span>
+									<span>{{ selectedTriggerConfigModel?.plugin }} / {{ selectedTriggerConfigModel?.trigger }}</span>
 									<small>The trigger was removed or renamed. Pick a new trigger from the context menu to repair this automation.</small>
 								</div>
-								<trigger-config-edit v-else-if="selectedNode.id === 'trigger'" v-model="model" />
+								<trigger-config-edit v-else-if="selectedNode.kind === 'trigger' && selectedTriggerConfigModel" v-model="selectedTriggerConfigModel" />
 								<div v-else-if="selectedNode.kind === 'variable' && selectedVariableNode" class="node-automation__variable-edit">
 									<label>
 										<span>Name</span>
@@ -1229,6 +1229,7 @@ import {
 	type GraphNode,
 	type GraphEdge,
 	type AutomationGraph,
+	type AutomationTriggerNode,
 	type GraphNodeType,
 	type SubgraphParamType,
 	type SubgraphDefinition,
@@ -1551,10 +1552,50 @@ const selectedActionMissing = computed(() => {
 	if (!action) return false
 	return !pluginStore.pluginMap.get(action.plugin)?.actions?.[action.action]
 })
+const selectedTriggerNode = computed(() => {
+	if (selectedNode.value?.kind !== "trigger") return undefined
+	const triggerNodes = model.value.triggerNodes ?? []
+	const triggerNode = triggerNodes.find((node) => node.id === selectedNode.value?.id)
+	if (triggerNode) return triggerNode
+	if (selectedNode.value.id !== "trigger") return undefined
+	return {
+		id: "trigger",
+		plugin: model.value.plugin,
+		trigger: model.value.trigger,
+		config: model.value.config ?? {},
+		stop: model.value.stop,
+		x: 42,
+		y: 88,
+	} satisfies AutomationTriggerNode
+})
+const selectedTriggerConfigModel = computed({
+	get() {
+		const triggerNode = selectedTriggerNode.value
+		if (!triggerNode) return undefined
+		return {
+			...triggerNode,
+			testContext: model.value.testContext,
+		}
+	},
+	set(next) {
+		if (!next || !selectedNodeId.value) return
+		upsertTriggerNode({
+			id: next.id ?? selectedNodeId.value,
+			plugin: next.plugin,
+			trigger: next.trigger,
+			config: next.config ?? {},
+			stop: next.stop,
+			x: typeof next.x === "number" ? next.x : selectedNode.value?.x ?? 42,
+			y: typeof next.y === "number" ? next.y : selectedNode.value?.y ?? 88,
+		})
+		model.value.testContext = next.testContext
+	}
+})
 const selectedTriggerMissing = computed(() => {
-	if (selectedNode.value?.id !== "trigger") return false
-	if (!model.value.plugin || !model.value.trigger) return false
-	return !pluginStore.pluginMap.get(model.value.plugin)?.triggers?.[model.value.trigger]
+	const trigger = selectedTriggerConfigModel.value
+	if (!trigger) return false
+	if (!trigger.plugin || !trigger.trigger) return false
+	return !pluginStore.pluginMap.get(trigger.plugin)?.triggers?.[trigger.trigger]
 })
 const canEditSelectedAction = computed(() => {
 	return Boolean(selectedActionInfo.value)
@@ -1971,7 +2012,7 @@ function isExecPortConnected(nodeId: string, portKey: string): boolean {
 }
 
 function canStartFlowFromNode(node: NodeData) {
-	return Boolean(activeGraph.value && node.id !== "trigger" && node.kind !== "variable")
+	return Boolean(activeGraph.value && node.kind !== "variable")
 }
 
 function getEdgeLabel(edgeOrPort?: { from?: string; port?: string } | string) {
@@ -2762,6 +2803,25 @@ function defaultCoreConversionConfig(actionId: string) {
 	}
 }
 
+function upsertTriggerNode(triggerNode: AutomationTriggerNode) {
+	model.value.triggerNodes ??= []
+	const index = model.value.triggerNodes.findIndex((node) => node.id === triggerNode.id)
+	if (index >= 0) {
+		model.value.triggerNodes[index] = triggerNode
+	} else {
+		model.value.triggerNodes.push(triggerNode)
+	}
+
+	if (index <= 0 && model.value.triggerNodes[0]?.id === triggerNode.id) {
+		Object.assign(model.value, {
+			plugin: triggerNode.plugin,
+			trigger: triggerNode.trigger,
+			config: triggerNode.config,
+			stop: triggerNode.stop ?? false,
+		})
+	}
+}
+
 async function selectTriggerFromContext(triggerKey: string) {
 	const [pluginId, triggerId] = triggerKey.split(":")
 	const plugin = pluginStore.pluginMap.get(pluginId)
@@ -2773,27 +2833,25 @@ async function selectTriggerFromContext(triggerKey: string) {
 	const nextConfig = await constructDefault(trigger.config)
 	const contextSchema = typeof trigger.context === "function" ? await trigger.context(nextConfig) : trigger.context
 
-	Object.assign(model.value, {
+	model.value.testContext = contextSchema ? await constructDefault(contextSchema) : model.value.testContext
+	model.value.triggerNodes ??= []
+	const selectedTrigger = selectedNode.value?.kind === "trigger" ? selectedTriggerNode.value : undefined
+	const existingIndex = selectedTrigger ? model.value.triggerNodes.findIndex((node) => node.id === selectedTrigger.id) : -1
+	const shouldReplaceSelected = Boolean(selectedTrigger && existingIndex >= 0)
+	const shouldInitializeLegacy = !shouldReplaceSelected && model.value.triggerNodes.length === 0 && !model.value.plugin && !model.value.trigger
+	const point = contextMenu.value.canvasPoint
+	const triggerNode: AutomationTriggerNode = {
+		id: shouldReplaceSelected ? selectedTrigger!.id : shouldInitializeLegacy ? "trigger" : `trigger:${nanoid()}`,
 		plugin: pluginId,
 		trigger: triggerId,
 		config: nextConfig,
-		stop: model.value.stop ?? false,
-		testContext: contextSchema ? await constructDefault(contextSchema) : model.value.testContext,
-	})
-	const currentTriggerNode = Array.isArray(model.value.triggerNodes) && model.value.triggerNodes[0]
-		? model.value.triggerNodes[0]
-		: { id: "trigger", x: 42, y: 88 }
-	model.value.triggerNodes = [
-		{
-			...currentTriggerNode,
-			plugin: pluginId,
-			trigger: triggerId,
-			config: nextConfig,
-			stop: model.value.stop ?? false,
-		},
-	]
+		stop: shouldReplaceSelected ? selectedTrigger?.stop ?? false : false,
+		x: shouldReplaceSelected ? selectedTrigger!.x : point.x,
+		y: shouldReplaceSelected ? selectedTrigger!.y : point.y,
+	}
+	upsertTriggerNode(triggerNode)
 
-	focusNode(currentTriggerNode.id)
+	focusNode(triggerNode.id)
 	configOpen.value = true
 	closeContextMenu()
 	commitUndo()
