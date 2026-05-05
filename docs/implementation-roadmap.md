@@ -262,6 +262,10 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 ### 6.4 V2 Graph Model Improvements
 - [x] Add a backwards-compatible `triggerNodes` schema/migration foundation that mirrors legacy root trigger data.
 - [x] Render explicit trigger nodes when present while preserving the legacy virtual `trigger` node fallback.
+- [x] Resolve data wires from explicit trigger node ids against the active trigger execution context.
+- [x] Compile graph executions from a specific trigger node edge so independent trigger branches can start separately.
+- [x] Expose trigger nodes from profile automations as invokable runtime trigger entries.
+- [x] Allow selected trigger nodes to be configured in the node editor and add new trigger nodes from the context menu.
 - [ ] Replace the single root `plugin`/`trigger` automation fields with a trigger-node collection while keeping a migration path for existing automations.
 - [ ] Model each trigger as a visible graph node with stable id, plugin id, trigger id, config, context schema, and output data ports.
 - [ ] Allow multiple trigger nodes in one automation graph, each with an independent execution entry edge.
