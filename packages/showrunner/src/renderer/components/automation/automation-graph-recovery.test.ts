@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { AutomationConfig } from "showrunner-schema"
+import { normalizeAutomationConfig, type AutomationConfig } from "showrunner-schema"
 import { repairAutomation, validateAutomationGraph } from "./automation-graph-recovery"
 
 describe("automation graph recovery", () => {
@@ -133,5 +133,96 @@ describe("automation graph recovery", () => {
 
 		expect(validateAutomationGraph(config)).toContain("Edge convert-1:action-1 uses a data-only conversion node.")
 		expect(repairAutomation(config).graph.edges).toEqual([])
+	})
+
+	it("opens normalized legacy automations without graph repair warnings", () => {
+		const config = normalizeAutomationConfig({
+			name: "Legacy stream alert",
+			plugin: "twitch",
+			trigger: "channelPointRedeemed",
+			config: { reward: "Highlight" },
+			graph: {
+				nodes: [
+					{
+						id: "alert",
+						type: "action",
+						plugin: "youtube",
+						action: "sendChatMessage",
+						config: { message: "" },
+						x: 360,
+						y: 160,
+					},
+				],
+				edges: [],
+				entryNodeId: "alert",
+			},
+			dataWires: [
+				{
+					id: "trigger:value->alert:message",
+					fromNode: "trigger",
+					fromPort: "value",
+					toNode: "alert",
+					toPort: "message",
+				},
+			],
+			subgraphs: [
+				{
+					id: "format",
+					name: "Format Alert",
+					nodes: [{ id: "return", type: "return", value: { type: "literal", value: "" }, x: 0, y: 0 }],
+					edges: [],
+					entryNodeId: "return",
+				},
+			],
+		})
+
+		expect(validateAutomationGraph(config)).toEqual([])
+		expect(repairAutomation(config)).toMatchObject({
+			graph: { entryNodeId: "alert" },
+			triggerNodes: [{ id: "trigger", plugin: "twitch", trigger: "channelPointRedeemed" }],
+			dataWires: [{ id: "trigger:value->alert:message" }],
+			subgraphs: [{ id: "format", parameters: [], outputs: [], dataWires: [] }],
+		})
+	})
+
+	it("repairs stale legacy graph references without dropping valid variable data wires", () => {
+		const config: AutomationConfig = {
+			name: "stale refs",
+			schemaVersion: 2,
+			graph: {
+				nodes: [
+					{
+						id: "action-1",
+						type: "action",
+						plugin: "youtube",
+						action: "sendChatMessage",
+						config: { message: "" },
+						x: 300,
+						y: 180,
+					},
+				],
+				edges: [
+					{ id: "missing:action-1", from: "missing", to: "action-1" },
+					{ id: "action-1:missing", from: "action-1", to: "missing" },
+				],
+				entryNodeId: "missing",
+			},
+			subgraphs: [],
+			dataWires: [
+				{ id: "var-1:value->action-1:message", fromNode: "var-1", fromPort: "value", toNode: "action-1", toPort: "message" },
+				{ id: "missing:value->action-1:message", fromNode: "missing", fromPort: "value", toNode: "action-1", toPort: "message" },
+			],
+			variableNodes: [{ id: "var-1", name: "", type: "string", value: "", x: 100, y: 180 }],
+		}
+
+		const repaired = repairAutomation(config)
+
+		expect(repaired.graph).toMatchObject({
+			entryNodeId: "action-1",
+			edges: [],
+		})
+		expect(repaired.dataWires).toEqual([
+			{ id: "var-1:value->action-1:message", fromNode: "var-1", fromPort: "value", toNode: "action-1", toPort: "message" },
+		])
 	})
 })
