@@ -299,7 +299,6 @@ import {
 	type EdgeData,
 	NODE_WIDTH,
 	H_GAP,
-	computeNodeHeight,
 	GRAPH_NODE_INFO,
 	summarizeExpression,
 	buildGraph,
@@ -320,6 +319,7 @@ import { useCanvasKeyboard } from "./useCanvasKeyboard"
 import { SUBGRAPH_PARAM_TYPES, useSubgraphManagement } from "./useSubgraphManagement"
 import { useControlFlowNodes } from "./useControlFlowNodes"
 import { useSubgraphCollapse } from "./useSubgraphCollapse"
+import { useNodeResize } from "./useNodeResize"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
@@ -914,6 +914,14 @@ const {
 	focusedSubgraphId,
 	subgraphsOpen,
 	focusNode,
+	commitUndo,
+})
+
+const {
+	startResize,
+} = useNodeResize({
+	nodeSizes,
+	zoom,
 	commitUndo,
 })
 
@@ -1566,38 +1574,6 @@ function formatNodeDuration(durationMs: number) {
 function nodeTitleById(nodeId: string) {
 	return nodes.value.find((node) => node.id === nodeId)?.title ?? nodeId
 }
-
-function startResize(event: PointerEvent, node: NodeData) {
-	event.preventDefault()
-	const startX = event.clientX
-	const startY = event.clientY
-	const startWidth = node.width ?? NODE_WIDTH
-	const startHeight = node.height
-	const target = event.currentTarget as HTMLElement
-	target.setPointerCapture(event.pointerId)
-
-	// Compute dynamic min width: base 100 + longest port label (~7px per char)
-	const allPorts = [...(node.inputPorts ?? []), ...(node.outputPorts ?? [])]
-	const maxLabelLen = allPorts.reduce((max, p) => Math.max(max, p.label.length), 0)
-	const minWidth = Math.max(120, 80 + maxLabelLen * 7)
-	const minHeight = computeNodeHeight(node.configLines, node.inputPorts, node.outputPorts)
-
-	function onMove(me: PointerEvent) {
-		const dx = (me.clientX - startX) / zoom.value
-		const dy = (me.clientY - startY) / zoom.value
-		const newWidth = Math.max(minWidth, Math.round(startWidth + dx))
-		const newHeight = Math.max(minHeight, Math.round(startHeight + dy))
-		nodeSizes.value[node.id] = { ...(nodeSizes.value[node.id] ?? {}), width: newWidth, height: newHeight }
-	}
-	function onUp() {
-		target.removeEventListener("pointermove", onMove)
-		target.removeEventListener("pointerup", onUp)
-		commitUndo()
-	}
-	target.addEventListener("pointermove", onMove)
-	target.addEventListener("pointerup", onUp)
-}
-
 
 onMounted(() => {
 	window.addEventListener("keydown", handleKeydown)
