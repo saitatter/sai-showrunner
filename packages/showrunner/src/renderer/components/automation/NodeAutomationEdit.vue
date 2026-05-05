@@ -321,6 +321,7 @@ import NodeAutomationEdges from "./NodeAutomationEdges.vue"
 import NodeAutomationAnnotationBlocks from "./NodeAutomationAnnotationBlocks.vue"
 import NodeAutomationNodeCard from "./NodeAutomationNodeCard.vue"
 import NodeAutomationCanvasDragPreview from "./NodeAutomationCanvasDragPreview.vue"
+import { useCanvasSelection, type RubberBand } from "./useCanvasSelection"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
@@ -344,7 +345,7 @@ const dropTargetEdgeId = ref<string>()
 const selectedEdgeId = ref<string>()
 const spaceHeld = ref(false)
 const ghostNode = ref<{ x: number; y: number } | null>(null)
-const rubberBand = ref<{ x: number; y: number; width: number; height: number } | null>(null)
+const rubberBand = ref<RubberBand | null>(null)
 const canvasSearchOpen = ref(false)
 const canvasSearchQuery = ref("")
 const canvasSearchIndex = ref(0)
@@ -371,6 +372,7 @@ const activeTestExecution = computed(() => {
 	if (!activeTestExecutionId.value) return undefined
 	return actionQueueStore.activeTestExecutions[activeTestExecutionId.value]
 })
+let canvasSelection: ReturnType<typeof useCanvasSelection>
 const subgraphsList = computed(() => model.value.subgraphs ?? [])
 const activeSubgraph = computed(() => {
 	if (!activeSubgraphId.value) return undefined
@@ -804,6 +806,23 @@ const {
 	nodeTitleById,
 })
 
+canvasSelection = useCanvasSelection({
+	nodes,
+	canvasRef,
+	selectedNodeId,
+	selectedNodeIds,
+	selectedAnnotationBlockId,
+	selectedEdgeId,
+	selectedDataWireId,
+	detailsOpen,
+	spaceHeld,
+	rubberBand,
+	contextMenuOpen: () => contextMenu.value.open,
+	closeContextMenu,
+	startPan,
+	getCanvasPointFromClientPosition,
+})
+
 
 function dataPortDragClass(nodeId: string, portKey: string, kind: "in" | "out") {
 	const preview = dragPortPreview.value
@@ -860,43 +879,19 @@ function animateWireRemoval(wireId: string) {
 
 
 function selectNode(event: MouseEvent | PointerEvent, nodeId: string) {
-	selectedEdgeId.value = undefined
-	selectedDataWireId.value = undefined
-	selectedAnnotationBlockId.value = undefined
-	if (event.ctrlKey || event.metaKey) {
-		const next = new Set(selectedNodeIds.value)
-		if (next.has(nodeId)) {
-			next.delete(nodeId)
-			selectedNodeId.value = next.size > 0 ? [...next][next.size - 1] : undefined
-		} else {
-			next.add(nodeId)
-			selectedNodeId.value = nodeId
-		}
-		selectedNodeIds.value = next
-	} else {
-		focusNode(nodeId)
-	}
+	canvasSelection.selectNode(event, nodeId)
 }
 
 function focusNode(nodeId: string) {
-	selectedNodeId.value = nodeId
-	selectedNodeIds.value = new Set([nodeId])
-	selectedEdgeId.value = undefined
-	selectedAnnotationBlockId.value = undefined
+	canvasSelection.focusNode(nodeId)
 }
 
 function clearSelection() {
-	selectedNodeId.value = undefined
-	selectedNodeIds.value = new Set()
-	selectedEdgeId.value = undefined
-	selectedDataWireId.value = undefined
-	selectedAnnotationBlockId.value = undefined
+	canvasSelection.clearSelection()
 }
 
 function clearNodeSelection() {
-	selectedNodeId.value = undefined
-	selectedNodeIds.value = new Set()
-	selectedAnnotationBlockId.value = undefined
+	canvasSelection.clearNodeSelection()
 }
 
 function selectFlowEdge(edgeId: string) {
@@ -910,12 +905,7 @@ function selectDataWire(wireId: string) {
 }
 
 function selectAnnotationBlock(blockId: string) {
-	selectedNodeId.value = undefined
-	selectedNodeIds.value = new Set()
-	selectedEdgeId.value = undefined
-	selectedDataWireId.value = undefined
-	selectedAnnotationBlockId.value = blockId
-	detailsOpen.value = true
+	canvasSelection.selectAnnotationBlock(blockId)
 }
 
 function openPendingFlowContext(drop: {
@@ -955,79 +945,7 @@ function openCanvasContextMenu(event: MouseEvent) {
 }
 
 function handleCanvasPointerDown(event: PointerEvent) {
-	const target = event.target as HTMLElement
-	if (target.closest(".node-automation__context-menu")) return
-	if (contextMenu.value.open) closeContextMenu()
-	if (target.closest(".node-automation__canvas-controls")) return
-
-	const isCanvasTarget =
-		target.classList.contains("node-automation__canvas") ||
-		target.classList.contains("node-automation__surface") ||
-		target.classList.contains("node-automation__edges")
-
-	if (isCanvasTarget) clearSelection()
-	if (event.button === 1 && isCanvasTarget) {
-		event.preventDefault()
-		startPan(event)
-	}
-	if (event.button === 0 && isCanvasTarget && spaceHeld.value) {
-		event.preventDefault()
-		startPan(event)
-	} else if (event.button === 0 && isCanvasTarget) {
-		selectedEdgeId.value = undefined
-		selectedDataWireId.value = undefined
-		startRubberBand(event)
-	}
-}
-
-function startRubberBand(event: PointerEvent) {
-	const canvas = canvasRef.value
-	if (!canvas) return
-
-	const origin = getCanvasPointFromClientPosition(event.clientX, event.clientY)
-	const startX = event.clientX
-	const startY = event.clientY
-	let didMove = false
-
-	canvas.setPointerCapture(event.pointerId)
-
-	function onMove(moveEvent: PointerEvent) {
-		const dx = Math.abs(moveEvent.clientX - startX)
-		const dy = Math.abs(moveEvent.clientY - startY)
-		if (!didMove && dx < 4 && dy < 4) return
-		didMove = true
-
-		const current = getCanvasPointFromClientPosition(moveEvent.clientX, moveEvent.clientY)
-		const x = Math.min(origin.x, current.x)
-		const y = Math.min(origin.y, current.y)
-		const width = Math.abs(current.x - origin.x)
-		const height = Math.abs(current.y - origin.y)
-		rubberBand.value = { x, y, width, height }
-
-		// Select nodes within the rectangle
-		const ids = new Set<string>()
-		for (const node of nodes.value) {
-			const nodeRight = node.x + (node.width ?? NODE_WIDTH)
-			const nodeBottom = node.y + node.height
-			if (node.x < x + width && nodeRight > x && node.y < y + height && nodeBottom > y) {
-				ids.add(node.id)
-			}
-		}
-		selectedNodeIds.value = ids
-		selectedNodeId.value = ids.size > 0 ? [...ids][0] : undefined
-	}
-
-	function onUp(upEvent: PointerEvent) {
-		canvas.releasePointerCapture(upEvent.pointerId)
-		canvas.removeEventListener("pointermove", onMove)
-		canvas.removeEventListener("pointerup", onUp)
-		canvas.removeEventListener("pointercancel", onUp)
-		rubberBand.value = null
-	}
-
-	canvas.addEventListener("pointermove", onMove)
-	canvas.addEventListener("pointerup", onUp)
-	canvas.addEventListener("pointercancel", onUp)
+	canvasSelection.handleCanvasPointerDown(event)
 }
 
 function handleKeydown(event: KeyboardEvent) {
