@@ -87,112 +87,24 @@
 						/>
 					</div>
 
-					<svg class="node-automation__edges" :viewBox="viewBox" role="img" aria-label="Node connections">
-						<path
-							v-for="edge in visibleFlowEdges"
-							:key="`${edge.id}:hit`"
-							class="node-automation__edge-hit"
-							:class="{ active: dropTargetEdgeId === edge.id }"
-							:d="edge.path"
-							vector-effect="non-scaling-stroke"
-							@dragover.prevent.stop="dropTargetEdgeId = edge.id"
-							@dragleave.stop="clearDropEdge(edge.id)"
-							@drop.prevent.stop="dropActionOnEdge($event, edge)"
-							@pointerdown.stop="startExecEdgeDrag(edge.from, edge.port, $event)"
-							@click.stop="selectFlowEdge(edge.id)"
-						/>
-						<path
-							v-for="edge in visibleFlowEdges"
-							:key="`${edge.id}:line`"
-							class="node-automation__edge"
-							:class="{ active: dropTargetEdgeId === edge.id, selected: selectedEdgeId === edge.id }"
-							:d="edge.path"
-							vector-effect="non-scaling-stroke"
-						/>
-						<g
-							v-for="edge in visibleFlowEdges.filter((item) => item.label)"
-							:key="`${edge.id}:label`"
-							class="node-automation__edge-label"
-						>
-							<rect
-								:x="(edge.labelX ?? 0) - ((edge.labelWidth ?? 60) / 2)"
-								:y="(edge.labelY ?? 0) - 11"
-								:width="edge.labelWidth ?? 60"
-								height="22"
-								rx="11"
-							/>
-							<text
-								:x="edge.labelX"
-								:y="edge.labelY"
-								text-anchor="middle"
-								dominant-baseline="central"
-							>{{ edge.label }}</text>
-						</g>
-
-						<!-- Data wires (port-to-port connections) -->
-						<path
-							v-for="wire in dataWirePaths"
-							:key="`dw-hit:${wire.id}`"
-							class="node-automation__data-wire-hit"
-							:d="wire.path"
-							vector-effect="non-scaling-stroke"
-							@click.stop="selectDataWire(wire.id)"
-						>
-							<title>{{ dataWireTitle(wire) }}</title>
-						</path>
-						<path
-							v-for="wire in dataWirePaths"
-							:key="`dw:${wire.id}`"
-							class="node-automation__data-wire"
-							:class="{ selected: selectedDataWireId === wire.id, removing: removingWireIds.has(wire.id), invalid: wire.valid === false }"
-							:d="wire.path"
-							:stroke="wire.color"
-							vector-effect="non-scaling-stroke"
-						>
-							<title>{{ dataWireTitle(wire) }}</title>
-						</path>
-
-						<!-- In-progress wire drag -->
-						<path
-							v-if="dragWirePath"
-							class="node-automation__data-wire node-automation__data-wire--dragging"
-							:class="{ invalid: dragWirePath.valid === false }"
-							:d="dragWirePath.path"
-							:stroke="dragWirePath.color"
-							vector-effect="non-scaling-stroke"
-						>
-							<title>{{ dragWirePath.validationMessage || "Release on a compatible input port to connect." }}</title>
-						</path>
-
-						<!-- In-progress execution edge drag -->
-						<path
-							v-if="execDragWirePath"
-							class="node-automation__edge node-automation__edge--dragging"
-							:d="execDragWirePath"
-							vector-effect="non-scaling-stroke"
-						/>
-
-						<template v-for="(guide, gi) in alignmentGuides" :key="`guide-${gi}`">
-							<line
-								v-if="guide.axis === 'x'"
-								class="node-automation__alignment-guide"
-								:x1="guide.position"
-								:y1="guide.from - 8"
-								:x2="guide.position"
-								:y2="guide.to + 8"
-								vector-effect="non-scaling-stroke"
-							/>
-							<line
-								v-else
-								class="node-automation__alignment-guide"
-								:x1="guide.from - 8"
-								:y1="guide.position"
-								:x2="guide.to + 8"
-								:y2="guide.position"
-								vector-effect="non-scaling-stroke"
-							/>
-						</template>
-					</svg>
+					<node-automation-edges
+						v-model:drop-target-edge-id="dropTargetEdgeId"
+						:view-box="viewBox"
+						:flow-edges="visibleFlowEdges"
+						:data-wires="dataWirePaths"
+						:drag-wire-path="dragWirePath"
+						:exec-drag-wire-path="execDragWirePath"
+						:alignment-guides="alignmentGuides"
+						:selected-edge-id="selectedEdgeId"
+						:selected-data-wire-id="selectedDataWireId"
+						:removing-wire-ids="removingWireIds"
+						:data-wire-title="dataWireTitle"
+						:on-clear-drop-edge="clearDropEdge"
+						:on-drop-action-on-edge="dropActionOnEdge"
+						:on-start-exec-edge-drag="startExecEdgeDrag"
+						:on-select-flow-edge="selectFlowEdge"
+						:on-select-data-wire="selectDataWire"
+					/>
 
 					<button
 						v-for="node in nodes"
@@ -545,6 +457,7 @@ import NodeAutomationContextMenu from "./NodeAutomationContextMenu.vue"
 import NodeAutomationCanvasControls from "./NodeAutomationCanvasControls.vue"
 import NodeAutomationMinimap from "./NodeAutomationMinimap.vue"
 import NodeAutomationCanvasOverlays from "./NodeAutomationCanvasOverlays.vue"
+import NodeAutomationEdges from "./NodeAutomationEdges.vue"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
@@ -2557,202 +2470,6 @@ onUnmounted(() => {
 .node-automation__surface {
 	position: relative;
 	transform-origin: 0 0;
-}
-
-.node-automation__edges {
-	inset: 0;
-	min-height: 100%;
-	min-width: 100%;
-	position: absolute;
-	z-index: 1;
-}
-
-.node-automation__rubber-band {
-	background: rgb(139 53 230 / 0.12);
-	border: 1.5px dashed #e9aaff;
-	border-radius: 3px;
-	pointer-events: none;
-	position: absolute;
-	z-index: 5;
-}
-
-.node-automation__ghost-node {
-	align-items: center;
-	background: rgb(139 53 230 / 0.18);
-	border: 2px dashed #e9aaff;
-	border-radius: 10px;
-	color: #e9aaff;
-	display: flex;
-	font-size: 0.8rem;
-	gap: 0.35rem;
-	height: 74px;
-	justify-content: center;
-	opacity: 0.7;
-	pointer-events: none;
-	position: absolute;
-	width: 220px;
-	z-index: 4;
-}
-
-.node-automation__annotation-block {
-	border: 2px dashed;
-	border-radius: 6px;
-	box-sizing: border-box;
-	cursor: move;
-	position: absolute;
-	z-index: 0;
-}
-
-.node-automation__annotation-block.selected {
-	border-style: solid;
-	box-shadow: 0 0 0 2px rgb(255 255 255 / 0.16);
-}
-
-.node-automation__annotation-block span {
-	background: rgb(16 16 16 / 0.9);
-	border: 1px solid rgb(255 255 255 / 0.14);
-	border-radius: 4px;
-	color: #f4f4f4;
-	font-size: 0.75rem;
-	font-weight: 700;
-	left: 0.65rem;
-	letter-spacing: 0;
-	max-width: calc(100% - 2rem);
-	overflow: hidden;
-	padding: 0.18rem 0.45rem;
-	position: absolute;
-	text-overflow: ellipsis;
-	top: 0.45rem;
-	white-space: nowrap;
-}
-
-.node-automation__annotation-resize {
-	background: rgb(16 16 16 / 0.72);
-	border: 1px solid rgb(255 255 255 / 0.18);
-	border-radius: 3px;
-	bottom: 0.35rem;
-	cursor: nwse-resize;
-	height: 0.9rem;
-	position: absolute;
-	right: 0.35rem;
-	width: 0.9rem;
-}
-
-.node-automation__annotation-resize::after {
-	border-bottom: 2px solid rgb(255 255 255 / 0.65);
-	border-right: 2px solid rgb(255 255 255 / 0.65);
-	bottom: 0.18rem;
-	content: "";
-	height: 0.38rem;
-	position: absolute;
-	right: 0.18rem;
-	width: 0.38rem;
-}
-
-.node-automation__edge {
-	fill: none;
-	stroke: #e9aaff;
-	stroke-linecap: round;
-	stroke-width: 2.5px;
-}
-
-.node-automation__edge--dragging {
-	fill: none;
-	stroke: #e9aaff;
-	stroke-dasharray: 6 4;
-	stroke-linecap: round;
-	stroke-width: 2.5px;
-	opacity: 0.7;
-}
-
-.node-automation__edge.active {
-	stroke: #2ed47a;
-	stroke-width: 4px;
-}
-
-.node-automation__edge.selected {
-	stroke: #ffcc00;
-	stroke-width: 3.5px;
-}
-
-.node-automation__edge-hit {
-	fill: none;
-	pointer-events: stroke;
-	stroke: transparent;
-	stroke-linecap: round;
-	stroke-width: 22px;
-}
-
-.node-automation__edge-hit.active {
-	stroke: rgb(46 212 122 / 0.15);
-}
-
-.node-automation__edge-label {
-	pointer-events: none;
-}
-
-.node-automation__edge-label rect {
-	fill: rgb(18 18 22 / 0.92);
-	stroke: rgb(233 170 255 / 0.42);
-	stroke-width: 1px;
-}
-
-.node-automation__edge-label text {
-	fill: #f7e7ff;
-	font-size: 0.72rem;
-	font-weight: 700;
-	letter-spacing: 0;
-}
-
-.node-automation__alignment-guide {
-	pointer-events: none;
-	stroke: #ff6b6b;
-	stroke-dasharray: 4 3;
-	stroke-width: 1px;
-}
-
-.node-automation__data-wire-hit {
-	fill: none;
-	pointer-events: stroke;
-	stroke: transparent;
-	stroke-linecap: round;
-	stroke-width: 16px;
-	cursor: pointer;
-}
-
-.node-automation__data-wire {
-	fill: none;
-	pointer-events: none;
-	stroke-linecap: round;
-	stroke-width: 2px;
-}
-
-.node-automation__data-wire.selected {
-	stroke-width: 3.5px;
-	filter: drop-shadow(0 0 4px currentColor);
-}
-
-.node-automation__data-wire.invalid {
-	stroke-dasharray: 8 5;
-	stroke-width: 3px;
-	filter: drop-shadow(0 0 5px rgba(239, 83, 80, 0.6));
-}
-
-.node-automation__data-wire.removing {
-	stroke: #ff4444;
-	stroke-width: 3px;
-	opacity: 0;
-	transition: opacity 0.3s ease-out;
-}
-
-.node-automation__data-wire--dragging {
-	stroke-dasharray: 6 4;
-	opacity: 0.7;
-	animation: wire-dash 0.4s linear infinite;
-}
-
-@keyframes wire-dash {
-	to { stroke-dashoffset: -10; }
 }
 
 .node-automation__node {
