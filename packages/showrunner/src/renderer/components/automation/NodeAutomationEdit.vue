@@ -105,7 +105,7 @@
 						:node="node"
 						:node-width="NODE_WIDTH"
 						:selected="selectedNodeIds.has(node.id)"
-						:annotation-member="selectedAnnotationBlockMemberIds.has(node.id)"
+						:annotation-member="isSelectedAnnotationBlockMember(node.id)"
 						:drop-target="dropTargetNodeId === node.id"
 						:preview-active="playheadNodeId === node.id"
 						:search-match="canvasSearchMatchIds.has(node.id)"
@@ -561,7 +561,6 @@ const selectedActionInfo = computed(() => {
 	if (index < 0) return undefined
 	return activeGraph.value!.nodes[index] as Extract<GraphNode, { type: "action" }>
 })
-const selectedAnnotationBlockMemberIds = computed(() => new Set(selectedAnnotationBlock.value?.nodeIds ?? []))
 const selectedActionPath = computed(() => {
 	if (!selectedActionInfo.value || !activeGraph.value) return undefined
 	const index = activeGraph.value.nodes.findIndex((node) => node.id === selectedActionInfo.value?.id)
@@ -1092,6 +1091,10 @@ function selectDataWire(wireId: string) {
 
 function selectAnnotationBlock(blockId: string) {
 	canvasSelection.selectAnnotationBlock(blockId)
+}
+
+function isSelectedAnnotationBlockMember(nodeId: string) {
+	return Boolean(selectedAnnotationBlock.value?.nodeIds?.includes(nodeId))
 }
 
 function openPendingFlowContext(drop: {
