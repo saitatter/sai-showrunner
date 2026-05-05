@@ -133,6 +133,19 @@ describe("useAnnotationBlocks", () => {
 		expect(view.value.annotationBlocks?.[0].nodeIds).toEqual(["node-a", "node-b"])
 	})
 
+	it("finds annotation blocks that currently contain dragged nodes", () => {
+		const { blocks, view } = createAnnotationBlocks()
+
+		blocks.addAnnotationBlock({ x: 100, y: 100 })
+		const firstBlockId = view.value.annotationBlocks![0].id
+		blocks.addAnnotationBlock({ x: 500, y: 100 })
+		const secondBlockId = view.value.annotationBlocks![1].id
+		blocks.addNodesToAnnotationBlock(firstBlockId, ["node-a"])
+		blocks.addNodesToAnnotationBlock(secondBlockId, ["node-b"])
+
+		expect(blocks.getAnnotationBlockIdsForNodes(["node-a", "node-b"])).toEqual([firstBlockId, secondBlockId])
+	})
+
 	it("counts only existing member nodes for legacy or stale block data", () => {
 		const { blocks, view } = createAnnotationBlocks()
 

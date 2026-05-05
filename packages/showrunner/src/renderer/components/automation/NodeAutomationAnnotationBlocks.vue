@@ -3,7 +3,11 @@
 		v-for="block in blocks"
 		:key="block.id"
 		class="node-automation__annotation-block"
-		:class="{ selected: selectedBlockId === block.id, 'drop-target': dropTargetBlockId === block.id }"
+		:class="{
+			selected: selectedBlockId === block.id,
+			'drop-target': dropTargetBlockId === block.id,
+			'remove-target': removeTargetBlockIds.has(block.id),
+		}"
 		:style="annotationBlockStyle(block)"
 		@pointerdown.stop="onStartAnnotationBlockDrag($event, block)"
 		@click.stop="onSelectAnnotationBlock(block.id)"
@@ -27,6 +31,7 @@ defineProps<{
 	blocks: AnnotationBlock[]
 	selectedBlockId?: string
 	dropTargetBlockId?: string
+	removeTargetBlockIds: Set<string>
 	annotationBlockStyle: (block: AnnotationBlock) => StyleValue
 	getAnnotationBlockMemberCount: (block: AnnotationBlock) => number
 	onStartAnnotationBlockDrag: (event: PointerEvent, block: AnnotationBlock) => void
@@ -59,6 +64,12 @@ defineProps<{
 .node-automation__annotation-block.drop-target {
 	border-style: solid;
 	box-shadow: 0 0 0 3px rgb(46 212 122 / 0.42), 0 14px 30px rgb(0 0 0 / 0.32);
+}
+
+.node-automation__annotation-block.remove-target {
+	border-color: #ffb86c !important;
+	border-style: dashed;
+	box-shadow: 0 0 0 3px rgb(255 184 108 / 0.32), 0 14px 30px rgb(0 0 0 / 0.28);
 }
 
 .node-automation__annotation-block span {

@@ -242,6 +242,14 @@ export function useAnnotationBlocks({
 		)
 	}
 
+	function getAnnotationBlockIdsForNodes(nodeIds: Iterable<string>) {
+		const ids = new Set(nodeIds)
+		if (!ids.size) return []
+		return annotationBlocks.value
+			.filter((block) => (block.nodeIds ?? []).some((nodeId) => ids.has(nodeId)))
+			.map((block) => block.id)
+	}
+
 	function getAnnotationBlockMinimumSize(block: AnnotationBlock) {
 		const bounds = getNodeBounds(getExistingNodeIds(block.nodeIds ?? []))
 		if (!bounds) return { width: 160, height: 96 }
@@ -310,6 +318,7 @@ export function useAnnotationBlocks({
 		clearSelectedAnnotationBlockNodes,
 		removeSelectionFromSelectedAnnotationBlock,
 		getAnnotationBlockForNodes,
+		getAnnotationBlockIdsForNodes,
 		deleteSelectedAnnotationBlock,
 	}
 }

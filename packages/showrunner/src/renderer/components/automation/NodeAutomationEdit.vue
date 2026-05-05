@@ -73,6 +73,7 @@
 						:blocks="annotationBlocks"
 						:selected-block-id="selectedAnnotationBlockId"
 						:drop-target-block-id="annotationBlockDropTargetId"
+						:remove-target-block-ids="annotationBlockRemoveTargetIds"
 						:annotation-block-style="annotationBlockStyle"
 						:get-annotation-block-member-count="getAnnotationBlockMemberCount"
 						:on-start-annotation-block-drag="startAnnotationBlockDrag"
@@ -341,6 +342,7 @@ const selectedNodeId = ref<string>()
 const selectedNodeIds = ref<Set<string>>(new Set())
 const selectedAnnotationBlockId = ref<string>()
 const annotationBlockDropTargetId = ref<string>()
+const annotationBlockRemoveTargetIds = ref(new Set<string>())
 const selectedActionToAdd = ref("")
 const actionPaletteQuery = ref("")
 const dropTargetNodeId = ref<string>()
@@ -668,6 +670,7 @@ const {
 	clearSelectedAnnotationBlockNodes,
 	placeDraggedNodesInAnnotationBlock,
 	getAnnotationBlockForNodes,
+	getAnnotationBlockIdsForNodes,
 	getAnnotationBlockMemberCount,
 	deleteSelectedAnnotationBlock,
 } = useAnnotationBlocks({
@@ -806,11 +809,14 @@ const { startDrag, resetSelectedNodePosition, alignmentGuides } = useNodeDrag(
 	NODE_WIDTH,
 	{
 		onDragMove: (draggedIds) => {
-			annotationBlockDropTargetId.value = getAnnotationBlockForNodes(draggedIds)?.id
+			const targetBlockId = getAnnotationBlockForNodes(draggedIds)?.id
+			annotationBlockDropTargetId.value = targetBlockId
+			annotationBlockRemoveTargetIds.value = targetBlockId ? new Set() : new Set(getAnnotationBlockIdsForNodes(draggedIds))
 		},
 		onDragEnd: (draggedIds, moved) => {
 			const blockId = annotationBlockDropTargetId.value
 			annotationBlockDropTargetId.value = undefined
+			annotationBlockRemoveTargetIds.value = new Set()
 			if (!moved) return
 			return placeDraggedNodesInAnnotationBlock(blockId, draggedIds)
 		},
