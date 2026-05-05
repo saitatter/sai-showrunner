@@ -313,14 +313,6 @@ const wheelAngle = ref(0)
 const isEditor = useIsEditor()
 
 onMounted(() => {
-	watch(
-		() => props.config,
-		() => {
-			console.log(props.config)
-		},
-		{ deep: true, immediate: true }
-	)
-
 	watch(globalIndex, () => {
 		if (isEditor) return
 

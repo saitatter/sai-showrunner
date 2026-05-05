@@ -34,7 +34,7 @@ import {
 	ViewerVariableSelector,
 	usePluginStore,
 } from "showrunner-ui-core"
-import { useModel, computed, watch } from "vue"
+import { useModel, computed } from "vue"
 
 import PButton from "primevue/button"
 
@@ -87,13 +87,6 @@ const inequalities = computed(() => {
 	return comparison?.inequalities ?? false
 })
 
-watch(
-	inequalities,
-	() => {
-		console.log("INEQUALITIES", inequalities.value)
-	},
-	{ immediate: true }
-)
 </script>
 
 <style></style>

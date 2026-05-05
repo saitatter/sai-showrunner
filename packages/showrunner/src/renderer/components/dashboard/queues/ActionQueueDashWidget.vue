@@ -120,7 +120,6 @@ watch(
 		if (current.length > old.length) {
 			nextTick(() => {
 				if (!queueList.value) return
-				console.log("Shifting!", queueList.value.scrollLeft)
 				queueList.value.scrollLeft += convertRemToPixels(10.5)
 			})
 		}

@@ -33,7 +33,7 @@ import {
 	useDataBinding,
 	useViewerDataStore,
 } from "showrunner-ui-core"
-import { ComputedRef, computed, inject, markRaw, onMounted, provide, ref, useModel, watch } from "vue"
+import { ComputedRef, computed, inject, markRaw, provide, ref, useModel, watch } from "vue"
 import { useOverlayWidgets } from "showrunner-overlay-widget-loader"
 import { useRemoteOverlayConfig } from "../config/overlay-config"
 import { ShowRunnerBridgeImplementation } from "showrunner-overlay-core"
@@ -55,10 +55,6 @@ const props = defineProps<{
 }>()
 
 useDataBinding(() => props.localPath)
-
-onMounted(() => {
-	console.log("Mount Widget Edit", props.modelValue)
-})
 
 provide("isEditor", true)
 

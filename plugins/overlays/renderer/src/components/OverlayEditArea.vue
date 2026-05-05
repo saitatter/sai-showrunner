@@ -263,7 +263,6 @@ function onBlur() {}
 
 useDataUIBinding({
 	onChildFocus(parsedPath) {
-		console.log("OVERLAY FOCUS", parsedPath)
 		const idx = Number(parsedPath[0])
 		if (isNaN(idx)) return
 

@@ -71,8 +71,6 @@ const modelId = computed({
 
 		const [overlayId, widgetId] = v.split(".")
 
-		console.log("Setting", overlayId, widgetId)
-
 		model.value = {
 			overlayId,
 			widgetId,
@@ -83,7 +81,6 @@ const modelId = computed({
 const overlays = useResourceArray<ResourceData<OverlayConfig>>("Overlay")
 
 function getOverlayName(data: WidgetWithID) {
-	console.log("Fetching OName", data)
 	if (!data) return "MISSING"
 	const overlay = overlays.value.find((o) => o.id == data.overlayId)
 
