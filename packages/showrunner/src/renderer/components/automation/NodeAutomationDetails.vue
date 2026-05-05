@@ -82,7 +82,7 @@
 							v-if="selectedActionDefModel && !selectedActionMissing"
 							v-model="selectedActionDefModel"
 							:local-path="selectedActionPath"
-							:action-definition="selectedActionDefinition"
+							:resolved-action-definition="selectedActionDefinition"
 						/>
 						<div v-else-if="selectedActionMissing" class="node-automation__missing-schema">
 							<i class="mdi mdi-alert-circle-outline" />

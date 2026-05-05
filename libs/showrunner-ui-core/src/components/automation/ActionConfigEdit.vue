@@ -27,7 +27,7 @@ import ReturnNamer from "../data/returns/ReturnNamer.vue"
 const props = defineProps<{
 	modelValue: ActionInfo
 	localPath: string | undefined
-	actionDefinition?: ActionDefinition
+	resolvedActionDefinition?: ActionDefinition
 }>()
 
 useDataBinding(() => props.localPath)
@@ -35,7 +35,7 @@ useDataBinding(() => props.localPath)
 const model = useModel(props, "modelValue")
 
 const registeredActionInfo = useAction(() => props.modelValue)
-const actionInfo = computed(() => props.actionDefinition ?? registeredActionInfo.value)
+const actionInfo = computed(() => props.resolvedActionDefinition ?? registeredActionInfo.value)
 </script>
 
 <style scoped>
