@@ -193,6 +193,7 @@
 				:selected-annotation-block="selectedAnnotationBlock"
 				:selected-action-info="selectedActionInfo"
 				:selected-action-def="selectedActionDef"
+				:selected-action-definition="selectedActionDefinition"
 				:selected-action-path="selectedActionPath"
 				:selected-action-missing="selectedActionMissing"
 				:selected-trigger-missing="selectedTriggerMissing"
@@ -566,14 +567,17 @@ const selectedActionPath = computed(() => {
 const selectedActionDef = computed(() => {
 	return selectedActionInfo.value
 })
+const selectedActionDefinition = computed(() => {
+	const action = selectedActionInfo.value
+	return resolveActionDefinition(pluginStore.pluginMap, action?.plugin, action?.action)
+})
 function updateSelectedActionDef(value: ActionInfo | undefined) {
 	if (!value || !selectedActionInfo.value) return
 	Object.assign(selectedActionInfo.value, value)
 }
 const selectedActionMissing = computed(() => {
-	const action = selectedActionInfo.value
-	if (!action) return false
-	return !resolveActionDefinition(pluginStore.pluginMap, action.plugin, action.action)
+	if (!selectedActionInfo.value) return false
+	return !selectedActionDefinition.value
 })
 const canEditSelectedAction = computed(() => {
 	return Boolean(selectedActionInfo.value)

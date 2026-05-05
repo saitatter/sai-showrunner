@@ -82,6 +82,7 @@
 							v-if="selectedActionDefModel && !selectedActionMissing"
 							v-model="selectedActionDefModel"
 							:local-path="selectedActionPath"
+							:action-definition="selectedActionDefinition"
 						/>
 						<div v-else-if="selectedActionMissing" class="node-automation__missing-schema">
 							<i class="mdi mdi-alert-circle-outline" />
@@ -446,6 +447,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import {
+	type ActionDefinition,
 	ActionConfigEdit,
 	DataBindingPath,
 	TriggerConfigEdit,
@@ -498,6 +500,7 @@ const props = defineProps<{
 	selectedAnnotationBlock?: AnnotationBlock
 	selectedActionInfo?: ActionInfo
 	selectedActionDef?: ActionInfo
+	selectedActionDefinition?: ActionDefinition
 	selectedActionPath?: string
 	selectedActionMissing: boolean
 	selectedTriggerMissing: boolean
