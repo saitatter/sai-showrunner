@@ -1,6 +1,7 @@
 import { computed, ref, type ComputedRef, type Ref } from "vue"
 import { type AutomationConfig } from "showrunner-schema"
 import { usePluginStore } from "showrunner-ui-core"
+import { resolveActionDefinition } from "./actionLookup"
 
 interface PreviewNode {
 	id: string
@@ -54,7 +55,7 @@ export function useAutomationPreview(model: Ref<AutomationConfig>, previewNodes:
 		const configuredDuration = Number(action.config?.duration)
 		if (Number.isFinite(configuredDuration) && configuredDuration > 0) return configuredDuration
 
-		const actionDefinition = pluginStore.pluginMap.get(action.plugin)?.actions[action.action]
+		const actionDefinition = resolveActionDefinition(pluginStore.pluginMap, action.plugin, action.action)
 		const duration = actionDefinition?.duration
 		if (!duration || "ipcCallback" in duration) return undefined
 		if (duration.dragType === "fixed" && Number.isFinite(duration.duration)) return duration.duration

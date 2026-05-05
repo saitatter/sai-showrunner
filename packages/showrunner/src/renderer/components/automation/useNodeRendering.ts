@@ -16,6 +16,7 @@ import {
 	type SubgraphDefinition,
 } from "showrunner-schema"
 import type { PortDef } from "./usePortConnections"
+import { normalizeActionLookupId, resolveActionDefinition } from "./actionLookup"
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
@@ -126,7 +127,7 @@ export function extractPorts(
 	action: ActionGraphNode,
 	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
 ): { inputPorts: PortDef[]; outputPorts: PortDef[] } {
-	const actionDef = pluginMap.get(action.plugin)?.actions?.[action.action]
+	const actionDef = resolveActionDefinition(pluginMap, action.plugin, action.action)
 	if (!actionDef) return { inputPorts: [], outputPorts: [] }
 
 	const inputPorts = schemaToPorts(actionDef.config)
@@ -153,7 +154,7 @@ export function extractConfigSummary(
 	action: ActionGraphNode,
 	pluginMap: Map<string, { actions: Record<string, ActionDefinition> }>
 ): ConfigLine[] {
-	const actionDef = pluginMap.get(action.plugin)?.actions?.[action.action]
+	const actionDef = resolveActionDefinition(pluginMap, action.plugin, action.action)
 	if (!actionDef) return []
 
 	const lines: ConfigLine[] = []
@@ -193,7 +194,7 @@ export const GRAPH_NODE_INFO: Record<GraphNodeType, { icon: string; kind: NodeDa
 	subgraphCall: { icon: "mdi mdi-function", kind: "action", label: "Subgraph" },
 }
 
-const QUEUE_ACTION_IDS = new Set(["addToQueue", "completeQueueItem", "cancelQueueItem", "clearQueue", "skip", "pause"])
+const QUEUE_ACTION_IDS = new Set(["addToQueue", "completeQueueItem", "cancelQueueItem", "clearQueue", "skip", "pause"].map(normalizeActionLookupId))
 const CONVERSION_ACTION_IDS = new Set([
 	"convertNumberToString",
 	"convertBooleanToString",
@@ -205,7 +206,7 @@ const CONVERSION_ACTION_IDS = new Set([
 	"convertArrayToJsonString",
 	"convertJsonStringToObject",
 	"convertJsonStringToArray",
-])
+].map(normalizeActionLookupId))
 
 export function summarizeExpression(expr: any): string {
 	if (!expr) return "—"
@@ -238,7 +239,7 @@ export function graphNodeToNodeData(
 		case "action": {
 			const action = gn as any
 			const plugin = pluginMap.get(action.plugin)
-			const actionDef = plugin?.actions?.[action.action]
+			const actionDef = resolveActionDefinition(pluginMap, action.plugin, action.action)
 			if (!actionDef) {
 				return {
 					id: gn.id,
@@ -266,7 +267,7 @@ export function graphNodeToNodeData(
 			const ports = extractPorts(action, pluginMap)
 			inputPorts = ports.inputPorts
 			outputPorts = ports.outputPorts
-			if (action.plugin === "ShowRunner" && QUEUE_ACTION_IDS.has(action.action)) {
+			if (isBuiltinActionPlugin(action.plugin) && QUEUE_ACTION_IDS.has(normalizeActionLookupId(action.action))) {
 				return {
 					id: gn.id,
 					kind: "queue",
@@ -282,7 +283,7 @@ export function graphNodeToNodeData(
 					height: computeNodeHeight(configLines, inputPorts, outputPorts),
 				}
 			}
-			if (action.plugin === "ShowRunner" && CONVERSION_ACTION_IDS.has(action.action)) {
+			if (isBuiltinActionPlugin(action.plugin) && CONVERSION_ACTION_IDS.has(normalizeActionLookupId(action.action))) {
 				return {
 					id: gn.id,
 					kind: "conversion",
@@ -413,6 +414,10 @@ export function buildGraph(
 		edges.push({ id: `${triggerId}:${automation.graph.entryNodeId}`, from: triggerId, to: automation.graph.entryNodeId })
 	}
 	return { nodes, edges }
+}
+
+function isBuiltinActionPlugin(pluginId: string) {
+	return pluginId.toLowerCase() === "showrunner"
 }
 
 function getRenderableTriggerNodes(automation: AutomationConfig): AutomationTriggerNode[] {

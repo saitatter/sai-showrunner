@@ -106,4 +106,48 @@ describe("useNodeRendering", () => {
 			to: "node-1",
 		})
 	})
+
+	it("resolves conversion action schemas across camel and kebab ids", () => {
+		const graph: AutomationGraph = {
+			entryNodeId: "convert-1",
+			nodes: [
+				{
+					id: "convert-1",
+					type: "action",
+					plugin: "ShowRunner",
+					action: "convertJsonStringToObject",
+					config: { value: "{}" },
+					x: 10,
+					y: 20,
+				},
+			],
+			edges: [],
+		}
+		const rendered = buildGraphFromAutomationGraph(graph, new Map([
+			[
+				"ShowRunner",
+				{
+					name: "ShowRunner",
+					actions: {
+						"convert-json-string-to-object": {
+							name: "Convert JSON String To Object",
+							icon: "mdi mdi-code-json",
+							type: "regular",
+							config: { type: Object, properties: { value: { type: String, name: "JSON" } } },
+							result: { type: Object, properties: { value: { type: Object, name: "Object" } } },
+						},
+					},
+					triggers: {},
+				},
+			],
+		]) as any)
+
+		expect(rendered.nodes[0]).toMatchObject({
+			kind: "conversion",
+			title: "Convert JSON String To Object",
+		})
+		expect(rendered.nodes[0].missing).toBeUndefined()
+		expect(rendered.nodes[0].inputPorts?.map((port) => port.key)).toEqual(["value"])
+		expect(rendered.nodes[0].outputPorts?.map((port) => port.key)).toEqual(["value"])
+	})
 })

@@ -320,6 +320,7 @@ import { SUBGRAPH_PARAM_TYPES, useSubgraphManagement } from "./useSubgraphManage
 import { useControlFlowNodes } from "./useControlFlowNodes"
 import { useSubgraphCollapse } from "./useSubgraphCollapse"
 import { useNodeResize } from "./useNodeResize"
+import { resolveActionDefinition } from "./actionLookup"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
@@ -572,7 +573,7 @@ function updateSelectedActionDef(value: ActionInfo | undefined) {
 const selectedActionMissing = computed(() => {
 	const action = selectedActionInfo.value
 	if (!action) return false
-	return !pluginStore.pluginMap.get(action.plugin)?.actions?.[action.action]
+	return !resolveActionDefinition(pluginStore.pluginMap, action.plugin, action.action)
 })
 const canEditSelectedAction = computed(() => {
 	return Boolean(selectedActionInfo.value)
@@ -1211,7 +1212,7 @@ async function selectActionFromContext(actionKey: string) {
 	if (!action) return
 
 	const plugin = pluginStore.pluginMap.get(selection.plugin)
-	const actionDef = plugin?.actions?.[selection.action]
+	const actionDef = resolveActionDefinition(pluginStore.pluginMap, selection.plugin, selection.action)
 	trackRecentlyUsed(actionKey, "action", actionDef?.name ?? selection.action, actionDef?.icon ?? "mdi mdi-play", String(plugin?.color ?? "#e9aaff"))
 
 	const pendingFlow = pendingFlowConnection.value

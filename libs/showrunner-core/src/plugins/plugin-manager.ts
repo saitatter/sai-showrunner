@@ -122,7 +122,9 @@ export const PluginManager = Service(
 		}
 
 		getAction(plugin: string, action: string) {
-			return this.plugins.get(plugin)?.actions?.get(action)
+			const actions = (this.plugins.get(plugin) ?? [...this.plugins.entries()].find(([id]) => normalizeActionLookupId(id) === normalizeActionLookupId(plugin))?.[1])?.actions
+			if (!actions) return undefined
+			return actions.get(action) ?? [...actions.entries()].find(([id]) => normalizeActionLookupId(id) === normalizeActionLookupId(action))?.[1]
 		}
 
 		getTrigger(plugin: string, trigger: string) {
@@ -138,3 +140,7 @@ export const PluginManager = Service(
 		}
 	}
 )
+
+function normalizeActionLookupId(actionId: string) {
+	return actionId.replace(/[^a-z0-9]/gi, "").toLowerCase()
+}
