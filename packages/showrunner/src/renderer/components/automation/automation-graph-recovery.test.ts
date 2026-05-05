@@ -52,4 +52,49 @@ describe("automation graph recovery", () => {
 		expect(validateAutomationGraph(config)).toContain("A variable node is missing an id.")
 		expect(repairAutomation(config).variableNodes).toEqual([])
 	})
+
+	it("accepts data wires that start at variable nodes", () => {
+		const config: AutomationConfig = {
+			name: "test",
+			schemaVersion: 2,
+			graph: {
+				nodes: [
+					{
+						id: "4DBSUs3TbcaKCrzSA8_Qc",
+						type: "action",
+						plugin: "youtube",
+						action: "sendChatMessage",
+						config: { message: "" },
+						x: 546,
+						y: 252,
+					},
+				],
+				edges: [],
+				entryNodeId: "4DBSUs3TbcaKCrzSA8_Qc",
+			},
+			subgraphs: [],
+			dataWires: [
+				{
+					id: "0eoWoMCPJuH85FVsE_PaO:value->4DBSUs3TbcaKCrzSA8_Qc:message",
+					fromNode: "0eoWoMCPJuH85FVsE_PaO",
+					fromPort: "value",
+					toNode: "4DBSUs3TbcaKCrzSA8_Qc",
+					toPort: "message",
+				},
+			],
+			variableNodes: [
+				{
+					id: "0eoWoMCPJuH85FVsE_PaO",
+					name: "",
+					type: "string",
+					value: "",
+					x: 252,
+					y: 210,
+				},
+			],
+		}
+
+		expect(validateAutomationGraph(config)).toEqual([])
+		expect(repairAutomation(config).dataWires).toEqual(config.dataWires)
+	})
 })

@@ -36,18 +36,21 @@ export function validateAutomationGraph(config: AutomationConfig): string[] {
 		if (!nodeIds.has(edge?.to)) issues.push(`Edge ${edge?.id || "(missing id)"} ends at missing node: ${edge?.to || "(empty)"}`)
 	}
 
+	const variableNodeIds = new Set<string>()
+	for (const variable of config.variableNodes ?? []) {
+		if (!variable?.id) issues.push("A variable node is missing an id.")
+		if (!VALID_VARIABLE_TYPES.has(String(variable?.type))) issues.push(`Variable ${variable?.name || variable?.id || "(unnamed)"} has an unsupported type.`)
+		if (variable?.id && VALID_VARIABLE_TYPES.has(String(variable.type))) variableNodeIds.add(variable.id)
+	}
+
 	const dataWireSourceIds = new Set(nodeIds)
+	for (const variableId of variableNodeIds) dataWireSourceIds.add(variableId)
 	dataWireSourceIds.add("trigger")
 	for (const wire of config.dataWires ?? []) {
 		if (!wire || typeof wire.id !== "string" || !wire.id.trim()) issues.push("A data wire is missing an id.")
 		if (!dataWireSourceIds.has(wire?.fromNode)) issues.push(`Data wire ${wire?.id || "(missing id)"} starts at missing node: ${wire?.fromNode || "(empty)"}`)
 		if (!nodeIds.has(wire?.toNode)) issues.push(`Data wire ${wire?.id || "(missing id)"} ends at missing node: ${wire?.toNode || "(empty)"}`)
 		if (!wire?.fromPort || !wire?.toPort) issues.push(`Data wire ${wire?.id || "(missing id)"} is missing a port.`)
-	}
-
-	for (const variable of config.variableNodes ?? []) {
-		if (!variable?.id) issues.push("A variable node is missing an id.")
-		if (!VALID_VARIABLE_TYPES.has(String(variable?.type))) issues.push(`Variable ${variable?.name || variable?.id || "(unnamed)"} has an unsupported type.`)
 	}
 
 	for (const subgraph of config.subgraphs ?? []) {
@@ -64,10 +67,12 @@ export function repairAutomation(config: AutomationConfig): AutomationConfig {
 	repaired.name ||= ""
 	repaired.graph = repairGraphModel(repaired.graph)
 	repaired.subgraphs = Array.isArray(repaired.subgraphs) ? repaired.subgraphs.map(repairSubgraph).filter(Boolean) as SubgraphDefinition[] : []
-	const mainWireNodeIds = new Set(repaired.graph.nodes.map((node) => node.id))
-	mainWireNodeIds.add("trigger")
-	repaired.dataWires = repairDataWires(repaired.dataWires, mainWireNodeIds)
 	repaired.variableNodes = repairVariableNodes(repaired.variableNodes)
+	const mainWireSourceIds = new Set(repaired.graph.nodes.map((node) => node.id))
+	for (const variable of repaired.variableNodes) mainWireSourceIds.add(variable.id)
+	mainWireSourceIds.add("trigger")
+	const mainWireTargetIds = new Set(repaired.graph.nodes.map((node) => node.id))
+	repaired.dataWires = repairDataWires(repaired.dataWires, mainWireSourceIds, mainWireTargetIds)
 	return repaired
 }
 
@@ -124,9 +129,9 @@ function dedupeNodes(nodes: GraphNode[]): GraphNode[] {
 		})
 }
 
-function repairDataWires(wires: AutomationDataWire[] | undefined, nodeIds: Set<string>): AutomationDataWire[] {
+function repairDataWires(wires: AutomationDataWire[] | undefined, sourceIds: Set<string>, targetIds = sourceIds): AutomationDataWire[] {
 	if (!Array.isArray(wires)) return []
-	return wires.filter((wire) => wire?.id && nodeIds.has(wire.fromNode) && nodeIds.has(wire.toNode) && wire.fromPort && wire.toPort)
+	return wires.filter((wire) => wire?.id && sourceIds.has(wire.fromNode) && targetIds.has(wire.toNode) && wire.fromPort && wire.toPort)
 }
 
 function repairVariableNodes(nodes: AutomationVariableNode[] | undefined): AutomationVariableNode[] {
