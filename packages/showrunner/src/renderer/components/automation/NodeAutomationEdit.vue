@@ -1244,7 +1244,14 @@ import { usePortConnections, portTypeColor } from "./usePortConnections"
 import { useDataWireHealth } from "./useDataWireHealth"
 import { useExecEdges } from "./useExecEdges"
 import { useClipboard } from "./useClipboard"
-import { connectFlowToNode as connectGraphFlowToNode, isTerminalControlFlowNode, resolveContextActionPosition } from "./automation-graph-editing"
+import {
+	addGraphActionNode as addGraphActionNodeToGraph,
+	connectFlowToNode as connectGraphFlowToNode,
+	insertActionInGraph,
+	insertActionOnGraphEdge,
+	isTerminalControlFlowNode,
+	resolveContextActionPosition,
+} from "./automation-graph-editing"
 import ExpressionTextInput from "./ExpressionTextInput.vue"
 import { EXPRESSION_BUILTINS } from "./expression-tokenizer"
 import {
@@ -2518,25 +2525,8 @@ function ensureGraph() {
 	return model.value.graph
 }
 
-function toGraphActionNode(action: ActionInfo, position: NodePosition): Extract<GraphNode, { type: "action" }> {
-	return {
-		id: action.id,
-		type: "action",
-		plugin: action.plugin,
-		action: action.action,
-		config: structuredClone(action.config ?? {}),
-		resultMapping: action.resultMapping ? structuredClone(action.resultMapping) : undefined,
-		x: position.x,
-		y: position.y,
-	}
-}
-
 function addGraphActionNode(action: ActionInfo, position: NodePosition) {
-	const graph = ensureGraph()
-	const node = toGraphActionNode(action, position)
-	graph.nodes.push(node)
-	if (!graph.entryNodeId) graph.entryNodeId = node.id
-	return node
+	return addGraphActionNodeToGraph(ensureGraph(), action, position)
 }
 
 function connectFlowToNode(fromNode: string, fromPort: string | undefined, toNode: string, isTerminal = false) {
@@ -2544,54 +2534,18 @@ function connectFlowToNode(fromNode: string, fromPort: string | undefined, toNod
 }
 
 function insertAction(action: ActionInfo, afterNodeId = selectedNodeId.value, position?: NodePosition, afterPort?: string) {
-	const graph = ensureGraph()
-	const canAnchorFlow = afterNodeId === "trigger" || Boolean(afterNodeId && graph.nodes.some((node) => node.id === afterNodeId))
-	const flowAnchorId = canAnchorFlow ? afterNodeId : undefined
-	const anchor = flowAnchorId && flowAnchorId !== "trigger" ? nodes.value.find((node) => node.id === flowAnchorId) : undefined
-	const fallbackPosition = position ?? {
-		x: snapCoordinate((anchor?.x ?? 42) + H_GAP),
-		y: snapCoordinate(anchor?.y ?? 88),
-	}
-	const node = addGraphActionNode(action, fallbackPosition)
-
-	if (!flowAnchorId) return node
-
-	if (flowAnchorId === "trigger") {
-		const previousEntry = graph.entryNodeId && graph.entryNodeId !== node.id ? graph.entryNodeId : ""
-		graph.entryNodeId = node.id
-		if (previousEntry) {
-			graph.edges.push({ id: `${node.id}:${previousEntry}`, from: node.id, to: previousEntry })
-		}
-		return node
-	}
-
-	connectFlowToNode(flowAnchorId, afterPort, node.id)
-	return node
+	return insertActionInGraph(ensureGraph(), action, {
+		afterNodeId,
+		afterPort,
+		position,
+		anchorNodes: nodes.value,
+		snapCoordinate,
+		anchorOffsetX: H_GAP,
+	})
 }
 
 function insertActionOnEdge(action: ActionInfo, edge: EdgeData, position: NodePosition) {
-	const graph = ensureGraph()
-	const node = addGraphActionNode(action, position)
-
-	if (edge.from === "trigger") {
-		const previousEntry = graph.entryNodeId && graph.entryNodeId !== node.id ? graph.entryNodeId : edge.to
-		graph.entryNodeId = node.id
-		if (previousEntry && previousEntry !== node.id) {
-			graph.edges.push({ id: `${node.id}:${previousEntry}`, from: node.id, to: previousEntry })
-		}
-		return node
-	}
-
-	const existing = graph.edges.find((graphEdge) => graphEdge.id === edge.id)
-	if (existing) {
-		const previousTo = existing.to
-		existing.to = node.id
-		graph.edges.push({ id: `${node.id}:${previousTo}`, from: node.id, to: previousTo })
-	} else {
-		graph.edges.push({ id: `${edge.from}:${node.id}`, from: edge.from, to: node.id, port: edge.port })
-		graph.edges.push({ id: `${node.id}:${edge.to}`, from: node.id, to: edge.to })
-	}
-	return node
+	return insertActionOnGraphEdge(ensureGraph(), action, edge, position)
 }
 
 function duplicateSelectedAction() {
