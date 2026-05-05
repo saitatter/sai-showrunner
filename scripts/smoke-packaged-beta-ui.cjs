@@ -29,6 +29,10 @@ const packagedText = `${readIfExists(htmlPath)}\n${assetText}`
 const requiredMarkers = [
 	["Settings page", "Interface"],
 	["Updates page", "Current version"],
+	["updates dev/offline state", "Development build"],
+	["updates available state", "Update available"],
+	["updates downloaded state", "Update downloaded"],
+	["updates install action", "Update and restart"],
 	["Integrations page", "Integrations"],
 	["integration plugin toggle", "plugin-details__toggle"],
 	["integration detail search", "plugin-details__search"],
