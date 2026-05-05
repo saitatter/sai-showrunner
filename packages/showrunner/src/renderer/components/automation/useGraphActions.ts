@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid"
 import type { ComputedRef, Ref, WritableComputedRef } from "vue"
-import { ActionSelection } from "showrunner-ui-core"
-import { ActionInfo, constructDefault, type AutomationDataWire, type AutomationGraph, type GraphNode } from "showrunner-schema"
+import type { ActionDefinition, ActionSelection } from "showrunner-ui-core"
+import { constructDefault, type ActionInfo, type AutomationDataWire, type AutomationGraph, type GraphNode } from "showrunner-schema"
 import {
 	addGraphActionNode as addGraphActionNodeToGraph,
 	insertActionInGraph,
@@ -25,6 +25,12 @@ interface ContextMenuState {
 	canvasPoint?: NodePosition
 }
 
+interface GraphActionPluginStoreLike {
+	pluginMap: Map<string, { id?: string; color?: string }>
+	createAction: (selection: ActionSelection) => Promise<ActionInfo | undefined>
+	getAction: (selection: ActionSelection) => ActionDefinition | undefined
+}
+
 interface UseGraphActionsOptions {
 	activeGraph: ComputedRef<AutomationGraph | undefined>
 	selectedActionInfo: ComputedRef<Extract<GraphNode, { type: "action" }> | undefined>
@@ -42,7 +48,7 @@ interface UseGraphActionsOptions {
 	dropTargetEdgeId: Ref<string | undefined>
 	ghostNode: Ref<NodePosition | null>
 	configOpen: Ref<boolean>
-	pluginStore: any
+	pluginStore: GraphActionPluginStoreLike
 	anchorOffsetX: number
 	ensureGraph: () => AutomationGraph
 	snapCoordinate: (value: number) => number
@@ -310,7 +316,7 @@ export function useGraphActions(options: UseGraphActionsOptions) {
 		const actionDef = pluginStore.getAction(selection)
 		if (!actionDef || actionDef.type !== "regular") return createFallbackCoreConversionAction(selection)
 
-		const result: Record<string, any> = {
+		const result: ActionInfo = {
 			id: nanoid(),
 			plugin: selection.plugin,
 			action: selection.action,
