@@ -260,6 +260,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Add richer queue observability: retry/cancel reason, worker graph link, and per-item execution timeline.
 
 ### 6.4 V2 Graph Model Improvements
+- [x] Add a backwards-compatible `triggerNodes` schema/migration foundation that mirrors legacy root trigger data.
+- [x] Render explicit trigger nodes when present while preserving the legacy virtual `trigger` node fallback.
 - [ ] Replace the single root `plugin`/`trigger` automation fields with a trigger-node collection while keeping a migration path for existing automations.
 - [ ] Model each trigger as a visible graph node with stable id, plugin id, trigger id, config, context schema, and output data ports.
 - [ ] Allow multiple trigger nodes in one automation graph, each with an independent execution entry edge.
