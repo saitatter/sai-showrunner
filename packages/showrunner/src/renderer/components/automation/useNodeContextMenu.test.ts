@@ -172,4 +172,14 @@ describe("useNodeContextMenu", () => {
 			"ShowRunner:convertStringToNumber",
 		])
 	})
+
+	it("keeps core conversion actions available when ShowRunner is disabled", () => {
+		const menu = createContextMenu(["ShowRunner"])
+
+		expect(menu.actionContextGroups.value.some((group) => group.id === "ShowRunner")).toBe(false)
+		expect(menu.conversionContextItems.value.map((item) => item.key)).toEqual([
+			"ShowRunner:convert-json-string-to-object",
+			"ShowRunner:convertStringToNumber",
+		])
+	})
 })

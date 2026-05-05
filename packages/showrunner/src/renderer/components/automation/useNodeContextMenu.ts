@@ -86,12 +86,22 @@ export function useNodeContextMenu(
 		buildActionCategoryGroups(actionContextGroups.value.flatMap((group) => group.items))
 	)
 	const conversionContextItems = computed(() =>
-		actionContextGroups.value
-			.flatMap((group) => group.items)
-			.filter((item) => {
-				const actionId = item.key.split(":").slice(1).join(":")
-				return isConversionActionId(actionId)
-			})
+		[...pluginStore.pluginMap.values()]
+			.filter((plugin) => (pluginStore.isPluginEnabled?.(plugin.id) ?? true) || isBuiltinPlugin(plugin.id))
+			.flatMap((plugin) =>
+				Object.entries(filterRegularActions(plugin.actions))
+					.filter(([id]) => isConversionActionId(id))
+					.map(([id, action]) => ({
+						key: `${plugin.id}:${id}`,
+						pluginId: plugin.id,
+						pluginName: plugin.name,
+						name: action.name,
+						icon: action.icon || "mdi mdi-swap-horizontal",
+						color: String(plugin.color || "#e9aaff"),
+						searchText: `actions ${plugin.name} ${plugin.id} ${action.name} ${id}`.toLowerCase(),
+					}))
+			)
+			.filter((item) => !contextMenuSearch.value || item.searchText.includes(contextMenuSearch.value))
 			.sort((a, b) => a.name.localeCompare(b.name))
 	)
 	const triggerContextGroups = computed(() =>
@@ -277,8 +287,12 @@ const CONVERSION_ACTION_IDS = new Set([
 	"convertjsonstringtoarray",
 ])
 
-function isConversionActionId(actionId: string) {
+export function isConversionActionId(actionId: string) {
 	return CONVERSION_ACTION_IDS.has(actionId.replace(/[^a-z0-9]/gi, "").toLowerCase())
+}
+
+function isBuiltinPlugin(pluginId: string) {
+	return pluginId.toLowerCase() === "showrunner"
 }
 
 const ACTION_CATEGORY_DEFINITIONS: ActionCategoryDefinition[] = [

@@ -1234,7 +1234,7 @@ import {
 	type SubgraphDefinition,
 } from "showrunner-schema"
 import { useNodeCanvas, type NodeEditorViewState, type NodePosition } from "./useNodeCanvas"
-import { useNodeContextMenu } from "./useNodeContextMenu"
+import { isConversionActionId, useNodeContextMenu } from "./useNodeContextMenu"
 import { useNodeDrag } from "./useNodeDrag"
 import { useAutomationPreview } from "./useAutomationPreview"
 import { areTypesCompatible, usePortConnections, portTypeColor, wouldCreateDataWireCycle, type DataWire, type PortDef } from "./usePortConnections"
@@ -2673,7 +2673,7 @@ async function selectActionFromContext(actionKey: string) {
 	const selection = parseActionSelection(actionKey)
 	if (!selection) return
 
-	const action = await pluginStore.createAction(selection)
+	const action = await createContextAction(selection)
 	if (!action) return
 
 	const plugin = pluginStore.pluginMap.get(selection.plugin)
@@ -2690,6 +2690,35 @@ async function selectActionFromContext(actionKey: string) {
 	closeContextMenu()
 	commitUndo()
 	} finally { dropInProgress = false }
+}
+
+async function createContextAction(selection: ActionSelection) {
+	const action = await pluginStore.createAction(selection)
+	if (action) return action
+	if (!isCoreConversionSelection(selection)) return undefined
+
+	const actionDef = pluginStore.getAction(selection)
+	if (!actionDef || actionDef.type !== "regular") return undefined
+
+	const result: Record<string, any> = {
+		id: nanoid(),
+		plugin: selection.plugin,
+		action: selection.action,
+		config: await constructDefault(actionDef.config),
+	}
+
+	if (actionDef.result) {
+		result.resultMapping = {}
+		for (const prop of Object.keys(actionDef.result.properties)) {
+			result.resultMapping[prop] = prop
+		}
+	}
+
+	return result as ActionInfo
+}
+
+function isCoreConversionSelection(selection: ActionSelection) {
+	return selection.plugin?.toLowerCase() === "showrunner" && Boolean(selection.action && isConversionActionId(selection.action))
 }
 
 async function selectTriggerFromContext(triggerKey: string) {
