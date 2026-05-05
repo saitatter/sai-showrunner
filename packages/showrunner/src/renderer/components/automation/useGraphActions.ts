@@ -9,6 +9,7 @@ import {
 	resolveContextActionPosition,
 } from "./automation-graph-editing"
 import { resolveActionDefinition } from "./actionLookup"
+import { defaultCoreConversionConfig, defaultCoreConversionResultMapping } from "./coreConversionActions"
 import { isConversionActionId } from "./useNodeContextMenu"
 import type { NodePosition } from "./useNodeCanvas"
 import type { EdgeData, NodeData } from "./useNodeRendering"
@@ -354,40 +355,11 @@ function isCoreConversionSelection(selection: ActionSelection) {
 function createFallbackCoreConversionAction(selection: ActionSelection) {
 	if (!isCoreConversionSelection(selection) || !selection.action) return undefined
 	const actionId = selection.action
-	const resultMapping: Record<string, string> = { value: "value" }
-	if (["convertStringToNumber", "convertStringToBoolean", "convertJsonStringToObject", "convertJsonStringToArray"].includes(actionId)) {
-		resultMapping.converted = "converted"
-	}
 	return {
 		id: nanoid(),
 		plugin: "ShowRunner",
 		action: actionId,
 		config: defaultCoreConversionConfig(actionId),
-		resultMapping,
+		resultMapping: defaultCoreConversionResultMapping(actionId),
 	} as ActionInfo
-}
-
-function defaultCoreConversionConfig(actionId: string) {
-	switch (actionId) {
-		case "convertNumberToString":
-		case "convertNumberToBoolean":
-			return { value: 0 }
-		case "convertBooleanToString":
-		case "convertBooleanToNumber":
-			return { value: false }
-		case "convertStringToNumber":
-			return { value: "", fallback: 0 }
-		case "convertStringToBoolean":
-			return { value: "", fallback: false }
-		case "convertObjectToJsonString":
-			return { value: {} }
-		case "convertArrayToJsonString":
-			return { value: [] }
-		case "convertJsonStringToObject":
-			return { value: "{}" }
-		case "convertJsonStringToArray":
-			return { value: "[]" }
-		default:
-			return {}
-	}
 }

@@ -1,5 +1,6 @@
 import { computed, ref, type ComputedRef } from "vue"
 import type { NodePosition } from "./useNodeCanvas"
+import { CORE_CONVERSION_ACTIONS } from "./coreConversionActions"
 
 export interface ContextMenuItem {
 	key: string
@@ -312,19 +313,6 @@ function normalizeActionId(actionId: string) {
 function isBuiltinPlugin(pluginId: string) {
 	return pluginId.toLowerCase() === "showrunner"
 }
-
-export const CORE_CONVERSION_ACTIONS = [
-	{ id: "convertNumberToString", name: "Convert Number To String", icon: "mdi mdi-swap-horizontal" },
-	{ id: "convertBooleanToString", name: "Convert Boolean To String", icon: "mdi mdi-swap-horizontal" },
-	{ id: "convertStringToNumber", name: "Convert String To Number", icon: "mdi mdi-swap-horizontal" },
-	{ id: "convertBooleanToNumber", name: "Convert Boolean To Number", icon: "mdi mdi-swap-horizontal" },
-	{ id: "convertNumberToBoolean", name: "Convert Number To Boolean", icon: "mdi mdi-swap-horizontal" },
-	{ id: "convertStringToBoolean", name: "Convert String To Boolean", icon: "mdi mdi-swap-horizontal" },
-	{ id: "convertObjectToJsonString", name: "Convert Object To JSON String", icon: "mdi mdi-code-json" },
-	{ id: "convertArrayToJsonString", name: "Convert Array To JSON String", icon: "mdi mdi-code-json" },
-	{ id: "convertJsonStringToObject", name: "Convert JSON String To Object", icon: "mdi mdi-code-json" },
-	{ id: "convertJsonStringToArray", name: "Convert JSON String To Array", icon: "mdi mdi-code-json" },
-]
 
 const ACTION_CATEGORY_DEFINITIONS: ActionCategoryDefinition[] = [
 	{
