@@ -86,7 +86,6 @@ export function useCanvasSelection(options: UseCanvasSelectionOptions) {
 
 	function selectAnnotationBlock(blockId: string) {
 		selectedNodeId.value = undefined
-		selectedNodeIds.value = new Set()
 		selectedEdgeId.value = undefined
 		selectedDataWireId.value = undefined
 		selectedAnnotationBlockId.value = blockId

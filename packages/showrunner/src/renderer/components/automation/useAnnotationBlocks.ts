@@ -1,6 +1,7 @@
-import { computed, type Ref } from "vue"
+import { computed, type ComputedRef, type Ref } from "vue"
 import { nanoid } from "nanoid"
 import type { NodePosition } from "./useNodeCanvas"
+import type { NodeData } from "./useNodeRendering"
 
 export interface AnnotationBlock {
 	id: string
@@ -10,6 +11,7 @@ export interface AnnotationBlock {
 	y: number
 	width: number
 	height: number
+	nodeIds?: string[]
 }
 
 interface AnnotationBlockView {
@@ -18,7 +20,10 @@ interface AnnotationBlockView {
 
 interface UseAnnotationBlocksOptions {
 	view: Ref<AnnotationBlockView>
+	nodes: ComputedRef<NodeData[]>
 	selectedAnnotationBlockId: Ref<string | undefined>
+	selectedNodeIds: Ref<Set<string>>
+	nodePositions: ComputedRef<Record<string, NodePosition>>
 	getZoom: () => number
 	snapCoordinate: (value: number) => number
 	getViewport: () => { x: number; y: number }
@@ -28,7 +33,10 @@ interface UseAnnotationBlocksOptions {
 
 export function useAnnotationBlocks({
 	view,
+	nodes,
 	selectedAnnotationBlockId,
+	selectedNodeIds,
+	nodePositions,
 	getZoom,
 	snapCoordinate,
 	getViewport,
@@ -43,6 +51,7 @@ export function useAnnotationBlocks({
 	const selectedAnnotationBlock = computed(() =>
 		annotationBlocks.value.find((block) => block.id === selectedAnnotationBlockId.value)
 	)
+	const selectedAnnotationBlockNodeCount = computed(() => selectedAnnotationBlock.value?.nodeIds?.length ?? 0)
 
 	function addAnnotationBlock(position?: NodePosition) {
 		const viewport = getViewport()
@@ -89,8 +98,20 @@ export function useAnnotationBlocks({
 		function onMove(moveEvent: PointerEvent) {
 			const dx = (moveEvent.clientX - startX) / getZoom()
 			const dy = (moveEvent.clientY - startY) / getZoom()
-			block.x = snapCoordinate(originalX + dx)
-			block.y = snapCoordinate(originalY + dy)
+			const nextX = snapCoordinate(originalX + dx)
+			const nextY = snapCoordinate(originalY + dy)
+			const offsetX = nextX - block.x
+			const offsetY = nextY - block.y
+			block.x = nextX
+			block.y = nextY
+			for (const nodeId of block.nodeIds ?? []) {
+				const position = nodePositions.value[nodeId] ?? nodes.value.find((node) => node.id === nodeId)
+				if (!position) continue
+				nodePositions.value[nodeId] = {
+					x: Math.max(12, position.x + offsetX),
+					y: Math.max(12, position.y + offsetY),
+				}
+			}
 		}
 
 		function onUp(upEvent: PointerEvent) {
@@ -149,6 +170,20 @@ export function useAnnotationBlocks({
 		commitUndo()
 	}
 
+	function addSelectionToSelectedAnnotationBlock() {
+		if (!selectedAnnotationBlock.value) return
+		const next = new Set(selectedAnnotationBlock.value.nodeIds ?? [])
+		for (const nodeId of selectedNodeIds.value) next.add(nodeId)
+		selectedAnnotationBlock.value.nodeIds = [...next]
+		commitUndo()
+	}
+
+	function clearSelectedAnnotationBlockNodes() {
+		if (!selectedAnnotationBlock.value) return
+		selectedAnnotationBlock.value.nodeIds = []
+		commitUndo()
+	}
+
 	function deleteSelectedAnnotationBlock() {
 		const id = selectedAnnotationBlockId.value
 		if (!id) return
@@ -161,12 +196,15 @@ export function useAnnotationBlocks({
 	return {
 		annotationBlocks,
 		selectedAnnotationBlock,
+		selectedAnnotationBlockNodeCount,
 		addAnnotationBlock,
 		annotationBlockStyle,
 		startAnnotationBlockDrag,
 		startAnnotationBlockResize,
 		updateSelectedAnnotationBlockLabel,
 		updateSelectedAnnotationBlockColor,
+		addSelectionToSelectedAnnotationBlock,
+		clearSelectedAnnotationBlockNodes,
 		deleteSelectedAnnotationBlock,
 	}
 }

@@ -45,21 +45,6 @@
 			<i class="mdi mdi-eye-off-outline" />
 			<span>{{ hiddenPluginSearchHint }}</span>
 		</section>
-		<section v-if="!pendingFlowConnection" class="node-automation__menu-section">
-			<div class="node-automation__menu-section-header node-automation__menu-section-header--static">
-				<span><i class="mdi mdi-selection-drag" /> Canvas</span>
-			</div>
-			<div class="node-automation__menu-items">
-				<button type="button" @click="onAddAnnotationBlock()">
-					<i class="mdi mdi-vector-rectangle" style="color: #64b5f6" />
-					<span>
-						<strong>Annotation Block</strong>
-						<small>Manual colored note area</small>
-					</span>
-					<em>Block</em>
-				</button>
-			</div>
-		</section>
 		<section v-if="actionCategoryGroups.length" class="node-automation__menu-section">
 			<button type="button" class="node-automation__menu-section-header" data-context-section="categories" :aria-expanded="isContextGroupOpen('categories')" @click="toggleContextGroup('categories')">
 				<span><i class="mdi mdi-shape-outline" /> Categories</span>
@@ -320,7 +305,6 @@ const props = defineProps<{
 	onAddVariableNode: (type: VariableNodeType) => void
 	onAddControlFlowNode: (type: ControlFlowNodeType) => void
 	onAddSubgraphCallNode: (subgraphId: string) => void
-	onAddAnnotationBlock: () => void
 }>()
 
 const emit = defineEmits<{

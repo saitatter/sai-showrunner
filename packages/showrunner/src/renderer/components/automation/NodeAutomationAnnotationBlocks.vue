@@ -39,7 +39,7 @@ defineProps<{
 	box-sizing: border-box;
 	cursor: move;
 	position: absolute;
-	z-index: 0;
+	z-index: 2;
 }
 
 .node-automation__annotation-block.selected {

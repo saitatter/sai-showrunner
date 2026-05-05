@@ -41,6 +41,17 @@
 							@change="onUpdateAnnotationBlockColor(($event.target as HTMLInputElement).value)"
 						/>
 					</label>
+					<div class="node-automation__annotation-members">
+						<span>{{ selectedAnnotationBlockNodeCount }} node{{ selectedAnnotationBlockNodeCount === 1 ? '' : 's' }} in block</span>
+						<button type="button" :disabled="selectedNodeCount < 1" @click="onAddSelectionToAnnotationBlock()">
+							<i class="mdi mdi-selection-plus" />
+							Add Selection
+						</button>
+						<button type="button" :disabled="selectedAnnotationBlockNodeCount < 1" @click="onClearAnnotationBlockNodes()">
+							<i class="mdi mdi-selection-remove" />
+							Clear Nodes
+						</button>
+					</div>
 					<button type="button" class="danger" @click="onDeleteAnnotationBlock()">
 						<i class="mdi mdi-trash-can-outline" />
 						Delete Block
@@ -280,6 +291,10 @@ const props = defineProps<{
 	onClearSelection: () => void
 	onUpdateAnnotationBlockLabel: (value: string) => void
 	onUpdateAnnotationBlockColor: (value: string) => void
+	selectedAnnotationBlockNodeCount: number
+	selectedNodeCount: number
+	onAddSelectionToAnnotationBlock: () => void
+	onClearAnnotationBlockNodes: () => void
 	onDeleteAnnotationBlock: () => void
 	onUpdateVariableNodeName: (value: string) => void
 	onUpdateVariableNodeValue: (value: unknown) => void
@@ -584,5 +599,43 @@ const selectedTriggerConfigModelModel = computed({
 	color: var(--text-color);
 	font-size: 0.85rem;
 	padding: 0.35rem 0.5rem;
+}
+
+.node-automation__annotation-members {
+	background: #101010;
+	border: 1px solid #303030;
+	border-radius: 5px;
+	display: grid;
+	gap: 0.45rem;
+	padding: 0.55rem;
+}
+
+.node-automation__annotation-members span {
+	color: #d6d6d6;
+	font-size: 0.78rem;
+}
+
+.node-automation__annotation-members button,
+.node-automation__annotation-edit > button {
+	align-items: center;
+	background: #2b173d;
+	border: 1px solid #7041a6;
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	display: inline-flex;
+	gap: 0.4rem;
+	justify-content: center;
+	padding: 0.45rem 0.6rem;
+}
+
+.node-automation__annotation-edit > button.danger {
+	background: #3a171b;
+	border-color: #8f3744;
+}
+
+.node-automation__annotation-members button:disabled {
+	cursor: not-allowed;
+	opacity: 0.45;
 }
 </style>

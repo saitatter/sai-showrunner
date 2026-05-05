@@ -166,7 +166,6 @@
 						:on-add-variable-node="addVariableNode"
 						:on-add-control-flow-node="addControlFlowNode"
 						:on-add-subgraph-call-node="addSubgraphCallNode"
-						:on-add-annotation-block="addAnnotationBlockFromContext"
 					/>
 				</div>
 				<datalist id="node-expression-suggestions">
@@ -212,6 +211,10 @@
 				:on-clear-selection="clearSelection"
 				:on-update-annotation-block-label="updateSelectedAnnotationBlockLabel"
 				:on-update-annotation-block-color="updateSelectedAnnotationBlockColor"
+				:selected-annotation-block-node-count="selectedAnnotationBlockNodeCount"
+				:selected-node-count="selectedNodeIds.size"
+				:on-add-selection-to-annotation-block="addSelectionToSelectedAnnotationBlock"
+				:on-clear-annotation-block-nodes="clearSelectedAnnotationBlockNodes"
 				:on-delete-annotation-block="deleteSelectedAnnotationBlock"
 				:on-update-variable-node-name="updateSelectedVariableNodeName"
 				:on-update-variable-node-value="updateSelectedVariableNodeValue"
@@ -654,10 +657,16 @@ const {
 	startAnnotationBlockResize,
 	updateSelectedAnnotationBlockLabel,
 	updateSelectedAnnotationBlockColor,
+	selectedAnnotationBlockNodeCount,
+	addSelectionToSelectedAnnotationBlock,
+	clearSelectedAnnotationBlockNodes,
 	deleteSelectedAnnotationBlock,
 } = useAnnotationBlocks({
 	view,
+	nodes,
 	selectedAnnotationBlockId,
+	selectedNodeIds,
+	nodePositions,
 	getZoom: () => zoom.value,
 	snapCoordinate: (value) => snapCoordinate(value),
 	getViewport: () => minimapViewport.value,
@@ -1062,11 +1071,6 @@ function selectDataWire(wireId: string) {
 
 function selectAnnotationBlock(blockId: string) {
 	canvasSelection.selectAnnotationBlock(blockId)
-}
-
-function addAnnotationBlockFromContext() {
-	addAnnotationBlock(contextMenu.value.canvasPoint)
-	closeContextMenu()
 }
 
 function openPendingFlowContext(drop: {
