@@ -424,47 +424,15 @@
 				<datalist id="node-expression-suggestions">
 					<option v-for="item in expressionSuggestions" :key="item" :value="item" />
 				</datalist>
-				<svg
-					class="node-automation__minimap"
-					:viewBox="minimapViewBox"
-					preserveAspectRatio="xMidYMid meet"
-					@pointerdown.stop="startMinimapNav"
-				>
-					<rect
-						v-for="node in nodes"
-						:key="`mm-${node.id}`"
-						:x="node.x"
-						:y="node.y"
-						:width="node.width ?? NODE_WIDTH"
-						:height="node.height"
-						:class="`node-automation__minimap-node--${node.kind}`"
-						rx="3"
-					/>
-					<path
-						v-for="edge in edges"
-						:key="`mm-${edge.id}`"
-						:d="edge.path"
-						class="node-automation__minimap-edge"
-						fill="none"
-					/>
-					<!-- Data wires on minimap -->
-					<path
-						v-for="wire in dataWirePaths"
-						:key="`mm-dw-${wire.id}`"
-						:d="wire.path"
-						class="node-automation__minimap-data-wire"
-						:stroke="wire.color"
-						fill="none"
-					/>
-					<rect
-						class="node-automation__minimap-viewport"
-						:x="minimapViewport.x"
-						:y="minimapViewport.y"
-						:width="minimapViewport.width"
-						:height="minimapViewport.height"
-						rx="2"
-					/>
-				</svg>
+				<node-automation-minimap
+					:nodes="nodes"
+					:edges="edges"
+					:data-wires="dataWirePaths"
+					:view-box="minimapViewBox"
+					:viewport="minimapViewport"
+					:node-width="NODE_WIDTH"
+					:on-pointer-down="startMinimapNav"
+				/>
 			</section>
 
 			<node-automation-details
@@ -600,6 +568,7 @@ import {
 import NodeAutomationDetails from "./NodeAutomationDetails.vue"
 import NodeAutomationContextMenu from "./NodeAutomationContextMenu.vue"
 import NodeAutomationCanvasControls from "./NodeAutomationCanvasControls.vue"
+import NodeAutomationMinimap from "./NodeAutomationMinimap.vue"
 
 const props = defineProps<{
 	modelValue: AutomationConfig
@@ -2754,46 +2723,6 @@ onUnmounted(() => {
 
 .node-automation__node.search-match {
 	box-shadow: 0 0 0 2px #ffcc00;
-}
-
-.node-automation__minimap {
-	background: rgb(0 0 0 / 0.5);
-	border: 1px solid rgb(255 255 255 / 0.12);
-	border-radius: 4px;
-	bottom: 0.75rem;
-	cursor: crosshair;
-	float: right;
-	height: 120px;
-	pointer-events: auto;
-	position: sticky;
-	width: 180px;
-	z-index: 18;
-}
-
-.node-automation__minimap-node--trigger { fill: #4fc3f7; }
-.node-automation__minimap-node--action { fill: #81c784; }
-.node-automation__minimap-node--conversion { fill: #4dd0e1; }
-.node-automation__minimap-node--queue { fill: #ffcf5a; }
-.node-automation__minimap-node--stack { fill: #ba68c8; }
-.node-automation__minimap-node--time { fill: #ffb74d; }
-.node-automation__minimap-node--flow { fill: #4dd0e1; }
-.node-automation__minimap-node--floating { fill: #a1887f; }
-
-.node-automation__minimap-edge {
-	stroke: rgb(255 255 255 / 0.25);
-	stroke-width: 1.5;
-}
-
-.node-automation__minimap-data-wire {
-	stroke-width: 1;
-	opacity: 0.6;
-}
-
-.node-automation__minimap-viewport {
-	fill: rgb(255 255 255 / 0.08);
-	stroke: rgb(255 255 255 / 0.55);
-	stroke-width: 2;
-	vector-effect: non-scaling-stroke;
 }
 
 .node-automation__surface {
