@@ -763,6 +763,7 @@ import {
 	graphWireId,
 	oppositeGraphPortKind,
 	resolveGraphWireEndpoints,
+	useGraphContextMenuGroups,
 	useGraphHistory,
 	useGraphNodeDrag,
 	useGraphSelection,
@@ -844,8 +845,6 @@ const selectedWireId = ref<string>()
 const selectionBox = ref<{ x: number; y: number; width: number; height: number } | null>(null)
 const paletteOpen = ref(false)
 const palettePos = ref({ x: 0, y: 0 })
-const paletteQuery = ref("")
-const contextMenuOpenGroups = ref(new Set<string>())
 const sidePanelTab = ref<"node" | "preview" | "errors" | "code">("preview")
 const compiledGlsl = ref("")
 const lastGoodGlsl = ref("")
@@ -908,6 +907,13 @@ const canSaveGraphPreset = computed(() => graphPresetName.value.trim().length > 
 const listShaderGraphPresets = useIpcCaller<() => Promise<Record<string, unknown>>>("overlays", "listShaderGraphPresets")
 const saveShaderGraphPresetCall = useIpcCaller<(preset: { name: string; graph: ShaderGraph }) => Promise<Record<string, unknown>>>("overlays", "saveShaderGraphPreset")
 const deleteShaderGraphPresetCall = useIpcCaller<(name: string) => Promise<Record<string, unknown>>>("overlays", "deleteShaderGraphPreset")
+const {
+	contextMenuQuery: paletteQuery,
+	contextMenuSearch,
+	resetContextMenuGroups,
+	toggleContextGroup,
+	isContextGroupOpen,
+} = useGraphContextMenuGroups()
 
 const previewOverlayMessage = computed(() => {
 	if (previewError.value) return previewError.value
@@ -1096,7 +1102,7 @@ const contextMenuCategories = computed(() =>
 )
 
 const contextMenuQueryResults = computed(() => {
-	const query = paletteQuery.value.toLowerCase().trim()
+	const query = contextMenuSearch.value
 	if (!query) return []
 	return SHADER_NODE_DEFS.filter((def) =>
 		def.name.toLowerCase().includes(query) ||
@@ -1701,21 +1707,9 @@ function nodeTitle(node: ShaderNodeInstance & { name: string }) {
 // ─── Palette ─────────────────────────────────────────────────────────
 function openPalette(e: MouseEvent) {
 	palettePos.value = { x: e.clientX - (canvasRef.value?.getBoundingClientRect().left ?? 0), y: e.clientY - (canvasRef.value?.getBoundingClientRect().top ?? 0) }
-	paletteQuery.value = ""
-	contextMenuOpenGroups.value = new Set()
+	resetContextMenuGroups()
 	paletteOpen.value = true
 	nextTick(() => paletteInputRef.value?.focus())
-}
-
-function toggleContextGroup(group: string) {
-	const next = new Set(contextMenuOpenGroups.value)
-	if (next.has(group)) next.delete(group)
-	else next.add(group)
-	contextMenuOpenGroups.value = next
-}
-
-function isContextGroupOpen(group: string) {
-	return contextMenuOpenGroups.value.has(group)
 }
 
 let nodeCounter = 0

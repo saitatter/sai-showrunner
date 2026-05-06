@@ -1,4 +1,5 @@
 import { computed, ref, type ComputedRef } from "vue"
+import { useGraphContextMenuGroups } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import type { NodePosition } from "./useNodeCanvas"
 import { CORE_CONVERSION_ACTIONS } from "./coreConversionActions"
 
@@ -77,21 +78,29 @@ export function useNodeContextMenu(
 		x: 0,
 		y: 0,
 	})
-	const contextMenuQuery = ref("")
-	const contextMenuOpenGroups = ref<Record<string, boolean>>({
-		triggers: true,
-		actions: true,
-		categories: false,
-		data: false,
-		"category:data-transforms": true,
-		"category:queues": true,
-		"category:overlays": true,
-		"category:obs": true,
-		"category:chat": true,
-		"category:utility": true,
+	const {
+		contextMenuQuery,
+		contextMenuSearch,
+		contextMenuOpenGroups,
+		resetContextMenuGroups,
+		setContextGroupOpen,
+		toggleContextGroup,
+		isContextGroupOpen,
+	} = useGraphContextMenuGroups({
+		defaultOpenGroups: {
+			triggers: true,
+			actions: true,
+			categories: false,
+			data: false,
+			"category:data-transforms": true,
+			"category:queues": true,
+			"category:overlays": true,
+			"category:obs": true,
+			"category:chat": true,
+			"category:utility": true,
+		},
 	})
 
-	const contextMenuSearch = computed(() => contextMenuQuery.value.trim().toLowerCase())
 	const contextMenuSubtitle = computed(() => {
 		const node = contextMenu.value.nodeId ? nodes.value.find((entry) => entry.id === contextMenu.value.nodeId) : undefined
 		if (node) return `Insert after ${node.title} or replace the trigger.`
@@ -181,26 +190,18 @@ export function useNodeContextMenu(
 			nodeId,
 			canvasPoint,
 		}
-		contextMenuQuery.value = ""
-		contextMenuOpenGroups.value.data = false
+		resetContextMenuGroups()
+		setContextGroupOpen("data", false)
 
 		if (nodeId) {
 			const node = nodes.value.find((entry) => entry.id === nodeId)
 			const lane = node ? getNodeLane(node) : undefined
-			if (lane) contextMenuOpenGroups.value[`action:${lane.id}`] = true
+			if (lane) setContextGroupOpen(`action:${lane.id}`, true)
 		}
 	}
 
 	function closeContextMenu() {
 		contextMenu.value.open = false
-	}
-
-	function toggleContextGroup(key: string) {
-		contextMenuOpenGroups.value[key] = !isContextGroupOpen(key)
-	}
-
-	function isContextGroupOpen(key: string) {
-		return contextMenuOpenGroups.value[key] ?? false
 	}
 
 	function buildContextGroups<Entry extends MenuAction | MenuTrigger>(

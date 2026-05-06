@@ -128,6 +128,10 @@ export interface GraphHistoryOptions<TSnapshot> {
 	limit?: number
 }
 
+export interface GraphContextMenuGroupsOptions {
+	defaultOpenGroups?: Record<string, boolean>
+}
+
 export function graphPortPositionKey(nodeId: string, portKey: string, kind: GraphPortKind) {
 	return `${kind}:${nodeId}:${portKey}`
 }
@@ -471,5 +475,42 @@ export function useGraphHistory<TSnapshot>(options: GraphHistoryOptions<TSnapsho
 		recordHistory,
 		undo,
 		redo,
+	}
+}
+
+export function useGraphContextMenuGroups(options: GraphContextMenuGroupsOptions = {}) {
+	const defaultOpenGroups = { ...(options.defaultOpenGroups ?? {}) }
+	const contextMenuQuery = ref("")
+	const contextMenuOpenGroups = ref<Record<string, boolean>>({ ...defaultOpenGroups })
+	const contextMenuSearch = computed(() => contextMenuQuery.value.trim().toLowerCase())
+
+	function resetContextMenuGroups() {
+		contextMenuQuery.value = ""
+		contextMenuOpenGroups.value = { ...defaultOpenGroups }
+	}
+
+	function setContextGroupOpen(key: string, open: boolean) {
+		contextMenuOpenGroups.value = {
+			...contextMenuOpenGroups.value,
+			[key]: open,
+		}
+	}
+
+	function toggleContextGroup(key: string) {
+		setContextGroupOpen(key, !isContextGroupOpen(key))
+	}
+
+	function isContextGroupOpen(key: string) {
+		return contextMenuOpenGroups.value[key] ?? false
+	}
+
+	return {
+		contextMenuQuery,
+		contextMenuSearch,
+		contextMenuOpenGroups,
+		resetContextMenuGroups,
+		setContextGroupOpen,
+		toggleContextGroup,
+		isContextGroupOpen,
 	}
 }
