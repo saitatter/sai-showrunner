@@ -15,15 +15,6 @@
 					<button type="button" class="shader-graph-open-btn" @click="openShaderGraph">
 						<i class="mdi mdi-magic-staff" /> Open Shader Graph
 					</button>
-					<teleport to="body">
-						<div v-if="shaderGraphOpen" class="shader-graph-overlay">
-							<ShaderGraphEditor
-								v-model="shaderGraph"
-								@compile="onShaderGraphCompile"
-								@close="shaderGraphOpen = false"
-							/>
-						</div>
-					</teleport>
 					<h3>Bundled Shader Presets</h3>
 					<div class="shader-preset-panel__bundled">
 						<button
@@ -75,14 +66,15 @@ import {
 	DataBindingPath,
 	provideScrollAttachable,
 	useIpcCaller,
+	useDockingStore,
+	useDocumentId,
 } from "showrunner-ui-core"
-import { computed, nextTick, onMounted, ref, useModel, watch } from "vue"
+import { computed, defineComponent, h, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetTransformEdit from "./OverlayWidgetTransformEdit.vue"
 import ShaderGraphEditor from "./shader-graph/ShaderGraphEditor.vue"
 import type { ShaderGraph, ShaderUniformValueMap } from "./shader-graph/shader-nodes"
 import {
 	applyCompiledShaderGraph,
-	createDefaultShaderGraph,
 	hasLegacyCustomShaderWithoutGraph,
 	normalizeShaderGraph,
 	persistShaderGraph,
@@ -95,6 +87,7 @@ const props = defineProps<{
 }>()
 
 const model = useModel(props, "modelValue")
+const overlayId = useDocumentId()
 
 useDataBinding("widgets")
 
@@ -202,38 +195,50 @@ function deleteShaderPreset(name: string) {
 onMounted(refreshShaderPresets)
 
 // ── Shader Graph Editor ──
-const shaderGraphOpen = ref(false)
-const shaderGraph = ref<ShaderGraph>(createDefaultShaderGraph())
-let loadingShaderGraph = false
-
-function loadSelectedShaderGraph() {
-	loadingShaderGraph = true
-	shaderGraph.value = normalizeShaderGraph(selectedShaderLayerConfig.value?.shaderGraph)
-	void nextTick(() => {
-		loadingShaderGraph = false
-	})
-}
+const dockingStore = useDockingStore()
 
 function openShaderGraph() {
-	loadSelectedShaderGraph()
-	shaderGraphOpen.value = true
-}
-
-function onShaderGraphCompile(glsl: string, uniforms: ShaderUniformValueMap) {
-	const config = selectedShaderLayerConfig.value
+	const widgetId = selectedWidgetId.value
+	if (!widgetId) return
+	const config = getShaderLayerConfig(widgetId)
 	if (!config) return
-	applyCompiledShaderGraph(config, shaderGraph.value, glsl, uniforms)
+
+	const tabId = `shader-graph.${overlayId.value}.${widgetId}`
+	const tabGraph = ref<ShaderGraph>(normalizeShaderGraph(config.shaderGraph))
+	const ShaderGraphTabPage = defineComponent({
+		name: "ShaderGraphTabPage",
+		setup() {
+			return () => h(ShaderGraphEditor, {
+				modelValue: tabGraph.value,
+				"onUpdate:modelValue": (graph: ShaderGraph) => {
+					tabGraph.value = graph
+					const targetConfig = getShaderLayerConfig(widgetId)
+					if (targetConfig) persistShaderGraph(targetConfig, graph)
+				},
+				onCompile: (glsl: string, uniforms: ShaderUniformValueMap) => {
+					const targetConfig = getShaderLayerConfig(widgetId)
+					if (!targetConfig) return
+					applyCompiledShaderGraph(targetConfig, tabGraph.value, glsl, uniforms)
+				},
+				onClose: () => dockingStore.closeTab(tabId),
+			})
+		},
+	})
+
+	dockingStore.openPage(
+		tabId,
+		"Shader Graph",
+		"mdi mdi-magic-staff",
+		ShaderGraphTabPage,
+		{ dirty: false }
+	)
 }
 
-watch(shaderGraph, (graph) => {
-	const config = selectedShaderLayerConfig.value
-	if (!shaderGraphOpen.value || loadingShaderGraph || !config) return
-	persistShaderGraph(config, graph)
-}, { deep: true })
-
-watch([selectedWidgetId, isShaderLayer], () => {
-	if (shaderGraphOpen.value) loadSelectedShaderGraph()
-})
+function getShaderLayerConfig(widgetId: string): ShaderLayerGraphConfig | undefined {
+	const widget = model.value.widgets.find((item) => item.id === widgetId)
+	if (widget?.plugin !== "overlays" || widget.widget !== "shaderLayer") return undefined
+	return widget.config as ShaderLayerGraphConfig
+}
 </script>
 
 <style scoped>
@@ -380,14 +385,3 @@ watch([selectedWidgetId, isShaderLayer], () => {
 }
 </style>
 
-<style>
-.shader-graph-overlay {
-	background: #0d0d0d;
-	display: flex;
-	flex-direction: column;
-	inset: 0;
-	position: fixed;
-	z-index: 1000;
-}
-
-</style>
