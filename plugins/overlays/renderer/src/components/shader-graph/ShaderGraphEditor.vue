@@ -243,6 +243,44 @@
 							/>
 						</label>
 
+						<div v-if="selectedNodeDef.inputs.length" class="shader-graph__field-group">
+							<h4>Input Defaults</h4>
+							<label
+								v-for="port in selectedNodeDef.inputs"
+								:key="port.key"
+								class="shader-graph__field"
+								:class="{ 'shader-graph__field--connected': isNodeInputConnected(selectedNode, port.key) }"
+							>
+								<span>
+									{{ port.label }}
+									<em>{{ port.type }}</em>
+									<small v-if="isNodeInputConnected(selectedNode, port.key)">connected</small>
+								</span>
+								<input
+									v-if="port.type === 'float'"
+									type="number"
+									step="0.01"
+									:disabled="isNodeInputConnected(selectedNode, port.key)"
+									:value="getShaderInputDefault(selectedNode, port)"
+									@input="setNodeInputDefault(selectedNode, port.key, ($event.target as HTMLInputElement).value || '0.0')"
+								/>
+								<input
+									v-else-if="canEditPortAsColor(selectedNode, port)"
+									type="color"
+									:disabled="isNodeInputConnected(selectedNode, port.key)"
+									:value="vec3DefaultToHex(getShaderInputDefault(selectedNode, port))"
+									@input="setNodeInputDefault(selectedNode, port.key, hexToVec3(($event.target as HTMLInputElement).value))"
+								/>
+								<input
+									v-else
+									type="text"
+									:disabled="isNodeInputConnected(selectedNode, port.key)"
+									:value="getShaderInputDefault(selectedNode, port)"
+									@input="setNodeInputDefault(selectedNode, port.key, ($event.target as HTMLInputElement).value)"
+								/>
+							</label>
+						</div>
+
 						<p v-if="!hasEditableNodeSettings(selectedNode)" class="shader-graph__empty-state">
 							This node has no editable settings yet.
 						</p>
@@ -715,7 +753,29 @@ function setNodeInputDefault(node: ShaderNodeInstance, key: string, value: strin
 }
 
 function hasEditableNodeSettings(node: ShaderNodeInstance) {
-	return ["float_const", "vec3_const", "uniform_float", "uniform_vec3"].includes(node.defId)
+	const def = SHADER_NODE_DEF_MAP.get(node.defId)
+	return ["float_const", "vec3_const", "uniform_float", "uniform_vec3"].includes(node.defId) || Boolean(def?.inputs.length)
+}
+
+function isNodeInputConnected(node: ShaderNodeInstance, portKey: string) {
+	return graph.value.wires.some((wire) => wire.toNode === node.id && wire.toPort === portKey)
+}
+
+function getShaderInputDefault(node: ShaderNodeInstance, port: ShaderNodeDef["inputs"][number]) {
+	return getNodeInputDefault(node, port.key, port.default ?? glslInputFallback(port.type))
+}
+
+function canEditPortAsColor(node: ShaderNodeInstance, port: ShaderNodeDef["inputs"][number]) {
+	return port.type === "vec3" && /^vec3\s*\(/.test(getShaderInputDefault(node, port))
+}
+
+function glslInputFallback(type: GlslType) {
+	switch (type) {
+		case "float": return "0.0"
+		case "vec2": return "vec2(0.0)"
+		case "vec3": return "vec3(0.0)"
+		case "vec4": return "vec4(0.0, 0.0, 0.0, 1.0)"
+	}
 }
 
 function vec3DefaultToHex(value: string) {
@@ -1362,10 +1422,39 @@ function categoryColor(cat: string): string {
 	gap: 0.35rem;
 }
 
+.shader-graph__field-group {
+	border-top: 1px solid #2d2d2d;
+	display: flex;
+	flex-direction: column;
+	gap: 0.65rem;
+	padding-top: 0.65rem;
+}
+
+.shader-graph__field-group h4 {
+	color: #eee;
+	font-size: 0.78rem;
+	margin: 0;
+}
+
 .shader-graph__field span {
+	align-items: center;
 	color: #bbb;
+	display: flex;
 	font-size: 0.72rem;
 	font-weight: 600;
+	gap: 0.35rem;
+}
+
+.shader-graph__field span em,
+.shader-graph__field span small {
+	color: #888;
+	font-size: 0.68rem;
+	font-style: normal;
+	font-weight: 500;
+}
+
+.shader-graph__field span small {
+	margin-left: auto;
 }
 
 .shader-graph__field input {
@@ -1375,6 +1464,12 @@ function categoryColor(cat: string): string {
 	color: #eee;
 	min-height: 2rem;
 	padding: 0.25rem 0.45rem;
+}
+
+.shader-graph__field--connected input {
+	color: #777;
+	cursor: not-allowed;
+	opacity: 0.65;
 }
 
 .shader-graph__preview-panel {
