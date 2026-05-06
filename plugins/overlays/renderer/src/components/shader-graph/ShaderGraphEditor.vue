@@ -279,7 +279,7 @@
 					</div>
 				</div>
 
-				<div v-if="showMinimap" class="shader-graph__minimap">
+				<div v-if="showMinimap" class="shader-graph__minimap" @pointerdown.stop="startMinimapPan">
 					<div
 						v-for="node in minimapNodes"
 						:key="node.id"
@@ -1312,6 +1312,44 @@ function fitSelection() {
 	const bounds = { minX, minY, width: maxX - minX, height: maxY - minY }
 	zoom.value = graphFitZoom(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, { padding: 140, maxZoom: 1.25 })
 	pan.value = centerGraphBoundsPan(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, zoom.value)
+	scheduleLayoutRefresh()
+}
+
+function startMinimapPan(event: PointerEvent) {
+	event.preventDefault()
+	updatePanFromMinimapEvent(event)
+	const target = event.currentTarget as HTMLElement
+	target.setPointerCapture(event.pointerId)
+
+	function onMove(moveEvent: PointerEvent) {
+		updatePanFromMinimapEvent(moveEvent)
+	}
+
+	function onUp(upEvent: PointerEvent) {
+		if (target.hasPointerCapture(upEvent.pointerId)) target.releasePointerCapture(upEvent.pointerId)
+		target.removeEventListener("pointermove", onMove)
+		target.removeEventListener("pointerup", onUp)
+		target.removeEventListener("pointercancel", onUp)
+	}
+
+	target.addEventListener("pointermove", onMove)
+	target.addEventListener("pointerup", onUp)
+	target.addEventListener("pointercancel", onUp)
+}
+
+function updatePanFromMinimapEvent(event: PointerEvent) {
+	const minimap = event.currentTarget as HTMLElement
+	const canvas = canvasRef.value
+	if (!canvas) return
+	const rect = minimap.getBoundingClientRect()
+	const pctX = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)))
+	const pctY = Math.max(0, Math.min(1, (event.clientY - rect.top) / Math.max(1, rect.height)))
+	const graphX = pctX * surfaceSize.value.width
+	const graphY = pctY * surfaceSize.value.height
+	pan.value = {
+		x: canvas.clientWidth / 2 - graphX * zoom.value,
+		y: canvas.clientHeight / 2 - graphY * zoom.value,
+	}
 	scheduleLayoutRefresh()
 }
 
@@ -3407,17 +3445,23 @@ function categoryColor(cat: string): string {
 	border: 1px solid #333;
 	border-radius: 4px;
 	bottom: 0.75rem;
+	cursor: grab;
 	height: 96px;
-	pointer-events: none;
+	pointer-events: auto;
 	position: absolute;
 	right: 0.75rem;
 	width: 160px;
 	z-index: 4;
 }
 
+.shader-graph__minimap:active {
+	cursor: grabbing;
+}
+
 .shader-graph__minimap-node {
 	background: #4b5563;
 	border-radius: 2px;
+	pointer-events: none;
 	position: absolute;
 }
 
@@ -3428,6 +3472,7 @@ function categoryColor(cat: string): string {
 .shader-graph__minimap-viewport {
 	border: 1px solid #e0b0ff;
 	border-radius: 2px;
+	pointer-events: none;
 	position: absolute;
 }
 
