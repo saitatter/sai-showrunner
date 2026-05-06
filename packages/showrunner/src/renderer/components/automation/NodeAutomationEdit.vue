@@ -209,7 +209,13 @@
 				:subgraphs-list="subgraphsList"
 				:subgraph-param-types="SUBGRAPH_PARAM_TYPES"
 				:active-test-execution="activeTestExecution"
+				:graph-issues="automationGraphIssues"
+				:invalid-data-wire-issue-count="invalidDataWireIssues.length"
+				:invalid-flow-edge-issue-count="invalidFlowEdgeIssues.length"
 				:on-clear-selection="clearSelection"
+				:on-select-graph-issue="selectAutomationGraphIssue"
+				:on-cleanup-invalid-data-wires="cleanupInvalidDataWires"
+				:on-cleanup-invalid-flow-edges="cleanupInvalidFlowEdges"
 				:on-update-annotation-block-label="updateSelectedAnnotationBlockLabel"
 				:on-update-annotation-block-color="updateSelectedAnnotationBlockColor"
 				:selected-annotation-block-node-count="selectedAnnotationBlockNodeCount"
@@ -264,7 +270,7 @@ import {
 	usePluginStore,
 	useActionQueueStore,
 } from "showrunner-ui-core"
-import { graphSkinStyle, type GraphSkinTokens } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
+import { graphSkinStyle, type GraphIssue, type GraphSkinTokens } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import {
 	ActionInfo,
 	type AutomationDataWire,
@@ -828,6 +834,20 @@ const {
 	commitUndo,
 	nodeTitleById,
 })
+const automationGraphIssues = computed<GraphIssue[]>(() => [
+	...invalidDataWireIssues.value.map((issue) => ({
+		severity: "error" as const,
+		message: issue.message,
+		wireId: issue.id,
+		code: `data-wire:${issue.id}`,
+	})),
+	...invalidFlowEdgeIssues.value.map((issue) => ({
+		severity: "error" as const,
+		message: issue.message,
+		wireId: issue.id,
+		code: `flow-edge:${issue.id}`,
+	})),
+])
 
 canvasSelection = useCanvasSelection({
 	nodes,
@@ -1085,6 +1105,15 @@ function cleanupInvalidFlowEdges() {
 
 function selectDataWire(wireId: string) {
 	selectDataWireBase(wireId, clearNodeSelection)
+}
+
+function selectAutomationGraphIssue(issue: GraphIssue) {
+	if (!issue.wireId) return
+	if (issue.code?.startsWith("flow-edge:")) {
+		selectFlowEdge(issue.wireId)
+		return
+	}
+	selectDataWireIssue({ id: issue.wireId })
 }
 
 function selectAnnotationBlock(blockId: string) {

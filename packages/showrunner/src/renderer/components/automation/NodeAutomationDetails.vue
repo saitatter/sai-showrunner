@@ -151,6 +151,31 @@
 			Left click selects a node. Right click opens the context menu to add nodes.
 		</p>
 
+		<section v-if="graphIssues.length" class="node-automation__context-section">
+			<div class="node-automation__execution-header">
+				<span><i class="mdi mdi-alert-circle-outline" /> Graph Health</span>
+				<small>{{ graphIssues.length }} issue{{ graphIssues.length === 1 ? "" : "s" }}</small>
+			</div>
+			<div class="node-automation__health-panel">
+				<graph-issues-panel
+					:issues="graphIssues"
+					selectable
+					empty-message="No automation graph issues."
+					@select="onSelectGraphIssue"
+				/>
+				<div class="node-automation__health-actions">
+					<button type="button" :disabled="invalidDataWireIssueCount < 1" @click="onCleanupInvalidDataWires()">
+						<i class="mdi mdi-lan-disconnect" />
+						Clean Data Wires
+					</button>
+					<button type="button" :disabled="invalidFlowEdgeIssueCount < 1" @click="onCleanupInvalidFlowEdges()">
+						<i class="mdi mdi-vector-line" />
+						Clean Sequence Edges
+					</button>
+				</div>
+			</div>
+		</section>
+
 		<section class="node-automation__context-section">
 			<button type="button" class="node-automation__context-header" :aria-expanded="subgraphsOpenModel" @click="subgraphsOpenModel = !subgraphsOpenModel">
 				<span><i class="mdi mdi-function-variant" /> Subgraphs</span>
@@ -196,8 +221,10 @@ import {
 	type ActionDefinition,
 	ActionConfigEdit,
 	DataBindingPath,
+	GraphIssuesPanel,
 	TriggerConfigEdit,
 } from "showrunner-ui-core"
+import type { GraphIssue } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import {
 	type ActionInfo,
 	type AutomationTriggerNode,
@@ -247,7 +274,13 @@ const props = defineProps<{
 	subgraphsList: SubgraphDefinition[]
 	subgraphParamTypes: SubgraphParamType[]
 	activeTestExecution?: ActiveTestExecution
+	graphIssues: GraphIssue[]
+	invalidDataWireIssueCount: number
+	invalidFlowEdgeIssueCount: number
 	onClearSelection: () => void
+	onSelectGraphIssue: (issue: GraphIssue) => void
+	onCleanupInvalidDataWires: () => void
+	onCleanupInvalidFlowEdges: () => void
 	onUpdateAnnotationBlockLabel: (value: string) => void
 	onUpdateAnnotationBlockColor: (value: string) => void
 	selectedAnnotationBlockNodeCount: number
@@ -443,6 +476,36 @@ const selectedTriggerConfigModelModel = computed({
 	max-height: 13rem;
 	overflow: auto;
 	padding: 0.65rem;
+}
+
+.node-automation__health-panel {
+	display: grid;
+	gap: 0.65rem;
+	padding: 0.65rem;
+}
+
+.node-automation__health-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.45rem;
+}
+
+.node-automation__health-actions button {
+	align-items: center;
+	background: #2b173d;
+	border: 1px solid #7041a6;
+	border-radius: 4px;
+	color: var(--text-color);
+	cursor: pointer;
+	display: inline-flex;
+	gap: 0.4rem;
+	justify-content: center;
+	padding: 0.45rem 0.6rem;
+}
+
+.node-automation__health-actions button:disabled {
+	cursor: not-allowed;
+	opacity: 0.45;
 }
 
 .node-automation__execution-path li {
