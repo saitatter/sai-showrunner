@@ -257,7 +257,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add save/load/delete graph preset workflows directly inside the shader graph editor.
 - [x] Keep shader graph nodes low-level and composable; avoid one-shot scene/terrain generator nodes.
 - [x] Add low-level shader primitives: ridged FBM, turbulence, curl noise, cellular F1/F2, bias/gain, posterize, and remap helpers.
-- [ ] Add low-level material helpers: normal transforms, triplanar-style coordinates, layer masks, and simple BRDF pieces.
+- [x] Add low-level material helpers: normal transforms, triplanar-style coordinates, layer masks, and simple BRDF pieces.
 - [ ] Add advanced graph UX: multi-select, box select, move selection, resize frames, reroute from wire double-click, wires-preserving clipboard.
 - [ ] Add compiler diagnostics: node/port-highlighted errors, dead-node warnings, disconnected output warnings, and safe GLSL expression nodes.
 - [ ] Add runtime integrations: audio-reactive uniforms, mouse/viewer interaction uniforms, OBS/browser source size sync, preset import/export with thumbnails.

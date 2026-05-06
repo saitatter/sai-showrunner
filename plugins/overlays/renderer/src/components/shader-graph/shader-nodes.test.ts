@@ -281,6 +281,45 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("floor(clamp(")
 	})
 
+	it("compiles low-level material helper nodes", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "uv", defId: "uv", x: 0, y: 0 },
+				{ id: "position", defId: "camera_position", x: 0, y: 140 },
+				{ id: "normal", defId: "sampled_terrain_normal", x: 220, y: 0 },
+				{ id: "normal_strength", defId: "normal_strength", x: 460, y: 0, inputDefaults: { strength: "1.8" } },
+				{ id: "triplanar", defId: "triplanar_coords", x: 700, y: 0 },
+				{ id: "layer", defId: "layer_mask", x: 940, y: 0 },
+				{ id: "fresnel", defId: "fresnel", x: 940, y: 220 },
+				{ id: "specular", defId: "rough_specular", x: 1180, y: 120 },
+				{ id: "color", defId: "vec3_compose", x: 1420, y: 80 },
+				{ id: "output", defId: "fragment_output", x: 1660, y: 80 },
+			],
+			wires: [
+				{ id: "uv:uv->normal:uv", fromNode: "uv", fromPort: "uv", toNode: "normal", toPort: "uv" },
+				{ id: "normal:normal->normal_strength:normal", fromNode: "normal", fromPort: "normal", toNode: "normal_strength", toPort: "normal" },
+				{ id: "position:position->triplanar:position", fromNode: "position", fromPort: "position", toNode: "triplanar", toPort: "position" },
+				{ id: "normal_strength:normal->triplanar:normal", fromNode: "normal_strength", fromPort: "normal", toNode: "triplanar", toPort: "normal" },
+				{ id: "normal:height->layer:height", fromNode: "normal", fromPort: "height", toNode: "layer", toPort: "height" },
+				{ id: "normal:slope->layer:slope", fromNode: "normal", fromPort: "slope", toNode: "layer", toPort: "slope" },
+				{ id: "layer:mask->color:x", fromNode: "layer", fromPort: "mask", toNode: "color", toPort: "x" },
+				{ id: "normal_strength:normal->fresnel:normal", fromNode: "normal_strength", fromPort: "normal", toNode: "fresnel", toPort: "normal" },
+				{ id: "normal_strength:normal->specular:normal", fromNode: "normal_strength", fromPort: "normal", toNode: "specular", toPort: "normal" },
+				{ id: "fresnel:factor->color:y", fromNode: "fresnel", fromPort: "factor", toNode: "color", toPort: "y" },
+				{ id: "specular:specular->color:z", fromNode: "specular", fromPort: "specular", toNode: "color", toPort: "z" },
+				{ id: "color:result->output:color", fromNode: "color", fromPort: "result", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain(".yz *")
+		expect(result.glsl).toContain("pow(abs(normalize(")
+		expect(result.glsl).toContain("_height = smoothstep")
+		expect(result.glsl).toContain("1.0 - max(dot(normalize(")
+		expect(result.glsl).toContain("mix(96.0, 4.0")
+	})
+
 	it("compiles terrain pipeline nodes", () => {
 		const result = compileShaderGraph({
 			nodes: [

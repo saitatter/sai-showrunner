@@ -2183,6 +2183,7 @@ function categoryColor(cat: string): string {
 		case "Noise": return "#6d4c41"
 		case "Terrain": return "#558b2f"
 		case "Lighting": return "#f9a825"
+		case "Material": return "#ad7f32"
 		case "Camera": return "#00838f"
 		case "Utility": return "#455a64"
 		case "Output": return "#e65100"

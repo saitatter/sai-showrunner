@@ -1019,6 +1019,101 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		compile: (ins, outs) => [`${outs.ao} = clamp(1.0 - (${ins.curvature} * 0.65 + ${ins.slope} * 0.35) * ${ins.strength}, 0.0, 1.0);`],
 	},
 
+	// ── Material ──
+	{
+		id: "normal_strength",
+		name: "Normal Strength",
+		category: "Material",
+		icon: "mdi mdi-axis-arrow",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "strength", label: "Strength", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "normal", label: "Normal", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.normal} = normalize(vec3(${ins.normal}.xy * ${ins.strength}, max(${ins.normal}.z, 0.0001)));`],
+	},
+	{
+		id: "triplanar_coords",
+		name: "Triplanar Coordinates",
+		category: "Material",
+		icon: "mdi mdi-cube-scan",
+		inputs: [
+			{ key: "position", label: "Position", type: "vec3", default: "vec3(0.0)" },
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "1.0" },
+			{ key: "sharpness", label: "Sharpness", type: "float", default: "4.0" },
+		],
+		outputs: [
+			{ key: "xUV", label: "X UV", type: "vec2" },
+			{ key: "yUV", label: "Y UV", type: "vec2" },
+			{ key: "zUV", label: "Z UV", type: "vec2" },
+			{ key: "weights", label: "Weights", type: "vec3" },
+		],
+		compile: (ins, outs) => [
+			`${outs.xUV} = ${ins.position}.yz * ${ins.scale};`,
+			`${outs.yUV} = ${ins.position}.xz * ${ins.scale};`,
+			`${outs.zUV} = ${ins.position}.xy * ${ins.scale};`,
+			`${outs.weights} = pow(abs(normalize(${ins.normal})), vec3(max(${ins.sharpness}, 0.0001)));`,
+			`${outs.weights} /= max(dot(${outs.weights}, vec3(1.0)), 0.0001);`,
+		],
+	},
+	{
+		id: "layer_mask",
+		name: "Layer Mask",
+		category: "Material",
+		icon: "mdi mdi-layers-triple-outline",
+		inputs: [
+			{ key: "height", label: "Height", type: "float", default: "0.0" },
+			{ key: "slope", label: "Slope", type: "float", default: "0.0" },
+			{ key: "noise", label: "Noise", type: "float", default: "0.5" },
+			{ key: "heightMin", label: "Height Min", type: "float", default: "0.0" },
+			{ key: "heightMax", label: "Height Max", type: "float", default: "1.0" },
+			{ key: "slopeMax", label: "Slope Max", type: "float", default: "1.0" },
+			{ key: "noiseAmount", label: "Noise Amount", type: "float", default: "0.0" },
+			{ key: "softness", label: "Softness", type: "float", default: "0.08" },
+		],
+		outputs: [{ key: "mask", label: "Mask", type: "float" }],
+		compile: (ins, outs) => [
+			`float ${outs.mask}_height = smoothstep(${ins.heightMin} - ${ins.softness}, ${ins.heightMin} + ${ins.softness}, ${ins.height}) * (1.0 - smoothstep(${ins.heightMax} - ${ins.softness}, ${ins.heightMax} + ${ins.softness}, ${ins.height}));`,
+			`float ${outs.mask}_slope = 1.0 - smoothstep(${ins.slopeMax} - ${ins.softness}, ${ins.slopeMax} + ${ins.softness}, ${ins.slope});`,
+			`${outs.mask} = clamp(${outs.mask}_height * ${outs.mask}_slope + (${ins.noise} - 0.5) * ${ins.noiseAmount}, 0.0, 1.0);`,
+		],
+	},
+	{
+		id: "fresnel",
+		name: "Fresnel",
+		category: "Material",
+		icon: "mdi mdi-circle-opacity",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "viewDir", label: "View Dir", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "power", label: "Power", type: "float", default: "5.0" },
+			{ key: "bias", label: "Bias", type: "float", default: "0.0" },
+			{ key: "scale", label: "Scale", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "factor", label: "Factor", type: "float" }],
+		compile: (ins, outs) => [`${outs.factor} = clamp(${ins.bias} + ${ins.scale} * pow(1.0 - max(dot(normalize(${ins.normal}), normalize(${ins.viewDir})), 0.0), max(${ins.power}, 0.0001)), 0.0, 1.0);`],
+	},
+	{
+		id: "rough_specular",
+		name: "Rough Specular",
+		category: "Material",
+		icon: "mdi mdi-star-four-points-outline",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "lightDir", label: "Light Dir", type: "vec3", default: "vec3(0.25, 0.35, 0.9)" },
+			{ key: "viewDir", label: "View Dir", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "roughness", label: "Roughness", type: "float", default: "0.45" },
+			{ key: "intensity", label: "Intensity", type: "float", default: "0.35" },
+		],
+		outputs: [{ key: "specular", label: "Specular", type: "float" }],
+		compile: (ins, outs) => [
+			`vec3 ${outs.specular}_halfDir = normalize(normalize(${ins.lightDir}) + normalize(${ins.viewDir}));`,
+			`float ${outs.specular}_power = mix(96.0, 4.0, clamp(${ins.roughness}, 0.0, 1.0));`,
+			`${outs.specular} = pow(max(dot(normalize(${ins.normal}), ${outs.specular}_halfDir), 0.0), ${outs.specular}_power) * ${ins.intensity};`,
+		],
+	},
+
 	// ── Camera / Raymarch ──
 	{
 		id: "camera_ray",
