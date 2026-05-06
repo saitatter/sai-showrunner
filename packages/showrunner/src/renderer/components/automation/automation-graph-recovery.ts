@@ -83,21 +83,19 @@ export function repairAutomation(config: AutomationConfig): AutomationConfig {
 }
 
 export function cloneAutomationConfig(config: AutomationConfig): AutomationConfig {
-	return JSON.parse(JSON.stringify(config)) as AutomationConfig
+	return structuredClone(config) as AutomationConfig
 }
 
 function repairGraphModel(graph: AutomationGraph | undefined): AutomationGraph {
 	if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return { nodes: [], edges: [], entryNodeId: "" }
 	const nodes = dedupeNodes(graph.nodes)
 	const nodeIds = new Set(nodes.map((node) => node.id))
+	const nodeById = new Map(nodes.map((node) => [node.id, node]))
 	const edges = graph.edges
-		.filter((edge) =>
-			edge?.id &&
-			nodeIds.has(edge.from) &&
-			nodeIds.has(edge.to) &&
-			!isConversionGraphNode(nodes.find((node) => node.id === edge.from)) &&
-			!isConversionGraphNode(nodes.find((node) => node.id === edge.to))
-		)
+		.filter((edge) => {
+			if (!edge?.id || !nodeIds.has(edge.from) || !nodeIds.has(edge.to)) return false
+			return !isConversionGraphNode(nodeById.get(edge.from)) && !isConversionGraphNode(nodeById.get(edge.to))
+		})
 		.map((edge) => ({ id: String(edge.id), from: edge.from, to: edge.to, port: edge.port }))
 	return {
 		nodes,
