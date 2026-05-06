@@ -505,6 +505,50 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		outputs: [{ key: "height", label: "Height", type: "float" }],
 		compile: (ins, outs) => [`${outs.height} = ${ins.height} - max(${ins.slope} - ${ins.threshold}, 0.0) * ${ins.amount};`],
 	},
+	{
+		id: "sampled_terrain_height",
+		name: "Sampled Terrain Height",
+		category: "Terrain",
+		icon: "mdi mdi-image-filter-hdr-outline",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "4.0" },
+			{ key: "warp", label: "Warp", type: "float", default: "0.25" },
+			{ key: "detail", label: "Detail", type: "float", default: "0.25" },
+			{ key: "amplitude", label: "Amplitude", type: "float", default: "1.0" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "height", label: "Height", type: "float" }],
+		compile: (ins, outs) => [`${outs.height} = sr_terrain_height_sample(${ins.uv}, ${ins.scale}, ${ins.warp}, ${ins.detail}, ${ins.amplitude}, ${ins.seed});`],
+	},
+	{
+		id: "sampled_terrain_normal",
+		name: "Sampled Terrain Normal",
+		category: "Terrain",
+		icon: "mdi mdi-axis-arrow-info",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "4.0" },
+			{ key: "warp", label: "Warp", type: "float", default: "0.25" },
+			{ key: "detail", label: "Detail", type: "float", default: "0.25" },
+			{ key: "amplitude", label: "Amplitude", type: "float", default: "1.0" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+			{ key: "spacing", label: "Spacing", type: "float", default: "0.004" },
+			{ key: "strength", label: "Strength", type: "float", default: "1.0" },
+		],
+		outputs: [
+			{ key: "normal", label: "Normal", type: "vec3" },
+			{ key: "height", label: "Height", type: "float" },
+			{ key: "slope", label: "Slope", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`${outs.height} = sr_terrain_height_sample(${ins.uv}, ${ins.scale}, ${ins.warp}, ${ins.detail}, ${ins.amplitude}, ${ins.seed});`,
+			`float ${outs.normal}_right = sr_terrain_height_sample(${ins.uv} + vec2(${ins.spacing}, 0.0), ${ins.scale}, ${ins.warp}, ${ins.detail}, ${ins.amplitude}, ${ins.seed});`,
+			`float ${outs.normal}_up = sr_terrain_height_sample(${ins.uv} + vec2(0.0, ${ins.spacing}), ${ins.scale}, ${ins.warp}, ${ins.detail}, ${ins.amplitude}, ${ins.seed});`,
+			`${outs.normal} = normalize(vec3((${outs.height} - ${outs.normal}_right) * ${ins.strength}, (${outs.height} - ${outs.normal}_up) * ${ins.strength}, max(${ins.spacing}, 0.0001)));`,
+			`${outs.slope} = 1.0 - clamp(${outs.normal}.z, 0.0, 1.0);`,
+		],
+	},
 
 	// ── Vector ──
 	{
@@ -1362,6 +1406,14 @@ vec2 sr_domain_warp(vec2 p, float strength) {
 \tfloat x = sr_fbm(p + vec2(17.2, 9.1), 4.0, 2.0, 0.5);
 \tfloat y = sr_fbm(p + vec2(-8.3, 23.7), 4.0, 2.0, 0.5);
 \treturn p + (vec2(x, y) * 2.0 - 1.0) * strength;
+}
+
+float sr_terrain_height_sample(vec2 uv, float scale, float warp, float detail, float amplitude, float seed) {
+\tvec2 p = uv * scale + vec2(seed);
+\tvec2 warped = sr_domain_warp(p, warp);
+\tfloat base = sr_fbm(warped, 6.0, 2.0, 0.5);
+\tfloat fine = sr_fbm(warped * 4.0 + vec2(31.7, -14.2), 4.0, 2.15, 0.45);
+\treturn clamp((base + fine * detail) * amplitude, 0.0, 1.0);
 }`
 
 export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[] } {

@@ -215,6 +215,36 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("max(")
 	})
 
+	it("compiles sampled terrain function nodes", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "uv", defId: "uv", x: 0, y: 0 },
+				{ id: "height", defId: "sampled_terrain_height", x: 220, y: 0, inputDefaults: { scale: "5.0", warp: "0.3" } },
+				{ id: "normal", defId: "sampled_terrain_normal", x: 220, y: 220, inputDefaults: { scale: "5.0", warp: "0.3", spacing: "0.006" } },
+				{ id: "bands", defId: "altitude_bands", x: 480, y: 0 },
+				{ id: "sun", defId: "sun_direction", x: 480, y: 260 },
+				{ id: "light", defId: "diffuse_lighting", x: 740, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 1000, y: 0 },
+			],
+			wires: [
+				{ id: "uv:uv->height:uv", fromNode: "uv", fromPort: "uv", toNode: "height", toPort: "uv" },
+				{ id: "uv:uv->normal:uv", fromNode: "uv", fromPort: "uv", toNode: "normal", toPort: "uv" },
+				{ id: "height:height->bands:height", fromNode: "height", fromPort: "height", toNode: "bands", toPort: "height" },
+				{ id: "bands:color->light:color", fromNode: "bands", fromPort: "color", toNode: "light", toPort: "color" },
+				{ id: "normal:normal->light:normal", fromNode: "normal", fromPort: "normal", toNode: "light", toPort: "normal" },
+				{ id: "sun:direction->light:lightDir", fromNode: "sun", fromPort: "direction", toNode: "light", toPort: "lightDir" },
+				{ id: "light:color->output:color", fromNode: "light", fromPort: "color", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("float sr_terrain_height_sample")
+		expect(result.glsl).toContain("sr_terrain_height_sample(")
+		expect(result.glsl).toContain("+ vec2(0.006, 0.0)")
+		expect(result.glsl).toContain("1.0 - clamp(")
+	})
+
 	it("compiles color ramp and biome nodes", () => {
 		const result = compileShaderGraph({
 			nodes: [

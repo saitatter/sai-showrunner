@@ -244,6 +244,18 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add performance controls: resolution scale, max steps, quality presets, preview FPS throttle.
 - [x] Add shader starter graphs: Procedural Terrain, Nebula, Audio Reactive, and Energy Field.
 - [x] Add graph UX utilities: copy/paste, duplicate, reroute nodes, frames/comments, minimap, and fit selection.
+- [x] Add shader function sampling foundation so terrain height/normal logic can be evaluated at multiple UV offsets.
+- [ ] Extend shader function sampling from built-in terrain functions to reusable user-authored subgraphs.
+- [ ] Add full-size preview controls: pause/resume, reset time, background mode, and clearer runtime error overlay.
+- [ ] Add real automation bindings for shader uniforms: automation variables, viewer variables, audio levels, queue payloads.
+- [ ] Add richer node inspector controls: typed controls, units, min/max clamps, and multi-stop color ramp editor.
+- [ ] Add shader graph undo/redo.
+- [ ] Add save/load preset workflows directly inside the shader graph editor.
+- [ ] Add advanced terrain scene nodes: heightfield raymarch, sampled terrain normals, horizon fog, sky/cloud helpers.
+- [ ] Add advanced noise/material nodes: ridged FBM, turbulence, curl noise, cellular F1/F2, hydraulic-style masks, material layers.
+- [ ] Add advanced graph UX: multi-select, box select, move selection, resize frames, reroute from wire double-click, wires-preserving clipboard.
+- [ ] Add compiler diagnostics: node/port-highlighted errors, dead-node warnings, disconnected output warnings, and safe GLSL expression nodes.
+- [ ] Add runtime integrations: audio-reactive uniforms, mouse/viewer interaction uniforms, OBS/browser source size sync, preset import/export with thumbnails.
 
 ---
 
