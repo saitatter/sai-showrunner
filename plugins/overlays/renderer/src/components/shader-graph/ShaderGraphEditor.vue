@@ -55,6 +55,9 @@
 				>
 					<i class="mdi mdi-selection-ellipse-arrow-inside" />
 				</button>
+				<button type="button" class="shader-graph__tool-button" @click="addShaderFrame" v-tooltip="'Add frame from selection'">
+					<i class="mdi mdi-vector-square" />
+				</button>
 				<span class="shader-graph__toolbar-divider" />
 				<label class="shader-graph__toolbar-control" v-tooltip="'Preview quality'">
 					<i class="mdi mdi-speedometer" />
@@ -158,6 +161,37 @@
 						height: `${surfaceSize.height}px`,
 					}"
 				>
+					<div
+						v-for="frame in shaderFrames"
+						:key="frame.id"
+						class="shader-graph__frame"
+						:class="{ selected: selectedFrameId === frame.id }"
+						:style="shaderFrameStyle(frame)"
+						@pointerdown.stop="startShaderFrameDrag($event, frame)"
+						@click.stop="selectShaderFrame(frame.id)"
+					>
+						<div class="shader-graph__frame-header">
+							<input
+								type="text"
+								:value="frame.title"
+								@pointerdown.stop
+								@input="updateShaderFrameTitle(frame.id, ($event.target as HTMLInputElement).value)"
+							/>
+							<input
+								type="color"
+								:value="frame.color"
+								@pointerdown.stop
+								@input="updateShaderFrameColor(frame.id, ($event.target as HTMLInputElement).value)"
+							/>
+							<small>{{ getShaderFrameNodeCount(frame) }}</small>
+						</div>
+						<button
+							type="button"
+							class="shader-graph__frame-resize"
+							@pointerdown.stop="startShaderFrameResize($event, frame)"
+						/>
+					</div>
+
 					<!-- Wires SVG -->
 					<svg class="shader-graph__wires" :viewBox="`0 0 ${surfaceSize.width} ${surfaceSize.height}`">
 						<path
@@ -786,6 +820,7 @@ import {
 	type ShaderGraph,
 	type ShaderNodeInstance,
 	type ShaderNodeDef,
+	type ShaderFrame,
 	type ShaderWire,
 	type GlslType,
 	type ShaderColorRampStop,
@@ -841,6 +876,7 @@ const showMinimap = ref(true)
 const selectedNodeId = ref<string>()
 const selectedNodeIds = ref(new Set<string>())
 const selectedWireId = ref<string>()
+const selectedFrameId = ref<string>()
 const selectionBox = ref<{ x: number; y: number; width: number; height: number } | null>(null)
 const paletteOpen = ref(false)
 const palettePos = ref({ x: 0, y: 0 })
@@ -954,6 +990,7 @@ const {
 	getNodeIds: () => graph.value.nodes.map((node) => node.id),
 	onNodeSelectionChange: () => {
 		selectedWireId.value = undefined
+		selectedFrameId.value = undefined
 	},
 })
 
@@ -969,6 +1006,7 @@ function applyGraphHistorySnapshot(snapshot: ShaderGraph) {
 	selectedNodeId.value = undefined
 	selectedNodeIds.value = new Set()
 	selectedWireId.value = undefined
+	selectedFrameId.value = undefined
 	scheduleLayoutRefresh()
 	autoCompile()
 }
@@ -1009,12 +1047,25 @@ const graphNodes = computed<GraphNode[]>(() =>
 const selectedNode = computed(() => graph.value.nodes.find((node) => node.id === selectedNodeId.value))
 const selectedNodeDef = computed(() => selectedNode.value ? SHADER_NODE_DEF_MAP.get(selectedNode.value.defId) : undefined)
 const zoomLabel = computed(() => `${Math.round(zoom.value * 100)}%`)
+const shaderFrames = computed(() => {
+	graph.value.frames ??= []
+	return graph.value.frames
+})
 
 const NODE_W = 180
+const SHADER_NODE_H = 160
 
 const surfaceSize = computed(() => ({
-	width: Math.max(1600, ...graphNodes.value.map((n) => n.x + NODE_W + 200)),
-	height: Math.max(900, ...graphNodes.value.map((n) => n.y + 200)),
+	width: Math.max(
+		1600,
+		...graphNodes.value.map((n) => n.x + NODE_W + 200),
+		...shaderFrames.value.map((frame) => frame.x + frame.width + 200)
+	),
+	height: Math.max(
+		900,
+		...graphNodes.value.map((n) => n.y + 200),
+		...shaderFrames.value.map((frame) => frame.y + frame.height + 200)
+	),
 }))
 
 const minimapNodes = computed(() =>
@@ -1154,7 +1205,8 @@ const { startNodeDrag } = useGraphNodeDrag<ShaderNodeInstance>({
 	toggleNodeSelection,
 	snapCoordinate,
 	onDragMove: scheduleLayoutRefresh,
-	onDragEnd: () => {
+	onDragEnd: (draggedIds) => {
+		placeNodesInContainingShaderFrame(draggedIds)
 		emitGraphUpdate()
 		autoCompile()
 	},
@@ -1168,6 +1220,7 @@ function onCanvasPointerDown(e: PointerEvent) {
 	if (e.button === 0) {
 		startSelectionBox(e)
 		if (paletteOpen.value) paletteOpen.value = false
+		selectedFrameId.value = undefined
 	}
 }
 
@@ -1262,6 +1315,191 @@ function fitSelection() {
 	zoom.value = graphFitZoom(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, { padding: 140, maxZoom: 1.25 })
 	pan.value = centerGraphBoundsPan(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, zoom.value)
 	scheduleLayoutRefresh()
+}
+
+function addShaderFrame() {
+	const bounds = getShaderNodeBounds(selectedNodeIds.value)
+	const canvas = canvasRef.value
+	const fallbackX = canvas ? (canvas.clientWidth * 0.45 - pan.value.x) / zoom.value : 280
+	const fallbackY = canvas ? (canvas.clientHeight * 0.35 - pan.value.y) / zoom.value : 220
+	const padding = 44
+	const frame: ShaderFrame = {
+		id: `frame_${Date.now()}_${nodeCounter++}`,
+		title: "Frame",
+		color: "#7c4dff",
+		x: snapCoordinate(bounds ? bounds.x - padding : fallbackX),
+		y: snapCoordinate(bounds ? bounds.y - padding : fallbackY),
+		width: bounds ? Math.max(320, Math.ceil(bounds.width + padding * 2)) : 360,
+		height: bounds ? Math.max(180, Math.ceil(bounds.height + padding * 2)) : 220,
+		nodeIds: selectedNodeIds.value.size ? [...selectedNodeIds.value] : undefined,
+	}
+	shaderFrames.value.push(frame)
+	selectShaderFrame(frame.id)
+	emitGraphUpdate()
+	scheduleLayoutRefresh()
+}
+
+function selectShaderFrame(frameId: string) {
+	selectedFrameId.value = frameId
+	selectedNodeId.value = undefined
+	selectedNodeIds.value = new Set()
+	selectedWireId.value = undefined
+}
+
+function shaderFrameStyle(frame: ShaderFrame) {
+	return {
+		transform: `translate(${frame.x}px, ${frame.y}px)`,
+		width: `${frame.width}px`,
+		height: `${frame.height}px`,
+		borderColor: frame.color,
+		background: `color-mix(in srgb, ${frame.color} 10%, transparent)`,
+	}
+}
+
+function getShaderFrameNodeCount(frame: ShaderFrame) {
+	return (frame.nodeIds ?? []).filter((nodeId) => graph.value.nodes.some((node) => node.id === nodeId)).length
+}
+
+function updateShaderFrameTitle(frameId: string, title: string) {
+	const frame = shaderFrames.value.find((item) => item.id === frameId)
+	if (!frame) return
+	frame.title = title.trim() || "Frame"
+	emitGraphUpdate()
+}
+
+function updateShaderFrameColor(frameId: string, color: string) {
+	const frame = shaderFrames.value.find((item) => item.id === frameId)
+	if (!frame) return
+	frame.color = color || "#7c4dff"
+	emitGraphUpdate()
+}
+
+function startShaderFrameDrag(event: PointerEvent, frame: ShaderFrame) {
+	if ((event.target as HTMLElement).closest(".shader-graph__frame-resize")) return
+	event.preventDefault()
+	selectShaderFrame(frame.id)
+
+	const startX = event.clientX
+	const startY = event.clientY
+	const originalX = frame.x
+	const originalY = frame.y
+	const memberStartPositions = new Map<string, GraphPoint>()
+	for (const nodeId of frame.nodeIds ?? []) {
+		const node = graph.value.nodes.find((item) => item.id === nodeId)
+		if (node) memberStartPositions.set(nodeId, { x: node.x, y: node.y })
+	}
+
+	const target = event.currentTarget as HTMLElement
+	target.setPointerCapture(event.pointerId)
+
+	function onMove(moveEvent: PointerEvent) {
+		const dx = (moveEvent.clientX - startX) / zoom.value
+		const dy = (moveEvent.clientY - startY) / zoom.value
+		const nextX = snapCoordinate(originalX + dx)
+		const nextY = snapCoordinate(originalY + dy)
+		const offsetX = nextX - originalX
+		const offsetY = nextY - originalY
+		frame.x = Math.max(0, nextX)
+		frame.y = Math.max(0, nextY)
+		for (const [nodeId, start] of memberStartPositions) {
+			const node = graph.value.nodes.find((item) => item.id === nodeId)
+			if (!node) continue
+			node.x = Math.max(0, snapCoordinate(start.x + offsetX))
+			node.y = Math.max(0, snapCoordinate(start.y + offsetY))
+		}
+		scheduleLayoutRefresh()
+	}
+
+	function onUp(upEvent: PointerEvent) {
+		if (target.hasPointerCapture(upEvent.pointerId)) target.releasePointerCapture(upEvent.pointerId)
+		target.removeEventListener("pointermove", onMove)
+		target.removeEventListener("pointerup", onUp)
+		target.removeEventListener("pointercancel", onUp)
+		emitGraphUpdate()
+		autoCompile()
+	}
+
+	target.addEventListener("pointermove", onMove)
+	target.addEventListener("pointerup", onUp)
+	target.addEventListener("pointercancel", onUp)
+}
+
+function startShaderFrameResize(event: PointerEvent, frame: ShaderFrame) {
+	event.preventDefault()
+	selectShaderFrame(frame.id)
+
+	const startX = event.clientX
+	const startY = event.clientY
+	const startWidth = frame.width
+	const startHeight = frame.height
+	const minimumSize = getShaderFrameMinimumSize(frame)
+	const target = event.currentTarget as HTMLElement
+	target.setPointerCapture(event.pointerId)
+
+	function onMove(moveEvent: PointerEvent) {
+		const dx = (moveEvent.clientX - startX) / zoom.value
+		const dy = (moveEvent.clientY - startY) / zoom.value
+		frame.width = Math.max(minimumSize.width, Math.round(startWidth + dx))
+		frame.height = Math.max(minimumSize.height, Math.round(startHeight + dy))
+		scheduleLayoutRefresh()
+	}
+
+	function onUp(upEvent: PointerEvent) {
+		if (target.hasPointerCapture(upEvent.pointerId)) target.releasePointerCapture(upEvent.pointerId)
+		target.removeEventListener("pointermove", onMove)
+		target.removeEventListener("pointerup", onUp)
+		target.removeEventListener("pointercancel", onUp)
+		emitGraphUpdate()
+	}
+
+	target.addEventListener("pointermove", onMove)
+	target.addEventListener("pointerup", onUp)
+	target.addEventListener("pointercancel", onUp)
+}
+
+function placeNodesInContainingShaderFrame(nodeIds: Iterable<string>) {
+	const ids = new Set(nodeIds)
+	if (!ids.size) return
+	for (const frame of shaderFrames.value) {
+		frame.nodeIds = (frame.nodeIds ?? []).filter((nodeId) => !ids.has(nodeId))
+	}
+	for (const nodeId of ids) {
+		const node = graph.value.nodes.find((item) => item.id === nodeId)
+		if (!node) continue
+		const centerX = node.x + NODE_W / 2
+		const centerY = node.y + SHADER_NODE_H / 2
+		const frame = shaderFrames.value.find((item) =>
+			centerX >= item.x &&
+			centerX <= item.x + item.width &&
+			centerY >= item.y &&
+			centerY <= item.y + item.height
+		)
+		if (!frame) continue
+		frame.nodeIds = [...new Set([...(frame.nodeIds ?? []), nodeId])]
+	}
+}
+
+function getShaderFrameMinimumSize(frame: ShaderFrame) {
+	const bounds = getShaderNodeBounds(frame.nodeIds ?? [])
+	if (!bounds) return { width: 160, height: 96 }
+	const padding = 36
+	return {
+		width: Math.max(160, Math.ceil(bounds.x + bounds.width - frame.x + padding)),
+		height: Math.max(96, Math.ceil(bounds.y + bounds.height - frame.y + padding)),
+	}
+}
+
+function getShaderNodeBounds(nodeIds: Iterable<string>) {
+	const selected = [...nodeIds].flatMap((nodeId) => {
+		const node = graph.value.nodes.find((item) => item.id === nodeId)
+		return node ? [node] : []
+	})
+	if (!selected.length) return undefined
+	const minX = Math.min(...selected.map((node) => node.x))
+	const minY = Math.min(...selected.map((node) => node.y))
+	const maxX = Math.max(...selected.map((node) => node.x + NODE_W))
+	const maxY = Math.max(...selected.map((node) => node.y + SHADER_NODE_H))
+	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
 }
 
 // ─── Wire Drag ───────────────────────────────────────────────────────
@@ -1854,6 +2092,7 @@ function scheduleLayoutRefresh() {
 
 function resetGraph() {
 	graph.value = createDefaultShaderGraph()
+	selectedFrameId.value = undefined
 	emitGraphUpdate()
 	autoCompile()
 	fitGraph()
@@ -1865,6 +2104,7 @@ function loadSelectedStarter() {
 	graph.value = createShaderGraphStarter(selectedStarterId.value)
 	clearNodeSelection()
 	selectedWireId.value = undefined
+	selectedFrameId.value = undefined
 	emitGraphUpdate()
 	autoCompile()
 	fitGraph()
@@ -1888,6 +2128,7 @@ function loadSelectedGraphPreset() {
 	graph.value = normalizeShaderGraph(preset)
 	clearNodeSelection()
 	selectedWireId.value = undefined
+	selectedFrameId.value = undefined
 	emitGraphUpdate()
 	autoCompile()
 	fitGraph()
@@ -1967,6 +2208,14 @@ function onKeyDown(e: KeyboardEvent) {
 		selectedWireId.value = undefined
 		emitGraphUpdate()
 		autoCompile()
+	}
+	if ((e.key === "Delete" || e.key === "Backspace") && selectedFrameId.value) {
+		e.preventDefault()
+		graph.value.frames = shaderFrames.value.filter((frame) => frame.id !== selectedFrameId.value)
+		selectedFrameId.value = undefined
+		emitGraphUpdate()
+		scheduleLayoutRefresh()
+		return
 	}
 	if ((e.key === "Delete" || e.key === "Backspace") && selectedNodeIds.value.size) {
 		e.preventDefault()
@@ -2593,6 +2842,84 @@ function categoryColor(cat: string): string {
 	filter: drop-shadow(0 0 5px rgb(239 83 80 / 0.45));
 }
 
+.shader-graph__frame {
+	border: 2px dashed;
+	border-radius: 8px;
+	box-sizing: border-box;
+	cursor: move;
+	position: absolute;
+	z-index: 1;
+}
+
+.shader-graph__frame.selected {
+	border-style: solid;
+	box-shadow: 0 0 0 2px rgb(255 255 255 / 0.14), 0 0 22px rgb(124 77 255 / 0.2);
+}
+
+.shader-graph__frame-header {
+	align-items: center;
+	background: rgb(12 12 12 / 0.92);
+	border: 1px solid rgb(255 255 255 / 0.14);
+	border-radius: 5px;
+	display: grid;
+	gap: 6px;
+	grid-template-columns: minmax(0, 1fr) 28px auto;
+	left: 10px;
+	max-width: calc(100% - 20px);
+	padding: 4px 6px;
+	position: absolute;
+	top: 8px;
+}
+
+.shader-graph__frame-header input[type="text"] {
+	background: transparent;
+	border: 0;
+	color: #f6f2ff;
+	font-size: 0.72rem;
+	font-weight: 700;
+	min-width: 0;
+	outline: 0;
+}
+
+.shader-graph__frame-header input[type="color"] {
+	background: transparent;
+	border: 0;
+	cursor: pointer;
+	height: 20px;
+	padding: 0;
+	width: 24px;
+}
+
+.shader-graph__frame-header small {
+	color: #bda8ff;
+	font-size: 0.64rem;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.shader-graph__frame-resize {
+	background: rgb(16 16 16 / 0.9);
+	border: 1px solid rgb(255 255 255 / 0.3);
+	border-radius: 4px;
+	bottom: 8px;
+	cursor: nwse-resize;
+	height: 18px;
+	position: absolute;
+	right: 8px;
+	width: 18px;
+}
+
+.shader-graph__frame-resize::after {
+	border-bottom: 2px solid rgb(255 255 255 / 0.65);
+	border-right: 2px solid rgb(255 255 255 / 0.65);
+	bottom: 4px;
+	content: "";
+	height: 8px;
+	position: absolute;
+	right: 4px;
+	width: 8px;
+}
+
 .shader-graph__node {
 	background: var(--graph-node-background);
 	border: 2px solid var(--graph-node-border);
@@ -2602,6 +2929,7 @@ function categoryColor(cat: string): string {
 	overflow: hidden;
 	position: absolute;
 	width: 180px;
+	z-index: 3;
 }
 
 .shader-graph__node.selected {

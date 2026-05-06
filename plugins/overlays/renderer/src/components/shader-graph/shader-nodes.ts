@@ -47,9 +47,21 @@ export interface ShaderWire {
 	toPort: string
 }
 
+export interface ShaderFrame {
+	id: string
+	title: string
+	color: string
+	x: number
+	y: number
+	width: number
+	height: number
+	nodeIds?: string[]
+}
+
 export interface ShaderGraph {
 	nodes: ShaderNodeInstance[]
 	wires: ShaderWire[]
+	frames?: ShaderFrame[]
 	outputNodeId?: string
 }
 

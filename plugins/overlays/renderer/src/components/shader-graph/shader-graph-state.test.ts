@@ -5,6 +5,7 @@ import {
 	collectShaderUniformBindings,
 	createDefaultShaderGraph,
 	createShaderGraphStarter,
+	normalizeShaderGraph,
 	hasLegacyCustomShaderWithoutGraph,
 	persistShaderGraph,
 	type ShaderLayerGraphConfig,
@@ -54,6 +55,33 @@ describe("shader graph config state", () => {
 		expect(config.shaderGraph).toEqual(graph)
 		expect(config.shaderUniforms).toEqual({ u_amount: 0.5 })
 		expect(config.shaderUniformBindings).toEqual(bindings)
+	})
+
+	it("preserves manual shader graph frames during clone and normalize", () => {
+		const graph = createDefaultShaderGraph()
+		graph.frames = [{
+			id: "frame-a",
+			title: "Terrain",
+			color: "#7c4dff",
+			x: 20,
+			y: 30,
+			width: 420,
+			height: 240,
+			nodeIds: ["uv", "missing"],
+		}]
+
+		const normalized = normalizeShaderGraph(graph)
+
+		expect(normalized.frames).toEqual([{
+			id: "frame-a",
+			title: "Terrain",
+			color: "#7c4dff",
+			x: 20,
+			y: 30,
+			width: 420,
+			height: 240,
+			nodeIds: ["uv"],
+		}])
 	})
 
 	it("collects runtime bindings from uniform parameter nodes", () => {

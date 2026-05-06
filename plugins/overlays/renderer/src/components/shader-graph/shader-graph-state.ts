@@ -1,5 +1,5 @@
 import type { ShaderUniformBindingMap } from "showrunner-plugin-overlays-shared"
-import { getShaderUniformName, type ShaderGraph, type ShaderNodeInstance, type ShaderUniformValueMap, type ShaderWire } from "./shader-nodes"
+import { getShaderUniformName, type ShaderFrame, type ShaderGraph, type ShaderNodeInstance, type ShaderUniformValueMap, type ShaderWire } from "./shader-nodes"
 
 export interface ShaderLayerGraphConfig {
 	preset?: string
@@ -76,6 +76,16 @@ export function cloneShaderGraph(graph: ShaderGraph): ShaderGraph {
 			toNode: wire.toNode,
 			toPort: wire.toPort,
 		})),
+		frames: graph.frames?.map((frame) => ({
+			id: frame.id,
+			title: frame.title,
+			color: frame.color,
+			x: Number.isFinite(frame.x) ? frame.x : 0,
+			y: Number.isFinite(frame.y) ? frame.y : 0,
+			width: Number.isFinite(frame.width) ? frame.width : 360,
+			height: Number.isFinite(frame.height) ? frame.height : 220,
+			nodeIds: frame.nodeIds ? [...frame.nodeIds] : undefined,
+		})),
 		outputNodeId: graph.outputNodeId,
 	}
 }
@@ -97,6 +107,24 @@ export function normalizeShaderGraph(value: unknown): ShaderGraph {
 	})
 
 	const nodeIds = new Set(nodes.map((node) => node.id))
+	const frames = Array.isArray(value.frames)
+		? value.frames.flatMap((frame): ShaderFrame[] => {
+			if (!isRecord(frame) || typeof frame.id !== "string") return []
+			const nodeIdsInFrame = Array.isArray(frame.nodeIds)
+				? frame.nodeIds.filter((nodeId): nodeId is string => typeof nodeId === "string" && nodeIds.has(nodeId))
+				: undefined
+			return [{
+				id: frame.id,
+				title: typeof frame.title === "string" && frame.title.trim() ? frame.title : "Frame",
+				color: typeof frame.color === "string" && frame.color.trim() ? frame.color : "#7c4dff",
+				x: Number.isFinite(frame.x) ? Number(frame.x) : 0,
+				y: Number.isFinite(frame.y) ? Number(frame.y) : 0,
+				width: Number.isFinite(frame.width) ? Math.max(160, Number(frame.width)) : 360,
+				height: Number.isFinite(frame.height) ? Math.max(96, Number(frame.height)) : 220,
+				nodeIds: nodeIdsInFrame?.length ? nodeIdsInFrame : undefined,
+			}]
+		})
+		: undefined
 	const wires = value.wires.flatMap((wire): ShaderWire[] => {
 		if (
 			!isRecord(wire) ||
@@ -119,7 +147,7 @@ export function normalizeShaderGraph(value: unknown): ShaderGraph {
 	if (!nodes.length) return createDefaultShaderGraph()
 
 	const outputNodeId = typeof value.outputNodeId === "string" ? value.outputNodeId : nodes.find((node) => node.defId === "fragment_output")?.id
-	return { nodes, wires, outputNodeId }
+	return { nodes, wires, frames, outputNodeId }
 }
 
 export function hasLegacyCustomShaderWithoutGraph(config: ShaderLayerGraphConfig | undefined): boolean {
