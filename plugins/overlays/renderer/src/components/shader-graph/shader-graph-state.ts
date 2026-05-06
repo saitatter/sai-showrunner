@@ -26,6 +26,18 @@ export interface ShaderGraphPasteResult {
 	selectedNodeIds: string[]
 }
 
+export interface ShaderGraphNodeSize {
+	width: number
+	height: number
+}
+
+export interface ShaderGraphBounds {
+	x: number
+	y: number
+	width: number
+	height: number
+}
+
 export const SHADER_GRAPH_STARTERS: ShaderGraphStarter[] = [
 	{ id: "procedural-terrain", name: "Procedural Terrain", description: "FBM terrain with altitude bands and simple sunlight." },
 	{ id: "nebula", name: "Nebula", description: "Warped cloud colors for atmospheric overlays." },
@@ -150,6 +162,79 @@ export function pasteShaderGraphSelection(
 		}]
 	})
 	return { nodes, wires, selectedNodeIds: nodes.map((node) => node.id) }
+}
+
+export function getShaderGraphNodeBounds(
+	graph: ShaderGraph,
+	nodeIds: Iterable<string>,
+	nodeSize: ShaderGraphNodeSize
+): ShaderGraphBounds | undefined {
+	const selected = [...nodeIds].flatMap((nodeId) => {
+		const node = graph.nodes.find((item) => item.id === nodeId)
+		return node ? [node] : []
+	})
+	if (!selected.length) return undefined
+	const minX = Math.min(...selected.map((node) => node.x))
+	const minY = Math.min(...selected.map((node) => node.y))
+	const maxX = Math.max(...selected.map((node) => node.x + nodeSize.width))
+	const maxY = Math.max(...selected.map((node) => node.y + nodeSize.height))
+	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
+
+export function placeShaderNodesInContainingFrame(
+	graph: ShaderGraph,
+	nodeIds: Iterable<string>,
+	nodeSize: ShaderGraphNodeSize
+) {
+	const ids = new Set(nodeIds)
+	if (!ids.size || !graph.frames?.length) return false
+	let changed = false
+	for (const frame of graph.frames) {
+		const next = (frame.nodeIds ?? []).filter((nodeId) => !ids.has(nodeId))
+		if (next.length !== (frame.nodeIds ?? []).length) {
+			frame.nodeIds = next
+			changed = true
+		}
+	}
+	for (const nodeId of ids) {
+		const node = graph.nodes.find((item) => item.id === nodeId)
+		if (!node) continue
+		const centerX = node.x + nodeSize.width / 2
+		const centerY = node.y + nodeSize.height / 2
+		const frame = graph.frames.find((item) =>
+			centerX >= item.x &&
+			centerX <= item.x + item.width &&
+			centerY >= item.y &&
+			centerY <= item.y + item.height
+		)
+		if (!frame) continue
+		const next = new Set(frame.nodeIds ?? [])
+		const previousSize = next.size
+		next.add(nodeId)
+		frame.nodeIds = [...next]
+		changed = changed || next.size !== previousSize
+	}
+	return changed
+}
+
+export function getShaderFrameMinimumSize(
+	graph: ShaderGraph,
+	frame: ShaderFrame,
+	nodeSize: ShaderGraphNodeSize,
+	padding = 36
+) {
+	const bounds = getShaderGraphNodeBounds(graph, frame.nodeIds ?? [], nodeSize)
+	if (!bounds) return { width: 160, height: 96 }
+	return {
+		width: Math.max(160, Math.ceil(bounds.x + bounds.width - frame.x + padding)),
+		height: Math.max(96, Math.ceil(bounds.y + bounds.height - frame.y + padding)),
+	}
+}
+
+export function deleteShaderFrame(graph: ShaderGraph, frameId: string) {
+	const previousLength = graph.frames?.length ?? 0
+	graph.frames = (graph.frames ?? []).filter((frame) => frame.id !== frameId)
+	return graph.frames.length !== previousLength
 }
 
 export function normalizeShaderGraph(value: unknown): ShaderGraph {

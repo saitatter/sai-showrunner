@@ -6,9 +6,13 @@ import {
 	copyShaderGraphSelection,
 	createDefaultShaderGraph,
 	createShaderGraphStarter,
+	deleteShaderFrame,
+	getShaderFrameMinimumSize,
+	getShaderGraphNodeBounds,
 	normalizeShaderGraph,
 	hasLegacyCustomShaderWithoutGraph,
 	pasteShaderGraphSelection,
+	placeShaderNodesInContainingFrame,
 	persistShaderGraph,
 	type ShaderLayerGraphConfig,
 } from "./shader-graph-state"
@@ -109,6 +113,84 @@ describe("shader graph config state", () => {
 			width: 360,
 			height: 220,
 		}])
+	})
+
+	it("computes bounds for selected shader graph nodes", () => {
+		const graph = {
+			nodes: [
+				{ id: "a", defId: "time", x: 10, y: 20 },
+				{ id: "b", defId: "time", x: 240, y: 120 },
+			],
+			wires: [],
+		}
+
+		expect(getShaderGraphNodeBounds(graph, ["a", "b", "missing"], { width: 180, height: 160 })).toEqual({
+			x: 10,
+			y: 20,
+			width: 410,
+			height: 260,
+		})
+	})
+
+	it("moves shader nodes in and out of containing frames", () => {
+		const graph = {
+			nodes: [
+				{ id: "a", defId: "time", x: 10, y: 10 },
+				{ id: "b", defId: "time", x: 420, y: 20 },
+			],
+			wires: [],
+			frames: [{
+				id: "frame",
+				title: "Frame",
+				color: "#7c4dff",
+				x: 0,
+				y: 0,
+				width: 240,
+				height: 220,
+				nodeIds: ["b"],
+			}],
+		}
+
+		expect(placeShaderNodesInContainingFrame(graph, ["a", "b"], { width: 180, height: 160 })).toBe(true)
+		expect(graph.frames[0].nodeIds).toEqual(["a"])
+	})
+
+	it("keeps shader frames large enough for their member nodes", () => {
+		const graph = {
+			nodes: [{ id: "a", defId: "time", x: 100, y: 120 }],
+			wires: [],
+		}
+		const frame = {
+			id: "frame",
+			title: "Frame",
+			color: "#7c4dff",
+			x: 80,
+			y: 90,
+			width: 160,
+			height: 96,
+			nodeIds: ["a"],
+		}
+
+		expect(getShaderFrameMinimumSize(graph, frame, { width: 180, height: 160 })).toEqual({
+			width: 236,
+			height: 226,
+		})
+	})
+
+	it("deletes shader frames without touching graph nodes", () => {
+		const graph = {
+			nodes: [{ id: "a", defId: "time", x: 0, y: 0 }],
+			wires: [],
+			frames: [
+				{ id: "one", title: "One", color: "#7c4dff", x: 0, y: 0, width: 200, height: 120 },
+				{ id: "two", title: "Two", color: "#7c4dff", x: 0, y: 0, width: 200, height: 120 },
+			],
+		}
+
+		expect(deleteShaderFrame(graph, "one")).toBe(true)
+		expect(graph.frames.map((frame) => frame.id)).toEqual(["two"])
+		expect(graph.nodes.map((node) => node.id)).toEqual(["a"])
+		expect(deleteShaderFrame(graph, "missing")).toBe(false)
 	})
 
 	it("copies and pastes selected shader nodes with internal wires", () => {

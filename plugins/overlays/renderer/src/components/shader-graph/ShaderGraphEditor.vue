@@ -821,8 +821,12 @@ import {
 	createDefaultShaderGraph,
 	createShaderGraphStarter,
 	cloneShaderGraph,
+	deleteShaderFrame,
+	getShaderFrameMinimumSize as getShaderFrameMinimumSizeForGraph,
+	getShaderGraphNodeBounds,
 	normalizeShaderGraph,
 	pasteShaderGraphSelection,
+	placeShaderNodesInContainingFrame,
 	type ShaderGraphClipboard,
 } from "./shader-graph-state"
 import type { ShaderUniformBindingMap } from "showrunner-plugin-overlays-shared"
@@ -1052,6 +1056,7 @@ const shaderFrames = computed(() => {
 
 const NODE_W = 180
 const SHADER_NODE_H = 160
+const SHADER_NODE_SIZE = { width: NODE_W, height: SHADER_NODE_H }
 
 const surfaceSize = computed(() => ({
 	width: Math.max(
@@ -1354,7 +1359,7 @@ function updatePanFromMinimapEvent(event: PointerEvent) {
 }
 
 function addShaderFrame() {
-	const bounds = getShaderNodeBounds(selectedNodeIds.value)
+	const bounds = getShaderGraphNodeBounds(graph.value, selectedNodeIds.value, SHADER_NODE_SIZE)
 	const canvas = canvasRef.value
 	const fallbackX = canvas ? (canvas.clientWidth * 0.45 - pan.value.x) / zoom.value : 280
 	const fallbackY = canvas ? (canvas.clientHeight * 0.35 - pan.value.y) / zoom.value : 220
@@ -1507,48 +1512,11 @@ function startShaderFrameResize(event: PointerEvent, frame: ShaderFrame) {
 }
 
 function placeNodesInContainingShaderFrame(nodeIds: Iterable<string>) {
-	const ids = new Set(nodeIds)
-	if (!ids.size) return
-	for (const frame of shaderFrames.value) {
-		frame.nodeIds = (frame.nodeIds ?? []).filter((nodeId) => !ids.has(nodeId))
-	}
-	for (const nodeId of ids) {
-		const node = graph.value.nodes.find((item) => item.id === nodeId)
-		if (!node) continue
-		const centerX = node.x + NODE_W / 2
-		const centerY = node.y + SHADER_NODE_H / 2
-		const frame = shaderFrames.value.find((item) =>
-			centerX >= item.x &&
-			centerX <= item.x + item.width &&
-			centerY >= item.y &&
-			centerY <= item.y + item.height
-		)
-		if (!frame) continue
-		frame.nodeIds = [...new Set([...(frame.nodeIds ?? []), nodeId])]
-	}
+	placeShaderNodesInContainingFrame(graph.value, nodeIds, SHADER_NODE_SIZE)
 }
 
 function getShaderFrameMinimumSize(frame: ShaderFrame) {
-	const bounds = getShaderNodeBounds(frame.nodeIds ?? [])
-	if (!bounds) return { width: 160, height: 96 }
-	const padding = 36
-	return {
-		width: Math.max(160, Math.ceil(bounds.x + bounds.width - frame.x + padding)),
-		height: Math.max(96, Math.ceil(bounds.y + bounds.height - frame.y + padding)),
-	}
-}
-
-function getShaderNodeBounds(nodeIds: Iterable<string>) {
-	const selected = [...nodeIds].flatMap((nodeId) => {
-		const node = graph.value.nodes.find((item) => item.id === nodeId)
-		return node ? [node] : []
-	})
-	if (!selected.length) return undefined
-	const minX = Math.min(...selected.map((node) => node.x))
-	const minY = Math.min(...selected.map((node) => node.y))
-	const maxX = Math.max(...selected.map((node) => node.x + NODE_W))
-	const maxY = Math.max(...selected.map((node) => node.y + SHADER_NODE_H))
-	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+	return getShaderFrameMinimumSizeForGraph(graph.value, frame, SHADER_NODE_SIZE)
 }
 
 // ─── Wire Drag ───────────────────────────────────────────────────────
@@ -2254,7 +2222,7 @@ function onKeyDown(e: KeyboardEvent) {
 	}
 	if ((e.key === "Delete" || e.key === "Backspace") && selectedFrameId.value) {
 		e.preventDefault()
-		graph.value.frames = shaderFrames.value.filter((frame) => frame.id !== selectedFrameId.value)
+		deleteShaderFrame(graph.value, selectedFrameId.value)
 		selectedFrameId.value = undefined
 		emitGraphUpdate()
 		scheduleLayoutRefresh()
