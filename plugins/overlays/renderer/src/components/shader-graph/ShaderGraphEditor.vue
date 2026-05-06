@@ -763,6 +763,7 @@ import {
 	graphWireId,
 	oppositeGraphPortKind,
 	resolveGraphWireEndpoints,
+	useGraphNodeDrag,
 	useGraphSelection,
 	type GraphPortCandidate,
 	type GraphPoint,
@@ -1165,6 +1166,25 @@ function snapCoordinate(value: number) {
 	return Math.round(value / 32) * 32
 }
 
+const { startNodeDrag } = useGraphNodeDrag<ShaderNodeInstance>({
+	selectedNodeId,
+	selectedNodeIds,
+	zoom,
+	getNodes: () => graph.value.nodes,
+	setNodePosition: (node, position) => {
+		node.x = position.x
+		node.y = position.y
+	},
+	selectOnlyNode,
+	toggleNodeSelection,
+	snapCoordinate,
+	onDragMove: scheduleLayoutRefresh,
+	onDragEnd: () => {
+		emitGraphUpdate()
+		autoCompile()
+	},
+})
+
 function onCanvasPointerDown(e: PointerEvent) {
 	if (e.button === 1) {
 		e.preventDefault()
@@ -1267,44 +1287,6 @@ function fitSelection() {
 	zoom.value = graphFitZoom(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, { padding: 140, maxZoom: 1.25 })
 	pan.value = centerGraphBoundsPan(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, zoom.value)
 	scheduleLayoutRefresh()
-}
-
-// ─── Node Drag ───────────────────────────────────────────────────────
-function startNodeDrag(e: PointerEvent, node: GraphNode) {
-	if (e.shiftKey || e.ctrlKey || e.metaKey) toggleNodeSelection(node.id)
-	else if (!selectedNodeIds.value.has(node.id)) selectOnlyNode(node.id)
-	else selectedNodeId.value = node.id
-
-	const startX = e.clientX
-	const startY = e.clientY
-	const dragIds = selectedNodeIds.value.has(node.id) ? [...selectedNodeIds.value] : [node.id]
-	const startPositions = new Map(
-		dragIds.flatMap((id) => {
-			const item = graph.value.nodes.find((nd) => nd.id === id)
-			return item ? [[id, { x: item.x, y: item.y }]] : []
-		})
-	)
-	const target = e.currentTarget as HTMLElement
-	target.setPointerCapture(e.pointerId)
-	function onMove(me: PointerEvent) {
-		const dx = (me.clientX - startX) / zoom.value
-		const dy = (me.clientY - startY) / zoom.value
-		for (const [id, start] of startPositions) {
-			const n = graph.value.nodes.find((nd) => nd.id === id)
-			if (!n) continue
-			n.x = Math.max(0, snapCoordinate(start.x + dx))
-			n.y = Math.max(0, snapCoordinate(start.y + dy))
-		}
-		scheduleLayoutRefresh()
-	}
-	function onUp() {
-		target.removeEventListener("pointermove", onMove)
-		target.removeEventListener("pointerup", onUp)
-		emitGraphUpdate()
-		autoCompile()
-	}
-	target.addEventListener("pointermove", onMove)
-	target.addEventListener("pointerup", onUp)
 }
 
 // ─── Wire Drag ───────────────────────────────────────────────────────

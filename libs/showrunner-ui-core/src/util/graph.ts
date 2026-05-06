@@ -102,6 +102,25 @@ export interface GraphSelectionOptions {
 	onNodeSelectionChange?: () => void
 }
 
+export interface GraphDraggableNode extends GraphPoint {
+	id: string
+}
+
+export interface GraphNodeDragOptions<TNode extends GraphDraggableNode> {
+	selectedNodeId: Ref<string | undefined>
+	selectedNodeIds: Ref<Set<string>>
+	zoom: Ref<number>
+	getNodes: () => TNode[]
+	setNodePosition: (node: TNode, position: GraphPoint) => void
+	selectOnlyNode: (nodeId: string) => void
+	toggleNodeSelection: (nodeId: string) => void
+	snapCoordinate?: (value: number) => number
+	minX?: number
+	minY?: number
+	onDragMove?: (draggedIds: Set<string>) => void
+	onDragEnd?: (draggedIds: Set<string>, moved: boolean) => void
+}
+
 export function graphPortPositionKey(nodeId: string, portKey: string, kind: GraphPortKind) {
 	return `${kind}:${nodeId}:${portKey}`
 }
@@ -312,5 +331,76 @@ export function useGraphSelection(options: GraphSelectionOptions) {
 		selectOnlyNode,
 		toggleNodeSelection,
 		clearNodeSelection,
+	}
+}
+
+export function useGraphNodeDrag<TNode extends GraphDraggableNode>(options: GraphNodeDragOptions<TNode>) {
+	const {
+		selectedNodeId,
+		selectedNodeIds,
+		zoom,
+		getNodes,
+		setNodePosition,
+		selectOnlyNode,
+		toggleNodeSelection,
+		snapCoordinate = (value: number) => Math.round(value),
+		minX = 0,
+		minY = 0,
+		onDragMove,
+		onDragEnd,
+	} = options
+
+	function startNodeDrag(event: PointerEvent, node: TNode) {
+		if (event.shiftKey || event.ctrlKey || event.metaKey) toggleNodeSelection(node.id)
+		else if (!selectedNodeIds.value.has(node.id)) selectOnlyNode(node.id)
+		else selectedNodeId.value = node.id
+
+		const startX = event.clientX
+		const startY = event.clientY
+		const dragIds = selectedNodeIds.value.has(node.id) ? [...selectedNodeIds.value] : [node.id]
+		const initialPositions = new Map<string, GraphPoint>()
+		for (const id of dragIds) {
+			const item = getNodes().find((candidate) => candidate.id === id)
+			if (item) initialPositions.set(id, { x: item.x, y: item.y })
+		}
+
+		const target = event.currentTarget as HTMLElement
+		target.setPointerCapture(event.pointerId)
+
+		function onMove(moveEvent: PointerEvent) {
+			const dx = (moveEvent.clientX - startX) / zoom.value
+			const dy = (moveEvent.clientY - startY) / zoom.value
+			const nodes = getNodes()
+			for (const [id, start] of initialPositions) {
+				const item = nodes.find((candidate) => candidate.id === id)
+				if (!item) continue
+				setNodePosition(item, {
+					x: Math.max(minX, snapCoordinate(start.x + dx)),
+					y: Math.max(minY, snapCoordinate(start.y + dy)),
+				})
+			}
+			onDragMove?.(new Set(dragIds))
+		}
+
+		function onUp(upEvent: PointerEvent) {
+			if (target.hasPointerCapture(upEvent.pointerId)) target.releasePointerCapture(upEvent.pointerId)
+			target.removeEventListener("pointermove", onMove)
+			target.removeEventListener("pointerup", onUp)
+			target.removeEventListener("pointercancel", onUp)
+			const nodes = getNodes()
+			const moved = [...initialPositions].some(([id, initial]) => {
+				const item = nodes.find((candidate) => candidate.id === id)
+				return Boolean(item && (item.x !== initial.x || item.y !== initial.y))
+			})
+			onDragEnd?.(new Set(dragIds), moved)
+		}
+
+		target.addEventListener("pointermove", onMove)
+		target.addEventListener("pointerup", onUp)
+		target.addEventListener("pointercancel", onUp)
+	}
+
+	return {
+		startNodeDrag,
 	}
 }
