@@ -185,11 +185,9 @@
 						v-for="node in graphNodes"
 						:key="node.id"
 						class="shader-graph__node"
-						:class="{ selected: selectedNodeId === node.id, output: node.defId === 'fragment_output' }"
+						:class="{ selected: isNodeSelected(node.id), output: node.defId === 'fragment_output' }"
 						:style="{ transform: `translate(${node.x}px, ${node.y}px)` }"
 						@pointerdown.stop="startNodeDrag($event, node)"
-						@click.stop="selectedNodeId = node.id"
-						@pointerup.stop="selectNode(node.id)"
 					>
 						<header class="shader-graph__node-header" :style="{ background: categoryColor(node.category) }">
 							<i :class="node.icon" />
@@ -252,7 +250,7 @@
 						v-for="node in minimapNodes"
 						:key="node.id"
 						class="shader-graph__minimap-node"
-						:class="{ selected: selectedNodeId === node.id }"
+						:class="{ selected: isNodeSelected(node.id) }"
 						:style="{ left: `${node.x}%`, top: `${node.y}%`, width: `${node.width}%`, height: `${node.height}%` }"
 					/>
 					<div
@@ -260,6 +258,17 @@
 						:style="{ left: `${minimapViewport.x}%`, top: `${minimapViewport.y}%`, width: `${minimapViewport.width}%`, height: `${minimapViewport.height}%` }"
 					/>
 				</div>
+
+				<div
+					v-if="selectionBox"
+					class="shader-graph__selection-box"
+					:style="{
+						left: `${selectionBox.x}px`,
+						top: `${selectionBox.y}px`,
+						width: `${selectionBox.width}px`,
+						height: `${selectionBox.height}px`,
+					}"
+				/>
 
 				<!-- Node palette (right-click) -->
 				<div
@@ -817,7 +826,9 @@ const showGrid = ref(true)
 const snapToGrid = ref(true)
 const showMinimap = ref(true)
 const selectedNodeId = ref<string>()
+const selectedNodeIds = ref(new Set<string>())
 const selectedWireId = ref<string>()
+const selectionBox = ref<{ x: number; y: number; width: number; height: number } | null>(null)
 const paletteOpen = ref(false)
 const palettePos = ref({ x: 0, y: 0 })
 const paletteQuery = ref("")
@@ -944,6 +955,7 @@ function applyGraphHistory(snapshot: ShaderGraph) {
 	emit("update:modelValue", cloneShaderGraph(snapshot))
 	isApplyingHistory = false
 	selectedNodeId.value = undefined
+	selectedNodeIds.value = new Set()
 	selectedWireId.value = undefined
 	scheduleLayoutRefresh()
 	autoCompile()
@@ -995,6 +1007,34 @@ const graphNodes = computed<GraphNode[]>(() =>
 const selectedNode = computed(() => graph.value.nodes.find((node) => node.id === selectedNodeId.value))
 const selectedNodeDef = computed(() => selectedNode.value ? SHADER_NODE_DEF_MAP.get(selectedNode.value.defId) : undefined)
 const zoomLabel = computed(() => `${Math.round(zoom.value * 100)}%`)
+
+function isNodeSelected(nodeId: string) {
+	return selectedNodeIds.value.has(nodeId)
+}
+
+function setSelectedNodeIds(ids: Iterable<string>, activeNodeId?: string) {
+	const nodeIds = new Set(graph.value.nodes.map((node) => node.id))
+	const next = new Set([...ids].filter((id) => nodeIds.has(id)))
+	selectedNodeIds.value = next
+	selectedNodeId.value = activeNodeId && next.has(activeNodeId) ? activeNodeId : [...next][0]
+	selectedWireId.value = undefined
+}
+
+function selectOnlyNode(nodeId: string) {
+	setSelectedNodeIds([nodeId], nodeId)
+}
+
+function toggleNodeSelection(nodeId: string) {
+	const next = new Set(selectedNodeIds.value)
+	if (next.has(nodeId)) next.delete(nodeId)
+	else next.add(nodeId)
+	setSelectedNodeIds(next, nodeId)
+}
+
+function clearNodeSelection() {
+	selectedNodeIds.value = new Set()
+	selectedNodeId.value = undefined
+}
 
 const NODE_W = 180
 
@@ -1133,10 +1173,57 @@ function onCanvasPointerDown(e: PointerEvent) {
 		startPan(e)
 	}
 	if (e.button === 0) {
-		selectedNodeId.value = undefined
-		selectedWireId.value = undefined
+		startSelectionBox(e)
 		if (paletteOpen.value) paletteOpen.value = false
 	}
+}
+
+function startSelectionBox(e: PointerEvent) {
+	const canvas = canvasRef.value
+	const surface = canvas?.querySelector<HTMLElement>(".shader-graph__surface")
+	if (!canvas || !surface) return
+	const additive = e.shiftKey || e.ctrlKey || e.metaKey
+	const startClient = { x: e.clientX, y: e.clientY }
+	const startPoint = graphPointFromClient(surface, e.clientX, e.clientY, zoom.value)
+	const canvasRect = canvas.getBoundingClientRect()
+	let moved = false
+
+	function onMove(me: PointerEvent) {
+		const dx = me.clientX - startClient.x
+		const dy = me.clientY - startClient.y
+		moved = moved || Math.abs(dx) > 4 || Math.abs(dy) > 4
+		if (!moved) return
+		selectionBox.value = {
+			x: Math.min(startClient.x, me.clientX) - canvasRect.left,
+			y: Math.min(startClient.y, me.clientY) - canvasRect.top,
+			width: Math.abs(dx),
+			height: Math.abs(dy),
+		}
+	}
+
+	function onUp(ue: PointerEvent) {
+		window.removeEventListener("pointermove", onMove)
+		window.removeEventListener("pointerup", onUp)
+		if (!moved) {
+			if (!additive) clearNodeSelection()
+			selectedWireId.value = undefined
+			selectionBox.value = null
+			return
+		}
+		const endPoint = graphPointFromClient(surface, ue.clientX, ue.clientY, zoom.value)
+		const minX = Math.min(startPoint.x, endPoint.x)
+		const maxX = Math.max(startPoint.x, endPoint.x)
+		const minY = Math.min(startPoint.y, endPoint.y)
+		const maxY = Math.max(startPoint.y, endPoint.y)
+		const hits = graphNodes.value
+			.filter((node) => node.x + NODE_W >= minX && node.x <= maxX && node.y + 160 >= minY && node.y <= maxY)
+			.map((node) => node.id)
+		setSelectedNodeIds(additive ? new Set([...selectedNodeIds.value, ...hits]) : hits)
+		selectionBox.value = null
+	}
+
+	window.addEventListener("pointermove", onMove)
+	window.addEventListener("pointerup", onUp)
 }
 
 function startPan(e: PointerEvent) {
@@ -1171,10 +1258,14 @@ function fitGraph() {
 }
 
 function fitSelection() {
-	const node = graphNodes.value.find((item) => item.id === selectedNodeId.value)
 	const canvas = canvasRef.value
-	if (!node || !canvas) return
-	const bounds = { minX: node.x, minY: node.y, width: NODE_W, height: 160 }
+	const selected = graphNodes.value.filter((item) => selectedNodeIds.value.has(item.id))
+	if (!selected.length || !canvas) return
+	const minX = Math.min(...selected.map((node) => node.x))
+	const minY = Math.min(...selected.map((node) => node.y))
+	const maxX = Math.max(...selected.map((node) => node.x + NODE_W))
+	const maxY = Math.max(...selected.map((node) => node.y + 160))
+	const bounds = { minX, minY, width: maxX - minX, height: maxY - minY }
 	zoom.value = graphFitZoom(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, { padding: 140, maxZoom: 1.25 })
 	pan.value = centerGraphBoundsPan(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, zoom.value)
 	scheduleLayoutRefresh()
@@ -1182,22 +1273,31 @@ function fitSelection() {
 
 // ─── Node Drag ───────────────────────────────────────────────────────
 function startNodeDrag(e: PointerEvent, node: GraphNode) {
-	selectNode(node.id)
+	if (e.shiftKey || e.ctrlKey || e.metaKey) toggleNodeSelection(node.id)
+	else if (!selectedNodeIds.value.has(node.id)) selectOnlyNode(node.id)
+	else selectedNodeId.value = node.id
+
 	const startX = e.clientX
 	const startY = e.clientY
-	const startNodeX = node.x
-	const startNodeY = node.y
+	const dragIds = selectedNodeIds.value.has(node.id) ? [...selectedNodeIds.value] : [node.id]
+	const startPositions = new Map(
+		dragIds.flatMap((id) => {
+			const item = graph.value.nodes.find((nd) => nd.id === id)
+			return item ? [[id, { x: item.x, y: item.y }]] : []
+		})
+	)
 	const target = e.currentTarget as HTMLElement
 	target.setPointerCapture(e.pointerId)
 	function onMove(me: PointerEvent) {
 		const dx = (me.clientX - startX) / zoom.value
 		const dy = (me.clientY - startY) / zoom.value
-		const n = graph.value.nodes.find((nd) => nd.id === node.id)
-		if (n) {
-			n.x = Math.max(0, snapCoordinate(startNodeX + dx))
-			n.y = Math.max(0, snapCoordinate(startNodeY + dy))
-			scheduleLayoutRefresh()
+		for (const [id, start] of startPositions) {
+			const n = graph.value.nodes.find((nd) => nd.id === id)
+			if (!n) continue
+			n.x = Math.max(0, snapCoordinate(start.x + dx))
+			n.y = Math.max(0, snapCoordinate(start.y + dy))
 		}
+		scheduleLayoutRefresh()
 	}
 	function onUp() {
 		target.removeEventListener("pointermove", onMove)
@@ -1375,8 +1475,7 @@ function getShaderPortDef(nodeId: string, portKey: string, kind: "in" | "out") {
 }
 
 function selectNode(nodeId: string) {
-	selectedNodeId.value = nodeId
-	selectedWireId.value = undefined
+	selectOnlyNode(nodeId)
 	sidePanelTab.value = "node"
 }
 
@@ -1670,8 +1769,7 @@ function pasteCopiedNode() {
 	if (!copiedNode) return
 	const node = cloneNodeForPaste(copiedNode)
 	graph.value.nodes.push(node)
-	selectedNodeId.value = node.id
-	selectedWireId.value = undefined
+	selectOnlyNode(node.id)
 	emitGraphUpdate()
 	scheduleLayoutRefresh()
 	autoCompile()
@@ -1741,7 +1839,7 @@ function resetGraph() {
 function loadSelectedStarter() {
 	if (!selectedStarterId.value) return
 	graph.value = createShaderGraphStarter(selectedStarterId.value)
-	selectedNodeId.value = undefined
+	clearNodeSelection()
 	selectedWireId.value = undefined
 	emitGraphUpdate()
 	autoCompile()
@@ -1764,7 +1862,7 @@ function loadSelectedGraphPreset() {
 	const preset = graphPresets.value[selectedGraphPresetName.value]
 	if (!preset) return
 	graph.value = normalizeShaderGraph(preset)
-	selectedNodeId.value = undefined
+	clearNodeSelection()
 	selectedWireId.value = undefined
 	emitGraphUpdate()
 	autoCompile()
@@ -1846,16 +1944,15 @@ function onKeyDown(e: KeyboardEvent) {
 		emitGraphUpdate()
 		autoCompile()
 	}
-	if ((e.key === "Delete" || e.key === "Backspace") && selectedNodeId.value) {
+	if ((e.key === "Delete" || e.key === "Backspace") && selectedNodeIds.value.size) {
 		e.preventDefault()
-		const nodeId = selectedNodeId.value
-		if (nodeId && graph.value.nodes.find((n) => n.id === nodeId)?.defId !== "fragment_output") {
-			graph.value.nodes = graph.value.nodes.filter((n) => n.id !== nodeId)
-			graph.value.wires = graph.value.wires.filter((w) => w.fromNode !== nodeId && w.toNode !== nodeId)
-			selectedNodeId.value = undefined
-			emitGraphUpdate()
-			autoCompile()
-		}
+		const deleteIds = new Set([...selectedNodeIds.value].filter((nodeId) => graph.value.nodes.find((n) => n.id === nodeId)?.defId !== "fragment_output"))
+		if (!deleteIds.size) return
+		graph.value.nodes = graph.value.nodes.filter((n) => !deleteIds.has(n.id))
+		graph.value.wires = graph.value.wires.filter((w) => !deleteIds.has(w.fromNode) && !deleteIds.has(w.toNode))
+		clearNodeSelection()
+		emitGraphUpdate()
+		autoCompile()
 	}
 }
 
@@ -2486,6 +2583,14 @@ function categoryColor(cat: string): string {
 .shader-graph__node.selected {
 	border-color: var(--graph-node-selected);
 	box-shadow: 0 0 12px rgb(124 77 255 / 0.3);
+}
+
+.shader-graph__selection-box {
+	background: rgb(124 77 255 / 0.12);
+	border: 1px solid rgb(199 164 255 / 0.85);
+	pointer-events: none;
+	position: absolute;
+	z-index: 4;
 }
 
 .shader-graph__node.output {
