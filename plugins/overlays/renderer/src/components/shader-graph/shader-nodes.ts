@@ -1408,6 +1408,50 @@ export function validateShaderGraph(graph: ShaderGraph): string[] {
 	return errors
 }
 
+export function collectShaderGraphWarnings(graph: ShaderGraph): string[] {
+	const warnings: string[] = []
+	const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]))
+	const outputNode =
+		(graph.outputNodeId ? nodeMap.get(graph.outputNodeId) : undefined) ??
+		graph.nodes.find((node) => node.defId === "fragment_output")
+	if (!outputNode || outputNode.defId !== "fragment_output") return warnings
+
+	const colorWire = graph.wires.find((wire) => wire.toNode === outputNode.id && wire.toPort === "color")
+	if (!colorWire) {
+		warnings.push(`Fragment Output "${nodeLabel(outputNode)}" has no color input connected; it will render black.`)
+	}
+
+	const dependencies = collectShaderGraphDependencies(graph, outputNode.id)
+	for (const node of graph.nodes) {
+		if (dependencies.has(node.id)) continue
+		if (node.defId === "fragment_output" || node.defId === "comment_frame") continue
+		warnings.push(`Node "${nodeLabel(node)}" is not connected to the active Fragment Output.`)
+	}
+
+	return warnings
+}
+
+function collectShaderGraphDependencies(graph: ShaderGraph, outputNodeId: string) {
+	const reverse = new Map<string, string[]>()
+	for (const wire of graph.wires) {
+		if (!reverse.has(wire.toNode)) reverse.set(wire.toNode, [])
+		reverse.get(wire.toNode)!.push(wire.fromNode)
+	}
+	const visited = new Set<string>()
+	const stack = [outputNodeId]
+	while (stack.length) {
+		const nodeId = stack.pop()!
+		if (visited.has(nodeId)) continue
+		visited.add(nodeId)
+		for (const dependency of reverse.get(nodeId) ?? []) stack.push(dependency)
+	}
+	return visited
+}
+
+function nodeLabel(node: ShaderNodeInstance) {
+	return SHADER_NODE_DEF_MAP.get(node.defId)?.name ?? node.defId
+}
+
 function glslTypeDefault(type: GlslType): string {
 	switch (type) {
 		case "float": return "0.0"
@@ -1716,9 +1760,10 @@ float sr_terrain_height_sample(vec2 uv, float scale, float warp, float detail, f
 \treturn clamp((base + fine * detail) * amplitude, 0.0, 1.0);
 }`
 
-export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[] } {
+export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[]; warnings: string[] } {
 	const errors = validateShaderGraph(graph)
-	if (errors.length) return { glsl: "", errors }
+	if (errors.length) return { glsl: "", errors, warnings: [] }
+	const warnings = collectShaderGraphWarnings(graph)
 
 	const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]))
 	const defMap = SHADER_NODE_DEF_MAP
@@ -1839,7 +1884,7 @@ ${bodyLines.join("\n")}
 }
 `
 
-	return { glsl, errors }
+	return { glsl, errors, warnings }
 }
 
 export function normalizeShaderColorRampStops(value: unknown): ShaderColorRampStop[] {

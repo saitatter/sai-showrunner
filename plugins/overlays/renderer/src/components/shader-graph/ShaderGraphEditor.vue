@@ -356,7 +356,7 @@
 						<i class="mdi mdi-eye-outline" /> Preview
 					</button>
 					<button type="button" :class="{ active: sidePanelTab === 'errors' }" @click="sidePanelTab = 'errors'">
-						<i class="mdi mdi-alert-circle-outline" /> Errors {{ compileErrors.length }}
+						<i class="mdi mdi-alert-circle-outline" /> Issues {{ compileErrors.length + compileWarnings.length }}
 					</button>
 					<button type="button" :class="{ active: sidePanelTab === 'code' }" @click="sidePanelTab = 'code'">
 						<i class="mdi mdi-code-tags" /> GLSL
@@ -723,8 +723,11 @@
 				</section>
 
 				<section v-else-if="sidePanelTab === 'errors'" class="shader-graph__errors">
-					<p v-if="!compileErrors.length" class="shader-graph__empty-state">No shader graph errors.</p>
+					<p v-if="!compileErrors.length && !compileWarnings.length" class="shader-graph__empty-state">No shader graph issues.</p>
 					<p v-for="(err, i) in compileErrors" v-else :key="i"><i class="mdi mdi-alert" /> {{ err }}</p>
+					<p v-for="(warning, i) in compileWarnings" :key="`warning:${i}`" class="shader-graph__warning">
+						<i class="mdi mdi-alert-outline" /> {{ warning }}
+					</p>
 				</section>
 
 				<section v-else class="shader-graph__code">
@@ -814,7 +817,10 @@ const shaderGraphRuntime: GraphRuntimeAdapter<ShaderGraph, string> = {
 		const result = compileShaderGraph(inputGraph)
 		return {
 			output: result.glsl || undefined,
-			issues: result.errors.map((message) => ({ severity: "error", message })),
+			issues: [
+				...result.errors.map((message) => ({ severity: "error" as const, message })),
+				...result.warnings.map((message) => ({ severity: "warning" as const, message })),
+			],
 		}
 	},
 }
@@ -840,6 +846,7 @@ const sidePanelTab = ref<"node" | "preview" | "errors" | "code">("preview")
 const compiledGlsl = ref("")
 const lastGoodGlsl = ref("")
 const compileErrors = ref<string[]>([])
+const compileWarnings = ref<string[]>([])
 const previewError = ref("")
 const shaderQualityPreset = ref<"draft" | "balanced" | "high">("balanced")
 const previewResolutionScale = ref(1)
@@ -1836,6 +1843,7 @@ function duplicateSelectedNode() {
 function autoCompile() {
 	runtimeSnapshot = evaluateGraphRuntime(shaderGraphRuntime, graph.value, lastGoodGlsl.value || undefined)
 	compileErrors.value = runtimeSnapshot.errorMessages
+	compileWarnings.value = runtimeSnapshot.issues.filter((issue) => issue.severity === "warning").map((issue) => issue.message)
 	if (!runtimeSnapshot.ok) {
 		if (lastGoodGlsl.value && !lastPreviewGlsl.value) updateLivePreview(lastGoodGlsl.value)
 		return
@@ -2891,6 +2899,10 @@ function categoryColor(cat: string): string {
 	color: #ff6b6b;
 	font-size: 0.75rem;
 	margin: 0.15rem 0;
+}
+
+.shader-graph__errors .shader-graph__warning {
+	color: #ffcc80;
 }
 
 .shader-graph__node-inspector {

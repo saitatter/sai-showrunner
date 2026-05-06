@@ -6,6 +6,7 @@ import {
 	createShaderNodePreviewGraph,
 	normalizeShaderColorRampStops,
 	validateShaderGraph,
+	collectShaderGraphWarnings,
 	wouldCreateShaderGraphCycle,
 	type ShaderGraph,
 } from "./shader-nodes"
@@ -65,6 +66,22 @@ describe("shader graph compiler", () => {
 
 		expect(areShaderTypesCompatible("vec2", "vec3")).toBe(false)
 		expect(validateShaderGraph(graph)).toContain("Wire uv:uv->output:color connects incompatible types: vec2 -> vec3.")
+	})
+
+	it("reports non-blocking graph diagnostics", () => {
+		const graph: ShaderGraph = {
+			nodes: [
+				{ id: "unused", defId: "fbm_noise", x: 0, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 240, y: 0 },
+			],
+			wires: [],
+			outputNodeId: "output",
+		}
+		const result = compileShaderGraph(graph)
+
+		expect(result.errors).toEqual([])
+		expect(collectShaderGraphWarnings(graph)).toContain('Fragment Output "Fragment Output" has no color input connected; it will render black.')
+		expect(result.warnings).toContain('Node "FBM Noise" is not connected to the active Fragment Output.')
 	})
 
 	it("compiles editable constant node defaults", () => {

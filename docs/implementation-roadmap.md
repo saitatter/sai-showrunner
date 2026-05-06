@@ -260,7 +260,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add low-level material helpers: normal transforms, triplanar-style coordinates, layer masks, and simple BRDF pieces.
 - [x] Add shader graph multi-select, box select, and move-selection behavior.
 - [ ] Add advanced graph UX: resize frames, reroute from wire double-click, and wires-preserving clipboard.
-- [ ] Add compiler diagnostics: node/port-highlighted errors, dead-node warnings, disconnected output warnings, and safe GLSL expression nodes.
+- [x] Add first-pass compiler diagnostics for dead nodes and disconnected Fragment Output color.
+- [ ] Add advanced compiler diagnostics: node/port-highlighted errors and safe GLSL expression nodes.
 - [ ] Add runtime integrations: audio-reactive uniforms, mouse/viewer interaction uniforms, OBS/browser source size sync, preset import/export with thumbnails.
 
 ---
