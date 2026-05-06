@@ -757,6 +757,7 @@ import {
 	findNearestGraphPort,
 	graphBezierPath,
 	graphFitZoom,
+	graphIssueMessagesBySeverity,
 	graphPointFromClient,
 	graphPortPositionKey,
 	graphSkinStyle,
@@ -767,6 +768,7 @@ import {
 	useGraphHistory,
 	useGraphNodeDrag,
 	useGraphSelection,
+	type GraphIssue,
 	type GraphPortCandidate,
 	type GraphPoint,
 	type GraphRuntimeAdapter,
@@ -848,8 +850,9 @@ const palettePos = ref({ x: 0, y: 0 })
 const sidePanelTab = ref<"node" | "preview" | "errors" | "code">("preview")
 const compiledGlsl = ref("")
 const lastGoodGlsl = ref("")
-const compileErrors = ref<string[]>([])
-const compileWarnings = ref<string[]>([])
+const compileIssues = ref<GraphIssue[]>([])
+const compileErrors = computed(() => graphIssueMessagesBySeverity(compileIssues.value, "error"))
+const compileWarnings = computed(() => graphIssueMessagesBySeverity(compileIssues.value, "warning"))
 const previewError = ref("")
 const shaderQualityPreset = ref<"draft" | "balanced" | "high">("balanced")
 const previewResolutionScale = ref(1)
@@ -1335,7 +1338,10 @@ function onWireUp(e: PointerEvent) {
 			autoCompile()
 			connected = true
 		} else {
-			compileErrors.value = [validation.message ?? "Shader wire cannot connect to that port."]
+			compileIssues.value = [{
+				severity: "error",
+				message: validation.message ?? "Shader wire cannot connect to that port.",
+			}]
 			previewError.value = compileErrors.value[0]
 			connected = true
 		}
@@ -1806,8 +1812,7 @@ function duplicateSelectedNodes() {
 // ─── Compile ─────────────────────────────────────────────────────────
 function autoCompile() {
 	runtimeSnapshot = evaluateGraphRuntime(shaderGraphRuntime, graph.value, lastGoodGlsl.value || undefined)
-	compileErrors.value = runtimeSnapshot.errorMessages
-	compileWarnings.value = runtimeSnapshot.issues.filter((issue) => issue.severity === "warning").map((issue) => issue.message)
+	compileIssues.value = runtimeSnapshot.issues
 	if (!runtimeSnapshot.ok) {
 		if (lastGoodGlsl.value && !lastPreviewGlsl.value) updateLivePreview(lastGoodGlsl.value)
 		return

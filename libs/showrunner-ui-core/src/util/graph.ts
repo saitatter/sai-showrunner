@@ -200,6 +200,14 @@ export function graphIssuesToMessages(issues: GraphIssue[]) {
 	return issues.filter((issue) => issue.severity === "error").map((issue) => issue.message)
 }
 
+export function graphIssuesBySeverity(issues: GraphIssue[], severity: GraphIssueSeverity) {
+	return issues.filter((issue) => issue.severity === severity)
+}
+
+export function graphIssueMessagesBySeverity(issues: GraphIssue[], severity: GraphIssueSeverity) {
+	return graphIssuesBySeverity(issues, severity).map((issue) => issue.message)
+}
+
 export function graphValidationFromIssues(issues: GraphIssue[]): GraphValidationResult {
 	const error = issues.find((issue) => issue.severity === "error")
 	return error ? { valid: false, message: error.message, code: error.code } : { valid: true }

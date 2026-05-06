@@ -7,6 +7,7 @@ import {
 	graphBezierPath,
 	graphDistance,
 	graphFitZoom,
+	graphIssueMessagesBySeverity,
 	graphPointFromClient,
 	graphPortPositionKey,
 	graphSkinStyle,
@@ -15,6 +16,7 @@ import {
 	graphWireId,
 	oppositeGraphPortKind,
 	resolveGraphWireEndpoints,
+	useGraphContextMenuGroups,
 } from "./graph"
 
 describe("graph geometry helpers", () => {
@@ -77,6 +79,10 @@ describe("graph geometry helpers", () => {
 
 	it("normalizes validation issues and skin tokens", () => {
 		expect(graphValidationFromIssues([{ severity: "warning", message: "heads up" }])).toEqual({ valid: true })
+		expect(graphIssueMessagesBySeverity([
+			{ severity: "warning", message: "heads up" },
+			{ severity: "error", message: "broken" },
+		], "error")).toEqual(["broken"])
 		expect(graphValidationFromIssues([{ severity: "error", message: "broken", code: "bad" }])).toEqual({
 			valid: false,
 			message: "broken",
@@ -110,5 +116,27 @@ describe("graph geometry helpers", () => {
 		expect(failed.ok).toBe(false)
 		expect(failed.errorMessages).toEqual(["compile failed"])
 		expect(failed.lastGoodOutput).toBe("new glsl")
+	})
+
+	it("tracks reusable context menu search and group state", () => {
+		const menu = useGraphContextMenuGroups({
+			defaultOpenGroups: {
+				actions: true,
+				data: false,
+			},
+		})
+
+		expect(menu.contextMenuSearch.value).toBe("")
+		expect(menu.isContextGroupOpen("actions")).toBe(true)
+		expect(menu.isContextGroupOpen("data")).toBe(false)
+
+		menu.contextMenuQuery.value = "  Noise  "
+		menu.toggleContextGroup("data")
+		expect(menu.contextMenuSearch.value).toBe("noise")
+		expect(menu.isContextGroupOpen("data")).toBe(true)
+
+		menu.resetContextMenuGroups()
+		expect(menu.contextMenuSearch.value).toBe("")
+		expect(menu.isContextGroupOpen("data")).toBe(false)
 	})
 })
