@@ -763,6 +763,7 @@ import {
 	graphWireId,
 	oppositeGraphPortKind,
 	resolveGraphWireEndpoints,
+	useGraphHistory,
 	useGraphNodeDrag,
 	useGraphSelection,
 	type GraphPortCandidate,
@@ -950,38 +951,15 @@ const {
 	},
 })
 
-const undoStack = ref<ShaderGraph[]>([])
-const redoStack = ref<ShaderGraph[]>([])
-let isApplyingHistory = false
-let lastHistoryKey = ""
-const canUndo = computed(() => undoStack.value.length > 1)
-const canRedo = computed(() => redoStack.value.length > 0)
-
 function emitGraphUpdate() {
 	const snapshot = cloneShaderGraph(graph.value)
 	emit("update:modelValue", snapshot)
 	recordGraphHistory(snapshot)
 }
 
-function graphHistoryKey(source: ShaderGraph) {
-	return JSON.stringify(source)
-}
-
-function recordGraphHistory(source: ShaderGraph) {
-	if (isApplyingHistory) return
-	const snapshot = cloneShaderGraph(source)
-	const key = graphHistoryKey(snapshot)
-	if (key === lastHistoryKey) return
-	undoStack.value = [...undoStack.value, snapshot].slice(-80)
-	redoStack.value = []
-	lastHistoryKey = key
-}
-
-function applyGraphHistory(snapshot: ShaderGraph) {
-	isApplyingHistory = true
-	graph.value = cloneShaderGraph(snapshot)
+function applyGraphHistorySnapshot(snapshot: ShaderGraph) {
+	graph.value = snapshot
 	emit("update:modelValue", cloneShaderGraph(snapshot))
-	isApplyingHistory = false
 	selectedNodeId.value = undefined
 	selectedNodeIds.value = new Set()
 	selectedWireId.value = undefined
@@ -989,26 +967,16 @@ function applyGraphHistory(snapshot: ShaderGraph) {
 	autoCompile()
 }
 
-function undoGraph() {
-	if (!canUndo.value) return
-	const nextUndo = [...undoStack.value]
-	const current = nextUndo.pop()
-	const previous = nextUndo[nextUndo.length - 1]
-	if (!current || !previous) return
-	undoStack.value = nextUndo
-	redoStack.value = [cloneShaderGraph(current), ...redoStack.value].slice(0, 80)
-	lastHistoryKey = graphHistoryKey(previous)
-	applyGraphHistory(previous)
-}
-
-function redoGraph() {
-	const [next, ...rest] = redoStack.value
-	if (!next) return
-	redoStack.value = rest
-	undoStack.value = [...undoStack.value, cloneShaderGraph(next)].slice(-80)
-	lastHistoryKey = graphHistoryKey(next)
-	applyGraphHistory(next)
-}
+const {
+	canUndo,
+	canRedo,
+	recordHistory: recordGraphHistory,
+	undo: undoGraph,
+	redo: redoGraph,
+} = useGraphHistory<ShaderGraph>({
+	clone: cloneShaderGraph,
+	apply: applyGraphHistorySnapshot,
+})
 
 interface GraphNode extends ShaderNodeInstance {
 	name: string

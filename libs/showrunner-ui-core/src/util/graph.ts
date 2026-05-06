@@ -1,4 +1,4 @@
-import type { Ref } from "vue"
+import { computed, ref, type Ref } from "vue"
 
 export interface GraphPoint {
 	x: number
@@ -119,6 +119,13 @@ export interface GraphNodeDragOptions<TNode extends GraphDraggableNode> {
 	minY?: number
 	onDragMove?: (draggedIds: Set<string>) => void
 	onDragEnd?: (draggedIds: Set<string>, moved: boolean) => void
+}
+
+export interface GraphHistoryOptions<TSnapshot> {
+	clone: (snapshot: TSnapshot) => TSnapshot
+	apply: (snapshot: TSnapshot) => void
+	historyKey?: (snapshot: TSnapshot) => string
+	limit?: number
 }
 
 export function graphPortPositionKey(nodeId: string, portKey: string, kind: GraphPortKind) {
@@ -402,5 +409,67 @@ export function useGraphNodeDrag<TNode extends GraphDraggableNode>(options: Grap
 
 	return {
 		startNodeDrag,
+	}
+}
+
+export function useGraphHistory<TSnapshot>(options: GraphHistoryOptions<TSnapshot>) {
+	const {
+		clone,
+		apply,
+		historyKey = (snapshot: TSnapshot) => JSON.stringify(snapshot),
+		limit = 80,
+	} = options
+
+	const undoStack = ref<TSnapshot[]>([])
+	const redoStack = ref<TSnapshot[]>([])
+	let isApplyingHistory = false
+	let lastHistoryKey = ""
+
+	const canUndo = computed(() => undoStack.value.length > 1)
+	const canRedo = computed(() => redoStack.value.length > 0)
+
+	function recordHistory(source: TSnapshot) {
+		if (isApplyingHistory) return
+		const snapshot = clone(source)
+		const key = historyKey(snapshot)
+		if (key === lastHistoryKey) return
+		undoStack.value = [...undoStack.value, snapshot].slice(-limit)
+		redoStack.value = []
+		lastHistoryKey = key
+	}
+
+	function applyHistory(snapshot: TSnapshot) {
+		isApplyingHistory = true
+		apply(clone(snapshot))
+		isApplyingHistory = false
+	}
+
+	function undo() {
+		if (!canUndo.value) return
+		const nextUndo = [...undoStack.value]
+		const current = nextUndo.pop()
+		const previous = nextUndo[nextUndo.length - 1]
+		if (!current || !previous) return
+		undoStack.value = nextUndo
+		redoStack.value = [clone(current), ...redoStack.value].slice(0, limit)
+		lastHistoryKey = historyKey(previous)
+		applyHistory(previous)
+	}
+
+	function redo() {
+		const [next, ...rest] = redoStack.value
+		if (!next) return
+		redoStack.value = rest
+		undoStack.value = [...undoStack.value, clone(next)].slice(-limit)
+		lastHistoryKey = historyKey(next)
+		applyHistory(next)
+	}
+
+	return {
+		canUndo,
+		canRedo,
+		recordHistory,
+		undo,
+		redo,
 	}
 }
