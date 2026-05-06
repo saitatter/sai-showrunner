@@ -9,10 +9,20 @@ export interface ShaderLayerGraphConfig {
 
 const DEFAULT_SHADER_GRAPH: ShaderGraph = {
 	nodes: [
-		{ id: "output", defId: "fragment_output", x: 600, y: 200 },
-		{ id: "uv", defId: "uv", x: 50, y: 200 },
+		{ id: "uv", defId: "uv", x: 40, y: 180 },
+		{ id: "split_uv", defId: "vec2_split", x: 260, y: 180 },
+		{ id: "accent", defId: "accent_color", x: 260, y: 20 },
+		{ id: "secondary", defId: "secondary_color", x: 260, y: 340 },
+		{ id: "gradient", defId: "mix_color", x: 520, y: 180 },
+		{ id: "output", defId: "fragment_output", x: 780, y: 190 },
 	],
-	wires: [],
+	wires: [
+		{ id: "uv:uv->split_uv:v", fromNode: "uv", fromPort: "uv", toNode: "split_uv", toPort: "v" },
+		{ id: "accent:color->gradient:a", fromNode: "accent", fromPort: "color", toNode: "gradient", toPort: "a" },
+		{ id: "secondary:color->gradient:b", fromNode: "secondary", fromPort: "color", toNode: "gradient", toPort: "b" },
+		{ id: "split_uv:x->gradient:t", fromNode: "split_uv", fromPort: "x", toNode: "gradient", toPort: "t" },
+		{ id: "gradient:result->output:color", fromNode: "gradient", fromPort: "result", toNode: "output", toPort: "color" },
+	],
 	outputNodeId: "output",
 }
 
