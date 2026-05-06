@@ -332,9 +332,9 @@ export function usePortConnections(
 		if (!wireDrag.value || !canvasRef.value) return
 		const surface = canvasRef.value.querySelector<HTMLElement>(".node-automation__surface")
 		if (!surface) return
-		const rect = surface.getBoundingClientRect()
-		wireDrag.value.currentX = (event.clientX - rect.left) / zoom.value
-		wireDrag.value.currentY = (event.clientY - rect.top) / zoom.value
+		const point = graphPointFromClient(surface, event.clientX, event.clientY, zoom.value)
+		wireDrag.value.currentX = point.x
+		wireDrag.value.currentY = point.y
 	}
 
 	function onDragEnd(event: PointerEvent) {

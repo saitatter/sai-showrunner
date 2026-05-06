@@ -2,6 +2,7 @@ import { ref, watch, type ComputedRef, type Ref } from "vue"
 import {
 	clampGraphZoom,
 	graphFitZoom,
+	graphPointFromClient,
 	graphScrollTargetForBounds,
 } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 
@@ -163,11 +164,11 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 
 	function getCanvasPointFromClient(clientX: number, clientY: number): NodePosition {
 		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
-		const rect = surface?.getBoundingClientRect()
-		if (!rect) return { x: 42, y: 88 }
+		if (!surface) return { x: 42, y: 88 }
+		const point = graphPointFromClient(surface, clientX, clientY, zoom.value)
 		return {
-			x: snapCoordinate(Math.max(12, (clientX - rect.left) / zoom.value)),
-			y: snapCoordinate(Math.max(12, (clientY - rect.top) / zoom.value)),
+			x: snapCoordinate(Math.max(12, point.x)),
+			y: snapCoordinate(Math.max(12, point.y)),
 		}
 	}
 
