@@ -84,6 +84,31 @@ describe("shader graph config state", () => {
 		}])
 	})
 
+	it("migrates legacy comment frame nodes into manual frames", () => {
+		const normalized = normalizeShaderGraph({
+			nodes: [
+				{ id: "comment", defId: "comment_frame", x: 120, y: 80, inputDefaults: { title: "Notes" } },
+				{ id: "color", defId: "vec3_const", x: 0, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 220, y: 0 },
+			],
+			wires: [
+				{ id: "color:value->output:color", fromNode: "color", fromPort: "value", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(normalized.nodes.map((node) => node.id)).toEqual(["color", "output"])
+		expect(normalized.frames).toEqual([{
+			id: "frame:comment",
+			title: "Notes",
+			color: "#7c4dff",
+			x: 120,
+			y: 80,
+			width: 360,
+			height: 220,
+		}])
+	})
+
 	it("collects runtime bindings from uniform parameter nodes", () => {
 		const graph = {
 			nodes: [

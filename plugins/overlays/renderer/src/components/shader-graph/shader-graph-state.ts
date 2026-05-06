@@ -97,6 +97,7 @@ export function normalizeShaderGraph(value: unknown): ShaderGraph {
 
 	const nodes = value.nodes.flatMap((node): ShaderNodeInstance[] => {
 		if (!isRecord(node) || typeof node.id !== "string" || typeof node.defId !== "string") return []
+		if (node.defId === "comment_frame") return []
 		return [{
 			id: node.id,
 			defId: node.defId,
@@ -107,6 +108,24 @@ export function normalizeShaderGraph(value: unknown): ShaderGraph {
 	})
 
 	const nodeIds = new Set(nodes.map((node) => node.id))
+	const migratedCommentFrames = value.nodes.flatMap((node): ShaderFrame[] => {
+		if (!isRecord(node) || node.defId !== "comment_frame" || typeof node.id !== "string") return []
+		const defaults = isRecord(node.inputDefaults) ? node.inputDefaults : {}
+		const title = typeof defaults.title === "string" && defaults.title.trim()
+			? defaults.title.trim()
+			: typeof defaults.note === "string" && defaults.note.trim()
+				? defaults.note.trim().slice(0, 40)
+				: "Frame"
+		return [{
+			id: `frame:${node.id}`,
+			title,
+			color: "#7c4dff",
+			x: Number.isFinite(node.x) ? Number(node.x) : 0,
+			y: Number.isFinite(node.y) ? Number(node.y) : 0,
+			width: 360,
+			height: 220,
+		}]
+	})
 	const frames = Array.isArray(value.frames)
 		? value.frames.flatMap((frame): ShaderFrame[] => {
 			if (!isRecord(frame) || typeof frame.id !== "string") return []
@@ -125,6 +144,7 @@ export function normalizeShaderGraph(value: unknown): ShaderGraph {
 			}]
 		})
 		: undefined
+	const normalizedFrames = [...(frames ?? []), ...migratedCommentFrames]
 	const wires = value.wires.flatMap((wire): ShaderWire[] => {
 		if (
 			!isRecord(wire) ||
@@ -147,7 +167,7 @@ export function normalizeShaderGraph(value: unknown): ShaderGraph {
 	if (!nodes.length) return createDefaultShaderGraph()
 
 	const outputNodeId = typeof value.outputNodeId === "string" ? value.outputNodeId : nodes.find((node) => node.defId === "fragment_output")?.id
-	return { nodes, wires, frames, outputNodeId }
+	return { nodes, wires, frames: normalizedFrames.length ? normalizedFrames : undefined, outputNodeId }
 }
 
 export function hasLegacyCustomShaderWithoutGraph(config: ShaderLayerGraphConfig | undefined): boolean {

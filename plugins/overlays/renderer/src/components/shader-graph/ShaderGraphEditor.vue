@@ -548,23 +548,6 @@
 							/>
 						</label>
 
-						<label v-if="selectedNode.defId === 'comment_frame'" class="shader-graph__field">
-							<span>Title</span>
-							<input
-								type="text"
-								:value="getNodeInputDefault(selectedNode, 'title', 'Comment')"
-								@input="setNodeInputDefault(selectedNode, 'title', ($event.target as HTMLInputElement).value)"
-							/>
-						</label>
-
-						<label v-if="selectedNode.defId === 'comment_frame'" class="shader-graph__field">
-							<span>Note</span>
-							<textarea
-								:value="getNodeInputDefault(selectedNode, 'note', '')"
-								@input="setNodeInputDefault(selectedNode, 'note', ($event.target as HTMLTextAreaElement).value)"
-							/>
-						</label>
-
 						<div v-if="selectedNode.defId === 'color_ramp'" class="shader-graph__field-group">
 							<h4>Color Ramp</h4>
 							<div class="shader-graph__ramp-preview" :style="{ background: colorRampPreview(selectedNode) }" />
@@ -1688,7 +1671,7 @@ function setNodeInputDefault(node: ShaderNodeInstance, key: string, value: strin
 
 function hasEditableNodeSettings(node: ShaderNodeInstance) {
 	const def = SHADER_NODE_DEF_MAP.get(node.defId)
-	return ["float_const", "vec3_const", "uniform_float", "uniform_vec2", "uniform_vec3", "comment_frame"].includes(node.defId) || Boolean(def?.inputs.length)
+	return ["float_const", "vec3_const", "uniform_float", "uniform_vec2", "uniform_vec3"].includes(node.defId) || Boolean(def?.inputs.length)
 }
 
 function isUniformParameterNode(node: ShaderNodeInstance) {
@@ -1934,14 +1917,10 @@ function getInterpolatedRampColor(stops: ShaderColorRampStop[], offset: number) 
 }
 
 function shouldShowNodePreview(node: ShaderNodeInstance) {
-	return !["float_const", "vec3_const", "comment_frame"].includes(node.defId)
+	return !["float_const", "vec3_const"].includes(node.defId)
 }
 
 function nodeTitle(node: ShaderNodeInstance & { name: string }) {
-	if (node.defId === "comment_frame") {
-		const title = typeof node.inputDefaults?.title === "string" ? node.inputDefaults.title.trim() : ""
-		return title || node.name
-	}
 	return node.name
 }
 

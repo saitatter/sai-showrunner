@@ -1262,16 +1262,6 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		outputs: [{ key: "value", label: "Out", type: "vec3" }],
 		compile: (ins, outs) => [`${outs.value} = ${ins.value};`],
 	},
-	{
-		id: "comment_frame",
-		name: "Comment / Frame",
-		category: "Utility",
-		icon: "mdi mdi-comment-outline",
-		inputs: [],
-		outputs: [],
-		compile: () => [`// comment frame`],
-	},
-
 	// ── Output ──
 	{
 		id: "fragment_output",
@@ -1436,7 +1426,7 @@ export function collectShaderGraphWarnings(graph: ShaderGraph): string[] {
 	const dependencies = collectShaderGraphDependencies(graph, outputNode.id)
 	for (const node of graph.nodes) {
 		if (dependencies.has(node.id)) continue
-		if (node.defId === "fragment_output" || node.defId === "comment_frame") continue
+		if (node.defId === "fragment_output") continue
 		warnings.push(`Node "${nodeLabel(node)}" is not connected to the active Fragment Output.`)
 	}
 

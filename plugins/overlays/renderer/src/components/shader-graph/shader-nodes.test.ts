@@ -523,12 +523,11 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("smoothstep(")
 	})
 
-	it("compiles utility reroute and comment nodes", () => {
+	it("compiles utility reroute nodes", () => {
 		const result = compileShaderGraph({
 			nodes: [
 				{ id: "color", defId: "vec3_const", x: 0, y: 0 },
 				{ id: "reroute", defId: "reroute_vec3", x: 220, y: 0 },
-				{ id: "comment", defId: "comment_frame", x: 220, y: 180, inputDefaults: { title: "Notes" } },
 				{ id: "output", defId: "fragment_output", x: 440, y: 0 },
 			],
 			wires: [
@@ -539,7 +538,6 @@ describe("shader graph compiler", () => {
 		})
 
 		expect(result.errors).toEqual([])
-		expect(result.glsl).toContain("// comment frame")
 		expect(result.glsl).toContain("gl_FragColor")
 	})
 
