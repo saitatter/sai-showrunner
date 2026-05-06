@@ -16,6 +16,12 @@
 				<button type="button" class="shader-graph__tool-button" :disabled="!selectedNode" @click="fitSelection" v-tooltip="'Fit selected node'">
 					<i class="mdi mdi-selection-search" />
 				</button>
+				<button type="button" class="shader-graph__tool-button" :disabled="!canUndo" @click="undoGraph" v-tooltip="'Undo'">
+					<i class="mdi mdi-undo" />
+				</button>
+				<button type="button" class="shader-graph__tool-button" :disabled="!canRedo" @click="redoGraph" v-tooltip="'Redo'">
+					<i class="mdi mdi-redo" />
+				</button>
 				<button type="button" class="shader-graph__tool-button" @click="resetGraph" v-tooltip="'Reset graph'">
 					<i class="mdi mdi-restore" />
 				</button>
@@ -715,8 +721,63 @@ const graph = computed({
 	set: (v) => emit("update:modelValue", v),
 })
 
+const undoStack = ref<ShaderGraph[]>([])
+const redoStack = ref<ShaderGraph[]>([])
+let isApplyingHistory = false
+let lastHistoryKey = ""
+const canUndo = computed(() => undoStack.value.length > 1)
+const canRedo = computed(() => redoStack.value.length > 0)
+
 function emitGraphUpdate() {
-	emit("update:modelValue", cloneShaderGraph(graph.value))
+	const snapshot = cloneShaderGraph(graph.value)
+	emit("update:modelValue", snapshot)
+	recordGraphHistory(snapshot)
+}
+
+function graphHistoryKey(source: ShaderGraph) {
+	return JSON.stringify(source)
+}
+
+function recordGraphHistory(source: ShaderGraph) {
+	if (isApplyingHistory) return
+	const snapshot = cloneShaderGraph(source)
+	const key = graphHistoryKey(snapshot)
+	if (key === lastHistoryKey) return
+	undoStack.value = [...undoStack.value, snapshot].slice(-80)
+	redoStack.value = []
+	lastHistoryKey = key
+}
+
+function applyGraphHistory(snapshot: ShaderGraph) {
+	isApplyingHistory = true
+	graph.value = cloneShaderGraph(snapshot)
+	emit("update:modelValue", cloneShaderGraph(snapshot))
+	isApplyingHistory = false
+	selectedNodeId.value = undefined
+	selectedWireId.value = undefined
+	scheduleLayoutRefresh()
+	autoCompile()
+}
+
+function undoGraph() {
+	if (!canUndo.value) return
+	const nextUndo = [...undoStack.value]
+	const current = nextUndo.pop()
+	const previous = nextUndo[nextUndo.length - 1]
+	if (!current || !previous) return
+	undoStack.value = nextUndo
+	redoStack.value = [cloneShaderGraph(current), ...redoStack.value].slice(0, 80)
+	lastHistoryKey = graphHistoryKey(previous)
+	applyGraphHistory(previous)
+}
+
+function redoGraph() {
+	const [next, ...rest] = redoStack.value
+	if (!next) return
+	redoStack.value = rest
+	undoStack.value = [...undoStack.value, cloneShaderGraph(next)].slice(-80)
+	lastHistoryKey = graphHistoryKey(next)
+	applyGraphHistory(next)
 }
 
 interface GraphNode extends ShaderNodeInstance {
@@ -1395,6 +1456,16 @@ function copyGlsl() {
 
 // ─── Keyboard ────────────────────────────────────────────────────────
 function onKeyDown(e: KeyboardEvent) {
+	if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "z") {
+		e.preventDefault()
+		undoGraph()
+		return
+	}
+	if ((e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "z") || (e.ctrlKey && e.key.toLowerCase() === "y")) {
+		e.preventDefault()
+		redoGraph()
+		return
+	}
 	if (e.ctrlKey && e.key.toLowerCase() === "c" && selectedNode.value) {
 		e.preventDefault()
 		copySelectedNode()
@@ -1433,6 +1504,7 @@ function onKeyDown(e: KeyboardEvent) {
 
 onMounted(() => {
 	window.addEventListener("keydown", onKeyDown)
+	recordGraphHistory(graph.value)
 	scheduleLayoutRefresh()
 	autoCompile()
 })

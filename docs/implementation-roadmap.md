@@ -250,7 +250,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Add detachable or full-size shader preview mode for inspecting procedural scenes.
 - [ ] Add real automation bindings for shader uniforms: automation variables, viewer variables, audio levels, queue payloads.
 - [ ] Add richer node inspector controls: typed controls, units, min/max clamps, and multi-stop color ramp editor.
-- [ ] Add shader graph undo/redo.
+- [x] Add shader graph undo/redo.
 - [ ] Add save/load preset workflows directly inside the shader graph editor.
 - [ ] Add advanced terrain scene nodes: heightfield raymarch, sampled terrain normals, horizon fog, sky/cloud helpers.
 - [ ] Add advanced noise/material nodes: ridged FBM, turbulence, curl noise, cellular F1/F2, hydraulic-style masks, material layers.
