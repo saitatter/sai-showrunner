@@ -252,7 +252,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Add specialized shader uniform binding pickers for automation variables, viewer variables, audio levels, and queue payloads.
 - [x] Add typed node inspector controls for float, vec2, vec3/color, and vec4 input defaults.
 - [x] Add multi-stop color ramp editor with persisted ramp stops and generated GLSL.
-- [ ] Add richer node inspector controls: units and min/max clamps.
+- [x] Add richer node inspector controls: units and min/max clamps.
 - [x] Add shader graph undo/redo.
 - [x] Add save/load/delete graph preset workflows directly inside the shader graph editor.
 - [x] Keep shader graph nodes low-level and composable; avoid one-shot scene/terrain generator nodes.

@@ -588,11 +588,14 @@
 								<span>
 									{{ port.label }}
 									<em>{{ port.type }}</em>
+									<small v-if="getNumericInputUnit(port)">{{ getNumericInputUnit(port) }}</small>
 									<small v-if="isNodeInputConnected(selectedNode, port.key)">connected</small>
 								</span>
 								<input
 									v-if="port.type === 'float'"
 									type="number"
+									:min="getNumericInputMin(port)"
+									:max="getNumericInputMax(port)"
 									:step="getNumericInputStep(port)"
 									:disabled="isNodeInputConnected(selectedNode, port.key)"
 									:value="getShaderInputDefault(selectedNode, port)"
@@ -1533,7 +1536,54 @@ function getNumericInputStep(port: ShaderNodeDef["inputs"][number]) {
 	const identity = `${port.key} ${port.label}`.toLowerCase()
 	if (identity.includes("octave") || identity.includes("step")) return "1"
 	if (identity.includes("seed")) return "1"
+	if (identity.includes("angle") || identity.includes("azimuth") || identity.includes("elevation")) return "0.01"
 	return "0.01"
+}
+
+function getNumericInputMin(port: ShaderNodeDef["inputs"][number]) {
+	const identity = `${port.key} ${port.label}`.toLowerCase()
+	if (identity.includes("seed")) return undefined
+	if (identity.includes("offset")) return undefined
+	if (identity.includes("min") && !identity.includes("steps")) return undefined
+	if (identity.includes("angle")) return undefined
+	if (identity.includes("scale") || identity.includes("frequency") || identity.includes("lacunarity") || identity.includes("amplitude")) return "0"
+	if (identity.includes("octave") || identity.includes("steps") || identity.includes("maxsteps")) return "1"
+	if (identity.includes("strength") || identity.includes("intensity") || identity.includes("speed") || identity.includes("roughness")) return "0"
+	if (isNormalizedNumericPort(identity)) return "0"
+	return undefined
+}
+
+function getNumericInputMax(port: ShaderNodeDef["inputs"][number]) {
+	const identity = `${port.key} ${port.label}`.toLowerCase()
+	if (identity.includes("octave")) return "8"
+	if (identity.includes("jitter") || identity.includes("roughness")) return "1"
+	if (identity.includes("azimuth") || identity.includes("elevation")) return "1"
+	if (isNormalizedNumericPort(identity)) return "1"
+	return undefined
+}
+
+function getNumericInputUnit(port: ShaderNodeDef["inputs"][number]) {
+	const identity = `${port.key} ${port.label}`.toLowerCase()
+	if (identity.includes("azimuth") || identity.includes("elevation")) return "turns"
+	if (identity.includes("angle")) return "rad"
+	if (identity.includes("fov")) return "rad"
+	if (identity.includes("scale") || identity.includes("frequency")) return "x"
+	if (identity.includes("octave") || identity.includes("steps") || identity.includes("maxsteps")) return "count"
+	if (identity.includes("color") || identity.includes("factor") || identity.includes("mask") || identity.includes("roughness") || identity.includes("jitter")) return "0-1"
+	return ""
+}
+
+function isNormalizedNumericPort(identity: string) {
+	return (
+		identity.includes("factor") ||
+		identity.includes("mask") ||
+		identity.includes("roughness") ||
+		identity.includes("jitter") ||
+		identity.includes("ambient") ||
+		identity.includes("softness") ||
+		identity.includes("bias") ||
+		identity.includes("gain")
+	)
 }
 
 function glslInputFallback(type: GlslType) {
