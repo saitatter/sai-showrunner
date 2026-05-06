@@ -684,7 +684,7 @@ function onWireMove(e: PointerEvent) {
 	const surface = canvasRef.value.querySelector<HTMLElement>(".shader-graph__surface")
 	if (!surface) return
 	const point = graphPointFromClient(surface, e.clientX, e.clientY, zoom.value)
-	const target = findNearestShaderPort(dragState, point, false)
+	const target = findShaderPortAtClientPoint(e.clientX, e.clientY, oppositeGraphPortKind(dragState.fromKind)) ?? findNearestShaderPort(dragState, point, false)
 	const validation = target ? validateShaderWireTarget(dragState, target) : { valid: true }
 	dragWire.value = createDragWirePreview(dragState, point, validation)
 }
@@ -700,7 +700,7 @@ function onWireUp(e: PointerEvent) {
 	const point = graphPointFromClient(surface, e.clientX, e.clientY, zoom.value)
 	let connected = false
 
-	const target = findNearestShaderPort(dragState, point, false)
+	const target = findShaderPortAtClientPoint(e.clientX, e.clientY, oppositeGraphPortKind(dragState.fromKind)) ?? findNearestShaderPort(dragState, point, false)
 	if (target) {
 		const validation = validateShaderWireTarget(dragState, target)
 		if (validation.valid) {
@@ -741,13 +741,27 @@ function getShaderPortCandidates(targetKind: "in" | "out"): GraphPortCandidate[]
 
 function findNearestShaderPort(drag: NonNullable<typeof dragState>, point: GraphPoint, compatibleOnly: boolean) {
 	const targetKind = oppositeGraphPortKind(drag.fromKind)
-	const snap = 24 / zoom.value
+	const snap = 40 / zoom.value
 	return findNearestGraphPort(
 		point,
 		getShaderPortCandidates(targetKind),
 		snap,
 		(candidate) => candidate.nodeId !== drag.fromNode && (!compatibleOnly || validateShaderWireTarget(drag, candidate).valid)
 	)
+}
+
+function findShaderPortAtClientPoint(clientX: number, clientY: number, expectedKind: "in" | "out"): GraphPortCandidate | undefined {
+	const element = document
+		.elementFromPoint(clientX, clientY)
+		?.closest<HTMLElement>("[data-shader-port-node-id]")
+	if (!element) return undefined
+	const nodeId = element.dataset.shaderPortNodeId
+	const portKey = element.dataset.shaderPortKey
+	const kind = element.dataset.shaderPortKind
+	if (!nodeId || !portKey || kind !== expectedKind) return undefined
+	const position = getPortPos(nodeId, portKey, expectedKind)
+	if (!position) return undefined
+	return { nodeId, portKey, kind: expectedKind, position }
 }
 
 function createDragWirePreview(
@@ -771,18 +785,25 @@ function createDragWirePreview(
 }
 
 function validateShaderWireTarget(drag: NonNullable<typeof dragState>, target: GraphPortCandidate) {
-	const node = graphNodes.value.find((item) => item.id === target.nodeId)
-	const targetPort = (target.kind === "in" ? node?.inputs : node?.outputs)?.find((port) => port.key === target.portKey)
-	if (!targetPort) return { valid: false, message: "Target port is missing." }
-	if (!areShaderTypesCompatible(drag.type, targetPort.type)) {
-		return { valid: false, message: `Incompatible shader wire: ${drag.type} -> ${targetPort.type}.` }
-	}
 	const endpoints = resolveGraphWireEndpoints(drag, target)
+	const sourcePort = getShaderPortDef(endpoints.fromNode, endpoints.fromPort, "out")
+	const targetPort = getShaderPortDef(endpoints.toNode, endpoints.toPort, "in")
+	if (!sourcePort) return { valid: false, message: "Source port is missing." }
+	if (!targetPort) return { valid: false, message: "Target port is missing." }
+	if (!areShaderTypesCompatible(sourcePort.type, targetPort.type)) {
+		return { valid: false, message: `Incompatible shader wire: ${sourcePort.type} -> ${targetPort.type}.` }
+	}
 	const nextWires = graph.value.wires.filter((wire) => !(wire.toNode === endpoints.toNode && wire.toPort === endpoints.toPort))
 	if (wouldCreateShaderGraphCycle({ ...graph.value, wires: nextWires }, endpoints.fromNode, endpoints.toNode)) {
 		return { valid: false, message: `Connecting ${endpoints.fromNode}:${endpoints.fromPort} to ${endpoints.toNode}:${endpoints.toPort} would create a cycle.` }
 	}
 	return { valid: true }
+}
+
+function getShaderPortDef(nodeId: string, portKey: string, kind: "in" | "out") {
+	const node = graphNodes.value.find((item) => item.id === nodeId)
+	const ports = kind === "in" ? node?.inputs : node?.outputs
+	return ports?.find((port) => port.key === portKey)
 }
 
 function selectNode(nodeId: string) {
