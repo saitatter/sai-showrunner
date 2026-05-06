@@ -904,6 +904,7 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 			{ key: "center", label: "Center", type: "vec3", default: "vec3(0.0)" },
 			{ key: "radius", label: "Radius", type: "float", default: "1.0" },
 			{ key: "maxDistance", label: "Max Distance", type: "float", default: "20.0" },
+			{ key: "maxSteps", label: "Max Steps", type: "float", default: "64.0" },
 		],
 		outputs: [
 			{ key: "depth", label: "Depth", type: "float" },
@@ -912,7 +913,8 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		compile: (ins, outs) => [
 			`${outs.depth} = 0.0;`,
 			`${outs.hit} = 0.0;`,
-			`for (int ${outs.depth}_i = 0; ${outs.depth}_i < 64; ${outs.depth}_i++) {`,
+			`for (int ${outs.depth}_i = 0; ${outs.depth}_i < 96; ${outs.depth}_i++) {`,
+			`\tif (float(${outs.depth}_i) >= ${ins.maxSteps}) break;`,
 			`\tvec3 ${outs.depth}_p = ${ins.origin} + normalize(${ins.direction}) * ${outs.depth};`,
 			`\tfloat ${outs.depth}_d = length(${outs.depth}_p - ${ins.center}) - ${ins.radius};`,
 			`\tif (${outs.depth}_d < 0.001) { ${outs.hit} = 1.0; break; }`,

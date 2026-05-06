@@ -3,6 +3,18 @@
 		<header class="shader-graph__toolbar">
 			<h3><i class="mdi mdi-magic-staff" /> Shader Graph</h3>
 			<div class="shader-graph__toolbar-actions">
+				<label class="shader-graph__toolbar-control" v-tooltip="'Preview quality'">
+					<i class="mdi mdi-speedometer" />
+					<select v-model="shaderQualityPreset" @change="applyQualityPreset">
+						<option value="draft">Draft</option>
+						<option value="balanced">Balanced</option>
+						<option value="high">High</option>
+					</select>
+				</label>
+				<label class="shader-graph__toolbar-control" v-tooltip="'Preview FPS cap'">
+					<i class="mdi mdi-timer-outline" />
+					<input v-model.number="previewFpsLimit" type="number" min="5" max="60" step="5" />
+				</label>
 				<button type="button" @click="compileAndApply" v-tooltip="'Compile & Apply'">
 					<i class="mdi mdi-play" /> Compile
 				</button>
@@ -514,6 +526,9 @@ const compiledGlsl = ref("")
 const lastGoodGlsl = ref("")
 const compileErrors = ref<string[]>([])
 const previewError = ref("")
+const shaderQualityPreset = ref<"draft" | "balanced" | "high">("balanced")
+const previewResolutionScale = ref(1)
+const previewFpsLimit = ref(30)
 let runtimeSnapshot: GraphRuntimeSnapshot<string> = { issues: [], errorMessages: [], ok: true }
 const layoutVersion = ref(0)
 let layoutFrame: number | undefined
@@ -1155,6 +1170,7 @@ let previewBuffer: WebGLBuffer | null = null
 let previewCanvas: HTMLCanvasElement | null = null
 let previewFrame = 0
 let previewStartedAt = 0
+let lastPreviewRenderAt = 0
 let currentPreviewUniforms: ShaderUniformValueMap = {}
 let previewMouse = { x: 0, y: 0 }
 const lastPreviewGlsl = ref("")
@@ -1285,6 +1301,13 @@ function renderPreview() {
 	const prog = previewProgram
 	const canvas = livePreviewCanvas.value
 	if (!gl || !prog || !canvas) return
+	const now = performance.now()
+	const frameMs = 1000 / Math.max(previewFpsLimit.value || 30, 1)
+	if (lastPreviewRenderAt && now - lastPreviewRenderAt < frameMs) {
+		previewFrame = requestAnimationFrame(renderPreview)
+		return
+	}
+	lastPreviewRenderAt = now
 	resizePreviewCanvas(canvas)
 	gl.viewport(0, 0, canvas.width, canvas.height)
 	gl.clearColor(0, 0, 0, 0)
@@ -1294,7 +1317,7 @@ function renderPreview() {
 	gl.enableVertexAttribArray(posLoc)
 	gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0)
 	gl.uniform2f(gl.getUniformLocation(prog, "u_resolution"), canvas.width, canvas.height)
-	gl.uniform1f(gl.getUniformLocation(prog, "u_time"), (performance.now() - previewStartedAt) / 1000)
+	gl.uniform1f(gl.getUniformLocation(prog, "u_time"), (now - previewStartedAt) / 1000)
 	gl.uniform2f(gl.getUniformLocation(prog, "u_mouse"), previewMouse.x, previewMouse.y)
 	gl.uniform3fv(gl.getUniformLocation(prog, "u_accent"), [0.57, 0.27, 1.0])
 	gl.uniform3fv(gl.getUniformLocation(prog, "u_secondary"), [0, 0.82, 1.0])
@@ -1308,13 +1331,31 @@ function renderPreview() {
 }
 
 function resizePreviewCanvas(canvas: HTMLCanvasElement) {
-	const ratio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2))
+	const ratio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2)) * previewResolutionScale.value
 	const width = Math.max(1, Math.round(canvas.clientWidth * ratio))
 	const height = Math.max(1, Math.round(canvas.clientHeight * ratio))
 	if (canvas.width !== width || canvas.height !== height) {
 		canvas.width = width
 		canvas.height = height
 	}
+}
+
+function applyQualityPreset() {
+	switch (shaderQualityPreset.value) {
+		case "draft":
+			previewResolutionScale.value = 0.5
+			previewFpsLimit.value = 20
+			break
+		case "high":
+			previewResolutionScale.value = 1.25
+			previewFpsLimit.value = 60
+			break
+		default:
+			previewResolutionScale.value = 1
+			previewFpsLimit.value = 30
+			break
+	}
+	lastPreviewRenderAt = 0
 }
 
 function updatePreviewMouse(event: PointerEvent) {
@@ -1430,9 +1471,36 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__toolbar-actions {
+	align-items: center;
 	display: flex;
 	flex: 0 0 auto;
 	gap: 0.4rem;
+}
+
+.shader-graph__toolbar-control {
+	align-items: center;
+	background: #202020;
+	border: 1px solid #3a3a3a;
+	border-radius: 4px;
+	color: #aaa;
+	display: flex;
+	gap: 0.3rem;
+	min-height: 1.75rem;
+	padding: 0 0.35rem;
+}
+
+.shader-graph__toolbar-control select,
+.shader-graph__toolbar-control input {
+	background: #181818;
+	border: 0;
+	color: #ddd;
+	font-size: 0.75rem;
+	min-width: 0;
+	outline: 0;
+}
+
+.shader-graph__toolbar-control input {
+	width: 3rem;
 }
 
 .shader-graph__toolbar-actions button {
