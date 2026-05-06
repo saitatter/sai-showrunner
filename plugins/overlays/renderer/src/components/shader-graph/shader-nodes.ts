@@ -143,6 +143,33 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		outputs: [{ key: "value", label: "Color", type: "vec3", default: "vec3(1.0, 1.0, 1.0)" }],
 		compile: (_ins, outs) => [`// color parameter assigned from uniform`],
 	},
+	{
+		id: "camera_position",
+		name: "Camera Position",
+		category: "Input",
+		icon: "mdi mdi-camera-marker",
+		inputs: [],
+		outputs: [{ key: "position", label: "Position", type: "vec3", default: "vec3(0.0, 0.0, 2.5)" }],
+		compile: (_ins, outs) => [`${outs.position} = u_camera_position;`],
+	},
+	{
+		id: "camera_target",
+		name: "Camera Target",
+		category: "Input",
+		icon: "mdi mdi-crosshairs-gps",
+		inputs: [],
+		outputs: [{ key: "target", label: "Target", type: "vec3", default: "vec3(0.0, 0.0, 0.0)" }],
+		compile: (_ins, outs) => [`${outs.target} = u_camera_target;`],
+	},
+	{
+		id: "mouse_position",
+		name: "Mouse Position",
+		category: "Input",
+		icon: "mdi mdi-cursor-default-click",
+		inputs: [],
+		outputs: [{ key: "mouse", label: "Mouse", type: "vec2", default: "vec2(0.0)" }],
+		compile: (_ins, outs) => [`${outs.mouse} = u_mouse;`],
+	},
 
 	// ── Math ──
 	{
@@ -793,6 +820,112 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		compile: (ins, outs) => [`${outs.ao} = clamp(1.0 - (${ins.curvature} * 0.65 + ${ins.slope} * 0.35) * ${ins.strength}, 0.0, 1.0);`],
 	},
 
+	// ── Camera / Raymarch ──
+	{
+		id: "camera_ray",
+		name: "Camera Ray",
+		category: "Camera",
+		icon: "mdi mdi-ray-start-arrow",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.5)" },
+			{ key: "position", label: "Position", type: "vec3", default: "vec3(0.0, 0.0, 2.5)" },
+			{ key: "target", label: "Target", type: "vec3", default: "vec3(0.0, 0.0, 0.0)" },
+			{ key: "fov", label: "FOV", type: "float", default: "0.8" },
+			{ key: "aspect", label: "Aspect", type: "float", default: "1.7777778" },
+		],
+		outputs: [
+			{ key: "origin", label: "Origin", type: "vec3" },
+			{ key: "direction", label: "Direction", type: "vec3" },
+		],
+		compile: (ins, outs) => [
+			`${outs.origin} = ${ins.position};`,
+			`vec3 ${outs.direction}_forward = normalize(${ins.target} - ${ins.position});`,
+			`vec3 ${outs.direction}_right = normalize(cross(${outs.direction}_forward, vec3(0.0, 1.0, 0.0)));`,
+			`vec3 ${outs.direction}_up = normalize(cross(${outs.direction}_right, ${outs.direction}_forward));`,
+			`vec2 ${outs.direction}_screen = (${ins.uv} * 2.0 - 1.0) * vec2(${ins.aspect}, 1.0) * tan(${ins.fov} * 0.5);`,
+			`${outs.direction} = normalize(${outs.direction}_forward + ${outs.direction}_right * ${outs.direction}_screen.x + ${outs.direction}_up * ${outs.direction}_screen.y);`,
+		],
+	},
+	{
+		id: "ray_point",
+		name: "Ray Point",
+		category: "Camera",
+		icon: "mdi mdi-ray-vertex",
+		inputs: [
+			{ key: "origin", label: "Origin", type: "vec3", default: "vec3(0.0)" },
+			{ key: "direction", label: "Direction", type: "vec3", default: "vec3(0.0, 0.0, -1.0)" },
+			{ key: "depth", label: "Depth", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "point", label: "Point", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.point} = ${ins.origin} + normalize(${ins.direction}) * ${ins.depth};`],
+	},
+	{
+		id: "sdf_sphere",
+		name: "SDF Sphere",
+		category: "Camera",
+		icon: "mdi mdi-sphere",
+		inputs: [
+			{ key: "point", label: "Point", type: "vec3", default: "vec3(0.0)" },
+			{ key: "center", label: "Center", type: "vec3", default: "vec3(0.0)" },
+			{ key: "radius", label: "Radius", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "distance", label: "Distance", type: "float" }],
+		compile: (ins, outs) => [`${outs.distance} = length(${ins.point} - ${ins.center}) - ${ins.radius};`],
+	},
+	{
+		id: "sdf_plane",
+		name: "SDF Plane",
+		category: "Camera",
+		icon: "mdi mdi-axis-z-arrow",
+		inputs: [
+			{ key: "point", label: "Point", type: "vec3", default: "vec3(0.0)" },
+			{ key: "height", label: "Height", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "distance", label: "Distance", type: "float" }],
+		compile: (ins, outs) => [`${outs.distance} = ${ins.point}.y - ${ins.height};`],
+	},
+	{
+		id: "raymarch_sphere",
+		name: "Raymarch Sphere",
+		category: "Camera",
+		icon: "mdi mdi-ray-end",
+		inputs: [
+			{ key: "origin", label: "Origin", type: "vec3", default: "vec3(0.0)" },
+			{ key: "direction", label: "Direction", type: "vec3", default: "vec3(0.0, 0.0, -1.0)" },
+			{ key: "center", label: "Center", type: "vec3", default: "vec3(0.0)" },
+			{ key: "radius", label: "Radius", type: "float", default: "1.0" },
+			{ key: "maxDistance", label: "Max Distance", type: "float", default: "20.0" },
+		],
+		outputs: [
+			{ key: "depth", label: "Depth", type: "float" },
+			{ key: "hit", label: "Hit", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`${outs.depth} = 0.0;`,
+			`${outs.hit} = 0.0;`,
+			`for (int ${outs.depth}_i = 0; ${outs.depth}_i < 64; ${outs.depth}_i++) {`,
+			`\tvec3 ${outs.depth}_p = ${ins.origin} + normalize(${ins.direction}) * ${outs.depth};`,
+			`\tfloat ${outs.depth}_d = length(${outs.depth}_p - ${ins.center}) - ${ins.radius};`,
+			`\tif (${outs.depth}_d < 0.001) { ${outs.hit} = 1.0; break; }`,
+			`\t${outs.depth} += ${outs.depth}_d;`,
+			`\tif (${outs.depth} > ${ins.maxDistance}) break;`,
+			`}`,
+		],
+	},
+	{
+		id: "depth_fade",
+		name: "Depth Fade",
+		category: "Camera",
+		icon: "mdi mdi-gradient-vertical",
+		inputs: [
+			{ key: "depth", label: "Depth", type: "float", default: "0.0" },
+			{ key: "near", label: "Near", type: "float", default: "0.0" },
+			{ key: "far", label: "Far", type: "float", default: "10.0" },
+		],
+		outputs: [{ key: "factor", label: "Factor", type: "float" }],
+		compile: (ins, outs) => [`${outs.factor} = smoothstep(${ins.near}, max(${ins.far}, ${ins.near} + 0.0001), ${ins.depth});`],
+	},
+
 	// ── Output ──
 	{
 		id: "fragment_output",
@@ -955,7 +1088,17 @@ function getConstantNodeValue(node: ShaderNodeInstance, type: GlslType, fallback
 	return fallback || glslTypeDefault(type)
 }
 
-const BUILT_IN_UNIFORMS = new Set(["u_resolution", "u_time", "u_accent", "u_secondary", "u_intensity", "u_speed"])
+const BUILT_IN_UNIFORMS = new Set([
+	"u_resolution",
+	"u_time",
+	"u_accent",
+	"u_secondary",
+	"u_intensity",
+	"u_speed",
+	"u_camera_position",
+	"u_camera_target",
+	"u_mouse",
+])
 
 function getUniformName(node: ShaderNodeInstance) {
 	const rawName = typeof node.inputDefaults?.name === "string" ? node.inputDefaults.name : ""
@@ -1245,6 +1388,9 @@ uniform vec3 u_accent;
 uniform vec3 u_secondary;
 uniform float u_intensity;
 uniform float u_speed;
+uniform vec3 u_camera_position;
+uniform vec3 u_camera_target;
+uniform vec2 u_mouse;
 ${[...uniformLines].join("\n")}
 
 ${SHADER_NOISE_GLSL}

@@ -282,6 +282,48 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("0.65")
 	})
 
+	it("compiles camera and raymarch nodes", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "uv", defId: "uv", x: 0, y: 0 },
+				{ id: "position", defId: "camera_position", x: 0, y: 140 },
+				{ id: "target", defId: "camera_target", x: 0, y: 280 },
+				{ id: "ray", defId: "camera_ray", x: 220, y: 0 },
+				{ id: "march", defId: "raymarch_sphere", x: 440, y: 0 },
+				{ id: "point", defId: "ray_point", x: 660, y: 0 },
+				{ id: "sphere", defId: "sdf_sphere", x: 880, y: 0 },
+				{ id: "plane", defId: "sdf_plane", x: 880, y: 160 },
+				{ id: "fade", defId: "depth_fade", x: 880, y: 320 },
+				{ id: "color", defId: "gradient_color", x: 1100, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 1320, y: 0 },
+			],
+			wires: [
+				{ id: "uv:uv->ray:uv", fromNode: "uv", fromPort: "uv", toNode: "ray", toPort: "uv" },
+				{ id: "position:position->ray:position", fromNode: "position", fromPort: "position", toNode: "ray", toPort: "position" },
+				{ id: "target:target->ray:target", fromNode: "target", fromPort: "target", toNode: "ray", toPort: "target" },
+				{ id: "ray:origin->march:origin", fromNode: "ray", fromPort: "origin", toNode: "march", toPort: "origin" },
+				{ id: "ray:direction->march:direction", fromNode: "ray", fromPort: "direction", toNode: "march", toPort: "direction" },
+				{ id: "ray:origin->point:origin", fromNode: "ray", fromPort: "origin", toNode: "point", toPort: "origin" },
+				{ id: "ray:direction->point:direction", fromNode: "ray", fromPort: "direction", toNode: "point", toPort: "direction" },
+				{ id: "march:depth->point:depth", fromNode: "march", fromPort: "depth", toNode: "point", toPort: "depth" },
+				{ id: "point:point->sphere:point", fromNode: "point", fromPort: "point", toNode: "sphere", toPort: "point" },
+				{ id: "point:point->plane:point", fromNode: "point", fromPort: "point", toNode: "plane", toPort: "point" },
+				{ id: "march:depth->fade:depth", fromNode: "march", fromPort: "depth", toNode: "fade", toPort: "depth" },
+				{ id: "fade:factor->color:factor", fromNode: "fade", fromPort: "factor", toNode: "color", toPort: "factor" },
+				{ id: "color:color->output:color", fromNode: "color", fromPort: "color", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("uniform vec3 u_camera_position;")
+		expect(result.glsl).toContain("uniform vec3 u_camera_target;")
+		expect(result.glsl).toContain("cross(")
+		expect(result.glsl).toContain("for (int")
+		expect(result.glsl).toContain("length(")
+		expect(result.glsl).toContain("smoothstep(")
+	})
+
 	it("creates preview graphs for node outputs", () => {
 		const graph: ShaderGraph = {
 			nodes: [
