@@ -666,8 +666,7 @@ function startWireDrag(e: PointerEvent, nodeId: string, portKey: string, kind: "
 			if (fromPos) {
 				dragState = { fromNode: wire.fromNode, fromPort: wire.fromPort, fromKind: "out", fromX: fromPos.x, fromY: fromPos.y, type }
 				dragWire.value = createDragWirePreview(dragState, pos, { valid: true })
-				window.addEventListener("pointermove", onWireMove)
-				window.addEventListener("pointerup", onWireUp)
+				addWireDragListeners()
 				return
 			}
 		}
@@ -675,8 +674,19 @@ function startWireDrag(e: PointerEvent, nodeId: string, portKey: string, kind: "
 
 	dragState = { fromNode: nodeId, fromPort: portKey, fromKind: kind, fromX: pos.x, fromY: pos.y, type }
 	dragWire.value = createDragWirePreview(dragState, pos, { valid: true })
-	window.addEventListener("pointermove", onWireMove)
-	window.addEventListener("pointerup", onWireUp)
+	addWireDragListeners()
+}
+
+function addWireDragListeners() {
+	window.addEventListener("pointermove", onWireMove, true)
+	window.addEventListener("pointerup", onWireUp, true)
+	window.addEventListener("pointercancel", onWireUp, true)
+}
+
+function removeWireDragListeners() {
+	window.removeEventListener("pointermove", onWireMove, true)
+	window.removeEventListener("pointerup", onWireUp, true)
+	window.removeEventListener("pointercancel", onWireUp, true)
 }
 
 function onWireMove(e: PointerEvent) {
@@ -690,8 +700,7 @@ function onWireMove(e: PointerEvent) {
 }
 
 function onWireUp(e: PointerEvent) {
-	window.removeEventListener("pointermove", onWireMove)
-	window.removeEventListener("pointerup", onWireUp)
+	removeWireDragListeners()
 	if (!dragState) { dragWire.value = null; return }
 
 	// Find port under cursor
