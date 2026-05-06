@@ -1,5 +1,5 @@
 <template>
-	<div class="shader-graph">
+	<div class="shader-graph" :style="shaderGraphSkinStyle">
 		<header class="shader-graph__toolbar">
 			<h3><i class="mdi mdi-magic-staff" /> Shader Graph</h3>
 			<div class="shader-graph__toolbar-actions">
@@ -288,12 +288,16 @@ import {
 	collectRenderedGraphPortPositions,
 	findNearestGraphPort,
 	graphBezierPath,
+	graphIssuesToMessages,
 	graphPointFromClient,
 	graphPortPositionKey,
+	graphSkinStyle,
 	graphWireId,
 	oppositeGraphPortKind,
 	resolveGraphWireEndpoints,
 	type GraphPortCandidate,
+	type GraphRuntimeAdapter,
+	type GraphSkinTokens,
 } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import {
 	SHADER_NODE_DEFS,
@@ -319,6 +323,28 @@ const emit = defineEmits<{
 	"update:modelValue": [graph: ShaderGraph]
 	"compile": [glsl: string, uniforms: ShaderUniformValueMap]
 }>()
+
+const SHADER_GRAPH_SKIN: GraphSkinTokens = {
+	canvasBackground: "#0d0d0d",
+	panelBackground: "#111",
+	panelBorder: "#333",
+	nodeBackground: "#1e1e1e",
+	nodeBorder: "#444",
+	nodeSelected: "#7c4dff",
+	wireDefault: "#fff8",
+	wireInvalid: "#ef5350",
+	textMuted: "#999",
+}
+const shaderGraphSkinStyle = graphSkinStyle(SHADER_GRAPH_SKIN)
+const shaderGraphRuntime: GraphRuntimeAdapter<ShaderGraph, string> = {
+	evaluate: (inputGraph) => {
+		const result = compileShaderGraph(inputGraph)
+		return {
+			output: result.glsl || undefined,
+			issues: result.errors.map((message) => ({ severity: "error", message })),
+		}
+	},
+}
 
 // ─── State ───────────────────────────────────────────────────────────
 const canvasRef = ref<HTMLElement>()
@@ -697,17 +723,17 @@ function addNodeAt(defId: string, position: { x: number; y: number }) {
 
 // ─── Compile ─────────────────────────────────────────────────────────
 function autoCompile() {
-	const result = compileShaderGraph(graph.value)
-	compileErrors.value = result.errors
-	if (result.errors.length) {
-		previewError.value = result.errors[0]
+	const result = shaderGraphRuntime.evaluate(graph.value)
+	compileErrors.value = graphIssuesToMessages(result.issues)
+	if (compileErrors.value.length) {
+		previewError.value = compileErrors.value[0]
 		return
 	}
-	if (result.glsl) {
-		compiledGlsl.value = result.glsl
-		lastGoodGlsl.value = result.glsl
+	if (result.output) {
+		compiledGlsl.value = result.output
+		lastGoodGlsl.value = result.output
 		currentPreviewUniforms = collectShaderUniformDefaults(graph.value)
-		updateLivePreview(result.glsl)
+		updateLivePreview(result.output)
 	}
 }
 
@@ -921,7 +947,7 @@ function categoryColor(cat: string): string {
 
 <style scoped>
 .shader-graph {
-	background: #0d0d0d;
+	background: var(--graph-canvas-background);
 	color: #e0e0e0;
 	display: flex;
 	flex-direction: column;
@@ -976,8 +1002,8 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__palette {
-	background: #101010;
-	border-right: 1px solid #333;
+	background: var(--graph-panel-background);
+	border-right: 1px solid var(--graph-panel-border);
 	display: flex;
 	flex-direction: column;
 	gap: 0.55rem;
@@ -1027,8 +1053,8 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__node {
-	background: #1e1e1e;
-	border: 2px solid #444;
+	background: var(--graph-node-background);
+	border: 2px solid var(--graph-node-border);
 	border-radius: 6px;
 	cursor: grab;
 	min-width: 180px;
@@ -1038,7 +1064,7 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__node.selected {
-	border-color: #7c4dff;
+	border-color: var(--graph-node-selected);
 	box-shadow: 0 0 12px rgb(124 77 255 / 0.3);
 }
 
@@ -1168,8 +1194,8 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__side-panel {
-	background: #111;
-	border-left: 1px solid #333;
+	background: var(--graph-panel-background);
+	border-left: 1px solid var(--graph-panel-border);
 	display: flex;
 	flex-direction: column;
 	min-width: 320px;

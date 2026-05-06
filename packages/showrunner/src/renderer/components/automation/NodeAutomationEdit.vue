@@ -1,5 +1,5 @@
 <template>
-	<div class="node-automation">
+	<div class="node-automation" :style="automationGraphSkinStyle">
 		<header class="node-automation__toolbar">
 			<div>
 				<p class="node-automation__eyebrow">Automation Flow</p>
@@ -264,6 +264,7 @@ import {
 	usePluginStore,
 	useActionQueueStore,
 } from "showrunner-ui-core"
+import { graphSkinStyle, type GraphSkinTokens } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import {
 	ActionInfo,
 	type AutomationDataWire,
@@ -315,6 +316,19 @@ import { useNodeResize } from "./useNodeResize"
 import { resolveActionDefinition } from "./actionLookup"
 import { useSubgraphCallNodes } from "./useSubgraphCallNodes"
 import { useGraphActions } from "./useGraphActions"
+
+const AUTOMATION_GRAPH_SKIN: GraphSkinTokens = {
+	canvasBackground: "#151515",
+	panelBackground: "#202020",
+	panelBorder: "#343434",
+	nodeBackground: "#1f1f23",
+	nodeBorder: "#5c376a",
+	nodeSelected: "#8b35e6",
+	wireDefault: "#e9aaff",
+	wireInvalid: "#ef5350",
+	textMuted: "#9a9a9a",
+}
+const automationGraphSkinStyle = graphSkinStyle(AUTOMATION_GRAPH_SKIN)
 
 const props = defineProps<{
 	modelValue: AutomationConfig
@@ -1351,7 +1365,7 @@ onUnmounted(() => {
 
 <style scoped>
 .node-automation {
-	background: #151515;
+	background: var(--graph-canvas-background);
 	color: var(--text-color);
 	display: flex;
 	flex: 1;
@@ -1361,8 +1375,8 @@ onUnmounted(() => {
 
 .node-automation__toolbar {
 	align-items: center;
-	background: #202020;
-	border-bottom: 1px solid #343434;
+	background: var(--graph-panel-background);
+	border-bottom: 1px solid var(--graph-panel-border);
 	display: flex;
 	gap: 1rem;
 	justify-content: space-between;

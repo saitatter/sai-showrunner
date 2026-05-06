@@ -5,6 +5,8 @@ import {
 	graphDistance,
 	graphPointFromClient,
 	graphPortPositionKey,
+	graphSkinStyle,
+	graphValidationFromIssues,
 	graphWireId,
 	oppositeGraphPortKind,
 	resolveGraphWireEndpoints,
@@ -55,5 +57,25 @@ describe("graph geometry helpers", () => {
 
 		expect(graphDistance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(5)
 		expect(nearest?.nodeId).toBe("near")
+	})
+
+	it("normalizes validation issues and skin tokens", () => {
+		expect(graphValidationFromIssues([{ severity: "warning", message: "heads up" }])).toEqual({ valid: true })
+		expect(graphValidationFromIssues([{ severity: "error", message: "broken", code: "bad" }])).toEqual({
+			valid: false,
+			message: "broken",
+			code: "bad",
+		})
+		expect(graphSkinStyle({
+			canvasBackground: "#000",
+			panelBackground: "#111",
+			panelBorder: "#222",
+			nodeBackground: "#333",
+			nodeBorder: "#444",
+			nodeSelected: "#555",
+			wireDefault: "#666",
+			wireInvalid: "#777",
+			textMuted: "#888",
+		})["--graph-node-selected"]).toBe("#555")
 	})
 })

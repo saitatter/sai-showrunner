@@ -28,6 +28,44 @@ export interface GraphWireEndpoints {
 	toPort: string
 }
 
+export interface GraphValidationResult {
+	valid: boolean
+	message?: string
+	code?: string
+}
+
+export type GraphIssueSeverity = "error" | "warning" | "info"
+
+export interface GraphIssue {
+	severity: GraphIssueSeverity
+	message: string
+	nodeId?: string
+	portKey?: string
+	wireId?: string
+	code?: string
+}
+
+export interface GraphRunResult<TOutput> {
+	output?: TOutput
+	issues: GraphIssue[]
+}
+
+export interface GraphRuntimeAdapter<TGraph, TOutput> {
+	evaluate: (graph: TGraph) => GraphRunResult<TOutput>
+}
+
+export interface GraphSkinTokens {
+	canvasBackground: string
+	panelBackground: string
+	panelBorder: string
+	nodeBackground: string
+	nodeBorder: string
+	nodeSelected: string
+	wireDefault: string
+	wireInvalid: string
+	textMuted: string
+}
+
 export interface GraphPortPositionOptions {
 	selector: string
 	nodeIdDatasetKey: string
@@ -58,6 +96,29 @@ export function resolveGraphWireEndpoints(drag: GraphWireDragAddress, target: Gr
 
 export function graphDistance(a: GraphPoint, b: GraphPoint) {
 	return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
+}
+
+export function graphIssuesToMessages(issues: GraphIssue[]) {
+	return issues.filter((issue) => issue.severity === "error").map((issue) => issue.message)
+}
+
+export function graphValidationFromIssues(issues: GraphIssue[]): GraphValidationResult {
+	const error = issues.find((issue) => issue.severity === "error")
+	return error ? { valid: false, message: error.message, code: error.code } : { valid: true }
+}
+
+export function graphSkinStyle(tokens: GraphSkinTokens): Record<string, string> {
+	return {
+		"--graph-canvas-background": tokens.canvasBackground,
+		"--graph-panel-background": tokens.panelBackground,
+		"--graph-panel-border": tokens.panelBorder,
+		"--graph-node-background": tokens.nodeBackground,
+		"--graph-node-border": tokens.nodeBorder,
+		"--graph-node-selected": tokens.nodeSelected,
+		"--graph-wire-default": tokens.wireDefault,
+		"--graph-wire-invalid": tokens.wireInvalid,
+		"--graph-text-muted": tokens.textMuted,
+	}
 }
 
 export function findNearestGraphPort(

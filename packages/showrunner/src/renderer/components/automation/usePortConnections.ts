@@ -10,6 +10,7 @@ import {
 	resolveGraphWireEndpoints,
 	type GraphPortCandidate,
 	type GraphPoint,
+	type GraphValidationResult,
 } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 
 /**
@@ -58,10 +59,7 @@ export interface PortNodeInfo {
 	configLines?: { label: string; value: string }[]
 }
 
-export interface DataWireValidation {
-	valid: boolean
-	message?: string
-}
+export type DataWireValidation = GraphValidationResult
 
 const NODE_WIDTH = 220
 const NODE_BASE_HEIGHT = 74
