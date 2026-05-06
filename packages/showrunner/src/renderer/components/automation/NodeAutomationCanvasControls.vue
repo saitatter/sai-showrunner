@@ -1,80 +1,24 @@
 <template>
 	<div class="node-automation__canvas-controls">
-		<button type="button" aria-label="Zoom out" @click="onSetZoom(zoom - zoomStep, true)" v-tooltip="'Zoom out'">
-			<i class="mdi mdi-magnify-minus-outline" />
-		</button>
+		<graph-toolbar-button icon="mdi mdi-magnify-minus-outline" label="Zoom out" @click="onSetZoom(zoom - zoomStep, true)" />
 		<span>{{ Math.round(zoom * 100) }}%</span>
-		<button type="button" aria-label="Zoom in" @click="onSetZoom(zoom + zoomStep, true)" v-tooltip="'Zoom in'">
-			<i class="mdi mdi-magnify-plus-outline" />
-		</button>
-		<button type="button" aria-label="Fit graph" @click="onFitGraph()" v-tooltip="'Fit graph'">
-			<i class="mdi mdi-fit-to-screen-outline" />
-		</button>
-		<button type="button" aria-label="Fit selection" :disabled="selectedNodeCount < 1" @click="onFitSelection()" v-tooltip="'Fit to selection'">
-			<i class="mdi mdi-select-all" />
-		</button>
-		<button type="button" aria-label="Reset view" @click="onResetView()" v-tooltip="'Reset view'">
-			<i class="mdi mdi-backup-restore" />
-		</button>
-		<button
-			type="button"
-			:class="{ active: snapToGrid }"
-			aria-label="Toggle snap to grid"
-			@click="onToggleSnapToGrid()"
-			v-tooltip="'Toggle snap to grid'"
-		>
-			<i class="mdi mdi-grid" />
-		</button>
-		<button type="button" aria-label="Auto-layout" @click="onAutoLayout()" v-tooltip="'Auto-layout'">
-			<i class="mdi mdi-sitemap-outline" />
-		</button>
-		<button
-			type="button"
-			aria-label="Align horizontally"
-			:disabled="selectedNodeCount < 2"
-			@click="onAlignSelectedNodes('horizontal')"
-			v-tooltip="'Align selected horizontally'"
-		>
-			<i class="mdi mdi-align-vertical-center" />
-		</button>
-		<button
-			type="button"
-			aria-label="Align vertically"
-			:disabled="selectedNodeCount < 2"
-			@click="onAlignSelectedNodes('vertical')"
-			v-tooltip="'Align selected vertically'"
-		>
-			<i class="mdi mdi-align-horizontal-center" />
-		</button>
-		<button
-			type="button"
-			aria-label="Distribute evenly"
-			:disabled="selectedNodeCount < 3"
-			@click="onDistributeSelectedNodes()"
-			v-tooltip="'Distribute selected evenly'"
-		>
-			<i class="mdi mdi-distribute-horizontal-center" />
-		</button>
-		<button
-			type="button"
-			aria-label="Add annotation block"
-			@click="onAddAnnotationBlock()"
-			v-tooltip="'Add annotation block'"
-		>
-			<i class="mdi mdi-vector-rectangle" />
-		</button>
+		<graph-toolbar-button icon="mdi mdi-magnify-plus-outline" label="Zoom in" @click="onSetZoom(zoom + zoomStep, true)" />
+		<graph-toolbar-button icon="mdi mdi-fit-to-screen-outline" label="Fit graph" @click="onFitGraph()" />
+		<graph-toolbar-button icon="mdi mdi-select-all" label="Fit selection" tooltip="Fit to selection" :disabled="selectedNodeCount < 1" @click="onFitSelection()" />
+		<graph-toolbar-button icon="mdi mdi-backup-restore" label="Reset view" @click="onResetView()" />
+		<graph-toolbar-button icon="mdi mdi-grid" label="Toggle snap to grid" :active="snapToGrid" @click="onToggleSnapToGrid()" />
+		<graph-toolbar-button icon="mdi mdi-sitemap-outline" label="Auto-layout" @click="onAutoLayout()" />
+		<graph-toolbar-button icon="mdi mdi-align-vertical-center" label="Align horizontally" tooltip="Align selected horizontally" :disabled="selectedNodeCount < 2" @click="onAlignSelectedNodes('horizontal')" />
+		<graph-toolbar-button icon="mdi mdi-align-horizontal-center" label="Align vertically" tooltip="Align selected vertically" :disabled="selectedNodeCount < 2" @click="onAlignSelectedNodes('vertical')" />
+		<graph-toolbar-button icon="mdi mdi-distribute-horizontal-center" label="Distribute evenly" tooltip="Distribute selected evenly" :disabled="selectedNodeCount < 3" @click="onDistributeSelectedNodes()" />
+		<graph-toolbar-button icon="mdi mdi-vector-rectangle" label="Add annotation block" @click="onAddAnnotationBlock()" />
 		<span class="node-automation__control-divider" />
-		<button
-			type="button"
-			:aria-label="isPreviewPlaying ? 'Pause preview playhead' : 'Play preview playhead'"
+		<graph-toolbar-button
+			:icon="isPreviewPlaying ? 'mdi mdi-pause' : 'mdi mdi-play'"
+			:label="isPreviewPlaying ? 'Pause preview playhead' : 'Play preview playhead'"
 			@click="onTogglePlayheadPreview()"
-			v-tooltip="isPreviewPlaying ? 'Pause preview playhead' : 'Play preview playhead'"
-		>
-			<i :class="isPreviewPlaying ? 'mdi mdi-pause' : 'mdi mdi-play'" />
-		</button>
-		<button type="button" aria-label="Reset preview playhead" @click="onResetPlayheadPreview()" v-tooltip="'Reset preview playhead'">
-			<i class="mdi mdi-stop" />
-		</button>
+		/>
+		<graph-toolbar-button icon="mdi mdi-stop" label="Reset preview playhead" @click="onResetPlayheadPreview()" />
 		<div class="node-automation__preview-status">
 			<div class="node-automation__preview-meter">
 				<span :style="{ width: `${playheadProgress}%` }" />
@@ -88,6 +32,8 @@
 </template>
 
 <script setup lang="ts">
+import { GraphToolbarButton } from "showrunner-ui-core"
+
 defineProps<{
 	zoom: number
 	zoomStep: number

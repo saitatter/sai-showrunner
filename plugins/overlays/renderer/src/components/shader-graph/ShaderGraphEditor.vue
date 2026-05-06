@@ -3,61 +3,37 @@
 		<header class="shader-graph__toolbar">
 			<h3><i class="mdi mdi-magic-staff" /> Shader Graph</h3>
 			<div class="shader-graph__toolbar-actions">
-				<button type="button" class="shader-graph__tool-button" @click="zoomOut" v-tooltip="'Zoom out'">
-					<i class="mdi mdi-magnify-minus-outline" />
-				</button>
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-magnify-minus-outline" label="Zoom out" @click="zoomOut" />
 				<span class="shader-graph__zoom-label">{{ zoomLabel }}</span>
-				<button type="button" class="shader-graph__tool-button" @click="zoomIn" v-tooltip="'Zoom in'">
-					<i class="mdi mdi-magnify-plus-outline" />
-				</button>
-				<button type="button" class="shader-graph__tool-button" @click="fitGraph" v-tooltip="'Fit graph'">
-					<i class="mdi mdi-fit-to-screen-outline" />
-				</button>
-				<button type="button" class="shader-graph__tool-button" :disabled="!hasFitSelectionTarget" @click="fitSelection" v-tooltip="'Fit selection'">
-					<i class="mdi mdi-selection-search" />
-				</button>
-				<button type="button" class="shader-graph__tool-button" :disabled="!canUndo" @click="undoGraph" v-tooltip="'Undo'">
-					<i class="mdi mdi-undo" />
-				</button>
-				<button type="button" class="shader-graph__tool-button" :disabled="!canRedo" @click="redoGraph" v-tooltip="'Redo'">
-					<i class="mdi mdi-redo" />
-				</button>
-				<button type="button" class="shader-graph__tool-button" @click="resetGraph" v-tooltip="'Reset graph'">
-					<i class="mdi mdi-restore" />
-				</button>
-				<button
-					type="button"
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-magnify-plus-outline" label="Zoom in" @click="zoomIn" />
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-fit-to-screen-outline" label="Fit graph" @click="fitGraph" />
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-selection-search" label="Fit selection" :disabled="!hasFitSelectionTarget" @click="fitSelection" />
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-undo" label="Undo" :disabled="!canUndo" @click="undoGraph" />
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-redo" label="Redo" :disabled="!canRedo" @click="redoGraph" />
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-restore" label="Reset graph" @click="resetGraph" />
+				<graph-toolbar-button
 					class="shader-graph__tool-button"
-					:class="{ active: showGrid }"
+					icon="mdi mdi-grid"
+					label="Toggle grid"
+					:active="showGrid"
 					@click="showGrid = !showGrid"
-					v-tooltip="'Toggle grid'"
-				>
-					<i class="mdi mdi-grid" />
-				</button>
-				<button
-					type="button"
+				/>
+				<graph-toolbar-button
 					class="shader-graph__tool-button"
-					:class="{ active: snapToGrid }"
+					icon="mdi mdi-grid-large"
+					label="Snap to grid"
+					:active="snapToGrid"
 					@click="snapToGrid = !snapToGrid"
-					v-tooltip="'Snap to grid'"
-				>
-					<i class="mdi mdi-grid-large" />
-				</button>
-				<button type="button" class="shader-graph__tool-button" @click="layoutGraphByCategory" v-tooltip="'Auto layout'">
-					<i class="mdi mdi-sitemap-outline" />
-				</button>
-				<button
-					type="button"
+				/>
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-sitemap-outline" label="Auto layout" @click="layoutGraphByCategory" />
+				<graph-toolbar-button
 					class="shader-graph__tool-button"
-					:class="{ active: showMinimap }"
+					icon="mdi mdi-selection-ellipse-arrow-inside"
+					label="Toggle minimap"
+					:active="showMinimap"
 					@click="showMinimap = !showMinimap"
-					v-tooltip="'Toggle minimap'"
-				>
-					<i class="mdi mdi-selection-ellipse-arrow-inside" />
-				</button>
-				<button type="button" class="shader-graph__tool-button" @click="addShaderFrame" v-tooltip="'Add frame from selection'">
-					<i class="mdi mdi-vector-square" />
-				</button>
+				/>
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-vector-square" label="Add frame from selection" @click="addShaderFrame" />
 				<span class="shader-graph__toolbar-divider" />
 				<label class="shader-graph__toolbar-control" v-tooltip="'Preview quality'">
 					<i class="mdi mdi-speedometer" />
@@ -108,15 +84,9 @@
 					<i class="mdi mdi-delete-outline" />
 				</button>
 				<span class="shader-graph__toolbar-divider" />
-				<button type="button" class="shader-graph__tool-button" @click="sidePanelTab = 'code'" :class="{ active: sidePanelTab === 'code' }" v-tooltip="'Show GLSL'">
-					<i class="mdi mdi-code-tags" />
-				</button>
-				<button type="button" class="shader-graph__tool-button shader-graph__tool-button--run" @click="compileAndApply" v-tooltip="'Compile & Apply'">
-					<i class="mdi mdi-play" />
-				</button>
-				<button type="button" class="shader-graph__tool-button" @click="stopPreview" v-tooltip="'Stop preview'">
-					<i class="mdi mdi-stop" />
-				</button>
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-code-tags" label="Show GLSL" :active="sidePanelTab === 'code'" @click="sidePanelTab = 'code'" />
+				<graph-toolbar-button class="shader-graph__tool-button shader-graph__tool-button--run" icon="mdi mdi-play" label="Compile & Apply" @click="compileAndApply" />
+				<graph-toolbar-button class="shader-graph__tool-button" icon="mdi mdi-stop" label="Stop preview" @click="stopPreview" />
 				<button type="button" class="shader-graph__close" @click="emit('close')">
 					<i class="mdi mdi-close" /> Close
 				</button>
@@ -769,6 +739,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import {
 	CollapsibleContextMenu,
 	GraphIssuesPanel,
+	GraphToolbarButton,
 	useIpcCaller,
 } from "showrunner-ui-core"
 import {
