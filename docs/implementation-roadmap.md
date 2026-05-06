@@ -248,7 +248,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Extend shader function sampling from built-in terrain functions to reusable user-authored subgraphs.
 - [x] Add preview controls: pause/resume, reset time, background mode, and clearer runtime error overlay.
 - [ ] Add detachable or full-size shader preview mode for inspecting procedural scenes.
-- [ ] Add real automation bindings for shader uniforms: automation variables, viewer variables, audio levels, queue payloads.
+- [x] Add first-pass runtime shader uniform bindings through widget config paths and plugin state paths.
+- [ ] Add specialized shader uniform binding pickers for automation variables, viewer variables, audio levels, and queue payloads.
 - [ ] Add richer node inspector controls: typed controls, units, min/max clamps, and multi-stop color ramp editor.
 - [x] Add shader graph undo/redo.
 - [ ] Add save/load preset workflows directly inside the shader graph editor.

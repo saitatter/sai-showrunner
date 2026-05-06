@@ -1222,6 +1222,10 @@ function getUniformName(node: ShaderNodeInstance) {
 	return BUILT_IN_UNIFORMS.has(name) ? `${name}_custom` : name
 }
 
+export function getShaderUniformName(node: ShaderNodeInstance) {
+	return getUniformName(node)
+}
+
 function parseVec3Literal(value: string): [number, number, number] {
 	const source = value.match(/vec3\s*\(([^)]*)\)/)?.[1] ?? value
 	const parts = source.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []

@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { useOverlayWidgets } from "showrunner-overlay-widget-loader"
-import { OverlayConfig } from "showrunner-plugin-overlays-shared"
+import { OverlayConfig, type ShaderUniformBindingMap } from "showrunner-plugin-overlays-shared"
 import {
 	FlexScroller,
 	DataInput,
@@ -215,10 +215,10 @@ function openShaderGraph() {
 					const targetConfig = getShaderLayerConfig(widgetId)
 					if (targetConfig) persistShaderGraph(targetConfig, graph)
 				},
-				onCompile: (glsl: string, uniforms: ShaderUniformValueMap) => {
+				onCompile: (glsl: string, uniforms: ShaderUniformValueMap, bindings: ShaderUniformBindingMap) => {
 					const targetConfig = getShaderLayerConfig(widgetId)
 					if (!targetConfig) return
-					applyCompiledShaderGraph(targetConfig, tabGraph.value, glsl, uniforms)
+					applyCompiledShaderGraph(targetConfig, tabGraph.value, glsl, uniforms, bindings)
 				},
 				onClose: () => dockingStore.closeTab(tabId),
 			})

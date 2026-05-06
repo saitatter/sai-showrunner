@@ -349,6 +349,59 @@
 							/>
 						</label>
 
+						<div v-if="isUniformParameterNode(selectedNode)" class="shader-graph__field-group shader-graph__field-group--compact">
+							<h4>Runtime Binding</h4>
+							<label class="shader-graph__field">
+								<span>Source</span>
+								<select
+									:value="getUniformBindingSource(selectedNode)"
+									@change="setUniformBindingSource(selectedNode, ($event.target as HTMLSelectElement).value)"
+								>
+									<option value="none">Default value</option>
+									<option value="config">Widget config path</option>
+									<option value="state">Plugin state path</option>
+								</select>
+							</label>
+							<label v-if="getUniformBindingSource(selectedNode) === 'config'" class="shader-graph__field">
+								<span>Config Path</span>
+								<input
+									type="text"
+									placeholder="intensity"
+									:value="getNodeInputDefault(selectedNode, 'bindingPath', '')"
+									@input="setNodeInputDefault(selectedNode, 'bindingPath', ($event.target as HTMLInputElement).value)"
+								/>
+							</label>
+							<div v-if="getUniformBindingSource(selectedNode) === 'state'" class="shader-graph__field-row">
+								<label class="shader-graph__field">
+									<span>Plugin</span>
+									<input
+										type="text"
+										placeholder="audio"
+										:value="getNodeInputDefault(selectedNode, 'bindingPlugin', '')"
+										@input="setNodeInputDefault(selectedNode, 'bindingPlugin', ($event.target as HTMLInputElement).value)"
+									/>
+								</label>
+								<label class="shader-graph__field">
+									<span>State</span>
+									<input
+										type="text"
+										placeholder="meter"
+										:value="getNodeInputDefault(selectedNode, 'bindingState', '')"
+										@input="setNodeInputDefault(selectedNode, 'bindingState', ($event.target as HTMLInputElement).value)"
+									/>
+								</label>
+								<label class="shader-graph__field">
+									<span>Path</span>
+									<input
+										type="text"
+										placeholder="value"
+										:value="getNodeInputDefault(selectedNode, 'bindingPath', '')"
+										@input="setNodeInputDefault(selectedNode, 'bindingPath', ($event.target as HTMLInputElement).value)"
+									/>
+								</label>
+							</div>
+						</div>
+
 						<label v-if="selectedNode.defId === 'float_const' || selectedNode.defId === 'uniform_float'" class="shader-graph__field">
 							<span>Value</span>
 							<input
@@ -594,7 +647,8 @@ import {
 	type GlslType,
 	type ShaderUniformValueMap,
 } from "./shader-nodes"
-import { SHADER_GRAPH_STARTERS, createDefaultShaderGraph, createShaderGraphStarter, cloneShaderGraph } from "./shader-graph-state"
+import { SHADER_GRAPH_STARTERS, collectShaderUniformBindings, createDefaultShaderGraph, createShaderGraphStarter, cloneShaderGraph } from "./shader-graph-state"
+import type { ShaderUniformBindingMap } from "showrunner-plugin-overlays-shared"
 
 const props = defineProps<{
 	modelValue: ShaderGraph
@@ -602,7 +656,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	"update:modelValue": [graph: ShaderGraph]
-	"compile": [glsl: string, uniforms: ShaderUniformValueMap]
+	"compile": [glsl: string, uniforms: ShaderUniformValueMap, bindings: ShaderUniformBindingMap]
 	"close": []
 }>()
 
@@ -654,6 +708,7 @@ const previewFpsLimit = ref(30)
 const previewPaused = ref(false)
 const previewBackground = ref<"checker" | "black" | "transparent">("checker")
 const selectedStarterId = ref("")
+type ShaderUniformBindingSource = "none" | "config" | "state"
 let runtimeSnapshot: GraphRuntimeSnapshot<string> = { issues: [], errorMessages: [], ok: true }
 const layoutVersion = ref(0)
 let layoutFrame: number | undefined
@@ -1210,6 +1265,23 @@ function isUniformParameterNode(node: ShaderNodeInstance) {
 	return node.defId === "uniform_float" || node.defId === "uniform_vec2" || node.defId === "uniform_vec3"
 }
 
+function getUniformBindingSource(node: ShaderNodeInstance): ShaderUniformBindingSource {
+	const source = node.inputDefaults?.bindingSource
+	return source === "config" || source === "state" ? source : "none"
+}
+
+function setUniformBindingSource(node: ShaderNodeInstance, value: string) {
+	const source: ShaderUniformBindingSource = value === "config" || value === "state" ? value : "none"
+	if (source === "none") {
+		const { bindingSource, bindingPath, bindingPlugin, bindingState, ...rest } = node.inputDefaults ?? {}
+		node.inputDefaults = rest
+	} else {
+		node.inputDefaults = { ...(node.inputDefaults ?? {}), bindingSource: source }
+	}
+	emitGraphUpdate()
+	autoCompile()
+}
+
 function isNodeInputConnected(node: ShaderNodeInstance, portKey: string) {
 	return graph.value.wires.some((wire) => wire.toNode === node.id && wire.toPort === portKey)
 }
@@ -1377,7 +1449,7 @@ function autoCompile() {
 function compileAndApply() {
 	autoCompile()
 	if (!compileErrors.value.length && compiledGlsl.value) {
-		emit("compile", compiledGlsl.value, collectShaderUniformDefaults(graph.value))
+		emit("compile", compiledGlsl.value, collectShaderUniformDefaults(graph.value), collectShaderUniformBindings(graph.value))
 		sidePanelTab.value = "preview"
 	} else {
 		sidePanelTab.value = "errors"
@@ -2452,7 +2524,8 @@ function categoryColor(cat: string): string {
 	margin-left: auto;
 }
 
-.shader-graph__field input {
+.shader-graph__field input,
+.shader-graph__field select {
 	background: #1c1c1c;
 	border: 1px solid #3a3a3a;
 	border-radius: 4px;

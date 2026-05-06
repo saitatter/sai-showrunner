@@ -1,10 +1,12 @@
-import type { ShaderGraph, ShaderNodeInstance, ShaderUniformValueMap, ShaderWire } from "./shader-nodes"
+import type { ShaderUniformBindingMap } from "showrunner-plugin-overlays-shared"
+import { getShaderUniformName, type ShaderGraph, type ShaderNodeInstance, type ShaderUniformValueMap, type ShaderWire } from "./shader-nodes"
 
 export interface ShaderLayerGraphConfig {
 	preset?: string
 	customFragmentShader?: string
 	shaderGraph?: unknown
 	shaderUniforms?: ShaderUniformValueMap
+	shaderUniformBindings?: ShaderUniformBindingMap
 }
 
 export interface ShaderGraphStarter {
@@ -133,11 +135,36 @@ export function persistShaderGraph(config: ShaderLayerGraphConfig, graph: Shader
 	config.shaderGraph = cloneShaderGraph(graph)
 }
 
-export function applyCompiledShaderGraph(config: ShaderLayerGraphConfig, graph: ShaderGraph, glsl: string, uniforms: ShaderUniformValueMap = {}) {
+export function applyCompiledShaderGraph(
+	config: ShaderLayerGraphConfig,
+	graph: ShaderGraph,
+	glsl: string,
+	uniforms: ShaderUniformValueMap = {},
+	bindings: ShaderUniformBindingMap = {}
+) {
 	persistShaderGraph(config, graph)
 	config.preset = "custom"
 	config.customFragmentShader = glsl
 	config.shaderUniforms = { ...uniforms }
+	config.shaderUniformBindings = { ...bindings }
+}
+
+export function collectShaderUniformBindings(graph: ShaderGraph): ShaderUniformBindingMap {
+	const bindings: ShaderUniformBindingMap = {}
+	for (const node of graph.nodes) {
+		if (!["uniform_float", "uniform_vec2", "uniform_vec3"].includes(node.defId)) continue
+		const source = node.inputDefaults?.bindingSource
+		if (source === "config") {
+			const path = String(node.inputDefaults?.bindingPath ?? "").trim()
+			if (path) bindings[getShaderUniformName(node)] = { source, path }
+		} else if (source === "state") {
+			const plugin = String(node.inputDefaults?.bindingPlugin ?? "").trim()
+			const state = String(node.inputDefaults?.bindingState ?? "").trim()
+			const path = String(node.inputDefaults?.bindingPath ?? "").trim()
+			if (plugin && state && path) bindings[getShaderUniformName(node)] = { source, plugin, state, path }
+		}
+	}
+	return bindings
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
