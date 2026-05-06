@@ -15,6 +15,9 @@
 				<button type="button" @click="sidePanelTab = 'code'" :class="{ active: sidePanelTab === 'code' }">
 					<i class="mdi mdi-code-tags" /> GLSL
 				</button>
+				<button type="button" class="shader-graph__close" @click="emit('close')">
+					<i class="mdi mdi-close" /> Close
+				</button>
 			</div>
 		</header>
 
@@ -371,6 +374,7 @@ const props = defineProps<{
 const emit = defineEmits<{
 	"update:modelValue": [graph: ShaderGraph]
 	"compile": [glsl: string, uniforms: ShaderUniformValueMap]
+	"close": []
 }>()
 
 const SHADER_GRAPH_SKIN: GraphSkinTokens = {
@@ -1223,9 +1227,12 @@ function categoryColor(cat: string): string {
 	gap: 1rem;
 	justify-content: space-between;
 	padding: 0.4rem 0.8rem;
+	position: relative;
+	z-index: 2;
 }
 
 .shader-graph__toolbar h3 {
+	flex: 0 0 auto;
 	font-size: 0.95rem;
 	font-weight: 600;
 	margin: 0;
@@ -1233,6 +1240,7 @@ function categoryColor(cat: string): string {
 
 .shader-graph__toolbar-actions {
 	display: flex;
+	flex: 0 0 auto;
 	gap: 0.4rem;
 }
 
@@ -1253,6 +1261,16 @@ function categoryColor(cat: string): string {
 .shader-graph__toolbar-actions button.active {
 	background: #444;
 	border-color: #7c4dff;
+}
+
+.shader-graph__toolbar-actions .shader-graph__close {
+	background: #333;
+	border-color: #555;
+	color: #eee;
+}
+
+.shader-graph__toolbar-actions .shader-graph__close:hover {
+	background: #555;
 }
 
 .shader-graph__body {

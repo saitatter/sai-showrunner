@@ -20,10 +20,8 @@
 							<ShaderGraphEditor
 								v-model="shaderGraph"
 								@compile="onShaderGraphCompile"
+								@close="shaderGraphOpen = false"
 							/>
-							<button type="button" class="shader-graph-overlay__close" @click="shaderGraphOpen = false">
-								<i class="mdi mdi-close" /> Close
-							</button>
 						</div>
 					</teleport>
 					<h3>Bundled Shader Presets</h3>
@@ -392,24 +390,4 @@ watch([selectedWidgetId, isShaderLayer], () => {
 	z-index: 1000;
 }
 
-.shader-graph-overlay__close {
-	align-items: center;
-	background: #333;
-	border: 1px solid #555;
-	border-radius: 4px;
-	color: #eee;
-	cursor: pointer;
-	display: flex;
-	font-size: 0.85rem;
-	gap: 0.3rem;
-	padding: 0.35rem 0.65rem;
-	position: absolute;
-	right: 0.8rem;
-	top: 0.4rem;
-	z-index: 10;
-}
-
-.shader-graph-overlay__close:hover {
-	background: #555;
-}
 </style>
