@@ -156,19 +156,20 @@ export function ipcParseSchemaDefault<T>(ipcSchema: IPCDefaultable<T>) {
 }
 
 export function ipcParseSchema(ipcSchema: IPCSchema): Schema {
-	if (ipcSchema.type === "Object" && "properties" in ipcSchema) {
+	if (ipcSchema.type === "Object") {
+		const ipcProperties = "properties" in ipcSchema ? ipcSchema.properties : {}
 		const properties: Record<string, Schema> = {}
 
-		for (let prop in ipcSchema.properties) {
-			properties[prop] = ipcParseSchema(ipcSchema.properties[prop])
+		for (let prop in ipcProperties) {
+			properties[prop] = ipcParseSchema(ipcProperties[prop])
 		}
 
 		return { ...ipcSchema, ...ipcParseSchemaDefault(ipcSchema), type: Object, properties }
-	} else if (ipcSchema.type === "Array" && "items" in ipcSchema) {
+	} else if (ipcSchema.type === "Array") {
 		return {
 			...ipcSchema,
 			type: markRaw(Array),
-			items: ipcParseSchema(ipcSchema.items),
+			items: ipcParseSchema("items" in ipcSchema ? ipcSchema.items : { type: "Object", properties: {} }),
 			...ipcParseSchemaDefault(ipcSchema),
 		}
 	} else if (ipcSchema.type === "Resource" && "resourceType" in ipcSchema) {
@@ -211,20 +212,21 @@ export function ipcParseDynamicSchema(ipcSchema: IPCSchema | string): Schema | (
 export function ipcConvertSchema<T extends Schema>(schema: T, path: string): IPCSchema {
 	//TODO: Connect reactive defaults
 
-	if (schema.type === Object && "properties" in schema) {
+	if (schema.type === Object) {
+		const schemaProperties = "properties" in schema ? schema.properties : {}
 		const properties: Record<string, any> = {}
 
-		for (let key in schema.properties) {
-			properties[key] = ipcConvertSchema(schema.properties[key], `${path}_${key}`)
+		for (let key in schemaProperties) {
+			properties[key] = ipcConvertSchema(schemaProperties[key], `${path}_${key}`)
 		}
 
 		return { ...schema, ...convertIPCDefault(schema, path), properties, type: "Object" }
-	} else if (schema.type === Array && "items" in schema) {
+	} else if (schema.type === Array) {
 		return {
 			...schema,
 			...convertIPCDefault(schema, path),
 			type: "Array",
-			items: ipcConvertSchema(schema.items, `${path}_items`),
+			items: "items" in schema ? ipcConvertSchema(schema.items, `${path}_items`) : { type: "Object", properties: {} },
 		}
 	} else if (schema.type == ResourceProxyFactory && "resourceType" in schema) {
 		return {
