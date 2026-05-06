@@ -198,7 +198,7 @@
 							v-for="wire in wirePaths"
 							:key="wire.id"
 							class="shader-graph__wire"
-							:class="{ selected: selectedWireId === wire.id }"
+							:class="{ selected: selectedWireId === wire.id, 'shader-graph__wire--issue': issueWireIds.has(wire.id) }"
 							:d="wire.path"
 							:stroke="wire.color"
 							vector-effect="non-scaling-stroke"
@@ -219,7 +219,7 @@
 						v-for="node in graphNodes"
 						:key="node.id"
 						class="shader-graph__node"
-						:class="{ selected: isNodeSelected(node.id), output: node.defId === 'fragment_output' }"
+						:class="{ selected: isNodeSelected(node.id), output: node.defId === 'fragment_output', 'shader-graph__node--issue': issueNodeIds.has(node.id) }"
 						:style="{ transform: `translate(${node.x}px, ${node.y}px)` }"
 						@pointerdown.stop="startNodeDrag($event, node)"
 					>
@@ -250,6 +250,7 @@
 										:data-shader-port-node-id="node.id"
 										:data-shader-port-key="port.key"
 										:data-shader-port-kind="'in'"
+										:class="{ 'shader-graph__port-dot--issue': hasShaderPortIssue(node.id, port.key) }"
 										:style="{ background: typeColor(port.type) }"
 										@pointerdown.stop="startWireDrag($event, node.id, port.key, 'in', port.type)"
 									/>
@@ -270,6 +271,7 @@
 										:data-shader-port-node-id="node.id"
 										:data-shader-port-key="port.key"
 										:data-shader-port-kind="'out'"
+										:class="{ 'shader-graph__port-dot--issue': hasShaderPortIssue(node.id, port.key) }"
 										:style="{ background: typeColor(port.type) }"
 										@pointerdown.stop="startWireDrag($event, node.id, port.key, 'out', port.type)"
 									/>
@@ -888,6 +890,11 @@ const lastGoodGlsl = ref("")
 const compileIssues = ref<GraphIssue[]>([])
 const compileErrors = computed(() => graphIssueMessagesBySeverity(compileIssues.value, "error"))
 const compileWarnings = computed(() => graphIssueMessagesBySeverity(compileIssues.value, "warning"))
+const issueNodeIds = computed(() => new Set(compileIssues.value.flatMap((issue) => issue.nodeId ? [issue.nodeId] : [])))
+const issueWireIds = computed(() => new Set(compileIssues.value.flatMap((issue) => issue.wireId ? [issue.wireId] : [])))
+const issuePortKeys = computed(() => new Set(compileIssues.value.flatMap((issue) =>
+	issue.nodeId && issue.portKey ? [`${issue.nodeId}:${issue.portKey}`] : []
+)))
 const previewError = ref("")
 const shaderQualityPreset = ref<"draft" | "balanced" | "high">("balanced")
 const previewResolutionScale = ref(1)
@@ -1402,6 +1409,10 @@ function selectShaderIssue(issue: GraphIssue) {
 		selectOnlyNode(issue.nodeId)
 		sidePanelTab.value = "node"
 	}
+}
+
+function hasShaderPortIssue(nodeId: string, portKey: string) {
+	return issuePortKeys.value.has(`${nodeId}:${portKey}`)
 }
 
 function shaderFrameStyle(frame: ShaderFrame) {
@@ -2857,6 +2868,12 @@ function categoryColor(cat: string): string {
 	filter: drop-shadow(0 0 5px rgb(239 83 80 / 0.45));
 }
 
+.shader-graph__wire--issue {
+	filter: drop-shadow(0 0 7px rgb(255 193 7 / 0.75));
+	stroke-dasharray: 7 4;
+	stroke-width: 3.5px;
+}
+
 .shader-graph__frame {
 	border: 2px dashed;
 	border-radius: 8px;
@@ -2952,6 +2969,15 @@ function categoryColor(cat: string): string {
 	box-shadow: 0 0 12px rgb(124 77 255 / 0.3);
 }
 
+.shader-graph__node--issue {
+	border-color: #ffc107;
+	box-shadow: 0 0 0 1px rgb(255 193 7 / 0.38), 0 0 14px rgb(255 193 7 / 0.2);
+}
+
+.shader-graph__node.selected.shader-graph__node--issue {
+	box-shadow: 0 0 0 1px rgb(255 193 7 / 0.5), 0 0 14px rgb(124 77 255 / 0.35);
+}
+
 .shader-graph__selection-box {
 	background: rgb(124 77 255 / 0.12);
 	border: 1px solid rgb(199 164 255 / 0.85);
@@ -3018,6 +3044,11 @@ function categoryColor(cat: string): string {
 .shader-graph__port-dot:hover {
 	transform: scale(1.5);
 	box-shadow: 0 0 6px 2px currentColor;
+}
+
+.shader-graph__port-dot--issue {
+	border-color: #ffc107;
+	box-shadow: 0 0 0 2px rgb(255 193 7 / 0.35), 0 0 10px rgb(255 193 7 / 0.4);
 }
 
 .shader-graph__port-name {
