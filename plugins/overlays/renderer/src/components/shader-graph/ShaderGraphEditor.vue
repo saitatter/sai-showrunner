@@ -485,7 +485,27 @@
 				</section>
 
 				<section v-else-if="sidePanelTab === 'preview'" class="shader-graph__preview-panel">
-					<div class="shader-graph__preview-stage">
+					<div class="shader-graph__preview-controls">
+						<button type="button" @click="togglePreviewPaused" :disabled="!lastPreviewGlsl">
+							<i :class="previewPaused ? 'mdi mdi-play' : 'mdi mdi-pause'" />
+							{{ previewPaused ? "Resume" : "Pause" }}
+						</button>
+						<button type="button" @click="resetPreviewTime" :disabled="!lastPreviewGlsl">
+							<i class="mdi mdi-restart" /> Reset Time
+						</button>
+						<label>
+							<i class="mdi mdi-image-filter-center-focus" />
+							<select v-model="previewBackground">
+								<option value="checker">Checker</option>
+								<option value="black">Black</option>
+								<option value="transparent">Transparent</option>
+							</select>
+						</label>
+					</div>
+					<div
+						class="shader-graph__preview-stage"
+						:class="`shader-graph__preview-stage--${previewBackground}`"
+					>
 						<canvas
 							ref="livePreviewCanvas"
 							class="shader-graph__live-preview"
@@ -496,6 +516,10 @@
 						/>
 						<div v-if="previewStatus.kind === 'idle'" class="shader-graph__preview-empty">
 							<i class="mdi mdi-play-circle-outline" />
+						</div>
+						<div v-if="previewOverlayMessage" class="shader-graph__preview-overlay">
+							<i :class="previewStatus.icon" />
+							<span>{{ previewOverlayMessage }}</span>
 						</div>
 					</div>
 					<p
@@ -621,6 +645,8 @@ const previewError = ref("")
 const shaderQualityPreset = ref<"draft" | "balanced" | "high">("balanced")
 const previewResolutionScale = ref(1)
 const previewFpsLimit = ref(30)
+const previewPaused = ref(false)
+const previewBackground = ref<"checker" | "black" | "transparent">("checker")
 const selectedStarterId = ref("")
 let runtimeSnapshot: GraphRuntimeSnapshot<string> = { issues: [], errorMessages: [], ok: true }
 const layoutVersion = ref(0)
@@ -660,6 +686,13 @@ const previewStatus = computed(() => {
 		icon: "mdi mdi-information-outline",
 		message: "Compile a valid graph to preview it here.",
 	}
+})
+
+const previewOverlayMessage = computed(() => {
+	if (previewError.value) return previewError.value
+	if (compileErrors.value.length && lastPreviewGlsl.value) return "Showing the last valid shader while the graph has compile errors."
+	if (previewPaused.value && lastPreviewGlsl.value) return "Preview paused."
+	return ""
 })
 
 // Wire drag state
@@ -1416,6 +1449,7 @@ let previewBuffer: WebGLBuffer | null = null
 let previewCanvas: HTMLCanvasElement | null = null
 let previewFrame = 0
 let previewStartedAt = 0
+let previewPausedAt = 0
 let lastPreviewRenderAt = 0
 let currentPreviewUniforms: ShaderUniformValueMap = {}
 let previewMouse = { x: 0, y: 0 }
@@ -1443,6 +1477,8 @@ function updateLivePreview(glsl: string) {
 		if (previewProgram) previewGl.deleteProgram(previewProgram)
 		previewProgram = prog
 		previewStartedAt = performance.now()
+		previewPausedAt = 0
+		previewPaused.value = false
 		lastPreviewGlsl.value = glsl
 		previewError.value = ""
 		resizePreviewCanvas(canvas)
@@ -1538,6 +1574,8 @@ function stopPreview() {
 	disposePreview()
 	lastPreviewGlsl.value = ""
 	previewError.value = ""
+	previewPaused.value = false
+	previewPausedAt = 0
 }
 
 watch(sidePanelTab, (tab) => {
@@ -1554,6 +1592,10 @@ function renderPreview() {
 	const canvas = livePreviewCanvas.value
 	if (!gl || !prog || !canvas) return
 	const now = performance.now()
+	if (previewPaused.value) {
+		previewFrame = requestAnimationFrame(renderPreview)
+		return
+	}
 	const frameMs = 1000 / Math.max(previewFpsLimit.value || 30, 1)
 	if (lastPreviewRenderAt && now - lastPreviewRenderAt < frameMs) {
 		previewFrame = requestAnimationFrame(renderPreview)
@@ -1569,7 +1611,7 @@ function renderPreview() {
 	gl.enableVertexAttribArray(posLoc)
 	gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0)
 	gl.uniform2f(gl.getUniformLocation(prog, "u_resolution"), canvas.width, canvas.height)
-	gl.uniform1f(gl.getUniformLocation(prog, "u_time"), (now - previewStartedAt) / 1000)
+	gl.uniform1f(gl.getUniformLocation(prog, "u_time"), previewElapsedSeconds(now))
 	gl.uniform2f(gl.getUniformLocation(prog, "u_mouse"), previewMouse.x, previewMouse.y)
 	gl.uniform3fv(gl.getUniformLocation(prog, "u_accent"), [0.57, 0.27, 1.0])
 	gl.uniform3fv(gl.getUniformLocation(prog, "u_secondary"), [0, 0.82, 1.0])
@@ -1580,6 +1622,32 @@ function renderPreview() {
 	applyUniformValues(gl, prog, currentPreviewUniforms)
 	gl.drawArrays(gl.TRIANGLES, 0, 6)
 	previewFrame = requestAnimationFrame(renderPreview)
+}
+
+function previewElapsedSeconds(now = performance.now()) {
+	return ((previewPaused.value && previewPausedAt ? previewPausedAt : now) - previewStartedAt) / 1000
+}
+
+function togglePreviewPaused() {
+	if (!lastPreviewGlsl.value) return
+	if (previewPaused.value) {
+		const pausedSeconds = previewElapsedSeconds()
+		previewStartedAt = performance.now() - pausedSeconds * 1000
+		previewPausedAt = 0
+		previewPaused.value = false
+		renderPreview()
+		return
+	}
+	previewPausedAt = performance.now()
+	previewPaused.value = true
+}
+
+function resetPreviewTime() {
+	previewStartedAt = performance.now()
+	previewPausedAt = 0
+	previewPaused.value = false
+	lastPreviewRenderAt = 0
+	if (lastPreviewGlsl.value) renderPreview()
 }
 
 function resizePreviewCanvas(canvas: HTMLCanvasElement) {
@@ -2382,8 +2450,53 @@ function categoryColor(cat: string): string {
 	padding: 0.7rem;
 }
 
+.shader-graph__preview-controls {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+
+.shader-graph__preview-controls button,
+.shader-graph__preview-controls label {
+	align-items: center;
+	background: #202020;
+	border: 1px solid #3a3a3a;
+	border-radius: 4px;
+	color: #ddd;
+	display: inline-flex;
+	font-size: 0.74rem;
+	gap: 0.35rem;
+	min-height: 1.8rem;
+	padding: 0 0.5rem;
+}
+
+.shader-graph__preview-controls button {
+	cursor: pointer;
+}
+
+.shader-graph__preview-controls button:disabled {
+	cursor: not-allowed;
+	opacity: 0.5;
+}
+
+.shader-graph__preview-controls select {
+	background: #181818;
+	border: 0;
+	color: #eee;
+	font-size: 0.74rem;
+	outline: 0;
+}
+
 .shader-graph__preview-stage {
 	aspect-ratio: 16/9;
+	background-color: #070707;
+	border: 1px solid #333;
+	position: relative;
+	width: 100%;
+}
+
+.shader-graph__preview-stage--checker {
 	background:
 		linear-gradient(45deg, rgba(255, 255, 255, 0.055) 25%, transparent 25%),
 		linear-gradient(-45deg, rgba(255, 255, 255, 0.055) 25%, transparent 25%),
@@ -2392,9 +2505,14 @@ function categoryColor(cat: string): string {
 	background-color: #070707;
 	background-position: 0 0, 0 8px, 8px -8px, -8px 0;
 	background-size: 16px 16px;
-	border: 1px solid #333;
-	position: relative;
-	width: 100%;
+}
+
+.shader-graph__preview-stage--black {
+	background: #000;
+}
+
+.shader-graph__preview-stage--transparent {
+	background: transparent;
 }
 
 .shader-graph__live-preview {
@@ -2412,6 +2530,24 @@ function categoryColor(cat: string): string {
 	justify-content: center;
 	pointer-events: none;
 	position: absolute;
+}
+
+.shader-graph__preview-overlay {
+	align-items: center;
+	background: rgba(20, 8, 8, 0.86);
+	border: 1px solid rgba(255, 120, 120, 0.45);
+	border-radius: 5px;
+	color: #ffd7d7;
+	display: flex;
+	font-size: 0.76rem;
+	gap: 0.45rem;
+	left: 0.75rem;
+	line-height: 1.35;
+	max-width: calc(100% - 1.5rem);
+	padding: 0.55rem 0.65rem;
+	position: absolute;
+	right: 0.75rem;
+	top: 0.75rem;
 }
 
 .shader-graph__preview-status {

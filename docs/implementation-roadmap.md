@@ -246,7 +246,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add graph UX utilities: copy/paste, duplicate, reroute nodes, frames/comments, minimap, and fit selection.
 - [x] Add shader function sampling foundation so terrain height/normal logic can be evaluated at multiple UV offsets.
 - [ ] Extend shader function sampling from built-in terrain functions to reusable user-authored subgraphs.
-- [ ] Add full-size preview controls: pause/resume, reset time, background mode, and clearer runtime error overlay.
+- [x] Add preview controls: pause/resume, reset time, background mode, and clearer runtime error overlay.
+- [ ] Add detachable or full-size shader preview mode for inspecting procedural scenes.
 - [ ] Add real automation bindings for shader uniforms: automation variables, viewer variables, audio levels, queue payloads.
 - [ ] Add richer node inspector controls: typed controls, units, min/max clamps, and multi-stop color ramp editor.
 - [ ] Add shader graph undo/redo.
