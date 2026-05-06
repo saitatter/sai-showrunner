@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
 	findNearestGraphPort,
+	evaluateGraphRuntime,
 	graphBezierPath,
 	graphDistance,
 	graphPointFromClient,
@@ -77,5 +78,22 @@ describe("graph geometry helpers", () => {
 			wireInvalid: "#777",
 			textMuted: "#888",
 		})["--graph-node-selected"]).toBe("#555")
+	})
+
+	it("evaluates graph runtimes while preserving the last good output", () => {
+		const adapter = {
+			evaluate: (graph: { ok: boolean; output?: string }) => graph.ok
+				? { output: graph.output, issues: [] }
+				: { issues: [{ severity: "error" as const, message: "compile failed" }] },
+		}
+
+		const good = evaluateGraphRuntime(adapter, { ok: true, output: "new glsl" }, "old glsl")
+		expect(good.ok).toBe(true)
+		expect(good.lastGoodOutput).toBe("new glsl")
+
+		const failed = evaluateGraphRuntime(adapter, { ok: false }, good.lastGoodOutput)
+		expect(failed.ok).toBe(false)
+		expect(failed.errorMessages).toEqual(["compile failed"])
+		expect(failed.lastGoodOutput).toBe("new glsl")
 	})
 })

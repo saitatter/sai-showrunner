@@ -286,9 +286,9 @@ import {
 } from "showrunner-ui-core"
 import {
 	collectRenderedGraphPortPositions,
+	evaluateGraphRuntime,
 	findNearestGraphPort,
 	graphBezierPath,
-	graphIssuesToMessages,
 	graphPointFromClient,
 	graphPortPositionKey,
 	graphSkinStyle,
@@ -297,6 +297,7 @@ import {
 	resolveGraphWireEndpoints,
 	type GraphPortCandidate,
 	type GraphRuntimeAdapter,
+	type GraphRuntimeSnapshot,
 	type GraphSkinTokens,
 } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import {
@@ -362,6 +363,7 @@ const compiledGlsl = ref("")
 const lastGoodGlsl = ref("")
 const compileErrors = ref<string[]>([])
 const previewError = ref("")
+let runtimeSnapshot: GraphRuntimeSnapshot<string> = { issues: [], errorMessages: [], ok: true }
 
 // Wire drag state
 const dragWire = ref<{ path: string; fromNode: string; fromPort: string; fromKind: "in" | "out"; type: GlslType } | null>(null)
@@ -723,17 +725,17 @@ function addNodeAt(defId: string, position: { x: number; y: number }) {
 
 // ─── Compile ─────────────────────────────────────────────────────────
 function autoCompile() {
-	const result = shaderGraphRuntime.evaluate(graph.value)
-	compileErrors.value = graphIssuesToMessages(result.issues)
-	if (compileErrors.value.length) {
+	runtimeSnapshot = evaluateGraphRuntime(shaderGraphRuntime, graph.value, lastGoodGlsl.value || undefined)
+	compileErrors.value = runtimeSnapshot.errorMessages
+	if (!runtimeSnapshot.ok) {
 		previewError.value = compileErrors.value[0]
 		return
 	}
-	if (result.output) {
-		compiledGlsl.value = result.output
-		lastGoodGlsl.value = result.output
+	if (runtimeSnapshot.output) {
+		compiledGlsl.value = runtimeSnapshot.output
+		lastGoodGlsl.value = runtimeSnapshot.lastGoodOutput ?? runtimeSnapshot.output
 		currentPreviewUniforms = collectShaderUniformDefaults(graph.value)
-		updateLivePreview(result.output)
+		updateLivePreview(runtimeSnapshot.output)
 	}
 }
 

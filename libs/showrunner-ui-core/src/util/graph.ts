@@ -54,6 +54,14 @@ export interface GraphRuntimeAdapter<TGraph, TOutput> {
 	evaluate: (graph: TGraph) => GraphRunResult<TOutput>
 }
 
+export interface GraphRuntimeSnapshot<TOutput> {
+	output?: TOutput
+	lastGoodOutput?: TOutput
+	issues: GraphIssue[]
+	errorMessages: string[]
+	ok: boolean
+}
+
 export interface GraphSkinTokens {
 	canvasBackground: string
 	panelBackground: string
@@ -105,6 +113,24 @@ export function graphIssuesToMessages(issues: GraphIssue[]) {
 export function graphValidationFromIssues(issues: GraphIssue[]): GraphValidationResult {
 	const error = issues.find((issue) => issue.severity === "error")
 	return error ? { valid: false, message: error.message, code: error.code } : { valid: true }
+}
+
+export function evaluateGraphRuntime<TGraph, TOutput>(
+	adapter: GraphRuntimeAdapter<TGraph, TOutput>,
+	graph: TGraph,
+	previousLastGoodOutput?: TOutput
+): GraphRuntimeSnapshot<TOutput> {
+	const result = adapter.evaluate(graph)
+	const errorMessages = graphIssuesToMessages(result.issues)
+	const ok = errorMessages.length === 0
+	const lastGoodOutput = ok ? (result.output ?? previousLastGoodOutput) : previousLastGoodOutput
+	return {
+		output: result.output,
+		lastGoodOutput,
+		issues: result.issues,
+		errorMessages,
+		ok,
+	}
 }
 
 export function graphSkinStyle(tokens: GraphSkinTokens): Record<string, string> {
