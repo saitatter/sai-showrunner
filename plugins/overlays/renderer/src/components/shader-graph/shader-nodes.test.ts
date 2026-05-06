@@ -210,6 +210,38 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("max(")
 	})
 
+	it("compiles color ramp and biome nodes", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "height", defId: "float_const", x: 0, y: 0, inputDefaults: { value: "0.66" } },
+				{ id: "slope", defId: "float_const", x: 0, y: 120, inputDefaults: { value: "0.35" } },
+				{ id: "ramp", defId: "color_ramp", x: 220, y: 0 },
+				{ id: "mask", defId: "biome_mask", x: 220, y: 160 },
+				{ id: "bands", defId: "altitude_bands", x: 440, y: 0 },
+				{ id: "blend", defId: "mask_blend_color", x: 660, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 880, y: 0 },
+			],
+			wires: [
+				{ id: "height:value->ramp:factor", fromNode: "height", fromPort: "value", toNode: "ramp", toPort: "factor" },
+				{ id: "height:value->mask:height", fromNode: "height", fromPort: "value", toNode: "mask", toPort: "height" },
+				{ id: "slope:value->mask:slope", fromNode: "slope", fromPort: "value", toNode: "mask", toPort: "slope" },
+				{ id: "height:value->bands:height", fromNode: "height", fromPort: "value", toNode: "bands", toPort: "height" },
+				{ id: "ramp:color->blend:base", fromNode: "ramp", fromPort: "color", toNode: "blend", toPort: "base" },
+				{ id: "bands:color->blend:detail", fromNode: "bands", fromPort: "color", toNode: "blend", toPort: "detail" },
+				{ id: "mask:mask->blend:mask", fromNode: "mask", fromPort: "mask", toNode: "blend", toPort: "mask" },
+				{ id: "blend:color->output:color", fromNode: "blend", fromPort: "color", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("smoothstep(")
+		expect(result.glsl).toContain("grassMask")
+		expect(result.glsl).toContain("rockMask")
+		expect(result.glsl).toContain("snowMask")
+		expect(result.glsl).toContain("mix(")
+	})
+
 	it("creates preview graphs for node outputs", () => {
 		const graph: ShaderGraph = {
 			nodes: [

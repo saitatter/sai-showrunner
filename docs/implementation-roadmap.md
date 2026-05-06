@@ -236,7 +236,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Show only input/uniform/source nodes in the left rail; add all other nodes from the canvas context menu.
 - [x] Add procedural noise nodes: Value Noise, Perlin Noise, FBM Noise, Voronoi, and Domain Warp.
 - [x] Add terrain pipeline nodes: height map shaping, normals from height samples, slope/curvature masks, and erosion-like filters.
-- [ ] Add color ramp and biome helpers: gradient ramps, altitude bands, mask blending, grass/rock/snow bands.
+- [x] Add color ramp and biome helpers: gradient ramps, altitude bands, mask blending, grass/rock/snow bands.
 - [ ] Add lighting nodes: sun direction, diffuse/specular, ambient, fog, simple shadow, and ambient occlusion helpers.
 - [ ] Add camera/raymarching nodes: camera uniforms, ray direction, SDF/raymarch helpers, depth/fog output.
 - [ ] Expand uniform controls: slider/color/vec2/vec3 UI, persisted defaults, automation bindings.
