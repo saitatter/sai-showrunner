@@ -251,12 +251,17 @@
 				</section>
 
 				<section v-else-if="sidePanelTab === 'preview'" class="shader-graph__preview-panel">
-					<canvas ref="livePreviewCanvas" class="shader-graph__live-preview" width="320" height="180" />
-					<p v-if="!previewError && !lastPreviewGlsl" class="shader-graph__preview-hint">
-						<i class="mdi mdi-information-outline" /> Compile a valid graph to preview it here.
-					</p>
-					<p v-if="previewError" class="shader-graph__preview-error">
-						<i class="mdi mdi-alert" /> {{ previewError }}
+					<div class="shader-graph__preview-stage">
+						<canvas ref="livePreviewCanvas" class="shader-graph__live-preview" width="320" height="180" />
+						<div v-if="previewStatus.kind === 'idle'" class="shader-graph__preview-empty">
+							<i class="mdi mdi-play-circle-outline" />
+						</div>
+					</div>
+					<p
+						class="shader-graph__preview-status"
+						:class="`shader-graph__preview-status--${previewStatus.kind}`"
+					>
+						<i :class="previewStatus.icon" /> {{ previewStatus.message }}
 					</p>
 				</section>
 
@@ -366,6 +371,42 @@ const lastGoodGlsl = ref("")
 const compileErrors = ref<string[]>([])
 const previewError = ref("")
 let runtimeSnapshot: GraphRuntimeSnapshot<string> = { issues: [], errorMessages: [], ok: true }
+
+const previewStatus = computed(() => {
+	if (previewError.value) {
+		return {
+			kind: "error",
+			icon: "mdi mdi-alert-circle-outline",
+			message: previewError.value,
+		}
+	}
+	if (compileErrors.value.length && lastPreviewGlsl.value) {
+		return {
+			kind: "stale",
+			icon: "mdi mdi-history",
+			message: `Graph has errors. Preview is showing the last valid shader: ${compileErrors.value[0]}`,
+		}
+	}
+	if (compileErrors.value.length) {
+		return {
+			kind: "error",
+			icon: "mdi mdi-alert-circle-outline",
+			message: compileErrors.value[0],
+		}
+	}
+	if (lastPreviewGlsl.value) {
+		return {
+			kind: "ok",
+			icon: "mdi mdi-check-circle-outline",
+			message: "Preview is running from the latest valid compile.",
+		}
+	}
+	return {
+		kind: "idle",
+		icon: "mdi mdi-information-outline",
+		message: "Compile a valid graph to preview it here.",
+	}
+})
 
 // Wire drag state
 const dragWire = ref<{ path: string; fromNode: string; fromPort: string; fromKind: "in" | "out"; type: GlslType } | null>(null)
@@ -729,7 +770,7 @@ function autoCompile() {
 	runtimeSnapshot = evaluateGraphRuntime(shaderGraphRuntime, graph.value, lastGoodGlsl.value || undefined)
 	compileErrors.value = runtimeSnapshot.errorMessages
 	if (!runtimeSnapshot.ok) {
-		previewError.value = compileErrors.value[0]
+		if (lastGoodGlsl.value && !lastPreviewGlsl.value) updateLivePreview(lastGoodGlsl.value)
 		return
 	}
 	if (runtimeSnapshot.output) {
@@ -817,7 +858,6 @@ let currentPreviewUniforms: ShaderUniformValueMap = {}
 const lastPreviewGlsl = ref("")
 
 function updateLivePreview(glsl: string) {
-	lastPreviewGlsl.value = glsl
 	const canvas = livePreviewCanvas.value
 	if (!canvas) return
 	if (previewCanvas !== canvas) {
@@ -839,6 +879,7 @@ function updateLivePreview(glsl: string) {
 		if (previewProgram) previewGl.deleteProgram(previewProgram)
 		previewProgram = prog
 		previewStartedAt = performance.now()
+		lastPreviewGlsl.value = glsl
 		previewError.value = ""
 		cancelAnimationFrame(previewFrame)
 		renderPreview()
@@ -1337,46 +1378,77 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__preview-panel {
-	background:
-		linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
-		linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
-		linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%),
-		linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%);
-	background-color: #0b0b0b;
-	background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-	background-size: 16px 16px;
+	background: #111;
 	display: flex;
+	flex: 1;
 	flex-direction: column;
 	gap: 0.6rem;
+	overflow: auto;
 	padding: 0.7rem;
 }
 
-.shader-graph__live-preview {
+.shader-graph__preview-stage {
 	aspect-ratio: 16/9;
-	background: #050505;
+	background:
+		linear-gradient(45deg, rgba(255, 255, 255, 0.055) 25%, transparent 25%),
+		linear-gradient(-45deg, rgba(255, 255, 255, 0.055) 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.055) 75%),
+		linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.055) 75%);
+	background-color: #070707;
+	background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+	background-size: 16px 16px;
 	border: 1px solid #333;
-	display: block;
+	position: relative;
 	width: 100%;
 }
 
-.shader-graph__preview-error {
-	background: #2d1111;
-	border: 1px solid #661111;
+.shader-graph__live-preview {
+	display: block;
+	height: 100%;
+	width: 100%;
+}
+
+.shader-graph__preview-empty {
+	align-items: center;
+	color: #666;
+	display: flex;
+	font-size: 2rem;
+	inset: 0;
+	justify-content: center;
+	pointer-events: none;
+	position: absolute;
+}
+
+.shader-graph__preview-status {
 	border-radius: 4px;
-	color: #ff9b9b;
 	font-size: 0.75rem;
+	line-height: 1.35;
 	margin: 0;
 	padding: 0.5rem;
 }
 
-.shader-graph__preview-hint {
+.shader-graph__preview-status--idle {
 	background: #161616;
 	border: 1px solid #333;
-	border-radius: 4px;
 	color: #aaa;
-	font-size: 0.75rem;
-	margin: 0;
-	padding: 0.5rem;
+}
+
+.shader-graph__preview-status--ok {
+	background: #102417;
+	border: 1px solid #265d35;
+	color: #9ee6ad;
+}
+
+.shader-graph__preview-status--stale {
+	background: #2a2410;
+	border: 1px solid #66561f;
+	color: #ffd879;
+}
+
+.shader-graph__preview-status--error {
+	background: #2d1111;
+	border: 1px solid #661111;
+	color: #ff9b9b;
 }
 
 .shader-graph__empty-state {
