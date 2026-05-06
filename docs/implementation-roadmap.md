@@ -243,7 +243,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add a real live WebGL preview with time/resolution/mouse uniforms and clear compile/runtime errors.
 - [x] Add performance controls: resolution scale, max steps, quality presets, preview FPS throttle.
 - [x] Add shader starter graphs: Procedural Terrain, Nebula, Audio Reactive, and Energy Field.
-- [ ] Add graph UX utilities: copy/paste, duplicate, reroute nodes, frames/comments, minimap, and fit selection.
+- [x] Add graph UX utilities: copy/paste, duplicate, reroute nodes, frames/comments, minimap, and fit selection.
 
 ---
 

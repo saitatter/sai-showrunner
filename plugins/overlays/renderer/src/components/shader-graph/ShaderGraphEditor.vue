@@ -33,6 +33,9 @@
 				<button type="button" @click="fitGraph" v-tooltip="'Fit graph'">
 					<i class="mdi mdi-fit-to-screen-outline" />
 				</button>
+				<button type="button" :disabled="!selectedNode" @click="fitSelection" v-tooltip="'Fit selected node'">
+					<i class="mdi mdi-selection-search" />
+				</button>
 				<button type="button" @click="resetGraph" v-tooltip="'Reset graph'">
 					<i class="mdi mdi-restore" />
 				</button>
@@ -117,12 +120,12 @@
 					>
 						<header class="shader-graph__node-header" :style="{ background: categoryColor(node.category) }">
 							<i :class="node.icon" />
-							<span>{{ node.name }}</span>
+							<span>{{ nodeTitle(node) }}</span>
 						</header>
 
 						<!-- Preview canvas -->
 						<canvas
-							v-if="node.defId !== 'float_const' && node.defId !== 'vec3_const'"
+							v-if="shouldShowNodePreview(node)"
 							:ref="(el) => setPreviewRef(node.id, el as HTMLCanvasElement)"
 							class="shader-graph__node-preview"
 							width="160"
@@ -169,6 +172,20 @@
 							</div>
 						</div>
 					</div>
+				</div>
+
+				<div class="shader-graph__minimap">
+					<div
+						v-for="node in minimapNodes"
+						:key="node.id"
+						class="shader-graph__minimap-node"
+						:class="{ selected: selectedNodeId === node.id }"
+						:style="{ left: `${node.x}%`, top: `${node.y}%`, width: `${node.width}%`, height: `${node.height}%` }"
+					/>
+					<div
+						class="shader-graph__minimap-viewport"
+						:style="{ left: `${minimapViewport.x}%`, top: `${minimapViewport.y}%`, width: `${minimapViewport.width}%`, height: `${minimapViewport.height}%` }"
+					/>
 				</div>
 
 				<!-- Node palette (right-click) -->
@@ -359,6 +376,23 @@
 								type="color"
 								:value="vec3DefaultToHex(getNodeInputDefault(selectedNode, 'value', 'vec3(1.0, 1.0, 1.0)'))"
 								@input="setNodeInputDefault(selectedNode, 'value', hexToVec3(($event.target as HTMLInputElement).value))"
+							/>
+						</label>
+
+						<label v-if="selectedNode.defId === 'comment_frame'" class="shader-graph__field">
+							<span>Title</span>
+							<input
+								type="text"
+								:value="getNodeInputDefault(selectedNode, 'title', 'Comment')"
+								@input="setNodeInputDefault(selectedNode, 'title', ($event.target as HTMLInputElement).value)"
+							/>
+						</label>
+
+						<label v-if="selectedNode.defId === 'comment_frame'" class="shader-graph__field">
+							<span>Note</span>
+							<textarea
+								:value="getNodeInputDefault(selectedNode, 'note', '')"
+								@input="setNodeInputDefault(selectedNode, 'note', ($event.target as HTMLTextAreaElement).value)"
 							/>
 						</label>
 
@@ -638,6 +672,31 @@ const surfaceSize = computed(() => ({
 	height: Math.max(900, ...graphNodes.value.map((n) => n.y + 200)),
 }))
 
+const minimapNodes = computed(() =>
+	graphNodes.value.map((node) => ({
+		id: node.id,
+		x: (node.x / surfaceSize.value.width) * 100,
+		y: (node.y / surfaceSize.value.height) * 100,
+		width: (NODE_W / surfaceSize.value.width) * 100,
+		height: (120 / surfaceSize.value.height) * 100,
+	}))
+)
+
+const minimapViewport = computed(() => {
+	const canvas = canvasRef.value
+	if (!canvas) return { x: 0, y: 0, width: 100, height: 100 }
+	const x = (-pan.value.x / zoom.value / surfaceSize.value.width) * 100
+	const y = (-pan.value.y / zoom.value / surfaceSize.value.height) * 100
+	const width = (canvas.clientWidth / zoom.value / surfaceSize.value.width) * 100
+	const height = (canvas.clientHeight / zoom.value / surfaceSize.value.height) * 100
+	return {
+		x: Math.max(0, Math.min(100, x)),
+		y: Math.max(0, Math.min(100, y)),
+		width: Math.max(4, Math.min(100, width)),
+		height: Math.max(4, Math.min(100, height)),
+	}
+})
+
 const renderedPortPositions = computed(() => {
 	layoutVersion.value
 	const surface = canvasRef.value?.querySelector<HTMLElement>(".shader-graph__surface")
@@ -760,6 +819,16 @@ function fitGraph() {
 	const bounds = { minX, minY, width: maxX - minX, height: maxY - minY }
 	zoom.value = graphFitZoom(bounds, { width: cw, height: ch }, { padding: 80, maxZoom: 1 })
 	pan.value = centerGraphBoundsPan(bounds, { width: cw, height: ch }, zoom.value)
+	scheduleLayoutRefresh()
+}
+
+function fitSelection() {
+	const node = graphNodes.value.find((item) => item.id === selectedNodeId.value)
+	const canvas = canvasRef.value
+	if (!node || !canvas) return
+	const bounds = { minX: node.x, minY: node.y, width: NODE_W, height: 160 }
+	zoom.value = graphFitZoom(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, { padding: 140, maxZoom: 1.25 })
+	pan.value = centerGraphBoundsPan(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, zoom.value)
 	scheduleLayoutRefresh()
 }
 
@@ -976,7 +1045,7 @@ function setNodeInputDefault(node: ShaderNodeInstance, key: string, value: strin
 
 function hasEditableNodeSettings(node: ShaderNodeInstance) {
 	const def = SHADER_NODE_DEF_MAP.get(node.defId)
-	return ["float_const", "vec3_const", "uniform_float", "uniform_vec2", "uniform_vec3"].includes(node.defId) || Boolean(def?.inputs.length)
+	return ["float_const", "vec3_const", "uniform_float", "uniform_vec2", "uniform_vec3", "comment_frame"].includes(node.defId) || Boolean(def?.inputs.length)
 }
 
 function isUniformParameterNode(node: ShaderNodeInstance) {
@@ -1037,6 +1106,18 @@ function setVec2InputDefaultComponent(node: ShaderNodeInstance, key: string, ind
 	setNodeInputDefault(node, key, `vec2(${parts[0].toFixed(3)}, ${parts[1].toFixed(3)})`)
 }
 
+function shouldShowNodePreview(node: ShaderNodeInstance) {
+	return !["float_const", "vec3_const", "comment_frame"].includes(node.defId)
+}
+
+function nodeTitle(node: ShaderNodeInstance & { name: string }) {
+	if (node.defId === "comment_frame") {
+		const title = typeof node.inputDefaults?.title === "string" ? node.inputDefaults.title.trim() : ""
+		return title || node.name
+	}
+	return node.name
+}
+
 // ─── Palette ─────────────────────────────────────────────────────────
 function openPalette(e: MouseEvent) {
 	palettePos.value = { x: e.clientX - (canvasRef.value?.getBoundingClientRect().left ?? 0), y: e.clientY - (canvasRef.value?.getBoundingClientRect().top ?? 0) }
@@ -1058,6 +1139,7 @@ function isContextGroupOpen(group: string) {
 }
 
 let nodeCounter = 0
+let copiedNode: ShaderNodeInstance | undefined
 function addNode(defId: string) {
 	addNodeAt(defId, {
 		x: Math.round((palettePos.value.x - pan.value.x) / zoom.value),
@@ -1081,6 +1163,40 @@ function addNodeAt(defId: string, position: { x: number; y: number }) {
 	emitGraphUpdate()
 	scheduleLayoutRefresh()
 	autoCompile()
+}
+
+function cloneNodeForPaste(node: ShaderNodeInstance, offset = 36): ShaderNodeInstance {
+	return {
+		id: `sn_${Date.now()}_${nodeCounter++}`,
+		defId: node.defId,
+		x: node.x + offset,
+		y: node.y + offset,
+		inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined,
+	}
+}
+
+function copySelectedNode() {
+	const node = selectedNode.value
+	if (!node) return
+	copiedNode = { ...node, inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined }
+}
+
+function pasteCopiedNode() {
+	if (!copiedNode) return
+	const node = cloneNodeForPaste(copiedNode)
+	graph.value.nodes.push(node)
+	selectedNodeId.value = node.id
+	selectedWireId.value = undefined
+	emitGraphUpdate()
+	scheduleLayoutRefresh()
+	autoCompile()
+}
+
+function duplicateSelectedNode() {
+	const node = selectedNode.value
+	if (!node) return
+	copiedNode = { ...node, inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined }
+	pasteCopiedNode()
 }
 
 // ─── Compile ─────────────────────────────────────────────────────────
@@ -1155,6 +1271,21 @@ function copyGlsl() {
 
 // ─── Keyboard ────────────────────────────────────────────────────────
 function onKeyDown(e: KeyboardEvent) {
+	if (e.ctrlKey && e.key.toLowerCase() === "c" && selectedNode.value) {
+		e.preventDefault()
+		copySelectedNode()
+		return
+	}
+	if (e.ctrlKey && e.key.toLowerCase() === "v" && copiedNode) {
+		e.preventDefault()
+		pasteCopiedNode()
+		return
+	}
+	if (e.ctrlKey && e.key.toLowerCase() === "d" && selectedNode.value) {
+		e.preventDefault()
+		duplicateSelectedNode()
+		return
+	}
 	if ((e.key === "Delete" || e.key === "Backspace") && selectedWireId.value) {
 		e.preventDefault()
 		const idx = graph.value.wires.findIndex((w) => w.id === selectedWireId.value)
@@ -1454,6 +1585,11 @@ function categoryColor(cat: string): string {
 		case "Math": return "#1565c0"
 		case "Vector": return "#6a1b9a"
 		case "Color": return "#c62828"
+		case "Noise": return "#6d4c41"
+		case "Terrain": return "#558b2f"
+		case "Lighting": return "#f9a825"
+		case "Camera": return "#00838f"
+		case "Utility": return "#455a64"
 		case "Output": return "#e65100"
 		default: return "#37474f"
 	}
@@ -2054,6 +2190,16 @@ function categoryColor(cat: string): string {
 	padding: 0.25rem 0.45rem;
 }
 
+.shader-graph__field textarea {
+	background: #1c1c1c;
+	border: 1px solid #3a3a3a;
+	border-radius: 4px;
+	color: #eee;
+	min-height: 4.5rem;
+	padding: 0.45rem;
+	resize: vertical;
+}
+
 .shader-graph__field input[type="range"] {
 	accent-color: #7ac784;
 	min-height: 1.35rem;
@@ -2064,6 +2210,35 @@ function categoryColor(cat: string): string {
 	color: #777;
 	cursor: not-allowed;
 	opacity: 0.65;
+}
+
+.shader-graph__minimap {
+	background: rgba(12, 12, 12, 0.86);
+	border: 1px solid #333;
+	border-radius: 4px;
+	bottom: 0.75rem;
+	height: 96px;
+	pointer-events: none;
+	position: absolute;
+	right: 0.75rem;
+	width: 160px;
+	z-index: 4;
+}
+
+.shader-graph__minimap-node {
+	background: #4b5563;
+	border-radius: 2px;
+	position: absolute;
+}
+
+.shader-graph__minimap-node.selected {
+	background: #a78bfa;
+}
+
+.shader-graph__minimap-viewport {
+	border: 1px solid #e0b0ff;
+	border-radius: 2px;
+	position: absolute;
 }
 
 .shader-graph__preview-panel {

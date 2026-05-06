@@ -955,6 +955,44 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		compile: (ins, outs) => [`${outs.factor} = smoothstep(${ins.near}, max(${ins.far}, ${ins.near} + 0.0001), ${ins.depth});`],
 	},
 
+	// ── Utility ──
+	{
+		id: "reroute_float",
+		name: "Reroute Float",
+		category: "Utility",
+		icon: "mdi mdi-transit-connection-horizontal",
+		inputs: [{ key: "value", label: "In", type: "float", default: "0.0" }],
+		outputs: [{ key: "value", label: "Out", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = ${ins.value};`],
+	},
+	{
+		id: "reroute_vec2",
+		name: "Reroute Vec2",
+		category: "Utility",
+		icon: "mdi mdi-transit-connection-horizontal",
+		inputs: [{ key: "value", label: "In", type: "vec2", default: "vec2(0.0)" }],
+		outputs: [{ key: "value", label: "Out", type: "vec2" }],
+		compile: (ins, outs) => [`${outs.value} = ${ins.value};`],
+	},
+	{
+		id: "reroute_vec3",
+		name: "Reroute Vec3",
+		category: "Utility",
+		icon: "mdi mdi-transit-connection-horizontal",
+		inputs: [{ key: "value", label: "In", type: "vec3", default: "vec3(0.0)" }],
+		outputs: [{ key: "value", label: "Out", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.value} = ${ins.value};`],
+	},
+	{
+		id: "comment_frame",
+		name: "Comment / Frame",
+		category: "Utility",
+		icon: "mdi mdi-comment-outline",
+		inputs: [],
+		outputs: [],
+		compile: () => [`// comment frame`],
+	},
+
 	// ── Output ──
 	{
 		id: "fragment_output",
