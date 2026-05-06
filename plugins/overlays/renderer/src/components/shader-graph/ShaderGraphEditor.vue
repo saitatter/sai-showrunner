@@ -385,7 +385,14 @@
 
 				<section v-else-if="sidePanelTab === 'preview'" class="shader-graph__preview-panel">
 					<div class="shader-graph__preview-stage">
-						<canvas ref="livePreviewCanvas" class="shader-graph__live-preview" width="320" height="180" />
+						<canvas
+							ref="livePreviewCanvas"
+							class="shader-graph__live-preview"
+							width="320"
+							height="180"
+							@pointermove="updatePreviewMouse"
+							@pointerleave="resetPreviewMouse"
+						/>
 						<div v-if="previewStatus.kind === 'idle'" class="shader-graph__preview-empty">
 							<i class="mdi mdi-play-circle-outline" />
 						</div>
@@ -1149,6 +1156,7 @@ let previewCanvas: HTMLCanvasElement | null = null
 let previewFrame = 0
 let previewStartedAt = 0
 let currentPreviewUniforms: ShaderUniformValueMap = {}
+let previewMouse = { x: 0, y: 0 }
 const lastPreviewGlsl = ref("")
 
 function updateLivePreview(glsl: string) {
@@ -1175,6 +1183,8 @@ function updateLivePreview(glsl: string) {
 		previewStartedAt = performance.now()
 		lastPreviewGlsl.value = glsl
 		previewError.value = ""
+		resizePreviewCanvas(canvas)
+		resetPreviewMouse()
 		cancelAnimationFrame(previewFrame)
 		renderPreview()
 	} catch (error) {
@@ -1223,11 +1233,14 @@ function renderStaticShaderPreview(canvas: HTMLCanvasElement, glsl: string, unif
 	gl.enableVertexAttribArray(posLoc)
 	gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0)
 	gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), canvas.width, canvas.height)
-	gl.uniform1f(gl.getUniformLocation(program, "u_time"), 1.25)
+		gl.uniform1f(gl.getUniformLocation(program, "u_time"), 1.25)
+	gl.uniform2f(gl.getUniformLocation(program, "u_mouse"), canvas.width * 0.5, canvas.height * 0.5)
 	gl.uniform3fv(gl.getUniformLocation(program, "u_accent"), [0.57, 0.27, 1.0])
 	gl.uniform3fv(gl.getUniformLocation(program, "u_secondary"), [0, 0.82, 1.0])
 	gl.uniform1f(gl.getUniformLocation(program, "u_intensity"), 0.8)
 	gl.uniform1f(gl.getUniformLocation(program, "u_speed"), 1.0)
+	gl.uniform3fv(gl.getUniformLocation(program, "u_camera_position"), [0, 0, 2.5])
+	gl.uniform3fv(gl.getUniformLocation(program, "u_camera_target"), [0, 0, 0])
 	applyUniformValues(gl, program, uniforms)
 	gl.drawArrays(gl.TRIANGLES, 0, 6)
 	gl.deleteBuffer(buffer)
@@ -1272,6 +1285,7 @@ function renderPreview() {
 	const prog = previewProgram
 	const canvas = livePreviewCanvas.value
 	if (!gl || !prog || !canvas) return
+	resizePreviewCanvas(canvas)
 	gl.viewport(0, 0, canvas.width, canvas.height)
 	gl.clearColor(0, 0, 0, 0)
 	gl.clear(gl.COLOR_BUFFER_BIT)
@@ -1281,13 +1295,46 @@ function renderPreview() {
 	gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0)
 	gl.uniform2f(gl.getUniformLocation(prog, "u_resolution"), canvas.width, canvas.height)
 	gl.uniform1f(gl.getUniformLocation(prog, "u_time"), (performance.now() - previewStartedAt) / 1000)
+	gl.uniform2f(gl.getUniformLocation(prog, "u_mouse"), previewMouse.x, previewMouse.y)
 	gl.uniform3fv(gl.getUniformLocation(prog, "u_accent"), [0.57, 0.27, 1.0])
 	gl.uniform3fv(gl.getUniformLocation(prog, "u_secondary"), [0, 0.82, 1.0])
 	gl.uniform1f(gl.getUniformLocation(prog, "u_intensity"), 0.8)
 	gl.uniform1f(gl.getUniformLocation(prog, "u_speed"), 1.0)
+	gl.uniform3fv(gl.getUniformLocation(prog, "u_camera_position"), [0, 0, 2.5])
+	gl.uniform3fv(gl.getUniformLocation(prog, "u_camera_target"), [0, 0, 0])
 	applyUniformValues(gl, prog, currentPreviewUniforms)
 	gl.drawArrays(gl.TRIANGLES, 0, 6)
 	previewFrame = requestAnimationFrame(renderPreview)
+}
+
+function resizePreviewCanvas(canvas: HTMLCanvasElement) {
+	const ratio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2))
+	const width = Math.max(1, Math.round(canvas.clientWidth * ratio))
+	const height = Math.max(1, Math.round(canvas.clientHeight * ratio))
+	if (canvas.width !== width || canvas.height !== height) {
+		canvas.width = width
+		canvas.height = height
+	}
+}
+
+function updatePreviewMouse(event: PointerEvent) {
+	const canvas = livePreviewCanvas.value
+	if (!canvas) return
+	const rect = canvas.getBoundingClientRect()
+	const ratioX = canvas.width / Math.max(rect.width, 1)
+	const ratioY = canvas.height / Math.max(rect.height, 1)
+	previewMouse = {
+		x: (event.clientX - rect.left) * ratioX,
+		y: (rect.bottom - event.clientY) * ratioY,
+	}
+}
+
+function resetPreviewMouse() {
+	const canvas = livePreviewCanvas.value
+	previewMouse = {
+		x: (canvas?.width ?? 0) * 0.5,
+		y: (canvas?.height ?? 0) * 0.5,
+	}
 }
 
 function applyUniformValues(gl: WebGLRenderingContext, prog: WebGLProgram, uniforms: ShaderUniformValueMap) {
