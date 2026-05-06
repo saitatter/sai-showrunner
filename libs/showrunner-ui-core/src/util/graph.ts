@@ -3,6 +3,18 @@ export interface GraphPoint {
 	y: number
 }
 
+export interface GraphBounds {
+	minX: number
+	minY: number
+	width: number
+	height: number
+}
+
+export interface GraphViewportSize {
+	width: number
+	height: number
+}
+
 export type GraphPortKind = "in" | "out"
 
 export interface GraphPortAddress {
@@ -104,6 +116,45 @@ export function resolveGraphWireEndpoints(drag: GraphWireDragAddress, target: Gr
 
 export function graphDistance(a: GraphPoint, b: GraphPoint) {
 	return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
+}
+
+export function clampGraphZoom(value: number, minZoom: number, maxZoom: number) {
+	return Math.max(minZoom, Math.min(maxZoom, Number(value.toFixed(2))))
+}
+
+export function graphFitZoom(
+	bounds: Pick<GraphBounds, "width" | "height">,
+	viewport: GraphViewportSize,
+	options: { padding?: number; maxZoom?: number; minZoom?: number } = {}
+) {
+	const padding = options.padding ?? 0
+	const availableWidth = Math.max(1, viewport.width - padding)
+	const availableHeight = Math.max(1, viewport.height - padding)
+	const widthScale = availableWidth / Math.max(1, bounds.width)
+	const heightScale = availableHeight / Math.max(1, bounds.height)
+	return clampGraphZoom(
+		Math.min(widthScale, heightScale, options.maxZoom ?? 1),
+		options.minZoom ?? 0,
+		options.maxZoom ?? 1
+	)
+}
+
+export function centerGraphBoundsPan(
+	bounds: GraphBounds,
+	viewport: GraphViewportSize,
+	zoom: number
+): GraphPoint {
+	return {
+		x: (viewport.width - bounds.width * zoom) / 2 - bounds.minX * zoom,
+		y: (viewport.height - bounds.height * zoom) / 2 - bounds.minY * zoom,
+	}
+}
+
+export function graphScrollTargetForBounds(bounds: Pick<GraphBounds, "minX" | "minY">, zoom: number, padding = 0): GraphPoint {
+	return {
+		x: Math.max(0, bounds.minX * zoom - padding),
+		y: Math.max(0, bounds.minY * zoom - padding),
+	}
 }
 
 export function graphIssuesToMessages(issues: GraphIssue[]) {

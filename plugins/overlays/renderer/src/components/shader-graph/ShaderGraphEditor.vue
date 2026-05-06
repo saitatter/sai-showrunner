@@ -285,10 +285,12 @@ import {
 	CollapsibleContextMenu,
 } from "showrunner-ui-core"
 import {
+	centerGraphBoundsPan,
 	collectRenderedGraphPortPositions,
 	evaluateGraphRuntime,
 	findNearestGraphPort,
 	graphBezierPath,
+	graphFitZoom,
 	graphPointFromClient,
 	graphPortPositionKey,
 	graphSkinStyle,
@@ -510,12 +512,11 @@ function fitGraph() {
 	const minY = Math.min(...graphNodes.value.map((n) => n.y))
 	const maxX = Math.max(...graphNodes.value.map((n) => n.x + NODE_W))
 	const maxY = Math.max(...graphNodes.value.map((n) => n.y + 160))
-	const w = maxX - minX
-	const h = maxY - minY
 	const cw = canvas.clientWidth
 	const ch = canvas.clientHeight
-	zoom.value = Math.min(1, Math.min(cw / (w + 80), ch / (h + 80)))
-	pan.value = { x: (cw - w * zoom.value) / 2 - minX * zoom.value, y: (ch - h * zoom.value) / 2 - minY * zoom.value }
+	const bounds = { minX, minY, width: maxX - minX, height: maxY - minY }
+	zoom.value = graphFitZoom(bounds, { width: cw, height: ch }, { padding: 80, maxZoom: 1 })
+	pan.value = centerGraphBoundsPan(bounds, { width: cw, height: ch }, zoom.value)
 }
 
 // ─── Node Drag ───────────────────────────────────────────────────────

@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest"
 import {
 	findNearestGraphPort,
+	centerGraphBoundsPan,
+	clampGraphZoom,
 	evaluateGraphRuntime,
 	graphBezierPath,
 	graphDistance,
+	graphFitZoom,
 	graphPointFromClient,
 	graphPortPositionKey,
 	graphSkinStyle,
+	graphScrollTargetForBounds,
 	graphValidationFromIssues,
 	graphWireId,
 	oppositeGraphPortKind,
@@ -34,6 +38,17 @@ describe("graph geometry helpers", () => {
 	it("builds cubic bezier wire paths", () => {
 		expect(graphBezierPath(10, 20, 110, 40)).toBe("M 10 20 C 70 20, 50 40, 110 40")
 		expect(graphBezierPath(10, 20, 40, 40, { minControl: 50 })).toBe("M 10 20 C 60 20, -10 40, 40 40")
+	})
+
+	it("calculates shared viewport zoom and pan", () => {
+		const bounds = { minX: 100, minY: 50, width: 400, height: 200 }
+		const viewport = { width: 1000, height: 600 }
+		const zoom = graphFitZoom(bounds, viewport, { padding: 80, maxZoom: 1 })
+
+		expect(clampGraphZoom(1.234, 0.25, 2)).toBe(1.23)
+		expect(zoom).toBe(1)
+		expect(centerGraphBoundsPan(bounds, viewport, zoom)).toEqual({ x: 200, y: 150 })
+		expect(graphScrollTargetForBounds(bounds, zoom, 28)).toEqual({ x: 72, y: 22 })
 	})
 
 	it("converts client positions into graph space", () => {
