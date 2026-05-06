@@ -15,6 +15,17 @@ export interface ShaderGraphStarter {
 	description: string
 }
 
+export interface ShaderGraphClipboard {
+	nodes: ShaderNodeInstance[]
+	wires: ShaderWire[]
+}
+
+export interface ShaderGraphPasteResult {
+	nodes: ShaderNodeInstance[]
+	wires: ShaderWire[]
+	selectedNodeIds: string[]
+}
+
 export const SHADER_GRAPH_STARTERS: ShaderGraphStarter[] = [
 	{ id: "procedural-terrain", name: "Procedural Terrain", description: "FBM terrain with altitude bands and simple sunlight." },
 	{ id: "nebula", name: "Nebula", description: "Warped cloud colors for atmospheric overlays." },
@@ -88,6 +99,57 @@ export function cloneShaderGraph(graph: ShaderGraph): ShaderGraph {
 		})),
 		outputNodeId: graph.outputNodeId,
 	}
+}
+
+export function copyShaderGraphSelection(graph: ShaderGraph, selectedNodeIds: Iterable<string>): ShaderGraphClipboard | undefined {
+	const selectedIds = new Set(selectedNodeIds)
+	if (!selectedIds.size) return undefined
+	const nodes = graph.nodes
+		.filter((node) => selectedIds.has(node.id))
+		.map((node) => ({
+			id: node.id,
+			defId: node.defId,
+			x: node.x,
+			y: node.y,
+			inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined,
+		}))
+	if (!nodes.length) return undefined
+	const wires = graph.wires
+		.filter((wire) => selectedIds.has(wire.fromNode) && selectedIds.has(wire.toNode))
+		.map((wire) => ({ ...wire }))
+	return { nodes, wires }
+}
+
+export function pasteShaderGraphSelection(
+	clipboard: ShaderGraphClipboard,
+	createNodeId: () => string,
+	offset = 36
+): ShaderGraphPasteResult {
+	const idMap = new Map<string, string>()
+	const nodes = clipboard.nodes.map((node) => {
+		const id = createNodeId()
+		idMap.set(node.id, id)
+		return {
+			id,
+			defId: node.defId,
+			x: node.x + offset,
+			y: node.y + offset,
+			inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined,
+		}
+	})
+	const wires = clipboard.wires.flatMap((wire) => {
+		const fromNode = idMap.get(wire.fromNode)
+		const toNode = idMap.get(wire.toNode)
+		if (!fromNode || !toNode) return []
+		return [{
+			id: `${fromNode}:${wire.fromPort}->${toNode}:${wire.toPort}`,
+			fromNode,
+			fromPort: wire.fromPort,
+			toNode,
+			toPort: wire.toPort,
+		}]
+	})
+	return { nodes, wires, selectedNodeIds: nodes.map((node) => node.id) }
 }
 
 export function normalizeShaderGraph(value: unknown): ShaderGraph {

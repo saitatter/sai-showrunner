@@ -3,10 +3,12 @@ import {
 	SHADER_GRAPH_STARTERS,
 	applyCompiledShaderGraph,
 	collectShaderUniformBindings,
+	copyShaderGraphSelection,
 	createDefaultShaderGraph,
 	createShaderGraphStarter,
 	normalizeShaderGraph,
 	hasLegacyCustomShaderWithoutGraph,
+	pasteShaderGraphSelection,
 	persistShaderGraph,
 	type ShaderLayerGraphConfig,
 } from "./shader-graph-state"
@@ -107,6 +109,29 @@ describe("shader graph config state", () => {
 			width: 360,
 			height: 220,
 		}])
+	})
+
+	it("copies and pastes selected shader nodes with internal wires", () => {
+		const graph = createDefaultShaderGraph()
+		const clipboard = copyShaderGraphSelection(graph, ["accent", "gradient", "output", "missing"])
+		let index = 0
+		const pasted = pasteShaderGraphSelection(clipboard!, () => `pasted-${index++}`)
+
+		expect(clipboard?.nodes.map((node) => node.id)).toEqual(["accent", "gradient", "output"])
+		expect(clipboard?.wires.map((wire) => wire.id)).toEqual([
+			"accent:color->gradient:a",
+			"gradient:result->output:color",
+		])
+		expect(pasted.selectedNodeIds).toEqual(["pasted-0", "pasted-1", "pasted-2"])
+		expect(pasted.nodes.map((node) => ({ id: node.id, x: node.x, y: node.y }))).toEqual([
+			{ id: "pasted-0", x: 296, y: 56 },
+			{ id: "pasted-1", x: 556, y: 216 },
+			{ id: "pasted-2", x: 816, y: 226 },
+		])
+		expect(pasted.wires).toEqual([
+			{ id: "pasted-0:color->pasted-1:a", fromNode: "pasted-0", fromPort: "color", toNode: "pasted-1", toPort: "a" },
+			{ id: "pasted-1:result->pasted-2:color", fromNode: "pasted-1", fromPort: "result", toNode: "pasted-2", toPort: "color" },
+		])
 	})
 
 	it("collects runtime bindings from uniform parameter nodes", () => {

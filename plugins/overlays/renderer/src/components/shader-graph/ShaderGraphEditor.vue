@@ -810,12 +810,21 @@ import {
 	type ShaderNodeInstance,
 	type ShaderNodeDef,
 	type ShaderFrame,
-	type ShaderWire,
 	type GlslType,
 	type ShaderColorRampStop,
 	type ShaderUniformValueMap,
 } from "./shader-nodes"
-import { SHADER_GRAPH_STARTERS, collectShaderUniformBindings, createDefaultShaderGraph, createShaderGraphStarter, cloneShaderGraph, normalizeShaderGraph } from "./shader-graph-state"
+import {
+	SHADER_GRAPH_STARTERS,
+	collectShaderUniformBindings,
+	copyShaderGraphSelection,
+	createDefaultShaderGraph,
+	createShaderGraphStarter,
+	cloneShaderGraph,
+	normalizeShaderGraph,
+	pasteShaderGraphSelection,
+	type ShaderGraphClipboard,
+} from "./shader-graph-state"
 import type { ShaderUniformBindingMap } from "showrunner-plugin-overlays-shared"
 
 const props = defineProps<{
@@ -1989,12 +1998,7 @@ function openPalette(e: MouseEvent) {
 }
 
 let nodeCounter = 0
-interface CopiedShaderSelection {
-	nodes: ShaderNodeInstance[]
-	wires: ShaderWire[]
-}
-
-let copiedSelection: CopiedShaderSelection | undefined
+let copiedSelection: ShaderGraphClipboard | undefined
 function addNode(defId: string) {
 	addNodeAt(defId, {
 		x: Math.round((palettePos.value.x - pan.value.x) / zoom.value),
@@ -2020,55 +2024,21 @@ function addNodeAt(defId: string, position: { x: number; y: number }) {
 	autoCompile()
 }
 
-function cloneNodeForPaste(node: ShaderNodeInstance, id: string, offset = 36): ShaderNodeInstance {
-	return {
-		id,
-		defId: node.defId,
-		x: node.x + offset,
-		y: node.y + offset,
-		inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined,
-	}
-}
-
 function copySelectedNodes() {
 	const selectedIds = selectedNodeIds.value.size
 		? selectedNodeIds.value
 		: selectedNode.value
 			? new Set([selectedNode.value.id])
 			: new Set<string>()
-	if (!selectedIds.size) return
-	const nodes = graph.value.nodes
-		.filter((node) => selectedIds.has(node.id))
-		.map((node) => ({ ...node, inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined }))
-	const wires = graph.value.wires
-		.filter((wire) => selectedIds.has(wire.fromNode) && selectedIds.has(wire.toNode))
-		.map((wire) => ({ ...wire }))
-	copiedSelection = { nodes, wires }
+	copiedSelection = copyShaderGraphSelection(graph.value, selectedIds)
 }
 
 function pasteCopiedNodes() {
 	if (!copiedSelection?.nodes.length) return
-	const idMap = new Map<string, string>()
-	const pastedNodes = copiedSelection.nodes.map((node) => {
-		const id = `sn_${Date.now()}_${nodeCounter++}`
-		idMap.set(node.id, id)
-		return cloneNodeForPaste(node, id)
-	})
-	const pastedWires = copiedSelection.wires.flatMap((wire) => {
-		const fromNode = idMap.get(wire.fromNode)
-		const toNode = idMap.get(wire.toNode)
-		if (!fromNode || !toNode) return []
-		const endpoints = {
-			fromNode,
-			fromPort: wire.fromPort,
-			toNode,
-			toPort: wire.toPort,
-		}
-		return [{ ...endpoints, id: graphWireId(endpoints) }]
-	})
-	graph.value.nodes.push(...pastedNodes)
-	graph.value.wires.push(...pastedWires)
-	setSelectedNodeIds(pastedNodes.map((node) => node.id), pastedNodes[0]?.id)
+	const pasted = pasteShaderGraphSelection(copiedSelection, () => `sn_${Date.now()}_${nodeCounter++}`)
+	graph.value.nodes.push(...pasted.nodes)
+	graph.value.wires.push(...pasted.wires)
+	setSelectedNodeIds(pasted.selectedNodeIds, pasted.selectedNodeIds[0])
 	emitGraphUpdate()
 	scheduleLayoutRefresh()
 	autoCompile()
