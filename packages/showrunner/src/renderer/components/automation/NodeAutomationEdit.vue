@@ -885,6 +885,7 @@ const {
 	deleteSelectedAction,
 	insertAction,
 } = useGraphActions({
+	model,
 	activeGraph,
 	selectedActionInfo,
 	selectedNode,

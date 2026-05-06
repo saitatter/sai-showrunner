@@ -169,7 +169,7 @@ export function ipcParseSchema(ipcSchema: IPCSchema): Schema {
 		return {
 			...ipcSchema,
 			type: markRaw(Array),
-			items: ipcParseSchema("items" in ipcSchema ? ipcSchema.items : { type: "Object", properties: {} }),
+			items: ipcParseSchema("items" in ipcSchema ? ipcSchema.items : ipcFallbackArrayItemSchema(ipcSchema.name ?? "array")),
 			...ipcParseSchemaDefault(ipcSchema),
 		}
 	} else if (ipcSchema.type === "Resource" && "resourceType" in ipcSchema) {

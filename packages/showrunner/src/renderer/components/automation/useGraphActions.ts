@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid"
 import type { ComputedRef, Ref, WritableComputedRef } from "vue"
 import type { ActionDefinition, ActionSelection } from "showrunner-ui-core"
-import { constructDefault, type ActionInfo, type AutomationDataWire, type AutomationGraph, type GraphNode } from "showrunner-schema"
+import { constructDefault, type ActionInfo, type AutomationConfig, type AutomationDataWire, type AutomationGraph, type GraphNode } from "showrunner-schema"
 import {
 	addGraphActionNode as addGraphActionNodeToGraph,
 	insertActionInGraph,
@@ -32,6 +32,7 @@ interface GraphActionPluginStoreLike {
 }
 
 interface UseGraphActionsOptions {
+	model: Ref<AutomationConfig>
 	activeGraph: ComputedRef<AutomationGraph | undefined>
 	selectedActionInfo: ComputedRef<Extract<GraphNode, { type: "action" }> | undefined>
 	selectedNode: ComputedRef<NodeData | undefined>
@@ -62,6 +63,7 @@ interface UseGraphActionsOptions {
 
 export function useGraphActions(options: UseGraphActionsOptions) {
 	const {
+		model,
 		activeGraph,
 		selectedActionInfo,
 		selectedNode,
@@ -236,7 +238,7 @@ export function useGraphActions(options: UseGraphActionsOptions) {
 	function deleteSelectedAction() {
 		const idsToDelete = selectedNodeIds.value.size > 1
 			? [...selectedNodeIds.value].filter((id) => id !== "trigger")
-			: selectedActionInfo.value ? [selectedNodeId.value!] : []
+			: isSelectedGraphNodeDeletable() ? [selectedNodeId.value!] : []
 
 		if (idsToDelete.length === 0) return
 
@@ -291,6 +293,9 @@ export function useGraphActions(options: UseGraphActionsOptions) {
 		if (!graph) return
 		const idSet = new Set(ids)
 		graph.nodes = graph.nodes.filter((node) => !idSet.has(node.id))
+		if (graph === model.value.graph && model.value.triggerNodes) {
+			model.value.triggerNodes = model.value.triggerNodes.filter((node) => !idSet.has(node.id))
+		}
 		graph.edges = graph.edges.filter((edge) => !idSet.has(edge.from) && !idSet.has(edge.to))
 		dataWires.value = dataWires.value.filter((wire) => !idSet.has(wire.fromNode) && !idSet.has(wire.toNode))
 		if (graph.entryNodeId && idSet.has(graph.entryNodeId)) {
@@ -298,6 +303,13 @@ export function useGraphActions(options: UseGraphActionsOptions) {
 		}
 		clearSelection()
 		commitUndo()
+	}
+
+	function isSelectedGraphNodeDeletable() {
+		if (!selectedNodeId.value || selectedNodeId.value === "trigger") return false
+		if (selectedActionInfo.value) return true
+		const node = selectedNode.value
+		return Boolean(node && node.kind === "trigger")
 	}
 
 	async function createDraggedAction(event: DragEvent) {

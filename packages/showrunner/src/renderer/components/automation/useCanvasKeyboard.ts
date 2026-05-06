@@ -95,9 +95,9 @@ export function useCanvasKeyboard(options: UseCanvasKeyboardOptions) {
 		}
 
 		if (event.key === "Delete" || event.key === "Backspace") {
-			const hasMultipleActionNodes = selectedNodeIds.value.size > 1 &&
-				[...selectedNodeIds.value].some((id) => id !== "trigger" && activeGraph.value?.nodes.some((node) => node.id === id))
-			if (canEditSelectedAction.value || hasMultipleActionNodes) {
+			const hasDeletableNodes = [...selectedNodeIds.value].some((id) => id !== "trigger")
+			const hasSelectedExplicitTrigger = selectedNode.value?.kind === "trigger" && selectedNode.value.id !== "trigger"
+			if (canEditSelectedAction.value || hasDeletableNodes || hasSelectedExplicitTrigger) {
 				event.preventDefault()
 				deleteSelectedAction()
 			} else if (selectedNode.value?.kind === "variable") {

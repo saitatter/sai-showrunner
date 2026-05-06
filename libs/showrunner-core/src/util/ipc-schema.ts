@@ -112,9 +112,7 @@ export function ipcRegisterSchema<T extends Schema>(schema: T, path: string, top
 			ipcRegisterSchema(properties[key], `${path}_${key}`, topLevelSchema ?? schema)
 		}
 	} else if (schema.type === Array) {
-		if ("items" in schema) {
-			ipcRegisterSchema(schema.items, `${path}_items`, topLevelSchema ?? schema)
-		}
+		ipcRegisterSchema("items" in schema ? schema.items : schemaFallbackArrayItemSchema(path), `${path}_items`, topLevelSchema ?? schema)
 	} else if (isResourceConstructor(schema.type)) {
 		registerIPCDefault(schema, path)
 	} else {
@@ -162,7 +160,7 @@ export function ipcConvertSchema<T extends Schema>(schema: T, path: string): IPC
 	} else if (schema.type === Array) {
 		const items = "items" in schema
 			? ipcConvertSchema(schema.items, `${path}_items`)
-			: ipcFallbackArrayItemSchema(path)
+			: ipcConvertSchema(schemaFallbackArrayItemSchema(path), `${path}_items`)
 		return {
 			...schema,
 			...convertIPCDefault(schema, path),
@@ -192,9 +190,9 @@ export function ipcConvertSchema<T extends Schema>(schema: T, path: string): IPC
 	}
 }
 
-function ipcFallbackArrayItemSchema(path: string): IPCSchema {
+function schemaFallbackArrayItemSchema(path: string): Schema {
 	globalLogger.warn(`Array schema at ${path} is missing an items definition; using unknown object items.`)
-	return { type: "Object", name: "Unknown item", properties: {} }
+	return { type: Object, name: "Unknown item", properties: {} }
 }
 
 export function ipcConvertDynamicSchema<T extends Schema>(schema: T | ((...args: any[]) => Promise<T>), path: string) {
@@ -452,7 +450,7 @@ export function ipcParseSchema(ipcSchema: IPCSchema): Schema {
 		return {
 			...ipcSchema,
 			type: Array,
-			items: ipcParseSchema("items" in ipcSchema ? ipcSchema.items : { type: "Object", properties: {} }),
+			items: ipcParseSchema("items" in ipcSchema ? ipcSchema.items : ipcFallbackArrayItemSchema(ipcSchema.name ?? "array")),
 			...ipcParseSchemaDefault(ipcSchema),
 		}
 	} else if (ipcSchema.type === "Resource" && "resourceType" in ipcSchema) {
@@ -477,6 +475,11 @@ export function ipcParseSchema(ipcSchema: IPCSchema): Schema {
 			type,
 		}
 	}
+}
+
+function ipcFallbackArrayItemSchema(path: string): IPCSchema {
+	globalLogger.warn(`IPC array schema at ${path} is missing an items definition; using unknown object items.`)
+	return { type: "Object", name: "Unknown item", properties: {} }
 }
 
 export function ipcParseDynamicSchema(ipcSchema: IPCSchema | string): Schema | ((...args: any[]) => Promise<Schema>) {
