@@ -1,4 +1,5 @@
 import type { ComputedRef, Ref } from "vue"
+import { useGraphSelection } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import type { NodePosition } from "./useNodeCanvas"
 import { NODE_WIDTH, type NodeData } from "./useNodeRendering"
 
@@ -43,44 +44,38 @@ export function useCanvasSelection(options: UseCanvasSelectionOptions) {
 		startPan,
 		getCanvasPointFromClientPosition,
 	} = options
+	const graphSelection = useGraphSelection({
+		selectedNodeId,
+		selectedNodeIds,
+		getNodeIds: () => nodes.value.map((node) => node.id),
+	})
 
 	function selectNode(event: MouseEvent | PointerEvent, nodeId: string) {
 		selectedEdgeId.value = undefined
 		selectedDataWireId.value = undefined
 		selectedAnnotationBlockId.value = undefined
 		if (event.ctrlKey || event.metaKey) {
-			const next = new Set(selectedNodeIds.value)
-			if (next.has(nodeId)) {
-				next.delete(nodeId)
-				selectedNodeId.value = next.size > 0 ? [...next][next.size - 1] : undefined
-			} else {
-				next.add(nodeId)
-				selectedNodeId.value = nodeId
-			}
-			selectedNodeIds.value = next
+			graphSelection.toggleNodeSelection(nodeId)
 			return
 		}
 		focusNode(nodeId)
 	}
 
 	function focusNode(nodeId: string) {
-		selectedNodeId.value = nodeId
-		selectedNodeIds.value = new Set([nodeId])
+		graphSelection.selectOnlyNode(nodeId)
 		selectedEdgeId.value = undefined
 		selectedAnnotationBlockId.value = undefined
 	}
 
 	function clearSelection() {
-		selectedNodeId.value = undefined
-		selectedNodeIds.value = new Set()
+		graphSelection.clearNodeSelection()
 		selectedEdgeId.value = undefined
 		selectedDataWireId.value = undefined
 		selectedAnnotationBlockId.value = undefined
 	}
 
 	function clearNodeSelection() {
-		selectedNodeId.value = undefined
-		selectedNodeIds.value = new Set()
+		graphSelection.clearNodeSelection()
 		selectedAnnotationBlockId.value = undefined
 	}
 
@@ -150,8 +145,7 @@ export function useCanvasSelection(options: UseCanvasSelectionOptions) {
 					ids.add(node.id)
 				}
 			}
-			selectedNodeIds.value = ids
-			selectedNodeId.value = ids.size > 0 ? [...ids][0] : undefined
+			graphSelection.setSelectedNodeIds(ids)
 		}
 
 		function onUp(upEvent: PointerEvent) {
