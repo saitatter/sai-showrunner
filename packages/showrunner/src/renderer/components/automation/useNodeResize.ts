@@ -1,8 +1,8 @@
-import type { ComputedRef, Ref } from "vue"
+import type { Ref } from "vue"
 import { computeNodeHeight, NODE_WIDTH, type NodeData } from "./useNodeRendering"
 
 interface UseNodeResizeOptions {
-	nodeSizes: ComputedRef<Record<string, { width?: number; height?: number }>>
+	nodeSizes: Ref<Record<string, { width?: number; height?: number }>>
 	zoom: Ref<number>
 	commitUndo: () => void
 }

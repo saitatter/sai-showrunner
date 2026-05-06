@@ -30,7 +30,7 @@ interface UseAnnotationBlocksOptions {
 	nodes: ComputedRef<NodeData[]>
 	selectedAnnotationBlockId: Ref<string | undefined>
 	selectedNodeIds: Ref<Set<string>>
-	nodePositions: ComputedRef<Record<string, NodePosition>>
+	nodePositions: Ref<Record<string, NodePosition>>
 	getZoom: () => number
 	snapCoordinate: (value: number) => number
 	getViewport: () => { x: number; y: number }
@@ -76,10 +76,13 @@ export function useAnnotationBlocks({
 			y,
 			width: selectedBounds ? Math.max(360, Math.ceil(selectedBounds.width + padding * 2)) : 360,
 			height: selectedBounds ? Math.max(200, Math.ceil(selectedBounds.height + padding * 2)) : 200,
-			nodeIds: selectedNodeIdsInGraph.length ? selectedNodeIdsInGraph : undefined,
+			nodeIds: [],
 		}
 
 		annotationBlocks.value.push(block)
+		if (selectedNodeIdsInGraph.length) {
+			moveGraphFrameMembers(annotationBlocks.value, selectedNodeIdsInGraph, block.id)
+		}
 		selectAnnotationBlock(block.id)
 		commitUndo()
 	}

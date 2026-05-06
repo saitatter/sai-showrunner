@@ -410,15 +410,25 @@ const {
 	commitUndo,
 })
 
-const nodePositions = computed(() => {
-	if (!view.value) return {}
-	view.value.nodePositions ??= {}
-	return view.value.nodePositions
+const nodePositions = computed({
+	get: () => {
+		if (!view.value) return {}
+		view.value.nodePositions ??= {}
+		return view.value.nodePositions
+	},
+	set: (positions) => {
+		if (view.value) view.value.nodePositions = positions
+	},
 })
-const nodeSizes = computed(() => {
-	if (!view.value) return {}
-	view.value.nodeSizes ??= {}
-	return view.value.nodeSizes!
+const nodeSizes = computed({
+	get: () => {
+		if (!view.value) return {}
+		view.value.nodeSizes ??= {}
+		return view.value.nodeSizes!
+	},
+	set: (sizes) => {
+		if (view.value) view.value.nodeSizes = sizes
+	},
 })
 const dataWires = computed({
 	get: () => {

@@ -10,7 +10,7 @@ function createAnnotationBlocks() {
 		{ id: "node-a", x: 120, y: 130, height: 80, width: 220 },
 		{ id: "node-b", x: 180, y: 170, height: 80, width: 220 },
 	])
-	const nodePositions = computed(() => ({} as Record<string, { x: number; y: number }>))
+	const nodePositions = ref({} as Record<string, { x: number; y: number }>)
 	let commitCount = 0
 	const blocks = useAnnotationBlocks({
 		view,
@@ -78,6 +78,20 @@ describe("useAnnotationBlocks", () => {
 			height: 290,
 			nodeIds: ["node-a", "node-b"],
 		})
+	})
+
+	it("moves selected nodes out of existing blocks when creating a new block from selection", () => {
+		const { blocks, view, selectedNodeIds } = createAnnotationBlocks()
+
+		blocks.addAnnotationBlock({ x: 100, y: 100 })
+		const firstBlockId = view.value.annotationBlocks![0].id
+		blocks.addNodesToAnnotationBlock(firstBlockId, ["node-a", "node-b"])
+		selectedNodeIds.value = new Set(["node-a"])
+
+		blocks.addAnnotationBlock()
+
+		expect(view.value.annotationBlocks![0].nodeIds).toEqual(["node-b"])
+		expect(view.value.annotationBlocks![1].nodeIds).toEqual(["node-a"])
 	})
 
 	it("adds the current node selection to the selected annotation block", () => {
