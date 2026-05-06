@@ -294,7 +294,7 @@ import {
 	oppositeGraphPortKind,
 	resolveGraphWireEndpoints,
 	type GraphPortCandidate,
-} from "showrunner-ui-core/src/util/graph"
+} from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import {
 	SHADER_NODE_DEFS,
 	SHADER_NODE_DEF_MAP,

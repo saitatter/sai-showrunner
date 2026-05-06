@@ -10,7 +10,7 @@ import {
 	resolveGraphWireEndpoints,
 	type GraphPortCandidate,
 	type GraphPoint,
-} from "showrunner-ui-core/src/util/graph"
+} from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 
 /**
  * A data-flow connection between an output port of one node and an input port of another.
