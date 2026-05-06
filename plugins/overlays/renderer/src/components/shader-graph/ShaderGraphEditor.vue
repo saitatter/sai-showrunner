@@ -3,6 +3,53 @@
 		<header class="shader-graph__toolbar">
 			<h3><i class="mdi mdi-magic-staff" /> Shader Graph</h3>
 			<div class="shader-graph__toolbar-actions">
+				<button type="button" class="shader-graph__tool-button" @click="zoomOut" v-tooltip="'Zoom out'">
+					<i class="mdi mdi-magnify-minus-outline" />
+				</button>
+				<span class="shader-graph__zoom-label">{{ zoomLabel }}</span>
+				<button type="button" class="shader-graph__tool-button" @click="zoomIn" v-tooltip="'Zoom in'">
+					<i class="mdi mdi-magnify-plus-outline" />
+				</button>
+				<button type="button" class="shader-graph__tool-button" @click="fitGraph" v-tooltip="'Fit graph'">
+					<i class="mdi mdi-fit-to-screen-outline" />
+				</button>
+				<button type="button" class="shader-graph__tool-button" :disabled="!selectedNode" @click="fitSelection" v-tooltip="'Fit selected node'">
+					<i class="mdi mdi-selection-search" />
+				</button>
+				<button type="button" class="shader-graph__tool-button" @click="resetGraph" v-tooltip="'Reset graph'">
+					<i class="mdi mdi-restore" />
+				</button>
+				<button
+					type="button"
+					class="shader-graph__tool-button"
+					:class="{ active: showGrid }"
+					@click="showGrid = !showGrid"
+					v-tooltip="'Toggle grid'"
+				>
+					<i class="mdi mdi-grid" />
+				</button>
+				<button
+					type="button"
+					class="shader-graph__tool-button"
+					:class="{ active: snapToGrid }"
+					@click="snapToGrid = !snapToGrid"
+					v-tooltip="'Snap to grid'"
+				>
+					<i class="mdi mdi-grid-large" />
+				</button>
+				<button type="button" class="shader-graph__tool-button" @click="layoutGraphByCategory" v-tooltip="'Auto layout'">
+					<i class="mdi mdi-sitemap-outline" />
+				</button>
+				<button
+					type="button"
+					class="shader-graph__tool-button"
+					:class="{ active: showMinimap }"
+					@click="showMinimap = !showMinimap"
+					v-tooltip="'Toggle minimap'"
+				>
+					<i class="mdi mdi-selection-ellipse-arrow-inside" />
+				</button>
+				<span class="shader-graph__toolbar-divider" />
 				<label class="shader-graph__toolbar-control" v-tooltip="'Preview quality'">
 					<i class="mdi mdi-speedometer" />
 					<select v-model="shaderQualityPreset" @change="applyQualityPreset">
@@ -27,20 +74,15 @@
 				<button type="button" :disabled="!selectedStarterId" @click="loadSelectedStarter" v-tooltip="'Load starter graph'">
 					<i class="mdi mdi-file-replace-outline" />
 				</button>
-				<button type="button" @click="compileAndApply" v-tooltip="'Compile & Apply'">
-					<i class="mdi mdi-play" /> Compile
+				<span class="shader-graph__toolbar-divider" />
+				<button type="button" class="shader-graph__tool-button" @click="sidePanelTab = 'code'" :class="{ active: sidePanelTab === 'code' }" v-tooltip="'Show GLSL'">
+					<i class="mdi mdi-code-tags" />
 				</button>
-				<button type="button" @click="fitGraph" v-tooltip="'Fit graph'">
-					<i class="mdi mdi-fit-to-screen-outline" />
+				<button type="button" class="shader-graph__tool-button shader-graph__tool-button--run" @click="compileAndApply" v-tooltip="'Compile & Apply'">
+					<i class="mdi mdi-play" />
 				</button>
-				<button type="button" :disabled="!selectedNode" @click="fitSelection" v-tooltip="'Fit selected node'">
-					<i class="mdi mdi-selection-search" />
-				</button>
-				<button type="button" @click="resetGraph" v-tooltip="'Reset graph'">
-					<i class="mdi mdi-restore" />
-				</button>
-				<button type="button" @click="sidePanelTab = 'code'" :class="{ active: sidePanelTab === 'code' }">
-					<i class="mdi mdi-code-tags" /> GLSL
+				<button type="button" class="shader-graph__tool-button" @click="stopPreview" v-tooltip="'Stop preview'">
+					<i class="mdi mdi-stop" />
 				</button>
 				<button type="button" class="shader-graph__close" @click="emit('close')">
 					<i class="mdi mdi-close" /> Close
@@ -73,6 +115,7 @@
 			<section
 				ref="canvasRef"
 				class="shader-graph__canvas"
+				:class="{ 'shader-graph__canvas--grid': showGrid }"
 				@pointerdown="onCanvasPointerDown"
 				@contextmenu.prevent="openPalette"
 				@wheel.ctrl.prevent="onZoom"
@@ -174,7 +217,7 @@
 					</div>
 				</div>
 
-				<div class="shader-graph__minimap">
+				<div v-if="showMinimap" class="shader-graph__minimap">
 					<div
 						v-for="node in minimapNodes"
 						:key="node.id"
@@ -561,6 +604,9 @@ const paletteInputRef = ref<HTMLInputElement>()
 const livePreviewCanvas = ref<HTMLCanvasElement>()
 const zoom = ref(1)
 const pan = ref({ x: 0, y: 0 })
+const showGrid = ref(true)
+const snapToGrid = ref(true)
+const showMinimap = ref(true)
 const selectedNodeId = ref<string>()
 const selectedWireId = ref<string>()
 const paletteOpen = ref(false)
@@ -664,6 +710,7 @@ const graphNodes = computed<GraphNode[]>(() =>
 
 const selectedNode = computed(() => graph.value.nodes.find((node) => node.id === selectedNodeId.value))
 const selectedNodeDef = computed(() => selectedNode.value ? SHADER_NODE_DEF_MAP.get(selectedNode.value.defId) : undefined)
+const zoomLabel = computed(() => `${Math.round(zoom.value * 100)}%`)
 
 const NODE_W = 180
 
@@ -775,8 +822,25 @@ watch(
 // ─── Pan / Zoom ──────────────────────────────────────────────────────
 function onZoom(e: WheelEvent) {
 	const step = 0.08
-	zoom.value = Math.max(0.25, Math.min(2, zoom.value + (e.deltaY > 0 ? -step : step)))
+	setZoom(zoom.value + (e.deltaY > 0 ? -step : step))
+}
+
+function setZoom(value: number) {
+	zoom.value = Math.max(0.25, Math.min(2, value))
 	scheduleLayoutRefresh()
+}
+
+function zoomIn() {
+	setZoom(zoom.value + 0.1)
+}
+
+function zoomOut() {
+	setZoom(zoom.value - 0.1)
+}
+
+function snapCoordinate(value: number) {
+	if (!snapToGrid.value) return Math.round(value)
+	return Math.round(value / 32) * 32
 }
 
 function onCanvasPointerDown(e: PointerEvent) {
@@ -846,8 +910,8 @@ function startNodeDrag(e: PointerEvent, node: GraphNode) {
 		const dy = (me.clientY - startY) / zoom.value
 		const n = graph.value.nodes.find((nd) => nd.id === node.id)
 		if (n) {
-			n.x = Math.max(0, Math.round(startNodeX + dx))
-			n.y = Math.max(0, Math.round(startNodeY + dy))
+			n.x = Math.max(0, snapCoordinate(startNodeX + dx))
+			n.y = Math.max(0, snapCoordinate(startNodeY + dy))
 			scheduleLayoutRefresh()
 		}
 	}
@@ -1158,7 +1222,7 @@ function addNodeFromPalette(defId: string) {
 function addNodeAt(defId: string, position: { x: number; y: number }) {
 	if (!canvasRef.value) return
 	const id = `sn_${Date.now()}_${nodeCounter++}`
-	graph.value.nodes.push({ id, defId, x: Math.max(0, position.x), y: Math.max(0, position.y) })
+	graph.value.nodes.push({ id, defId, x: Math.max(0, snapCoordinate(position.x)), y: Math.max(0, snapCoordinate(position.y)) })
 	if (defId === "fragment_output") graph.value.outputNodeId = id
 	emitGraphUpdate()
 	scheduleLayoutRefresh()
@@ -1262,6 +1326,33 @@ function loadSelectedStarter() {
 	autoCompile()
 	fitGraph()
 	scheduleLayoutRefresh()
+}
+
+function layoutGraphByCategory() {
+	const categoryOrder = ["Input", "Noise", "Terrain", "Vector", "Math", "Color", "Lighting", "Camera", "Utility", "Output"]
+	const buckets = new Map<string, ShaderNodeInstance[]>()
+	for (const node of graph.value.nodes) {
+		const category = SHADER_NODE_DEF_MAP.get(node.defId)?.category ?? "Utility"
+		const key = categoryOrder.includes(category) ? category : "Utility"
+		if (!buckets.has(key)) buckets.set(key, [])
+		buckets.get(key)!.push(node)
+	}
+
+	let column = 0
+	for (const category of categoryOrder) {
+		const nodes = buckets.get(category)
+		if (!nodes?.length) continue
+		nodes.sort((a, b) => a.y - b.y || a.x - b.x)
+		nodes.forEach((node, row) => {
+			node.x = 64 + column * 260
+			node.y = 80 + row * 180
+		})
+		column += 1
+	}
+	emitGraphUpdate()
+	fitGraph()
+	scheduleLayoutRefresh()
+	autoCompile()
 }
 
 function copyGlsl() {
@@ -1443,6 +1534,12 @@ function disposePreview() {
 	previewCanvas = null
 }
 
+function stopPreview() {
+	disposePreview()
+	lastPreviewGlsl.value = ""
+	previewError.value = ""
+}
+
 watch(sidePanelTab, (tab) => {
 	if (tab !== "preview") return
 	nextTick(() => {
@@ -1612,7 +1709,7 @@ function categoryColor(cat: string): string {
 
 .shader-graph__toolbar {
 	align-items: center;
-	background: #1a1a1a;
+	background: #111;
 	border-bottom: 1px solid #333;
 	display: flex;
 	gap: 1rem;
@@ -1634,7 +1731,9 @@ function categoryColor(cat: string): string {
 	align-items: center;
 	display: flex;
 	flex: 0 0 auto;
-	gap: 0.4rem;
+	gap: 0.35rem;
+	min-width: 0;
+	overflow-x: auto;
 }
 
 .shader-graph__toolbar-control {
@@ -1663,18 +1762,41 @@ function categoryColor(cat: string): string {
 	width: 3rem;
 }
 
-.shader-graph__toolbar-actions button {
-	background: #2a2a2a;
-	border: 1px solid #444;
+.shader-graph__toolbar-divider {
+	background: #333;
+	height: 1.75rem;
+	margin: 0 0.15rem;
+	width: 1px;
+}
+
+.shader-graph__zoom-label {
+	color: #eee;
+	font-size: 0.84rem;
+	font-weight: 700;
+	min-width: 3.2rem;
+	text-align: center;
+}
+
+.shader-graph__toolbar-actions button,
+.shader-graph__tool-button {
+	align-items: center;
+	background: #241433;
+	border: 1px solid #67428f;
 	border-radius: 4px;
-	color: #ccc;
+	color: #f1e7ff;
 	cursor: pointer;
+	display: inline-flex;
 	font-size: 0.78rem;
-	padding: 0.25rem 0.6rem;
+	gap: 0.25rem;
+	justify-content: center;
+	min-height: 2rem;
+	min-width: 2rem;
+	padding: 0.25rem 0.55rem;
 }
 
 .shader-graph__toolbar-actions button:hover {
-	background: #3a3a3a;
+	background: #35204a;
+	border-color: #9c6fd3;
 }
 
 .shader-graph__toolbar-actions button:disabled {
@@ -1683,8 +1805,14 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__toolbar-actions button.active {
-	background: #444;
-	border-color: #7c4dff;
+	background: #8f4bd8;
+	border-color: #c59cff;
+	color: #fff;
+}
+
+.shader-graph__tool-button--run {
+	background: #2b1746;
+	border-color: #b777ff;
 }
 
 .shader-graph__toolbar-actions .shader-graph__close {
@@ -1788,14 +1916,17 @@ function categoryColor(cat: string): string {
 
 .shader-graph__canvas {
 	background-color: #101010;
-	background-image: linear-gradient(#202020 1px, transparent 1px), linear-gradient(90deg, #202020 1px, transparent 1px);
-	background-size: 42px 42px;
 	border: 1px solid #2f2f2f;
 	flex: 1;
 	margin: 0.65rem;
 	min-width: 0;
 	overflow: auto;
 	position: relative;
+}
+
+.shader-graph__canvas--grid {
+	background-image: linear-gradient(#202020 1px, transparent 1px), linear-gradient(90deg, #202020 1px, transparent 1px);
+	background-size: 42px 42px;
 }
 
 .shader-graph__surface {
