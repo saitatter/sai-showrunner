@@ -763,6 +763,7 @@ import {
 	graphWireId,
 	oppositeGraphPortKind,
 	resolveGraphWireEndpoints,
+	useGraphSelection,
 	type GraphPortCandidate,
 	type GraphPoint,
 	type GraphRuntimeAdapter,
@@ -932,6 +933,21 @@ const graph = computed({
 	set: (v) => emit("update:modelValue", v),
 })
 
+const {
+	isNodeSelected,
+	setSelectedNodeIds,
+	selectOnlyNode,
+	toggleNodeSelection,
+	clearNodeSelection,
+} = useGraphSelection({
+	selectedNodeId,
+	selectedNodeIds,
+	getNodeIds: () => graph.value.nodes.map((node) => node.id),
+	onNodeSelectionChange: () => {
+		selectedWireId.value = undefined
+	},
+})
+
 const undoStack = ref<ShaderGraph[]>([])
 const redoStack = ref<ShaderGraph[]>([])
 let isApplyingHistory = false
@@ -1017,34 +1033,6 @@ const graphNodes = computed<GraphNode[]>(() =>
 const selectedNode = computed(() => graph.value.nodes.find((node) => node.id === selectedNodeId.value))
 const selectedNodeDef = computed(() => selectedNode.value ? SHADER_NODE_DEF_MAP.get(selectedNode.value.defId) : undefined)
 const zoomLabel = computed(() => `${Math.round(zoom.value * 100)}%`)
-
-function isNodeSelected(nodeId: string) {
-	return selectedNodeIds.value.has(nodeId)
-}
-
-function setSelectedNodeIds(ids: Iterable<string>, activeNodeId?: string) {
-	const nodeIds = new Set(graph.value.nodes.map((node) => node.id))
-	const next = new Set([...ids].filter((id) => nodeIds.has(id)))
-	selectedNodeIds.value = next
-	selectedNodeId.value = activeNodeId && next.has(activeNodeId) ? activeNodeId : [...next][0]
-	selectedWireId.value = undefined
-}
-
-function selectOnlyNode(nodeId: string) {
-	setSelectedNodeIds([nodeId], nodeId)
-}
-
-function toggleNodeSelection(nodeId: string) {
-	const next = new Set(selectedNodeIds.value)
-	if (next.has(nodeId)) next.delete(nodeId)
-	else next.add(nodeId)
-	setSelectedNodeIds(next, nodeId)
-}
-
-function clearNodeSelection() {
-	selectedNodeIds.value = new Set()
-	selectedNodeId.value = undefined
-}
 
 const NODE_W = 180
 

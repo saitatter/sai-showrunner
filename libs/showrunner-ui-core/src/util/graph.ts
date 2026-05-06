@@ -1,3 +1,5 @@
+import type { Ref } from "vue"
+
 export interface GraphPoint {
 	x: number
 	y: number
@@ -91,6 +93,13 @@ export interface GraphPortPositionOptions {
 	nodeIdDatasetKey: string
 	portKeyDatasetKey: string
 	kindDatasetKey: string
+}
+
+export interface GraphSelectionOptions {
+	selectedNodeId: Ref<string | undefined>
+	selectedNodeIds: Ref<Set<string>>
+	getNodeIds?: () => Iterable<string>
+	onNodeSelectionChange?: () => void
 }
 
 export function graphPortPositionKey(nodeId: string, portKey: string, kind: GraphPortKind) {
@@ -256,4 +265,52 @@ export function collectRenderedGraphPortPositions(
 		})
 	}
 	return positions
+}
+
+export function useGraphSelection(options: GraphSelectionOptions) {
+	const { selectedNodeId, selectedNodeIds, getNodeIds, onNodeSelectionChange } = options
+
+	function filterExistingNodeIds(ids: Iterable<string>) {
+		if (!getNodeIds) return new Set(ids)
+		const existing = new Set(getNodeIds())
+		return new Set([...ids].filter((id) => existing.has(id)))
+	}
+
+	function commitSelection(next: Set<string>, activeNodeId?: string) {
+		selectedNodeIds.value = next
+		selectedNodeId.value = activeNodeId && next.has(activeNodeId) ? activeNodeId : [...next][0]
+		onNodeSelectionChange?.()
+	}
+
+	function isNodeSelected(nodeId: string) {
+		return selectedNodeIds.value.has(nodeId)
+	}
+
+	function setSelectedNodeIds(ids: Iterable<string>, activeNodeId?: string) {
+		commitSelection(filterExistingNodeIds(ids), activeNodeId)
+	}
+
+	function selectOnlyNode(nodeId: string) {
+		setSelectedNodeIds([nodeId], nodeId)
+	}
+
+	function toggleNodeSelection(nodeId: string) {
+		const next = filterExistingNodeIds(selectedNodeIds.value)
+		const activeNodeId = next.has(nodeId) ? undefined : nodeId
+		if (next.has(nodeId)) next.delete(nodeId)
+		else next.add(nodeId)
+		commitSelection(next, activeNodeId ?? [...next][next.size - 1])
+	}
+
+	function clearNodeSelection() {
+		commitSelection(new Set())
+	}
+
+	return {
+		isNodeSelected,
+		setSelectedNodeIds,
+		selectOnlyNode,
+		toggleNodeSelection,
+		clearNodeSelection,
+	}
 }
