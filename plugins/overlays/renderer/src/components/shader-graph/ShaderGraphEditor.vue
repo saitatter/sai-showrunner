@@ -723,11 +723,7 @@
 				</section>
 
 				<section v-else-if="sidePanelTab === 'errors'" class="shader-graph__errors">
-					<p v-if="!compileErrors.length && !compileWarnings.length" class="shader-graph__empty-state">No shader graph issues.</p>
-					<p v-for="(err, i) in compileErrors" v-else :key="i"><i class="mdi mdi-alert" /> {{ err }}</p>
-					<p v-for="(warning, i) in compileWarnings" :key="`warning:${i}`" class="shader-graph__warning">
-						<i class="mdi mdi-alert-outline" /> {{ warning }}
-					</p>
+					<graph-issues-panel :issues="compileIssues" empty-message="No shader graph issues." />
 				</section>
 
 				<section v-else class="shader-graph__code">
@@ -748,6 +744,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import {
 	CollapsibleContextMenu,
+	GraphIssuesPanel,
 	useIpcCaller,
 } from "showrunner-ui-core"
 import {
