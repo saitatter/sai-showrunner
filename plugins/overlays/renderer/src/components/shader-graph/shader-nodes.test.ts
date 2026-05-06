@@ -213,6 +213,74 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("sr_fbm(")
 	})
 
+	it("compiles low-level noise primitive nodes", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "uv", defId: "uv", x: 0, y: 0 },
+				{ id: "ridged", defId: "ridged_fbm_noise", x: 220, y: 0 },
+				{ id: "turbulence", defId: "turbulence_noise", x: 220, y: 140 },
+				{ id: "cellular", defId: "cellular_f1_f2", x: 220, y: 280 },
+				{ id: "curl", defId: "curl_noise", x: 220, y: 420 },
+				{ id: "mix", defId: "mix_float", x: 460, y: 100 },
+				{ id: "color", defId: "vec3_compose", x: 700, y: 100 },
+				{ id: "output", defId: "fragment_output", x: 940, y: 100 },
+			],
+			wires: [
+				{ id: "uv:uv->ridged:uv", fromNode: "uv", fromPort: "uv", toNode: "ridged", toPort: "uv" },
+				{ id: "uv:uv->turbulence:uv", fromNode: "uv", fromPort: "uv", toNode: "turbulence", toPort: "uv" },
+				{ id: "uv:uv->cellular:uv", fromNode: "uv", fromPort: "uv", toNode: "cellular", toPort: "uv" },
+				{ id: "uv:uv->curl:uv", fromNode: "uv", fromPort: "uv", toNode: "curl", toPort: "uv" },
+				{ id: "ridged:value->mix:a", fromNode: "ridged", fromPort: "value", toNode: "mix", toPort: "a" },
+				{ id: "turbulence:value->mix:b", fromNode: "turbulence", fromPort: "value", toNode: "mix", toPort: "b" },
+				{ id: "cellular:edge->mix:t", fromNode: "cellular", fromPort: "edge", toNode: "mix", toPort: "t" },
+				{ id: "mix:result->color:x", fromNode: "mix", fromPort: "result", toNode: "color", toPort: "x" },
+				{ id: "cellular:f1->color:y", fromNode: "cellular", fromPort: "f1", toNode: "color", toPort: "y" },
+				{ id: "cellular:f2->color:z", fromNode: "cellular", fromPort: "f2", toNode: "color", toPort: "z" },
+				{ id: "color:result->output:color", fromNode: "color", fromPort: "result", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("float sr_ridged_fbm")
+		expect(result.glsl).toContain("float sr_turbulence")
+		expect(result.glsl).toContain("vec2 sr_cellular")
+		expect(result.glsl).toContain("vec2 sr_curl_noise")
+		expect(result.glsl).toContain("sr_ridged_fbm(")
+		expect(result.glsl).toContain("sr_turbulence(")
+		expect(result.glsl).toContain("sr_cellular(")
+		expect(result.glsl).toContain("sr_curl_noise(")
+	})
+
+	it("compiles low-level math primitive nodes", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "value", defId: "float_const", x: 0, y: 0, inputDefaults: { value: "0.35" } },
+				{ id: "remap", defId: "remap_float", x: 220, y: 0, inputDefaults: { inMin: "0.2", inMax: "0.8" } },
+				{ id: "bias", defId: "bias_gain", x: 440, y: 0, inputDefaults: { bias: "0.35", gain: "0.65" } },
+				{ id: "posterize", defId: "posterize", x: 660, y: 0, inputDefaults: { steps: "6.0" } },
+				{ id: "color", defId: "vec3_compose", x: 880, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 1100, y: 0 },
+			],
+			wires: [
+				{ id: "value:value->remap:value", fromNode: "value", fromPort: "value", toNode: "remap", toPort: "value" },
+				{ id: "remap:result->bias:value", fromNode: "remap", fromPort: "result", toNode: "bias", toPort: "value" },
+				{ id: "bias:result->posterize:value", fromNode: "bias", fromPort: "result", toNode: "posterize", toPort: "value" },
+				{ id: "posterize:result->color:x", fromNode: "posterize", fromPort: "result", toNode: "color", toPort: "x" },
+				{ id: "posterize:result->color:y", fromNode: "posterize", fromPort: "result", toNode: "color", toPort: "y" },
+				{ id: "posterize:result->color:z", fromNode: "posterize", fromPort: "result", toNode: "color", toPort: "z" },
+				{ id: "color:result->output:color", fromNode: "color", fromPort: "result", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("float sr_bias_gain")
+		expect(result.glsl).toContain("mix(0.0, 1.0, clamp(")
+		expect(result.glsl).toContain("sr_bias_gain(")
+		expect(result.glsl).toContain("floor(clamp(")
+	})
+
 	it("compiles terrain pipeline nodes", () => {
 		const result = compileShaderGraph({
 			nodes: [

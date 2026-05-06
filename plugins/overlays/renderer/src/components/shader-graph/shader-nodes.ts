@@ -333,6 +333,48 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		compile: (ins, outs) => [`${outs.result} = mix(${ins.a}, ${ins.b}, ${ins.t});`],
 	},
 	{
+		id: "remap_float",
+		name: "Remap",
+		category: "Math",
+		icon: "mdi mdi-tune-vertical",
+		inputs: [
+			{ key: "value", label: "Value", type: "float", default: "0.0" },
+			{ key: "inMin", label: "In Min", type: "float", default: "0.0" },
+			{ key: "inMax", label: "In Max", type: "float", default: "1.0" },
+			{ key: "outMin", label: "Out Min", type: "float", default: "0.0" },
+			{ key: "outMax", label: "Out Max", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "result", label: "Result", type: "float" }],
+		compile: (ins, outs) => [
+			`${outs.result} = mix(${ins.outMin}, ${ins.outMax}, clamp((${ins.value} - ${ins.inMin}) / max(${ins.inMax} - ${ins.inMin}, 0.0001), 0.0, 1.0));`,
+		],
+	},
+	{
+		id: "bias_gain",
+		name: "Bias / Gain",
+		category: "Math",
+		icon: "mdi mdi-chart-bell-curve",
+		inputs: [
+			{ key: "value", label: "Value", type: "float", default: "0.5" },
+			{ key: "bias", label: "Bias", type: "float", default: "0.5" },
+			{ key: "gain", label: "Gain", type: "float", default: "0.5" },
+		],
+		outputs: [{ key: "result", label: "Result", type: "float" }],
+		compile: (ins, outs) => [`${outs.result} = sr_bias_gain(${ins.value}, ${ins.bias}, ${ins.gain});`],
+	},
+	{
+		id: "posterize",
+		name: "Posterize",
+		category: "Math",
+		icon: "mdi mdi-stairs",
+		inputs: [
+			{ key: "value", label: "Value", type: "float", default: "0.5" },
+			{ key: "steps", label: "Steps", type: "float", default: "5.0" },
+		],
+		outputs: [{ key: "result", label: "Result", type: "float" }],
+		compile: (ins, outs) => [`${outs.result} = floor(clamp(${ins.value}, 0.0, 1.0) * max(${ins.steps} - 1.0, 1.0)) / max(${ins.steps} - 1.0, 1.0);`],
+	},
+	{
 		id: "wave",
 		name: "Wave",
 		category: "Math",
@@ -391,6 +433,38 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		compile: (ins, outs) => [`${outs.value} = sr_fbm(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.octaves}, ${ins.lacunarity}, ${ins.gain});`],
 	},
 	{
+		id: "ridged_fbm_noise",
+		name: "Ridged FBM",
+		category: "Noise",
+		icon: "mdi mdi-image-filter-hdr",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "4.0" },
+			{ key: "octaves", label: "Octaves", type: "float", default: "5.0" },
+			{ key: "lacunarity", label: "Lacunarity", type: "float", default: "2.0" },
+			{ key: "gain", label: "Gain", type: "float", default: "0.5" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "value", label: "Value", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = sr_ridged_fbm(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.octaves}, ${ins.lacunarity}, ${ins.gain});`],
+	},
+	{
+		id: "turbulence_noise",
+		name: "Turbulence",
+		category: "Noise",
+		icon: "mdi mdi-weather-windy",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "4.0" },
+			{ key: "octaves", label: "Octaves", type: "float", default: "5.0" },
+			{ key: "lacunarity", label: "Lacunarity", type: "float", default: "2.0" },
+			{ key: "gain", label: "Gain", type: "float", default: "0.5" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "value", label: "Value", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = sr_turbulence(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.octaves}, ${ins.lacunarity}, ${ins.gain});`],
+	},
+	{
 		id: "voronoi_noise",
 		name: "Voronoi",
 		category: "Noise",
@@ -403,6 +477,50 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		],
 		outputs: [{ key: "distance", label: "Distance", type: "float" }],
 		compile: (ins, outs) => [`${outs.distance} = sr_voronoi(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.jitter});`],
+	},
+	{
+		id: "cellular_f1_f2",
+		name: "Cellular F1 / F2",
+		category: "Noise",
+		icon: "mdi mdi-hexagon-slice-6",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "8.0" },
+			{ key: "jitter", label: "Jitter", type: "float", default: "0.8" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [
+			{ key: "f1", label: "F1", type: "float" },
+			{ key: "f2", label: "F2", type: "float" },
+			{ key: "edge", label: "Edge", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`vec2 ${outs.f1}_cell = sr_cellular(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.jitter});`,
+			`${outs.f1} = ${outs.f1}_cell.x;`,
+			`${outs.f2} = ${outs.f1}_cell.y;`,
+			`${outs.edge} = clamp(${outs.f2} - ${outs.f1}, 0.0, 1.0);`,
+		],
+	},
+	{
+		id: "curl_noise",
+		name: "Curl Noise",
+		category: "Noise",
+		icon: "mdi mdi-rotate-orbit",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "3.0" },
+			{ key: "strength", label: "Strength", type: "float", default: "0.2" },
+			{ key: "epsilon", label: "Epsilon", type: "float", default: "0.01" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [
+			{ key: "curl", label: "Curl", type: "vec2" },
+			{ key: "uv", label: "Warped UV", type: "vec2" },
+		],
+		compile: (ins, outs) => [
+			`${outs.curl} = sr_curl_noise(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.epsilon}) * ${ins.strength};`,
+			`${outs.uv} = ${ins.uv} + ${outs.curl};`,
+		],
 	},
 	{
 		id: "domain_warp",
@@ -1402,6 +1520,36 @@ float sr_fbm(vec2 p, float octaves, float lacunarity, float gain) {
 \treturn norm > 0.0 ? value / norm : 0.0;
 }
 
+float sr_ridged_fbm(vec2 p, float octaves, float lacunarity, float gain) {
+\tfloat value = 0.0;
+\tfloat amplitude = 0.5;
+\tfloat norm = 0.0;
+\tfor (int i = 0; i < 8; i++) {
+\t\tif (float(i) >= octaves) break;
+\t\tfloat signal = 1.0 - abs(sr_perlin_noise(p));
+\t\tsignal *= signal;
+\t\tvalue += signal * amplitude;
+\t\tnorm += amplitude;
+\t\tp *= lacunarity;
+\t\tamplitude *= gain;
+\t}
+\treturn norm > 0.0 ? clamp(value / norm, 0.0, 1.0) : 0.0;
+}
+
+float sr_turbulence(vec2 p, float octaves, float lacunarity, float gain) {
+\tfloat value = 0.0;
+\tfloat amplitude = 0.5;
+\tfloat norm = 0.0;
+\tfor (int i = 0; i < 8; i++) {
+\t\tif (float(i) >= octaves) break;
+\t\tvalue += abs(sr_perlin_noise(p)) * amplitude;
+\t\tnorm += amplitude;
+\t\tp *= lacunarity;
+\t\tamplitude *= gain;
+\t}
+\treturn norm > 0.0 ? clamp(value / norm, 0.0, 1.0) : 0.0;
+}
+
 float sr_voronoi(vec2 p, float jitter) {
 \tvec2 i = floor(p);
 \tvec2 f = fract(p);
@@ -1414,6 +1562,49 @@ float sr_voronoi(vec2 p, float jitter) {
 \t\t}
 \t}
 \treturn clamp(sqrt(nearest), 0.0, 1.0);
+}
+
+vec2 sr_cellular(vec2 p, float jitter) {
+\tvec2 i = floor(p);
+\tvec2 f = fract(p);
+\tfloat f1 = 8.0;
+\tfloat f2 = 8.0;
+\tfor (int y = -1; y <= 1; y++) {
+\t\tfor (int x = -1; x <= 1; x++) {
+\t\t\tvec2 cell = vec2(float(x), float(y));
+\t\t\tvec2 point = cell + mix(vec2(0.5), sr_hash22(i + cell), clamp(jitter, 0.0, 1.0)) - f;
+\t\t\tfloat d = dot(point, point);
+\t\t\tif (d < f1) {
+\t\t\t\tf2 = f1;
+\t\t\t\tf1 = d;
+\t\t\t} else if (d < f2) {
+\t\t\t\tf2 = d;
+\t\t\t}
+\t\t}
+\t}
+\treturn clamp(sqrt(vec2(f1, f2)), 0.0, 1.0);
+}
+
+vec2 sr_curl_noise(vec2 p, float epsilon) {
+\tfloat e = max(epsilon, 0.0001);
+\tfloat x0 = sr_fbm(p - vec2(e, 0.0), 4.0, 2.0, 0.5);
+\tfloat x1 = sr_fbm(p + vec2(e, 0.0), 4.0, 2.0, 0.5);
+\tfloat y0 = sr_fbm(p - vec2(0.0, e), 4.0, 2.0, 0.5);
+\tfloat y1 = sr_fbm(p + vec2(0.0, e), 4.0, 2.0, 0.5);
+\treturn normalize(vec2(y1 - y0, x0 - x1) / (2.0 * e));
+}
+
+float sr_bias(float value, float bias) {
+\tfloat b = clamp(bias, 0.001, 0.999);
+\tfloat x = clamp(value, 0.0, 1.0);
+\treturn x / (((1.0 / b - 2.0) * (1.0 - x)) + 1.0);
+}
+
+float sr_bias_gain(float value, float bias, float gain) {
+\tfloat biased = sr_bias(value, bias);
+\tfloat g = clamp(gain, 0.001, 0.999);
+\tif (biased < 0.5) return sr_bias(biased * 2.0, 1.0 - g) * 0.5;
+\treturn 1.0 - sr_bias(2.0 - biased * 2.0, 1.0 - g) * 0.5;
 }
 
 vec2 sr_domain_warp(vec2 p, float strength) {
