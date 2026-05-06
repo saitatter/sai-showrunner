@@ -45,6 +45,7 @@ describe("graph geometry helpers", () => {
 	it("builds cubic bezier wire paths", () => {
 		expect(graphBezierPath(10, 20, 110, 40)).toBe("M 10 20 C 70 20, 50 40, 110 40")
 		expect(graphBezierPath(10, 20, 40, 40, { minControl: 50 })).toBe("M 10 20 C 60 20, -10 40, 40 40")
+		expect(graphBezierPath(10, 20, 210, 40, { minControl: 20, controlRatio: 0.25 })).toBe("M 10 20 C 60 20, 160 40, 210 40")
 	})
 
 	it("calculates shared viewport zoom and pan", () => {

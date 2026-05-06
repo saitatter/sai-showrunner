@@ -117,6 +117,7 @@ export interface GraphPortPositionOptions {
 	nodeIdDatasetKey: string
 	portKeyDatasetKey: string
 	kindDatasetKey: string
+	nodeSelector?: string
 }
 
 export interface GraphSelectionOptions {
@@ -350,10 +351,10 @@ export function graphBezierPath(
 	y1: number,
 	x2: number,
 	y2: number,
-	options: { minControl?: number; controlScale?: number } = {}
+	options: { minControl?: number; controlRatio?: number; controlScale?: number } = {}
 ): string {
 	const dx = Math.abs(x2 - x1)
-	const cp = Math.max(options.minControl ?? 60, dx * (options.controlScale ?? 0.4))
+	const cp = Math.max(options.minControl ?? 60, dx * (options.controlRatio ?? options.controlScale ?? 0.4))
 	return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`
 }
 
@@ -386,6 +387,32 @@ export function collectRenderedGraphPortPositions(
 		})
 	}
 	return positions
+}
+
+export function collectRenderedGraphPortOffsets(
+	surface: HTMLElement,
+	zoom: number,
+	options: GraphPortPositionOptions
+) {
+	const offsets = new Map<string, GraphPoint>()
+	const elements = surface.querySelectorAll<HTMLElement>(options.selector)
+	for (const element of elements) {
+		const nodeId = element.dataset[options.nodeIdDatasetKey]
+		const portKey = element.dataset[options.portKeyDatasetKey]
+		const kind = element.dataset[options.kindDatasetKey]
+		if (!nodeId || !portKey || (kind !== "in" && kind !== "out")) continue
+
+		const nodeElement = element.closest<HTMLElement>(options.nodeSelector ?? "[data-graph-node-id]")
+		if (!nodeElement) continue
+
+		const nodeRect = nodeElement.getBoundingClientRect()
+		const portRect = element.getBoundingClientRect()
+		offsets.set(graphPortPositionKey(nodeId, portKey, kind), {
+			x: (portRect.left + portRect.width / 2 - nodeRect.left) / zoom,
+			y: (portRect.top + portRect.height / 2 - nodeRect.top) / zoom,
+		})
+	}
+	return offsets
 }
 
 export function useGraphSelection(options: GraphSelectionOptions) {
@@ -472,9 +499,9 @@ export function useGraphNodeDrag<TNode extends GraphDraggableNode>(options: Grap
 		function onMove(moveEvent: PointerEvent) {
 			const dx = (moveEvent.clientX - startX) / zoom.value
 			const dy = (moveEvent.clientY - startY) / zoom.value
-			const nodes = getNodes()
+			const nodesById = new Map(getNodes().map((candidate) => [candidate.id, candidate]))
 			for (const [id, start] of initialPositions) {
-				const item = nodes.find((candidate) => candidate.id === id)
+				const item = nodesById.get(id)
 				if (!item) continue
 				setNodePosition(item, {
 					x: Math.max(minX, snapCoordinate(start.x + dx)),
@@ -489,9 +516,9 @@ export function useGraphNodeDrag<TNode extends GraphDraggableNode>(options: Grap
 			target.removeEventListener("pointermove", onMove)
 			target.removeEventListener("pointerup", onUp)
 			target.removeEventListener("pointercancel", onUp)
-			const nodes = getNodes()
+			const nodesById = new Map(getNodes().map((candidate) => [candidate.id, candidate]))
 			const moved = [...initialPositions].some(([id, initial]) => {
-				const item = nodes.find((candidate) => candidate.id === id)
+				const item = nodesById.get(id)
 				return Boolean(item && (item.x !== initial.x || item.y !== initial.y))
 			})
 			onDragEnd?.(new Set(dragIds), moved)

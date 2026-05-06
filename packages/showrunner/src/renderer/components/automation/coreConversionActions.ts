@@ -29,16 +29,16 @@ export const CORE_CONVERSION_ACTION_DEFINITIONS: Record<string, ActionDefinition
 
 export function getCoreConversionActionDefinition(pluginId: string, actionId: string) {
 	if (normalizeActionLookupId(pluginId) !== "showrunner") return undefined
-	return CORE_CONVERSION_ACTION_DEFINITIONS[normalizeActionLookupId(actionId)]
+	return CORE_CONVERSION_ACTION_DEFINITIONS[normalizeCoreConversionActionId(actionId)]
 }
 
 export function isCoreConversionAction(pluginId: string | undefined, actionId: string | undefined) {
 	if (!pluginId || !actionId) return false
-	return normalizeActionLookupId(pluginId) === "showrunner" && normalizeActionLookupId(actionId) in CORE_CONVERSION_ACTION_DEFINITIONS
+	return normalizeActionLookupId(pluginId) === "showrunner" && normalizeCoreConversionActionId(actionId) in CORE_CONVERSION_ACTION_DEFINITIONS
 }
 
 export function defaultCoreConversionConfig(actionId: string) {
-	switch (normalizeActionLookupId(actionId)) {
+	switch (normalizeCoreConversionActionId(actionId)) {
 		case "convertnumbertostring":
 		case "convertnumbertoboolean":
 			return { value: 0 }
@@ -64,10 +64,14 @@ export function defaultCoreConversionConfig(actionId: string) {
 
 export function defaultCoreConversionResultMapping(actionId: string) {
 	const resultMapping: Record<string, string> = { value: "value" }
-	if (["convertstringtonumber", "convertstringtoboolean", "convertjsonstringtoobject", "convertjsonstringtoarray"].includes(normalizeActionLookupId(actionId))) {
+	if (["convertstringtonumber", "convertstringtoboolean", "convertjsonstringtoobject", "convertjsonstringtoarray"].includes(normalizeCoreConversionActionId(actionId))) {
 		resultMapping.converted = "converted"
 	}
 	return resultMapping
+}
+
+export function normalizeCoreConversionActionId(actionId: string) {
+	return normalizeActionLookupId(actionId).replace(/[-_]/g, "")
 }
 
 function coreConversionAction(id: string, name: string, icon: string, configProperties: Record<string, Schema>, resultProperties: Record<string, Schema>): ActionDefinition {

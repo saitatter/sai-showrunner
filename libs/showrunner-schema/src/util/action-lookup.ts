@@ -1,5 +1,5 @@
 export function normalizeActionLookupId(id: string) {
-	return id.replace(/[^a-z0-9]/gi, "").toLowerCase()
+	return id.trim().toLowerCase()
 }
 
 export function resolveRecordById<T>(record: Record<string, T> | undefined, id: string | undefined) {

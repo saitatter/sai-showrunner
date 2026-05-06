@@ -1,6 +1,6 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type ComputedRef, type Ref } from "vue"
 import {
-	collectRenderedGraphPortPositions,
+	collectRenderedGraphPortOffsets,
 	findNearestGraphPort,
 	graphBezierPath,
 	graphPointFromClient,
@@ -164,7 +164,7 @@ export function usePortConnections(
 	commitUndo: () => void
 ) {
 	const wireDrag = ref<WireDragState | null>(null)
-	const layoutVersion = ref(0)
+	const portLayoutVersion = ref(0)
 	/** Wire that was disconnected at drag start (for restoring on cancel) */
 	let disconnectedWire: DataWire | null = null
 	let layoutFrame: number | undefined
@@ -174,7 +174,7 @@ export function usePortConnections(
 		if (layoutFrame != null) cancelAnimationFrame(layoutFrame)
 		nextTick(() => {
 			layoutFrame = requestAnimationFrame(() => {
-				layoutVersion.value += 1
+				portLayoutVersion.value += 1
 				layoutFrame = undefined
 			})
 		})
@@ -194,34 +194,46 @@ export function usePortConnections(
 		resizeObserver?.disconnect()
 	})
 
-	watch(nodes, scheduleLayoutRefresh, { deep: true, flush: "post" })
-	watch(dataWires, scheduleLayoutRefresh, { deep: true, flush: "post" })
+	const portLayoutSignature = computed(() =>
+		nodes.value.map((node) => [
+			node.id,
+			node.kind,
+			node.width ?? "",
+			node.height,
+			node.configLines?.length ?? 0,
+			...(node.inputPorts ?? []).map((port) => `in:${port.key}:${port.label}:${String(port.type)}`),
+			...(node.outputPorts ?? []).map((port) => `out:${port.key}:${port.label}:${String(port.type)}`),
+		].join("|")).join("\n")
+	)
 
-	const renderedPortPositions = computed(() => {
-		layoutVersion.value
+	watch(portLayoutSignature, scheduleLayoutRefresh, { flush: "post" })
+
+	const renderedPortOffsets = computed(() => {
+		portLayoutVersion.value
 		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
 		const positions = new Map<string, GraphPoint>()
 		if (!surface) return positions
 
-		return collectRenderedGraphPortPositions(surface, zoom.value, {
+		return collectRenderedGraphPortOffsets(surface, zoom.value, {
 			selector: "[data-port-node-id]",
 			nodeIdDatasetKey: "portNodeId",
 			portKeyDatasetKey: "portKey",
 			kindDatasetKey: "portKind",
+			nodeSelector: "[data-graph-node-id]",
 		})
 	})
 
 	/** Computed: wire paths for rendering */
 	const dataWirePaths = computed(() => {
 		const byId = new Map(nodes.value.map((n) => [n.id, n]))
-		const portPositions = renderedPortPositions.value
+		const portOffsets = renderedPortOffsets.value
 		return dataWires.value.flatMap((wire) => {
 			const fromNode = byId.get(wire.fromNode)
 			const toNode = byId.get(wire.toNode)
 			if (!fromNode || !toNode) return []
 			const start =
-				getRenderedPortPosition(portPositions, wire.fromNode, wire.fromPort, "out") ?? getPortPosition(fromNode, wire.fromPort, "out")
-			const end = getRenderedPortPosition(portPositions, wire.toNode, wire.toPort, "in") ?? getPortPosition(toNode, wire.toPort, "in")
+				getRenderedPortPosition(portOffsets, fromNode, wire.fromPort, "out") ?? getPortPosition(fromNode, wire.fromPort, "out")
+			const end = getRenderedPortPosition(portOffsets, toNode, wire.toPort, "in") ?? getPortPosition(toNode, wire.toPort, "in")
 			if (!start || !end) return []
 			const fromPort = fromNode.outputPorts?.find((p) => p.key === wire.fromPort)
 			const toPort = toNode.inputPorts?.find((p) => p.key === wire.toPort)
@@ -277,8 +289,8 @@ export function usePortConnections(
 		event.preventDefault()
 		const node = nodes.value.find((n) => n.id === nodeId)
 		if (!node) return
-		const portPositions = renderedPortPositions.value
-		const pos = getRenderedPortPosition(portPositions, nodeId, portKey, kind) ?? getPortPosition(node, portKey, kind)
+		const portOffsets = renderedPortOffsets.value
+		const pos = getRenderedPortPosition(portOffsets, node, portKey, kind) ?? getPortPosition(node, portKey, kind)
 		if (!pos) return
 
 		disconnectedWire = null
@@ -290,7 +302,7 @@ export function usePortConnections(
 				const existing = dataWires.value[existingIdx]
 				const fromNode = nodes.value.find((n) => n.id === existing.fromNode)
 				const fromPos = fromNode
-					? getRenderedPortPosition(portPositions, existing.fromNode, existing.fromPort, "out") ??
+					? getRenderedPortPosition(portOffsets, fromNode, existing.fromPort, "out") ??
 						getPortPosition(fromNode, existing.fromPort, "out")
 					: undefined
 				disconnectedWire = { ...existing }
@@ -402,12 +414,12 @@ export function usePortConnections(
 
 	function getPortCandidates(targetKind: "in" | "out"): GraphPortCandidate[] {
 		const candidates: GraphPortCandidate[] = []
-		const portPositions = renderedPortPositions.value
+		const portOffsets = renderedPortOffsets.value
 		for (const node of nodes.value) {
 			const ports = targetKind === "in" ? node.inputPorts : node.outputPorts
 			if (!ports) continue
 			for (const port of ports) {
-				const position = getRenderedPortPosition(portPositions, node.id, port.key, targetKind) ?? getPortPosition(node, port.key, targetKind)
+				const position = getRenderedPortPosition(portOffsets, node, port.key, targetKind) ?? getPortPosition(node, port.key, targetKind)
 				if (!position) continue
 				candidates.push({ nodeId: node.id, portKey: port.key, kind: targetKind, position })
 			}
@@ -434,8 +446,13 @@ export function usePortConnections(
 		return { nodeId, portKey, kind: expectedKind }
 	}
 
-	function getRenderedPortPosition(positions: Map<string, GraphPoint>, nodeId: string, portKey: string, kind: "in" | "out") {
-		return positions.get(graphPortPositionKey(nodeId, portKey, kind))
+	function getRenderedPortPosition(offsets: Map<string, GraphPoint>, node: NodeData, portKey: string, kind: "in" | "out") {
+		const offset = offsets.get(graphPortPositionKey(node.id, portKey, kind))
+		if (!offset) return undefined
+		return {
+			x: node.x + offset.x,
+			y: node.y + offset.y,
+		}
 	}
 
 	function getPortDef(address: PortAddress) {

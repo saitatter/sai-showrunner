@@ -1,6 +1,7 @@
 <template>
 	<button
 		class="node-automation__node"
+		:data-graph-node-id="node.id"
 		:class="[
 			`node-automation__node--${node.kind}`,
 			{
