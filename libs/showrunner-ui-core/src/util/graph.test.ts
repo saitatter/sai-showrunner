@@ -17,6 +17,7 @@ import {
 	oppositeGraphPortKind,
 	resolveGraphWireEndpoints,
 	useGraphContextMenuGroups,
+	useGraphHistory,
 } from "./graph"
 
 describe("graph geometry helpers", () => {
@@ -138,5 +139,27 @@ describe("graph geometry helpers", () => {
 		menu.resetContextMenuGroups()
 		expect(menu.contextMenuSearch.value).toBe("")
 		expect(menu.isContextGroupOpen("data")).toBe(false)
+	})
+
+	it("tracks reusable graph history undo and redo", () => {
+		let applied = { value: "initial" }
+		const history = useGraphHistory({
+			clone: (snapshot: { value: string }) => ({ ...snapshot }),
+			apply: (snapshot) => {
+				applied = snapshot
+			},
+		})
+
+		history.recordHistory({ value: "one" })
+		history.recordHistory({ value: "two" })
+		history.recordHistory({ value: "two" })
+
+		expect(history.canUndo.value).toBe(true)
+		history.undo()
+		expect(applied).toEqual({ value: "one" })
+		expect(history.canRedo.value).toBe(true)
+
+		history.redo()
+		expect(applied).toEqual({ value: "two" })
 	})
 })
