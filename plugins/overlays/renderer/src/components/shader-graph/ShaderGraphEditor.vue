@@ -74,8 +74,9 @@
 						<path
 							v-if="dragWire"
 							class="shader-graph__wire shader-graph__wire--dragging"
+							:class="{ 'shader-graph__wire--invalid': !dragWire.valid }"
 							:d="dragWire.path"
-							stroke="#fff8"
+							:stroke="dragWire.color"
 							vector-effect="non-scaling-stroke"
 						/>
 					</svg>
@@ -341,6 +342,7 @@ import {
 	oppositeGraphPortKind,
 	resolveGraphWireEndpoints,
 	type GraphPortCandidate,
+	type GraphPoint,
 	type GraphRuntimeAdapter,
 	type GraphRuntimeSnapshot,
 	type GraphSkinTokens,
@@ -409,6 +411,8 @@ const lastGoodGlsl = ref("")
 const compileErrors = ref<string[]>([])
 const previewError = ref("")
 let runtimeSnapshot: GraphRuntimeSnapshot<string> = { issues: [], errorMessages: [], ok: true }
+const layoutVersion = ref(0)
+let layoutFrame: number | undefined
 
 const previewStatus = computed(() => {
 	if (previewError.value) {
@@ -447,7 +451,7 @@ const previewStatus = computed(() => {
 })
 
 // Wire drag state
-const dragWire = ref<{ path: string; fromNode: string; fromPort: string; fromKind: "in" | "out"; type: GlslType } | null>(null)
+const dragWire = ref<{ path: string; fromNode: string; fromPort: string; fromKind: "in" | "out"; type: GlslType; color: string; valid: boolean; validationMessage?: string } | null>(null)
 let dragState: { fromNode: string; fromPort: string; fromKind: "in" | "out"; fromX: number; fromY: number; type: GlslType } | null = null
 
 // Node preview canvases
@@ -499,8 +503,15 @@ const surfaceSize = computed(() => ({
 	height: Math.max(900, ...graphNodes.value.map((n) => n.y + 200)),
 }))
 
+const renderedPortPositions = computed(() => {
+	layoutVersion.value
+	const surface = canvasRef.value?.querySelector<HTMLElement>(".shader-graph__surface")
+	if (!surface) return new Map<string, GraphPoint>()
+	return collectShaderPortPositions(surface)
+})
+
 function getPortPos(nodeId: string, portKey: string, kind: "in" | "out"): { x: number; y: number } | undefined {
-	const rendered = getRenderedPortPos(nodeId, portKey, kind)
+	const rendered = renderedPortPositions.value.get(graphPortPositionKey(nodeId, portKey, kind))
 	if (rendered) return rendered
 
 	const node = graphNodes.value.find((n) => n.id === nodeId)
@@ -550,10 +561,17 @@ const filteredCategories = computed(() => {
 		.filter((cat) => cat.defs.length > 0)
 })
 
+watch(
+	() => graph.value.nodes.map((node) => `${node.id}:${node.defId}:${node.x}:${node.y}`).join("|"),
+	scheduleLayoutRefresh,
+	{ flush: "post" }
+)
+
 // ─── Pan / Zoom ──────────────────────────────────────────────────────
 function onZoom(e: WheelEvent) {
 	const step = 0.08
 	zoom.value = Math.max(0.25, Math.min(2, zoom.value + (e.deltaY > 0 ? -step : step)))
+	scheduleLayoutRefresh()
 }
 
 function onCanvasPointerDown(e: PointerEvent) {
@@ -596,6 +614,7 @@ function fitGraph() {
 	const bounds = { minX, minY, width: maxX - minX, height: maxY - minY }
 	zoom.value = graphFitZoom(bounds, { width: cw, height: ch }, { padding: 80, maxZoom: 1 })
 	pan.value = centerGraphBoundsPan(bounds, { width: cw, height: ch }, zoom.value)
+	scheduleLayoutRefresh()
 }
 
 // ─── Node Drag ───────────────────────────────────────────────────────
@@ -614,6 +633,7 @@ function startNodeDrag(e: PointerEvent, node: GraphNode) {
 		if (n) {
 			n.x = Math.max(0, Math.round(startNodeX + dx))
 			n.y = Math.max(0, Math.round(startNodeY + dy))
+			scheduleLayoutRefresh()
 		}
 	}
 	function onUp() {
@@ -641,7 +661,7 @@ function startWireDrag(e: PointerEvent, nodeId: string, portKey: string, kind: "
 			const fromPos = getPortPos(wire.fromNode, wire.fromPort, "out")
 			if (fromPos) {
 				dragState = { fromNode: wire.fromNode, fromPort: wire.fromPort, fromKind: "out", fromX: fromPos.x, fromY: fromPos.y, type }
-				dragWire.value = { path: shaderWirePath(fromPos.x, fromPos.y, pos.x, pos.y), fromNode: wire.fromNode, fromPort: wire.fromPort, fromKind: "out", type }
+				dragWire.value = createDragWirePreview(dragState, pos, { valid: true })
 				window.addEventListener("pointermove", onWireMove)
 				window.addEventListener("pointerup", onWireUp)
 				return
@@ -650,7 +670,7 @@ function startWireDrag(e: PointerEvent, nodeId: string, portKey: string, kind: "
 	}
 
 	dragState = { fromNode: nodeId, fromPort: portKey, fromKind: kind, fromX: pos.x, fromY: pos.y, type }
-	dragWire.value = { path: shaderWirePath(pos.x, pos.y, pos.x, pos.y), fromNode: nodeId, fromPort: portKey, fromKind: kind, type }
+	dragWire.value = createDragWirePreview(dragState, pos, { valid: true })
 	window.addEventListener("pointermove", onWireMove)
 	window.addEventListener("pointerup", onWireUp)
 }
@@ -660,16 +680,9 @@ function onWireMove(e: PointerEvent) {
 	const surface = canvasRef.value.querySelector<HTMLElement>(".shader-graph__surface")
 	if (!surface) return
 	const point = graphPointFromClient(surface, e.clientX, e.clientY, zoom.value)
-	const isOut = dragState.fromKind === "out"
-	dragWire.value = {
-		path: isOut
-			? shaderWirePath(dragState.fromX, dragState.fromY, point.x, point.y)
-			: shaderWirePath(point.x, point.y, dragState.fromX, dragState.fromY),
-		fromNode: dragState.fromNode,
-		fromPort: dragState.fromPort,
-		fromKind: dragState.fromKind,
-		type: dragState.type,
-	}
+	const target = findNearestShaderPort(dragState, point, false)
+	const validation = target ? validateShaderWireTarget(dragState, target) : { valid: true }
+	dragWire.value = createDragWirePreview(dragState, point, validation)
 }
 
 function onWireUp(e: PointerEvent) {
@@ -681,29 +694,22 @@ function onWireUp(e: PointerEvent) {
 	const surface = canvasRef.value?.querySelector<HTMLElement>(".shader-graph__surface")
 	if (!surface) { dragWire.value = null; dragState = null; return }
 	const point = graphPointFromClient(surface, e.clientX, e.clientY, zoom.value)
-	const targetKind = oppositeGraphPortKind(dragState.fromKind)
-	const SNAP = 20
 	let connected = false
 
-	const target = findNearestGraphPort(
-		point,
-		getShaderPortCandidates(targetKind),
-		SNAP,
-		(candidate) => candidate.nodeId !== dragState?.fromNode && isShaderWireTargetCompatible(dragState!, candidate)
-	)
+	const target = findNearestShaderPort(dragState, point, false)
 	if (target) {
-		const endpoints = resolveGraphWireEndpoints(dragState, target)
-		const nextWire = { id: graphWireId(endpoints), ...endpoints }
-		const nextWires = graph.value.wires.filter((w) => !(w.toNode === endpoints.toNode && w.toPort === endpoints.toPort))
-		if (wouldCreateShaderGraphCycle({ ...graph.value, wires: nextWires }, endpoints.fromNode, endpoints.toNode)) {
-			const message = `Connecting ${endpoints.fromNode}:${endpoints.fromPort} to ${endpoints.toNode}:${endpoints.toPort} would create a cycle.`
-			compileErrors.value = [message]
-			previewError.value = message
-			connected = true
-		} else {
+		const validation = validateShaderWireTarget(dragState, target)
+		if (validation.valid) {
+			const endpoints = resolveGraphWireEndpoints(dragState, target)
+			const nextWire = { id: graphWireId(endpoints), ...endpoints }
+			const nextWires = graph.value.wires.filter((w) => !(w.toNode === endpoints.toNode && w.toPort === endpoints.toPort))
 			graph.value.wires = [...nextWires, nextWire]
 			emitGraphUpdate()
 			autoCompile()
+			connected = true
+		} else {
+			compileErrors.value = [validation.message ?? "Shader wire cannot connect to that port."]
+			previewError.value = compileErrors.value[0]
 			connected = true
 		}
 	}
@@ -729,10 +735,50 @@ function getShaderPortCandidates(targetKind: "in" | "out"): GraphPortCandidate[]
 	return candidates
 }
 
-function isShaderWireTargetCompatible(drag: NonNullable<typeof dragState>, target: GraphPortCandidate) {
+function findNearestShaderPort(drag: NonNullable<typeof dragState>, point: GraphPoint, compatibleOnly: boolean) {
+	const targetKind = oppositeGraphPortKind(drag.fromKind)
+	const snap = 24 / zoom.value
+	return findNearestGraphPort(
+		point,
+		getShaderPortCandidates(targetKind),
+		snap,
+		(candidate) => candidate.nodeId !== drag.fromNode && (!compatibleOnly || validateShaderWireTarget(drag, candidate).valid)
+	)
+}
+
+function createDragWirePreview(
+	drag: NonNullable<typeof dragState>,
+	point: GraphPoint,
+	validation: { valid: boolean; message?: string }
+) {
+	const isOut = drag.fromKind === "out"
+	return {
+		path: isOut
+			? shaderWirePath(drag.fromX, drag.fromY, point.x, point.y)
+			: shaderWirePath(point.x, point.y, drag.fromX, drag.fromY),
+		fromNode: drag.fromNode,
+		fromPort: drag.fromPort,
+		fromKind: drag.fromKind,
+		type: drag.type,
+		color: validation.valid ? typeColor(drag.type) : SHADER_GRAPH_SKIN.wireInvalid,
+		valid: validation.valid,
+		validationMessage: validation.message,
+	}
+}
+
+function validateShaderWireTarget(drag: NonNullable<typeof dragState>, target: GraphPortCandidate) {
 	const node = graphNodes.value.find((item) => item.id === target.nodeId)
 	const targetPort = (target.kind === "in" ? node?.inputs : node?.outputs)?.find((port) => port.key === target.portKey)
-	return Boolean(targetPort && areShaderTypesCompatible(drag.type, targetPort.type))
+	if (!targetPort) return { valid: false, message: "Target port is missing." }
+	if (!areShaderTypesCompatible(drag.type, targetPort.type)) {
+		return { valid: false, message: `Incompatible shader wire: ${drag.type} -> ${targetPort.type}.` }
+	}
+	const endpoints = resolveGraphWireEndpoints(drag, target)
+	const nextWires = graph.value.wires.filter((wire) => !(wire.toNode === endpoints.toNode && wire.toPort === endpoints.toPort))
+	if (wouldCreateShaderGraphCycle({ ...graph.value, wires: nextWires }, endpoints.fromNode, endpoints.toNode)) {
+		return { valid: false, message: `Connecting ${endpoints.fromNode}:${endpoints.fromPort} to ${endpoints.toNode}:${endpoints.toPort} would create a cycle.` }
+	}
+	return { valid: true }
 }
 
 function selectNode(nodeId: string) {
@@ -822,6 +868,7 @@ function addNodeAt(defId: string, position: { x: number; y: number }) {
 	graph.value.nodes.push({ id, defId, x: Math.max(0, position.x), y: Math.max(0, position.y) })
 	if (defId === "fragment_output") graph.value.outputNodeId = id
 	emitGraphUpdate()
+	scheduleLayoutRefresh()
 	autoCompile()
 }
 
@@ -851,16 +898,23 @@ function compileAndApply() {
 	}
 }
 
-function getRenderedPortPos(nodeId: string, portKey: string, kind: "in" | "out"): { x: number; y: number } | undefined {
-	const surface = canvasRef.value?.querySelector<HTMLElement>(".shader-graph__surface")
-	if (!surface) return undefined
-
+function collectShaderPortPositions(surface: HTMLElement) {
 	return collectRenderedGraphPortPositions(surface, zoom.value, {
 		selector: "[data-shader-port-node-id]",
 		nodeIdDatasetKey: "shaderPortNodeId",
 		portKeyDatasetKey: "shaderPortKey",
 		kindDatasetKey: "shaderPortKind",
-	}).get(graphPortPositionKey(nodeId, portKey, kind))
+	})
+}
+
+function scheduleLayoutRefresh() {
+	if (layoutFrame != null) cancelAnimationFrame(layoutFrame)
+	nextTick(() => {
+		layoutFrame = requestAnimationFrame(() => {
+			layoutVersion.value += 1
+			layoutFrame = undefined
+		})
+	})
 }
 
 function resetGraph() {
@@ -868,6 +922,7 @@ function resetGraph() {
 	emitGraphUpdate()
 	autoCompile()
 	fitGraph()
+	scheduleLayoutRefresh()
 }
 
 function copyGlsl() {
@@ -900,10 +955,12 @@ function onKeyDown(e: KeyboardEvent) {
 
 onMounted(() => {
 	window.addEventListener("keydown", onKeyDown)
+	scheduleLayoutRefresh()
 	autoCompile()
 })
 onUnmounted(() => {
 	window.removeEventListener("keydown", onKeyDown)
+	if (layoutFrame != null) cancelAnimationFrame(layoutFrame)
 	disposePreview()
 })
 
@@ -1154,6 +1211,10 @@ function categoryColor(cat: string): string {
 .shader-graph__wire--dragging {
 	pointer-events: none;
 	stroke-dasharray: 6 4;
+}
+
+.shader-graph__wire--invalid {
+	filter: drop-shadow(0 0 5px rgb(239 83 80 / 0.45));
 }
 
 .shader-graph__node {
