@@ -80,6 +80,30 @@
 				<button type="button" :disabled="!selectedStarterId" @click="loadSelectedStarter" v-tooltip="'Load starter graph'">
 					<i class="mdi mdi-file-replace-outline" />
 				</button>
+				<label class="shader-graph__toolbar-control shader-graph__toolbar-control--preset" v-tooltip="'Local graph preset'">
+					<i class="mdi mdi-folder-star-outline" />
+					<select v-model="selectedGraphPresetName">
+						<option value="">Graph preset...</option>
+						<option v-for="name in graphPresetNames" :key="name" :value="name">
+							{{ name }}
+						</option>
+					</select>
+					<input
+						v-model="graphPresetName"
+						type="text"
+						placeholder="Name"
+						@keydown.enter.prevent="saveGraphPreset"
+					/>
+				</label>
+				<button type="button" :disabled="!canSaveGraphPreset" @click="saveGraphPreset" v-tooltip="'Save graph preset'">
+					<i class="mdi mdi-content-save-outline" />
+				</button>
+				<button type="button" :disabled="!selectedGraphPresetName" @click="loadSelectedGraphPreset" v-tooltip="'Load graph preset'">
+					<i class="mdi mdi-folder-open-outline" />
+				</button>
+				<button type="button" :disabled="!selectedGraphPresetName" @click="deleteSelectedGraphPreset" v-tooltip="'Delete graph preset'">
+					<i class="mdi mdi-delete-outline" />
+				</button>
 				<span class="shader-graph__toolbar-divider" />
 				<button type="button" class="shader-graph__tool-button" @click="sidePanelTab = 'code'" :class="{ active: sidePanelTab === 'code' }" v-tooltip="'Show GLSL'">
 					<i class="mdi mdi-code-tags" />
@@ -709,6 +733,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import {
 	CollapsibleContextMenu,
+	useIpcCaller,
 } from "showrunner-ui-core"
 import {
 	centerGraphBoundsPan,
@@ -747,7 +772,7 @@ import {
 	type ShaderColorRampStop,
 	type ShaderUniformValueMap,
 } from "./shader-nodes"
-import { SHADER_GRAPH_STARTERS, collectShaderUniformBindings, createDefaultShaderGraph, createShaderGraphStarter, cloneShaderGraph } from "./shader-graph-state"
+import { SHADER_GRAPH_STARTERS, collectShaderUniformBindings, createDefaultShaderGraph, createShaderGraphStarter, cloneShaderGraph, normalizeShaderGraph } from "./shader-graph-state"
 import type { ShaderUniformBindingMap } from "showrunner-plugin-overlays-shared"
 
 const props = defineProps<{
@@ -808,6 +833,9 @@ const previewFpsLimit = ref(30)
 const previewPaused = ref(false)
 const previewBackground = ref<"checker" | "black" | "transparent">("checker")
 const selectedStarterId = ref("")
+const graphPresetName = ref("")
+const selectedGraphPresetName = ref("")
+const graphPresets = ref<Record<string, unknown>>({})
 type ShaderUniformBindingSource = "none" | "config" | "state"
 const VECTOR_COMPONENT_LABELS = ["X", "Y", "Z", "W"] as const
 let runtimeSnapshot: GraphRuntimeSnapshot<string> = { issues: [], errorMessages: [], ok: true }
@@ -849,6 +877,12 @@ const previewStatus = computed(() => {
 		message: "Compile a valid graph to preview it here.",
 	}
 })
+
+const graphPresetNames = computed(() => Object.keys(graphPresets.value).sort((a, b) => a.localeCompare(b)))
+const canSaveGraphPreset = computed(() => graphPresetName.value.trim().length > 0)
+const listShaderGraphPresets = useIpcCaller<() => Promise<Record<string, unknown>>>("overlays", "listShaderGraphPresets")
+const saveShaderGraphPresetCall = useIpcCaller<(preset: { name: string; graph: ShaderGraph }) => Promise<Record<string, unknown>>>("overlays", "saveShaderGraphPreset")
+const deleteShaderGraphPresetCall = useIpcCaller<(name: string) => Promise<Record<string, unknown>>>("overlays", "deleteShaderGraphPreset")
 
 const previewOverlayMessage = computed(() => {
 	if (previewError.value) return previewError.value
@@ -1715,6 +1749,36 @@ function loadSelectedStarter() {
 	scheduleLayoutRefresh()
 }
 
+async function refreshGraphPresets() {
+	graphPresets.value = await listShaderGraphPresets()
+}
+
+async function saveGraphPreset() {
+	const name = graphPresetName.value.trim()
+	if (!name) return
+	graphPresets.value = await saveShaderGraphPresetCall({ name, graph: cloneShaderGraph(graph.value) })
+	selectedGraphPresetName.value = name
+}
+
+function loadSelectedGraphPreset() {
+	const preset = graphPresets.value[selectedGraphPresetName.value]
+	if (!preset) return
+	graph.value = normalizeShaderGraph(preset)
+	selectedNodeId.value = undefined
+	selectedWireId.value = undefined
+	emitGraphUpdate()
+	autoCompile()
+	fitGraph()
+	scheduleLayoutRefresh()
+}
+
+async function deleteSelectedGraphPreset() {
+	const name = selectedGraphPresetName.value.trim()
+	if (!name) return
+	graphPresets.value = await deleteShaderGraphPresetCall(name)
+	selectedGraphPresetName.value = ""
+}
+
 function layoutGraphByCategory() {
 	const categoryOrder = ["Input", "Noise", "Terrain", "Vector", "Math", "Color", "Lighting", "Camera", "Utility", "Output"]
 	const buckets = new Map<string, ShaderNodeInstance[]>()
@@ -1797,6 +1861,7 @@ function onKeyDown(e: KeyboardEvent) {
 
 onMounted(() => {
 	window.addEventListener("keydown", onKeyDown)
+	refreshGraphPresets()
 	recordGraphHistory(graph.value)
 	scheduleLayoutRefresh()
 	autoCompile()
@@ -2193,6 +2258,14 @@ function categoryColor(cat: string): string {
 
 .shader-graph__toolbar-control input {
 	width: 3rem;
+}
+
+.shader-graph__toolbar-control--preset select {
+	width: 8rem;
+}
+
+.shader-graph__toolbar-control--preset input {
+	width: 7rem;
 }
 
 .shader-graph__toolbar-divider {
