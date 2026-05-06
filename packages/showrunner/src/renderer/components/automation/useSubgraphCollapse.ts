@@ -1,4 +1,4 @@
-import type { ComputedRef, Ref, WritableComputedRef } from "vue"
+import { toRaw, type ComputedRef, type Ref, type WritableComputedRef } from "vue"
 import { nanoid } from "nanoid"
 import type {
 	AutomationConfig,
@@ -98,11 +98,11 @@ export function useSubgraphCollapse(options: UseSubgraphCollapseOptions) {
 			outputs: generatedOutputs.map(({ wire, name, type }) => ({
 				name,
 				type,
-				expression: { type: "port", nodeId: wire.fromNode, port: wire.fromPort },
+				expression: { type: "port", nodeId: wire.fromNode, port: wire.fromPort } satisfies Expression,
 			})),
-			nodes: structuredClone(selectedNodes),
-			edges: structuredClone(internalEdges),
-			dataWires: [...structuredClone(internalDataWires), ...generatedInputWires],
+			nodes: cloneGraphItems(selectedNodes),
+			edges: cloneGraphItems(internalEdges),
+			dataWires: [...cloneGraphItems(internalDataWires), ...generatedInputWires],
 			entryNodeId,
 		})
 
@@ -144,6 +144,10 @@ export function useSubgraphCollapse(options: UseSubgraphCollapseOptions) {
 	return {
 		collapseSelectionToSubgraph,
 	}
+}
+
+function cloneGraphItems<T>(items: T[]): T[] {
+	return items.map((item) => structuredClone(toRaw(item)))
 }
 
 function sanitizeSubgraphPortName(value: string, fallback: string) {

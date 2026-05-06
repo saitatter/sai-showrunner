@@ -38,8 +38,8 @@ export class Automation extends FileResource<AutomationConfig> {
 	}
 
 	async setConfig(config: AutomationConfig): Promise<boolean> {
-		config = { ...config, name: normalizeRequiredResourceName(config.name, "Automation name") }
 		const normalized = normalizeAutomationConfig(config)
+		normalized.name = normalizeRequiredResourceName(normalized.name?.trim() || this.config?.name || "Untitled Automation", "Automation name")
 		validateAutomationProgram(normalized)
 		return super.setConfig(normalized)
 	}

@@ -222,11 +222,14 @@ export function ipcConvertSchema<T extends Schema>(schema: T, path: string): IPC
 
 		return { ...schema, ...convertIPCDefault(schema, path), properties, type: "Object" }
 	} else if (schema.type === Array) {
+		const items = "items" in schema
+			? ipcConvertSchema(schema.items, `${path}_items`)
+			: ipcFallbackArrayItemSchema(path)
 		return {
 			...schema,
 			...convertIPCDefault(schema, path),
 			type: "Array",
-			items: "items" in schema ? ipcConvertSchema(schema.items, `${path}_items`) : { type: "Object", properties: {} },
+			items,
 		}
 	} else if (schema.type == ResourceProxyFactory && "resourceType" in schema) {
 		return {
@@ -249,6 +252,11 @@ export function ipcConvertSchema<T extends Schema>(schema: T, path: string): IPC
 			type: typeName,
 		}
 	}
+}
+
+function ipcFallbackArrayItemSchema(path: string): IPCSchema {
+	console.warn(`Array schema at ${path} is missing an items definition; using unknown object items.`)
+	return { type: "Object", name: "Unknown item", properties: {} }
 }
 
 function convertIPCEnum(schema: Enumable<any>, path: string) {
