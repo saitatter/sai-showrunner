@@ -28,9 +28,13 @@ const visualMarkers = [
 	["automation annotation blocks", "node-automation__annotation-block"],
 	["automation annotation drag remove feedback", "node-automation__annotation-block.remove-target"],
 	["automation flow edge health", "invalid sequence edge"],
+	["automation graph health panel", "Graph Health"],
 	["shader graph palette", "shader-graph__palette"],
 	["shader graph side panel", "shader-graph__side-panel"],
-	["shader graph preview fallback", "shader-graph__preview-error"],
+	["shader graph preview fallback", "shader-graph__preview-overlay"],
+	["shader graph frame controls", "shader-graph__frame-resize"],
+	["shader graph minimap", "shader-graph__minimap"],
+	["shader graph issue highlights", "shader-graph__wire--issue"],
 ]
 
 for (const [label, marker] of visualMarkers) {
