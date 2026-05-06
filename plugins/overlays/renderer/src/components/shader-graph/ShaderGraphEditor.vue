@@ -785,6 +785,7 @@ import {
 	type ShaderGraph,
 	type ShaderNodeInstance,
 	type ShaderNodeDef,
+	type ShaderWire,
 	type GlslType,
 	type ShaderColorRampStop,
 	type ShaderUniformValueMap,
@@ -1750,7 +1751,12 @@ function isContextGroupOpen(group: string) {
 }
 
 let nodeCounter = 0
-let copiedNode: ShaderNodeInstance | undefined
+interface CopiedShaderSelection {
+	nodes: ShaderNodeInstance[]
+	wires: ShaderWire[]
+}
+
+let copiedSelection: CopiedShaderSelection | undefined
 function addNode(defId: string) {
 	addNodeAt(defId, {
 		x: Math.round((palettePos.value.x - pan.value.x) / zoom.value),
@@ -1776,9 +1782,9 @@ function addNodeAt(defId: string, position: { x: number; y: number }) {
 	autoCompile()
 }
 
-function cloneNodeForPaste(node: ShaderNodeInstance, offset = 36): ShaderNodeInstance {
+function cloneNodeForPaste(node: ShaderNodeInstance, id: string, offset = 36): ShaderNodeInstance {
 	return {
-		id: `sn_${Date.now()}_${nodeCounter++}`,
+		id,
 		defId: node.defId,
 		x: node.x + offset,
 		y: node.y + offset,
@@ -1786,27 +1792,53 @@ function cloneNodeForPaste(node: ShaderNodeInstance, offset = 36): ShaderNodeIns
 	}
 }
 
-function copySelectedNode() {
-	const node = selectedNode.value
-	if (!node) return
-	copiedNode = { ...node, inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined }
+function copySelectedNodes() {
+	const selectedIds = selectedNodeIds.value.size
+		? selectedNodeIds.value
+		: selectedNode.value
+			? new Set([selectedNode.value.id])
+			: new Set<string>()
+	if (!selectedIds.size) return
+	const nodes = graph.value.nodes
+		.filter((node) => selectedIds.has(node.id))
+		.map((node) => ({ ...node, inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined }))
+	const wires = graph.value.wires
+		.filter((wire) => selectedIds.has(wire.fromNode) && selectedIds.has(wire.toNode))
+		.map((wire) => ({ ...wire }))
+	copiedSelection = { nodes, wires }
 }
 
-function pasteCopiedNode() {
-	if (!copiedNode) return
-	const node = cloneNodeForPaste(copiedNode)
-	graph.value.nodes.push(node)
-	selectOnlyNode(node.id)
+function pasteCopiedNodes() {
+	if (!copiedSelection?.nodes.length) return
+	const idMap = new Map<string, string>()
+	const pastedNodes = copiedSelection.nodes.map((node) => {
+		const id = `sn_${Date.now()}_${nodeCounter++}`
+		idMap.set(node.id, id)
+		return cloneNodeForPaste(node, id)
+	})
+	const pastedWires = copiedSelection.wires.flatMap((wire) => {
+		const fromNode = idMap.get(wire.fromNode)
+		const toNode = idMap.get(wire.toNode)
+		if (!fromNode || !toNode) return []
+		const endpoints = {
+			fromNode,
+			fromPort: wire.fromPort,
+			toNode,
+			toPort: wire.toPort,
+		}
+		return [{ ...endpoints, id: graphWireId(endpoints) }]
+	})
+	graph.value.nodes.push(...pastedNodes)
+	graph.value.wires.push(...pastedWires)
+	setSelectedNodeIds(pastedNodes.map((node) => node.id), pastedNodes[0]?.id)
 	emitGraphUpdate()
 	scheduleLayoutRefresh()
 	autoCompile()
 }
 
-function duplicateSelectedNode() {
-	const node = selectedNode.value
-	if (!node) return
-	copiedNode = { ...node, inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined }
-	pasteCopiedNode()
+function duplicateSelectedNodes() {
+	copySelectedNodes()
+	pasteCopiedNodes()
 }
 
 // ─── Compile ─────────────────────────────────────────────────────────
@@ -1949,19 +1981,19 @@ function onKeyDown(e: KeyboardEvent) {
 		redoGraph()
 		return
 	}
-	if (e.ctrlKey && e.key.toLowerCase() === "c" && selectedNode.value) {
+	if (e.ctrlKey && e.key.toLowerCase() === "c" && selectedNodeIds.value.size) {
 		e.preventDefault()
-		copySelectedNode()
+		copySelectedNodes()
 		return
 	}
-	if (e.ctrlKey && e.key.toLowerCase() === "v" && copiedNode) {
+	if (e.ctrlKey && e.key.toLowerCase() === "v" && copiedSelection) {
 		e.preventDefault()
-		pasteCopiedNode()
+		pasteCopiedNodes()
 		return
 	}
-	if (e.ctrlKey && e.key.toLowerCase() === "d" && selectedNode.value) {
+	if (e.ctrlKey && e.key.toLowerCase() === "d" && selectedNodeIds.value.size) {
 		e.preventDefault()
-		duplicateSelectedNode()
+		duplicateSelectedNodes()
 		return
 	}
 	if ((e.key === "Delete" || e.key === "Backspace") && selectedWireId.value) {
