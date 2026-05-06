@@ -15,6 +15,18 @@
 					<i class="mdi mdi-timer-outline" />
 					<input v-model.number="previewFpsLimit" type="number" min="5" max="60" step="5" />
 				</label>
+				<label class="shader-graph__toolbar-control" v-tooltip="'Starter graph'">
+					<i class="mdi mdi-creation" />
+					<select v-model="selectedStarterId">
+						<option value="">Starter...</option>
+						<option v-for="starter in SHADER_GRAPH_STARTERS" :key="starter.id" :value="starter.id">
+							{{ starter.name }}
+						</option>
+					</select>
+				</label>
+				<button type="button" :disabled="!selectedStarterId" @click="loadSelectedStarter" v-tooltip="'Load starter graph'">
+					<i class="mdi mdi-file-replace-outline" />
+				</button>
 				<button type="button" @click="compileAndApply" v-tooltip="'Compile & Apply'">
 					<i class="mdi mdi-play" /> Compile
 				</button>
@@ -475,7 +487,7 @@ import {
 	type GlslType,
 	type ShaderUniformValueMap,
 } from "./shader-nodes"
-import { createDefaultShaderGraph, cloneShaderGraph } from "./shader-graph-state"
+import { SHADER_GRAPH_STARTERS, createDefaultShaderGraph, createShaderGraphStarter, cloneShaderGraph } from "./shader-graph-state"
 
 const props = defineProps<{
 	modelValue: ShaderGraph
@@ -529,6 +541,7 @@ const previewError = ref("")
 const shaderQualityPreset = ref<"draft" | "balanced" | "high">("balanced")
 const previewResolutionScale = ref(1)
 const previewFpsLimit = ref(30)
+const selectedStarterId = ref("")
 let runtimeSnapshot: GraphRuntimeSnapshot<string> = { issues: [], errorMessages: [], ok: true }
 const layoutVersion = ref(0)
 let layoutFrame: number | undefined
@@ -1124,6 +1137,17 @@ function resetGraph() {
 	scheduleLayoutRefresh()
 }
 
+function loadSelectedStarter() {
+	if (!selectedStarterId.value) return
+	graph.value = createShaderGraphStarter(selectedStarterId.value)
+	selectedNodeId.value = undefined
+	selectedWireId.value = undefined
+	emitGraphUpdate()
+	autoCompile()
+	fitGraph()
+	scheduleLayoutRefresh()
+}
+
 function copyGlsl() {
 	const source = compiledGlsl.value || lastGoodGlsl.value
 	if (source) navigator.clipboard.writeText(source).catch(() => {})
@@ -1515,6 +1539,11 @@ function categoryColor(cat: string): string {
 
 .shader-graph__toolbar-actions button:hover {
 	background: #3a3a3a;
+}
+
+.shader-graph__toolbar-actions button:disabled {
+	cursor: not-allowed;
+	opacity: 0.45;
 }
 
 .shader-graph__toolbar-actions button.active {

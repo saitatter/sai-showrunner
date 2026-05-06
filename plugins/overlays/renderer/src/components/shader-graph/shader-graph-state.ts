@@ -7,6 +7,19 @@ export interface ShaderLayerGraphConfig {
 	shaderUniforms?: ShaderUniformValueMap
 }
 
+export interface ShaderGraphStarter {
+	id: string
+	name: string
+	description: string
+}
+
+export const SHADER_GRAPH_STARTERS: ShaderGraphStarter[] = [
+	{ id: "procedural-terrain", name: "Procedural Terrain", description: "FBM terrain with altitude bands and simple sunlight." },
+	{ id: "nebula", name: "Nebula", description: "Warped cloud colors for atmospheric overlays." },
+	{ id: "audio-reactive", name: "Audio Reactive", description: "Intensity-driven bands for music or alerts." },
+	{ id: "energy-field", name: "Energy Field", description: "Voronoi and wave-driven animated energy." },
+]
+
 const DEFAULT_SHADER_GRAPH: ShaderGraph = {
 	nodes: [
 		{ id: "uv", defId: "uv", x: 40, y: 180 },
@@ -28,6 +41,21 @@ const DEFAULT_SHADER_GRAPH: ShaderGraph = {
 
 export function createDefaultShaderGraph(): ShaderGraph {
 	return cloneShaderGraph(DEFAULT_SHADER_GRAPH)
+}
+
+export function createShaderGraphStarter(id: string): ShaderGraph {
+	switch (id) {
+		case "procedural-terrain":
+			return cloneShaderGraph(PROCEDURAL_TERRAIN_GRAPH)
+		case "nebula":
+			return cloneShaderGraph(NEBULA_GRAPH)
+		case "audio-reactive":
+			return cloneShaderGraph(AUDIO_REACTIVE_GRAPH)
+		case "energy-field":
+			return cloneShaderGraph(ENERGY_FIELD_GRAPH)
+		default:
+			return createDefaultShaderGraph()
+	}
 }
 
 export function cloneShaderGraph(graph: ShaderGraph): ShaderGraph {
@@ -114,4 +142,100 @@ export function applyCompiledShaderGraph(config: ShaderLayerGraphConfig, graph: 
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value && typeof value === "object" && !Array.isArray(value))
+}
+
+const PROCEDURAL_TERRAIN_GRAPH: ShaderGraph = {
+	nodes: [
+		{ id: "uv", defId: "uv", x: 40, y: 220 },
+		{ id: "warp", defId: "domain_warp", x: 260, y: 180, inputDefaults: { scale: "2.2", strength: "0.22" } },
+		{ id: "base", defId: "fbm_noise", x: 500, y: 160, inputDefaults: { scale: "3.5", octaves: "6.0" } },
+		{ id: "detail", defId: "value_noise", x: 500, y: 340, inputDefaults: { scale: "18.0" } },
+		{ id: "height", defId: "terrain_height", x: 760, y: 200, inputDefaults: { detailStrength: "0.18" } },
+		{ id: "bands", defId: "altitude_bands", x: 1020, y: 180 },
+		{ id: "normal", defId: "normal_from_height", x: 1020, y: 420, inputDefaults: { strength: "1.6" } },
+		{ id: "sun", defId: "sun_direction", x: 1260, y: 420 },
+		{ id: "light", defId: "diffuse_lighting", x: 1500, y: 220, inputDefaults: { ambient: "0.28" } },
+		{ id: "output", defId: "fragment_output", x: 1740, y: 240 },
+	],
+	wires: [
+		{ id: "uv:uv->warp:uv", fromNode: "uv", fromPort: "uv", toNode: "warp", toPort: "uv" },
+		{ id: "warp:uv->base:uv", fromNode: "warp", fromPort: "uv", toNode: "base", toPort: "uv" },
+		{ id: "warp:uv->detail:uv", fromNode: "warp", fromPort: "uv", toNode: "detail", toPort: "uv" },
+		{ id: "base:value->height:base", fromNode: "base", fromPort: "value", toNode: "height", toPort: "base" },
+		{ id: "detail:value->height:detail", fromNode: "detail", fromPort: "value", toNode: "height", toPort: "detail" },
+		{ id: "height:height->bands:height", fromNode: "height", fromPort: "height", toNode: "bands", toPort: "height" },
+		{ id: "height:height->normal:center", fromNode: "height", fromPort: "height", toNode: "normal", toPort: "center" },
+		{ id: "height:height->normal:right", fromNode: "height", fromPort: "height", toNode: "normal", toPort: "right" },
+		{ id: "height:height->normal:up", fromNode: "height", fromPort: "height", toNode: "normal", toPort: "up" },
+		{ id: "bands:color->light:color", fromNode: "bands", fromPort: "color", toNode: "light", toPort: "color" },
+		{ id: "normal:normal->light:normal", fromNode: "normal", fromPort: "normal", toNode: "light", toPort: "normal" },
+		{ id: "sun:direction->light:lightDir", fromNode: "sun", fromPort: "direction", toNode: "light", toPort: "lightDir" },
+		{ id: "light:color->output:color", fromNode: "light", fromPort: "color", toNode: "output", toPort: "color" },
+	],
+	outputNodeId: "output",
+}
+
+const NEBULA_GRAPH: ShaderGraph = {
+	nodes: [
+		{ id: "uv", defId: "uv", x: 40, y: 220 },
+		{ id: "time", defId: "time", x: 40, y: 420 },
+		{ id: "warp", defId: "domain_warp", x: 300, y: 220, inputDefaults: { scale: "2.8", strength: "0.35" } },
+		{ id: "noise", defId: "fbm_noise", x: 560, y: 220, inputDefaults: { scale: "5.0", octaves: "6.0" } },
+		{ id: "ramp", defId: "color_ramp", x: 820, y: 220, inputDefaults: { low: "vec3(0.04, 0.03, 0.12)", mid: "vec3(0.42, 0.12, 0.70)", high: "vec3(0.05, 0.75, 1.0)" } },
+		{ id: "output", defId: "fragment_output", x: 1080, y: 240 },
+	],
+	wires: [
+		{ id: "uv:uv->warp:uv", fromNode: "uv", fromPort: "uv", toNode: "warp", toPort: "uv" },
+		{ id: "warp:uv->noise:uv", fromNode: "warp", fromPort: "uv", toNode: "noise", toPort: "uv" },
+		{ id: "noise:value->ramp:factor", fromNode: "noise", fromPort: "value", toNode: "ramp", toPort: "factor" },
+		{ id: "ramp:color->output:color", fromNode: "ramp", fromPort: "color", toNode: "output", toPort: "color" },
+	],
+	outputNodeId: "output",
+}
+
+const AUDIO_REACTIVE_GRAPH: ShaderGraph = {
+	nodes: [
+		{ id: "uv", defId: "uv", x: 40, y: 180 },
+		{ id: "split", defId: "vec2_split", x: 260, y: 180 },
+		{ id: "time", defId: "time", x: 260, y: 360 },
+		{ id: "intensity", defId: "intensity", x: 260, y: 500 },
+		{ id: "wave", defId: "wave", x: 520, y: 220, inputDefaults: { frequency: "24.0", speed: "3.0" } },
+		{ id: "mix", defId: "multiply", x: 760, y: 260 },
+		{ id: "gradient", defId: "gradient_color", x: 1000, y: 240 },
+		{ id: "output", defId: "fragment_output", x: 1240, y: 260 },
+	],
+	wires: [
+		{ id: "uv:uv->split:v", fromNode: "uv", fromPort: "uv", toNode: "split", toPort: "v" },
+		{ id: "split:y->wave:x", fromNode: "split", fromPort: "y", toNode: "wave", toPort: "x" },
+		{ id: "time:t->wave:time", fromNode: "time", fromPort: "t", toNode: "wave", toPort: "time" },
+		{ id: "wave:result->mix:a", fromNode: "wave", fromPort: "result", toNode: "mix", toPort: "a" },
+		{ id: "intensity:value->mix:b", fromNode: "intensity", fromPort: "value", toNode: "mix", toPort: "b" },
+		{ id: "mix:result->gradient:factor", fromNode: "mix", fromPort: "result", toNode: "gradient", toPort: "factor" },
+		{ id: "gradient:color->output:color", fromNode: "gradient", fromPort: "color", toNode: "output", toPort: "color" },
+	],
+	outputNodeId: "output",
+}
+
+const ENERGY_FIELD_GRAPH: ShaderGraph = {
+	nodes: [
+		{ id: "uv", defId: "uv", x: 40, y: 200 },
+		{ id: "time", defId: "time", x: 40, y: 420 },
+		{ id: "voronoi", defId: "voronoi_noise", x: 300, y: 180, inputDefaults: { scale: "14.0", jitter: "0.9" } },
+		{ id: "split", defId: "vec2_split", x: 300, y: 380 },
+		{ id: "wave", defId: "wave", x: 560, y: 360, inputDefaults: { frequency: "18.0", speed: "2.5" } },
+		{ id: "mix", defId: "mix_float", x: 800, y: 240, inputDefaults: { t: "0.5" } },
+		{ id: "ramp", defId: "color_ramp", x: 1040, y: 240, inputDefaults: { low: "vec3(0.0, 0.05, 0.08)", mid: "vec3(0.0, 0.8, 1.0)", high: "vec3(1.0, 1.0, 1.0)" } },
+		{ id: "output", defId: "fragment_output", x: 1280, y: 260 },
+	],
+	wires: [
+		{ id: "uv:uv->voronoi:uv", fromNode: "uv", fromPort: "uv", toNode: "voronoi", toPort: "uv" },
+		{ id: "uv:uv->split:v", fromNode: "uv", fromPort: "uv", toNode: "split", toPort: "v" },
+		{ id: "split:x->wave:x", fromNode: "split", fromPort: "x", toNode: "wave", toPort: "x" },
+		{ id: "time:t->wave:time", fromNode: "time", fromPort: "t", toNode: "wave", toPort: "time" },
+		{ id: "voronoi:distance->mix:a", fromNode: "voronoi", fromPort: "distance", toNode: "mix", toPort: "a" },
+		{ id: "wave:result->mix:b", fromNode: "wave", fromPort: "result", toNode: "mix", toPort: "b" },
+		{ id: "mix:result->ramp:factor", fromNode: "mix", fromPort: "result", toNode: "ramp", toPort: "factor" },
+		{ id: "ramp:color->output:color", fromNode: "ramp", fromPort: "color", toNode: "output", toPort: "color" },
+	],
+	outputNodeId: "output",
 }

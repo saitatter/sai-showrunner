@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest"
 import {
+	SHADER_GRAPH_STARTERS,
 	applyCompiledShaderGraph,
 	createDefaultShaderGraph,
+	createShaderGraphStarter,
 	hasLegacyCustomShaderWithoutGraph,
 	persistShaderGraph,
 	type ShaderLayerGraphConfig,
@@ -53,5 +55,21 @@ describe("shader graph config state", () => {
 	it("detects legacy custom GLSL that has no graph to restore", () => {
 		expect(hasLegacyCustomShaderWithoutGraph({ preset: "custom", customFragmentShader: "void main() {}" })).toBe(true)
 		expect(hasLegacyCustomShaderWithoutGraph({ preset: "custom", customFragmentShader: "void main() {}", shaderGraph: createDefaultShaderGraph() })).toBe(false)
+	})
+
+	it("creates compiling shader starter graphs", () => {
+		expect(SHADER_GRAPH_STARTERS.map((starter) => starter.id)).toEqual([
+			"procedural-terrain",
+			"nebula",
+			"audio-reactive",
+			"energy-field",
+		])
+
+		for (const starter of SHADER_GRAPH_STARTERS) {
+			const graph = createShaderGraphStarter(starter.id)
+			const result = compileShaderGraph(graph)
+			expect(result.errors, starter.name).toEqual([])
+			expect(result.glsl, starter.name).toContain("gl_FragColor")
+		}
 	})
 })
