@@ -55,6 +55,16 @@ export interface ShaderGraph {
 
 export type ShaderUniformValue = number | [number, number] | [number, number, number] | [number, number, number, number]
 export type ShaderUniformValueMap = Record<string, ShaderUniformValue>
+export interface ShaderColorRampStop {
+	offset: number
+	color: string
+}
+
+export const DEFAULT_SHADER_COLOR_RAMP_STOPS: ShaderColorRampStop[] = [
+	{ offset: 0, color: "vec3(0.08, 0.20, 0.08)" },
+	{ offset: 0.55, color: "vec3(0.42, 0.34, 0.22)" },
+	{ offset: 1, color: "vec3(0.92, 0.92, 0.86)" },
+]
 
 // ─── Built-in Node Definitions ───────────────────────────────────────
 
@@ -1513,6 +1523,8 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 			const uniformName = getUniformName(node)
 			uniformLines.add(`uniform vec3 ${uniformName};`)
 			lines = [`${outs.value} = ${uniformName};`]
+		} else if (node.defId === "color_ramp" && hasCustomShaderColorRampStops(node)) {
+			lines = compileShaderColorRampStops(node, ins, outs)
 		} else {
 			lines = def.compile(ins, outs)
 		}
@@ -1542,4 +1554,84 @@ ${bodyLines.join("\n")}
 `
 
 	return { glsl, errors }
+}
+
+export function normalizeShaderColorRampStops(value: unknown): ShaderColorRampStop[] {
+	const source = parseShaderColorRampStopsSource(value)
+	const stops = source.flatMap((item): ShaderColorRampStop[] => {
+		if (!item || typeof item !== "object" || Array.isArray(item)) return []
+		const offset = Number((item as Record<string, unknown>).offset)
+		const color = String((item as Record<string, unknown>).color ?? "").trim()
+		if (!Number.isFinite(offset) || !color) return []
+		return [{ offset: clamp01(offset), color: formatVec3Literal(color) }]
+	})
+	if (stops.length < 2) return DEFAULT_SHADER_COLOR_RAMP_STOPS.map((stop) => ({ ...stop }))
+	return stops
+		.sort((a, b) => a.offset - b.offset)
+		.map((stop, index, sorted) => ({
+			offset: constrainRampOffset(stop.offset, index, sorted.length),
+			color: stop.color,
+		}))
+}
+
+export function serializeShaderColorRampStops(stops: ShaderColorRampStop[]) {
+	return JSON.stringify(normalizeShaderColorRampStops(stops))
+}
+
+function hasCustomShaderColorRampStops(node: ShaderNodeInstance) {
+	const value = node.inputDefaults?.rampStops
+	if (typeof value !== "string" || !value.trim()) return false
+	return parseShaderColorRampStopsSource(value).length >= 2
+}
+
+function parseShaderColorRampStopsSource(value: unknown): unknown[] {
+	if (Array.isArray(value)) return value
+	if (typeof value !== "string" || !value.trim()) return []
+	try {
+		const parsed = JSON.parse(value)
+		return Array.isArray(parsed) ? parsed : []
+	} catch {
+		return []
+	}
+}
+
+function compileShaderColorRampStops(node: ShaderNodeInstance, ins: Record<string, string>, outs: Record<string, string>) {
+	const stops = normalizeShaderColorRampStops(node.inputDefaults?.rampStops)
+	const lines = [
+		`float ${outs.color}_f = clamp(${ins.factor}, 0.0, 1.0);`,
+		`vec3 ${outs.color}_ramp = ${stops[0].color};`,
+	]
+	for (let i = 1; i < stops.length; i++) {
+		const previous = stops[i - 1]
+		const current = stops[i]
+		lines.push(`${outs.color}_ramp = mix(${outs.color}_ramp, ${current.color}, smoothstep(${formatFloat(previous.offset)}, max(${formatFloat(current.offset)}, ${formatFloat(previous.offset)} + 0.0001), ${outs.color}_f));`)
+	}
+	lines.push(`${outs.color} = ${outs.color}_ramp;`)
+	return lines
+}
+
+function constrainRampOffset(offset: number, index: number, length: number) {
+	if (index === 0) return clamp01(offset)
+	if (index === length - 1) return clamp01(offset)
+	return clamp01(offset)
+}
+
+function formatVec3Literal(value: string) {
+	const hex = value.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
+	if (hex) {
+		let source = hex[1]
+		if (source.length === 3) source = source.split("").map((char) => char + char).join("")
+		const parsed = Number.parseInt(source, 16)
+		return `vec3(${formatFloat(((parsed >> 16) & 255) / 255)}, ${formatFloat(((parsed >> 8) & 255) / 255)}, ${formatFloat((parsed & 255) / 255)})`
+	}
+	const [r, g, b] = parseVec3Literal(value)
+	return `vec3(${formatFloat(r)}, ${formatFloat(g)}, ${formatFloat(b)})`
+}
+
+function formatFloat(value: number) {
+	return Number.isFinite(value) ? Number(value.toFixed(4)).toString() : "0"
+}
+
+function clamp01(value: number) {
+	return Math.max(0, Math.min(1, value))
 }

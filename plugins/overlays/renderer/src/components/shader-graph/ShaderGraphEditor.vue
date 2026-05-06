@@ -498,6 +498,52 @@
 							/>
 						</label>
 
+						<div v-if="selectedNode.defId === 'color_ramp'" class="shader-graph__field-group">
+							<h4>Color Ramp</h4>
+							<div class="shader-graph__ramp-preview" :style="{ background: colorRampPreview(selectedNode) }" />
+							<div class="shader-graph__ramp-stop-list">
+								<div
+									v-for="(stop, index) in getColorRampStops(selectedNode)"
+									:key="index"
+									class="shader-graph__ramp-stop"
+								>
+									<input
+										type="color"
+										:value="vec3DefaultToHex(stop.color)"
+										@input="setColorRampStopColor(selectedNode, index, ($event.target as HTMLInputElement).value)"
+									/>
+									<input
+										type="range"
+										min="0"
+										max="1"
+										step="0.01"
+										:value="stop.offset"
+										@input="setColorRampStopOffset(selectedNode, index, ($event.target as HTMLInputElement).value)"
+									/>
+									<input
+										type="number"
+										min="0"
+										max="1"
+										step="0.01"
+										:value="stop.offset"
+										@input="setColorRampStopOffset(selectedNode, index, ($event.target as HTMLInputElement).value)"
+									/>
+									<button type="button" :disabled="index === 0" @click="moveColorRampStop(selectedNode, index, -1)" v-tooltip="'Move stop left'">
+										<i class="mdi mdi-arrow-up" />
+									</button>
+									<button type="button" :disabled="index === getColorRampStops(selectedNode).length - 1" @click="moveColorRampStop(selectedNode, index, 1)" v-tooltip="'Move stop right'">
+										<i class="mdi mdi-arrow-down" />
+									</button>
+									<button type="button" :disabled="getColorRampStops(selectedNode).length <= 2" @click="removeColorRampStop(selectedNode, index)" v-tooltip="'Delete stop'">
+										<i class="mdi mdi-delete-outline" />
+									</button>
+								</div>
+							</div>
+							<button type="button" class="shader-graph__add-stop" @click="addColorRampStop(selectedNode)">
+								<i class="mdi mdi-plus" /> Add Stop
+							</button>
+						</div>
+
 						<div v-if="selectedNodeDef.inputs.length" class="shader-graph__field-group">
 							<h4>Input Defaults</h4>
 							<label
@@ -691,11 +737,14 @@ import {
 	collectShaderUniformDefaults,
 	compileShaderGraph,
 	createShaderNodePreviewGraph,
+	normalizeShaderColorRampStops,
+	serializeShaderColorRampStops,
 	wouldCreateShaderGraphCycle,
 	type ShaderGraph,
 	type ShaderNodeInstance,
 	type ShaderNodeDef,
 	type GlslType,
+	type ShaderColorRampStop,
 	type ShaderUniformValueMap,
 } from "./shader-nodes"
 import { SHADER_GRAPH_STARTERS, collectShaderUniformBindings, createDefaultShaderGraph, createShaderGraphStarter, cloneShaderGraph } from "./shader-graph-state"
@@ -1425,6 +1474,87 @@ function vecLength(type: Extract<GlslType, "vec2" | "vec3" | "vec4">) {
 function getVecFallbackValue(length: number, index: number) {
 	if (length === 4 && index === 3) return 1
 	return 0
+}
+
+function getColorRampStops(node: ShaderNodeInstance) {
+	return normalizeShaderColorRampStops(node.inputDefaults?.rampStops)
+}
+
+function setColorRampStops(node: ShaderNodeInstance, stops: ShaderColorRampStop[]) {
+	node.inputDefaults = { ...(node.inputDefaults ?? {}), rampStops: serializeShaderColorRampStops(stops) }
+	emitGraphUpdate()
+	autoCompile()
+}
+
+function setColorRampStopColor(node: ShaderNodeInstance, index: number, color: string) {
+	const stops = getColorRampStops(node)
+	if (!stops[index]) return
+	stops[index] = { ...stops[index], color: hexToVec3(color) }
+	setColorRampStops(node, stops)
+}
+
+function setColorRampStopOffset(node: ShaderNodeInstance, index: number, value: string) {
+	const stops = getColorRampStops(node)
+	if (!stops[index]) return
+	const offset = Math.max(0, Math.min(1, Number(value)))
+	stops[index] = { ...stops[index], offset: Number.isFinite(offset) ? offset : stops[index].offset }
+	setColorRampStops(node, stops)
+}
+
+function addColorRampStop(node: ShaderNodeInstance) {
+	const stops = getColorRampStops(node)
+	const midpoint = getLargestRampGapMidpoint(stops)
+	const color = getInterpolatedRampColor(stops, midpoint)
+	setColorRampStops(node, [...stops, { offset: midpoint, color }])
+}
+
+function removeColorRampStop(node: ShaderNodeInstance, index: number) {
+	const stops = getColorRampStops(node)
+	if (stops.length <= 2) return
+	stops.splice(index, 1)
+	setColorRampStops(node, stops)
+}
+
+function moveColorRampStop(node: ShaderNodeInstance, index: number, direction: -1 | 1) {
+	const stops = getColorRampStops(node)
+	const target = index + direction
+	if (!stops[index] || !stops[target]) return
+	const next = [...stops]
+	;[next[index], next[target]] = [next[target], next[index]]
+	setColorRampStops(node, next.map((stop, nextIndex) => ({ ...stop, offset: stops[nextIndex].offset })))
+}
+
+function colorRampPreview(node: ShaderNodeInstance) {
+	const stops = getColorRampStops(node)
+	return `linear-gradient(to right, ${stops.map((stop) => `${vec3DefaultToHex(stop.color)} ${(stop.offset * 100).toFixed(1)}%`).join(", ")})`
+}
+
+function getLargestRampGapMidpoint(stops: ShaderColorRampStop[]) {
+	const sorted = [...stops].sort((a, b) => a.offset - b.offset)
+	let bestStart = 0
+	let bestEnd = 1
+	let bestGap = -1
+	for (let i = 1; i < sorted.length; i++) {
+		const gap = sorted[i].offset - sorted[i - 1].offset
+		if (gap > bestGap) {
+			bestGap = gap
+			bestStart = sorted[i - 1].offset
+			bestEnd = sorted[i].offset
+		}
+	}
+	return Number(((bestStart + bestEnd) / 2).toFixed(3))
+}
+
+function getInterpolatedRampColor(stops: ShaderColorRampStop[], offset: number) {
+	const sorted = [...stops].sort((a, b) => a.offset - b.offset)
+	const nextIndex = sorted.findIndex((stop) => stop.offset >= offset)
+	const right = sorted[nextIndex] ?? sorted[sorted.length - 1]
+	const left = sorted[Math.max(0, nextIndex - 1)] ?? sorted[0]
+	const span = Math.max(0.0001, right.offset - left.offset)
+	const t = Math.max(0, Math.min(1, (offset - left.offset) / span))
+	const a = parseVecDefault(left.color, 3)
+	const b = parseVecDefault(right.color, 3)
+	return `vec3(${a.map((value, index) => (value + (b[index] - value) * t).toFixed(3)).join(", ")})`
 }
 
 function shouldShowNodePreview(node: ShaderNodeInstance) {
@@ -2651,6 +2781,63 @@ function categoryColor(cat: string): string {
 .shader-graph__color-input > input[type="color"] {
 	min-height: 2.25rem;
 	padding: 0.15rem;
+}
+
+.shader-graph__ramp-preview {
+	border: 1px solid #3a3a3a;
+	border-radius: 4px;
+	height: 1.8rem;
+}
+
+.shader-graph__ramp-stop-list {
+	display: grid;
+	gap: 0.4rem;
+}
+
+.shader-graph__ramp-stop {
+	align-items: center;
+	display: grid;
+	gap: 0.35rem;
+	grid-template-columns: 2.2rem minmax(4rem, 1fr) 4.2rem repeat(3, 1.8rem);
+}
+
+.shader-graph__ramp-stop input[type="color"] {
+	height: 2rem;
+	min-height: 0;
+	padding: 0.1rem;
+	width: 2.2rem;
+}
+
+.shader-graph__ramp-stop input[type="range"] {
+	min-width: 0;
+}
+
+.shader-graph__ramp-stop input[type="number"] {
+	min-width: 0;
+}
+
+.shader-graph__ramp-stop button,
+.shader-graph__add-stop {
+	align-items: center;
+	background: #241433;
+	border: 1px solid #67428f;
+	border-radius: 4px;
+	color: #f1e7ff;
+	cursor: pointer;
+	display: inline-flex;
+	gap: 0.25rem;
+	justify-content: center;
+	min-height: 1.9rem;
+}
+
+.shader-graph__ramp-stop button:disabled {
+	cursor: not-allowed;
+	opacity: 0.4;
+}
+
+.shader-graph__add-stop {
+	justify-self: start;
+	padding: 0.25rem 0.55rem;
 }
 
 .shader-graph__field textarea {

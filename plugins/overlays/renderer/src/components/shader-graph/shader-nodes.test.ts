@@ -4,6 +4,7 @@ import {
 	collectShaderUniformDefaults,
 	compileShaderGraph,
 	createShaderNodePreviewGraph,
+	normalizeShaderColorRampStops,
 	validateShaderGraph,
 	wouldCreateShaderGraphCycle,
 	type ShaderGraph,
@@ -137,6 +138,45 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("0.5 + 0.5 * sin(")
 		expect(result.glsl).toContain("clamp(")
 		expect(result.glsl).toContain("mix(")
+	})
+
+	it("compiles multi-stop color ramp nodes", () => {
+		const rampStops = JSON.stringify([
+			{ offset: 0, color: "vec3(0.0, 0.1, 0.0)" },
+			{ offset: 0.35, color: "vec3(0.2, 0.5, 0.1)" },
+			{ offset: 0.7, color: "vec3(0.45, 0.4, 0.35)" },
+			{ offset: 1, color: "vec3(1.0, 1.0, 0.9)" },
+		])
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "ramp", defId: "color_ramp", x: 0, y: 0, inputDefaults: { rampStops } },
+				{ id: "output", defId: "fragment_output", x: 220, y: 0 },
+			],
+			wires: [
+				{ id: "ramp:color->output:color", fromNode: "ramp", fromPort: "color", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("vec3 v0_ramp_color_ramp = vec3(0, 0.1, 0);")
+		expect(result.glsl).toContain("smoothstep(0.35, max(0.7, 0.35 + 0.0001)")
+		expect(result.glsl).toContain("vec3(1, 1, 0.9)")
+	})
+
+	it("normalizes invalid color ramp stops to defaults", () => {
+		expect(normalizeShaderColorRampStops("not json")).toEqual([
+			{ offset: 0, color: "vec3(0.08, 0.20, 0.08)" },
+			{ offset: 0.55, color: "vec3(0.42, 0.34, 0.22)" },
+			{ offset: 1, color: "vec3(0.92, 0.92, 0.86)" },
+		])
+		expect(normalizeShaderColorRampStops(JSON.stringify([
+			{ offset: 1.2, color: "vec3(2.0, 0.5, 0.25)" },
+			{ offset: -1, color: "#336699" },
+		]))).toEqual([
+			{ offset: 0, color: "vec3(0.2, 0.4, 0.6)" },
+			{ offset: 1, color: "vec3(2, 0.5, 0.25)" },
+		])
 	})
 
 	it("compiles procedural noise nodes", () => {

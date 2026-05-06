@@ -251,7 +251,8 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add first-pass runtime shader uniform bindings through widget config paths and plugin state paths.
 - [ ] Add specialized shader uniform binding pickers for automation variables, viewer variables, audio levels, and queue payloads.
 - [x] Add typed node inspector controls for float, vec2, vec3/color, and vec4 input defaults.
-- [ ] Add richer node inspector controls: units, min/max clamps, and multi-stop color ramp editor.
+- [x] Add multi-stop color ramp editor with persisted ramp stops and generated GLSL.
+- [ ] Add richer node inspector controls: units and min/max clamps.
 - [x] Add shader graph undo/redo.
 - [ ] Add save/load preset workflows directly inside the shader graph editor.
 - [ ] Add advanced terrain scene nodes: heightfield raymarch, sampled terrain normals, horizon fog, sky/cloud helpers.
