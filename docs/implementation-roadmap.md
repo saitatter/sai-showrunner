@@ -239,7 +239,7 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add color ramp and biome helpers: gradient ramps, altitude bands, mask blending, grass/rock/snow bands.
 - [x] Add lighting nodes: sun direction, diffuse/specular, ambient, fog, simple shadow, and ambient occlusion helpers.
 - [x] Add camera/raymarching nodes: camera uniforms, ray direction, SDF primitives, raymarch sphere, and depth fade helpers.
-- [ ] Expand uniform controls: slider/color/vec2/vec3 UI, persisted defaults, automation bindings.
+- [x] Expand uniform controls: slider/color/vec2/vec3 UI, persisted defaults, and shaderUniforms config values that automation/widget bindings can target.
 - [ ] Add a real live WebGL preview with time/resolution/mouse uniforms and clear compile/runtime errors.
 - [ ] Add performance controls: resolution scale, max steps, quality presets, preview FPS throttle.
 - [ ] Add shader starter graphs: Procedural Terrain, Nebula, Audio Reactive, and Energy Field.

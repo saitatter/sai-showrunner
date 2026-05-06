@@ -250,7 +250,7 @@
 							</div>
 						</header>
 
-						<label v-if="selectedNode.defId === 'uniform_float' || selectedNode.defId === 'uniform_vec3'" class="shader-graph__field">
+						<label v-if="isUniformParameterNode(selectedNode)" class="shader-graph__field">
 							<span>Uniform Name</span>
 							<input
 								type="text"
@@ -262,12 +262,72 @@
 						<label v-if="selectedNode.defId === 'float_const' || selectedNode.defId === 'uniform_float'" class="shader-graph__field">
 							<span>Value</span>
 							<input
+								v-if="selectedNode.defId === 'uniform_float'"
+								type="range"
+								:min="getNodeInputDefault(selectedNode, 'min', '0')"
+								:max="getNodeInputDefault(selectedNode, 'max', '1')"
+								:step="getNodeInputDefault(selectedNode, 'step', '0.01')"
+								:value="getNodeInputDefault(selectedNode, 'value', '1.0')"
+								@input="setNodeInputDefault(selectedNode, 'value', ($event.target as HTMLInputElement).value || '0.0')"
+							/>
+							<input
 								type="number"
-								step="0.01"
+								:step="selectedNode.defId === 'uniform_float' ? getNodeInputDefault(selectedNode, 'step', '0.01') : '0.01'"
 								:value="getNodeInputDefault(selectedNode, 'value', '1.0')"
 								@input="setNodeInputDefault(selectedNode, 'value', ($event.target as HTMLInputElement).value || '0.0')"
 							/>
 						</label>
+
+						<div v-if="selectedNode.defId === 'uniform_float'" class="shader-graph__field-row">
+							<label class="shader-graph__field">
+								<span>Min</span>
+								<input
+									type="number"
+									step="0.01"
+									:value="getNodeInputDefault(selectedNode, 'min', '0')"
+									@input="setNodeInputDefault(selectedNode, 'min', ($event.target as HTMLInputElement).value || '0')"
+								/>
+							</label>
+							<label class="shader-graph__field">
+								<span>Max</span>
+								<input
+									type="number"
+									step="0.01"
+									:value="getNodeInputDefault(selectedNode, 'max', '1')"
+									@input="setNodeInputDefault(selectedNode, 'max', ($event.target as HTMLInputElement).value || '1')"
+								/>
+							</label>
+							<label class="shader-graph__field">
+								<span>Step</span>
+								<input
+									type="number"
+									step="0.01"
+									:value="getNodeInputDefault(selectedNode, 'step', '0.01')"
+									@input="setNodeInputDefault(selectedNode, 'step', ($event.target as HTMLInputElement).value || '0.01')"
+								/>
+							</label>
+						</div>
+
+						<div v-if="selectedNode.defId === 'uniform_vec2'" class="shader-graph__field-row">
+							<label class="shader-graph__field">
+								<span>X</span>
+								<input
+									type="number"
+									step="0.01"
+									:value="vec2DefaultComponent(getNodeInputDefault(selectedNode, 'value', 'vec2(0.0, 0.0)'), 0)"
+									@input="setVec2InputDefaultComponent(selectedNode, 'value', 0, ($event.target as HTMLInputElement).value || '0.0')"
+								/>
+							</label>
+							<label class="shader-graph__field">
+								<span>Y</span>
+								<input
+									type="number"
+									step="0.01"
+									:value="vec2DefaultComponent(getNodeInputDefault(selectedNode, 'value', 'vec2(0.0, 0.0)'), 1)"
+									@input="setVec2InputDefaultComponent(selectedNode, 'value', 1, ($event.target as HTMLInputElement).value || '0.0')"
+								/>
+							</label>
+						</div>
 
 						<label v-if="selectedNode.defId === 'vec3_const' || selectedNode.defId === 'uniform_vec3'" class="shader-graph__field">
 							<span>Color</span>
@@ -881,7 +941,11 @@ function setNodeInputDefault(node: ShaderNodeInstance, key: string, value: strin
 
 function hasEditableNodeSettings(node: ShaderNodeInstance) {
 	const def = SHADER_NODE_DEF_MAP.get(node.defId)
-	return ["float_const", "vec3_const", "uniform_float", "uniform_vec3"].includes(node.defId) || Boolean(def?.inputs.length)
+	return ["float_const", "vec3_const", "uniform_float", "uniform_vec2", "uniform_vec3"].includes(node.defId) || Boolean(def?.inputs.length)
+}
+
+function isUniformParameterNode(node: ShaderNodeInstance) {
+	return node.defId === "uniform_float" || node.defId === "uniform_vec2" || node.defId === "uniform_vec3"
 }
 
 function isNodeInputConnected(node: ShaderNodeInstance, portKey: string) {
@@ -917,6 +981,25 @@ function hexToVec3(hex: string) {
 	const g = parseInt(normalized.slice(2, 4), 16) / 255
 	const b = parseInt(normalized.slice(4, 6), 16) / 255
 	return `vec3(${r.toFixed(3)}, ${g.toFixed(3)}, ${b.toFixed(3)})`
+}
+
+function parseVec2Default(value: string): [number, number] {
+	const parts = value.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []
+	return [
+		Number.isFinite(parts[0]) ? parts[0] : 0,
+		Number.isFinite(parts[1]) ? parts[1] : 0,
+	]
+}
+
+function vec2DefaultComponent(value: string, index: 0 | 1) {
+	return String(parseVec2Default(value)[index])
+}
+
+function setVec2InputDefaultComponent(node: ShaderNodeInstance, key: string, index: 0 | 1, value: string) {
+	const parts = parseVec2Default(getNodeInputDefault(node, key, "vec2(0.0, 0.0)"))
+	const next = Number(value)
+	parts[index] = Number.isFinite(next) ? next : 0
+	setNodeInputDefault(node, key, `vec2(${parts[0].toFixed(3)}, ${parts[1].toFixed(3)})`)
 }
 
 // ─── Palette ─────────────────────────────────────────────────────────
@@ -1777,6 +1860,12 @@ function categoryColor(cat: string): string {
 	gap: 0.35rem;
 }
 
+.shader-graph__field-row {
+	display: grid;
+	gap: 0.5rem;
+	grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+}
+
 .shader-graph__field-group {
 	border-top: 1px solid #2d2d2d;
 	display: flex;
@@ -1819,6 +1908,12 @@ function categoryColor(cat: string): string {
 	color: #eee;
 	min-height: 2rem;
 	padding: 0.25rem 0.45rem;
+}
+
+.shader-graph__field input[type="range"] {
+	accent-color: #7ac784;
+	min-height: 1.35rem;
+	padding: 0;
 }
 
 .shader-graph__field--connected input {

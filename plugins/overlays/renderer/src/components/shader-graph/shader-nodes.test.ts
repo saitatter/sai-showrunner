@@ -85,6 +85,7 @@ describe("shader graph compiler", () => {
 	it("compiles custom uniform parameter nodes", () => {
 		const graph: ShaderGraph = {
 			nodes: [
+				{ id: "offset", defId: "uniform_vec2", x: 0, y: 140, inputDefaults: { name: "uv_offset", value: "vec2(0.125, 0.250)" } },
 				{ id: "color", defId: "uniform_vec3", x: 0, y: 0, inputDefaults: { name: "alert_color", value: "vec3(0.250, 0.500, 0.750)" } },
 				{ id: "output", defId: "fragment_output", x: 220, y: 0 },
 			],
@@ -97,9 +98,13 @@ describe("shader graph compiler", () => {
 		const result = compileShaderGraph(graph)
 
 		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("uniform vec2 u_uv_offset;")
 		expect(result.glsl).toContain("uniform vec3 u_alert_color;")
 		expect(result.glsl).toContain("= u_alert_color;")
-		expect(collectShaderUniformDefaults(graph)).toEqual({ u_alert_color: [0.25, 0.5, 0.75] })
+		expect(collectShaderUniformDefaults(graph)).toEqual({
+			u_uv_offset: [0.125, 0.25],
+			u_alert_color: [0.25, 0.5, 0.75],
+		})
 	})
 
 	it("compiles procedural utility nodes", () => {

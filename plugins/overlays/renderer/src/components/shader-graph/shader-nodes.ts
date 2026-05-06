@@ -135,6 +135,15 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		compile: (_ins, outs) => [`// float parameter assigned from uniform`],
 	},
 	{
+		id: "uniform_vec2",
+		name: "Vec2 Parameter",
+		category: "Input",
+		icon: "mdi mdi-vector-point",
+		inputs: [],
+		outputs: [{ key: "value", label: "Vec2", type: "vec2", default: "vec2(0.0, 0.0)" }],
+		compile: (_ins, outs) => [`// vec2 parameter assigned from uniform`],
+	},
+	{
 		id: "uniform_vec3",
 		name: "Color Parameter",
 		category: "Input",
@@ -947,6 +956,8 @@ export const SHADER_NODE_DEF_MAP = new Map(SHADER_NODE_DEFS.map((d) => [d.id, d]
 
 export const SHADER_NODE_CATEGORIES = [...new Set(SHADER_NODE_DEFS.map((d) => d.category))]
 
+const SHADER_UNIFORM_PARAMETER_NODE_IDS = new Set(["uniform_float", "uniform_vec2", "uniform_vec3"])
+
 // ─── GLSL Code Generation ────────────────────────────────────────────
 
 export function getShaderPortDef(graph: ShaderGraph, nodeId: string, portKey: string, kind: "in" | "out"): ShaderPortDef | undefined {
@@ -1019,7 +1030,7 @@ export function validateShaderGraph(graph: ShaderGraph): string[] {
 
 	const uniformNames = new Set<string>()
 	for (const node of graph.nodes) {
-		if (node.defId !== "uniform_float" && node.defId !== "uniform_vec3") continue
+		if (!SHADER_UNIFORM_PARAMETER_NODE_IDS.has(node.defId)) continue
 		const name = getUniformName(node)
 		if (uniformNames.has(name)) {
 			errors.push(`Uniform name "${name}" is used by multiple parameter nodes.`)
@@ -1119,12 +1130,24 @@ function parseVec3Literal(value: string): [number, number, number] {
 	]
 }
 
+function parseVec2Literal(value: string): [number, number] {
+	const source = value.match(/vec2\s*\(([^)]*)\)/)?.[1] ?? value
+	const parts = source.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []
+	return [
+		Number.isFinite(parts[0]) ? parts[0] : 0,
+		Number.isFinite(parts[1]) ? parts[1] : 0,
+	]
+}
+
 export function collectShaderUniformDefaults(graph: ShaderGraph): ShaderUniformValueMap {
 	const uniforms: ShaderUniformValueMap = {}
 	for (const node of graph.nodes) {
 		if (node.defId === "uniform_float") {
 			const value = Number(getConstantNodeValue(node, "float", "1.0"))
 			uniforms[getUniformName(node)] = Number.isFinite(value) ? value : 1
+		}
+		if (node.defId === "uniform_vec2") {
+			uniforms[getUniformName(node)] = parseVec2Literal(getConstantNodeValue(node, "vec2", "vec2(0.0, 0.0)"))
 		}
 		if (node.defId === "uniform_vec3") {
 			uniforms[getUniformName(node)] = parseVec3Literal(getConstantNodeValue(node, "vec3", "vec3(1.0, 1.0, 1.0)"))
@@ -1367,6 +1390,10 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 		} else if (node.defId === "uniform_float") {
 			const uniformName = getUniformName(node)
 			uniformLines.add(`uniform float ${uniformName};`)
+			lines = [`${outs.value} = ${uniformName};`]
+		} else if (node.defId === "uniform_vec2") {
+			const uniformName = getUniformName(node)
+			uniformLines.add(`uniform vec2 ${uniformName};`)
 			lines = [`${outs.value} = ${uniformName};`]
 		} else if (node.defId === "uniform_vec3") {
 			const uniformName = getUniformName(node)
