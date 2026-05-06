@@ -3,6 +3,7 @@ import {
 	areShaderTypesCompatible,
 	collectShaderUniformDefaults,
 	compileShaderGraph,
+	createShaderNodePreviewGraph,
 	validateShaderGraph,
 	wouldCreateShaderGraphCycle,
 	type ShaderGraph,
@@ -131,6 +132,42 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("0.5 + 0.5 * sin(")
 		expect(result.glsl).toContain("clamp(")
 		expect(result.glsl).toContain("mix(")
+	})
+
+	it("creates preview graphs for node outputs", () => {
+		const graph: ShaderGraph = {
+			nodes: [
+				{ id: "uv", defId: "uv", x: 0, y: 0 },
+				{ id: "split", defId: "vec2_split", x: 220, y: 0 },
+				{ id: "wave", defId: "wave", x: 440, y: 0 },
+				{ id: "gradient", defId: "gradient_color", x: 660, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 880, y: 0 },
+			],
+			wires: [
+				{ id: "uv:uv->split:v", fromNode: "uv", fromPort: "uv", toNode: "split", toPort: "v" },
+				{ id: "split:x->wave:x", fromNode: "split", fromPort: "x", toNode: "wave", toPort: "x" },
+				{ id: "wave:result->gradient:factor", fromNode: "wave", fromPort: "result", toNode: "gradient", toPort: "factor" },
+				{ id: "gradient:color->output:color", fromNode: "gradient", fromPort: "color", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		}
+
+		const floatPreview = createShaderNodePreviewGraph(graph, "wave")
+		const vec2Preview = createShaderNodePreviewGraph(graph, "uv")
+		const colorPreview = createShaderNodePreviewGraph(graph, "gradient")
+
+		expect(floatPreview?.outputNodeId).toBe("__preview_wave_output")
+		expect(vec2Preview?.nodes.some((node) => node.defId === "vec2_split")).toBe(true)
+		expect(colorPreview?.wires).toContainEqual({
+			id: "gradient:color->__preview_gradient_output:color",
+			fromNode: "gradient",
+			fromPort: "color",
+			toNode: "__preview_gradient_output",
+			toPort: "color",
+		})
+		expect(compileShaderGraph(floatPreview!).errors).toEqual([])
+		expect(compileShaderGraph(vec2Preview!).errors).toEqual([])
+		expect(compileShaderGraph(colorPreview!).errors).toEqual([])
 	})
 
 	it("reports duplicate custom uniform names", () => {

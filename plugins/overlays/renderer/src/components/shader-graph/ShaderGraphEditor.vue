@@ -354,6 +354,7 @@ import {
 	areShaderTypesCompatible,
 	collectShaderUniformDefaults,
 	compileShaderGraph,
+	createShaderNodePreviewGraph,
 	wouldCreateShaderGraphCycle,
 	type ShaderGraph,
 	type ShaderNodeInstance,
@@ -457,7 +458,10 @@ let dragState: { fromNode: string; fromPort: string; fromKind: "in" | "out"; fro
 // Node preview canvases
 const previewRefs = new Map<string, HTMLCanvasElement>()
 function setPreviewRef(nodeId: string, el: HTMLCanvasElement | null) {
-	if (el) previewRefs.set(nodeId, el)
+	if (el) {
+		previewRefs.set(nodeId, el)
+		nextTick(renderNodePreviews)
+	}
 	else previewRefs.delete(nodeId)
 }
 
@@ -886,6 +890,7 @@ function autoCompile() {
 		currentPreviewUniforms = collectShaderUniformDefaults(graph.value)
 		updateLivePreview(runtimeSnapshot.output)
 	}
+	renderNodePreviews()
 }
 
 function compileAndApply() {
@@ -1003,6 +1008,71 @@ function updateLivePreview(glsl: string) {
 	} catch (error) {
 		previewError.value = error instanceof Error ? error.message : String(error)
 	}
+}
+
+function renderNodePreviews() {
+	nextTick(() => {
+		for (const [nodeId, canvas] of previewRefs) {
+			const previewGraph = createShaderNodePreviewGraph(graph.value, nodeId)
+			if (!previewGraph) {
+				paintNodePreviewFallback(canvas, "#101010", "no output")
+				continue
+			}
+			const result = compileShaderGraph(previewGraph)
+			if (result.errors.length || !result.glsl) {
+				paintNodePreviewFallback(canvas, "#2d1111", "error")
+				continue
+			}
+			try {
+				renderStaticShaderPreview(canvas, result.glsl, collectShaderUniformDefaults(previewGraph))
+			} catch {
+				paintNodePreviewFallback(canvas, "#101010", "preview")
+			}
+		}
+	})
+}
+
+function renderStaticShaderPreview(canvas: HTMLCanvasElement, glsl: string, uniforms: ShaderUniformValueMap) {
+	const gl = canvas.getContext("webgl", { alpha: true, preserveDrawingBuffer: true })
+	if (!gl) throw new Error("WebGL preview is not available.")
+	const buffer = gl.createBuffer()
+	const program = compileProgram(gl, glsl)
+	if (!buffer) {
+		gl.deleteProgram(program)
+		throw new Error("Could not create preview buffer.")
+	}
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW)
+	gl.viewport(0, 0, canvas.width, canvas.height)
+	gl.clearColor(0, 0, 0, 0)
+	gl.clear(gl.COLOR_BUFFER_BIT)
+	gl.useProgram(program)
+	const posLoc = gl.getAttribLocation(program, "a_position")
+	gl.enableVertexAttribArray(posLoc)
+	gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0)
+	gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), canvas.width, canvas.height)
+	gl.uniform1f(gl.getUniformLocation(program, "u_time"), 1.25)
+	gl.uniform3fv(gl.getUniformLocation(program, "u_accent"), [0.57, 0.27, 1.0])
+	gl.uniform3fv(gl.getUniformLocation(program, "u_secondary"), [0, 0.82, 1.0])
+	gl.uniform1f(gl.getUniformLocation(program, "u_intensity"), 0.8)
+	gl.uniform1f(gl.getUniformLocation(program, "u_speed"), 1.0)
+	applyUniformValues(gl, program, uniforms)
+	gl.drawArrays(gl.TRIANGLES, 0, 6)
+	gl.deleteBuffer(buffer)
+	gl.deleteProgram(program)
+}
+
+function paintNodePreviewFallback(canvas: HTMLCanvasElement, background: string, label: string) {
+	const ctx = canvas.getContext("2d")
+	if (!ctx) return
+	ctx.clearRect(0, 0, canvas.width, canvas.height)
+	ctx.fillStyle = background
+	ctx.fillRect(0, 0, canvas.width, canvas.height)
+	ctx.fillStyle = "#888"
+	ctx.font = "11px sans-serif"
+	ctx.textAlign = "center"
+	ctx.textBaseline = "middle"
+	ctx.fillText(label, canvas.width / 2, canvas.height / 2)
 }
 
 function disposePreview() {

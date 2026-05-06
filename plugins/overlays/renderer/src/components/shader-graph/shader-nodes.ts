@@ -629,6 +629,85 @@ export function collectShaderUniformDefaults(graph: ShaderGraph): ShaderUniformV
 	return uniforms
 }
 
+function cloneShaderNode(node: ShaderNodeInstance): ShaderNodeInstance {
+	return {
+		...node,
+		inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined,
+	}
+}
+
+export function createShaderNodePreviewGraph(graph: ShaderGraph, nodeId: string): ShaderGraph | undefined {
+	const node = graph.nodes.find((item) => item.id === nodeId)
+	if (!node) return undefined
+	const def = SHADER_NODE_DEF_MAP.get(node.defId)
+	if (!def) return undefined
+	if (node.defId === "fragment_output") {
+		return {
+			nodes: graph.nodes.map(cloneShaderNode),
+			wires: graph.wires.map((wire) => ({ ...wire })),
+			outputNodeId: node.id,
+		}
+	}
+
+	const previewPort =
+		def.outputs.find((port) => port.type === "vec3") ??
+		def.outputs.find((port) => port.type === "float") ??
+		def.outputs.find((port) => port.type === "vec2")
+	if (!previewPort) return undefined
+
+	const baseNodes = graph.nodes
+		.filter((item) => item.defId !== "fragment_output")
+		.map(cloneShaderNode)
+	const baseNodeIds = new Set(baseNodes.map((item) => item.id))
+	const baseWires = graph.wires
+		.filter((wire) => baseNodeIds.has(wire.fromNode) && baseNodeIds.has(wire.toNode))
+		.map((wire) => ({ ...wire }))
+	const outputId = `__preview_${node.id}_output`
+
+	if (previewPort.type === "vec3") {
+		return {
+			nodes: [
+				...baseNodes,
+				{ id: outputId, defId: "fragment_output", x: node.x + 240, y: node.y },
+			],
+			wires: [
+				...baseWires,
+				{ id: `${node.id}:${previewPort.key}->${outputId}:color`, fromNode: node.id, fromPort: previewPort.key, toNode: outputId, toPort: "color" },
+			],
+			outputNodeId: outputId,
+		}
+	}
+
+	const composeId = `__preview_${node.id}_color`
+	const nodes = [
+		...baseNodes,
+		{ id: composeId, defId: "vec3_compose", x: node.x + 240, y: node.y },
+		{ id: outputId, defId: "fragment_output", x: node.x + 480, y: node.y },
+	]
+	const wires = [
+		...baseWires,
+		{ id: `${composeId}:result->${outputId}:color`, fromNode: composeId, fromPort: "result", toNode: outputId, toPort: "color" },
+	]
+
+	if (previewPort.type === "float") {
+		wires.push(
+			{ id: `${node.id}:${previewPort.key}->${composeId}:x`, fromNode: node.id, fromPort: previewPort.key, toNode: composeId, toPort: "x" },
+			{ id: `${node.id}:${previewPort.key}->${composeId}:y`, fromNode: node.id, fromPort: previewPort.key, toNode: composeId, toPort: "y" },
+			{ id: `${node.id}:${previewPort.key}->${composeId}:z`, fromNode: node.id, fromPort: previewPort.key, toNode: composeId, toPort: "z" }
+		)
+	} else {
+		const splitId = `__preview_${node.id}_split`
+		nodes.splice(nodes.length - 2, 0, { id: splitId, defId: "vec2_split", x: node.x + 240, y: node.y })
+		wires.push(
+			{ id: `${node.id}:${previewPort.key}->${splitId}:v`, fromNode: node.id, fromPort: previewPort.key, toNode: splitId, toPort: "v" },
+			{ id: `${splitId}:x->${composeId}:x`, fromNode: splitId, fromPort: "x", toNode: composeId, toPort: "x" },
+			{ id: `${splitId}:y->${composeId}:y`, fromNode: splitId, fromPort: "y", toNode: composeId, toPort: "y" }
+		)
+	}
+
+	return { nodes, wires, outputNodeId: outputId }
+}
+
 export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[] } {
 	const errors = validateShaderGraph(graph)
 	if (errors.length) return { glsl: "", errors }
