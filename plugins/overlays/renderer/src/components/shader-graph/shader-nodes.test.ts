@@ -134,6 +134,40 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("mix(")
 	})
 
+	it("compiles procedural noise nodes", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "uv", defId: "uv", x: 0, y: 0 },
+				{ id: "warp", defId: "domain_warp", x: 220, y: 0, inputDefaults: { scale: "2.5", strength: "0.35" } },
+				{ id: "fbm", defId: "fbm_noise", x: 440, y: 0, inputDefaults: { octaves: "6.0" } },
+				{ id: "value", defId: "value_noise", x: 440, y: 140 },
+				{ id: "perlin", defId: "perlin_noise", x: 440, y: 280 },
+				{ id: "voronoi", defId: "voronoi_noise", x: 440, y: 420 },
+				{ id: "color", defId: "gradient_color", x: 660, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 880, y: 0 },
+			],
+			wires: [
+				{ id: "uv:uv->warp:uv", fromNode: "uv", fromPort: "uv", toNode: "warp", toPort: "uv" },
+				{ id: "warp:uv->fbm:uv", fromNode: "warp", fromPort: "uv", toNode: "fbm", toPort: "uv" },
+				{ id: "uv:uv->value:uv", fromNode: "uv", fromPort: "uv", toNode: "value", toPort: "uv" },
+				{ id: "uv:uv->perlin:uv", fromNode: "uv", fromPort: "uv", toNode: "perlin", toPort: "uv" },
+				{ id: "uv:uv->voronoi:uv", fromNode: "uv", fromPort: "uv", toNode: "voronoi", toPort: "uv" },
+				{ id: "fbm:value->color:factor", fromNode: "fbm", fromPort: "value", toNode: "color", toPort: "factor" },
+				{ id: "color:color->output:color", fromNode: "color", fromPort: "color", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("float sr_value_noise")
+		expect(result.glsl).toContain("float sr_perlin_noise")
+		expect(result.glsl).toContain("float sr_fbm")
+		expect(result.glsl).toContain("float sr_voronoi")
+		expect(result.glsl).toContain("vec2 sr_domain_warp")
+		expect(result.glsl).toContain("sr_domain_warp(")
+		expect(result.glsl).toContain("sr_fbm(")
+	})
+
 	it("creates preview graphs for node outputs", () => {
 		const graph: ShaderGraph = {
 			nodes: [

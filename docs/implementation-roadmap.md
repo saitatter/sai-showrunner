@@ -231,6 +231,20 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Audit all remaining production `console.*` output after the beta polish pass.
 - [ ] Audit remaining `@ts-expect-error` comments and remove any that are no longer needed.
 
+### 5.13 Shader Graph Procedural Scene Roadmap
+- [x] Keep Shader Graph inside the docked tab layout and use the automation-style context menu for non-input nodes.
+- [x] Show only input/uniform/source nodes in the left rail; add all other nodes from the canvas context menu.
+- [x] Add procedural noise nodes: Value Noise, Perlin Noise, FBM Noise, Voronoi, and Domain Warp.
+- [ ] Add terrain pipeline nodes: height map shaping, normals from height, slope/curvature masks, and erosion-like filters.
+- [ ] Add color ramp and biome helpers: gradient ramps, altitude bands, mask blending, grass/rock/snow bands.
+- [ ] Add lighting nodes: sun direction, diffuse/specular, ambient, fog, simple shadow, and ambient occlusion helpers.
+- [ ] Add camera/raymarching nodes: camera uniforms, ray direction, SDF/raymarch helpers, depth/fog output.
+- [ ] Expand uniform controls: slider/color/vec2/vec3 UI, persisted defaults, automation bindings.
+- [ ] Add a real live WebGL preview with time/resolution/mouse uniforms and clear compile/runtime errors.
+- [ ] Add performance controls: resolution scale, max steps, quality presets, preview FPS throttle.
+- [ ] Add shader starter graphs: Procedural Terrain, Nebula, Audio Reactive, and Energy Field.
+- [ ] Add graph UX utilities: copy/paste, duplicate, reroute nodes, frames/comments, minimap, and fit selection.
+
 ---
 
 ## Phase 6: Beta Stabilization Plan

@@ -283,6 +283,84 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		compile: (ins, outs) => [`${outs.result} = 0.5 + 0.5 * sin(${ins.x} * ${ins.frequency} + ${ins.time} * ${ins.speed});`],
 	},
 
+	// ── Noise ──
+	{
+		id: "value_noise",
+		name: "Value Noise",
+		category: "Noise",
+		icon: "mdi mdi-blur",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "6.0" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "value", label: "Value", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = sr_value_noise(${ins.uv} * ${ins.scale} + vec2(${ins.seed}));`],
+	},
+	{
+		id: "perlin_noise",
+		name: "Perlin Noise",
+		category: "Noise",
+		icon: "mdi mdi-chart-bell-curve",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "6.0" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "value", label: "Value", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = clamp(0.5 + 0.5 * sr_perlin_noise(${ins.uv} * ${ins.scale} + vec2(${ins.seed})), 0.0, 1.0);`],
+	},
+	{
+		id: "fbm_noise",
+		name: "FBM Noise",
+		category: "Noise",
+		icon: "mdi mdi-waves",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "4.0" },
+			{ key: "octaves", label: "Octaves", type: "float", default: "5.0" },
+			{ key: "lacunarity", label: "Lacunarity", type: "float", default: "2.0" },
+			{ key: "gain", label: "Gain", type: "float", default: "0.5" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "value", label: "Value", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = sr_fbm(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.octaves}, ${ins.lacunarity}, ${ins.gain});`],
+	},
+	{
+		id: "voronoi_noise",
+		name: "Voronoi",
+		category: "Noise",
+		icon: "mdi mdi-hexagon-multiple-outline",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "8.0" },
+			{ key: "jitter", label: "Jitter", type: "float", default: "0.8" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "distance", label: "Distance", type: "float" }],
+		compile: (ins, outs) => [`${outs.distance} = sr_voronoi(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.jitter});`],
+	},
+	{
+		id: "domain_warp",
+		name: "Domain Warp",
+		category: "Noise",
+		icon: "mdi mdi-vector-polyline",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "3.0" },
+			{ key: "strength", label: "Strength", type: "float", default: "0.25" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [
+			{ key: "uv", label: "Warped UV", type: "vec2" },
+			{ key: "value", label: "Value", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`${outs.uv} = sr_domain_warp(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.strength});`,
+			`${outs.value} = sr_fbm(${outs.uv}, 5.0, 2.0, 0.5);`,
+		],
+	},
+
 	// ── Vector ──
 	{
 		id: "vec2_compose",
@@ -708,6 +786,77 @@ export function createShaderNodePreviewGraph(graph: ShaderGraph, nodeId: string)
 	return { nodes, wires, outputNodeId: outputId }
 }
 
+const SHADER_NOISE_GLSL = `float sr_hash21(vec2 p) {
+\tp = fract(p * vec2(123.34, 456.21));
+\tp += dot(p, p + 45.32);
+\treturn fract(p.x * p.y);
+}
+
+vec2 sr_hash22(vec2 p) {
+\tfloat n = sr_hash21(p);
+\treturn fract(vec2(n, n + 0.37) * vec2(269.5, 183.3));
+}
+
+float sr_value_noise(vec2 p) {
+\tvec2 i = floor(p);
+\tvec2 f = fract(p);
+\tvec2 u = f * f * (3.0 - 2.0 * f);
+\tfloat a = sr_hash21(i);
+\tfloat b = sr_hash21(i + vec2(1.0, 0.0));
+\tfloat c = sr_hash21(i + vec2(0.0, 1.0));
+\tfloat d = sr_hash21(i + vec2(1.0, 1.0));
+\treturn mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float sr_perlin_noise(vec2 p) {
+\tvec2 i = floor(p);
+\tvec2 f = fract(p);
+\tvec2 u = f * f * (3.0 - 2.0 * f);
+\tvec2 ga = normalize(sr_hash22(i) * 2.0 - 1.0);
+\tvec2 gb = normalize(sr_hash22(i + vec2(1.0, 0.0)) * 2.0 - 1.0);
+\tvec2 gc = normalize(sr_hash22(i + vec2(0.0, 1.0)) * 2.0 - 1.0);
+\tvec2 gd = normalize(sr_hash22(i + vec2(1.0, 1.0)) * 2.0 - 1.0);
+\tfloat a = dot(ga, f);
+\tfloat b = dot(gb, f - vec2(1.0, 0.0));
+\tfloat c = dot(gc, f - vec2(0.0, 1.0));
+\tfloat d = dot(gd, f - vec2(1.0, 1.0));
+\treturn mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float sr_fbm(vec2 p, float octaves, float lacunarity, float gain) {
+\tfloat value = 0.0;
+\tfloat amplitude = 0.5;
+\tfloat norm = 0.0;
+\tfor (int i = 0; i < 8; i++) {
+\t\tif (float(i) >= octaves) break;
+\t\tvalue += amplitude * sr_value_noise(p);
+\t\tnorm += amplitude;
+\t\tp *= lacunarity;
+\t\tamplitude *= gain;
+\t}
+\treturn norm > 0.0 ? value / norm : 0.0;
+}
+
+float sr_voronoi(vec2 p, float jitter) {
+\tvec2 i = floor(p);
+\tvec2 f = fract(p);
+\tfloat nearest = 8.0;
+\tfor (int y = -1; y <= 1; y++) {
+\t\tfor (int x = -1; x <= 1; x++) {
+\t\t\tvec2 cell = vec2(float(x), float(y));
+\t\t\tvec2 point = cell + mix(vec2(0.5), sr_hash22(i + cell), clamp(jitter, 0.0, 1.0)) - f;
+\t\t\tnearest = min(nearest, dot(point, point));
+\t\t}
+\t}
+\treturn clamp(sqrt(nearest), 0.0, 1.0);
+}
+
+vec2 sr_domain_warp(vec2 p, float strength) {
+\tfloat x = sr_fbm(p + vec2(17.2, 9.1), 4.0, 2.0, 0.5);
+\tfloat y = sr_fbm(p + vec2(-8.3, 23.7), 4.0, 2.0, 0.5);
+\treturn p + (vec2(x, y) * 2.0 - 1.0) * strength;
+}`
+
 export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[] } {
 	const errors = validateShaderGraph(graph)
 	if (errors.length) return { glsl: "", errors }
@@ -814,6 +963,8 @@ uniform vec3 u_secondary;
 uniform float u_intensity;
 uniform float u_speed;
 ${[...uniformLines].join("\n")}
+
+${SHADER_NOISE_GLSL}
 
 void main() {
 ${bodyLines.join("\n")}
