@@ -740,7 +740,12 @@
 				</section>
 
 				<section v-else-if="sidePanelTab === 'errors'" class="shader-graph__errors">
-					<graph-issues-panel :issues="compileIssues" empty-message="No shader graph issues." />
+					<graph-issues-panel
+						:issues="compileIssues"
+						empty-message="No shader graph issues."
+						selectable
+						@select="selectShaderIssue"
+					/>
 				</section>
 
 				<section v-else class="shader-graph__code">
@@ -783,6 +788,7 @@ import {
 	useGraphNodeDrag,
 	useGraphSelection,
 	type GraphIssue,
+	type GraphIssueSeverity,
 	type GraphPortCandidate,
 	type GraphPoint,
 	type GraphRuntimeAdapter,
@@ -840,8 +846,8 @@ const shaderGraphRuntime: GraphRuntimeAdapter<ShaderGraph, string> = {
 		return {
 			output: result.glsl || undefined,
 			issues: [
-				...result.errors.map((message) => ({ severity: "error" as const, message })),
-				...result.warnings.map((message) => ({ severity: "warning" as const, message })),
+				...result.errors.map((message) => inferShaderGraphIssue(message, "error")),
+				...result.warnings.map((message) => inferShaderGraphIssue(message, "warning")),
 			],
 		}
 	},
@@ -1329,6 +1335,19 @@ function selectShaderFrame(frameId: string) {
 	selectedWireId.value = undefined
 }
 
+function selectShaderIssue(issue: GraphIssue) {
+	if (issue.wireId) {
+		selectedWireId.value = issue.wireId
+		selectedFrameId.value = undefined
+		clearNodeSelection()
+		return
+	}
+	if (issue.nodeId && graph.value.nodes.some((node) => node.id === issue.nodeId)) {
+		selectOnlyNode(issue.nodeId)
+		sidePanelTab.value = "node"
+	}
+}
+
 function shaderFrameStyle(frame: ShaderFrame) {
 	return {
 		transform: `translate(${frame.x}px, ${frame.y}px)`,
@@ -1645,6 +1664,43 @@ function validateShaderWireTarget(drag: NonNullable<typeof dragState>, target: G
 		return { valid: false, message: `Connecting ${endpoints.fromNode}:${endpoints.fromPort} to ${endpoints.toNode}:${endpoints.toPort} would create a cycle.` }
 	}
 	return { valid: true }
+}
+
+function inferShaderGraphIssue(message: string, severity: GraphIssueSeverity): GraphIssue {
+	const issue: GraphIssue = { severity, message }
+	const wireMatch = message.match(/^Wire\s+([^\s]+)\s+/)
+	if (wireMatch) {
+		issue.wireId = wireMatch[1]
+		const wire = graph.value.wires.find((item) => item.id === issue.wireId)
+		if (wire) {
+			issue.nodeId = wire.toNode
+			issue.portKey = wire.toPort
+		}
+		return issue
+	}
+
+	const missingNodeMatch = message.match(/^Node\s+([^\s]+)\s+uses unknown shader node type/)
+	if (missingNodeMatch) {
+		issue.nodeId = missingNodeMatch[1]
+		return issue
+	}
+
+	const labelMatch = message.match(/^Node\s+"(.+)"\s+is not connected/)
+	if (labelMatch) {
+		const node = graphNodes.value.find((item) => item.name === labelMatch[1] || item.id === labelMatch[1])
+		if (node) issue.nodeId = node.id
+		return issue
+	}
+
+	const outputWarningMatch = message.match(/^Fragment Output\s+"(.+)"\s+has no color input/)
+	if (outputWarningMatch) {
+		const output = graphNodes.value.find((item) => item.defId === "fragment_output" && (item.name === outputWarningMatch[1] || item.id === graph.value.outputNodeId))
+		if (output) {
+			issue.nodeId = output.id
+			issue.portKey = "color"
+		}
+	}
+	return issue
 }
 
 function getShaderPortDef(nodeId: string, portKey: string, kind: "in" | "out") {
