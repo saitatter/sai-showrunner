@@ -13,7 +13,7 @@
 				<button type="button" class="shader-graph__tool-button" @click="fitGraph" v-tooltip="'Fit graph'">
 					<i class="mdi mdi-fit-to-screen-outline" />
 				</button>
-				<button type="button" class="shader-graph__tool-button" :disabled="!selectedNode" @click="fitSelection" v-tooltip="'Fit selected node'">
+				<button type="button" class="shader-graph__tool-button" :disabled="!hasFitSelectionTarget" @click="fitSelection" v-tooltip="'Fit selection'">
 					<i class="mdi mdi-selection-search" />
 				</button>
 				<button type="button" class="shader-graph__tool-button" :disabled="!canUndo" @click="undoGraph" v-tooltip="'Undo'">
@@ -1053,6 +1053,8 @@ const shaderFrames = computed(() => {
 	graph.value.frames ??= []
 	return graph.value.frames
 })
+const selectedFrame = computed(() => shaderFrames.value.find((frame) => frame.id === selectedFrameId.value))
+const hasFitSelectionTarget = computed(() => selectedNodeIds.value.size > 0 || Boolean(selectedFrame.value))
 
 const NODE_W = 180
 const SHADER_NODE_H = 160
@@ -1308,13 +1310,15 @@ function fitGraph() {
 
 function fitSelection() {
 	const canvas = canvasRef.value
-	const selected = graphNodes.value.filter((item) => selectedNodeIds.value.has(item.id))
-	if (!selected.length || !canvas) return
-	const minX = Math.min(...selected.map((node) => node.x))
-	const minY = Math.min(...selected.map((node) => node.y))
-	const maxX = Math.max(...selected.map((node) => node.x + NODE_W))
-	const maxY = Math.max(...selected.map((node) => node.y + 160))
-	const bounds = { minX, minY, width: maxX - minX, height: maxY - minY }
+	if (!canvas) return
+	const nodeBounds = getShaderGraphNodeBounds(graph.value, selectedNodeIds.value, SHADER_NODE_SIZE)
+	const frame = selectedFrame.value
+	const bounds = nodeBounds
+		? { minX: nodeBounds.x, minY: nodeBounds.y, width: nodeBounds.width, height: nodeBounds.height }
+		: frame
+			? { minX: frame.x, minY: frame.y, width: frame.width, height: frame.height }
+			: undefined
+	if (!bounds) return
 	zoom.value = graphFitZoom(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, { padding: 140, maxZoom: 1.25 })
 	pan.value = centerGraphBoundsPan(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, zoom.value)
 	scheduleLayoutRefresh()
