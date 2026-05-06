@@ -514,18 +514,69 @@
 								<input
 									v-if="port.type === 'float'"
 									type="number"
-									step="0.01"
+									:step="getNumericInputStep(port)"
 									:disabled="isNodeInputConnected(selectedNode, port.key)"
 									:value="getShaderInputDefault(selectedNode, port)"
 									@input="setNodeInputDefault(selectedNode, port.key, ($event.target as HTMLInputElement).value || '0.0')"
 								/>
-								<input
-									v-else-if="canEditPortAsColor(selectedNode, port)"
-									type="color"
-									:disabled="isNodeInputConnected(selectedNode, port.key)"
-									:value="vec3DefaultToHex(getShaderInputDefault(selectedNode, port))"
-									@input="setNodeInputDefault(selectedNode, port.key, hexToVec3(($event.target as HTMLInputElement).value))"
-								/>
+								<div v-else-if="port.type === 'vec2'" class="shader-graph__vector-input">
+									<label v-for="(_, index) in 2" :key="index">
+										<span>{{ VECTOR_COMPONENT_LABELS[index] }}</span>
+										<input
+											type="number"
+											step="0.01"
+											:disabled="isNodeInputConnected(selectedNode, port.key)"
+											:value="vecDefaultComponent(getShaderInputDefault(selectedNode, port), index, 'vec2')"
+											@input="setVecInputDefaultComponent(selectedNode, port.key, index, ($event.target as HTMLInputElement).value || '0.0', 'vec2')"
+										/>
+									</label>
+								</div>
+								<div v-else-if="port.type === 'vec3' && canEditPortAsColor(selectedNode, port)" class="shader-graph__color-input">
+									<input
+										type="color"
+										:disabled="isNodeInputConnected(selectedNode, port.key)"
+										:value="vec3DefaultToHex(getShaderInputDefault(selectedNode, port))"
+										@input="setNodeInputDefault(selectedNode, port.key, hexToVec3(($event.target as HTMLInputElement).value))"
+									/>
+									<div class="shader-graph__vector-input">
+										<label v-for="(_, index) in 3" :key="index">
+											<span>{{ VECTOR_COMPONENT_LABELS[index] }}</span>
+											<input
+												type="number"
+												step="0.01"
+												min="0"
+												max="1"
+												:disabled="isNodeInputConnected(selectedNode, port.key)"
+												:value="vecDefaultComponent(getShaderInputDefault(selectedNode, port), index, 'vec3')"
+												@input="setVecInputDefaultComponent(selectedNode, port.key, index, ($event.target as HTMLInputElement).value || '0.0', 'vec3')"
+											/>
+										</label>
+									</div>
+								</div>
+								<div v-else-if="port.type === 'vec3'" class="shader-graph__vector-input">
+									<label v-for="(_, index) in 3" :key="index">
+										<span>{{ VECTOR_COMPONENT_LABELS[index] }}</span>
+										<input
+											type="number"
+											step="0.01"
+											:disabled="isNodeInputConnected(selectedNode, port.key)"
+											:value="vecDefaultComponent(getShaderInputDefault(selectedNode, port), index, 'vec3')"
+											@input="setVecInputDefaultComponent(selectedNode, port.key, index, ($event.target as HTMLInputElement).value || '0.0', 'vec3')"
+										/>
+									</label>
+								</div>
+								<div v-else-if="port.type === 'vec4'" class="shader-graph__vector-input">
+									<label v-for="(_, index) in 4" :key="index">
+										<span>{{ VECTOR_COMPONENT_LABELS[index] }}</span>
+										<input
+											type="number"
+											step="0.01"
+											:disabled="isNodeInputConnected(selectedNode, port.key)"
+											:value="vecDefaultComponent(getShaderInputDefault(selectedNode, port), index, 'vec4')"
+											@input="setVecInputDefaultComponent(selectedNode, port.key, index, ($event.target as HTMLInputElement).value || '0.0', 'vec4')"
+										/>
+									</label>
+								</div>
 								<input
 									v-else
 									type="text"
@@ -709,6 +760,7 @@ const previewPaused = ref(false)
 const previewBackground = ref<"checker" | "black" | "transparent">("checker")
 const selectedStarterId = ref("")
 type ShaderUniformBindingSource = "none" | "config" | "state"
+const VECTOR_COMPONENT_LABELS = ["X", "Y", "Z", "W"] as const
 let runtimeSnapshot: GraphRuntimeSnapshot<string> = { issues: [], errorMessages: [], ok: true }
 const layoutVersion = ref(0)
 let layoutFrame: number | undefined
@@ -1291,7 +1343,15 @@ function getShaderInputDefault(node: ShaderNodeInstance, port: ShaderNodeDef["in
 }
 
 function canEditPortAsColor(node: ShaderNodeInstance, port: ShaderNodeDef["inputs"][number]) {
-	return port.type === "vec3" && /^vec3\s*\(/.test(getShaderInputDefault(node, port))
+	const identity = `${port.key} ${port.label}`.toLowerCase()
+	return port.type === "vec3" && (identity.includes("color") || /^vec3\s*\(/.test(getShaderInputDefault(node, port)))
+}
+
+function getNumericInputStep(port: ShaderNodeDef["inputs"][number]) {
+	const identity = `${port.key} ${port.label}`.toLowerCase()
+	if (identity.includes("octave") || identity.includes("step")) return "1"
+	if (identity.includes("seed")) return "1"
+	return "0.01"
 }
 
 function glslInputFallback(type: GlslType) {
@@ -1318,11 +1378,8 @@ function hexToVec3(hex: string) {
 }
 
 function parseVec2Default(value: string): [number, number] {
-	const parts = value.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []
-	return [
-		Number.isFinite(parts[0]) ? parts[0] : 0,
-		Number.isFinite(parts[1]) ? parts[1] : 0,
-	]
+	const parts = parseVecDefault(value, 2)
+	return [parts[0], parts[1]]
 }
 
 function vec2DefaultComponent(value: string, index: 0 | 1) {
@@ -1334,6 +1391,40 @@ function setVec2InputDefaultComponent(node: ShaderNodeInstance, key: string, ind
 	const next = Number(value)
 	parts[index] = Number.isFinite(next) ? next : 0
 	setNodeInputDefault(node, key, `vec2(${parts[0].toFixed(3)}, ${parts[1].toFixed(3)})`)
+}
+
+function parseVecDefault(value: string, length: number) {
+	const parts = value.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []
+	return Array.from({ length }, (_, index) => Number.isFinite(parts[index]) ? parts[index] : getVecFallbackValue(length, index))
+}
+
+function vecDefaultComponent(value: string, index: number, type: Extract<GlslType, "vec2" | "vec3" | "vec4">) {
+	return String(parseVecDefault(value, vecLength(type))[index])
+}
+
+function setVecInputDefaultComponent(
+	node: ShaderNodeInstance,
+	key: string,
+	index: number,
+	value: string,
+	type: Extract<GlslType, "vec2" | "vec3" | "vec4">
+) {
+	const length = vecLength(type)
+	const parts = parseVecDefault(getNodeInputDefault(node, key, `${type}(${getVecFallbackValue(length, 0).toFixed(1)})`), length)
+	const next = Number(value)
+	parts[index] = Number.isFinite(next) ? next : getVecFallbackValue(length, index)
+	setNodeInputDefault(node, key, `${type}(${parts.map((part) => part.toFixed(3)).join(", ")})`)
+}
+
+function vecLength(type: Extract<GlslType, "vec2" | "vec3" | "vec4">) {
+	if (type === "vec2") return 2
+	if (type === "vec3") return 3
+	return 4
+}
+
+function getVecFallbackValue(length: number, index: number) {
+	if (length === 4 && index === 3) return 1
+	return 0
 }
 
 function shouldShowNodePreview(node: ShaderNodeInstance) {
@@ -2532,6 +2623,34 @@ function categoryColor(cat: string): string {
 	color: #eee;
 	min-height: 2rem;
 	padding: 0.25rem 0.45rem;
+}
+
+.shader-graph__vector-input {
+	display: grid;
+	gap: 0.35rem;
+	grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+}
+
+.shader-graph__vector-input label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+}
+
+.shader-graph__vector-input span {
+	color: #888;
+	font-size: 0.65rem;
+	font-weight: 700;
+}
+
+.shader-graph__color-input {
+	display: grid;
+	gap: 0.45rem;
+}
+
+.shader-graph__color-input > input[type="color"] {
+	min-height: 2.25rem;
+	padding: 0.15rem;
 }
 
 .shader-graph__field textarea {
