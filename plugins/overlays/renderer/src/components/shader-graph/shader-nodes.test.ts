@@ -168,6 +168,48 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("sr_fbm(")
 	})
 
+	it("compiles terrain pipeline nodes", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "uv", defId: "uv", x: 0, y: 0 },
+				{ id: "base", defId: "fbm_noise", x: 220, y: 0 },
+				{ id: "detail", defId: "value_noise", x: 220, y: 140, inputDefaults: { scale: "18.0" } },
+				{ id: "height", defId: "terrain_height", x: 440, y: 0 },
+				{ id: "remap", defId: "height_remap", x: 660, y: 0, inputDefaults: { power: "1.4" } },
+				{ id: "normal", defId: "normal_from_height", x: 880, y: 0 },
+				{ id: "slope", defId: "slope_mask", x: 1100, y: 0 },
+				{ id: "curvature", defId: "curvature_mask", x: 1100, y: 160 },
+				{ id: "erosion", defId: "thermal_erosion", x: 1320, y: 0 },
+				{ id: "color", defId: "gradient_color", x: 1540, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 1760, y: 0 },
+			],
+			wires: [
+				{ id: "uv:uv->base:uv", fromNode: "uv", fromPort: "uv", toNode: "base", toPort: "uv" },
+				{ id: "uv:uv->detail:uv", fromNode: "uv", fromPort: "uv", toNode: "detail", toPort: "uv" },
+				{ id: "base:value->height:base", fromNode: "base", fromPort: "value", toNode: "height", toPort: "base" },
+				{ id: "detail:value->height:detail", fromNode: "detail", fromPort: "value", toNode: "height", toPort: "detail" },
+				{ id: "height:height->remap:height", fromNode: "height", fromPort: "height", toNode: "remap", toPort: "height" },
+				{ id: "remap:height->normal:center", fromNode: "remap", fromPort: "height", toNode: "normal", toPort: "center" },
+				{ id: "remap:height->normal:right", fromNode: "remap", fromPort: "height", toNode: "normal", toPort: "right" },
+				{ id: "remap:height->normal:up", fromNode: "remap", fromPort: "height", toNode: "normal", toPort: "up" },
+				{ id: "normal:normal->slope:normal", fromNode: "normal", fromPort: "normal", toNode: "slope", toPort: "normal" },
+				{ id: "remap:height->curvature:center", fromNode: "remap", fromPort: "height", toNode: "curvature", toPort: "center" },
+				{ id: "slope:mask->erosion:slope", fromNode: "slope", fromPort: "mask", toNode: "erosion", toPort: "slope" },
+				{ id: "remap:height->erosion:height", fromNode: "remap", fromPort: "height", toNode: "erosion", toPort: "height" },
+				{ id: "erosion:height->color:factor", fromNode: "erosion", fromPort: "height", toNode: "color", toPort: "factor" },
+				{ id: "color:color->output:color", fromNode: "color", fromPort: "color", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("pow(clamp(")
+		expect(result.glsl).toContain("normalize(vec3(")
+		expect(result.glsl).toContain("1.0 - clamp(")
+		expect(result.glsl).toContain("4.0 *")
+		expect(result.glsl).toContain("max(")
+	})
+
 	it("creates preview graphs for node outputs", () => {
 		const graph: ShaderGraph = {
 			nodes: [

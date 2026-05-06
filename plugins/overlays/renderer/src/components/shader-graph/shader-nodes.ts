@@ -361,6 +361,97 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		],
 	},
 
+	// ── Terrain ──
+	{
+		id: "terrain_height",
+		name: "Terrain Height",
+		category: "Terrain",
+		icon: "mdi mdi-image-filter-hdr",
+		inputs: [
+			{ key: "base", label: "Base", type: "float", default: "0.0" },
+			{ key: "detail", label: "Detail", type: "float", default: "0.0" },
+			{ key: "amplitude", label: "Amplitude", type: "float", default: "1.0" },
+			{ key: "detailStrength", label: "Detail Strength", type: "float", default: "0.25" },
+			{ key: "offset", label: "Offset", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "height", label: "Height", type: "float" }],
+		compile: (ins, outs) => [`${outs.height} = (${ins.base} + ${ins.detail} * ${ins.detailStrength}) * ${ins.amplitude} + ${ins.offset};`],
+	},
+	{
+		id: "height_remap",
+		name: "Remap Height",
+		category: "Terrain",
+		icon: "mdi mdi-tune-vertical",
+		inputs: [
+			{ key: "height", label: "Height", type: "float", default: "0.0" },
+			{ key: "min", label: "Min", type: "float", default: "0.0" },
+			{ key: "max", label: "Max", type: "float", default: "1.0" },
+			{ key: "power", label: "Power", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "height", label: "Height", type: "float" }],
+		compile: (ins, outs) => [`${outs.height} = pow(clamp((${ins.height} - ${ins.min}) / max(${ins.max} - ${ins.min}, 0.0001), 0.0, 1.0), max(${ins.power}, 0.0001));`],
+	},
+	{
+		id: "normal_from_height",
+		name: "Normal From Height",
+		category: "Terrain",
+		icon: "mdi mdi-axis-arrow",
+		inputs: [
+			{ key: "center", label: "Center", type: "float", default: "0.0" },
+			{ key: "right", label: "Right", type: "float", default: "0.0" },
+			{ key: "up", label: "Up", type: "float", default: "0.0" },
+			{ key: "spacing", label: "Spacing", type: "float", default: "0.01" },
+			{ key: "strength", label: "Strength", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "normal", label: "Normal", type: "vec3" }],
+		compile: (ins, outs) => [
+			`${outs.normal} = normalize(vec3((${ins.center} - ${ins.right}) * ${ins.strength}, (${ins.center} - ${ins.up}) * ${ins.strength}, max(${ins.spacing}, 0.0001)));`,
+		],
+	},
+	{
+		id: "slope_mask",
+		name: "Slope Mask",
+		category: "Terrain",
+		icon: "mdi mdi-angle-acute",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "minSlope", label: "Min Slope", type: "float", default: "0.2" },
+			{ key: "maxSlope", label: "Max Slope", type: "float", default: "0.8" },
+		],
+		outputs: [{ key: "mask", label: "Mask", type: "float" }],
+		compile: (ins, outs) => [`${outs.mask} = smoothstep(${ins.minSlope}, ${ins.maxSlope}, 1.0 - clamp(${ins.normal}.z, 0.0, 1.0));`],
+	},
+	{
+		id: "curvature_mask",
+		name: "Curvature Mask",
+		category: "Terrain",
+		icon: "mdi mdi-chart-bell-curve",
+		inputs: [
+			{ key: "center", label: "Center", type: "float", default: "0.0" },
+			{ key: "left", label: "Left", type: "float", default: "0.0" },
+			{ key: "right", label: "Right", type: "float", default: "0.0" },
+			{ key: "down", label: "Down", type: "float", default: "0.0" },
+			{ key: "up", label: "Up", type: "float", default: "0.0" },
+			{ key: "strength", label: "Strength", type: "float", default: "2.0" },
+		],
+		outputs: [{ key: "mask", label: "Mask", type: "float" }],
+		compile: (ins, outs) => [`${outs.mask} = clamp(abs((${ins.left} + ${ins.right} + ${ins.down} + ${ins.up}) - 4.0 * ${ins.center}) * ${ins.strength}, 0.0, 1.0);`],
+	},
+	{
+		id: "thermal_erosion",
+		name: "Thermal Erosion",
+		category: "Terrain",
+		icon: "mdi mdi-landslide",
+		inputs: [
+			{ key: "height", label: "Height", type: "float", default: "0.0" },
+			{ key: "slope", label: "Slope", type: "float", default: "0.0" },
+			{ key: "threshold", label: "Threshold", type: "float", default: "0.35" },
+			{ key: "amount", label: "Amount", type: "float", default: "0.08" },
+		],
+		outputs: [{ key: "height", label: "Height", type: "float" }],
+		compile: (ins, outs) => [`${outs.height} = ${ins.height} - max(${ins.slope} - ${ins.threshold}, 0.0) * ${ins.amount};`],
+	},
+
 	// ── Vector ──
 	{
 		id: "vec2_compose",
