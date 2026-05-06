@@ -242,6 +242,46 @@ describe("shader graph compiler", () => {
 		expect(result.glsl).toContain("mix(")
 	})
 
+	it("compiles lighting nodes", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "color", defId: "vec3_const", x: 0, y: 0, inputDefaults: { value: "vec3(0.25, 0.45, 0.18)" } },
+				{ id: "normal", defId: "normal_from_height", x: 0, y: 140 },
+				{ id: "sun", defId: "sun_direction", x: 220, y: 0 },
+				{ id: "diffuse", defId: "diffuse_lighting", x: 440, y: 0 },
+				{ id: "specular", defId: "specular_lighting", x: 440, y: 180 },
+				{ id: "shadow", defId: "simple_shadow", x: 660, y: 180 },
+				{ id: "ao", defId: "ambient_occlusion", x: 660, y: 320 },
+				{ id: "ambient", defId: "ambient_light", x: 660, y: 0 },
+				{ id: "depth", defId: "float_const", x: 660, y: 460, inputDefaults: { value: "0.6" } },
+				{ id: "fog", defId: "fog", x: 880, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 1100, y: 0 },
+			],
+			wires: [
+				{ id: "color:value->diffuse:color", fromNode: "color", fromPort: "value", toNode: "diffuse", toPort: "color" },
+				{ id: "normal:normal->diffuse:normal", fromNode: "normal", fromPort: "normal", toNode: "diffuse", toPort: "normal" },
+				{ id: "sun:direction->diffuse:lightDir", fromNode: "sun", fromPort: "direction", toNode: "diffuse", toPort: "lightDir" },
+				{ id: "normal:normal->specular:normal", fromNode: "normal", fromPort: "normal", toNode: "specular", toPort: "normal" },
+				{ id: "sun:direction->specular:lightDir", fromNode: "sun", fromPort: "direction", toNode: "specular", toPort: "lightDir" },
+				{ id: "normal:normal->shadow:normal", fromNode: "normal", fromPort: "normal", toNode: "shadow", toPort: "normal" },
+				{ id: "sun:direction->shadow:lightDir", fromNode: "sun", fromPort: "direction", toNode: "shadow", toPort: "lightDir" },
+				{ id: "diffuse:color->ambient:color", fromNode: "diffuse", fromPort: "color", toNode: "ambient", toPort: "color" },
+				{ id: "ambient:color->fog:color", fromNode: "ambient", fromPort: "color", toNode: "fog", toPort: "color" },
+				{ id: "depth:value->fog:depth", fromNode: "depth", fromPort: "value", toNode: "fog", toPort: "depth" },
+				{ id: "fog:color->output:color", fromNode: "fog", fromPort: "color", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("cos(")
+		expect(result.glsl).toContain("dot(normalize(")
+		expect(result.glsl).toContain("pow(max(")
+		expect(result.glsl).toContain("exp(-max(")
+		expect(result.glsl).toContain("smoothstep(-")
+		expect(result.glsl).toContain("0.65")
+	})
+
 	it("creates preview graphs for node outputs", () => {
 		const graph: ShaderGraph = {
 			nodes: [

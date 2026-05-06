@@ -683,6 +683,116 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		compile: (ins, outs) => [`${outs.color} = mix(${ins.base}, ${ins.detail}, clamp(${ins.mask}, 0.0, 1.0));`],
 	},
 
+	// ── Lighting ──
+	{
+		id: "sun_direction",
+		name: "Sun Direction",
+		category: "Lighting",
+		icon: "mdi mdi-white-balance-sunny",
+		inputs: [
+			{ key: "azimuth", label: "Azimuth", type: "float", default: "0.65" },
+			{ key: "elevation", label: "Elevation", type: "float", default: "0.55" },
+		],
+		outputs: [{ key: "direction", label: "Direction", type: "vec3" }],
+		compile: (ins, outs) => [
+			`float ${outs.direction}_az = ${ins.azimuth} * 6.2831853;`,
+			`float ${outs.direction}_el = clamp(${ins.elevation}, 0.0, 1.0) * 1.5707963;`,
+			`${outs.direction} = normalize(vec3(cos(${outs.direction}_az) * cos(${outs.direction}_el), sin(${outs.direction}_az) * cos(${outs.direction}_el), sin(${outs.direction}_el)));`,
+		],
+	},
+	{
+		id: "diffuse_lighting",
+		name: "Diffuse Lighting",
+		category: "Lighting",
+		icon: "mdi mdi-brightness-5",
+		inputs: [
+			{ key: "color", label: "Color", type: "vec3", default: "vec3(1.0)" },
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "lightDir", label: "Light Dir", type: "vec3", default: "vec3(0.25, 0.35, 0.9)" },
+			{ key: "intensity", label: "Intensity", type: "float", default: "1.0" },
+			{ key: "ambient", label: "Ambient", type: "float", default: "0.2" },
+		],
+		outputs: [
+			{ key: "color", label: "Color", type: "vec3" },
+			{ key: "light", label: "Light", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`${outs.light} = max(dot(normalize(${ins.normal}), normalize(${ins.lightDir})), 0.0) * ${ins.intensity};`,
+			`${outs.color} = ${ins.color} * (${ins.ambient} + ${outs.light});`,
+		],
+	},
+	{
+		id: "specular_lighting",
+		name: "Specular",
+		category: "Lighting",
+		icon: "mdi mdi-star-four-points",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "lightDir", label: "Light Dir", type: "vec3", default: "vec3(0.25, 0.35, 0.9)" },
+			{ key: "viewDir", label: "View Dir", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "shininess", label: "Shininess", type: "float", default: "32.0" },
+			{ key: "intensity", label: "Intensity", type: "float", default: "0.35" },
+		],
+		outputs: [{ key: "specular", label: "Specular", type: "float" }],
+		compile: (ins, outs) => [
+			`vec3 ${outs.specular}_halfDir = normalize(normalize(${ins.lightDir}) + normalize(${ins.viewDir}));`,
+			`${outs.specular} = pow(max(dot(normalize(${ins.normal}), ${outs.specular}_halfDir), 0.0), max(${ins.shininess}, 1.0)) * ${ins.intensity};`,
+		],
+	},
+	{
+		id: "ambient_light",
+		name: "Ambient Light",
+		category: "Lighting",
+		icon: "mdi mdi-weather-night",
+		inputs: [
+			{ key: "color", label: "Color", type: "vec3", default: "vec3(1.0)" },
+			{ key: "ambientColor", label: "Ambient", type: "vec3", default: "vec3(0.35, 0.40, 0.50)" },
+			{ key: "intensity", label: "Intensity", type: "float", default: "0.2" },
+		],
+		outputs: [{ key: "color", label: "Color", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.color} = ${ins.color} + ${ins.ambientColor} * ${ins.intensity};`],
+	},
+	{
+		id: "fog",
+		name: "Fog",
+		category: "Lighting",
+		icon: "mdi mdi-weather-fog",
+		inputs: [
+			{ key: "color", label: "Color", type: "vec3", default: "vec3(1.0)" },
+			{ key: "fogColor", label: "Fog Color", type: "vec3", default: "vec3(0.55, 0.62, 0.70)" },
+			{ key: "depth", label: "Depth", type: "float", default: "0.0" },
+			{ key: "density", label: "Density", type: "float", default: "0.45" },
+		],
+		outputs: [{ key: "color", label: "Color", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.color} = mix(${ins.color}, ${ins.fogColor}, clamp(1.0 - exp(-max(${ins.depth}, 0.0) * ${ins.density}), 0.0, 1.0));`],
+	},
+	{
+		id: "simple_shadow",
+		name: "Simple Shadow",
+		category: "Lighting",
+		icon: "mdi mdi-weather-sunset-down",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "lightDir", label: "Light Dir", type: "vec3", default: "vec3(0.25, 0.35, 0.9)" },
+			{ key: "softness", label: "Softness", type: "float", default: "0.25" },
+		],
+		outputs: [{ key: "shadow", label: "Shadow", type: "float" }],
+		compile: (ins, outs) => [`${outs.shadow} = smoothstep(-${ins.softness}, ${ins.softness}, dot(normalize(${ins.normal}), normalize(${ins.lightDir})));`],
+	},
+	{
+		id: "ambient_occlusion",
+		name: "Ambient Occlusion",
+		category: "Lighting",
+		icon: "mdi mdi-circle-opacity",
+		inputs: [
+			{ key: "curvature", label: "Curvature", type: "float", default: "0.0" },
+			{ key: "slope", label: "Slope", type: "float", default: "0.0" },
+			{ key: "strength", label: "Strength", type: "float", default: "0.6" },
+		],
+		outputs: [{ key: "ao", label: "AO", type: "float" }],
+		compile: (ins, outs) => [`${outs.ao} = clamp(1.0 - (${ins.curvature} * 0.65 + ${ins.slope} * 0.35) * ${ins.strength}, 0.0, 1.0);`],
+	},
+
 	// ── Output ──
 	{
 		id: "fragment_output",
