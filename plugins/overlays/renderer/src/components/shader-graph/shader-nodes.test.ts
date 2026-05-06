@@ -101,6 +101,38 @@ describe("shader graph compiler", () => {
 		expect(collectShaderUniformDefaults(graph)).toEqual({ u_alert_color: [0.25, 0.5, 0.75] })
 	})
 
+	it("compiles procedural utility nodes", () => {
+		const result = compileShaderGraph({
+			nodes: [
+				{ id: "uv", defId: "uv", x: 0, y: 0 },
+				{ id: "time", defId: "time", x: 0, y: 120 },
+				{ id: "rotate", defId: "rotate_uv", x: 220, y: 0, inputDefaults: { angle: "0.25" } },
+				{ id: "tile", defId: "tile_uv", x: 440, y: 0, inputDefaults: { scale: "4.0" } },
+				{ id: "split", defId: "vec2_split", x: 660, y: 0 },
+				{ id: "wave", defId: "wave", x: 880, y: 0, inputDefaults: { frequency: "12.0", speed: "2.0" } },
+				{ id: "gradient", defId: "gradient_color", x: 1100, y: 0 },
+				{ id: "output", defId: "fragment_output", x: 1320, y: 0 },
+			],
+			wires: [
+				{ id: "uv:uv->rotate:uv", fromNode: "uv", fromPort: "uv", toNode: "rotate", toPort: "uv" },
+				{ id: "rotate:uv->tile:uv", fromNode: "rotate", fromPort: "uv", toNode: "tile", toPort: "uv" },
+				{ id: "tile:uv->split:v", fromNode: "tile", fromPort: "uv", toNode: "split", toPort: "v" },
+				{ id: "split:x->wave:x", fromNode: "split", fromPort: "x", toNode: "wave", toPort: "x" },
+				{ id: "time:t->wave:time", fromNode: "time", fromPort: "t", toNode: "wave", toPort: "time" },
+				{ id: "wave:result->gradient:factor", fromNode: "wave", fromPort: "result", toNode: "gradient", toPort: "factor" },
+				{ id: "gradient:color->output:color", fromNode: "gradient", fromPort: "color", toNode: "output", toPort: "color" },
+			],
+			outputNodeId: "output",
+		})
+
+		expect(result.errors).toEqual([])
+		expect(result.glsl).toContain("mat2(")
+		expect(result.glsl).toContain("fract(")
+		expect(result.glsl).toContain("0.5 + 0.5 * sin(")
+		expect(result.glsl).toContain("clamp(")
+		expect(result.glsl).toContain("mix(")
+	})
+
 	it("reports duplicate custom uniform names", () => {
 		const errors = validateShaderGraph({
 			nodes: [

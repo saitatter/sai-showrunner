@@ -268,6 +268,20 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		outputs: [{ key: "result", label: "Result", type: "float" }],
 		compile: (ins, outs) => [`${outs.result} = mix(${ins.a}, ${ins.b}, ${ins.t});`],
 	},
+	{
+		id: "wave",
+		name: "Wave",
+		category: "Math",
+		icon: "mdi mdi-sine-wave",
+		inputs: [
+			{ key: "x", label: "X", type: "float", default: "0.0" },
+			{ key: "time", label: "Time", type: "float", default: "0.0" },
+			{ key: "frequency", label: "Frequency", type: "float", default: "6.0" },
+			{ key: "speed", label: "Speed", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "result", label: "Wave", type: "float" }],
+		compile: (ins, outs) => [`${outs.result} = 0.5 + 0.5 * sin(${ins.x} * ${ins.frequency} + ${ins.time} * ${ins.speed});`],
+	},
 
 	// ── Vector ──
 	{
@@ -281,6 +295,35 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		],
 		outputs: [{ key: "result", label: "Vec2", type: "vec2" }],
 		compile: (ins, outs) => [`${outs.result} = vec2(${ins.x}, ${ins.y});`],
+	},
+	{
+		id: "tile_uv",
+		name: "Tile UV",
+		category: "Vector",
+		icon: "mdi mdi-grid-large",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "2.0" },
+		],
+		outputs: [{ key: "uv", label: "UV", type: "vec2" }],
+		compile: (ins, outs) => [`${outs.uv} = fract(${ins.uv} * ${ins.scale});`],
+	},
+	{
+		id: "rotate_uv",
+		name: "Rotate UV",
+		category: "Vector",
+		icon: "mdi mdi-rotate-right",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "angle", label: "Angle", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "uv", label: "UV", type: "vec2" }],
+		compile: (ins, outs) => [
+			`vec2 ${outs.uv}_centered = ${ins.uv} - 0.5;`,
+			`float ${outs.uv}_s = sin(${ins.angle});`,
+			`float ${outs.uv}_c = cos(${ins.angle});`,
+			`${outs.uv} = mat2(${outs.uv}_c, -${outs.uv}_s, ${outs.uv}_s, ${outs.uv}_c) * ${outs.uv}_centered + 0.5;`,
+		],
 	},
 	{
 		id: "vec2_split",
@@ -374,6 +417,19 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		],
 		outputs: [{ key: "result", label: "Color", type: "vec3" }],
 		compile: (ins, outs) => [`${outs.result} = mix(${ins.a}, ${ins.b}, ${ins.t});`],
+	},
+	{
+		id: "gradient_color",
+		name: "Gradient",
+		category: "Color",
+		icon: "mdi mdi-gradient-horizontal",
+		inputs: [
+			{ key: "a", label: "Color A", type: "vec3", default: "u_accent" },
+			{ key: "b", label: "Color B", type: "vec3", default: "u_secondary" },
+			{ key: "factor", label: "Factor", type: "float", default: "0.5" },
+		],
+		outputs: [{ key: "color", label: "Color", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.color} = mix(${ins.a}, ${ins.b}, clamp(${ins.factor}, 0.0, 1.0));`],
 	},
 
 	// ── Output ──
