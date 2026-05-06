@@ -88,6 +88,30 @@ export interface GraphSkinTokens {
 	textMuted: string
 }
 
+export interface GraphFrameLike {
+	id: string
+	x: number
+	y: number
+	width: number
+	height: number
+	nodeIds?: string[]
+}
+
+export interface GraphFrameItemLike {
+	id: string
+	x: number
+	y: number
+	width: number
+	height: number
+}
+
+export interface GraphItemBounds {
+	x: number
+	y: number
+	width: number
+	height: number
+}
+
 export interface GraphPortPositionOptions {
 	selector: string
 	nodeIdDatasetKey: string
@@ -242,6 +266,65 @@ export function graphSkinStyle(tokens: GraphSkinTokens): Record<string, string> 
 		"--graph-wire-default": tokens.wireDefault,
 		"--graph-wire-invalid": tokens.wireInvalid,
 		"--graph-text-muted": tokens.textMuted,
+	}
+}
+
+export function getGraphItemBounds(items: Iterable<GraphFrameItemLike>): GraphItemBounds | undefined {
+	const boxes = [...items]
+	if (!boxes.length) return undefined
+	const minX = Math.min(...boxes.map((box) => box.x))
+	const minY = Math.min(...boxes.map((box) => box.y))
+	const maxX = Math.max(...boxes.map((box) => box.x + box.width))
+	const maxY = Math.max(...boxes.map((box) => box.y + box.height))
+	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
+
+export function getGraphFrameContainingPoint<TFrame extends GraphFrameLike>(frames: Iterable<TFrame>, point: GraphPoint): TFrame | undefined {
+	return [...frames].find((frame) =>
+		point.x >= frame.x &&
+		point.x <= frame.x + frame.width &&
+		point.y >= frame.y &&
+		point.y <= frame.y + frame.height
+	)
+}
+
+export function addGraphFrameMembers(frame: GraphFrameLike, memberIds: Iterable<string>) {
+	const next = new Set(frame.nodeIds ?? [])
+	const previousSize = next.size
+	for (const memberId of memberIds) next.add(memberId)
+	frame.nodeIds = [...next]
+	return next.size !== previousSize
+}
+
+export function moveGraphFrameMembers(frames: Iterable<GraphFrameLike>, memberIds: Iterable<string>, targetFrameId?: string) {
+	const ids = new Set(memberIds)
+	if (!ids.size) return false
+	let changed = false
+	let target: GraphFrameLike | undefined
+
+	for (const frame of frames) {
+		if (frame.id === targetFrameId) target = frame
+		const next = (frame.nodeIds ?? []).filter((memberId) => !ids.has(memberId))
+		if (next.length !== (frame.nodeIds ?? []).length) {
+			frame.nodeIds = next
+			changed = true
+		}
+	}
+
+	if (target) changed = addGraphFrameMembers(target, ids) || changed
+	return changed
+}
+
+export function getGraphFrameMinimumSize(
+	frame: GraphFrameLike,
+	memberBounds: GraphItemBounds | undefined,
+	padding = 36,
+	minimum = { width: 160, height: 96 }
+) {
+	if (!memberBounds) return minimum
+	return {
+		width: Math.max(minimum.width, Math.ceil(memberBounds.x + memberBounds.width - frame.x + padding)),
+		height: Math.max(minimum.height, Math.ceil(memberBounds.y + memberBounds.height - frame.y + padding)),
 	}
 }
 

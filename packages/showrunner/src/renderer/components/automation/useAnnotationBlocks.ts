@@ -1,5 +1,12 @@
 import { computed, type ComputedRef, type Ref } from "vue"
 import { nanoid } from "nanoid"
+import {
+	addGraphFrameMembers,
+	getGraphFrameContainingPoint,
+	getGraphFrameMinimumSize,
+	getGraphItemBounds,
+	moveGraphFrameMembers,
+} from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import type { NodePosition } from "./useNodeCanvas"
 import type { NodeData } from "./useNodeRendering"
 
@@ -195,25 +202,11 @@ export function useAnnotationBlocks({
 	function addNodesToAnnotationBlock(blockId: string, nodeIds: Iterable<string>) {
 		const block = annotationBlocks.value.find((item) => item.id === blockId)
 		if (!block) return false
-		const next = new Set(block.nodeIds ?? [])
-		const previousSize = next.size
-		for (const nodeId of nodeIds) next.add(nodeId)
-		block.nodeIds = [...next]
-		return next.size !== previousSize
+		return addGraphFrameMembers(block, nodeIds)
 	}
 
 	function placeDraggedNodesInAnnotationBlock(blockId: string | undefined, nodeIds: Iterable<string>) {
-		const ids = new Set(nodeIds)
-		let changed = false
-		for (const block of annotationBlocks.value) {
-			const next = (block.nodeIds ?? []).filter((nodeId) => !ids.has(nodeId))
-			if (next.length !== (block.nodeIds ?? []).length) {
-				block.nodeIds = next
-				changed = true
-			}
-		}
-		if (blockId) changed = addNodesToAnnotationBlock(blockId, ids) || changed
-		return changed
+		return moveGraphFrameMembers(annotationBlocks.value, nodeIds, blockId)
 	}
 
 	function clearSelectedAnnotationBlockNodes() {
@@ -234,12 +227,7 @@ export function useAnnotationBlocks({
 		if (!bounds) return undefined
 		const centerX = bounds.x + bounds.width / 2
 		const centerY = bounds.y + bounds.height / 2
-		return annotationBlocks.value.find((block) =>
-			centerX >= block.x &&
-			centerX <= block.x + block.width &&
-			centerY >= block.y &&
-			centerY <= block.y + block.height
-		)
+		return getGraphFrameContainingPoint(annotationBlocks.value, { x: centerX, y: centerY })
 	}
 
 	function getAnnotationBlockIdsForNodes(nodeIds: Iterable<string>) {
@@ -252,16 +240,11 @@ export function useAnnotationBlocks({
 
 	function getAnnotationBlockMinimumSize(block: AnnotationBlock) {
 		const bounds = getNodeBounds(getExistingNodeIds(block.nodeIds ?? []))
-		if (!bounds) return { width: 160, height: 96 }
-		const padding = 40
-		return {
-			width: Math.max(160, Math.ceil(bounds.x + bounds.width - block.x + padding)),
-			height: Math.max(96, Math.ceil(bounds.y + bounds.height - block.y + padding)),
-		}
+		return getGraphFrameMinimumSize(block, bounds, 40)
 	}
 
 	function getNodeBounds(nodeIds: Iterable<string>) {
-		const boxes = [...nodeIds].map((nodeId) => {
+		return getGraphItemBounds([...nodeIds].map((nodeId) => {
 			const node = nodes.value.find((item) => item.id === nodeId)
 			if (!node) return undefined
 			const position = nodePositions.value[nodeId] ?? node
@@ -271,13 +254,7 @@ export function useAnnotationBlocks({
 				width: node.width ?? 220,
 				height: node.height,
 			}
-		}).filter((box): box is { x: number; y: number; width: number; height: number } => Boolean(box))
-		if (!boxes.length) return undefined
-		const minX = Math.min(...boxes.map((box) => box.x))
-		const minY = Math.min(...boxes.map((box) => box.y))
-		const maxX = Math.max(...boxes.map((box) => box.x + box.width))
-		const maxY = Math.max(...boxes.map((box) => box.y + box.height))
-		return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+		}).filter((box): box is { id: string; x: number; y: number; width: number; height: number } => Boolean(box)))
 	}
 
 	function getExistingNodeIds(nodeIds: Iterable<string>) {

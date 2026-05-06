@@ -1,4 +1,10 @@
 import type { ShaderUniformBindingMap } from "showrunner-plugin-overlays-shared"
+import {
+	getGraphFrameContainingPoint,
+	getGraphFrameMinimumSize as getSharedGraphFrameMinimumSize,
+	getGraphItemBounds,
+	moveGraphFrameMembers,
+} from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import { getShaderUniformName, type ShaderFrame, type ShaderGraph, type ShaderNodeInstance, type ShaderUniformValueMap, type ShaderWire } from "./shader-nodes"
 
 export interface ShaderLayerGraphConfig {
@@ -169,16 +175,10 @@ export function getShaderGraphNodeBounds(
 	nodeIds: Iterable<string>,
 	nodeSize: ShaderGraphNodeSize
 ): ShaderGraphBounds | undefined {
-	const selected = [...nodeIds].flatMap((nodeId) => {
+	return getGraphItemBounds([...nodeIds].flatMap((nodeId) => {
 		const node = graph.nodes.find((item) => item.id === nodeId)
-		return node ? [node] : []
-	})
-	if (!selected.length) return undefined
-	const minX = Math.min(...selected.map((node) => node.x))
-	const minY = Math.min(...selected.map((node) => node.y))
-	const maxX = Math.max(...selected.map((node) => node.x + nodeSize.width))
-	const maxY = Math.max(...selected.map((node) => node.y + nodeSize.height))
-	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+		return node ? [{ id: node.id, x: node.x, y: node.y, width: nodeSize.width, height: nodeSize.height }] : []
+	}))
 }
 
 export function placeShaderNodesInContainingFrame(
@@ -189,30 +189,13 @@ export function placeShaderNodesInContainingFrame(
 	const ids = new Set(nodeIds)
 	if (!ids.size || !graph.frames?.length) return false
 	let changed = false
-	for (const frame of graph.frames) {
-		const next = (frame.nodeIds ?? []).filter((nodeId) => !ids.has(nodeId))
-		if (next.length !== (frame.nodeIds ?? []).length) {
-			frame.nodeIds = next
-			changed = true
-		}
-	}
 	for (const nodeId of ids) {
 		const node = graph.nodes.find((item) => item.id === nodeId)
 		if (!node) continue
 		const centerX = node.x + nodeSize.width / 2
 		const centerY = node.y + nodeSize.height / 2
-		const frame = graph.frames.find((item) =>
-			centerX >= item.x &&
-			centerX <= item.x + item.width &&
-			centerY >= item.y &&
-			centerY <= item.y + item.height
-		)
-		if (!frame) continue
-		const next = new Set(frame.nodeIds ?? [])
-		const previousSize = next.size
-		next.add(nodeId)
-		frame.nodeIds = [...next]
-		changed = changed || next.size !== previousSize
+		const frame = getGraphFrameContainingPoint(graph.frames, { x: centerX, y: centerY })
+		changed = moveGraphFrameMembers(graph.frames, [nodeId], frame?.id) || changed
 	}
 	return changed
 }
@@ -224,11 +207,7 @@ export function getShaderFrameMinimumSize(
 	padding = 36
 ) {
 	const bounds = getShaderGraphNodeBounds(graph, frame.nodeIds ?? [], nodeSize)
-	if (!bounds) return { width: 160, height: 96 }
-	return {
-		width: Math.max(160, Math.ceil(bounds.x + bounds.width - frame.x + padding)),
-		height: Math.max(96, Math.ceil(bounds.y + bounds.height - frame.y + padding)),
-	}
+	return getSharedGraphFrameMinimumSize(frame, bounds, padding)
 }
 
 export function deleteShaderFrame(graph: ShaderGraph, frameId: string) {

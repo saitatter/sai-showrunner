@@ -7,10 +7,14 @@ import {
 	graphBezierPath,
 	graphDistance,
 	graphFitZoom,
+	getGraphFrameContainingPoint,
+	getGraphFrameMinimumSize,
+	getGraphItemBounds,
 	graphIssueMessagesBySeverity,
 	graphPointFromClient,
 	graphPortPositionKey,
 	graphSkinStyle,
+	moveGraphFrameMembers,
 	graphScrollTargetForBounds,
 	graphValidationFromIssues,
 	graphWireId,
@@ -100,6 +104,24 @@ describe("graph geometry helpers", () => {
 			wireInvalid: "#777",
 			textMuted: "#888",
 		})["--graph-node-selected"]).toBe("#555")
+	})
+
+	it("manages shared graph frame geometry and membership", () => {
+		const bounds = getGraphItemBounds([
+			{ id: "a", x: 10, y: 20, width: 120, height: 60 },
+			{ id: "b", x: 200, y: 100, width: 80, height: 100 },
+		])
+		const frames = [
+			{ id: "one", x: 0, y: 0, width: 180, height: 140, nodeIds: ["b"] },
+			{ id: "two", x: 180, y: 80, width: 180, height: 140 },
+		]
+
+		expect(bounds).toEqual({ x: 10, y: 20, width: 270, height: 180 })
+		expect(getGraphFrameContainingPoint(frames, { x: 220, y: 120 })?.id).toBe("two")
+		expect(moveGraphFrameMembers(frames, ["a", "b"], "two")).toBe(true)
+		expect(frames[0].nodeIds).toEqual([])
+		expect(frames[1].nodeIds).toEqual(["a", "b"])
+		expect(getGraphFrameMinimumSize(frames[1], bounds, 30)).toEqual({ width: 160, height: 150 })
 	})
 
 	it("evaluates graph runtimes while preserving the last good output", () => {
