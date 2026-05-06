@@ -22,28 +22,24 @@
 		</header>
 
 		<div class="shader-graph__body">
-			<aside class="shader-graph__palette">
-				<label class="shader-graph__palette-search">
-					<i class="mdi mdi-magnify" />
-					<input
-						v-model="paletteQuery"
-						type="search"
-						placeholder="Search nodes..."
-					/>
-				</label>
-				<div class="shader-graph__palette-list">
-					<template v-for="cat in filteredCategories" :key="cat.name">
-						<div class="shader-graph__palette-category">{{ cat.name }}</div>
-						<button
-							v-for="def in cat.defs"
-							:key="def.id"
-							type="button"
-							@click="addNodeFromPalette(def.id)"
-						>
-							<i :class="def.icon" />
-							{{ def.name }}
-						</button>
-					</template>
+			<aside class="shader-graph__inputs">
+				<header>
+					<strong>Inputs</strong>
+					<span>Uniforms and shader sources</span>
+				</header>
+				<div class="shader-graph__input-list">
+					<button
+						v-for="def in inputPaletteDefs"
+						:key="def.id"
+						type="button"
+						@click="addNodeFromPalette(def.id)"
+					>
+						<i :class="def.icon" />
+						<span>
+							<strong>{{ def.name }}</strong>
+							<small>{{ def.outputs[0]?.type ?? "input" }}</small>
+						</span>
+					</button>
 				</div>
 			</aside>
 
@@ -175,9 +171,43 @@
 								/>
 							</label>
 						</template>
-						<div class="shader-graph__palette-list">
-							<template v-for="cat in filteredCategories" :key="cat.name">
-								<div class="shader-graph__palette-category">{{ cat.name }}</div>
+						<div v-if="contextMenuQueryResults.length" class="shader-graph__menu-section">
+							<div class="shader-graph__menu-section-header shader-graph__menu-section-header--static">
+								<i class="mdi mdi-magnify" />
+								<span>Search results</span>
+								<em>{{ contextMenuQueryResults.length }}</em>
+							</div>
+							<div class="shader-graph__palette-list">
+								<button
+									v-for="def in contextMenuQueryResults"
+									:key="def.id"
+									type="button"
+									@click="addNode(def.id)"
+								>
+									<i :class="def.icon" />
+									{{ def.name }}
+									<small>{{ def.category }}</small>
+								</button>
+							</div>
+						</div>
+						<p v-else-if="paletteQuery.trim()" class="shader-graph__empty-state">No shader nodes found.</p>
+						<div
+							v-for="cat in contextMenuCategories"
+							v-else
+							:key="cat.name"
+							class="shader-graph__menu-section"
+						>
+							<button
+								type="button"
+								class="shader-graph__menu-section-header"
+								:aria-expanded="isContextGroupOpen(cat.name)"
+								@click="toggleContextGroup(cat.name)"
+							>
+								<i :class="isContextGroupOpen(cat.name) ? 'mdi mdi-chevron-down' : 'mdi mdi-chevron-right'" />
+								<span>{{ cat.name }}</span>
+								<em>{{ cat.defs.length }}</em>
+							</button>
+							<div v-if="isContextGroupOpen(cat.name)" class="shader-graph__palette-list">
 								<button
 									v-for="def in cat.defs"
 									:key="def.id"
@@ -186,8 +216,9 @@
 								>
 									<i :class="def.icon" />
 									{{ def.name }}
+									<small>{{ def.outputs[0]?.type ?? def.inputs[0]?.type ?? "node" }}</small>
 								</button>
-							</template>
+							</div>
 						</div>
 					</collapsible-context-menu>
 				</div>
@@ -410,6 +441,7 @@ const selectedWireId = ref<string>()
 const paletteOpen = ref(false)
 const palettePos = ref({ x: 0, y: 0 })
 const paletteQuery = ref("")
+const contextMenuOpenGroups = ref(new Set<string>())
 const sidePanelTab = ref<"node" | "preview" | "errors" | "code">("preview")
 const compiledGlsl = ref("")
 const lastGoodGlsl = ref("")
@@ -557,16 +589,27 @@ const wirePaths = computed(() =>
 	})
 )
 
-const filteredCategories = computed(() => {
-	const q = paletteQuery.value.toLowerCase().trim()
-	return SHADER_NODE_CATEGORIES
+const inputPaletteDefs = computed(() =>
+	SHADER_NODE_DEFS.filter((def) => def.category === "Input")
+)
+
+const contextMenuCategories = computed(() =>
+	SHADER_NODE_CATEGORIES
 		.map((cat) => ({
 			name: cat,
-			defs: SHADER_NODE_DEFS.filter(
-				(d) => d.category === cat && (!q || d.name.toLowerCase().includes(q) || d.category.toLowerCase().includes(q))
-			),
+			defs: SHADER_NODE_DEFS.filter((def) => def.category === cat),
 		}))
 		.filter((cat) => cat.defs.length > 0)
+)
+
+const contextMenuQueryResults = computed(() => {
+	const query = paletteQuery.value.toLowerCase().trim()
+	if (!query) return []
+	return SHADER_NODE_DEFS.filter((def) =>
+		def.name.toLowerCase().includes(query) ||
+		def.category.toLowerCase().includes(query) ||
+		def.id.toLowerCase().includes(query)
+	)
 })
 
 watch(
@@ -880,8 +923,20 @@ function hexToVec3(hex: string) {
 function openPalette(e: MouseEvent) {
 	palettePos.value = { x: e.clientX - (canvasRef.value?.getBoundingClientRect().left ?? 0), y: e.clientY - (canvasRef.value?.getBoundingClientRect().top ?? 0) }
 	paletteQuery.value = ""
+	contextMenuOpenGroups.value = new Set()
 	paletteOpen.value = true
 	nextTick(() => paletteInputRef.value?.focus())
+}
+
+function toggleContextGroup(group: string) {
+	const next = new Set(contextMenuOpenGroups.value)
+	if (next.has(group)) next.delete(group)
+	else next.add(group)
+	contextMenuOpenGroups.value = next
+}
+
+function isContextGroupOpen(group: string) {
+	return contextMenuOpenGroups.value.has(group)
 }
 
 let nodeCounter = 0
@@ -1215,8 +1270,13 @@ function categoryColor(cat: string): string {
 	background: var(--graph-canvas-background);
 	color: #e0e0e0;
 	display: flex;
+	flex: 1;
 	flex-direction: column;
 	height: 100%;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
+	width: 100%;
 }
 
 .shader-graph__toolbar {
@@ -1226,6 +1286,7 @@ function categoryColor(cat: string): string {
 	display: flex;
 	gap: 1rem;
 	justify-content: space-between;
+	min-height: 2.25rem;
 	padding: 0.4rem 0.8rem;
 	position: relative;
 	z-index: 2;
@@ -1274,28 +1335,103 @@ function categoryColor(cat: string): string {
 }
 
 .shader-graph__body {
-	display: flex;
+	display: grid;
 	flex: 1;
+	grid-template-columns: 220px minmax(0, 1fr) 360px;
 	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
 	position: relative;
 }
 
-.shader-graph__palette {
+.shader-graph__inputs {
 	background: var(--graph-panel-background);
 	border-right: 1px solid var(--graph-panel-border);
 	display: flex;
 	flex-direction: column;
-	gap: 0.55rem;
-	min-width: 220px;
+	gap: 0.7rem;
+	min-height: 0;
+	min-width: 0;
 	overflow: hidden;
 	padding: 0.6rem;
-	width: 240px;
+}
+
+.shader-graph__inputs header {
+	border-bottom: 1px solid #2d2d2d;
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	padding-bottom: 0.55rem;
+}
+
+.shader-graph__inputs header strong {
+	font-size: 0.82rem;
+}
+
+.shader-graph__inputs header span {
+	color: #999;
+	font-size: 0.68rem;
+	line-height: 1.25;
+}
+
+.shader-graph__input-list {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 0.35rem;
+	min-height: 0;
+	overflow: auto;
+}
+
+.shader-graph__input-list button {
+	align-items: center;
+	background: #191919;
+	border: 1px solid #303030;
+	border-radius: 4px;
+	color: #ddd;
+	cursor: pointer;
+	display: grid;
+	gap: 0.45rem;
+	grid-template-columns: 1.2rem minmax(0, 1fr);
+	min-height: 2.4rem;
+	padding: 0.4rem 0.5rem;
+	text-align: left;
+}
+
+.shader-graph__input-list button:hover {
+	background: #252525;
+	border-color: #3f6f43;
+}
+
+.shader-graph__input-list button span {
+	display: flex;
+	flex-direction: column;
+	gap: 0.05rem;
+	min-width: 0;
+}
+
+.shader-graph__input-list button strong {
+	font-size: 0.74rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.shader-graph__input-list button small {
+	color: #888;
+	font-family: monospace;
+	font-size: 0.64rem;
 }
 
 .shader-graph__canvas {
+	background-color: #101010;
+	background-image: linear-gradient(#202020 1px, transparent 1px), linear-gradient(90deg, #202020 1px, transparent 1px);
+	background-size: 42px 42px;
+	border: 1px solid #2f2f2f;
 	flex: 1;
+	margin: 0.65rem;
 	min-width: 0;
-	overflow: hidden;
+	overflow: auto;
 	position: relative;
 }
 
@@ -1446,10 +1582,6 @@ function categoryColor(cat: string): string {
 	overflow-y: auto;
 }
 
-.shader-graph__palette > .shader-graph__palette-list {
-	max-height: none;
-}
-
 .shader-graph__palette-category {
 	background: #222;
 	color: #999;
@@ -1472,8 +1604,51 @@ function categoryColor(cat: string): string {
 	width: 100%;
 }
 
+.shader-graph__palette-list button small {
+	color: #777;
+	font-size: 0.65rem;
+	margin-left: auto;
+}
+
 .shader-graph__palette-list button:hover {
 	background: #2a2a2a;
+}
+
+.shader-graph__menu-section {
+	border: 1px solid #292929;
+	border-radius: 4px;
+	margin-bottom: 0.4rem;
+	overflow: hidden;
+}
+
+.shader-graph__menu-section-header {
+	align-items: center;
+	background: #1f1f1f;
+	border: 0;
+	color: #ddd;
+	cursor: pointer;
+	display: grid;
+	font-size: 0.76rem;
+	font-weight: 700;
+	gap: 0.35rem;
+	grid-template-columns: 1rem minmax(0, 1fr) auto;
+	padding: 0.45rem 0.55rem;
+	width: 100%;
+}
+
+.shader-graph__menu-section-header--static {
+	cursor: default;
+}
+
+.shader-graph__menu-section-header em {
+	color: #888;
+	font-size: 0.68rem;
+	font-style: normal;
+	font-weight: 600;
+}
+
+.shader-graph__menu-section-header:hover {
+	background: #292929;
 }
 
 .shader-graph__side-panel {
@@ -1481,6 +1656,7 @@ function categoryColor(cat: string): string {
 	border-left: 1px solid var(--graph-panel-border);
 	display: flex;
 	flex-direction: column;
+	min-height: 0;
 	min-width: 320px;
 	overflow: hidden;
 	width: 360px;
