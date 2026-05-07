@@ -24,7 +24,7 @@ module.exports = {
 		artifactName: "${productName}_${version}.${ext}",
 		target: ["dmg"],
 	},
-	npmRebuild: true,
+	npmRebuild: false,
 	nodeGypRebuild: false,
 	nativeRebuilder: "sequential",
 	win: {

@@ -28,6 +28,9 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Install distutils compatibility
         run: pip install setuptools
 
@@ -40,7 +43,12 @@ jobs:
         run: yarn setup-vite
 
       - name: Rebuild native dependencies
-        run: yarn workspace showrunner-core run rebuild
+        run: |
+          yarn workspace showrunner-core run rebuild
+          yarn workspace showrunner-plugin-input-native run rebuild
+          yarn workspace showrunner-plugin-sound-native run rebuild
+        env:
+          GYP_MSVS_VERSION: 2022
 
       - name: Build renderer and packages
         run: node ./vite-util/multi-vite.mjs build
@@ -120,6 +128,9 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Install distutils compatibility
         run: pip install setuptools
 
@@ -132,7 +143,12 @@ jobs:
         run: yarn setup-vite
 
       - name: Rebuild native dependencies
-        run: yarn workspace showrunner-core run rebuild
+        run: |
+          yarn workspace showrunner-core run rebuild
+          yarn workspace showrunner-plugin-input-native run rebuild
+          yarn workspace showrunner-plugin-sound-native run rebuild
+        env:
+          GYP_MSVS_VERSION: 2022
 
       - name: Build renderer and packages
         run: node ./vite-util/multi-vite.mjs build
