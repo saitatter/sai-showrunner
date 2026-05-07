@@ -68,17 +68,15 @@ export class Profile extends FileResource<ProfileConfig, ProfileState> {
 	}
 
 	async setConfig(config: ProfileConfig): Promise<boolean> {
-		config = { ...config, name: normalizeRequiredResourceName(config.name, "Profile name") }
+		config = { ...config, name: normalizeProfileName(config.name, this.config?.name) }
 		const result = await super.setConfig(config)
 		await this.setupReactivity()
 		return result
 	}
 
 	async applyConfig(config: Partial<ProfileConfig>): Promise<boolean> {
-		if ("name" in config) {
-			config = { ...config, name: normalizeRequiredResourceName(config.name, "Profile name") }
-		}
-		const result = await super.applyConfig(config)
+		const merged = { ...this.config, ...config, name: normalizeProfileName(config.name, this.config?.name) }
+		const result = await super.setConfig(merged)
 		await this.setupReactivity()
 		return result
 	}
@@ -154,6 +152,10 @@ export class Profile extends FileResource<ProfileConfig, ProfileState> {
 			}
 		}
 	}
+}
+
+function normalizeProfileName(name: string | undefined, fallback: string | undefined) {
+	return normalizeRequiredResourceName(name?.trim() || fallback || "Untitled Profile", "Profile name")
 }
 
 const GRAPH_TRIGGER_SUB_ID_PREFIX = "__graphTrigger:"

@@ -22,4 +22,13 @@ describe("Automation", () => {
 
 		expect(automation.config.name).toBe("Existing")
 	})
+
+	it("keeps a valid existing name when applyConfig receives a malformed empty name", async () => {
+		const automation = new Automation("Existing")
+		vi.spyOn(automation, "save").mockResolvedValue(undefined)
+
+		await automation.applyConfig({ name: "   " })
+
+		expect(automation.config.name).toBe("Existing")
+	})
 })

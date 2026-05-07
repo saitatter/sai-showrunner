@@ -41,19 +41,21 @@ export class Automation extends FileResource<AutomationConfig> {
 
 	async setConfig(config: AutomationConfig): Promise<boolean> {
 		const normalized = normalizeAutomationConfig(config)
-		normalized.name = normalizeRequiredResourceName(normalized.name?.trim() || this.config?.name || "Untitled Automation", "Automation name")
+		normalized.name = normalizeAutomationName(normalized.name, this.config?.name)
 		validateAutomationProgram(normalized)
 		return super.setConfig(normalized)
 	}
 
 	async applyConfig(config: Partial<AutomationConfig>): Promise<boolean> {
-		if ("name" in config) {
-			config = { ...config, name: normalizeRequiredResourceName(config.name, "Automation name") }
-		}
 		const normalized = normalizeAutomationConfig({ ...this.config, ...config })
+		normalized.name = normalizeAutomationName(normalized.name, this.config?.name)
 		validateAutomationProgram(normalized)
 		return super.setConfig(normalized)
 	}
+}
+
+function normalizeAutomationName(name: string | undefined, fallback: string | undefined) {
+	return normalizeRequiredResourceName(name?.trim() || fallback || "Untitled Automation", "Automation name")
 }
 
 export async function setupAutomations() {
