@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: yarn
           cache-dependency-path: yarn.lock
 
@@ -31,14 +31,16 @@ jobs:
       - name: Install distutils compatibility
         run: pip install setuptools
 
-      - name: Install dependencies
+      - name: Install dependencies without native builds
         run: yarn install --immutable
+        env:
+          YARN_ENABLE_SCRIPTS: false
 
       - name: Setup Vite extensions
         run: yarn setup-vite
 
       - name: Rebuild native dependencies
-        run: yarn workspace ShowRunner-core run rebuild
+        run: yarn workspace showrunner-core run rebuild
 
       - name: Build renderer and packages
         run: node ./vite-util/multi-vite.mjs build
@@ -48,7 +50,7 @@ jobs:
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
 
       - name: Package Windows app
-        run: yarn workspace ShowRunner run electron:build -- --publish never
+        run: yarn workspace showrunner run electron:build -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
@@ -72,7 +74,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: yarn
           cache-dependency-path: yarn.lock
 
@@ -108,7 +110,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: yarn
           cache-dependency-path: yarn.lock
 
@@ -121,14 +123,16 @@ jobs:
       - name: Install distutils compatibility
         run: pip install setuptools
 
-      - name: Install dependencies
+      - name: Install dependencies without native builds
         run: yarn install --immutable
+        env:
+          YARN_ENABLE_SCRIPTS: false
 
       - name: Setup Vite extensions
         run: yarn setup-vite
 
       - name: Rebuild native dependencies
-        run: yarn workspace ShowRunner-core run rebuild
+        run: yarn workspace showrunner-core run rebuild
 
       - name: Build renderer and packages
         run: node ./vite-util/multi-vite.mjs build
@@ -138,7 +142,7 @@ jobs:
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
 
       - name: Package Windows app
-        run: yarn workspace ShowRunner run electron:build -- --config.extraMetadata.version=${{ needs.release.outputs.version }} --publish never
+        run: yarn workspace showrunner run electron:build -- --config.extraMetadata.version=${{ needs.release.outputs.version }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 

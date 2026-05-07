@@ -34,8 +34,10 @@ jobs:
       - name: Install distutils compatibility
         run: pip install setuptools
 
-      - name: Install dependencies
+      - name: Install dependencies without native builds
         run: yarn install --immutable
+        env:
+          YARN_ENABLE_SCRIPTS: false
 
       - name: Run tests
         run: yarn test
