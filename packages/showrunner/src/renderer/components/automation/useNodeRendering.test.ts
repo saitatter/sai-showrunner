@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { AutomationConfig, AutomationGraph } from "showrunner-schema"
-import { buildGraph, buildGraphFromAutomationGraph } from "./useNodeRendering"
+import { buildGraph, buildGraphFromAutomationGraph, getNodeLane } from "./useNodeRendering"
 
 function pluginMap() {
 	return new Map([
@@ -105,6 +105,19 @@ describe("useNodeRendering", () => {
 			from: "trigger:stream-start",
 			to: "node-1",
 		})
+	})
+
+	it("places explicit trigger nodes in the main lane", () => {
+		expect(getNodeLane({
+			id: "trigger:stream-start",
+			kind: "trigger",
+			title: "Stream Start",
+			subtitle: "",
+			icon: "",
+			x: 0,
+			y: 0,
+			height: 80,
+		}).id).toBe("main")
 	})
 
 	it("resolves conversion action schemas across camel and kebab ids", () => {

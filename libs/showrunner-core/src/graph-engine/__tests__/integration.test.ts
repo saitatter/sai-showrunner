@@ -258,6 +258,35 @@ describe("Graph Integration (compile → VM → action)", () => {
 		expect(calls).toEqual(["sceneAlert"])
 	})
 
+	it("starts all default branches from an explicit trigger node", async () => {
+		const calls: string[] = []
+		mockGetAction.mockImplementation((_plugin: string, action: string) => {
+			return mockAction(async () => {
+				calls.push(action)
+				return {}
+			})
+		})
+
+		const graph: AutomationGraph = {
+			nodes: [
+				{ id: "branch-a", type: "action", plugin: "p", action: "branchA", config: {}, x: 0, y: 0 },
+				{ id: "branch-b", type: "action", plugin: "p", action: "branchB", config: {}, x: 0, y: 100 },
+			],
+			edges: [
+				{ id: "trigger-branch-a", from: "trigger:multi", to: "branch-a" },
+				{ id: "trigger-branch-b", from: "trigger:multi", to: "branch-b" },
+			],
+			entryNodeId: "branch-a",
+		}
+
+		await new GraphVM(
+			new GraphCompiler().compile(graph, undefined, undefined, [{ id: "trigger:multi" }], "trigger:multi"),
+			{ contextState: {} }
+		).execute()
+
+		expect(calls).toEqual(["branchA", "branchB"])
+	})
+
 	it("resolves data wires for action node ids that contain colons", async () => {
 		let receivedConfig: any = null
 		mockGetAction.mockImplementation((_plugin: string, action: string) => {

@@ -473,7 +473,7 @@ function getTriggerOutputPorts(
 }
 
 export function getNodeLane(node: NodeData): Pick<LaneData, "id" | "kind" | "label"> {
-	if (node.id === "trigger") return { id: "main", kind: "main", label: "Main Flow" }
+	if (node.kind === "trigger") return { id: "main", kind: "main", label: "Main Flow" }
 	if (node.kind === "if" || node.kind === "switch") return { id: "flow", kind: "flow", label: "Flow Branches" }
 	if (node.kind === "queue") return { id: "queue", kind: "flow", label: "Queue Scheduler" }
 	if (node.kind === "conversion") return { id: "conversion", kind: "flow", label: "Data Conversions" }

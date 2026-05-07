@@ -222,4 +222,29 @@ describe("useAnnotationBlocks", () => {
 			height: 290,
 		})
 	})
+
+	it("snaps resized annotation blocks to the graph grid", () => {
+		const { blocks, view } = createAnnotationBlocks()
+		blocks.addAnnotationBlock({ x: 100, y: 100 })
+		const block = view.value.annotationBlocks![0]
+		const listeners = new Map<string, (event: any) => void>()
+		const target = {
+			setPointerCapture: () => undefined,
+			releasePointerCapture: () => undefined,
+			addEventListener: (name: string, listener: (event: any) => void) => listeners.set(name, listener),
+			removeEventListener: (name: string) => listeners.delete(name),
+		}
+
+		blocks.startAnnotationBlockResize({
+			clientX: 0,
+			clientY: 0,
+			pointerId: 1,
+			currentTarget: target,
+			preventDefault: () => undefined,
+		} as any, block)
+		listeners.get("pointermove")?.({ clientX: 13, clientY: 17 })
+
+		expect(block.width).toBe(370)
+		expect(block.height).toBe(220)
+	})
 })

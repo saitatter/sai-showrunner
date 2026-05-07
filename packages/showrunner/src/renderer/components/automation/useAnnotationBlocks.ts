@@ -163,8 +163,8 @@ export function useAnnotationBlocks({
 		function onMove(moveEvent: PointerEvent) {
 			const dx = (moveEvent.clientX - startX) / getZoom()
 			const dy = (moveEvent.clientY - startY) / getZoom()
-			block.width = Math.max(minimumSize.width, Math.round(startWidth + dx))
-			block.height = Math.max(minimumSize.height, Math.round(startHeight + dy))
+			block.width = Math.max(minimumSize.width, snapCoordinate(startWidth + dx))
+			block.height = Math.max(minimumSize.height, snapCoordinate(startHeight + dy))
 		}
 
 		function onUp(upEvent: PointerEvent) {

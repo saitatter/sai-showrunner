@@ -232,8 +232,9 @@ export class GraphCompiler {
 	private compileFromEntry(entryNodeId: string) {
 		const visited = new Set<string>()
 		if (this.contextSourceNodeIds.has(entryNodeId)) {
-			const next = this.getEdgeTarget(entryNodeId, undefined)
-			if (next) this.compileNode(next, visited)
+			for (const target of this.getEdgeTargets(entryNodeId, undefined)) {
+				this.compileNode(target, visited)
+			}
 			return
 		}
 		this.compileNode(entryNodeId, visited)
@@ -623,9 +624,14 @@ export class GraphCompiler {
 	}
 
 	private getEdgeTarget(fromId: string, port: string | undefined): string | undefined {
+		return this.getEdgeTargets(fromId, port)[0]
+	}
+
+	private getEdgeTargets(fromId: string, port: string | undefined): string[] {
 		const edges = this.edgeMap.get(fromId)
-		if (!edges) return undefined
-		const match = edges.find((e) => (e.port ?? undefined) === port)
-		return match?.to
+		if (!edges) return []
+		return edges
+			.filter((edge) => (edge.port ?? undefined) === port)
+			.map((edge) => edge.to)
 	}
 }
