@@ -12345,6 +12345,7 @@ __metadata:
     pinia: "npm:^2.1.7"
     primevue: "npm:^4.2.4"
     showrunner-overlay-core: "workspace:^"
+    showrunner-plugin-overlays-shared: "workspace:^"
     showrunner-schema: "workspace:^"
     ts-toolbelt: "npm:*"
     typescript: "npm:*"
