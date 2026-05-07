@@ -60,6 +60,7 @@ export const InfoService = Service(
 		lastUpdateMessage: string | undefined = undefined
 		updateChecking: boolean = false
 		updateDownloaded: boolean = false
+		private updateCheckPromise: Promise<boolean> | undefined
 
 		constructor() {
 			autoUpdater.autoInstallOnAppQuit = false
@@ -150,10 +151,17 @@ export const InfoService = Service(
 		}
 
 		async checkUpdate() {
-			if (this.updateChecking) {
-				return this.updateInfo != null
-			}
+			if (this.updateCheckPromise) return this.updateCheckPromise
 
+			this.updateCheckPromise = this.runUpdateCheck()
+			try {
+				return await this.updateCheckPromise
+			} finally {
+				this.updateCheckPromise = undefined
+			}
+		}
+
+		private async runUpdateCheck() {
 			if (!this.canCheckForUpdates) {
 				this.lastUpdateCheck = new Date().toISOString()
 				this.lastUpdateError = undefined

@@ -51,13 +51,16 @@ export function useSubgraphCollapse(options: UseSubgraphCollapseOptions) {
 			return
 		}
 
-		if (!model.value.subgraphs) model.value.subgraphs = []
-		commitUndo()
-
 		const selectedNodes = graph.nodes.filter((node) => selectedGraphIds.has(node.id))
 		const internalEdges = graph.edges.filter((edge) => selectedGraphIds.has(edge.from) && selectedGraphIds.has(edge.to))
 		const incomingEdges = graph.edges.filter((edge) => !selectedGraphIds.has(edge.from) && selectedGraphIds.has(edge.to))
 		const outgoingEdges = graph.edges.filter((edge) => selectedGraphIds.has(edge.from) && !selectedGraphIds.has(edge.to))
+		if (outgoingEdges.length > 1) {
+			return false
+		}
+		if (!model.value.subgraphs) model.value.subgraphs = []
+		commitUndo()
+
 		const internalDataWires = dataWires.value.filter((wire) => selectedGraphIds.has(wire.fromNode) && selectedGraphIds.has(wire.toNode))
 		const incomingDataWires = dataWires.value.filter((wire) => !selectedGraphIds.has(wire.fromNode) && selectedGraphIds.has(wire.toNode))
 		const outgoingDataWires = dataWires.value.filter((wire) => selectedGraphIds.has(wire.fromNode) && !selectedGraphIds.has(wire.toNode))
@@ -139,6 +142,7 @@ export function useSubgraphCollapse(options: UseSubgraphCollapseOptions) {
 		focusedSubgraphId.value = subgraphId
 		subgraphsOpen.value = true
 		focusNode(callNodeId)
+		return true
 	}
 
 	return {

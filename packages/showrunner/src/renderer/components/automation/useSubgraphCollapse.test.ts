@@ -68,4 +68,53 @@ describe("useSubgraphCollapse", () => {
 		expect(callNode).toBeTruthy()
 		expect(model.value.dataWires.some((wire) => wire.fromNode === callNode?.id && wire.fromPort === "echoed")).toBe(true)
 	})
+
+	it("does not collapse selections with multiple outgoing sequence exits", () => {
+		const model = ref<AutomationConfig>({
+			name: "test",
+			schemaVersion: 2,
+			graph: {
+				nodes: [
+					{ id: "branch", type: "if", config: { condition: { type: "literal", value: true } }, x: 0, y: 0 },
+					{ id: "true-target", type: "action", plugin: "p", action: "trueTarget", config: {}, x: 220, y: -80 },
+					{ id: "false-target", type: "action", plugin: "p", action: "falseTarget", config: {}, x: 220, y: 80 },
+				],
+				edges: [
+					{ id: "branch-true", from: "branch", to: "true-target", port: "true" },
+					{ id: "branch-false", from: "branch", to: "false-target", port: "false" },
+				],
+				entryNodeId: "branch",
+			},
+			subgraphs: [],
+			dataWires: [],
+			variableNodes: [],
+		})
+		const dataWires = computed({
+			get: () => model.value.dataWires as AutomationDataWire[],
+			set: (value) => {
+				model.value.dataWires = value
+			},
+		})
+		const selectedNodeIds = ref(new Set(["branch"]))
+		let undoCommitted = false
+		const collapse = useSubgraphCollapse({
+			model,
+			activeGraph: computed(() => model.value.graph),
+			selectedNodeIds,
+			dataWires,
+			nodes: computed(() => []),
+			focusedSubgraphId: ref(),
+			subgraphsOpen: ref(false),
+			focusNode: () => undefined,
+			commitUndo: () => {
+				undoCommitted = true
+			},
+		})
+
+		expect(collapse.collapseSelectionToSubgraph()).toBe(false)
+		expect(model.value.subgraphs).toHaveLength(0)
+		expect(model.value.graph.nodes.some((node) => node.id === "branch")).toBe(true)
+		expect(model.value.graph.edges).toHaveLength(2)
+		expect(undoCommitted).toBe(false)
+	})
 })
