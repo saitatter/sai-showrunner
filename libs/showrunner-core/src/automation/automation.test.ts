@@ -8,6 +8,12 @@ vi.mock("electron", () => ({
 }))
 
 describe("Automation", () => {
+	it("keeps the constructor name in config", () => {
+		const automation = new Automation("Existing")
+
+		expect(automation.config.name).toBe("Existing")
+	})
+
 	it("keeps a valid existing name when setConfig receives a malformed empty name", async () => {
 		const automation = new Automation("Existing")
 		vi.spyOn(automation, "save").mockResolvedValue(undefined)

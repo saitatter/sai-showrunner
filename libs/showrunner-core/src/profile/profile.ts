@@ -31,13 +31,15 @@ export class Profile extends FileResource<ProfileConfig, ProfileState> {
 	constructor(name?: string) {
 		super()
 
+		const normalizedName = name !== undefined
+			? normalizeRequiredResourceName(name, "Profile name")
+			: undefined
 		if (name !== undefined) {
-			name = normalizeRequiredResourceName(name, "Profile name")
 			this._id = nanoid()
 		}
 
 		this._config = {
-			name: name ?? "",
+			name: normalizedName ?? "",
 			activationMode: "toggle",
 			triggers: [],
 			activationCondition: {

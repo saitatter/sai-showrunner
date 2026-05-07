@@ -13,14 +13,16 @@ export class Automation extends FileResource<AutomationConfig> {
 	constructor(name?: string) {
 		super()
 
+		const normalizedName = name !== undefined
+			? normalizeRequiredResourceName(name, "Automation name")
+			: undefined
 		if (name !== undefined) {
-			name = normalizeRequiredResourceName(name, "Automation name")
 			this._id = nanoid()
 		}
 
 		this._config = {
-			name: name ?? "",
 			...createInlineAutomation(),
+			name: normalizedName ?? "",
 		}
 
 		this.state = {}
