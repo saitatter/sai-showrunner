@@ -16,6 +16,8 @@ export { default as TriggerSelector } from "./components/util/TriggerSelector.vu
 export { default as TextHider } from "./components/util/TextHider.vue"
 export { default as CContextMenu } from "./components/util/CContextMenu.vue"
 export { default as CollapsibleContextMenu } from "./components/util/CollapsibleContextMenu.vue"
+export { default as GraphIssuesPanel } from "./components/util/GraphIssuesPanel.vue"
+export { default as GraphToolbarButton } from "./components/util/GraphToolbarButton.vue"
 
 export { default as FilterPalette } from "./components/util/FilterPalette.vue"
 export { default as PanArea } from "./components/panning/PanArea.vue"
@@ -105,6 +107,7 @@ export * from "./util/arrays"
 export * from "./util/generic-login"
 export * from "./util/init-store"
 export * from "./util/events"
+export * from "./util/graph"
 export * from "./util/data-binding"
 export * from "./components/drag/OrderedTemplateRefs"
 

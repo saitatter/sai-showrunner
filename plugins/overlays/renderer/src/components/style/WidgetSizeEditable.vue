@@ -27,8 +27,7 @@ const editOpen = ref(false)
 
 const numField = ref<InstanceType<typeof NumberField>>()
 
-function onEnter(ev: Event) {
-	console.log("ENTER!")
+function onEnter() {
 	editOpen.value = false
 }
 

@@ -1,5 +1,7 @@
 import { computed, ref, type ComputedRef } from "vue"
+import { useGraphContextMenuGroups } from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import type { NodePosition } from "./useNodeCanvas"
+import { CORE_CONVERSION_ACTIONS } from "./coreConversionActions"
 
 export interface ContextMenuItem {
 	key: string
@@ -40,8 +42,28 @@ interface MenuLane {
 	id: string
 }
 
+interface MenuAction {
+	name: string
+	icon?: string
+	type?: string
+}
+
+interface MenuTrigger {
+	name: string
+	icon?: string
+}
+
+interface MenuPlugin {
+	id: string
+	name: string
+	icon: string
+	color?: string
+	actions?: Record<string, MenuAction>
+	triggers?: Record<string, MenuTrigger>
+}
+
 interface PluginStoreLike {
-	pluginMap: Map<string, any>
+	pluginMap: Map<string, MenuPlugin>
 	isPluginEnabled?: (pluginId: string) => boolean
 }
 
@@ -56,20 +78,29 @@ export function useNodeContextMenu(
 		x: 0,
 		y: 0,
 	})
-	const contextMenuQuery = ref("")
-	const contextMenuOpenGroups = ref<Record<string, boolean>>({
-		triggers: true,
-		actions: true,
-		categories: true,
-		"category:data-transforms": true,
-		"category:queues": true,
-		"category:overlays": true,
-		"category:obs": true,
-		"category:chat": true,
-		"category:utility": true,
+	const {
+		contextMenuQuery,
+		contextMenuSearch,
+		contextMenuOpenGroups,
+		resetContextMenuGroups,
+		setContextGroupOpen,
+		toggleContextGroup,
+		isContextGroupOpen,
+	} = useGraphContextMenuGroups({
+		defaultOpenGroups: {
+			triggers: true,
+			actions: true,
+			categories: false,
+			data: false,
+			"category:data-transforms": true,
+			"category:queues": true,
+			"category:overlays": true,
+			"category:obs": true,
+			"category:chat": true,
+			"category:utility": true,
+		},
 	})
 
-	const contextMenuSearch = computed(() => contextMenuQuery.value.trim().toLowerCase())
 	const contextMenuSubtitle = computed(() => {
 		const node = contextMenu.value.nodeId ? nodes.value.find((entry) => entry.id === contextMenu.value.nodeId) : undefined
 		if (node) return `Insert after ${node.title} or replace the trigger.`
@@ -84,15 +115,39 @@ export function useNodeContextMenu(
 	const actionCategoryGroups = computed(() =>
 		buildActionCategoryGroups(actionContextGroups.value.flatMap((group) => group.items))
 	)
-	const conversionContextItems = computed(() =>
-		actionContextGroups.value
-			.flatMap((group) => group.items)
-			.filter((item) => {
-				const actionId = item.key.split(":").slice(1).join(":")
-				return CONVERSION_ACTION_IDS.has(actionId)
-			})
+	const conversionContextItems = computed(() => {
+		const pluginItems = [...pluginStore.pluginMap.values()]
+			.filter((plugin) => (pluginStore.isPluginEnabled?.(plugin.id) ?? true) || isBuiltinPlugin(plugin.id))
+			.flatMap((plugin) =>
+				Object.entries(filterRegularActions(plugin.actions))
+					.filter(([id]) => isConversionActionId(id))
+					.map(([id, action]) => ({
+						key: `${plugin.id}:${id}`,
+						pluginId: plugin.id,
+						pluginName: plugin.name,
+						name: action.name,
+						icon: action.icon || "mdi mdi-swap-horizontal",
+						color: String(plugin.color || "#e9aaff"),
+						searchText: `actions ${plugin.name} ${plugin.id} ${action.name} ${id}`.toLowerCase(),
+					}))
+			)
+		const seen = new Set(pluginItems.map((item) => normalizeActionId(item.key.split(":").slice(1).join(":"))))
+		const fallbackItems = CORE_CONVERSION_ACTIONS
+			.filter((item) => !seen.has(normalizeActionId(item.id)))
+			.map((item) => ({
+				key: `ShowRunner:${item.id}`,
+				pluginId: "ShowRunner",
+				pluginName: "ShowRunner",
+				name: item.name,
+				icon: item.icon,
+				color: "#de84ff",
+				searchText: `actions ShowRunner ShowRunner ${item.name} ${item.id}`.toLowerCase(),
+			}))
+
+		return [...pluginItems, ...fallbackItems]
+			.filter((item) => !contextMenuSearch.value || item.searchText.includes(contextMenuSearch.value))
 			.sort((a, b) => a.name.localeCompare(b.name))
-	)
+	})
 	const triggerContextGroups = computed(() =>
 		buildContextGroups("triggers", (plugin) => plugin.triggers, (entry) => ({
 			name: entry.name,
@@ -135,12 +190,13 @@ export function useNodeContextMenu(
 			nodeId,
 			canvasPoint,
 		}
-		contextMenuQuery.value = ""
+		resetContextMenuGroups()
+		setContextGroupOpen("data", false)
 
 		if (nodeId) {
 			const node = nodes.value.find((entry) => entry.id === nodeId)
 			const lane = node ? getNodeLane(node) : undefined
-			if (lane) contextMenuOpenGroups.value[`action:${lane.id}`] = true
+			if (lane) setContextGroupOpen(`action:${lane.id}`, true)
 		}
 	}
 
@@ -148,18 +204,10 @@ export function useNodeContextMenu(
 		contextMenu.value.open = false
 	}
 
-	function toggleContextGroup(key: string) {
-		contextMenuOpenGroups.value[key] = !isContextGroupOpen(key)
-	}
-
-	function isContextGroupOpen(key: string) {
-		return contextMenuOpenGroups.value[key] ?? false
-	}
-
-	function buildContextGroups(
+	function buildContextGroups<Entry extends MenuAction | MenuTrigger>(
 		kind: "actions" | "triggers",
-		getEntries: (plugin: any) => Record<string, any>,
-		getMeta: (entry: any) => { name: string; icon: string }
+		getEntries: (plugin: MenuPlugin) => Record<string, Entry> | undefined,
+		getMeta: (entry: Entry) => { name: string; icon: string }
 	): ContextMenuGroup[] {
 		const query = contextMenuSearch.value
 		return [...pluginStore.pluginMap.values()]
@@ -193,10 +241,10 @@ export function useNodeContextMenu(
 			.sort((a, b) => a.name.localeCompare(b.name))
 	}
 
-	function buildSearchItemsForPlugins(
+	function buildSearchItemsForPlugins<Entry extends MenuAction | MenuTrigger>(
 		kind: "actions" | "triggers",
-		getEntries: (plugin: any) => Record<string, any>,
-		getMeta: (entry: any) => { name: string; icon: string },
+		getEntries: (plugin: MenuPlugin) => Record<string, Entry> | undefined,
+		getMeta: (entry: Entry) => { name: string; icon: string },
 		enabled: boolean
 	): ContextMenuItem[] {
 		const query = contextMenuSearch.value
@@ -241,7 +289,7 @@ export function useNodeContextMenu(
 			.filter((group) => group.items.length)
 	}
 
-	function filterRegularActions(actions: Record<string, any> | undefined) {
+	function filterRegularActions(actions: Record<string, MenuAction> | undefined) {
 		return Object.fromEntries(Object.entries(actions ?? {}).filter(([, action]) => action?.type === "regular"))
 	}
 
@@ -263,18 +311,19 @@ export function useNodeContextMenu(
 	}
 }
 
-const CONVERSION_ACTION_IDS = new Set([
-	"convertNumberToString",
-	"convertBooleanToString",
-	"convertStringToNumber",
-	"convertBooleanToNumber",
-	"convertNumberToBoolean",
-	"convertStringToBoolean",
-	"convertObjectToJsonString",
-	"convertArrayToJsonString",
-	"convertJsonStringToObject",
-	"convertJsonStringToArray",
-])
+const CONVERSION_ACTION_IDS = new Set(CORE_CONVERSION_ACTIONS.map((action) => normalizeActionId(action.id)))
+
+export function isConversionActionId(actionId: string) {
+	return CONVERSION_ACTION_IDS.has(normalizeActionId(actionId))
+}
+
+function normalizeActionId(actionId: string) {
+	return actionId.replace(/[^a-z0-9]/gi, "").toLowerCase()
+}
+
+function isBuiltinPlugin(pluginId: string) {
+	return pluginId.toLowerCase() === "showrunner"
+}
 
 const ACTION_CATEGORY_DEFINITIONS: ActionCategoryDefinition[] = [
 	{

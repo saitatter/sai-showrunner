@@ -106,12 +106,13 @@ function registerIPCDefault(schema: Schema, path: string) {
 }
 
 export function ipcRegisterSchema<T extends Schema>(schema: T, path: string, topLevelSchema?: Schema) {
-	if (schema.type === Object && "properties" in schema) {
-		for (let key in schema.properties) {
-			ipcRegisterSchema(schema.properties[key], `${path}_${key}`, topLevelSchema ?? schema)
+	if (schema.type === Object) {
+		const properties = "properties" in schema ? schema.properties : {}
+		for (let key in properties) {
+			ipcRegisterSchema(properties[key], `${path}_${key}`, topLevelSchema ?? schema)
 		}
-	} else if (schema.type === Array && "items" in schema) {
-		ipcRegisterSchema(schema.items, `${path}_items`, topLevelSchema ?? schema)
+	} else if (schema.type === Array) {
+		ipcRegisterSchema("items" in schema ? schema.items : schemaFallbackArrayItemSchema(path), `${path}_items`, topLevelSchema ?? schema)
 	} else if (isResourceConstructor(schema.type)) {
 		registerIPCDefault(schema, path)
 	} else {
@@ -147,20 +148,24 @@ export function ipcRegisterDynamicSchema<T extends Schema>(schema: T | ((...args
 export function ipcConvertSchema<T extends Schema>(schema: T, path: string): IPCSchema {
 	//TODO: Connect reactive defaults
 
-	if (schema.type === Object && "properties" in schema) {
+	if (schema.type === Object) {
+		const schemaProperties = "properties" in schema ? schema.properties : {}
 		const properties: Record<string, any> = {}
 
-		for (let key in schema.properties) {
-			properties[key] = ipcConvertSchema(schema.properties[key], `${path}_${key}`)
+		for (let key in schemaProperties) {
+			properties[key] = ipcConvertSchema(schemaProperties[key], `${path}_${key}`)
 		}
 
 		return { ...schema, ...convertIPCDefault(schema, path), properties, type: "Object" }
-	} else if (schema.type === Array && "items" in schema) {
+	} else if (schema.type === Array) {
+		const items = "items" in schema
+			? ipcConvertSchema(schema.items, `${path}_items`)
+			: ipcConvertSchema(schemaFallbackArrayItemSchema(path), `${path}_items`)
 		return {
 			...schema,
 			...convertIPCDefault(schema, path),
 			type: "Array",
-			items: ipcConvertSchema(schema.items, `${path}_items`),
+			items,
 		}
 	} else if (isResourceConstructor(schema.type)) {
 		return {
@@ -183,6 +188,11 @@ export function ipcConvertSchema<T extends Schema>(schema: T, path: string): IPC
 			type: typeName,
 		}
 	}
+}
+
+function schemaFallbackArrayItemSchema(path: string): Schema {
+	globalLogger.warn(`Array schema at ${path} is missing an items definition; using unknown object items.`)
+	return { type: Object, name: "Unknown item", properties: {} }
 }
 
 export function ipcConvertDynamicSchema<T extends Schema>(schema: T | ((...args: any[]) => Promise<T>), path: string) {
@@ -427,19 +437,20 @@ export function ipcParseSchemaDefault<T>(ipcSchema: IPCDefaultable<T>) {
 }
 
 export function ipcParseSchema(ipcSchema: IPCSchema): Schema {
-	if (ipcSchema.type === "Object" && "properties" in ipcSchema) {
+	if (ipcSchema.type === "Object") {
+		const ipcProperties = "properties" in ipcSchema ? ipcSchema.properties : {}
 		const properties: Record<string, Schema> = {}
 
-		for (let prop in ipcSchema.properties) {
-			properties[prop] = ipcParseSchema(ipcSchema.properties[prop])
+		for (let prop in ipcProperties) {
+			properties[prop] = ipcParseSchema(ipcProperties[prop])
 		}
 
 		return { ...ipcSchema, ...ipcParseSchemaDefault(ipcSchema), type: Object, properties }
-	} else if (ipcSchema.type === "Array" && "items" in ipcSchema) {
+	} else if (ipcSchema.type === "Array") {
 		return {
 			...ipcSchema,
 			type: Array,
-			items: ipcParseSchema(ipcSchema.items),
+			items: ipcParseSchema("items" in ipcSchema ? ipcSchema.items : ipcFallbackArrayItemSchema(ipcSchema.name ?? "array")),
 			...ipcParseSchemaDefault(ipcSchema),
 		}
 	} else if (ipcSchema.type === "Resource" && "resourceType" in ipcSchema) {
@@ -464,6 +475,11 @@ export function ipcParseSchema(ipcSchema: IPCSchema): Schema {
 			type,
 		}
 	}
+}
+
+function ipcFallbackArrayItemSchema(path: string): IPCSchema {
+	globalLogger.warn(`IPC array schema at ${path} is missing an items definition; using unknown object items.`)
+	return { type: "Object", name: "Unknown item", properties: {} }
 }
 
 export function ipcParseDynamicSchema(ipcSchema: IPCSchema | string): Schema | ((...args: any[]) => Promise<Schema>) {

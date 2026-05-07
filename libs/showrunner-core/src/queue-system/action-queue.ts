@@ -193,6 +193,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 		const automation = resolver.getAutomation(queueItem.source.id, queueItem.source.subId)
 		const contextSchema = await resolver.getContextSchema(queueItem.source.id, queueItem.source.subId)
 		const wrapper = resolver.getRunWrapper(queueItem.source.id, queueItem.source.subId)
+		const programOptions = resolver.getProgramOptions?.(queueItem.source.id, queueItem.source.subId)
 
 		if (!automation) return
 		if (!contextSchema) return
@@ -206,7 +207,7 @@ export class ActionQueue extends FileResource<ActionQueueConfig, ActionQueueStat
 			return
 		}
 
-		const program = compileAutomationProgram(automation)
+		const program = compileAutomationProgram(automation, programOptions)
 		const abortController = new AbortController()
 		this.activeAbortController = abortController
 		this.activeVM = new GraphVM(program, { contextState: finalContext }, undefined, abortController.signal)
@@ -349,7 +350,8 @@ export const ActionQueueManager = Service(
 				}
 
 				const finalContext = await exposeSchema(contextSchema, contextData)
-				const program = compileAutomationProgram(automation)
+				const programOptions = resolver.getProgramOptions?.(id, subId)
+				const program = compileAutomationProgram(automation, programOptions)
 				const vm = new GraphVM(program, { contextState: finalContext })
 				await wrapper(async () => await vm.execute(), { type, id, subId })
 			}

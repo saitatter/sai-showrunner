@@ -1,4 +1,4 @@
-import { IPCPluginDefinition } from "showrunner-schema"
+import { IPCPluginDefinition, resolveMapById } from "showrunner-schema"
 import { defineCallableIPC, defineIPCFunc } from "../util/electron"
 import { Service } from "../util/service"
 import { Plugin } from "./plugin"
@@ -122,7 +122,9 @@ export const PluginManager = Service(
 		}
 
 		getAction(plugin: string, action: string) {
-			return this.plugins.get(plugin)?.actions?.get(action)
+			const actions = resolveMapById(this.plugins, plugin)?.actions
+			if (!actions) return undefined
+			return resolveMapById(actions, action)
 		}
 
 		getTrigger(plugin: string, trigger: string) {

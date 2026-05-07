@@ -22,6 +22,9 @@ describe("automation migration", () => {
 				},
 			],
 			dataWires: [{ id: "wire", fromNode: "trigger", fromPort: "value", toNode: "a", toPort: "input" }],
+			plugin: "twitch",
+			trigger: "chatMessage",
+			config: { command: "!test" },
 		}
 
 		const normalized = normalizeAutomationConfig(legacy)
@@ -30,6 +33,17 @@ describe("automation migration", () => {
 		expect(normalized.graph.entryNodeId).toBe("a")
 		expect(normalized.subgraphs[0]).toMatchObject({ parameters: [], outputs: [], dataWires: [] })
 		expect(normalized.variableNodes).toEqual([])
+		expect(normalized.triggerNodes).toEqual([
+			{
+				id: "trigger",
+				plugin: "twitch",
+				trigger: "chatMessage",
+				config: { command: "!test" },
+				stop: undefined,
+				x: 42,
+				y: 88,
+			},
+		])
 		expect("sequence" in normalized).toBe(false)
 		expect("floatingSequences" in normalized).toBe(false)
 	})
@@ -51,6 +65,30 @@ describe("automation migration", () => {
 			subgraphs: [],
 			dataWires: [],
 			variableNodes: [],
+			triggerNodes: [],
 		})
+	})
+
+	it("keeps existing explicit trigger nodes and normalizes missing coordinates", () => {
+		const normalized = normalizeAutomationConfig({
+			name: "Graph v2 automation",
+			graph: { nodes: [], edges: [], entryNodeId: "" },
+			triggerNodes: [
+				{ id: "trigger:one", plugin: "twitch", trigger: "chatMessage", config: { channel: "main" } },
+				{ id: "", plugin: "bad", trigger: "bad", config: {} },
+			],
+		})
+
+		expect(normalized.triggerNodes).toEqual([
+			{
+				id: "trigger:one",
+				plugin: "twitch",
+				trigger: "chatMessage",
+				config: { channel: "main" },
+				stop: undefined,
+				x: 42,
+				y: 88,
+			},
+		])
 	})
 })

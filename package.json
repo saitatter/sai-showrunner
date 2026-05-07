@@ -15,6 +15,7 @@
 		"release:dry-run": "semantic-release --dry-run --no-ci",
 		"release:smoke-artifacts": "node ./scripts/smoke-release-artifacts.cjs",
 		"beta:smoke-ui": "node ./scripts/smoke-packaged-beta-ui.cjs",
+		"electron:smoke-ui": "node ./scripts/smoke-electron-ui.cjs",
 		"visual:smoke": "node ./scripts/smoke-visual-markers.cjs",
 		"satdev": "yarn workspace showrunner-satellite dev",
 		"test": "vitest run",

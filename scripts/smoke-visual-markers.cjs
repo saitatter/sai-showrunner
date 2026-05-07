@@ -21,9 +21,20 @@ const visualMarkers = [
 	["settings interface section", "settings-page__section-actions"],
 	["updates status card", "updates-page__status--available"],
 	["integration detail search", "plugin-details__search"],
+	["integration toggle states", "plugin-details__toggle.enabled"],
 	["integration compact rows", "plugin-details__chips"],
 	["automation hidden plugin hint", "node-automation__menu-hint"],
 	["automation context menu", "node-automation__context-menu"],
+	["automation annotation blocks", "node-automation__annotation-block"],
+	["automation annotation drag remove feedback", "node-automation__annotation-block.remove-target"],
+	["automation flow edge health", "invalid sequence edge"],
+	["automation graph health panel", "Graph Health"],
+	["shader graph palette", "shader-graph__palette"],
+	["shader graph side panel", "shader-graph__side-panel"],
+	["shader graph preview fallback", "shader-graph__preview-overlay"],
+	["shader graph frame controls", "shader-graph__frame-resize"],
+	["shader graph minimap", "shader-graph__minimap"],
+	["shader graph issue highlights", "shader-graph__wire--issue"],
 ]
 
 for (const [label, marker] of visualMarkers) {

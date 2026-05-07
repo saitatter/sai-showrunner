@@ -29,10 +29,24 @@ const packagedText = `${readIfExists(htmlPath)}\n${assetText}`
 const requiredMarkers = [
 	["Settings page", "Interface"],
 	["Updates page", "Current version"],
+	["updates dev/offline state", "Development build"],
+	["updates available state", "Update available"],
+	["updates downloaded state", "Update downloaded"],
+	["updates install action", "Update and restart"],
 	["Integrations page", "Integrations"],
+	["integration plugin toggle", "plugin-details__toggle"],
+	["integration detail search", "plugin-details__search"],
 	["starter template menu", "New Automation From Starter"],
 	["queue starter template", "Paid Event -> Add to Alerts Queue"],
 	["graph editor shell", "node-automation"],
+	["annotation blocks", "node-automation__annotation-block"],
+	["graph health warning", "invalid sequence edge"],
+	["graph health panel", "Graph Health"],
+	["shader graph editor", "Shader Graph"],
+	["shader graph palette", "shader-graph__palette"],
+	["shader graph side panel", "shader-graph__side-panel"],
+	["shader graph frames", "shader-graph__frame-resize"],
+	["shader graph issue highlights", "shader-graph__node--issue"],
 ]
 
 for (const [label, marker] of requiredMarkers) {

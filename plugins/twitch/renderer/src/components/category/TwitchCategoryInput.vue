@@ -116,13 +116,11 @@ onMounted(() => {
 
 //Focus Events
 function onBlur() {
-	console.log("Blur")
 	dropDownOpen.value = false
 	queryDisplay()
 }
 
 function onFocus() {
-	console.log("Focus")
 	dropDownOpen.value = true
 	if (selectedDisplayData.value) {
 		queryValue.value = selectedDisplayData.value.name
@@ -132,7 +130,6 @@ function onFocus() {
 }
 
 function onSelect(item: TwitchCategory) {
-	console.log("Select!", filterBox.value)
 	model.value = item.id
 	filterBox.value?.blur()
 	commitUndo()
@@ -163,7 +160,6 @@ const groupedSuggestions = computed<TwitchCategory[][]>(() => {
 })
 
 watch(queryValue, () => {
-	console.log(queryValue.value)
 	if (dropDownOpen.value) {
 		querySuggestions()
 	}

@@ -9,20 +9,12 @@
 				/>
 				<section v-if="isShaderLayer" class="shader-preset-panel">
 					<h3>Shader Graph Editor</h3>
-					<button type="button" class="shader-graph-open-btn" @click="shaderGraphOpen = true">
+					<p v-if="legacyShaderGraphHint" class="shader-preset-panel__hint">
+						This custom shader was saved as GLSL only. The graph editor can start a new graph, but it cannot rebuild nodes from existing GLSL.
+					</p>
+					<button type="button" class="shader-graph-open-btn" @click="openShaderGraph">
 						<i class="mdi mdi-magic-staff" /> Open Shader Graph
 					</button>
-					<teleport to="body">
-						<div v-if="shaderGraphOpen" class="shader-graph-overlay">
-							<ShaderGraphEditor
-								v-model="shaderGraph"
-								@compile="onShaderGraphCompile"
-							/>
-							<button type="button" class="shader-graph-overlay__close" @click="shaderGraphOpen = false">
-								<i class="mdi mdi-close" /> Close
-							</button>
-						</div>
-					</teleport>
 					<h3>Bundled Shader Presets</h3>
 					<div class="shader-preset-panel__bundled">
 						<button
@@ -65,7 +57,7 @@
 
 <script setup lang="ts">
 import { useOverlayWidgets } from "showrunner-overlay-widget-loader"
-import { OverlayConfig } from "showrunner-plugin-overlays-shared"
+import { OverlayConfig, type ShaderUniformBindingMap } from "showrunner-plugin-overlays-shared"
 import {
 	FlexScroller,
 	DataInput,
@@ -74,11 +66,20 @@ import {
 	DataBindingPath,
 	provideScrollAttachable,
 	useIpcCaller,
+	useDockingStore,
+	useDocumentId,
 } from "showrunner-ui-core"
-import { computed, onMounted, ref, useModel, watch } from "vue"
+import { computed, defineComponent, h, onMounted, ref, useModel, watch } from "vue"
 import OverlayWidgetTransformEdit from "./OverlayWidgetTransformEdit.vue"
 import ShaderGraphEditor from "./shader-graph/ShaderGraphEditor.vue"
-import type { ShaderGraph } from "./shader-graph/shader-nodes"
+import type { ShaderGraph, ShaderUniformValueMap } from "./shader-graph/shader-nodes"
+import {
+	applyCompiledShaderGraph,
+	hasLegacyCustomShaderWithoutGraph,
+	normalizeShaderGraph,
+	persistShaderGraph,
+	type ShaderLayerGraphConfig,
+} from "./shader-graph/shader-graph-state"
 import { useConfirm } from "primevue/useconfirm"
 
 const props = defineProps<{
@@ -86,6 +87,7 @@ const props = defineProps<{
 }>()
 
 const model = useModel(props, "modelValue")
+const overlayId = useDocumentId()
 
 useDataBinding("widgets")
 
@@ -138,6 +140,7 @@ const selectedWidget = computed(() => {
 })
 
 const isShaderLayer = computed(() => selectedWidget.value?.plugin === "overlays" && selectedWidget.value?.widget === "shaderLayer")
+const selectedShaderLayerConfig = computed(() => selectedWidget.value?.config as ShaderLayerGraphConfig | undefined)
 const shaderPresetHint = computed(() => {
 	if (!isShaderLayer.value) return ""
 	if (selectedWidget.value?.config?.preset === "custom" && !String(selectedWidget.value?.config?.customFragmentShader || "").trim()) {
@@ -145,6 +148,7 @@ const shaderPresetHint = computed(() => {
 	}
 	return ""
 })
+const legacyShaderGraphHint = computed(() => isShaderLayer.value && hasLegacyCustomShaderWithoutGraph(selectedShaderLayerConfig.value))
 
 function setShaderPresets(presets: Record<string, string>) {
 	shaderPresets.value = presets
@@ -191,19 +195,49 @@ function deleteShaderPreset(name: string) {
 onMounted(refreshShaderPresets)
 
 // ── Shader Graph Editor ──
-const shaderGraphOpen = ref(false)
-const shaderGraph = ref<ShaderGraph>({
-	nodes: [
-		{ id: "output", defId: "fragment_output", x: 600, y: 200 },
-		{ id: "uv", defId: "uv", x: 50, y: 200 },
-	],
-	wires: [],
-})
+const dockingStore = useDockingStore()
 
-function onShaderGraphCompile(glsl: string) {
-	if (!selectedWidget.value) return
-	selectedWidget.value.config.preset = "custom"
-	selectedWidget.value.config.customFragmentShader = glsl
+function openShaderGraph() {
+	const widgetId = selectedWidgetId.value
+	if (!widgetId) return
+	const config = getShaderLayerConfig(widgetId)
+	if (!config) return
+
+	const tabId = `shader-graph.${overlayId.value}.${widgetId}`
+	const tabGraph = ref<ShaderGraph>(normalizeShaderGraph(config.shaderGraph))
+	const ShaderGraphTabPage = defineComponent({
+		name: "ShaderGraphTabPage",
+		setup() {
+			return () => h(ShaderGraphEditor, {
+				modelValue: tabGraph.value,
+				"onUpdate:modelValue": (graph: ShaderGraph) => {
+					tabGraph.value = graph
+					const targetConfig = getShaderLayerConfig(widgetId)
+					if (targetConfig) persistShaderGraph(targetConfig, graph)
+				},
+				onCompile: (glsl: string, uniforms: ShaderUniformValueMap, bindings: ShaderUniformBindingMap) => {
+					const targetConfig = getShaderLayerConfig(widgetId)
+					if (!targetConfig) return
+					applyCompiledShaderGraph(targetConfig, tabGraph.value, glsl, uniforms, bindings)
+				},
+				onClose: () => dockingStore.closeTab(tabId),
+			})
+		},
+	})
+
+	dockingStore.openPage(
+		tabId,
+		"Shader Graph",
+		"mdi mdi-magic-staff",
+		ShaderGraphTabPage,
+		{ dirty: false }
+	)
+}
+
+function getShaderLayerConfig(widgetId: string): ShaderLayerGraphConfig | undefined {
+	const widget = model.value.widgets.find((item) => item.id === widgetId)
+	if (widget?.plugin !== "overlays" || widget.widget !== "shaderLayer") return undefined
+	return widget.config as ShaderLayerGraphConfig
 }
 </script>
 
@@ -351,34 +385,3 @@ function onShaderGraphCompile(glsl: string) {
 }
 </style>
 
-<style>
-.shader-graph-overlay {
-	background: #0d0d0d;
-	display: flex;
-	flex-direction: column;
-	inset: 0;
-	position: fixed;
-	z-index: 1000;
-}
-
-.shader-graph-overlay__close {
-	align-items: center;
-	background: #333;
-	border: 1px solid #555;
-	border-radius: 4px;
-	color: #eee;
-	cursor: pointer;
-	display: flex;
-	font-size: 0.85rem;
-	gap: 0.3rem;
-	padding: 0.35rem 0.65rem;
-	position: absolute;
-	right: 0.8rem;
-	top: 0.4rem;
-	z-index: 10;
-}
-
-.shader-graph-overlay__close:hover {
-	background: #555;
-}
-</style>

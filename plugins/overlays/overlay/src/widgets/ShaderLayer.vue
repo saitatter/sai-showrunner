@@ -11,7 +11,8 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue"
-import { declareWidgetOptions } from "showrunner-overlay-core"
+import { declareWidgetOptions, useShowRunnerBridge } from "showrunner-overlay-core"
+import { resolveShaderUniformBindings, type ShaderUniformBindingMap } from "showrunner-plugin-overlays-shared"
 import { ShaderRenderer } from "./shader-renderer"
 
 const presets: Record<string, string> = {
@@ -174,6 +175,9 @@ const props = defineProps<{
 	config: {
 		preset: (typeof bundledPresetNames)[number]
 		customFragmentShader?: string
+		shaderGraph?: unknown
+		shaderUniforms?: Record<string, number | number[]>
+		shaderUniformBindings?: ShaderUniformBindingMap
 		accentColor: string
 		secondaryColor: string
 		intensity: number
@@ -186,7 +190,9 @@ const props = defineProps<{
 
 const canvas = ref<HTMLCanvasElement>()
 const errorMessage = ref("")
+const bridge = useShowRunnerBridge()
 let renderer: ShaderRenderer | undefined
+let acquiredBindingStates = new Set<string>()
 
 function getFragmentSource() {
 	if (props.config.preset === "custom" && props.config.customFragmentShader?.trim()) {
@@ -218,6 +224,14 @@ onMounted(() => {
 			getSecondaryColor: () => hexToVec3(props.config.secondaryColor, [0, 0.82, 1]),
 			getIntensity: () => Number(props.config.intensity ?? 0.8),
 			getSpeed: () => Number(props.config.speed ?? 1),
+			getCustomUniforms: () => resolveShaderUniformBindings(
+				props.config.shaderUniforms ?? {},
+				props.config.shaderUniformBindings ?? {},
+				{
+					config: props.config as Record<string, unknown>,
+					states: bridge.state.value,
+				}
+			),
 		})
 	} catch (error) {
 		errorMessage.value = error instanceof Error ? error.message : String(error)
@@ -226,7 +240,14 @@ onMounted(() => {
 
 onUnmounted(() => {
 	renderer?.dispose()
+	releaseBindingStates(acquiredBindingStates)
 })
+
+watch(
+	() => props.config.shaderUniformBindings,
+	(bindings) => syncBindingStates(bindings ?? {}),
+	{ deep: true, immediate: true }
+)
 
 function hexToVec3(hex: string, fallback: [number, number, number]): [number, number, number] {
 	const match = String(hex || "").match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
@@ -235,6 +256,36 @@ function hexToVec3(hex: string, fallback: [number, number, number]): [number, nu
 	if (value.length === 3) value = value.split("").map((char) => char + char).join("")
 	const parsed = Number.parseInt(value, 16)
 	return [((parsed >> 16) & 255) / 255, ((parsed >> 8) & 255) / 255, (parsed & 255) / 255]
+}
+
+function syncBindingStates(bindings: ShaderUniformBindingMap) {
+	const next = new Set(
+		Object.values(bindings)
+			.filter((binding) => binding.source === "state")
+			.map((binding) => `${binding.plugin}:${binding.state}`)
+	)
+	for (const key of acquiredBindingStates) {
+		if (!next.has(key)) releaseBindingStateKey(key)
+	}
+	for (const key of next) {
+		if (!acquiredBindingStates.has(key)) acquireBindingStateKey(key)
+	}
+	acquiredBindingStates = next
+}
+
+function releaseBindingStates(keys: Set<string>) {
+	for (const key of keys) releaseBindingStateKey(key)
+	keys.clear()
+}
+
+function acquireBindingStateKey(key: string) {
+	const [plugin, state] = key.split(":")
+	if (plugin && state) bridge.acquireState(plugin, state)
+}
+
+function releaseBindingStateKey(key: string) {
+	const [plugin, state] = key.split(":")
+	if (plugin && state) bridge.releaseState(plugin, state)
 }
 </script>
 

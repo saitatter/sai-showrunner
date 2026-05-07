@@ -1,6 +1,7 @@
 import type {
 	AutomationGraph,
 	AutomationDataWire,
+	AutomationTriggerNode,
 	GraphNode,
 	GraphEdge,
 	SubgraphDefinition,
@@ -86,6 +87,8 @@ export interface Program {
 	slotNames: string[]
 	/** Maps "toNodeId:toPort" → wire source for data resolution at runtime */
 	wireMap: Record<string, WireSource>
+	/** Node ids that resolve data-wire outputs from the trigger execution context. */
+	contextSourceNodeIds?: string[]
 	/** All graph node ids that may receive data wires, including subgraph calls and control nodes. */
 	wireTargetNodeIds: string[]
 }
@@ -116,6 +119,7 @@ export class GraphCompiler {
 	private edgeMap = new Map<string, GraphEdge[]>() // from nodeId → outgoing edges
 	private nodeMap = new Map<string, GraphNode>()
 	private subgraphIndexById = new Map<string, number>()
+	private contextSourceNodeIds = new Set<string>(["trigger"])
 	/** Maps nodeId → instruction index where it was first compiled (for merge points) */
 	private nodePC = new Map<string, number>()
 
@@ -124,9 +128,19 @@ export class GraphCompiler {
 		this.maxIterations = options.maxIterations ?? 10000
 	}
 
-	compile(graph: AutomationGraph, subgraphs?: SubgraphDefinition[], dataWires?: AutomationDataWire[]): Program {
+	compile(
+		graph: AutomationGraph,
+		subgraphs?: SubgraphDefinition[],
+		dataWires?: AutomationDataWire[],
+		triggerNodes?: Pick<AutomationTriggerNode, "id">[],
+		entryNodeId?: string
+	): Program {
 		this.reset()
 		this.buildMaps(graph.nodes, graph.edges)
+		this.contextSourceNodeIds = new Set([
+			"trigger",
+			...(triggerNodes ?? []).map((node) => node.id).filter(Boolean),
+		])
 		this.subgraphIndexById = new Map((subgraphs ?? []).map((sg, index) => [sg.id, index]))
 		const allDataWires = [
 			...(dataWires ?? []),
@@ -134,7 +148,7 @@ export class GraphCompiler {
 		]
 
 		// Compile main graph first so the VM starts at the automation entry point.
-		this.compileFromEntry(graph.entryNodeId)
+		this.compileFromEntry(entryNodeId ?? graph.entryNodeId)
 		this.emit({ op: OpCode.HALT })
 
 		// Compile subgraphs after HALT. CALL instructions jump into these entry PCs.
@@ -175,9 +189,11 @@ export class GraphCompiler {
 			localSlotCount: this.nextSlot,
 			slotNames,
 			wireMap,
+			contextSourceNodeIds: [...this.contextSourceNodeIds],
 			wireTargetNodeIds: [
 				...new Set([
 					"trigger",
+					...(triggerNodes ?? []).map((node) => node.id).filter(Boolean),
 					...graph.nodes.map((node) => node.id),
 					...(subgraphs ?? []).flatMap((subgraph) => subgraph.nodes.map((node) => node.id)),
 				]),
@@ -198,6 +214,7 @@ export class GraphCompiler {
 		this.edgeMap = new Map()
 		this.nodeMap = new Map()
 		this.subgraphIndexById = new Map()
+		this.contextSourceNodeIds = new Set(["trigger"])
 		this.nodePC = new Map()
 	}
 
@@ -214,6 +231,12 @@ export class GraphCompiler {
 
 	private compileFromEntry(entryNodeId: string) {
 		const visited = new Set<string>()
+		if (this.contextSourceNodeIds.has(entryNodeId)) {
+			for (const target of this.getEdgeTargets(entryNodeId, undefined)) {
+				this.compileNode(target, visited)
+			}
+			return
+		}
 		this.compileNode(entryNodeId, visited)
 	}
 
@@ -601,9 +624,14 @@ export class GraphCompiler {
 	}
 
 	private getEdgeTarget(fromId: string, port: string | undefined): string | undefined {
+		return this.getEdgeTargets(fromId, port)[0]
+	}
+
+	private getEdgeTargets(fromId: string, port: string | undefined): string[] {
 		const edges = this.edgeMap.get(fromId)
-		if (!edges) return undefined
-		const match = edges.find((e) => (e.port ?? undefined) === port)
-		return match?.to
+		if (!edges) return []
+		return edges
+			.filter((edge) => (edge.port ?? undefined) === port)
+			.map((edge) => edge.to)
 	}
 }

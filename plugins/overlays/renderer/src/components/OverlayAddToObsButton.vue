@@ -119,15 +119,12 @@ async function findBrowserSource() {
 	if (!overlayConfig.value) return
 
 	const source = await findBrowserByUrlPattern(urlPattern.value)
-
-	console.log("Found Potential Source", source)
-
-	sourceName.value = source.inputName
 	const expectedUrl = await getOverlayURL()
 
 	let valid = true
 
 	if (source) {
+		sourceName.value = source.inputName
 		valid =
 			source.inputSettings.url == expectedUrl &&
 			source.inputSettings.width == overlayConfig.value?.size?.width &&

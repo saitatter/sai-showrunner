@@ -186,7 +186,8 @@ class TriggerImplementation<
 		if (resolvedContext == null) return false
 
 		//Get the context our resolved data is using
-		await ActionQueueManager.getInstance().queueOrRun("profile", profile.id, trigger.id, resolvedContext)
+		const automationSubId = (trigger as any).automationSubId ?? trigger.id
+		await ActionQueueManager.getInstance().queueOrRun("profile", profile.id, automationSubId, resolvedContext)
 
 		return true
 	}

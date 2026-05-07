@@ -9,12 +9,23 @@ export interface AutomationVariableNode {
 	y: number
 }
 
+export interface AutomationTriggerNode {
+	id: string
+	plugin?: string
+	trigger?: string
+	config: any
+	stop?: boolean
+	x: number
+	y: number
+}
+
 export interface AutomationData {
 	schemaVersion: 2
 	graph: AutomationGraph
 	subgraphs: SubgraphDefinition[]
 	dataWires: AutomationDataWire[]
 	variableNodes: AutomationVariableNode[]
+	triggerNodes?: AutomationTriggerNode[]
 	testContext?: any
 }
 
@@ -30,6 +41,7 @@ export function createInlineAutomation(): InlineAutomation {
 		subgraphs: [],
 		dataWires: [],
 		variableNodes: [],
+		triggerNodes: [],
 		queue: undefined,
 	}
 }

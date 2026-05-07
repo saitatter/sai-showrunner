@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { AutomationGraph, GraphNodeType } from "showrunner-schema"
-import { connectFlowToNode, isTerminalControlFlowNode, resolveContextActionPosition } from "./automation-graph-editing"
+import { addGraphActionNode, connectFlowToNode, insertActionInGraph, insertActionOnGraphEdge, isTerminalControlFlowNode, resolveContextActionPosition } from "./automation-graph-editing"
 
 function makeGraph(): AutomationGraph {
 	return {
@@ -30,6 +30,60 @@ describe("automation graph editing", () => {
 		expect(graph.edges).toHaveLength(2)
 		expect(graph.edges[0]).toEqual({ id: "start:next", from: "start", to: "action-1" })
 		expect(graph.edges[1]).toMatchObject({ from: "action-1", to: "next" })
+	})
+
+	it("keeps conversion nodes out of sequence flow when inserted after another node", () => {
+		const graph = makeGraph()
+
+		insertActionInGraph(
+			graph,
+			{
+				id: "convert-1",
+				plugin: "ShowRunner",
+				action: "convertStringToNumber",
+				config: { value: "", fallback: 0 },
+			},
+			{
+				afterNodeId: "start",
+				position: { x: 120, y: 88 },
+				anchorNodes: [{ id: "start", x: 0, y: 0 }],
+				snapCoordinate: (value) => value,
+				anchorOffsetX: 285,
+			}
+		)
+
+		expect(graph.edges).toEqual([{ id: "start:next", from: "start", to: "next" }])
+	})
+
+	it("does not make conversion nodes the graph entry", () => {
+		const graph: AutomationGraph = { entryNodeId: "", nodes: [], edges: [] }
+
+		addGraphActionNode(graph, {
+			id: "convert-1",
+			plugin: "ShowRunner",
+			action: "convertJsonStringToObject",
+			config: { value: "{}" },
+		}, { x: 10, y: 20 })
+
+		expect(graph.entryNodeId).toBe("")
+	})
+
+	it("does not split sequence edges with conversion nodes", () => {
+		const graph = makeGraph()
+
+		insertActionOnGraphEdge(
+			graph,
+			{
+				id: "convert-1",
+				plugin: "ShowRunner",
+				action: "convertStringToBoolean",
+				config: { value: "", fallback: false },
+			},
+			{ id: "start:next", from: "start", to: "next" },
+			{ x: 120, y: 88 }
+		)
+
+		expect(graph.edges).toEqual([{ id: "start:next", from: "start", to: "next" }])
 	})
 
 	it("places context-menu actions at the canvas click position", () => {

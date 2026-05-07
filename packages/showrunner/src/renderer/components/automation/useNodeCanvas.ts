@@ -1,4 +1,10 @@
 import { ref, watch, type ComputedRef, type Ref } from "vue"
+import {
+	clampGraphZoom,
+	graphFitZoom,
+	graphPointFromClient,
+	graphScrollTargetForBounds,
+} from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 
 export interface NodePosition {
 	x: number
@@ -50,7 +56,7 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 
 	function setZoom(nextZoom: number, commitChange = false) {
 		const previous = zoom.value
-		zoom.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(nextZoom.toFixed(2))))
+		zoom.value = clampGraphZoom(nextZoom, MIN_ZOOM, MAX_ZOOM)
 		if (commitChange && previous !== zoom.value) commitUndo()
 	}
 
@@ -68,7 +74,7 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 		const canvas = canvasRef.value
 		if (!canvas) return
 		const prevZoom = zoom.value
-		const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number((prevZoom + (event.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP)).toFixed(2))))
+		const nextZoom = clampGraphZoom(prevZoom + (event.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP), MIN_ZOOM, MAX_ZOOM)
 		if (nextZoom === prevZoom) return
 
 		// Zoom toward cursor position
@@ -91,16 +97,13 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 	function fitGraph() {
 		const canvas = canvasRef.value
 		if (!canvas) return
-		const availableWidth = Math.max(1, canvas.clientWidth - 56)
-		const availableHeight = Math.max(1, canvas.clientHeight - 56)
 		const bounds = graphBounds.value
-		const widthScale = availableWidth / Math.max(1, bounds.width)
-		const heightScale = availableHeight / Math.max(1, bounds.height)
-		setZoom(Math.min(widthScale, heightScale, 1))
+		setZoom(graphFitZoom(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, { padding: 56, maxZoom: 1, minZoom: MIN_ZOOM }))
 		pan.value = { x: 0, y: 0 }
+		const target = graphScrollTargetForBounds(bounds, zoom.value, 28)
 		canvas.scrollTo({
-			left: Math.max(0, bounds.minX * zoom.value - 28),
-			top: Math.max(0, bounds.minY * zoom.value - 28),
+			left: target.x,
+			top: target.y,
 			behavior: "smooth",
 		})
 		commitUndo()
@@ -116,15 +119,12 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 	function fitSelection(bounds: { minX: number; minY: number; width: number; height: number }) {
 		const canvas = canvasRef.value
 		if (!canvas) return
-		const availableWidth = Math.max(1, canvas.clientWidth - 56)
-		const availableHeight = Math.max(1, canvas.clientHeight - 56)
-		const widthScale = availableWidth / Math.max(1, bounds.width)
-		const heightScale = availableHeight / Math.max(1, bounds.height)
-		setZoom(Math.min(widthScale, heightScale, 1))
+		setZoom(graphFitZoom(bounds, { width: canvas.clientWidth, height: canvas.clientHeight }, { padding: 56, maxZoom: 1, minZoom: MIN_ZOOM }))
 		pan.value = { x: 0, y: 0 }
+		const target = graphScrollTargetForBounds(bounds, zoom.value, 28)
 		canvas.scrollTo({
-			left: Math.max(0, bounds.minX * zoom.value - 28),
-			top: Math.max(0, bounds.minY * zoom.value - 28),
+			left: target.x,
+			top: target.y,
 			behavior: "smooth",
 		})
 		commitUndo()
@@ -164,11 +164,11 @@ export function useNodeCanvas(view: Ref<NodeEditorView>, graphBounds: ComputedRe
 
 	function getCanvasPointFromClient(clientX: number, clientY: number): NodePosition {
 		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
-		const rect = surface?.getBoundingClientRect()
-		if (!rect) return { x: 42, y: 88 }
+		if (!surface) return { x: 42, y: 88 }
+		const point = graphPointFromClient(surface, clientX, clientY, zoom.value)
 		return {
-			x: snapCoordinate(Math.max(12, (clientX - rect.left) / zoom.value)),
-			y: snapCoordinate(Math.max(12, (clientY - rect.top) / zoom.value)),
+			x: snapCoordinate(Math.max(12, point.x)),
+			y: snapCoordinate(Math.max(12, point.y)),
 		}
 	}
 

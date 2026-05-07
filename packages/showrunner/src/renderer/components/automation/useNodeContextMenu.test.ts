@@ -1,5 +1,5 @@
 import { computed } from "vue"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { useNodeContextMenu } from "./useNodeContextMenu"
 
 function makePluginStore(disabledIds: string[] = []) {
@@ -16,6 +16,7 @@ function makePluginStore(disabledIds: string[] = []) {
 					triggers: {},
 					actions: {
 						convertStringToNumber: { name: "Convert String To Number", icon: "mdi mdi-swap-horizontal", type: "regular" },
+						"convert-json-string-to-object": { name: "Convert JSON String To Object", icon: "mdi mdi-code-json", type: "regular" },
 						addToQueue: { name: "Add to Queue", icon: "mdi mdi-tray-plus", type: "regular" },
 					},
 				},
@@ -91,7 +92,38 @@ function createContextMenu(disabledIds: string[] = []) {
 	)
 }
 
+function createContextMenuWithoutShowRunner() {
+	const store = makePluginStore()
+	store.pluginMap.delete("ShowRunner")
+	return useNodeContextMenu(
+		computed(() => [{ id: "node-1", title: "Node 1" }]),
+		store,
+		(clientX, clientY) => ({ x: clientX, y: clientY }),
+		() => ({ id: "main" })
+	)
+}
+
 describe("useNodeContextMenu", () => {
+	it("keeps categories and data collapsed by default", () => {
+		const menu = createContextMenu()
+
+		expect(menu.isContextGroupOpen("categories")).toBe(false)
+		expect(menu.isContextGroupOpen("data")).toBe(false)
+	})
+
+	it("resets data to collapsed when reopening the context menu", () => {
+		const menu = createContextMenu()
+
+		menu.toggleContextGroup("data")
+		expect(menu.isContextGroupOpen("data")).toBe(true)
+
+		vi.stubGlobal("window", { innerWidth: 1200, innerHeight: 800 })
+		menu.openContextMenuAt(10, 10)
+		vi.unstubAllGlobals()
+
+		expect(menu.isContextGroupOpen("data")).toBe(false)
+	})
+
 	it("surfaces matching nodes in search even when their groups are collapsed", () => {
 		const menu = createContextMenu()
 
@@ -138,6 +170,7 @@ describe("useNodeContextMenu", () => {
 		)
 
 		expect(categoryItems["data-transforms"]).toContain("ShowRunner:convertStringToNumber")
+		expect(categoryItems["data-transforms"]).toContain("ShowRunner:convert-json-string-to-object")
 		expect(categoryItems.queues).toContain("ShowRunner:addToQueue")
 		expect(categoryItems.overlays).toContain("overlays:paidAlert")
 		expect(categoryItems.obs).toContain("obs:scene")
@@ -158,6 +191,41 @@ describe("useNodeContextMenu", () => {
 	it("surfaces conversion actions as explicit data-menu items", () => {
 		const menu = createContextMenu()
 
-		expect(menu.conversionContextItems.value.map((item) => item.key)).toEqual(["ShowRunner:convertStringToNumber"])
+		expect(menu.conversionContextItems.value.map((item) => item.key)).toEqual([
+			"ShowRunner:convertArrayToJsonString",
+			"ShowRunner:convertBooleanToNumber",
+			"ShowRunner:convertBooleanToString",
+			"ShowRunner:convertJsonStringToArray",
+			"ShowRunner:convert-json-string-to-object",
+			"ShowRunner:convertNumberToBoolean",
+			"ShowRunner:convertNumberToString",
+			"ShowRunner:convertObjectToJsonString",
+			"ShowRunner:convertStringToBoolean",
+			"ShowRunner:convertStringToNumber",
+		])
+	})
+
+	it("keeps core conversion actions available when ShowRunner is disabled", () => {
+		const menu = createContextMenu(["ShowRunner"])
+
+		expect(menu.actionContextGroups.value.some((group) => group.id === "ShowRunner")).toBe(false)
+		expect(menu.conversionContextItems.value.map((item) => item.key)).toContain("ShowRunner:convertStringToNumber")
+	})
+
+	it("shows fallback core conversions when the builtin plugin is unavailable", () => {
+		const menu = createContextMenuWithoutShowRunner()
+
+		expect(menu.conversionContextItems.value.map((item) => item.key)).toEqual([
+			"ShowRunner:convertArrayToJsonString",
+			"ShowRunner:convertBooleanToNumber",
+			"ShowRunner:convertBooleanToString",
+			"ShowRunner:convertJsonStringToArray",
+			"ShowRunner:convertJsonStringToObject",
+			"ShowRunner:convertNumberToBoolean",
+			"ShowRunner:convertNumberToString",
+			"ShowRunner:convertObjectToJsonString",
+			"ShowRunner:convertStringToBoolean",
+			"ShowRunner:convertStringToNumber",
+		])
 	})
 })

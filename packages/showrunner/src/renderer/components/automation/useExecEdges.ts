@@ -5,6 +5,10 @@
 import { computed, ref, type Ref } from "vue"
 import { nanoid } from "nanoid"
 import type { AutomationGraph } from "showrunner-schema"
+import {
+	graphBezierPath,
+	graphPointFromClient,
+} from "../../../../../../libs/showrunner-ui-core/src/util/graph"
 import type { NodeData } from "./useNodeRendering"
 import { NODE_WIDTH, NODE_BASE_HEIGHT } from "./useNodeRendering"
 
@@ -36,8 +40,7 @@ export function useExecEdges(
 		const y1 = drag.fromY
 		const x2 = drag.currentX
 		const y2 = drag.currentY
-		const cp = Math.max(60, Math.abs(x2 - x1) * 0.4)
-		return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`
+		return graphBezierPath(x1, y1, x2, y2, { minControl: 60, controlRatio: 0.4 })
 	})
 
 	function startExecEdgeDrag(nodeId: string, port: string | undefined, event: PointerEvent) {
@@ -81,9 +84,9 @@ export function useExecEdges(
 		if (!execEdgeDrag.value || !canvasRef.value) return
 		const surface = canvasRef.value.querySelector<HTMLElement>(".node-automation__surface")
 		if (!surface) return
-		const rect = surface.getBoundingClientRect()
-		execEdgeDrag.value.currentX = (event.clientX - rect.left) / zoomRef.value
-		execEdgeDrag.value.currentY = (event.clientY - rect.top) / zoomRef.value
+		const point = graphPointFromClient(surface, event.clientX, event.clientY, zoomRef.value)
+		execEdgeDrag.value.currentX = point.x
+		execEdgeDrag.value.currentY = point.y
 	}
 
 	function onExecEdgeEnd(event: PointerEvent) {
@@ -129,10 +132,10 @@ export function useExecEdges(
 
 	function updateDragPointFromEvent(drag: ExecEdgeDragState, event: PointerEvent) {
 		const surface = canvasRef.value?.querySelector<HTMLElement>(".node-automation__surface")
-		const rect = surface?.getBoundingClientRect()
-		if (!rect) return
-		drag.currentX = (event.clientX - rect.left) / zoomRef.value
-		drag.currentY = (event.clientY - rect.top) / zoomRef.value
+		if (!surface) return
+		const point = graphPointFromClient(surface, event.clientX, event.clientY, zoomRef.value)
+		drag.currentX = point.x
+		drag.currentY = point.y
 	}
 
 	function didDragMove(drag: ExecEdgeDragState, event: PointerEvent) {

@@ -1,6 +1,7 @@
 import { AutomationConfig, createInlineAutomation, normalizeAutomationConfig } from "showrunner-schema"
 import { FileResource } from "../resources/file-resource"
 import { ResourceStorage } from "../resources/resource"
+import { normalizeRequiredResourceName } from "../resources/resource-name"
 import { nanoid } from "nanoid/non-secure"
 import { ActionResolvers } from "../queue-system/resolvers"
 import { validateAutomationProgram } from "../graph-engine/program-cache"
@@ -12,13 +13,16 @@ export class Automation extends FileResource<AutomationConfig> {
 	constructor(name?: string) {
 		super()
 
-		if (name) {
+		const normalizedName = name !== undefined
+			? normalizeRequiredResourceName(name, "Automation name")
+			: undefined
+		if (name !== undefined) {
 			this._id = nanoid()
 		}
 
 		this._config = {
-			name: name ?? "",
 			...createInlineAutomation(),
+			name: normalizedName ?? "",
 		}
 
 		this.state = {}
@@ -37,15 +41,21 @@ export class Automation extends FileResource<AutomationConfig> {
 
 	async setConfig(config: AutomationConfig): Promise<boolean> {
 		const normalized = normalizeAutomationConfig(config)
+		normalized.name = normalizeAutomationName(normalized.name, this.config?.name)
 		validateAutomationProgram(normalized)
 		return super.setConfig(normalized)
 	}
 
 	async applyConfig(config: Partial<AutomationConfig>): Promise<boolean> {
 		const normalized = normalizeAutomationConfig({ ...this.config, ...config })
+		normalized.name = normalizeAutomationName(normalized.name, this.config?.name)
 		validateAutomationProgram(normalized)
 		return super.setConfig(normalized)
 	}
+}
+
+function normalizeAutomationName(name: string | undefined, fallback: string | undefined) {
+	return normalizeRequiredResourceName(name?.trim() || fallback || "Untitled Automation", "Automation name")
 }
 
 export async function setupAutomations() {

@@ -224,11 +224,45 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [x] Add keyboard-first command menu navigation: up/down, enter, escape, and section shortcuts.
 - [x] Add onboarding starter graphs for OBS scene changes, chat commands, moderation actions, and stream-plan events.
 - [x] Add manual regression checklist for queue starter templates, conversion nodes, hidden plugins, and incompatible wires.
+- [x] Replace automatic graph lanes with user-created colored annotation blocks in the node editor view.
 - [ ] Add manual visual QA checklist for Settings, Updates, Integrations, plugin details, and automation context menu layout.
 - [ ] Add persisted UI preference reset action in Settings.
 - [ ] Add empty-state copy for integration categories with no visible plugins after filtering/hiding.
 - [ ] Audit all remaining production `console.*` output after the beta polish pass.
 - [ ] Audit remaining `@ts-expect-error` comments and remove any that are no longer needed.
+
+### 5.13 Shader Graph Procedural Scene Roadmap
+- [x] Keep Shader Graph inside the docked tab layout and use the automation-style context menu for non-input nodes.
+- [x] Show only input/uniform/source nodes in the left rail; add all other nodes from the canvas context menu.
+- [x] Add procedural noise nodes: Value Noise, Perlin Noise, FBM Noise, Voronoi, and Domain Warp.
+- [x] Add terrain pipeline nodes: height map shaping, normals from height samples, slope/curvature masks, and erosion-like filters.
+- [x] Add color ramp and biome helpers: gradient ramps, altitude bands, mask blending, grass/rock/snow bands.
+- [x] Add lighting nodes: sun direction, diffuse/specular, ambient, fog, simple shadow, and ambient occlusion helpers.
+- [x] Add camera/raymarching nodes: camera uniforms, ray direction, SDF primitives, raymarch sphere, and depth fade helpers.
+- [x] Expand uniform controls: slider/color/vec2/vec3 UI, persisted defaults, and shaderUniforms config values that automation/widget bindings can target.
+- [x] Add a real live WebGL preview with time/resolution/mouse uniforms and clear compile/runtime errors.
+- [x] Add performance controls: resolution scale, max steps, quality presets, preview FPS throttle.
+- [x] Add shader starter graphs: Procedural Terrain, Nebula, Audio Reactive, and Energy Field.
+- [x] Add graph UX utilities: copy/paste, duplicate, reroute nodes, frames/comments, minimap, and fit selection.
+- [x] Add shader function sampling foundation so terrain height/normal logic can be evaluated at multiple UV offsets.
+- [ ] Extend shader function sampling from built-in terrain functions to reusable user-authored subgraphs.
+- [x] Add preview controls: pause/resume, reset time, background mode, and clearer runtime error overlay.
+- [ ] Add detachable or full-size shader preview mode for inspecting procedural scenes.
+- [x] Add first-pass runtime shader uniform bindings through widget config paths and plugin state paths.
+- [ ] Add specialized shader uniform binding pickers for automation variables, viewer variables, audio levels, and queue payloads.
+- [x] Add typed node inspector controls for float, vec2, vec3/color, and vec4 input defaults.
+- [x] Add multi-stop color ramp editor with persisted ramp stops and generated GLSL.
+- [x] Add richer node inspector controls: units and min/max clamps.
+- [x] Add shader graph undo/redo.
+- [x] Add save/load/delete graph preset workflows directly inside the shader graph editor.
+- [x] Keep shader graph nodes low-level and composable; avoid one-shot scene/terrain generator nodes.
+- [x] Add low-level shader primitives: ridged FBM, turbulence, curl noise, cellular F1/F2, bias/gain, posterize, and remap helpers.
+- [x] Add low-level material helpers: normal transforms, triplanar-style coordinates, layer masks, and simple BRDF pieces.
+- [x] Add shader graph multi-select, box select, and move-selection behavior.
+- [ ] Add advanced graph UX: resize frames, reroute from wire double-click, and wires-preserving clipboard.
+- [x] Add first-pass compiler diagnostics for dead nodes and disconnected Fragment Output color.
+- [ ] Add advanced compiler diagnostics: node/port-highlighted errors and safe GLSL expression nodes.
+- [ ] Add runtime integrations: audio-reactive uniforms, mouse/viewer interaction uniforms, OBS/browser source size sync, preset import/export with thumbnails.
 
 ---
 
@@ -257,6 +291,26 @@ Completely remove `SequenceRunner` and the old sequence model. All automations r
 - [ ] Add integration diagnostics panels for plugin resource/config state.
 - [ ] Add large-graph performance profiling for minimap, data wires, selection, and auto-layout.
 - [ ] Add richer queue observability: retry/cancel reason, worker graph link, and per-item execution timeline.
+
+### 6.4 V2 Graph Model Improvements
+- [x] Add a backwards-compatible `triggerNodes` schema/migration foundation that mirrors legacy root trigger data.
+- [x] Render explicit trigger nodes when present while preserving the legacy virtual `trigger` node fallback.
+- [x] Resolve data wires from explicit trigger node ids against the active trigger execution context.
+- [x] Compile graph executions from a specific trigger node edge so independent trigger branches can start separately.
+- [x] Expose trigger nodes from profile automations as invokable runtime trigger entries.
+- [x] Allow selected trigger nodes to be configured in the node editor and add new trigger nodes from the context menu.
+- [ ] Replace the single root `plugin`/`trigger` automation fields with a trigger-node collection while keeping a migration path for existing automations.
+- [ ] Model each trigger as a visible graph node with stable id, plugin id, trigger id, config, context schema, and output data ports.
+- [ ] Allow multiple trigger nodes in one automation graph, each with an independent execution entry edge.
+- [ ] Run simultaneous trigger activations as separate automation executions so branches can proceed in parallel without sharing mutable trigger context.
+- [ ] Scope trigger context data wires to the specific trigger node that produced them instead of the current global `trigger` virtual source.
+- [ ] Add graph validation for multi-trigger entry edges, missing trigger definitions, duplicate trigger ids, and stale data wires.
+- [ ] Add migration from legacy `trigger` virtual node wires to the first generated trigger node.
+- [ ] Update starter templates to create explicit trigger nodes instead of relying on the implicit root trigger.
+- [ ] Update command-menu UX so `Add Trigger` creates a new trigger node, while action insertion continues to work from canvas, edge, or node context.
+- [ ] Add runtime tests for independent trigger executions, concurrent runs, data-context isolation, and disabled-plugin rendering behavior.
+- [ ] Add editor tests for selecting, configuring, deleting, copying, and reconnecting multiple trigger nodes.
+- [ ] Extend manual annotation blocks with optional persisted membership, drag-selected-nodes-into-block, collapse/expand, and move-with-group behavior.
 
 ---
 

@@ -286,7 +286,7 @@ export class GraphVM {
 	}
 
 	private resolveWireSource(source: WireSource) {
-		if (source.fromNodeId === "trigger") {
+		if (isContextSourceNode(this.program, source.fromNodeId)) {
 			return getPathValue(this.context.contextState, source.fromPort)
 		}
 		if (source.fromNodeId.startsWith("__param:")) {
@@ -344,6 +344,10 @@ export class GraphVM {
 			}
 		})
 	}
+}
+
+function isContextSourceNode(program: Program, nodeId: string) {
+	return (program.contextSourceNodeIds ?? ["trigger"]).includes(nodeId)
 }
 
 function buildNodeWireInputs(program: Program): Map<string, Array<{ toPort: string; source: WireSource }>> {

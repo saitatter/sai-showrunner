@@ -20,20 +20,22 @@
 
 <script setup lang="ts">
 import { ActionInfo } from "showrunner-schema"
-import { useAction, DataInput, useDataBinding } from "../../main"
-import { useModel } from "vue"
+import { useAction, DataInput, useDataBinding, type ActionDefinition } from "../../main"
+import { computed, useModel } from "vue"
 import ReturnNamer from "../data/returns/ReturnNamer.vue"
 
 const props = defineProps<{
 	modelValue: ActionInfo
 	localPath: string | undefined
+	resolvedActionDefinition?: ActionDefinition
 }>()
 
 useDataBinding(() => props.localPath)
 
 const model = useModel(props, "modelValue")
 
-const actionInfo = useAction(() => props.modelValue)
+const registeredActionInfo = useAction(() => props.modelValue)
+const actionInfo = computed(() => props.resolvedActionDefinition ?? registeredActionInfo.value)
 </script>
 
 <style scoped>

@@ -10,6 +10,7 @@ export interface ShaderRendererOptions {
 	getSecondaryColor: () => [number, number, number]
 	getIntensity: () => number
 	getSpeed: () => number
+	getCustomUniforms?: () => Record<string, number | number[]>
 }
 
 const vertexShaderSource = `
@@ -99,9 +100,24 @@ export class ShaderRenderer {
 		if (uSecondary) gl.uniform3fv(uSecondary, options.getSecondaryColor())
 		if (uIntensity) gl.uniform1f(uIntensity, options.getIntensity())
 		if (uSpeed) gl.uniform1f(uSpeed, options.getSpeed())
+		this.applyCustomUniforms()
 
 		gl.drawArrays(gl.TRIANGLES, 0, 6)
 		this.animationFrame = requestAnimationFrame(this.render)
+	}
+
+	private applyCustomUniforms() {
+		const { gl, program, options } = this
+		if (!program) return
+		const uniforms = options.getCustomUniforms?.() ?? {}
+		for (const [name, value] of Object.entries(uniforms)) {
+			const location = gl.getUniformLocation(program, name)
+			if (!location) continue
+			if (typeof value === "number") gl.uniform1f(location, value)
+			else if (value.length === 2) gl.uniform2fv(location, value)
+			else if (value.length === 3) gl.uniform3fv(location, value)
+			else if (value.length === 4) gl.uniform4fv(location, value)
+		}
 	}
 
 	private resize() {

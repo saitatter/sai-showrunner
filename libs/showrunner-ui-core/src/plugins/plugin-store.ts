@@ -13,6 +13,8 @@ import {
 	IPCDurationConfig,
 	IPCSettingsDefinition,
 	IPCStateDefinition,
+	resolveMapById,
+	resolveRecordById,
 	validateActionResultSchema,
 } from "showrunner-schema"
 
@@ -332,7 +334,7 @@ export const usePluginStore = defineStore("plugins", () => {
 
 	function getAction(selection: ActionSelection): ActionDefinition | undefined {
 		if (!selection.plugin || !selection.action) return undefined
-		return pluginMap.value.get(selection.plugin)?.actions?.[selection.action]
+		return resolveRecordById(resolveMapById(pluginMap.value, selection.plugin)?.actions, selection.action)
 	}
 
 	async function createAction(selection: ActionSelection): Promise<ActionInfo | undefined> {
@@ -540,7 +542,7 @@ export function useAction(selection: MaybeRefOrGetter<ActionSelection | undefine
 		}
 
 		if (!selectionValue.plugin || !selectionValue.action) return undefined
-		return pluginStore.pluginMap.get(selectionValue.plugin)?.actions?.[selectionValue.action]
+		return resolveRecordById(resolveMapById(pluginStore.pluginMap, selectionValue.plugin)?.actions, selectionValue.action)
 	})
 }
 

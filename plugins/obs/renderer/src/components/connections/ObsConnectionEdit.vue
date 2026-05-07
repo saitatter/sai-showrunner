@@ -100,9 +100,7 @@ const testOBSConnectionDetails = useIpcCaller<
 >("obs", "testOBSConnectionDetails")
 
 async function readQR() {
-	console.log("READ QR")
 	const result = await attemptQRReading()
-	console.log("QR READ", result)
 
 	if (result) {
 		model.value.host = result.host

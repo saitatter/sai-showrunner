@@ -279,10 +279,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .widget-list {
+	height: 100%;
 	min-height: 5rem;
+	overflow: hidden;
 }
 
 .widget-list-container {
+	min-height: 0;
 	padding: 0.5rem 0;
 	margin: 0.5rem;
 	border: solid 1px var(--surface-border);

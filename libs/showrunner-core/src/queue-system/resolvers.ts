@@ -1,4 +1,5 @@
 import { AutomationSource, InlineAutomation, Schema } from "showrunner-schema"
+import type { CompileAutomationProgramOptions } from "../graph-engine"
 import { Service } from "../util/service"
 
 /**
@@ -18,6 +19,7 @@ interface ActionResolverImpl {
 	getAutomation(id: string, subId?: string): InlineAutomation | undefined
 	getContextSchema(id: string, subId?: string): Promise<Schema | undefined>
 	getRunWrapper(id: string, subId?: string): (inner: () => any, mapping: AutomationSource) => Promise<any>
+	getProgramOptions?(id: string, subId?: string): CompileAutomationProgramOptions
 }
 
 export const ActionResolvers = Service(

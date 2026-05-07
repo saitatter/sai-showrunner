@@ -47,11 +47,36 @@ export interface ShaderWire {
 	toPort: string
 }
 
+export interface ShaderFrame {
+	id: string
+	title: string
+	color: string
+	x: number
+	y: number
+	width: number
+	height: number
+	nodeIds?: string[]
+}
+
 export interface ShaderGraph {
 	nodes: ShaderNodeInstance[]
 	wires: ShaderWire[]
+	frames?: ShaderFrame[]
 	outputNodeId?: string
 }
+
+export type ShaderUniformValue = number | [number, number] | [number, number, number] | [number, number, number, number]
+export type ShaderUniformValueMap = Record<string, ShaderUniformValue>
+export interface ShaderColorRampStop {
+	offset: number
+	color: string
+}
+
+export const DEFAULT_SHADER_COLOR_RAMP_STOPS: ShaderColorRampStop[] = [
+	{ offset: 0, color: "vec3(0.08, 0.20, 0.08)" },
+	{ offset: 0.55, color: "vec3(0.42, 0.34, 0.22)" },
+	{ offset: 1, color: "vec3(0.92, 0.92, 0.86)" },
+]
 
 // ─── Built-in Node Definitions ───────────────────────────────────────
 
@@ -85,6 +110,24 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		inputs: [],
 		outputs: [{ key: "res", label: "Resolution", type: "vec2" }],
 		compile: (_ins, outs) => [`${outs.res} = u_resolution;`],
+	},
+	{
+		id: "intensity",
+		name: "Intensity",
+		category: "Input",
+		icon: "mdi mdi-volume-high",
+		inputs: [],
+		outputs: [{ key: "value", label: "Intensity", type: "float", default: "1.0" }],
+		compile: (_ins, outs) => [`${outs.value} = u_intensity;`],
+	},
+	{
+		id: "speed",
+		name: "Speed",
+		category: "Input",
+		icon: "mdi mdi-speedometer",
+		inputs: [],
+		outputs: [{ key: "value", label: "Speed", type: "float", default: "1.0" }],
+		compile: (_ins, outs) => [`${outs.value} = u_speed;`],
 	},
 	{
 		id: "accent_color",
@@ -121,6 +164,60 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		inputs: [],
 		outputs: [{ key: "value", label: "Value", type: "vec3", default: "vec3(1.0, 1.0, 1.0)" }],
 		compile: (_ins, outs) => [`// vec3 constant assigned via default`],
+	},
+	{
+		id: "uniform_float",
+		name: "Float Parameter",
+		category: "Input",
+		icon: "mdi mdi-tune-variant",
+		inputs: [],
+		outputs: [{ key: "value", label: "Value", type: "float", default: "1.0" }],
+		compile: (_ins, outs) => [`// float parameter assigned from uniform`],
+	},
+	{
+		id: "uniform_vec2",
+		name: "Vec2 Parameter",
+		category: "Input",
+		icon: "mdi mdi-vector-point",
+		inputs: [],
+		outputs: [{ key: "value", label: "Vec2", type: "vec2", default: "vec2(0.0, 0.0)" }],
+		compile: (_ins, outs) => [`// vec2 parameter assigned from uniform`],
+	},
+	{
+		id: "uniform_vec3",
+		name: "Color Parameter",
+		category: "Input",
+		icon: "mdi mdi-palette-advanced",
+		inputs: [],
+		outputs: [{ key: "value", label: "Color", type: "vec3", default: "vec3(1.0, 1.0, 1.0)" }],
+		compile: (_ins, outs) => [`// color parameter assigned from uniform`],
+	},
+	{
+		id: "camera_position",
+		name: "Camera Position",
+		category: "Input",
+		icon: "mdi mdi-camera-marker",
+		inputs: [],
+		outputs: [{ key: "position", label: "Position", type: "vec3", default: "vec3(0.0, 0.0, 2.5)" }],
+		compile: (_ins, outs) => [`${outs.position} = u_camera_position;`],
+	},
+	{
+		id: "camera_target",
+		name: "Camera Target",
+		category: "Input",
+		icon: "mdi mdi-crosshairs-gps",
+		inputs: [],
+		outputs: [{ key: "target", label: "Target", type: "vec3", default: "vec3(0.0, 0.0, 0.0)" }],
+		compile: (_ins, outs) => [`${outs.target} = u_camera_target;`],
+	},
+	{
+		id: "mouse_position",
+		name: "Mouse Position",
+		category: "Input",
+		icon: "mdi mdi-cursor-default-click",
+		inputs: [],
+		outputs: [{ key: "mouse", label: "Mouse", type: "vec2", default: "vec2(0.0)" }],
+		compile: (_ins, outs) => [`${outs.mouse} = u_mouse;`],
 	},
 
 	// ── Math ──
@@ -247,6 +344,351 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		outputs: [{ key: "result", label: "Result", type: "float" }],
 		compile: (ins, outs) => [`${outs.result} = mix(${ins.a}, ${ins.b}, ${ins.t});`],
 	},
+	{
+		id: "remap_float",
+		name: "Remap",
+		category: "Math",
+		icon: "mdi mdi-tune-vertical",
+		inputs: [
+			{ key: "value", label: "Value", type: "float", default: "0.0" },
+			{ key: "inMin", label: "In Min", type: "float", default: "0.0" },
+			{ key: "inMax", label: "In Max", type: "float", default: "1.0" },
+			{ key: "outMin", label: "Out Min", type: "float", default: "0.0" },
+			{ key: "outMax", label: "Out Max", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "result", label: "Result", type: "float" }],
+		compile: (ins, outs) => [
+			`${outs.result} = mix(${ins.outMin}, ${ins.outMax}, clamp((${ins.value} - ${ins.inMin}) / max(${ins.inMax} - ${ins.inMin}, 0.0001), 0.0, 1.0));`,
+		],
+	},
+	{
+		id: "bias_gain",
+		name: "Bias / Gain",
+		category: "Math",
+		icon: "mdi mdi-chart-bell-curve",
+		inputs: [
+			{ key: "value", label: "Value", type: "float", default: "0.5" },
+			{ key: "bias", label: "Bias", type: "float", default: "0.5" },
+			{ key: "gain", label: "Gain", type: "float", default: "0.5" },
+		],
+		outputs: [{ key: "result", label: "Result", type: "float" }],
+		compile: (ins, outs) => [`${outs.result} = sr_bias_gain(${ins.value}, ${ins.bias}, ${ins.gain});`],
+	},
+	{
+		id: "posterize",
+		name: "Posterize",
+		category: "Math",
+		icon: "mdi mdi-stairs",
+		inputs: [
+			{ key: "value", label: "Value", type: "float", default: "0.5" },
+			{ key: "steps", label: "Steps", type: "float", default: "5.0" },
+		],
+		outputs: [{ key: "result", label: "Result", type: "float" }],
+		compile: (ins, outs) => [`${outs.result} = floor(clamp(${ins.value}, 0.0, 1.0) * max(${ins.steps} - 1.0, 1.0)) / max(${ins.steps} - 1.0, 1.0);`],
+	},
+	{
+		id: "wave",
+		name: "Wave",
+		category: "Math",
+		icon: "mdi mdi-sine-wave",
+		inputs: [
+			{ key: "x", label: "X", type: "float", default: "0.0" },
+			{ key: "time", label: "Time", type: "float", default: "0.0" },
+			{ key: "frequency", label: "Frequency", type: "float", default: "6.0" },
+			{ key: "speed", label: "Speed", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "result", label: "Wave", type: "float" }],
+		compile: (ins, outs) => [`${outs.result} = 0.5 + 0.5 * sin(${ins.x} * ${ins.frequency} + ${ins.time} * ${ins.speed});`],
+	},
+
+	// ── Noise ──
+	{
+		id: "value_noise",
+		name: "Value Noise",
+		category: "Noise",
+		icon: "mdi mdi-blur",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "6.0" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "value", label: "Value", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = sr_value_noise(${ins.uv} * ${ins.scale} + vec2(${ins.seed}));`],
+	},
+	{
+		id: "perlin_noise",
+		name: "Perlin Noise",
+		category: "Noise",
+		icon: "mdi mdi-chart-bell-curve",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "6.0" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "value", label: "Value", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = clamp(0.5 + 0.5 * sr_perlin_noise(${ins.uv} * ${ins.scale} + vec2(${ins.seed})), 0.0, 1.0);`],
+	},
+	{
+		id: "fbm_noise",
+		name: "FBM Noise",
+		category: "Noise",
+		icon: "mdi mdi-waves",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "4.0" },
+			{ key: "octaves", label: "Octaves", type: "float", default: "5.0" },
+			{ key: "lacunarity", label: "Lacunarity", type: "float", default: "2.0" },
+			{ key: "gain", label: "Gain", type: "float", default: "0.5" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "value", label: "Value", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = sr_fbm(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.octaves}, ${ins.lacunarity}, ${ins.gain});`],
+	},
+	{
+		id: "ridged_fbm_noise",
+		name: "Ridged FBM",
+		category: "Noise",
+		icon: "mdi mdi-image-filter-hdr",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "4.0" },
+			{ key: "octaves", label: "Octaves", type: "float", default: "5.0" },
+			{ key: "lacunarity", label: "Lacunarity", type: "float", default: "2.0" },
+			{ key: "gain", label: "Gain", type: "float", default: "0.5" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "value", label: "Value", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = sr_ridged_fbm(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.octaves}, ${ins.lacunarity}, ${ins.gain});`],
+	},
+	{
+		id: "turbulence_noise",
+		name: "Turbulence",
+		category: "Noise",
+		icon: "mdi mdi-weather-windy",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "4.0" },
+			{ key: "octaves", label: "Octaves", type: "float", default: "5.0" },
+			{ key: "lacunarity", label: "Lacunarity", type: "float", default: "2.0" },
+			{ key: "gain", label: "Gain", type: "float", default: "0.5" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "value", label: "Value", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = sr_turbulence(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.octaves}, ${ins.lacunarity}, ${ins.gain});`],
+	},
+	{
+		id: "voronoi_noise",
+		name: "Voronoi",
+		category: "Noise",
+		icon: "mdi mdi-hexagon-multiple-outline",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "8.0" },
+			{ key: "jitter", label: "Jitter", type: "float", default: "0.8" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "distance", label: "Distance", type: "float" }],
+		compile: (ins, outs) => [`${outs.distance} = sr_voronoi(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.jitter});`],
+	},
+	{
+		id: "cellular_f1_f2",
+		name: "Cellular F1 / F2",
+		category: "Noise",
+		icon: "mdi mdi-hexagon-slice-6",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "8.0" },
+			{ key: "jitter", label: "Jitter", type: "float", default: "0.8" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [
+			{ key: "f1", label: "F1", type: "float" },
+			{ key: "f2", label: "F2", type: "float" },
+			{ key: "edge", label: "Edge", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`vec2 ${outs.f1}_cell = sr_cellular(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.jitter});`,
+			`${outs.f1} = ${outs.f1}_cell.x;`,
+			`${outs.f2} = ${outs.f1}_cell.y;`,
+			`${outs.edge} = clamp(${outs.f2} - ${outs.f1}, 0.0, 1.0);`,
+		],
+	},
+	{
+		id: "curl_noise",
+		name: "Curl Noise",
+		category: "Noise",
+		icon: "mdi mdi-rotate-orbit",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "3.0" },
+			{ key: "strength", label: "Strength", type: "float", default: "0.2" },
+			{ key: "epsilon", label: "Epsilon", type: "float", default: "0.01" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [
+			{ key: "curl", label: "Curl", type: "vec2" },
+			{ key: "uv", label: "Warped UV", type: "vec2" },
+		],
+		compile: (ins, outs) => [
+			`${outs.curl} = sr_curl_noise(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.epsilon}) * ${ins.strength};`,
+			`${outs.uv} = ${ins.uv} + ${outs.curl};`,
+		],
+	},
+	{
+		id: "domain_warp",
+		name: "Domain Warp",
+		category: "Noise",
+		icon: "mdi mdi-vector-polyline",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "3.0" },
+			{ key: "strength", label: "Strength", type: "float", default: "0.25" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [
+			{ key: "uv", label: "Warped UV", type: "vec2" },
+			{ key: "value", label: "Value", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`${outs.uv} = sr_domain_warp(${ins.uv} * ${ins.scale} + vec2(${ins.seed}), ${ins.strength});`,
+			`${outs.value} = sr_fbm(${outs.uv}, 5.0, 2.0, 0.5);`,
+		],
+	},
+
+	// ── Terrain ──
+	{
+		id: "terrain_height",
+		name: "Terrain Height",
+		category: "Terrain",
+		icon: "mdi mdi-image-filter-hdr",
+		inputs: [
+			{ key: "base", label: "Base", type: "float", default: "0.0" },
+			{ key: "detail", label: "Detail", type: "float", default: "0.0" },
+			{ key: "amplitude", label: "Amplitude", type: "float", default: "1.0" },
+			{ key: "detailStrength", label: "Detail Strength", type: "float", default: "0.25" },
+			{ key: "offset", label: "Offset", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "height", label: "Height", type: "float" }],
+		compile: (ins, outs) => [`${outs.height} = (${ins.base} + ${ins.detail} * ${ins.detailStrength}) * ${ins.amplitude} + ${ins.offset};`],
+	},
+	{
+		id: "height_remap",
+		name: "Remap Height",
+		category: "Terrain",
+		icon: "mdi mdi-tune-vertical",
+		inputs: [
+			{ key: "height", label: "Height", type: "float", default: "0.0" },
+			{ key: "min", label: "Min", type: "float", default: "0.0" },
+			{ key: "max", label: "Max", type: "float", default: "1.0" },
+			{ key: "power", label: "Power", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "height", label: "Height", type: "float" }],
+		compile: (ins, outs) => [`${outs.height} = pow(clamp((${ins.height} - ${ins.min}) / max(${ins.max} - ${ins.min}, 0.0001), 0.0, 1.0), max(${ins.power}, 0.0001));`],
+	},
+	{
+		id: "normal_from_height",
+		name: "Normal From Height",
+		category: "Terrain",
+		icon: "mdi mdi-axis-arrow",
+		inputs: [
+			{ key: "center", label: "Center", type: "float", default: "0.0" },
+			{ key: "right", label: "Right", type: "float", default: "0.0" },
+			{ key: "up", label: "Up", type: "float", default: "0.0" },
+			{ key: "spacing", label: "Spacing", type: "float", default: "0.01" },
+			{ key: "strength", label: "Strength", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "normal", label: "Normal", type: "vec3" }],
+		compile: (ins, outs) => [
+			`${outs.normal} = normalize(vec3((${ins.center} - ${ins.right}) * ${ins.strength}, (${ins.center} - ${ins.up}) * ${ins.strength}, max(${ins.spacing}, 0.0001)));`,
+		],
+	},
+	{
+		id: "slope_mask",
+		name: "Slope Mask",
+		category: "Terrain",
+		icon: "mdi mdi-angle-acute",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "minSlope", label: "Min Slope", type: "float", default: "0.2" },
+			{ key: "maxSlope", label: "Max Slope", type: "float", default: "0.8" },
+		],
+		outputs: [{ key: "mask", label: "Mask", type: "float" }],
+		compile: (ins, outs) => [`${outs.mask} = smoothstep(${ins.minSlope}, ${ins.maxSlope}, 1.0 - clamp(${ins.normal}.z, 0.0, 1.0));`],
+	},
+	{
+		id: "curvature_mask",
+		name: "Curvature Mask",
+		category: "Terrain",
+		icon: "mdi mdi-chart-bell-curve",
+		inputs: [
+			{ key: "center", label: "Center", type: "float", default: "0.0" },
+			{ key: "left", label: "Left", type: "float", default: "0.0" },
+			{ key: "right", label: "Right", type: "float", default: "0.0" },
+			{ key: "down", label: "Down", type: "float", default: "0.0" },
+			{ key: "up", label: "Up", type: "float", default: "0.0" },
+			{ key: "strength", label: "Strength", type: "float", default: "2.0" },
+		],
+		outputs: [{ key: "mask", label: "Mask", type: "float" }],
+		compile: (ins, outs) => [`${outs.mask} = clamp(abs((${ins.left} + ${ins.right} + ${ins.down} + ${ins.up}) - 4.0 * ${ins.center}) * ${ins.strength}, 0.0, 1.0);`],
+	},
+	{
+		id: "thermal_erosion",
+		name: "Thermal Erosion",
+		category: "Terrain",
+		icon: "mdi mdi-landslide",
+		inputs: [
+			{ key: "height", label: "Height", type: "float", default: "0.0" },
+			{ key: "slope", label: "Slope", type: "float", default: "0.0" },
+			{ key: "threshold", label: "Threshold", type: "float", default: "0.35" },
+			{ key: "amount", label: "Amount", type: "float", default: "0.08" },
+		],
+		outputs: [{ key: "height", label: "Height", type: "float" }],
+		compile: (ins, outs) => [`${outs.height} = ${ins.height} - max(${ins.slope} - ${ins.threshold}, 0.0) * ${ins.amount};`],
+	},
+	{
+		id: "sampled_terrain_height",
+		name: "Sampled Terrain Height",
+		category: "Terrain",
+		icon: "mdi mdi-image-filter-hdr-outline",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "4.0" },
+			{ key: "warp", label: "Warp", type: "float", default: "0.25" },
+			{ key: "detail", label: "Detail", type: "float", default: "0.25" },
+			{ key: "amplitude", label: "Amplitude", type: "float", default: "1.0" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "height", label: "Height", type: "float" }],
+		compile: (ins, outs) => [`${outs.height} = sr_terrain_height_sample(${ins.uv}, ${ins.scale}, ${ins.warp}, ${ins.detail}, ${ins.amplitude}, ${ins.seed});`],
+	},
+	{
+		id: "sampled_terrain_normal",
+		name: "Sampled Terrain Normal",
+		category: "Terrain",
+		icon: "mdi mdi-axis-arrow-info",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "4.0" },
+			{ key: "warp", label: "Warp", type: "float", default: "0.25" },
+			{ key: "detail", label: "Detail", type: "float", default: "0.25" },
+			{ key: "amplitude", label: "Amplitude", type: "float", default: "1.0" },
+			{ key: "seed", label: "Seed", type: "float", default: "0.0" },
+			{ key: "spacing", label: "Spacing", type: "float", default: "0.004" },
+			{ key: "strength", label: "Strength", type: "float", default: "1.0" },
+		],
+		outputs: [
+			{ key: "normal", label: "Normal", type: "vec3" },
+			{ key: "height", label: "Height", type: "float" },
+			{ key: "slope", label: "Slope", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`${outs.height} = sr_terrain_height_sample(${ins.uv}, ${ins.scale}, ${ins.warp}, ${ins.detail}, ${ins.amplitude}, ${ins.seed});`,
+			`float ${outs.normal}_right = sr_terrain_height_sample(${ins.uv} + vec2(${ins.spacing}, 0.0), ${ins.scale}, ${ins.warp}, ${ins.detail}, ${ins.amplitude}, ${ins.seed});`,
+			`float ${outs.normal}_up = sr_terrain_height_sample(${ins.uv} + vec2(0.0, ${ins.spacing}), ${ins.scale}, ${ins.warp}, ${ins.detail}, ${ins.amplitude}, ${ins.seed});`,
+			`${outs.normal} = normalize(vec3((${outs.height} - ${outs.normal}_right) * ${ins.strength}, (${outs.height} - ${outs.normal}_up) * ${ins.strength}, max(${ins.spacing}, 0.0001)));`,
+			`${outs.slope} = 1.0 - clamp(${outs.normal}.z, 0.0, 1.0);`,
+		],
+	},
 
 	// ── Vector ──
 	{
@@ -260,6 +702,35 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		],
 		outputs: [{ key: "result", label: "Vec2", type: "vec2" }],
 		compile: (ins, outs) => [`${outs.result} = vec2(${ins.x}, ${ins.y});`],
+	},
+	{
+		id: "tile_uv",
+		name: "Tile UV",
+		category: "Vector",
+		icon: "mdi mdi-grid-large",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "2.0" },
+		],
+		outputs: [{ key: "uv", label: "UV", type: "vec2" }],
+		compile: (ins, outs) => [`${outs.uv} = fract(${ins.uv} * ${ins.scale});`],
+	},
+	{
+		id: "rotate_uv",
+		name: "Rotate UV",
+		category: "Vector",
+		icon: "mdi mdi-rotate-right",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.0)" },
+			{ key: "angle", label: "Angle", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "uv", label: "UV", type: "vec2" }],
+		compile: (ins, outs) => [
+			`vec2 ${outs.uv}_centered = ${ins.uv} - 0.5;`,
+			`float ${outs.uv}_s = sin(${ins.angle});`,
+			`float ${outs.uv}_c = cos(${ins.angle});`,
+			`${outs.uv} = mat2(${outs.uv}_c, -${outs.uv}_s, ${outs.uv}_s, ${outs.uv}_c) * ${outs.uv}_centered + 0.5;`,
+		],
 	},
 	{
 		id: "vec2_split",
@@ -354,7 +825,443 @@ export const SHADER_NODE_DEFS: ShaderNodeDef[] = [
 		outputs: [{ key: "result", label: "Color", type: "vec3" }],
 		compile: (ins, outs) => [`${outs.result} = mix(${ins.a}, ${ins.b}, ${ins.t});`],
 	},
+	{
+		id: "gradient_color",
+		name: "Gradient",
+		category: "Color",
+		icon: "mdi mdi-gradient-horizontal",
+		inputs: [
+			{ key: "a", label: "Color A", type: "vec3", default: "u_accent" },
+			{ key: "b", label: "Color B", type: "vec3", default: "u_secondary" },
+			{ key: "factor", label: "Factor", type: "float", default: "0.5" },
+		],
+		outputs: [{ key: "color", label: "Color", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.color} = mix(${ins.a}, ${ins.b}, clamp(${ins.factor}, 0.0, 1.0));`],
+	},
+	{
+		id: "color_ramp",
+		name: "Color Ramp",
+		category: "Color",
+		icon: "mdi mdi-gradient-horizontal",
+		inputs: [
+			{ key: "factor", label: "Factor", type: "float", default: "0.5" },
+			{ key: "low", label: "Low", type: "vec3", default: "vec3(0.08, 0.20, 0.08)" },
+			{ key: "mid", label: "Mid", type: "vec3", default: "vec3(0.42, 0.34, 0.22)" },
+			{ key: "high", label: "High", type: "vec3", default: "vec3(0.92, 0.92, 0.86)" },
+			{ key: "midpoint", label: "Midpoint", type: "float", default: "0.55" },
+			{ key: "softness", label: "Softness", type: "float", default: "0.12" },
+		],
+		outputs: [{ key: "color", label: "Color", type: "vec3" }],
+		compile: (ins, outs) => [
+			`float ${outs.color}_f = clamp(${ins.factor}, 0.0, 1.0);`,
+			`float ${outs.color}_m = smoothstep(${ins.midpoint} - ${ins.softness}, ${ins.midpoint} + ${ins.softness}, ${outs.color}_f);`,
+			`${outs.color} = mix(mix(${ins.low}, ${ins.mid}, smoothstep(0.0, max(${ins.midpoint}, 0.0001), ${outs.color}_f)), ${ins.high}, ${outs.color}_m);`,
+		],
+	},
+	{
+		id: "biome_mask",
+		name: "Biome Mask",
+		category: "Color",
+		icon: "mdi mdi-map",
+		inputs: [
+			{ key: "height", label: "Height", type: "float", default: "0.0" },
+			{ key: "slope", label: "Slope", type: "float", default: "0.0" },
+			{ key: "minHeight", label: "Min Height", type: "float", default: "0.0" },
+			{ key: "maxHeight", label: "Max Height", type: "float", default: "1.0" },
+			{ key: "maxSlope", label: "Max Slope", type: "float", default: "1.0" },
+			{ key: "softness", label: "Softness", type: "float", default: "0.08" },
+		],
+		outputs: [{ key: "mask", label: "Mask", type: "float" }],
+		compile: (ins, outs) => [
+			`float ${outs.mask}_low = smoothstep(${ins.minHeight} - ${ins.softness}, ${ins.minHeight} + ${ins.softness}, ${ins.height});`,
+			`float ${outs.mask}_high = 1.0 - smoothstep(${ins.maxHeight} - ${ins.softness}, ${ins.maxHeight} + ${ins.softness}, ${ins.height});`,
+			`float ${outs.mask}_slope = 1.0 - smoothstep(${ins.maxSlope} - ${ins.softness}, ${ins.maxSlope} + ${ins.softness}, ${ins.slope});`,
+			`${outs.mask} = clamp(${outs.mask}_low * ${outs.mask}_high * ${outs.mask}_slope, 0.0, 1.0);`,
+		],
+	},
+	{
+		id: "altitude_bands",
+		name: "Altitude Bands",
+		category: "Color",
+		icon: "mdi mdi-terrain",
+		inputs: [
+			{ key: "height", label: "Height", type: "float", default: "0.0" },
+			{ key: "grassLine", label: "Grass Line", type: "float", default: "0.25" },
+			{ key: "rockLine", label: "Rock Line", type: "float", default: "0.58" },
+			{ key: "snowLine", label: "Snow Line", type: "float", default: "0.78" },
+			{ key: "softness", label: "Softness", type: "float", default: "0.08" },
+			{ key: "grass", label: "Grass", type: "vec3", default: "vec3(0.10, 0.36, 0.12)" },
+			{ key: "rock", label: "Rock", type: "vec3", default: "vec3(0.42, 0.38, 0.32)" },
+			{ key: "snow", label: "Snow", type: "vec3", default: "vec3(0.92, 0.92, 0.86)" },
+		],
+		outputs: [
+			{ key: "color", label: "Color", type: "vec3" },
+			{ key: "grassMask", label: "Grass", type: "float" },
+			{ key: "rockMask", label: "Rock", type: "float" },
+			{ key: "snowMask", label: "Snow", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`${outs.grassMask} = 1.0 - smoothstep(${ins.rockLine} - ${ins.softness}, ${ins.rockLine} + ${ins.softness}, ${ins.height});`,
+			`${outs.rockMask} = smoothstep(${ins.grassLine} - ${ins.softness}, ${ins.grassLine} + ${ins.softness}, ${ins.height}) * (1.0 - smoothstep(${ins.snowLine} - ${ins.softness}, ${ins.snowLine} + ${ins.softness}, ${ins.height}));`,
+			`${outs.snowMask} = smoothstep(${ins.snowLine} - ${ins.softness}, ${ins.snowLine} + ${ins.softness}, ${ins.height});`,
+			`${outs.color} = mix(mix(${ins.grass}, ${ins.rock}, clamp(${outs.rockMask}, 0.0, 1.0)), ${ins.snow}, clamp(${outs.snowMask}, 0.0, 1.0));`,
+		],
+	},
+	{
+		id: "mask_blend_color",
+		name: "Mask Blend Color",
+		category: "Color",
+		icon: "mdi mdi-blur-linear",
+		inputs: [
+			{ key: "base", label: "Base", type: "vec3", default: "vec3(0.0)" },
+			{ key: "detail", label: "Detail", type: "vec3", default: "vec3(1.0)" },
+			{ key: "mask", label: "Mask", type: "float", default: "0.5" },
+		],
+		outputs: [{ key: "color", label: "Color", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.color} = mix(${ins.base}, ${ins.detail}, clamp(${ins.mask}, 0.0, 1.0));`],
+	},
 
+	// ── Lighting ──
+	{
+		id: "sun_direction",
+		name: "Sun Direction",
+		category: "Lighting",
+		icon: "mdi mdi-white-balance-sunny",
+		inputs: [
+			{ key: "azimuth", label: "Azimuth", type: "float", default: "0.65" },
+			{ key: "elevation", label: "Elevation", type: "float", default: "0.55" },
+		],
+		outputs: [{ key: "direction", label: "Direction", type: "vec3" }],
+		compile: (ins, outs) => [
+			`float ${outs.direction}_az = ${ins.azimuth} * 6.2831853;`,
+			`float ${outs.direction}_el = clamp(${ins.elevation}, 0.0, 1.0) * 1.5707963;`,
+			`${outs.direction} = normalize(vec3(cos(${outs.direction}_az) * cos(${outs.direction}_el), sin(${outs.direction}_az) * cos(${outs.direction}_el), sin(${outs.direction}_el)));`,
+		],
+	},
+	{
+		id: "diffuse_lighting",
+		name: "Diffuse Lighting",
+		category: "Lighting",
+		icon: "mdi mdi-brightness-5",
+		inputs: [
+			{ key: "color", label: "Color", type: "vec3", default: "vec3(1.0)" },
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "lightDir", label: "Light Dir", type: "vec3", default: "vec3(0.25, 0.35, 0.9)" },
+			{ key: "intensity", label: "Intensity", type: "float", default: "1.0" },
+			{ key: "ambient", label: "Ambient", type: "float", default: "0.2" },
+		],
+		outputs: [
+			{ key: "color", label: "Color", type: "vec3" },
+			{ key: "light", label: "Light", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`${outs.light} = max(dot(normalize(${ins.normal}), normalize(${ins.lightDir})), 0.0) * ${ins.intensity};`,
+			`${outs.color} = ${ins.color} * (${ins.ambient} + ${outs.light});`,
+		],
+	},
+	{
+		id: "specular_lighting",
+		name: "Specular",
+		category: "Lighting",
+		icon: "mdi mdi-star-four-points",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "lightDir", label: "Light Dir", type: "vec3", default: "vec3(0.25, 0.35, 0.9)" },
+			{ key: "viewDir", label: "View Dir", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "shininess", label: "Shininess", type: "float", default: "32.0" },
+			{ key: "intensity", label: "Intensity", type: "float", default: "0.35" },
+		],
+		outputs: [{ key: "specular", label: "Specular", type: "float" }],
+		compile: (ins, outs) => [
+			`vec3 ${outs.specular}_halfDir = normalize(normalize(${ins.lightDir}) + normalize(${ins.viewDir}));`,
+			`${outs.specular} = pow(max(dot(normalize(${ins.normal}), ${outs.specular}_halfDir), 0.0), max(${ins.shininess}, 1.0)) * ${ins.intensity};`,
+		],
+	},
+	{
+		id: "ambient_light",
+		name: "Ambient Light",
+		category: "Lighting",
+		icon: "mdi mdi-weather-night",
+		inputs: [
+			{ key: "color", label: "Color", type: "vec3", default: "vec3(1.0)" },
+			{ key: "ambientColor", label: "Ambient", type: "vec3", default: "vec3(0.35, 0.40, 0.50)" },
+			{ key: "intensity", label: "Intensity", type: "float", default: "0.2" },
+		],
+		outputs: [{ key: "color", label: "Color", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.color} = ${ins.color} + ${ins.ambientColor} * ${ins.intensity};`],
+	},
+	{
+		id: "fog",
+		name: "Fog",
+		category: "Lighting",
+		icon: "mdi mdi-weather-fog",
+		inputs: [
+			{ key: "color", label: "Color", type: "vec3", default: "vec3(1.0)" },
+			{ key: "fogColor", label: "Fog Color", type: "vec3", default: "vec3(0.55, 0.62, 0.70)" },
+			{ key: "depth", label: "Depth", type: "float", default: "0.0" },
+			{ key: "density", label: "Density", type: "float", default: "0.45" },
+		],
+		outputs: [{ key: "color", label: "Color", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.color} = mix(${ins.color}, ${ins.fogColor}, clamp(1.0 - exp(-max(${ins.depth}, 0.0) * ${ins.density}), 0.0, 1.0));`],
+	},
+	{
+		id: "simple_shadow",
+		name: "Simple Shadow",
+		category: "Lighting",
+		icon: "mdi mdi-weather-sunset-down",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "lightDir", label: "Light Dir", type: "vec3", default: "vec3(0.25, 0.35, 0.9)" },
+			{ key: "softness", label: "Softness", type: "float", default: "0.25" },
+		],
+		outputs: [{ key: "shadow", label: "Shadow", type: "float" }],
+		compile: (ins, outs) => [`${outs.shadow} = smoothstep(-${ins.softness}, ${ins.softness}, dot(normalize(${ins.normal}), normalize(${ins.lightDir})));`],
+	},
+	{
+		id: "ambient_occlusion",
+		name: "Ambient Occlusion",
+		category: "Lighting",
+		icon: "mdi mdi-circle-opacity",
+		inputs: [
+			{ key: "curvature", label: "Curvature", type: "float", default: "0.0" },
+			{ key: "slope", label: "Slope", type: "float", default: "0.0" },
+			{ key: "strength", label: "Strength", type: "float", default: "0.6" },
+		],
+		outputs: [{ key: "ao", label: "AO", type: "float" }],
+		compile: (ins, outs) => [`${outs.ao} = clamp(1.0 - (${ins.curvature} * 0.65 + ${ins.slope} * 0.35) * ${ins.strength}, 0.0, 1.0);`],
+	},
+
+	// ── Material ──
+	{
+		id: "normal_strength",
+		name: "Normal Strength",
+		category: "Material",
+		icon: "mdi mdi-axis-arrow",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "strength", label: "Strength", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "normal", label: "Normal", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.normal} = normalize(vec3(${ins.normal}.xy * ${ins.strength}, max(${ins.normal}.z, 0.0001)));`],
+	},
+	{
+		id: "triplanar_coords",
+		name: "Triplanar Coordinates",
+		category: "Material",
+		icon: "mdi mdi-cube-scan",
+		inputs: [
+			{ key: "position", label: "Position", type: "vec3", default: "vec3(0.0)" },
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "scale", label: "Scale", type: "float", default: "1.0" },
+			{ key: "sharpness", label: "Sharpness", type: "float", default: "4.0" },
+		],
+		outputs: [
+			{ key: "xUV", label: "X UV", type: "vec2" },
+			{ key: "yUV", label: "Y UV", type: "vec2" },
+			{ key: "zUV", label: "Z UV", type: "vec2" },
+			{ key: "weights", label: "Weights", type: "vec3" },
+		],
+		compile: (ins, outs) => [
+			`${outs.xUV} = ${ins.position}.yz * ${ins.scale};`,
+			`${outs.yUV} = ${ins.position}.xz * ${ins.scale};`,
+			`${outs.zUV} = ${ins.position}.xy * ${ins.scale};`,
+			`${outs.weights} = pow(abs(normalize(${ins.normal})), vec3(max(${ins.sharpness}, 0.0001)));`,
+			`${outs.weights} /= max(dot(${outs.weights}, vec3(1.0)), 0.0001);`,
+		],
+	},
+	{
+		id: "layer_mask",
+		name: "Layer Mask",
+		category: "Material",
+		icon: "mdi mdi-layers-triple-outline",
+		inputs: [
+			{ key: "height", label: "Height", type: "float", default: "0.0" },
+			{ key: "slope", label: "Slope", type: "float", default: "0.0" },
+			{ key: "noise", label: "Noise", type: "float", default: "0.5" },
+			{ key: "heightMin", label: "Height Min", type: "float", default: "0.0" },
+			{ key: "heightMax", label: "Height Max", type: "float", default: "1.0" },
+			{ key: "slopeMax", label: "Slope Max", type: "float", default: "1.0" },
+			{ key: "noiseAmount", label: "Noise Amount", type: "float", default: "0.0" },
+			{ key: "softness", label: "Softness", type: "float", default: "0.08" },
+		],
+		outputs: [{ key: "mask", label: "Mask", type: "float" }],
+		compile: (ins, outs) => [
+			`float ${outs.mask}_height = smoothstep(${ins.heightMin} - ${ins.softness}, ${ins.heightMin} + ${ins.softness}, ${ins.height}) * (1.0 - smoothstep(${ins.heightMax} - ${ins.softness}, ${ins.heightMax} + ${ins.softness}, ${ins.height}));`,
+			`float ${outs.mask}_slope = 1.0 - smoothstep(${ins.slopeMax} - ${ins.softness}, ${ins.slopeMax} + ${ins.softness}, ${ins.slope});`,
+			`${outs.mask} = clamp(${outs.mask}_height * ${outs.mask}_slope + (${ins.noise} - 0.5) * ${ins.noiseAmount}, 0.0, 1.0);`,
+		],
+	},
+	{
+		id: "fresnel",
+		name: "Fresnel",
+		category: "Material",
+		icon: "mdi mdi-circle-opacity",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "viewDir", label: "View Dir", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "power", label: "Power", type: "float", default: "5.0" },
+			{ key: "bias", label: "Bias", type: "float", default: "0.0" },
+			{ key: "scale", label: "Scale", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "factor", label: "Factor", type: "float" }],
+		compile: (ins, outs) => [`${outs.factor} = clamp(${ins.bias} + ${ins.scale} * pow(1.0 - max(dot(normalize(${ins.normal}), normalize(${ins.viewDir})), 0.0), max(${ins.power}, 0.0001)), 0.0, 1.0);`],
+	},
+	{
+		id: "rough_specular",
+		name: "Rough Specular",
+		category: "Material",
+		icon: "mdi mdi-star-four-points-outline",
+		inputs: [
+			{ key: "normal", label: "Normal", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "lightDir", label: "Light Dir", type: "vec3", default: "vec3(0.25, 0.35, 0.9)" },
+			{ key: "viewDir", label: "View Dir", type: "vec3", default: "vec3(0.0, 0.0, 1.0)" },
+			{ key: "roughness", label: "Roughness", type: "float", default: "0.45" },
+			{ key: "intensity", label: "Intensity", type: "float", default: "0.35" },
+		],
+		outputs: [{ key: "specular", label: "Specular", type: "float" }],
+		compile: (ins, outs) => [
+			`vec3 ${outs.specular}_halfDir = normalize(normalize(${ins.lightDir}) + normalize(${ins.viewDir}));`,
+			`float ${outs.specular}_power = mix(96.0, 4.0, clamp(${ins.roughness}, 0.0, 1.0));`,
+			`${outs.specular} = pow(max(dot(normalize(${ins.normal}), ${outs.specular}_halfDir), 0.0), ${outs.specular}_power) * ${ins.intensity};`,
+		],
+	},
+
+	// ── Camera / Raymarch ──
+	{
+		id: "camera_ray",
+		name: "Camera Ray",
+		category: "Camera",
+		icon: "mdi mdi-ray-start-arrow",
+		inputs: [
+			{ key: "uv", label: "UV", type: "vec2", default: "vec2(0.5)" },
+			{ key: "position", label: "Position", type: "vec3", default: "vec3(0.0, 0.0, 2.5)" },
+			{ key: "target", label: "Target", type: "vec3", default: "vec3(0.0, 0.0, 0.0)" },
+			{ key: "fov", label: "FOV", type: "float", default: "0.8" },
+			{ key: "aspect", label: "Aspect", type: "float", default: "1.7777778" },
+		],
+		outputs: [
+			{ key: "origin", label: "Origin", type: "vec3" },
+			{ key: "direction", label: "Direction", type: "vec3" },
+		],
+		compile: (ins, outs) => [
+			`${outs.origin} = ${ins.position};`,
+			`vec3 ${outs.direction}_forward = normalize(${ins.target} - ${ins.position});`,
+			`vec3 ${outs.direction}_right = normalize(cross(${outs.direction}_forward, vec3(0.0, 1.0, 0.0)));`,
+			`vec3 ${outs.direction}_up = normalize(cross(${outs.direction}_right, ${outs.direction}_forward));`,
+			`vec2 ${outs.direction}_screen = (${ins.uv} * 2.0 - 1.0) * vec2(${ins.aspect}, 1.0) * tan(${ins.fov} * 0.5);`,
+			`${outs.direction} = normalize(${outs.direction}_forward + ${outs.direction}_right * ${outs.direction}_screen.x + ${outs.direction}_up * ${outs.direction}_screen.y);`,
+		],
+	},
+	{
+		id: "ray_point",
+		name: "Ray Point",
+		category: "Camera",
+		icon: "mdi mdi-ray-vertex",
+		inputs: [
+			{ key: "origin", label: "Origin", type: "vec3", default: "vec3(0.0)" },
+			{ key: "direction", label: "Direction", type: "vec3", default: "vec3(0.0, 0.0, -1.0)" },
+			{ key: "depth", label: "Depth", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "point", label: "Point", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.point} = ${ins.origin} + normalize(${ins.direction}) * ${ins.depth};`],
+	},
+	{
+		id: "sdf_sphere",
+		name: "SDF Sphere",
+		category: "Camera",
+		icon: "mdi mdi-sphere",
+		inputs: [
+			{ key: "point", label: "Point", type: "vec3", default: "vec3(0.0)" },
+			{ key: "center", label: "Center", type: "vec3", default: "vec3(0.0)" },
+			{ key: "radius", label: "Radius", type: "float", default: "1.0" },
+		],
+		outputs: [{ key: "distance", label: "Distance", type: "float" }],
+		compile: (ins, outs) => [`${outs.distance} = length(${ins.point} - ${ins.center}) - ${ins.radius};`],
+	},
+	{
+		id: "sdf_plane",
+		name: "SDF Plane",
+		category: "Camera",
+		icon: "mdi mdi-axis-z-arrow",
+		inputs: [
+			{ key: "point", label: "Point", type: "vec3", default: "vec3(0.0)" },
+			{ key: "height", label: "Height", type: "float", default: "0.0" },
+		],
+		outputs: [{ key: "distance", label: "Distance", type: "float" }],
+		compile: (ins, outs) => [`${outs.distance} = ${ins.point}.y - ${ins.height};`],
+	},
+	{
+		id: "raymarch_sphere",
+		name: "Raymarch Sphere",
+		category: "Camera",
+		icon: "mdi mdi-ray-end",
+		inputs: [
+			{ key: "origin", label: "Origin", type: "vec3", default: "vec3(0.0)" },
+			{ key: "direction", label: "Direction", type: "vec3", default: "vec3(0.0, 0.0, -1.0)" },
+			{ key: "center", label: "Center", type: "vec3", default: "vec3(0.0)" },
+			{ key: "radius", label: "Radius", type: "float", default: "1.0" },
+			{ key: "maxDistance", label: "Max Distance", type: "float", default: "20.0" },
+			{ key: "maxSteps", label: "Max Steps", type: "float", default: "64.0" },
+		],
+		outputs: [
+			{ key: "depth", label: "Depth", type: "float" },
+			{ key: "hit", label: "Hit", type: "float" },
+		],
+		compile: (ins, outs) => [
+			`${outs.depth} = 0.0;`,
+			`${outs.hit} = 0.0;`,
+			`for (int ${outs.depth}_i = 0; ${outs.depth}_i < 96; ${outs.depth}_i++) {`,
+			`\tif (float(${outs.depth}_i) >= ${ins.maxSteps}) break;`,
+			`\tvec3 ${outs.depth}_p = ${ins.origin} + normalize(${ins.direction}) * ${outs.depth};`,
+			`\tfloat ${outs.depth}_d = length(${outs.depth}_p - ${ins.center}) - ${ins.radius};`,
+			`\tif (${outs.depth}_d < 0.001) { ${outs.hit} = 1.0; break; }`,
+			`\t${outs.depth} += ${outs.depth}_d;`,
+			`\tif (${outs.depth} > ${ins.maxDistance}) break;`,
+			`}`,
+		],
+	},
+	{
+		id: "depth_fade",
+		name: "Depth Fade",
+		category: "Camera",
+		icon: "mdi mdi-gradient-vertical",
+		inputs: [
+			{ key: "depth", label: "Depth", type: "float", default: "0.0" },
+			{ key: "near", label: "Near", type: "float", default: "0.0" },
+			{ key: "far", label: "Far", type: "float", default: "10.0" },
+		],
+		outputs: [{ key: "factor", label: "Factor", type: "float" }],
+		compile: (ins, outs) => [`${outs.factor} = smoothstep(${ins.near}, max(${ins.far}, ${ins.near} + 0.0001), ${ins.depth});`],
+	},
+
+	// ── Utility ──
+	{
+		id: "reroute_float",
+		name: "Reroute Float",
+		category: "Utility",
+		icon: "mdi mdi-transit-connection-horizontal",
+		inputs: [{ key: "value", label: "In", type: "float", default: "0.0" }],
+		outputs: [{ key: "value", label: "Out", type: "float" }],
+		compile: (ins, outs) => [`${outs.value} = ${ins.value};`],
+	},
+	{
+		id: "reroute_vec2",
+		name: "Reroute Vec2",
+		category: "Utility",
+		icon: "mdi mdi-transit-connection-horizontal",
+		inputs: [{ key: "value", label: "In", type: "vec2", default: "vec2(0.0)" }],
+		outputs: [{ key: "value", label: "Out", type: "vec2" }],
+		compile: (ins, outs) => [`${outs.value} = ${ins.value};`],
+	},
+	{
+		id: "reroute_vec3",
+		name: "Reroute Vec3",
+		category: "Utility",
+		icon: "mdi mdi-transit-connection-horizontal",
+		inputs: [{ key: "value", label: "In", type: "vec3", default: "vec3(0.0)" }],
+		outputs: [{ key: "value", label: "Out", type: "vec3" }],
+		compile: (ins, outs) => [`${outs.value} = ${ins.value};`],
+	},
 	// ── Output ──
 	{
 		id: "fragment_output",
@@ -376,23 +1283,25 @@ export const SHADER_NODE_DEF_MAP = new Map(SHADER_NODE_DEFS.map((d) => [d.id, d]
 
 export const SHADER_NODE_CATEGORIES = [...new Set(SHADER_NODE_DEFS.map((d) => d.category))]
 
+const SHADER_UNIFORM_PARAMETER_NODE_IDS = new Set(["uniform_float", "uniform_vec2", "uniform_vec3"])
+
 // ─── GLSL Code Generation ────────────────────────────────────────────
 
-function glslTypeDefault(type: GlslType): string {
-	switch (type) {
-		case "float": return "0.0"
-		case "vec2": return "vec2(0.0)"
-		case "vec3": return "vec3(0.0)"
-		case "vec4": return "vec4(0.0, 0.0, 0.0, 1.0)"
-	}
+export function getShaderPortDef(graph: ShaderGraph, nodeId: string, portKey: string, kind: "in" | "out"): ShaderPortDef | undefined {
+	const node = graph.nodes.find((item) => item.id === nodeId)
+	if (!node) return undefined
+	const def = SHADER_NODE_DEF_MAP.get(node.defId)
+	if (!def) return undefined
+	const ports = kind === "in" ? def.inputs : def.outputs
+	return ports.find((port) => port.key === portKey)
 }
 
-export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[] } {
-	const errors: string[] = []
-	const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]))
-	const defMap = SHADER_NODE_DEF_MAP
+export function areShaderTypesCompatible(from: GlslType, to: GlslType): boolean {
+	return from === to
+}
 
-	// Build adjacency for topological sort (wires point fromNode → toNode)
+function sortShaderGraph(graph: ShaderGraph) {
+	const nodeIds = new Set(graph.nodes.map((node) => node.id))
 	const inDegree = new Map<string, number>()
 	const adjacency = new Map<string, string[]>()
 	for (const node of graph.nodes) {
@@ -400,13 +1309,12 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 		adjacency.set(node.id, [])
 	}
 	for (const wire of graph.wires) {
-		if (!nodeMap.has(wire.fromNode) || !nodeMap.has(wire.toNode)) continue
-		adjacency.get(wire.fromNode)!.push(wire.toNode)
+		if (!nodeIds.has(wire.fromNode) || !nodeIds.has(wire.toNode)) continue
+		adjacency.get(wire.fromNode)?.push(wire.toNode)
 		inDegree.set(wire.toNode, (inDegree.get(wire.toNode) ?? 0) + 1)
 	}
 
-	// Kahn's algorithm
-	const queue = graph.nodes.filter((n) => (inDegree.get(n.id) ?? 0) === 0).map((n) => n.id)
+	const queue = graph.nodes.filter((node) => (inDegree.get(node.id) ?? 0) === 0).map((node) => node.id)
 	const sorted: string[] = []
 	while (queue.length > 0) {
 		const nodeId = queue.shift()!
@@ -418,10 +1326,450 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 		}
 	}
 
-	if (sorted.length !== graph.nodes.length) {
-		errors.push("Shader graph contains a cycle.")
-		return { glsl: "", errors }
+	return sorted
+}
+
+export function shaderGraphHasCycle(graph: ShaderGraph): boolean {
+	return sortShaderGraph(graph).length !== graph.nodes.length
+}
+
+export function wouldCreateShaderGraphCycle(graph: ShaderGraph, fromNode: string, toNode: string): boolean {
+	if (fromNode === toNode) return true
+	return shaderGraphHasCycle({
+		...graph,
+		wires: [
+			...graph.wires,
+			{ id: "__candidate", fromNode, fromPort: "", toNode, toPort: "" },
+		],
+	})
+}
+
+export function validateShaderGraph(graph: ShaderGraph): string[] {
+	const errors: string[] = []
+	const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]))
+	const outputNodes = graph.nodes.filter((node) => node.defId === "fragment_output")
+
+	for (const node of graph.nodes) {
+		if (!SHADER_NODE_DEF_MAP.has(node.defId)) {
+			errors.push(`Node ${node.id} uses unknown shader node type "${node.defId}".`)
+		}
 	}
+
+	const uniformNames = new Set<string>()
+	for (const node of graph.nodes) {
+		if (!SHADER_UNIFORM_PARAMETER_NODE_IDS.has(node.defId)) continue
+		const name = getUniformName(node)
+		if (uniformNames.has(name)) {
+			errors.push(`Uniform name "${name}" is used by multiple parameter nodes.`)
+		}
+		uniformNames.add(name)
+	}
+
+	if (graph.outputNodeId) {
+		const outputNode = nodeMap.get(graph.outputNodeId)
+		if (!outputNode) errors.push(`Shader graph output node "${graph.outputNodeId}" is missing.`)
+		else if (outputNode.defId !== "fragment_output") errors.push(`Shader graph output node "${graph.outputNodeId}" is not a Fragment Output node.`)
+	} else if (outputNodes.length === 0) {
+		errors.push("Shader graph is missing a Fragment Output node.")
+	} else if (outputNodes.length > 1) {
+		errors.push("Shader graph has multiple Fragment Output nodes. Pick one output node before compiling.")
+	}
+
+	const inputTargets = new Set<string>()
+	for (const wire of graph.wires) {
+		const fromNode = nodeMap.get(wire.fromNode)
+		const toNode = nodeMap.get(wire.toNode)
+		if (!fromNode) {
+			errors.push(`Wire ${wire.id} starts at missing node "${wire.fromNode}".`)
+			continue
+		}
+		if (!toNode) {
+			errors.push(`Wire ${wire.id} ends at missing node "${wire.toNode}".`)
+			continue
+		}
+
+		const fromPort = getShaderPortDef(graph, wire.fromNode, wire.fromPort, "out")
+		const toPort = getShaderPortDef(graph, wire.toNode, wire.toPort, "in")
+		if (!fromPort) errors.push(`Wire ${wire.id} starts at missing output port "${wire.fromNode}:${wire.fromPort}".`)
+		if (!toPort) errors.push(`Wire ${wire.id} ends at missing input port "${wire.toNode}:${wire.toPort}".`)
+		if (fromPort && toPort && !areShaderTypesCompatible(fromPort.type, toPort.type)) {
+			errors.push(`Wire ${wire.id} connects incompatible types: ${fromPort.type} -> ${toPort.type}.`)
+		}
+
+		const inputKey = `${wire.toNode}:${wire.toPort}`
+		if (inputTargets.has(inputKey)) {
+			errors.push(`Input port "${inputKey}" has multiple incoming wires.`)
+		}
+		inputTargets.add(inputKey)
+	}
+
+	if (shaderGraphHasCycle(graph)) {
+		errors.push("Shader graph contains a cycle.")
+	}
+
+	return errors
+}
+
+export function collectShaderGraphWarnings(graph: ShaderGraph): string[] {
+	const warnings: string[] = []
+	const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]))
+	const outputNode =
+		(graph.outputNodeId ? nodeMap.get(graph.outputNodeId) : undefined) ??
+		graph.nodes.find((node) => node.defId === "fragment_output")
+	if (!outputNode || outputNode.defId !== "fragment_output") return warnings
+
+	const colorWire = graph.wires.find((wire) => wire.toNode === outputNode.id && wire.toPort === "color")
+	if (!colorWire) {
+		warnings.push(`Fragment Output "${nodeLabel(outputNode)}" has no color input connected; it will render black.`)
+	}
+
+	const dependencies = collectShaderGraphDependencies(graph, outputNode.id)
+	for (const node of graph.nodes) {
+		if (dependencies.has(node.id)) continue
+		if (node.defId === "fragment_output") continue
+		warnings.push(`Node "${nodeLabel(node)}" is not connected to the active Fragment Output.`)
+	}
+
+	return warnings
+}
+
+function collectShaderGraphDependencies(graph: ShaderGraph, outputNodeId: string) {
+	const reverse = new Map<string, string[]>()
+	for (const wire of graph.wires) {
+		if (!reverse.has(wire.toNode)) reverse.set(wire.toNode, [])
+		reverse.get(wire.toNode)!.push(wire.fromNode)
+	}
+	const visited = new Set<string>()
+	const stack = [outputNodeId]
+	while (stack.length) {
+		const nodeId = stack.pop()!
+		if (visited.has(nodeId)) continue
+		visited.add(nodeId)
+		for (const dependency of reverse.get(nodeId) ?? []) stack.push(dependency)
+	}
+	return visited
+}
+
+function nodeLabel(node: ShaderNodeInstance) {
+	return SHADER_NODE_DEF_MAP.get(node.defId)?.name ?? node.defId
+}
+
+function glslTypeDefault(type: GlslType): string {
+	switch (type) {
+		case "float": return "0.0"
+		case "vec2": return "vec2(0.0)"
+		case "vec3": return "vec3(0.0)"
+		case "vec4": return "vec4(0.0, 0.0, 0.0, 1.0)"
+	}
+}
+
+function getConstantNodeValue(node: ShaderNodeInstance, type: GlslType, fallback: string) {
+	const value = node.inputDefaults?.value
+	if (typeof value === "number" && Number.isFinite(value)) return String(value)
+	if (typeof value === "string" && value.trim()) return value.trim()
+	return fallback || glslTypeDefault(type)
+}
+
+const BUILT_IN_UNIFORMS = new Set([
+	"u_resolution",
+	"u_time",
+	"u_accent",
+	"u_secondary",
+	"u_intensity",
+	"u_speed",
+	"u_camera_position",
+	"u_camera_target",
+	"u_mouse",
+])
+
+function getUniformName(node: ShaderNodeInstance) {
+	const rawName = typeof node.inputDefaults?.name === "string" ? node.inputDefaults.name : ""
+	const fallback = `parameter_${node.id}`
+	const safe = (rawName.trim() || fallback).replace(/[^a-zA-Z0-9_]/g, "_").replace(/^[^a-zA-Z_]+/, "")
+	const base = safe || fallback
+	const name = base.startsWith("u_") ? base : `u_${base}`
+	return BUILT_IN_UNIFORMS.has(name) ? `${name}_custom` : name
+}
+
+export function getShaderUniformName(node: ShaderNodeInstance) {
+	return getUniformName(node)
+}
+
+function parseVec3Literal(value: string): [number, number, number] {
+	const source = value.match(/vec3\s*\(([^)]*)\)/)?.[1] ?? value
+	const parts = source.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []
+	return [
+		Number.isFinite(parts[0]) ? parts[0] : 1,
+		Number.isFinite(parts[1]) ? parts[1] : 1,
+		Number.isFinite(parts[2]) ? parts[2] : 1,
+	]
+}
+
+function parseVec2Literal(value: string): [number, number] {
+	const source = value.match(/vec2\s*\(([^)]*)\)/)?.[1] ?? value
+	const parts = source.match(/[-+]?\d*\.?\d+/g)?.map(Number) ?? []
+	return [
+		Number.isFinite(parts[0]) ? parts[0] : 0,
+		Number.isFinite(parts[1]) ? parts[1] : 0,
+	]
+}
+
+export function collectShaderUniformDefaults(graph: ShaderGraph): ShaderUniformValueMap {
+	const uniforms: ShaderUniformValueMap = {}
+	for (const node of graph.nodes) {
+		if (node.defId === "uniform_float") {
+			const value = Number(getConstantNodeValue(node, "float", "1.0"))
+			uniforms[getUniformName(node)] = Number.isFinite(value) ? value : 1
+		}
+		if (node.defId === "uniform_vec2") {
+			uniforms[getUniformName(node)] = parseVec2Literal(getConstantNodeValue(node, "vec2", "vec2(0.0, 0.0)"))
+		}
+		if (node.defId === "uniform_vec3") {
+			uniforms[getUniformName(node)] = parseVec3Literal(getConstantNodeValue(node, "vec3", "vec3(1.0, 1.0, 1.0)"))
+		}
+	}
+	return uniforms
+}
+
+function cloneShaderNode(node: ShaderNodeInstance): ShaderNodeInstance {
+	return {
+		...node,
+		inputDefaults: node.inputDefaults ? { ...node.inputDefaults } : undefined,
+	}
+}
+
+export function createShaderNodePreviewGraph(graph: ShaderGraph, nodeId: string): ShaderGraph | undefined {
+	const node = graph.nodes.find((item) => item.id === nodeId)
+	if (!node) return undefined
+	const def = SHADER_NODE_DEF_MAP.get(node.defId)
+	if (!def) return undefined
+	if (node.defId === "fragment_output") {
+		return {
+			nodes: graph.nodes.map(cloneShaderNode),
+			wires: graph.wires.map((wire) => ({ ...wire })),
+			outputNodeId: node.id,
+		}
+	}
+
+	const previewPort =
+		def.outputs.find((port) => port.type === "vec3") ??
+		def.outputs.find((port) => port.type === "float") ??
+		def.outputs.find((port) => port.type === "vec2")
+	if (!previewPort) return undefined
+
+	const baseNodes = graph.nodes
+		.filter((item) => item.defId !== "fragment_output")
+		.map(cloneShaderNode)
+	const baseNodeIds = new Set(baseNodes.map((item) => item.id))
+	const baseWires = graph.wires
+		.filter((wire) => baseNodeIds.has(wire.fromNode) && baseNodeIds.has(wire.toNode))
+		.map((wire) => ({ ...wire }))
+	const outputId = `__preview_${node.id}_output`
+
+	if (previewPort.type === "vec3") {
+		return {
+			nodes: [
+				...baseNodes,
+				{ id: outputId, defId: "fragment_output", x: node.x + 240, y: node.y },
+			],
+			wires: [
+				...baseWires,
+				{ id: `${node.id}:${previewPort.key}->${outputId}:color`, fromNode: node.id, fromPort: previewPort.key, toNode: outputId, toPort: "color" },
+			],
+			outputNodeId: outputId,
+		}
+	}
+
+	const composeId = `__preview_${node.id}_color`
+	const nodes = [
+		...baseNodes,
+		{ id: composeId, defId: "vec3_compose", x: node.x + 240, y: node.y },
+		{ id: outputId, defId: "fragment_output", x: node.x + 480, y: node.y },
+	]
+	const wires = [
+		...baseWires,
+		{ id: `${composeId}:result->${outputId}:color`, fromNode: composeId, fromPort: "result", toNode: outputId, toPort: "color" },
+	]
+
+	if (previewPort.type === "float") {
+		wires.push(
+			{ id: `${node.id}:${previewPort.key}->${composeId}:x`, fromNode: node.id, fromPort: previewPort.key, toNode: composeId, toPort: "x" },
+			{ id: `${node.id}:${previewPort.key}->${composeId}:y`, fromNode: node.id, fromPort: previewPort.key, toNode: composeId, toPort: "y" },
+			{ id: `${node.id}:${previewPort.key}->${composeId}:z`, fromNode: node.id, fromPort: previewPort.key, toNode: composeId, toPort: "z" }
+		)
+	} else {
+		const splitId = `__preview_${node.id}_split`
+		nodes.splice(nodes.length - 2, 0, { id: splitId, defId: "vec2_split", x: node.x + 240, y: node.y })
+		wires.push(
+			{ id: `${node.id}:${previewPort.key}->${splitId}:v`, fromNode: node.id, fromPort: previewPort.key, toNode: splitId, toPort: "v" },
+			{ id: `${splitId}:x->${composeId}:x`, fromNode: splitId, fromPort: "x", toNode: composeId, toPort: "x" },
+			{ id: `${splitId}:y->${composeId}:y`, fromNode: splitId, fromPort: "y", toNode: composeId, toPort: "y" }
+		)
+	}
+
+	return { nodes, wires, outputNodeId: outputId }
+}
+
+const SHADER_NOISE_GLSL = `float sr_hash21(vec2 p) {
+\tp = fract(p * vec2(123.34, 456.21));
+\tp += dot(p, p + 45.32);
+\treturn fract(p.x * p.y);
+}
+
+vec2 sr_hash22(vec2 p) {
+\tfloat n = sr_hash21(p);
+\treturn fract(vec2(n, n + 0.37) * vec2(269.5, 183.3));
+}
+
+float sr_value_noise(vec2 p) {
+\tvec2 i = floor(p);
+\tvec2 f = fract(p);
+\tvec2 u = f * f * (3.0 - 2.0 * f);
+\tfloat a = sr_hash21(i);
+\tfloat b = sr_hash21(i + vec2(1.0, 0.0));
+\tfloat c = sr_hash21(i + vec2(0.0, 1.0));
+\tfloat d = sr_hash21(i + vec2(1.0, 1.0));
+\treturn mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float sr_perlin_noise(vec2 p) {
+\tvec2 i = floor(p);
+\tvec2 f = fract(p);
+\tvec2 u = f * f * (3.0 - 2.0 * f);
+\tvec2 ga = normalize(sr_hash22(i) * 2.0 - 1.0);
+\tvec2 gb = normalize(sr_hash22(i + vec2(1.0, 0.0)) * 2.0 - 1.0);
+\tvec2 gc = normalize(sr_hash22(i + vec2(0.0, 1.0)) * 2.0 - 1.0);
+\tvec2 gd = normalize(sr_hash22(i + vec2(1.0, 1.0)) * 2.0 - 1.0);
+\tfloat a = dot(ga, f);
+\tfloat b = dot(gb, f - vec2(1.0, 0.0));
+\tfloat c = dot(gc, f - vec2(0.0, 1.0));
+\tfloat d = dot(gd, f - vec2(1.0, 1.0));
+\treturn mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float sr_fbm(vec2 p, float octaves, float lacunarity, float gain) {
+\tfloat value = 0.0;
+\tfloat amplitude = 0.5;
+\tfloat norm = 0.0;
+\tfor (int i = 0; i < 8; i++) {
+\t\tif (float(i) >= octaves) break;
+\t\tvalue += amplitude * sr_value_noise(p);
+\t\tnorm += amplitude;
+\t\tp *= lacunarity;
+\t\tamplitude *= gain;
+\t}
+\treturn norm > 0.0 ? value / norm : 0.0;
+}
+
+float sr_ridged_fbm(vec2 p, float octaves, float lacunarity, float gain) {
+\tfloat value = 0.0;
+\tfloat amplitude = 0.5;
+\tfloat norm = 0.0;
+\tfor (int i = 0; i < 8; i++) {
+\t\tif (float(i) >= octaves) break;
+\t\tfloat signal = 1.0 - abs(sr_perlin_noise(p));
+\t\tsignal *= signal;
+\t\tvalue += signal * amplitude;
+\t\tnorm += amplitude;
+\t\tp *= lacunarity;
+\t\tamplitude *= gain;
+\t}
+\treturn norm > 0.0 ? clamp(value / norm, 0.0, 1.0) : 0.0;
+}
+
+float sr_turbulence(vec2 p, float octaves, float lacunarity, float gain) {
+\tfloat value = 0.0;
+\tfloat amplitude = 0.5;
+\tfloat norm = 0.0;
+\tfor (int i = 0; i < 8; i++) {
+\t\tif (float(i) >= octaves) break;
+\t\tvalue += abs(sr_perlin_noise(p)) * amplitude;
+\t\tnorm += amplitude;
+\t\tp *= lacunarity;
+\t\tamplitude *= gain;
+\t}
+\treturn norm > 0.0 ? clamp(value / norm, 0.0, 1.0) : 0.0;
+}
+
+float sr_voronoi(vec2 p, float jitter) {
+\tvec2 i = floor(p);
+\tvec2 f = fract(p);
+\tfloat nearest = 8.0;
+\tfor (int y = -1; y <= 1; y++) {
+\t\tfor (int x = -1; x <= 1; x++) {
+\t\t\tvec2 cell = vec2(float(x), float(y));
+\t\t\tvec2 point = cell + mix(vec2(0.5), sr_hash22(i + cell), clamp(jitter, 0.0, 1.0)) - f;
+\t\t\tnearest = min(nearest, dot(point, point));
+\t\t}
+\t}
+\treturn clamp(sqrt(nearest), 0.0, 1.0);
+}
+
+vec2 sr_cellular(vec2 p, float jitter) {
+\tvec2 i = floor(p);
+\tvec2 f = fract(p);
+\tfloat f1 = 8.0;
+\tfloat f2 = 8.0;
+\tfor (int y = -1; y <= 1; y++) {
+\t\tfor (int x = -1; x <= 1; x++) {
+\t\t\tvec2 cell = vec2(float(x), float(y));
+\t\t\tvec2 point = cell + mix(vec2(0.5), sr_hash22(i + cell), clamp(jitter, 0.0, 1.0)) - f;
+\t\t\tfloat d = dot(point, point);
+\t\t\tif (d < f1) {
+\t\t\t\tf2 = f1;
+\t\t\t\tf1 = d;
+\t\t\t} else if (d < f2) {
+\t\t\t\tf2 = d;
+\t\t\t}
+\t\t}
+\t}
+\treturn clamp(sqrt(vec2(f1, f2)), 0.0, 1.0);
+}
+
+vec2 sr_curl_noise(vec2 p, float epsilon) {
+\tfloat e = max(epsilon, 0.0001);
+\tfloat x0 = sr_fbm(p - vec2(e, 0.0), 4.0, 2.0, 0.5);
+\tfloat x1 = sr_fbm(p + vec2(e, 0.0), 4.0, 2.0, 0.5);
+\tfloat y0 = sr_fbm(p - vec2(0.0, e), 4.0, 2.0, 0.5);
+\tfloat y1 = sr_fbm(p + vec2(0.0, e), 4.0, 2.0, 0.5);
+\treturn normalize(vec2(y1 - y0, x0 - x1) / (2.0 * e));
+}
+
+float sr_bias(float value, float bias) {
+\tfloat b = clamp(bias, 0.001, 0.999);
+\tfloat x = clamp(value, 0.0, 1.0);
+\treturn x / (((1.0 / b - 2.0) * (1.0 - x)) + 1.0);
+}
+
+float sr_bias_gain(float value, float bias, float gain) {
+\tfloat biased = sr_bias(value, bias);
+\tfloat g = clamp(gain, 0.001, 0.999);
+\tif (biased < 0.5) return sr_bias(biased * 2.0, 1.0 - g) * 0.5;
+\treturn 1.0 - sr_bias(2.0 - biased * 2.0, 1.0 - g) * 0.5;
+}
+
+vec2 sr_domain_warp(vec2 p, float strength) {
+\tfloat x = sr_fbm(p + vec2(17.2, 9.1), 4.0, 2.0, 0.5);
+\tfloat y = sr_fbm(p + vec2(-8.3, 23.7), 4.0, 2.0, 0.5);
+\treturn p + (vec2(x, y) * 2.0 - 1.0) * strength;
+}
+
+float sr_terrain_height_sample(vec2 uv, float scale, float warp, float detail, float amplitude, float seed) {
+\tvec2 p = uv * scale + vec2(seed);
+\tvec2 warped = sr_domain_warp(p, warp);
+\tfloat base = sr_fbm(warped, 6.0, 2.0, 0.5);
+\tfloat fine = sr_fbm(warped * 4.0 + vec2(31.7, -14.2), 4.0, 2.15, 0.45);
+\treturn clamp((base + fine * detail) * amplitude, 0.0, 1.0);
+}`
+
+export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: string[]; warnings: string[] } {
+	const errors = validateShaderGraph(graph)
+	if (errors.length) return { glsl: "", errors, warnings: [] }
+	const warnings = collectShaderGraphWarnings(graph)
+
+	const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]))
+	const defMap = SHADER_NODE_DEF_MAP
+	const sorted = sortShaderGraph(graph)
 
 	// Build variable names and collect GLSL lines
 	const varNames = new Map<string, Map<string, string>>() // nodeId → portKey → varName
@@ -452,6 +1800,7 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 
 	// Generate code
 	const bodyLines: string[] = []
+	const uniformLines = new Set<string>()
 
 	for (const nodeId of sorted) {
 		const node = nodeMap.get(nodeId)!
@@ -490,7 +1839,28 @@ export function compileShaderGraph(graph: ShaderGraph): { glsl: string; errors: 
 		}
 
 		// Emit node body
-		const lines = def.compile(ins, outs)
+		let lines: string[]
+		if (node.defId === "float_const") {
+			lines = [`${outs.value} = ${getConstantNodeValue(node, "float", "1.0")};`]
+		} else if (node.defId === "vec3_const") {
+			lines = [`${outs.value} = ${getConstantNodeValue(node, "vec3", "vec3(1.0, 1.0, 1.0)")};`]
+		} else if (node.defId === "uniform_float") {
+			const uniformName = getUniformName(node)
+			uniformLines.add(`uniform float ${uniformName};`)
+			lines = [`${outs.value} = ${uniformName};`]
+		} else if (node.defId === "uniform_vec2") {
+			const uniformName = getUniformName(node)
+			uniformLines.add(`uniform vec2 ${uniformName};`)
+			lines = [`${outs.value} = ${uniformName};`]
+		} else if (node.defId === "uniform_vec3") {
+			const uniformName = getUniformName(node)
+			uniformLines.add(`uniform vec3 ${uniformName};`)
+			lines = [`${outs.value} = ${uniformName};`]
+		} else if (node.defId === "color_ramp" && hasCustomShaderColorRampStops(node)) {
+			lines = compileShaderColorRampStops(node, ins, outs)
+		} else {
+			lines = def.compile(ins, outs)
+		}
 		for (const line of lines) {
 			bodyLines.push(`\t${line}`)
 		}
@@ -504,11 +1874,97 @@ uniform vec3 u_accent;
 uniform vec3 u_secondary;
 uniform float u_intensity;
 uniform float u_speed;
+uniform vec3 u_camera_position;
+uniform vec3 u_camera_target;
+uniform vec2 u_mouse;
+${[...uniformLines].join("\n")}
+
+${SHADER_NOISE_GLSL}
 
 void main() {
 ${bodyLines.join("\n")}
 }
 `
 
-	return { glsl, errors }
+	return { glsl, errors, warnings }
+}
+
+export function normalizeShaderColorRampStops(value: unknown): ShaderColorRampStop[] {
+	const source = parseShaderColorRampStopsSource(value)
+	const stops = source.flatMap((item): ShaderColorRampStop[] => {
+		if (!item || typeof item !== "object" || Array.isArray(item)) return []
+		const offset = Number((item as Record<string, unknown>).offset)
+		const color = String((item as Record<string, unknown>).color ?? "").trim()
+		if (!Number.isFinite(offset) || !color) return []
+		return [{ offset: clamp01(offset), color: formatVec3Literal(color) }]
+	})
+	if (stops.length < 2) return DEFAULT_SHADER_COLOR_RAMP_STOPS.map((stop) => ({ ...stop }))
+	return stops
+		.sort((a, b) => a.offset - b.offset)
+		.map((stop, index, sorted) => ({
+			offset: constrainRampOffset(stop.offset, index, sorted.length),
+			color: stop.color,
+		}))
+}
+
+export function serializeShaderColorRampStops(stops: ShaderColorRampStop[]) {
+	return JSON.stringify(normalizeShaderColorRampStops(stops))
+}
+
+function hasCustomShaderColorRampStops(node: ShaderNodeInstance) {
+	const value = node.inputDefaults?.rampStops
+	if (typeof value !== "string" || !value.trim()) return false
+	return parseShaderColorRampStopsSource(value).length >= 2
+}
+
+function parseShaderColorRampStopsSource(value: unknown): unknown[] {
+	if (Array.isArray(value)) return value
+	if (typeof value !== "string" || !value.trim()) return []
+	try {
+		const parsed = JSON.parse(value)
+		return Array.isArray(parsed) ? parsed : []
+	} catch {
+		return []
+	}
+}
+
+function compileShaderColorRampStops(node: ShaderNodeInstance, ins: Record<string, string>, outs: Record<string, string>) {
+	const stops = normalizeShaderColorRampStops(node.inputDefaults?.rampStops)
+	const lines = [
+		`float ${outs.color}_f = clamp(${ins.factor}, 0.0, 1.0);`,
+		`vec3 ${outs.color}_ramp = ${stops[0].color};`,
+	]
+	for (let i = 1; i < stops.length; i++) {
+		const previous = stops[i - 1]
+		const current = stops[i]
+		lines.push(`${outs.color}_ramp = mix(${outs.color}_ramp, ${current.color}, smoothstep(${formatFloat(previous.offset)}, max(${formatFloat(current.offset)}, ${formatFloat(previous.offset)} + 0.0001), ${outs.color}_f));`)
+	}
+	lines.push(`${outs.color} = ${outs.color}_ramp;`)
+	return lines
+}
+
+function constrainRampOffset(offset: number, index: number, length: number) {
+	if (index === 0) return clamp01(offset)
+	if (index === length - 1) return clamp01(offset)
+	return clamp01(offset)
+}
+
+function formatVec3Literal(value: string) {
+	const hex = value.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
+	if (hex) {
+		let source = hex[1]
+		if (source.length === 3) source = source.split("").map((char) => char + char).join("")
+		const parsed = Number.parseInt(source, 16)
+		return `vec3(${formatFloat(((parsed >> 16) & 255) / 255)}, ${formatFloat(((parsed >> 8) & 255) / 255)}, ${formatFloat((parsed & 255) / 255)})`
+	}
+	const [r, g, b] = parseVec3Literal(value)
+	return `vec3(${formatFloat(r)}, ${formatFloat(g)}, ${formatFloat(b)})`
+}
+
+function formatFloat(value: number) {
+	return Number.isFinite(value) ? Number(value.toFixed(4)).toString() : "0"
+}
+
+function clamp01(value: number) {
+	return Math.max(0, Math.min(1, value))
 }

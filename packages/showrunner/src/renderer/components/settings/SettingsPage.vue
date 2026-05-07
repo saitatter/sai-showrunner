@@ -91,6 +91,7 @@ import { computed, nextTick, onMounted, ref, useModel } from "vue"
 import { SettingsDocumentData, SettingsViewData } from "./SettingsTypes"
 import PInputText from "primevue/inputtext"
 import { InterfacePreferences, useInterfacePreferencesStore } from "../../util/interface-preferences"
+import _cloneDeep from "lodash/cloneDeep"
 
 const props = defineProps<{
 	modelValue: SettingsDocumentData
@@ -121,7 +122,7 @@ const document = useDocument(() => documentId.value)
 useSettingWatcher((plugin, setting, value) => {
 	if (!document.value) return
 	if (!document.value.data.settings) return
-	if (!document.value.data.settings[plugin]) return
+	if (!document.value.data.settings[plugin]) document.value.data.settings[plugin] = {}
 	document.value.data.settings[plugin][setting] = value
 })
 
@@ -130,6 +131,10 @@ const filteredSettings = computed(() => {
 
 	const result: { pluginId: string; settings: Record<string, SettingDefinition> }[] = []
 	for (const [pid, plugin] of pluginStore.pluginMap) {
+		if (model.value?.settings && !model.value.settings[pid]) {
+			model.value.settings[pid] = {}
+		}
+
 		const pluginSettings = {
 			pluginId: pid,
 			settings: {} as Record<string, SettingDefinition>,
@@ -138,6 +143,9 @@ const filteredSettings = computed(() => {
 		for (const sid in plugin.settings) {
 			const setting = plugin.settings[sid]
 			if (setting.type == "value" || setting.type == "secret") {
+				if (model.value?.settings?.[pid] && !(sid in model.value.settings[pid])) {
+					model.value.settings[pid][sid] = _cloneDeep(setting.value)
+				}
 				const settingNameStr = setting.schema.name?.toLocaleLowerCase() ?? sid.toLocaleLowerCase()
 				if (settingNameStr.includes(filterValue)) {
 					pluginSettings.settings[sid] = setting
