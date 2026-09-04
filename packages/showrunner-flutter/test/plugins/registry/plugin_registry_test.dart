@@ -34,6 +34,7 @@ void main() {
         'philips-hue',
         'twinkly',
         'elgato',
+        'tplink-kasa',
       ]),
     );
     expect(registry.findAction('obs', 'scene'), isNotNull);
@@ -51,6 +52,7 @@ void main() {
     expect(registry.findAction('http', 'request'), isNotNull);
     expect(registry.findAction('govee', 'setColor'), isNotNull);
     expect(registry.findAction('elgato', 'setLightState'), isNotNull);
+    expect(registry.findAction('tplink-kasa', 'setLightState'), isNotNull);
   });
 
   test('bootstraps and executes the built-in conversion actions', () async {

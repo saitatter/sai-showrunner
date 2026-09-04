@@ -37,6 +37,7 @@ import '../govee/manifest.dart';
 import '../philips_hue/manifest.dart';
 import '../twinkly/manifest.dart';
 import '../elgato/manifest.dart';
+import '../tplink_kasa/manifest.dart';
 import '../input/manifest.dart';
 import '../stream_plans/manifest.dart';
 import '../showrunner/manifest.dart';
@@ -114,6 +115,7 @@ DartPluginRegistry createDefaultPluginRegistry({
     createTwinklyPlugin(TwinklyTransport(_unconfiguredTwinkly)),
   );
   registry.register(createElgatoPlugin(ElgatoTransport(_unconfiguredElgato)));
+  registry.register(createKasaPlugin(KasaTransport(_unconfiguredKasa)));
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   return registry;
@@ -328,6 +330,19 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       numberOfLights: elgatoLights,
     ),
   );
+  final kasaSettings = await dataService.loadPluginSettings('tplink-kasa');
+  final kasaHost = kasaSettings['host']?.toString().trim();
+  final kasaTransport = kasaHost?.isNotEmpty == true
+      ? KasaTcpTransport(
+          host: kasaHost!,
+          port: _port(kasaSettings['port'], 9999),
+        )
+      : null;
+  registry.register(
+    createKasaPlugin(
+      KasaTransport(kasaTransport?.request ?? _unconfiguredKasa),
+    ),
+  );
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   final disabled = appSettings['disabledPlugins'];
@@ -447,6 +462,11 @@ Future<RuntimeMap> _unconfiguredElgato(
   dynamic body,
 ) =>
     Future<RuntimeMap>.error(StateError('Elgato transport is not configured.'));
+
+Future<RuntimeMap> _unconfiguredKasa(RuntimeMap request) =>
+    Future<RuntimeMap>.error(
+      StateError('TP-Link Kasa transport is not configured.'),
+    );
 
 Future<List<RuntimeMap>> _unconfiguredVoiceModVoices() =>
     Future.error(StateError('VoiceMod transport is not configured.'));

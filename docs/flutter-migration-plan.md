@@ -103,6 +103,9 @@ device-resource recovery remain open.
 Elgato Key Light and Light Strip controls are registered over the local HTTP
 API, including accessory info, state reads, Kelvin/RGB conversion, and state
 updates; Bonjour discovery and persisted device-resource recovery remain open.
+TP-Link Kasa is registered with the native Dart TCP protocol, including the
+encrypted frame codec and light or plug power/color/transition commands;
+subnet discovery and persisted device-resource recovery remain open.
 Bluesky is registered with persisted account settings and real AT Protocol
 session/post requests; account-resource selection and login UI parity remain open.
 DonorDrive is registered with participant polling, donation/incentive/milestone
@@ -466,6 +469,8 @@ For each surface:
 	actions, and power-off control.
 - [x] Port Elgato accessory info and Key Light/Light Strip state controls over
 	the local HTTP API, including Kelvin/RGB payload conversion.
+- [x] Port TP-Link Kasa encrypted TCP frames and light/plug state commands,
+	including transition, color temperature, and RGB fields.
 - [x] Port Discord webhook JSON delivery and authenticated Minecraft TCP RCON
 	command execution; Discord file attachments and persistent RCON sessions
 	remain follow-up work.
