@@ -64,10 +64,13 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(createOsPlugin());
   registry.register(createRandomPlugin());
   registry.register(
-    createVariablesPlugin(viewerDataRepository: variablesRepository),
+    createVariablesPlugin(
+      viewerDataRepository: variablesRepository,
+      eventHub: eventHub,
+    ),
   );
   registry.register(createOverlaysPlugin());
-  registry.register(createSpellcastPlugin());
+  registry.register(createSpellcastPlugin(eventHub: eventHub));
   registry.register(createIotPlugin());
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
@@ -165,10 +168,13 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.register(createOsPlugin());
   registry.register(createRandomPlugin());
   registry.register(
-    createVariablesPlugin(viewerDataRepository: variablesRepository),
+    createVariablesPlugin(
+      viewerDataRepository: variablesRepository,
+      eventHub: eventHub,
+    ),
   );
   registry.register(createOverlaysPlugin());
-  registry.register(createSpellcastPlugin());
+  registry.register(createSpellcastPlugin(eventHub: eventHub));
   registry.register(createIotPlugin());
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());

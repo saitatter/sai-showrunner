@@ -4,6 +4,14 @@ import '../registry/plugin_registry.dart';
 import 'keyboard.dart';
 import 'native_input.dart';
 
+const inputMouseButtons = <String>[
+  'left',
+  'right',
+  'middle',
+  'mouse4',
+  'mouse5',
+];
+
 const _pressKeyConfigSchema = DartDataInputSchema(
   label: 'Keyboard action',
   kind: DartDataInputKind.object,
@@ -37,6 +45,28 @@ const _keyboardShortcutConfigSchema = DartDataInputSchema(
   ],
 );
 
+const _mouseButtonConfigSchema = DartDataInputSchema(
+  label: 'Mouse action',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Button',
+      key: 'button',
+      kind: DartDataInputKind.enumeration,
+      options: inputMouseButtons,
+      required: true,
+      defaultValue: 'left',
+    ),
+    DartDataInputSchema(
+      label: 'Duration (seconds)',
+      key: 'duration',
+      kind: DartDataInputKind.duration,
+      required: true,
+      defaultValue: 0.1,
+    ),
+  ],
+);
+
 DartPluginManifest createInputPlugin({InputPlatform? platform}) {
   final inputPlatform = platform ?? const NativeInputPlatform();
   return DartPluginManifest(
@@ -48,8 +78,15 @@ DartPluginManifest createInputPlugin({InputPlatform? platform}) {
         actionId: 'pressKey',
         displayName: 'Simulate Keyboard',
         configSchema: _pressKeyConfigSchema,
+        invoke: (config, context) => _pressKey(inputPlatform, config, context),
+      ),
+      DartActionDefinition(
+        pluginId: 'input',
+        actionId: 'mouseButton',
+        displayName: 'Simulate Mouse',
+        configSchema: _mouseButtonConfigSchema,
         invoke: (config, context) =>
-            _pressKey(inputPlatform, config, context),
+            _mouseButton(inputPlatform, config, context),
       ),
     ],
     triggers: [
@@ -89,11 +126,7 @@ Future<Object?> _pressKey(
   } finally {
     await platform.simulateKeyUp(virtualKeyCode);
   }
-  return {
-    'pressed': true,
-    'key': key,
-    'duration': duration,
-  };
+  return {'pressed': true, 'key': key, 'duration': duration};
 }
 
 Stream<RuntimeMap> _listenKeyboardShortcuts(InputPlatform platform) async* {
@@ -133,4 +166,31 @@ bool matchesKeyboardShortcut(RuntimeMap config, RuntimeMap payload) {
   return normalizedCombo.isNotEmpty &&
       normalizedCombo.contains(normalizeKeyboardKey(eventKey)) &&
       normalizedCombo.every(normalizedPressedKeys.contains);
+}
+
+Future<Object?> _mouseButton(
+  InputPlatform platform,
+  RuntimeMap config,
+  EvaluationContext context,
+) async {
+  final button = config['button']?.toString().trim().toLowerCase() ?? '';
+  final duration = config['duration'] is num
+      ? (config['duration'] as num).toDouble()
+      : 0.1;
+  if (!inputMouseButtons.contains(button)) {
+    return {'pressed': false, 'button': button, 'duration': duration};
+  }
+
+  final boundedDuration = duration.isFinite && duration > 0 ? duration : 0;
+  await platform.simulateMouseDown(button);
+  try {
+    if (boundedDuration > 0) {
+      await Future<void>.delayed(
+        Duration(microseconds: (boundedDuration * 1000000).round()),
+      );
+    }
+  } finally {
+    await platform.simulateMouseUp(button);
+  }
+  return {'pressed': true, 'button': button, 'duration': duration};
 }

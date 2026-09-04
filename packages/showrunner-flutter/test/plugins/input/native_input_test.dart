@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/plugins/input/keyboard.dart';
 import 'package:showrunner_flutter/plugins/input/manifest.dart';
 import 'package:showrunner_flutter/plugins/input/native_input.dart';
@@ -22,8 +23,14 @@ void main() {
     );
     expect(InputKeyEvent.tryParse({'type': 'mouse', 'vkCode': 1}), isNull);
     expect(InputKeyEvent.tryParse({'type': 'key-pressed'}), isNull);
-    expect(InputKeyEvent.tryParse({'type': 'key-pressed', 'vkCode': 256}), isNull);
-    expect(InputKeyEvent.tryParse({'type': 'key-pressed', 'vkCode': 1.5}), isNull);
+    expect(
+      InputKeyEvent.tryParse({'type': 'key-pressed', 'vkCode': 256}),
+      isNull,
+    );
+    expect(
+      InputKeyEvent.tryParse({'type': 'key-pressed', 'vkCode': 1.5}),
+      isNull,
+    );
   });
 
   test('maps legacy keys to Windows virtual-key codes', () {
@@ -34,38 +41,88 @@ void main() {
     expect(keyboardKeyNameForVirtualKey(0xffff), isNull);
   });
 
-  test('pressKey routes the mapped virtual key and always releases it', () async {
+  test(
+    'pressKey routes the mapped virtual key and always releases it',
+    () async {
+      final platform = _FakeInputPlatform();
+      final plugin = createInputPlugin(platform: platform);
+
+      final result = await plugin.actions
+          .firstWhere((action) => action.actionId == 'pressKey')
+          .invoke({'key': 'A', 'duration': 0}, EvaluationContext());
+
+      expect(platform.calls, ['key-down:65', 'key-up:65']);
+      expect(result, {'pressed': true, 'key': 'A', 'duration': 0});
+    },
+  );
+
+  test('mouseButton routes the selected button and releases it', () async {
     final platform = _FakeInputPlatform();
     final plugin = createInputPlugin(platform: platform);
 
-    final result = await plugin.actions.single.invoke(
-      {'key': 'A', 'duration': 0},
-      EvaluationContext(),
-    );
+    final result = await plugin.actions
+        .firstWhere((action) => action.actionId == 'mouseButton')
+        .invoke({'button': 'mouse4', 'duration': 0}, EvaluationContext());
 
-    expect(platform.calls, ['key-down:65', 'key-up:65']);
-    expect(result, {'pressed': true, 'key': 'A', 'duration': 0});
+    expect(platform.calls, ['mouse-down:mouse4', 'mouse-up:mouse4']);
+    expect(result, {'pressed': true, 'button': 'mouse4', 'duration': 0});
   });
 
-  test('keyboard shortcut matching honors normalized modifiers and key state', () {
-    expect(
-      matchesKeyboardShortcut(
-        {'combo': ['RightControl', 'A']},
-        {
-          'key': 'A',
-          'pressedKeys': ['LeftControl', 'A', 'B'],
-        },
-      ),
-      isTrue,
-    );
-    expect(
-      matchesKeyboardShortcut(
-        {'combo': ['LeftControl', 'A']},
-        {'key': 'A', 'pressedKeys': ['A']},
-      ),
-      isFalse,
-    );
+  test('mouseButton rejects unknown buttons without native calls', () async {
+    final platform = _FakeInputPlatform();
+    final plugin = createInputPlugin(platform: platform);
+
+    final result = await plugin.actions
+        .firstWhere((action) => action.actionId == 'mouseButton')
+        .invoke({'button': 'sideways', 'duration': 0.1}, EvaluationContext());
+
+    expect(platform.calls, isEmpty);
+    expect(result, {'pressed': false, 'button': 'sideways', 'duration': 0.1});
   });
+
+  test('input manifest exposes legacy mouse action schema', () {
+    final mouse = createInputPlugin().actions.firstWhere(
+      (action) => action.actionId == 'mouseButton',
+    );
+
+    expect(mouse.configSchema?.fields.map((field) => field.key), [
+      'button',
+      'duration',
+    ]);
+    expect(mouse.configSchema?.fields.first.options, inputMouseButtons);
+    expect(mouse.configSchema?.fields.first.defaultValue, 'left');
+    expect(mouse.configSchema?.fields.last.kind, DartDataInputKind.duration);
+  });
+
+  test(
+    'keyboard shortcut matching honors normalized modifiers and key state',
+    () {
+      expect(
+        matchesKeyboardShortcut(
+          {
+            'combo': ['RightControl', 'A'],
+          },
+          {
+            'key': 'A',
+            'pressedKeys': ['LeftControl', 'A', 'B'],
+          },
+        ),
+        isTrue,
+      );
+      expect(
+        matchesKeyboardShortcut(
+          {
+            'combo': ['LeftControl', 'A'],
+          },
+          {
+            'key': 'A',
+            'pressedKeys': ['A'],
+          },
+        ),
+        isFalse,
+      );
+    },
+  );
 
   test('profile watch filters configured keyboard shortcuts', () async {
     final executionCompleted = Completer<void>();
@@ -105,7 +162,9 @@ void main() {
         {
           'plugin': 'input',
           'trigger': 'keyboardShortcut',
-          'config': {'combo': ['LeftControl', 'A']},
+          'config': {
+            'combo': ['LeftControl', 'A'],
+          },
           'graph': {
             'nodes': [
               {

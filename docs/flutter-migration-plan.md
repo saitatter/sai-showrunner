@@ -6,7 +6,7 @@ Migrate the ShowRunner desktop application from the current Electron + Vue/TypeS
 
 The migration should be incremental. The current application remains usable throughout the work, and each migrated surface must be independently testable before the next surface moves.
 
-## Status Snapshot (2026-09-01)
+## Status Snapshot (2026-09-05)
 
 The Flutter package has a working Windows-oriented vertical slice. The shell, Dart
 schema and persistence modules, graph compiler/runtime, action queue, provider workers,
@@ -25,16 +25,16 @@ The remaining work is concentrated in four areas:
 
 The migration is not yet a complete replacement of the Vue product. The Flutter
 shell now has top-level closable workspace tabs, a persistent grouped integrations
-sidebar with enable/disable switches, searchable interface preferences, and a
+sidebar with enable/disable switches, searchable integration and interface preferences, and a
 non-blocking first-run setup wizard for Twitch, YouTube, and OBS. These are complete
 Flutter slices, but the old Electron renderer remains the supported desktop entry
 point until the cutover gates below pass.
 
-The Sound slice now includes direct system speech through `flutter_tts` and an
-injectable sound-output resolver that preserves legacy splitter fan-out, mute,
-volume scaling, duplicate-route selection, and cycle protection. Native file
-playback, physical output enumeration, WAV synthesis, and external TTS providers
-remain open parity work.
+The Sound slice now includes direct system speech through `flutter_tts`, Windows
+PCM/WAV playback and WAV synthesis for installed system voices, and an injectable
+sound-output resolver that preserves legacy splitter fan-out, mute, volume
+scaling, duplicate-route selection, and cycle protection. Non-WAV playback,
+WASAPI endpoint routing, and external TTS providers remain open parity work.
 
 Deletion rule: a Vue file is deleted only when its user-visible behavior is present
 in Flutter, its runtime/build references are removed, and a focused test or smoke
@@ -77,6 +77,17 @@ insertion, and runtime execution highlighting. Plugin diagnostics now include he
 checks for every registered plugin, alongside provider worker and queue state.
 Dashboard resources now have a dedicated Flutter editor for the Vue-compatible
 dashboard -> pages -> sections -> widgets hierarchy, including CRUD for each level.
+Input configuration now includes native Windows mouse-button simulation alongside
+keyboard capture and shortcuts. Spellcast resources have a structured Flutter
+editor and its trigger is backed by the Dart event hub. Viewer variables now have
+an operational Flutter panel for definition CRUD, per-viewer value editing, and
+lazy paginated/sorted viewer tables. The Flutter resource repository also reads
+and round-trips the existing YAML resource directories without requiring a data
+conversion before editing. Spellcast now has a dedicated Flutter workspace with
+local CRUD, remote API sync, resource recovery for the connected Twitch channel,
+and a Dart Cloud PubSub lifecycle bridge with negotiation, reconnect, reinit, and
+active-spell synchronization. The active profile trigger set is propagated from
+the Flutter profile lifecycle into the Spellcast subscription set.
 
 ## Current Architecture
 
@@ -113,7 +124,7 @@ Vue interaction or visual detail is still missing; it is not a runtime failure.
 
 | Surface | Flutter status | Owning layer and next step |
 |---|---|---|
-| Shell, navigation, workspace tabs, integration catalog, loading/empty/error states | Partial | Flutter app/features; top-level closable tabs, grouped plugin switches, Settings preferences, and first-run Setup exist. Dynamic document docking, split panes, persistence, baseline comparison, and accessibility coverage remain. |
+| Shell, navigation, workspace tabs, integration catalog, loading/empty/error states | Partial | Flutter app/features; top-level closable tabs, grouped plugin switches, searchable integration filtering, explicit disabled-plugin hints, Settings preferences, and first-run Setup exist. Dynamic document docking, split panes, persistence, baseline comparison, and accessibility coverage remain. |
 | Canvas pan/zoom, grid, selection, multi-select, fit, alignment, distribution, history | Done | `sai_nodes`; keep generic controls in `NodeEditorToolbar`. |
 | Typed control-flow and data ports, link persistence, invalid-link retention | Done | ShowRunner adapter plus `sai_nodes` link primitives; add broader widget coverage. |
 | Palette, grouped insertion, search, recent node types, edge insertion | Partial | ShowRunner graph workspace; route palette actions through the generic searchable menu. The generic menu now supports keyboard traversal. |
@@ -216,7 +227,7 @@ rollback path.
 - [ ] Capture baseline smoke checks for startup, profile selection, integrations, automations, overlays, updates, and shutdown.
 - [x] Inventory renderer pages, global stores, Electron IPC calls, websocket clients, and plugin UI entry points.
 - [x] Mark each surface as `migrate`, `keep web`, `replace`, or `defer`.
-- [ ] Agree on Flutter and Dart minimum versions and the supported desktop embedding strategy.
+- [x] Agree on Flutter 3.44.0 stable, Dart SDK `^3.12.0`, and the Windows desktop embedding strategy.
 
 **Exit gate:** the existing application has a repeatable baseline checklist and every user-facing surface has an owner and migration disposition.
 
@@ -372,34 +383,51 @@ For each surface:
 - [x] Retire the no-op Stream Plans, DonorDrive, and Elgato Vue renderer packages after removing their workspace references.
 - [x] Add closable workspace tabs for the top-level Flutter destinations.
 - [x] Add a persistent left integrations catalog with plugin selection and enable/disable toggles.
+- [x] Add integration search across grouped categories and registered plugin
+	capabilities, including a hint when only disabled plugins match.
+- [x] Add explicit empty-state copy for filtered integration categories and a
+	persisted interface-preference reset action.
 - [x] Delete migrated main-renderer Vue component directories for main page, integrations, setup, updates, migration, profile editor, queue page, test editors, about, settings, project/profiles, dashboard, system, and automation editor.
 - [x] Achieve 0 analyzer issues across the entire `showrunner-flutter` codebase (`flutter analyze` clean).
 - [x] Migrate YouTube status/OAuth diagnostics.
 - [ ] Deepen full parity for Twitch, OBS, and Moderation bespoke workspaces.
 - [x] Add a generic plugin detail page for capabilities that do not need bespoke UI.
 - [ ] Port bespoke plugin pages only where the generic page is insufficient.
-- [ ] Port Input keyboard-key and key-combination capture controls and native
+- [x] Port Input keyboard-key and key-combination capture controls and native
 	keyboard/mouse actions before removing `plugins/input/renderer/`.
 - [x] Port Variables definitions, current-value editing, reset flows, and CRUD
 	persistence into the Flutter workspace.
 - [x] Port the bounded viewer-variable definitions repository and the legacy
 	`setViewerVar`/`offsetViewerVar` actions for Twitch IDs.
-- [ ] Port lazy viewer tables, provider event synchronization, and the remaining
-	viewer-variable types before removing `plugins/variables/renderer/`.
+- [x] Port lazy viewer tables and the local viewer-data query surface; provider
+	event synchronization and the remaining viewer-variable types remain before
+	removing `plugins/variables/renderer/`.
 - [x] Port Sound TTS voice and AudioSplitter configuration editors, plus the
 	injectable direct-speech and splitter-routing runtime slices.
 - [x] Port IoT color/brightness controls into the generic Flutter data-input
 	boundary.
-- [ ] Port Spellcast pages before removing their active renderer components.
-- [ ] Complete Sound native file playback, physical output enumeration, WAV TTS,
-	and external-provider parity before removing its active renderer components.
-- [ ] Complete OBS scene/source/transform configuration and Overlays widget/
-	shader editing before removing `plugins/obs/renderer/` or
+- [x] Port the Spellcast page, local resource recovery, and remote CRUD/sync
+	controls into Flutter.
+- [x] Port Spellcast cloud PubSub negotiation, reconnect, reinit, and
+	active-spell lifecycle handling into the Dart event hub.
+- [x] Drive Cloud PubSub active-spell subscriptions from the active profile's
+	selected trigger set before removing the old renderer lifecycle hooks.
+- [x] Port Windows PCM/WAV playback, playback trimming, volume control, and
+	WinMM output enumeration into the Dart Sound runtime.
+- [x] Port the OBS scene/source catalog, source/filter visibility toggles,
+	JSON input-settings editing, and structured source transform editing into
+	Flutter.
+- [x] Complete Windows WAV TTS generation for installed system voices.
+- [ ] Complete non-WAV Sound playback, WASAPI endpoint routing, and
+	external-provider parity before removing its active renderer components.
+- [ ] Complete structured OBS source configuration and Overlays widget/shader
+	editing before removing `plugins/obs/renderer/` or
 	`plugins/overlays/renderer/`.
-- [ ] Complete Twitch channel/account, stream info, prediction/poll, and
-	group-management pages; complete remaining YouTube live status controls.
-- [ ] Complete Dashboards page/section/widget editing and device-specific
-	resource settings for the remaining integrations.
+- [x] Complete Twitch channel/account, stream info, prediction/poll, and
+	group-management workflows; complete YouTube live status controls.
+- [x] Complete Dashboards page/section/widget editing, widget JSON/size
+	configuration, sharing IDs, and remote resource-slot configuration.
+- [ ] Add device-specific resource settings for the remaining integrations.
 - [ ] Replace the satellite connection/dashboard/settings/slots renderer with
 	a Flutter remote workspace before removing `packages/showrunner-satellite/`.
 - [ ] Keep plugin runtime code in existing packages until the new boundary is proven.

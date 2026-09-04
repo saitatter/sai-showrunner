@@ -292,6 +292,53 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
       ),
       DartActionDefinition(
         pluginId: 'obs',
+        actionId: 'getInputSettings',
+        displayName: 'Get Input Settings',
+        configSchema: const DartDataInputSchema(
+          label: 'Input settings query',
+          kind: DartDataInputKind.object,
+          fields: [
+            DartDataInputSchema(
+              label: 'Source name',
+              key: 'sourceName',
+              kind: DartDataInputKind.text,
+              required: true,
+            ),
+          ],
+        ),
+        invoke: (config, context) => transport.call('GetInputSettings', {
+          'inputName': config['sourceName'],
+        }),
+      ),
+      DartActionDefinition(
+        pluginId: 'obs',
+        actionId: 'setInputSettings',
+        displayName: 'Set Input Settings',
+        configSchema: const DartDataInputSchema(
+          label: 'Input settings',
+          kind: DartDataInputKind.object,
+          fields: [
+            DartDataInputSchema(
+              label: 'Source name',
+              key: 'sourceName',
+              kind: DartDataInputKind.text,
+              required: true,
+            ),
+            DartDataInputSchema(
+              label: 'Input settings',
+              key: 'inputSettings',
+              kind: DartDataInputKind.object,
+              required: true,
+            ),
+          ],
+        ),
+        invoke: (config, context) => transport.call('SetInputSettings', {
+          'inputName': config['sourceName'],
+          'inputSettings': config['inputSettings'],
+        }),
+      ),
+      DartActionDefinition(
+        pluginId: 'obs',
         actionId: 'filter',
         displayName: 'Filter Visibility',
         invoke: (config, context) async {

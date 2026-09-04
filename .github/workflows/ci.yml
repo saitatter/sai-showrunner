@@ -38,6 +38,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
       - name: Install distutils compatibility
         run: pip install setuptools
 

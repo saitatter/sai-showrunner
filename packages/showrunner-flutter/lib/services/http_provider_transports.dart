@@ -22,6 +22,18 @@ final class JsonHttpTransport {
     RuntimeMap query,
     dynamic body,
   ) async {
+    final decoded = await requestValue(method, path, query, body);
+    return decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
+  }
+
+  Future<dynamic> requestValue(
+    String method,
+    String path,
+    RuntimeMap query,
+    dynamic body,
+  ) async {
     final uri = Uri.parse(baseUrl)
         .resolve(path)
         .replace(
@@ -48,8 +60,6 @@ final class JsonHttpTransport {
         'Provider request failed (${response.statusCode}): $text',
       );
     }
-    return decoded is Map
-        ? Map<String, dynamic>.from(decoded)
-        : <String, dynamic>{};
+    return decoded;
   }
 }

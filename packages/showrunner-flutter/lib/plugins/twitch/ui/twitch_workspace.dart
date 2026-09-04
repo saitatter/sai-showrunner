@@ -7,6 +7,7 @@ import '../../runtime/provider_event_workers.dart';
 import '../../../runtime/expression.dart';
 import '../../../services/showrunner_data_service.dart';
 import '../../../features/resources/duration_field.dart';
+import '../channel_runtime.dart';
 
 class TwitchWorkspace extends StatefulWidget {
   const TwitchWorkspace({
@@ -43,6 +44,10 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
   late final TextEditingController _announcementController;
   late final TextEditingController _shoutoutController;
   late final TextEditingController _raidTargetController;
+  late final TwitchChannelInfoService _channelInfoService;
+  TwitchChannelSnapshot? _channelSnapshot;
+  Object? _channelInfoError;
+  bool _channelInfoLoading = true;
   int _timeoutSeconds = 60;
   int _adDuration = 30;
   int _predictionDuration = 30;
@@ -68,6 +73,10 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
     _announcementController = TextEditingController();
     _shoutoutController = TextEditingController();
     _raidTargetController = TextEditingController();
+    _channelInfoService = TwitchChannelInfoService(
+      dataService: widget.dataService,
+    );
+    unawaited(_refreshChannelInfo());
     _chatSubscription = widget.providerEvents.eventHub.stream('chat').listen((
       event,
     ) {
@@ -138,6 +147,23 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
       _error = error;
     }
     if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _refreshChannelInfo() async {
+    if (mounted) {
+      setState(() {
+        _channelInfoLoading = true;
+        _channelInfoError = null;
+      });
+    }
+    try {
+      final snapshot = await _channelInfoService.load();
+      if (mounted) setState(() => _channelSnapshot = snapshot);
+    } catch (error) {
+      if (mounted) setState(() => _channelInfoError = error);
+    } finally {
+      if (mounted) setState(() => _channelInfoLoading = false);
+    }
   }
 
   @override
@@ -227,6 +253,12 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
               ),
             );
           },
+        ),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: _buildChannelSnapshot(context),
+          ),
         ),
         Card(
           child: ListTile(
@@ -635,6 +667,60 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
       ],
     ),
   );
+
+  Widget _buildChannelSnapshot(BuildContext context) {
+    final snapshot = _channelSnapshot;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Channel and stream',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const Spacer(),
+            IconButton(
+              tooltip: 'Refresh channel info',
+              onPressed: _channelInfoLoading ? null : _refreshChannelInfo,
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
+        ),
+        if (_channelInfoLoading)
+          const LinearProgressIndicator()
+        else if (snapshot == null)
+          Text('Unavailable: ${_channelInfoError ?? 'not configured'}')
+        else ...[
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              snapshot.isLive ? Icons.circle : Icons.circle_outlined,
+              color: snapshot.isLive ? Colors.red : null,
+            ),
+            title: Text(
+              snapshot.broadcasterName.isEmpty
+                  ? snapshot.broadcasterId
+                  : snapshot.broadcasterName,
+            ),
+            subtitle: Text(
+              snapshot.isLive
+                  ? '${snapshot.channelTitle.isEmpty ? 'Live' : snapshot.channelTitle} · ${snapshot.viewerCount ?? 0} viewers'
+                  : 'Offline${snapshot.channelTitle.isEmpty ? '' : ' · ${snapshot.channelTitle}'}',
+            ),
+          ),
+          if (snapshot.categoryName.isNotEmpty || snapshot.tags.isNotEmpty)
+            Text(
+              [
+                if (snapshot.categoryName.isNotEmpty) snapshot.categoryName,
+                if (snapshot.tags.isNotEmpty) snapshot.tags.join(', '),
+              ].join(' · '),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+        ],
+      ],
+    );
+  }
 }
 
 List<String> _commaSeparated(String value) => value

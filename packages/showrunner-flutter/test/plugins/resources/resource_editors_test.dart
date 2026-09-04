@@ -37,6 +37,138 @@ void main() {
     });
   });
 
+  test('spellcast defaults include the complete spell configuration', () {
+    final definition = createDefaultResourceEditorRegistry().find('SpellHook')!;
+
+    expect(definition.defaultConfig('Raid spell'), {
+      'name': 'Raid spell',
+      'spellId': '',
+      'spellData': {
+        'enabled': false,
+        'description': '',
+        'bits': 10,
+        'color': '#719ece',
+      },
+    });
+  });
+
+  test('channel point reward defaults match the Twitch resource schema', () {
+    final definition = createDefaultResourceEditorRegistry().find(
+      'ChannelPointReward',
+    )!;
+
+    expect(definition.defaultConfig('Hydrate'), {
+      'name': 'Hydrate',
+      'twitchId': '',
+      'controllable': true,
+      'transient': false,
+      'allowEnable': true,
+      'rewardData': {
+        'prompt': '',
+        'backgroundColor': '#9147ff',
+        'userInputRequired': false,
+        'cost': 100,
+        'cooldown': null,
+        'maxRedemptionsPerStream': null,
+        'maxRedemptionsPerUserPerStream': null,
+        'skipQueue': false,
+      },
+    });
+  });
+
+  testWidgets('channel point reward editor preserves nested settings', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find(
+      'ChannelPointReward',
+    )!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'reward-1',
+        config: {
+          'name': 'Hydrate',
+          'twitchId': 'twitch-reward-1',
+          'controllable': true,
+          'transient': false,
+          'allowEnable': true,
+          'rewardData': {
+            'prompt': 'Take a sip',
+            'backgroundColor': '#22c55e',
+            'userInputRequired': true,
+            'cost': 500,
+            'cooldown': 30,
+            'maxRedemptionsPerStream': 10,
+            'maxRedemptionsPerUserPerStream': 2,
+            'skipQueue': true,
+          },
+          'futureField': 'preserved',
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(find.text('Edit Twitch channel point reward'), findsOneWidget);
+    expect(find.text('Require viewer input'), findsOneWidget);
+    await tester.ensureVisible(find.text('Save'));
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(saved!.config['futureField'], 'preserved');
+    expect(saved!.config['twitchId'], 'twitch-reward-1');
+    expect(saved!.config['name'], 'Hydrate');
+    expect(saved!.config['rewardData'], {
+      'prompt': 'Take a sip',
+      'backgroundColor': '#22c55e',
+      'userInputRequired': true,
+      'cost': 500,
+      'cooldown': 30,
+      'maxRedemptionsPerStream': 10,
+      'maxRedemptionsPerUserPerStream': 2,
+      'skipQueue': true,
+    });
+  });
+
+  testWidgets('spellcast editor persists nested spell settings', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('SpellHook')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'spell-1',
+        config: {
+          'name': 'Cheer',
+          'spellId': 'remote-1',
+          'spellData': {
+            'enabled': false,
+            'description': 'Say hello',
+            'bits': 10,
+            'color': '#719ece',
+          },
+          'futureField': 'preserved',
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(find.text('Edit Spellcast spell'), findsOneWidget);
+    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(saved!.config['futureField'], 'preserved');
+    expect(saved!.config['spellId'], 'remote-1');
+    expect((saved!.config['spellData'] as Map)['enabled'], true);
+    expect((saved!.config['spellData'] as Map)['bits'], 10);
+  });
+
   testWidgets('audio splitter editor persists structured output routes', (
     tester,
   ) async {
@@ -60,12 +192,7 @@ void main() {
               'volume': 50,
               'keep': true,
             },
-            {
-              'id': 'chat',
-              'output': 'system.chat',
-              'mute': true,
-              'volume': 75,
-            },
+            {'id': 'chat', 'output': 'system.chat', 'mute': true, 'volume': 75},
           ],
         },
       ),
@@ -152,6 +279,142 @@ void main() {
     expect(widget['widget'], 'label');
     expect(widget['size'], {'width': 4, 'height': 1});
     expect(widget['config'], {'label': 'New widget', 'color': '#000000'});
+  });
+
+  testWidgets('dashboard editor preserves sharing, slots, and widget config', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Dashboard')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'dashboard-3',
+        config: {
+          'name': 'Studio',
+          'remoteTwitchIds': ['42'],
+          'resourceSlots': [
+            {
+              'id': 'slot-1',
+              'name': 'Alert output',
+              'slotType': 'SoundOutput',
+              'config': {},
+            },
+          ],
+          'pages': [
+            {
+              'id': 'page-1',
+              'name': 'Main',
+              'sections': [
+                {
+                  'id': 'section-1',
+                  'name': 'Alerts',
+                  'columns': 4,
+                  'widgets': [
+                    {
+                      'id': 'widget-1',
+                      'plugin': 'dashboards',
+                      'widget': 'label',
+                      'size': {'width': 4, 'height': 1},
+                      'config': {'label': 'Alert'},
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    await tester.tap(find.text('Alert'));
+    await tester.pump();
+    expect(find.text('Edit dashboard widget'), findsOneWidget);
+    final widgetDialog = find.ancestor(
+      of: find.text('Edit dashboard widget'),
+      matching: find.byType(AlertDialog),
+    );
+    final widgetSave = find.descendant(
+      of: widgetDialog,
+      matching: find.widgetWithText(FilledButton, 'Save'),
+    );
+    await tester.ensureVisible(widgetSave);
+    await tester.tap(widgetSave);
+    await tester.pump();
+    final editorSave = find.widgetWithText(FilledButton, 'Save').last;
+    await tester.ensureVisible(editorSave);
+    await tester.tap(editorSave);
+    await tester.pumpAndSettle();
+
+    expect(saved!.config['remoteTwitchIds'], ['42']);
+    expect(saved!.config['resourceSlots'], hasLength(1));
+    final page = (saved!.config['pages'] as List).single as Map;
+    final section = (page['sections'] as List).single as Map;
+    final widget = (section['widgets'] as List).single as Map;
+    expect(widget['config'], {'label': 'Alert'});
+  });
+
+  testWidgets('dashboard widget editor reports invalid config JSON', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Dashboard')!;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'dashboard-invalid-json',
+        config: {
+          'name': 'Studio',
+          'pages': [
+            {
+              'id': 'page-1',
+              'name': 'Main',
+              'sections': [
+                {
+                  'id': 'section-1',
+                  'name': 'Alerts',
+                  'widgets': [
+                    {
+                      'id': 'widget-1',
+                      'plugin': 'dashboards',
+                      'widget': 'label',
+                      'config': {'label': 'Alert'},
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ),
+      (_) async {},
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    await tester.tap(find.text('Alert'));
+    await tester.pump();
+    final widgetDialog = find.ancestor(
+      of: find.text('Edit dashboard widget'),
+      matching: find.byType(AlertDialog),
+    );
+    final configField = find.descendant(
+      of: widgetDialog,
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(configField.last, '{invalid');
+    final save = find.descendant(
+      of: widgetDialog,
+      matching: find.widgetWithText(FilledButton, 'Save'),
+    );
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pump();
+
+    expect(find.text('Widget config must be valid JSON.'), findsOneWidget);
+    expect(find.text('Edit dashboard widget'), findsOneWidget);
   });
 
   test('dashboard defaults include the persisted hierarchy fields', () {

@@ -1,10 +1,12 @@
 import '../../persistence/viewer_data_repository.dart';
 import '../../runtime/expression.dart';
 import '../../schema/viewer_data.dart';
+import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_registry.dart';
 
 DartPluginManifest createVariablesPlugin({
   ViewerDataRepository? viewerDataRepository,
+  DartPluginEventHub? eventHub,
 }) {
   final repository = viewerDataRepository ?? InMemoryViewerDataRepository();
   return DartPluginManifest(
@@ -27,14 +29,15 @@ DartPluginManifest createVariablesPlugin({
         pluginId: 'variables',
         actionId: 'setViewerVar',
         displayName: 'Set Viewer Variable',
-        invoke: (config, context) => _setViewerVar(config, context, repository),
+        invoke: (config, context) =>
+            _setViewerVar(config, context, repository, eventHub),
       ),
       DartActionDefinition(
         pluginId: 'variables',
         actionId: 'offsetViewerVar',
         displayName: 'Offset Viewer Variable',
         invoke: (config, context) =>
-            _offsetViewerVar(config, context, repository),
+            _offsetViewerVar(config, context, repository, eventHub),
       ),
     ],
   );
@@ -65,6 +68,7 @@ Future<Object?> _setViewerVar(
   RuntimeMap config,
   EvaluationContext _,
   ViewerDataRepository repository,
+  DartPluginEventHub? eventHub,
 ) async {
   final variable = _requiredConfigString(config, 'variable');
   final viewer = ViewerIdentity.fromConfig(config['viewer']);
@@ -74,6 +78,14 @@ Future<Object?> _setViewerVar(
     variable,
     config['value'],
   );
+  eventHub?.emit('viewerDataChanged', {
+    'provider': row.provider,
+    'id': row.viewer.id,
+    'displayName': row.viewer.displayName,
+    'variable': variable,
+    'value': row.values[variable],
+    'values': row.values,
+  });
   return {
     'provider': row.provider,
     'viewer': row.viewer.id,
@@ -86,6 +98,7 @@ Future<Object?> _offsetViewerVar(
   RuntimeMap config,
   EvaluationContext _,
   ViewerDataRepository repository,
+  DartPluginEventHub? eventHub,
 ) async {
   final variable = _requiredConfigString(config, 'variable');
   final rawOffset = config['offset'];
@@ -103,6 +116,14 @@ Future<Object?> _offsetViewerVar(
     variable,
     rawOffset,
   );
+  eventHub?.emit('viewerDataChanged', {
+    'provider': row.provider,
+    'id': row.viewer.id,
+    'displayName': row.viewer.displayName,
+    'variable': variable,
+    'value': row.values[variable],
+    'values': row.values,
+  });
   return {
     'provider': row.provider,
     'viewer': row.viewer.id,

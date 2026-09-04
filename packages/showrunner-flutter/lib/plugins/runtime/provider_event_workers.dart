@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../schema/automation.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/http_provider_transports.dart';
 import '../twitch/event_worker.dart';
@@ -19,6 +20,7 @@ final class ProviderEventRuntime extends ChangeNotifier {
 
   final ShowRunnerDataService dataService;
   final DartPluginEventHub eventHub;
+  final Map<String, List<JsonMap>> _activeProfileTriggerSets = {};
   TwitchEventSubWorker? twitch;
   YouTubeLiveChatWorker? youtube;
   YouTubeRequest? _youtubeRequest;
@@ -40,6 +42,29 @@ final class ProviderEventRuntime extends ChangeNotifier {
   int get youtubeFailureCount => youtube?.failureCount ?? 0;
 
   Map<String, dynamic>? get youtubeBroadcast => _youtubeBroadcast;
+
+  Iterable<JsonMap> get activeProfileTriggers sync* {
+    for (final triggers in _activeProfileTriggerSets.values) {
+      for (final trigger in triggers) {
+        yield Map<String, dynamic>.from(trigger);
+      }
+    }
+  }
+
+  void updateProfileActivity(
+    String profileId, {
+    required bool active,
+    Iterable<JsonMap> triggers = const [],
+  }) {
+    if (active) {
+      _activeProfileTriggerSets[profileId] = triggers
+          .map((trigger) => Map<String, dynamic>.from(trigger))
+          .toList();
+    } else {
+      _activeProfileTriggerSets.remove(profileId);
+    }
+    notifyListeners();
+  }
 
   Future<Map<String, dynamic>> discoverYouTubeBroadcast() async {
     final request = await _resolveYouTubeRequest();

@@ -35,7 +35,7 @@ class ShowRunnerFlutterApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ShowRunner Flutter Spike',
+      title: 'ShowRunner',
       debugShowCheckedModeBanner: false,
       theme: buildShowRunnerTheme(),
       builder: showRunnerAppFrame,
@@ -83,6 +83,8 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
   int _selectedIndex = 0;
   String _selectedPluginId = 'obs';
   final _openTabIndices = <int>[0];
+  Future<void> _navigationWrite = Future<void>.value();
+  bool _restoredNavigation = false;
 
   @override
   void initState() {
@@ -108,6 +110,7 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
       dataService: widget.dataService,
     );
     unawaited(_interfacePreferences.load());
+    unawaited(_restoreNavigation());
     unawaited(_openFirstRunSetupIfNeeded());
   }
 
@@ -138,7 +141,7 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
       activeAutomationFile: _activeAutomationFile,
       showGraphEditor: widget.showGraphEditor,
       onDestinationSelected: _openDestination,
-      onTabSelected: (index) => setState(() => _selectedIndex = index),
+      onTabSelected: _selectTab,
       onTabClosed: _closeTab,
       onPluginSelected: (pluginId) =>
           setState(() => _selectedPluginId = pluginId),
@@ -168,6 +171,63 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
       if (!_openTabIndices.contains(index)) _openTabIndices.add(index);
       _selectedIndex = index;
     });
+    unawaited(_persistNavigation());
+  }
+
+  void _selectTab(int index) {
+    if (!_openTabIndices.contains(index)) return;
+    setState(() => _selectedIndex = index);
+    unawaited(_persistNavigation());
+  }
+
+  Future<void> _restoreNavigation() async {
+    try {
+      final settings = await widget.dataService.loadPluginSettings(
+        'showrunner-flutter',
+      );
+      final restoredTabs = settings['openWorkspaceTabs'];
+      final tabs = restoredTabs is List
+          ? restoredTabs
+                .whereType<num>()
+                .map((value) => value.toInt())
+                .where((value) => value >= 0 && value <= 11)
+                .toSet()
+                .toList()
+          : <int>[];
+      final restoredSelected = settings['selectedWorkspace'];
+      final selected = restoredSelected is num
+          ? restoredSelected.toInt()
+          : null;
+      if (!mounted) return;
+      setState(() {
+        if (tabs.isNotEmpty) {
+          _openTabIndices
+            ..clear()
+            ..addAll(tabs);
+        }
+        if (selected != null && _openTabIndices.contains(selected)) {
+          _selectedIndex = selected;
+        }
+        _restoredNavigation = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _restoredNavigation = true);
+    }
+  }
+
+  Future<void> _persistNavigation() async {
+    if (!_restoredNavigation) return;
+    _navigationWrite = _navigationWrite.then((_) async {
+      final settings = await widget.dataService.loadPluginSettings(
+        'showrunner-flutter',
+      );
+      await widget.dataService.savePluginSettings('showrunner-flutter', {
+        ...settings,
+        'openWorkspaceTabs': List<int>.from(_openTabIndices),
+        'selectedWorkspace': _selectedIndex,
+      });
+    });
+    await _navigationWrite;
   }
 
   Future<void> _openFirstRunSetupIfNeeded() async {
@@ -188,6 +248,7 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
       if (!_openTabIndices.contains(10)) _openTabIndices.add(10);
       _selectedIndex = 10;
     });
+    unawaited(_persistNavigation());
   }
 
   void _closeTab(int index) {
@@ -201,6 +262,7 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
         _selectedIndex = _openTabIndices[nextPosition];
       }
     });
+    unawaited(_persistNavigation());
   }
 
   Future<void> _saveAutomation() async {

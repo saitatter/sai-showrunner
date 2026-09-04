@@ -136,33 +136,74 @@ void main() {
     });
   });
 
-  test('routes transform actions with the OBS WebSocket payload shape', () async {
-    Map<String, dynamic>? requestData;
+  test(
+    'routes transform actions with the OBS WebSocket payload shape',
+    () async {
+      Map<String, dynamic>? requestData;
+      final registry = DartPluginRegistry()
+        ..register(
+          createObsPlugin(
+            CallbackObsTransport((request, data) async {
+              requestData = data;
+              return {};
+            }),
+          ),
+        );
+
+      await registry.invokeAction('obs', 'transform', {
+        'scene': 'Main',
+        'source': 7,
+        'transform': {
+          'position': {'x': 100},
+          'scale': {'x': 2, 'y': 2},
+        },
+      });
+
+      expect(requestData?['sceneName'], 'Main');
+      expect(requestData?['sceneItemId'], 7);
+      expect(requestData?['sceneItemTransform'], {
+        'positionX': 100,
+        'scaleX': 2,
+        'scaleY': 2,
+      });
+    },
+  );
+
+  test('reads and writes OBS input settings through actions', () async {
+    final requests = <(String, Map<String, dynamic>)>[];
     final registry = DartPluginRegistry()
       ..register(
         createObsPlugin(
           CallbackObsTransport((request, data) async {
-            requestData = data;
+            requests.add((request, data));
+            if (request == 'GetInputSettings') {
+              return {
+                'inputName': 'Camera',
+                'inputSettings': {'device_id': 'camera-1'},
+              };
+            }
             return {};
           }),
         ),
       );
 
-    await registry.invokeAction('obs', 'transform', {
-      'scene': 'Main',
-      'source': 7,
-      'transform': {
-        'position': {'x': 100},
-        'scale': {'x': 2, 'y': 2},
-      },
+    final current = await registry.invokeAction('obs', 'getInputSettings', {
+      'sourceName': 'Camera',
+    });
+    await registry.invokeAction('obs', 'setInputSettings', {
+      'sourceName': 'Camera',
+      'inputSettings': {'device_id': 'camera-2'},
     });
 
-    expect(requestData?['sceneName'], 'Main');
-    expect(requestData?['sceneItemId'], 7);
-    expect(requestData?['sceneItemTransform'], {
-      'positionX': 100,
-      'scaleX': 2,
-      'scaleY': 2,
+    expect((current as Map)['inputSettings'], {'device_id': 'camera-1'});
+    expect(requests.map((entry) => entry.$1), [
+      'GetInputSettings',
+      'SetInputSettings',
+    ]);
+    expect(requests[0].$2['inputName'], 'Camera');
+    expect(requests[1].$2, {
+      'inputName': 'Camera',
+      'inputSettings': {'device_id': 'camera-2'},
     });
   });
 }

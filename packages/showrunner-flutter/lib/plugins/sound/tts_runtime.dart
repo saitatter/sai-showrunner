@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter_tts/flutter_tts.dart';
 
 import '../../runtime/expression.dart';
@@ -34,6 +38,138 @@ final class TtsSpeechResult {
 abstract interface class TtsSpeechService {
   Future<TtsSpeechResult> speak(TtsSpeechRequest request);
 }
+
+abstract interface class TtsFileSynthesisService {
+  Future<String?> synthesizeToFile(TtsSpeechRequest request);
+}
+
+final class CallbackTtsFileSynthesisService implements TtsFileSynthesisService {
+  CallbackTtsFileSynthesisService(this._callback);
+
+  final Future<String?> Function(TtsSpeechRequest request) _callback;
+
+  @override
+  Future<String?> synthesizeToFile(TtsSpeechRequest request) =>
+      _callback(request);
+}
+
+typedef TtsProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
+
+final class WindowsTtsFileSynthesisService implements TtsFileSynthesisService {
+  WindowsTtsFileSynthesisService({
+    TtsProcessRunner? run,
+    Directory? cacheDirectory,
+    bool? enabled,
+  }) : _run = run ?? Process.run,
+       _cacheDirectory =
+           cacheDirectory ??
+           Directory('${Directory.systemTemp.path}/ShowRunner-tts'),
+       _enabled = enabled ?? Platform.isWindows;
+
+  final TtsProcessRunner _run;
+  final Directory _cacheDirectory;
+  final bool _enabled;
+
+  @override
+  Future<String?> synthesizeToFile(TtsSpeechRequest request) async {
+    if (!_enabled || request.text.trim().isEmpty) return null;
+
+    await _cacheDirectory.create(recursive: true);
+    final file = File(
+      '${_cacheDirectory.path}${Platform.pathSeparator}'
+      'tts-${DateTime.now().microsecondsSinceEpoch}.wav',
+    );
+    final voiceId = request.voiceProvider?.startsWith('system.') == true
+        ? request.voiceProvider!.substring('system.'.length)
+        : request.voiceProvider ?? '';
+    final rate = ((request.rate.clamp(0, 1) * 20) - 10).round();
+    final volume = (request.volume.clamp(0, 1) * 100).round();
+    final script = _script(
+      text: request.text,
+      outputPath: file.path,
+      voiceId: voiceId,
+      voiceName: request.voiceName ?? '',
+      rate: rate,
+      volume: volume,
+    );
+    final encodedScript = _encodePowerShell(script);
+    try {
+      final result = await _run('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-EncodedCommand',
+        encodedScript,
+      ]);
+      if (result.exitCode != 0 ||
+          !await file.exists() ||
+          await file.length() <= 44) {
+        throw StateError(
+          'Windows TTS synthesis failed: ${result.stderr}'.trim(),
+        );
+      }
+      return file.path;
+    } catch (_) {
+      if (await file.exists()) await file.delete();
+      rethrow;
+    }
+  }
+}
+
+String _encodePowerShell(String script) {
+  final bytes = Uint8List(script.length * 2);
+  final data = ByteData.sublistView(bytes);
+  for (var index = 0; index < script.length; index++) {
+    data.setUint16(index * 2, script.codeUnitAt(index), Endian.little);
+  }
+  return base64Encode(bytes);
+}
+
+String _script({
+  required String text,
+  required String outputPath,
+  required String voiceId,
+  required String voiceName,
+  required int rate,
+  required int volume,
+}) {
+  String encoded(String value) => base64Encode(utf8.encode(value));
+
+  return '''
+\$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Speech
+\$text = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded(text)}'))
+\$outputPath = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded(outputPath)}'))
+\$voiceId = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded(voiceId)}'))
+\$voiceName = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded(voiceName)}'))
+\$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+try {
+  \$selected = \$null
+  if (\$voiceId) {
+    \$selected = \$synth.GetInstalledVoices() |
+      Where-Object { \$_.VoiceInfo.Id -eq \$voiceId } |
+      Select-Object -First 1
+  }
+  if (-not \$selected -and \$voiceName) {
+    \$selected = \$synth.GetInstalledVoices() |
+      Where-Object { \$_.VoiceInfo.Name -eq \$voiceName } |
+      Select-Object -First 1
+  }
+  if (\$selected) { \$synth.SelectVoice(\$selected.VoiceInfo.Name) }
+  \$synth.Rate = $rate
+  \$synth.Volume = $volume
+  \$synth.SetOutputToWaveFile(\$outputPath)
+  \$synth.Speak(\$text)
+} finally {
+  \$synth.Dispose()
+}
+''';
+}
+
+TtsFileSynthesisService? createDefaultTtsFileSynthesisService() =>
+    Platform.isWindows ? WindowsTtsFileSynthesisService() : null;
 
 final class FlutterTtsSpeechService implements TtsSpeechService {
   FlutterTtsSpeechService({this._client});

@@ -16,6 +16,20 @@ List<JsonMap> _maps(Object? value) => value is List
           .toList()
     : <JsonMap>[];
 
+List<String> _strings(Object? value) =>
+    value is List ? value.map((item) => item.toString()).toList() : <String>[];
+
+String _widgetTitle(JsonMap widget) {
+  final config = widget['config'];
+  if (config is Map && config['label']?.toString().trim().isNotEmpty == true) {
+    return config['label'].toString();
+  }
+  return widget['title']?.toString() ??
+      widget['widget']?.toString() ??
+      widget['type']?.toString() ??
+      'Widget';
+}
+
 int _dashboardIdCounter = 0;
 int _audioSplitIdCounter = 0;
 
@@ -279,7 +293,16 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
       resourceType: 'SpellHook',
       displayName: 'Spellcast Spell',
       storageDirectory: 'spellcast/spells',
-      defaultConfig: (name) => {'name': name, 'spellId': ''},
+      defaultConfig: (name) => {
+        'name': name,
+        'spellId': '',
+        'spellData': {
+          'enabled': false,
+          'description': '',
+          'bits': 10,
+          'color': '#719ece',
+        },
+      },
       fields: const ['name', 'spellId'],
     ),
   );
@@ -306,10 +329,21 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
       defaultConfig: (name) => {
         'name': name,
         'twitchId': '',
-        'title': name,
-        'cost': 100,
+        'controllable': true,
+        'transient': false,
+        'allowEnable': true,
+        'rewardData': {
+          'prompt': '',
+          'backgroundColor': '#9147ff',
+          'userInputRequired': false,
+          'cost': 100,
+          'cooldown': null,
+          'maxRedemptionsPerStream': null,
+          'maxRedemptionsPerUserPerStream': null,
+          'skipQueue': false,
+        },
       },
-      fields: const ['name', 'twitchId', 'title', 'cost'],
+      fields: const ['name', 'twitchId'],
     ),
   );
   return registry;
@@ -350,6 +384,11 @@ DartResourceEditorDefinition _pluginDefinition({
       onSave: onSave,
     ),
     'Dashboard' => _DashboardEditor(resource: resource, onSave: onSave),
+    'SpellHook' => _SpellcastEditor(resource: resource, onSave: onSave),
+    'ChannelPointReward' => _ChannelPointRewardEditor(
+      resource: resource,
+      onSave: onSave,
+    ),
     _ => _MapResourceEditor(
       title: 'Edit $displayName',
       resource: resource,
@@ -911,7 +950,9 @@ class _DashboardEditor extends StatefulWidget {
 
 class _DashboardEditorState extends State<_DashboardEditor> {
   late final TextEditingController _name;
+  late final TextEditingController _remoteTwitchIds;
   late List<JsonMap> _pages;
+  late List<JsonMap> _resourceSlots;
 
   @override
   void initState() {
@@ -919,14 +960,19 @@ class _DashboardEditorState extends State<_DashboardEditor> {
     _name = TextEditingController(
       text: widget.resource.config['name']?.toString() ?? '',
     );
+    _remoteTwitchIds = TextEditingController(
+      text: _strings(widget.resource.config['remoteTwitchIds']).join(', '),
+    );
     _pages = _maps(
       widget.resource.config['pages'],
     ).map(_dashboardPage).toList();
+    _resourceSlots = _maps(widget.resource.config['resourceSlots']);
   }
 
   @override
   void dispose() {
     _name.dispose();
+    _remoteTwitchIds.dispose();
     super.dispose();
   }
 
@@ -937,6 +983,13 @@ class _DashboardEditorState extends State<_DashboardEditor> {
       TextField(
         controller: _name,
         decoration: const InputDecoration(labelText: 'Name'),
+      ),
+      TextField(
+        controller: _remoteTwitchIds,
+        decoration: const InputDecoration(
+          labelText: 'Shared Twitch viewer IDs',
+          hintText: 'Comma-separated IDs; leave empty for private',
+        ),
       ),
       Row(
         children: [
@@ -957,6 +1010,39 @@ class _DashboardEditorState extends State<_DashboardEditor> {
         const Text('No pages defined.')
       else
         for (var index = 0; index < _pages.length; index++) _page(index),
+      const SizedBox(height: 16),
+      Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Resource slots',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Add resource slot',
+            onPressed: _addResourceSlot,
+            icon: const Icon(Icons.add_link),
+          ),
+        ],
+      ),
+      if (_resourceSlots.isEmpty)
+        const Text('No remote resource slots defined.')
+      else
+        for (var index = 0; index < _resourceSlots.length; index++)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.link),
+            title: Text('${_resourceSlots[index]['name'] ?? 'Unnamed slot'}'),
+            subtitle: Text(
+              '${_resourceSlots[index]['slotType'] ?? 'unknown'} · ${_resourceSlots[index]['id'] ?? ''}',
+            ),
+            trailing: IconButton(
+              tooltip: 'Delete resource slot',
+              onPressed: () => setState(() => _resourceSlots.removeAt(index)),
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ),
     ],
     onSave: () => widget.onSave(
       ResourceData(
@@ -965,6 +1051,13 @@ class _DashboardEditorState extends State<_DashboardEditor> {
           ...widget.resource.config,
           'name': _name.text.trim(),
           'pages': _pages,
+          'remoteTwitchIds': _remoteTwitchIds.text
+              .split(',')
+              .map((value) => value.trim())
+              .where((value) => value.isNotEmpty)
+              .toSet()
+              .toList(),
+          'resourceSlots': _resourceSlots,
         },
       ),
     ),
@@ -1032,6 +1125,19 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                   onChanged: (value) => section['name'] = value,
                 ),
               ),
+              DropdownButton<int>(
+                value: (section['columns'] as num?)?.toInt() ?? 4,
+                items: [
+                  for (final columns in [1, 2, 3, 4, 6, 8, 12])
+                    DropdownMenuItem(
+                      value: columns,
+                      child: Text('$columns columns'),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => section['columns'] = value);
+                },
+              ),
               IconButton(
                 tooltip: 'Delete section',
                 onPressed: () =>
@@ -1056,11 +1162,12 @@ class _DashboardEditorState extends State<_DashboardEditor> {
           for (var index = 0; index < widgets.length; index++)
             ListTile(
               dense: true,
+              onTap: () => _editWidget(widgets, index),
               leading: const Icon(Icons.widgets_outlined),
-              title: Text(
-                '${widgets[index]['title'] ?? widgets[index]['type'] ?? 'Widget'}',
+              title: Text(_widgetTitle(widgets[index])),
+              subtitle: Text(
+                '${widgets[index]['plugin'] ?? 'unknown'} / ${widgets[index]['widget'] ?? widgets[index]['type'] ?? 'unknown'}',
               ),
-              subtitle: Text('Type: ${widgets[index]['type'] ?? 'unknown'}'),
               trailing: IconButton(
                 tooltip: 'Delete widget',
                 onPressed: () => setState(() => widgets.removeAt(index)),
@@ -1078,6 +1185,213 @@ class _DashboardEditorState extends State<_DashboardEditor> {
       'name': 'New page',
       'sections': <JsonMap>[],
     }),
+  );
+
+  Future<void> _editWidget(List<JsonMap> widgets, int index) async {
+    final updated = await showDialog<JsonMap>(
+      context: context,
+      builder: (context) => _DashboardWidgetDialog(widget: widgets[index]),
+    );
+    if (updated != null && mounted) setState(() => widgets[index] = updated);
+  }
+
+  Future<void> _addResourceSlot() async {
+    final slot = await showDialog<JsonMap>(
+      context: context,
+      builder: (context) => const _DashboardResourceSlotDialog(),
+    );
+    if (slot != null && mounted) setState(() => _resourceSlots.add(slot));
+  }
+}
+
+class _DashboardWidgetDialog extends StatefulWidget {
+  const _DashboardWidgetDialog({required this.widget});
+
+  final JsonMap widget;
+
+  @override
+  State<_DashboardWidgetDialog> createState() => _DashboardWidgetDialogState();
+}
+
+class _DashboardWidgetDialogState extends State<_DashboardWidgetDialog> {
+  late final TextEditingController _plugin;
+  late final TextEditingController _widget;
+  late final TextEditingController _width;
+  late final TextEditingController _height;
+  late final TextEditingController _config;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final size = widget.widget['size'] is Map
+        ? Map<String, dynamic>.from(widget.widget['size'] as Map)
+        : const <String, dynamic>{};
+    _plugin = TextEditingController(
+      text: widget.widget['plugin']?.toString() ?? 'dashboards',
+    );
+    _widget = TextEditingController(
+      text: widget.widget['widget']?.toString() ?? 'label',
+    );
+    _width = TextEditingController(text: '${size['width'] ?? 4}');
+    _height = TextEditingController(text: '${size['height'] ?? 1}');
+    _config = TextEditingController(
+      text: const JsonEncoder.withIndent(
+        '  ',
+      ).convert(widget.widget['config'] is Map ? widget.widget['config'] : {}),
+    );
+  }
+
+  @override
+  void dispose() {
+    for (final controller in [_plugin, _widget, _width, _height, _config]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Edit dashboard widget'),
+    content: SizedBox(
+      width: 480,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _plugin,
+              decoration: const InputDecoration(labelText: 'Plugin'),
+            ),
+            TextField(
+              controller: _widget,
+              decoration: const InputDecoration(labelText: 'Widget'),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _width,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Width'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _height,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Height'),
+                  ),
+                ),
+              ],
+            ),
+            TextField(
+              controller: _config,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                labelText: 'Widget config JSON',
+              ),
+            ),
+            if (_error != null)
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Save')),
+    ],
+  );
+
+  void _save() {
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(_config.text);
+    } on FormatException {
+      setState(() => _error = 'Widget config must be valid JSON.');
+      return;
+    }
+    if (decoded is! Map) {
+      setState(() => _error = 'Widget config must be a JSON object.');
+      return;
+    }
+    Navigator.pop(context, {
+      ...widget.widget,
+      'plugin': _plugin.text.trim(),
+      'widget': _widget.text.trim(),
+      'size': {
+        'width': int.tryParse(_width.text) ?? 4,
+        'height': int.tryParse(_height.text) ?? 1,
+      },
+      'config': Map<String, dynamic>.from(decoded),
+    });
+  }
+}
+
+class _DashboardResourceSlotDialog extends StatefulWidget {
+  const _DashboardResourceSlotDialog();
+
+  @override
+  State<_DashboardResourceSlotDialog> createState() =>
+      _DashboardResourceSlotDialogState();
+}
+
+class _DashboardResourceSlotDialogState
+    extends State<_DashboardResourceSlotDialog> {
+  final _name = TextEditingController();
+  final _type = TextEditingController(text: 'SoundOutput');
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _type.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Add resource slot'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(
+          controller: _name,
+          decoration: const InputDecoration(labelText: 'Name'),
+        ),
+        TextField(
+          controller: _type,
+          decoration: const InputDecoration(labelText: 'Slot type'),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          final name = _name.text.trim();
+          final type = _type.text.trim();
+          if (name.isEmpty || type.isEmpty) return;
+          Navigator.pop(context, {
+            'id': _newDashboardId('slot'),
+            'name': name,
+            'slotType': type,
+            'config': <String, dynamic>{},
+          });
+        },
+        child: const Text('Add'),
+      ),
+    ],
   );
 }
 
@@ -1298,7 +1612,9 @@ class _TtsVoiceEditorState extends State<_TtsVoiceEditor> {
     _pitch = TextEditingController(
       text: _displayValue(providerConfig['pitch'] ?? 0),
     );
-    _rate = TextEditingController(text: _displayValue(providerConfig['rate'] ?? 0));
+    _rate = TextEditingController(
+      text: _displayValue(providerConfig['rate'] ?? 0),
+    );
   }
 
   @override
@@ -1382,9 +1698,9 @@ class _AudioSplitterEditorState extends State<_AudioSplitterEditor> {
     _name = TextEditingController(
       text: _displayValue(widget.resource.config['name']),
     );
-    _redirects = _maps(widget.resource.config['redirects'])
-        .map(_audioSplit)
-        .toList();
+    _redirects = _maps(
+      widget.resource.config['redirects'],
+    ).map(_audioSplit).toList();
   }
 
   @override
@@ -1436,8 +1752,7 @@ class _AudioSplitterEditorState extends State<_AudioSplitterEditor> {
           'name': _name.text.trim(),
           'type': 'splitter',
           'redirects': [
-            for (final redirect in _redirects)
-              _savedAudioSplit(redirect),
+            for (final redirect in _redirects) _savedAudioSplit(redirect),
           ],
         },
         state: widget.resource.state,
@@ -1528,10 +1843,7 @@ class _AudioSplitCard extends StatelessWidget {
             ),
             Row(
               children: [
-                const SizedBox(
-                  width: 64,
-                  child: Text('Volume'),
-                ),
+                const SizedBox(width: 64, child: Text('Volume')),
                 Expanded(
                   child: Slider(
                     value: volume,
@@ -1643,6 +1955,416 @@ class _ViewerGroupEditorState extends State<_ViewerGroupEditor> {
         state: widget.resource.state,
       ),
     ),
+  );
+}
+
+class _ChannelPointRewardEditor extends StatefulWidget {
+  const _ChannelPointRewardEditor({
+    required this.resource,
+    required this.onSave,
+  });
+
+  final ResourceData resource;
+  final Future<void> Function(ResourceData resource) onSave;
+
+  @override
+  State<_ChannelPointRewardEditor> createState() =>
+      _ChannelPointRewardEditorState();
+}
+
+class _ChannelPointRewardEditorState extends State<_ChannelPointRewardEditor> {
+  late final TextEditingController _name;
+  late final TextEditingController _twitchId;
+  late final TextEditingController _prompt;
+  late final TextEditingController _cost;
+  late final TextEditingController _cooldown;
+  late final TextEditingController _maxPerStream;
+  late final TextEditingController _maxPerUser;
+  late bool _controllable;
+  late bool _transient;
+  late bool _allowEnable;
+  late bool _userInputRequired;
+  late bool _skipQueue;
+  late String _backgroundColor;
+
+  Map<String, dynamic> get _configuredRewardData {
+    final configured = widget.resource.config['rewardData'];
+    final rewardData = configured is Map
+        ? Map<String, dynamic>.from(configured)
+        : <String, dynamic>{};
+    // Older Flutter-created files briefly stored these fields at the root.
+    // Read them as fallbacks so opening the editor is lossless for users.
+    for (final key in [
+      'prompt',
+      'backgroundColor',
+      'userInputRequired',
+      'cost',
+      'cooldown',
+      'maxRedemptionsPerStream',
+      'maxRedemptionsPerUserPerStream',
+      'skipQueue',
+    ]) {
+      rewardData.putIfAbsent(key, () => widget.resource.config[key]);
+    }
+    return rewardData;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final config = widget.resource.config;
+    final rewardData = _configuredRewardData;
+    _name = TextEditingController(
+      text: _displayValue(config['name'] ?? config['title']),
+    );
+    _twitchId = TextEditingController(text: _displayValue(config['twitchId']));
+    _prompt = TextEditingController(text: _displayValue(rewardData['prompt']));
+    _cost = TextEditingController(
+      text: _displayValue(rewardData['cost'] ?? 100),
+    );
+    _cooldown = TextEditingController(
+      text: _displayValue(rewardData['cooldown']),
+    );
+    _maxPerStream = TextEditingController(
+      text: _displayValue(rewardData['maxRedemptionsPerStream']),
+    );
+    _maxPerUser = TextEditingController(
+      text: _displayValue(rewardData['maxRedemptionsPerUserPerStream']),
+    );
+    _controllable = config['controllable'] != false;
+    _transient = config['transient'] == true;
+    _allowEnable = config['allowEnable'] != false;
+    _userInputRequired = rewardData['userInputRequired'] == true;
+    _skipQueue = rewardData['skipQueue'] == true;
+    _backgroundColor = _displayValue(
+      rewardData['backgroundColor'] ?? '#9147ff',
+    );
+  }
+
+  @override
+  void dispose() {
+    for (final controller in [
+      _name,
+      _twitchId,
+      _prompt,
+      _cost,
+      _cooldown,
+      _maxPerStream,
+      _maxPerUser,
+    ]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _ResourceForm(
+    title: 'Edit Twitch channel point reward',
+    fields: [
+      TextField(
+        controller: _name,
+        decoration: const InputDecoration(labelText: 'Name'),
+      ),
+      TextField(
+        controller: _twitchId,
+        decoration: const InputDecoration(
+          labelText: 'Twitch reward ID',
+          hintText: 'Leave empty until Twitch creates it',
+        ),
+      ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Controllable by ShowRunner'),
+        subtitle: const Text(
+          'When disabled, the reward is observed from Twitch but not managed by profiles.',
+        ),
+        value: _controllable,
+        onChanged: (value) => setState(() => _controllable = value),
+      ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Allow enable/disable'),
+        value: _allowEnable,
+        onChanged: (value) => setState(() => _allowEnable = value),
+      ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Transient reward'),
+        subtitle: const Text('Do not recreate it on Twitch when missing.'),
+        value: _transient,
+        onChanged: (value) => setState(() => _transient = value),
+      ),
+      TextField(
+        controller: _prompt,
+        maxLines: 3,
+        decoration: const InputDecoration(labelText: 'Prompt'),
+      ),
+      Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _cost,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Cost'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          ColorValueField(
+            label: 'Color',
+            initialValue: _backgroundColor,
+            onChanged: (value) => setState(() => _backgroundColor = value),
+          ),
+        ],
+      ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Require viewer input'),
+        value: _userInputRequired,
+        onChanged: (value) => setState(() => _userInputRequired = value),
+      ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Skip redemption queue'),
+        value: _skipQueue,
+        onChanged: (value) => setState(() => _skipQueue = value),
+      ),
+      TextField(
+        controller: _cooldown,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          labelText: 'Global cooldown (seconds)',
+          hintText: 'Optional',
+        ),
+      ),
+      TextField(
+        controller: _maxPerStream,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          labelText: 'Max redemptions per stream',
+          hintText: 'Optional',
+        ),
+      ),
+      TextField(
+        controller: _maxPerUser,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          labelText: 'Max redemptions per viewer per stream',
+          hintText: 'Optional',
+        ),
+      ),
+    ],
+    onSave: () => widget.onSave(
+      ResourceData(
+        id: widget.resource.id,
+        config: {
+          ...widget.resource.config,
+          'name': _name.text.trim(),
+          'twitchId': _twitchId.text.trim(),
+          'controllable': _controllable,
+          'transient': _transient,
+          'allowEnable': _allowEnable,
+          'rewardData': {
+            ..._configuredRewardData,
+            'prompt': _prompt.text,
+            'backgroundColor': _backgroundColor.trim(),
+            'userInputRequired': _userInputRequired,
+            'cost': (int.tryParse(_cost.text.trim()) ?? 1).clamp(1, 1000000),
+            'cooldown': _optionalPositiveInt(_cooldown.text),
+            'maxRedemptionsPerStream': _optionalPositiveInt(_maxPerStream.text),
+            'maxRedemptionsPerUserPerStream': _optionalPositiveInt(
+              _maxPerUser.text,
+            ),
+            'skipQueue': _skipQueue,
+          },
+        },
+        state: widget.resource.state,
+      ),
+    ),
+  );
+
+  int? _optionalPositiveInt(String value) {
+    final parsed = int.tryParse(value.trim());
+    return parsed == null || parsed < 1 ? null : parsed;
+  }
+}
+
+class _SpellcastEditor extends StatefulWidget {
+  const _SpellcastEditor({required this.resource, required this.onSave});
+
+  final ResourceData resource;
+  final Future<void> Function(ResourceData resource) onSave;
+
+  @override
+  State<_SpellcastEditor> createState() => _SpellcastEditorState();
+}
+
+class _SpellcastEditorState extends State<_SpellcastEditor> {
+  static const _bitAmounts = <int>[
+    10,
+    20,
+    30,
+    40,
+    50,
+    100,
+    150,
+    200,
+    250,
+    300,
+    350,
+    400,
+    450,
+    500,
+    550,
+    600,
+    650,
+    700,
+    750,
+    800,
+    850,
+    900,
+    950,
+    1000,
+    1050,
+    1100,
+    1150,
+    1200,
+    1250,
+    1300,
+    1350,
+    1400,
+    1450,
+    1500,
+    1550,
+    1600,
+    1650,
+    1700,
+    1750,
+    1800,
+    1850,
+    1900,
+    1950,
+    2000,
+  ];
+  static const _colors = <String>[
+    '#719ece',
+    '#803FCC',
+    '#CC3F9A',
+    '#CCB23F',
+    '#7ECC3F',
+    '#CC4141',
+    '#CC691E',
+  ];
+
+  late final TextEditingController _name;
+  late final TextEditingController _spellId;
+  late final TextEditingController _description;
+  late bool _enabled;
+  late int _bits;
+  late String _color;
+
+  Map<String, dynamic> get _spellData =>
+      widget.resource.config['spellData'] is Map
+      ? Map<String, dynamic>.from(widget.resource.config['spellData'] as Map)
+      : <String, dynamic>{};
+
+  @override
+  void initState() {
+    super.initState();
+    final spellData = _spellData;
+    _name = TextEditingController(
+      text: _displayValue(widget.resource.config['name']),
+    );
+    _spellId = TextEditingController(
+      text: _displayValue(widget.resource.config['spellId']),
+    );
+    _description = TextEditingController(
+      text: _displayValue(spellData['description']),
+    );
+    _enabled = spellData['enabled'] == true;
+    _bits = _nearestBitAmount((spellData['bits'] as num?)?.toInt() ?? 10);
+    final configuredColor = spellData['color']?.toString();
+    _color = _colors.contains(configuredColor)
+        ? configuredColor!
+        : _colors.first;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _spellId.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _ResourceForm(
+    title: 'Edit Spellcast spell',
+    fields: [
+      TextField(
+        controller: _name,
+        decoration: const InputDecoration(labelText: 'Title'),
+      ),
+      TextField(
+        controller: _spellId,
+        decoration: const InputDecoration(labelText: 'Spell ID'),
+      ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Enabled'),
+        value: _enabled,
+        onChanged: (value) => setState(() => _enabled = value),
+      ),
+      TextField(
+        controller: _description,
+        maxLines: 3,
+        decoration: const InputDecoration(labelText: 'Description'),
+      ),
+      DropdownButtonFormField<int>(
+        initialValue: _bits,
+        decoration: const InputDecoration(labelText: 'Bits'),
+        items: [
+          for (final amount in _bitAmounts)
+            DropdownMenuItem(value: amount, child: Text('$amount bits')),
+        ],
+        onChanged: (value) {
+          if (value != null) setState(() => _bits = value);
+        },
+      ),
+      DropdownButtonFormField<String>(
+        initialValue: _color,
+        decoration: const InputDecoration(labelText: 'Color'),
+        items: [
+          for (final color in _colors)
+            DropdownMenuItem(value: color, child: Text(color)),
+        ],
+        onChanged: (value) {
+          if (value != null) setState(() => _color = value);
+        },
+      ),
+    ],
+    onSave: () => widget.onSave(
+      ResourceData(
+        id: widget.resource.id,
+        config: {
+          ...widget.resource.config,
+          'name': _name.text.trim(),
+          'spellId': _spellId.text.trim(),
+          'spellData': {
+            ..._spellData,
+            'enabled': _enabled,
+            'description': _description.text,
+            'bits': _bits,
+            'color': _color,
+          },
+        },
+        state: widget.resource.state,
+      ),
+    ),
+  );
+
+  int _nearestBitAmount(int value) => _bitAmounts.reduce(
+    (left, right) =>
+        (value - left).abs() <= (value - right).abs() ? left : right,
   );
 }
 

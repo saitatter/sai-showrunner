@@ -9,6 +9,7 @@ import '../../components/data_inputs/data_input.dart';
 import '../../editor/showrunner_graph_editor.dart';
 import '../../persistence/profile_repository.dart';
 import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/runtime/provider_event_workers.dart';
 import '../../runtime/profile_runtime.dart';
 import '../../schema/automation.dart';
 import '../../schema/profile.dart';
@@ -24,11 +25,13 @@ class ProfileWorkspace extends StatefulWidget {
   const ProfileWorkspace({
     super.key,
     required this.dataService,
+    required this.providerEvents,
     this.registryFuture,
     this.runtimeFuture,
   });
 
   final ShowRunnerDataService dataService;
+  final ProviderEventRuntime providerEvents;
   final Future<DartPluginRegistry>? registryFuture;
   final Future<DartProfileRuntime>? runtimeFuture;
 
@@ -197,9 +200,18 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         await _profileSession?.dispose();
         _profileSession = null;
         await runtime.deactivate(entry.fileName, profile);
+        widget.providerEvents.updateProfileActivity(
+          entry.fileName,
+          active: false,
+        );
       } else {
         await runtime.activate(entry.fileName, profile);
         _profileSession = runtime.watch(entry.fileName, profile);
+        widget.providerEvents.updateProfileActivity(
+          entry.fileName,
+          active: true,
+          triggers: profile.triggers,
+        );
       }
       if (mounted) setState(() => _profileActive = !_profileActive);
     } catch (error) {

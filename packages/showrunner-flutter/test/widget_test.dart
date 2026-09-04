@@ -847,6 +847,39 @@ deactivationAutomation:
     expect(await repository.load('res-1'), isNull);
   });
 
+  test(
+    'loads and edits legacy YAML resources without creating duplicates',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'showrunner-legacy-resource-repo-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final legacy = File('${directory.path}/legacy.yaml');
+      await legacy.writeAsString('''
+name: Legacy overlay
+width: 1920
+widgets:
+  - type: text
+    text: Hello
+''');
+      final repository = ResourceRepository(directory);
+
+      final loaded = await repository.load('legacy');
+      expect(loaded?.config['name'], 'Legacy overlay');
+      expect((loaded?.config['widgets'] as List).single['text'], 'Hello');
+
+      await repository.save(
+        ResourceData(
+          id: 'legacy',
+          config: {...loaded!.config, 'name': 'Updated overlay'},
+        ),
+      );
+      expect(await File('${directory.path}/legacy.json').exists(), isFalse);
+      expect((await repository.load('legacy'))?.name, 'Updated overlay');
+      expect((await directory.list().toList()), hasLength(1));
+    },
+  );
+
   testWidgets('mounts the deterministic navigation rail shell', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/sound/manifest.dart';
+import 'package:showrunner_flutter/plugins/sound/output.dart';
 import 'package:showrunner_flutter/plugins/sound/tts_runtime.dart';
 
 void main() {
@@ -12,7 +17,12 @@ void main() {
     () async {
       final service = _RecordingSpeechService();
       final registry = DartPluginRegistry()
-        ..register(createSoundPlugin(ttsService: service));
+        ..register(
+          createSoundPlugin(
+            ttsService: service,
+            ttsFileService: CallbackTtsFileSynthesisService((_) async => null),
+          ),
+        );
 
       final result = await registry.invokeAction('sound', 'speakTTS', {
         'text': 'Hello from ShowRunner',
@@ -46,6 +56,84 @@ void main() {
 
     expect(result, {'spoken': false, 'text': '  '});
     expect(service.requests, isEmpty);
+  });
+
+  test('routes synthesized WAV through the selected sound output', () async {
+    final speech = _RecordingSpeechService();
+    final output = _RecordingSoundOutput('system.main');
+    final outputs = SoundOutputRegistry(defaultOutputId: 'system.main')
+      ..register(output);
+    final registry = DartPluginRegistry()
+      ..register(
+        createSoundPlugin(
+          ttsService: speech,
+          ttsFileService: CallbackTtsFileSynthesisService(
+            (_) async => 'C:/temp/showrunner-tts.wav',
+          ),
+          soundOutputs: outputs,
+        ),
+      );
+
+    final result = await registry.invokeAction('sound', 'speakTTS', {
+      'text': 'Route this voice',
+      'voiceProvider': 'system.voice-1',
+      'output': 'system.main',
+      'volume': 60,
+    });
+
+    expect(result, {
+      'spoken': true,
+      'text': 'Route this voice',
+      'file': 'C:/temp/showrunner-tts.wav',
+    });
+    expect(speech.requests, isEmpty);
+    expect(output.requests.single.file, 'C:/temp/showrunner-tts.wav');
+    expect(output.requests.single.volume, 60);
+  });
+
+  test('builds a deterministic Windows SAPI WAV synthesis command', () async {
+    final directory = await Directory.systemTemp.createTemp('showrunner-tts-');
+    addTearDown(() => directory.delete(recursive: true));
+    String? executable;
+    List<String>? arguments;
+    final service = WindowsTtsFileSynthesisService(
+      enabled: true,
+      cacheDirectory: directory,
+      run: (nextExecutable, nextArguments) async {
+        executable = nextExecutable;
+        arguments = nextArguments;
+        final encoded = nextArguments.last;
+        final bytes = base64Decode(encoded);
+        final data = ByteData.sublistView(Uint8List.fromList(bytes));
+        final script = String.fromCharCodes(
+          List.generate(
+            bytes.length ~/ 2,
+            (index) => data.getUint16(index * 2, Endian.little),
+          ),
+        );
+        final outputToken = RegExp(
+          r"\$outputPath.*FromBase64String\('([^']+)'\)",
+        ).firstMatch(script)!.group(1)!;
+        final outputPath = utf8.decode(base64Decode(outputToken));
+        await File(outputPath).writeAsBytes(List.filled(45, 0));
+        return ProcessResult(1, 0, '', '');
+      },
+    );
+
+    final path = await service.synthesizeToFile(
+      const TtsSpeechRequest(
+        text: 'SAPI test',
+        voiceProvider: 'system.voice-1',
+        voiceName: 'Narrator',
+        rate: 0.75,
+        volume: 0.6,
+      ),
+    );
+
+    expect(path, isNotNull);
+    expect(await File(path!).length(), 45);
+    expect(executable, 'powershell.exe');
+    expect(arguments, contains('-EncodedCommand'));
   });
 
   test(
@@ -114,6 +202,20 @@ final class _RecordingSpeechService implements TtsSpeechService {
   Future<TtsSpeechResult> speak(TtsSpeechRequest request) async {
     requests.add(request);
     return TtsSpeechResult(spoken: true, text: request.text);
+  }
+}
+
+final class _RecordingSoundOutput implements SoundOutput {
+  _RecordingSoundOutput(this.id);
+
+  @override
+  final String id;
+  final requests = <SoundPlayRequest>[];
+
+  @override
+  Future<bool> playFile(SoundPlayRequest request) async {
+    requests.add(request);
+    return true;
   }
 }
 

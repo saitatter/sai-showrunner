@@ -10,6 +10,7 @@ import '../../services/provider_settings_validator.dart';
 import '../../persistence/automation_repository.dart';
 import '../../services/showrunner_data_service.dart';
 import 'plugin_visibility.dart';
+import 'plugin_catalog_filter.dart';
 
 class PluginWorkspace extends StatefulWidget {
   const PluginWorkspace({
@@ -481,7 +482,7 @@ class _OAuthDiagnostics extends StatelessWidget {
   }
 }
 
-class _PluginCatalog extends StatelessWidget {
+class _PluginCatalog extends StatefulWidget {
   const _PluginCatalog({
     required this.plugins,
     required this.selectedId,
@@ -497,9 +498,24 @@ class _PluginCatalog extends StatelessWidget {
   final Future<void> Function(String pluginId, bool enabled) onEnabledChanged;
 
   @override
+  State<_PluginCatalog> createState() => _PluginCatalogState();
+}
+
+class _PluginCatalogState extends State<_PluginCatalog> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final core = plugins.where((plugin) => plugin.id == 'obs').toList();
-    final platforms = plugins.where((plugin) => plugin.id != 'obs').toList();
+    final filtered = filterPlugins(widget.plugins, _query);
+    final core = filtered.where((plugin) => plugin.id == 'obs').toList();
+    final platforms = filtered.where((plugin) => plugin.id != 'obs').toList();
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 20),
       children: [
@@ -515,21 +531,54 @@ class _PluginCatalog extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              isDense: true,
+              labelText: 'Search plugins',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear plugin search',
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                      icon: const Icon(Icons.clear),
+                    ),
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (value) => setState(() => _query = value),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (filtered.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Text(
+              _query.trim().isEmpty
+                  ? 'No plugins are registered.'
+                  : 'No plugins match “${_query.trim()}”.',
+            ),
+          ),
         _PluginGroup(
           title: 'Core integrations',
           plugins: core,
-          selectedId: selectedId,
-          registry: registry,
-          onSelected: onSelected,
-          onEnabledChanged: onEnabledChanged,
+          selectedId: widget.selectedId,
+          registry: widget.registry,
+          onSelected: widget.onSelected,
+          onEnabledChanged: widget.onEnabledChanged,
         ),
         _PluginGroup(
           title: 'Platforms',
           plugins: platforms,
-          selectedId: selectedId,
-          registry: registry,
-          onSelected: onSelected,
-          onEnabledChanged: onEnabledChanged,
+          selectedId: widget.selectedId,
+          registry: widget.registry,
+          onSelected: widget.onSelected,
+          onEnabledChanged: widget.onEnabledChanged,
         ),
       ],
     );

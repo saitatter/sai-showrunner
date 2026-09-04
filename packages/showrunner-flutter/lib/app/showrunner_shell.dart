@@ -6,6 +6,7 @@ import '../features/automation/automation_catalog_workspace.dart';
 import '../features/diagnostics/diagnostics_workspace.dart';
 import '../features/graph/graph_workspace.dart';
 import '../features/plugins/plugin_workspace.dart';
+import '../features/plugins/plugin_catalog_filter.dart';
 import '../features/plugins/plugin_visibility.dart';
 import '../features/settings/interface_preferences.dart';
 import '../features/settings/settings_workspace.dart';
@@ -268,6 +269,7 @@ class ShowRunnerShell extends StatelessWidget {
       ),
       4 => ProfileWorkspace(
         dataService: dataService,
+        providerEvents: providerEvents,
         registryFuture: pluginRegistryFuture,
         runtimeFuture: profileRuntimeFuture,
       ),
@@ -290,7 +292,10 @@ class ShowRunnerShell extends StatelessWidget {
           onDestinationSelected(1);
         },
       ),
-      11 => VariablesWorkspace(dataService: dataService),
+      11 => VariablesWorkspace(
+        dataService: dataService,
+        eventHub: providerEvents.eventHub,
+      ),
       _ => const LogsWorkspace(),
     };
   }
@@ -436,7 +441,7 @@ class _WorkspaceTab extends StatelessWidget {
   }
 }
 
-class _ShellPluginSidebar extends StatelessWidget {
+class _ShellPluginSidebar extends StatefulWidget {
   const _ShellPluginSidebar({
     required this.registryFuture,
     required this.preferences,
@@ -452,9 +457,23 @@ class _ShellPluginSidebar extends StatelessWidget {
   final ValueChanged<String> onSelected;
 
   @override
+  State<_ShellPluginSidebar> createState() => _ShellPluginSidebarState();
+}
+
+class _ShellPluginSidebarState extends State<_ShellPluginSidebar> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<DartPluginRegistry>(
-      future: registryFuture,
+      future: widget.registryFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -469,23 +488,30 @@ class _ShellPluginSidebar extends StatelessWidget {
         return ListenableBuilder(
           listenable: registry,
           builder: (context, child) => ListenableBuilder(
-            listenable: preferences,
+            listenable: widget.preferences,
             builder: (context, child) {
               final plugins =
                   registry.plugins
                       .toList()
                       .where(
                         (plugin) =>
-                            !preferences.hideDisabledIntegrations ||
+                            !widget.preferences.hideDisabledIntegrations ||
                             registry.isPluginEnabled(plugin.id),
                       )
                       .toList()
                     ..sort((a, b) => a.name.compareTo(b.name));
+              final hiddenMatches = filterPlugins(
+                registry.plugins.where(
+                  (plugin) => !registry.isPluginEnabled(plugin.id),
+                ),
+                _query,
+              );
+              final filteredPlugins = filterPlugins(plugins, _query);
               final groupedPlugins =
                   <_IntegrationGroup, List<DartPluginManifest>>{
                     for (final group in _integrationGroups) group: [],
                   };
-              for (final plugin in plugins) {
+              for (final plugin in filteredPlugins) {
                 final group = _integrationGroups.firstWhere(
                   (candidate) => candidate.pluginIds.contains(plugin.id),
                   orElse: () => _integrationGroups.last,
@@ -494,7 +520,7 @@ class _ShellPluginSidebar extends StatelessWidget {
               }
               return ListView(
                 padding: EdgeInsets.symmetric(
-                  vertical: preferences.compactProjectSidebar ? 8 : 16,
+                  vertical: widget.preferences.compactProjectSidebar ? 8 : 16,
                 ),
                 children: [
                   const Padding(
@@ -509,19 +535,54 @@ class _ShellPluginSidebar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  if (plugins.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        labelText: 'Search integrations',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _query.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: 'Clear integration search',
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _query = '');
+                                },
+                                icon: const Icon(Icons.clear),
+                              ),
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (value) => setState(() => _query = value),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (filteredPlugins.isEmpty && hiddenMatches.isNotEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'No integrations are visible with the current filters.',
+                        'This search matches disabled integrations. Disable '
+                        '“Hide disabled integrations” in Settings to show them.',
+                      ),
+                    )
+                  else if (filteredPlugins.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        _query.trim().isEmpty
+                            ? 'No integrations are visible with the current filters.'
+                            : 'No integrations match “${_query.trim()}”.',
                       ),
                     ),
                   for (final group in _integrationGroups)
                     if (groupedPlugins[group]!.isNotEmpty)
                       ExpansionTile(
-                        initiallyExpanded:
-                            !preferences.collapseIntegrationCategoriesByDefault,
-                        dense: preferences.compactProjectSidebar,
+                        initiallyExpanded: !widget
+                            .preferences
+                            .collapseIntegrationCategoriesByDefault,
+                        dense: widget.preferences.compactProjectSidebar,
                         leading: Icon(group.icon),
                         title: Text(group.title),
                         children: [
@@ -529,7 +590,7 @@ class _ShellPluginSidebar extends StatelessWidget {
                             _buildPluginTile(
                               context,
                               registry,
-                              preferences,
+                              widget.preferences,
                               plugin,
                             ),
                         ],
@@ -550,7 +611,7 @@ class _ShellPluginSidebar extends StatelessWidget {
     DartPluginManifest plugin,
   ) => ListTile(
     dense: preferences.compactProjectSidebar,
-    selected: plugin.id == selectedPluginId,
+    selected: plugin.id == widget.selectedPluginId,
     contentPadding: const EdgeInsets.only(left: 28, right: 8),
     leading: Icon(
       Icons.extension_outlined,
@@ -562,11 +623,11 @@ class _ShellPluginSidebar extends StatelessWidget {
     subtitle: Text(
       '${plugin.actions.length} actions  |  ${plugin.triggers.length} triggers',
     ),
-    onTap: () => onSelected(plugin.id),
+    onTap: () => widget.onSelected(plugin.id),
     trailing: preferences.showPluginSwitches
         ? Switch(
             value: registry.isPluginEnabled(plugin.id),
-            onChanged: (enabled) => onToggle(plugin.id, enabled),
+            onChanged: (enabled) => widget.onToggle(plugin.id, enabled),
           )
         : Icon(
             registry.isPluginEnabled(plugin.id) ? Icons.power : Icons.power_off,

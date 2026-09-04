@@ -47,16 +47,16 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
       contexts; canvas and flow-edge placement are already covered.
 - [ ] Add a larger-graph performance smoke test for data-wire drag and render
       behavior.
-- [ ] Add integration search/filtering across grouped categories and plugin
+- [x] Add integration search/filtering across grouped categories and plugin
       detail tabs.
-- [ ] Add a hidden-plugin match hint when a search only matches disabled
+- [x] Add a hidden-plugin match hint when a search only matches disabled
       plugins.
 - [ ] Decide whether plugin visibility is local UI preference or
       profile/project configuration.
 - [ ] Expose plugin-specific diagnostics and configuration editors where plugin
       state is still implicit.
-- [ ] Add a persisted UI-preference reset action in Settings.
-- [ ] Add empty-state copy for integration categories with no visible plugins.
+- [x] Add a persisted UI-preference reset action in Settings.
+- [x] Add empty-state copy for integration categories with no visible plugins.
 - [ ] Add a manual visual QA checklist for Settings, Updates, Integrations,
       plugin details, and the automation context menu.
 - [ ] Audit remaining production `console.*` output.

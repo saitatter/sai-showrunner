@@ -35,6 +35,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
@@ -149,6 +152,9 @@ jobs:
           flutter-version: '3.44.0'
           channel: stable
           cache: true
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2

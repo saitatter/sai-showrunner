@@ -3,6 +3,7 @@ import '../../components/data_inputs/data_input.dart';
 import '../registry/plugin_registry.dart';
 import 'output.dart';
 import 'tts_runtime.dart';
+import 'windows_audio.dart';
 
 const _soundSchema = DartDataInputSchema(
   label: 'Sound',
@@ -53,6 +54,12 @@ const _speakTtsSchema = DartDataInputSchema(
       required: true,
     ),
     DartDataInputSchema(
+      label: 'Output',
+      key: 'output',
+      kind: DartDataInputKind.resource,
+      resourceType: 'SoundOutput',
+    ),
+    DartDataInputSchema(
       label: 'Voice provider',
       key: 'voiceProvider',
       kind: DartDataInputKind.text,
@@ -82,19 +89,26 @@ const _speakTtsSchema = DartDataInputSchema(
 );
 
 final class _SoundDependencies {
-  const _SoundDependencies({required this.tts, required this.outputs});
+  const _SoundDependencies({
+    required this.tts,
+    required this.ttsFile,
+    required this.outputs,
+  });
 
   final TtsSpeechService tts;
+  final TtsFileSynthesisService? ttsFile;
   final SoundOutputRegistry outputs;
 }
 
 DartPluginManifest createSoundPlugin({
   TtsSpeechService? ttsService,
+  TtsFileSynthesisService? ttsFileService,
   SoundOutputRegistry? soundOutputs,
 }) {
   final dependencies = _SoundDependencies(
     tts: ttsService ?? FlutterTtsSpeechService(),
-    outputs: soundOutputs ?? SoundOutputRegistry(),
+    ttsFile: ttsFileService ?? createDefaultTtsFileSynthesisService(),
+    outputs: soundOutputs ?? createDefaultSoundOutputRegistry(),
   );
   return DartPluginManifest(
     id: 'sound',
@@ -113,16 +127,26 @@ DartPluginManifest createSoundPlugin({
         actionId: 'speakTTS',
         displayName: 'Speak Text-to-Speech',
         configSchema: _speakTtsSchema,
-        invoke: (config, context) =>
-            _speakTTS(config, context, dependencies.tts),
+        invoke: (config, context) => _speakTTS(
+          config,
+          context,
+          dependencies.tts,
+          dependencies.ttsFile,
+          dependencies.outputs,
+        ),
       ),
       DartActionDefinition(
         pluginId: 'sound',
         actionId: 'tts',
         displayName: 'Text to Speech',
         configSchema: _speakTtsSchema,
-        invoke: (config, context) =>
-            _speakTTS(config, context, dependencies.tts),
+        invoke: (config, context) => _speakTTS(
+          config,
+          context,
+          dependencies.tts,
+          dependencies.ttsFile,
+          dependencies.outputs,
+        ),
       ),
     ],
   );
@@ -165,6 +189,8 @@ Future<Object?> _speakTTS(
   RuntimeMap config,
   EvaluationContext context,
   TtsSpeechService service,
+  TtsFileSynthesisService? fileService,
+  SoundOutputRegistry outputs,
 ) async {
   final text = config['text']?.toString() ?? '';
   if (text.trim().isEmpty) return {'spoken': false, 'text': text};
@@ -198,17 +224,25 @@ Future<Object?> _speakTTS(
   final pitch = _legacyPitch(providerConfig['pitch'] ?? config['pitch']);
   final rate = _legacyRate(providerConfig['rate'] ?? config['rate']);
   final volume = _legacyVolume(config['volume']);
-  final result = await service.speak(
-    TtsSpeechRequest(
-      text: text,
-      voiceProvider: voiceProvider,
-      voiceName: voiceName,
-      voiceLocale: voiceLocale,
-      volume: volume,
-      pitch: pitch,
-      rate: rate,
-    ),
+  final request = TtsSpeechRequest(
+    text: text,
+    voiceProvider: voiceProvider,
+    voiceName: voiceName,
+    voiceLocale: voiceLocale,
+    volume: volume,
+    pitch: pitch,
+    rate: rate,
   );
+  final generatedFile = await fileService?.synthesizeToFile(request);
+  if (generatedFile != null) {
+    final played = await outputs.playFile(
+      outputId: _resourceId(config['output']),
+      file: generatedFile,
+      volume: volume * 100,
+    );
+    return {'spoken': played, 'text': text, 'file': generatedFile};
+  }
+  final result = await service.speak(request);
   return result.toMap();
 }
 

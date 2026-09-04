@@ -127,4 +127,30 @@ void main() {
       throwsA(isA<ArgumentError>()),
     );
   });
+
+  test('queries persisted viewers with sorting and pagination', () async {
+    const alpha = ViewerIdentity(id: 'alpha', displayName: 'Alpha');
+    const beta = ViewerIdentity(id: 'beta', displayName: 'Beta');
+    await repository.setViewerValue('twitch', beta, 'points', 4);
+    await repository.setViewerValue('twitch', alpha, 'points', 12);
+
+    final firstPage = await repository.queryViewers(
+      'twitch',
+      start: 0,
+      end: 1,
+      sortBy: 'points',
+      descending: true,
+    );
+    final secondPage = await repository.queryViewers(
+      'twitch',
+      start: 1,
+      end: 2,
+      sortBy: 'points',
+      descending: true,
+    );
+
+    expect(firstPage.single.viewer.id, 'alpha');
+    expect(firstPage.single.values['points'], 12);
+    expect(secondPage.single.viewer.id, 'beta');
+  });
 }

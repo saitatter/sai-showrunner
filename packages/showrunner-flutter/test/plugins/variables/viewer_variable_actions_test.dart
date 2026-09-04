@@ -4,6 +4,7 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/schema/viewer_data.dart';
+import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
   late InMemoryViewerDataRepository repository;
@@ -84,6 +85,34 @@ void main() {
       )).persisted,
       isFalse,
     );
+  });
+
+  test('publishes viewer changes to the in-process event hub', () async {
+    final eventHub = DartPluginEventHub();
+    final event = eventHub.stream('viewerDataChanged').first;
+    final eventRegistry = DartPluginRegistry()
+      ..register(
+        createVariablesPlugin(
+          viewerDataRepository: repository,
+          eventHub: eventHub,
+        ),
+      );
+
+    await eventRegistry.invokeAction('variables', 'setViewerVar', {
+      'viewer': {'id': '42', 'displayName': 'Ada'},
+      'variable': 'title',
+      'value': 'Champion',
+    });
+
+    expect(await event, {
+      'provider': 'twitch',
+      'id': '42',
+      'displayName': 'Ada',
+      'variable': 'title',
+      'value': 'Champion',
+      'values': {'points': 10, 'title': 'Champion'},
+    });
+    await eventHub.dispose();
   });
 
   test(

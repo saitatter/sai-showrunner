@@ -15,6 +15,14 @@ abstract interface class ViewerDataRepository {
 
   Future<ViewerDataRow> loadViewer(String provider, ViewerIdentity viewer);
 
+  Future<List<ViewerDataRow>> queryViewers(
+    String provider, {
+    int start = 0,
+    int? end,
+    String sortBy = 'id',
+    bool descending = false,
+  });
+
   Future<ViewerDataRow> setViewerValue(
     String provider,
     ViewerIdentity viewer,
@@ -84,6 +92,39 @@ final class FileViewerDataRepository implements ViewerDataRepository {
       _viewerKey(provider, viewer.id),
       () => _readViewer(provider, viewer),
     );
+  }
+
+  @override
+  Future<List<ViewerDataRow>> queryViewers(
+    String provider, {
+    int start = 0,
+    int? end,
+    String sortBy = 'id',
+    bool descending = false,
+  }) async {
+    final viewerDirectory = _providerDirectory(provider);
+    if (!await viewerDirectory.exists()) return const [];
+    final rows = <ViewerDataRow>[];
+    await for (final entity in viewerDirectory.list()) {
+      if (entity is! File || !entity.path.endsWith('.json')) continue;
+      try {
+        final row = ViewerDataRow.fromJson(
+          jsonDecode(await entity.readAsString()) as JsonMap,
+        );
+        if (row.provider == provider) rows.add(row);
+      } on FormatException {
+        // Ignore corrupted rows, matching the resource catalog behavior.
+      } on TypeError {
+        // Ignore malformed JSON objects.
+      }
+    }
+    rows.sort((left, right) {
+      final result = _compareViewerRows(left, right, sortBy);
+      return descending ? -result : result;
+    });
+    final from = start.clamp(0, rows.length).toInt();
+    final to = (end ?? rows.length).clamp(from, rows.length).toInt();
+    return rows.sublist(from, to);
   }
 
   @override
@@ -210,13 +251,17 @@ final class FileViewerDataRepository implements ViewerDataRepository {
   }
 
   File _viewerFile(String provider, String viewerId) {
-    if (!RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(provider)) {
-      throw ArgumentError.value(provider, 'provider');
-    }
     final encodedId = base64Url
         .encode(utf8.encode(viewerId))
         .replaceAll('=', '');
-    return File('${directory.path}/$provider/$encodedId.json');
+    return File('${_providerDirectory(provider).path}/$encodedId.json');
+  }
+
+  Directory _providerDirectory(String provider) {
+    if (!RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(provider)) {
+      throw ArgumentError.value(provider, 'provider');
+    }
+    return Directory('${directory.path}/$provider');
   }
 
   Future<T> _withViewerLock<T>(String key, Future<T> Function() operation) {
@@ -268,6 +313,24 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
         persisted: false,
       ),
     );
+  }
+
+  @override
+  Future<List<ViewerDataRow>> queryViewers(
+    String provider, {
+    int start = 0,
+    int? end,
+    String sortBy = 'id',
+    bool descending = false,
+  }) async {
+    final rows = _rows.values.where((row) => row.provider == provider).toList();
+    rows.sort((left, right) {
+      final result = _compareViewerRows(left, right, sortBy);
+      return descending ? -result : result;
+    });
+    final from = start.clamp(0, rows.length).toInt();
+    final to = (end ?? rows.length).clamp(from, rows.length).toInt();
+    return rows.sublist(from, to);
   }
 
   @override
@@ -371,4 +434,26 @@ String _yamlScalar(dynamic value) {
   if (value == null) return 'null';
   if (value is bool || value is num) return value.toString();
   return jsonEncode(value.toString());
+}
+
+int _compareViewerRows(ViewerDataRow left, ViewerDataRow right, String sortBy) {
+  final leftValue = _viewerSortValue(left, sortBy);
+  final rightValue = _viewerSortValue(right, sortBy);
+  if (leftValue is num && rightValue is num) {
+    return leftValue.compareTo(rightValue);
+  }
+  return leftValue.toString().toLowerCase().compareTo(
+    rightValue.toString().toLowerCase(),
+  );
+}
+
+dynamic _viewerSortValue(ViewerDataRow row, String sortBy) {
+  switch (sortBy) {
+    case 'displayName':
+      return row.viewer.displayName;
+    case 'id':
+      return row.viewer.id;
+    default:
+      return row.values[sortBy] ?? '';
+  }
 }

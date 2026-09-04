@@ -32,4 +32,48 @@ void main() {
 
     await hub.dispose();
   });
+
+  test('keeps the trigger set for all active profiles', () async {
+    final hub = DartPluginEventHub();
+    final providerEvents = ProviderEventRuntime(
+      dataService: ShowRunnerDataService(
+        Directory('${Directory.systemTemp.path}/provider-profile-data'),
+      ),
+      eventHub: hub,
+    );
+    var notifications = 0;
+    providerEvents.addListener(() => notifications++);
+
+    providerEvents.updateProfileActivity(
+      'main',
+      active: true,
+      triggers: [
+        {
+          'plugin': 'spellcast',
+          'trigger': 'spellHook',
+          'config': {'spell': 'local-one'},
+        },
+      ],
+    );
+    providerEvents.updateProfileActivity(
+      'backup',
+      active: true,
+      triggers: [
+        {
+          'plugin': 'spellcast',
+          'trigger': 'spellHook',
+          'config': {'spell': 'local-two'},
+        },
+      ],
+    );
+    expect(providerEvents.activeProfileTriggers, hasLength(2));
+
+    providerEvents.updateProfileActivity('main', active: false);
+    expect(providerEvents.activeProfileTriggers.single['config'], {
+      'spell': 'local-two',
+    });
+    expect(notifications, 3);
+
+    await hub.dispose();
+  });
 }
