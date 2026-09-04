@@ -449,6 +449,9 @@ For each surface:
 	recall, and HSB/Kelvin light-state updates.
 - [x] Port Twinkly local API authentication, device info/mode/color/movie
 	actions, and power-off control.
+- [x] Port Discord webhook JSON delivery and authenticated Minecraft TCP RCON
+	command execution; Discord file attachments and persistent RCON sessions
+	remain follow-up work.
 - [ ] Add device-specific resource settings for the remaining integrations.
 - [ ] Replace the satellite connection/dashboard/settings/slots renderer with
 	a Flutter remote workspace before removing `packages/showrunner-satellite/`.
