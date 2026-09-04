@@ -106,6 +106,9 @@ updates; Bonjour discovery and persisted device-resource recovery remain open.
 TP-Link Kasa is registered with the native Dart TCP protocol, including the
 encrypted frame codec and light or plug power/color/transition commands;
 subnet discovery and persisted device-resource recovery remain open.
+LIFX is registered with the Dart LAN v2 UDP packet codec and direct light state,
+power, RGB/kelvin, and transition commands; subnet discovery and persisted
+device-resource recovery remain open.
 Bluesky is registered with persisted account settings and real AT Protocol
 session/post requests; account-resource selection and login UI parity remain open.
 DonorDrive is registered with participant polling, donation/incentive/milestone
@@ -471,6 +474,8 @@ For each surface:
 	the local HTTP API, including Kelvin/RGB payload conversion.
 - [x] Port TP-Link Kasa encrypted TCP frames and light/plug state commands,
 	including transition, color temperature, and RGB fields.
+- [x] Port LIFX LAN v2 packet encoding, state parsing, and direct UDP light
+	state, power, RGB/kelvin, and transition commands.
 - [x] Port Discord webhook JSON delivery and authenticated Minecraft TCP RCON
 	command execution; Discord file attachments and persistent RCON sessions
 	remain follow-up work.

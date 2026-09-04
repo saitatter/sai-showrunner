@@ -38,6 +38,7 @@ import '../philips_hue/manifest.dart';
 import '../twinkly/manifest.dart';
 import '../elgato/manifest.dart';
 import '../tplink_kasa/manifest.dart';
+import '../lifx/manifest.dart';
 import '../input/manifest.dart';
 import '../stream_plans/manifest.dart';
 import '../showrunner/manifest.dart';
@@ -116,6 +117,7 @@ DartPluginRegistry createDefaultPluginRegistry({
   );
   registry.register(createElgatoPlugin(ElgatoTransport(_unconfiguredElgato)));
   registry.register(createKasaPlugin(KasaTransport(_unconfiguredKasa)));
+  registry.register(createLifxPlugin(_unconfiguredLifxTransport));
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   return registry;
@@ -343,6 +345,18 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       KasaTransport(kasaTransport?.request ?? _unconfiguredKasa),
     ),
   );
+  final lifxSettings = await dataService.loadPluginSettings('lifx');
+  final lifxHost = lifxSettings['host']?.toString().trim();
+  final lifxTransport = lifxHost?.isNotEmpty == true
+      ? LifxUdpTransport(
+          host: lifxHost!,
+          port: _port(lifxSettings['port'], 56700),
+          target: parseLifxTarget(lifxSettings['target']?.toString()),
+        )
+      : null;
+  registry.register(
+    createLifxPlugin(lifxTransport ?? _unconfiguredLifxTransport),
+  );
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   final disabled = appSettings['disabledPlugins'];
@@ -467,6 +481,15 @@ Future<RuntimeMap> _unconfiguredKasa(RuntimeMap request) =>
     Future<RuntimeMap>.error(
       StateError('TP-Link Kasa transport is not configured.'),
     );
+
+final LifxTransport _unconfiguredLifxTransport = CallbackLifxTransport(
+  getStateCallback: () =>
+      Future<RuntimeMap>.error(StateError('LIFX transport is not configured.')),
+  setPowerCallback: (on, transitionMilliseconds) =>
+      Future<RuntimeMap>.error(StateError('LIFX transport is not configured.')),
+  setColorCallback: (color, transitionMilliseconds) =>
+      Future<RuntimeMap>.error(StateError('LIFX transport is not configured.')),
+);
 
 Future<List<RuntimeMap>> _unconfiguredVoiceModVoices() =>
     Future.error(StateError('VoiceMod transport is not configured.'));
