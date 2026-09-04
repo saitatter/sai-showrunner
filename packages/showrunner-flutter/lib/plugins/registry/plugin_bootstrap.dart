@@ -19,6 +19,7 @@ import '../discord/manifest.dart';
 import '../bluesky/manifest.dart';
 import '../donordrive/manifest.dart';
 import '../aitum/manifest.dart';
+import '../advss/manifest.dart';
 import '../sound/manifest.dart';
 import '../sound/output.dart';
 import '../minecraft/manifest.dart';
@@ -52,6 +53,12 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(createObsPlugin(CallbackObsTransport(_unconfiguredObs)));
   registry.register(
     createAitumPlugin(CallbackObsTransport(_unconfiguredAitum)),
+  );
+  registry.register(
+    createAdvssPlugin(
+      CallbackObsTransport(_unconfiguredAitum),
+      eventHub: eventHub,
+    ),
   );
   registry.register(
     createYouTubePlugin(
@@ -126,10 +133,12 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           host: host,
           port: port,
           password: obs['password'] as String?,
+          eventHub: eventHub,
         )
       : CallbackObsTransport(_unconfiguredObs);
   registry.register(createObsPlugin(obsTransport));
   registry.register(createAitumPlugin(obsTransport));
+  registry.register(createAdvssPlugin(obsTransport, eventHub: eventHub));
   final twitchClientId = twitch['clientId'] as String?;
   final youtubeManager = _createTokenManager(
     pluginId: 'youtube',

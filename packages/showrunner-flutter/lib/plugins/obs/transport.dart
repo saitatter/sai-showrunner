@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 
 import '../../runtime/expression.dart';
+import '../../services/plugin_event_hub.dart';
 import 'actions.dart';
 
 final class ObsWebSocketTransport implements ObsTransport {
@@ -12,11 +13,13 @@ final class ObsWebSocketTransport implements ObsTransport {
     required this.host,
     required this.port,
     this.password,
+    this.eventHub,
   });
 
   final String host;
   final int port;
   final String? password;
+  final DartPluginEventHub? eventHub;
   WebSocket? _socket;
   final _pending = <String, Completer<RuntimeMap>>{};
   int _requestId = 0;
@@ -76,6 +79,17 @@ final class ObsWebSocketTransport implements ObsTransport {
   void _handleMessage(dynamic raw) {
     if (raw is! String) return;
     final message = jsonDecode(raw) as RuntimeMap;
+    if (message['op'] == 5) {
+      final data = message['d'];
+      if (data is Map) {
+        final eventData = data['eventData'];
+        eventHub?.emit('obsVendorEvent', {
+          'eventType': data['eventType'],
+          if (eventData is Map) ...Map<String, dynamic>.from(eventData),
+        });
+      }
+      return;
+    }
     if (message['op'] != 7) return;
     final data = Map<String, dynamic>.from(message['d'] as Map);
     final requestId = data['requestId'] as String?;

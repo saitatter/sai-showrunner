@@ -106,6 +106,8 @@ DonorDrive is registered with participant polling, donation/incentive/milestone
 events, persisted API settings, and clean runtime shutdown.
 Aitum vertical-canvas controls are registered over the shared OBS WebSocket
 transport, including vertical scene, stream, recording, backtrack, and chapter actions.
+Advanced Scene Switcher messages and vendor events are also bridged through the
+shared OBS transport and Dart event hub.
 
 ## Current Architecture
 
