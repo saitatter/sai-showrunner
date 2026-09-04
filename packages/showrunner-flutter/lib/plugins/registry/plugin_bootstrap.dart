@@ -27,6 +27,7 @@ import '../spellcast/manifest.dart';
 import '../iot/manifest.dart';
 import '../govee/manifest.dart';
 import '../philips_hue/manifest.dart';
+import '../twinkly/manifest.dart';
 import '../input/manifest.dart';
 import '../stream_plans/manifest.dart';
 import '../showrunner/manifest.dart';
@@ -77,6 +78,9 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(createGoveePlugin(GoveeTransport(_unconfiguredGovee)));
   registry.register(
     createPhilipsHuePlugin(HueTransport(_unconfiguredPhilipsHue)),
+  );
+  registry.register(
+    createTwinklyPlugin(TwinklyTransport(_unconfiguredTwinkly)),
   );
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
@@ -206,6 +210,10 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       HueTransport(hueTransport?.request ?? _unconfiguredPhilipsHue),
     ),
   );
+  final twinklyTransport = TwinklyHttpTransport();
+  registry.register(
+    createTwinklyPlugin(TwinklyTransport(twinklyTransport.request)),
+  );
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   final disabled = appSettings['disabledPlugins'];
@@ -294,4 +302,14 @@ Future<RuntimeMap> _unconfiguredPhilipsHue(
   dynamic body,
 ) => Future<RuntimeMap>.error(
   StateError('Philips Hue transport is not configured.'),
+);
+
+Future<RuntimeMap> _unconfiguredTwinkly(
+  String ip,
+  String method,
+  String path,
+  RuntimeMap query,
+  dynamic body,
+) => Future<RuntimeMap>.error(
+  StateError('Twinkly transport is not configured.'),
 );
