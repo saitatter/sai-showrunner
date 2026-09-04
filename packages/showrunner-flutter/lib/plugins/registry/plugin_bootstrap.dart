@@ -26,6 +26,7 @@ import '../overlays/manifest.dart';
 import '../spellcast/manifest.dart';
 import '../iot/manifest.dart';
 import '../govee/manifest.dart';
+import '../philips_hue/manifest.dart';
 import '../input/manifest.dart';
 import '../stream_plans/manifest.dart';
 import '../showrunner/manifest.dart';
@@ -74,6 +75,9 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(createSpellcastPlugin(eventHub: eventHub));
   registry.register(createIotPlugin());
   registry.register(createGoveePlugin(GoveeTransport(_unconfiguredGovee)));
+  registry.register(
+    createPhilipsHuePlugin(HueTransport(_unconfiguredPhilipsHue)),
+  );
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   return registry;
@@ -191,6 +195,17 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       GoveeTransport(goveeTransport?.request ?? _unconfiguredGovee),
     ),
   );
+  final hueSettings = await dataService.loadPluginSettings('philips-hue');
+  final hueIp = hueSettings['hubIp']?.toString().trim() ?? '';
+  final hueKey = hueSettings['hubKey']?.toString().trim() ?? '';
+  final hueTransport = hueIp.isNotEmpty && hueKey.isNotEmpty
+      ? HueHttpTransport(host: hueIp, applicationKey: hueKey)
+      : null;
+  registry.register(
+    createPhilipsHuePlugin(
+      HueTransport(hueTransport?.request ?? _unconfiguredPhilipsHue),
+    ),
+  );
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   final disabled = appSettings['disabledPlugins'];
@@ -271,3 +286,12 @@ Future<RuntimeMap> _unconfiguredGovee(
   RuntimeMap query,
   dynamic body,
 ) => Future<RuntimeMap>.error(StateError('Govee transport is not configured.'));
+
+Future<RuntimeMap> _unconfiguredPhilipsHue(
+  String method,
+  String path,
+  RuntimeMap query,
+  dynamic body,
+) => Future<RuntimeMap>.error(
+  StateError('Philips Hue transport is not configured.'),
+);

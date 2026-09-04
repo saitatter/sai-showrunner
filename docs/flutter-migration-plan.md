@@ -94,6 +94,9 @@ the Flutter profile lifecycle into the Spellcast subscription set.
 Govee Cloud is also registered as a real Dart plugin with API-key settings,
 device discovery/state actions, and power, RGB, brightness, and color-temperature
 controls; LAN discovery and persisted device resources remain open.
+Philips Hue is registered with local Hue v2 discovery, scene recall, and light or
+group state updates, including HSB/Kelvin conversion; bridge discovery and
+persisted device-resource recovery remain open.
 
 ## Current Architecture
 
@@ -439,6 +442,8 @@ For each surface:
 	configuration, sharing IDs, and remote resource-slot configuration.
 - [x] Port Govee Cloud API-key settings and device discovery/state plus power,
 	RGB, brightness, and color-temperature actions.
+- [x] Port Philips Hue local API settings, light/group/scene discovery, scene
+	recall, and HSB/Kelvin light-state updates.
 - [ ] Add device-specific resource settings for the remaining integrations.
 - [ ] Replace the satellite connection/dashboard/settings/slots renderer with
 	a Flutter remote workspace before removing `packages/showrunner-satellite/`.
@@ -501,7 +506,8 @@ The first visual spike is complete: the Flutter graph workspace now uses the pub
 - Port integrations in slices, starting with settings and read-only health before live event handling.
 - Current Dart slices include OBS, YouTube, Twitch, Moderation, Discord, Sound,
 	Minecraft, HTTP, time, OS, random, variables, overlays, Spellcast, IoT, Govee,
-	and Stream Plans manifests. Twitch and YouTube expose in-process trigger streams
+	Philips Hue, and Stream Plans manifests. Twitch and YouTube expose in-process
+	trigger streams
 	through a shared Dart event hub, with provider workers started by the shell.
 - Remaining plugin work is bespoke UX depth, especially status/OAuth diagnostics
 	and integration-specific pages not covered by generic manifests.
