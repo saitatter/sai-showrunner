@@ -39,6 +39,7 @@ import '../twinkly/manifest.dart';
 import '../elgato/manifest.dart';
 import '../tplink_kasa/manifest.dart';
 import '../lifx/manifest.dart';
+import '../wyze/manifest.dart';
 import '../input/manifest.dart';
 import '../stream_plans/manifest.dart';
 import '../showrunner/manifest.dart';
@@ -118,6 +119,7 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(createElgatoPlugin(ElgatoTransport(_unconfiguredElgato)));
   registry.register(createKasaPlugin(KasaTransport(_unconfiguredKasa)));
   registry.register(createLifxPlugin(_unconfiguredLifxTransport));
+  registry.register(createWyzePlugin(_unconfiguredWyzeTransport));
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   return registry;
@@ -357,6 +359,22 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.register(
     createLifxPlugin(lifxTransport ?? _unconfiguredLifxTransport),
   );
+  final wyzeSettings = await dataService.loadPluginSettings('wyze');
+  final wyzeTransport = WyzeHttpTransport(
+    keyId: wyzeSettings['keyId']?.toString() ?? '',
+    apiKey: wyzeSettings['apiKey']?.toString() ?? '',
+    accessToken: wyzeSettings['accessToken']?.toString(),
+    refreshToken: wyzeSettings['refreshToken']?.toString(),
+    onTokens: (tokens) async {
+      final current = await dataService.loadPluginSettings('wyze');
+      await dataService.savePluginSettings('wyze', {
+        ...current,
+        'accessToken': tokens.accessToken,
+        'refreshToken': tokens.refreshToken,
+      });
+    },
+  );
+  registry.register(createWyzePlugin(wyzeTransport));
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   final disabled = appSettings['disabledPlugins'];
@@ -489,6 +507,20 @@ final LifxTransport _unconfiguredLifxTransport = CallbackLifxTransport(
       Future<RuntimeMap>.error(StateError('LIFX transport is not configured.')),
   setColorCallback: (color, transitionMilliseconds) =>
       Future<RuntimeMap>.error(StateError('LIFX transport is not configured.')),
+);
+
+final WyzeTransport _unconfiguredWyzeTransport = CallbackWyzeTransport(
+  loginCallback: (email, password) =>
+      Future<WyzeToken>.error(StateError('Wyze transport is not configured.')),
+  getDevicesCallback: () => Future<List<RuntimeMap>>.error(
+    StateError('Wyze transport is not configured.'),
+  ),
+  getDeviceStateCallback: (mac, model) =>
+      Future<RuntimeMap>.error(StateError('Wyze transport is not configured.')),
+  setLightStateCallback: (mac, model, properties) =>
+      Future<RuntimeMap>.error(StateError('Wyze transport is not configured.')),
+  setPlugStateCallback: (mac, model, on) =>
+      Future<RuntimeMap>.error(StateError('Wyze transport is not configured.')),
 );
 
 Future<List<RuntimeMap>> _unconfiguredVoiceModVoices() =>

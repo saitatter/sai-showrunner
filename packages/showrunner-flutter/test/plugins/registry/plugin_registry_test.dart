@@ -36,6 +36,7 @@ void main() {
         'elgato',
         'tplink-kasa',
         'lifx',
+        'wyze',
       ]),
     );
     expect(registry.findAction('obs', 'scene'), isNotNull);
@@ -55,6 +56,7 @@ void main() {
     expect(registry.findAction('elgato', 'setLightState'), isNotNull);
     expect(registry.findAction('tplink-kasa', 'setLightState'), isNotNull);
     expect(registry.findAction('lifx', 'setLightState'), isNotNull);
+    expect(registry.findAction('wyze', 'setLightState'), isNotNull);
   });
 
   test('bootstraps and executes the built-in conversion actions', () async {
