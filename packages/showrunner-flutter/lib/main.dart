@@ -9,6 +9,8 @@ import 'app/showrunner_shell.dart';
 import 'app/window_configuration.dart';
 import 'editor/showrunner_graph_editor.dart';
 import 'persistence/automation_repository.dart';
+import 'persistence/viewer_data_repository.dart';
+import 'persistence/viewer_data_sync.dart';
 import 'plugins/registry/plugin_registry.dart';
 import 'plugins/registry/plugin_bootstrap.dart';
 import 'services/plugin_event_hub.dart';
@@ -76,6 +78,8 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
   late final Future<DartProfileRuntime> _profileRuntimeFuture;
   late final DartPluginEventHub _eventHub;
   late final ProviderEventRuntime _providerEvents;
+  late final FileViewerDataRepository _viewerDataRepository;
+  late final ViewerDataSynchronizer _viewerDataSynchronizer;
   late final Future<StartupHealthSnapshot> _healthFuture;
   late final FlutterInterfacePreferences _interfacePreferences;
   AutomationData? _activeAutomation;
@@ -93,6 +97,14 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
     if (widget.loadSampleGraph) _graphEditor.loadSampleGraph();
     _actionQueue = DartActionQueue();
     _eventHub = DartPluginEventHub();
+    _viewerDataRepository = FileViewerDataRepository(
+      Directory('${widget.dataService.userDirectory.path}/viewer-data'),
+    );
+    _viewerDataSynchronizer = ViewerDataSynchronizer(
+      repository: _viewerDataRepository,
+      eventHub: _eventHub,
+    );
+    unawaited(_viewerDataSynchronizer.start());
     _providerEvents = ProviderEventRuntime(
       dataService: widget.dataService,
       eventHub: _eventHub,
@@ -101,6 +113,7 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
     _pluginRegistryFuture = createConfiguredPluginRegistry(
       widget.dataService,
       eventHub: _eventHub,
+      viewerDataRepository: _viewerDataRepository,
     );
     _profileRuntimeFuture = _pluginRegistryFuture.then(
       (registry) => DartProfileRuntime(registry: registry),
@@ -119,6 +132,7 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
     _graphEditor.dispose();
     _actionQueue.dispose();
     unawaited(_providerEvents.stop());
+    unawaited(_viewerDataSynchronizer.stop());
     unawaited(_eventHub.dispose());
     _interfacePreferences.dispose();
     super.dispose();

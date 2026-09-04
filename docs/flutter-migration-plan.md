@@ -402,9 +402,9 @@ For each surface:
 	persistence into the Flutter workspace.
 - [x] Port the bounded viewer-variable definitions repository and the legacy
 	`setViewerVar`/`offsetViewerVar` actions for Twitch IDs.
-- [x] Port lazy viewer tables and the local viewer-data query surface; provider
-	event synchronization and the remaining viewer-variable types remain before
-	removing `plugins/variables/renderer/`.
+- [x] Port lazy viewer tables, the local viewer-data query surface, and live
+	provider identity synchronization before removing
+	`plugins/variables/renderer/`.
 - [x] Import legacy `viewer-data/db.sqlite3` rows read-only, preserve existing
 	Flutter rows by default, and round-trip non-primitive viewer values.
 - [x] Port Sound TTS voice and AudioSplitter configuration editors, plus the

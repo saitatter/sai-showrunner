@@ -248,6 +248,7 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
   bool _viewerSortDescending = false;
   static const _viewerPageSize = 25;
   StreamSubscription<RuntimeMap>? _viewerDataSubscription;
+  StreamSubscription<RuntimeMap>? _viewerDataAddedSubscription;
 
   @override
   void initState() {
@@ -258,12 +259,16 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
       _viewerDataSubscription = eventHub
           .stream('viewerDataChanged')
           .listen(_onViewerDataChanged);
+      _viewerDataAddedSubscription = eventHub
+          .stream('viewerDataAdded')
+          .listen(_onViewerDataAdded);
     }
   }
 
   @override
   void dispose() {
     _viewerDataSubscription?.cancel();
+    _viewerDataAddedSubscription?.cancel();
     _viewerIdController.dispose();
     super.dispose();
   }
@@ -283,7 +288,12 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
         setState(
           () => _row = ViewerDataRow(
             provider: current.provider,
-            viewer: current.viewer,
+            viewer: ViewerIdentity(
+              id: current.viewer.id,
+              displayName:
+                  event['displayName']?.toString() ??
+                  current.viewer.displayName,
+            ),
             values: nextValues,
           ),
         );
@@ -292,6 +302,30 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
     if (_viewerRows.any((row) => row.viewer.id == id)) {
       _loadViewers();
     }
+  }
+
+  void _onViewerDataAdded(RuntimeMap event) {
+    if (event['provider']?.toString() != 'twitch') return;
+    final id = event['id']?.toString();
+    if (id == null || id.isEmpty) return;
+    final values = event['values'];
+    final viewer = ViewerIdentity(
+      id: id,
+      displayName: event['displayName']?.toString() ?? id,
+    );
+    if (mounted && values is Map) {
+      setState(
+        () => _row = ViewerDataRow(
+          provider: 'twitch',
+          viewer: viewer,
+          values: {
+            for (final entry in values.entries)
+              entry.key.toString(): entry.value,
+          },
+        ),
+      );
+    }
+    _loadViewers();
   }
 
   Future<void> _loadDefinitions() async {

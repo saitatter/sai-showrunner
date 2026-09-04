@@ -6,6 +6,18 @@ import 'package:yaml/yaml.dart';
 import '../schema/automation.dart';
 import '../schema/viewer_data.dart';
 
+final class ViewerDataSyncResult {
+  const ViewerDataSyncResult({
+    required this.row,
+    required this.created,
+    required this.changed,
+  });
+
+  final ViewerDataRow row;
+  final bool created;
+  final bool changed;
+}
+
 abstract interface class ViewerDataRepository {
   Future<List<ViewerVariableDefinition>> loadDefinitions();
 
@@ -38,6 +50,11 @@ abstract interface class ViewerDataRepository {
   );
 
   Future<bool> importViewerRow(ViewerDataRow row, {bool overwrite = false});
+
+  Future<ViewerDataSyncResult> syncViewerIdentity(
+    String provider,
+    ViewerIdentity viewer,
+  );
 }
 
 final class FileViewerDataRepository implements ViewerDataRepository {
@@ -219,6 +236,40 @@ final class FileViewerDataRepository implements ViewerDataRepository {
       ),
     );
     return true;
+  }
+
+  @override
+  Future<ViewerDataSyncResult> syncViewerIdentity(
+    String provider,
+    ViewerIdentity viewer,
+  ) {
+    if (provider.isEmpty || viewer.id.isEmpty) {
+      throw const FormatException(
+        'Synchronized viewer rows require provider and id.',
+      );
+    }
+    return _withViewerLock(_viewerKey(provider, viewer.id), () async {
+      final current = await _readViewer(provider, viewer);
+      if (current.persisted &&
+          current.viewer.displayName == viewer.displayName) {
+        return ViewerDataSyncResult(
+          row: current,
+          created: false,
+          changed: false,
+        );
+      }
+      final next = ViewerDataRow(
+        provider: provider,
+        viewer: viewer,
+        values: current.values,
+      );
+      await _writeViewer(next);
+      return ViewerDataSyncResult(
+        row: next,
+        created: !current.persisted,
+        changed: true,
+      );
+    });
   }
 
   Future<ViewerVariableDefinition?> _findDefinition(String name) async {
@@ -441,6 +492,34 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
       values: {...current.values, ...row.values},
     );
     return true;
+  }
+
+  @override
+  Future<ViewerDataSyncResult> syncViewerIdentity(
+    String provider,
+    ViewerIdentity viewer,
+  ) async {
+    if (provider.isEmpty || viewer.id.isEmpty) {
+      throw const FormatException(
+        'Synchronized viewer rows require provider and id.',
+      );
+    }
+    final key = _viewerKey(provider, viewer.id);
+    final current = await loadViewer(provider, viewer);
+    if (current.persisted && current.viewer.displayName == viewer.displayName) {
+      return ViewerDataSyncResult(row: current, created: false, changed: false);
+    }
+    final next = ViewerDataRow(
+      provider: provider,
+      viewer: viewer,
+      values: current.values,
+    );
+    _rows[key] = next;
+    return ViewerDataSyncResult(
+      row: next,
+      created: !current.persisted,
+      changed: true,
+    );
   }
 
   ViewerVariableDefinition? _findDefinition(String name) {

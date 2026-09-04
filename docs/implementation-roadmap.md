@@ -28,11 +28,12 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
 
 ## 2. Flutter Runtime and Product Parity
 
-- [ ] Implement the concrete Windows `SoundOutput` backend for file playback.
-- [ ] Add physical sound-device enumeration and output selection.
-- [ ] Add WAV synthesis and parity for external TTS providers.
-- [ ] Add the viewer-variable lazy table with paging and sorting.
-- [ ] Add live provider synchronization for viewer data.
+- [x] Implement the concrete Windows `SoundOutput` backend for file playback.
+- [x] Add physical sound-device enumeration and output selection.
+- [x] Add Windows WAV synthesis for installed system voices.
+- [ ] Add parity for external TTS providers.
+- [x] Add the viewer-variable lazy table with paging and sorting.
+- [x] Add live provider synchronization for viewer data.
 - [x] Add SQLite import support and non-primitive viewer-variable types.
 - [ ] Reach native global-input parity in the Flutter runtime.
 - [ ] Complete deeper bespoke Twitch, OBS, Moderation, Spellcast, and Dashboard
