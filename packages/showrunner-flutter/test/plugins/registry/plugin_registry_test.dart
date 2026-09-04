@@ -19,6 +19,7 @@ void main() {
         'aitum',
         'advss',
         'remote',
+        'voicemod',
         'sound',
         'minecraft',
         'http',

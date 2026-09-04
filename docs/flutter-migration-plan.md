@@ -110,6 +110,8 @@ Advanced Scene Switcher messages and vendor events are also bridged through the
 shared OBS transport and Dart event hub.
 Remote button trigger handling is available through a configurable Dart HTTP
 server at `/buttons/press`, with explicit runtime shutdown.
+VoiceMod is registered with a real lazy WebSocket transport for voice listing
+and voice selection, including RPC cleanup on shutdown.
 
 ## Current Architecture
 
@@ -466,6 +468,12 @@ For each surface:
 	account-resource selection and login UI parity remain follow-up work.
 - [x] Port Aitum vertical-canvas scene, stream, recording, backtrack, save, and
 	chapter actions over the shared OBS vendor-request transport.
+- [x] Port DonorDrive participant polling, donation/incentive/milestone events,
+	and persisted polling settings with runtime shutdown.
+- [x] Port the Remote `/buttons/press` HTTP trigger endpoint and configurable
+	server lifecycle into Dart.
+- [x] Port VoiceMod voice listing and selection over its local WebSocket API,
+	with lazy connection and RPC cleanup.
 - [ ] Add device-specific resource settings for the remaining integrations.
 - [ ] Replace the satellite connection/dashboard/settings/slots renderer with
 	a Flutter remote workspace before removing `packages/showrunner-satellite/`.

@@ -21,6 +21,7 @@ import '../donordrive/manifest.dart';
 import '../aitum/manifest.dart';
 import '../advss/manifest.dart';
 import '../remote/manifest.dart';
+import '../voicemod/manifest.dart';
 import '../sound/manifest.dart';
 import '../sound/output.dart';
 import '../minecraft/manifest.dart';
@@ -79,6 +80,14 @@ DartPluginRegistry createDefaultPluginRegistry({
   );
   registry.register(createDonorDrivePlugin(null));
   registry.register(createRemotePlugin(eventHub: eventHub));
+  registry.register(
+    createVoiceModPlugin(
+      CallbackVoiceModTransport(
+        getVoicesCallback: _unconfiguredVoiceModVoices,
+        selectVoiceCallback: _unconfiguredVoiceMod,
+      ),
+    ),
+  );
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
@@ -248,6 +257,13 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     createRemotePlugin(eventHub: eventHub, runtime: remoteRuntime),
   );
   if (remoteRuntime != null) unawaited(remoteRuntime.start());
+  final voiceModSettings = await dataService.loadPluginSettings('voicemod');
+  final voiceModHost = voiceModSettings['host']?.toString().trim();
+  final voiceModTransport = VoiceModWebSocketTransport(
+    host: voiceModHost?.isNotEmpty == true ? voiceModHost! : '127.0.0.1',
+    port: _port(voiceModSettings['port'], 59129),
+  );
+  registry.register(createVoiceModPlugin(voiceModTransport));
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
@@ -405,6 +421,12 @@ Future<RuntimeMap> _unconfiguredBluesky(
 ) => Future<RuntimeMap>.error(
   StateError('Bluesky transport is not configured.'),
 );
+
+Future<List<RuntimeMap>> _unconfiguredVoiceModVoices() =>
+    Future.error(StateError('VoiceMod transport is not configured.'));
+
+Future<RuntimeMap> _unconfiguredVoiceMod(String voiceId) =>
+    Future.error(StateError('VoiceMod transport is not configured.'));
 
 Duration _positiveDuration(Object? value, Duration fallback) {
   final seconds = value is num ? value.toDouble() : double.tryParse('$value');
