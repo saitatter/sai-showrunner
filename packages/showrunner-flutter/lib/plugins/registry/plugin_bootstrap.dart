@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'dart:async';
+
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/http_provider_transports.dart';
@@ -15,6 +17,7 @@ import '../moderation/moderation.dart';
 import '../moderation/runtime.dart';
 import '../discord/manifest.dart';
 import '../bluesky/manifest.dart';
+import '../donordrive/manifest.dart';
 import '../sound/manifest.dart';
 import '../sound/output.dart';
 import '../minecraft/manifest.dart';
@@ -62,6 +65,7 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(
     createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
   );
+  registry.register(createDonorDrivePlugin(null));
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
@@ -189,6 +193,33 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       appPassword: blueskyPassword,
     ),
   );
+  final donorDriveSettings = await dataService.loadPluginSettings('donordrive');
+  final donorDriveApiBase = donorDriveSettings['apiBase']?.toString().trim();
+  final donorDriveParticipant = donorDriveSettings['participantId']
+      ?.toString()
+      .trim();
+  final donorDriveInterval = _positiveDuration(
+    donorDriveSettings['pollIntervalSeconds'],
+    const Duration(seconds: 15),
+  );
+  final donorDriveRuntime =
+      eventHub != null && donorDriveParticipant?.isNotEmpty == true
+      ? DonorDriveRuntime(
+          transport: DonorDriveTransport(
+            DonorDriveHttpTransport(
+              baseUrl: donorDriveApiBase?.isNotEmpty == true
+                  ? donorDriveApiBase!
+                  : 'https://www.extra-life.org/api',
+            ).request,
+          ),
+          eventHub: eventHub,
+          apiBase: donorDriveApiBase ?? 'https://www.extra-life.org/api',
+          participantId: donorDriveParticipant!,
+          pollInterval: donorDriveInterval,
+        )
+      : null;
+  registry.register(createDonorDrivePlugin(donorDriveRuntime));
+  if (donorDriveRuntime != null) unawaited(donorDriveRuntime.start());
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
@@ -341,3 +372,9 @@ Future<RuntimeMap> _unconfiguredBluesky(
 ) => Future<RuntimeMap>.error(
   StateError('Bluesky transport is not configured.'),
 );
+
+Duration _positiveDuration(Object? value, Duration fallback) {
+  final seconds = value is num ? value.toDouble() : double.tryParse('$value');
+  if (seconds == null || !seconds.isFinite || seconds <= 0) return fallback;
+  return Duration(milliseconds: (seconds * 1000).round());
+}

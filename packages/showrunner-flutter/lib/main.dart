@@ -131,6 +131,7 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
   void dispose() {
     _graphEditor.dispose();
     _actionQueue.dispose();
+    unawaited(_pluginRegistryFuture.then((registry) => registry.close()));
     unawaited(_providerEvents.stop());
     unawaited(_viewerDataSynchronizer.stop());
     unawaited(_eventHub.dispose());

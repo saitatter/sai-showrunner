@@ -102,6 +102,8 @@ RGB color, LED mode, movie, and power actions; subnet discovery and persisted
 device-resource recovery remain open.
 Bluesky is registered with persisted account settings and real AT Protocol
 session/post requests; account-resource selection and login UI parity remain open.
+DonorDrive is registered with participant polling, donation/incentive/milestone
+events, persisted API settings, and clean runtime shutdown.
 
 ## Current Architecture
 

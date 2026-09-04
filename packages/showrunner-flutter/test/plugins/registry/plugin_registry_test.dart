@@ -15,6 +15,7 @@ void main() {
         'twitch',
         'discord',
         'bluesky',
+        'donordrive',
         'sound',
         'minecraft',
         'http',
@@ -33,6 +34,7 @@ void main() {
     expect(registry.findAction('twitch', 'chat'), isNotNull);
     expect(registry.findAction('discord', 'discordMessage'), isNotNull);
     expect(registry.findAction('bluesky', 'post'), isNotNull);
+    expect(registry.findTrigger('donordrive', 'donation'), isNull);
     expect(registry.findAction('sound', 'speakTTS'), isNotNull);
     expect(registry.findAction('variables', 'setViewerVar'), isNotNull);
     expect(registry.findAction('variables', 'offsetViewerVar'), isNotNull);
@@ -189,5 +191,21 @@ void main() {
     expect(registry.findPlugin('sample')?.settings.single.secret, isTrue);
     expect(await registry.checkHealth('sample'), isTrue);
     expect(await trigger!.listen().first, {'value': 1});
+  });
+
+  test('closes registered plugin runtimes', () async {
+    var closed = false;
+    final registry = DartPluginRegistry()
+      ..register(
+        DartPluginManifest(
+          id: 'lifecycle',
+          name: 'Lifecycle',
+          dispose: () async => closed = true,
+        ),
+      );
+
+    await registry.close();
+
+    expect(closed, isTrue);
   });
 }

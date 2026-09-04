@@ -10,10 +10,8 @@ typedef DartPluginAction =
     Future<Object?> Function(RuntimeMap config, EvaluationContext context);
 
 typedef DartPluginTrigger = Stream<RuntimeMap> Function();
-typedef DartPluginTriggerMatcher = bool Function(
-  RuntimeMap config,
-  RuntimeMap payload,
-);
+typedef DartPluginTriggerMatcher =
+    bool Function(RuntimeMap config, RuntimeMap payload);
 
 typedef DartPluginWorkspaceBuilder =
     Widget Function(
@@ -96,6 +94,7 @@ final class DartPluginManifest {
     this.states = const <DartPluginStateDefinition>[],
     this.healthCheck,
     this.workspaceBuilder,
+    this.dispose,
   });
 
   final String id;
@@ -107,6 +106,7 @@ final class DartPluginManifest {
   final List<DartPluginStateDefinition> states;
   final Future<bool> Function()? healthCheck;
   final DartPluginWorkspaceBuilder? workspaceBuilder;
+  final Future<void> Function()? dispose;
 }
 
 final class DartPluginRegistry extends ChangeNotifier {
@@ -204,5 +204,13 @@ final class DartPluginRegistry extends ChangeNotifier {
       throw StateError('Unknown Dart action: $pluginId:$actionId');
     }
     return definition.invoke(config, context ?? EvaluationContext());
+  }
+
+  Future<void> close() async {
+    final plugins = _plugins.values.toList().reversed;
+    for (final plugin in plugins) {
+      await plugin.dispose?.call();
+    }
+    super.dispose();
   }
 }
