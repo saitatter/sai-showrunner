@@ -61,6 +61,11 @@ Semantic release is configured with squash-commit expansion and GitHub draft rel
 5. Run `corepack yarn release:smoke-artifacts`.
 6. Run `corepack yarn release:dry-run`.
 
+For the parallel Flutter Windows artifact, run
+`corepack yarn flutter:smoke-windows` after `flutter build windows --release`.
+The release workflow also launches the versioned Flutter archive with
+`scripts/smoke-flutter-windows.ps1` using an isolated user directory.
+
 For `1.0.0-beta`, confirm that [MIGRATION.md](MIGRATION.md) is current and release notes mention the graph-only automation breaking change.
 
 ## References

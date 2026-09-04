@@ -37,8 +37,6 @@ import "primeflex/primeflex.css"
 import "@mdi/font/css/materialdesignicons.css"
 
 import { createPinia } from "pinia"
-import ProfileEditorVue from "./components/profiles/ProfileEditor.vue"
-import AutomationEditPageVue from "./components/automation/AutomationEditPage.vue"
 import { initData, StreamPlanEditorPage, useSatelliteResourceStore } from "showrunner-ui-core"
 
 import { initPlugin as initSoundPlugin } from "showrunner-plugin-sound-renderer"
@@ -48,7 +46,6 @@ import { initPlugin as initYouTubePlugin } from "showrunner-plugin-youtube-rende
 import { initPlugin as initObsPlugin } from "showrunner-plugin-obs-renderer"
 import { initPlugin as initDiscordPlugin } from "showrunner-plugin-discord-renderer"
 import { initPlugin as initInputPlugin } from "showrunner-plugin-input-renderer"
-import { initPlugin as initTimePlugin } from "showrunner-plugin-time-renderer"
 import { initPlugin as initMinecraftPlugin } from "showrunner-plugin-minecraft-renderer"
 import { initPlugin as initIoTPlugin } from "showrunner-plugin-iot-renderer"
 import { initPlugin as initTwinklyPlugin } from "showrunner-plugin-twinkly-renderer"
@@ -76,10 +73,7 @@ import { initPlugin as initModerationPlugin } from "../../../../plugins/moderati
 import { loadOverlayWidgets } from "showrunner-overlay-widget-loader"
 import { loadDashboardWidgets } from "showrunner-dashboard-widget-loader"
 
-import { useMainPageStore } from "./util/main-page"
 import { initializeQueues } from "./util/queues"
-import { initializeIntegrationVisibility } from "./util/integrations"
-import { initSettingsDocuments } from "./components/settings/SettingsTypes"
 import Tooltip from "primevue/tooltip"
 import ToastService from "primevue/toastservice"
 import { IPCOverlayWidgetDescriptor } from "showrunner-plugin-overlays-shared"
@@ -161,7 +155,6 @@ const projecStore = useProjectStore()
 const documentStore = useDocumentStore()
 const resourceStore = useResourceStore()
 const actionQueueStore = useActionQueueStore()
-const mainPageStore = useMainPageStore()
 const mediaStore = useMediaStore()
 const planStore = useStreamPlanStore()
 
@@ -186,22 +179,15 @@ async function init() {
 	await initStore.waitForInit()
 
 	await actionQueueStore.initialize()
-	await mainPageStore.initialize()
 	await planStore.initialize()
 
 	await initializeProfiles(app)
 	await initializeAutomations(app)
 	await initializeStreamPlans(app)
 
-	documentStore.registerDocumentComponent("profile", ProfileEditorVue)
-	documentStore.registerDocumentComponent("automation", AutomationEditPageVue)
 	documentStore.registerDocumentComponent("streamplan", StreamPlanEditorPage)
 
-	initSettingsDocuments()
-
 	initializeQueues()
-	initializeIntegrationVisibility()
-
 	await initOverlaysPlugin(app)
 
 	//await initDashboardPlugin(app)
@@ -215,7 +201,6 @@ async function init() {
 	//TODO: This init function is bonkers, we should formalize initing these plugins after their main process side gets inited.
 
 	await initSoundPlugin(app)
-	await initTimePlugin()
 	await initObsPlugin()
 	await initDiscordPlugin()
 	await initInputPlugin()
@@ -249,7 +234,6 @@ async function init() {
 
 	await uiLoadComplete()
 
-	mainPageStore.openMain()
 }
 
 init()

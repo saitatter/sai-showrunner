@@ -31,6 +31,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
       - name: Install distutils compatibility
         run: pip install setuptools
 
@@ -44,6 +51,20 @@ jobs:
 
       - name: Run checks
         run: yarn check
+
+      - name: Analyze and test Flutter migration
+        shell: pwsh
+        run: |
+          Push-Location packages/showrunner-flutter
+          flutter pub get
+          flutter analyze
+          flutter test
+          flutter build windows --debug
+          Pop-Location
+
+      - name: Smoke Flutter Windows startup
+        shell: pwsh
+        run: .\scripts\smoke-flutter-windows.ps1 -Configuration Debug
 
       - name: Run overlay smoke tests
         run: yarn overlay:smoke

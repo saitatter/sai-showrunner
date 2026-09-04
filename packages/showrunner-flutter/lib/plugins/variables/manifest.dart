@@ -1,0 +1,118 @@
+import '../../persistence/viewer_data_repository.dart';
+import '../../runtime/expression.dart';
+import '../../schema/viewer_data.dart';
+import '../registry/plugin_registry.dart';
+
+DartPluginManifest createVariablesPlugin({
+  ViewerDataRepository? viewerDataRepository,
+}) {
+  final repository = viewerDataRepository ?? InMemoryViewerDataRepository();
+  return DartPluginManifest(
+    id: 'variables',
+    name: 'Variables',
+    actions: [
+      DartActionDefinition(
+        pluginId: 'variables',
+        actionId: 'setVariable',
+        displayName: 'Set Variable',
+        invoke: _setVariable,
+      ),
+      DartActionDefinition(
+        pluginId: 'variables',
+        actionId: 'getVariable',
+        displayName: 'Get Variable',
+        invoke: _getVariable,
+      ),
+      DartActionDefinition(
+        pluginId: 'variables',
+        actionId: 'setViewerVar',
+        displayName: 'Set Viewer Variable',
+        invoke: (config, context) => _setViewerVar(config, context, repository),
+      ),
+      DartActionDefinition(
+        pluginId: 'variables',
+        actionId: 'offsetViewerVar',
+        displayName: 'Offset Viewer Variable',
+        invoke: (config, context) =>
+            _offsetViewerVar(config, context, repository),
+      ),
+    ],
+  );
+}
+
+Future<Object?> _setVariable(
+  RuntimeMap config,
+  EvaluationContext context,
+) async {
+  final variable = config['variable']?.toString() ?? '';
+  final value = config['value'];
+  if (variable.isNotEmpty) {
+    context.contextState[variable] = value;
+  }
+  return {'variable': variable, 'value': value};
+}
+
+Future<Object?> _getVariable(
+  RuntimeMap config,
+  EvaluationContext context,
+) async {
+  final variable = config['variable']?.toString() ?? '';
+  final value = context.contextState[variable] ?? context.locals[variable];
+  return {'variable': variable, 'value': value};
+}
+
+Future<Object?> _setViewerVar(
+  RuntimeMap config,
+  EvaluationContext _,
+  ViewerDataRepository repository,
+) async {
+  final variable = _requiredConfigString(config, 'variable');
+  final viewer = ViewerIdentity.fromConfig(config['viewer']);
+  final row = await repository.setViewerValue(
+    'twitch',
+    viewer,
+    variable,
+    config['value'],
+  );
+  return {
+    'provider': row.provider,
+    'viewer': row.viewer.id,
+    'variable': variable,
+    'value': row.values[variable],
+  };
+}
+
+Future<Object?> _offsetViewerVar(
+  RuntimeMap config,
+  EvaluationContext _,
+  ViewerDataRepository repository,
+) async {
+  final variable = _requiredConfigString(config, 'variable');
+  final rawOffset = config['offset'];
+  if (rawOffset is! num) {
+    throw ArgumentError.value(
+      rawOffset,
+      'offset',
+      'Viewer variable offsets must be numbers.',
+    );
+  }
+  final viewer = ViewerIdentity.fromConfig(config['viewer']);
+  final row = await repository.offsetViewerValue(
+    'twitch',
+    viewer,
+    variable,
+    rawOffset,
+  );
+  return {
+    'provider': row.provider,
+    'viewer': row.viewer.id,
+    'variable': variable,
+    'value': row.values[variable],
+  };
+}
+
+String _requiredConfigString(RuntimeMap config, String key) {
+  final value = config[key]?.toString().trim() ?? '';
+  if (value.isEmpty) throw ArgumentError.value(config[key], key);
+  return value;
+}

@@ -1,0 +1,276 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/features/resources/media_picker.dart';
+import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
+
+void main() {
+  test('resolves plugin resource editor types', () {
+    final registry = createDefaultResourceEditorRegistry();
+
+    expect(registry.find('Overlay')?.pluginId, 'showrunner');
+    expect(registry.find('Variable')?.displayName, 'Variable');
+    expect(registry.find('OBSConnection')?.pluginId, 'obs');
+    expect(registry.find('RCONConnection')?.pluginId, 'minecraft');
+    expect(registry.find('TTSVoice')?.pluginId, 'sound');
+    expect(registry.find('CustomTwitchViewerGroup')?.pluginId, 'twitch');
+    expect(registry.find('DiscordWebhook')?.pluginId, 'discord');
+    expect(registry.find('Dashboard')?.pluginId, 'dashboards');
+    expect(registry.find('SpellHook')?.pluginId, 'spellcast');
+    expect(registry.find('AudioSplitterOutput')?.pluginId, 'sound');
+    expect(registry.find('ChannelPointReward')?.pluginId, 'twitch');
+    expect(registry.find('StreamPlan')?.pluginId, 'stream-plans');
+    expect(registry.find('Unknown'), isNull);
+  });
+
+  test('audio splitter defaults include a valid redirect collection', () {
+    final definition = createDefaultResourceEditorRegistry().find(
+      'AudioSplitterOutput',
+    )!;
+
+    expect(definition.defaultConfig('Main'), {
+      'name': 'Main',
+      'type': 'splitter',
+      'redirects': <Map<String, dynamic>>[],
+    });
+  });
+
+  testWidgets('audio splitter editor persists structured output routes', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find(
+      'AudioSplitterOutput',
+    )!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'splitter-1',
+        config: {
+          'name': 'Studio outputs',
+          'type': 'splitter',
+          'redirects': [
+            {
+              'id': 'main',
+              'output': 'system.main',
+              'mute': false,
+              'volume': 50,
+              'keep': true,
+            },
+            {
+              'id': 'chat',
+              'output': 'system.chat',
+              'mute': true,
+              'volume': 75,
+            },
+          ],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(find.text('Edit audio splitter'), findsOneWidget);
+    expect(find.byType(Slider), findsNWidgets(2));
+    expect(find.byType(Switch), findsNWidgets(2));
+    await tester.enterText(
+      find.byKey(const ValueKey('audio-split-output-main')),
+      'system.default',
+    );
+    await tester.pump();
+    await tester.tap(find.byTooltip('Mute audio output').first);
+    await tester.tap(find.byTooltip('Delete audio output').last);
+    await tester.tap(find.byTooltip('Add audio output'));
+    await tester.pump();
+    expect(find.byType(Slider), findsNWidgets(2));
+
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+
+    final redirects = saved!.config['redirects'] as List;
+    expect(saved!.config['type'], 'splitter');
+    expect(redirects, hasLength(2));
+    expect(redirects.first['mute'], false);
+    expect(redirects.first['volume'], 100);
+    expect(redirects.first['output'], isNull);
+    expect(redirects[1]['output'], 'system.default');
+    expect(redirects[1]['mute'], true);
+    expect(redirects[1]['volume'], 50);
+    expect(redirects[1]['keep'], true);
+  });
+
+  testWidgets('dashboard resource editor exposes hierarchical controls', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Dashboard')!;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final widget = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(id: 'dashboard-1', config: {'name': 'Studio'}),
+      (_) async {},
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: widget)));
+
+    expect(find.text('Edit dashboard'), findsOneWidget);
+    expect(find.text('Pages'), findsOneWidget);
+    expect(find.byTooltip('Add page'), findsOneWidget);
+  });
+
+  testWidgets('dashboard creation writes complete child defaults', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Dashboard')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(id: 'dashboard-2', config: {'name': 'Studio'}),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    await tester.tap(find.byTooltip('Add page'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Add section'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Add widget'));
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+
+    final page = (saved!.config['pages'] as List).single as Map;
+    final section = (page['sections'] as List).single as Map;
+    final widget = (section['widgets'] as List).single as Map;
+    expect(page['id'], isNotEmpty);
+    expect(section['id'], isNotEmpty);
+    expect(section['columns'], 4);
+    expect(widget['id'], isNotEmpty);
+    expect(widget['plugin'], 'dashboards');
+    expect(widget['widget'], 'label');
+    expect(widget['size'], {'width': 4, 'height': 1});
+    expect(widget['config'], {'label': 'New widget', 'color': '#000000'});
+  });
+
+  test('dashboard defaults include the persisted hierarchy fields', () {
+    final definition = createDefaultResourceEditorRegistry().find('Dashboard')!;
+    final defaults = definition.defaultConfig('Studio');
+
+    expect(defaults, {
+      'name': 'Studio',
+      'pages': <Map<String, dynamic>>[],
+      'remoteTwitchIds': <String>[],
+      'resourceSlots': <Map<String, dynamic>>[],
+    });
+  });
+
+  testWidgets('overlay editor exposes typed widget and media controls', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-1',
+        config: {
+          'name': 'Media overlay',
+          'widgets': [
+            {'type': 'image', 'media': 'existing.png'},
+          ],
+        },
+      ),
+      (_) async {},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MediaPickerScope(directory: Directory('unused'), child: editor),
+        ),
+      ),
+    );
+
+    expect(find.text('Edit overlay'), findsOneWidget);
+    expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(3));
+    expect(find.byTooltip('Select media'), findsOneWidget);
+  });
+
+  testWidgets('stream plan editor adds and persists ordered segments', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find(
+      'StreamPlan',
+    )!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'plan-1',
+        config: {'name': 'Friday show', 'segments': []},
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(find.text('Edit stream plan'), findsOneWidget);
+    expect(find.text('No segments defined.'), findsOneWidget);
+    await tester.tap(find.byTooltip('Add segment'));
+    await tester.pump();
+    expect(find.text('Segment 1'), findsOneWidget);
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(saved?.config['segments'], hasLength(1));
+    expect((saved!.config['segments'] as List).single['name'], 'New segment');
+  });
+
+  testWidgets('variable editor persists the persistent toggle', (tester) async {
+    final definition = createDefaultResourceEditorRegistry().find('Variable')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'variable-1',
+        config: {'name': 'Counter', 'type': 'number', 'persistent': true},
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(find.byType(SwitchListTile), findsOneWidget);
+    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(saved?.config['persistent'], false);
+  });
+
+  test('serializes overlay and variable resources', () {
+    const resource = ResourceData(
+      id: 'overlay-1',
+      config: {'name': 'Alert Overlay', 'width': 1920, 'height': 1080},
+      state: {'active': true},
+    );
+    final restored = ResourceData.fromJson(resource.toJson());
+
+    expect(restored.id, 'overlay-1');
+    expect(restored.name, 'Alert Overlay');
+
+    final overlay = OverlayResource.fromResource(resource);
+    expect(overlay.width, 1920);
+    expect(overlay.height, 1080);
+
+    const varResource = ResourceData(
+      id: 'var-1',
+      config: {'name': 'FollowerCount', 'type': 'number', 'defaultValue': 0},
+      state: {'value': 42},
+    );
+    final variable = VariableResource.fromResource(varResource);
+    expect(variable.name, 'FollowerCount');
+    expect(variable.currentValue, 42);
+  });
+}

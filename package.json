@@ -1,6 +1,6 @@
 {
 	"name": "showrunner-monorepo",
-	"version": "0.5.9-beta2",
+	"version": "1.0.0-beta1",
 	"description": "",
 	"private": true,
 	"type": "module",
@@ -14,6 +14,7 @@
 		"overlay:smoke": "vitest run packages/showrunner-obs-overlay/src/loader/utils/__tests__",
 		"release:dry-run": "semantic-release --dry-run --no-ci",
 		"release:smoke-artifacts": "node ./scripts/smoke-release-artifacts.cjs",
+		"flutter:smoke-windows": "pwsh -NoProfile -File ./scripts/smoke-flutter-windows.ps1",
 		"beta:smoke-ui": "node ./scripts/smoke-packaged-beta-ui.cjs",
 		"electron:smoke-ui": "node ./scripts/smoke-electron-ui.cjs",
 		"visual:smoke": "node ./scripts/smoke-visual-markers.cjs",

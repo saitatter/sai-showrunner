@@ -41,7 +41,6 @@
 
 			//TODO: "showrunner-plugin-*-renderer": ["../../plugins/*/renderer/src/main.ts"]
 			// "showrunner-plugin-discord-renderer": ["../../plugins/discord/renderer/src/main.ts"],
-			// "showrunner-plugin-http-renderer": ["../../plugins/http/renderer/src/main.ts"],
 			// "showrunner-plugin-input-renderer": ["../../plugins/input/renderer/src/main.ts"],
 			// "showrunner-plugin-iot-renderer": ["../../plugins/iot/renderer/src/main.ts"],
 			// "showrunner-plugin-minecraft-renderer": ["../../plugins/minecraft/renderer/src/main.ts"],
@@ -50,7 +49,6 @@
 			// "showrunner-plugin-sound-renderer": ["../../plugins/sound/renderer/src/main.ts"],
 			// "showrunner-plugin-random-renderer": ["../../plugins/random/renderer/src/main.ts"],
 			// "showrunner-plugin-remote-renderer": ["../../plugins/remote/renderer/src/main.ts"],
-			// "showrunner-plugin-time-renderer": ["../../plugins/time/renderer/src/main.ts"],
 
 			// "showrunner-plugin-voicemod-renderer": ["../../plugins/voicemod/renderer/src/main.ts"],
 			// "showrunner-plugin-twinkly-renderer": ["../../plugins/twinkly/renderer/src/main.ts"],
@@ -62,7 +60,6 @@
 			// "showrunner-plugin-variables-renderer": ["../../plugins/variables/renderer/src/main.ts"],
 			// "showrunner-plugin-overlays-renderer": ["../../plugins/overlays/renderer/src/main.ts"],
 			// "showrunner-plugin-spellcast-renderer": ["../../plugins/spellcast/renderer/src/main.ts"],
-			// "showrunner-plugin-stream-plans-renderer": ["../../plugins/stream-plans/renderer/src/main.ts"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

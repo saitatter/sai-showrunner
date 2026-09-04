@@ -28,6 +28,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
@@ -56,6 +63,14 @@ jobs:
           VITE_APP_MIXPANEL_PROJECT_TOKEN: ${{ secrets.MIXPANEL_PROJECT_TOKEN }}
           SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
+
+      - name: Build Flutter Windows artifact
+        shell: pwsh
+        run: .\scripts\package-flutter-windows.ps1 -Version '0.0.0'
+
+      - name: Smoke Flutter Windows archive
+        shell: pwsh
+        run: .\scripts\smoke-flutter-windows.ps1 -ArchivePath '.\release\ShowRunner-Flutter-windows-0.0.0.zip'
 
       - name: Package Windows app
         run: yarn workspace showrunner run electron:build -- --publish never
@@ -128,6 +143,13 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
@@ -156,6 +178,14 @@ jobs:
           VITE_APP_MIXPANEL_PROJECT_TOKEN: ${{ secrets.MIXPANEL_PROJECT_TOKEN }}
           SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
+
+      - name: Build Flutter Windows artifact
+        shell: pwsh
+        run: .\scripts\package-flutter-windows.ps1 -Version '${{ needs.release.outputs.version }}'
+
+      - name: Smoke Flutter Windows archive
+        shell: pwsh
+        run: .\scripts\smoke-flutter-windows.ps1 -ArchivePath '.\release\ShowRunner-Flutter-windows-${{ needs.release.outputs.version }}.zip'
 
       - name: Package Windows app
         run: yarn workspace showrunner run electron:build -- --config.extraMetadata.version=${{ needs.release.outputs.version }} --publish never

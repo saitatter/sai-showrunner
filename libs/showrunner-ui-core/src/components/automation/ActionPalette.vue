@@ -24,6 +24,11 @@
 			<input ref="searchRef" v-model="query" type="search" placeholder="Search triggers or actions..." />
 		</label>
 
+		<div v-if="search && disabledMatchesCount > 0" class="automation-command-menu__disabled-hint">
+			<i class="mdi mdi-eye-off-outline" />
+			<span>{{ disabledMatchesCount }} result{{ disabledMatchesCount > 1 ? 's' : '' }} in disabled integrations</span>
+		</div>
+
 		<section v-if="includeTriggers" class="automation-command-menu__section">
 			<button type="button" class="automation-command-menu__section-header" :aria-expanded="isGroupOpen('triggers')" @click="toggleGroup('triggers')">
 				<span><i class="mdi mdi-flash" /> Triggers</span>
@@ -134,6 +139,21 @@ const openGroups = ref<Record<string, boolean>>({
 const search = computed(() => query.value.trim().toLowerCase())
 const actionGroups = computed(() => buildGroups("actions", (plugin) => plugin.actions, (entry) => entry.icon || "mdi mdi-play"))
 const triggerGroups = computed(() => buildGroups("triggers", (plugin) => plugin.triggers, (entry) => entry.icon || "mdi mdi-flash"))
+
+const disabledMatchesCount = computed(() => {
+	if (!search.value) return 0
+	let count = 0
+	for (const plugin of pluginStore.pluginMap.values()) {
+		if (pluginStore.isPluginEnabled(plugin.id)) continue
+		const actions = Object.values(plugin.actions || {})
+		const triggers = props.includeTriggers ? Object.values(plugin.triggers || {}) : []
+		for (const entry of [...actions, ...triggers]) {
+			const searchText = `${plugin.id} ${plugin.name} ${(entry as any).id} ${(entry as any).name}`.toLowerCase()
+			if (searchText.includes(search.value)) count++
+		}
+	}
+	return count
+})
 
 function buildGroups<TEntry extends { id: string; name: string; icon?: string; color?: string }>(
 	kind: "actions" | "triggers",
@@ -260,6 +280,18 @@ defineExpose({
 	display: flex;
 	justify-content: space-between;
 	padding: 0.5rem 0.55rem;
+}
+
+.automation-command-menu__disabled-hint {
+	align-items: center;
+	background: rgba(255, 152, 0, 0.12);
+	border: 1px solid rgba(255, 152, 0, 0.3);
+	border-radius: 2px;
+	color: #ffa726;
+	display: flex;
+	gap: 0.4rem;
+	font-size: 0.78rem;
+	padding: 0.35rem 0.55rem;
 }
 
 .automation-command-menu__header div {

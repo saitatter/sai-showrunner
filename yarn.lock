@@ -11798,26 +11798,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"showrunner-plugin-donordrive-renderer@workspace:^, showrunner-plugin-donordrive-renderer@workspace:plugins/donordrive/renderer":
-  version: 0.0.0-use.local
-  resolution: "showrunner-plugin-donordrive-renderer@workspace:plugins/donordrive/renderer"
-  dependencies:
-    "@vitejs/plugin-vue": "npm:^6.0.0"
-    "@vueuse/core": "npm:*"
-    chromatism2: "npm:*"
-    electron: "npm:^34.2.0"
-    nanoid: "npm:^5.0.7"
-    pinia: "npm:^2.1.7"
-    showrunner-plugin-donordrive-shared: "workspace:^"
-    showrunner-schema: "workspace:^"
-    showrunner-ui-core: "workspace:^"
-    typescript: "npm:*"
-    vite: "npm:^7.3.1"
-    vue: "npm:^3.5.13"
-    vue-tsc: "npm:*"
-  languageName: unknown
-  linkType: soft
-
 "showrunner-plugin-donordrive-shared@workspace:^, showrunner-plugin-donordrive-shared@workspace:plugins/donordrive/shared":
   version: 0.0.0-use.local
   resolution: "showrunner-plugin-donordrive-shared@workspace:plugins/donordrive/shared"
@@ -11845,25 +11825,6 @@ __metadata:
     showrunner-plugin-iot-main: "workspace:^"
     showrunner-schema: "workspace:^"
     typescript: "npm:*"
-  languageName: unknown
-  linkType: soft
-
-"showrunner-plugin-elgato-renderer@workspace:plugins/elgato/renderer":
-  version: 0.0.0-use.local
-  resolution: "showrunner-plugin-elgato-renderer@workspace:plugins/elgato/renderer"
-  dependencies:
-    "@vitejs/plugin-vue": "npm:^6.0.0"
-    "@vueuse/core": "npm:*"
-    chromatism2: "npm:*"
-    electron: "npm:^34.2.0"
-    nanoid: "npm:^5.0.7"
-    pinia: "npm:^2.1.7"
-    showrunner-schema: "workspace:^"
-    showrunner-ui-core: "workspace:^"
-    typescript: "npm:*"
-    vite: "npm:^7.3.1"
-    vue: "npm:^3.5.13"
-    vue-tsc: "npm:*"
   languageName: unknown
   linkType: soft
 
@@ -11941,24 +11902,6 @@ __metadata:
     showrunner-core: "workspace:^"
     showrunner-schema: "workspace:^"
     typescript: "npm:*"
-  languageName: unknown
-  linkType: soft
-
-"showrunner-plugin-http-renderer@workspace:^, showrunner-plugin-http-renderer@workspace:plugins/http/renderer":
-  version: 0.0.0-use.local
-  resolution: "showrunner-plugin-http-renderer@workspace:plugins/http/renderer"
-  dependencies:
-    "@vitejs/plugin-vue": "npm:^6.0.0"
-    "@vueuse/core": "npm:*"
-    chromatism2: "npm:*"
-    electron: "npm:^34.2.0"
-    nanoid: "npm:^5.0.7"
-    pinia: "npm:^2.1.7"
-    showrunner-schema: "workspace:^"
-    typescript: "npm:*"
-    vite: "npm:^7.3.1"
-    vue: "npm:^3.5.13"
-    vue-tsc: "npm:*"
   languageName: unknown
   linkType: soft
 
@@ -12708,26 +12651,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"showrunner-plugin-stream-plans-renderer@workspace:^, showrunner-plugin-stream-plans-renderer@workspace:plugins/stream-plans/renderer":
-  version: 0.0.0-use.local
-  resolution: "showrunner-plugin-stream-plans-renderer@workspace:plugins/stream-plans/renderer"
-  dependencies:
-    "@vitejs/plugin-vue": "npm:^6.0.0"
-    "@vueuse/core": "npm:*"
-    chromatism2: "npm:*"
-    electron: "npm:^34.2.0"
-    nanoid: "npm:*"
-    pinia: "npm:*"
-    showrunner-plugin-stream-plans-shared: "workspace:^"
-    showrunner-schema: "workspace:^"
-    showrunner-ui-core: "workspace:^"
-    typescript: "npm:*"
-    vite: "npm:^7.3.1"
-    vue: "npm:^3.5.13"
-    vue-tsc: "npm:*"
-  languageName: unknown
-  linkType: soft
-
 "showrunner-plugin-stream-plans-shared@workspace:^, showrunner-plugin-stream-plans-shared@workspace:plugins/stream-plans/shared":
   version: 0.0.0-use.local
   resolution: "showrunner-plugin-stream-plans-shared@workspace:plugins/stream-plans/shared"
@@ -12754,25 +12677,6 @@ __metadata:
     showrunner-plugin-variables-main: "workspace:^"
     showrunner-schema: "workspace:^"
     typescript: "npm:*"
-  languageName: unknown
-  linkType: soft
-
-"showrunner-plugin-time-renderer@workspace:^, showrunner-plugin-time-renderer@workspace:plugins/time/renderer":
-  version: 0.0.0-use.local
-  resolution: "showrunner-plugin-time-renderer@workspace:plugins/time/renderer"
-  dependencies:
-    "@vitejs/plugin-vue": "npm:^6.0.0"
-    "@vueuse/core": "npm:*"
-    chromatism2: "npm:*"
-    electron: "npm:^34.2.0"
-    nanoid: "npm:^5.0.7"
-    pinia: "npm:^2.1.7"
-    showrunner-plugin-time-shared: "workspace:^"
-    showrunner-schema: "workspace:^"
-    typescript: "npm:*"
-    vite: "npm:^7.3.1"
-    vue: "npm:^3.5.13"
-    vue-tsc: "npm:*"
   languageName: unknown
   linkType: soft
 
@@ -13291,12 +13195,10 @@ __metadata:
     showrunner-plugin-discord-main: "workspace:^"
     showrunner-plugin-discord-renderer: "workspace:^"
     showrunner-plugin-donordrive-main: "workspace:^"
-    showrunner-plugin-donordrive-renderer: "workspace:^"
     showrunner-plugin-elgato-main: "workspace:^"
     showrunner-plugin-govee-main: "workspace:^"
     showrunner-plugin-govee-renderer: "workspace:^"
     showrunner-plugin-http-main: "workspace:^"
-    showrunner-plugin-http-renderer: "workspace:^"
     showrunner-plugin-input-main: "workspace:^"
     showrunner-plugin-input-renderer: "workspace:^"
     showrunner-plugin-iot-main: "workspace:^"
@@ -13322,9 +13224,7 @@ __metadata:
     showrunner-plugin-spellcast-main: "workspace:^"
     showrunner-plugin-spellcast-renderer: "workspace:^"
     showrunner-plugin-stream-plans-main: "workspace:^"
-    showrunner-plugin-stream-plans-renderer: "workspace:^"
     showrunner-plugin-time-main: "workspace:^"
-    showrunner-plugin-time-renderer: "workspace:^"
     showrunner-plugin-tplink-kasa-main: "workspace:^"
     showrunner-plugin-tplink-kasa-renderer: "workspace:^"
     showrunner-plugin-twinkly-main: "workspace:^"

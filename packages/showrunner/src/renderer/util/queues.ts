@@ -1,26 +1,8 @@
-import { computed } from "vue"
-import { ProjectItem } from "./../../../../../libs/showrunner-ui-core/src/project/project-store"
-import { ResourceSchemaEdit, useDockingStore, useProjectStore, useResourceStore } from "showrunner-ui-core"
-import QueuePage from "../components/queues/QueuePage.vue"
+import { ResourceSchemaEdit, useResourceStore } from "showrunner-ui-core"
 import { Duration } from "showrunner-schema"
 
 export function initializeQueues() {
-	const dockingStore = useDockingStore()
-	const projectStore = useProjectStore()
 	const resourceStore = useResourceStore()
-
-	const projectItem = computed<ProjectItem>(() => {
-		return {
-			id: "queues",
-			title: "Queues",
-			icon: "mdi mdi-tray-full",
-			open() {
-				dockingStore.openPage("queues", "Queues", "mdi mdi-tray-full", QueuePage)
-			},
-		}
-	})
-
-	projectStore.registerProjectGroupItem(projectItem)
 
 	resourceStore.registerConfigSchema("ActionQueue", {
 		type: Object,

@@ -88,6 +88,49 @@ corepack yarn build
 
 Generated Windows artifacts are written to `release/`. Linux and macOS packages are intentionally not produced by the current release pipeline.
 
+### Run the Flutter migration app
+
+The Flutter app is currently a parallel Windows migration target. It reads the
+existing `user/` data directory and does not replace the Electron entrypoint until
+the cutover checklist in [docs/flutter-migration-plan.md](docs/flutter-migration-plan.md)
+is complete.
+
+On a fresh data directory it opens the Flutter first-run Setup workspace for Twitch,
+YouTube, and OBS. Existing installations open their last-used workspace and can
+revisit Setup from the navigation rail.
+
+```powershell
+Push-Location .\packages\showrunner-flutter
+flutter pub get
+flutter run -d windows
+Pop-Location
+```
+
+Validate the Flutter package and create a versioned Windows archive with:
+
+```powershell
+Push-Location .\packages\showrunner-flutter
+flutter analyze
+flutter test
+Pop-Location
+.\scripts\package-flutter-windows.ps1 -Version 0.5.9
+.\scripts\smoke-flutter-windows.ps1 -Configuration Release
+```
+
+The archive is written to `release/ShowRunner-Flutter-windows-<version>.zip`.
+The startup smoke can also launch that archive directly with
+`-ArchivePath .\release\ShowRunner-Flutter-windows-<version>.zip`; it uses a
+temporary `SHOWRUNNER_USER_DIR` so local data is not modified.
+Windows Release/archive builds also require `nuget.exe` on `PATH`; the
+`flutter_tts` Windows plugin uses it to resolve `Microsoft.Windows.CppWinRT`
+during CMake generation.
+The plugin invokes NuGet using the configured feeds. If one of those feeds is
+temporarily unreachable, disable that feed for the build or use a NuGet
+configuration containing an accessible source, then restore the normal feed
+configuration afterward.
+Generated Flutter build folders are disposable; preserve `user/` and
+`release/user/`, which contain runtime data.
+
 ---
 
 ## 🧪 Clean YouTube Test Run
