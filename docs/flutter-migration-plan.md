@@ -430,6 +430,8 @@ For each surface:
 	`plugins/overlays/renderer/`.
 - [x] Complete Twitch channel/account, stream info, prediction/poll, and
 	group-management workflows; complete YouTube live status controls.
+- [x] Port Twitch channel-point reward list/create/update/delete operations,
+	redemption status updates, and the dedicated Flutter management panel.
 - [x] Complete Dashboards page/section/widget editing, widget JSON/size
 	configuration, sharing IDs, and remote resource-slot configuration.
 - [ ] Add device-specific resource settings for the remaining integrations.

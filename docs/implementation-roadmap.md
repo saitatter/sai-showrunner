@@ -37,7 +37,8 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
 - [x] Add SQLite import support and non-primitive viewer-variable types.
 - [ ] Reach native global-input parity in the Flutter runtime.
 - [ ] Complete deeper bespoke Twitch, OBS, Moderation, Spellcast, and Dashboard
-      workflows beyond the current foundations.
+      workflows beyond the current foundations; Twitch channel-point reward
+      CRUD and redemption status management are now covered in Flutter.
 - [ ] Complete the satellite Flutter migration and its connection workflows.
 - [ ] Close the remaining exact Vue graph interactions listed in the migration
       parity audit.

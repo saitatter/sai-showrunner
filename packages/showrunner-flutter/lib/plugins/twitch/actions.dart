@@ -1,6 +1,7 @@
 import '../../runtime/expression.dart';
 import '../registry/plugin_registry.dart';
 import '../../services/plugin_event_hub.dart';
+import 'channel_points.dart';
 import 'ui/twitch_workspace.dart';
 
 typedef TwitchRequest =
@@ -222,6 +223,67 @@ DartPluginManifest createTwitchPlugin(
     ),
     DartActionDefinition(
       pluginId: 'twitch',
+      actionId: 'listChannelPointRewards',
+      displayName: 'List Channel Point Rewards',
+      invoke: (config, context) =>
+          transport.request('GET', '/helix/channel_points/custom_rewards', {
+            'broadcaster_id': _id(config, context, 'broadcasterId'),
+            if (config['onlyManageable'] == true)
+              'only_manageable_rewards': 'true',
+          }, {}),
+    ),
+    DartActionDefinition(
+      pluginId: 'twitch',
+      actionId: 'createChannelPointReward',
+      displayName: 'Create Channel Point Reward',
+      invoke: (config, context) => transport.request(
+        'POST',
+        '/helix/channel_points/custom_rewards',
+        {'broadcaster_id': _id(config, context, 'broadcasterId')},
+        TwitchChannelPointRewardDraft.fromConfig(config).toRequestBody(),
+      ),
+    ),
+    DartActionDefinition(
+      pluginId: 'twitch',
+      actionId: 'updateChannelPointReward',
+      displayName: 'Update Channel Point Reward',
+      invoke: (config, context) => transport.request(
+        'PATCH',
+        '/helix/channel_points/custom_rewards',
+        {
+          'broadcaster_id': _id(config, context, 'broadcasterId'),
+          'id': _required(config, 'rewardId', fallback: 'twitchId'),
+        },
+        TwitchChannelPointRewardDraft.fromConfig(config).toRequestBody(),
+      ),
+    ),
+    DartActionDefinition(
+      pluginId: 'twitch',
+      actionId: 'deleteChannelPointReward',
+      displayName: 'Delete Channel Point Reward',
+      invoke: (config, context) =>
+          transport.request('DELETE', '/helix/channel_points/custom_rewards', {
+            'broadcaster_id': _id(config, context, 'broadcasterId'),
+            'id': _required(config, 'rewardId', fallback: 'twitchId'),
+          }, {}),
+    ),
+    DartActionDefinition(
+      pluginId: 'twitch',
+      actionId: 'updateChannelPointRedemption',
+      displayName: 'Update Channel Point Redemption',
+      invoke: (config, context) => transport.request(
+        'PATCH',
+        '/helix/channel_points/custom_rewards/redemptions',
+        {
+          'broadcaster_id': _id(config, context, 'broadcasterId'),
+          'reward_id': _required(config, 'rewardId'),
+          'id': _required(config, 'redemptionId'),
+        },
+        {'status': config['status'] ?? 'FULFILLED'},
+      ),
+    ),
+    DartActionDefinition(
+      pluginId: 'twitch',
       actionId: 'timeout',
       displayName: 'Timeout Viewer',
       invoke: (config, context) =>
@@ -311,6 +373,13 @@ dynamic _clipId(RuntimeMap response) {
     return (data.first as Map)['id'];
   }
   return null;
+}
+
+String _required(RuntimeMap config, String key, {String? fallback}) {
+  final value = config[key] ?? (fallback == null ? null : config[fallback]);
+  final text = value?.toString().trim() ?? '';
+  if (text.isEmpty) throw ArgumentError('$key is required.');
+  return text;
 }
 
 Future<RuntimeMap> _ban(

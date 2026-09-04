@@ -8,6 +8,7 @@ import '../../../runtime/expression.dart';
 import '../../../services/showrunner_data_service.dart';
 import '../../../features/resources/duration_field.dart';
 import '../channel_runtime.dart';
+import '../channel_points.dart';
 
 class TwitchWorkspace extends StatefulWidget {
   const TwitchWorkspace({
@@ -45,7 +46,9 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
   late final TextEditingController _shoutoutController;
   late final TextEditingController _raidTargetController;
   late final TwitchChannelInfoService _channelInfoService;
+  late final TwitchChannelPointService _channelPointService;
   TwitchChannelSnapshot? _channelSnapshot;
+  Future<List<TwitchChannelPointReward>>? _rewardsFuture;
   Object? _channelInfoError;
   bool _channelInfoLoading = true;
   int _timeoutSeconds = 60;
@@ -76,7 +79,11 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
     _channelInfoService = TwitchChannelInfoService(
       dataService: widget.dataService,
     );
+    _channelPointService = TwitchChannelPointService(
+      dataService: widget.dataService,
+    );
     unawaited(_refreshChannelInfo());
+    _reloadRewards();
     _chatSubscription = widget.providerEvents.eventHub.stream('chat').listen((
       event,
     ) {
@@ -163,6 +170,68 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
       if (mounted) setState(() => _channelInfoError = error);
     } finally {
       if (mounted) setState(() => _channelInfoLoading = false);
+    }
+  }
+
+  void _reloadRewards() {
+    _rewardsFuture = _channelPointService.list();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _createReward() async {
+    final draft = await showDialog<TwitchChannelPointRewardDraft>(
+      context: context,
+      builder: (context) => const _ChannelPointRewardDialog(),
+    );
+    if (draft == null || !mounted) return;
+    await _runRewardOperation(() => _channelPointService.create(draft));
+  }
+
+  Future<void> _editReward(TwitchChannelPointReward reward) async {
+    final draft = await showDialog<TwitchChannelPointRewardDraft>(
+      context: context,
+      builder: (context) => _ChannelPointRewardDialog(reward: reward),
+    );
+    if (draft == null || !mounted) return;
+    await _runRewardOperation(
+      () => _channelPointService.update(reward.id, draft),
+    );
+  }
+
+  Future<void> _deleteReward(TwitchChannelPointReward reward) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete channel point reward?'),
+        content: Text('Delete “${reward.title}” from Twitch?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _runRewardOperation(() => _channelPointService.delete(reward.id));
+  }
+
+  Future<void> _runRewardOperation(Future<Object?> Function() operation) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await operation();
+      _reloadRewards();
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -276,6 +345,12 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: _buildChannelSnapshot(context),
+          ),
+        ),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: _buildChannelPointRewards(context),
           ),
         ),
         Card(
@@ -686,6 +761,92 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
     ),
   );
 
+  Widget _buildChannelPointRewards(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Row(
+        children: [
+          Text(
+            'Channel point rewards',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const Spacer(),
+          IconButton(
+            tooltip: 'Refresh channel point rewards',
+            onPressed: _busy ? null : _reloadRewards,
+            icon: const Icon(Icons.refresh),
+          ),
+          IconButton(
+            tooltip: 'Create channel point reward',
+            onPressed: _busy ? null : _createReward,
+            icon: const Icon(Icons.add),
+          ),
+        ],
+      ),
+      const Text(
+        'Manage rewards through Twitch. Existing ShowRunner resource files remain available in Resources.',
+      ),
+      const SizedBox(height: 8),
+      FutureBuilder<List<TwitchChannelPointReward>>(
+        future: _rewardsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LinearProgressIndicator();
+          }
+          if (snapshot.hasError) {
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.warning_amber),
+              title: const Text('Rewards unavailable'),
+              subtitle: Text('${snapshot.error}'),
+            );
+          }
+          final rewards = snapshot.data ?? const [];
+          if (rewards.isEmpty) {
+            return const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.card_giftcard_outlined),
+              title: Text('No channel point rewards found'),
+            );
+          }
+          return Column(
+            children: [
+              for (final reward in rewards)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    reward.isEnabled
+                        ? Icons.card_giftcard
+                        : Icons.card_giftcard_outlined,
+                    color: reward.isEnabled ? Colors.green : null,
+                  ),
+                  title: Text(reward.title),
+                  subtitle: Text(
+                    '${reward.cost} points${reward.prompt.isEmpty ? '' : ' · ${reward.prompt}'}',
+                  ),
+                  trailing: Wrap(
+                    spacing: 0,
+                    children: [
+                      IconButton(
+                        tooltip: 'Edit reward',
+                        onPressed: _busy ? null : () => _editReward(reward),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                      IconButton(
+                        tooltip: 'Delete reward',
+                        onPressed: _busy ? null : () => _deleteReward(reward),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    ],
+  );
+
   Widget _buildChannelSnapshot(BuildContext context) {
     final snapshot = _channelSnapshot;
     return Column(
@@ -746,3 +907,181 @@ List<String> _commaSeparated(String value) => value
     .map((item) => item.trim())
     .where((item) => item.isNotEmpty)
     .toList();
+
+final class _ChannelPointRewardDialog extends StatefulWidget {
+  const _ChannelPointRewardDialog({this.reward});
+
+  final TwitchChannelPointReward? reward;
+
+  @override
+  State<_ChannelPointRewardDialog> createState() =>
+      _ChannelPointRewardDialogState();
+}
+
+final class _ChannelPointRewardDialogState
+    extends State<_ChannelPointRewardDialog> {
+  late final TextEditingController _title;
+  late final TextEditingController _prompt;
+  late final TextEditingController _color;
+  late final TextEditingController _cost;
+  late final TextEditingController _cooldown;
+  late final TextEditingController _maxPerStream;
+  late final TextEditingController _maxPerUser;
+  late bool _enabled;
+  late bool _userInputRequired;
+  late bool _skipQueue;
+
+  @override
+  void initState() {
+    super.initState();
+    final reward = widget.reward;
+    _title = TextEditingController(text: reward?.title ?? '');
+    _prompt = TextEditingController(text: reward?.prompt ?? '');
+    _color = TextEditingController(
+      text: reward?.backgroundColor.isNotEmpty == true
+          ? reward!.backgroundColor
+          : '#9147ff',
+    );
+    _cost = TextEditingController(text: '${reward?.cost ?? 100}');
+    _cooldown = TextEditingController(text: reward?.cooldown?.toString() ?? '');
+    _maxPerStream = TextEditingController(
+      text: reward?.maxRedemptionsPerStream?.toString() ?? '',
+    );
+    _maxPerUser = TextEditingController(
+      text: reward?.maxRedemptionsPerUserPerStream?.toString() ?? '',
+    );
+    _enabled = reward?.isEnabled ?? true;
+    _userInputRequired = reward?.userInputRequired ?? false;
+    _skipQueue = reward?.skipQueue ?? false;
+  }
+
+  @override
+  void dispose() {
+    for (final controller in [
+      _title,
+      _prompt,
+      _color,
+      _cost,
+      _cooldown,
+      _maxPerStream,
+      _maxPerUser,
+    ]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(
+      widget.reward == null
+          ? 'Create channel point reward'
+          : 'Edit channel point reward',
+    ),
+    content: SizedBox(
+      width: 520,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _title,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Title'),
+              onChanged: (_) => setState(() {}),
+            ),
+            TextField(
+              controller: _prompt,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Prompt'),
+            ),
+            TextField(
+              controller: _color,
+              decoration: const InputDecoration(
+                labelText: 'Background color',
+                hintText: '#9147ff',
+              ),
+            ),
+            TextField(
+              controller: _cost,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Cost'),
+            ),
+            TextField(
+              controller: _cooldown,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Global cooldown (seconds)',
+              ),
+            ),
+            TextField(
+              controller: _maxPerStream,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Max redemptions per stream',
+              ),
+            ),
+            TextField(
+              controller: _maxPerUser,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Max redemptions per viewer per stream',
+              ),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enabled'),
+              value: _enabled,
+              onChanged: (value) => setState(() => _enabled = value),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Require viewer input'),
+              value: _userInputRequired,
+              onChanged: (value) => setState(() => _userInputRequired = value),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Skip redemption queue'),
+              value: _skipQueue,
+              onChanged: (value) => setState(() => _skipQueue = value),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: _title.text.trim().isEmpty ? null : _save,
+        child: Text(widget.reward == null ? 'Create' : 'Save'),
+      ),
+    ],
+  );
+
+  void _save() {
+    Navigator.pop(
+      context,
+      TwitchChannelPointRewardDraft(
+        title: _title.text.trim(),
+        prompt: _prompt.text,
+        backgroundColor: _color.text.trim(),
+        cost: (int.tryParse(_cost.text.trim()) ?? 1).clamp(1, 1000000),
+        userInputRequired: _userInputRequired,
+        skipQueue: _skipQueue,
+        isEnabled: _enabled,
+        maxRedemptionsPerStream: _optionalPositiveInt(_maxPerStream.text),
+        maxRedemptionsPerUserPerStream: _optionalPositiveInt(_maxPerUser.text),
+        cooldown: _optionalPositiveInt(_cooldown.text),
+      ),
+    );
+  }
+
+  int? _optionalPositiveInt(String value) {
+    final parsed = int.tryParse(value.trim());
+    return parsed == null || parsed < 1 ? null : parsed;
+  }
+}
