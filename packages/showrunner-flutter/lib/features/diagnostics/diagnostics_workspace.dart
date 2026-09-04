@@ -81,6 +81,15 @@ class _ProviderDiagnostics extends StatelessWidget {
               ),
             ),
           ),
+          if (providerEvents.twitchSubscriptionErrors.isNotEmpty)
+            ListTile(
+              dense: true,
+              leading: const Icon(Icons.warning_amber, color: Colors.orange),
+              title: const Text('Twitch subscriptions'),
+              subtitle: Text(
+                providerEvents.twitchSubscriptionErrors.join('\n'),
+              ),
+            ),
           ListTile(
             dense: true,
             leading: _providerStateIcon(providerEvents.youtubeState),

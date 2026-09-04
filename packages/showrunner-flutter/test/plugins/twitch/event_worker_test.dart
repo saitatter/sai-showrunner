@@ -76,6 +76,104 @@ void main() {
     expect(states.last, ProviderWorkerState.stopped);
     await hub.dispose();
   });
+
+  test('registers versioned subscriptions for exposed Twitch events', () async {
+    final hub = DartPluginEventHub();
+    final requests = <Map<String, dynamic>>[];
+    final socket = _FakeEventSubSocket();
+    final worker = TwitchEventSubWorker(
+      accessToken: 'token',
+      clientId: 'client',
+      broadcasterId: 'broadcaster',
+      eventHub: hub,
+      request: (method, path, query, body) async {
+        requests.add(Map<String, dynamic>.from(body as Map));
+        return {};
+      },
+      socketFactory: (uri) async {
+        scheduleMicrotask(
+          () => socket.add(
+            jsonEncode({
+              'payload': {
+                'session': {'id': 'session-1'},
+              },
+            }),
+          ),
+        );
+        return socket;
+      },
+    );
+
+    await worker.start();
+
+    expect(
+      requests.map((request) => request['type']),
+      contains('channel.follow'),
+    );
+    expect(
+      requests.map((request) => request['type']),
+      contains('channel.raid'),
+    );
+    final follow = requests.firstWhere(
+      (request) => request['type'] == 'channel.follow',
+    );
+    expect(follow['version'], '2');
+    expect(follow['condition'], {
+      'broadcaster_user_id': 'broadcaster',
+      'moderator_user_id': 'broadcaster',
+    });
+    final incomingRaid = requests.firstWhere(
+      (request) =>
+          request['type'] == 'channel.raid' &&
+          (request['condition'] as Map)['to_broadcaster_user_id'] != null,
+    );
+    expect(incomingRaid['condition'], {
+      'to_broadcaster_user_id': 'broadcaster',
+    });
+    expect(worker.state, ProviderWorkerState.running);
+
+    await worker.stop();
+    await hub.dispose();
+  });
+
+  test(
+    'keeps the worker running when an optional subscription lacks scope',
+    () async {
+      final hub = DartPluginEventHub();
+      final socket = _FakeEventSubSocket();
+      final worker = TwitchEventSubWorker(
+        accessToken: 'token',
+        clientId: 'client',
+        broadcasterId: 'broadcaster',
+        eventHub: hub,
+        request: (method, path, query, body) async {
+          if ((body as Map)['type'] == 'channel.follow') {
+            throw StateError('missing moderator:read:followers scope');
+          }
+          return {};
+        },
+        socketFactory: (uri) async {
+          scheduleMicrotask(
+            () => socket.add(
+              jsonEncode({
+                'payload': {
+                  'session': {'id': 'session-1'},
+                },
+              }),
+            ),
+          );
+          return socket;
+        },
+      );
+
+      await worker.start();
+
+      expect(worker.state, ProviderWorkerState.running);
+      expect(worker.subscriptionErrors.single, contains('channel.follow'));
+      await worker.stop();
+      await hub.dispose();
+    },
+  );
 }
 
 Future<void> _waitFor(bool Function() condition) async {

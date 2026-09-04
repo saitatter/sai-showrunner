@@ -221,6 +221,24 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
                       title: const Text('EventSub'),
                       subtitle: Text(statusText),
                     ),
+                    if (widget
+                        .providerEvents
+                        .twitchSubscriptionErrors
+                        .isNotEmpty)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        leading: const Icon(
+                          Icons.warning_amber,
+                          color: Colors.orange,
+                        ),
+                        title: const Text('Some event types are unavailable'),
+                        subtitle: Text(
+                          widget.providerEvents.twitchSubscriptionErrors.join(
+                            '\n',
+                          ),
+                        ),
+                      ),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: OutlinedButton.icon(

@@ -39,6 +39,8 @@ final class ProviderEventRuntime extends ChangeNotifier {
       youtube?.state ?? ProviderWorkerState.stopped;
   Object? get twitchLastError => twitch?.lastError;
   int get twitchReconnectAttempts => twitch?.reconnectAttempts ?? 0;
+  List<String> get twitchSubscriptionErrors =>
+      twitch?.subscriptionErrors ?? const [];
   int get youtubeFailureCount => youtube?.failureCount ?? 0;
 
   Map<String, dynamic>? get youtubeBroadcast => _youtubeBroadcast;

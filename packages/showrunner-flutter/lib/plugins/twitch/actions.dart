@@ -290,6 +290,7 @@ DartPluginManifest createTwitchPlugin(
             'hypeTrainEnded',
             'firstTimeChat',
             'shoutoutSent',
+            'shoutoutReceived',
           ])
             DartTriggerDefinition(
               pluginId: 'twitch',

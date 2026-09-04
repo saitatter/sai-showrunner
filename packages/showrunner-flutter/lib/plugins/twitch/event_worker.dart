@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../runtime/provider_worker_status.dart';
 import 'actions.dart';
@@ -13,6 +14,102 @@ abstract interface class EventSubSocket {
 
   Future<void> close([int? code, String? reason]);
 }
+
+final class TwitchEventSubSubscription {
+  const TwitchEventSubSubscription({
+    required this.type,
+    required this.version,
+    required this.condition,
+  });
+
+  final String type;
+  final String version;
+  final RuntimeMap condition;
+}
+
+List<TwitchEventSubSubscription> defaultTwitchEventSubSubscriptions(
+  String broadcasterId,
+) => [
+  TwitchEventSubSubscription(
+    type: 'channel.chat.message',
+    version: '1',
+    condition: {'broadcaster_user_id': broadcasterId, 'user_id': broadcasterId},
+  ),
+  TwitchEventSubSubscription(
+    type: 'channel.chat.notification',
+    version: '1',
+    condition: {'broadcaster_user_id': broadcasterId, 'user_id': broadcasterId},
+  ),
+  TwitchEventSubSubscription(
+    type: 'channel.ban',
+    version: '1',
+    condition: {
+      'broadcaster_user_id': broadcasterId,
+      'moderator_user_id': broadcasterId,
+    },
+  ),
+  TwitchEventSubSubscription(
+    type: 'channel.moderate',
+    version: '2',
+    condition: {
+      'broadcaster_user_id': broadcasterId,
+      'moderator_user_id': broadcasterId,
+    },
+  ),
+  for (final type in const [
+    'channel.ad_break.begin',
+    'channel.ad_break.end',
+    'channel.ad_schedule',
+    'channel.channel_points_custom_reward_redemption.add',
+    'channel.cheer',
+    'channel.hype_train.begin',
+    'channel.hype_train.progress',
+    'channel.hype_train.end',
+    'channel.poll.begin',
+    'channel.poll.end',
+    'channel.prediction.begin',
+    'channel.prediction.lock',
+    'channel.prediction.end',
+    'channel.subscribe',
+    'channel.subscription.gift',
+  ])
+    TwitchEventSubSubscription(
+      type: type,
+      version: type.startsWith('channel.hype_train') ? '2' : '1',
+      condition: {'broadcaster_user_id': broadcasterId},
+    ),
+  TwitchEventSubSubscription(
+    type: 'channel.follow',
+    version: '2',
+    condition: {
+      'broadcaster_user_id': broadcasterId,
+      'moderator_user_id': broadcasterId,
+    },
+  ),
+  TwitchEventSubSubscription(
+    type: 'channel.shoutout.create',
+    version: '1',
+    condition: {
+      'broadcaster_user_id': broadcasterId,
+      'moderator_user_id': broadcasterId,
+    },
+  ),
+  TwitchEventSubSubscription(
+    type: 'channel.shoutout.receive',
+    version: '1',
+    condition: {'broadcaster_user_id': broadcasterId},
+  ),
+  TwitchEventSubSubscription(
+    type: 'channel.raid',
+    version: '1',
+    condition: {'to_broadcaster_user_id': broadcasterId},
+  ),
+  TwitchEventSubSubscription(
+    type: 'channel.raid',
+    version: '1',
+    condition: {'from_broadcaster_user_id': broadcasterId},
+  ),
+];
 
 final class WebSocketEventSubSocket implements EventSubSocket {
   const WebSocketEventSubSocket(this.socket);
@@ -37,12 +134,25 @@ final class TwitchEventSubWorker {
     this.reconnectDelay = const Duration(seconds: 2),
     this.maxReconnectAttempts = 5,
     this.onStatusChanged,
-    this.subscriptionTypes = const <String>[
-      'channel.chat.message',
-      'channel.ban',
-      'channel.moderate',
-    ],
-  });
+    List<String>? subscriptionTypes,
+    List<TwitchEventSubSubscription>? subscriptions,
+    this.ignoreSubscriptionErrors = true,
+  }) : _subscriptions =
+           subscriptions ??
+           (subscriptionTypes == null
+               ? defaultTwitchEventSubSubscriptions(broadcasterId)
+               : subscriptionTypes
+                     .map(
+                       (type) => TwitchEventSubSubscription(
+                         type: type,
+                         version: type == 'channel.moderate' ? '2' : '1',
+                         condition: {
+                           'broadcaster_user_id': broadcasterId,
+                           'user_id': broadcasterId,
+                         },
+                       ),
+                     )
+                     .toList());
 
   final String accessToken;
   final String clientId;
@@ -53,7 +163,8 @@ final class TwitchEventSubWorker {
   final Duration reconnectDelay;
   final int maxReconnectAttempts;
   final void Function()? onStatusChanged;
-  final List<String> subscriptionTypes;
+  final bool ignoreSubscriptionErrors;
+  final List<TwitchEventSubSubscription> _subscriptions;
   EventSubSocket? _socket;
   StreamSubscription<dynamic>? _subscription;
   bool _stopping = false;
@@ -62,10 +173,14 @@ final class TwitchEventSubWorker {
   Object? lastError;
   int reconnectAttempts = 0;
   DateTime? connectedAt;
+  List<String> subscriptionErrors = const [];
 
   ProviderWorkerState get state => _state;
   bool get isRunning => _state == ProviderWorkerState.running;
   bool get isReconnecting => _state == ProviderWorkerState.reconnecting;
+
+  List<String> get subscriptionTypes =>
+      _subscriptions.map((subscription) => subscription.type).toList();
 
   Future<void> start() async {
     _stopping = false;
@@ -124,17 +239,21 @@ final class TwitchEventSubWorker {
     if (sessionId == null || sessionId.isEmpty) {
       throw StateError('Twitch EventSub welcome did not contain a session ID.');
     }
-    for (final type in subscriptionTypes) {
-      await request('POST', '/helix/eventsub/subscriptions', {}, {
-        'type': type,
-        'version': '1',
-        'condition': {
-          'broadcaster_user_id': broadcasterId,
-          'user_id': broadcasterId,
-        },
-        'transport': {'method': 'websocket', 'session_id': sessionId},
-      });
+    final subscriptionErrors = <String>[];
+    for (final subscriptionRequest in _subscriptions) {
+      try {
+        await request('POST', '/helix/eventsub/subscriptions', {}, {
+          'type': subscriptionRequest.type,
+          'version': subscriptionRequest.version,
+          'condition': subscriptionRequest.condition,
+          'transport': {'method': 'websocket', 'session_id': sessionId},
+        });
+      } catch (error) {
+        subscriptionErrors.add('${subscriptionRequest.type}: $error');
+        if (!ignoreSubscriptionErrors) rethrow;
+      }
     }
+    this.subscriptionErrors = List.unmodifiable(subscriptionErrors);
     connectedAt = DateTime.now();
     _setState(ProviderWorkerState.running);
   }
@@ -212,9 +331,13 @@ final class TwitchEventSubWorker {
     final type = subscription['type']?.toString();
     final eventId = switch (type) {
       'channel.chat.message' => 'chat',
+      'channel.chat.notification' =>
+        event['notice_type'] == 'first_message' ? 'firstTimeChat' : 'chat',
       'channel.ban' => event['duration'] == null ? 'ban' : 'timeout',
       'channel.moderate' => event['action'] == 'timeout' ? 'timeout' : null,
       'channel.ad_break.begin' => 'adStarted',
+      'channel.ad_break.end' => 'adEnded',
+      'channel.ad_schedule' => 'adSchedule',
       'channel.channel_points_custom_reward_redemption.add' => 'redemption',
       'channel.cheer' => 'bits',
       'channel.follow' => 'follow',
@@ -229,6 +352,7 @@ final class TwitchEventSubWorker {
       'channel.subscribe' => 'subscription',
       'channel.subscription.gift' => 'giftedSub',
       'channel.shoutout.create' => 'shoutoutSent',
+      'channel.shoutout.receive' => 'shoutoutReceived',
       'channel.raid' =>
         event['to_broadcaster_user_id']?.toString() == broadcasterId
             ? 'raid'
