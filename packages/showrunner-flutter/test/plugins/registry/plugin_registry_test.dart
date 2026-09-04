@@ -24,6 +24,7 @@ void main() {
         'overlays',
         'spellcast',
         'iot',
+        'govee',
       ]),
     );
     expect(registry.findAction('obs', 'scene'), isNotNull);
@@ -35,6 +36,7 @@ void main() {
     expect(registry.findAction('variables', 'offsetViewerVar'), isNotNull);
     expect(registry.findAction('minecraft', 'mineCmd'), isNotNull);
     expect(registry.findAction('http', 'request'), isNotNull);
+    expect(registry.findAction('govee', 'setColor'), isNotNull);
   });
 
   test('bootstraps and executes the built-in conversion actions', () async {

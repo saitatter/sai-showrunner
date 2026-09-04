@@ -91,6 +91,9 @@ local CRUD, remote API sync, resource recovery for the connected Twitch channel,
 and a Dart Cloud PubSub lifecycle bridge with negotiation, reconnect, reinit, and
 active-spell synchronization. The active profile trigger set is propagated from
 the Flutter profile lifecycle into the Spellcast subscription set.
+Govee Cloud is also registered as a real Dart plugin with API-key settings,
+device discovery/state actions, and power, RGB, brightness, and color-temperature
+controls; LAN discovery and persisted device resources remain open.
 
 ## Current Architecture
 
@@ -434,6 +437,8 @@ For each surface:
 	redemption status updates, and the dedicated Flutter management panel.
 - [x] Complete Dashboards page/section/widget editing, widget JSON/size
 	configuration, sharing IDs, and remote resource-slot configuration.
+- [x] Port Govee Cloud API-key settings and device discovery/state plus power,
+	RGB, brightness, and color-temperature actions.
 - [ ] Add device-specific resource settings for the remaining integrations.
 - [ ] Replace the satellite connection/dashboard/settings/slots renderer with
 	a Flutter remote workspace before removing `packages/showrunner-satellite/`.
@@ -495,8 +500,8 @@ The first visual spike is complete: the Flutter graph workspace now uses the pub
 - Keep each integration behind a Dart plugin interface and provide generic Flutter settings rendering where possible.
 - Port integrations in slices, starting with settings and read-only health before live event handling.
 - Current Dart slices include OBS, YouTube, Twitch, Moderation, Discord, Sound,
-	Minecraft, HTTP, time, OS, random, variables, overlays, Spellcast, IoT, and
-	Stream Plans manifests. Twitch and YouTube expose in-process trigger streams
+	Minecraft, HTTP, time, OS, random, variables, overlays, Spellcast, IoT, Govee,
+	and Stream Plans manifests. Twitch and YouTube expose in-process trigger streams
 	through a shared Dart event hub, with provider workers started by the shell.
 - Remaining plugin work is bespoke UX depth, especially status/OAuth diagnostics
 	and integration-specific pages not covered by generic manifests.

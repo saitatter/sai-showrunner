@@ -25,6 +25,7 @@ import '../variables/manifest.dart';
 import '../overlays/manifest.dart';
 import '../spellcast/manifest.dart';
 import '../iot/manifest.dart';
+import '../govee/manifest.dart';
 import '../input/manifest.dart';
 import '../stream_plans/manifest.dart';
 import '../showrunner/manifest.dart';
@@ -72,6 +73,7 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(createOverlaysPlugin());
   registry.register(createSpellcastPlugin(eventHub: eventHub));
   registry.register(createIotPlugin());
+  registry.register(createGoveePlugin(GoveeTransport(_unconfiguredGovee)));
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   return registry;
@@ -176,6 +178,19 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.register(createOverlaysPlugin());
   registry.register(createSpellcastPlugin(eventHub: eventHub));
   registry.register(createIotPlugin());
+  final goveeSettings = await dataService.loadPluginSettings('govee');
+  final goveeApiKey = goveeSettings['apiKey'] as String?;
+  final goveeTransport = goveeApiKey?.isNotEmpty == true
+      ? JsonHttpTransport(
+          baseUrl: 'https://developer-api.govee.com',
+          headers: {'Govee-API-KEY': goveeApiKey!},
+        )
+      : null;
+  registry.register(
+    createGoveePlugin(
+      GoveeTransport(goveeTransport?.request ?? _unconfiguredGovee),
+    ),
+  );
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   final disabled = appSettings['disabledPlugins'];
@@ -249,3 +264,10 @@ Future<RuntimeMap> _unconfiguredTwitch(
   RuntimeMap body,
 ) =>
     Future<RuntimeMap>.error(StateError('Twitch transport is not configured.'));
+
+Future<RuntimeMap> _unconfiguredGovee(
+  String method,
+  String path,
+  RuntimeMap query,
+  dynamic body,
+) => Future<RuntimeMap>.error(StateError('Govee transport is not configured.'));
