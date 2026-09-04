@@ -104,6 +104,8 @@ Bluesky is registered with persisted account settings and real AT Protocol
 session/post requests; account-resource selection and login UI parity remain open.
 DonorDrive is registered with participant polling, donation/incentive/milestone
 events, persisted API settings, and clean runtime shutdown.
+Aitum vertical-canvas controls are registered over the shared OBS WebSocket
+transport, including vertical scene, stream, recording, backtrack, and chapter actions.
 
 ## Current Architecture
 
@@ -458,6 +460,8 @@ For each surface:
 	remain follow-up work.
 - [x] Port Bluesky app-password session creation and AT Protocol post delivery;
 	account-resource selection and login UI parity remain follow-up work.
+- [x] Port Aitum vertical-canvas scene, stream, recording, backtrack, save, and
+	chapter actions over the shared OBS vendor-request transport.
 - [ ] Add device-specific resource settings for the remaining integrations.
 - [ ] Replace the satellite connection/dashboard/settings/slots renderer with
 	a Flutter remote workspace before removing `packages/showrunner-satellite/`.

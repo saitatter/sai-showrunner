@@ -18,6 +18,7 @@ import '../moderation/runtime.dart';
 import '../discord/manifest.dart';
 import '../bluesky/manifest.dart';
 import '../donordrive/manifest.dart';
+import '../aitum/manifest.dart';
 import '../sound/manifest.dart';
 import '../sound/output.dart';
 import '../minecraft/manifest.dart';
@@ -49,6 +50,9 @@ DartPluginRegistry createDefaultPluginRegistry({
   final registry = DartPluginRegistry();
   registry.register(createShowRunnerPlugin());
   registry.register(createObsPlugin(CallbackObsTransport(_unconfiguredObs)));
+  registry.register(
+    createAitumPlugin(CallbackObsTransport(_unconfiguredAitum)),
+  );
   registry.register(
     createYouTubePlugin(
       YouTubeTransport(_unconfiguredYouTube),
@@ -117,17 +121,15 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.register(createShowRunnerPlugin());
   final host = obs['host'] as String?;
   final port = (obs['port'] as num?)?.toInt();
-  registry.register(
-    host != null && port != null
-        ? createObsPlugin(
-            ObsWebSocketTransport(
-              host: host,
-              port: port,
-              password: obs['password'] as String?,
-            ),
-          )
-        : createObsPlugin(CallbackObsTransport(_unconfiguredObs)),
-  );
+  final obsTransport = host != null && port != null
+      ? ObsWebSocketTransport(
+          host: host,
+          port: port,
+          password: obs['password'] as String?,
+        )
+      : CallbackObsTransport(_unconfiguredObs);
+  registry.register(createObsPlugin(obsTransport));
+  registry.register(createAitumPlugin(obsTransport));
   final twitchClientId = twitch['clientId'] as String?;
   final youtubeManager = _createTokenManager(
     pluginId: 'youtube',
@@ -321,6 +323,11 @@ OAuthTokenManager? _createTokenManager({
 
 Future<RuntimeMap> _unconfiguredObs(String request, RuntimeMap data) =>
     Future<RuntimeMap>.error(StateError('OBS transport is not configured.'));
+
+Future<RuntimeMap> _unconfiguredAitum(String request, RuntimeMap data) =>
+    Future<RuntimeMap>.error(
+      StateError('Aitum requires a configured OBS connection.'),
+    );
 
 Future<RuntimeMap> _unconfiguredYouTube(
   String method,

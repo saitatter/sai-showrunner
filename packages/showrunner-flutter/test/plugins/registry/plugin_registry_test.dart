@@ -16,6 +16,7 @@ void main() {
         'discord',
         'bluesky',
         'donordrive',
+        'aitum',
         'sound',
         'minecraft',
         'http',
@@ -35,6 +36,7 @@ void main() {
     expect(registry.findAction('discord', 'discordMessage'), isNotNull);
     expect(registry.findAction('bluesky', 'post'), isNotNull);
     expect(registry.findTrigger('donordrive', 'donation'), isNull);
+    expect(registry.findAction('aitum', 'verticalScene'), isNotNull);
     expect(registry.findAction('sound', 'speakTTS'), isNotNull);
     expect(registry.findAction('variables', 'setViewerVar'), isNotNull);
     expect(registry.findAction('variables', 'offsetViewerVar'), isNotNull);
