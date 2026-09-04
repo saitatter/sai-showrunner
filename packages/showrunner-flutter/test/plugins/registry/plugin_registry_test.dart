@@ -14,6 +14,7 @@ void main() {
         'youtube',
         'twitch',
         'discord',
+        'bluesky',
         'sound',
         'minecraft',
         'http',
@@ -31,6 +32,7 @@ void main() {
     expect(registry.findAction('youtube', 'sendChatMessage'), isNotNull);
     expect(registry.findAction('twitch', 'chat'), isNotNull);
     expect(registry.findAction('discord', 'discordMessage'), isNotNull);
+    expect(registry.findAction('bluesky', 'post'), isNotNull);
     expect(registry.findAction('sound', 'speakTTS'), isNotNull);
     expect(registry.findAction('variables', 'setViewerVar'), isNotNull);
     expect(registry.findAction('variables', 'offsetViewerVar'), isNotNull);

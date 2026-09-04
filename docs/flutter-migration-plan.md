@@ -100,6 +100,8 @@ persisted device-resource recovery remain open.
 Twinkly is registered with the local XLED API, challenge/verify token lifecycle,
 RGB color, LED mode, movie, and power actions; subnet discovery and persisted
 device-resource recovery remain open.
+Bluesky is registered with persisted account settings and real AT Protocol
+session/post requests; account-resource selection and login UI parity remain open.
 
 ## Current Architecture
 
@@ -452,6 +454,8 @@ For each surface:
 - [x] Port Discord webhook JSON delivery and authenticated Minecraft TCP RCON
 	command execution; Discord file attachments and persistent RCON sessions
 	remain follow-up work.
+- [x] Port Bluesky app-password session creation and AT Protocol post delivery;
+	account-resource selection and login UI parity remain follow-up work.
 - [ ] Add device-specific resource settings for the remaining integrations.
 - [ ] Replace the satellite connection/dashboard/settings/slots renderer with
 	a Flutter remote workspace before removing `packages/showrunner-satellite/`.

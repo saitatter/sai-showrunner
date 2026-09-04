@@ -14,6 +14,7 @@ import '../youtube/actions.dart';
 import '../moderation/moderation.dart';
 import '../moderation/runtime.dart';
 import '../discord/manifest.dart';
+import '../bluesky/manifest.dart';
 import '../sound/manifest.dart';
 import '../sound/output.dart';
 import '../minecraft/manifest.dart';
@@ -58,6 +59,9 @@ DartPluginRegistry createDefaultPluginRegistry({
     ),
   );
   registry.register(createDiscordPlugin());
+  registry.register(
+    createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
+  );
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
@@ -169,6 +173,22 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   final moderationService = ModerationService(dataService: dataService);
   registry.register(createModerationPlugin(moderationService));
   registry.register(createDiscordPlugin());
+  final blueskySettings = await dataService.loadPluginSettings('bluesky');
+  final blueskyIdentifier = blueskySettings['identifier']?.toString().trim();
+  final blueskyPassword = blueskySettings['appPassword']?.toString().trim();
+  final blueskyServiceUrl = blueskySettings['serviceUrl']?.toString().trim();
+  final blueskyHttp = BlueskyHttpTransport(
+    baseUrl: blueskyServiceUrl?.isNotEmpty == true
+        ? blueskyServiceUrl!
+        : 'https://bsky.social',
+  );
+  registry.register(
+    createBlueskyPlugin(
+      BlueskyTransport(blueskyHttp.post),
+      identifier: blueskyIdentifier,
+      appPassword: blueskyPassword,
+    ),
+  );
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
@@ -312,4 +332,12 @@ Future<RuntimeMap> _unconfiguredTwinkly(
   dynamic body,
 ) => Future<RuntimeMap>.error(
   StateError('Twinkly transport is not configured.'),
+);
+
+Future<RuntimeMap> _unconfiguredBluesky(
+  String identifier,
+  String appPassword,
+  String text,
+) => Future<RuntimeMap>.error(
+  StateError('Bluesky transport is not configured.'),
 );

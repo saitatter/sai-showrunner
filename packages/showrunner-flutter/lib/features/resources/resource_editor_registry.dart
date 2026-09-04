@@ -274,6 +274,20 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
   );
   registry.register(
     _pluginDefinition(
+      pluginId: 'bluesky',
+      resourceType: 'BlueSkyAccount',
+      displayName: 'BlueSky Account',
+      storageDirectory: 'bluesky/accounts',
+      defaultConfig: (name) => {
+        'name': name,
+        'identifier': '',
+        'appPassword': '',
+      },
+      fields: const ['name', 'identifier', 'appPassword'],
+    ),
+  );
+  registry.register(
+    _pluginDefinition(
       pluginId: 'dashboards',
       resourceType: 'Dashboard',
       displayName: 'Dashboard',

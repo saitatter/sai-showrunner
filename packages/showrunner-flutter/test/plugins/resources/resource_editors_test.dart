@@ -17,6 +17,7 @@ void main() {
     expect(registry.find('TTSVoice')?.pluginId, 'sound');
     expect(registry.find('CustomTwitchViewerGroup')?.pluginId, 'twitch');
     expect(registry.find('DiscordWebhook')?.pluginId, 'discord');
+    expect(registry.find('BlueSkyAccount')?.pluginId, 'bluesky');
     expect(registry.find('Dashboard')?.pluginId, 'dashboards');
     expect(registry.find('SpellHook')?.pluginId, 'spellcast');
     expect(registry.find('AudioSplitterOutput')?.pluginId, 'sound');
