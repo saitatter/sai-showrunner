@@ -37,6 +37,7 @@ void main() {
         'tplink-kasa',
         'lifx',
         'wyze',
+        'dashboards',
       ]),
     );
     expect(registry.findAction('obs', 'scene'), isNotNull);
@@ -57,6 +58,7 @@ void main() {
     expect(registry.findAction('tplink-kasa', 'setLightState'), isNotNull);
     expect(registry.findAction('lifx', 'setLightState'), isNotNull);
     expect(registry.findAction('wyze', 'setLightState'), isNotNull);
+    expect(registry.findPlugin('dashboards'), isNotNull);
   });
 
   test('bootstraps and executes the built-in conversion actions', () async {

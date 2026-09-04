@@ -109,6 +109,12 @@ subnet discovery and persisted device-resource recovery remain open.
 LIFX is registered with the Dart LAN v2 UDP packet codec and direct light state,
 power, RGB/kelvin, and transition commands; subnet discovery and persisted
 device-resource recovery remain open.
+Wyze is registered with the real cloud login, token refresh, device listing,
+light/plug state reads, and device action API; account-resource UI parity and
+device-resource recovery remain open.
+Dashboards are exposed in the Flutter registry alongside the existing
+hierarchical Dashboard resource editor; browser dashboard serving and satellite
+delivery remain open.
 Bluesky is registered with persisted account settings and real AT Protocol
 session/post requests; account-resource selection and login UI parity remain open.
 DonorDrive is registered with participant polling, donation/incentive/milestone
@@ -476,6 +482,10 @@ For each surface:
 	including transition, color temperature, and RGB fields.
 - [x] Port LIFX LAN v2 packet encoding, state parsing, and direct UDP light
 	state, power, RGB/kelvin, and transition commands.
+- [x] Expose the Dashboard plugin manifest alongside the Flutter hierarchical
+	Dashboard resource editor.
+- [x] Port Wyze cloud login, token refresh, device listing, and light/plug
+	state actions.
 - [x] Port Discord webhook JSON delivery and authenticated Minecraft TCP RCON
 	command execution; Discord file attachments and persistent RCON sessions
 	remain follow-up work.

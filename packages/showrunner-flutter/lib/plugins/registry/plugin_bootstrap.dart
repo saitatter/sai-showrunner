@@ -40,6 +40,7 @@ import '../elgato/manifest.dart';
 import '../tplink_kasa/manifest.dart';
 import '../lifx/manifest.dart';
 import '../wyze/manifest.dart';
+import '../dashboards/manifest.dart';
 import '../input/manifest.dart';
 import '../stream_plans/manifest.dart';
 import '../showrunner/manifest.dart';
@@ -120,6 +121,7 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(createKasaPlugin(KasaTransport(_unconfiguredKasa)));
   registry.register(createLifxPlugin(_unconfiguredLifxTransport));
   registry.register(createWyzePlugin(_unconfiguredWyzeTransport));
+  registry.register(dashboardPlugin);
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   return registry;
@@ -375,6 +377,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     },
   );
   registry.register(createWyzePlugin(wyzeTransport));
+  registry.register(dashboardPlugin);
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   final disabled = appSettings['disabledPlugins'];
