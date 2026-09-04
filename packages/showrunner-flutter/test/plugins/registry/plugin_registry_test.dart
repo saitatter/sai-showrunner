@@ -31,6 +31,9 @@ void main() {
         'spellcast',
         'iot',
         'govee',
+        'philips-hue',
+        'twinkly',
+        'elgato',
       ]),
     );
     expect(registry.findAction('obs', 'scene'), isNotNull);
@@ -47,6 +50,7 @@ void main() {
     expect(registry.findAction('minecraft', 'mineCmd'), isNotNull);
     expect(registry.findAction('http', 'request'), isNotNull);
     expect(registry.findAction('govee', 'setColor'), isNotNull);
+    expect(registry.findAction('elgato', 'setLightState'), isNotNull);
   });
 
   test('bootstraps and executes the built-in conversion actions', () async {

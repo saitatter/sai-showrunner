@@ -36,6 +36,7 @@ import '../iot/manifest.dart';
 import '../govee/manifest.dart';
 import '../philips_hue/manifest.dart';
 import '../twinkly/manifest.dart';
+import '../elgato/manifest.dart';
 import '../input/manifest.dart';
 import '../stream_plans/manifest.dart';
 import '../showrunner/manifest.dart';
@@ -112,6 +113,7 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(
     createTwinklyPlugin(TwinklyTransport(_unconfiguredTwinkly)),
   );
+  registry.register(createElgatoPlugin(ElgatoTransport(_unconfiguredElgato)));
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   return registry;
@@ -309,6 +311,23 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.register(
     createTwinklyPlugin(TwinklyTransport(twinklyTransport.request)),
   );
+  final elgatoSettings = await dataService.loadPluginSettings('elgato');
+  final elgatoHost = elgatoSettings['host']?.toString().trim();
+  final elgatoPort = _port(elgatoSettings['port'], 9123);
+  final elgatoLights = _positiveInt(elgatoSettings['numberOfLights'], 1);
+  final elgatoRgb =
+      elgatoSettings['rgb'] == true ||
+      elgatoSettings['rgb']?.toString().toLowerCase() == 'true';
+  final elgatoTransport = elgatoHost?.isNotEmpty == true
+      ? ElgatoHttpTransport(host: elgatoHost!, port: elgatoPort)
+      : null;
+  registry.register(
+    createElgatoPlugin(
+      ElgatoTransport(elgatoTransport?.request ?? _unconfiguredElgato),
+      supportsRgb: elgatoRgb,
+      numberOfLights: elgatoLights,
+    ),
+  );
   registry.register(createInputPlugin());
   registry.register(createStreamPlansPlugin());
   final disabled = appSettings['disabledPlugins'];
@@ -422,6 +441,13 @@ Future<RuntimeMap> _unconfiguredBluesky(
   StateError('Bluesky transport is not configured.'),
 );
 
+Future<RuntimeMap> _unconfiguredElgato(
+  String method,
+  String path,
+  dynamic body,
+) =>
+    Future<RuntimeMap>.error(StateError('Elgato transport is not configured.'));
+
 Future<List<RuntimeMap>> _unconfiguredVoiceModVoices() =>
     Future.error(StateError('VoiceMod transport is not configured.'));
 
@@ -437,4 +463,9 @@ Duration _positiveDuration(Object? value, Duration fallback) {
 int _port(Object? value, int fallback) {
   final port = value is num ? value.toInt() : int.tryParse('$value');
   return port != null && port >= 1 && port <= 65535 ? port : fallback;
+}
+
+int _positiveInt(Object? value, int fallback) {
+  final number = value is num ? value.toInt() : int.tryParse('$value');
+  return number != null && number > 0 ? number : fallback;
 }
