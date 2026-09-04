@@ -18,6 +18,7 @@ void main() {
         'donordrive',
         'aitum',
         'advss',
+        'remote',
         'sound',
         'minecraft',
         'http',

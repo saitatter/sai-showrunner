@@ -108,6 +108,8 @@ Aitum vertical-canvas controls are registered over the shared OBS WebSocket
 transport, including vertical scene, stream, recording, backtrack, and chapter actions.
 Advanced Scene Switcher messages and vendor events are also bridged through the
 shared OBS transport and Dart event hub.
+Remote button trigger handling is available through a configurable Dart HTTP
+server at `/buttons/press`, with explicit runtime shutdown.
 
 ## Current Architecture
 

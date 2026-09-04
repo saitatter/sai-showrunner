@@ -20,6 +20,7 @@ import '../bluesky/manifest.dart';
 import '../donordrive/manifest.dart';
 import '../aitum/manifest.dart';
 import '../advss/manifest.dart';
+import '../remote/manifest.dart';
 import '../sound/manifest.dart';
 import '../sound/output.dart';
 import '../minecraft/manifest.dart';
@@ -77,6 +78,7 @@ DartPluginRegistry createDefaultPluginRegistry({
     createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
   );
   registry.register(createDonorDrivePlugin(null));
+  registry.register(createRemotePlugin(eventHub: eventHub));
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
@@ -231,6 +233,21 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       : null;
   registry.register(createDonorDrivePlugin(donorDriveRuntime));
   if (donorDriveRuntime != null) unawaited(donorDriveRuntime.start());
+  final remoteSettings = await dataService.loadPluginSettings('remote');
+  final remoteEnabled = remoteSettings['enabled'] == true;
+  final remoteHost = remoteSettings['host']?.toString().trim();
+  final remotePort = _port(remoteSettings['port'], 8390);
+  final remoteRuntime = remoteEnabled && eventHub != null
+      ? RemoteButtonRuntime(
+          eventHub: eventHub,
+          host: remoteHost?.isNotEmpty == true ? remoteHost! : '127.0.0.1',
+          port: remotePort,
+        )
+      : null;
+  registry.register(
+    createRemotePlugin(eventHub: eventHub, runtime: remoteRuntime),
+  );
+  if (remoteRuntime != null) unawaited(remoteRuntime.start());
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
@@ -393,4 +410,9 @@ Duration _positiveDuration(Object? value, Duration fallback) {
   final seconds = value is num ? value.toDouble() : double.tryParse('$value');
   if (seconds == null || !seconds.isFinite || seconds <= 0) return fallback;
   return Duration(milliseconds: (seconds * 1000).round());
+}
+
+int _port(Object? value, int fallback) {
+  final port = value is num ? value.toInt() : int.tryParse('$value');
+  return port != null && port >= 1 && port <= 65535 ? port : fallback;
 }
