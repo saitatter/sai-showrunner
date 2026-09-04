@@ -81,7 +81,10 @@ Input configuration now includes native Windows mouse-button simulation alongsid
 keyboard capture and shortcuts. Spellcast resources have a structured Flutter
 editor and its trigger is backed by the Dart event hub. Viewer variables now have
 an operational Flutter panel for definition CRUD, per-viewer value editing, and
-lazy paginated/sorted viewer tables. The Flutter resource repository also reads
+lazy paginated/sorted viewer tables. The Flutter viewer-data layer now imports
+the legacy SQLite database read-only, preserves existing rows by default, and
+supports JSON/object, list, color, and legacy Twitch viewer values. The Flutter
+resource repository also reads
 and round-trips the existing YAML resource directories without requiring a data
 conversion before editing. Spellcast now has a dedicated Flutter workspace with
 local CRUD, remote API sync, resource recovery for the connected Twitch channel,
@@ -402,6 +405,8 @@ For each surface:
 - [x] Port lazy viewer tables and the local viewer-data query surface; provider
 	event synchronization and the remaining viewer-variable types remain before
 	removing `plugins/variables/renderer/`.
+- [x] Import legacy `viewer-data/db.sqlite3` rows read-only, preserve existing
+	Flutter rows by default, and round-trip non-primitive viewer values.
 - [x] Port Sound TTS voice and AudioSplitter configuration editors, plus the
 	injectable direct-speech and splitter-routing runtime slices.
 - [x] Port IoT color/brightness controls into the generic Flutter data-input

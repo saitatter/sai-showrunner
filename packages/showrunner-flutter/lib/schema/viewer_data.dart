@@ -8,11 +8,26 @@ String normalizeViewerVariableType(String type) {
       return 'number';
     case 'boolean':
       return 'boolean';
+    case 'json':
+    case 'dynamic':
+      return 'json';
+    case 'object':
+    case 'map':
+      return 'object';
+    case 'array':
+    case 'list':
+      return 'list';
+    case 'color':
+      return 'color';
+    case 'lightcolor':
+      return 'lightcolor';
+    case 'twitchviewer':
+      return 'twitchviewer';
     default:
       throw ArgumentError.value(
         type,
         'type',
-        'Supported viewer variable types are string, number, and boolean.',
+        'Unsupported viewer variable type: $type.',
       );
   }
 }
@@ -27,6 +42,18 @@ dynamic normalizeViewerVariableValue(String type, dynamic value) {
       if (value is num && value.isFinite) return value;
     case 'boolean':
       if (value is bool) return value;
+    case 'json':
+      if (_isJsonValue(value)) return value;
+    case 'object':
+      if (value is Map) return Map<String, dynamic>.from(value);
+    case 'list':
+      if (value is List) return List<dynamic>.from(value);
+    case 'color':
+    case 'lightcolor':
+      if (value is String) return value;
+    case 'twitchviewer':
+      if (value is String) return value;
+      if (value is Map) return Map<String, dynamic>.from(value);
   }
 
   throw ArgumentError.value(value, 'value', 'Value does not match type $type.');
@@ -59,6 +86,16 @@ final class ViewerVariableDefinition {
         return 0;
       case 'boolean':
         return false;
+      case 'json':
+      case 'object':
+        return <String, dynamic>{};
+      case 'list':
+        return <dynamic>[];
+      case 'color':
+      case 'lightcolor':
+        return '#ffffff';
+      case 'twitchviewer':
+        return <String, dynamic>{'id': '', 'displayName': ''};
     }
     throw StateError('Unsupported viewer variable type: $type');
   }
@@ -88,6 +125,19 @@ final class ViewerVariableDefinition {
     if (defaultValue != null) 'defaultValue': defaultValue,
     'required': required,
   };
+}
+
+bool _isJsonValue(dynamic value) {
+  if (value == null || value is String || value is num || value is bool) {
+    return true;
+  }
+  if (value is List) return value.every(_isJsonValue);
+  if (value is Map) {
+    return value.entries.every(
+      (entry) => entry.key is String && _isJsonValue(entry.value),
+    );
+  }
+  return false;
 }
 
 final class ViewerIdentity {

@@ -15,6 +15,7 @@ export 'persistence/queue_repository.dart';
 export 'persistence/profile_repository.dart';
 export 'persistence/queue_config_repository.dart';
 export 'persistence/viewer_data_repository.dart';
+export 'persistence/legacy_viewer_data_import.dart';
 export 'services/showrunner_data_service.dart';
 export 'runtime/expression.dart';
 export 'runtime/graph_runtime.dart';

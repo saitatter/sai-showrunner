@@ -36,6 +36,8 @@ abstract interface class ViewerDataRepository {
     String variable,
     num offset,
   );
+
+  Future<bool> importViewerRow(ViewerDataRow row, {bool overwrite = false});
 }
 
 final class FileViewerDataRepository implements ViewerDataRepository {
@@ -45,6 +47,8 @@ final class FileViewerDataRepository implements ViewerDataRepository {
   final Map<String, Future<void>> _viewerLocks = {};
 
   File get definitionsFile => File('${directory.path}/variables.yaml');
+
+  File get legacyDatabaseFile => File('${directory.path}/db.sqlite3');
 
   @override
   Future<List<ViewerVariableDefinition>> loadDefinitions() async {
@@ -192,6 +196,29 @@ final class FileViewerDataRepository implements ViewerDataRepository {
       await _writeViewer(next);
       return next;
     });
+  }
+
+  @override
+  Future<bool> importViewerRow(
+    ViewerDataRow row, {
+    bool overwrite = false,
+  }) async {
+    if (row.provider.isEmpty || row.viewer.id.isEmpty) {
+      throw const FormatException(
+        'Imported viewer rows require provider and id.',
+      );
+    }
+    final file = _viewerFile(row.provider, row.viewer.id);
+    if (!overwrite && await file.exists()) return false;
+    final current = await _readViewer(row.provider, row.viewer);
+    await _writeViewer(
+      ViewerDataRow(
+        provider: row.provider,
+        viewer: row.viewer,
+        values: {...current.values, ...row.values},
+      ),
+    );
+    return true;
   }
 
   Future<ViewerVariableDefinition?> _findDefinition(String name) async {
@@ -395,6 +422,27 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
     return next;
   }
 
+  @override
+  Future<bool> importViewerRow(
+    ViewerDataRow row, {
+    bool overwrite = false,
+  }) async {
+    if (row.provider.isEmpty || row.viewer.id.isEmpty) {
+      throw const FormatException(
+        'Imported viewer rows require provider and id.',
+      );
+    }
+    final key = _viewerKey(row.provider, row.viewer.id);
+    if (!overwrite && _rows.containsKey(key)) return false;
+    final current = await loadViewer(row.provider, row.viewer);
+    _rows[key] = ViewerDataRow(
+      provider: row.provider,
+      viewer: row.viewer,
+      values: {...current.values, ...row.values},
+    );
+    return true;
+  }
+
   ViewerVariableDefinition? _findDefinition(String name) {
     for (final definition in _definitions) {
       if (definition.name == name) return definition;
@@ -433,6 +481,7 @@ String _encodeDefinitions(List<ViewerVariableDefinition> definitions) {
 String _yamlScalar(dynamic value) {
   if (value == null) return 'null';
   if (value is bool || value is num) return value.toString();
+  if (value is Map || value is List) return jsonEncode(value);
   return jsonEncode(value.toString());
 }
 

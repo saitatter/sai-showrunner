@@ -33,7 +33,7 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
 - [ ] Add WAV synthesis and parity for external TTS providers.
 - [ ] Add the viewer-variable lazy table with paging and sorting.
 - [ ] Add live provider synchronization for viewer data.
-- [ ] Add SQLite import support and non-primitive viewer-variable types.
+- [x] Add SQLite import support and non-primitive viewer-variable types.
 - [ ] Reach native global-input parity in the Flutter runtime.
 - [ ] Complete deeper bespoke Twitch, OBS, Moderation, Spellcast, and Dashboard
       workflows beyond the current foundations.

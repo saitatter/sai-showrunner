@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../persistence/resource_repository.dart';
+import '../../persistence/legacy_viewer_data_import.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../runtime/expression.dart';
 import '../../schema/resource.dart';
@@ -377,6 +378,35 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
     }
   }
 
+  Future<void> _importLegacyDatabase() async {
+    final repository = widget.repository;
+    if (repository is! FileViewerDataRepository) return;
+    setState(() {
+      _loadingViewers = true;
+      _error = null;
+    });
+    try {
+      final report = await const LegacyViewerDataImporter().importFile(
+        databaseFile: repository.legacyDatabaseFile,
+        target: repository,
+      );
+      await _loadViewers();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Imported ${report.imported} viewer rows; '
+            '${report.skipped} already existed; ${report.invalid} invalid.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _loadingViewers = false);
+    }
+  }
+
   Future<void> _editDefinition([ViewerVariableDefinition? definition]) async {
     final result = await showDialog<ViewerVariableDefinition>(
       context: context,
@@ -596,6 +626,13 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
                 },
                 icon: Icon(_viewerSortDescending ? Icons.south : Icons.north),
               ),
+              if (widget.repository is FileViewerDataRepository)
+                OutlinedButton.icon(
+                  onPressed: _loadingViewers ? null : _importLegacyDatabase,
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: const Text('Import legacy SQLite'),
+                ),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: _loadingViewers ? null : () => _loadViewers(),
                 icon: _loadingViewers
@@ -732,6 +769,15 @@ class _ViewerVariableDefinitionDialogState
               DropdownMenuItem(value: 'string', child: Text('String')),
               DropdownMenuItem(value: 'number', child: Text('Number')),
               DropdownMenuItem(value: 'boolean', child: Text('Boolean')),
+              DropdownMenuItem(value: 'json', child: Text('JSON')),
+              DropdownMenuItem(value: 'object', child: Text('Object')),
+              DropdownMenuItem(value: 'list', child: Text('List')),
+              DropdownMenuItem(value: 'color', child: Text('Color')),
+              DropdownMenuItem(value: 'lightcolor', child: Text('Light color')),
+              DropdownMenuItem(
+                value: 'twitchviewer',
+                child: Text('Twitch viewer'),
+              ),
             ],
             onChanged: (value) {
               if (value != null) setState(() => _type = value);
@@ -848,11 +894,8 @@ class _ViewerValueTileState extends State<_ViewerValueTile> {
       keyboardType: widget.definition.normalizedType == 'number'
           ? TextInputType.number
           : TextInputType.text,
-      onSubmitted: (value) => widget.onChanged(
-        widget.definition.normalizedType == 'number'
-            ? num.tryParse(value.trim()) ?? 0
-            : value,
-      ),
+      onSubmitted: (value) =>
+          widget.onChanged(_parse(widget.definition.normalizedType, value)),
     );
   }
 }
@@ -1110,7 +1153,10 @@ dynamic _parse(String type, String value) {
   final trimmed = value.trim();
   if (type == 'number') return num.tryParse(trimmed) ?? 0;
   if (type == 'boolean') return trimmed.toLowerCase() == 'true';
-  if (type == 'json') {
+  if (type == 'json' ||
+      type == 'object' ||
+      type == 'list' ||
+      type == 'twitchviewer') {
     try {
       return jsonDecode(trimmed);
     } on FormatException {
