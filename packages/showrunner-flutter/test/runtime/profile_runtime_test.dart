@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/runtime/profile_runtime.dart';
+import 'package:showrunner_flutter/runtime/action_queue.dart';
+import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
+import 'package:showrunner_flutter/runtime/graph_runtime.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
 
@@ -198,6 +201,89 @@ void main() {
     expect(payloads, [
       {'message': 'hi'},
     ]);
+  });
+
+  test('queues a profile trigger in the configured resource queue', () async {
+    final calls = <String>[];
+    final registry = DartPluginRegistry()
+      ..register(
+        DartPluginManifest(
+          id: 'test',
+          name: 'Test',
+          actions: [
+            DartActionDefinition(
+              pluginId: 'test',
+              actionId: 'record',
+              invoke: (config, context) async {
+                calls.add(context.contextState['event']['message'] as String);
+                return null;
+              },
+            ),
+          ],
+        ),
+      );
+    final defaultQueue = DartActionQueue();
+    final alertsQueue = DartActionQueue()..setPaused(true);
+    final queueManager = DartAutomationQueueManager(
+      defaultQueue: defaultQueue,
+      execute: (automation, context, item) =>
+          const DartGraphRuntime().executeWithRegistry(
+            graph: automation.graph,
+            context: context,
+            registry: registry,
+            dataWires: automation.dataWires,
+            subgraphs: automation.subgraphs,
+          ),
+    )..register('alerts', alertsQueue);
+    addTearDown(queueManager.dispose);
+    final profile = ShowRunnerProfile(
+      name: 'Queued',
+      activationMode: 'always',
+      triggers: [
+        {
+          ..._profileTrigger(
+            id: 'chat-trigger',
+            plugin: 'test',
+            trigger: 'chat',
+            graph: {
+              'nodes': [
+                {
+                  'id': 'record',
+                  'type': 'action',
+                  'plugin': 'test',
+                  'action': 'record',
+                },
+              ],
+              'entryNodeId': 'record',
+            },
+          ),
+          'queue': 'alerts',
+        },
+      ],
+      activationCondition: const {},
+      activationAutomation: const AutomationData(),
+      deactivationAutomation: const AutomationData(),
+    );
+    final runtime = DartProfileRuntime(
+      registry: registry,
+      queueManager: queueManager,
+    );
+    await runtime.activate('queued', profile);
+    final result = await runtime.handleTrigger(
+      'queued',
+      profile,
+      'test',
+      'chat',
+      {'message': 'hello'},
+    );
+
+    expect(result?.outputValues['queued'], isTrue);
+    expect(alertsQueue.pending, hasLength(1));
+    expect(calls, isEmpty);
+
+    alertsQueue.setPaused(false);
+    await queueManager.drain('alerts');
+    expect(calls, ['hello']);
   });
 
   test(

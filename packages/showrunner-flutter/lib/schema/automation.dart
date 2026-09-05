@@ -215,6 +215,11 @@ final class AutomationData {
   final List<JsonMap> triggerNodes;
   final JsonMap extra;
 
+  String? get queueId {
+    final value = extra['queue'];
+    return value is String && value.trim().isNotEmpty ? value.trim() : null;
+  }
+
   JsonMap toJson() => {
     ...extra,
     'schemaVersion': schemaVersion,

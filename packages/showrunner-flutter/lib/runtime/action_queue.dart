@@ -9,6 +9,7 @@ final class QueuedGraphExecution {
     required this.id,
     required this.source,
     required this.contextState,
+    this.locals = const <String, dynamic>{},
     this.status = 'pending',
     this.startedAt,
     this.completedAt,
@@ -24,6 +25,7 @@ final class QueuedGraphExecution {
   final String id;
   final RuntimeMap source;
   final RuntimeMap contextState;
+  final RuntimeMap locals;
   String status;
   DateTime? startedAt;
   DateTime? completedAt;
@@ -43,6 +45,7 @@ final class QueuedGraphExecution {
     'id': id,
     'source': source,
     'contextState': contextState,
+    if (locals.isNotEmpty) 'locals': locals,
     'status': status,
     if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
     if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
@@ -59,6 +62,9 @@ final class QueuedGraphExecution {
     id: value['id'].toString(),
     source: Map<String, dynamic>.from(value['source'] as Map),
     contextState: Map<String, dynamic>.from(value['contextState'] as Map),
+    locals: value['locals'] is Map
+        ? Map<String, dynamic>.from(value['locals'] as Map)
+        : const <String, dynamic>{},
     status: value['status']?.toString() ?? 'completed',
     startedAt: _dateTime(value['startedAt']),
     completedAt: _dateTime(value['completedAt']),
@@ -104,11 +110,16 @@ final class DartActionQueue {
     _changes.add(null);
   }
 
-  QueuedGraphExecution enqueue(RuntimeMap source, RuntimeMap contextState) {
+  QueuedGraphExecution enqueue(
+    RuntimeMap source,
+    RuntimeMap contextState, {
+    RuntimeMap locals = const <String, dynamic>{},
+  }) {
     final item = QueuedGraphExecution(
       id: 'queue-${_nextId++}',
       source: Map<String, dynamic>.from(source),
       contextState: Map<String, dynamic>.from(contextState),
+      locals: Map<String, dynamic>.from(locals),
     );
     pending.add(item);
     _changes.add(item);
@@ -226,7 +237,9 @@ final class DartActionQueue {
               (entry.status == 'completed' || entry.status == 'failed'),
         )
         .firstOrNull;
-    if (item != null) enqueue(item.source, item.contextState);
+    if (item != null) {
+      enqueue(item.source, item.contextState, locals: item.locals);
+    }
   }
 
   RuntimeMap toJson() => {

@@ -5,13 +5,18 @@ import '../schema/automation.dart';
 import '../schema/profile.dart';
 import 'expression.dart';
 import 'graph_runtime.dart';
+import 'automation_queue_manager.dart';
 
 final class DartProfileRuntime {
-  DartProfileRuntime({required this.registry, DartGraphRuntime? graphRuntime})
-    : graphRuntime = graphRuntime ?? const DartGraphRuntime();
+  DartProfileRuntime({
+    required this.registry,
+    DartGraphRuntime? graphRuntime,
+    this.queueManager,
+  }) : graphRuntime = graphRuntime ?? const DartGraphRuntime();
 
   final DartPluginRegistry registry;
   final DartGraphRuntime graphRuntime;
+  final DartAutomationQueueManager? queueManager;
   final Map<String, bool> _activeProfiles = {};
 
   bool isActive(String profileId) => _activeProfiles[profileId] ?? false;
@@ -124,6 +129,7 @@ final class DartProfileRuntime {
         ),
         onNodeEnter: onNodeEnter,
         onNodeExit: onNodeExit,
+        queueId: trigger['queue']?.toString(),
       );
     }
     return null;
@@ -201,17 +207,40 @@ final class DartProfileRuntime {
   Future<GraphExecutionResult> _runAutomation(
     AutomationData automation,
     EvaluationContext context, {
+    String? queueId,
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
-  }) => graphRuntime.executeWithRegistry(
-    graph: automation.graph,
-    context: context,
-    registry: registry,
-    dataWires: automation.dataWires,
-    subgraphs: automation.subgraphs,
-    onNodeEnter: onNodeEnter,
-    onNodeExit: onNodeExit,
-  );
+  }) async {
+    final queue = queueManager;
+    final effectiveQueueId = queueId ?? automation.queueId;
+    if (queue != null && effectiveQueueId != null) {
+      final item = await queue.enqueue(
+        automation,
+        context,
+        queueId: effectiveQueueId,
+      );
+      return GraphExecutionResult(
+        completed: true,
+        steps: 0,
+        nodeResults: const <String, RuntimeMap>{},
+        contextState: Map<String, dynamic>.from(context.contextState),
+        outputValues: {
+          'queued': true,
+          'queueId': effectiveQueueId,
+          'itemId': item.id,
+        },
+      );
+    }
+    return graphRuntime.executeWithRegistry(
+      graph: automation.graph,
+      context: context,
+      registry: registry,
+      dataWires: automation.dataWires,
+      subgraphs: automation.subgraphs,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+  }
 }
 
 final class DartProfileSession {

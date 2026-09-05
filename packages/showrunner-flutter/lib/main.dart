@@ -17,6 +17,7 @@ import 'app/workspace_document_manager.dart';
 import 'editor/showrunner_graph_editor.dart';
 import 'persistence/automation_repository.dart';
 import 'persistence/profile_repository.dart';
+import 'persistence/queue_config_repository.dart';
 import 'persistence/viewer_data_repository.dart';
 import 'persistence/viewer_data_sync.dart';
 import 'plugins/registry/plugin_registry.dart';
@@ -27,6 +28,7 @@ import 'services/plugin_event_hub.dart';
 import 'plugins/runtime/provider_event_workers.dart';
 import 'runtime/graph_runtime.dart';
 import 'runtime/profile_runtime.dart';
+import 'runtime/automation_queue_manager.dart';
 import 'runtime/automation_recovery.dart';
 import 'schema/automation.dart';
 import 'schema/profile.dart';
@@ -123,6 +125,7 @@ class ShowRunnerPage extends StatefulWidget {
 class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   late final ShowRunnerGraphEditor _graphEditor;
   late final DartActionQueue _actionQueue;
+  late final DartAutomationQueueManager _automationQueueManager;
   late final Future<DartPluginRegistry> _pluginRegistryFuture;
   late final Future<DartProfileRuntime> _profileRuntimeFuture;
   late final DartPluginEventHub _eventHub;
@@ -182,9 +185,37 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       eventHub: _eventHub,
       viewerDataRepository: _viewerDataRepository,
     );
+    final queueRepository = QueueConfigRepository(
+      Directory('${widget.dataService.userDirectory.path}/queues'),
+    );
+    _automationQueueManager = DartAutomationQueueManager(
+      defaultQueue: _actionQueue,
+      loadConfig: (queueId) async {
+        if (queueId.contains('/') || queueId.contains('\\')) return null;
+        final fileName = queueId.endsWith('.yaml') ? queueId : '$queueId.yaml';
+        final file = File(
+          '${widget.dataService.userDirectory.path}/queues/$fileName',
+        );
+        if (!await file.exists()) return null;
+        return queueRepository.load(file);
+      },
+      execute: (automation, context, item) async {
+        final registry = await _pluginRegistryFuture;
+        return const DartGraphRuntime().executeWithRegistry(
+          graph: automation.graph,
+          context: context,
+          registry: registry,
+          dataWires: automation.dataWires,
+          subgraphs: automation.subgraphs,
+        );
+      },
+    );
     unawaited(_bindProviderStateDiagnostics());
     _profileRuntimeFuture = _pluginRegistryFuture.then(
-      (registry) => DartProfileRuntime(registry: registry),
+      (registry) => DartProfileRuntime(
+        registry: registry,
+        queueManager: _automationQueueManager,
+      ),
     );
     _healthFuture = StartupHealthLoader(widget.dataService).load();
     _interfacePreferences = FlutterInterfacePreferences(
@@ -392,7 +423,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _graphEditor.documentDirty.removeListener(_onGraphDirtyChanged);
     if (Platform.isWindows) windowManager.removeListener(this);
     _graphEditor.dispose();
-    _actionQueue.dispose();
+    unawaited(_automationQueueManager.dispose());
     unawaited(_pluginRegistryFuture.then((registry) => registry.close()));
     unawaited(_providerEvents.stop());
     unawaited(_viewerDataSynchronizer.stop());
