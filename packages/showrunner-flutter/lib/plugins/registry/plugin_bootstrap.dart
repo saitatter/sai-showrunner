@@ -8,7 +8,7 @@ import '../../services/http_provider_transports.dart';
 import '../obs/actions.dart';
 import 'plugin_registry.dart';
 import 'plugin_host_context.dart';
-import '../obs/transport.dart';
+import '../obs/connection_router.dart';
 import '../../services/oauth_token.dart';
 import '../../services/showrunner_data_service.dart';
 import '../../schema/automation.dart';
@@ -81,7 +81,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       FileViewerDataRepository(
         Directory('${dataService.userDirectory.path}/viewer-data'),
       );
-  final obs = await dataService.loadPluginSettings('obs');
   final youtube = await dataService.loadPluginSettings('youtube');
   final twitch = await dataService.loadPluginSettings('twitch');
   final interfaceSettings = await dataService.loadPluginSettings(
@@ -97,16 +96,11 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   );
   final registry = DartPluginRegistry();
   registry.register(createShowRunnerPlugin());
-  final host = obs['host'] as String?;
-  final port = (obs['port'] as num?)?.toInt();
-  final obsTransport = host != null && port != null
-      ? ObsWebSocketTransport(
-          host: host,
-          port: port,
-          password: obs['password'] as String?,
-          eventHub: eventHub,
-        )
-      : CallbackObsTransport(_unconfiguredObs);
+  final obsTransport = ObsConnectionRouter(
+    dataService: dataService,
+    eventHub: eventHub,
+    onStateChanged: (state, value) => registry.updateState('obs', state, value),
+  );
   registry.register(createObsPlugin(obsTransport));
   registry.register(createAitumPlugin(obsTransport));
   registry.register(createAdvssPlugin(obsTransport, eventHub: eventHub));

@@ -14,12 +14,14 @@ final class ObsWebSocketTransport implements ObsTransport {
     required this.port,
     this.password,
     this.eventHub,
+    this.onStateChanged,
   });
 
   final String host;
   final int port;
   final String? password;
   final DartPluginEventHub? eventHub;
+  final void Function(String state, dynamic value)? onStateChanged;
   WebSocket? _socket;
   final _pending = <String, Completer<RuntimeMap>>{};
   int _requestId = 0;
@@ -67,13 +69,18 @@ final class ObsWebSocketTransport implements ObsTransport {
     }
     socket.listen(_handleMessage, onDone: _handleClosed, onError: _handleError);
     socket.add(jsonEncode({'op': 1, 'd': identify}));
+    onStateChanged?.call('connected', true);
+    onStateChanged?.call('connection', 'connected');
   }
 
+  @override
   Future<void> close() async {
     final socket = _socket;
     _socket = null;
     await socket?.close();
     _failPending(StateError('OBS WebSocket closed.'));
+    onStateChanged?.call('connected', false);
+    onStateChanged?.call('connection', 'disconnected');
   }
 
   void _handleMessage(dynamic raw) {
@@ -83,6 +90,17 @@ final class ObsWebSocketTransport implements ObsTransport {
       final data = message['d'];
       if (data is Map) {
         final eventData = data['eventData'];
+        if (eventData is Map) {
+          final values = Map<String, dynamic>.from(eventData);
+          switch (data['eventType']?.toString()) {
+            case 'CurrentProgramSceneChanged':
+              onStateChanged?.call('scene', values['sceneName']);
+            case 'StreamStateChanged':
+              onStateChanged?.call('streaming', values['outputActive'] == true);
+            case 'RecordStateChanged':
+              onStateChanged?.call('recording', values['outputActive'] == true);
+          }
+        }
         eventHub?.emit('obsVendorEvent', {
           'eventType': data['eventType'],
           if (eventData is Map) ...Map<String, dynamic>.from(eventData),
@@ -111,6 +129,8 @@ final class ObsWebSocketTransport implements ObsTransport {
   void _handleClosed() {
     _socket = null;
     _failPending(StateError('OBS WebSocket connection closed.'));
+    onStateChanged?.call('connected', false);
+    onStateChanged?.call('connection', 'disconnected');
   }
 
   void _handleError(Object error) => _failPending(error);

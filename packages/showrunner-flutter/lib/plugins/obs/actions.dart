@@ -340,6 +340,8 @@ final class ObsConnectionConfig {
 
 abstract interface class ObsTransport {
   Future<RuntimeMap> call(String request, RuntimeMap data);
+
+  Future<void> close();
 }
 
 final class CallbackObsTransport implements ObsTransport {
@@ -350,6 +352,9 @@ final class CallbackObsTransport implements ObsTransport {
   @override
   Future<RuntimeMap> call(String request, RuntimeMap data) =>
       _callback(request, data);
+
+  @override
+  Future<void> close() async {}
 }
 
 DartPluginManifest createObsPlugin(ObsTransport transport) {
@@ -373,6 +378,22 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         id: 'connection',
         displayName: 'Connection',
         initialValue: 'unconfigured',
+      ),
+      DartPluginStateDefinition(
+        id: 'connected',
+        displayName: 'Connected',
+        initialValue: false,
+      ),
+      DartPluginStateDefinition(id: 'scene', displayName: 'Scene'),
+      DartPluginStateDefinition(
+        id: 'streaming',
+        displayName: 'Streaming',
+        initialValue: false,
+      ),
+      DartPluginStateDefinition(
+        id: 'recording',
+        displayName: 'Recording',
+        initialValue: false,
       ),
       DartPluginStateDefinition(
         id: 'localObsRunning',
