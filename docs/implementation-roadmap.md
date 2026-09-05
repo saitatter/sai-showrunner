@@ -20,7 +20,7 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
 - [x] Add a legacy fixture round-trip test: load, migrate, compile, execute,
       and persist an automation containing sequence, nested-stack, offset,
       variable-node, and data-wire data.
-- [ ] Add a profile-opening test that exercises pre-v1.0 user data without
+- [x] Add a profile-opening test that exercises pre-v1.0 user data without
       renderer errors.
 - [ ] Remove remaining dead `castmate` names where compatibility does not
       require them.
