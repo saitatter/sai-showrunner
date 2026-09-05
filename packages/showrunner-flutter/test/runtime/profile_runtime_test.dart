@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/showrunner/manifest.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/runtime/profile_runtime.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
@@ -436,6 +437,93 @@ void main() {
     events.add({});
     await Future<void>.delayed(Duration.zero);
     expect(executions, 1);
+  });
+
+  test('reacts to state changes for autoRun and condition triggers', () async {
+    final calls = <String>[];
+    final registry = DartPluginRegistry()
+      ..register(
+        DartPluginManifest(
+          id: 'test',
+          name: 'Test',
+          states: [
+            const DartPluginStateDefinition(
+              id: 'enabled',
+              displayName: 'Enabled',
+              initialValue: false,
+            ),
+          ],
+          actions: [
+            DartActionDefinition(
+              pluginId: 'test',
+              actionId: 'record',
+              invoke: (config, context) async {
+                calls.add(config['value'] as String);
+                return null;
+              },
+            ),
+          ],
+        ),
+      )
+      ..register(createShowRunnerPlugin());
+
+    JsonMap trigger(String id, String type, String value, JsonMap config) =>
+        _profileTrigger(
+          id: id,
+          plugin: 'ShowRunner',
+          trigger: type,
+          config: config,
+          graph: {
+            'nodes': [
+              {
+                'id': 'record',
+                'type': 'action',
+                'plugin': 'test',
+                'action': 'record',
+                'config': {'value': value},
+              },
+            ],
+            'entryNodeId': 'record',
+          },
+        );
+    final profile = ShowRunnerProfile(
+      name: 'Reactive',
+      activationMode: 'always',
+      triggers: [
+        trigger('auto', 'autoRun', 'auto', const {}),
+        trigger('condition', 'condition', 'condition', {
+          'condition': {
+            'type': 'value',
+            'operator': 'equal',
+            'lhs': {'type': 'state', 'plugin': 'test', 'state': 'enabled'},
+            'rhs': {'type': 'value', 'value': true},
+          },
+          'runImmediately': false,
+        }),
+      ],
+      activationCondition: const {},
+      activationAutomation: const AutomationData(),
+      deactivationAutomation: const AutomationData(),
+    );
+    final runtime = DartProfileRuntime(registry: registry);
+    await runtime.activate('reactive', profile);
+    final session = runtime.watch('reactive', profile);
+    await Future<void>.delayed(Duration.zero);
+    expect(calls, ['auto']);
+
+    registry.updateState('test', 'enabled', true);
+    await Future<void>.delayed(Duration.zero);
+    expect(calls, ['auto', 'auto', 'condition']);
+
+    registry.updateState('test', 'enabled', true);
+    await Future<void>.delayed(Duration.zero);
+    expect(calls, ['auto', 'auto', 'condition']);
+
+    await session.dispose();
+    registry.updateState('test', 'enabled', false);
+    registry.updateState('test', 'enabled', true);
+    await Future<void>.delayed(Duration.zero);
+    expect(calls, ['auto', 'auto', 'condition']);
   });
 
   test('watch deduplicates repeated persisted trigger targets', () async {

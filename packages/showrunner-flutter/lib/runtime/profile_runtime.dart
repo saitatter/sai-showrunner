@@ -189,10 +189,86 @@ final class DartProfileRuntime {
     void Function(String nodeId)? onNodeExit,
   }) {
     final subscriptions = <StreamSubscription<RuntimeMap>>[];
+    final listenerRemovers = <void Function()>[];
     for (final target in _triggerTargets(profile)) {
       final pluginId = target.pluginId;
       final triggerId = target.triggerId;
       if (pluginId is! String || triggerId is! String) continue;
+      if (pluginId == 'ShowRunner' && triggerId == 'autoRun') {
+        void listener() {
+          if (!isActive(profileId)) return;
+          unawaited(
+            handleTrigger(
+              profileId,
+              profile,
+              pluginId,
+              triggerId,
+              {'triggerId': target.entry['id'], 'profileId': profileId},
+              context: context,
+              onNodeEnter: onNodeEnter,
+              onNodeExit: onNodeExit,
+              triggerEntry: target.entry,
+            ),
+          );
+        }
+
+        registry.addListener(listener);
+        listenerRemovers.add(() => registry.removeListener(listener));
+        if (isActive(profileId)) listener();
+        continue;
+      }
+      if (pluginId == 'ShowRunner' && triggerId == 'condition') {
+        final condition = target.config['condition'];
+        var lastValue = target.config['runImmediately'] == true ? false : null;
+        bool evaluate() => evaluateBooleanCondition(
+          condition is Map
+              ? Map<String, dynamic>.from(condition)
+              : const <String, dynamic>{},
+          _withRegistryState(context),
+        );
+        final initialValue = evaluate();
+        lastValue ??= initialValue;
+        if (lastValue == false && initialValue) {
+          unawaited(
+            handleTrigger(
+              profileId,
+              profile,
+              pluginId,
+              triggerId,
+              {'triggerId': target.entry['id'], 'profileId': profileId},
+              context: context,
+              onNodeEnter: onNodeEnter,
+              onNodeExit: onNodeExit,
+              triggerEntry: target.entry,
+            ),
+          );
+          lastValue = true;
+        }
+        void listener() {
+          if (!isActive(profileId)) return;
+          final currentValue = evaluate();
+          if (currentValue && lastValue != true) {
+            unawaited(
+              handleTrigger(
+                profileId,
+                profile,
+                pluginId,
+                triggerId,
+                {'triggerId': target.entry['id'], 'profileId': profileId},
+                context: context,
+                onNodeEnter: onNodeEnter,
+                onNodeExit: onNodeExit,
+                triggerEntry: target.entry,
+              ),
+            );
+          }
+          lastValue = currentValue;
+        }
+
+        registry.addListener(listener);
+        listenerRemovers.add(() => registry.removeListener(listener));
+        continue;
+      }
       final definition = registry.findTrigger(pluginId, triggerId);
       if (definition == null || !registry.isPluginEnabled(pluginId)) continue;
       subscriptions.add(
@@ -217,7 +293,7 @@ final class DartProfileRuntime {
             }),
       );
     }
-    return DartProfileSession._(subscriptions);
+    return DartProfileSession._(subscriptions, listenerRemovers);
   }
 
   Iterable<
@@ -290,15 +366,20 @@ final class DartProfileRuntime {
 }
 
 final class DartProfileSession {
-  DartProfileSession._(this._subscriptions);
+  DartProfileSession._(this._subscriptions, this._listenerRemovers);
 
   final List<StreamSubscription<RuntimeMap>> _subscriptions;
+  final List<void Function()> _listenerRemovers;
 
   Future<void> dispose() async {
     await Future.wait(
       _subscriptions.map((subscription) => subscription.cancel()),
     );
     _subscriptions.clear();
+    for (final remove in _listenerRemovers) {
+      remove();
+    }
+    _listenerRemovers.clear();
   }
 }
 

@@ -198,6 +198,28 @@ const _queueTriggerSchema = DartDataInputSchema(
   kind: DartDataInputKind.object,
   fields: [_optionalQueueReference],
 );
+const _autoRunSchema = DartDataInputSchema(
+  label: '',
+  kind: DartDataInputKind.object,
+);
+const _conditionTriggerSchema = DartDataInputSchema(
+  label: '',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Condition',
+      key: 'condition',
+      kind: DartDataInputKind.object,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Run on enable',
+      key: 'runImmediately',
+      kind: DartDataInputKind.boolean,
+      defaultValue: false,
+    ),
+  ],
+);
 const _queueResultSchema = DartDataInputSchema(
   label: 'Returns',
   kind: DartDataInputKind.object,
@@ -525,24 +547,37 @@ DartPluginManifest createShowRunnerPlugin({
       ),
     ),
   ],
-  triggers: queueManager == null
-      ? const []
-      : [
-          DartTriggerDefinition(
-            pluginId: 'ShowRunner',
-            triggerId: 'queueItemStarted',
-            displayName: 'Queue Item Started',
-            listen: () => queueManager.queueItemStarted,
-            listenForConfig: (config) {
-              final queueId = config['queue']?.toString().trim();
-              final stream = queueManager.queueItemStarted;
-              return queueId == null || queueId.isEmpty
-                  ? stream
-                  : stream.where((event) => event['queueId'] == queueId);
-            },
-            configSchema: _queueTriggerSchema,
-          ),
-        ],
+  triggers: [
+    DartTriggerDefinition(
+      pluginId: 'ShowRunner',
+      triggerId: 'autoRun',
+      displayName: 'Run On Change',
+      listen: Stream<RuntimeMap>.empty,
+      configSchema: _autoRunSchema,
+    ),
+    DartTriggerDefinition(
+      pluginId: 'ShowRunner',
+      triggerId: 'condition',
+      displayName: 'Condition',
+      listen: Stream<RuntimeMap>.empty,
+      configSchema: _conditionTriggerSchema,
+    ),
+    if (queueManager != null)
+      DartTriggerDefinition(
+        pluginId: 'ShowRunner',
+        triggerId: 'queueItemStarted',
+        displayName: 'Queue Item Started',
+        listen: () => queueManager.queueItemStarted,
+        listenForConfig: (config) {
+          final queueId = config['queue']?.toString().trim();
+          final stream = queueManager.queueItemStarted;
+          return queueId == null || queueId.isEmpty
+              ? stream
+              : stream.where((event) => event['queueId'] == queueId);
+        },
+        configSchema: _queueTriggerSchema,
+      ),
+  ],
 );
 
 Future<Object?> _addToQueue(
