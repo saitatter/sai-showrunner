@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const referenceRef = 'migration-reference/main-2026-09-05';
+const referenceRef = 'parity-reference/main-2026-09-05';
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'showrunner-parity-'));
 const mainPath = join(temporaryDirectory, 'main.json');
 const flutterPath = join(temporaryDirectory, 'flutter.json');

@@ -1,8 +1,8 @@
 # Surface and parity status
 
 This is the current contract for the Flutter desktop application and its
-browser-source companion. It records boundaries that are intentional and
-items that still require an operator or a future implementation.
+browser-source companion. It records intentional boundaries and items that
+still require an operator or a future implementation.
 
 ## Desktop application
 

@@ -6,7 +6,7 @@ and workspace contributions; it does not infer runtime equivalence from a
 folder name.
 
 The reference is frozen at the local tag
-`migration-reference/main-2026-09-05`; update that tag deliberately when a new
+`parity-reference/main-2026-09-05`; update that tag deliberately when a new
 product baseline is approved.
 
 Run from the repository root:
