@@ -42,6 +42,8 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
 - [ ] Complete the satellite Flutter migration and its connection workflows.
 - [ ] Close the remaining exact Vue graph interactions listed in the migration
       parity audit.
+- [x] Reuse the complete Flutter graph editing surface for Profile and Stream
+      Plan transition automations, including segment-level graphs.
 
 ## 3. Editor, Integrations, and Settings Backlog
 

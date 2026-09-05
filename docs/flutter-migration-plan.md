@@ -49,6 +49,10 @@ They should be closed only when the corresponding smoke or packaged-build eviden
 The graph adapter now preserves execution edges and typed data wires, including schema
 node and link IDs, through load/save round-trips. The automatic graph fit is explicit so
 headless persistence tests do not depend on a mounted Flutter render tree.
+Profile activation/deactivation automations and both plan-level and segment-level
+Stream Plan transition automations now reuse the compact Flutter graph editor, including
+node insertion, configuration dialogs, resource selector hydration, links, and persisted
+graph serialization.
 
 Fresh Flutter data directories are routed to the Setup workspace automatically. The
 wizard persists provider settings and a `setupCompleted` marker; existing installations
@@ -396,7 +400,7 @@ For each surface:
 - [x] Migrate overlay list, overlay editor, widget configuration, and OBS browser-source controls.
 - [x] Port the shared media picker with recursive media discovery, type filtering, search, and overlay widget config persistence.
 - [x] Add explicit Twitch EventSub connect/disconnect controls backed by the Dart provider worker.
-- [x] Add Stream Plan resource persistence, ordered segment editing, Twitch segment metadata, and navigation actions.
+- [x] Add Stream Plan resource persistence, ordered segment editing, Twitch segment metadata, navigation actions, and graph editing for plan and segment transitions.
 - [x] Port reusable color, duration, and boolean input controls into Flutter resource and plugin editors.
 - [x] Port the generic Flutter data-input controls for scalar values, enums, colors, durations, arrays, objects, files, and resources.
 - [x] Port OBS scene, source, filter, media, audio, studio, replay, screenshot, transform, play-media, and hotkey actions, including legacy aliases.
