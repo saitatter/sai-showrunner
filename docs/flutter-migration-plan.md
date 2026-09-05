@@ -17,9 +17,9 @@ current `flutter analyze` run is clean.
 The remaining work is concentrated in four areas:
 
 - graph-editor product parity beyond the current `sai_nodes` adapter;
-- complete overlay/widget editing and OBS browser-source controls; the current editor
-	provides a catalog and typed configuration for the active common overlay widgets,
-	while complex style collections and the full shader graph editor remain open;
+- full overlay/widget editing parity; the current editor provides a catalog and
+	typed configuration for all active overlay widgets, while complex style
+	collections and the full shader graph editor remain open;
 - provider/plugin parity, especially deeper bespoke plugin UX; YouTube now exposes
 	persisted OAuth token, expiry, and refresh-token diagnostics in its workspace;
 - baseline comparison, packaged Windows validation, and renderer cutover.
@@ -124,8 +124,9 @@ Wyze is registered with the real cloud login, token refresh, device listing,
 light/plug state reads, and device action API; account-resource UI parity and
 device-resource recovery remain open.
 Dashboards are exposed in the Flutter registry alongside the existing
-hierarchical Dashboard resource editor; browser dashboard serving and satellite
-delivery remain open.
+hierarchical Dashboard resource editor; browser dashboard serving remains open,
+while legacy satellite retirement still depends on media transfer and the
+remaining widget catalog.
 Bluesky is registered with persisted account settings and real AT Protocol
 session/post requests; the post action accepts persisted `BlueSkyAccount`
 resources alongside legacy inline credentials, while account login UI parity
@@ -148,8 +149,8 @@ PubSub signaling and WebRTC DataChannel protocol as the legacy satellite,
 receives dashboard configuration/state updates, forwards widget RPCs, and
 binds local Light, Plug, and SoundOutput resources to remote slots. The
 Flutter viewer currently renders the migrated Label and Remote Button
-widgets, while unknown widgets have an explicit unsupported-state card;
-media transfer and the remaining dashboard widget catalog still require
+widgets, while unknown widgets have an explicit unsupported-state card.
+Media transfer and the remaining dashboard widget catalog still require
 follow-up before the legacy satellite package can be retired.
 Flutter now also exposes persisted `Light` and `Plug` device configurations under
 `user/iot/lights` and `user/iot/plugs`. Their editor preserves provider-specific
@@ -177,7 +178,7 @@ multi-bridge endpoint selection remain open until they have end-to-end coverage.
 | OBS, Twitch, YouTube, Moderation | `migrate` | Dart runtime and initial bespoke workspaces exist; deeper controls and configuration parity remain. |
 | Simple plugin manifests and generic resource editors | `migrate` | Flutter registry/resource editors cover the current supported subset. |
 | Plugin-specific renderers for Input, Random, Sound, IoT, Spellcast, Variables, Dashboards, and device integrations | `migrate` | Still active in Electron or only partially represented in Flutter; do not delete yet. |
-| Satellite dashboard and connection pages | `migrate` | Vue runtime remains active; Flutter remote/satellite replacement is not implemented. |
+| Satellite dashboard and connection pages | `migrate` | Flutter connection, state, slot binding, and the current button/label viewer are implemented; media transfer and remaining widget parity still require the legacy package. |
 | OBS browser-source overlay and WebGL/shader surfaces | `keep web` | Browser-native runtime; retain web packages behind an explicit boundary. |
 | Electron main process, native bindings, updater, and packaging | `keep until cutover` | Required by the current supported desktop entrypoint and release workflow. |
 
@@ -497,9 +498,10 @@ For each surface:
 - [x] Complete non-WAV Sound playback and WASAPI endpoint routing through the
 	Flutter media backend; retain the system TTS provider boundary for future
 	external providers, which are not active in the legacy runtime.
-- [ ] Complete structured OBS source configuration and Overlays widget/shader
-	editing before removing `plugins/obs/renderer/` or
-	`plugins/overlays/renderer/`.
+- [x] Complete structured OBS source configuration and typed editing for all
+	active overlay widget configurations.
+- [ ] Complete the full shader graph and complex style editors before removing
+	`plugins/obs/renderer/` or `plugins/overlays/renderer/`.
 - [x] Complete Twitch channel/account, stream info, prediction/poll, and
 	group-management workflows; complete YouTube live status controls.
 - [x] Port Twitch channel-point reward list/create/update/delete operations,
@@ -544,7 +546,7 @@ For each surface:
 	Flutter replacements.
 - [ ] Keep plugin runtime code in existing packages until the new boundary is proven.
 
-The Flutter plugin workspace now follows the original application's separation model: a registry-backed plugin catalog groups core integrations and platforms, while each selected plugin gets its own details surface. Provider credentials are generated from manifest-declared settings, and registered actions, triggers, and settings are exposed from the Dart manifest instead of being presented as one undifferentiated settings page. Plugin visibility is persisted in `user/settings/showrunner-flutter.yaml`, loaded into the Dart registry, and enforced when actions are invoked. Plugin details also expose automation usage and manifest-declared runtime state. Migrated plugin code now has per-plugin directories with `manifest.dart`, `runtime.dart`, `ui/`, and `resources/` boundaries, while legacy top-level files remain compatibility entry points. YouTube controls the real Dart live-chat worker, OBS exposes a registry-backed WebSocket health surface, Twitch exposes EventSub/chat activity, and Moderation owns its HTTP settings, health, queue, test-event, and override contracts. Resource editors are registered independently from manifests, persist Overlay and Variable data, and now load/edit plugin resources from Vue-compatible directories for OBS, Minecraft, Sound, and Twitch. Remaining work is deeper bespoke UX, input capture/native integration parity, satellite migration, and plugin-specific resource editor polish.
+The Flutter plugin workspace now follows the original application's separation model: a registry-backed plugin catalog groups core integrations and platforms, while each selected plugin gets its own details surface. Provider credentials are generated from manifest-declared settings, and registered actions, triggers, and settings are exposed from the Dart manifest instead of being presented as one undifferentiated settings page. Plugin visibility is persisted in `user/settings/showrunner-flutter.yaml`, loaded into the Dart registry, and enforced when actions are invoked. Plugin details also expose automation usage and manifest-declared runtime state. Migrated plugin code now has per-plugin directories with `manifest.dart`, `runtime.dart`, `ui/`, and `resources/` boundaries, while legacy top-level files remain compatibility entry points. YouTube controls the real Dart live-chat worker, OBS exposes a registry-backed WebSocket health surface, Twitch exposes EventSub/chat activity, and Moderation owns its HTTP settings, health, queue, test-event, and override contracts. Resource editors are registered independently from manifests, persist Overlay and Variable data, and now load/edit plugin resources from Vue-compatible directories for OBS, Minecraft, Sound, and Twitch. Remaining work is deeper bespoke UX, input capture/native integration parity, satellite media/widget parity, and plugin-specific resource editor polish.
 
 **Exit gate:** enabling a plugin, configuring its account/resource, and using its actions/triggers works from Flutter for the supported core integrations.
 

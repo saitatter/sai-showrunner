@@ -39,7 +39,8 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
 - [ ] Complete deeper bespoke Twitch, OBS, Moderation, Spellcast, and Dashboard
       workflows beyond the current foundations; Twitch channel-point reward
       CRUD and redemption status management are now covered in Flutter.
-- [ ] Complete the satellite Flutter migration and its connection workflows.
+- [ ] Complete the remaining satellite replacement boundary, including media
+      transfer and the rest of the remote widget catalog.
 - [ ] Close the remaining exact Vue graph interactions listed in the migration
       parity audit.
 - [x] Reuse the complete Flutter graph editing surface for Profile and Stream
