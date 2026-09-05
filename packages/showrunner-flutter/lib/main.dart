@@ -226,8 +226,15 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         additionalShortcuts: const [
           SingleActivator(LogicalKeyboardKey.keyS, meta: true, shift: true),
         ],
-        canExecute: (_) => _activeAutomationFile != null,
+        canExecute: (_) =>
+            _automationDocuments.documents.any((document) => document.dirty),
         execute: (_) => _saveAll(),
+      ),
+      AppCommand(
+        id: 'file.settings',
+        label: 'Settings',
+        icon: Icons.settings,
+        execute: (_) => _openDestination(9),
       ),
       AppCommand(
         id: 'file.close',
@@ -350,6 +357,25 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         label: 'About ShowRunner',
         icon: Icons.info,
         execute: (_) => _openDestination(8),
+      ),
+      AppCommand(
+        id: 'help.updates',
+        label: 'Updates',
+        icon: Icons.system_update_alt,
+        execute: (_) => _openDestination(8),
+      ),
+      AppCommand(
+        id: 'help.discord',
+        label: 'Discord',
+        icon: Icons.forum,
+        execute: (_) =>
+            _openExternal(Uri.parse('https://discord.gg/txt4DUzYJM')),
+      ),
+      AppCommand(
+        id: 'help.openLogFolder',
+        label: 'Open log folder',
+        icon: Icons.folder,
+        execute: (_) => _openLogFolder(),
       ),
     ]);
     unawaited(_interfacePreferences.load());
@@ -1373,6 +1399,48 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Unable to repair automation: $error')),
+      );
+    }
+  }
+
+  Future<void> _openExternal(Uri uri) async {
+    try {
+      if (Platform.isWindows) {
+        await Process.start('cmd.exe', ['/c', 'start', '', uri.toString()]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [uri.toString()]);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [uri.toString()]);
+      } else {
+        throw UnsupportedError('Opening external links is not supported.');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to open ${uri.host}: $error')),
+      );
+    }
+  }
+
+  Future<void> _openLogFolder() async {
+    final directory = Directory(
+      '${widget.dataService.userDirectory.path}/logs',
+    );
+    try {
+      await directory.create(recursive: true);
+      if (Platform.isWindows) {
+        await Process.start('explorer.exe', [directory.path]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [directory.path]);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [directory.path]);
+      } else {
+        throw UnsupportedError('Opening folders is not supported.');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to open the log folder: $error')),
       );
     }
   }
