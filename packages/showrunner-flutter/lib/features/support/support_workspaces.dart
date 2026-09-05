@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../schema/update.dart';
 import '../../services/structured_logger.dart';
+import '../../services/update_artifact_service.dart';
 import '../../services/update_check_service.dart';
 
 class LogsWorkspace extends StatefulWidget {
@@ -109,9 +110,16 @@ class _LogsWorkspaceState extends State<LogsWorkspace> {
 }
 
 class AboutWorkspace extends StatefulWidget {
-  const AboutWorkspace({super.key, this.updateService});
+  const AboutWorkspace({
+    super.key,
+    this.updateService,
+    this.artifactService,
+    this.downloadDirectory,
+  });
 
   final UpdateCheckService? updateService;
+  final UpdateArtifactService? artifactService;
+  final Directory? downloadDirectory;
 
   @override
   State<AboutWorkspace> createState() => _AboutWorkspaceState();
@@ -124,6 +132,9 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
     hasUpdate: false,
   );
   bool _checking = false;
+  bool _downloading = false;
+  File? _downloadedArtifact;
+  Object? _downloadError;
 
   Future<void> _checkUpdate() async {
     setState(() => _checking = true);
@@ -152,15 +163,30 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
     }
   }
 
-  Future<void> _openArtifact() async {
-    final url = _updateInfo.artifactUrl;
-    if (url.isEmpty) return;
-    if (Platform.isWindows) {
-      await Process.start('cmd', ['/c', 'start', '', url]);
-    } else if (Platform.isMacOS) {
-      await Process.start('open', [url]);
-    } else if (Platform.isLinux) {
-      await Process.start('xdg-open', [url]);
+  Future<void> _downloadArtifact() async {
+    if (_updateInfo.artifactUrl.isEmpty || _downloading) return;
+    setState(() {
+      _downloading = true;
+      _downloadError = null;
+      _downloadedArtifact = null;
+    });
+    try {
+      final artifact =
+          await (widget.artifactService ?? const UpdateArtifactService())
+              .download(
+                _updateInfo,
+                directory:
+                    widget.downloadDirectory ??
+                    Directory(
+                      '${Directory.systemTemp.path}/ShowRunner-updates',
+                    ),
+              );
+      if (!mounted) return;
+      setState(() => _downloadedArtifact = artifact);
+    } catch (error) {
+      if (mounted) setState(() => _downloadError = error);
+    } finally {
+      if (mounted) setState(() => _downloading = false);
     }
   }
 
@@ -251,10 +277,34 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
-                      onPressed: _openArtifact,
-                      icon: const Icon(Icons.download),
-                      label: const Text('Download Windows ZIP'),
+                      onPressed: _downloading ? null : _downloadArtifact,
+                      icon: _downloading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.download),
+                      label: Text(
+                        _downloading
+                            ? 'Downloading...'
+                            : 'Download Windows ZIP',
+                      ),
                     ),
+                  ),
+                ],
+                if (_downloadedArtifact != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Downloaded to ${_downloadedArtifact!.path}',
+                    style: const TextStyle(color: Colors.lightGreenAccent),
+                  ),
+                ],
+                if (_downloadError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Download failed: $_downloadError',
+                    style: const TextStyle(color: Colors.orangeAccent),
                   ),
                 ],
               ],

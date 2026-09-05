@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -357,7 +358,12 @@ class ShowRunnerShell extends StatelessWidget {
         streamPlanRuntime: streamPlanRuntime,
       ),
       7 => const LogsWorkspace(),
-      8 => AboutWorkspace(updateService: updateService),
+      8 => AboutWorkspace(
+        updateService: updateService,
+        downloadDirectory: Directory(
+          '${dataService.userDirectory.path}/updates',
+        ),
+      ),
       9 => SettingsWorkspace(
         preferences: interfacePreferences,
         registryFuture: pluginRegistryFuture,
