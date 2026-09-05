@@ -74,4 +74,31 @@ void main() {
       expect(requests, ['configured.test:configured-password:Configured post']);
     },
   );
+
+  test('resolves credentials from a BlueSky account resource', () async {
+    final requests = <String>[];
+    final registry = DartPluginRegistry()
+      ..register(
+        createBlueskyPlugin(
+          BlueskyTransport((identifier, password, text) async {
+            requests.add('$identifier:$password:$text');
+            return <String, dynamic>{};
+          }),
+        ),
+      );
+
+    final result = await registry.invokeAction('bluesky', 'post', {
+      'account': {
+        'id': 'creator-account',
+        'config': {
+          'identifier': 'creator.test',
+          'appPassword': 'resource-password',
+        },
+      },
+      'text': 'Resource post',
+    });
+
+    expect(result, {'posted': true, 'text': 'Resource post'});
+    expect(requests, ['creator.test:resource-password:Resource post']);
+  });
 }

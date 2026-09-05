@@ -117,7 +117,9 @@ Dashboards are exposed in the Flutter registry alongside the existing
 hierarchical Dashboard resource editor; browser dashboard serving and satellite
 delivery remain open.
 Bluesky is registered with persisted account settings and real AT Protocol
-session/post requests; account-resource selection and login UI parity remain open.
+session/post requests; the post action accepts persisted `BlueSkyAccount`
+resources alongside legacy inline credentials, while account login UI parity
+remains open.
 DonorDrive is registered with participant polling, donation/incentive/milestone
 events, persisted API settings, and clean runtime shutdown.
 Aitum vertical-canvas controls are registered over the shared OBS WebSocket

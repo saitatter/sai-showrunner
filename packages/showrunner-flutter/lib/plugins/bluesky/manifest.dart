@@ -89,6 +89,12 @@ const _postSchema = DartDataInputSchema(
   kind: DartDataInputKind.object,
   fields: [
     DartDataInputSchema(
+      label: 'Account',
+      key: 'account',
+      kind: DartDataInputKind.resource,
+      resourceType: 'BlueSkyAccount',
+    ),
+    DartDataInputSchema(
       label: 'Identifier',
       key: 'identifier',
       kind: DartDataInputKind.text,
