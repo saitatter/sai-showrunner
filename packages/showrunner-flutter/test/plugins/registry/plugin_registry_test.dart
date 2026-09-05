@@ -79,6 +79,7 @@ void main() {
     expect(registry.findAction('sound', 'speakTTS'), isNotNull);
     expect(registry.findAction('variables', 'setViewerVar'), isNotNull);
     expect(registry.findAction('variables', 'offsetViewerVar'), isNotNull);
+    expect(registry.findAction('moderation', 'moderateChatMessage'), isNotNull);
     expect(registry.findAction('minecraft', 'mineCmd'), isNotNull);
     expect(registry.findAction('http', 'request'), isNotNull);
     expect(registry.findAction('govee', 'setColor'), isNotNull);

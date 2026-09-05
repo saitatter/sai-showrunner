@@ -85,6 +85,13 @@ DartPluginRegistry createDefaultPluginRegistry({
   _registerTwitchStreamPlanComponent(
     transport: TwitchTransport(_unconfiguredTwitch),
   );
+  registry.register(
+    createModerationPlugin(
+      ModerationService(
+        dataService: ShowRunnerDataService(Directory.systemTemp),
+      ),
+    ),
+  );
   registry.register(createDiscordPlugin());
   registry.register(
     createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
