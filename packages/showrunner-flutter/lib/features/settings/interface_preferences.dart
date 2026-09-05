@@ -6,8 +6,8 @@ import '../../services/showrunner_data_service.dart';
 final class FlutterInterfacePreferences extends ChangeNotifier {
   FlutterInterfacePreferences({required this.dataService});
 
-  static const defaultProjectSidebarWidth = 240.0;
-  static const minProjectSidebarWidth = 208.0;
+  static const defaultProjectSidebarWidth = 300.0;
+  static const minProjectSidebarWidth = 250.0;
   static const maxProjectSidebarWidth = 420.0;
 
   static const _defaults = <String, bool>{

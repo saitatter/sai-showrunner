@@ -33,7 +33,7 @@ void main() {
       expect(saved['disabledPlugins'], ['obs']);
       expect(saved['projectSidebarWidth'], 420);
       await preferences.setProjectSidebarWidth(100);
-      expect(preferences.projectSidebarWidth, 208);
+      expect(preferences.projectSidebarWidth, 250);
       preferences.dispose();
     },
   );

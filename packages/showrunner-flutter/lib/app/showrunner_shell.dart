@@ -2,19 +2,20 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'commands/app_command.dart';
 import 'automation_document_manager.dart';
 import '../app/startup_health.dart';
 import '../design_system/controls/controls.dart';
+import '../design_system/tokens/tokens.dart';
+import 'project_panel.dart';
+import 'system_bar.dart';
 import '../editor/showrunner_graph_editor.dart';
 import '../features/automation/automation_catalog_workspace.dart';
 import '../features/diagnostics/diagnostics_workspace.dart';
 import '../features/dashboard/main_dashboard_workspace.dart';
 import '../features/graph/graph_workspace.dart';
 import '../features/plugins/plugin_workspace.dart';
-import '../features/plugins/plugin_catalog_filter.dart';
 import '../features/plugins/plugin_visibility.dart';
 import '../features/settings/interface_preferences.dart';
 import '../features/settings/settings_workspace.dart';
@@ -37,7 +38,7 @@ import '../services/showrunner_data_service.dart';
 import '../services/update_check_service.dart';
 import '../services/update_install_service.dart';
 
-const showRunnerHomeWorkspaceIndex = 13;
+export 'project_panel.dart' show showRunnerHomeWorkspaceIndex;
 
 class ShowRunnerShell extends StatelessWidget {
   const ShowRunnerShell({
@@ -125,214 +126,65 @@ class ShowRunnerShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final tabs = openTabIndices.isEmpty ? [selectedIndex] : openTabIndices;
     final selectedTab = tabs.indexOf(selectedIndex);
-    final commandContext = AppCommandContext(buildContext: context);
     void runCommand(String id) {
-      unawaited(commands.run(id, commandContext));
+      unawaited(commands.run(id, AppCommandContext(buildContext: context)));
     }
 
-    final shell = Scaffold(
-      appBar: AppBar(
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 12),
-          child: Icon(Icons.bolt),
-        ),
-        title: const Text('ShowRunner'),
-        actions: [
-          PopupMenuButton<String>(
-            tooltip: 'File',
-            icon: const Icon(Icons.folder_open),
-            onSelected: runCommand,
-            itemBuilder: (context) => [
-              _commandMenuItem('file.newAutomation', commandContext),
-              _commandMenuItem('file.newProfile', commandContext),
-              _commandMenuItem('file.save', commandContext),
-              _commandMenuItem('file.saveAll', commandContext),
-              _commandMenuItem('file.settings', commandContext),
-              _commandMenuItem('file.close', commandContext),
-              _commandMenuItem('file.closeOthers', commandContext),
-              _commandMenuItem('file.exit', commandContext),
-            ],
-          ),
-          PopupMenuButton<String>(
-            tooltip: 'Help',
-            icon: const Icon(Icons.help_outline),
-            onSelected: runCommand,
-            itemBuilder: (context) => [
-              _commandMenuItem('help.about', commandContext),
-              _commandMenuItem('help.updates', commandContext),
-              _commandMenuItem('help.discord', commandContext),
-              _commandMenuItem('help.openLogFolder', commandContext),
-            ],
-          ),
-          PopupMenuButton<String>(
-            tooltip: 'Edit',
-            icon: const Icon(Icons.edit_outlined),
-            onSelected: runCommand,
-            itemBuilder: (context) => [
-              _commandMenuItem('edit.copy', commandContext),
-              _commandMenuItem('edit.cut', commandContext),
-              _commandMenuItem('edit.paste', commandContext),
-              const PopupMenuDivider(),
-              _commandMenuItem('edit.frameSelection', commandContext),
-            ],
-          ),
-          PopupMenuButton<String>(
-            tooltip: 'View',
-            icon: const Icon(Icons.view_quilt_outlined),
-            onSelected: runCommand,
-            itemBuilder: (context) => [
-              _commandMenuItem('view.fitGraph', commandContext),
-              _commandMenuItem('view.resetSample', commandContext),
-            ],
-          ),
-          SrIconButton(
-            tooltip: 'Frame selected nodes',
-            onPressed: () => runCommand('edit.frameSelection'),
-            icon: const Icon(Icons.crop_free),
-          ),
-          SrIconButton(
-            tooltip: 'Copy selected nodes',
-            onPressed: () => runCommand('edit.copy'),
-            icon: const Icon(Icons.copy),
-          ),
-          SrIconButton(
-            tooltip: 'Paste nodes',
-            onPressed: () => runCommand('edit.paste'),
-            icon: const Icon(Icons.content_paste),
-          ),
-          SrIconButton(
-            tooltip: 'Cut selected nodes',
-            onPressed: () => runCommand('edit.cut'),
-            icon: const Icon(Icons.content_cut),
-          ),
-          SrIconButton(
-            tooltip: 'Reset sample graph',
-            onPressed: () => runCommand('view.resetSample'),
-            icon: const Icon(Icons.refresh),
-          ),
-          SrIconButton(
-            tooltip: 'Save automation',
-            onPressed: () => runCommand('file.save'),
-            icon: const Icon(Icons.save),
-          ),
-          IconButton(
-            tooltip: 'Run automation',
-            onPressed: () => runCommand('run.automation'),
-            icon: const Icon(Icons.play_arrow),
-          ),
-          if (Platform.isWindows) const _WindowControlButtons(),
-          const SizedBox(width: 12),
-        ],
-      ),
-      body: Row(
+    final shell = ColoredBox(
+      color: ShowRunnerColors.background,
+      child: Column(
         children: [
-          NavigationRail(
-            selectedIndex: selectedIndex,
-            onDestinationSelected: onDestinationSelected,
-            labelType: NavigationRailLabelType.all,
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.account_tree),
-                label: Text('Graph'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.extension),
-                label: Text('Plugins'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.monitor_heart),
-                label: Text('Diagnostics'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.bolt),
-                label: Text('Automations'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.people_alt),
-                label: Text('Profiles'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.queue_music),
-                label: Text('Queues'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.layers),
-                label: Text('Resources'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.receipt_long),
-                label: Text('Logs'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.info),
-                label: Text('About'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.settings),
-                label: Text('Settings'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.rocket_launch),
-                label: Text('Setup'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.data_object),
-                label: Text('Variables'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.public),
-                label: Text('Remote'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.dashboard),
-                label: Text('Home'),
-              ),
-            ],
-          ),
-          const VerticalDivider(width: 1),
-          ListenableBuilder(
-            listenable: interfacePreferences,
-            builder: (context, child) => _ResizableProjectSidebar(
-              initialWidth: interfacePreferences.compactProjectSidebar
-                  ? FlutterInterfacePreferences.minProjectSidebarWidth
-                  : interfacePreferences.projectSidebarWidth,
-              onWidthChanged: interfacePreferences.setProjectSidebarWidth,
-              child: _ShellPluginSidebar(
-                registryFuture: pluginRegistryFuture,
-                preferences: interfacePreferences,
-                selectedPluginId: selectedPluginId,
-                onToggle: (pluginId, enabled) =>
-                    _setPluginEnabled(context, pluginId, enabled),
-                onSelected: (pluginId) {
-                  onPluginSelected?.call(pluginId);
-                  onDestinationSelected(1);
-                },
-              ),
-            ),
-          ),
-          const VerticalDivider(width: 1),
+          ShowRunnerSystemBar(commands: commands),
           Expanded(
-            child: Column(
+            child: Row(
               children: [
-                _WorkspaceTabBar(
-                  tabs: tabs,
-                  selectedIndex: selectedIndex,
-                  activeAutomationDirty: activeAutomationDirty,
-                  hasActiveAutomation: activeAutomationFile != null,
-                  activeProfileDirty: profileDirty,
-                  onSelected: onTabSelected ?? (_) {},
-                  onClosed: onTabClosed ?? (_) {},
-                  onReordered: onTabReordered ?? (_, _) {},
+                ListenableBuilder(
+                  listenable: interfacePreferences,
+                  builder: (context, child) => _ResizableProjectSidebar(
+                    initialWidth: interfacePreferences.compactProjectSidebar
+                        ? FlutterInterfacePreferences.minProjectSidebarWidth
+                        : interfacePreferences.projectSidebarWidth,
+                    onWidthChanged: interfacePreferences.setProjectSidebarWidth,
+                    child: ShowRunnerProjectPanel(
+                      selectedIndex: selectedIndex,
+                      onDestinationSelected: onDestinationSelected,
+                      pluginRegistryFuture: pluginRegistryFuture,
+                      preferences: interfacePreferences,
+                      selectedPluginId: selectedPluginId,
+                      onPluginSelected: (pluginId) {
+                        onPluginSelected?.call(pluginId);
+                        onDestinationSelected(1);
+                      },
+                      onPluginToggle: (pluginId, enabled) =>
+                          _setPluginEnabled(context, pluginId, enabled),
+                    ),
+                  ),
                 ),
                 Expanded(
-                  child: IndexedStack(
-                    index: selectedTab < 0 ? 0 : selectedTab,
+                  child: Column(
                     children: [
-                      for (final tab in tabs)
-                        KeyedSubtree(
-                          key: ValueKey(tab),
-                          child: _buildWorkspace(context, tab),
+                      _WorkspaceTabBar(
+                        tabs: tabs,
+                        selectedIndex: selectedIndex,
+                        activeAutomationDirty: activeAutomationDirty,
+                        hasActiveAutomation: activeAutomationFile != null,
+                        activeProfileDirty: profileDirty,
+                        onSelected: onTabSelected ?? (_) {},
+                        onClosed: onTabClosed ?? (_) {},
+                        onReordered: onTabReordered ?? (_, _) {},
+                      ),
+                      Expanded(
+                        child: IndexedStack(
+                          index: selectedTab < 0 ? 0 : selectedTab,
+                          children: [
+                            for (final tab in tabs)
+                              KeyedSubtree(
+                                key: ValueKey(tab),
+                                child: _buildWorkspace(context, tab),
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -349,18 +201,6 @@ class ShowRunnerShell extends StatelessWidget {
             activator: () => runCommand(command.id),
       },
       child: Focus(autofocus: true, child: shell),
-    );
-  }
-
-  PopupMenuItem<String> _commandMenuItem(String id, AppCommandContext context) {
-    final command = commands.find(id);
-    if (command == null) {
-      throw StateError('Command is not registered: $id');
-    }
-    return PopupMenuItem<String>(
-      value: id,
-      enabled: command.canExecute(context),
-      child: Text(command.label),
     );
   }
 
@@ -479,76 +319,6 @@ class ShowRunnerShell extends StatelessWidget {
       );
     }
   }
-}
-
-class _WindowControlButtons extends StatefulWidget {
-  const _WindowControlButtons();
-
-  @override
-  State<_WindowControlButtons> createState() => _WindowControlButtonsState();
-}
-
-class _WindowControlButtonsState extends State<_WindowControlButtons>
-    with WindowListener {
-  bool _maximized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    windowManager.addListener(this);
-    unawaited(_readMaximized());
-  }
-
-  @override
-  void dispose() {
-    windowManager.removeListener(this);
-    super.dispose();
-  }
-
-  @override
-  void onWindowMaximize() => setState(() => _maximized = true);
-
-  @override
-  void onWindowUnmaximize() => setState(() => _maximized = false);
-
-  Future<void> _readMaximized() async {
-    final maximized = await windowManager.isMaximized();
-    if (mounted) setState(() => _maximized = maximized);
-  }
-
-  Future<void> _toggleMaximize() async {
-    if (_maximized) {
-      await windowManager.unmaximize();
-    } else {
-      await windowManager.maximize();
-    }
-    await _readMaximized();
-  }
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      SrIconButton(
-        tooltip: 'Minimize',
-        icon: const Icon(Icons.minimize, size: 18),
-        onPressed: windowManager.minimize,
-      ),
-      SrIconButton(
-        tooltip: _maximized ? 'Restore' : 'Maximize',
-        icon: Icon(
-          _maximized ? Icons.filter_none : Icons.crop_square,
-          size: 17,
-        ),
-        onPressed: _toggleMaximize,
-      ),
-      SrIconButton(
-        tooltip: 'Close',
-        icon: const Icon(Icons.close, size: 18),
-        onPressed: windowManager.close,
-      ),
-    ],
-  );
 }
 
 class _ResizableProjectSidebar extends StatefulWidget {
@@ -724,264 +494,6 @@ class _WorkspaceTab extends StatelessWidget {
     );
   }
 }
-
-class _ShellPluginSidebar extends StatefulWidget {
-  const _ShellPluginSidebar({
-    required this.registryFuture,
-    required this.preferences,
-    required this.selectedPluginId,
-    required this.onToggle,
-    required this.onSelected,
-  });
-
-  final Future<DartPluginRegistry> registryFuture;
-  final FlutterInterfacePreferences preferences;
-  final String? selectedPluginId;
-  final Future<void> Function(String pluginId, bool enabled) onToggle;
-  final ValueChanged<String> onSelected;
-
-  @override
-  State<_ShellPluginSidebar> createState() => _ShellPluginSidebarState();
-}
-
-class _ShellPluginSidebarState extends State<_ShellPluginSidebar> {
-  final _searchController = TextEditingController();
-  String _query = '';
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<DartPluginRegistry>(
-      future: widget.registryFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Plugin registry error: ${snapshot.error}'),
-          );
-        }
-        final registry = snapshot.data;
-        if (registry == null) return const SizedBox.shrink();
-        return ListenableBuilder(
-          listenable: registry,
-          builder: (context, child) => ListenableBuilder(
-            listenable: widget.preferences,
-            builder: (context, child) {
-              final plugins =
-                  registry.plugins
-                      .toList()
-                      .where(
-                        (plugin) =>
-                            !widget.preferences.hideDisabledIntegrations ||
-                            registry.isPluginEnabled(plugin.id),
-                      )
-                      .toList()
-                    ..sort((a, b) => a.name.compareTo(b.name));
-              final hiddenMatches = filterPlugins(
-                registry.plugins.where(
-                  (plugin) => !registry.isPluginEnabled(plugin.id),
-                ),
-                _query,
-              );
-              final filteredPlugins = filterPlugins(plugins, _query);
-              final groupedPlugins =
-                  <_IntegrationGroup, List<DartPluginManifest>>{
-                    for (final group in _integrationGroups) group: [],
-                  };
-              for (final plugin in filteredPlugins) {
-                final group = _integrationGroups.firstWhere(
-                  (candidate) => candidate.pluginIds.contains(plugin.id),
-                  orElse: () => _integrationGroups.last,
-                );
-                groupedPlugins[group]!.add(plugin);
-              }
-              return ListView(
-                padding: EdgeInsets.symmetric(
-                  vertical: widget.preferences.compactProjectSidebar ? 8 : 16,
-                ),
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'INTEGRATIONS',
-                      style: TextStyle(
-                        fontSize: 12,
-                        letterSpacing: 1.2,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        labelText: 'Search integrations',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _query.isEmpty
-                            ? null
-                            : IconButton(
-                                tooltip: 'Clear integration search',
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() => _query = '');
-                                },
-                                icon: const Icon(Icons.clear),
-                              ),
-                        border: const OutlineInputBorder(),
-                      ),
-                      onChanged: (value) => setState(() => _query = value),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (filteredPlugins.isEmpty && hiddenMatches.isNotEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'This search matches disabled integrations. Disable '
-                        '“Hide disabled integrations” in Settings to show them.',
-                      ),
-                    )
-                  else if (filteredPlugins.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        _query.trim().isEmpty
-                            ? 'No integrations are visible with the current filters.'
-                            : 'No integrations match “${_query.trim()}”.',
-                      ),
-                    ),
-                  for (final group in _integrationGroups)
-                    if (groupedPlugins[group]!.isNotEmpty)
-                      ExpansionTile(
-                        initiallyExpanded: !widget
-                            .preferences
-                            .collapseIntegrationCategoriesByDefault,
-                        dense: widget.preferences.compactProjectSidebar,
-                        leading: Icon(group.icon),
-                        title: Text(group.title),
-                        children: [
-                          for (final plugin in groupedPlugins[group]!)
-                            _buildPluginTile(
-                              context,
-                              registry,
-                              widget.preferences,
-                              plugin,
-                            ),
-                        ],
-                      ),
-                ],
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPluginTile(
-    BuildContext context,
-    DartPluginRegistry registry,
-    FlutterInterfacePreferences preferences,
-    DartPluginManifest plugin,
-  ) => ListTile(
-    dense: preferences.compactProjectSidebar,
-    selected: plugin.id == widget.selectedPluginId,
-    contentPadding: const EdgeInsets.only(left: 28, right: 8),
-    leading: Icon(
-      Icons.extension_outlined,
-      color: registry.isPluginEnabled(plugin.id)
-          ? Theme.of(context).colorScheme.primary
-          : Colors.white38,
-    ),
-    title: Text(plugin.name),
-    subtitle: Text(
-      '${plugin.actions.length} actions  |  ${plugin.triggers.length} triggers',
-    ),
-    onTap: () => widget.onSelected(plugin.id),
-    trailing: preferences.showPluginSwitches
-        ? Switch(
-            value: registry.isPluginEnabled(plugin.id),
-            onChanged: (enabled) => widget.onToggle(plugin.id, enabled),
-          )
-        : Icon(
-            registry.isPluginEnabled(plugin.id) ? Icons.power : Icons.power_off,
-            size: 16,
-            color: registry.isPluginEnabled(plugin.id)
-                ? Colors.tealAccent
-                : Colors.white38,
-          ),
-  );
-}
-
-final class _IntegrationGroup {
-  const _IntegrationGroup({
-    required this.title,
-    required this.icon,
-    required this.pluginIds,
-  });
-
-  final String title;
-  final IconData icon;
-  final Set<String> pluginIds;
-}
-
-const _integrationGroups = <_IntegrationGroup>[
-  _IntegrationGroup(
-    title: 'Streaming & chat',
-    icon: Icons.forum_outlined,
-    pluginIds: {'twitch', 'youtube', 'discord', 'bluesky', 'moderation'},
-  ),
-  _IntegrationGroup(
-    title: 'Production & overlays',
-    icon: Icons.layers_outlined,
-    pluginIds: {'obs', 'overlays', 'dashboards', 'sound', 'spellcast'},
-  ),
-  _IntegrationGroup(
-    title: 'Devices & lights',
-    icon: Icons.lightbulb_outline,
-    pluginIds: {
-      'elgato',
-      'govee',
-      'iot',
-      'lifx',
-      'philips-hue',
-      'tplink-kasa',
-      'twinkly',
-      'wyze',
-    },
-  ),
-  _IntegrationGroup(
-    title: 'Data & utility',
-    icon: Icons.build_outlined,
-    pluginIds: {
-      'ShowRunner',
-      'http',
-      'input',
-      'minecraft',
-      'os',
-      'random',
-      'remote',
-      'stream-plans',
-      'time',
-      'variables',
-    },
-  ),
-  _IntegrationGroup(
-    title: 'Other',
-    icon: Icons.extension_outlined,
-    pluginIds: {},
-  ),
-];
 
 String _workspaceLabel(int index) => switch (index) {
   0 => 'Graph',

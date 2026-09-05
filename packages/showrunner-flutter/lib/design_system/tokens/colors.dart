@@ -15,6 +15,7 @@ abstract final class ShowRunnerColors {
 
   static const text = Color(0xffe6e6e6);
   static const textSecondary = Color(0xffb3b3b3);
+  static const highlightText = Color(0xff9eade6);
   static const primary = Color(0xffe9aaff);
   static const primaryText = Color(0xff121212);
   static const secondary = Color(0xff9ec1ff);
