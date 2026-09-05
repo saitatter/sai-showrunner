@@ -71,7 +71,9 @@ const plugins = main.plugins.map((expected) => {
     ui: {
       expectedSourceFiles: expected.ui?.sourceFiles?.length || 0,
       flutterWorkspace: Boolean(actual.ui?.workspaceBuilder),
-      status: actual.ui?.workspaceBuilder ? 'equivalent' : 'partial',
+      status: expected.ui?.sourceFiles?.length
+        ? actual.ui?.workspaceBuilder ? 'equivalent' : 'partial'
+        : 'equivalent',
     },
   };
 });
