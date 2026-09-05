@@ -3446,7 +3446,14 @@ Future<void> _editNodeConfiguration(
   if (editor.isTriggerNode(node.id)) {
     final trigger = _triggerDefinition(editor, registry, node);
     final config = editor.nodeConfig(node.id);
-    final schema = _triggerConfigurationSchema(trigger, config);
+    final rawSchema = _triggerConfigurationSchema(trigger, config);
+    final schema = rawSchema == null
+        ? null
+        : await _hydrateResourceInputSchema(
+            rawSchema,
+            editor.resourceOptionsLoader,
+          );
+    if (!context.mounted) return;
     final result = await showDialog<_TriggerConfigurationResult>(
       context: context,
       builder: (context) => _TriggerConfigurationDialog(
@@ -3465,8 +3472,15 @@ Future<void> _editNodeConfiguration(
     return;
   }
   final actionDefinition = _actionDefinition(editor, registry, node);
-  final schema = _configurationSchema(editor, registry, node);
+  final rawSchema = _configurationSchema(editor, registry, node);
+  final schema = rawSchema == null
+      ? null
+      : await _hydrateResourceInputSchema(
+          rawSchema,
+          editor.resourceOptionsLoader,
+        );
   if (schema != null) {
+    if (!context.mounted) return;
     final config = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => _SchemaConfigurationDialog(
@@ -3492,6 +3506,10 @@ Future<void> _editNodeConfiguration(
       '  ',
     ).convert(editor.nodeConfig(node.id)),
   );
+  if (!context.mounted) {
+    configController.dispose();
+    return;
+  }
   final config = await showDialog<Map<String, dynamic>>(
     context: context,
     builder: (context) => AlertDialog(
@@ -4181,6 +4199,39 @@ DartDataInputSchema? _configurationSchema(
   }
   if (parts.length != 2) return null;
   return registry.findAction(parts.first, parts.last)?.configSchema;
+}
+
+Future<DartDataInputSchema> _hydrateResourceInputSchema(
+  DartDataInputSchema schema,
+  GraphResourceOptionsLoader? loader,
+) async {
+  final fields = schema.fields.isEmpty
+      ? schema.fields
+      : await Future.wait(
+          schema.fields.map(
+            (field) => _hydrateResourceInputSchema(field, loader),
+          ),
+        );
+  var options = schema.options;
+  if (schema.kind == DartDataInputKind.resource &&
+      options.isEmpty &&
+      schema.resourceType != null &&
+      loader != null) {
+    options = await loader(schema.resourceType!);
+  }
+  return DartDataInputSchema(
+    label: schema.label,
+    kind: schema.kind,
+    key: schema.key,
+    options: options,
+    required: schema.required,
+    secret: schema.secret,
+    multiline: schema.multiline,
+    defaultValue: schema.defaultValue,
+    resourceType: schema.resourceType,
+    fields: fields,
+    itemKind: schema.itemKind,
+  );
 }
 
 Future<void> _editActionResultMapping(

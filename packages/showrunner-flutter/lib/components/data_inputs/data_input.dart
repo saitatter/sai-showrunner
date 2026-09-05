@@ -222,6 +222,12 @@ class _DartDataInputState extends State<DartDataInput> {
               items: [
                 for (final option in widget.schema.options)
                   DropdownMenuItem(value: option, child: Text(option)),
+                if (widget.value?.toString().trim().isNotEmpty == true &&
+                    !widget.schema.options.contains(widget.value.toString()))
+                  DropdownMenuItem(
+                    value: widget.value.toString(),
+                    child: Text('${widget.value} (legacy value)'),
+                  ),
               ],
               onChanged: widget.onChanged,
             ),

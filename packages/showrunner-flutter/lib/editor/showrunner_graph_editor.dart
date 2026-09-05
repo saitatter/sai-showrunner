@@ -44,6 +44,9 @@ final class _ClipboardNodeSnapshot {
   final bool isTrigger;
 }
 
+typedef GraphResourceOptionsLoader =
+    Future<List<String>> Function(String resourceType);
+
 JsonMap _cloneJsonMap(Map<String, dynamic> source) => {
   for (final entry in source.entries) entry.key: _cloneJsonValue(entry.value),
 };
@@ -84,8 +87,10 @@ Size? _editorSizeFromJson(dynamic value, NodeEditorConfig config) {
 /// `sai_nodes` owns generic canvas behavior. This adapter owns the translation
 /// to persisted ShowRunner IDs, plugin semantics, and domain-only graph state.
 class ShowRunnerGraphEditor {
-  ShowRunnerGraphEditor({DartPluginRegistry? registry})
-    : _registry = registry ?? createDefaultPluginRegistry() {
+  ShowRunnerGraphEditor({
+    DartPluginRegistry? registry,
+    this.resourceOptionsLoader,
+  }) : _registry = registry ?? createDefaultPluginRegistry() {
     controller = _createController();
     _controllers[_mainGraphKey] = controller;
   }
@@ -103,6 +108,7 @@ class ShowRunnerGraphEditor {
 
   late NodeEditorController controller;
   final DartPluginRegistry _registry;
+  final GraphResourceOptionsLoader? resourceOptionsLoader;
   final Map<String, NodeEditorController> _controllers = {};
   // Editor IDs are transient; this map preserves the persisted node payload.
   final Map<String, JsonMap> _nodeDataByEditorId = {};

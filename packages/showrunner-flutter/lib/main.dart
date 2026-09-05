@@ -9,6 +9,7 @@ import 'app/showrunner_shell.dart';
 import 'app/window_configuration.dart';
 import 'editor/showrunner_graph_editor.dart';
 import 'persistence/automation_repository.dart';
+import 'persistence/resource_repository.dart';
 import 'persistence/viewer_data_repository.dart';
 import 'persistence/viewer_data_sync.dart';
 import 'plugins/registry/plugin_registry.dart';
@@ -25,6 +26,7 @@ import 'services/showrunner_data_service.dart';
 import 'services/update_check_service.dart';
 import 'features/automation/automation_starters.dart';
 import 'features/settings/interface_preferences.dart';
+import 'features/resources/resource_editor_registry.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +59,20 @@ Directory _showRunnerUserDirectory() {
   return configured?.isNotEmpty == true
       ? Directory(configured!)
       : Directory('../../user');
+}
+
+Future<List<String>> _resourceOptions(
+  ShowRunnerDataService dataService,
+  String resourceType,
+) async {
+  final definition = createDefaultResourceEditorRegistry().find(resourceType);
+  if (definition == null) return const [];
+  final resources = await ResourceRepository(
+    Directory(
+      '${dataService.userDirectory.path}/${definition.storageDirectory}',
+    ),
+  ).list();
+  return resources.map((resource) => resource.id).toList(growable: false);
 }
 
 class ShowRunnerPage extends StatefulWidget {
@@ -99,7 +115,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
   @override
   void initState() {
     super.initState();
-    _graphEditor = ShowRunnerGraphEditor();
+    _graphEditor = ShowRunnerGraphEditor(
+      resourceOptionsLoader: (resourceType) =>
+          _resourceOptions(widget.dataService, resourceType),
+    );
     if (widget.loadSampleGraph) _graphEditor.loadSampleGraph();
     _actionQueue = DartActionQueue();
     _eventHub = DartPluginEventHub();
