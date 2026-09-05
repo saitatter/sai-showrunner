@@ -165,6 +165,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   );
   Future<void> _navigationWrite = Future<void>.value();
   bool _restoredNavigation = false;
+  int _projectCatalogRevision = 0;
 
   AutomationDocumentSession? get _activeAutomationSession =>
       _automationDocuments.active;
@@ -580,6 +581,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       automationDocuments: _automationDocuments,
       profileController: _profileWorkspaceController,
       profileDirty: _profileDirty,
+      projectCatalogRevision: _projectCatalogRevision,
+      onProfileEntriesChanged: _onProjectCatalogChanged,
       onProfileDirtyChanged: (dirty) {
         if (mounted) setState(() => _profileDirty = dirty);
       },
@@ -600,6 +603,11 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onAutomationClosed: _closeAutomationDocument,
       onAutomationReordered: _reorderAutomationDocument,
     );
+  }
+
+  void _onProjectCatalogChanged() {
+    if (!mounted) return;
+    setState(() => _projectCatalogRevision++);
   }
 
   void _openDestination(int index) {
@@ -1413,6 +1421,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     setState(() {
       _workspaceDocuments.open(0);
       _workspaceDocuments.select(0);
+      _projectCatalogRevision++;
     });
     ScaffoldMessenger.of(
       context,
@@ -1435,6 +1444,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
     ).save(profile);
     if (!mounted) return;
+    _onProjectCatalogChanged();
     _openDestination(4);
     ScaffoldMessenger.of(
       context,
@@ -1462,7 +1472,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     } else {
       _automationDocuments.close(fileName);
     }
-    setState(() {});
+    setState(() => _projectCatalogRevision++);
     unawaited(_persistNavigation());
   }
 

@@ -28,16 +28,37 @@ enum _ProfileCloseDecision { save, discard, cancel }
 /// unsaved changes without reaching into its widget state.
 final class ProfileWorkspaceController {
   Future<bool> Function()? _closeGuard;
+  Future<void> Function(String fileName)? _openProfile;
+  String? _pendingProfile;
 
-  void attach(Future<bool> Function() closeGuard) {
+  void attach(
+    Future<bool> Function() closeGuard, {
+    Future<void> Function(String fileName)? openProfile,
+  }) {
     _closeGuard = closeGuard;
+    _openProfile = openProfile;
+    final pendingProfile = _pendingProfile;
+    if (pendingProfile != null && openProfile != null) {
+      _pendingProfile = null;
+      unawaited(openProfile(pendingProfile));
+    }
   }
 
   void detach() {
     _closeGuard = null;
+    _openProfile = null;
   }
 
   Future<bool> confirmClose() => _closeGuard?.call() ?? Future.value(true);
+
+  Future<void> openProfile(String fileName) async {
+    final opener = _openProfile;
+    if (opener == null) {
+      _pendingProfile = fileName;
+      return;
+    }
+    await opener(fileName);
+  }
 }
 
 class ProfileWorkspace extends StatefulWidget {
@@ -49,6 +70,7 @@ class ProfileWorkspace extends StatefulWidget {
     this.runtimeFuture,
     this.controller,
     this.onDirtyChanged,
+    this.onEntriesChanged,
   });
 
   final ShowRunnerDataService dataService;
@@ -57,6 +79,7 @@ class ProfileWorkspace extends StatefulWidget {
   final Future<DartProfileRuntime>? runtimeFuture;
   final ProfileWorkspaceController? controller;
   final ValueChanged<bool>? onDirtyChanged;
+  final VoidCallback? onEntriesChanged;
 
   @override
   State<ProfileWorkspace> createState() => _ProfileWorkspaceState();
@@ -92,7 +115,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     _conditionController.addListener(_markDirty);
     _activationEditor.documentDirty.addListener(_markDirty);
     _deactivationEditor.documentDirty.addListener(_markDirty);
-    widget.controller?.attach(_confirmClose);
+    widget.controller?.attach(_confirmClose, openProfile: _openProfile);
     _load();
   }
 
@@ -151,6 +174,13 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       _error = error;
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _openProfile(String fileName) async {
+    final index = _entries.indexWhere((entry) => entry.fileName == fileName);
+    if (index < 0 || !await _confirmClose()) return;
+    if (!mounted) return;
+    setState(() => _selectProfile(index));
   }
 
   void _selectProfile(int index) {
@@ -282,6 +312,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     if (index != -1 && mounted) {
       setState(() => _selectProfile(index));
     }
+    widget.onEntriesChanged?.call();
   }
 
   Future<void> _saveProfile() async {
@@ -311,6 +342,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       );
       await repo.save(updated);
       await _load();
+      widget.onEntriesChanged?.call();
     } catch (error) {
       _error = error;
     }
@@ -368,6 +400,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     _selectedIndex = null;
     _markClean();
     await _load();
+    widget.onEntriesChanged?.call();
   }
 
   Future<void> _addTrigger() async {

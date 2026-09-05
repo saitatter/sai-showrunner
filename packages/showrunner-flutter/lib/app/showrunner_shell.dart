@@ -35,6 +35,7 @@ import '../runtime/automation_queue_manager.dart';
 import '../schema/automation.dart';
 import '../runtime/profile_runtime.dart';
 import '../services/showrunner_data_service.dart';
+import '../services/project_catalog_service.dart';
 import '../services/update_check_service.dart';
 import '../services/update_install_service.dart';
 
@@ -75,6 +76,8 @@ class ShowRunnerShell extends StatelessWidget {
     this.profileController,
     this.profileDirty = false,
     this.onProfileDirtyChanged,
+    this.onProfileEntriesChanged,
+    this.projectCatalogRevision = 0,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -116,6 +119,8 @@ class ShowRunnerShell extends StatelessWidget {
   final ProfileWorkspaceController? profileController;
   final bool profileDirty;
   final ValueChanged<bool>? onProfileDirtyChanged;
+  final VoidCallback? onProfileEntriesChanged;
+  final int projectCatalogRevision;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -151,6 +156,16 @@ class ShowRunnerShell extends StatelessWidget {
                       pluginRegistryFuture: pluginRegistryFuture,
                       preferences: interfacePreferences,
                       selectedPluginId: selectedPluginId,
+                      catalogService: ShowRunnerProjectCatalogService(
+                        dataService.userDirectory,
+                      ),
+                      catalogRevision: projectCatalogRevision,
+                      activeAutomationFile: activeAutomationFile,
+                      onOpenAutomation: onOpenAutomation,
+                      onOpenProfile: (fileName) {
+                        onDestinationSelected(4);
+                        return profileController?.openProfile(fileName);
+                      },
                       onPluginSelected: (pluginId) {
                         onPluginSelected?.call(pluginId);
                         onDestinationSelected(1);
@@ -246,6 +261,7 @@ class ShowRunnerShell extends StatelessWidget {
         runtimeFuture: profileRuntimeFuture,
         controller: profileController,
         onDirtyChanged: onProfileDirtyChanged,
+        onEntriesChanged: onProfileEntriesChanged,
       ),
       5 => QueueWorkspace(
         dataService: dataService,

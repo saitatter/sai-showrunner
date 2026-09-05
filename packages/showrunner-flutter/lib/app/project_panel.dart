@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../design_system/tokens/tokens.dart';
 import '../features/plugins/plugin_catalog_filter.dart';
 import '../features/settings/interface_preferences.dart';
 import '../plugins/registry/plugin_registry.dart';
+import '../schema/automation.dart';
+import '../services/project_catalog_service.dart';
 
 /// Project navigation matching the reference ProjectView.
 ///
@@ -20,6 +24,11 @@ class ShowRunnerProjectPanel extends StatefulWidget {
     required this.selectedPluginId,
     required this.onPluginSelected,
     required this.onPluginToggle,
+    this.catalogService,
+    this.catalogRevision = 0,
+    this.activeAutomationFile,
+    this.onOpenAutomation,
+    this.onOpenProfile,
   });
 
   final int selectedIndex;
@@ -29,12 +38,20 @@ class ShowRunnerProjectPanel extends StatefulWidget {
   final String? selectedPluginId;
   final ValueChanged<String> onPluginSelected;
   final Future<void> Function(String pluginId, bool enabled) onPluginToggle;
+  final ShowRunnerProjectCatalogService? catalogService;
+  final int catalogRevision;
+  final String? activeAutomationFile;
+  final FutureOr<void> Function(AutomationData automation, String fileName)?
+  onOpenAutomation;
+  final FutureOr<void> Function(String fileName)? onOpenProfile;
 
   @override
   State<ShowRunnerProjectPanel> createState() => _ShowRunnerProjectPanelState();
 }
 
 class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
+  Future<ShowRunnerProjectCatalog>? _catalogFuture;
+
   late final Map<String, bool> _expanded = {
     'automations': false,
     'profiles': false,
@@ -42,6 +59,26 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
     'integrations': !widget.preferences.collapseIntegrationCategoriesByDefault,
     'tools': true,
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadCatalog();
+  }
+
+  @override
+  void didUpdateWidget(covariant ShowRunnerProjectPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.catalogService != widget.catalogService ||
+        oldWidget.catalogRevision != widget.catalogRevision) {
+      _reloadCatalog();
+    }
+  }
+
+  void _reloadCatalog() {
+    final service = widget.catalogService;
+    _catalogFuture = service?.load();
+  }
 
   void _toggle(String id) =>
       setState(() => _expanded[id] = !(_expanded[id] ?? false));
@@ -78,6 +115,38 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                 compact: compact,
                 onTap: () => widget.onDestinationSelected(3),
               ),
+              if (_catalogFuture != null)
+                _CatalogEntries(
+                  future: _catalogFuture!,
+                  compact: compact,
+                  emptyLabel: 'No saved automations',
+                  builder: (catalog) => [
+                    for (final entry in catalog.automations)
+                      _ProjectItemRow(
+                        title:
+                            entry.automation?.extra['name']?.toString() ??
+                            entry.fileName,
+                        icon: entry.isValid
+                            ? Icons.account_tree_outlined
+                            : Icons.error_outline,
+                        selected: entry.fileName == widget.activeAutomationFile,
+                        indent: 2,
+                        compact: compact,
+                        onTap:
+                            entry.automation == null ||
+                                widget.onOpenAutomation == null
+                            ? () {}
+                            : () => unawaited(
+                                Future<void>.sync(
+                                  () => widget.onOpenAutomation!.call(
+                                    entry.automation!,
+                                    entry.fileName,
+                                  ),
+                                ),
+                              ),
+                      ),
+                  ],
+                ),
             ],
           ),
           _ProjectGroupBlock(
@@ -96,6 +165,35 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                 compact: compact,
                 onTap: () => widget.onDestinationSelected(4),
               ),
+              if (_catalogFuture != null)
+                _CatalogEntries(
+                  future: _catalogFuture!,
+                  compact: compact,
+                  emptyLabel: 'No saved profiles',
+                  builder: (catalog) => [
+                    for (final entry in catalog.profiles)
+                      _ProjectItemRow(
+                        title: entry.profile?.name ?? entry.fileName,
+                        icon: entry.isValid
+                            ? Icons.card_membership_outlined
+                            : Icons.error_outline,
+                        selected: false,
+                        indent: 2,
+                        compact: compact,
+                        onTap:
+                            entry.profile == null ||
+                                widget.onOpenProfile == null
+                            ? () {}
+                            : () => unawaited(
+                                Future<void>.sync(
+                                  () => widget.onOpenProfile!.call(
+                                    entry.fileName,
+                                  ),
+                                ),
+                              ),
+                      ),
+                  ],
+                ),
             ],
           ),
           _ProjectGroupBlock(
@@ -228,6 +326,66 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
 }
 
 const showRunnerHomeWorkspaceIndex = 13;
+
+class _CatalogEntries extends StatelessWidget {
+  const _CatalogEntries({
+    required this.future,
+    required this.compact,
+    required this.emptyLabel,
+    required this.builder,
+  });
+
+  final Future<ShowRunnerProjectCatalog> future;
+  final bool compact;
+  final String emptyLabel;
+  final List<Widget> Function(ShowRunnerProjectCatalog catalog) builder;
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<ShowRunnerProjectCatalog>(
+    future: future,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return Padding(
+          padding: EdgeInsets.only(left: compact ? 46 : 54, top: 4, bottom: 4),
+          child: const Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox.square(
+              dimension: 14,
+              child: CircularProgressIndicator(strokeWidth: 1.5),
+            ),
+          ),
+        );
+      }
+      if (snapshot.hasError) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(compact ? 46 : 54, 4, 8, 4),
+          child: Text(
+            'Unable to load project items',
+            style: TextStyle(
+              color: ShowRunnerColors.secondary,
+              fontSize: compact ? 11.5 : 12.5,
+            ),
+          ),
+        );
+      }
+      final catalog = snapshot.data;
+      if (catalog == null) return const SizedBox.shrink();
+      final items = builder(catalog);
+      return items.isEmpty
+          ? Padding(
+              padding: EdgeInsets.fromLTRB(compact ? 46 : 54, 3, 8, 5),
+              child: Text(
+                emptyLabel,
+                style: TextStyle(
+                  color: ShowRunnerColors.secondary,
+                  fontSize: compact ? 11.5 : 12.5,
+                ),
+              ),
+            )
+          : Column(children: items);
+    },
+  );
+}
 
 class _ProjectGroupBlock extends StatelessWidget {
   const _ProjectGroupBlock({
