@@ -70,8 +70,7 @@ final class CompiledGraph {
 RuntimeMap? _normalizeActionResult(Object? result) {
   if (result is Map) {
     return {
-      for (final entry in result.entries)
-        entry.key.toString(): entry.value,
+      for (final entry in result.entries) entry.key.toString(): entry.value,
     };
   }
   return result == null ? null : {'_result': result};
@@ -251,8 +250,10 @@ final class DartCompiledGraphRuntime {
           final resultMapping = node.data['resultMapping'];
           if (resultMapping is Map) {
             for (final entry in resultMapping.entries) {
-              runtimeContext.contextState[entry.value.toString()] =
-                  _getPath(normalizedResult, entry.key.toString());
+              runtimeContext.contextState[entry.value.toString()] = _getPath(
+                normalizedResult,
+                entry.key.toString(),
+              );
             }
           }
           instructionIndex =
@@ -358,7 +359,10 @@ RuntimeMap _config(
       _resolveWireSource(wire.fromNode, wire.fromPort, context),
     );
   }
-  return resolved;
+  final interpolated = interpolateRuntimeValue(resolved, context);
+  return interpolated is Map
+      ? Map<String, dynamic>.from(interpolated)
+      : resolved;
 }
 
 RuntimeMap _subgraphInputs(

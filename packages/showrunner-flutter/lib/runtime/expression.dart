@@ -1,5 +1,7 @@
 typedef RuntimeMap = Map<String, dynamic>;
 
+final _runtimeTemplatePattern = RegExp(r'\{\{\s*([^}]+?)\s*\}\}');
+
 final class EvaluationContext {
   EvaluationContext({
     this.locals = const <String, dynamic>{},
@@ -10,6 +12,57 @@ final class EvaluationContext {
   final Map<String, dynamic> locals;
   final Map<String, dynamic> contextState;
   final Map<String, RuntimeMap> nodeResults;
+}
+
+/// Resolves the interpolation syntax used by persisted starter templates.
+///
+/// A complete placeholder keeps its original value, which is important for
+/// numbers, booleans, and resource objects. Embedded placeholders are rendered
+/// as text for messages and IDs.
+dynamic interpolateRuntimeValue(dynamic value, EvaluationContext context) {
+  if (value is Map) {
+    return {
+      for (final entry in value.entries)
+        entry.key.toString(): interpolateRuntimeValue(entry.value, context),
+    };
+  }
+  if (value is List) {
+    return value.map((item) => interpolateRuntimeValue(item, context)).toList();
+  }
+  if (value is! String) return value;
+
+  final complete = RegExp(r'^\s*\{\{\s*([^}]+?)\s*\}\}\s*$').firstMatch(value);
+  if (complete != null) {
+    return _runtimePath(complete.group(1)!.trim(), context);
+  }
+  return value.replaceAllMapped(_runtimeTemplatePattern, (match) {
+    final resolved = _runtimePath(match.group(1)!.trim(), context);
+    return resolved?.toString() ?? '';
+  });
+}
+
+dynamic _runtimePath(String path, EvaluationContext context) {
+  final local = _path(context.locals, path);
+  if (local.found) return local.value;
+  return _path(context.contextState, path).value;
+}
+
+({bool found, dynamic value}) _path(dynamic source, String path) {
+  var current = source;
+  for (final part in path.split('.').where((part) => part.isNotEmpty)) {
+    if (current is Map && current.containsKey(part)) {
+      current = current[part];
+    } else if (current is List) {
+      final index = int.tryParse(part);
+      if (index == null || index < 0 || index >= current.length) {
+        return (found: false, value: null);
+      }
+      current = current[index];
+    } else {
+      return (found: false, value: null);
+    }
+  }
+  return (found: true, value: current);
 }
 
 dynamic evaluateExpression(dynamic expression, EvaluationContext context) {
