@@ -92,7 +92,7 @@ class ShowRunnerShell extends StatelessWidget {
   final FlutterInterfacePreferences interfacePreferences;
   final List<int> openTabIndices;
   final ValueChanged<int>? onTabSelected;
-  final ValueChanged<int>? onTabClosed;
+  final FutureOr<void> Function(int)? onTabClosed;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -446,7 +446,7 @@ class _WorkspaceTabBar extends StatelessWidget {
   final bool activeAutomationDirty;
   final bool hasActiveAutomation;
   final ValueChanged<int> onSelected;
-  final ValueChanged<int> onClosed;
+  final FutureOr<void> Function(int) onClosed;
 
   @override
   Widget build(BuildContext context) {
@@ -491,7 +491,7 @@ class _WorkspaceTab extends StatelessWidget {
   final bool dirty;
   final bool canClose;
   final ValueChanged<int> onSelected;
-  final ValueChanged<int> onClosed;
+  final FutureOr<void> Function(int) onClosed;
 
   @override
   Widget build(BuildContext context) {

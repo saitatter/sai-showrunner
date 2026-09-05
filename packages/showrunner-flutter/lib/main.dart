@@ -81,6 +81,8 @@ class ShowRunnerFlutterApp extends StatelessWidget {
   }
 }
 
+enum _CloseDecision { save, discard, cancel }
+
 Future<List<String>> _resourceOptions(
   ShowRunnerDataService dataService,
   String resourceType,
@@ -630,8 +632,43 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
     }
   }
 
-  void _closeTab(int index) {
+  Future<void> _closeTab(int index) async {
     if (_openTabIndices.length <= 1) return;
+    if (index == 0 &&
+        _activeAutomationFile != null &&
+        _graphEditor.documentDirty.value) {
+      final decision = await showDialog<_CloseDecision>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Unsaved changes'),
+          content: Text(
+            'Save changes to ${_activeAutomationFile!} before closing?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(_CloseDecision.discard),
+              child: const Text("Don't Save"),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || decision == null || decision == _CloseDecision.cancel) {
+        return;
+      }
+      if (decision == _CloseDecision.save) {
+        await _saveAutomation();
+        if (!mounted || _graphEditor.documentDirty.value) return;
+      }
+    }
     setState(() {
       final closingPosition = _openTabIndices.indexOf(index);
       final wasSelected = _selectedIndex == index;
