@@ -16,6 +16,13 @@ void main() {
         'html_url':
             'https://github.com/saitatter/sai-showrunner/releases/tag/v1.1.0',
         'published_at': '2026-09-01T10:00:00Z',
+        'assets': [
+          {
+            'name': 'ShowRunner-Flutter-windows-1.1.0.zip',
+            'browser_download_url':
+                'https://example.test/downloads/showrunner.zip',
+          },
+        ],
       },
     );
 
@@ -27,6 +34,7 @@ void main() {
     expect(result.hasUpdate, isTrue);
     expect(result.releaseNotes, 'Important details\nx');
     expect(result.downloadUrl, contains('/releases/tag/v1.1.0'));
+    expect(result.artifactUrl, contains('/downloads/showrunner.zip'));
     expect(result.releaseDate, '2026-09-01T10:00:00Z');
   });
 

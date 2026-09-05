@@ -9,6 +9,7 @@ class UpdateInfo {
     required this.hasUpdate,
     this.releaseNotes = '',
     this.downloadUrl = '',
+    this.artifactUrl = '',
     this.releaseDate = '',
     this.status = UpdateStatus.idle,
     this.errorMessage,
@@ -19,6 +20,7 @@ class UpdateInfo {
   final bool hasUpdate;
   final String releaseNotes;
   final String downloadUrl;
+  final String artifactUrl;
   final String releaseDate;
   final UpdateStatus status;
   final String? errorMessage;
@@ -37,6 +39,10 @@ class UpdateInfo {
         (json['releaseNotes'] ?? json['body'])?.toString() ?? '',
       ),
       downloadUrl: (json['downloadUrl'] ?? json['html_url'])?.toString() ?? '',
+      artifactUrl:
+          (json['artifactUrl'] ?? _windowsArtifactUrl(json['assets']))
+              ?.toString() ??
+          '',
       releaseDate:
           (json['releaseDate'] ?? json['published_at'])?.toString() ?? '',
       status: hasUp ? UpdateStatus.available : UpdateStatus.upToDate,
@@ -49,8 +55,24 @@ class UpdateInfo {
     'hasUpdate': hasUpdate,
     'releaseNotes': releaseNotes,
     'downloadUrl': downloadUrl,
+    'artifactUrl': artifactUrl,
     'releaseDate': releaseDate,
   };
+}
+
+String? _windowsArtifactUrl(dynamic assets) {
+  if (assets is! List) return null;
+  for (final asset in assets.whereType<Map>()) {
+    final name = asset['name']?.toString().toLowerCase() ?? '';
+    final url = asset['browser_download_url']?.toString();
+    if (url != null &&
+        url.isNotEmpty &&
+        name.contains('windows') &&
+        name.endsWith('.zip')) {
+      return url;
+    }
+  }
+  return null;
 }
 
 String normalizeVersion(String value) =>

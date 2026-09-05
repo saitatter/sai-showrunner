@@ -17,6 +17,13 @@ void main() {
                 'tag_name': 'v1.1.0',
                 'body': '**Fixes** [details](https://example.test)',
                 'html_url': 'https://example.test/release',
+                'assets': [
+                  {
+                    'name': 'ShowRunner-Flutter-windows-1.1.0.zip',
+                    'browser_download_url':
+                        'https://example.test/showrunner.zip',
+                  },
+                ],
               },
             ),
           ),
@@ -30,6 +37,7 @@ void main() {
     expect(find.text('Update available: 1.1.0'), findsOneWidget);
     expect(find.text('Fixes details'), findsOneWidget);
     expect(find.text('Open release page'), findsOneWidget);
+    expect(find.text('Download Windows ZIP'), findsOneWidget);
   });
 
   testWidgets('renders offline update errors without throwing', (tester) async {

@@ -152,6 +152,18 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
     }
   }
 
+  Future<void> _openArtifact() async {
+    final url = _updateInfo.artifactUrl;
+    if (url.isEmpty) return;
+    if (Platform.isWindows) {
+      await Process.start('cmd', ['/c', 'start', '', url]);
+    } else if (Platform.isMacOS) {
+      await Process.start('open', [url]);
+    } else if (Platform.isLinux) {
+      await Process.start('xdg-open', [url]);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -231,6 +243,17 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
                       onPressed: _openRelease,
                       icon: const Icon(Icons.open_in_new),
                       label: const Text('Open release page'),
+                    ),
+                  ),
+                ],
+                if (_updateInfo.artifactUrl.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _openArtifact,
+                      icon: const Icon(Icons.download),
+                      label: const Text('Download Windows ZIP'),
                     ),
                   ),
                 ],
