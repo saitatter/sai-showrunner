@@ -1944,7 +1944,7 @@
     },
     {
       "id": "variables",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -1962,19 +1962,18 @@
           ],
           "actual": [
             "getVariable",
+            "offset",
             "offsetViewerVar",
+            "set",
             "setVariable",
             "setViewerVar"
           ],
-          "missing": [
-            "offset",
-            "set"
-          ],
+          "missing": [],
           "extra": [
             "setVariable",
             "getVariable"
           ],
-          "status": "partial"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],

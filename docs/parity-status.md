@@ -46,11 +46,11 @@ before it can be considered visually equivalent.
 ## Release and update limits
 
 The release workflow currently produces and smoke-tests a Windows ZIP archive.
-The application can query GitHub releases and reports available, current, and
-offline states, but there is no installer replacement, in-app download, or
-rollback transaction in the current release path. Those operations must not be
-described as validated until they have an actual Windows implementation and a
-packaged test.
+The application can query GitHub releases, detect the matching Windows ZIP, and
+open its download URL while reporting available, current, and offline states.
+There is no installer replacement, in-app installation, or rollback transaction
+in the current release path. Those operations must not be described as
+validated until they have an actual Windows implementation and a packaged test.
 
 The automated smoke suite validates startup, first run, graph/workflow use,
 profiles, integrations, overlays, and update-state handling. It does not prove
