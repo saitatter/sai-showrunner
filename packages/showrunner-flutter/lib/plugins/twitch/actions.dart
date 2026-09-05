@@ -260,6 +260,10 @@ final _timeoutSchema = _twitchObject('Twitch timeout', [
   ),
 ]);
 
+final _redemptionTriggerSchema = _twitchObject('Twitch redemption trigger', [
+  _twitchText('Reward Twitch ID', 'rewardId'),
+]);
+
 DartPluginManifest createTwitchPlugin(
   TwitchTransport transport, {
   DartPluginEventHub? eventHub,
@@ -622,6 +626,10 @@ DartPluginManifest createTwitchPlugin(
               triggerId: eventId,
               displayName: eventId,
               listen: () => eventHub.stream(eventId),
+              configSchema: eventId == 'redemption'
+                  ? _redemptionTriggerSchema
+                  : null,
+              matches: eventId == 'redemption' ? _matchesRedemption : null,
             ),
         ],
 );
@@ -636,6 +644,15 @@ bool _bool(Object? value, {bool fallback = false}) {
     'false' => false,
     _ => fallback,
   };
+}
+
+bool _matchesRedemption(RuntimeMap config, RuntimeMap payload) {
+  final rewardId = config['rewardId']?.toString().trim() ?? '';
+  if (rewardId.isEmpty) return true;
+  final payloadReward =
+      payload['rewardId'] ??
+      (payload['reward'] is Map ? (payload['reward'] as Map)['id'] : null);
+  return rewardId == payloadReward?.toString().trim();
 }
 
 dynamic _clipId(RuntimeMap response) {

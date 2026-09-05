@@ -3,6 +3,7 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/twitch/actions.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
   test('builds Twitch Helix actions through an injectable transport', () async {
@@ -110,6 +111,24 @@ void main() {
           .fields
           .map((field) => field.key),
       containsAll(<String?>['title', 'duration', 'outcomes']),
+    );
+  });
+
+  test('filters redemption triggers by the configured reward ID', () {
+    final hub = DartPluginEventHub();
+    final trigger = createTwitchPlugin(
+      TwitchTransport((method, path, query, body) async => const {}),
+      eventHub: hub,
+    ).triggers.firstWhere((trigger) => trigger.triggerId == 'redemption');
+
+    expect(trigger.configSchema?.fields.single.key, 'rewardId');
+    expect(
+      trigger.matches?.call({'rewardId': 'reward-1'}, {'rewardId': 'reward-1'}),
+      isTrue,
+    );
+    expect(
+      trigger.matches?.call({'rewardId': 'reward-1'}, {'rewardId': 'reward-2'}),
+      isFalse,
     );
   });
 }
