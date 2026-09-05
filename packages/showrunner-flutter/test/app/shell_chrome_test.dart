@@ -30,13 +30,23 @@ void main() {
     );
     addTearDown(preferences.dispose);
     var selectedIndex = -1;
+    String? selectedResourceType;
     final registry = DartPluginRegistry();
+    for (final plugin in const [
+      ('obs', 'OBS'),
+      ('twitch', 'Twitch'),
+      ('youtube', 'YouTube'),
+      ('moderation', 'Moderation'),
+    ]) {
+      registry.register(DartPluginManifest(id: plugin.$1, name: plugin.$2));
+    }
     addTearDown(registry.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
         home: SizedBox(
           width: 300,
+          height: 1200,
           child: ShowRunnerProjectPanel(
             selectedIndex: 0,
             onDestinationSelected: (index) => selectedIndex = index,
@@ -45,25 +55,51 @@ void main() {
             selectedPluginId: null,
             onPluginSelected: (_) {},
             onPluginToggle: (_, _) async {},
+            onResourceSelected: (resourceType) {
+              selectedResourceType = resourceType;
+            },
           ),
         ),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('ShowRunner'), findsOneWidget);
     expect(find.text('Automations'), findsOneWidget);
     expect(find.text('Integrations'), findsOneWidget);
     expect(find.text('Stream Plans'), findsOneWidget);
     expect(find.text('Media'), findsOneWidget);
-    expect(find.text('Overlays'), findsOneWidget);
     expect(find.text('Viewer Variables'), findsOneWidget);
+    expect(find.text('OBS'), findsNWidgets(2));
+    expect(find.text('Connections'), findsOneWidget);
+    expect(find.text('Twitch'), findsNWidgets(2));
+    expect(find.text('YouTube'), findsNWidgets(2));
+    expect(find.text('Moderation'), findsNWidgets(2));
+    expect(find.text('Account Login'), findsOneWidget);
+    expect(find.text('Channel Point Rewards'), findsOneWidget);
+    expect(find.text('Viewer Groups'), findsOneWidget);
+    expect(find.text('Live Integration'), findsOneWidget);
+    expect(find.text('Moderation Docker'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Connections'));
+    await tester.tap(find.text('Connections'));
+    expect(selectedResourceType, 'OBSConnection');
+
+    await tester.drag(find.byType(ListView), const Offset(0, -1000));
+    await tester.pumpAndSettle();
+    expect(find.text('Overlays'), findsOneWidget);
     expect(find.text('Tools'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Tools'));
     await tester.tap(find.text('Tools'));
     await tester.pump();
     expect(find.text('Automation Editor'), findsOneWidget);
 
+    await tester.drag(find.byType(ListView), const Offset(0, 1000));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Queues'));
     await tester.tap(find.text('Queues'));
     expect(selectedIndex, 5);
     await tester.tap(find.byIcon(Icons.chevron_right).first);

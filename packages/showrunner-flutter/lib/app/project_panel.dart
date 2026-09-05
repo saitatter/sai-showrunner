@@ -465,8 +465,15 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                 registryFuture: widget.pluginRegistryFuture,
                 preferences: widget.preferences,
                 selectedPluginId: widget.selectedPluginId,
+                selectedResourceType: widget.selectedResourceType,
+                selectedResourceId: widget.selectedResourceId,
+                catalogFuture: _catalogFuture,
                 onSelected: widget.onPluginSelected,
                 onToggle: widget.onPluginToggle,
+                onResourceTypeSelected: _openResource,
+                onOpenResource: widget.onOpenResource,
+                onRenameResource: widget.onRenameResource,
+                onDeleteResource: widget.onDeleteResource,
               ),
             ],
           ),
@@ -891,15 +898,36 @@ class ShowRunnerIntegrationTree extends StatefulWidget {
     required this.registryFuture,
     required this.preferences,
     required this.selectedPluginId,
+    required this.selectedResourceType,
+    required this.selectedResourceId,
+    required this.catalogFuture,
     required this.onSelected,
     required this.onToggle,
+    required this.onResourceTypeSelected,
+    required this.onOpenResource,
+    required this.onRenameResource,
+    required this.onDeleteResource,
   });
 
   final Future<DartPluginRegistry> registryFuture;
   final FlutterInterfacePreferences preferences;
   final String? selectedPluginId;
+  final String? selectedResourceType;
+  final String? selectedResourceId;
+  final Future<ShowRunnerProjectCatalog>? catalogFuture;
   final ValueChanged<String> onSelected;
   final Future<void> Function(String pluginId, bool enabled) onToggle;
+  final ValueChanged<String> onResourceTypeSelected;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onOpenResource;
+  final FutureOr<void> Function(
+    ResourceData resource,
+    String resourceType,
+    String name,
+  )?
+  onRenameResource;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onDeleteResource;
 
   @override
   State<ShowRunnerIntegrationTree> createState() =>
@@ -1032,8 +1060,256 @@ class _ShowRunnerIntegrationTreeState extends State<ShowRunnerIntegrationTree> {
                   onToggle: widget.onToggle,
                 ),
           ],
+        for (final shortcutGroup in _integrationShortcutGroups)
+          if (groups.values.any(
+            (plugins) => plugins.any((plugin) => plugin.id == shortcutGroup.id),
+          ))
+            _IntegrationShortcutGroupView(
+              group: shortcutGroup,
+              expanded: _expanded[shortcutGroup.title] ?? true,
+              compact: widget.preferences.compactProjectSidebar,
+              catalogFuture: widget.catalogFuture,
+              selectedResourceType: widget.selectedResourceType,
+              selectedResourceId: widget.selectedResourceId,
+              onToggle: () => setState(
+                () => _expanded[shortcutGroup.title] =
+                    !(_expanded[shortcutGroup.title] ?? true),
+              ),
+              onSelected: widget.onSelected,
+              onResourceTypeSelected: widget.onResourceTypeSelected,
+              onOpenResource: widget.onOpenResource,
+              onRenameResource: widget.onRenameResource,
+              onDeleteResource: widget.onDeleteResource,
+            ),
       ],
     );
+  }
+}
+
+final class _IntegrationShortcutGroup {
+  const _IntegrationShortcutGroup({
+    required this.id,
+    required this.title,
+    required this.icon,
+    required this.shortcuts,
+  });
+
+  final String id;
+  final String title;
+  final IconData icon;
+  final List<_IntegrationShortcut> shortcuts;
+}
+
+final class _IntegrationShortcut {
+  const _IntegrationShortcut({
+    required this.title,
+    required this.icon,
+    this.pluginId,
+    this.resourceType,
+  });
+
+  final String title;
+  final IconData icon;
+  final String? pluginId;
+  final String? resourceType;
+}
+
+const _integrationShortcutGroups = <_IntegrationShortcutGroup>[
+  _IntegrationShortcutGroup(
+    id: 'obs',
+    title: 'OBS',
+    icon: Icons.tv_outlined,
+    shortcuts: [
+      _IntegrationShortcut(
+        title: 'Connections',
+        icon: Icons.link,
+        resourceType: 'OBSConnection',
+      ),
+    ],
+  ),
+  _IntegrationShortcutGroup(
+    id: 'twitch',
+    title: 'Twitch',
+    icon: Icons.live_tv_outlined,
+    shortcuts: [
+      _IntegrationShortcut(
+        title: 'Account Login',
+        icon: Icons.key_outlined,
+        pluginId: 'twitch',
+      ),
+      _IntegrationShortcut(
+        title: 'Channel Point Rewards',
+        icon: Icons.stars_outlined,
+        resourceType: 'ChannelPointReward',
+      ),
+      _IntegrationShortcut(
+        title: 'Viewer Groups',
+        icon: Icons.group_outlined,
+        resourceType: 'CustomTwitchViewerGroup',
+      ),
+    ],
+  ),
+  _IntegrationShortcutGroup(
+    id: 'youtube',
+    title: 'YouTube',
+    icon: Icons.ondemand_video_outlined,
+    shortcuts: [
+      _IntegrationShortcut(
+        title: 'Live Integration',
+        icon: Icons.broadcast_on_personal_outlined,
+        pluginId: 'youtube',
+      ),
+    ],
+  ),
+  _IntegrationShortcutGroup(
+    id: 'moderation',
+    title: 'Moderation',
+    icon: Icons.shield_outlined,
+    shortcuts: [
+      _IntegrationShortcut(
+        title: 'Moderation Docker',
+        icon: Icons.shield_outlined,
+        pluginId: 'moderation',
+      ),
+    ],
+  ),
+];
+
+class _IntegrationShortcutGroupView extends StatelessWidget {
+  const _IntegrationShortcutGroupView({
+    required this.group,
+    required this.expanded,
+    required this.compact,
+    required this.catalogFuture,
+    required this.selectedResourceType,
+    required this.selectedResourceId,
+    required this.onToggle,
+    required this.onSelected,
+    required this.onResourceTypeSelected,
+    required this.onOpenResource,
+    required this.onRenameResource,
+    required this.onDeleteResource,
+  });
+
+  final _IntegrationShortcutGroup group;
+  final bool expanded;
+  final bool compact;
+  final Future<ShowRunnerProjectCatalog>? catalogFuture;
+  final String? selectedResourceType;
+  final String? selectedResourceId;
+  final VoidCallback onToggle;
+  final ValueChanged<String> onSelected;
+  final ValueChanged<String> onResourceTypeSelected;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onOpenResource;
+  final FutureOr<void> Function(
+    ResourceData resource,
+    String resourceType,
+    String name,
+  )?
+  onRenameResource;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onDeleteResource;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      InkWell(
+        onTap: onToggle,
+        hoverColor: ShowRunnerColors.highlight,
+        child: SizedBox(
+          height: compact ? 25 : 32,
+          child: Row(
+            children: [
+              const SizedBox(width: 36),
+              Icon(
+                expanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
+                size: 18,
+              ),
+              Icon(group.icon, size: 17),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  group.title,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: compact ? 12.5 : 14),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      if (expanded) ...[
+        for (final shortcut in group.shortcuts)
+          _ProjectItemRow(
+            title: shortcut.title,
+            icon: shortcut.icon,
+            selected:
+                shortcut.resourceType != null &&
+                selectedResourceType == shortcut.resourceType,
+            indent: 2,
+            compact: compact,
+            onTap: () {
+              final resourceType = shortcut.resourceType;
+              if (resourceType != null) {
+                onResourceTypeSelected(resourceType);
+              } else if (shortcut.pluginId != null) {
+                onSelected(shortcut.pluginId!);
+              }
+            },
+          ),
+        if (group.id == 'twitch' && catalogFuture != null)
+          _ResourceCatalogEntries(
+            future: catalogFuture!,
+            resourceType: 'CustomTwitchViewerGroup',
+            compact: compact,
+            emptyLabel: 'No viewer groups',
+            builder: (entries) => [
+              for (final entry in entries)
+                _ProjectItemRow(
+                  title: entry.title,
+                  icon: Icons.person_search_outlined,
+                  selected:
+                      selectedResourceType == entry.resourceType &&
+                      selectedResourceId == entry.resource.id,
+                  indent: 3,
+                  compact: compact,
+                  onRename: _rename(entry),
+                  onDelete: _delete(entry),
+                  onTap: _open(entry),
+                ),
+            ],
+          ),
+      ],
+    ],
+  );
+
+  VoidCallback _open(ProjectResourceCatalogEntry entry) => () {
+    final callback = onOpenResource;
+    if (callback != null) {
+      unawaited(
+        Future<void>.sync(() => callback(entry.resource, entry.resourceType)),
+      );
+    } else {
+      onResourceTypeSelected(entry.resourceType);
+    }
+  };
+
+  FutureOr<void> Function(String name)? _rename(
+    ProjectResourceCatalogEntry entry,
+  ) {
+    final callback = onRenameResource;
+    return callback == null
+        ? null
+        : (name) => callback(entry.resource, entry.resourceType, name);
+  }
+
+  FutureOr<void> Function()? _delete(ProjectResourceCatalogEntry entry) {
+    final callback = onDeleteResource;
+    return callback == null
+        ? null
+        : () => callback(entry.resource, entry.resourceType);
   }
 }
 

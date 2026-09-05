@@ -86,5 +86,8 @@ const _projectResourceDirectories = <String, String>{
   'TTSVoice': 'sound/tts',
   'SoundOutput': 'sound/outputs',
   'AudioSplitterOutput': 'sound/splitters',
+  'OBSConnection': 'obs/connections',
+  'CustomTwitchViewerGroup': 'twitch/groups',
+  'ChannelPointReward': 'twitch/channelpoints',
   'SpellHook': 'spellcast/spells',
 };
