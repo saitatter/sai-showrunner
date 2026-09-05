@@ -10,7 +10,7 @@ import '../../services/provider_settings_validator.dart';
 import '../../persistence/automation_repository.dart';
 import '../../services/showrunner_data_service.dart';
 import 'plugin_visibility.dart';
-import 'plugin_catalog_filter.dart';
+import 'plugin_metadata.dart';
 
 class PluginWorkspace extends StatefulWidget {
   const PluginWorkspace({
@@ -238,41 +238,22 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
             .firstOrNull;
         return ListenableBuilder(
           listenable: registry,
-          builder: (context, child) => Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: 250,
-                child: _PluginCatalog(
-                  plugins: plugins,
-                  selectedId: selected?.id,
-                  registry: registry,
-                  onSelected: (id) => setState(() {
-                    _selectedPluginId = id;
-                    _detailsTab = 'overview';
-                    _detailsFilter = '';
-                  }),
-                  onEnabledChanged: _setEnabled,
-                ),
-              ),
-              const VerticalDivider(width: 1),
-              Expanded(
-                child: selected == null
-                    ? const Center(child: Text('Select a plugin'))
-                    : registry.uiFor(selected.id) != null
-                    ? registry
-                              .uiFor(selected.id)!
-                              .build(
-                                context: context,
-                                dataService: widget.dataService,
-                                providerEvents: widget.providerEvents,
-                                registryFuture: widget.registryFuture,
-                              )
-                          as Widget
-                    : _buildPluginDetails(context, selected, registry),
-              ),
-            ],
-          ),
+          builder: (context, child) {
+            if (selected == null) {
+              return const Center(child: Text('Select an integration'));
+            }
+            final contribution = registry.uiFor(selected.id);
+            if (contribution != null) {
+              return contribution.build(
+                    context: context,
+                    dataService: widget.dataService,
+                    providerEvents: widget.providerEvents,
+                    registryFuture: widget.registryFuture,
+                  )
+                  as Widget;
+            }
+            return _buildPluginDetails(context, selected, registry);
+          },
         );
       },
     );
@@ -297,25 +278,48 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
           'settings',
           'Settings',
           Icons.settings_outlined,
-          count: plugin.settings.length,
+          count: plugin.settings
+              .where(
+                (setting) => _matchesDetailFilter(
+                  '${setting.displayName} ${setting.id}',
+                ),
+              )
+              .length,
         ),
       _PluginDetailsTab(
         'actions',
         'Actions',
         Icons.bolt,
-        count: plugin.actions.length,
+        count: plugin.actions
+            .where(
+              (action) => _matchesDetailFilter(
+                '${action.displayName ?? action.actionId} ${action.actionId}',
+              ),
+            )
+            .length,
       ),
       _PluginDetailsTab(
         'triggers',
         'Triggers',
         Icons.notifications_active_outlined,
-        count: plugin.triggers.length,
+        count: plugin.triggers
+            .where(
+              (trigger) => _matchesDetailFilter(
+                '${trigger.displayName} ${trigger.triggerId}',
+              ),
+            )
+            .length,
       ),
       _PluginDetailsTab(
         'state',
         'State',
         Icons.data_object,
-        count: plugin.states.length,
+        count: plugin.states
+            .where(
+              (state) =>
+                  _matchesDetailFilter('${state.displayName} ${state.id}'),
+            )
+            .length,
       ),
     ];
     return ListView(
@@ -324,8 +328,8 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         Row(
           children: [
             Icon(
-              _pluginIcon(plugin.id),
-              color: _pluginColor(plugin.id),
+              pluginIconFor(plugin.id),
+              color: pluginColorFor(plugin.id),
               size: 28,
             ),
             const SizedBox(width: 12),
@@ -554,6 +558,12 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
   }
 
   Widget _buildProviderSettings(BuildContext context, String selectedPluginId) {
+    final fields = _fields[selectedPluginId] ?? const <String>[];
+    final visibleFields = fields.where((field) {
+      final definition = _definitions['$selectedPluginId:$field'];
+      return definition != null &&
+          _matchesDetailFilter('${definition.displayName} $field');
+    }).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -563,10 +573,17 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         ),
         const SizedBox(height: 20),
         if (_error != null) Text('Settings error: $_error'),
-        ...[
-          _fields.entries.firstWhere((entry) => entry.key == selectedPluginId),
-        ].map(
-          (entry) => Column(
+        if (visibleFields.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              _detailsFilter.trim().isEmpty
+                  ? 'No plugin settings registered.'
+                  : 'No matches for "${_detailsFilter.trim()}".',
+            ),
+          )
+        else
+          Column(
             children: [
               Card(
                 child: Padding(
@@ -576,28 +593,30 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
                     children: [
                       Row(
                         children: [
-                          Icon(entry.key == 'obs' ? Icons.tv : Icons.live_tv),
+                          Icon(pluginIconFor(selectedPluginId)),
                           const SizedBox(width: 8),
                           Text(
-                            entry.key.toUpperCase(),
+                            selectedPluginId.toUpperCase(),
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           const Spacer(),
-                          if (entry.key == 'youtube' || entry.key == 'twitch')
+                          if (selectedPluginId == 'youtube' ||
+                              selectedPluginId == 'twitch')
                             OutlinedButton.icon(
-                              onPressed: _saving == entry.key
+                              onPressed: _saving == selectedPluginId
                                   ? null
-                                  : () => _authorize(entry.key),
+                                  : () => _authorize(selectedPluginId),
                               icon: const Icon(Icons.login),
                               label: const Text('Authorize'),
                             ),
-                          if (entry.key == 'youtube' || entry.key == 'twitch')
+                          if (selectedPluginId == 'youtube' ||
+                              selectedPluginId == 'twitch')
                             const SizedBox(width: 8),
                           FilledButton.icon(
-                            onPressed: _saving == entry.key
+                            onPressed: _saving == selectedPluginId
                                 ? null
-                                : () => _save(entry.key),
-                            icon: _saving == entry.key
+                                : () => _save(selectedPluginId),
+                            icon: _saving == selectedPluginId
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
@@ -611,21 +630,20 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      ...entry.value.map(
-                        (field) => _buildSettingField(entry.key, field),
+                      ...visibleFields.map(
+                        (field) => _buildSettingField(selectedPluginId, field),
                       ),
                     ],
                   ),
                 ),
               ),
-              if (entry.key == 'youtube' || entry.key == 'twitch')
+              if (selectedPluginId == 'youtube' || selectedPluginId == 'twitch')
                 _OAuthDiagnostics(
-                  provider: entry.key,
-                  values: _settings[entry.key] ?? const {},
+                  provider: selectedPluginId,
+                  values: _settings[selectedPluginId] ?? const {},
                 ),
             ],
           ),
-        ),
       ],
     );
   }
@@ -735,166 +753,6 @@ class _OAuthDiagnostics extends StatelessWidget {
   }
 }
 
-class _PluginCatalog extends StatefulWidget {
-  const _PluginCatalog({
-    required this.plugins,
-    required this.selectedId,
-    required this.registry,
-    required this.onSelected,
-    required this.onEnabledChanged,
-  });
-
-  final List<DartPluginManifest> plugins;
-  final String? selectedId;
-  final DartPluginRegistry registry;
-  final ValueChanged<String> onSelected;
-  final Future<void> Function(String pluginId, bool enabled) onEnabledChanged;
-
-  @override
-  State<_PluginCatalog> createState() => _PluginCatalogState();
-}
-
-class _PluginCatalogState extends State<_PluginCatalog> {
-  final _searchController = TextEditingController();
-  String _query = '';
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final filtered = filterPlugins(widget.plugins, _query);
-    final core = filtered.where((plugin) => plugin.id == 'obs').toList();
-    final platforms = filtered.where((plugin) => plugin.id != 'obs').toList();
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 18),
-          child: Text(
-            'PLUGINS',
-            style: TextStyle(
-              fontSize: 12,
-              letterSpacing: 1.2,
-              color: Colors.white54,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              isDense: true,
-              labelText: 'Search plugins',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _query.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'Clear plugin search',
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _query = '');
-                      },
-                      icon: const Icon(Icons.clear),
-                    ),
-              border: const OutlineInputBorder(),
-            ),
-            onChanged: (value) => setState(() => _query = value),
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (filtered.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            child: Text(
-              _query.trim().isEmpty
-                  ? 'No plugins are registered.'
-                  : 'No plugins match “${_query.trim()}”.',
-            ),
-          ),
-        _PluginGroup(
-          title: 'Core integrations',
-          plugins: core,
-          selectedId: widget.selectedId,
-          registry: widget.registry,
-          onSelected: widget.onSelected,
-          onEnabledChanged: widget.onEnabledChanged,
-        ),
-        _PluginGroup(
-          title: 'Platforms',
-          plugins: platforms,
-          selectedId: widget.selectedId,
-          registry: widget.registry,
-          onSelected: widget.onSelected,
-          onEnabledChanged: widget.onEnabledChanged,
-        ),
-      ],
-    );
-  }
-}
-
-class _PluginGroup extends StatelessWidget {
-  const _PluginGroup({
-    required this.title,
-    required this.plugins,
-    required this.selectedId,
-    required this.registry,
-    required this.onSelected,
-    required this.onEnabledChanged,
-  });
-
-  final String title;
-  final List<DartPluginManifest> plugins;
-  final String? selectedId;
-  final DartPluginRegistry registry;
-  final ValueChanged<String> onSelected;
-  final Future<void> Function(String pluginId, bool enabled) onEnabledChanged;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(18, 14, 12, 6),
-        child: Text(
-          title,
-          style: const TextStyle(color: Colors.white60, fontSize: 12),
-        ),
-      ),
-      ...plugins.map(
-        (plugin) => ListTile(
-          dense: true,
-          selected: plugin.id == selectedId,
-          leading: Icon(
-            _pluginIcon(plugin.id),
-            color: _pluginColor(plugin.id),
-            size: 20,
-          ),
-          title: Text(plugin.name),
-          subtitle: Text(
-            '${plugin.actions.length} actions  |  ${plugin.triggers.length} triggers',
-          ),
-          onTap: () => onSelected(plugin.id),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Switch(
-                value: registry.isPluginEnabled(plugin.id),
-                onChanged: (value) => onEnabledChanged(plugin.id, value),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
 class _PluginDetailsTab {
   const _PluginDetailsTab(this.id, this.label, this.icon, {this.count});
 
@@ -994,20 +852,6 @@ class _PluginUsageSummaryState extends State<_PluginUsageSummary> {
     },
   );
 }
-
-IconData _pluginIcon(String id) => switch (id) {
-  'obs' => Icons.tv,
-  'youtube' => Icons.smart_display,
-  'twitch' => Icons.live_tv,
-  _ => Icons.extension,
-};
-
-Color _pluginColor(String id) => switch (id) {
-  'obs' => const Color(0xff8b9bb4),
-  'youtube' => const Color(0xffff5f56),
-  'twitch' => const Color(0xffa970ff),
-  _ => const Color(0xff2dd4bf),
-};
 
 extension<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;

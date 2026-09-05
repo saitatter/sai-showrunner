@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../design_system/tokens/tokens.dart';
 import '../features/plugins/plugin_catalog_filter.dart';
+import '../features/plugins/plugin_metadata.dart';
 import '../features/settings/interface_preferences.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
@@ -1106,9 +1107,9 @@ class _IntegrationPluginRow extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  Icons.extension_outlined,
+                  pluginIconFor(plugin.id),
                   size: 16,
-                  color: enabled ? ShowRunnerColors.secondary : Colors.white38,
+                  color: enabled ? pluginColorFor(plugin.id) : Colors.white38,
                 ),
                 const SizedBox(width: 7),
                 Expanded(
