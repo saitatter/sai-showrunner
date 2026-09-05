@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/startup_health.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
+import '../../plugins/registry/plugin_health.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../runtime/action_queue.dart';
 
@@ -275,23 +276,32 @@ class _PluginHealthDiagnostics extends StatelessWidget {
               const ListTile(title: Text('Loading plugin registry'))
             else
               for (final plugin in plugins)
-                FutureBuilder<bool>(
-                  future: plugin.healthCheck?.call() ?? Future.value(true),
+                FutureBuilder<DartPluginHealth>(
+                  future: snapshot.data!.findModule(plugin.id)!.checkHealth(),
                   builder: (context, healthSnapshot) {
-                    final healthy = healthSnapshot.data;
+                    final health = healthSnapshot.data;
+                    final healthy = health?.isHealthy == true;
                     return ListTile(
                       dense: true,
                       leading: Icon(
-                        healthy == true ? Icons.check_circle : Icons.warning,
-                        color: healthy == true ? Colors.teal : Colors.orange,
+                        health?.status == DartPluginHealthStatus.error
+                            ? Icons.error_outline
+                            : healthy
+                            ? Icons.check_circle
+                            : Icons.warning,
+                        color: health?.status == DartPluginHealthStatus.error
+                            ? Colors.redAccent
+                            : healthy
+                            ? Colors.teal
+                            : Colors.orange,
                       ),
                       title: Text(plugin.name),
                       subtitle: Text(
-                        healthy == null
+                        health == null
                             ? 'Checking'
-                            : healthy
+                            : health.isHealthy
                             ? 'Ready'
-                            : 'Unavailable',
+                            : health.message ?? health.status.name,
                       ),
                     );
                   },
