@@ -8,12 +8,14 @@ import 'package:flutter/material.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../editor/showrunner_graph_editor.dart';
 import '../../persistence/profile_repository.dart';
+import '../../persistence/resource_repository.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../runtime/profile_runtime.dart';
 import '../../schema/automation.dart';
 import '../../schema/profile.dart';
 import '../../services/showrunner_data_service.dart';
+import '../resources/resource_editor_registry.dart';
 
 typedef ProfileEntry = ({
   String fileName,
@@ -261,11 +263,25 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     if (!mounted) return;
     final result = await showDialog<JsonMap>(
       context: context,
-      builder: (context) =>
-          _TriggerEditDialog(trigger: trigger, registry: registry),
+      builder: (context) => _TriggerEditDialog(
+        trigger: trigger,
+        registry: registry,
+        resourceOptionsLoader: _resourceOptions,
+      ),
     );
     if (result == null || !mounted) return;
     setState(() => _triggers[index] = result);
+  }
+
+  Future<List<String>> _resourceOptions(String resourceType) async {
+    final definition = createDefaultResourceEditorRegistry().find(resourceType);
+    if (definition == null) return const [];
+    final resources = await ResourceRepository(
+      Directory(
+        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
+      ),
+    ).list();
+    return resources.map((resource) => resource.id).toList(growable: false);
   }
 
   void _removeTrigger(int index) {
@@ -579,10 +595,15 @@ class _TriggerPickerDialog extends StatelessWidget {
 }
 
 class _TriggerEditDialog extends StatefulWidget {
-  const _TriggerEditDialog({required this.trigger, required this.registry});
+  const _TriggerEditDialog({
+    required this.trigger,
+    required this.registry,
+    this.resourceOptionsLoader,
+  });
 
   final JsonMap trigger;
   final DartPluginRegistry? registry;
+  final GraphResourceOptionsLoader? resourceOptionsLoader;
 
   @override
   State<_TriggerEditDialog> createState() => _TriggerEditDialogState();
@@ -734,23 +755,7 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
               value: _stop,
               onChanged: (value) => setState(() => _stop = value),
             ),
-            if (_selectedTrigger?.configSchema case final schema?)
-              DartDataInput(
-                schema: schema,
-                value: _configValue,
-                onChanged: (value) => setState(() => _configValue = value),
-              )
-            else
-              TextField(
-                controller: _config,
-                minLines: 8,
-                maxLines: 14,
-                decoration: InputDecoration(
-                  labelText: 'Trigger config (JSON)',
-                  border: const OutlineInputBorder(),
-                  errorText: _error,
-                ),
-              ),
+            _buildConfigurationInput(),
           ],
         ),
       ),
@@ -762,6 +767,68 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
       ),
       FilledButton(onPressed: _save, child: const Text('Save')),
     ],
+  );
+
+  Widget _buildConfigurationInput() {
+    final rawSchema = _selectedTrigger?.configSchema;
+    if (rawSchema == null) {
+      return TextField(
+        controller: _config,
+        minLines: 8,
+        maxLines: 14,
+        decoration: InputDecoration(
+          labelText: 'Trigger config (JSON)',
+          border: const OutlineInputBorder(),
+          errorText: _error,
+        ),
+      );
+    }
+    return FutureBuilder<DartDataInputSchema>(
+      future: _hydrateResourceInputSchema(
+        rawSchema,
+        widget.resourceOptionsLoader,
+      ),
+      builder: (context, snapshot) => snapshot.hasData
+          ? DartDataInput(
+              schema: snapshot.data!,
+              value: _configValue,
+              onChanged: (value) => setState(() => _configValue = value),
+            )
+          : const LinearProgressIndicator(),
+    );
+  }
+}
+
+Future<DartDataInputSchema> _hydrateResourceInputSchema(
+  DartDataInputSchema schema,
+  GraphResourceOptionsLoader? loader,
+) async {
+  final fields = schema.fields.isEmpty
+      ? schema.fields
+      : await Future.wait(
+          schema.fields.map(
+            (field) => _hydrateResourceInputSchema(field, loader),
+          ),
+        );
+  var options = schema.options;
+  if (schema.kind == DartDataInputKind.resource &&
+      options.isEmpty &&
+      schema.resourceType != null &&
+      loader != null) {
+    options = await loader(schema.resourceType!);
+  }
+  return DartDataInputSchema(
+    label: schema.label,
+    kind: schema.kind,
+    key: schema.key,
+    options: options,
+    required: schema.required,
+    secret: schema.secret,
+    multiline: schema.multiline,
+    defaultValue: schema.defaultValue,
+    resourceType: schema.resourceType,
+    fields: fields,
+    itemKind: schema.itemKind,
   );
 }
 
