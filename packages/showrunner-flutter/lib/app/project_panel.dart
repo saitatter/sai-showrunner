@@ -404,11 +404,9 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
               if (_catalogFuture != null)
                 _ResourceCatalogEntries(
                   future: _catalogFuture!,
-                  resourceType: 'SoundOutput',
+                  resourceType: 'AudioSplitterOutput',
                   compact: compact,
                   emptyLabel: 'No audio splitters',
-                  filter: (entry) =>
-                      entry.resource.config['type'] == 'splitter',
                   builder: (entries) => [
                     for (final entry in entries)
                       _ProjectItemRow(

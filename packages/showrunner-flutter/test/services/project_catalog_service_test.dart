@@ -33,6 +33,9 @@ void main() {
     await ResourceRepository(Directory('${root.path}/dashboards')).save(
       const ResourceData(id: 'dashboard', config: {'name': 'Main dashboard'}),
     );
+    await ResourceRepository(
+      Directory('${root.path}/sound/splitters'),
+    ).save(const ResourceData(id: 'splitter', config: {'name': 'Headphones'}));
 
     final fixtureCatalog = await ShowRunnerProjectCatalogService(root).load();
     expect(
@@ -45,6 +48,10 @@ void main() {
     expect(
       fixtureCatalog.resources['Dashboard']!.single.title,
       'Main dashboard',
+    );
+    expect(
+      fixtureCatalog.resources['AudioSplitterOutput']!.single.title,
+      'Headphones',
     );
   });
 }

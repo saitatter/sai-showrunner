@@ -85,5 +85,6 @@ const _projectResourceDirectories = <String, String>{
   'Dashboard': 'dashboards',
   'TTSVoice': 'sound/tts',
   'SoundOutput': 'sound/outputs',
+  'AudioSplitterOutput': 'sound/splitters',
   'SpellHook': 'spellcast/spells',
 };
