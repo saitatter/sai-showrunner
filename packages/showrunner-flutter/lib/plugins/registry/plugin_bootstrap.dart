@@ -48,6 +48,7 @@ import '../showrunner/manifest.dart';
 import '../sound/tts_runtime.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../persistence/resource_repository.dart';
+import '../../persistence/profile_repository.dart';
 
 DartPluginRegistry createDefaultPluginRegistry({
   DartPluginEventHub? eventHub,
@@ -273,6 +274,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           eventHub: eventHub,
           host: remoteHost?.isNotEmpty == true ? remoteHost! : '127.0.0.1',
           port: remotePort,
+          loadButtonNames: () => _loadRemoteButtonNames(dataService),
         )
       : null;
   registry.register(
@@ -677,6 +679,44 @@ bool _iotState(Object? value) {
 int _positiveDeviceInt(Object? value, int fallback) {
   final number = value is num ? value.toInt() : int.tryParse('$value');
   return number != null && number > 0 ? number : fallback;
+}
+
+Future<List<String>> _loadRemoteButtonNames(
+  ShowRunnerDataService dataService,
+) async {
+  final names = <String>{};
+  for (final fileName in await dataService.listUserFiles('profiles')) {
+    try {
+      final profile = await ProfileRepository(
+        File('${dataService.userDirectory.path}/profiles/$fileName'),
+      ).load();
+      if (profile == null) continue;
+      for (final trigger in profile.triggers) {
+        final triggerNodes = trigger['triggerNodes'];
+        if (triggerNodes is List && triggerNodes.isNotEmpty) {
+          for (final node in triggerNodes) {
+            _addRemoteButtonName(names, node);
+          }
+          continue;
+        }
+        _addRemoteButtonName(names, trigger);
+      }
+    } on Object {
+      // A malformed profile should not make the remote button API unavailable.
+    }
+  }
+  return names.toList(growable: false);
+}
+
+void _addRemoteButtonName(Set<String> names, Object? trigger) {
+  if (trigger is! Map ||
+      trigger['plugin']?.toString() != 'remote' ||
+      trigger['trigger']?.toString() != 'button') {
+    return;
+  }
+  final config = trigger['config'];
+  final name = config is Map ? config['name']?.toString().trim() : null;
+  if (name?.isNotEmpty == true) names.add(name!);
 }
 
 void _registerTwitchStreamPlanComponent({

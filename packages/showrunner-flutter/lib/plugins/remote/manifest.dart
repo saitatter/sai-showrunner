@@ -6,16 +6,20 @@ import '../../components/data_inputs/data_input.dart';
 import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_registry.dart';
 
+typedef RemoteButtonNameLoader = Future<List<String>> Function();
+
 final class RemoteButtonRuntime {
   RemoteButtonRuntime({
     required this.eventHub,
     this.host = '127.0.0.1',
     this.port = 8390,
+    this.loadButtonNames,
   });
 
   final DartPluginEventHub eventHub;
   final String host;
   final int port;
+  final RemoteButtonNameLoader? loadButtonNames;
   HttpServer? _server;
   StreamSubscription<HttpRequest>? _subscription;
 
@@ -37,7 +41,8 @@ final class RemoteButtonRuntime {
   Future<void> _handle(HttpRequest request) async {
     try {
       if (request.method == 'GET' && request.uri.path == '/buttons') {
-        await _json(request.response, HttpStatus.ok, {'buttons': <String>[]});
+        final buttons = await loadButtonNames?.call() ?? const <String>[];
+        await _json(request.response, HttpStatus.ok, {'buttons': buttons});
         return;
       }
       if (request.method == 'POST' && request.uri.path == '/buttons/press') {

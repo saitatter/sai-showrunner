@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -46,6 +47,33 @@ void main() {
 
     client.close(force: true);
     await subscription.cancel();
+    await runtime.stop();
+    await eventHub.dispose();
+  });
+
+  test('lists configured remote buttons over the Dart HTTP server', () async {
+    final eventHub = DartPluginEventHub();
+    final runtime = RemoteButtonRuntime(
+      eventHub: eventHub,
+      host: '127.0.0.1',
+      port: 0,
+      loadButtonNames: () async => ['Start', 'Stop'],
+    );
+    await runtime.start();
+
+    final client = HttpClient();
+    final request = await client.getUrl(
+      Uri.parse('http://127.0.0.1:${runtime.boundPort}/buttons'),
+    );
+    final response = await request.close();
+    final body = await response.transform(utf8.decoder).join();
+
+    expect(response.statusCode, HttpStatus.ok);
+    expect(jsonDecode(body), {
+      'buttons': ['Start', 'Stop'],
+    });
+
+    client.close(force: true);
     await runtime.stop();
     await eventHub.dispose();
   });
