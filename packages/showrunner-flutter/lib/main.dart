@@ -188,6 +188,12 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         execute: (_) => _createAutomation(),
       ),
       AppCommand(
+        id: 'file.newProfile',
+        label: 'New profile',
+        icon: Icons.people_alt,
+        execute: (_) => _createProfile(),
+      ),
+      AppCommand(
         id: 'file.save',
         label: 'Save automation',
         icon: Icons.save,
@@ -230,6 +236,12 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         icon: Icons.tab_unselected,
         canExecute: (_) => _openTabIndices.length > 1,
         execute: (_) => _closeOtherTabs(),
+      ),
+      AppCommand(
+        id: 'file.exit',
+        label: 'Exit',
+        icon: Icons.exit_to_app,
+        execute: (_) => _handleWindowClose(),
       ),
       AppCommand(
         id: 'edit.copy',
@@ -1007,6 +1019,28 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       _activeAutomationFile = fileName;
       _selectedIndex = 0;
     });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Created $fileName')));
+  }
+
+  Future<void> _createProfile() async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final fileName = 'profile_$timestamp.yaml';
+    const emptyAutomation = AutomationData();
+    const profile = ShowRunnerProfile(
+      name: 'New Profile',
+      activationMode: 'toggle',
+      triggers: [],
+      activationCondition: {},
+      activationAutomation: emptyAutomation,
+      deactivationAutomation: emptyAutomation,
+    );
+    await ProfileRepository(
+      File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
+    ).save(profile);
+    if (!mounted) return;
+    _openDestination(4);
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('Created $fileName')));

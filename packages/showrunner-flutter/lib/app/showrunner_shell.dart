@@ -121,10 +121,12 @@ class ShowRunnerShell extends StatelessWidget {
             onSelected: runCommand,
             itemBuilder: (context) => [
               _commandMenuItem('file.newAutomation', commandContext),
+              _commandMenuItem('file.newProfile', commandContext),
               _commandMenuItem('file.save', commandContext),
               _commandMenuItem('file.saveAll', commandContext),
               _commandMenuItem('file.close', commandContext),
               _commandMenuItem('file.closeOthers', commandContext),
+              _commandMenuItem('file.exit', commandContext),
             ],
           ),
           PopupMenuButton<String>(
