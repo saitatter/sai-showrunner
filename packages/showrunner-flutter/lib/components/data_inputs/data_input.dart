@@ -40,6 +40,7 @@ final class DartDataInputSchema {
     this.resourceType,
     this.fields = const <DartDataInputSchema>[],
     this.itemKind = DartDataInputKind.text,
+    this.itemSchema,
   });
 
   final String label;
@@ -53,6 +54,7 @@ final class DartDataInputSchema {
   final String? resourceType;
   final List<DartDataInputSchema> fields;
   final DartDataInputKind itemKind;
+  final DartDataInputSchema? itemSchema;
 }
 
 dynamic constructDartDataInputDefault(DartDataInputSchema schema) {
@@ -374,7 +376,9 @@ class _ArrayInput extends StatelessWidget {
               tooltip: 'Add item',
               onPressed: () => onChanged([
                 ...items,
-                schema.itemKind == DartDataInputKind.object
+                schema.itemSchema != null
+                    ? constructDartDataInputDefault(schema.itemSchema!)
+                    : schema.itemKind == DartDataInputKind.object
                     ? <String, dynamic>{}
                     : '',
               ]),
@@ -386,20 +390,32 @@ class _ArrayInput extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: TextFormField(
-                  initialValue: _displayValue(items[index]),
-                  decoration: InputDecoration(
-                    labelText: '${schema.label} ${index + 1}',
-                    suffixIcon: schema.itemKind == DartDataInputKind.filePath
-                        ? const Icon(Icons.folder_open_outlined)
-                        : null,
-                  ),
-                  onChanged: (next) {
-                    final updated = [...items];
-                    updated[index] = _parseValue(schema.itemKind, next);
-                    onChanged(updated);
-                  },
-                ),
+                child: schema.itemSchema == null
+                    ? TextFormField(
+                        initialValue: _displayValue(items[index]),
+                        decoration: InputDecoration(
+                          labelText: '${schema.label} ${index + 1}',
+                          suffixIcon:
+                              schema.itemKind == DartDataInputKind.filePath
+                              ? const Icon(Icons.folder_open_outlined)
+                              : null,
+                        ),
+                        onChanged: (next) {
+                          final updated = [...items];
+                          updated[index] = _parseValue(schema.itemKind, next);
+                          onChanged(updated);
+                        },
+                      )
+                    : DartDataInput(
+                        key: ValueKey('${schema.label}-$index'),
+                        schema: schema.itemSchema!,
+                        value: items[index],
+                        onChanged: (next) {
+                          final updated = [...items];
+                          updated[index] = next;
+                          onChanged(updated);
+                        },
+                      ),
               ),
               IconButton(
                 tooltip: 'Duplicate item',

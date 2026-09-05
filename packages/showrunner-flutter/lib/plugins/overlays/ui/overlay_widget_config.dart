@@ -355,6 +355,446 @@ const _shaderLayerConfig = DartDataInputSchema(
   ],
 );
 
+const _overlayEdgeFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'top',
+    label: 'Top',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'bottom',
+    label: 'Bottom',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'left',
+    label: 'Left',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'right',
+    label: 'Right',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+];
+
+const _overlayBorderRadiusFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'topLeft',
+    label: 'Top Left',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'topRight',
+    label: 'Top Right',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'bottomLeft',
+    label: 'Bottom Left',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'bottomRight',
+    label: 'Bottom Right',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+];
+
+const _overlayStrokeFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'width',
+    label: 'Width',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 4,
+  ),
+  DartDataInputSchema(
+    key: 'color',
+    label: 'Color',
+    kind: DartDataInputKind.color,
+    required: true,
+    defaultValue: '#000000',
+  ),
+];
+
+const _overlayShadowFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'offsetX',
+    label: 'Offset X',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'offsetY',
+    label: 'Offset Y',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'blur',
+    label: 'Blur',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'color',
+    label: 'Color',
+    kind: DartDataInputKind.color,
+    required: true,
+    defaultValue: '#000000',
+  ),
+];
+
+const _overlayTextStyleFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'fontSize',
+    label: 'Font Size',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 65,
+  ),
+  DartDataInputSchema(
+    key: 'fontColor',
+    label: 'Font Color',
+    kind: DartDataInputKind.color,
+    required: true,
+    defaultValue: '#FFFFFF',
+  ),
+  DartDataInputSchema(
+    key: 'fontFamily',
+    label: 'Font Family',
+    kind: DartDataInputKind.text,
+    required: true,
+    defaultValue: 'Impact',
+  ),
+  DartDataInputSchema(
+    key: 'fontWeight',
+    label: 'Font Weight',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 300,
+  ),
+  DartDataInputSchema(
+    key: 'stroke',
+    label: 'Stroke',
+    kind: DartDataInputKind.object,
+    fields: _overlayStrokeFields,
+    defaultValue: <String, dynamic>{'width': 4, 'color': '#000000'},
+  ),
+  DartDataInputSchema(
+    key: 'shadow',
+    label: 'Shadow',
+    kind: DartDataInputKind.object,
+    fields: _overlayShadowFields,
+  ),
+];
+
+const _overlayBlockStyleFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'margin',
+    label: 'Margin',
+    kind: DartDataInputKind.object,
+    fields: _overlayEdgeFields,
+    defaultValue: <String, dynamic>{
+      'top': 0,
+      'bottom': 0,
+      'left': 0,
+      'right': 0,
+    },
+  ),
+  DartDataInputSchema(
+    key: 'padding',
+    label: 'Padding',
+    kind: DartDataInputKind.object,
+    fields: _overlayEdgeFields,
+    defaultValue: <String, dynamic>{
+      'top': 0,
+      'bottom': 0,
+      'left': 0,
+      'right': 0,
+    },
+  ),
+  DartDataInputSchema(
+    key: 'horizontalAlign',
+    label: 'Horizontal Align',
+    kind: DartDataInputKind.enumeration,
+    required: true,
+    options: ['left', 'center', 'right'],
+    defaultValue: 'left',
+  ),
+  DartDataInputSchema(
+    key: 'verticalAlign',
+    label: 'Vertical Align',
+    kind: DartDataInputKind.enumeration,
+    required: true,
+    options: ['top', 'center', 'bottom'],
+    defaultValue: 'top',
+  ),
+];
+
+const _overlayBackgroundStyleFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'color',
+    label: 'Color',
+    kind: DartDataInputKind.color,
+  ),
+  DartDataInputSchema(
+    key: 'elements',
+    label: 'Background Elements (JSON)',
+    kind: DartDataInputKind.array,
+    itemKind: DartDataInputKind.object,
+  ),
+];
+
+const _overlayOutlineFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'color',
+    label: 'Color',
+    kind: DartDataInputKind.color,
+    required: true,
+    defaultValue: '#000000',
+  ),
+  DartDataInputSchema(
+    key: 'style',
+    label: 'Style',
+    kind: DartDataInputKind.enumeration,
+    required: true,
+    options: ['solid', 'dotted', 'dashed'],
+    defaultValue: 'solid',
+  ),
+  DartDataInputSchema(
+    key: 'width',
+    label: 'Width',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 10,
+  ),
+];
+
+const _overlayTransitionFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'duration',
+    label: 'Duration Seconds',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 1,
+  ),
+  DartDataInputSchema(
+    key: 'preset',
+    label: 'Preset',
+    kind: DartDataInputKind.text,
+    required: true,
+    defaultValue: 'Fade',
+  ),
+];
+
+const _overlayTextAlignFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'textAlign',
+    label: 'Text Align',
+    kind: DartDataInputKind.enumeration,
+    required: true,
+    options: ['left', 'center', 'right', 'justify'],
+    defaultValue: 'center',
+  ),
+];
+
+const _overlayRangeFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'min',
+    label: 'Minimum',
+    kind: DartDataInputKind.number,
+  ),
+  DartDataInputSchema(
+    key: 'max',
+    label: 'Maximum',
+    kind: DartDataInputKind.number,
+  ),
+];
+
+const _defaultOverlayTextStyle = <String, dynamic>{
+  'fontSize': 65,
+  'fontColor': '#FFFFFF',
+  'fontFamily': 'Impact',
+  'fontWeight': 300,
+  'stroke': {'width': 4, 'color': '#000000'},
+};
+
+const _defaultOverlayBlockStyle = <String, dynamic>{
+  'margin': {'top': 0, 'bottom': 0, 'left': 0, 'right': 0},
+  'padding': {'top': 0, 'bottom': 0, 'left': 0, 'right': 0},
+  'horizontalAlign': 'left',
+  'verticalAlign': 'top',
+};
+
+const _defaultOverlayTransition = <String, dynamic>{
+  'duration': 1,
+  'preset': 'Fade',
+};
+
+const _overlayAlertTextBoxFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'font',
+    label: 'Font',
+    kind: DartDataInputKind.object,
+    fields: _overlayTextStyleFields,
+    defaultValue: _defaultOverlayTextStyle,
+  ),
+  DartDataInputSchema(
+    key: 'textAlign',
+    label: 'Text Align',
+    kind: DartDataInputKind.object,
+    fields: _overlayTextAlignFields,
+    defaultValue: <String, dynamic>{'textAlign': 'center'},
+  ),
+  DartDataInputSchema(
+    key: 'block',
+    label: 'Block Style',
+    kind: DartDataInputKind.object,
+    fields: _overlayBlockStyleFields,
+    defaultValue: _defaultOverlayBlockStyle,
+  ),
+  DartDataInputSchema(
+    key: 'transition',
+    label: 'Transition',
+    kind: DartDataInputKind.object,
+    fields: _overlayTransitionFields,
+    defaultValue: _defaultOverlayTransition,
+  ),
+  DartDataInputSchema(
+    key: 'appearDelay',
+    label: 'Appear Delay Seconds',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'vanishAdvance',
+    label: 'Vanish Advance Seconds',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+];
+
+const _overlayAlertMediaFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'media',
+    label: 'Media File',
+    kind: DartDataInputKind.filePath,
+    required: true,
+  ),
+  DartDataInputSchema(
+    key: 'duration',
+    label: 'Duration Seconds',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 4,
+  ),
+  DartDataInputSchema(
+    key: 'weight',
+    label: 'Random Weight',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 1,
+  ),
+];
+
+const _overlayLeaderboardVariableFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'variable',
+    label: 'Viewer Variable',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    key: 'font',
+    label: 'Font',
+    kind: DartDataInputKind.object,
+    fields: _overlayTextStyleFields,
+    defaultValue: _defaultOverlayTextStyle,
+  ),
+  DartDataInputSchema(
+    key: 'textAlign',
+    label: 'Text Align',
+    kind: DartDataInputKind.object,
+    fields: _overlayTextAlignFields,
+    defaultValue: <String, dynamic>{'textAlign': 'left'},
+  ),
+  DartDataInputSchema(
+    key: 'background',
+    label: 'Background',
+    kind: DartDataInputKind.object,
+    fields: _overlayBackgroundStyleFields,
+    defaultValue: <String, dynamic>{'elements': []},
+  ),
+  DartDataInputSchema(
+    key: 'block',
+    label: 'Block',
+    kind: DartDataInputKind.object,
+    fields: _overlayBlockStyleFields,
+    defaultValue: _defaultOverlayBlockStyle,
+  ),
+];
+
+const _overlayLauncherFields = <DartDataInputSchema>[
+  DartDataInputSchema(
+    key: 'x',
+    label: 'X Position',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'y',
+    label: 'Y Position',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'angle',
+    label: 'Angle',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 0,
+  ),
+  DartDataInputSchema(
+    key: 'spread',
+    label: 'Angle Spread',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 20,
+  ),
+  DartDataInputSchema(
+    key: 'velocity',
+    label: 'Velocity Range',
+    kind: DartDataInputKind.object,
+    fields: _overlayRangeFields,
+    defaultValue: <String, dynamic>{'min': 0, 'max': 0.4},
+  ),
+];
+
 const _barConfig = DartDataInputSchema(
   label: 'Configuration',
   kind: DartDataInputKind.object,
@@ -383,30 +823,36 @@ const _barConfig = DartDataInputSchema(
     ),
     DartDataInputSchema(
       key: 'outerRadius',
-      label: 'Outer Corners (JSON)',
+      label: 'Outer Corners',
       kind: DartDataInputKind.object,
+      fields: _overlayBorderRadiusFields,
+      defaultValue: <String, dynamic>{},
     ),
     DartDataInputSchema(
       key: 'backgroundStyle',
-      label: 'Background Style (JSON)',
+      label: 'Background Style',
       kind: DartDataInputKind.object,
+      fields: _overlayBackgroundStyleFields,
       defaultValue: <String, dynamic>{'color': '#FF0000', 'elements': []},
     ),
     DartDataInputSchema(
       key: 'outline',
-      label: 'Outline (JSON)',
+      label: 'Outline',
       kind: DartDataInputKind.object,
+      fields: _overlayOutlineFields,
     ),
     DartDataInputSchema(
       key: 'fillStyle',
-      label: 'Fill Style (JSON)',
+      label: 'Fill Style',
       kind: DartDataInputKind.object,
+      fields: _overlayBackgroundStyleFields,
       defaultValue: <String, dynamic>{'color': '#00FF00', 'elements': []},
     ),
     DartDataInputSchema(
       key: 'fillLine',
-      label: 'Fill Line (JSON)',
+      label: 'Fill Line',
       kind: DartDataInputKind.object,
+      fields: _overlayOutlineFields,
     ),
   ],
 );
@@ -419,7 +865,11 @@ const _alertConfig = DartDataInputSchema(
       key: 'media',
       label: 'Alert Media',
       kind: DartDataInputKind.array,
-      itemKind: DartDataInputKind.object,
+      itemSchema: DartDataInputSchema(
+        label: 'Media Item',
+        kind: DartDataInputKind.object,
+        fields: _overlayAlertMediaFields,
+      ),
     ),
     DartDataInputSchema(
       key: 'textBelowMedia',
@@ -430,18 +880,38 @@ const _alertConfig = DartDataInputSchema(
     ),
     DartDataInputSchema(
       key: 'transition',
-      label: 'Transition (JSON)',
+      label: 'Transition',
       kind: DartDataInputKind.object,
+      fields: _overlayTransitionFields,
+      defaultValue: _defaultOverlayTransition,
     ),
     DartDataInputSchema(
       key: 'title',
-      label: 'Title Style (JSON)',
+      label: 'Title Style',
       kind: DartDataInputKind.object,
+      fields: _overlayAlertTextBoxFields,
+      defaultValue: <String, dynamic>{
+        'font': _defaultOverlayTextStyle,
+        'textAlign': {'textAlign': 'center'},
+        'block': _defaultOverlayBlockStyle,
+        'transition': _defaultOverlayTransition,
+        'appearDelay': 0,
+        'vanishAdvance': 0,
+      },
     ),
     DartDataInputSchema(
       key: 'subtitle',
-      label: 'Subtitle Style (JSON)',
+      label: 'Subtitle Style',
       kind: DartDataInputKind.object,
+      fields: _overlayAlertTextBoxFields,
+      defaultValue: <String, dynamic>{
+        'font': _defaultOverlayTextStyle,
+        'textAlign': {'textAlign': 'center'},
+        'block': _defaultOverlayBlockStyle,
+        'transition': _defaultOverlayTransition,
+        'appearDelay': 0,
+        'vanishAdvance': 0,
+      },
     ),
   ],
 );
@@ -474,27 +944,39 @@ const _leaderboardConfig = DartDataInputSchema(
       key: 'variables',
       label: 'Display Variables',
       kind: DartDataInputKind.array,
-      itemKind: DartDataInputKind.object,
+      itemSchema: DartDataInputSchema(
+        label: 'Display Variable',
+        kind: DartDataInputKind.object,
+        fields: _overlayLeaderboardVariableFields,
+      ),
     ),
     DartDataInputSchema(
       key: 'nameFont',
-      label: 'Name Font (JSON)',
+      label: 'Name Font',
       kind: DartDataInputKind.object,
+      fields: _overlayTextStyleFields,
+      defaultValue: _defaultOverlayTextStyle,
     ),
     DartDataInputSchema(
       key: 'nameTextAlign',
-      label: 'Name Alignment (JSON)',
+      label: 'Name Alignment',
       kind: DartDataInputKind.object,
+      fields: _overlayTextAlignFields,
+      defaultValue: <String, dynamic>{'textAlign': 'left'},
     ),
     DartDataInputSchema(
       key: 'nameBackground',
-      label: 'Name Background (JSON)',
+      label: 'Name Background',
       kind: DartDataInputKind.object,
+      fields: _overlayBackgroundStyleFields,
+      defaultValue: <String, dynamic>{'elements': []},
     ),
     DartDataInputSchema(
       key: 'nameBlock',
-      label: 'Name Block (JSON)',
+      label: 'Name Block',
       kind: DartDataInputKind.object,
+      fields: _overlayBlockStyleFields,
+      defaultValue: _defaultOverlayBlockStyle,
     ),
   ],
 );
@@ -505,14 +987,16 @@ const _emoteBouncerConfig = DartDataInputSchema(
   fields: [
     DartDataInputSchema(
       key: 'lifeTime',
-      label: 'Emote Life Time (JSON range)',
+      label: 'Emote Life Time',
       kind: DartDataInputKind.object,
+      fields: _overlayRangeFields,
       defaultValue: <String, dynamic>{'min': 7, 'max': 7},
     ),
     DartDataInputSchema(
       key: 'emoteSize',
-      label: 'Emote Size (JSON range)',
+      label: 'Emote Size',
       kind: DartDataInputKind.object,
+      fields: _overlayRangeFields,
       defaultValue: <String, dynamic>{'min': 80, 'max': 80},
     ),
     DartDataInputSchema(
@@ -578,7 +1062,11 @@ const _emoteBouncerConfig = DartDataInputSchema(
       key: 'launchers',
       label: 'Launchers',
       kind: DartDataInputKind.array,
-      itemKind: DartDataInputKind.object,
+      itemSchema: DartDataInputSchema(
+        label: 'Launcher',
+        kind: DartDataInputKind.object,
+        fields: _overlayLauncherFields,
+      ),
     ),
   ],
 );

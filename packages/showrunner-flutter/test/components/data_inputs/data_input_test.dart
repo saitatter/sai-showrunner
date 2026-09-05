@@ -148,4 +148,47 @@ void main() {
       {'id': 'segment-1'},
     ]);
   });
+
+  testWidgets('edits typed object items inside an array input', (tester) async {
+    dynamic value;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DartDataInput(
+            schema: const DartDataInputSchema(
+              label: 'Launchers',
+              kind: DartDataInputKind.array,
+              itemSchema: DartDataInputSchema(
+                label: 'Launcher',
+                kind: DartDataInputKind.object,
+                fields: [
+                  DartDataInputSchema(
+                    key: 'x',
+                    label: 'X',
+                    kind: DartDataInputKind.number,
+                  ),
+                  DartDataInputSchema(
+                    key: 'angle',
+                    label: 'Angle',
+                    kind: DartDataInputKind.number,
+                  ),
+                ],
+              ),
+            ),
+            value: const [
+              {'x': 0, 'angle': 20},
+            ],
+            onChanged: (next) => value = next,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Launcher'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, '42');
+
+    expect(value, [
+      {'x': 42, 'angle': 20},
+    ]);
+  });
 }
