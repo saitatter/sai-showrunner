@@ -205,7 +205,7 @@ class _GraphSpikePageState extends State<GraphSpikePage> {
           ? restoredTabs
                 .whereType<num>()
                 .map((value) => value.toInt())
-                .where((value) => value >= 0 && value <= 11)
+                .where((value) => value >= 0 && value <= 12)
                 .toSet()
                 .toList()
           : <int>[];

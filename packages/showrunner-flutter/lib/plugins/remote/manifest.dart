@@ -112,6 +112,11 @@ DartPluginManifest createRemotePlugin({
       displayName: 'Bind port',
       defaultValue: 8390,
     ),
+    DartSettingDefinition(
+      id: 'apiBase',
+      displayName: 'Remote dashboard API base URL',
+      defaultValue: 'https://api.ShowRunner.io',
+    ),
   ],
   states: const [
     DartPluginStateDefinition(

@@ -16,6 +16,7 @@ import '../features/profile/profile_workspace.dart';
 import '../features/queue/queue_workspace.dart';
 import '../features/resources/resources_workspace.dart';
 import '../features/support/support_workspaces.dart';
+import '../features/remote/remote_workspace.dart';
 import '../plugins/runtime/provider_event_workers.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../features/resources/resource_editor_registry.dart';
@@ -186,6 +187,10 @@ class ShowRunnerShell extends StatelessWidget {
                 icon: Icon(Icons.data_object),
                 label: Text('Variables'),
               ),
+              NavigationRailDestination(
+                icon: Icon(Icons.public),
+                label: Text('Remote'),
+              ),
             ],
           ),
           const VerticalDivider(width: 1),
@@ -296,6 +301,7 @@ class ShowRunnerShell extends StatelessWidget {
         dataService: dataService,
         eventHub: providerEvents.eventHub,
       ),
+      12 => RemoteWorkspace(dataService: dataService),
       _ => const LogsWorkspace(),
     };
   }
@@ -712,6 +718,7 @@ String _workspaceLabel(int index) => switch (index) {
   9 => 'Settings',
   10 => 'Setup',
   11 => 'Variables',
+  12 => 'Remote',
   _ => 'Workspace',
 };
 
@@ -728,5 +735,6 @@ IconData _workspaceIcon(int index) => switch (index) {
   9 => Icons.settings,
   10 => Icons.rocket_launch,
   11 => Icons.data_object,
+  12 => Icons.public,
   _ => Icons.dashboard,
 };
