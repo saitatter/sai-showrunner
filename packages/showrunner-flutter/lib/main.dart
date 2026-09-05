@@ -97,6 +97,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
   late final FlutterInterfacePreferences _interfacePreferences;
   AutomationData? _activeAutomation;
   String? _activeAutomationFile;
+  DartPluginRegistry? _stateRegistry;
+  bool _disposed = false;
   int _selectedIndex = 0;
   String _selectedPluginId = 'obs';
   final _openTabIndices = <int>[0];
@@ -131,6 +133,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
       eventHub: _eventHub,
       viewerDataRepository: _viewerDataRepository,
     );
+    unawaited(_bindProviderStateDiagnostics());
     _profileRuntimeFuture = _pluginRegistryFuture.then(
       (registry) => DartProfileRuntime(registry: registry),
     );
@@ -145,6 +148,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
 
   @override
   void dispose() {
+    _disposed = true;
+    _providerEvents.removeListener(_syncProviderStateDiagnostics);
+    _stateRegistry = null;
     _graphEditor.dispose();
     _actionQueue.dispose();
     unawaited(_pluginRegistryFuture.then((registry) => registry.close()));
@@ -153,6 +159,29 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
     unawaited(_eventHub.dispose());
     _interfacePreferences.dispose();
     super.dispose();
+  }
+
+  Future<void> _bindProviderStateDiagnostics() async {
+    final registry = await _pluginRegistryFuture;
+    if (_disposed) return;
+    _stateRegistry = registry;
+    _providerEvents.addListener(_syncProviderStateDiagnostics);
+    _syncProviderStateDiagnostics();
+  }
+
+  void _syncProviderStateDiagnostics() {
+    final registry = _stateRegistry;
+    if (registry == null) return;
+    registry.updateState(
+      'twitch',
+      'connection',
+      _providerEvents.twitchState.label,
+    );
+    registry.updateState(
+      'youtube',
+      'connection',
+      _providerEvents.youtubeState.label,
+    );
   }
 
   @override
