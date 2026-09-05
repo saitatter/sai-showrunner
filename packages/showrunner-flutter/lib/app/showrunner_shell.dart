@@ -98,7 +98,7 @@ class ShowRunnerShell extends StatelessWidget {
     final selectedTab = tabs.indexOf(selectedIndex);
     final shell = Scaffold(
       appBar: AppBar(
-        title: const Text('ShowRunner / Flutter'),
+        title: const Text('ShowRunner'),
         actions: [
           IconButton(
             tooltip: 'Frame selected nodes',
