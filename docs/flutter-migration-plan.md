@@ -134,7 +134,9 @@ transport, including vertical scene, stream, recording, backtrack, and chapter a
 Advanced Scene Switcher messages and vendor events are also bridged through the
 shared OBS transport and Dart event hub.
 Remote button trigger handling is available through a configurable Dart HTTP
-server at `/buttons/press`, with explicit runtime shutdown.
+server at `/buttons` and `/buttons/press`; `/buttons` enumerates direct and graph
+trigger names from persisted profiles, with explicit runtime shutdown and live
+server-state diagnostics.
 VoiceMod is registered with a real lazy WebSocket transport for voice listing
 and voice selection, including RPC cleanup on shutdown.
 Flutter now also exposes a Remote workspace that authenticates discovery with
@@ -518,8 +520,8 @@ For each surface:
 	chapter actions over the shared OBS vendor-request transport.
 - [x] Port DonorDrive participant polling, donation/incentive/milestone events,
 	and persisted polling settings with runtime shutdown.
-- [x] Port the Remote `/buttons/press` HTTP trigger endpoint and configurable
-	server lifecycle into Dart.
+- [x] Port the Remote `/buttons` and `/buttons/press` HTTP trigger endpoints,
+  persisted profile enumeration, and configurable server lifecycle into Dart.
 - [x] Port VoiceMod voice listing and selection over its local WebSocket API,
 	with lazy connection and RPC cleanup.
 - [x] Add persisted Light and Plug resource settings for the migrated IoT
