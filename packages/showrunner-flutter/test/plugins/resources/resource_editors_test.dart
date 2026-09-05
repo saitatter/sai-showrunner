@@ -333,6 +333,8 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('Add widget'));
     await tester.pump();
+    await tester.tap(find.text('Label').last);
+    await tester.pump();
     await tester.tap(find.text('Save'));
     await tester.pump();
 
@@ -347,6 +349,51 @@ void main() {
     expect(widget['widget'], 'label');
     expect(widget['size'], {'width': 4, 'height': 1});
     expect(widget['config'], {'label': 'New widget', 'color': '#000000'});
+  });
+
+  testWidgets('dashboard editor adds a typed remote button widget', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Dashboard')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(id: 'dashboard-button', config: {'name': 'Studio'}),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    await tester.tap(find.byTooltip('Add page'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Add section'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Add widget'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remote Button'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('button'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Remote Button Trigger Name'), findsOneWidget);
+    expect(find.text('Display Name'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Save').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final page = (saved!.config['pages'] as List).single as Map;
+    final section = (page['sections'] as List).single as Map;
+    final widget = (section['widgets'] as List).single as Map;
+    expect(widget['plugin'], 'remote');
+    expect(widget['widget'], 'button');
+    expect(widget['size'], {'width': 2, 'height': 2});
+    expect(widget['config'], {
+      'triggerName': '',
+      'displayName': 'Button',
+      'color': '#FF0000',
+    });
   });
 
   testWidgets('dashboard editor preserves sharing, slots, and widget config', (
@@ -447,8 +494,8 @@ void main() {
                   'widgets': [
                     {
                       'id': 'widget-1',
-                      'plugin': 'dashboards',
-                      'widget': 'label',
+                      'plugin': 'legacy',
+                      'widget': 'custom',
                       'config': {'label': 'Alert'},
                     },
                   ],

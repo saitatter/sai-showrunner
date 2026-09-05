@@ -12,6 +12,7 @@ import 'color_field.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../plugins/sound/ui/tts_voice_provider_picker.dart';
 import '../../plugins/overlays/ui/overlay_widget_config.dart';
+import '../../plugins/dashboards/ui/dashboard_widget_config.dart';
 
 List<JsonMap> _maps(Object? value) => value is List
     ? value
@@ -1701,15 +1702,7 @@ class _DashboardEditorState extends State<_DashboardEditor> {
               ),
               IconButton(
                 tooltip: 'Add widget',
-                onPressed: () => setState(
-                  () => widgets.add({
-                    'id': _newDashboardId('widget'),
-                    'plugin': 'dashboards',
-                    'widget': 'label',
-                    'size': {'width': 4, 'height': 1},
-                    'config': {'label': 'New widget', 'color': '#000000'},
-                  }),
-                ),
+                onPressed: () => _addWidget(widgets),
                 icon: const Icon(Icons.widgets_outlined),
               ),
             ],
@@ -1757,6 +1750,31 @@ class _DashboardEditorState extends State<_DashboardEditor> {
     );
     if (slot != null && mounted) setState(() => _resourceSlots.add(slot));
   }
+
+  Future<void> _addWidget(List<JsonMap> widgets) async {
+    final definition = await showDialog<DashboardWidgetDefinition>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Add dashboard widget'),
+        children: [
+          for (final option in dashboardWidgetDefinitions)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(option),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.widgets_outlined),
+                title: Text(option.name),
+                subtitle: Text('${option.plugin}.${option.widget}'),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (definition == null || !mounted) return;
+    setState(
+      () => widgets.add(definition.createWidget(id: _newDashboardId('widget'))),
+    );
+  }
 }
 
 class _DashboardWidgetDialog extends StatefulWidget {
@@ -1774,6 +1792,7 @@ class _DashboardWidgetDialogState extends State<_DashboardWidgetDialog> {
   late final TextEditingController _width;
   late final TextEditingController _height;
   late final TextEditingController _config;
+  late JsonMap _configValue;
   String? _error;
 
   @override
@@ -1790,10 +1809,11 @@ class _DashboardWidgetDialogState extends State<_DashboardWidgetDialog> {
     );
     _width = TextEditingController(text: '${size['width'] ?? 4}');
     _height = TextEditingController(text: '${size['height'] ?? 1}');
+    _configValue = widget.widget['config'] is Map
+        ? Map<String, dynamic>.from(widget.widget['config'] as Map)
+        : <String, dynamic>{};
     _config = TextEditingController(
-      text: const JsonEncoder.withIndent(
-        '  ',
-      ).convert(widget.widget['config'] is Map ? widget.widget['config'] : {}),
+      text: const JsonEncoder.withIndent('  ').convert(_configValue),
     );
   }
 
@@ -1817,10 +1837,12 @@ class _DashboardWidgetDialogState extends State<_DashboardWidgetDialog> {
             TextField(
               controller: _plugin,
               decoration: const InputDecoration(labelText: 'Plugin'),
+              onChanged: (_) => setState(() {}),
             ),
             TextField(
               controller: _widget,
               decoration: const InputDecoration(labelText: 'Widget'),
+              onChanged: (_) => setState(() {}),
             ),
             Row(
               children: [
@@ -1841,13 +1863,7 @@ class _DashboardWidgetDialogState extends State<_DashboardWidgetDialog> {
                 ),
               ],
             ),
-            TextField(
-              controller: _config,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: 'Widget config JSON',
-              ),
-            ),
+            _configEditor(),
             if (_error != null)
               Text(
                 _error!,
@@ -1867,16 +1883,26 @@ class _DashboardWidgetDialogState extends State<_DashboardWidgetDialog> {
   );
 
   void _save() {
-    dynamic decoded;
-    try {
-      decoded = jsonDecode(_config.text);
-    } on FormatException {
-      setState(() => _error = 'Widget config must be valid JSON.');
-      return;
-    }
-    if (decoded is! Map) {
-      setState(() => _error = 'Widget config must be a JSON object.');
-      return;
+    final definition = findDashboardWidgetDefinition(
+      _plugin.text.trim(),
+      _widget.text.trim(),
+    );
+    JsonMap config;
+    if (definition != null) {
+      config = _configValue;
+    } else {
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(_config.text);
+      } on FormatException {
+        setState(() => _error = 'Widget config must be valid JSON.');
+        return;
+      }
+      if (decoded is! Map) {
+        setState(() => _error = 'Widget config must be a JSON object.');
+        return;
+      }
+      config = Map<String, dynamic>.from(decoded);
     }
     Navigator.pop(context, {
       ...widget.widget,
@@ -1886,8 +1912,32 @@ class _DashboardWidgetDialogState extends State<_DashboardWidgetDialog> {
         'width': int.tryParse(_width.text) ?? 4,
         'height': int.tryParse(_height.text) ?? 1,
       },
-      'config': Map<String, dynamic>.from(decoded),
+      'config': config,
     });
+  }
+
+  Widget _configEditor() {
+    final definition = findDashboardWidgetDefinition(
+      _plugin.text.trim(),
+      _widget.text.trim(),
+    );
+    if (definition == null) {
+      return TextField(
+        controller: _config,
+        maxLines: 8,
+        decoration: const InputDecoration(labelText: 'Widget config JSON'),
+      );
+    }
+    return DartDataInput(
+      key: ValueKey('${definition.plugin}.${definition.widget}'),
+      schema: definition.configSchema,
+      value: _configValue,
+      onChanged: (value) {
+        if (value is Map) {
+          setState(() => _configValue = Map<String, dynamic>.from(value));
+        }
+      },
+    );
   }
 }
 
