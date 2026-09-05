@@ -32,6 +32,12 @@ class ShowRunnerProjectPanel extends StatefulWidget {
     this.onOpenProfile,
     this.onResourceSelected,
     this.onOpenResource,
+    this.onRenameAutomation,
+    this.onDeleteAutomation,
+    this.onRenameProfile,
+    this.onDeleteProfile,
+    this.onRenameResource,
+    this.onDeleteResource,
   });
 
   final int selectedIndex;
@@ -50,6 +56,19 @@ class ShowRunnerProjectPanel extends StatefulWidget {
   final ValueChanged<String>? onResourceSelected;
   final FutureOr<void> Function(ResourceData resource, String resourceType)?
   onOpenResource;
+  final FutureOr<void> Function(String fileName, String name)?
+  onRenameAutomation;
+  final FutureOr<void> Function(String fileName)? onDeleteAutomation;
+  final FutureOr<void> Function(String fileName, String name)? onRenameProfile;
+  final FutureOr<void> Function(String fileName)? onDeleteProfile;
+  final FutureOr<void> Function(
+    ResourceData resource,
+    String resourceType,
+    String name,
+  )?
+  onRenameResource;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onDeleteResource;
 
   @override
   State<ShowRunnerProjectPanel> createState() => _ShowRunnerProjectPanelState();
@@ -119,6 +138,24 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
     }
   };
 
+  FutureOr<void> Function(String name)? _resourceRename(
+    ProjectResourceCatalogEntry entry,
+  ) {
+    final callback = widget.onRenameResource;
+    return callback == null
+        ? null
+        : (name) => callback(entry.resource, entry.resourceType, name);
+  }
+
+  FutureOr<void> Function()? _resourceDelete(
+    ProjectResourceCatalogEntry entry,
+  ) {
+    final callback = widget.onDeleteResource;
+    return callback == null
+        ? null
+        : () => callback(entry.resource, entry.resourceType);
+  }
+
   @override
   Widget build(BuildContext context) {
     final compact = widget.preferences.compactProjectSidebar;
@@ -160,6 +197,17 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                         selected: entry.fileName == widget.activeAutomationFile,
                         indent: 1,
                         compact: compact,
+                        onRename: widget.onRenameAutomation == null
+                            ? null
+                            : (name) => widget.onRenameAutomation!.call(
+                                entry.fileName,
+                                name,
+                              ),
+                        onDelete: widget.onDeleteAutomation == null
+                            ? null
+                            : () => widget.onDeleteAutomation!.call(
+                                entry.fileName,
+                              ),
                         onTap:
                             entry.automation == null ||
                                 widget.onOpenAutomation == null
@@ -200,6 +248,16 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                         selected: false,
                         indent: 1,
                         compact: compact,
+                        onRename: widget.onRenameProfile == null
+                            ? null
+                            : (name) => widget.onRenameProfile!.call(
+                                entry.fileName,
+                                name,
+                              ),
+                        onDelete: widget.onDeleteProfile == null
+                            ? null
+                            : () =>
+                                  widget.onDeleteProfile!.call(entry.fileName),
                         onTap:
                             entry.profile == null ||
                                 widget.onOpenProfile == null
@@ -238,6 +296,8 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                         selected: false,
                         indent: 1,
                         compact: compact,
+                        onRename: _resourceRename(entry),
+                        onDelete: _resourceDelete(entry),
                         onTap: _resourceOpen(entry),
                       ),
                   ],
@@ -306,6 +366,8 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                         selected: false,
                         indent: 1,
                         compact: compact,
+                        onRename: _resourceRename(entry),
+                        onDelete: _resourceDelete(entry),
                         onTap: _resourceOpen(entry),
                       ),
                   ],
@@ -324,6 +386,8 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                         selected: false,
                         indent: 1,
                         compact: compact,
+                        onRename: _resourceRename(entry),
+                        onDelete: _resourceDelete(entry),
                         onTap: _resourceOpen(entry),
                       ),
                   ],
@@ -344,6 +408,8 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                         selected: false,
                         indent: 1,
                         compact: compact,
+                        onRename: _resourceRename(entry),
+                        onDelete: _resourceDelete(entry),
                         onTap: _resourceOpen(entry),
                       ),
                   ],
@@ -372,6 +438,8 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                         selected: false,
                         indent: 1,
                         compact: compact,
+                        onRename: _resourceRename(entry),
+                        onDelete: _resourceDelete(entry),
                         onTap: _resourceOpen(entry),
                       ),
                   ],
@@ -417,6 +485,8 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                         selected: false,
                         indent: 1,
                         compact: compact,
+                        onRename: _resourceRename(entry),
+                        onDelete: _resourceDelete(entry),
                         onTap: _resourceOpen(entry),
                       ),
                   ],
@@ -650,6 +720,8 @@ class _ProjectItemRow extends StatelessWidget {
     required this.compact,
     required this.onTap,
     this.indent = 0,
+    this.onRename,
+    this.onDelete,
   });
 
   final String title;
@@ -658,6 +730,8 @@ class _ProjectItemRow extends StatelessWidget {
   final bool compact;
   final int indent;
   final VoidCallback onTap;
+  final FutureOr<void> Function(String name)? onRename;
+  final FutureOr<void> Function()? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -668,6 +742,9 @@ class _ProjectItemRow extends StatelessWidget {
       color: selected ? ShowRunnerColors.highlight : Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        onSecondaryTap: onRename == null && onDelete == null
+            ? null
+            : () => unawaited(_showContextMenu(context)),
         hoverColor: ShowRunnerColors.highlight,
         child: SizedBox(
           height: compact ? 25 : 32,
@@ -694,6 +771,110 @@ class _ProjectItemRow extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _showContextMenu(BuildContext context) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (onRename != null)
+              ListTile(
+                leading: const Icon(Icons.drive_file_rename_outline),
+                title: const Text('Rename'),
+                onTap: () => Navigator.pop(context, 'rename'),
+              ),
+            if (onDelete != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Delete'),
+                onTap: () => Navigator.pop(context, 'delete'),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted) return;
+    if (action == 'rename' && onRename != null) {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (context) => _RenameProjectItemDialog(initialName: title),
+      );
+      if (name != null && name.trim().isNotEmpty) {
+        await onRename!(name.trim());
+      }
+    } else if (action == 'delete' && onDelete != null) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Delete $title?'),
+          content: const Text('This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) await onDelete!();
+    }
+  }
+}
+
+class _RenameProjectItemDialog extends StatefulWidget {
+  const _RenameProjectItemDialog({required this.initialName});
+
+  final String initialName;
+
+  @override
+  State<_RenameProjectItemDialog> createState() =>
+      _RenameProjectItemDialogState();
+}
+
+class _RenameProjectItemDialogState extends State<_RenameProjectItemDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialName,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Rename ${widget.initialName}'),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      onSubmitted: (value) => Navigator.pop(context, value),
+      decoration: const InputDecoration(labelText: 'Name'),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, _controller.text),
+        child: const Text('Rename'),
+      ),
+    ],
+  );
 }
 
 class ShowRunnerIntegrationTree extends StatefulWidget {

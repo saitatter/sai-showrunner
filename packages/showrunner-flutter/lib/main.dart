@@ -19,6 +19,7 @@ import 'editor/showrunner_graph_editor.dart';
 import 'persistence/automation_repository.dart';
 import 'persistence/profile_repository.dart';
 import 'persistence/queue_config_repository.dart';
+import 'persistence/resource_repository.dart';
 import 'persistence/viewer_data_repository.dart';
 import 'persistence/viewer_data_sync.dart';
 import 'plugins/registry/plugin_registry.dart';
@@ -43,6 +44,7 @@ import 'features/automation/automation_starters.dart';
 import 'features/profile/profile_workspace.dart';
 import 'features/settings/interface_preferences.dart';
 import 'features/resources/resource_options.dart';
+import 'features/resources/resource_editor_registry.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -601,6 +603,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onResourceSelected: _openResourceType,
       onOpenResource: _openResource,
       onProfileEntriesChanged: _onProjectCatalogChanged,
+      onRenameProfile: _renameProfileEntry,
+      onDeleteProfile: _deleteProfileEntry,
       onProfileDirtyChanged: (dirty) {
         if (mounted) setState(() => _profileDirty = dirty);
       },
@@ -613,6 +617,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           setState(() => _selectedPluginId = pluginId),
       onRunNode: _activeAutomation == null ? null : _runNode,
       onOpenAutomation: _openAutomation,
+      onRenameAutomation: _renameAutomationEntry,
+      onDeleteAutomationItem: _deleteAutomation,
       onRepairAutomation: _repairAutomation,
       onCreateAutomation: _createAutomation,
       onDeleteAutomation: _deleteAutomation,
@@ -620,6 +626,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           unawaited(_selectAutomationDocument(fileName)),
       onAutomationClosed: _closeAutomationDocument,
       onAutomationReordered: _reorderAutomationDocument,
+      onRenameResource: _renameResourceEntry,
+      onDeleteResource: _deleteResourceEntry,
     );
   }
 
@@ -1499,6 +1507,98 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('Created $fileName')));
+  }
+
+  Future<void> _renameAutomationEntry(String fileName, String name) async {
+    if (!_isSafeAutomationFileName(fileName)) return;
+    final file = File(
+      '${widget.dataService.userDirectory.path}/automations/$fileName',
+    );
+    final automation = await AutomationRepository(file).load();
+    if (automation == null) return;
+    await AutomationRepository(file).save(
+      AutomationData(
+        schemaVersion: automation.schemaVersion,
+        graph: automation.graph,
+        subgraphs: automation.subgraphs,
+        dataWires: automation.dataWires,
+        variableNodes: automation.variableNodes,
+        triggerNodes: automation.triggerNodes,
+        extra: {...automation.extra, 'name': name},
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _projectCatalogRevision++);
+  }
+
+  Future<void> _renameProfileEntry(String fileName, String name) async {
+    if (!_isSafeAutomationFileName(fileName)) return;
+    final file = File(
+      '${widget.dataService.userDirectory.path}/profiles/$fileName',
+    );
+    final profile = await ProfileRepository(file).load();
+    if (profile == null) return;
+    await ProfileRepository(file).save(
+      ShowRunnerProfile(
+        name: name,
+        activationMode: profile.activationMode,
+        triggers: profile.triggers,
+        activationCondition: profile.activationCondition,
+        activationAutomation: profile.activationAutomation,
+        deactivationAutomation: profile.deactivationAutomation,
+        extra: profile.extra,
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _projectCatalogRevision++);
+  }
+
+  Future<void> _deleteProfileEntry(String fileName) async {
+    if (!_isSafeAutomationFileName(fileName)) return;
+    final file = File(
+      '${widget.dataService.userDirectory.path}/profiles/$fileName',
+    );
+    if (await file.exists()) await file.delete();
+    if (!mounted) return;
+    setState(() => _projectCatalogRevision++);
+  }
+
+  Future<void> _renameResourceEntry(
+    ResourceData resource,
+    String resourceType,
+    String name,
+  ) async {
+    if (!_isSafeResourceId(resource.id)) return;
+    final definition = createDefaultResourceEditorRegistry().find(resourceType);
+    if (definition == null) return;
+    final updated = ResourceData(
+      id: resource.id,
+      config: {...resource.config, 'name': name},
+      state: resource.state,
+    );
+    await ResourceRepository(
+      Directory(
+        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
+      ),
+    ).save(updated);
+    if (!mounted) return;
+    setState(() => _projectCatalogRevision++);
+  }
+
+  Future<void> _deleteResourceEntry(
+    ResourceData resource,
+    String resourceType,
+  ) async {
+    if (!_isSafeResourceId(resource.id)) return;
+    final definition = createDefaultResourceEditorRegistry().find(resourceType);
+    if (definition == null) return;
+    await ResourceRepository(
+      Directory(
+        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
+      ),
+    ).delete(resource.id);
+    if (!mounted) return;
+    setState(() => _projectCatalogRevision++);
   }
 
   Future<void> _deleteAutomation(String fileName) async {

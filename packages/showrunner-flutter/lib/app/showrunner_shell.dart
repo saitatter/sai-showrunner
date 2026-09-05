@@ -63,6 +63,8 @@ class ShowRunnerShell extends StatelessWidget {
     required this.onDestinationSelected,
     required this.onRunNode,
     required this.onOpenAutomation,
+    this.onRenameAutomation,
+    this.onDeleteAutomationItem,
     required this.onRepairAutomation,
     required this.onCreateAutomation,
     required this.onDeleteAutomation,
@@ -80,11 +82,15 @@ class ShowRunnerShell extends StatelessWidget {
     this.profileDirty = false,
     this.onProfileDirtyChanged,
     this.onProfileEntriesChanged,
+    this.onRenameProfile,
+    this.onDeleteProfile,
     this.projectCatalogRevision = 0,
     this.selectedResourceType,
     this.selectedResourceId,
     this.onResourceSelected,
     this.onOpenResource,
+    this.onRenameResource,
+    this.onDeleteResource,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -109,6 +115,9 @@ class ShowRunnerShell extends StatelessWidget {
   final Future<void> Function(String schemaNodeId)? onRunNode;
   final FutureOr<void> Function(AutomationData automation, String fileName)
   onOpenAutomation;
+  final FutureOr<void> Function(String fileName, String name)?
+  onRenameAutomation;
+  final FutureOr<void> Function(String fileName)? onDeleteAutomationItem;
   final Future<void> Function(AutomationData automation, String fileName)
   onRepairAutomation;
   final Future<void> Function() onCreateAutomation;
@@ -127,12 +136,22 @@ class ShowRunnerShell extends StatelessWidget {
   final bool profileDirty;
   final ValueChanged<bool>? onProfileDirtyChanged;
   final VoidCallback? onProfileEntriesChanged;
+  final FutureOr<void> Function(String fileName, String name)? onRenameProfile;
+  final FutureOr<void> Function(String fileName)? onDeleteProfile;
   final int projectCatalogRevision;
   final String? selectedResourceType;
   final String? selectedResourceId;
   final ValueChanged<String>? onResourceSelected;
   final FutureOr<void> Function(ResourceData resource, String resourceType)?
   onOpenResource;
+  final FutureOr<void> Function(
+    ResourceData resource,
+    String resourceType,
+    String name,
+  )?
+  onRenameResource;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onDeleteResource;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -174,8 +193,14 @@ class ShowRunnerShell extends StatelessWidget {
                       catalogRevision: projectCatalogRevision,
                       activeAutomationFile: activeAutomationFile,
                       onOpenAutomation: onOpenAutomation,
+                      onRenameAutomation: onRenameAutomation,
+                      onDeleteAutomation: onDeleteAutomationItem,
+                      onRenameProfile: onRenameProfile,
+                      onDeleteProfile: onDeleteProfile,
                       onResourceSelected: onResourceSelected,
                       onOpenResource: onOpenResource,
+                      onRenameResource: onRenameResource,
+                      onDeleteResource: onDeleteResource,
                       onOpenProfile: (fileName) {
                         onDestinationSelected(4);
                         return profileController?.openProfile(fileName);
