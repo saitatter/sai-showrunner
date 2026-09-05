@@ -323,27 +323,182 @@ class _RemoteButtonWidgetState extends State<_RemoteButtonWidget> {
   Widget build(BuildContext context) {
     final color = _color(widget.widget.config['color'], Colors.red);
     final label = widget.widget.config['displayName']?.toString() ?? 'Button';
+    return RemoteDashboardButtonSurface(
+      label: label,
+      color: color,
+      busy: _busy,
+      errorMessage: _error?.toString(),
+      onPressed: _busy ? null : _press,
+    );
+  }
+}
+
+/// Raised dashboard button surface used by remote runtime widgets.
+///
+/// The dashboard button has a visible lower shadow and moves its front layer
+/// while pressed. Keeping that treatment in a standalone widget makes the
+/// runtime behavior reusable and keeps the interaction testable without a
+/// live WebRTC connection.
+class RemoteDashboardButtonSurface extends StatefulWidget {
+  const RemoteDashboardButtonSurface({
+    super.key,
+    required this.label,
+    required this.color,
+    this.busy = false,
+    this.errorMessage,
+    this.onPressed,
+  });
+
+  final String label;
+  final Color color;
+  final bool busy;
+  final String? errorMessage;
+  final Future<void> Function()? onPressed;
+
+  @override
+  State<RemoteDashboardButtonSurface> createState() =>
+      _RemoteDashboardButtonSurfaceState();
+}
+
+class _RemoteDashboardButtonSurfaceState
+    extends State<RemoteDashboardButtonSurface> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (widget.onPressed == null || widget.busy || _pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  Future<void> _handlePressed() async {
+    if (widget.onPressed == null || widget.busy) return;
+    await widget.onPressed!.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = widget.color.computeLuminance() > .45
+        ? Colors.black
+        : Colors.white;
+    final radius = BorderRadius.circular(8);
+    final tooltip = widget.errorMessage?.isNotEmpty == true
+        ? widget.errorMessage!
+        : widget.label;
+
     return Tooltip(
-      message: _error?.toString() ?? label,
-      child: FilledButton(
-        onPressed: _busy ? null : _press,
-        style: FilledButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: color.computeLuminance() > .45
-              ? Colors.black
-              : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        enabled: widget.onPressed != null && !widget.busy,
+        label: widget.label,
+        onTap: widget.onPressed == null || widget.busy ? null : _handlePressed,
+        child: MouseRegion(
+          cursor: widget.onPressed == null || widget.busy
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onPressed == null || widget.busy
+                ? null
+                : _handlePressed,
+            onTapDown: widget.onPressed == null || widget.busy
+                ? null
+                : (_) => _setPressed(true),
+            onTapUp: widget.onPressed == null || widget.busy
+                ? null
+                : (_) => _setPressed(false),
+            onTapCancel: widget.onPressed == null || widget.busy
+                ? null
+                : () => _setPressed(false),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: _shade(widget.color),
+                    borderRadius: radius,
+                  ),
+                ),
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 70),
+                  curve: Curves.easeOut,
+                  left: 0,
+                  right: 0,
+                  top: _pressed ? 10 : 0,
+                  bottom: _pressed ? 2 : 10,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: widget.color,
+                      borderRadius: radius,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: widget.busy
+                          ? Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: foreground,
+                                ),
+                              ),
+                            )
+                          : _RemoteButtonLabel(
+                              label: widget.label,
+                              color: foreground,
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        child: _busy
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text(label, textAlign: TextAlign.center),
       ),
     );
   }
+}
+
+class _RemoteButtonLabel extends StatelessWidget {
+  const _RemoteButtonLabel({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => FittedBox(
+    fit: BoxFit.scaleDown,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        Text(
+          label,
+          maxLines: 2,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Impact',
+            fontSize: 34,
+            height: .9,
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2
+              ..color = Colors.black,
+          ),
+        ),
+        Text(
+          label,
+          maxLines: 2,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Impact',
+            fontSize: 34,
+            height: .9,
+            color: color,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _RemoteLabelWidget extends StatelessWidget {
@@ -512,3 +667,5 @@ Color _color(Object? value, Color fallback) {
   final parsed = int.tryParse(hex, radix: 16);
   return parsed == null ? fallback : Color(parsed);
 }
+
+Color _shade(Color color) => Color.lerp(color, Colors.black, .45) ?? color;
