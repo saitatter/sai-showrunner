@@ -1,0 +1,2221 @@
+{
+  "reference": "main",
+  "plugins": [
+    {
+      "id": "advss",
+      "status": "equivalent",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [
+            "obsConnection"
+          ],
+          "missing": [],
+          "extra": [
+            "obsConnection"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "AdvSSMessage"
+          ],
+          "actual": [
+            "AdvSSMessage"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "aitum",
+      "status": "equivalent",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [
+            "obsConnection"
+          ],
+          "missing": [],
+          "extra": [
+            "obsConnection"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "saveBacktrack",
+            "verticalBacktrackStartStop",
+            "verticalChapterMarker",
+            "verticalRecordingStartStop",
+            "verticalScene",
+            "verticalStreamStartStop"
+          ],
+          "actual": [
+            "saveBacktrack",
+            "verticalBacktrackStartStop",
+            "verticalChapterMarker",
+            "verticalRecordingStartStop",
+            "verticalScene",
+            "verticalStreamStartStop"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "bluesky",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [
+            "appPassword",
+            "identifier",
+            "serviceUrl"
+          ],
+          "missing": [],
+          "extra": [
+            "identifier",
+            "appPassword",
+            "serviceUrl"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "post"
+          ],
+          "actual": [
+            "post"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [
+            "BlueSkyAccount"
+          ],
+          "actual": [],
+          "missing": [
+            "BlueSkyAccount"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "dashboards",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [
+            "Dashboard"
+          ],
+          "actual": [],
+          "missing": [
+            "Dashboard"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "discord",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "discordMessage"
+          ],
+          "actual": [
+            "discordMessage"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [
+            "DiscordWebhook"
+          ],
+          "actual": [],
+          "missing": [
+            "DiscordWebhook"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "donordrive",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [
+            "apiBase",
+            "participantId"
+          ],
+          "actual": [
+            "apiBase",
+            "participantId",
+            "pollIntervalSeconds"
+          ],
+          "missing": [],
+          "extra": [
+            "pollIntervalSeconds"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [
+            "donation",
+            "incentive",
+            "milestone"
+          ],
+          "actual": [],
+          "missing": [
+            "donation",
+            "incentive",
+            "milestone"
+          ],
+          "extra": [],
+          "status": "missing"
+        },
+        "states": {
+          "expected": [
+            "currentMilestone",
+            "currentMilestoneGoal",
+            "currentMilestoneStart",
+            "donationCount",
+            "eventName",
+            "goal",
+            "totalDonations",
+            "totalPledges",
+            "totalRaised"
+          ],
+          "actual": [
+            "donationCount",
+            "eventName",
+            "goal",
+            "totalDonations",
+            "totalPledges",
+            "totalRaised"
+          ],
+          "missing": [
+            "currentMilestone",
+            "currentMilestoneGoal",
+            "currentMilestoneStart"
+          ],
+          "extra": [],
+          "status": "partial"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "elgato",
+      "status": "equivalent",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [
+            "host",
+            "numberOfLights",
+            "port",
+            "rgb"
+          ],
+          "missing": [],
+          "extra": [
+            "host",
+            "port",
+            "numberOfLights",
+            "rgb"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [],
+          "actual": [
+            "getInfo",
+            "getLights",
+            "setLightState"
+          ],
+          "missing": [],
+          "extra": [
+            "getInfo",
+            "getLights",
+            "setLightState"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "govee",
+      "status": "equivalent",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [
+            "apiKey"
+          ],
+          "missing": [],
+          "extra": [
+            "apiKey"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [],
+          "actual": [
+            "getDeviceState",
+            "listDevices",
+            "setBrightness",
+            "setColor",
+            "setPower"
+          ],
+          "missing": [],
+          "extra": [
+            "listDevices",
+            "getDeviceState",
+            "setPower",
+            "setColor",
+            "setBrightness"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "http",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "request"
+          ],
+          "actual": [
+            "request"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [
+            "endpoint"
+          ],
+          "actual": [],
+          "missing": [
+            "endpoint"
+          ],
+          "extra": [],
+          "status": "missing"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "input",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "mouseButton",
+            "pressKey"
+          ],
+          "actual": [
+            "mouseButton",
+            "pressKey"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [
+            "keyboardShortcut"
+          ],
+          "actual": [
+            "keyboardShortcut"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [
+            "Gamepad"
+          ],
+          "actual": [],
+          "missing": [
+            "Gamepad"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "iot",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "light",
+            "plug"
+          ],
+          "actual": [
+            "light",
+            "plug",
+            "setLightColor",
+            "toggleLight"
+          ],
+          "missing": [],
+          "extra": [
+            "setLightColor",
+            "toggleLight"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [
+            "Light",
+            "Plug"
+          ],
+          "actual": [],
+          "missing": [
+            "Light",
+            "Plug"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "lifx",
+      "status": "equivalent",
+      "categories": {
+        "settings": {
+          "expected": [
+            "subnetMask"
+          ],
+          "actual": [
+            "host",
+            "port",
+            "subnetMask",
+            "target"
+          ],
+          "missing": [],
+          "extra": [
+            "host",
+            "port",
+            "target"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [],
+          "actual": [
+            "getState",
+            "setColor",
+            "setLightState",
+            "setPower"
+          ],
+          "missing": [],
+          "extra": [
+            "getState",
+            "setPower",
+            "setColor",
+            "setLightState"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "minecraft",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "mineCmd"
+          ],
+          "actual": [
+            "mineCmd"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [
+            "RCONConnection"
+          ],
+          "actual": [],
+          "missing": [
+            "RCONConnection"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "moderation",
+      "status": "equivalent",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [
+            "apiBaseUrl",
+            "apiToken",
+            "dashboardWsUrl",
+            "enabled",
+            "forwardYouTube"
+          ],
+          "missing": [],
+          "extra": [
+            "enabled",
+            "apiBaseUrl",
+            "apiToken",
+            "dashboardWsUrl",
+            "forwardYouTube"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "moderateChatMessage"
+          ],
+          "actual": [
+            "moderateChatMessage",
+            "requestOverride",
+            "sendTestMessage"
+          ],
+          "missing": [],
+          "extra": [
+            "sendTestMessage",
+            "requestOverride"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [
+            "health"
+          ],
+          "missing": [],
+          "extra": [
+            "health"
+          ],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": true,
+        "status": "equivalent"
+      }
+    },
+    {
+      "id": "obs",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [
+            "obsDefault"
+          ],
+          "actual": [
+            "host",
+            "password",
+            "port"
+          ],
+          "missing": [
+            "obsDefault"
+          ],
+          "extra": [
+            "host",
+            "port",
+            "password"
+          ],
+          "status": "partial"
+        },
+        "actions": {
+          "expected": [
+            "changeVolume",
+            "chapterMarker",
+            "filter",
+            "hotkey",
+            "mediaAction",
+            "mute",
+            "playMedia",
+            "prevScene",
+            "recordingStartStop",
+            "refreshBrowser",
+            "replayBufferStartStop",
+            "replaySave",
+            "scene",
+            "screenshot",
+            "setBrowserURL",
+            "setImage",
+            "source",
+            "streamStartStop",
+            "text",
+            "toggleStudioMode",
+            "transform",
+            "triggerStudioModeTransition",
+            "virtualCamStartStop"
+          ],
+          "actual": [
+            "browserRefresh",
+            "browserUrl",
+            "changeVolume",
+            "chapterMarker",
+            "filter",
+            "getInputSettings",
+            "hotkey",
+            "mediaAction",
+            "mute",
+            "playMedia",
+            "prevScene",
+            "recordingStartStop",
+            "refreshBrowser",
+            "replayBufferStartStop",
+            "replaySave",
+            "scene",
+            "screenshot",
+            "setBrowserURL",
+            "setImage",
+            "setInputSettings",
+            "source",
+            "streamStartStop",
+            "text",
+            "toggleStudioMode",
+            "transform",
+            "triggerStudioModeTransition",
+            "virtualCamStartStop"
+          ],
+          "missing": [],
+          "extra": [
+            "getInputSettings",
+            "setInputSettings",
+            "browserUrl",
+            "browserRefresh"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [
+            "localObsRunning"
+          ],
+          "actual": [
+            "connection"
+          ],
+          "missing": [
+            "localObsRunning"
+          ],
+          "extra": [
+            "connection"
+          ],
+          "status": "partial"
+        },
+        "resources": {
+          "expected": [
+            "OBSConnection"
+          ],
+          "actual": [],
+          "missing": [
+            "OBSConnection"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": true,
+        "status": "equivalent"
+      }
+    },
+    {
+      "id": "os",
+      "status": "equivalent",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "launch",
+            "powershell"
+          ],
+          "actual": [
+            "launch",
+            "launchProcess",
+            "powershell"
+          ],
+          "missing": [],
+          "extra": [
+            "launchProcess"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "overlays",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "alert",
+            "beginSceneOverlay",
+            "endSceneOverlay",
+            "pushChatMessage",
+            "pushPaidAlert",
+            "spawnEmotes",
+            "widgetVisibility"
+          ],
+          "actual": [
+            "alert",
+            "beginSceneOverlay",
+            "endSceneOverlay",
+            "pushChatMessage",
+            "pushPaidAlert",
+            "spawnEmotes",
+            "triggerWidget",
+            "widgetVisibility"
+          ],
+          "missing": [],
+          "extra": [
+            "triggerWidget"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [
+            "Overlay"
+          ],
+          "actual": [],
+          "missing": [
+            "Overlay"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "philips-hue",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [
+            "hubIp"
+          ],
+          "actual": [
+            "hubIp",
+            "hubKey"
+          ],
+          "missing": [],
+          "extra": [
+            "hubKey"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "scene"
+          ],
+          "actual": [
+            "listGroups",
+            "listLights",
+            "listScenes",
+            "recallScene",
+            "setLightState"
+          ],
+          "missing": [
+            "scene"
+          ],
+          "extra": [
+            "listLights",
+            "listGroups",
+            "listScenes",
+            "setLightState",
+            "recallScene"
+          ],
+          "status": "partial"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "random",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "spinWheel"
+          ],
+          "actual": [
+            "random",
+            "spinWheel"
+          ],
+          "missing": [],
+          "extra": [
+            "random"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [
+            "wheelLanded"
+          ],
+          "actual": [],
+          "missing": [
+            "wheelLanded"
+          ],
+          "extra": [],
+          "status": "missing"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "remote",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [
+            "apiBase",
+            "enabled",
+            "host",
+            "port"
+          ],
+          "missing": [],
+          "extra": [
+            "enabled",
+            "host",
+            "port",
+            "apiBase"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [
+            "button"
+          ],
+          "actual": [],
+          "missing": [
+            "button"
+          ],
+          "extra": [],
+          "status": "missing"
+        },
+        "states": {
+          "expected": [],
+          "actual": [
+            "server"
+          ],
+          "missing": [],
+          "extra": [
+            "server"
+          ],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "sound",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [
+            "defaultOutput",
+            "globalVolume"
+          ],
+          "actual": [
+            "defaultOutput",
+            "globalVolume"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "sound",
+            "tts"
+          ],
+          "actual": [
+            "sound",
+            "speakTTS",
+            "tts"
+          ],
+          "missing": [],
+          "extra": [
+            "speakTTS"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [
+            "SoundOutput",
+            "TTSVoice",
+            "TTSVoiceProvider"
+          ],
+          "actual": [],
+          "missing": [
+            "SoundOutput",
+            "TTSVoice",
+            "TTSVoiceProvider"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "spellcast",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [],
+          "actual": [
+            "castSpell"
+          ],
+          "missing": [],
+          "extra": [
+            "castSpell"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [
+            "spellHook"
+          ],
+          "actual": [
+            "spellHook"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [
+            "SpellHook"
+          ],
+          "actual": [],
+          "missing": [
+            "SpellHook"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": true,
+        "status": "equivalent"
+      }
+    },
+    {
+      "id": "stream-plans",
+      "status": "equivalent",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "nextSegment",
+            "prevSegment"
+          ],
+          "actual": [
+            "nextSegment",
+            "prevSegment"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "time",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "delay",
+            "offsetTimer",
+            "setTimer",
+            "toggleTimer"
+          ],
+          "actual": [
+            "delay",
+            "offsetTimer",
+            "setTimer",
+            "toggleTimer"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [
+            "repeat",
+            "timer"
+          ],
+          "actual": [],
+          "missing": [
+            "repeat",
+            "timer"
+          ],
+          "extra": [],
+          "status": "missing"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "tplink-kasa",
+      "status": "equivalent",
+      "categories": {
+        "settings": {
+          "expected": [
+            "subnetMask"
+          ],
+          "actual": [
+            "host",
+            "port",
+            "subnetMask"
+          ],
+          "missing": [],
+          "extra": [
+            "host",
+            "port"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [],
+          "actual": [
+            "getDeviceInfo",
+            "getLightState",
+            "setLightState",
+            "setPlugState"
+          ],
+          "missing": [],
+          "extra": [
+            "getDeviceInfo",
+            "getLightState",
+            "setLightState",
+            "setPlugState"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "twinkly",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [
+            "subnetMask"
+          ],
+          "actual": [
+            "subnetMask"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "movie"
+          ],
+          "actual": [
+            "getColor",
+            "getInfo",
+            "getMode",
+            "listMovies",
+            "setColor",
+            "setMovie",
+            "turnOff"
+          ],
+          "missing": [
+            "movie"
+          ],
+          "extra": [
+            "getInfo",
+            "getMode",
+            "getColor",
+            "setColor",
+            "turnOff",
+            "listMovies",
+            "setMovie"
+          ],
+          "status": "partial"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "twitch",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [
+            "accessToken",
+            "broadcasterId",
+            "clientId",
+            "clientSecret",
+            "moderatorId",
+            "refreshToken"
+          ],
+          "missing": [],
+          "extra": [
+            "clientId",
+            "clientSecret",
+            "accessToken",
+            "broadcasterId",
+            "moderatorId",
+            "refreshToken"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "addViewerToGroup",
+            "annoucement",
+            "ban",
+            "cancelRaid",
+            "chat",
+            "clearViewerGroup",
+            "createClip",
+            "createPoll",
+            "createPrediction",
+            "removeViewerFromGroup",
+            "runAd",
+            "setStreamInfo",
+            "shoutout",
+            "snoozeAds",
+            "startRaid",
+            "streamMarker",
+            "timeout",
+            "unban"
+          ],
+          "actual": [
+            "annoucement",
+            "announcement",
+            "ban",
+            "cancelRaid",
+            "chat",
+            "createChannelPointReward",
+            "createClip",
+            "createPoll",
+            "createPrediction",
+            "deleteChannelPointReward",
+            "listChannelPointRewards",
+            "runAd",
+            "setStreamInfo",
+            "shoutout",
+            "snoozeAds",
+            "startRaid",
+            "streamMarker",
+            "timeout",
+            "unban",
+            "updateChannelPointRedemption",
+            "updateChannelPointReward"
+          ],
+          "missing": [
+            "addViewerToGroup",
+            "clearViewerGroup",
+            "removeViewerFromGroup"
+          ],
+          "extra": [
+            "announcement",
+            "listChannelPointRewards",
+            "createChannelPointReward",
+            "updateChannelPointReward",
+            "deleteChannelPointReward",
+            "updateChannelPointRedemption"
+          ],
+          "status": "partial"
+        },
+        "triggers": {
+          "expected": [
+            "adEnded",
+            "adSchedule",
+            "adStarted",
+            "ban",
+            "beforeRaid",
+            "bits",
+            "firstTimeChat",
+            "follow",
+            "giftedSub",
+            "hypeTrainEnded",
+            "hypeTrainLevelUp",
+            "hypeTrainStarted",
+            "pollEnded",
+            "pollStarted",
+            "predictionLocked",
+            "predictionSettled",
+            "predictionStarted",
+            "raid",
+            "raidCanceled",
+            "raidOut",
+            "raidStarted",
+            "redemption",
+            "shoutoutSent",
+            "subscription",
+            "timeout",
+            "walkon",
+            "watchstreak"
+          ],
+          "actual": [],
+          "missing": [
+            "adEnded",
+            "adSchedule",
+            "adStarted",
+            "ban",
+            "beforeRaid",
+            "bits",
+            "firstTimeChat",
+            "follow",
+            "giftedSub",
+            "hypeTrainEnded",
+            "hypeTrainLevelUp",
+            "hypeTrainStarted",
+            "pollEnded",
+            "pollStarted",
+            "predictionLocked",
+            "predictionSettled",
+            "predictionStarted",
+            "raid",
+            "raidCanceled",
+            "raidOut",
+            "raidStarted",
+            "redemption",
+            "shoutoutSent",
+            "subscription",
+            "timeout",
+            "walkon",
+            "watchstreak"
+          ],
+          "extra": [],
+          "status": "missing"
+        },
+        "states": {
+          "expected": [
+            "adSnoozeRefresh",
+            "adSnoozes",
+            "adTimer",
+            "category",
+            "followers",
+            "hypeTrainExists",
+            "hypeTrainGoal",
+            "hypeTrainLevel",
+            "hypeTrainProgress",
+            "hypeTrainTotal",
+            "inAdBreak",
+            "lastFollower",
+            "lastSubscriber",
+            "live",
+            "nextAdDuration",
+            "nextAdTimer",
+            "pollId",
+            "pollTitle",
+            "predictionChoiceNames",
+            "predictionChoiceTotals",
+            "predictionExists",
+            "predictionId",
+            "predictionTitle",
+            "predictionTotal",
+            "prerollFreeTime",
+            "raidTarget",
+            "raidTimer",
+            "subscriberPoints",
+            "subscribers",
+            "title"
+          ],
+          "actual": [
+            "connection"
+          ],
+          "missing": [
+            "adSnoozeRefresh",
+            "adSnoozes",
+            "adTimer",
+            "category",
+            "followers",
+            "hypeTrainExists",
+            "hypeTrainGoal",
+            "hypeTrainLevel",
+            "hypeTrainProgress",
+            "hypeTrainTotal",
+            "inAdBreak",
+            "lastFollower",
+            "lastSubscriber",
+            "live",
+            "nextAdDuration",
+            "nextAdTimer",
+            "pollId",
+            "pollTitle",
+            "predictionChoiceNames",
+            "predictionChoiceTotals",
+            "predictionExists",
+            "predictionId",
+            "predictionTitle",
+            "predictionTotal",
+            "prerollFreeTime",
+            "raidTarget",
+            "raidTimer",
+            "subscriberPoints",
+            "subscribers",
+            "title"
+          ],
+          "extra": [
+            "connection"
+          ],
+          "status": "partial"
+        },
+        "resources": {
+          "expected": [
+            "ChannelPointReward",
+            "CustomTwitchViewerGroup",
+            "TwitchAccount"
+          ],
+          "actual": [],
+          "missing": [
+            "ChannelPointReward",
+            "CustomTwitchViewerGroup",
+            "TwitchAccount"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": true,
+        "status": "equivalent"
+      }
+    },
+    {
+      "id": "variables",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "offset",
+            "offsetViewerVar",
+            "set",
+            "setViewerVar"
+          ],
+          "actual": [
+            "getVariable",
+            "offsetViewerVar",
+            "setVariable",
+            "setViewerVar"
+          ],
+          "missing": [
+            "offset",
+            "set"
+          ],
+          "extra": [
+            "setVariable",
+            "getVariable"
+          ],
+          "status": "partial"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "voicemod",
+      "status": "equivalent",
+      "categories": {
+        "settings": {
+          "expected": [
+            "host"
+          ],
+          "actual": [
+            "host",
+            "port"
+          ],
+          "missing": [],
+          "extra": [
+            "port"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "selectVoice"
+          ],
+          "actual": [
+            "getVoices",
+            "selectVoice"
+          ],
+          "missing": [],
+          "extra": [
+            "getVoices"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [
+            "connection"
+          ],
+          "missing": [],
+          "extra": [
+            "connection"
+          ],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "wyze",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [
+            "accessToken",
+            "apiKey",
+            "email",
+            "keyId",
+            "refreshToken"
+          ],
+          "missing": [],
+          "extra": [
+            "keyId",
+            "apiKey",
+            "email",
+            "accessToken",
+            "refreshToken"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [],
+          "actual": [
+            "getDeviceState",
+            "listDevices",
+            "login",
+            "setLightState",
+            "setPlugState"
+          ],
+          "missing": [],
+          "extra": [
+            "login",
+            "listDevices",
+            "getDeviceState",
+            "setLightState",
+            "setPlugState"
+          ],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [
+            "authentication"
+          ],
+          "missing": [],
+          "extra": [
+            "authentication"
+          ],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [
+            "WyzeAccount"
+          ],
+          "actual": [],
+          "missing": [
+            "WyzeAccount"
+          ],
+          "extra": [],
+          "status": "missing"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "partial"
+      }
+    },
+    {
+      "id": "youtube",
+      "status": "partial",
+      "categories": {
+        "settings": {
+          "expected": [],
+          "actual": [
+            "accessToken",
+            "clientId",
+            "clientSecret",
+            "liveChatId",
+            "refreshToken"
+          ],
+          "missing": [],
+          "extra": [
+            "clientId",
+            "clientSecret",
+            "accessToken",
+            "refreshToken",
+            "liveChatId"
+          ],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "banUser",
+            "deleteMessage",
+            "removeBan",
+            "sendChatMessage"
+          ],
+          "actual": [
+            "banUser",
+            "deleteMessage",
+            "removeBan",
+            "sendChatMessage"
+          ],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [
+            "chatMessage",
+            "membership",
+            "superChat",
+            "superSticker"
+          ],
+          "actual": [],
+          "missing": [
+            "chatMessage",
+            "membership",
+            "superChat",
+            "superSticker"
+          ],
+          "extra": [],
+          "status": "missing"
+        },
+        "states": {
+          "expected": [
+            "broadcast",
+            "connection",
+            "latestMessage"
+          ],
+          "actual": [
+            "connection"
+          ],
+          "missing": [
+            "broadcast",
+            "latestMessage"
+          ],
+          "extra": [],
+          "status": "partial"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "status": "equivalent"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": true,
+        "status": "equivalent"
+      }
+    }
+  ],
+  "flutterOnly": [
+    "ShowRunner"
+  ]
+}
