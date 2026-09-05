@@ -13,6 +13,7 @@ import 'persistence/viewer_data_repository.dart';
 import 'persistence/viewer_data_sync.dart';
 import 'plugins/registry/plugin_registry.dart';
 import 'plugins/registry/plugin_bootstrap.dart';
+import 'plugins/stream_plans/manifest.dart';
 import 'services/plugin_event_hub.dart';
 import 'plugins/runtime/provider_event_workers.dart';
 import 'runtime/graph_runtime.dart';
@@ -164,6 +165,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
       providerEvents: _providerEvents,
       pluginRegistryFuture: _pluginRegistryFuture,
       profileRuntimeFuture: _profileRuntimeFuture,
+      streamPlanRuntime: streamPlanRuntime,
       interfacePreferences: _interfacePreferences,
       updateService: widget.updateService,
       selectedIndex: _selectedIndex,

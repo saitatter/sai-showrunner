@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../persistence/resource_repository.dart';
 import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/stream_plans/manifest.dart';
+import '../../schema/stream_plan.dart';
 import 'resource_editor_registry.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
@@ -17,11 +19,13 @@ class ResourcesWorkspace extends StatefulWidget {
     required this.dataService,
     required this.editorRegistry,
     this.registryFuture,
+    this.streamPlanRuntime,
   });
 
   final ShowRunnerDataService dataService;
   final DartResourceEditorRegistry editorRegistry;
   final Future<DartPluginRegistry>? registryFuture;
+  final DartStreamPlanRuntime? streamPlanRuntime;
 
   @override
   State<ResourcesWorkspace> createState() => _ResourcesWorkspaceState();
@@ -280,26 +284,135 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
         )
       else
         ...resources.map(
-          (resource) => ListTile(
-            onTap: () => _edit(context, resource, resourceType),
-            leading: const Icon(Icons.extension),
-            title: Text(resource.name),
-            subtitle: Text('${resource.config.length} configuration fields'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _editorLabel(resourceType) ?? const SizedBox.shrink(),
-                IconButton(
-                  tooltip: 'Delete resource',
-                  onPressed: () => _delete(context, resource, resourceType),
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ),
-          ),
+          (resource) => _resourceTile(context, resource, resourceType),
         ),
     ],
   );
+
+  Widget _resourceTile(
+    BuildContext context,
+    ResourceData resource,
+    String resourceType,
+  ) {
+    final runtime = resourceType == 'StreamPlan'
+        ? widget.streamPlanRuntime
+        : null;
+    Widget tile() => ListTile(
+      onTap: () => _edit(context, resource, resourceType),
+      leading: Icon(runtime == null ? Icons.extension : Icons.play_circle),
+      title: Text(resource.name),
+      subtitle: runtime == null
+          ? Text('${resource.config.length} configuration fields')
+          : _streamPlanSubtitle(resource, runtime),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (runtime != null) _streamPlanControls(context, resource, runtime),
+          _editorLabel(resourceType) ?? const SizedBox.shrink(),
+          IconButton(
+            tooltip: 'Delete resource',
+            onPressed: () => _delete(context, resource, resourceType),
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
+      ),
+    );
+    return runtime == null
+        ? tile()
+        : AnimatedBuilder(animation: runtime, builder: (_, _) => tile());
+  }
+
+  Widget _streamPlanSubtitle(
+    ResourceData resource,
+    DartStreamPlanRuntime runtime,
+  ) {
+    final plan = StreamPlanData.fromConfig(resource.config);
+    final isActive = runtime.activePlanId == resource.id;
+    final activeSegment = isActive ? runtime.activeSegmentId : null;
+    return Text(
+      isActive
+          ? 'Active${activeSegment == null ? '' : ' Â· Segment $activeSegment'} Â· ${plan.segments.length} segments'
+          : '${plan.segments.length} segments',
+    );
+  }
+
+  Widget _streamPlanControls(
+    BuildContext context,
+    ResourceData resource,
+    DartStreamPlanRuntime runtime,
+  ) => AnimatedBuilder(
+    animation: runtime,
+    builder: (context, child) {
+      final active = runtime.activePlanId == resource.id;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'Previous segment',
+            onPressed: active
+                ? () => _runStreamPlanAction(
+                    context,
+                    () async => runtime.transitionToPreviousSegment(
+                      resource.id,
+                      StreamPlanData.fromConfig(resource.config),
+                      registry: await widget.registryFuture!,
+                    ),
+                  )
+                : null,
+            icon: const Icon(Icons.skip_previous),
+          ),
+          IconButton(
+            tooltip: active ? 'Deactivate stream plan' : 'Activate stream plan',
+            onPressed: () => active
+                ? _runStreamPlanAction(
+                    context,
+                    () async => runtime.deactivatePlan(
+                      registry: await widget.registryFuture!,
+                    ),
+                  )
+                : _runStreamPlanAction(
+                    context,
+                    () async => runtime.activatePlan(
+                      resource.id,
+                      StreamPlanData.fromConfig(resource.config),
+                      registry: await widget.registryFuture!,
+                    ),
+                  ),
+            icon: Icon(active ? Icons.stop_circle : Icons.play_circle),
+          ),
+          IconButton(
+            tooltip: 'Next segment',
+            onPressed: active
+                ? () => _runStreamPlanAction(
+                    context,
+                    () async => runtime.transitionToNextSegment(
+                      resource.id,
+                      StreamPlanData.fromConfig(resource.config),
+                      registry: await widget.registryFuture!,
+                    ),
+                  )
+                : null,
+            icon: const Icon(Icons.skip_next),
+          ),
+        ],
+      );
+    },
+  );
+
+  Future<void> _runStreamPlanAction(
+    BuildContext context,
+    Future<Object?> Function() action,
+  ) async {
+    if (widget.registryFuture == null) return;
+    try {
+      await action();
+    } on Object catch (error) {
+      if (!mounted || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Stream Plan action failed: $error')),
+      );
+    }
+  }
 
   String _resourceDirectory(String resourceType) {
     final def = editorRegistry.find(resourceType);

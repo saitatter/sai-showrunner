@@ -53,6 +53,9 @@ Profile activation/deactivation automations and both plan-level and segment-leve
 Stream Plan transition automations now reuse the compact Flutter graph editor, including
 node insertion, configuration dialogs, resource selector hydration, links, and persisted
 graph serialization.
+The Flutter Stream Plan runtime now executes those automations in legacy order, invokes
+registered segment component hooks, serializes concurrent transitions, and exposes plan
+activation/deactivation plus previous/next segment controls in the Resources workspace.
 
 Fresh Flutter data directories are routed to the Setup workspace automatically. The
 wizard persists provider settings and a `setupCompleted` marker; existing installations

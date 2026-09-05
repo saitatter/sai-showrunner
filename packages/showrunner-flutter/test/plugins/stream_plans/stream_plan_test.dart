@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/stream_plans/manifest.dart';
+import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
 
 void main() {
@@ -68,12 +69,141 @@ void main() {
     expect(result['segmentId'], 'two');
     streamPlanRuntime.deactivate();
   });
+
+  test('executes plan and segment transitions in legacy order', () async {
+    final events = <String>[];
+    final registry = DartPluginRegistry()
+      ..register(
+        DartPluginManifest(
+          id: 'test',
+          name: 'Test',
+          actions: [
+            DartActionDefinition(
+              pluginId: 'test',
+              actionId: 'record',
+              invoke: (config, context) async {
+                events.add(config['value'].toString());
+                return null;
+              },
+            ),
+          ],
+        ),
+      );
+    addTearDown(registry.close);
+    final runtime = DartStreamPlanRuntime();
+    runtime.registerComponentType(
+      DartStreamPlanComponent(
+        id: 'component',
+        onActivate: (segmentId, config) {
+          events.add('component:$segmentId:activate');
+        },
+        onDeactivate: (segmentId, config) {
+          events.add('component:$segmentId:deactivate');
+        },
+      ),
+    );
+    final plan = StreamPlanData(
+      name: 'Show',
+      activationAutomation: _automation('plan:activate'),
+      deactivationAutomation: _automation('plan:deactivate'),
+      segments: [
+        _segment(
+          'one',
+          activation: 'one:activate',
+          deactivation: 'one:deactivate',
+          components: const {
+            'component': {'enabled': true},
+          },
+        ),
+        _segment(
+          'two',
+          activation: 'two:activate',
+          deactivation: 'two:deactivate',
+        ),
+      ],
+    );
+
+    await runtime.activatePlan('plan-1', plan, registry: registry);
+    await runtime.activatePlanSegment(
+      'plan-1',
+      plan,
+      'two',
+      registry: registry,
+    );
+    await runtime.deactivatePlan(registry: registry);
+
+    expect(events, [
+      'plan:activate',
+      'component:one:activate',
+      'one:activate',
+      'component:one:deactivate',
+      'one:deactivate',
+      'two:activate',
+      'two:deactivate',
+      'plan:deactivate',
+    ]);
+    expect(runtime.activePlanId, isNull);
+    expect(runtime.activeSegmentId, isNull);
+  });
+
+  test('navigation actions run the active segment transition', () async {
+    final runtime = DartStreamPlanRuntime();
+    final registry = DartPluginRegistry();
+    registry.register(
+      createStreamPlansPlugin(runtime: runtime, registry: registry),
+    );
+    addTearDown(registry.close);
+    final plan = StreamPlanData(
+      name: 'Show',
+      activationAutomation: emptyInlineAutomation(),
+      deactivationAutomation: emptyInlineAutomation(),
+      segments: [_segment('one'), _segment('two')],
+    );
+
+    await runtime.activatePlan('plan-1', plan, registry: registry);
+    final result = await registry.invokeAction('stream-plans', 'nextSegment', {
+      'planId': 'plan-1',
+      'segments': plan.segments.map((segment) => segment.toJson()).toList(),
+    });
+
+    expect((result as Map)['segmentId'], 'two');
+    expect(runtime.activeSegmentId, 'two');
+    await runtime.deactivatePlan(registry: registry);
+  });
 }
 
-StreamPlanSegmentData _segment(String id) => StreamPlanSegmentData(
+StreamPlanSegmentData _segment(
+  String id, {
+  String? activation,
+  String? deactivation,
+  JsonMap components = const {},
+}) => StreamPlanSegmentData(
   id: id,
   name: id,
-  components: const {},
-  activationAutomation: emptyInlineAutomation(),
-  deactivationAutomation: emptyInlineAutomation(),
+  components: components,
+  activationAutomation: activation == null
+      ? emptyInlineAutomation()
+      : _automation(activation),
+  deactivationAutomation: deactivation == null
+      ? emptyInlineAutomation()
+      : _automation(deactivation),
 );
+
+JsonMap _automation(String value) => AutomationData(
+  graph: AutomationGraph(
+    nodes: [
+      GraphNode(
+        id: 'record',
+        type: 'action',
+        x: 0,
+        y: 0,
+        data: {
+          'plugin': 'test',
+          'action': 'record',
+          'config': {'value': value},
+        },
+      ),
+    ],
+    entryNodeId: 'record',
+  ),
+).toJson();

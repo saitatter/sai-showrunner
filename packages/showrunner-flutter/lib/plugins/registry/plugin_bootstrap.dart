@@ -125,7 +125,7 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(createWyzePlugin(_unconfiguredWyzeTransport));
   registry.register(dashboardPlugin);
   registry.register(createInputPlugin());
-  registry.register(createStreamPlansPlugin());
+  registry.register(createStreamPlansPlugin(registry: registry));
   return registry;
 }
 
@@ -456,7 +456,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.register(createWyzePlugin(wyzeTransport));
   registry.register(dashboardPlugin);
   registry.register(createInputPlugin(startEvents: true));
-  registry.register(createStreamPlansPlugin());
+  registry.register(createStreamPlansPlugin(registry: registry));
   registry.register(
     createIotPlugin(
       resolver: _configuredIotResolver(

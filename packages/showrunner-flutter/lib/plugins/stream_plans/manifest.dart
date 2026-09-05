@@ -1,9 +1,30 @@
-import '../../runtime/expression.dart';
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
 import '../../components/data_inputs/data_input.dart';
+import '../../runtime/expression.dart';
+import '../../runtime/graph_runtime.dart';
+import '../../schema/automation.dart';
 import '../../schema/stream_plan.dart';
 import '../registry/plugin_registry.dart';
 
 final streamPlanRuntime = DartStreamPlanRuntime();
+
+typedef DartStreamPlanComponentHandler =
+    FutureOr<void> Function(String segmentId, dynamic config);
+
+final class DartStreamPlanComponent {
+  const DartStreamPlanComponent({
+    required this.id,
+    this.onActivate,
+    this.onDeactivate,
+  });
+
+  final String id;
+  final DartStreamPlanComponentHandler? onActivate;
+  final DartStreamPlanComponentHandler? onDeactivate;
+}
 
 const _segmentSchema = DartDataInputSchema(
   label: 'Stream plan segment',
@@ -28,18 +49,37 @@ const _segmentSchema = DartDataInputSchema(
   ],
 );
 
-final class DartStreamPlanRuntime {
+final class DartStreamPlanRuntime extends ChangeNotifier {
   String? activePlanId;
   String? activeSegmentId;
+  StreamPlanData? _activePlan;
+  final Map<String, DartStreamPlanComponent> _componentTypes = {};
+  Future<void>? _transition;
+
+  StreamPlanData? get activePlan => _activePlan;
+  bool get isActive => activePlanId != null;
+
+  void registerComponentType(DartStreamPlanComponent component) {
+    if (component.id.trim().isEmpty) {
+      throw ArgumentError.value(component.id, 'component.id');
+    }
+    _componentTypes[component.id] = component;
+  }
+
+  DartStreamPlanComponent? componentType(String id) => _componentTypes[id];
 
   void activate(String planId, {String? segmentId}) {
     activePlanId = planId;
     activeSegmentId = segmentId;
+    _activePlan = null;
+    notifyListeners();
   }
 
   void deactivate() {
     activePlanId = null;
     activeSegmentId = null;
+    _activePlan = null;
+    notifyListeners();
   }
 
   String? next(StreamPlanData plan) {
@@ -48,6 +88,7 @@ final class DartStreamPlanRuntime {
     );
     if (index < 0 || index + 1 >= plan.segments.length) return null;
     activeSegmentId = plan.segments[index + 1].id;
+    notifyListeners();
     return activeSegmentId;
   }
 
@@ -57,54 +98,437 @@ final class DartStreamPlanRuntime {
     );
     if (index <= 0) return null;
     activeSegmentId = plan.segments[index - 1].id;
+    notifyListeners();
     return activeSegmentId;
+  }
+
+  Future<void> activatePlan(
+    String planId,
+    StreamPlanData plan, {
+    required DartPluginRegistry registry,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) => _exclusive(() async {
+    if (activePlanId == planId && _activePlan != null) return;
+    if (activePlanId != null) {
+      await _deactivatePlanInternal(
+        registry: registry,
+        context: context,
+        onNodeEnter: onNodeEnter,
+        onNodeExit: onNodeExit,
+      );
+    }
+
+    activePlanId = planId;
+    activeSegmentId = null;
+    _activePlan = plan;
+    notifyListeners();
+    await _runAutomation(
+      plan.activationAutomation,
+      planId: planId,
+      registry: registry,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+
+    final firstSegment = plan.segments.firstOrNull;
+    if (firstSegment != null) {
+      await _activateSegmentInternal(
+        planId,
+        plan,
+        firstSegment.id,
+        registry: registry,
+        context: context,
+        onNodeEnter: onNodeEnter,
+        onNodeExit: onNodeExit,
+      );
+    }
+  });
+
+  Future<void> deactivatePlan({
+    required DartPluginRegistry registry,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) => _exclusive(
+    () => _deactivatePlanInternal(
+      registry: registry,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    ),
+  );
+
+  Future<void> activatePlanSegment(
+    String planId,
+    StreamPlanData plan,
+    String segmentId, {
+    required DartPluginRegistry registry,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) => _exclusive(
+    () => _activateSegment(
+      planId,
+      plan,
+      segmentId,
+      registry: registry,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    ),
+  );
+
+  Future<String?> transitionToNextSegment(
+    String planId,
+    StreamPlanData plan, {
+    required DartPluginRegistry registry,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) => _exclusive<String?>(() async {
+    final target = _adjacentSegment(plan, forward: true);
+    if (target == null) return null;
+    await _activateSegment(
+      planId,
+      plan,
+      target.id,
+      registry: registry,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+    return target.id;
+  });
+
+  Future<String?> transitionToPreviousSegment(
+    String planId,
+    StreamPlanData plan, {
+    required DartPluginRegistry registry,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) => _exclusive<String?>(() async {
+    final target = _adjacentSegment(plan, forward: false);
+    if (target == null) return null;
+    await _activateSegment(
+      planId,
+      plan,
+      target.id,
+      registry: registry,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+    return target.id;
+  });
+
+  Future<void> _activateSegment(
+    String planId,
+    StreamPlanData plan,
+    String segmentId, {
+    required DartPluginRegistry registry,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) async {
+    if (activePlanId != planId || _activePlan == null) {
+      throw StateError('Stream Plan is not active: $planId');
+    }
+    final segment = plan.segments
+        .where((item) => item.id == segmentId)
+        .firstOrNull;
+    if (segment == null) {
+      throw StateError('Stream Plan segment was not found: $segmentId');
+    }
+    await _activateSegmentInternal(
+      planId,
+      plan,
+      segment.id,
+      registry: registry,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+  }
+
+  Future<void> _activateSegmentInternal(
+    String planId,
+    StreamPlanData plan,
+    String segmentId, {
+    required DartPluginRegistry registry,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) async {
+    if (activeSegmentId == segmentId) return;
+    if (activeSegmentId != null) {
+      await _deactivateSegmentInternal(
+        planId,
+        plan,
+        activeSegmentId!,
+        registry: registry,
+        context: context,
+        onNodeEnter: onNodeEnter,
+        onNodeExit: onNodeExit,
+      );
+    }
+
+    final segment = plan.segments.firstWhere((item) => item.id == segmentId);
+    activeSegmentId = segment.id;
+    notifyListeners();
+    await _invokeComponentHandlers(segment, activate: true);
+    await _runAutomation(
+      segment.activationAutomation,
+      planId: planId,
+      segmentId: segment.id,
+      registry: registry,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+  }
+
+  Future<void> _deactivateSegmentInternal(
+    String planId,
+    StreamPlanData plan,
+    String segmentId, {
+    required DartPluginRegistry registry,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) async {
+    final segment = plan.segments
+        .where((item) => item.id == segmentId)
+        .firstOrNull;
+    if (segment == null) return;
+    await _invokeComponentHandlers(segment, activate: false);
+    await _runAutomation(
+      segment.deactivationAutomation,
+      planId: planId,
+      segmentId: segment.id,
+      registry: registry,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+  }
+
+  Future<void> _deactivatePlanInternal({
+    required DartPluginRegistry registry,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) async {
+    final planId = activePlanId;
+    final plan = _activePlan;
+    if (planId == null || plan == null) {
+      activePlanId = null;
+      activeSegmentId = null;
+      _activePlan = null;
+      notifyListeners();
+      return;
+    }
+    if (activeSegmentId != null) {
+      await _deactivateSegmentInternal(
+        planId,
+        plan,
+        activeSegmentId!,
+        registry: registry,
+        context: context,
+        onNodeEnter: onNodeEnter,
+        onNodeExit: onNodeExit,
+      );
+      activeSegmentId = null;
+      notifyListeners();
+    }
+    await _runAutomation(
+      plan.deactivationAutomation,
+      planId: planId,
+      registry: registry,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+    activePlanId = null;
+    _activePlan = null;
+    notifyListeners();
+  }
+
+  Future<void> _invokeComponentHandlers(
+    StreamPlanSegmentData segment, {
+    required bool activate,
+  }) async {
+    for (final entry in segment.components.entries) {
+      final component = _componentTypes[entry.key];
+      final handler = activate
+          ? component?.onActivate
+          : component?.onDeactivate;
+      await handler?.call(segment.id, entry.value);
+    }
+  }
+
+  Future<GraphExecutionResult> _runAutomation(
+    JsonMap automation, {
+    required String planId,
+    String? segmentId,
+    required DartPluginRegistry registry,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) {
+    final baseContext = context ?? EvaluationContext();
+    final parsed = AutomationData.fromJson(automation);
+    return const DartGraphRuntime().executeWithRegistry(
+      graph: parsed.graph,
+      context: EvaluationContext(
+        locals: Map<String, dynamic>.from(baseContext.locals),
+        contextState: {
+          ...baseContext.contextState,
+          'streamPlan': {'planId': planId, 'segmentId': ?segmentId},
+          'streamPlan.planId': planId,
+          'streamPlan.segmentId': ?segmentId,
+        },
+      ),
+      registry: registry,
+      dataWires: parsed.dataWires,
+      subgraphs: parsed.subgraphs,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+  }
+
+  StreamPlanSegmentData? _adjacentSegment(
+    StreamPlanData plan, {
+    required bool forward,
+  }) {
+    final index = plan.segments.indexWhere(
+      (segment) => segment.id == activeSegmentId,
+    );
+    final targetIndex = forward ? index + 1 : index - 1;
+    if (index < 0 || targetIndex < 0 || targetIndex >= plan.segments.length) {
+      return null;
+    }
+    return plan.segments[targetIndex];
+  }
+
+  Future<T> _exclusive<T>(Future<T> Function() operation) async {
+    final previous = _transition;
+    if (previous != null) {
+      try {
+        await previous;
+      } catch (_) {
+        // A failed transition must not permanently block later controls.
+      }
+    }
+    final current = operation();
+    final marker = current.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stack) {},
+    );
+    _transition = marker;
+    try {
+      return await current;
+    } finally {
+      if (identical(_transition, marker)) _transition = null;
+    }
   }
 }
 
-DartPluginManifest createStreamPlansPlugin() => DartPluginManifest(
-  id: 'stream-plans',
-  name: 'Stream Plans',
-  actions: [
-    DartActionDefinition(
-      pluginId: 'stream-plans',
-      actionId: 'nextSegment',
-      displayName: 'Next Segment',
-      configSchema: _segmentSchema,
-      invoke: _nextSegment,
-    ),
-    DartActionDefinition(
-      pluginId: 'stream-plans',
-      actionId: 'prevSegment',
-      displayName: 'Previous Segment',
-      configSchema: _segmentSchema,
-      invoke: _previousSegment,
-    ),
-  ],
-);
+DartPluginManifest createStreamPlansPlugin({
+  DartStreamPlanRuntime? runtime,
+  DartPluginRegistry? registry,
+}) {
+  final activeRuntime = runtime ?? streamPlanRuntime;
+  return DartPluginManifest(
+    id: 'stream-plans',
+    name: 'Stream Plans',
+    actions: [
+      DartActionDefinition(
+        pluginId: 'stream-plans',
+        actionId: 'nextSegment',
+        displayName: 'Next Segment',
+        configSchema: _segmentSchema,
+        invoke: (config, context) => _nextSegment(
+          config,
+          context,
+          runtime: activeRuntime,
+          registry: registry,
+        ),
+      ),
+      DartActionDefinition(
+        pluginId: 'stream-plans',
+        actionId: 'prevSegment',
+        displayName: 'Previous Segment',
+        configSchema: _segmentSchema,
+        invoke: (config, context) => _previousSegment(
+          config,
+          context,
+          runtime: activeRuntime,
+          registry: registry,
+        ),
+      ),
+    ],
+  );
+}
 
 Future<Object?> _nextSegment(
   RuntimeMap config,
-  EvaluationContext context,
-) async => {
-  'planId': config['planId'] ?? streamPlanRuntime.activePlanId,
-  'segmentId': _move(config, forward: true),
-  'action': 'nextSegment',
-};
+  EvaluationContext context, {
+  required DartStreamPlanRuntime runtime,
+  DartPluginRegistry? registry,
+}) async {
+  final planId = config['planId']?.toString() ?? runtime.activePlanId;
+  final segments = config['segments'];
+  final segmentId =
+      registry != null &&
+          planId != null &&
+          planId == runtime.activePlanId &&
+          segments is List
+      ? await runtime.transitionToNextSegment(
+          planId,
+          runtime.activePlan ??
+              StreamPlanData.fromConfig({'segments': segments}),
+          registry: registry,
+          context: context,
+        )
+      : _move(runtime, config, forward: true);
+  return {'planId': planId, 'segmentId': segmentId, 'action': 'nextSegment'};
+}
 
 Future<Object?> _previousSegment(
   RuntimeMap config,
-  EvaluationContext context,
-) async => {
-  'planId': config['planId'] ?? streamPlanRuntime.activePlanId,
-  'segmentId': _move(config, forward: false),
-  'action': 'prevSegment',
-};
+  EvaluationContext context, {
+  required DartStreamPlanRuntime runtime,
+  DartPluginRegistry? registry,
+}) async {
+  final planId = config['planId']?.toString() ?? runtime.activePlanId;
+  final segments = config['segments'];
+  final segmentId =
+      registry != null &&
+          planId != null &&
+          planId == runtime.activePlanId &&
+          segments is List
+      ? await runtime.transitionToPreviousSegment(
+          planId,
+          runtime.activePlan ??
+              StreamPlanData.fromConfig({'segments': segments}),
+          registry: registry,
+          context: context,
+        )
+      : _move(runtime, config, forward: false);
+  return {'planId': planId, 'segmentId': segmentId, 'action': 'prevSegment'};
+}
 
-String? _move(RuntimeMap config, {required bool forward}) {
+String? _move(
+  DartStreamPlanRuntime runtime,
+  RuntimeMap config, {
+  required bool forward,
+}) {
   final segments = config['segments'];
   if (segments is! List) return config['segmentId']?.toString();
   final plan = StreamPlanData.fromConfig({'segments': segments});
-  return forward
-      ? streamPlanRuntime.next(plan)
-      : streamPlanRuntime.previous(plan);
+  return forward ? runtime.next(plan) : runtime.previous(plan);
 }

@@ -22,6 +22,7 @@ import '../features/support/support_workspaces.dart';
 import '../features/remote/remote_workspace.dart';
 import '../plugins/runtime/provider_event_workers.dart';
 import '../plugins/registry/plugin_registry.dart';
+import '../plugins/stream_plans/manifest.dart';
 import '../features/resources/resource_editor_registry.dart';
 import '../runtime/action_queue.dart';
 import '../schema/automation.dart';
@@ -39,6 +40,7 @@ class ShowRunnerShell extends StatelessWidget {
     required this.providerEvents,
     required this.pluginRegistryFuture,
     required this.profileRuntimeFuture,
+    this.streamPlanRuntime,
     required this.selectedIndex,
     required this.activeAutomationFile,
     required this.showGraphEditor,
@@ -67,6 +69,7 @@ class ShowRunnerShell extends StatelessWidget {
   final ProviderEventRuntime providerEvents;
   final Future<DartPluginRegistry> pluginRegistryFuture;
   final Future<DartProfileRuntime> profileRuntimeFuture;
+  final DartStreamPlanRuntime? streamPlanRuntime;
   final int selectedIndex;
   final String? activeAutomationFile;
   final bool showGraphEditor;
@@ -297,6 +300,7 @@ class ShowRunnerShell extends StatelessWidget {
         dataService: dataService,
         editorRegistry: createDefaultResourceEditorRegistry(),
         registryFuture: pluginRegistryFuture,
+        streamPlanRuntime: streamPlanRuntime,
       ),
       7 => const LogsWorkspace(),
       8 => AboutWorkspace(updateService: updateService),
