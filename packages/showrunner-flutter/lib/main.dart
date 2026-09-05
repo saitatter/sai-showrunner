@@ -134,6 +134,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
       resourceOptionsLoader: (resourceType) =>
           _resourceOptions(widget.dataService, resourceType),
     );
+    _graphEditor.documentDirty.addListener(_onGraphDirtyChanged);
     if (widget.loadSampleGraph) _graphEditor.loadSampleGraph();
     _actionQueue = DartActionQueue();
     _eventHub = DartPluginEventHub();
@@ -174,6 +175,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
     _disposed = true;
     _providerEvents.removeListener(_syncProviderStateDiagnostics);
     _stateRegistry = null;
+    _graphEditor.documentDirty.removeListener(_onGraphDirtyChanged);
     _graphEditor.dispose();
     _actionQueue.dispose();
     unawaited(_pluginRegistryFuture.then((registry) => registry.close()));
@@ -207,6 +209,11 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
     );
   }
 
+  void _onGraphDirtyChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return ShowRunnerShell(
@@ -224,6 +231,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
       openTabIndices: _openTabIndices,
       selectedPluginId: _selectedPluginId,
       activeAutomationFile: _activeAutomationFile,
+      activeAutomationDirty: _graphEditor.documentDirty.value,
       showGraphEditor: widget.showGraphEditor,
       onDestinationSelected: _openDestination,
       onTabSelected: _selectTab,
@@ -651,6 +659,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
       await AutomationRepository(
         File('${widget.dataService.userDirectory.path}/automations/$fileName'),
       ).save(saved);
+      _graphEditor.markDocumentClean();
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

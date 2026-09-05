@@ -43,6 +43,7 @@ class ShowRunnerShell extends StatelessWidget {
     this.streamPlanRuntime,
     required this.selectedIndex,
     required this.activeAutomationFile,
+    this.activeAutomationDirty = false,
     required this.showGraphEditor,
     required this.onDestinationSelected,
     required this.onResetSampleGraph,
@@ -72,6 +73,7 @@ class ShowRunnerShell extends StatelessWidget {
   final DartStreamPlanRuntime? streamPlanRuntime;
   final int selectedIndex;
   final String? activeAutomationFile;
+  final bool activeAutomationDirty;
   final bool showGraphEditor;
   final ValueChanged<int> onDestinationSelected;
   final VoidCallback onResetSampleGraph;
@@ -224,6 +226,8 @@ class ShowRunnerShell extends StatelessWidget {
                 _WorkspaceTabBar(
                   tabs: tabs,
                   selectedIndex: selectedIndex,
+                  activeAutomationDirty: activeAutomationDirty,
+                  hasActiveAutomation: activeAutomationFile != null,
                   onSelected: onTabSelected ?? (_) {},
                   onClosed: onTabClosed ?? (_) {},
                 ),
@@ -386,12 +390,16 @@ class _WorkspaceTabBar extends StatelessWidget {
   const _WorkspaceTabBar({
     required this.tabs,
     required this.selectedIndex,
+    required this.activeAutomationDirty,
+    required this.hasActiveAutomation,
     required this.onSelected,
     required this.onClosed,
   });
 
   final List<int> tabs;
   final int selectedIndex;
+  final bool activeAutomationDirty;
+  final bool hasActiveAutomation;
   final ValueChanged<int> onSelected;
   final ValueChanged<int> onClosed;
 
@@ -409,6 +417,8 @@ class _WorkspaceTabBar extends StatelessWidget {
                 _WorkspaceTab(
                   index: tab,
                   selected: tab == selectedIndex,
+                  dirty:
+                      tab == 0 && hasActiveAutomation && activeAutomationDirty,
                   canClose: tabs.length > 1,
                   onSelected: onSelected,
                   onClosed: onClosed,
@@ -425,6 +435,7 @@ class _WorkspaceTab extends StatelessWidget {
   const _WorkspaceTab({
     required this.index,
     required this.selected,
+    required this.dirty,
     required this.canClose,
     required this.onSelected,
     required this.onClosed,
@@ -432,6 +443,7 @@ class _WorkspaceTab extends StatelessWidget {
 
   final int index;
   final bool selected;
+  final bool dirty;
   final bool canClose;
   final ValueChanged<int> onSelected;
   final ValueChanged<int> onClosed;
@@ -452,7 +464,7 @@ class _WorkspaceTab extends StatelessWidget {
             children: [
               Icon(_workspaceIcon(index), size: 17),
               const SizedBox(width: 8),
-              Text(_workspaceLabel(index)),
+              Text('${_workspaceLabel(index)}${dirty ? ' •' : ''}'),
               if (canClose)
                 IconButton(
                   tooltip: 'Close ${_workspaceLabel(index)} tab',

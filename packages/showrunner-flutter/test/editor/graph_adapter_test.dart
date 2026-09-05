@@ -10,6 +10,26 @@ import 'package:showrunner_flutter/schema/automation.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('tracks graph edits without marking a loaded document dirty', () {
+    final editor = ShowRunnerGraphEditor();
+    addTearDown(editor.dispose);
+
+    editor.loadAutomation(const AutomationData());
+    expect(editor.documentDirty.value, isFalse);
+
+    final nodeId = editor.addNodeType('if');
+    expect(nodeId, isNotNull);
+    expect(editor.documentDirty.value, isTrue);
+
+    editor.markDocumentClean();
+    expect(editor.documentDirty.value, isFalse);
+    editor.updateNodeConfig(nodeId!, const {'condition': 'true'});
+    expect(editor.documentDirty.value, isTrue);
+
+    editor.loadAutomation(const AutomationData());
+    expect(editor.documentDirty.value, isFalse);
+  });
+
   test('round-trips graph links through the sai_nodes adapter', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);

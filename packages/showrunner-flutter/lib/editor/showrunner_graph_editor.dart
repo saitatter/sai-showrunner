@@ -91,6 +91,7 @@ class ShowRunnerGraphEditor {
     DartPluginRegistry? registry,
     this.resourceOptionsLoader,
   }) : _registry = registry ?? createDefaultPluginRegistry() {
+    nodeRevision.addListener(_markDocumentDirtyFromRevision);
     controller = _createController();
     _controllers[_mainGraphKey] = controller;
   }
@@ -133,6 +134,7 @@ class ShowRunnerGraphEditor {
   final ValueNotifier<int> searchMatchIndex = ValueNotifier(0);
   final ValueNotifier<List<String>> recentNodeTypes = ValueNotifier(const []);
   final ValueNotifier<int> nodeRevision = ValueNotifier(0);
+  final ValueNotifier<bool> documentDirty = ValueNotifier(false);
   final Map<String, String> _nodeTitles = {};
   final Map<String, String> _prototypeTitles = {};
   final Map<String, List<_ClipboardNodeSnapshot>> _clipboardMetadata = {};
@@ -143,6 +145,7 @@ class ShowRunnerGraphEditor {
   List<String>? _pendingPasteNodeIds;
   List<_ClipboardNodeSnapshot>? _pendingPasteSnapshots;
   bool _triggerNodeStateInitialized = false;
+  bool _suspendDirtyTracking = false;
 
   String? get activeSubgraphId => activeGraphPath.value.lastOrNull;
 
@@ -180,6 +183,7 @@ class ShowRunnerGraphEditor {
     );
     _registerPrototypes(created);
     _fieldEvents[created] = created.eventBus.events.listen((event) {
+      _markDocumentDirtyFromEvent(event);
       if (event is DragSelectionEvent &&
           identical(created, _controllers[_mainGraphKey])) {
         _placeDraggedNodesInFrame(event.nodeIds);
@@ -213,6 +217,37 @@ class ShowRunnerGraphEditor {
     });
     return created;
   }
+
+  void _markDocumentDirtyFromRevision() {
+    _markDocumentDirty();
+  }
+
+  void _markDocumentDirty() {
+    if (!_suspendDirtyTracking && !documentDirty.value) {
+      documentDirty.value = true;
+    }
+  }
+
+  void _markDocumentDirtyFromEvent(NodeEditorEvent event) {
+    if (_suspendDirtyTracking) return;
+    if (event is AddLinkEvent ||
+        event is RemoveLinkEvent ||
+        event is NodeResizeEvent ||
+        event is NodeRenameEvent ||
+        event is LinkLabelChangeEvent ||
+        event is DragSelectionEvent ||
+        event is AddNodeEvent ||
+        event is RemoveNodeEvent ||
+        event is PasteSelectionEvent ||
+        event is CutSelectionEvent ||
+        event is NodeLayoutEvent ||
+        (event is NodeFieldEvent && event.eventType != FieldEventType.change)) {
+      _markDocumentDirty();
+    }
+  }
+
+  /// Marks the current graph as persisted after a successful save.
+  void markDocumentClean() => documentDirty.value = false;
 
   Future<String> copySelection({BuildContext? context}) async {
     final snapshots = controller.selectedNodeIds
@@ -1195,16 +1230,22 @@ class ShowRunnerGraphEditor {
     _syncActiveGraph();
     final target = _controllers[subgraphId] ??= _createController();
     if (!_entryNodeIdByGraph.containsKey(subgraphId)) {
-      _loadGraphIntoController(
-        target,
-        AutomationGraph(
-          nodes: subgraph.nodes,
-          edges: subgraph.edges,
-          entryNodeId: subgraph.entryNodeId,
-        ),
-        graphKey: subgraphId,
-        dataWires: subgraph.dataWires,
-      );
+      final wasSuspended = _suspendDirtyTracking;
+      _suspendDirtyTracking = true;
+      try {
+        _loadGraphIntoController(
+          target,
+          AutomationGraph(
+            nodes: subgraph.nodes,
+            edges: subgraph.edges,
+            entryNodeId: subgraph.entryNodeId,
+          ),
+          graphKey: subgraphId,
+          dataWires: subgraph.dataWires,
+        );
+      } finally {
+        _suspendDirtyTracking = wasSuspended;
+      }
     }
     controller = target;
     activeGraphPath.value = [...activeGraphPath.value, subgraphId];
@@ -1256,6 +1297,7 @@ class ShowRunnerGraphEditor {
       _fieldEvents.remove(deletedController)?.cancel();
       deletedController.dispose();
     }
+    _markDocumentDirty();
   }
 
   String? addSubgraphCall(
@@ -1281,6 +1323,7 @@ class ShowRunnerGraphEditor {
       if (nodeTitle.isNotEmpty) 'title': nodeTitle,
     };
     if (nodeTitle.isNotEmpty) _nodeTitles[node.id] = nodeTitle;
+    _markDocumentDirty();
     return node.id;
   }
 
@@ -1302,6 +1345,7 @@ class ShowRunnerGraphEditor {
       entryNodeId: updated[index].entryNodeId,
     );
     subgraphs.value = updated;
+    _markDocumentDirty();
   }
 
   void _registerPrototypes(NodeEditorController target) {
@@ -1561,38 +1605,47 @@ class ShowRunnerGraphEditor {
   }
 
   void loadSampleGraph() {
-    controller.clear();
-    frames.value = const [];
-    selectedFrameId.value = null;
-    subgraphs.value = const [];
-    _entryNodeIdByGraph.clear();
-    searchMatchIndex.value = 0;
-    searchQuery.value = '';
-    graphFeedback.value = null;
-    _variableEditorIds.clear();
-    _triggerEditorIds.clear();
-    _triggerNodeStateInitialized = false;
-    _nodeDataByEditorId.clear();
-    _nodeTitles.clear();
-    _schemaIdByEditorId.clear();
-    _schemaIdByLinkSignature.clear();
-    _invalidFlowEdgesByGraph.clear();
-    _invalidDataWiresByGraph.clear();
-    final trigger = controller.addNode(
-      'trigger.chatMessage',
-      offset: const Offset(-420, -80),
-    );
-    final queue = controller.addNode(
-      'queue.addItem',
-      offset: const Offset(-80, -80),
-    );
-    final overlay = controller.addNode(
-      'overlay.pushChat',
-      offset: const Offset(260, -80),
-    );
+    final wasSuspended = _suspendDirtyTracking;
+    var completed = false;
+    _suspendDirtyTracking = true;
+    try {
+      controller.clear();
+      frames.value = const [];
+      selectedFrameId.value = null;
+      subgraphs.value = const [];
+      _entryNodeIdByGraph.clear();
+      searchMatchIndex.value = 0;
+      searchQuery.value = '';
+      graphFeedback.value = null;
+      _variableEditorIds.clear();
+      _triggerEditorIds.clear();
+      _triggerNodeStateInitialized = false;
+      _nodeDataByEditorId.clear();
+      _nodeTitles.clear();
+      _schemaIdByEditorId.clear();
+      _schemaIdByLinkSignature.clear();
+      _invalidFlowEdgesByGraph.clear();
+      _invalidDataWiresByGraph.clear();
+      final trigger = controller.addNode(
+        'trigger.chatMessage',
+        offset: const Offset(-420, -80),
+      );
+      final queue = controller.addNode(
+        'queue.addItem',
+        offset: const Offset(-80, -80),
+      );
+      final overlay = controller.addNode(
+        'overlay.pushChat',
+        offset: const Offset(260, -80),
+      );
 
-    controller.addLink(trigger.id, 'completed', queue.id, 'exec');
-    controller.addLink(queue.id, 'completed', overlay.id, 'exec');
+      controller.addLink(trigger.id, 'completed', queue.id, 'exec');
+      controller.addLink(queue.id, 'completed', overlay.id, 'exec');
+      completed = true;
+    } finally {
+      _suspendDirtyTracking = wasSuspended;
+      if (completed) markDocumentClean();
+    }
   }
 
   String? addNodeType(
@@ -1641,6 +1694,7 @@ class ShowRunnerGraphEditor {
       final defaults = _defaultControlData(nodeType);
       if (defaults != null) _nodeDataByEditorId[node.id] = defaults;
     }
+    _markDocumentDirty();
     return node.id;
   }
 
@@ -1909,38 +1963,47 @@ class ShowRunnerGraphEditor {
   }
 
   void loadAutomation(AutomationData automation) {
-    for (final entry in _controllers.entries.where(
-      (entry) => entry.key != _mainGraphKey,
-    )) {
-      _fieldEvents.remove(entry.value)?.cancel();
-      entry.value.dispose();
+    final wasSuspended = _suspendDirtyTracking;
+    var completed = false;
+    _suspendDirtyTracking = true;
+    try {
+      for (final entry in _controllers.entries.where(
+        (entry) => entry.key != _mainGraphKey,
+      )) {
+        _fieldEvents.remove(entry.value)?.cancel();
+        entry.value.dispose();
+      }
+      _controllers.removeWhere((key, _) => key != _mainGraphKey);
+      controller = _controllers[_mainGraphKey]!;
+      controller.clear();
+      frames.value = _framesFromExtra(automation.extra);
+      selectedFrameId.value = null;
+      subgraphs.value = automation.subgraphs;
+      activeGraphPath.value = const [];
+      searchMatchIndex.value = 0;
+      searchQuery.value = '';
+      graphFeedback.value = null;
+      _entryNodeIdByGraph.clear();
+      _variableEditorIds.clear();
+      _triggerEditorIds.clear();
+      _triggerNodeStateInitialized = automation.triggerNodes.isNotEmpty;
+      _nodeDataByEditorId.clear();
+      _nodeTitles.clear();
+      _schemaIdByEditorId.clear();
+      _schemaIdByLinkSignature.clear();
+      _loadGraphIntoController(
+        controller,
+        automation.graph,
+        graphKey: _mainGraphKey,
+        dataWires: automation.dataWires,
+        variableNodes: automation.variableNodes,
+        triggerNodes: automation.triggerNodes,
+      );
+      completed = true;
+    } finally {
+      _suspendDirtyTracking = wasSuspended;
+      if (completed) markDocumentClean();
     }
-    _controllers.removeWhere((key, _) => key != _mainGraphKey);
-    controller = _controllers[_mainGraphKey]!;
-    controller.clear();
-    frames.value = _framesFromExtra(automation.extra);
-    selectedFrameId.value = null;
-    subgraphs.value = automation.subgraphs;
-    activeGraphPath.value = const [];
-    searchMatchIndex.value = 0;
-    searchQuery.value = '';
-    graphFeedback.value = null;
-    _entryNodeIdByGraph.clear();
-    _variableEditorIds.clear();
-    _triggerEditorIds.clear();
-    _triggerNodeStateInitialized = automation.triggerNodes.isNotEmpty;
-    _nodeDataByEditorId.clear();
-    _nodeTitles.clear();
-    _schemaIdByEditorId.clear();
-    _schemaIdByLinkSignature.clear();
-    _loadGraphIntoController(
-      controller,
-      automation.graph,
-      graphKey: _mainGraphKey,
-      dataWires: automation.dataWires,
-      variableNodes: automation.variableNodes,
-      triggerNodes: automation.triggerNodes,
-    );
   }
 
   AutomationData toAutomation(AutomationData original) {
@@ -2782,7 +2845,9 @@ class ShowRunnerGraphEditor {
     searchQuery.dispose();
     searchMatchIndex.dispose();
     recentNodeTypes.dispose();
+    nodeRevision.removeListener(_markDocumentDirtyFromRevision);
     nodeRevision.dispose();
+    documentDirty.dispose();
     for (final graphController in _controllers.values) {
       graphController.dispose();
     }
