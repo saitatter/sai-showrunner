@@ -194,7 +194,9 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   Future<bool> _confirmClose() async {
-    if (!_profileDirty || _selectedIndex == null) return true;
+    if (!_profileDirty || _selectedIndex == null) {
+      return _stopCurrentProfile();
+    }
     final fileName = _entries[_selectedIndex!].fileName;
     final decision = await showDialog<_ProfileCloseDecision>(
       context: context,
@@ -227,10 +229,36 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     }
     if (decision == _ProfileCloseDecision.save) {
       await _saveProfile();
-      return mounted && !_profileDirty;
+      if (!mounted || _profileDirty) return false;
+      return _stopCurrentProfile();
     }
     _markClean();
-    return true;
+    return _stopCurrentProfile();
+  }
+
+  Future<bool> _stopCurrentProfile() async {
+    if (!_profileActive || _selectedIndex == null) return true;
+    final entry = _entries[_selectedIndex!];
+    try {
+      final runtime = widget.runtimeFuture == null
+          ? null
+          : await widget.runtimeFuture;
+      await _profileSession?.dispose();
+      _profileSession = null;
+      if (runtime != null && entry.profile != null) {
+        await runtime.deactivate(entry.fileName, entry.profile!);
+      }
+      widget.providerEvents.updateProfileActivity(
+        entry.fileName,
+        active: false,
+      );
+      _profileActive = false;
+      return true;
+    } catch (error) {
+      _error = error;
+      if (mounted) setState(() {});
+      return false;
+    }
   }
 
   Future<void> _createProfile() async {
