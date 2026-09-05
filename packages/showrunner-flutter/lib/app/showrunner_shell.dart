@@ -114,6 +114,7 @@ class ShowRunnerShell extends StatelessWidget {
               _commandMenuItem('file.save', commandContext),
               _commandMenuItem('file.saveAll', commandContext),
               _commandMenuItem('file.close', commandContext),
+              _commandMenuItem('file.closeOthers', commandContext),
             ],
           ),
           PopupMenuButton<String>(

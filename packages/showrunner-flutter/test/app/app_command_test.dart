@@ -25,6 +25,18 @@ void main() {
     expect(registry.find('file.save')!.activators, hasLength(2));
   });
 
+  test('keeps close-others as a first-class command', () {
+    final registry = AppCommandRegistry([
+      AppCommand(
+        id: 'file.closeOthers',
+        label: 'Close other workspaces',
+        execute: (_) {},
+      ),
+    ]);
+
+    expect(registry.find('file.closeOthers')?.label, 'Close other workspaces');
+  });
+
   test('does not execute unavailable commands', () async {
     var executions = 0;
     final registry = AppCommandRegistry([

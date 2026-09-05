@@ -225,6 +225,13 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         execute: (_) => _closeTab(_selectedIndex),
       ),
       AppCommand(
+        id: 'file.closeOthers',
+        label: 'Close other workspaces',
+        icon: Icons.tab_unselected,
+        canExecute: (_) => _openTabIndices.length > 1,
+        execute: (_) => _closeOtherTabs(),
+      ),
+      AppCommand(
         id: 'edit.copy',
         label: 'Copy selected nodes',
         icon: Icons.copy,
@@ -802,6 +809,25 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         final nextPosition = closingPosition > 0 ? closingPosition - 1 : 0;
         _selectedIndex = _openTabIndices[nextPosition];
       }
+    });
+    unawaited(_persistNavigation());
+  }
+
+  Future<void> _closeOtherTabs() async {
+    if (_openTabIndices.length <= 1 ||
+        !_openTabIndices.contains(_selectedIndex)) {
+      return;
+    }
+    if (_selectedIndex != 0 &&
+        _activeAutomationFile != null &&
+        _graphEditor.documentDirty.value &&
+        !await _confirmAutomationClose()) {
+      return;
+    }
+    setState(() {
+      _openTabIndices
+        ..clear()
+        ..add(_selectedIndex);
     });
     unawaited(_persistNavigation());
   }
