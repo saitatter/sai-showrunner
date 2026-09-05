@@ -124,7 +124,9 @@ The startup smoke can also launch that archive directly with
 `-ArchivePath .\release\ShowRunner-Flutter-windows-<version>.zip`; it uses a
 temporary `SHOWRUNNER_USER_DIR` so local data is not modified.
 The packaged first-run and legacy automation migration scenarios can be run
-with `-Scenario first-run` and `-Scenario data-migration` respectively.
+with `-Scenario first-run` and `-Scenario data-migration` respectively. The
+runtime baseline scenarios are `automation`, `profile`, `integrations`,
+`overlays`, and `updates`; every scenario performs a clean shutdown.
 Packaged Release builds store data under `%APPDATA%\ShowRunner\user`; use
 `--portable` to store it beside the executable or set `SHOWRUNNER_USER_DIR` to
 an explicit location.

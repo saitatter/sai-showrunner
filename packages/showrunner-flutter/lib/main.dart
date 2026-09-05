@@ -12,17 +12,21 @@ import 'app/showrunner_shell.dart';
 import 'app/window_configuration.dart';
 import 'editor/showrunner_graph_editor.dart';
 import 'persistence/automation_repository.dart';
+import 'persistence/profile_repository.dart';
 import 'persistence/viewer_data_repository.dart';
 import 'persistence/viewer_data_sync.dart';
 import 'plugins/registry/plugin_registry.dart';
 import 'plugins/registry/plugin_bootstrap.dart';
 import 'plugins/stream_plans/manifest.dart';
+import 'plugins/overlays/manifest.dart';
 import 'services/plugin_event_hub.dart';
 import 'plugins/runtime/provider_event_workers.dart';
 import 'runtime/graph_runtime.dart';
 import 'runtime/profile_runtime.dart';
 import 'runtime/automation_recovery.dart';
 import 'schema/automation.dart';
+import 'schema/profile.dart';
+import 'schema/update.dart';
 import 'runtime/action_queue.dart';
 import 'runtime/expression.dart';
 import 'services/showrunner_data_service.dart';
@@ -372,11 +376,22 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
             'Data migration smoke did not persist schemaVersion 2.',
           );
         }
+      } else if (scenario == 'automation') {
+        await _runAutomationSmoke();
+      } else if (scenario == 'profile') {
+        await _runProfileSmoke();
+      } else if (scenario == 'integrations') {
+        await _runIntegrationsSmoke();
+      } else if (scenario == 'overlays') {
+        await _runOverlaySmoke();
+      } else if (scenario == 'updates') {
+        await _runUpdateSmoke();
       } else if (scenario != 'startup') {
         throw ArgumentError.value(
           scenario,
           'smokeScenario',
-          'Expected startup, first-run, or data-migration.',
+          'Expected startup, first-run, data-migration, automation, profile, '
+              'integrations, overlays, or updates.',
         );
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
@@ -386,6 +401,161 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
       stderr.writeln(stackTrace);
       exitCode = 1;
       if (Platform.isWindows) await windowManager.destroy();
+    }
+  }
+
+  Future<void> _runAutomationSmoke() async {
+    final automation = AutomationData(
+      extra: const {'name': 'Packaged automation smoke'},
+      graph: AutomationGraph(
+        nodes: [
+          GraphNode(
+            id: 'convert',
+            type: 'action',
+            x: 80,
+            y: 80,
+            data: {
+              'plugin': 'ShowRunner',
+              'action': 'convertNumberToString',
+              'config': {'value': 42},
+              'resultMapping': {'value': 'smokeValue'},
+            },
+          ),
+        ],
+        entryNodeId: 'convert',
+      ),
+    );
+    final file = File(
+      '${widget.dataService.userDirectory.path}/automations/smoke.yaml',
+    );
+    final repository = AutomationRepository(file);
+    await repository.save(automation);
+    final loaded = await repository.load();
+    if (loaded == null) {
+      throw StateError('Automation smoke could not reload its fixture.');
+    }
+    final registry = await _pluginRegistryFuture;
+    final result = await const DartGraphRuntime().executeWithRegistry(
+      graph: loaded.graph,
+      context: EvaluationContext(),
+      registry: registry,
+    );
+    if (!result.completed || result.contextState['smokeValue'] != '42') {
+      throw StateError(
+        'Automation smoke did not execute and map the action result.',
+      );
+    }
+  }
+
+  Future<void> _runProfileSmoke() async {
+    final activation = AutomationData(
+      graph: AutomationGraph(
+        nodes: [
+          GraphNode(
+            id: 'activate',
+            type: 'action',
+            x: 80,
+            y: 80,
+            data: {
+              'plugin': 'ShowRunner',
+              'action': 'convertBooleanToString',
+              'config': {'value': true},
+              'resultMapping': {'value': 'profileValue'},
+            },
+          ),
+        ],
+        entryNodeId: 'activate',
+      ),
+    );
+    final profile = ShowRunnerProfile(
+      name: 'Packaged profile smoke',
+      activationMode: 'manual',
+      triggers: const [],
+      activationCondition: const {},
+      activationAutomation: activation,
+      deactivationAutomation: const AutomationData(),
+    );
+    final file = File(
+      '${widget.dataService.userDirectory.path}/profiles/smoke.yaml',
+    );
+    final repository = ProfileRepository(file);
+    await repository.save(profile);
+    final loaded = await repository.load();
+    if (loaded == null) {
+      throw StateError('Profile smoke could not reload its fixture.');
+    }
+    final runtime = await _profileRuntimeFuture;
+    final result = await runtime.activate('smoke', loaded);
+    if (!runtime.isActive('smoke') ||
+        !result.completed ||
+        result.contextState['profileValue'] != 'true') {
+      throw StateError('Profile smoke did not activate its automation.');
+    }
+    await runtime.deactivate('smoke', loaded);
+    if (runtime.isActive('smoke')) {
+      throw StateError('Profile smoke did not deactivate cleanly.');
+    }
+  }
+
+  Future<void> _runIntegrationsSmoke() async {
+    final registry = await _pluginRegistryFuture;
+    const requiredPlugins = [
+      'ShowRunner',
+      'obs',
+      'twitch',
+      'youtube',
+      'overlays',
+      'input',
+      'remote',
+    ];
+    final missing = requiredPlugins
+        .where((pluginId) => registry.findPlugin(pluginId) == null)
+        .toList();
+    if (missing.isNotEmpty) {
+      throw StateError('Integration smoke is missing: ${missing.join(', ')}.');
+    }
+    if (registry.plugins.length < requiredPlugins.length) {
+      throw StateError(
+        'Integration smoke loaded an incomplete plugin catalog.',
+      );
+    }
+  }
+
+  Future<void> _runOverlaySmoke() async {
+    final registry = await _pluginRegistryFuture;
+    final event = _eventHub.stream(OverlayEventIds.widget).first;
+    final result = await registry.invokeAction('overlays', 'triggerWidget', {
+      'widgetId': 'smoke-widget',
+      'overlayId': 'smoke-overlay',
+      'payload': {'source': 'packaged-smoke'},
+    });
+    final payload = await event.timeout(const Duration(seconds: 1));
+    if (result is! Map ||
+        result['triggered'] != true ||
+        payload['widgetId'] != 'smoke-widget' ||
+        payload['overlayId'] != 'smoke-overlay') {
+      throw StateError('Overlay smoke did not publish the widget event.');
+    }
+  }
+
+  Future<void> _runUpdateSmoke() async {
+    final current = await UpdateCheckService(
+      currentVersion: showRunnerFlutterVersion,
+      fetcher: () async => {'tag_name': 'v$showRunnerFlutterVersion'},
+    ).check();
+    final available = await UpdateCheckService(
+      currentVersion: showRunnerFlutterVersion,
+      fetcher: () async => {
+        'tag_name': 'v0.5.10',
+        'body': 'Smoke update',
+        'html_url': 'https://example.test/release',
+      },
+    ).check();
+    if (current.status != UpdateStatus.upToDate ||
+        current.hasUpdate ||
+        available.status != UpdateStatus.available ||
+        !available.hasUpdate) {
+      throw StateError('Update smoke did not classify release states.');
     }
   }
 

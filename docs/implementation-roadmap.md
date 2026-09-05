@@ -86,8 +86,9 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
 
 ## 5. Beta Validation and Cutover Gates
 
-- [ ] Capture the remaining baseline smoke checks for startup, profile
-      selection, integrations, automations, overlays, updates, and shutdown.
+- [x] Capture repeatable Flutter smoke checks for startup, profile selection,
+      integrations, automations, overlays, updates, and shutdown; compare them
+      to the Electron baseline before cutover.
 - [ ] Complete migration/opening fixtures for stale variable nodes and data
       wires in addition to the existing sequence conversion coverage.
 - [ ] Run packaged-app smoke coverage for Settings, Updates, Integrations,

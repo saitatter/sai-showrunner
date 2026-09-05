@@ -22,7 +22,7 @@ The remaining work is concentrated in four areas:
 	collections and the full shader graph editor remain open;
 - provider/plugin parity, especially deeper bespoke plugin UX; YouTube now exposes
 	persisted OAuth token, expiry, and refresh-token diagnostics in its workspace;
-- baseline comparison, packaged Windows validation, and renderer cutover.
+- baseline comparison, installer/update validation, and renderer cutover.
 
 The migration is not yet a complete replacement of the Vue product. The Flutter
 shell now has top-level closable workspace tabs, a persistent grouped integrations
@@ -281,10 +281,12 @@ Run these gates from the repository before closing the migration batch:
 4. Focused widget tests for context-menu search/collapse, inline configuration,
    trigger configuration, graph-health repair, frame/annotation interactions,
    minimap navigation, and result-port visualization.
-5. Windows smoke coverage for startup, opening and saving an automation,
-   provider setup, graph execution, clean shutdown, and packaged artifact
-   launch before renderer cutover. The startup/archive portion is provided by
-   `scripts/smoke-flutter-windows.ps1`; the workflow scenarios remain open.
+5. Windows smoke coverage for startup, profile activation, integration
+   registration, persisted automation execution, overlay delivery, update
+   classification, clean shutdown, first-run setup, legacy data migration, and
+   packaged artifact launch before renderer cutover. These scenarios are
+   provided by `scripts/smoke-flutter-windows.ps1`; visual UI comparison and
+   install/update/rollback validation remain separate cutover gates.
 
 The first three gates prove the current source contracts. The focused widget and
 Windows gates are required before claiming exact Vue parity or removing the
@@ -302,7 +304,9 @@ rollback path.
 ## Phase 0: Baseline and Scope
 
 - [x] Record the current release/build/test commands and supported Windows versions.
-- [ ] Capture baseline smoke checks for startup, profile selection, integrations, automations, overlays, updates, and shutdown.
+- [x] Capture repeatable Flutter smoke checks for startup, profile selection,
+  integrations, automations, overlays, updates, and shutdown; compare them to
+  the Electron baseline before cutover.
 - [x] Inventory renderer pages, global stores, Electron IPC calls, websocket clients, and plugin UI entry points.
 - [x] Mark each surface as `migrate`, `keep web`, `replace`, or `defer`.
 - [x] Agree on Flutter 3.44.0 stable, Dart SDK `^3.12.0`, and the Windows desktop embedding strategy.
