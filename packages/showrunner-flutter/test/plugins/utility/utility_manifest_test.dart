@@ -3,6 +3,7 @@ import 'package:showrunner_flutter/plugins/http/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
 import 'package:showrunner_flutter/plugins/random/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/plugins/time/manifest.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
@@ -68,6 +69,100 @@ void main() {
       'payload': {'message': 'Hello'},
     });
     await eventHub.dispose();
+  });
+
+  test(
+    'overlay actions preserve the legacy broadcast and widget RPC payloads',
+    () async {
+      final eventHub = DartPluginEventHub();
+      final registry = DartPluginRegistry()
+        ..register(createOverlaysPlugin(eventHub: eventHub));
+
+      final alertEvent = eventHub.stream(OverlayEventIds.widgetRpc).first;
+      await registry.invokeAction('overlays', 'alert', {
+        'alert': {'overlayId': 'main', 'widgetId': 'alert'},
+        'title': 'Hello',
+        'subtitle': 'World',
+      });
+      expect(await alertEvent, {
+        'overlayId': 'main',
+        'widgetId': 'alert',
+        'rpcId': 'showAlert',
+        'args': ['Hello', 'World', 0],
+      });
+
+      final chatEvent = eventHub.stream(OverlayEventIds.broadcast).first;
+      await registry.invokeAction('overlays', 'pushChatMessage', {
+        'targetWidget': {'overlayId': 'main', 'widgetId': 'chat'},
+        'viewerName': 'viewer',
+        'message': 'Hi',
+        'platform': 'twitch',
+      });
+      expect(await chatEvent, {
+        'broadcastId': 'showrunner_chat_message',
+        'payload': {
+          'targetOverlayId': 'main',
+          'targetWidgetId': 'chat',
+          'id': 'showrunner-chat',
+          'platform': 'twitch',
+          'displayName': 'viewer',
+          'username': 'viewer',
+          'message': 'Hi',
+          'badges': '',
+        },
+      });
+
+      final sceneEvent = eventHub.stream(OverlayEventIds.broadcast).first;
+      await registry.invokeAction('overlays', 'beginSceneOverlay', {
+        'sceneKey': 'starting',
+        'title': 'Starting soon',
+      });
+      expect(await sceneEvent, {
+        'broadcastId': 'showrunner_scene_event',
+        'payload': {
+          'type': 'scene.begin',
+          'targetOverlayId': '',
+          'targetWidgetId': '',
+          'sceneKey': 'starting',
+          'title': 'Starting soon',
+          'subtitle': '',
+          'accentColor': '#9146ff',
+        },
+      });
+      await eventHub.dispose();
+    },
+  );
+
+  test('widget visibility updates and persists the overlay resource', () async {
+    ResourceData? saved;
+    final store = OverlayResourceStore(
+      load: (id) async => id == 'main'
+          ? ResourceData(
+              id: id,
+              config: {
+                'name': 'Main',
+                'widgets': [
+                  {'id': 'chat', 'visible': true},
+                ],
+              },
+            )
+          : null,
+      save: (resource) async => saved = resource,
+    );
+    final registry = DartPluginRegistry()
+      ..register(createOverlaysPlugin(overlayStore: store));
+
+    expect(
+      await registry.invokeAction('overlays', 'widgetVisibility', {
+        'widget': {'overlayId': 'main', 'widgetId': 'chat'},
+        'enabled': 'toggle',
+      }),
+      {'widgetVisible': false},
+    );
+    expect(saved?.config['widgets'], [
+      {'id': 'chat', 'visible': false},
+    ]);
+    await registry.close();
   });
 
   test('time action accepts dropdown toggle values', () async {

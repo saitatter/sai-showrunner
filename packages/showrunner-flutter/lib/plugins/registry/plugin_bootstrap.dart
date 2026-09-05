@@ -322,7 +322,18 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       eventHub: eventHub,
     ),
   );
-  registry.register(createOverlaysPlugin(eventHub: eventHub));
+  final overlayRepository = ResourceRepository(
+    Directory('${dataService.userDirectory.path}/overlays'),
+  );
+  registry.register(
+    createOverlaysPlugin(
+      eventHub: eventHub,
+      overlayStore: OverlayResourceStore(
+        load: overlayRepository.load,
+        save: overlayRepository.save,
+      ),
+    ),
+  );
   registry.register(createSpellcastPlugin(eventHub: eventHub));
   final goveeSettings = await dataService.loadPluginSettings('govee');
   final goveeApiKey = goveeSettings['apiKey'] as String?;
