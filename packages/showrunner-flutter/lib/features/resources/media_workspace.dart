@@ -295,8 +295,9 @@ class _DurationLabel extends StatelessWidget {
       );
     }
     final currentPlayer = player;
-    if (currentPlayer == null)
+    if (currentPlayer == null) {
       return Icon(icon, size: 18, color: Colors.white54);
+    }
     return StreamBuilder<Duration>(
       stream: currentPlayer.stream.duration,
       initialData: currentPlayer.state.duration,
