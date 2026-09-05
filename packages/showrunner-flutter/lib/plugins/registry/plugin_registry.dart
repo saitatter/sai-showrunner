@@ -5,6 +5,7 @@ import '../../runtime/expression.dart';
 import '../../schema/automation.dart';
 import '../../services/showrunner_data_service.dart';
 import '../runtime/provider_event_workers.dart';
+import '../contracts/identifiers.dart';
 
 typedef DartPluginAction =
     Future<Object?> Function(RuntimeMap config, EvaluationContext context);
@@ -33,6 +34,8 @@ final class DartSettingDefinition {
   final String displayName;
   final bool secret;
   final dynamic defaultValue;
+
+  SettingId get key => SettingId(id);
 }
 
 final class DartTriggerDefinition {
@@ -51,6 +54,9 @@ final class DartTriggerDefinition {
   final DartPluginTrigger listen;
   final DartDataInputSchema? configSchema;
   final DartPluginTriggerMatcher? matches;
+
+  TriggerKey get key =>
+      TriggerKey(plugin: PluginId(pluginId), trigger: TriggerId(triggerId));
 }
 
 final class DartPluginStateDefinition {
@@ -81,6 +87,9 @@ final class DartActionDefinition {
   final DartPluginAction invoke;
   final DartDataInputSchema? configSchema;
   final DartDataInputSchema? resultSchema;
+
+  ActionKey get key =>
+      ActionKey(plugin: PluginId(pluginId), action: ActionId(actionId));
 }
 
 final class DartPluginManifest {
@@ -107,13 +116,16 @@ final class DartPluginManifest {
   final Future<bool> Function()? healthCheck;
   final DartPluginWorkspaceBuilder? workspaceBuilder;
   final Future<void> Function()? dispose;
+
+  PluginId get pluginKey => PluginId(id);
 }
 
 final class DartPluginRegistry extends ChangeNotifier {
-  final Map<String, DartPluginManifest> _plugins = {};
-  final Map<String, DartActionDefinition> _actions = {};
-  final Set<String> _disabledPluginIds = {};
-  final Map<String, Map<String, dynamic>> _stateValues = {};
+  final Map<PluginId, DartPluginManifest> _plugins = {};
+  final Map<ActionKey, DartActionDefinition> _actions = {};
+  final Map<TriggerKey, DartTriggerDefinition> _triggers = {};
+  final Set<PluginId> _disabledPluginIds = {};
+  final Map<PluginId, Map<StateId, dynamic>> _stateValues = {};
   Future<void>? _closeFuture;
 
   void register(DartPluginManifest plugin) {
@@ -121,9 +133,12 @@ final class DartPluginRegistry extends ChangeNotifier {
       throw StateError('Plugin registry is closed.');
     }
     if (plugin.id.isEmpty) throw ArgumentError.value(plugin.id, 'plugin.id');
-    _plugins[plugin.id] = plugin;
-    _stateValues[plugin.id] = {
-      for (final state in plugin.states) state.id: state.initialValue,
+    if (_plugins.containsKey(plugin.pluginKey)) {
+      throw ArgumentError('Plugin is registered more than once: ${plugin.id}');
+    }
+    _plugins[plugin.pluginKey] = plugin;
+    _stateValues[plugin.pluginKey] = {
+      for (final state in plugin.states) StateId(state.id): state.initialValue,
     };
     for (final action in plugin.actions) {
       if (action.pluginId != plugin.id) {
@@ -131,46 +146,75 @@ final class DartPluginRegistry extends ChangeNotifier {
           'Action ${action.actionId} belongs to ${action.pluginId}, not ${plugin.id}.',
         );
       }
-      _actions['${action.pluginId}:${action.actionId}'] = action;
+      if (_actions.containsKey(action.key)) {
+        throw ArgumentError(
+          'Action is registered more than once: ${action.key}',
+        );
+      }
+      _actions[action.key] = action;
+    }
+    for (final trigger in plugin.triggers) {
+      if (trigger.pluginId != plugin.id) {
+        throw ArgumentError(
+          'Trigger ${trigger.triggerId} belongs to ${trigger.pluginId}, not ${plugin.id}.',
+        );
+      }
+      if (_triggers.containsKey(trigger.key)) {
+        throw ArgumentError(
+          'Trigger is registered more than once: ${trigger.key}',
+        );
+      }
+      _triggers[trigger.key] = trigger;
     }
   }
 
   Iterable<DartPluginManifest> get plugins => _plugins.values;
 
   DartActionDefinition? findAction(String pluginId, String actionId) =>
-      _actions['$pluginId:$actionId'];
+      _actions[ActionKey(
+        plugin: PluginId(pluginId),
+        action: ActionId(actionId),
+      )];
 
-  DartPluginManifest? findPlugin(String pluginId) => _plugins[pluginId];
+  DartPluginManifest? findPlugin(String pluginId) =>
+      _plugins[PluginId(pluginId)];
 
-  Map<String, dynamic> stateValues(String pluginId) =>
-      Map.unmodifiable(_stateValues[pluginId] ?? const {});
+  Map<String, dynamic> stateValues(String pluginId) {
+    final states = _stateValues[PluginId(pluginId)];
+    if (states == null) return const {};
+    return Map.unmodifiable({
+      for (final entry in states.entries) entry.key.value: entry.value,
+    });
+  }
 
   void updateState(String pluginId, String stateId, dynamic value) {
-    final states = _stateValues[pluginId];
-    if (states == null || !states.containsKey(stateId)) return;
-    if (states[stateId] == value) return;
-    states[stateId] = value;
+    final states = _stateValues[PluginId(pluginId)];
+    final typedStateId = StateId(stateId);
+    if (states == null || !states.containsKey(typedStateId)) return;
+    if (states[typedStateId] == value) return;
+    states[typedStateId] = value;
     notifyListeners();
   }
 
   bool isPluginEnabled(String pluginId) =>
-      !_disabledPluginIds.contains(pluginId);
+      !_disabledPluginIds.contains(PluginId(pluginId));
 
   void setPluginEnabled(String pluginId, bool enabled) {
     final wasEnabled = isPluginEnabled(pluginId);
+    final typedPluginId = PluginId(pluginId);
     if (enabled) {
-      _disabledPluginIds.remove(pluginId);
+      _disabledPluginIds.remove(typedPluginId);
     } else {
-      _disabledPluginIds.add(pluginId);
+      _disabledPluginIds.add(typedPluginId);
     }
     if (wasEnabled != enabled) notifyListeners();
   }
 
   DartTriggerDefinition? findTrigger(String pluginId, String triggerId) {
-    final plugin = findPlugin(pluginId);
-    return plugin?.triggers
-        .where((trigger) => trigger.triggerId == triggerId)
-        .firstOrNull;
+    return _triggers[TriggerKey(
+      plugin: PluginId(pluginId),
+      trigger: TriggerId(triggerId),
+    )];
   }
 
   Future<bool> checkHealth(String pluginId) async {

@@ -1,9 +1,37 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/obs/obs.dart';
+import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 
 void main() {
+  test('keeps plugin contract keys typed and collision-safe', () {
+    const obs = PluginId('obs');
+    const action = ActionId('scene');
+    expect(
+      const ActionKey(plugin: PluginId('obs'), action: ActionId('scene')),
+      const ActionKey(plugin: obs, action: action),
+    );
+    expect(
+      const TriggerKey(plugin: PluginId('obs'), trigger: TriggerId('scene')),
+      isNot(
+        const TriggerKey(
+          plugin: PluginId('twitch'),
+          trigger: TriggerId('scene'),
+        ),
+      ),
+    );
+
+    final registry = DartPluginRegistry();
+    registry.register(const DartPluginManifest(id: 'sample', name: 'Sample'));
+    expect(
+      () => registry.register(
+        const DartPluginManifest(id: 'sample', name: 'Duplicate'),
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('bootstraps migrated provider manifests into the Dart registry', () {
     final registry = createDefaultPluginRegistry();
 
