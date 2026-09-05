@@ -89,6 +89,19 @@ export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 		document.title = `ShowRunner Overlay -- ${configData.name}`
 	})
 
+	rpcs.handle("overlays_stateUpdate", (plugin: string, state: string, value: any) => {
+		if (!(plugin in stateStore.value)) stateStore.value[plugin] = {}
+		stateStore.value[plugin][state] = value
+	})
+
+	rpcs.handle("overlays_widget", (widgetId: string, payload: any) => {
+		window.dispatchEvent(
+			new CustomEvent("showrunner-widget", {
+				detail: { widgetId, payload },
+			})
+		)
+	})
+
 	rpcs.handle("overlays_widgetRPC", (widgetId: string, rpcId: string, ...args: any[]) => {
 		const widgetRpc = widgetRpcs[`${widgetId}.${rpcId}`]
 

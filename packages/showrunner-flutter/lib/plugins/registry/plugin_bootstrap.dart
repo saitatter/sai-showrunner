@@ -32,6 +32,7 @@ import '../os/manifest.dart';
 import '../random/manifest.dart';
 import '../variables/manifest.dart';
 import '../overlays/manifest.dart';
+import '../overlays/websocket_bridge.dart';
 import '../spellcast/manifest.dart';
 import '../iot/manifest.dart';
 import '../govee/manifest.dart';
@@ -360,13 +361,24 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   final overlayRepository = ResourceRepository(
     Directory('${dataService.userDirectory.path}/overlays'),
   );
+  final overlayStore = OverlayResourceStore(
+    load: overlayRepository.load,
+    save: overlayRepository.save,
+  );
+  final overlayBridge = eventHub == null
+      ? null
+      : DartOverlayWebSocketService(
+          server: httpEndpointService,
+          eventHub: eventHub,
+          overlayStore: overlayStore,
+          registry: registry,
+          viewerDataRepository: variablesRepository,
+        );
   registry.register(
     createOverlaysPlugin(
       eventHub: eventHub,
-      overlayStore: OverlayResourceStore(
-        load: overlayRepository.load,
-        save: overlayRepository.save,
-      ),
+      overlayStore: overlayStore,
+      onDispose: overlayBridge?.dispose,
     ),
   );
   registry.register(createSpellcastPlugin(eventHub: eventHub));

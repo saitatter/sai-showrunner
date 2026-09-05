@@ -29,6 +29,15 @@ try {
     throw "Flutter Windows bundle is missing required files: $($missingBundlePaths -join ', ')"
   }
 
+  $overlaySource = Join-Path (Get-Location) '..\showrunner-obs-overlay\dist\obs-overlay'
+  if (-not (Test-Path -LiteralPath $overlaySource)) {
+    throw "Browser overlay build is missing at $overlaySource. Run 'yarn overlay:build' before packaging."
+  }
+  Copy-Item -LiteralPath $overlaySource -Destination (Join-Path $bundle 'obs-overlay') -Recurse -Force
+  if (-not (Test-Path -LiteralPath (Join-Path $bundle 'obs-overlay\overlay.html'))) {
+    throw "Browser overlay was not copied into the Windows bundle."
+  }
+
   $outputRoot = Join-Path (Get-Location) "..\..\$OutputDirectory"
   New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
   $archive = Join-Path $outputRoot "ShowRunner-Flutter-windows-$Version.zip"

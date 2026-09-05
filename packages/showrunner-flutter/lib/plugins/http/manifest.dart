@@ -22,8 +22,26 @@ final class DartHttpEndpointService {
   final int port;
   HttpServer? _server;
   final _routes = <_HttpEndpointRoute>[];
+  final _requestHandlers = <DartHttpRequestHandler>[];
+  final _webSocketHandlers = <DartHttpWebSocketHandler>[];
 
   int? get boundPort => _server?.port;
+
+  void addRequestHandler(DartHttpRequestHandler handler) {
+    _requestHandlers.add(handler);
+  }
+
+  void removeRequestHandler(DartHttpRequestHandler handler) {
+    _requestHandlers.remove(handler);
+  }
+
+  void addWebSocketHandler(DartHttpWebSocketHandler handler) {
+    _webSocketHandlers.add(handler);
+  }
+
+  void removeWebSocketHandler(DartHttpWebSocketHandler handler) {
+    _webSocketHandlers.remove(handler);
+  }
 
   Future<void> start() async {
     if (_server != null) return;
@@ -69,6 +87,19 @@ final class DartHttpEndpointService {
   }
 
   Future<void> _handleRequest(HttpRequest request) async {
+    if (WebSocketTransformer.isUpgradeRequest(request)) {
+      final socket = await WebSocketTransformer.upgrade(request);
+      for (final handler in List<DartHttpWebSocketHandler>.of(
+        _webSocketHandlers,
+      )) {
+        if (await handler(request, socket)) return;
+      }
+      await socket.close(WebSocketStatus.normalClosure);
+      return;
+    }
+    for (final handler in List<DartHttpRequestHandler>.of(_requestHandlers)) {
+      if (await handler(request)) return;
+    }
     final path = request.uri.path;
     if (!path.startsWith('$_endpointPrefix/')) {
       await _respond(request, HttpStatus.notFound);
@@ -133,6 +164,10 @@ final class DartHttpEndpointService {
     await request.response.close();
   }
 }
+
+typedef DartHttpRequestHandler = Future<bool> Function(HttpRequest request);
+typedef DartHttpWebSocketHandler =
+    Future<bool> Function(HttpRequest request, WebSocket socket);
 
 final class _HttpEndpointRoute {
   const _HttpEndpointRoute({

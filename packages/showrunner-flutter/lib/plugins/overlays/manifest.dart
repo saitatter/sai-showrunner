@@ -357,11 +357,13 @@ const _visibilitySchema = DartDataInputSchema(
 DartPluginManifest createOverlaysPlugin({
   DartPluginEventHub? eventHub,
   OverlayResourceStore? overlayStore,
+  Future<void> Function()? onDispose,
 }) {
   final hub = eventHub ?? DartPluginEventHub();
   return DartPluginManifest(
     id: 'overlays',
     name: 'Overlays',
+    dispose: onDispose,
     actions: [
       DartActionDefinition(
         pluginId: 'overlays',

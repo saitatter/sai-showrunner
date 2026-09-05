@@ -67,6 +67,27 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Enable Corepack
+        shell: pwsh
+        run: corepack enable
+
+      - name: Install browser overlay dependencies
+        shell: pwsh
+        run: yarn install --immutable
+        env:
+          YARN_ENABLE_SCRIPTS: false
+
+      - name: Build browser overlay runtime
+        shell: pwsh
+        run: yarn overlay:build
+
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
