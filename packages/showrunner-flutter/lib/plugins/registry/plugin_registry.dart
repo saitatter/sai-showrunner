@@ -219,9 +219,22 @@ final class DartPluginRegistry extends ChangeNotifier {
 
   Future<void> _closeInternal() async {
     final modules = _modules.values.toList().reversed;
+    Object? firstError;
+    StackTrace? firstStackTrace;
     for (final module in modules) {
-      await module.stop();
+      try {
+        await module.stop();
+      } catch (error, stackTrace) {
+        firstError ??= error;
+        firstStackTrace ??= stackTrace;
+      }
     }
-    super.dispose();
+    try {
+      super.dispose();
+    } finally {
+      if (firstError != null) {
+        Error.throwWithStackTrace(firstError, firstStackTrace!);
+      }
+    }
   }
 }

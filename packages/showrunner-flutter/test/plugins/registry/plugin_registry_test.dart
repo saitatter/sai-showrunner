@@ -339,6 +339,16 @@ void main() {
 
     expect(events, ['initialize:test', 'start', 'stop']);
   });
+
+  test('continues shutdown when a module stop hook fails', () async {
+    final events = <String>[];
+    final registry = DartPluginRegistry()
+      ..registerModule(_StopFailureModule(events, 'first', fails: true))
+      ..registerModule(_StopFailureModule(events, 'second'));
+
+    await expectLater(registry.close, throwsA(isA<StateError>()));
+    expect(events, ['stop:second', 'stop:first']);
+  });
 }
 
 final class _TestPluginModule implements DartPluginModule {
@@ -359,6 +369,33 @@ final class _TestPluginModule implements DartPluginModule {
 
   @override
   Future<void> stop() async => events.add('stop');
+
+  @override
+  Future<DartPluginHealth> checkHealth() async =>
+      const DartPluginHealth.ready();
+}
+
+final class _StopFailureModule implements DartPluginModule {
+  _StopFailureModule(this.events, this.id, {this.fails = false});
+
+  final List<String> events;
+  final String id;
+  final bool fails;
+
+  @override
+  DartPluginManifest get manifest => DartPluginManifest(id: id, name: id);
+
+  @override
+  Future<void> initialize(DartPluginHostContext host) async {}
+
+  @override
+  Future<void> start() async {}
+
+  @override
+  Future<void> stop() async {
+    events.add('stop:$id');
+    if (fails) throw StateError('stop failed: $id');
+  }
 
   @override
   Future<DartPluginHealth> checkHealth() async =>
