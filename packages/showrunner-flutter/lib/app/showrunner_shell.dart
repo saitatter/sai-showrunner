@@ -296,6 +296,7 @@ class ShowRunnerShell extends StatelessWidget {
       6 => ResourcesWorkspace(
         dataService: dataService,
         editorRegistry: createDefaultResourceEditorRegistry(),
+        registryFuture: pluginRegistryFuture,
       ),
       7 => const LogsWorkspace(),
       8 => AboutWorkspace(updateService: updateService),

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/resources/media_picker.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
+import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 
 void main() {
@@ -598,6 +600,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(saved?.config['segments'], hasLength(1));
     expect((saved!.config['segments'] as List).single['name'], 'New segment');
+  });
+
+  testWidgets('runtime stream plan editor exposes transition graphs', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find(
+      'StreamPlan',
+    )!;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.runtimeBuilder!(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(id: 'plan-runtime', config: {'name': 'Runtime plan'}),
+      (_) async {},
+      registryFuture: Future.value(DartPluginRegistry()),
+      resourceOptionsLoader: (_) async => const [],
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+    await tester.pump();
+
+    expect(find.text('On Activate'), findsOneWidget);
+    expect(find.text('On Deactivate'), findsOneWidget);
+    await tester.tap(find.text('On Activate'));
+    await tester.tap(find.text('On Deactivate'));
+    await tester.pump();
+    expect(find.byType(ShowRunnerInlineGraphEditor), findsNWidgets(2));
   });
 
   testWidgets('variable editor persists the persistent toggle', (tester) async {

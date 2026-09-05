@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 
+import '../../editor/showrunner_graph_editor.dart';
+import '../graph/graph_workspace.dart';
+import '../../plugins/registry/plugin_registry.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
 import '../../schema/stream_plan.dart';
@@ -111,6 +114,15 @@ typedef DartResourceEditorBuilder =
       Future<void> Function(ResourceData resource) onSave,
     );
 
+typedef DartResourceEditorRuntimeBuilder =
+    Widget Function(
+      BuildContext context,
+      ResourceData resource,
+      Future<void> Function(ResourceData resource) onSave, {
+      required Future<DartPluginRegistry> registryFuture,
+      required GraphResourceOptionsLoader resourceOptionsLoader,
+    });
+
 final class DartResourceEditorDefinition {
   const DartResourceEditorDefinition({
     required this.pluginId,
@@ -119,6 +131,7 @@ final class DartResourceEditorDefinition {
     required this.storageDirectory,
     required this.defaultConfig,
     required this.builder,
+    this.runtimeBuilder,
   });
 
   final String pluginId;
@@ -127,6 +140,7 @@ final class DartResourceEditorDefinition {
   final String storageDirectory;
   final JsonMap Function(String name) defaultConfig;
   final DartResourceEditorBuilder builder;
+  final DartResourceEditorRuntimeBuilder? runtimeBuilder;
 }
 
 final class DartResourceEditorRegistry {
@@ -184,6 +198,19 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
       },
       builder: (context, resource, onSave) =>
           _StreamPlanEditor(resource: resource, onSave: onSave),
+      runtimeBuilder:
+          (
+            context,
+            resource,
+            onSave, {
+            required registryFuture,
+            required resourceOptionsLoader,
+          }) => _StreamPlanEditor(
+            resource: resource,
+            onSave: onSave,
+            registryFuture: registryFuture,
+            resourceOptionsLoader: resourceOptionsLoader,
+          ),
     ),
   );
   registry.register(
@@ -937,10 +964,17 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
 }
 
 class _StreamPlanEditor extends StatefulWidget {
-  const _StreamPlanEditor({required this.resource, required this.onSave});
+  const _StreamPlanEditor({
+    required this.resource,
+    required this.onSave,
+    this.registryFuture,
+    this.resourceOptionsLoader,
+  });
 
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
+  final Future<DartPluginRegistry>? registryFuture;
+  final GraphResourceOptionsLoader? resourceOptionsLoader;
 
   @override
   State<_StreamPlanEditor> createState() => _StreamPlanEditorState();
@@ -949,6 +983,8 @@ class _StreamPlanEditor extends StatefulWidget {
 class _StreamPlanEditorState extends State<_StreamPlanEditor> {
   late final TextEditingController _name;
   late List<StreamPlanSegmentData> _segments;
+  ShowRunnerGraphEditor? _activationEditor;
+  ShowRunnerGraphEditor? _deactivationEditor;
 
   @override
   void initState() {
@@ -956,11 +992,21 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
     final plan = StreamPlanData.fromConfig(widget.resource.config);
     _name = TextEditingController(text: plan.name);
     _segments = List<StreamPlanSegmentData>.of(plan.segments);
+    if (widget.registryFuture != null) {
+      _activationEditor = ShowRunnerGraphEditor(
+        resourceOptionsLoader: widget.resourceOptionsLoader,
+      )..loadAutomation(AutomationData.fromJson(plan.activationAutomation));
+      _deactivationEditor = ShowRunnerGraphEditor(
+        resourceOptionsLoader: widget.resourceOptionsLoader,
+      )..loadAutomation(AutomationData.fromJson(plan.deactivationAutomation));
+    }
   }
 
   @override
   void dispose() {
     _name.dispose();
+    _activationEditor?.dispose();
+    _deactivationEditor?.dispose();
     super.dispose();
   }
 
@@ -972,14 +1018,20 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
         controller: _name,
         decoration: const InputDecoration(labelText: 'Name'),
       ),
-      _automationSummary(
-        'On Activate',
-        widget.resource.config['activationAutomation'],
-      ),
-      _automationSummary(
-        'On Deactivate',
-        widget.resource.config['deactivationAutomation'],
-      ),
+      if (_activationEditor != null)
+        _inlineStreamPlanAutomation('On Activate', _activationEditor!),
+      if (_deactivationEditor != null)
+        _inlineStreamPlanAutomation('On Deactivate', _deactivationEditor!),
+      if (_activationEditor == null)
+        _automationSummary(
+          'On Activate',
+          widget.resource.config['activationAutomation'],
+        ),
+      if (_deactivationEditor == null)
+        _automationSummary(
+          'On Deactivate',
+          widget.resource.config['deactivationAutomation'],
+        ),
       Row(
         children: [
           const Expanded(
@@ -1025,16 +1077,30 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
           ),
     ],
     onSave: () => widget.onSave(
-      ResourceData(
-        id: widget.resource.id,
-        config: {
-          ...widget.resource.config,
-          'name': _name.text.trim(),
-          'segments': _segments.map((segment) => segment.toJson()).toList(),
-        },
-      ),
+      ResourceData(id: widget.resource.id, config: _savedConfig()),
     ),
   );
+
+  JsonMap _savedConfig() {
+    final plan = StreamPlanData.fromConfig(widget.resource.config);
+    return {
+      ...widget.resource.config,
+      'name': _name.text.trim(),
+      'activationAutomation':
+          _activationEditor
+              ?.toAutomation(AutomationData.fromJson(plan.activationAutomation))
+              .toJson() ??
+          plan.activationAutomation,
+      'deactivationAutomation':
+          _deactivationEditor
+              ?.toAutomation(
+                AutomationData.fromJson(plan.deactivationAutomation),
+              )
+              .toJson() ??
+          plan.deactivationAutomation,
+      'segments': _segments.map((segment) => segment.toJson()).toList(),
+    };
+  }
 
   StreamPlanSegmentData _newSegment() => StreamPlanSegmentData(
     id: 'segment-${DateTime.now().microsecondsSinceEpoch}',
@@ -1061,6 +1127,24 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
       subtitle: Text('$nodes automation node${nodes == 1 ? '' : 's'}'),
     );
   }
+
+  Widget _inlineStreamPlanAutomation(
+    String label,
+    ShowRunnerGraphEditor editor,
+  ) => ExpansionTile(
+    leading: const Icon(Icons.account_tree_outlined),
+    title: Text(label),
+    subtitle: Text('${editor.controller.nodes.length} nodes'),
+    children: [
+      SizedBox(
+        width: 720,
+        child: ShowRunnerInlineGraphEditor(
+          editor: editor,
+          registryFuture: widget.registryFuture!,
+        ),
+      ),
+    ],
+  );
 }
 
 class _StreamPlanSegmentCard extends StatelessWidget {

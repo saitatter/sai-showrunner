@@ -3,21 +3,25 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../persistence/resource_repository.dart';
+import '../../plugins/registry/plugin_registry.dart';
 import 'resource_editor_registry.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
 import '../../services/showrunner_data_service.dart';
 import 'media_picker.dart';
+import 'resource_options.dart';
 
 class ResourcesWorkspace extends StatefulWidget {
   const ResourcesWorkspace({
     super.key,
     required this.dataService,
     required this.editorRegistry,
+    this.registryFuture,
   });
 
   final ShowRunnerDataService dataService;
   final DartResourceEditorRegistry editorRegistry;
+  final Future<DartPluginRegistry>? registryFuture;
 
   @override
   State<ResourcesWorkspace> createState() => _ResourcesWorkspaceState();
@@ -160,14 +164,25 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     );
     await showDialog<void>(
       context: context,
-      builder: (context) => MediaPickerScope(
-        directory: Directory('${dataService.userDirectory.path}/media'),
-        child: editor.builder(
-          context,
-          resource,
-          (updated) => ResourceRepository(directory).save(updated),
-        ),
-      ),
+      builder: (context) {
+        Future<void> save(ResourceData updated) =>
+            ResourceRepository(directory).save(updated);
+        final runtimeBuilder = editor.runtimeBuilder;
+        final content = runtimeBuilder != null && widget.registryFuture != null
+            ? runtimeBuilder(
+                context,
+                resource,
+                save,
+                registryFuture: widget.registryFuture!,
+                resourceOptionsLoader: (resourceType) =>
+                    loadResourceOptions(dataService, resourceType),
+              )
+            : editor.builder(context, resource, save);
+        return MediaPickerScope(
+          directory: Directory('${dataService.userDirectory.path}/media'),
+          child: content,
+        );
+      },
     );
     if (mounted) setState(_reload);
   }
