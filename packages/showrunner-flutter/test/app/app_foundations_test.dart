@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/app/app_foundations.dart';
+import 'package:showrunner_flutter/design_system/tokens/tokens.dart';
 
 void main() {
   test('defines a desktop-sized window with a usable minimum', () {
@@ -19,6 +20,12 @@ void main() {
     final theme = buildShowRunnerTheme();
 
     expect(theme.brightness, Brightness.dark);
+    expect(theme.colorScheme.primary, ShowRunnerColors.primary);
+    expect(theme.scaffoldBackgroundColor, ShowRunnerColors.background);
+    expect(
+      theme.textTheme.bodyMedium?.fontFamily,
+      ShowRunnerTypography.uiFontFamily,
+    );
     expect(theme.inputDecorationTheme.filled, isTrue);
     expect(theme.navigationRailTheme.indicatorColor, isNotNull);
     expect(theme.tooltipTheme.waitDuration, const Duration(milliseconds: 450));
