@@ -34,6 +34,293 @@ const _transformConfigSchema = DartDataInputSchema(
   ],
 );
 
+const _emptyConfigSchema = DartDataInputSchema(
+  label: 'OBS action',
+  kind: DartDataInputKind.object,
+);
+
+DartDataInputSchema _objectSchema(
+  String label,
+  List<DartDataInputSchema> fields,
+) => DartDataInputSchema(
+  label: label,
+  kind: DartDataInputKind.object,
+  fields: fields,
+);
+
+DartDataInputSchema _toggleConfigSchema({
+  required String label,
+  required String key,
+  required bool defaultValue,
+}) => _objectSchema('OBS $label', [
+  DartDataInputSchema(
+    label: label,
+    key: key,
+    kind: DartDataInputKind.enumeration,
+    options: const ['true', 'false', 'toggle'],
+    required: true,
+    defaultValue: defaultValue,
+  ),
+]);
+
+final _streamConfigSchema = _toggleConfigSchema(
+  label: 'Streaming',
+  key: 'streaming',
+  defaultValue: true,
+);
+final _recordingConfigSchema = _toggleConfigSchema(
+  label: 'Recording',
+  key: 'recording',
+  defaultValue: true,
+);
+final _virtualCamConfigSchema = _toggleConfigSchema(
+  label: 'Virtual camera',
+  key: 'virtualCam',
+  defaultValue: true,
+);
+final _replayBufferConfigSchema = _toggleConfigSchema(
+  label: 'Replay buffer',
+  key: 'replayBuffer',
+  defaultValue: true,
+);
+final _studioModeConfigSchema = _toggleConfigSchema(
+  label: 'Studio mode',
+  key: 'studioMode',
+  defaultValue: true,
+);
+
+final _muteConfigSchema = _objectSchema('OBS mute source', const [
+  DartDataInputSchema(
+    label: 'Source',
+    key: 'source',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Muted',
+    key: 'muted',
+    kind: DartDataInputKind.enumeration,
+    options: ['true', 'false', 'toggle'],
+    required: true,
+    defaultValue: true,
+  ),
+]);
+
+final _volumeConfigSchema = _objectSchema('OBS source volume', const [
+  DartDataInputSchema(
+    label: 'Source',
+    key: 'source',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Volume (0-100)',
+    key: 'volume',
+    kind: DartDataInputKind.number,
+    required: true,
+    defaultValue: 100,
+  ),
+]);
+
+final _sourceVisibilityConfigSchema = _objectSchema(
+  'OBS source visibility',
+  const [
+    DartDataInputSchema(
+      label: 'Scene',
+      key: 'scene',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Source ID',
+      key: 'source',
+      kind: DartDataInputKind.number,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Visible',
+      key: 'enabled',
+      kind: DartDataInputKind.enumeration,
+      options: ['true', 'false', 'toggle'],
+      required: true,
+      defaultValue: true,
+    ),
+  ],
+);
+
+final _filterConfigSchema = _objectSchema('OBS filter visibility', const [
+  DartDataInputSchema(
+    label: 'Source name',
+    key: 'sourceName',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Filter name',
+    key: 'filterName',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Enabled',
+    key: 'filterEnabled',
+    kind: DartDataInputKind.enumeration,
+    options: ['true', 'false', 'toggle'],
+    required: true,
+    defaultValue: true,
+  ),
+]);
+
+final _textConfigSchema = _objectSchema('OBS source text', const [
+  DartDataInputSchema(
+    label: 'Source name',
+    key: 'sourceName',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Text',
+    key: 'text',
+    kind: DartDataInputKind.multilineText,
+    required: true,
+  ),
+]);
+
+final _mediaActionConfigSchema = _objectSchema('OBS media action', const [
+  DartDataInputSchema(
+    label: 'Source',
+    key: 'source',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Media action',
+    key: 'action',
+    kind: DartDataInputKind.enumeration,
+    options: ['Play', 'Pause', 'Restart', 'Stop', 'Next', 'Previous'],
+    required: true,
+    defaultValue: 'Play',
+  ),
+]);
+
+final _playMediaConfigSchema = _objectSchema('OBS play media', const [
+  DartDataInputSchema(
+    label: 'Scene',
+    key: 'scene',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Source ID',
+    key: 'source',
+    kind: DartDataInputKind.number,
+    required: true,
+  ),
+]);
+
+final _chapterConfigSchema = _objectSchema('OBS chapter marker', const [
+  DartDataInputSchema(
+    label: 'Chapter name',
+    key: 'chapterName',
+    kind: DartDataInputKind.text,
+  ),
+]);
+
+final _browserUrlConfigSchema = _objectSchema('OBS browser URL', const [
+  DartDataInputSchema(
+    label: 'Source',
+    key: 'source',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'URL',
+    key: 'url',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+]);
+
+final _browserRefreshConfigSchema = _objectSchema('OBS browser refresh', const [
+  DartDataInputSchema(
+    label: 'Source',
+    key: 'source',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+]);
+
+final _refreshBrowserConfigSchema = _objectSchema('OBS browser refresh', const [
+  DartDataInputSchema(
+    label: 'Source name',
+    key: 'sourceName',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+]);
+
+final _setBrowserUrlConfigSchema =
+    _objectSchema('OBS browser source URL', const [
+      DartDataInputSchema(
+        label: 'Source name',
+        key: 'sourceName',
+        kind: DartDataInputKind.text,
+        required: true,
+      ),
+      DartDataInputSchema(
+        label: 'URL',
+        key: 'url',
+        kind: DartDataInputKind.text,
+        required: true,
+      ),
+    ]);
+
+final _setImageConfigSchema = _objectSchema('OBS image source', const [
+  DartDataInputSchema(
+    label: 'Source name',
+    key: 'sourceName',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Image',
+    key: 'image',
+    kind: DartDataInputKind.filePath,
+    required: true,
+  ),
+]);
+
+final _screenshotConfigSchema = _objectSchema('OBS screenshot', const [
+  DartDataInputSchema(
+    label: 'Source name',
+    key: 'sourceName',
+    kind: DartDataInputKind.text,
+  ),
+  DartDataInputSchema(
+    label: 'Width',
+    key: 'width',
+    kind: DartDataInputKind.number,
+  ),
+  DartDataInputSchema(
+    label: 'Height',
+    key: 'height',
+    kind: DartDataInputKind.number,
+  ),
+  DartDataInputSchema(
+    label: 'Directory',
+    key: 'directory',
+    kind: DartDataInputKind.filePath,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Filename',
+    key: 'filename',
+    kind: DartDataInputKind.text,
+    required: true,
+    defaultValue: 'screenshot.png',
+  ),
+]);
+
 final class ObsConnectionConfig {
   const ObsConnectionConfig({
     required this.name,
@@ -109,7 +396,8 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           kind: DartDataInputKind.object,
           fields: [
             DartDataInputSchema(
-              label: 'scene',
+              label: 'Scene',
+              key: 'scene',
               kind: DartDataInputKind.text,
               required: true,
             ),
@@ -133,6 +421,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'prevScene',
         displayName: 'Previous Scene',
+        configSchema: _emptyConfigSchema,
         invoke: (config, context) async {
           if (previousScenes.isEmpty) return null;
           final scene = previousScenes.removeLast();
@@ -163,9 +452,10 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'streamStartStop',
         displayName: 'Stream Start/Stop',
+        configSchema: _streamConfigSchema,
         invoke: (config, context) async => _toggle(
           transport,
-          config['streaming'],
+          _toggleValue(config['streaming']),
           'ToggleStream',
           'StartStream',
           'StopStream',
@@ -175,9 +465,10 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'recordingStartStop',
         displayName: 'Recording Start/Stop',
+        configSchema: _recordingConfigSchema,
         invoke: (config, context) async => _toggle(
           transport,
-          config['recording'],
+          _toggleValue(config['recording']),
           'ToggleRecord',
           'StartRecord',
           'StopRecord',
@@ -187,9 +478,10 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'virtualCamStartStop',
         displayName: 'Virtual Cam Start/Stop',
+        configSchema: _virtualCamConfigSchema,
         invoke: (config, context) async => _toggle(
           transport,
-          config['virtualCam'],
+          _toggleValue(config['virtualCam']),
           'ToggleVirtualCam',
           'StartVirtualCam',
           'StopVirtualCam',
@@ -199,9 +491,10 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'replayBufferStartStop',
         displayName: 'Replay Buffer Start/Stop',
+        configSchema: _replayBufferConfigSchema,
         invoke: (config, context) async => _toggle(
           transport,
-          config['replayBuffer'],
+          _toggleValue(config['replayBuffer']),
           'ToggleReplayBuffer',
           'StartReplayBuffer',
           'StopReplayBuffer',
@@ -211,6 +504,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'replaySave',
         displayName: 'Save Replay Buffer',
+        configSchema: _emptyConfigSchema,
         invoke: (config, context) async {
           await transport.call('SaveReplayBuffer', {});
           final response = await transport.call(
@@ -224,8 +518,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'toggleStudioMode',
         displayName: 'Toggle Studio Mode',
+        configSchema: _studioModeConfigSchema,
         invoke: (config, context) async {
-          var enabled = config['studioMode'];
+          var enabled = _toggleValue(config['studioMode']);
           if (enabled == 'toggle') {
             enabled = !(config['studioModeEnabled'] == true);
           }
@@ -238,6 +533,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'triggerStudioModeTransition',
         displayName: 'Trigger Studio Mode Transition',
+        configSchema: _emptyConfigSchema,
         invoke: (config, context) =>
             transport.call('TriggerStudioModeTransition', {}),
       ),
@@ -245,8 +541,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'mute',
         displayName: 'Mute Source',
+        configSchema: _muteConfigSchema,
         invoke: (config, context) async {
-          var muted = config['muted'];
+          var muted = _toggleValue(config['muted']);
           if (muted == 'toggle') {
             final status = await transport.call('GetInputMute', {
               'inputName': config['source'],
@@ -264,6 +561,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'changeVolume',
         displayName: 'Change Volume',
+        configSchema: _volumeConfigSchema,
         invoke: (config, context) => transport.call('SetInputVolume', {
           'inputName': config['source'],
           'inputVolumeDb': _sliderToDb(config['volume']),
@@ -273,8 +571,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'source',
         displayName: 'Source Visibility',
+        configSchema: _sourceVisibilityConfigSchema,
         invoke: (config, context) async {
-          var enabled = config['enabled'];
+          var enabled = _toggleValue(config['enabled']);
           if (enabled == 'toggle') {
             final response = await transport.call('GetSceneItemEnabled', {
               'sceneName': config['scene'],
@@ -341,8 +640,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'filter',
         displayName: 'Filter Visibility',
+        configSchema: _filterConfigSchema,
         invoke: (config, context) async {
-          var enabled = config['filterEnabled'];
+          var enabled = _toggleValue(config['filterEnabled']);
           if (enabled == 'toggle') {
             final response = await transport.call('GetSourceFilter', {
               'sourceName': config['sourceName'],
@@ -362,6 +662,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'text',
         displayName: 'Set Source Text',
+        configSchema: _textConfigSchema,
         invoke: (config, context) => transport.call('SetInputSettings', {
           'inputName': config['sourceName'],
           'inputSettings': {'text': config['text']},
@@ -371,6 +672,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'mediaAction',
         displayName: 'Media Controls',
+        configSchema: _mediaActionConfigSchema,
         invoke: (config, context) => transport.call('TriggerMediaInputAction', {
           'inputName': config['source'],
           'mediaAction': _mediaAction(config['action']),
@@ -380,6 +682,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'playMedia',
         displayName: 'Play Media',
+        configSchema: _playMediaConfigSchema,
         invoke: (config, context) async {
           final sceneName = config['scene'];
           final sceneItemId = config['source'];
@@ -406,6 +709,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'chapterMarker',
         displayName: 'Chapter Marker',
+        configSchema: _chapterConfigSchema,
         invoke: (config, context) => transport.call('CreateRecordChapter', {
           'chapterName': config['chapterName'],
         }),
@@ -414,6 +718,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'browserUrl',
         displayName: 'Set Browser Source URL',
+        configSchema: _browserUrlConfigSchema,
         invoke: (config, context) async {
           await transport.call('SetInputSettings', {
             'inputName': config['source'],
@@ -427,6 +732,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'browserRefresh',
         displayName: 'Refresh Browser Source',
+        configSchema: _browserRefreshConfigSchema,
         invoke: (config, context) async {
           await transport.call('PressInputPropertiesButton', {
             'inputName': config['source'],
@@ -439,6 +745,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'refreshBrowser',
         displayName: 'Refresh Browser',
+        configSchema: _refreshBrowserConfigSchema,
         invoke: (config, context) => transport.call(
           'PressInputPropertiesButton',
           {'inputName': config['sourceName'], 'propertyName': 'refreshnocache'},
@@ -448,6 +755,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'setBrowserURL',
         displayName: 'Set Browser URL',
+        configSchema: _setBrowserUrlConfigSchema,
         invoke: (config, context) => transport.call('SetInputSettings', {
           'inputName': config['sourceName'],
           'inputSettings': {'url': config['url']},
@@ -457,6 +765,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'setImage',
         displayName: 'Set Image Source',
+        configSchema: _setImageConfigSchema,
         invoke: (config, context) => transport.call('SetInputSettings', {
           'inputName': config['sourceName'],
           'inputSettings': {'file': config['image']},
@@ -466,6 +775,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         pluginId: 'obs',
         actionId: 'screenshot',
         displayName: 'Screenshot Source',
+        configSchema: _screenshotConfigSchema,
         invoke: (config, context) async {
           final directory = config['directory']?.toString().trim() ?? '';
           if (directory.isEmpty) {
@@ -532,6 +842,14 @@ double _sliderToDb(dynamic value) {
           math.pow((range + offset) / offset, -slider).toDouble() +
       offset;
 }
+
+dynamic _toggleValue(dynamic value) => value is String
+    ? switch (value.toLowerCase()) {
+        'true' => true,
+        'false' => false,
+        _ => value,
+      }
+    : value;
 
 Future<Object?> _toggle(
   ObsTransport transport,

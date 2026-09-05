@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/plugins/obs/actions.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
@@ -9,6 +10,81 @@ import 'package:showrunner_flutter/services/provider_settings_validator.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
+  test('exposes structured configuration for every OBS action', () {
+    final actions = createObsPlugin(
+      CallbackObsTransport((request, data) async => {}),
+    ).actions;
+    final expectedIds = [
+      'scene',
+      'prevScene',
+      'hotkey',
+      'streamStartStop',
+      'recordingStartStop',
+      'virtualCamStartStop',
+      'replayBufferStartStop',
+      'replaySave',
+      'toggleStudioMode',
+      'triggerStudioModeTransition',
+      'mute',
+      'changeVolume',
+      'source',
+      'getInputSettings',
+      'setInputSettings',
+      'filter',
+      'text',
+      'mediaAction',
+      'playMedia',
+      'chapterMarker',
+      'browserUrl',
+      'browserRefresh',
+      'refreshBrowser',
+      'setBrowserURL',
+      'setImage',
+      'screenshot',
+      'transform',
+    ];
+
+    expect(actions.map((action) => action.actionId), expectedIds);
+    for (final action in actions) {
+      expect(action.configSchema, isNotNull, reason: action.actionId);
+    }
+    final stream = actions.firstWhere(
+      (action) => action.actionId == 'streamStartStop',
+    );
+    expect(stream.configSchema!.fields.single.key, 'streaming');
+    expect(
+      stream.configSchema!.fields.single.kind,
+      DartDataInputKind.enumeration,
+    );
+    expect(stream.configSchema!.fields.single.options, [
+      'true',
+      'false',
+      'toggle',
+    ]);
+  });
+
+  test('normalizes string toggle values from generic input controls', () async {
+    final requests = <String>[];
+    final registry = DartPluginRegistry()
+      ..register(
+        createObsPlugin(
+          CallbackObsTransport((request, data) async {
+            requests.add(request);
+            return {};
+          }),
+        ),
+      );
+
+    await registry.invokeAction('obs', 'recordingStartStop', {
+      'recording': 'false',
+    });
+    await registry.invokeAction('obs', 'toggleStudioMode', {
+      'studioMode': 'true',
+    });
+
+    expect(requests, ['StopRecord', 'SetStudioModeEnabled']);
+  });
+
   test('persists OBS resources in the plugin directory', () async {
     final directory = await Directory.systemTemp.createTemp(
       'showrunner-resources-',
