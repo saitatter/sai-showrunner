@@ -502,7 +502,8 @@ For each surface:
 - [x] Port Wyze cloud login, token refresh, device listing, and light/plug
 	state actions.
 - [x] Port Discord webhook JSON/multipart delivery and authenticated Minecraft
-	TCP RCON command execution; persistent RCON sessions remain follow-up work.
+	TCP RCON command execution with persistent authenticated sessions; proactive
+	connection-status UI remains follow-up work.
 - [x] Port Bluesky app-password session creation, AT Protocol post delivery,
 	and persisted account-resource selection; login UI parity remains follow-up
 	work.

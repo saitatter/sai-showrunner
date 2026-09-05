@@ -23,24 +23,27 @@ const _commandSchema = DartDataInputSchema(
   ],
 );
 
-DartPluginManifest createMinecraftPlugin({MinecraftTransport? transport}) =>
-    DartPluginManifest(
-      id: 'minecraft',
-      name: 'Minecraft',
-      actions: [
-        DartActionDefinition(
-          pluginId: 'minecraft',
-          actionId: 'mineCmd',
-          displayName: 'Minecraft RCON Command',
-          configSchema: _commandSchema,
-          invoke: (config, context) => _sendRconCommand(
-            transport ??
-                MinecraftTransport(SocketMinecraftRconTransport().request),
-            config,
-          ),
-        ),
-      ],
-    );
+DartPluginManifest createMinecraftPlugin({MinecraftTransport? transport}) {
+  final persistentTransport = transport == null
+      ? PersistentMinecraftRconTransport()
+      : null;
+  final effectiveTransport =
+      transport ?? MinecraftTransport(persistentTransport!.request);
+  return DartPluginManifest(
+    id: 'minecraft',
+    name: 'Minecraft',
+    actions: [
+      DartActionDefinition(
+        pluginId: 'minecraft',
+        actionId: 'mineCmd',
+        displayName: 'Minecraft RCON Command',
+        configSchema: _commandSchema,
+        invoke: (config, context) =>
+            _sendRconCommand(effectiveTransport, config),
+      ),
+    ],
+  );
+}
 
 Future<Object?> _sendRconCommand(
   MinecraftTransport transport,
