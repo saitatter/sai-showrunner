@@ -66,6 +66,9 @@ class ShowRunnerShell extends StatelessWidget {
     this.onAutomationSelected,
     this.onAutomationClosed,
     this.onAutomationReordered,
+    this.profileController,
+    this.profileDirty = false,
+    this.onProfileDirtyChanged,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -103,6 +106,9 @@ class ShowRunnerShell extends StatelessWidget {
   final ValueChanged<String>? onAutomationSelected;
   final FutureOr<void> Function(String fileName)? onAutomationClosed;
   final void Function(int oldPosition, int newPosition)? onAutomationReordered;
+  final ProfileWorkspaceController? profileController;
+  final bool profileDirty;
+  final ValueChanged<bool>? onProfileDirtyChanged;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -299,6 +305,7 @@ class ShowRunnerShell extends StatelessWidget {
                   selectedIndex: selectedIndex,
                   activeAutomationDirty: activeAutomationDirty,
                   hasActiveAutomation: activeAutomationFile != null,
+                  activeProfileDirty: profileDirty,
                   onSelected: onTabSelected ?? (_) {},
                   onClosed: onTabClosed ?? (_) {},
                   onReordered: onTabReordered ?? (_, _) {},
@@ -383,6 +390,8 @@ class ShowRunnerShell extends StatelessWidget {
         providerEvents: providerEvents,
         registryFuture: pluginRegistryFuture,
         runtimeFuture: profileRuntimeFuture,
+        controller: profileController,
+        onDirtyChanged: onProfileDirtyChanged,
       ),
       5 => QueueWorkspace(dataService: dataService, queue: actionQueue),
       6 => ResourcesWorkspace(
@@ -586,6 +595,7 @@ class _WorkspaceTabBar extends StatelessWidget {
     required this.selectedIndex,
     required this.activeAutomationDirty,
     required this.hasActiveAutomation,
+    required this.activeProfileDirty,
     required this.onSelected,
     required this.onClosed,
     required this.onReordered,
@@ -595,6 +605,7 @@ class _WorkspaceTabBar extends StatelessWidget {
   final int selectedIndex;
   final bool activeAutomationDirty;
   final bool hasActiveAutomation;
+  final bool activeProfileDirty;
   final ValueChanged<int> onSelected;
   final FutureOr<void> Function(int) onClosed;
   final void Function(int oldPosition, int newPosition) onReordered;
@@ -621,7 +632,11 @@ class _WorkspaceTabBar extends StatelessWidget {
               child: _WorkspaceTab(
                 index: tab,
                 selected: tab == selectedIndex,
-                dirty: tab == 0 && hasActiveAutomation && activeAutomationDirty,
+                dirty:
+                    (tab == 0 &&
+                        hasActiveAutomation &&
+                        activeAutomationDirty) ||
+                    (tab == 4 && activeProfileDirty),
                 canClose: tabs.length > 1,
                 onSelected: onSelected,
                 onClosed: onClosed,

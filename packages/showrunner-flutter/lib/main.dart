@@ -36,6 +36,7 @@ import 'runtime/expression.dart';
 import 'services/showrunner_data_service.dart';
 import 'services/update_check_service.dart';
 import 'features/automation/automation_starters.dart';
+import 'features/profile/profile_workspace.dart';
 import 'features/settings/interface_preferences.dart';
 import 'features/resources/resource_options.dart';
 
@@ -132,6 +133,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   late final FlutterInterfacePreferences _interfacePreferences;
   late final AppCommandRegistry _commandRegistry;
   final _automationDocuments = AutomationDocumentManager();
+  final _profileWorkspaceController = ProfileWorkspaceController();
   DartPluginRegistry? _stateRegistry;
   bool _disposed = false;
   String _selectedPluginId = 'obs';
@@ -143,6 +145,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       _automationDocuments.active;
   AutomationData? get _activeAutomation => _activeAutomationSession?.data;
   String? get _activeAutomationFile => _automationDocuments.activeFileName;
+  bool _profileDirty = false;
 
   @override
   void initState() {
@@ -414,6 +417,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _isWindowCloseInProgress = true;
     try {
       if (!await _confirmAllAutomationClose()) return false;
+      if (!await _profileWorkspaceController.confirmClose()) return false;
       await saveShowRunnerWindowState(_windowStateFile);
       await windowManager.setPreventClose(false);
       // Re-issue the close through the normal Win32 path after releasing the
@@ -448,6 +452,11 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       activeAutomationFile: _activeAutomationFile,
       activeAutomationDirty: _graphEditor.documentDirty.value,
       automationDocuments: _automationDocuments,
+      profileController: _profileWorkspaceController,
+      profileDirty: _profileDirty,
+      onProfileDirtyChanged: (dirty) {
+        if (mounted) setState(() => _profileDirty = dirty);
+      },
       showGraphEditor: widget.showGraphEditor,
       onDestinationSelected: _openDestination,
       onTabSelected: _selectTab,
@@ -893,6 +902,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         _graphEditor.documentDirty.value) {
       if (!await _confirmAutomationClose()) return;
     }
+    if (index == 4 && !await _profileWorkspaceController.confirmClose()) {
+      return;
+    }
     if (!_workspaceDocuments.close(index)) return;
     setState(() {});
     unawaited(_persistNavigation());
@@ -905,6 +917,11 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         _activeAutomationFile != null &&
         _graphEditor.documentDirty.value &&
         !await _confirmAutomationClose()) {
+      return;
+    }
+    if (selected != 4 &&
+        _workspaceDocuments.openWorkspaceIndices.contains(4) &&
+        !await _profileWorkspaceController.confirmClose()) {
       return;
     }
     if (!_workspaceDocuments.closeOthers()) return;

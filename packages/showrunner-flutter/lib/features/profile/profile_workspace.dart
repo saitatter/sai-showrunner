@@ -22,6 +22,24 @@ typedef ProfileEntry = ({
   Object? error,
 });
 
+enum _ProfileCloseDecision { save, discard, cancel }
+
+/// Lets the application close lifecycle ask the profile editor to resolve
+/// unsaved changes without reaching into its widget state.
+final class ProfileWorkspaceController {
+  Future<bool> Function()? _closeGuard;
+
+  void attach(Future<bool> Function() closeGuard) {
+    _closeGuard = closeGuard;
+  }
+
+  void detach() {
+    _closeGuard = null;
+  }
+
+  Future<bool> confirmClose() => _closeGuard?.call() ?? Future.value(true);
+}
+
 class ProfileWorkspace extends StatefulWidget {
   const ProfileWorkspace({
     super.key,
@@ -29,12 +47,16 @@ class ProfileWorkspace extends StatefulWidget {
     required this.providerEvents,
     this.registryFuture,
     this.runtimeFuture,
+    this.controller,
+    this.onDirtyChanged,
   });
 
   final ShowRunnerDataService dataService;
   final ProviderEventRuntime providerEvents;
   final Future<DartPluginRegistry>? registryFuture;
   final Future<DartProfileRuntime>? runtimeFuture;
+  final ProfileWorkspaceController? controller;
+  final ValueChanged<bool>? onDirtyChanged;
 
   @override
   State<ProfileWorkspace> createState() => _ProfileWorkspaceState();
@@ -54,6 +76,8 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   bool _profileActive = false;
   DartProfileSession? _profileSession;
   Object? _error;
+  bool _profileDirty = false;
+  bool _synchronizing = false;
 
   @override
   void initState() {
@@ -64,17 +88,41 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     _deactivationEditor = ShowRunnerGraphEditor(
       resourceOptionsLoader: _resourceOptions,
     );
+    _nameController.addListener(_markDirty);
+    _conditionController.addListener(_markDirty);
+    _activationEditor.documentDirty.addListener(_markDirty);
+    _deactivationEditor.documentDirty.addListener(_markDirty);
+    widget.controller?.attach(_confirmClose);
     _load();
   }
 
   @override
   void dispose() {
+    widget.controller?.detach();
+    _nameController.removeListener(_markDirty);
+    _conditionController.removeListener(_markDirty);
+    _activationEditor.documentDirty.removeListener(_markDirty);
+    _deactivationEditor.documentDirty.removeListener(_markDirty);
     _nameController.dispose();
     _conditionController.dispose();
     unawaited(_profileSession?.dispose());
     _activationEditor.dispose();
     _deactivationEditor.dispose();
     super.dispose();
+  }
+
+  void _markDirty() {
+    if (_synchronizing || _selectedIndex == null || _loading) return;
+    if (_profileDirty) return;
+    _profileDirty = true;
+    widget.onDirtyChanged?.call(true);
+    if (mounted) setState(() {});
+  }
+
+  void _markClean() {
+    if (!_profileDirty) return;
+    _profileDirty = false;
+    widget.onDirtyChanged?.call(false);
   }
 
   Future<void> _load() async {
@@ -106,6 +154,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   void _selectProfile(int index) {
+    _synchronizing = true;
     final changed = _selectedIndex != index;
     _selectedIndex = index;
     if (changed) {
@@ -134,9 +183,58 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       _activationEditor.loadAutomation(_emptyAutomation());
       _deactivationEditor.loadAutomation(_emptyAutomation());
     }
+    _synchronizing = false;
+    _markClean();
+  }
+
+  Future<void> _requestSelectProfile(int index) async {
+    if (index == _selectedIndex || !await _confirmClose()) return;
+    if (!mounted || index < 0 || index >= _entries.length) return;
+    setState(() => _selectProfile(index));
+  }
+
+  Future<bool> _confirmClose() async {
+    if (!_profileDirty || _selectedIndex == null) return true;
+    final fileName = _entries[_selectedIndex!].fileName;
+    final decision = await showDialog<_ProfileCloseDecision>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsaved profile changes'),
+        content: Text('Save changes to $fileName before closing?'),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_ProfileCloseDecision.cancel),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_ProfileCloseDecision.discard),
+            child: const Text("Don't Save"),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_ProfileCloseDecision.save),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted ||
+        decision == null ||
+        decision == _ProfileCloseDecision.cancel) {
+      return false;
+    }
+    if (decision == _ProfileCloseDecision.save) {
+      await _saveProfile();
+      return mounted && !_profileDirty;
+    }
+    _markClean();
+    return true;
   }
 
   Future<void> _createProfile() async {
+    if (!await _confirmClose()) return;
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileName = 'profile_$timestamp.yaml';
     final profile = ShowRunnerProfile(
@@ -227,6 +325,12 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   Future<void> _deleteProfile(String fileName) async {
+    if (_selectedIndex != null &&
+        _selectedIndex! < _entries.length &&
+        _entries[_selectedIndex!].fileName == fileName &&
+        !await _confirmClose()) {
+      return;
+    }
     final file = File(
       '${widget.dataService.userDirectory.path}/profiles/$fileName',
     );
@@ -234,6 +338,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       await file.delete();
     }
     _selectedIndex = null;
+    _markClean();
     await _load();
   }
 
@@ -256,6 +361,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         'description': selected.displayName,
         'automation': _emptyAutomation().toJson(),
       });
+      _markDirty();
     });
   }
 
@@ -274,7 +380,10 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       ),
     );
     if (result == null || !mounted) return;
-    setState(() => _triggers[index] = result);
+    setState(() {
+      _triggers[index] = result;
+      _markDirty();
+    });
   }
 
   Future<List<String>> _resourceOptions(String resourceType) async {
@@ -282,7 +391,10 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   void _removeTrigger(int index) {
-    setState(() => _triggers.removeAt(index));
+    setState(() {
+      _triggers.removeAt(index);
+      _markDirty();
+    });
   }
 
   @override
@@ -337,7 +449,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                                 entry.profile?.activationMode ?? 'Invalid',
                               ),
                               onTap: () =>
-                                  setState(() => _selectProfile(index)),
+                                  unawaited(_requestSelectProfile(index)),
                             );
                           },
                         ),
@@ -356,7 +468,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                       Row(
                         children: [
                           Text(
-                            'Edit Profile',
+                            'Edit Profile${_profileDirty ? ' *' : ''}',
                             style: Theme.of(context).textTheme.headlineSmall,
                           ),
                           const Spacer(),
@@ -454,8 +566,10 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                             child: Text('Always Active'),
                           ),
                         ],
-                        onChanged: (value) =>
-                            setState(() => _activationMode = value ?? 'toggle'),
+                        onChanged: (value) {
+                          setState(() => _activationMode = value ?? 'toggle');
+                          _markDirty();
+                        },
                       ),
                       const SizedBox(height: 24),
                       _InlineAutomationPanel(
