@@ -128,8 +128,9 @@ final class DartPluginRegistry extends ChangeNotifier {
   }
 
   Future<bool> checkHealth(String pluginId) async {
-    final check = findPlugin(pluginId)?.healthCheck;
-    return check == null ? true : check();
+    final module = findModule(pluginId);
+    if (module == null) return true;
+    return (await module.checkHealth()).isHealthy;
   }
 
   /// Starts all registered runtime modules in registration order.

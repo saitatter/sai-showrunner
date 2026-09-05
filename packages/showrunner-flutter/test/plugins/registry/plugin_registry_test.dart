@@ -335,6 +335,7 @@ void main() {
     );
     await registry.start();
     expect(await module.checkHealth(), const DartPluginHealth.ready());
+    expect(await registry.checkHealth('module'), isTrue);
     await registry.close();
 
     expect(events, ['initialize:test', 'start', 'stop']);
