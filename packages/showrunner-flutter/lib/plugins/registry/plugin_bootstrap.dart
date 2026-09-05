@@ -24,6 +24,7 @@ import '../remote/manifest.dart';
 import '../voicemod/manifest.dart';
 import '../sound/manifest.dart';
 import '../sound/output.dart';
+import '../sound/windows_audio.dart';
 import '../minecraft/manifest.dart';
 import '../http/manifest.dart';
 import '../time/manifest.dart';
@@ -274,9 +275,31 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     host: voiceModHost?.isNotEmpty == true ? voiceModHost! : '127.0.0.1',
     port: _port(voiceModSettings['port'], 59129),
   );
+  final configuredSoundOutputs =
+      soundOutputs ?? createDefaultSoundOutputRegistry();
+  if (soundOutputs == null) {
+    final splitters = await ResourceRepository(
+      Directory('${dataService.userDirectory.path}/sound/splitters'),
+    ).list();
+    for (final splitter in splitters) {
+      configuredSoundOutputs.registerSplitterConfig(
+        splitter.id,
+        splitter.config,
+      );
+    }
+  }
   registry.register(createVoiceModPlugin(voiceModTransport));
   registry.register(
-    createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
+    createSoundPlugin(
+      ttsService: ttsService,
+      soundOutputs: configuredSoundOutputs,
+      ttsVoiceResolver: (id) async {
+        final resource = await ResourceRepository(
+          Directory('${dataService.userDirectory.path}/sound/tts'),
+        ).load(id);
+        return resource?.config;
+      },
+    ),
   );
   registry.register(createMinecraftPlugin());
   registry.register(createHttpPlugin());

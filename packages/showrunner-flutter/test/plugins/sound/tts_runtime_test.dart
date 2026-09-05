@@ -45,6 +45,36 @@ void main() {
     },
   );
 
+  test('resolves a persisted TTS voice resource by ID', () async {
+    final service = _RecordingSpeechService();
+    final registry = DartPluginRegistry()
+      ..register(
+        createSoundPlugin(
+          ttsService: service,
+          ttsFileService: CallbackTtsFileSynthesisService((_) async => null),
+          ttsVoiceResolver: (id) async {
+            expect(id, 'voice-1');
+            return {
+              'name': 'Narrator',
+              'voiceProvider': 'system.voice-1',
+              'providerConfig': {'pitch': 3, 'rate': -2},
+            };
+          },
+        ),
+      );
+
+    await registry.invokeAction('sound', 'tts', {
+      'voice': 'voice-1',
+      'text': 'Loaded from disk',
+    });
+
+    final request = service.requests.single;
+    expect(request.voiceProvider, 'system.voice-1');
+    expect(request.voiceName, 'Narrator');
+    expect(request.pitch, closeTo(1.3, 0.0001));
+    expect(request.rate, closeTo(0.4, 0.0001));
+  });
+
   test('does not invoke the speech service for blank text', () async {
     final service = _RecordingSpeechService();
     final registry = DartPluginRegistry()

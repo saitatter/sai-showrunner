@@ -60,6 +60,13 @@ const _speakTtsSchema = DartDataInputSchema(
       resourceType: 'SoundOutput',
     ),
     DartDataInputSchema(
+      label: 'Voice',
+      key: 'voice',
+      kind: DartDataInputKind.resource,
+      resourceType: 'TTSVoice',
+      required: true,
+    ),
+    DartDataInputSchema(
       label: 'Voice provider',
       key: 'voiceProvider',
       kind: DartDataInputKind.text,
@@ -93,22 +100,28 @@ final class _SoundDependencies {
     required this.tts,
     required this.ttsFile,
     required this.outputs,
+    required this.resolveVoice,
   });
 
   final TtsSpeechService tts;
   final TtsFileSynthesisService? ttsFile;
   final SoundOutputRegistry outputs;
+  final TtsVoiceResolver? resolveVoice;
 }
+
+typedef TtsVoiceResolver = Future<RuntimeMap?> Function(String id);
 
 DartPluginManifest createSoundPlugin({
   TtsSpeechService? ttsService,
   TtsFileSynthesisService? ttsFileService,
   SoundOutputRegistry? soundOutputs,
+  TtsVoiceResolver? ttsVoiceResolver,
 }) {
   final dependencies = _SoundDependencies(
     tts: ttsService ?? FlutterTtsSpeechService(),
     ttsFile: ttsFileService ?? createDefaultTtsFileSynthesisService(),
     outputs: soundOutputs ?? createDefaultSoundOutputRegistry(),
+    resolveVoice: ttsVoiceResolver,
   );
   return DartPluginManifest(
     id: 'sound',
@@ -133,6 +146,7 @@ DartPluginManifest createSoundPlugin({
           dependencies.tts,
           dependencies.ttsFile,
           dependencies.outputs,
+          dependencies.resolveVoice,
         ),
       ),
       DartActionDefinition(
@@ -146,6 +160,7 @@ DartPluginManifest createSoundPlugin({
           dependencies.tts,
           dependencies.ttsFile,
           dependencies.outputs,
+          dependencies.resolveVoice,
         ),
       ),
     ],
@@ -191,15 +206,21 @@ Future<Object?> _speakTTS(
   TtsSpeechService service,
   TtsFileSynthesisService? fileService,
   SoundOutputRegistry outputs,
+  TtsVoiceResolver? resolveVoice,
 ) async {
   final text = config['text']?.toString() ?? '';
   if (text.trim().isEmpty) return {'spoken': false, 'text': text};
 
   final rawVoice = config['voice'];
-  final voiceConfig = rawVoice is Map && rawVoice['config'] is Map
-      ? Map<String, dynamic>.from(rawVoice['config'] as Map)
-      : rawVoice is Map
-      ? Map<String, dynamic>.from(rawVoice)
+  final voiceId = _resourceId(rawVoice);
+  final resolvedVoice = voiceId == null
+      ? null
+      : await resolveVoice?.call(voiceId);
+  final effectiveVoice = resolvedVoice ?? rawVoice;
+  final voiceConfig = effectiveVoice is Map && effectiveVoice['config'] is Map
+      ? Map<String, dynamic>.from(effectiveVoice['config'] as Map)
+      : effectiveVoice is Map
+      ? Map<String, dynamic>.from(effectiveVoice)
       : const <String, dynamic>{};
   final providerConfig = config['providerConfig'] is Map
       ? Map<String, dynamic>.from(config['providerConfig'] as Map)
@@ -209,17 +230,17 @@ Future<Object?> _speakTTS(
   final voiceProvider = _firstText(<Object?>[
     config['voiceProvider'],
     voiceConfig['voiceProvider'],
-    rawVoice is String ? rawVoice : null,
+    effectiveVoice is String ? effectiveVoice : null,
   ]);
   final voiceName = _firstText(<Object?>[
     config['voiceName'],
     voiceConfig['name'],
-    rawVoice is Map ? rawVoice['name'] : null,
+    effectiveVoice is Map ? effectiveVoice['name'] : null,
   ]);
   final voiceLocale = _firstText(<Object?>[
     config['voiceLocale'],
     voiceConfig['locale'],
-    rawVoice is Map ? rawVoice['locale'] : null,
+    effectiveVoice is Map ? effectiveVoice['locale'] : null,
   ]);
   final pitch = _legacyPitch(providerConfig['pitch'] ?? config['pitch']);
   final rate = _legacyRate(providerConfig['rate'] ?? config['rate']);
