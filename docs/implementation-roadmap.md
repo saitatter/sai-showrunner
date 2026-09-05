@@ -35,7 +35,9 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
 - [x] Add the viewer-variable lazy table with paging and sorting.
 - [x] Add live provider synchronization for viewer data.
 - [x] Add SQLite import support and non-primitive viewer-variable types.
-- [ ] Reach native global-input parity in the Flutter runtime.
+- [x] Reach native global-input parity in the Flutter runtime for the supported
+      Windows target (Raw Input events, key-state queries, and SendInput
+      keyboard/mouse actions).
 - [ ] Complete deeper bespoke Twitch, OBS, Moderation, Spellcast, and Dashboard
       workflows beyond the current foundations; Twitch channel-point reward
       CRUD and redemption status management are now covered in Flutter.
