@@ -1060,27 +1060,29 @@ class _ShowRunnerIntegrationTreeState extends State<ShowRunnerIntegrationTree> {
                   onToggle: widget.onToggle,
                 ),
           ],
-        for (final shortcutGroup in _integrationShortcutGroups)
-          if (groups.values.any(
-            (plugins) => plugins.any((plugin) => plugin.id == shortcutGroup.id),
-          ))
-            _IntegrationShortcutGroupView(
-              group: shortcutGroup,
-              expanded: _expanded[shortcutGroup.title] ?? true,
-              compact: widget.preferences.compactProjectSidebar,
-              catalogFuture: widget.catalogFuture,
-              selectedResourceType: widget.selectedResourceType,
-              selectedResourceId: widget.selectedResourceId,
-              onToggle: () => setState(
-                () => _expanded[shortcutGroup.title] =
-                    !(_expanded[shortcutGroup.title] ?? true),
+        if (!widget.preferences.hideNativeIntegrationShortcuts)
+          for (final shortcutGroup in _integrationShortcutGroups)
+            if (groups.values.any(
+              (plugins) =>
+                  plugins.any((plugin) => plugin.id == shortcutGroup.id),
+            ))
+              _IntegrationShortcutGroupView(
+                group: shortcutGroup,
+                expanded: _expanded[shortcutGroup.title] ?? true,
+                compact: widget.preferences.compactProjectSidebar,
+                catalogFuture: widget.catalogFuture,
+                selectedResourceType: widget.selectedResourceType,
+                selectedResourceId: widget.selectedResourceId,
+                onToggle: () => setState(
+                  () => _expanded[shortcutGroup.title] =
+                      !(_expanded[shortcutGroup.title] ?? true),
+                ),
+                onSelected: widget.onSelected,
+                onResourceTypeSelected: widget.onResourceTypeSelected,
+                onOpenResource: widget.onOpenResource,
+                onRenameResource: widget.onRenameResource,
+                onDeleteResource: widget.onDeleteResource,
               ),
-              onSelected: widget.onSelected,
-              onResourceTypeSelected: widget.onResourceTypeSelected,
-              onOpenResource: widget.onOpenResource,
-              onRenameResource: widget.onRenameResource,
-              onDeleteResource: widget.onDeleteResource,
-            ),
       ],
     );
   }

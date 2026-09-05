@@ -27,6 +27,7 @@ void main() {
   ) async {
     final preferences = FlutterInterfacePreferences(
       dataService: ShowRunnerDataService(Directory.systemTemp),
+      initialValues: {'hideNativeIntegrationShortcuts': false},
     );
     addTearDown(preferences.dispose);
     var selectedIndex = -1;
@@ -90,7 +91,6 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -1000));
     await tester.pumpAndSettle();
     expect(find.text('Overlays'), findsOneWidget);
-    expect(find.text('Tools'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Tools'));
     await tester.tap(find.text('Tools'));

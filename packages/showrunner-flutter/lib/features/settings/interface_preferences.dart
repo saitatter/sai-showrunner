@@ -4,7 +4,16 @@ import '../../plugins/registry/plugin_registry.dart';
 import '../../services/showrunner_data_service.dart';
 
 final class FlutterInterfacePreferences extends ChangeNotifier {
-  FlutterInterfacePreferences({required this.dataService});
+  FlutterInterfacePreferences({
+    required this.dataService,
+    Map<String, bool>? initialValues,
+  }) {
+    if (initialValues != null) {
+      for (final entry in initialValues.entries) {
+        if (_defaults.containsKey(entry.key)) _values[entry.key] = entry.value;
+      }
+    }
+  }
 
   static const defaultProjectSidebarWidth = 300.0;
   static const minProjectSidebarWidth = 250.0;
