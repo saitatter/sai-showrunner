@@ -137,7 +137,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   DartPluginRegistry? _stateRegistry;
   bool _disposed = false;
   String _selectedPluginId = 'obs';
-  final _workspaceDocuments = WorkspaceDocumentManager();
+  final _workspaceDocuments = WorkspaceDocumentManager(
+    initial: const [showRunnerHomeWorkspaceIndex],
+  );
   Future<void> _navigationWrite = Future<void>.value();
   bool _restoredNavigation = false;
 
@@ -501,19 +503,29 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       final settings = await widget.dataService.loadPluginSettings(
         'showrunner-flutter',
       );
+      final hasRestoredWorkspaceTabs = settings.containsKey(
+        'openWorkspaceTabs',
+      );
       final restoredTabs = settings['openWorkspaceTabs'];
       final tabs = restoredTabs is List
           ? restoredTabs
                 .whereType<num>()
                 .map((value) => value.toInt())
-                .where((value) => value >= 0 && value <= 12)
+                .where(
+                  (value) =>
+                      value >= 0 && value <= showRunnerHomeWorkspaceIndex,
+                )
                 .toSet()
                 .toList()
-          : <int>[];
+          : hasRestoredWorkspaceTabs
+          ? <int>[]
+          : <int>[showRunnerHomeWorkspaceIndex];
       final restoredSelected = settings['selectedWorkspace'];
       final selected = restoredSelected is num
           ? restoredSelected.toInt()
-          : null;
+          : hasRestoredWorkspaceTabs
+          ? null
+          : showRunnerHomeWorkspaceIndex;
       if (widget.showGraphEditor) {
         await _restoreAutomationDocuments(settings);
       }

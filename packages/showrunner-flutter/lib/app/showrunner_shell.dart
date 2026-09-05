@@ -11,6 +11,7 @@ import '../design_system/controls/controls.dart';
 import '../editor/showrunner_graph_editor.dart';
 import '../features/automation/automation_catalog_workspace.dart';
 import '../features/diagnostics/diagnostics_workspace.dart';
+import '../features/dashboard/main_dashboard_workspace.dart';
 import '../features/graph/graph_workspace.dart';
 import '../features/plugins/plugin_workspace.dart';
 import '../features/plugins/plugin_catalog_filter.dart';
@@ -34,6 +35,8 @@ import '../runtime/profile_runtime.dart';
 import '../services/showrunner_data_service.dart';
 import '../services/update_check_service.dart';
 import '../services/update_install_service.dart';
+
+const showRunnerHomeWorkspaceIndex = 13;
 
 class ShowRunnerShell extends StatelessWidget {
   const ShowRunnerShell({
@@ -273,6 +276,10 @@ class ShowRunnerShell extends StatelessWidget {
                 icon: Icon(Icons.public),
                 label: Text('Remote'),
               ),
+              NavigationRailDestination(
+                icon: Icon(Icons.dashboard),
+                label: Text('Home'),
+              ),
             ],
           ),
           const VerticalDivider(width: 1),
@@ -428,6 +435,14 @@ class ShowRunnerShell extends StatelessWidget {
       12 => RemoteWorkspace(
         dataService: dataService,
         registryFuture: pluginRegistryFuture,
+      ),
+      showRunnerHomeWorkspaceIndex => MainDashboardWorkspace(
+        dataService: dataService,
+        actionQueue: actionQueue,
+        providerEvents: providerEvents,
+        registryFuture: pluginRegistryFuture,
+        streamPlanRuntime: streamPlanRuntime,
+        onOpenWorkspace: onDestinationSelected,
       ),
       _ => const LogsWorkspace(),
     };
@@ -988,5 +1003,6 @@ IconData _workspaceIcon(int index) => switch (index) {
   10 => Icons.rocket_launch,
   11 => Icons.data_object,
   12 => Icons.public,
+  showRunnerHomeWorkspaceIndex => Icons.dashboard,
   _ => Icons.dashboard,
 };
