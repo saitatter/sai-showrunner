@@ -23,6 +23,7 @@ final class AppCommand {
     required this.execute,
     this.icon,
     this.shortcut,
+    this.additionalShortcuts = const [],
     this.canExecute = _alwaysAvailable,
   });
 
@@ -30,8 +31,16 @@ final class AppCommand {
   final String label;
   final IconData? icon;
   final ShortcutActivator? shortcut;
+  final List<ShortcutActivator> additionalShortcuts;
   final AppCommandAction execute;
   final AppCommandAvailability canExecute;
+
+  Iterable<ShortcutActivator> get activators => [
+    ...(shortcut == null
+        ? const <ShortcutActivator>[]
+        : <ShortcutActivator>[shortcut!]),
+    ...additionalShortcuts,
+  ];
 
   static bool _alwaysAvailable(AppCommandContext context) => true;
 }
@@ -48,7 +57,7 @@ final class AppCommandRegistry {
   Iterable<AppCommand> get commands => _commands.values;
 
   Iterable<AppCommand> get shortcutCommands =>
-      _commands.values.where((command) => command.shortcut != null);
+      _commands.values.where((command) => command.activators.isNotEmpty);
 
   void register(AppCommand command) {
     if (_commands.containsKey(command.id)) {

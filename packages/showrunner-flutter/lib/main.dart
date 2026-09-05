@@ -192,6 +192,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         label: 'Save automation',
         icon: Icons.save,
         shortcut: const SingleActivator(LogicalKeyboardKey.keyS, control: true),
+        additionalShortcuts: const [
+          SingleActivator(LogicalKeyboardKey.keyS, meta: true),
+        ],
         canExecute: (_) => _activeAutomationFile != null,
         execute: (_) => _saveAutomation(),
       ),
@@ -204,6 +207,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           control: true,
           shift: true,
         ),
+        additionalShortcuts: const [
+          SingleActivator(LogicalKeyboardKey.keyS, meta: true, shift: true),
+        ],
         canExecute: (_) => _activeAutomationFile != null,
         execute: (_) => _saveAll(),
       ),
@@ -212,6 +218,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         label: 'Close workspace',
         icon: Icons.close,
         shortcut: const SingleActivator(LogicalKeyboardKey.keyW, control: true),
+        additionalShortcuts: const [
+          SingleActivator(LogicalKeyboardKey.keyW, meta: true),
+        ],
         canExecute: (_) => _openTabIndices.length > 1,
         execute: (_) => _closeTab(_selectedIndex),
       ),
@@ -220,6 +229,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         label: 'Copy selected nodes',
         icon: Icons.copy,
         shortcut: const SingleActivator(LogicalKeyboardKey.keyC, control: true),
+        additionalShortcuts: const [
+          SingleActivator(LogicalKeyboardKey.keyC, meta: true),
+        ],
         canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
         execute: (commandContext) async {
           final buildContext = commandContext.buildContext;
@@ -233,6 +245,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         label: 'Paste nodes',
         icon: Icons.content_paste,
         shortcut: const SingleActivator(LogicalKeyboardKey.keyV, control: true),
+        additionalShortcuts: const [
+          SingleActivator(LogicalKeyboardKey.keyV, meta: true),
+        ],
         canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
         execute: (commandContext) async {
           final buildContext = commandContext.buildContext;
@@ -246,6 +261,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         label: 'Cut selected nodes',
         icon: Icons.content_cut,
         shortcut: const SingleActivator(LogicalKeyboardKey.keyX, control: true),
+        additionalShortcuts: const [
+          SingleActivator(LogicalKeyboardKey.keyX, meta: true),
+        ],
         canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
         execute: (commandContext) async {
           final buildContext = commandContext.buildContext;

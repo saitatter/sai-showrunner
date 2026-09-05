@@ -295,7 +295,8 @@ class ShowRunnerShell extends StatelessWidget {
     return CallbackShortcuts(
       bindings: {
         for (final command in commands.shortcutCommands)
-          command.shortcut!: () => runCommand(command.id),
+          for (final activator in command.activators)
+            activator: () => runCommand(command.id),
       },
       child: Focus(autofocus: true, child: shell),
     );

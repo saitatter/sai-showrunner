@@ -10,6 +10,9 @@ void main() {
         id: 'file.save',
         label: 'Save',
         shortcut: const SingleActivator(LogicalKeyboardKey.keyS, control: true),
+        additionalShortcuts: const [
+          SingleActivator(LogicalKeyboardKey.keyS, meta: true),
+        ],
         execute: (_) {},
       ),
       AppCommand(id: 'help.about', label: 'About', execute: (_) {}),
@@ -19,6 +22,7 @@ void main() {
     expect(registry.shortcutCommands.map((command) => command.id), [
       'file.save',
     ]);
+    expect(registry.find('file.save')!.activators, hasLength(2));
   });
 
   test('does not execute unavailable commands', () async {
