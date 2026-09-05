@@ -36,7 +36,10 @@ void main() {
     expect(registry.find('OBSConnection')?.pluginId, 'obs');
     expect(registry.find('RCONConnection')?.pluginId, 'minecraft');
     expect(registry.find('TTSVoice')?.pluginId, 'sound');
+    expect(registry.find('SoundOutput')?.pluginId, 'sound');
+    expect(registry.find('TTSVoiceProvider')?.pluginId, 'sound');
     expect(registry.find('CustomTwitchViewerGroup')?.pluginId, 'twitch');
+    expect(registry.find('TwitchAccount')?.pluginId, 'twitch');
     expect(registry.find('DiscordWebhook')?.pluginId, 'discord');
     expect(registry.find('BlueSkyAccount')?.pluginId, 'bluesky');
     expect(registry.find('Dashboard')?.pluginId, 'dashboards');
@@ -45,6 +48,8 @@ void main() {
     expect(registry.find('ChannelPointReward')?.pluginId, 'twitch');
     expect(registry.find('Light')?.pluginId, 'iot');
     expect(registry.find('Plug')?.pluginId, 'iot');
+    expect(registry.find('Gamepad')?.pluginId, 'input');
+    expect(registry.find('WyzeAccount')?.pluginId, 'wyze');
     expect(registry.find('StreamPlan')?.pluginId, 'stream-plans');
     expect(registry.find('Unknown'), isNull);
   });

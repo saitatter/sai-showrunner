@@ -140,6 +140,13 @@ const _arrayConversionResult = DartDataInputSchema(
 DartPluginManifest createShowRunnerPlugin() => const DartPluginManifest(
   id: 'ShowRunner',
   name: 'ShowRunner',
+  settings: [
+    DartSettingDefinition(
+      id: 'port',
+      displayName: 'Internal Webserver Port',
+      defaultValue: 8181,
+    ),
+  ],
   actions: [
     DartActionDefinition(
       pluginId: 'ShowRunner',

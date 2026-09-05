@@ -301,6 +301,30 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
   );
   registry.register(
     _pluginDefinition(
+      pluginId: 'twitch',
+      resourceType: 'TwitchAccount',
+      displayName: 'Twitch Account',
+      storageDirectory: 'twitch/accounts',
+      defaultConfig: (name) => {
+        'name': name,
+        'twitchId': '',
+        'isAffiliate': false,
+        'isPartner': false,
+        'email': '',
+      },
+      fields: const [
+        'name',
+        'twitchId',
+        'isAffiliate',
+        'isPartner',
+        'email',
+        'accessToken',
+        'refreshToken',
+      ],
+    ),
+  );
+  registry.register(
+    _pluginDefinition(
       pluginId: 'discord',
       resourceType: 'DiscordWebhook',
       displayName: 'Discord Webhook',
@@ -369,6 +393,43 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
         'redirects': <JsonMap>[],
       },
       fields: const ['name'],
+    ),
+  );
+  registry.register(
+    _pluginDefinition(
+      pluginId: 'sound',
+      resourceType: 'SoundOutput',
+      displayName: 'Sound Output',
+      storageDirectory: 'sound/outputs',
+      defaultConfig: (name) => {
+        'name': name,
+        'type': 'system',
+        'deviceId': '',
+        'isDefault': false,
+      },
+      fields: const [
+        'name',
+        'type',
+        'deviceId',
+        'webId',
+        'isDefault',
+        'overlayId',
+      ],
+    ),
+  );
+  registry.register(
+    _pluginDefinition(
+      pluginId: 'sound',
+      resourceType: 'TTSVoiceProvider',
+      displayName: 'TTS Voice Provider',
+      storageDirectory: 'sound/tts-providers',
+      defaultConfig: (name) => {
+        'name': name,
+        'provider': '',
+        'providerId': '',
+        'config': <String, dynamic>{},
+      },
+      fields: const ['name', 'provider', 'providerId', 'config'],
     ),
   );
   registry.register(
@@ -452,6 +513,30 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
         'model': '',
       },
       fields: const ['name', 'provider', 'providerId', 'host', 'ip', 'model'],
+    ),
+  );
+  registry.register(
+    _pluginDefinition(
+      pluginId: 'input',
+      resourceType: 'Gamepad',
+      displayName: 'Gamepad',
+      storageDirectory: 'input/gamepads',
+      defaultConfig: (name) => {'name': name, 'id': ''},
+      fields: const ['name', 'id', 'index'],
+    ),
+  );
+  registry.register(
+    _pluginDefinition(
+      pluginId: 'wyze',
+      resourceType: 'WyzeAccount',
+      displayName: 'Wyze Account',
+      storageDirectory: 'wyze/accounts',
+      defaultConfig: (name) => {
+        'name': name,
+        'email': '',
+        'scopes': <String>[],
+      },
+      fields: const ['name', 'email', 'scopes', 'accessToken', 'refreshToken'],
     ),
   );
   return registry;

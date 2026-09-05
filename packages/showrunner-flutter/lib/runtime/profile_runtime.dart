@@ -63,7 +63,7 @@ final class DartProfileRuntime {
   }) async {
     final result = await _runAutomation(
       profile.activationAutomation,
-      context ?? EvaluationContext(),
+      _withRegistryState(context),
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
     );
@@ -80,7 +80,7 @@ final class DartProfileRuntime {
   }) async {
     final result = await _runAutomation(
       profile.deactivationAutomation,
-      context ?? EvaluationContext(),
+      _withRegistryState(context),
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
     );
@@ -116,6 +116,7 @@ final class DartProfileRuntime {
         EvaluationContext(
           locals: Map<String, dynamic>.from(context?.locals ?? const {}),
           contextState: {
+            ...registry.stateContext(),
             ...?context?.contextState,
             ...payload,
             'event': payload,
@@ -143,24 +144,25 @@ final class DartProfileRuntime {
       final definition = registry.findTrigger(pluginId, triggerId);
       if (definition == null || !registry.isPluginEnabled(pluginId)) continue;
       subscriptions.add(
-        definition.listen().listen((payload) {
-          if (definition.matches?.call(target.config, payload) == false) {
-            return;
-          }
-          unawaited(
-            handleTrigger(
-              profileId,
-              profile,
-              pluginId,
-              triggerId,
-              payload,
-              context: context,
-              onNodeEnter: onNodeEnter,
-              onNodeExit: onNodeExit,
-              triggerEntry: target.entry,
-            ),
-          );
-        }),
+        (definition.listenForConfig?.call(target.config) ?? definition.listen())
+            .listen((payload) {
+              if (definition.matches?.call(target.config, payload) == false) {
+                return;
+              }
+              unawaited(
+                handleTrigger(
+                  profileId,
+                  profile,
+                  pluginId,
+                  triggerId,
+                  payload,
+                  context: context,
+                  onNodeEnter: onNodeEnter,
+                  onNodeExit: onNodeExit,
+                  triggerEntry: target.entry,
+                ),
+              );
+            }),
       );
     }
     return DartProfileSession._(subscriptions);
@@ -189,6 +191,12 @@ final class DartProfileRuntime {
 
   JsonMap _triggerConfig(dynamic value) =>
       value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+
+  EvaluationContext _withRegistryState(EvaluationContext? context) =>
+      EvaluationContext(
+        locals: Map<String, dynamic>.from(context?.locals ?? const {}),
+        contextState: {...registry.stateContext(), ...?context?.contextState},
+      );
 
   Future<GraphExecutionResult> _runAutomation(
     AutomationData automation,

@@ -11,6 +11,8 @@ typedef DartPluginAction =
     Future<Object?> Function(RuntimeMap config, EvaluationContext context);
 
 typedef DartPluginTrigger = Stream<RuntimeMap> Function();
+typedef DartPluginConfiguredTrigger =
+    Stream<RuntimeMap> Function(RuntimeMap config);
 typedef DartPluginTriggerMatcher =
     bool Function(RuntimeMap config, RuntimeMap payload);
 
@@ -46,6 +48,7 @@ final class DartTriggerDefinition {
     required this.listen,
     this.configSchema,
     this.matches,
+    this.listenForConfig,
   });
 
   final String pluginId;
@@ -54,6 +57,7 @@ final class DartTriggerDefinition {
   final DartPluginTrigger listen;
   final DartDataInputSchema? configSchema;
   final DartPluginTriggerMatcher? matches;
+  final DartPluginConfiguredTrigger? listenForConfig;
 
   TriggerKey get key =>
       TriggerKey(plugin: PluginId(pluginId), trigger: TriggerId(triggerId));
@@ -186,6 +190,15 @@ final class DartPluginRegistry extends ChangeNotifier {
       for (final entry in states.entries) entry.key.value: entry.value,
     });
   }
+
+  /// Returns plugin states in the shape consumed by expression evaluation.
+  ///
+  /// State definitions are owned by the registry, while their current values
+  /// are updated by provider runtimes. Keeping this projection here prevents
+  /// graph/profile code from reaching into plugin implementation details.
+  Map<String, dynamic> stateContext() => {
+    for (final plugin in _plugins.values) plugin.id: stateValues(plugin.id),
+  };
 
   void updateState(String pluginId, String stateId, dynamic value) {
     final states = _stateValues[PluginId(pluginId)];

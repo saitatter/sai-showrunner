@@ -97,6 +97,11 @@ DartPluginManifest createYouTubePlugin(
       displayName: 'Connection',
       initialValue: 'unconfigured',
     ),
+    DartPluginStateDefinition(id: 'broadcast', displayName: 'Broadcast'),
+    DartPluginStateDefinition(
+      id: 'latestMessage',
+      displayName: 'Latest Message',
+    ),
   ],
   settings: const [
     DartSettingDefinition(id: 'clientId', displayName: 'Client ID'),

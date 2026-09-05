@@ -186,6 +186,10 @@ void main() {
     expect(registry.stateValues('obs')['connection'], 'unconfigured');
     registry.updateState('obs', 'connection', 'connected');
     expect(registry.stateValues('obs')['connection'], 'connected');
+    expect(
+      registry.stateContext()['obs'],
+      containsPair('connection', 'connected'),
+    );
     expect(notifications, 1);
     registry.updateState('obs', 'connection', 'connected');
     expect(notifications, 1);

@@ -56,7 +56,8 @@ void main() {
               ],
               'resources': [
                 for (final resource in resourceEditors.definitions.where(
-                  (resource) => resource.pluginId == plugin.id,
+                  (resource) =>
+                      resource.pluginId.toLowerCase() == plugin.id.toLowerCase(),
                 ))
                   resource.resourceType,
               ],

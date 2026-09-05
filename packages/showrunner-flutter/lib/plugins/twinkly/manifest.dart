@@ -149,6 +149,20 @@ const _colorSchema = DartDataInputSchema(
   ],
 );
 
+const _movieSchema = DartDataInputSchema(
+  label: 'Twinkly movie',
+  kind: DartDataInputKind.object,
+  fields: [
+    ..._deviceFields,
+    DartDataInputSchema(
+      label: 'Movie ID',
+      key: 'movieId',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+  ],
+);
+
 DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
     DartPluginManifest(
       id: 'twinkly',
@@ -237,29 +251,15 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
           pluginId: 'twinkly',
           actionId: 'setMovie',
           displayName: 'Set Movie',
-          configSchema: DartDataInputSchema(
-            label: 'Twinkly movie',
-            kind: DartDataInputKind.object,
-            fields: [
-              ..._deviceFields,
-              DartDataInputSchema(
-                label: 'Movie ID',
-                key: 'movieId',
-                kind: DartDataInputKind.text,
-                required: true,
-              ),
-            ],
-          ),
-          invoke: (config, context) async {
-            final ip = _ip(config, context);
-            await transport.request(ip, 'POST', '/movies/current', const {}, {
-              'id': config['movieId'],
-            });
-            return transport.request(ip, 'POST', '/led/mode', const {}, {
-              'mode': 'movie',
-              'effect_id': 0,
-            });
-          },
+          configSchema: _movieSchema,
+          invoke: (config, context) => _setMovie(transport, config, context),
+        ),
+        DartActionDefinition(
+          pluginId: 'twinkly',
+          actionId: 'movie',
+          displayName: 'Twinkly Movie',
+          configSchema: _movieSchema,
+          invoke: (config, context) => _setMovie(transport, config, context),
         ),
       ],
     );
@@ -281,6 +281,21 @@ Future<Object?> _setColor(
   });
   return transport.request(ip, 'POST', '/led/mode', const {}, {
     'mode': 'color',
+    'effect_id': 0,
+  });
+}
+
+Future<Object?> _setMovie(
+  TwinklyTransport transport,
+  RuntimeMap config,
+  EvaluationContext context,
+) async {
+  final ip = _ip(config, context);
+  await transport.request(ip, 'POST', '/movies/current', const {}, {
+    'id': config['movieId'] ?? config['movie'],
+  });
+  return transport.request(ip, 'POST', '/led/mode', const {}, {
+    'mode': 'movie',
     'effect_id': 0,
   });
 }

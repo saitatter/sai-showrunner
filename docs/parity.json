@@ -14,6 +14,7 @@
           "extra": [
             "obsConnection"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -25,6 +26,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -36,6 +38,7 @@
           "extra": [
             "advssEvent"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "states": {
@@ -43,6 +46,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -50,6 +54,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -72,6 +77,7 @@
           "extra": [
             "obsConnection"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -93,6 +99,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -100,6 +107,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -107,6 +115,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -114,6 +123,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -140,6 +150,7 @@
             "appPassword",
             "serviceUrl"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -151,6 +162,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -158,6 +170,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -165,6 +178,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -176,6 +190,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -194,6 +209,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -201,6 +217,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -208,6 +225,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -215,6 +233,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -226,6 +245,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -244,6 +264,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -255,6 +276,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -262,6 +284,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -269,6 +292,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -280,6 +304,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -291,7 +316,7 @@
     },
     {
       "id": "donordrive",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -307,6 +332,7 @@
           "extra": [
             "pollIntervalSeconds"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -314,6 +340,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -322,14 +349,15 @@
             "incentive",
             "milestone"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "donation",
             "incentive",
             "milestone"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "relocated": [],
+          "status": "equivalent"
         },
         "states": {
           "expected": [
@@ -344,6 +372,9 @@
             "totalRaised"
           ],
           "actual": [
+            "currentMilestone",
+            "currentMilestoneGoal",
+            "currentMilestoneStart",
             "donationCount",
             "eventName",
             "goal",
@@ -351,19 +382,17 @@
             "totalPledges",
             "totalRaised"
           ],
-          "missing": [
-            "currentMilestone",
-            "currentMilestoneGoal",
-            "currentMilestoneStart"
-          ],
+          "missing": [],
           "extra": [],
-          "status": "partial"
+          "relocated": [],
+          "status": "equivalent"
         },
         "resources": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -392,6 +421,7 @@
             "numberOfLights",
             "rgb"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -407,6 +437,7 @@
             "getLights",
             "setLightState"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -414,6 +445,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -421,6 +453,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -428,6 +461,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -450,6 +484,7 @@
           "extra": [
             "apiKey"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -469,6 +504,7 @@
             "setColor",
             "setBrightness"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -476,6 +512,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -483,6 +520,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -490,6 +528,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -501,13 +540,14 @@
     },
     {
       "id": "http",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -519,24 +559,27 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
           "expected": [
             "endpoint"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "endpoint"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "relocated": [],
+          "status": "equivalent"
         },
         "states": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -544,6 +587,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -555,13 +599,14 @@
     },
     {
       "id": "input",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -575,6 +620,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -586,6 +632,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -593,18 +640,20 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
           "expected": [
             "Gamepad"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "Gamepad"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "relocated": [],
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -622,6 +671,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -640,6 +690,7 @@
             "setLightColor",
             "toggleLight"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -647,6 +698,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -654,6 +706,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -667,6 +720,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -696,6 +750,7 @@
             "port",
             "target"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -713,6 +768,7 @@
             "setColor",
             "setLightState"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -720,6 +776,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -727,6 +784,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -734,6 +792,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -752,6 +811,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -763,6 +823,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -770,6 +831,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -777,6 +839,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -788,6 +851,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -818,6 +882,7 @@
             "dashboardWsUrl",
             "forwardYouTube"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -834,6 +899,7 @@
             "sendTestMessage",
             "requestOverride"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -841,6 +907,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -852,6 +919,7 @@
           "extra": [
             "health"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "resources": {
@@ -859,6 +927,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -870,7 +939,7 @@
     },
     {
       "id": "obs",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -878,18 +947,18 @@
           ],
           "actual": [
             "host",
+            "obsDefault",
             "password",
             "port"
           ],
-          "missing": [
-            "obsDefault"
-          ],
+          "missing": [],
           "extra": [
             "host",
             "port",
             "password"
           ],
-          "status": "partial"
+          "relocated": [],
+          "status": "improved"
         },
         "actions": {
           "expected": [
@@ -953,6 +1022,7 @@
             "browserUrl",
             "browserRefresh"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -960,6 +1030,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -967,15 +1038,15 @@
             "localObsRunning"
           ],
           "actual": [
-            "connection"
-          ],
-          "missing": [
+            "connection",
             "localObsRunning"
           ],
+          "missing": [],
           "extra": [
             "connection"
           ],
-          "status": "partial"
+          "relocated": [],
+          "status": "improved"
         },
         "resources": {
           "expected": [
@@ -986,6 +1057,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -1004,6 +1076,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -1020,6 +1093,7 @@
           "extra": [
             "launchProcess"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -1027,6 +1101,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -1034,6 +1109,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1041,6 +1117,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -1052,13 +1129,14 @@
     },
     {
       "id": "overlays",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -1085,6 +1163,7 @@
           "extra": [
             "triggerWidget"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -1092,6 +1171,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -1099,6 +1179,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1106,11 +1187,12 @@
             "Overlay"
           ],
           "actual": [],
-          "missing": [
+          "missing": [],
+          "extra": [],
+          "relocated": [
             "Overlay"
           ],
-          "extra": [],
-          "status": "missing"
+          "status": "improved"
         }
       },
       "ui": {
@@ -1121,7 +1203,7 @@
     },
     {
       "id": "philips-hue",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -1135,6 +1217,7 @@
           "extra": [
             "hubKey"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -1146,11 +1229,10 @@
             "listLights",
             "listScenes",
             "recallScene",
+            "scene",
             "setLightState"
           ],
-          "missing": [
-            "scene"
-          ],
+          "missing": [],
           "extra": [
             "listLights",
             "listGroups",
@@ -1158,13 +1240,15 @@
             "setLightState",
             "recallScene"
           ],
-          "status": "partial"
+          "relocated": [],
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -1172,6 +1256,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1179,6 +1264,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -1190,13 +1276,14 @@
     },
     {
       "id": "random",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -1211,24 +1298,27 @@
           "extra": [
             "random"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
           "expected": [
             "wheelLanded"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "wheelLanded"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "relocated": [],
+          "status": "equivalent"
         },
         "states": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1236,6 +1326,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -1264,6 +1355,7 @@
             "port",
             "apiBase"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -1271,6 +1363,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -1282,6 +1375,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -1293,6 +1387,7 @@
           "extra": [
             "server"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "resources": {
@@ -1300,6 +1395,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -1311,7 +1407,7 @@
     },
     {
       "id": "sound",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -1324,6 +1420,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -1340,6 +1437,7 @@
           "extra": [
             "speakTTS"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -1347,6 +1445,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -1354,6 +1453,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1364,16 +1464,16 @@
           ],
           "actual": [
             "AudioSplitterOutput",
-            "TTSVoice"
-          ],
-          "missing": [
             "SoundOutput",
+            "TTSVoice",
             "TTSVoiceProvider"
           ],
+          "missing": [],
           "extra": [
             "AudioSplitterOutput"
           ],
-          "status": "partial"
+          "relocated": [],
+          "status": "improved"
         }
       },
       "ui": {
@@ -1391,6 +1491,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -1402,6 +1503,7 @@
           "extra": [
             "castSpell"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -1413,6 +1515,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -1420,6 +1523,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1431,6 +1535,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -1449,6 +1554,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -1462,6 +1568,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -1469,6 +1576,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -1476,6 +1584,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1487,6 +1596,7 @@
           "extra": [
             "StreamPlan"
           ],
+          "relocated": [],
           "status": "improved"
         }
       },
@@ -1498,13 +1608,14 @@
     },
     {
       "id": "time",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -1522,6 +1633,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -1529,19 +1641,21 @@
             "repeat",
             "timer"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "repeat",
             "timer"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "relocated": [],
+          "status": "equivalent"
         },
         "states": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1549,6 +1663,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -1576,6 +1691,7 @@
             "host",
             "port"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -1593,6 +1709,7 @@
             "setLightState",
             "setPlugState"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -1600,6 +1717,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -1607,6 +1725,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1614,6 +1733,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -1625,7 +1745,7 @@
     },
     {
       "id": "twinkly",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -1636,6 +1756,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -1647,13 +1768,12 @@
             "getInfo",
             "getMode",
             "listMovies",
+            "movie",
             "setColor",
             "setMovie",
             "turnOff"
           ],
-          "missing": [
-            "movie"
-          ],
+          "missing": [],
           "extra": [
             "getInfo",
             "getMode",
@@ -1663,13 +1783,15 @@
             "listMovies",
             "setMovie"
           ],
-          "status": "partial"
+          "relocated": [],
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -1677,6 +1799,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1684,6 +1807,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -1695,7 +1819,7 @@
     },
     {
       "id": "twitch",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -1716,6 +1840,7 @@
             "moderatorId",
             "refreshToken"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -1740,17 +1865,20 @@
             "unban"
           ],
           "actual": [
+            "addViewerToGroup",
             "annoucement",
             "announcement",
             "ban",
             "cancelRaid",
             "chat",
+            "clearViewerGroup",
             "createChannelPointReward",
             "createClip",
             "createPoll",
             "createPrediction",
             "deleteChannelPointReward",
             "listChannelPointRewards",
+            "removeViewerFromGroup",
             "runAd",
             "setStreamInfo",
             "shoutout",
@@ -1762,11 +1890,7 @@
             "updateChannelPointRedemption",
             "updateChannelPointReward"
           ],
-          "missing": [
-            "addViewerToGroup",
-            "clearViewerGroup",
-            "removeViewerFromGroup"
-          ],
+          "missing": [],
           "extra": [
             "announcement",
             "listChannelPointRewards",
@@ -1775,7 +1899,8 @@
             "deleteChannelPointReward",
             "updateChannelPointRedemption"
           ],
-          "status": "partial"
+          "relocated": [],
+          "status": "improved"
         },
         "triggers": {
           "expected": [
@@ -1812,6 +1937,7 @@
             "adSchedule",
             "adStarted",
             "ban",
+            "beforeRaid",
             "bits",
             "chat",
             "firstTimeChat",
@@ -1834,17 +1960,16 @@
             "shoutoutSent",
             "subscription",
             "timeout",
+            "walkon",
             "watchstreak"
           ],
-          "missing": [
-            "beforeRaid",
-            "walkon"
-          ],
+          "missing": [],
           "extra": [
             "chat",
             "shoutoutReceived"
           ],
-          "status": "partial"
+          "relocated": [],
+          "status": "improved"
         },
         "states": {
           "expected": [
@@ -1880,13 +2005,11 @@
             "title"
           ],
           "actual": [
-            "connection"
-          ],
-          "missing": [
             "adSnoozeRefresh",
             "adSnoozes",
             "adTimer",
             "category",
+            "connection",
             "followers",
             "hypeTrainExists",
             "hypeTrainGoal",
@@ -1914,10 +2037,12 @@
             "subscribers",
             "title"
           ],
+          "missing": [],
           "extra": [
             "connection"
           ],
-          "status": "partial"
+          "relocated": [],
+          "status": "improved"
         },
         "resources": {
           "expected": [
@@ -1927,13 +2052,13 @@
           ],
           "actual": [
             "ChannelPointReward",
-            "CustomTwitchViewerGroup"
-          ],
-          "missing": [
+            "CustomTwitchViewerGroup",
             "TwitchAccount"
           ],
+          "missing": [],
           "extra": [],
-          "status": "partial"
+          "relocated": [],
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -1951,6 +2076,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "actions": {
@@ -1973,6 +2099,7 @@
             "setVariable",
             "getVariable"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -1980,6 +2107,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -1987,6 +2115,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "resources": {
@@ -1994,6 +2123,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -2019,6 +2149,7 @@
           "extra": [
             "port"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -2033,6 +2164,7 @@
           "extra": [
             "getVoices"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -2040,6 +2172,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -2051,6 +2184,7 @@
           "extra": [
             "connection"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "resources": {
@@ -2058,6 +2192,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },
@@ -2069,7 +2204,7 @@
     },
     {
       "id": "wyze",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -2088,6 +2223,7 @@
             "accessToken",
             "refreshToken"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -2107,6 +2243,7 @@
             "setLightState",
             "setPlugState"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "triggers": {
@@ -2114,6 +2251,7 @@
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -2125,18 +2263,20 @@
           "extra": [
             "authentication"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "resources": {
           "expected": [
             "WyzeAccount"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "WyzeAccount"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "relocated": [],
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -2147,7 +2287,7 @@
     },
     {
       "id": "youtube",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -2166,6 +2306,7 @@
             "refreshToken",
             "liveChatId"
           ],
+          "relocated": [],
           "status": "improved"
         },
         "actions": {
@@ -2183,6 +2324,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "triggers": {
@@ -2200,6 +2342,7 @@
           ],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         },
         "states": {
@@ -2209,20 +2352,21 @@
             "latestMessage"
           ],
           "actual": [
-            "connection"
-          ],
-          "missing": [
             "broadcast",
+            "connection",
             "latestMessage"
           ],
+          "missing": [],
           "extra": [],
-          "status": "partial"
+          "relocated": [],
+          "status": "equivalent"
         },
         "resources": {
           "expected": [],
           "actual": [],
           "missing": [],
           "extra": [],
+          "relocated": [],
           "status": "equivalent"
         }
       },

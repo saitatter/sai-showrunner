@@ -368,8 +368,17 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
         displayName: 'Connection',
         initialValue: 'unconfigured',
       ),
+      DartPluginStateDefinition(
+        id: 'localObsRunning',
+        displayName: 'Local OBS Running',
+        initialValue: false,
+      ),
     ],
     settings: const [
+      DartSettingDefinition(
+        id: 'obsDefault',
+        displayName: 'Default OBS Connection',
+      ),
       DartSettingDefinition(
         id: 'host',
         displayName: 'Host',

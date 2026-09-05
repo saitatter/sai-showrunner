@@ -31,7 +31,7 @@ void main() {
       createHttpPlugin().actions.single.configSchema!.fields.map(
         (field) => field.key,
       ),
-      ['url', 'method', 'contentType', 'headers', 'body'],
+      ['url', 'method', 'query', 'contentType', 'headers', 'body'],
     );
     expect(
       createRandomPlugin().actions.first.configSchema!.fields.map(
@@ -70,6 +70,41 @@ void main() {
     });
     await eventHub.dispose();
   });
+
+  test(
+    'random wheel actions and triggers preserve overlay RPC routing',
+    () async {
+      final eventHub = DartPluginEventHub();
+      final registry = DartPluginRegistry()
+        ..register(createRandomPlugin(eventHub: eventHub));
+      final outgoing = eventHub.stream(OverlayEventIds.widgetRpc).first;
+      await registry.invokeAction('random', 'spinWheel', {
+        'wheel': {'overlayId': 'main', 'widgetId': 'wheel'},
+        'strength': 2,
+      });
+      expect(await outgoing, {
+        'overlayId': 'main',
+        'widgetId': 'wheel',
+        'rpcId': 'spinWheel',
+        'args': [2.0],
+      });
+
+      final trigger = registry.findTrigger('random', 'wheelLanded')!;
+      final incoming = trigger.listen().first;
+      eventHub.emit(OverlayEventIds.widgetRpc, {
+        'overlayId': 'main',
+        'widgetId': 'wheel',
+        'rpcId': 'wheelLanded',
+        'args': ['Prize'],
+      });
+      expect(await incoming, {
+        'wheel': {'overlayId': 'main', 'widgetId': 'wheel'},
+        'item': 'Prize',
+      });
+      await registry.close();
+      await eventHub.dispose();
+    },
+  );
 
   test(
     'overlay actions preserve the broadcast and widget RPC payloads',
@@ -237,4 +272,38 @@ void main() {
       {'timer': 'utility-test', 'running': true},
     );
   });
+
+  test(
+    'time triggers preserve repeat and timer scheduling semantics',
+    () async {
+      final plugin = createTimePlugin();
+      final repeat = plugin.triggers.firstWhere(
+        (trigger) => trigger.triggerId == 'repeat',
+      );
+      final repeatEvent = await repeat.listenForConfig!
+          .call({'delay': 0.01, 'interval': 0.1})
+          .first
+          .timeout(const Duration(seconds: 1));
+      expect(repeatEvent['timestamp'], isNotNull);
+
+      final timer = plugin.triggers.firstWhere(
+        (trigger) => trigger.triggerId == 'timer',
+      );
+      final registry = DartPluginRegistry()..register(plugin);
+      await registry.invokeAction('time', 'setTimer', {
+        'timer': 'utility-trigger',
+        'duration': 0.2,
+      });
+      await registry.invokeAction('time', 'toggleTimer', {
+        'timer': 'utility-trigger',
+        'on': true,
+      });
+      final timerEvent = await timer.listenForConfig!
+          .call({'timer': 'utility-trigger', 'offset': 0})
+          .first
+          .timeout(const Duration(seconds: 1));
+      expect(timerEvent['timer'], 'utility-trigger');
+      await registry.close();
+    },
+  );
 }

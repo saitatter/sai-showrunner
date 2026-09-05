@@ -11,21 +11,34 @@ const main = JSON.parse(readFileSync(mainPath, 'utf8'));
 const flutter = JSON.parse(readFileSync(flutterPath, 'utf8'));
 const categories = ['settings', 'actions', 'triggers', 'states', 'resources'];
 const flutterById = new Map(flutter.plugins.map((plugin) => [plugin.id, plugin]));
+const flutterResources = new Set(
+  flutter.plugins.flatMap((plugin) => plugin.resources || []),
+);
 
-function compareCategory(expected, actual) {
+function compareCategory(expected, actual, category) {
   const idOf = (value) => (typeof value === 'string' ? value : value?.id);
   const expectedSet = new Set((expected || []).map(idOf).filter(Boolean));
   const actualSet = new Set((actual || []).map(idOf).filter(Boolean));
-  const missing = [...expectedSet].filter((value) => !actualSet.has(value));
+  const relocated = category === 'resources'
+    ? [...expectedSet].filter((value) =>
+      flutterResources.has(value) && !actualSet.has(value))
+    : [];
+  const missing = [...expectedSet].filter((value) =>
+    category === 'resources'
+      ? !flutterResources.has(value)
+      : !actualSet.has(value));
   const extra = [...actualSet].filter((value) => !expectedSet.has(value));
   return {
     expected: [...expectedSet].sort(),
     actual: [...actualSet].sort(),
     missing,
     extra,
+    relocated,
     status: missing.length > 0
       ? actualSet.size === 0 ? 'missing' : 'partial'
-      : actualSet.size > expectedSet.size ? 'improved' : 'equivalent',
+      : actualSet.size > expectedSet.size || relocated.length > 0
+        ? 'improved'
+        : 'equivalent',
   };
 }
 
@@ -36,13 +49,13 @@ const plugins = main.plugins.map((expected) => {
       id: expected.id,
       status: 'missing',
       categories: Object.fromEntries(
-        categories.map((category) => [category, compareCategory(expected[category], [])]),
+        categories.map((category) => [category, compareCategory(expected[category], [], category)]),
       ),
       ui: { status: 'missing' },
     };
   }
   const categoryResults = Object.fromEntries(
-    categories.map((category) => [category, compareCategory(expected[category], actual[category])]),
+    categories.map((category) => [category, compareCategory(expected[category], actual[category], category)]),
   );
   const status = Object.values(categoryResults).some((result) => result.status === 'missing')
     ? 'partial'

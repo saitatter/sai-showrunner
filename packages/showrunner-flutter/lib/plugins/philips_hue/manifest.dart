@@ -122,7 +122,11 @@ const _sceneSchema = DartDataInputSchema(
       label: 'Scene ID',
       key: 'sceneId',
       kind: DartDataInputKind.text,
-      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Scene (legacy config key)',
+      key: 'scene',
+      kind: DartDataInputKind.text,
     ),
     DartDataInputSchema(
       label: 'Bridge IP / Host',
@@ -191,17 +195,28 @@ DartPluginManifest createPhilipsHuePlugin(
       displayName: 'Recall Hue Scene',
       configSchema: _sceneSchema,
       invoke: (config, context) =>
-          (transportResolver?.call(config) ?? transport).request(
-            'PUT',
-            '/resource/scene/${_required(config, 'sceneId')}',
-            const {},
-            {
-              'recall': {'action': 'active'},
-            },
-          ),
+          _recallScene(transportResolver?.call(config) ?? transport, config),
+    ),
+    DartActionDefinition(
+      pluginId: 'philips-hue',
+      actionId: 'scene',
+      displayName: 'Set HUE Scene',
+      configSchema: _sceneSchema,
+      invoke: (config, context) =>
+          _recallScene(transportResolver?.call(config) ?? transport, config),
     ),
   ],
 );
+
+Future<Object?> _recallScene(HueTransport transport, RuntimeMap config) =>
+    transport.request(
+      'PUT',
+      '/resource/scene/${_requiredScene(config)}',
+      const {},
+      {
+        'recall': {'action': 'active'},
+      },
+    );
 
 Future<Object?> _setLightState(
   HueTransport transport,
@@ -250,6 +265,13 @@ String _required(RuntimeMap config, String key) {
   final value = config[key]?.toString().trim() ?? '';
   if (value.isEmpty) throw ArgumentError('$key is required.');
   return value;
+}
+
+String _requiredScene(RuntimeMap config) {
+  final value = config['sceneId'] ?? config['scene'];
+  final scene = value?.toString().trim() ?? '';
+  if (scene.isEmpty) throw ArgumentError('scene is required.');
+  return scene;
 }
 
 double _number(Object? value, double fallback) =>

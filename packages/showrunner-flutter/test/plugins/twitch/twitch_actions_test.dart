@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/twitch/actions.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
@@ -131,4 +135,53 @@ void main() {
       isFalse,
     );
   });
+
+  test(
+    'persists viewer group mutations through the resource repository',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'showrunner-twitch-group-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final repository = ResourceRepository(directory);
+      await repository.save(
+        const ResourceData(
+          id: 'moderators',
+          config: {
+            'name': 'Moderators',
+            'userIds': ['viewer-2'],
+          },
+        ),
+      );
+      final registry = DartPluginRegistry()
+        ..register(
+          createTwitchPlugin(
+            TwitchTransport((method, path, query, body) async => const {}),
+            viewerGroupRepository: repository,
+          ),
+        );
+
+      await registry.invokeAction('twitch', 'addViewerToGroup', {
+        'group': 'moderators',
+        'viewer': 'viewer-1',
+      });
+      expect((await repository.load('moderators'))!.config['userIds'], [
+        'viewer-1',
+        'viewer-2',
+      ]);
+
+      await registry.invokeAction('twitch', 'removeViewerFromGroup', {
+        'group': 'moderators',
+        'viewer': 'viewer-2',
+      });
+      expect((await repository.load('moderators'))!.config['userIds'], [
+        'viewer-1',
+      ]);
+
+      await registry.invokeAction('twitch', 'clearViewerGroup', {
+        'group': 'moderators',
+      });
+      expect((await repository.load('moderators'))!.config['userIds'], isEmpty);
+    },
+  );
 }

@@ -96,7 +96,7 @@ DartPluginRegistry createDefaultPluginRegistry({
   registry.register(
     createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
   );
-  registry.register(createDonorDrivePlugin(null));
+  registry.register(createDonorDrivePlugin(null, eventHub: eventHub));
   registry.register(createRemotePlugin(eventHub: eventHub));
   registry.register(
     createVoiceModPlugin(
@@ -110,10 +110,10 @@ DartPluginRegistry createDefaultPluginRegistry({
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
   registry.register(createMinecraftPlugin());
-  registry.register(createHttpPlugin());
+  registry.register(createHttpPlugin(eventHub: eventHub));
   registry.register(createTimePlugin());
   registry.register(createOsPlugin());
-  registry.register(createRandomPlugin());
+  registry.register(createRandomPlugin(eventHub: eventHub));
   registry.register(
     createVariablesPlugin(
       viewerDataRepository: variablesRepository,
@@ -155,9 +155,18 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   final obs = await dataService.loadPluginSettings('obs');
   final youtube = await dataService.loadPluginSettings('youtube');
   final twitch = await dataService.loadPluginSettings('twitch');
-  final appSettings = await dataService.loadPluginSettings(
+  final interfaceSettings = await dataService.loadPluginSettings(
     'showrunner-flutter',
   );
+  final showRunnerSettings = await dataService.loadPluginSettings('ShowRunner');
+  final appSettings = <String, dynamic>{
+    ...interfaceSettings,
+    ...showRunnerSettings,
+  };
+  final httpEndpointService = DartHttpEndpointService(
+    port: _port(appSettings['port'], 8181),
+  );
+  await httpEndpointService.start();
   final registry = DartPluginRegistry();
   registry.register(createShowRunnerPlugin());
   final host = obs['host'] as String?;
@@ -220,7 +229,13 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     return twitchTransport.request(method, path, query, body);
   });
   registry.register(
-    createTwitchPlugin(configuredTwitchTransport, eventHub: eventHub),
+    createTwitchPlugin(
+      configuredTwitchTransport,
+      eventHub: eventHub,
+      viewerGroupRepository: ResourceRepository(
+        Directory('${dataService.userDirectory.path}/twitch/groups'),
+      ),
+    ),
   );
   _registerTwitchStreamPlanComponent(
     transport: configuredTwitchTransport,
@@ -330,10 +345,12 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     ),
   );
   registry.register(createMinecraftPlugin());
-  registry.register(createHttpPlugin());
+  registry.register(
+    createHttpPlugin(eventHub: eventHub, endpointService: httpEndpointService),
+  );
   registry.register(createTimePlugin());
   registry.register(createOsPlugin());
-  registry.register(createRandomPlugin());
+  registry.register(createRandomPlugin(eventHub: eventHub));
   registry.register(
     createVariablesPlugin(
       viewerDataRepository: variablesRepository,

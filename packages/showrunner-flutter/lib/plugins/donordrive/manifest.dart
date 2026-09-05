@@ -214,8 +214,9 @@ const _milestoneSchema = DartDataInputSchema(
 );
 
 DartPluginManifest createDonorDrivePlugin(
-  DonorDriveRuntime? runtime,
-) => DartPluginManifest(
+  DonorDriveRuntime? runtime, {
+  DartPluginEventHub? eventHub,
+}) => DartPluginManifest(
   id: 'donordrive',
   name: 'Donor Drive',
   settings: const [
@@ -244,8 +245,20 @@ DartPluginManifest createDonorDrivePlugin(
       displayName: 'Donation Count',
     ),
     DartPluginStateDefinition(id: 'totalPledges', displayName: 'Total Pledges'),
+    DartPluginStateDefinition(
+      id: 'currentMilestone',
+      displayName: 'Current Milestone',
+    ),
+    DartPluginStateDefinition(
+      id: 'currentMilestoneGoal',
+      displayName: 'Current Milestone Goal',
+    ),
+    DartPluginStateDefinition(
+      id: 'currentMilestoneStart',
+      displayName: 'Current Milestone Start',
+    ),
   ],
-  triggers: runtime == null
+  triggers: (runtime?.eventHub ?? eventHub) == null
       ? const []
       : [
           DartTriggerDefinition(
@@ -253,7 +266,7 @@ DartPluginManifest createDonorDrivePlugin(
             triggerId: 'donation',
             displayName: 'DonorDrive Donation',
             configSchema: _donationSchema,
-            listen: () => runtime.eventHub.stream('donation'),
+            listen: () => (runtime?.eventHub ?? eventHub)!.stream('donation'),
             matches: _matchesDonation,
           ),
           DartTriggerDefinition(
@@ -261,7 +274,7 @@ DartPluginManifest createDonorDrivePlugin(
             triggerId: 'incentive',
             displayName: 'DonorDrive Incentive',
             configSchema: _incentiveSchema,
-            listen: () => runtime.eventHub.stream('incentive'),
+            listen: () => (runtime?.eventHub ?? eventHub)!.stream('incentive'),
             matches: (config, payload) =>
                 config['incentive']?.toString().trim().isEmpty != false ||
                 config['incentive']?.toString() ==
@@ -272,7 +285,7 @@ DartPluginManifest createDonorDrivePlugin(
             triggerId: 'milestone',
             displayName: 'DonorDrive Milestone',
             configSchema: _milestoneSchema,
-            listen: () => runtime.eventHub.stream('milestone'),
+            listen: () => (runtime?.eventHub ?? eventHub)!.stream('milestone'),
             matches: (config, payload) =>
                 config['milestone']?.toString().trim().isEmpty != false ||
                 config['milestone']?.toString() ==

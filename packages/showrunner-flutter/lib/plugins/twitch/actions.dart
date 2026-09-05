@@ -1,5 +1,7 @@
 import '../../runtime/expression.dart';
 import '../../components/data_inputs/data_input.dart';
+import '../../persistence/resource_repository.dart';
+import '../../schema/resource.dart';
 import '../registry/plugin_registry.dart';
 import '../../services/plugin_event_hub.dart';
 import 'channel_points.dart';
@@ -264,9 +266,19 @@ final _redemptionTriggerSchema = _twitchObject('Twitch redemption trigger', [
   _twitchText('Reward Twitch ID', 'rewardId'),
 ]);
 
+final _viewerGroupSchema = _twitchObject('Twitch viewer group', [
+  _twitchText('Group resource ID', 'group', required: true),
+  _twitchText('Viewer ID', 'viewer', required: true),
+]);
+
+final _clearViewerGroupSchema = _twitchObject('Twitch viewer group', [
+  _twitchText('Group resource ID', 'group', required: true),
+]);
+
 DartPluginManifest createTwitchPlugin(
   TwitchTransport transport, {
   DartPluginEventHub? eventHub,
+  ResourceRepository? viewerGroupRepository,
 }) => DartPluginManifest(
   id: 'twitch',
   name: 'Twitch',
@@ -282,6 +294,81 @@ DartPluginManifest createTwitchPlugin(
       displayName: 'Connection',
       initialValue: 'unconfigured',
     ),
+    DartPluginStateDefinition(
+      id: 'adSnoozeRefresh',
+      displayName: 'Ad Snooze Refresh',
+    ),
+    DartPluginStateDefinition(id: 'adSnoozes', displayName: 'Ad Snoozes'),
+    DartPluginStateDefinition(id: 'adTimer', displayName: 'Ad Timer'),
+    DartPluginStateDefinition(id: 'category', displayName: 'Category'),
+    DartPluginStateDefinition(id: 'followers', displayName: 'Followers'),
+    DartPluginStateDefinition(
+      id: 'hypeTrainExists',
+      displayName: 'Hype Train Exists',
+    ),
+    DartPluginStateDefinition(
+      id: 'hypeTrainGoal',
+      displayName: 'Hype Train Goal',
+    ),
+    DartPluginStateDefinition(
+      id: 'hypeTrainLevel',
+      displayName: 'Hype Train Level',
+    ),
+    DartPluginStateDefinition(
+      id: 'hypeTrainProgress',
+      displayName: 'Hype Train Progress',
+    ),
+    DartPluginStateDefinition(
+      id: 'hypeTrainTotal',
+      displayName: 'Hype Train Total',
+    ),
+    DartPluginStateDefinition(id: 'inAdBreak', displayName: 'In Ad Break'),
+    DartPluginStateDefinition(id: 'lastFollower', displayName: 'Last Follower'),
+    DartPluginStateDefinition(
+      id: 'lastSubscriber',
+      displayName: 'Last Subscriber',
+    ),
+    DartPluginStateDefinition(id: 'live', displayName: 'Live'),
+    DartPluginStateDefinition(
+      id: 'nextAdDuration',
+      displayName: 'Next Ad Duration',
+    ),
+    DartPluginStateDefinition(id: 'nextAdTimer', displayName: 'Next Ad Timer'),
+    DartPluginStateDefinition(id: 'pollId', displayName: 'Poll ID'),
+    DartPluginStateDefinition(id: 'pollTitle', displayName: 'Poll Title'),
+    DartPluginStateDefinition(
+      id: 'predictionChoiceNames',
+      displayName: 'Prediction Choice Names',
+    ),
+    DartPluginStateDefinition(
+      id: 'predictionChoiceTotals',
+      displayName: 'Prediction Choice Totals',
+    ),
+    DartPluginStateDefinition(
+      id: 'predictionExists',
+      displayName: 'Prediction Exists',
+    ),
+    DartPluginStateDefinition(id: 'predictionId', displayName: 'Prediction ID'),
+    DartPluginStateDefinition(
+      id: 'predictionTitle',
+      displayName: 'Prediction Title',
+    ),
+    DartPluginStateDefinition(
+      id: 'predictionTotal',
+      displayName: 'Prediction Total',
+    ),
+    DartPluginStateDefinition(
+      id: 'prerollFreeTime',
+      displayName: 'Preroll Free Time',
+    ),
+    DartPluginStateDefinition(id: 'raidTarget', displayName: 'Raid Target'),
+    DartPluginStateDefinition(id: 'raidTimer', displayName: 'Raid Timer'),
+    DartPluginStateDefinition(
+      id: 'subscriberPoints',
+      displayName: 'Subscriber Points',
+    ),
+    DartPluginStateDefinition(id: 'subscribers', displayName: 'Subscribers'),
+    DartPluginStateDefinition(id: 'title', displayName: 'Title'),
   ],
   settings: const [
     DartSettingDefinition(id: 'clientId', displayName: 'Client ID'),
@@ -573,6 +660,30 @@ DartPluginManifest createTwitchPlugin(
             'user_id': config['viewerId'],
           }, {}),
     ),
+    DartActionDefinition(
+      pluginId: 'twitch',
+      actionId: 'addViewerToGroup',
+      displayName: 'Add Viewer to Group',
+      configSchema: _viewerGroupSchema,
+      invoke: (config, context) =>
+          _updateViewerGroup(viewerGroupRepository, config, add: true),
+    ),
+    DartActionDefinition(
+      pluginId: 'twitch',
+      actionId: 'removeViewerFromGroup',
+      displayName: 'Remove Viewer from Group',
+      configSchema: _viewerGroupSchema,
+      invoke: (config, context) =>
+          _updateViewerGroup(viewerGroupRepository, config, add: false),
+    ),
+    DartActionDefinition(
+      pluginId: 'twitch',
+      actionId: 'clearViewerGroup',
+      displayName: 'Clear Viewer Group',
+      configSchema: _clearViewerGroupSchema,
+      invoke: (config, context) =>
+          _clearViewerGroup(viewerGroupRepository, config),
+    ),
   ],
   triggers: eventHub == null
       ? const []
@@ -620,6 +731,8 @@ DartPluginManifest createTwitchPlugin(
             'firstTimeChat',
             'shoutoutSent',
             'shoutoutReceived',
+            'beforeRaid',
+            'walkon',
           ])
             DartTriggerDefinition(
               pluginId: 'twitch',
@@ -636,6 +749,74 @@ DartPluginManifest createTwitchPlugin(
 
 String _id(RuntimeMap config, EvaluationContext context, String key) =>
     (config[key] ?? context.contextState[key])?.toString() ?? '';
+
+Future<Object?> _updateViewerGroup(
+  ResourceRepository? repository,
+  RuntimeMap config, {
+  required bool add,
+}) async {
+  final resource = await _loadViewerGroup(repository, config['group']);
+  final viewer = config['viewer']?.toString().trim() ?? '';
+  if (viewer.isEmpty) throw ArgumentError('viewer is required.');
+  final userIds = {
+    ...((resource.config['userIds'] as List?) ?? const []).map(
+      (value) => value.toString(),
+    ),
+  };
+  if (add) {
+    userIds.add(viewer);
+  } else {
+    userIds.remove(viewer);
+  }
+  await repository!.save(
+    ResourceData(
+      id: resource.id,
+      config: {...resource.config, 'userIds': userIds.toList()..sort()},
+      state: resource.state,
+    ),
+  );
+  return {
+    'group': resource.id,
+    'viewer': viewer,
+    'present': userIds.contains(viewer),
+  };
+}
+
+Future<Object?> _clearViewerGroup(
+  ResourceRepository? repository,
+  RuntimeMap config,
+) async {
+  final resource = await _loadViewerGroup(repository, config['group']);
+  await repository!.save(
+    ResourceData(
+      id: resource.id,
+      config: {...resource.config, 'userIds': <String>[]},
+      state: resource.state,
+    ),
+  );
+  return {'group': resource.id, 'cleared': true};
+}
+
+Future<ResourceData> _loadViewerGroup(
+  ResourceRepository? repository,
+  Object? value,
+) async {
+  if (repository == null) {
+    throw StateError('Twitch viewer group storage is not configured.');
+  }
+  final groupId = value is Map ? value['id']?.toString() : value?.toString();
+  final normalized = groupId?.trim() ?? '';
+  if (normalized.isEmpty ||
+      normalized.contains('/') ||
+      normalized.contains('\\')) {
+    throw ArgumentError('A valid viewer group resource ID is required.');
+  }
+  final resource = await repository.load(normalized);
+  if (resource == null) {
+    throw StateError('Twitch viewer group not found: $normalized');
+  }
+  return resource;
+}
 
 bool _bool(Object? value, {bool fallback = false}) {
   if (value is bool) return value;
