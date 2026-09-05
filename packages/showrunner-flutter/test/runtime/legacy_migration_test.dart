@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
+import 'package:showrunner_flutter/runtime/graph_compiler.dart';
 import 'package:showrunner_flutter/runtime/graph_runtime.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 
@@ -138,4 +143,86 @@ void main() {
 
     expect(automation.graph.nodes.single.id, 'graph-node');
   });
+
+  test(
+    'round-trips a legacy fixture through migration and compiled runtime',
+    () async {
+      final fixture = File('test/fixtures/legacy/automation-roundtrip.yaml');
+      final directory = await Directory.systemTemp.createTemp(
+        'showrunner-legacy-roundtrip-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/automation.yaml');
+      await file.writeAsString(await fixture.readAsString());
+      final repository = AutomationRepository(file);
+
+      final migrated = await repository.load();
+
+      expect(migrated, isNotNull);
+      expect(migrated!.schemaVersion, 2);
+      expect(migrated.graph.nodes.map((node) => node.id), [
+        'first',
+        'stacked',
+        'nested',
+        'offset-child',
+        'nested-child',
+      ]);
+      expect(migrated.graph.edges, hasLength(4));
+      expect(migrated.subgraphs.single.id, 'floating');
+      expect(migrated.variableNodes.single['id'], 'message');
+      expect(migrated.dataWires.single.id, 'first-to-nested');
+
+      final registry = DartPluginRegistry()
+        ..register(
+          DartPluginManifest(
+            id: 'sample',
+            name: 'Sample',
+            actions: [
+              DartActionDefinition(
+                pluginId: 'sample',
+                actionId: 'emit',
+                invoke: (config, context) async => {'value': config['value']},
+              ),
+            ],
+          ),
+        );
+      final compiled = const DartGraphCompiler().compileAutomation(migrated);
+      final result = await const DartCompiledGraphRuntime().execute(
+        graph: compiled,
+        context: EvaluationContext(),
+        action: (instruction, config, context) {
+          final plugin = instruction.node.data['plugin']?.toString();
+          final action = instruction.node.data['action']?.toString();
+          if (plugin == null || action == null) {
+            throw StateError('Fixture contains a non-action instruction.');
+          }
+          return registry.invokeAction(
+            plugin,
+            action,
+            config,
+            context: context,
+          );
+        },
+      );
+
+      expect(result.completed, isTrue);
+      expect(result.steps, 5);
+      expect(result.contextState['firstValue'], 'hello');
+      expect(result.nodeResults['nested'], {'value': 'hello'});
+      expect(result.nodeResults['nested-child'], {'value': 'child'});
+
+      final persisted = jsonDecode(await file.readAsString()) as Map;
+      expect(persisted['schemaVersion'], 2);
+      expect(persisted.containsKey('sequence'), isFalse);
+      expect(persisted.containsKey('floatingSequences'), isFalse);
+
+      final reopened = await repository.load();
+      expect(
+        reopened?.graph.nodes.map((node) => node.id),
+        migrated.graph.nodes.map((node) => node.id),
+      );
+      expect(reopened?.subgraphs.single.nodes.single.id, 'floating-action');
+      expect(reopened?.dataWires.single.toNode, 'nested');
+    },
+  );
 }

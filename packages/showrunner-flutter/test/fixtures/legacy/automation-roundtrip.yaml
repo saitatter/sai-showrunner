@@ -1,0 +1,56 @@
+name: Legacy round-trip fixture
+schemaVersion: 1
+sequence:
+  actions:
+    - id: first
+      plugin: sample
+      action: emit
+      config:
+        value: hello
+      resultMapping:
+        value: firstValue
+    - stack:
+        - id: stacked
+          plugin: sample
+          action: emit
+          config:
+            value: stacked
+    - id: nested
+      plugin: sample
+      action: emit
+      config:
+        value: nested
+      offsets:
+        - actions:
+            - id: offset-child
+              plugin: sample
+              action: emit
+              config:
+                value: offset
+      subFlows:
+        - actions:
+            - id: nested-child
+              plugin: sample
+              action: emit
+              config:
+                value: child
+floatingSequences:
+  - id: floating
+    name: Floating fixture
+    actions:
+      - id: floating-action
+        plugin: sample
+        action: emit
+        config:
+          value: floating
+variableNodes:
+  - id: message
+    name: Message
+    type: string
+    value: ''
+dataWires:
+  - id: first-to-nested
+    fromNode: first
+    fromPort: value
+    toNode: nested
+    toPort: value
