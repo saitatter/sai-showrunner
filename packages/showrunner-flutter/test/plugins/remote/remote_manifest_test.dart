@@ -77,4 +77,21 @@ void main() {
     await runtime.stop();
     await eventHub.dispose();
   });
+
+  test('reports the remote HTTP server lifecycle', () async {
+    final eventHub = DartPluginEventHub();
+    final states = <String>[];
+    final runtime = RemoteButtonRuntime(
+      eventHub: eventHub,
+      host: '127.0.0.1',
+      port: 0,
+      onStateChanged: states.add,
+    );
+
+    await runtime.start();
+    await runtime.stop();
+
+    expect(states, ['running', 'stopped']);
+    await eventHub.dispose();
+  });
 }

@@ -150,13 +150,19 @@ void main() {
     );
   });
 
-  test('tracks plugin runtime state and prevents disabled plugin actions', () {
+  test('tracks plugin runtime state and notifies listeners', () {
     final registry = createDefaultPluginRegistry();
+    var notifications = 0;
+    registry.addListener(() => notifications++);
     expect(registry.stateValues('obs')['connection'], 'unconfigured');
     registry.updateState('obs', 'connection', 'connected');
     expect(registry.stateValues('obs')['connection'], 'connected');
+    expect(notifications, 1);
+    registry.updateState('obs', 'connection', 'connected');
+    expect(notifications, 1);
     registry.setPluginEnabled('obs', false);
     expect(registry.isPluginEnabled('obs'), isFalse);
+    expect(notifications, 2);
   });
 
   test('invokes registered plugin actions directly for UI controls', () async {

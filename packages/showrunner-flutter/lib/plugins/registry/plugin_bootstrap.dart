@@ -275,6 +275,8 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           host: remoteHost?.isNotEmpty == true ? remoteHost! : '127.0.0.1',
           port: remotePort,
           loadButtonNames: () => _loadRemoteButtonNames(dataService),
+          onStateChanged: (state) =>
+              registry.updateState('remote', 'server', state),
         )
       : null;
   registry.register(

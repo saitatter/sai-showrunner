@@ -7,6 +7,7 @@ import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_registry.dart';
 
 typedef RemoteButtonNameLoader = Future<List<String>> Function();
+typedef RemoteButtonStateReporter = void Function(String state);
 
 final class RemoteButtonRuntime {
   RemoteButtonRuntime({
@@ -14,12 +15,14 @@ final class RemoteButtonRuntime {
     this.host = '127.0.0.1',
     this.port = 8390,
     this.loadButtonNames,
+    this.onStateChanged,
   });
 
   final DartPluginEventHub eventHub;
   final String host;
   final int port;
   final RemoteButtonNameLoader? loadButtonNames;
+  final RemoteButtonStateReporter? onStateChanged;
   HttpServer? _server;
   StreamSubscription<HttpRequest>? _subscription;
 
@@ -29,13 +32,16 @@ final class RemoteButtonRuntime {
     if (_server != null) return;
     _server = await HttpServer.bind(host, port, shared: true);
     _subscription = _server!.listen(_handle);
+    onStateChanged?.call('running');
   }
 
   Future<void> stop() async {
+    final wasRunning = _server != null;
     await _subscription?.cancel();
     _subscription = null;
     await _server?.close(force: true);
     _server = null;
+    if (wasRunning) onStateChanged?.call('stopped');
   }
 
   Future<void> _handle(HttpRequest request) async {

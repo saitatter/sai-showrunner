@@ -729,27 +729,36 @@ class _PluginRuntimeState extends StatelessWidget {
   Widget build(BuildContext context) => FutureBuilder<DartPluginRegistry>(
     future: registryFuture,
     builder: (context, snapshot) {
-      final values = snapshot.data?.stateValues(plugin.id) ?? const {};
-      final rows = plugin.states.map(
-        (state) => ListTile(
-          dense: true,
-          title: Text(state.displayName),
-          subtitle: Text(state.id),
-          trailing: Text(values[state.id]?.toString() ?? 'null'),
-        ),
-      );
-      return Card(
-        child: ExpansionTile(
-          leading: const Icon(Icons.monitor_heart_outlined),
-          title: const Text('Runtime state'),
-          subtitle: Text('${plugin.states.length} registered values'),
-          children: rows.isEmpty
-              ? [const ListTile(title: Text('No runtime state registered'))]
-              : rows.toList(),
-        ),
+      final registry = snapshot.data;
+      if (registry == null) return _buildCard(context, null);
+      return ListenableBuilder(
+        listenable: registry,
+        builder: (context, _) => _buildCard(context, registry),
       );
     },
   );
+
+  Widget _buildCard(BuildContext context, DartPluginRegistry? registry) {
+    final values = registry?.stateValues(plugin.id) ?? const {};
+    final rows = plugin.states.map(
+      (state) => ListTile(
+        dense: true,
+        title: Text(state.displayName),
+        subtitle: Text(state.id),
+        trailing: Text(values[state.id]?.toString() ?? 'null'),
+      ),
+    );
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.monitor_heart_outlined),
+        title: const Text('Runtime state'),
+        subtitle: Text('${plugin.states.length} registered values'),
+        children: rows.isEmpty
+            ? [const ListTile(title: Text('No runtime state registered'))]
+            : rows.toList(),
+      ),
+    );
+  }
 }
 
 IconData _pluginIcon(String id) => switch (id) {

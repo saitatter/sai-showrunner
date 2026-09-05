@@ -147,7 +147,10 @@ final class DartPluginRegistry extends ChangeNotifier {
 
   void updateState(String pluginId, String stateId, dynamic value) {
     final states = _stateValues[pluginId];
-    if (states != null && states.containsKey(stateId)) states[stateId] = value;
+    if (states == null || !states.containsKey(stateId)) return;
+    if (states[stateId] == value) return;
+    states[stateId] = value;
+    notifyListeners();
   }
 
   bool isPluginEnabled(String pluginId) =>
