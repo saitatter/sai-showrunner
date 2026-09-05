@@ -7,6 +7,7 @@ import '../features/plugins/plugin_catalog_filter.dart';
 import '../features/settings/interface_preferences.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
+import '../schema/resource.dart';
 import '../services/project_catalog_service.dart';
 
 /// Project navigation following the reference ProjectView hierarchy.
@@ -30,6 +31,7 @@ class ShowRunnerProjectPanel extends StatefulWidget {
     this.onOpenAutomation,
     this.onOpenProfile,
     this.onResourceSelected,
+    this.onOpenResource,
   });
 
   final int selectedIndex;
@@ -46,6 +48,8 @@ class ShowRunnerProjectPanel extends StatefulWidget {
   onOpenAutomation;
   final FutureOr<void> Function(String fileName)? onOpenProfile;
   final ValueChanged<String>? onResourceSelected;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onOpenResource;
 
   @override
   State<ShowRunnerProjectPanel> createState() => _ShowRunnerProjectPanelState();
@@ -57,6 +61,8 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
   late final Map<String, bool> _expanded = {
     'automations': false,
     'profiles': false,
+    'stream-plans': false,
+    'overlays': false,
     'integrations': !widget.preferences.collapseIntegrationCategoriesByDefault,
     'audio': false,
     'dashboards': false,
@@ -97,6 +103,22 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
     }
   }
 
+  void _openPlugin(String pluginId) {
+    widget.onPluginSelected(pluginId);
+    widget.onDestinationSelected(1);
+  }
+
+  VoidCallback _resourceOpen(ProjectResourceCatalogEntry entry) => () {
+    final callback = widget.onOpenResource;
+    if (callback != null) {
+      unawaited(
+        Future<void>.sync(() => callback(entry.resource, entry.resourceType)),
+      );
+    } else {
+      _openResource(entry.resourceType);
+    }
+  };
+
   @override
   Widget build(BuildContext context) {
     final compact = widget.preferences.compactProjectSidebar;
@@ -136,7 +158,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                             ? Icons.account_tree_outlined
                             : Icons.error_outline,
                         selected: entry.fileName == widget.activeAutomationFile,
-                        indent: 2,
+                        indent: 1,
                         compact: compact,
                         onTap:
                             entry.automation == null ||
@@ -176,7 +198,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                             ? Icons.card_membership_outlined
                             : Icons.error_outline,
                         selected: false,
-                        indent: 2,
+                        indent: 1,
                         compact: compact,
                         onTap:
                             entry.profile == null ||
@@ -194,12 +216,33 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                 ),
             ],
           ),
-          _ProjectItemRow(
+          _ProjectGroupBlock(
+            id: 'stream-plans',
             title: 'Stream Plans',
             icon: Icons.view_agenda_outlined,
-            selected: widget.selectedIndex == 6,
+            expanded: _expanded['stream-plans'] ?? false,
             compact: compact,
-            onTap: () => _openResource('StreamPlan'),
+            onToggle: _toggle,
+            children: [
+              if (_catalogFuture != null)
+                _ResourceCatalogEntries(
+                  future: _catalogFuture!,
+                  resourceType: 'StreamPlan',
+                  compact: compact,
+                  emptyLabel: 'No saved stream plans',
+                  builder: (entries) => [
+                    for (final entry in entries)
+                      _ProjectItemRow(
+                        title: entry.title,
+                        icon: Icons.view_agenda_outlined,
+                        selected: false,
+                        indent: 1,
+                        compact: compact,
+                        onTap: _resourceOpen(entry),
+                      ),
+                  ],
+                ),
+            ],
           ),
           _ProjectItemRow(
             title: 'Media',
@@ -233,9 +276,11 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
           _ProjectItemRow(
             title: 'SpellCast',
             icon: Icons.auto_awesome_outlined,
-            selected: widget.selectedIndex == 6,
+            selected:
+                widget.selectedIndex == 1 &&
+                widget.selectedPluginId == 'spellcast',
             compact: compact,
-            onTap: () => _openResource('SpellHook'),
+            onTap: () => _openPlugin('spellcast'),
           ),
           _ProjectGroupBlock(
             id: 'audio',
@@ -245,22 +290,64 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             compact: compact,
             onToggle: _toggle,
             children: [
-              _ProjectItemRow(
-                title: 'Sound Outputs',
-                icon: Icons.speaker_outlined,
-                selected: widget.selectedIndex == 6,
-                indent: 1,
-                compact: compact,
-                onTap: () => _openResource('SoundOutput'),
-              ),
-              _ProjectItemRow(
-                title: 'TTS Voices',
-                icon: Icons.record_voice_over_outlined,
-                selected: widget.selectedIndex == 6,
-                indent: 1,
-                compact: compact,
-                onTap: () => _openResource('TTSVoice'),
-              ),
+              if (_catalogFuture != null)
+                _ResourceCatalogEntries(
+                  future: _catalogFuture!,
+                  resourceType: 'SoundOutput',
+                  compact: compact,
+                  emptyLabel: 'No sound outputs',
+                  filter: (entry) =>
+                      entry.resource.config['type'] != 'splitter',
+                  builder: (entries) => [
+                    for (final entry in entries)
+                      _ProjectItemRow(
+                        title: entry.title,
+                        icon: Icons.speaker_outlined,
+                        selected: false,
+                        indent: 1,
+                        compact: compact,
+                        onTap: _resourceOpen(entry),
+                      ),
+                  ],
+                ),
+              if (_catalogFuture != null)
+                _ResourceCatalogEntries(
+                  future: _catalogFuture!,
+                  resourceType: 'TTSVoice',
+                  compact: compact,
+                  emptyLabel: 'No TTS voices',
+                  builder: (entries) => [
+                    for (final entry in entries)
+                      _ProjectItemRow(
+                        title: entry.title,
+                        icon: Icons.record_voice_over_outlined,
+                        selected: false,
+                        indent: 1,
+                        compact: compact,
+                        onTap: _resourceOpen(entry),
+                      ),
+                  ],
+                ),
+              if (_catalogFuture != null)
+                _ResourceCatalogEntries(
+                  future: _catalogFuture!,
+                  resourceType: 'SoundOutput',
+                  compact: compact,
+                  emptyLabel: 'No audio splitters',
+                  filter: (entry) =>
+                      entry.resource.config['type'] == 'splitter',
+                  builder: (entries) => [
+                    for (final entry in entries)
+                      _ProjectItemRow(
+                        title: entry.title,
+                        icon: Icons.tune,
+                        selected: false,
+                        indent: 1,
+                        compact: compact,
+                        onTap: _resourceOpen(entry),
+                      ),
+                  ],
+                ),
             ],
           ),
           _ProjectGroupBlock(
@@ -271,14 +358,24 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             compact: compact,
             onToggle: _toggle,
             children: [
-              _ProjectItemRow(
-                title: 'Dashboards',
-                icon: Icons.dashboard_customize_outlined,
-                selected: widget.selectedIndex == 6,
-                indent: 1,
-                compact: compact,
-                onTap: () => _openResource('Dashboard'),
-              ),
+              if (_catalogFuture != null)
+                _ResourceCatalogEntries(
+                  future: _catalogFuture!,
+                  resourceType: 'Dashboard',
+                  compact: compact,
+                  emptyLabel: 'No saved dashboards',
+                  builder: (entries) => [
+                    for (final entry in entries)
+                      _ProjectItemRow(
+                        title: entry.title,
+                        icon: Icons.dashboard_customize_outlined,
+                        selected: false,
+                        indent: 1,
+                        compact: compact,
+                        onTap: _resourceOpen(entry),
+                      ),
+                  ],
+                ),
             ],
           ),
           _ProjectGroupBlock(
@@ -298,12 +395,33 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
               ),
             ],
           ),
-          _ProjectItemRow(
+          _ProjectGroupBlock(
+            id: 'overlays',
             title: 'Overlays',
             icon: Icons.layers_outlined,
-            selected: widget.selectedIndex == 6,
+            expanded: _expanded['overlays'] ?? false,
             compact: compact,
-            onTap: () => _openResource('Overlay'),
+            onToggle: _toggle,
+            children: [
+              if (_catalogFuture != null)
+                _ResourceCatalogEntries(
+                  future: _catalogFuture!,
+                  resourceType: 'Overlay',
+                  compact: compact,
+                  emptyLabel: 'No saved overlays',
+                  builder: (entries) => [
+                    for (final entry in entries)
+                      _ProjectItemRow(
+                        title: entry.title,
+                        icon: Icons.layers_outlined,
+                        selected: false,
+                        indent: 1,
+                        compact: compact,
+                        onTap: _resourceOpen(entry),
+                      ),
+                  ],
+                ),
+            ],
           ),
           _ProjectGroupBlock(
             id: 'tools',
@@ -436,6 +554,38 @@ class _CatalogEntries extends StatelessWidget {
               ),
             )
           : Column(children: items);
+    },
+  );
+}
+
+class _ResourceCatalogEntries extends StatelessWidget {
+  const _ResourceCatalogEntries({
+    required this.future,
+    required this.resourceType,
+    required this.compact,
+    required this.emptyLabel,
+    required this.builder,
+    this.filter,
+  });
+
+  final Future<ShowRunnerProjectCatalog> future;
+  final String resourceType;
+  final bool compact;
+  final String emptyLabel;
+  final List<Widget> Function(List<ProjectResourceCatalogEntry> entries)
+  builder;
+  final bool Function(ProjectResourceCatalogEntry entry)? filter;
+
+  @override
+  Widget build(BuildContext context) => _CatalogEntries(
+    future: future,
+    compact: compact,
+    emptyLabel: emptyLabel,
+    builder: (catalog) {
+      final entries = (catalog.resources[resourceType] ?? const [])
+          .where(filter ?? (_) => true)
+          .toList(growable: false);
+      return builder(entries);
     },
   );
 }

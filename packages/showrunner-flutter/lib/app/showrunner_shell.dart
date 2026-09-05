@@ -34,6 +34,7 @@ import '../features/resources/resource_editor_registry.dart';
 import '../runtime/action_queue.dart';
 import '../runtime/automation_queue_manager.dart';
 import '../schema/automation.dart';
+import '../schema/resource.dart';
 import '../runtime/profile_runtime.dart';
 import '../services/showrunner_data_service.dart';
 import '../services/project_catalog_service.dart';
@@ -81,7 +82,9 @@ class ShowRunnerShell extends StatelessWidget {
     this.onProfileEntriesChanged,
     this.projectCatalogRevision = 0,
     this.selectedResourceType,
+    this.selectedResourceId,
     this.onResourceSelected,
+    this.onOpenResource,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -126,7 +129,10 @@ class ShowRunnerShell extends StatelessWidget {
   final VoidCallback? onProfileEntriesChanged;
   final int projectCatalogRevision;
   final String? selectedResourceType;
+  final String? selectedResourceId;
   final ValueChanged<String>? onResourceSelected;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onOpenResource;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -169,6 +175,7 @@ class ShowRunnerShell extends StatelessWidget {
                       activeAutomationFile: activeAutomationFile,
                       onOpenAutomation: onOpenAutomation,
                       onResourceSelected: onResourceSelected,
+                      onOpenResource: onOpenResource,
                       onOpenProfile: (fileName) {
                         onDestinationSelected(4);
                         return profileController?.openProfile(fileName);
@@ -281,6 +288,7 @@ class ShowRunnerShell extends StatelessWidget {
         registryFuture: pluginRegistryFuture,
         streamPlanRuntime: streamPlanRuntime,
         resourceType: selectedResourceType,
+        resourceId: selectedResourceId,
       ),
       7 => const LogsWorkspace(),
       8 => AboutWorkspace(

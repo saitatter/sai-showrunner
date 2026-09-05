@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ class ResourcesWorkspace extends StatefulWidget {
     this.registryFuture,
     this.streamPlanRuntime,
     this.resourceType,
+    this.resourceId,
   });
 
   final ShowRunnerDataService dataService;
@@ -28,6 +30,7 @@ class ResourcesWorkspace extends StatefulWidget {
   final Future<DartPluginRegistry>? registryFuture;
   final DartStreamPlanRuntime? streamPlanRuntime;
   final String? resourceType;
+  final String? resourceId;
 
   @override
   State<ResourcesWorkspace> createState() => _ResourcesWorkspaceState();
@@ -35,6 +38,7 @@ class ResourcesWorkspace extends StatefulWidget {
 
 class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
   Future<Map<String, List<ResourceData>>>? _resourcesFuture;
+  String? _lastOpenedResourceId;
 
   ShowRunnerDataService get dataService => widget.dataService;
   DartResourceEditorRegistry get editorRegistry => widget.editorRegistry;
@@ -47,6 +51,15 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
 
   void _reload() {
     _resourcesFuture = _loadAll();
+  }
+
+  @override
+  void didUpdateWidget(covariant ResourcesWorkspace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.resourceType != widget.resourceType ||
+        oldWidget.resourceId != widget.resourceId) {
+      _lastOpenedResourceId = null;
+    }
   }
 
   Future<Map<String, List<ResourceData>>> _loadAll() async {
@@ -74,6 +87,18 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
         final focusedDefinition = focusedType == null
             ? null
             : editorRegistry.find(focusedType);
+        final resourceId = widget.resourceId;
+        if (focusedType != null && resourceId != null) {
+          final resource = data[focusedType]
+              ?.where((candidate) => candidate.id == resourceId)
+              .firstOrNull;
+          if (resource != null && resourceId != _lastOpenedResourceId) {
+            _lastOpenedResourceId = resourceId;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) unawaited(_edit(context, resource, focusedType));
+            });
+          }
+        }
 
         return ListView(
           padding: const EdgeInsets.all(24),

@@ -33,6 +33,7 @@ import 'runtime/automation_queue_manager.dart';
 import 'runtime/automation_recovery.dart';
 import 'schema/automation.dart';
 import 'schema/profile.dart';
+import 'schema/resource.dart';
 import 'schema/update.dart';
 import 'runtime/action_queue.dart';
 import 'runtime/expression.dart';
@@ -168,6 +169,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   bool _restoredNavigation = false;
   int _projectCatalogRevision = 0;
   String? _selectedResourceType;
+  String? _selectedResourceId;
 
   AutomationDocumentSession? get _activeAutomationSession =>
       _automationDocuments.active;
@@ -595,7 +597,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       profileDirty: _profileDirty,
       projectCatalogRevision: _projectCatalogRevision,
       selectedResourceType: _selectedResourceType,
+      selectedResourceId: _selectedResourceId,
       onResourceSelected: _openResourceType,
+      onOpenResource: _openResource,
       onProfileEntriesChanged: _onProjectCatalogChanged,
       onProfileDirtyChanged: (dirty) {
         if (mounted) setState(() => _profileDirty = dirty);
@@ -627,6 +631,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   void _openDestination(int index) {
     setState(() {
       if (index != 6) _selectedResourceType = null;
+      if (index != 6) _selectedResourceId = null;
       _workspaceDocuments.open(index);
       _workspaceDocuments.select(index);
     });
@@ -636,6 +641,17 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   void _openResourceType(String resourceType) {
     setState(() {
       _selectedResourceType = resourceType;
+      _selectedResourceId = null;
+      _workspaceDocuments.open(6);
+      _workspaceDocuments.select(6);
+    });
+    unawaited(_persistNavigation());
+  }
+
+  void _openResource(ResourceData resource, String resourceType) {
+    setState(() {
+      _selectedResourceType = resourceType;
+      _selectedResourceId = resource.id;
       _workspaceDocuments.open(6);
       _workspaceDocuments.select(6);
     });
@@ -678,6 +694,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           : <int>[showRunnerHomeWorkspaceIndex];
       final restoredSelected = settings['selectedWorkspace'];
       final restoredResourceType = settings['selectedResourceType'];
+      final restoredResourceId = settings['selectedResourceId'];
       final selected = restoredSelected is num
           ? restoredSelected.toInt()
           : hasRestoredWorkspaceTabs
@@ -694,6 +711,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         );
         _selectedResourceType = restoredResourceType is String
             ? restoredResourceType
+            : null;
+        _selectedResourceId = restoredResourceId is String
+            ? restoredResourceId
             : null;
         _restoredNavigation = true;
       });
@@ -807,6 +827,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         ..._workspaceDocuments.toSettings(),
         ..._automationDocuments.toSettings(),
         'selectedResourceType': ?_selectedResourceType,
+        'selectedResourceId': ?_selectedResourceId,
       });
     });
     await _navigationWrite;

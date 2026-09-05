@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/persistence/profile_repository.dart';
+import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/project_catalog_service.dart';
 
 void main() {
@@ -28,6 +30,9 @@ void main() {
         deactivationAutomation: AutomationData(),
       ),
     );
+    await ResourceRepository(Directory('${root.path}/dashboards')).save(
+      const ResourceData(id: 'dashboard', config: {'name': 'Main dashboard'}),
+    );
 
     final fixtureCatalog = await ShowRunnerProjectCatalogService(root).load();
     expect(
@@ -37,5 +42,9 @@ void main() {
       ['Alpha', 'Zulu'],
     );
     expect(fixtureCatalog.profiles.single.profile!.name, 'Live');
+    expect(
+      fixtureCatalog.resources['Dashboard']!.single.title,
+      'Main dashboard',
+    );
   });
 }
