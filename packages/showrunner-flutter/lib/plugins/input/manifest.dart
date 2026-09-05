@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../components/data_inputs/data_input.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_registry.dart';
@@ -67,8 +69,14 @@ const _mouseButtonConfigSchema = DartDataInputSchema(
   ],
 );
 
-DartPluginManifest createInputPlugin({InputPlatform? platform}) {
+DartPluginManifest createInputPlugin({
+  InputPlatform? platform,
+  bool startEvents = false,
+}) {
   final inputPlatform = platform ?? const NativeInputPlatform();
+  if (startEvents) {
+    unawaited(inputPlatform.startEvents().catchError((_) {}));
+  }
   return DartPluginManifest(
     id: 'input',
     name: 'Input',
@@ -99,6 +107,7 @@ DartPluginManifest createInputPlugin({InputPlatform? platform}) {
         matches: matchesKeyboardShortcut,
       ),
     ],
+    dispose: startEvents ? inputPlatform.stopEvents : null,
   );
 }
 

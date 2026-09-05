@@ -80,6 +80,17 @@ void main() {
     expect(result, {'pressed': false, 'button': 'sideways', 'duration': 0.1});
   });
 
+  test('configured input lifecycle starts and stops global events', () async {
+    final platform = _FakeInputPlatform();
+    final plugin = createInputPlugin(platform: platform, startEvents: true);
+
+    await Future<void>.delayed(Duration.zero);
+    expect(platform.calls, ['start-events']);
+
+    await plugin.dispose!.call();
+    expect(platform.calls, ['start-events', 'stop-events']);
+  });
+
   test('input manifest exposes legacy mouse action schema', () {
     final mouse = createInputPlugin().actions.firstWhere(
       (action) => action.actionId == 'mouseButton',
@@ -222,10 +233,14 @@ final class _FakeInputPlatform implements InputPlatform {
   }
 
   @override
-  Future<void> startEvents() async {}
+  Future<void> startEvents() async {
+    calls.add('start-events');
+  }
 
   @override
-  Future<void> stopEvents() async {}
+  Future<void> stopEvents() async {
+    calls.add('stop-events');
+  }
 
   @override
   Future<bool> isKeyDown(int virtualKeyCode) async => false;

@@ -455,7 +455,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   );
   registry.register(createWyzePlugin(wyzeTransport));
   registry.register(dashboardPlugin);
-  registry.register(createInputPlugin());
+  registry.register(createInputPlugin(startEvents: true));
   registry.register(createStreamPlansPlugin());
   registry.register(
     createIotPlugin(
