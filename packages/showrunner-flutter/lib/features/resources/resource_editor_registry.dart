@@ -11,6 +11,7 @@ import 'media_picker.dart';
 import 'color_field.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../plugins/sound/ui/tts_voice_provider_picker.dart';
+import '../../plugins/overlays/ui/overlay_widget_config.dart';
 
 List<JsonMap> _maps(Object? value) => value is List
     ? value
@@ -572,19 +573,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
           ),
           IconButton(
             tooltip: 'Add widget',
-            onPressed: () => setState(
-              () => _widgets.add({
-                'id': 'widget-${DateTime.now().microsecondsSinceEpoch}',
-                'plugin': 'overlays',
-                'widget': 'label',
-                'name': 'New widget',
-                'size': {'width': 300, 'height': 90},
-                'position': {'x': 0, 'y': 0},
-                'config': {'message': 'New widget'},
-                'visible': true,
-                'locked': false,
-              }),
-            ),
+            onPressed: _addWidget,
             icon: const Icon(Icons.add_box_outlined),
           ),
         ],
@@ -593,12 +582,19 @@ class _OverlayEditorState extends State<_OverlayEditor> {
         const Text('No widgets defined.')
       else
         for (var index = 0; index < _widgets.length; index++)
-          _OverlayWidgetCard(
-            index: index,
-            widgetConfig: _widgets[index],
-            onChanged: (key, value) =>
-                setState(() => _widgets[index][key] = value),
-            onDelete: () => setState(() => _widgets.removeAt(index)),
+          KeyedSubtree(
+            key: ValueKey(_widgets[index]['id'] ?? index),
+            child: _OverlayWidgetCard(
+              index: index,
+              widgetConfig: _widgets[index],
+              onChanged: (key, value) =>
+                  setState(() => _widgets[index][key] = value),
+              onDelete: () => setState(() => _widgets.removeAt(index)),
+              onMoveUp: index == 0 ? null : () => _moveWidget(index, -1),
+              onMoveDown: index == _widgets.length - 1
+                  ? null
+                  : () => _moveWidget(index, 1),
+            ),
           ),
     ],
     onSave: () => widget.onSave(
@@ -619,6 +615,38 @@ class _OverlayEditorState extends State<_OverlayEditor> {
       ),
     ),
   );
+
+  Future<void> _addWidget() async {
+    final definition = await showDialog<OverlayWidgetDefinition>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Add overlay widget'),
+        children: [
+          for (final option in overlayWidgetDefinitions)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(option),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.widgets_outlined),
+                title: Text(option.name),
+                subtitle: Text('${option.plugin}.${option.widget}'),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (!mounted || definition == null) return;
+    setState(() => _widgets.add(definition.createWidget()));
+  }
+
+  void _moveWidget(int index, int delta) {
+    final target = index + delta;
+    if (index < 0 || target < 0 || target >= _widgets.length) return;
+    setState(() {
+      final widget = _widgets.removeAt(index);
+      _widgets.insert(target, widget);
+    });
+  }
 }
 
 class _OverlayWidgetCard extends StatelessWidget {
@@ -627,12 +655,16 @@ class _OverlayWidgetCard extends StatelessWidget {
     required this.widgetConfig,
     required this.onChanged,
     required this.onDelete,
+    required this.onMoveUp,
+    required this.onMoveDown,
   });
 
   final int index;
   final JsonMap widgetConfig;
   final void Function(String key, dynamic value) onChanged;
   final VoidCallback onDelete;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
 
   @override
   Widget build(BuildContext context) {
@@ -643,6 +675,8 @@ class _OverlayWidgetCard extends StatelessWidget {
         widgetConfig: widgetConfig,
         onChanged: onChanged,
         onDelete: onDelete,
+        onMoveUp: onMoveUp,
+        onMoveDown: onMoveDown,
       );
     }
     return Card(
@@ -826,12 +860,16 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
     required this.widgetConfig,
     required this.onChanged,
     required this.onDelete,
+    required this.onMoveUp,
+    required this.onMoveDown,
   });
 
   final int index;
   final JsonMap widgetConfig;
   final void Function(String key, dynamic value) onChanged;
   final VoidCallback onDelete;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
 
   @override
   Widget build(BuildContext context) {
@@ -857,6 +895,16 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
                     'Widget ${index + 1}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Move widget up',
+                  onPressed: onMoveUp,
+                  icon: const Icon(Icons.arrow_upward),
+                ),
+                IconButton(
+                  tooltip: 'Move widget down',
+                  onPressed: onMoveDown,
+                  icon: const Icon(Icons.arrow_downward),
                 ),
                 IconButton(
                   tooltip: 'Delete widget',
@@ -914,24 +962,11 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
               value: widgetConfig['locked'] == true,
               onChanged: (value) => onChanged('locked', value),
             ),
-            TextFormField(
-              initialValue: const JsonEncoder.withIndent('  ').convert(config),
-              minLines: 4,
-              maxLines: 10,
-              decoration: const InputDecoration(
-                labelText: 'Widget config (JSON object)',
-                alignLabelWithHint: true,
-              ),
-              onChanged: (value) {
-                try {
-                  final decoded = jsonDecode(value);
-                  if (decoded is Map) {
-                    onChanged('config', Map<String, dynamic>.from(decoded));
-                  }
-                } on FormatException {
-                  // Preserve the last valid config while the JSON is edited.
-                }
-              },
+            _OverlayWidgetConfigEditor(
+              plugin: '${widgetConfig['plugin'] ?? ''}',
+              widget: '${widgetConfig['widget'] ?? ''}',
+              config: config,
+              onChanged: (value) => onChanged('config', value),
             ),
           ],
         ),
@@ -1162,6 +1197,51 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
       ),
     ],
   );
+}
+
+class _OverlayWidgetConfigEditor extends StatelessWidget {
+  const _OverlayWidgetConfigEditor({
+    required this.plugin,
+    required this.widget,
+    required this.config,
+    required this.onChanged,
+  });
+
+  final String plugin;
+  final String widget;
+  final JsonMap config;
+  final ValueChanged<JsonMap> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final definition = findOverlayWidgetDefinition(plugin, widget);
+    if (definition == null) {
+      return TextFormField(
+        initialValue: const JsonEncoder.withIndent('  ').convert(config),
+        minLines: 4,
+        maxLines: 10,
+        decoration: const InputDecoration(
+          labelText: 'Widget config (JSON object)',
+          alignLabelWithHint: true,
+        ),
+        onChanged: (value) {
+          try {
+            final decoded = jsonDecode(value);
+            if (decoded is Map) onChanged(Map<String, dynamic>.from(decoded));
+          } on FormatException {
+            // Preserve the last valid config while the JSON is edited.
+          }
+        },
+      );
+    }
+    return DartDataInput(
+      schema: definition.configSchema,
+      value: config,
+      onChanged: (value) {
+        if (value is Map) onChanged(Map<String, dynamic>.from(value));
+      },
+    );
+  }
 }
 
 class _StreamPlanSegmentCard extends StatefulWidget {

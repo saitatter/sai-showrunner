@@ -18,7 +18,8 @@ The remaining work is concentrated in four areas:
 
 - graph-editor product parity beyond the current `sai_nodes` adapter;
 - complete overlay/widget editing and OBS browser-source controls; the current editor
-	supports generic widget JSON configuration and preserves widget data;
+	provides a catalog and typed configuration for the active common overlay widgets,
+	while complex style collections and the full shader graph editor remain open;
 - provider/plugin parity, especially deeper bespoke plugin UX; YouTube now exposes
 	persisted OAuth token, expiry, and refresh-token diagnostics in its workspace;
 - baseline comparison, packaged Windows validation, and renderer cutover.
@@ -31,11 +32,12 @@ Flutter slices, but the old Electron renderer remains the supported desktop entr
 point until the cutover gates below pass.
 
 The Sound slice now includes direct system speech through `flutter_tts`, Windows
-PCM/WAV playback and WAV synthesis for installed system voices, persisted global
-volume/default-output settings, and an injectable sound-output resolver that
-preserves legacy splitter fan-out, mute, volume scaling, duplicate-route
-selection, and cycle protection. Non-WAV playback, WASAPI endpoint routing, and
-external TTS providers remain open parity work.
+multi-format playback and WAV synthesis for installed system voices, persisted
+global volume/default-output settings, and an injectable sound-output resolver
+that preserves legacy splitter fan-out, mute, volume scaling, duplicate-route
+selection, and cycle protection. Explicit named output routing is available
+through the Flutter media backend; the legacy communications-role distinction
+and external TTS providers remain open parity work.
 
 Deletion rule: a Vue file is deleted only when its user-visible behavior is present
 in Flutter, its runtime/build references are removed, and a focused test or smoke

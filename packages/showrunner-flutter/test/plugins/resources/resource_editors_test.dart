@@ -561,7 +561,8 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
     expect(find.text('Plugin'), findsOneWidget);
-    expect(find.text('Widget config (JSON object)'), findsOneWidget);
+    expect(find.text('Shader Preset'), findsOneWidget);
+    expect(find.text('Shader Graph (JSON)'), findsOneWidget);
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
@@ -571,6 +572,37 @@ void main() {
     expect(widget['widget'], 'shaderLayer');
     expect(widget['position'], {'x': 12, 'y': 24});
     expect(widget['config'], {'preset': 'aurora', 'speed': 1});
+  });
+
+  testWidgets('overlay editor adds a canonical widget from the catalog', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-catalog',
+        config: {'name': 'Catalog overlay', 'widgets': []},
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    await tester.tap(find.byTooltip('Add widget'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chat Feed'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Font Family'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final widget = (saved?.config['widgets'] as List).single as Map;
+    expect(widget['plugin'], 'overlays');
+    expect(widget['widget'], 'chatFeed');
+    expect((widget['config'] as Map)['maxMessages'], 8);
   });
 
   testWidgets('stream plan editor adds and persists ordered segments', (
