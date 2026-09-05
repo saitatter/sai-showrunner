@@ -1,7 +1,6 @@
 import '../../runtime/expression.dart';
 import '../../schema/data_input.dart';
 import '../contracts/identifiers.dart';
-import 'plugin_ui_contract.dart';
 
 typedef DartPluginAction =
     Future<Object?> Function(RuntimeMap config, EvaluationContext context);
@@ -109,7 +108,6 @@ final class DartPluginManifest {
     this.triggers = const <DartTriggerDefinition>[],
     this.states = const <DartPluginStateDefinition>[],
     this.healthCheck,
-    this.ui,
     this.start,
     this.stop,
     this.dispose,
@@ -123,7 +121,6 @@ final class DartPluginManifest {
   final List<DartTriggerDefinition> triggers;
   final List<DartPluginStateDefinition> states;
   final Future<bool> Function()? healthCheck;
-  final DartPluginUiContribution? ui;
   final DartPluginLifecycleHook? start;
   final DartPluginLifecycleHook? stop;
   @Deprecated('Use stop for runtime shutdown hooks.')

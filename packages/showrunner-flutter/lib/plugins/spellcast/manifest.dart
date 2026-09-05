@@ -2,22 +2,12 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_contract.dart';
-import '../registry/plugin_ui.dart';
-import 'ui/spellcast_workspace.dart';
 
 DartPluginManifest createSpellcastPlugin({DartPluginEventHub? eventHub}) {
   final hub = eventHub ?? DartPluginEventHub();
   return DartPluginManifest(
     id: 'spellcast',
     name: 'Spellcast',
-    ui: DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          SpellcastWorkspace(
-            dataService: dataService,
-            eventHub: hub,
-            providerEvents: providerEvents,
-          ),
-    ),
     actions: [
       DartActionDefinition(
         pluginId: 'spellcast',

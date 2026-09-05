@@ -71,7 +71,7 @@ void main() {
                 ))
                   resource.resourceType,
               ],
-              'ui': {'contribution': plugin.ui != null},
+              'ui': {'contribution': registry.uiFor(plugin.id) != null},
             },
         ],
       };

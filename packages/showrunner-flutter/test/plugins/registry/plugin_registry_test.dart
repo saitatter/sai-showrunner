@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/obs/obs.dart';
 import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
@@ -7,8 +8,30 @@ import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_health.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_host_context.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_module.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_ui.dart';
 
 void main() {
+  test('keeps Flutter UI contributions outside the plugin manifest', () {
+    final registry = DartPluginRegistry()
+      ..register(const DartPluginManifest(id: 'sample', name: 'Sample'));
+    final contribution = DartFlutterPluginUiContribution(
+      builder: (context, dataService, providerEvents, registryFuture) =>
+          const SizedBox.shrink(),
+    );
+
+    registry.registerUi('sample', contribution);
+
+    expect(registry.uiFor('sample'), same(contribution));
+    expect(
+      () => registry.registerUi('unknown', contribution),
+      throwsArgumentError,
+    );
+    expect(
+      () => registry.registerUi('sample', contribution),
+      throwsArgumentError,
+    );
+  });
+
   test('keeps plugin contract keys typed and collision-safe', () {
     const obs = PluginId('obs');
     const action = ActionId('scene');

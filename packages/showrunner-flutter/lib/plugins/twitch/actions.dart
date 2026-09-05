@@ -3,10 +3,8 @@ import '../../schema/data_input.dart';
 import '../../persistence/resource_repository.dart';
 import '../../schema/resource.dart';
 import '../registry/plugin_contract.dart';
-import '../registry/plugin_ui.dart';
 import '../../services/plugin_event_hub.dart';
 import 'channel_points.dart';
-import 'ui/twitch_workspace.dart';
 
 typedef TwitchRequest =
     Future<RuntimeMap> Function(
@@ -283,14 +281,6 @@ DartPluginManifest createTwitchPlugin(
 }) => DartPluginManifest(
   id: 'twitch',
   name: 'Twitch',
-  ui: DartFlutterPluginUiContribution(
-    builder: (context, dataService, providerEvents, registryFuture) =>
-        TwitchWorkspace(
-          providerEvents: providerEvents,
-          registryFuture: registryFuture,
-          dataService: dataService,
-        ),
-  ),
   states: const [
     DartPluginStateDefinition(
       id: 'connection',

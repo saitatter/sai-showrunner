@@ -20,6 +20,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
     ),
   );
   registry.register(createObsPlugin(CallbackObsTransport(_unconfiguredObs)));
+  registry.registerUi('obs', createObsPluginUi());
   registry.register(
     createAitumPlugin(CallbackObsTransport(_unconfiguredAitum)),
   );
@@ -35,21 +36,24 @@ DartPluginRegistry buildDefaultPluginRegistry({
       eventHub: eventHub,
     ),
   );
+  registry.registerUi('youtube', createYouTubePluginUi());
   registry.register(
     createTwitchPlugin(
       TwitchTransport(_unconfiguredTwitch),
       eventHub: eventHub,
     ),
   );
+  registry.registerUi('twitch', createTwitchPluginUi());
   _registerTwitchStreamPlanComponent(
     transport: TwitchTransport(_unconfiguredTwitch),
   );
-  registry.register(
-    createModerationPlugin(
-      ModerationService(
-        dataService: ShowRunnerDataService(Directory.systemTemp),
-      ),
-    ),
+  final moderationService = ModerationService(
+    dataService: ShowRunnerDataService(Directory.systemTemp),
+  );
+  registry.register(createModerationPlugin(moderationService));
+  registry.registerUi(
+    'moderation',
+    createModerationPluginUi(moderationService),
   );
   registry.register(createDiscordPlugin());
   registry.register(
@@ -80,7 +84,9 @@ DartPluginRegistry buildDefaultPluginRegistry({
     ),
   );
   registry.register(createOverlaysPlugin(eventHub: eventHub));
-  registry.register(createSpellcastPlugin(eventHub: eventHub));
+  final spellcastHub = eventHub ?? DartPluginEventHub();
+  registry.register(createSpellcastPlugin(eventHub: spellcastHub));
+  registry.registerUi('spellcast', createSpellcastPluginUi(spellcastHub));
   registry.register(createIotPlugin());
   registry.register(createGoveePlugin(GoveeTransport(_unconfiguredGovee)));
   registry.register(

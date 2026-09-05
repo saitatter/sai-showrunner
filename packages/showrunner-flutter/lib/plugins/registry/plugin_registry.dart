@@ -7,6 +7,7 @@ import '../contracts/identifiers.dart';
 import 'plugin_contract.dart';
 import 'plugin_host_context.dart';
 import 'plugin_module.dart';
+import 'plugin_ui_contract.dart';
 
 export 'plugin_contract.dart';
 
@@ -14,6 +15,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   final Map<PluginId, DartPluginModule> _modules = {};
   final Map<ActionKey, DartActionDefinition> _actions = {};
   final Map<TriggerKey, DartTriggerDefinition> _triggers = {};
+  final Map<PluginId, DartPluginUiContribution> _uiContributions = {};
   final Set<PluginId> _disabledPluginIds = {};
   final Map<PluginId, Map<StateId, dynamic>> _stateValues = {};
   Future<void>? _initializeFuture;
@@ -63,6 +65,24 @@ final class DartPluginRegistry extends ChangeNotifier {
       _triggers[trigger.key] = trigger;
     }
   }
+
+  /// Registers Flutter UI separately from the declarative plugin contract.
+  ///
+  /// Keeping this map outside [DartPluginManifest] lets schema/runtime code
+  /// describe a plugin without importing or carrying a UI contribution.
+  void registerUi(String pluginId, DartPluginUiContribution contribution) {
+    final key = PluginId(pluginId);
+    if (!_modules.containsKey(key)) {
+      throw ArgumentError('Cannot register UI for unknown plugin: $pluginId');
+    }
+    if (_uiContributions.containsKey(key)) {
+      throw ArgumentError('Plugin UI is registered more than once: $pluginId');
+    }
+    _uiContributions[key] = contribution;
+  }
+
+  DartPluginUiContribution? uiFor(String pluginId) =>
+      _uiContributions[PluginId(pluginId)];
 
   Iterable<DartPluginManifest> get plugins =>
       _modules.values.map((module) => module.manifest);

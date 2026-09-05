@@ -249,13 +249,15 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
               Expanded(
                 child: selected == null
                     ? const Center(child: Text('Select a plugin'))
-                    : selected.ui != null
-                    ? selected.ui!.build(
-                            context: context,
-                            dataService: widget.dataService,
-                            providerEvents: widget.providerEvents,
-                            registryFuture: widget.registryFuture,
-                          )
+                    : registry.uiFor(selected.id) != null
+                    ? registry
+                              .uiFor(selected.id)!
+                              .build(
+                                context: context,
+                                dataService: widget.dataService,
+                                providerEvents: widget.providerEvents,
+                                registryFuture: widget.registryFuture,
+                              )
                           as Widget
                     : _buildPluginDetails(context, selected, registry),
               ),

@@ -5,10 +5,8 @@
 library;
 
 import '../registry/plugin_contract.dart';
-import '../registry/plugin_ui.dart';
 import '../../schema/data_input.dart';
 import 'runtime.dart';
-import 'ui/moderation_workspace.dart';
 
 const _moderateChatSchema = DartDataInputSchema(
   label: 'Moderation chat message',
@@ -94,10 +92,6 @@ DartPluginManifest createModerationPlugin(ModerationService service) =>
     DartPluginManifest(
       id: 'moderation',
       name: 'Moderation Docker',
-      ui: DartFlutterPluginUiContribution(
-        builder: (context, dataService, providerEvents, registryFuture) =>
-            ModerationWorkspace(service: service),
-      ),
       settings: const [
         DartSettingDefinition(
           id: 'enabled',

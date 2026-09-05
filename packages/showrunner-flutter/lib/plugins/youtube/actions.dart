@@ -1,9 +1,7 @@
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
-import '../registry/plugin_ui.dart';
 import '../../services/plugin_event_hub.dart';
-import 'ui/youtube_workspace.dart';
 
 typedef YouTubeRequest =
     Future<RuntimeMap> Function(
@@ -86,14 +84,6 @@ DartPluginManifest createYouTubePlugin(
 }) => DartPluginManifest(
   id: 'youtube',
   name: 'YouTube',
-  ui: DartFlutterPluginUiContribution(
-    builder: (context, dataService, providerEvents, registryFuture) =>
-        YouTubeWorkspace(
-          dataService: dataService,
-          providerEvents: providerEvents,
-          registryFuture: registryFuture,
-        ),
-  ),
   states: const [
     DartPluginStateDefinition(
       id: 'connection',

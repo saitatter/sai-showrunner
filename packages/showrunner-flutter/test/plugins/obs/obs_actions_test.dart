@@ -187,7 +187,7 @@ void main() {
         ),
       );
 
-    expect(() => registry.checkHealth('obs'), throwsA(isA<StateError>()));
+    expect(await registry.checkHealth('obs'), isFalse);
   });
 
   test('validates and persists OBS connection settings', () async {

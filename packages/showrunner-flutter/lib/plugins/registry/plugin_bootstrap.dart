@@ -6,6 +6,7 @@ import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/http_provider_transports.dart';
 import '../obs/actions.dart';
+import '../obs/ui/plugin_ui.dart';
 import 'plugin_registry.dart';
 import 'plugin_host_context.dart';
 import '../obs/connection_router.dart';
@@ -14,9 +15,12 @@ import '../../services/showrunner_data_service.dart';
 import '../../schema/automation.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../twitch/actions.dart';
+import '../twitch/ui/plugin_ui.dart';
 import '../youtube/actions.dart';
+import '../youtube/ui/plugin_ui.dart';
 import '../moderation/moderation.dart';
 import '../moderation/runtime.dart';
+import '../moderation/ui/plugin_ui.dart';
 import '../discord/manifest.dart';
 import '../bluesky/manifest.dart';
 import '../donordrive/manifest.dart';
@@ -36,6 +40,7 @@ import '../variables/manifest.dart';
 import '../overlays/manifest.dart';
 import '../overlays/websocket_bridge.dart';
 import '../spellcast/manifest.dart';
+import '../spellcast/ui/plugin_ui.dart';
 import '../iot/manifest.dart';
 import 'configured_iot_resolver.dart';
 import '../govee/manifest.dart';
@@ -121,6 +126,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     onStateChanged: (state, value) => registry.updateState('obs', state, value),
   );
   registry.register(createObsPlugin(obsTransport));
+  registry.registerUi('obs', createObsPluginUi());
   registry.register(createAitumPlugin(obsTransport));
   registry.register(createAdvssPlugin(obsTransport, eventHub: eventHub));
   final twitchClientId = twitch['clientId'] as String?;
@@ -158,6 +164,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       eventHub: eventHub,
     ),
   );
+  registry.registerUi('youtube', createYouTubePluginUi());
   final configuredTwitchTransport = TwitchTransport((
     method,
     path,
@@ -178,12 +185,17 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       ),
     ),
   );
+  registry.registerUi('twitch', createTwitchPluginUi());
   _registerTwitchStreamPlanComponent(
     transport: configuredTwitchTransport,
     broadcasterId: twitch['broadcasterId']?.toString(),
   );
   final moderationService = ModerationService(dataService: dataService);
   registry.register(createModerationPlugin(moderationService));
+  registry.registerUi(
+    'moderation',
+    createModerationPluginUi(moderationService),
+  );
   registry.register(createDiscordPlugin());
   final blueskySettings = await dataService.loadPluginSettings('bluesky');
   final blueskyIdentifier = blueskySettings['identifier']?.toString().trim();
@@ -327,7 +339,9 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       onDispose: overlayBridge?.dispose,
     ),
   );
-  registry.register(createSpellcastPlugin(eventHub: eventHub));
+  final spellcastHub = eventHub ?? DartPluginEventHub();
+  registry.register(createSpellcastPlugin(eventHub: spellcastHub));
+  registry.registerUi('spellcast', createSpellcastPluginUi(spellcastHub));
   final goveeSettings = await dataService.loadPluginSettings('govee');
   final goveeApiKey = goveeSettings['apiKey'] as String?;
   final goveeTransport = goveeApiKey?.isNotEmpty == true
