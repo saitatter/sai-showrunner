@@ -101,6 +101,9 @@ IotResourceActionResolver createConfiguredIotResolver({
         'color': color,
         'numberOfLights': _positiveDeviceInt(device['numberOfLights'], 1),
       }, context: context);
+    // The plugin ID is `tplink-kasa`, while resources created by the
+    // reference Electron plugin persist the shorter provider value `kasa`.
+    case 'kasa':
     case 'tplink-kasa':
       return registry.invokeAction(
         'tplink-kasa',
