@@ -108,20 +108,77 @@ class _MediaWorkspaceState extends State<MediaWorkspace> {
                           : 'No matching media.',
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    itemCount: files.length,
-                    itemBuilder: (context, index) => _MediaFileTile(
-                      entry: files[index],
-                      onShowInExplorer: () =>
-                          _catalogService.showInExplorer(files[index]),
-                    ),
+                : _MediaTreeView(
+                    files: files,
+                    onShowInExplorer: _catalogService.showInExplorer,
+                    expandFolders: _filter.isNotEmpty,
                   ),
           ),
         ],
       );
     },
   );
+}
+
+final class _MediaFolderNode {
+  _MediaFolderNode(this.name, this.path);
+
+  final String name;
+  final String path;
+  final Map<String, _MediaFolderNode> folders = {};
+  final List<MediaFileEntry> files = [];
+}
+
+class _MediaTreeView extends StatelessWidget {
+  const _MediaTreeView({
+    required this.files,
+    required this.onShowInExplorer,
+    required this.expandFolders,
+  });
+
+  final List<MediaFileEntry> files;
+  final Future<void> Function(MediaFileEntry entry) onShowInExplorer;
+  final bool expandFolders;
+
+  @override
+  Widget build(BuildContext context) {
+    final root = _MediaFolderNode('', '');
+    for (final file in files) {
+      final segments = file.relativePath.split('/');
+      var folder = root;
+      for (var index = 0; index < segments.length - 1; index++) {
+        final name = segments[index];
+        final path = folder.path.isEmpty ? name : '${folder.path}/$name';
+        folder = folder.folders.putIfAbsent(
+          name,
+          () => _MediaFolderNode(name, path),
+        );
+      }
+      folder.files.add(file);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: _buildFolderChildren(root),
+    );
+  }
+
+  List<Widget> _buildFolderChildren(_MediaFolderNode folder) => [
+    for (final file in folder.files)
+      _MediaFileTile(
+        entry: file,
+        onShowInExplorer: () => onShowInExplorer(file),
+      ),
+    for (final child in folder.folders.values)
+      ExpansionTile(
+        key: PageStorageKey<String>('media-folder:${child.path}'),
+        initiallyExpanded: expandFolders,
+        leading: const Icon(Icons.folder_outlined),
+        title: Text(child.name),
+        childrenPadding: const EdgeInsets.only(left: 16),
+        children: _buildFolderChildren(child),
+      ),
+  ];
 }
 
 class _MediaFileTile extends StatelessWidget {
@@ -131,16 +188,40 @@ class _MediaFileTile extends StatelessWidget {
   final VoidCallback onShowInExplorer;
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    leading: _MediaFilePreview(entry: entry),
-    title: Text(entry.relativePath, overflow: TextOverflow.ellipsis),
-    subtitle: Text(entry.file.path, overflow: TextOverflow.ellipsis),
-    trailing: IconButton(
-      tooltip: 'Show in Explorer',
-      onPressed: onShowInExplorer,
-      icon: const Icon(Icons.folder_open),
+  Widget build(BuildContext context) => GestureDetector(
+    onSecondaryTap: () => _showContextMenu(context),
+    child: ListTile(
+      leading: _MediaFilePreview(entry: entry),
+      title: Text(entry.relativePath, overflow: TextOverflow.ellipsis),
+      subtitle: Text(entry.file.path, overflow: TextOverflow.ellipsis),
+      trailing: IconButton(
+        tooltip: 'Show in Explorer',
+        onPressed: onShowInExplorer,
+        icon: const Icon(Icons.folder_open),
+      ),
     ),
   );
+
+  Future<void> _showContextMenu(BuildContext context) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(entry.relativePath),
+        content: ListTile(
+          leading: const Icon(Icons.folder_open),
+          title: const Text('Show In Explorer'),
+          onTap: () => Navigator.pop(context, 'explore'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+    if (action == 'explore') onShowInExplorer();
+  }
 }
 
 class _MediaFilePreview extends StatefulWidget {
