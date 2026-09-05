@@ -983,6 +983,7 @@ class _StreamPlanEditor extends StatefulWidget {
 class _StreamPlanEditorState extends State<_StreamPlanEditor> {
   late final TextEditingController _name;
   late List<StreamPlanSegmentData> _segments;
+  final Map<String, GlobalKey<_StreamPlanSegmentCardState>> _segmentKeys = {};
   ShowRunnerGraphEditor? _activationEditor;
   ShowRunnerGraphEditor? _deactivationEditor;
 
@@ -1057,9 +1058,14 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
       else
         for (var index = 0; index < _segments.length; index++)
           _StreamPlanSegmentCard(
-            key: ValueKey(_segments[index].id),
+            key: _segmentKeys.putIfAbsent(
+              _segments[index].id,
+              GlobalKey<_StreamPlanSegmentCardState>.new,
+            ),
             index: index,
             segment: _segments[index],
+            registryFuture: widget.registryFuture,
+            resourceOptionsLoader: widget.resourceOptionsLoader,
             onChanged: (segment) => setState(() => _segments[index] = segment),
             onMoveUp: index == 0
                 ? null
@@ -1073,7 +1079,10 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
                     final segment = _segments.removeAt(index);
                     _segments.insert(index + 1, segment);
                   }),
-            onDelete: () => setState(() => _segments.removeAt(index)),
+            onDelete: () => setState(() {
+              final removed = _segments.removeAt(index);
+              _segmentKeys.remove(removed.id);
+            }),
           ),
     ],
     onSave: () => widget.onSave(
@@ -1098,7 +1107,14 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
               )
               .toJson() ??
           plan.deactivationAutomation,
-      'segments': _segments.map((segment) => segment.toJson()).toList(),
+      'segments': _segments
+          .map(
+            (segment) =>
+                (_segmentKeys[segment.id]?.currentState?._savedSegment() ??
+                        segment)
+                    .toJson(),
+          )
+          .toList(),
     };
   }
 
@@ -1132,6 +1148,7 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
     String label,
     ShowRunnerGraphEditor editor,
   ) => ExpansionTile(
+    key: ValueKey('stream-plan-$label'),
     leading: const Icon(Icons.account_tree_outlined),
     title: Text(label),
     subtitle: Text('${editor.controller.nodes.length} nodes'),
@@ -1147,11 +1164,13 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
   );
 }
 
-class _StreamPlanSegmentCard extends StatelessWidget {
+class _StreamPlanSegmentCard extends StatefulWidget {
   const _StreamPlanSegmentCard({
     super.key,
     required this.index,
     required this.segment,
+    this.registryFuture,
+    this.resourceOptionsLoader,
     required this.onChanged,
     required this.onMoveUp,
     required this.onMoveDown,
@@ -1160,10 +1179,69 @@ class _StreamPlanSegmentCard extends StatelessWidget {
 
   final int index;
   final StreamPlanSegmentData segment;
+  final Future<DartPluginRegistry>? registryFuture;
+  final GraphResourceOptionsLoader? resourceOptionsLoader;
   final ValueChanged<StreamPlanSegmentData> onChanged;
   final VoidCallback? onMoveUp;
   final VoidCallback? onMoveDown;
   final VoidCallback onDelete;
+
+  @override
+  State<_StreamPlanSegmentCard> createState() => _StreamPlanSegmentCardState();
+}
+
+class _StreamPlanSegmentCardState extends State<_StreamPlanSegmentCard> {
+  ShowRunnerGraphEditor? _activationEditor;
+  ShowRunnerGraphEditor? _deactivationEditor;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.registryFuture != null) {
+      _activationEditor =
+          ShowRunnerGraphEditor(
+            resourceOptionsLoader: widget.resourceOptionsLoader,
+          )..loadAutomation(
+            AutomationData.fromJson(widget.segment.activationAutomation),
+          );
+      _deactivationEditor =
+          ShowRunnerGraphEditor(
+            resourceOptionsLoader: widget.resourceOptionsLoader,
+          )..loadAutomation(
+            AutomationData.fromJson(widget.segment.deactivationAutomation),
+          );
+    }
+  }
+
+  @override
+  void dispose() {
+    _activationEditor?.dispose();
+    _deactivationEditor?.dispose();
+    super.dispose();
+  }
+
+  StreamPlanSegmentData _savedSegment() {
+    final segment = widget.segment;
+    return StreamPlanSegmentData(
+      id: segment.id,
+      name: segment.name,
+      components: segment.components,
+      activationAutomation:
+          _activationEditor
+              ?.toAutomation(
+                AutomationData.fromJson(segment.activationAutomation),
+              )
+              .toJson() ??
+          segment.activationAutomation,
+      deactivationAutomation:
+          _deactivationEditor
+              ?.toAutomation(
+                AutomationData.fromJson(segment.deactivationAutomation),
+              )
+              .toJson() ??
+          segment.deactivationAutomation,
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Card(
@@ -1176,47 +1254,56 @@ class _StreamPlanSegmentCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Segment ${index + 1}',
+                  'Segment ${widget.index + 1}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
               IconButton(
                 tooltip: 'Move up',
-                onPressed: onMoveUp,
+                onPressed: widget.onMoveUp,
                 icon: const Icon(Icons.arrow_upward),
               ),
               IconButton(
                 tooltip: 'Move down',
-                onPressed: onMoveDown,
+                onPressed: widget.onMoveDown,
                 icon: const Icon(Icons.arrow_downward),
               ),
               IconButton(
                 tooltip: 'Delete segment',
-                onPressed: onDelete,
+                onPressed: widget.onDelete,
                 icon: const Icon(Icons.delete_outline),
               ),
             ],
           ),
           TextFormField(
-            initialValue: segment.name,
+            initialValue: widget.segment.name,
             decoration: const InputDecoration(labelText: 'Name'),
-            onChanged: (name) => onChanged(_copy(name: name)),
+            onChanged: (name) => widget.onChanged(_copy(name: name)),
           ),
           const SizedBox(height: 8),
+          if (_activationEditor != null)
+            _inlineAutomation('On Activate', _activationEditor!),
+          if (_deactivationEditor != null)
+            _inlineAutomation('On Deactivate', _deactivationEditor!),
+          if (_activationEditor == null)
+            _automationSummary(
+              'On Activate',
+              widget.segment.activationAutomation,
+            ),
+          if (_deactivationEditor == null)
+            _automationSummary(
+              'On Deactivate',
+              widget.segment.deactivationAutomation,
+            ),
+          const SizedBox(height: 8),
           _componentFields(),
-          const SizedBox(height: 4),
-          Text(
-            '${_nodeCount(segment.activationAutomation)} activation nodes · '
-            '${_nodeCount(segment.deactivationAutomation)} deactivation nodes',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
         ],
       ),
     ),
   );
 
   Widget _componentFields() {
-    final component = segment.components['twitch-stream-info'];
+    final component = widget.segment.components['twitch-stream-info'];
     if (component is! Map) return const SizedBox.shrink();
     final config = Map<String, dynamic>.from(component);
     return Wrap(
@@ -1244,34 +1331,57 @@ class _StreamPlanSegmentCard extends StatelessWidget {
       decoration: InputDecoration(labelText: label),
       onChanged: (next) {
         final components = {
-          ...segment.components,
+          ...widget.segment.components,
           'twitch-stream-info': {
             ...Map<String, dynamic>.from(
-              segment.components['twitch-stream-info'] as Map,
+              widget.segment.components['twitch-stream-info'] as Map,
             ),
             key: next,
           },
         };
-        onChanged(_copy(components: components));
+        widget.onChanged(_copy(components: components));
       },
     ),
   );
 
   StreamPlanSegmentData _copy({String? name, JsonMap? components}) =>
       StreamPlanSegmentData(
-        id: segment.id,
-        name: name ?? segment.name,
-        components: components ?? segment.components,
-        activationAutomation: segment.activationAutomation,
-        deactivationAutomation: segment.deactivationAutomation,
+        id: widget.segment.id,
+        name: name ?? widget.segment.name,
+        components: components ?? widget.segment.components,
+        activationAutomation: widget.segment.activationAutomation,
+        deactivationAutomation: widget.segment.deactivationAutomation,
       );
 
-  int _nodeCount(JsonMap automation) {
+  Widget _automationSummary(String label, JsonMap automation) {
     final graph = automation['graph'];
-    return graph is Map && graph['nodes'] is List
+    final nodes = graph is Map && graph['nodes'] is List
         ? (graph['nodes'] as List).length
         : 0;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.account_tree_outlined),
+      title: Text(label),
+      subtitle: Text('$nodes automation node${nodes == 1 ? '' : 's'}'),
+    );
   }
+
+  Widget _inlineAutomation(String label, ShowRunnerGraphEditor editor) =>
+      ExpansionTile(
+        key: ValueKey('stream-plan-segment-${widget.segment.id}-$label'),
+        leading: const Icon(Icons.account_tree_outlined),
+        title: Text(label),
+        subtitle: Text('${editor.controller.nodes.length} nodes'),
+        children: [
+          SizedBox(
+            width: 720,
+            child: ShowRunnerInlineGraphEditor(
+              editor: editor,
+              registryFuture: widget.registryFuture!,
+            ),
+          ),
+        ],
+      );
 }
 
 class _DashboardEditor extends StatefulWidget {

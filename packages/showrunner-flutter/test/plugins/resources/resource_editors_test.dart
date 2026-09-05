@@ -7,6 +7,7 @@ import 'package:showrunner_flutter/features/resources/resource_editor_registry.d
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
+import 'package:showrunner_flutter/schema/stream_plan.dart';
 
 void main() {
   test('resolves plugin resource editor types', () {
@@ -611,7 +612,21 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
     final editor = definition.runtimeBuilder!(
       tester.element(find.byType(Scaffold)),
-      const ResourceData(id: 'plan-runtime', config: {'name': 'Runtime plan'}),
+      ResourceData(
+        id: 'plan-runtime',
+        config: {
+          'name': 'Runtime plan',
+          'segments': [
+            {
+              'id': 'segment-runtime',
+              'name': 'Intro',
+              'components': const <String, dynamic>{},
+              'activationAutomation': emptyInlineAutomation(),
+              'deactivationAutomation': emptyInlineAutomation(),
+            },
+          ],
+        },
+      ),
       (_) async {},
       registryFuture: Future.value(DartPluginRegistry()),
       resourceOptionsLoader: (_) async => const [],
@@ -619,10 +634,16 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
     await tester.pump();
 
-    expect(find.text('On Activate'), findsOneWidget);
-    expect(find.text('On Deactivate'), findsOneWidget);
-    await tester.tap(find.text('On Activate'));
-    await tester.tap(find.text('On Deactivate'));
+    expect(find.text('On Activate'), findsNWidgets(2));
+    expect(find.text('On Deactivate'), findsNWidgets(2));
+    expect(find.text('Segment 1'), findsOneWidget);
+    expect(find.byType(ShowRunnerInlineGraphEditor), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('stream-plan-On Activate')));
+    final segmentActivation = find.byKey(
+      const ValueKey('stream-plan-segment-segment-runtime-On Activate'),
+    );
+    await tester.ensureVisible(segmentActivation);
+    await tester.tap(segmentActivation);
     await tester.pump();
     expect(find.byType(ShowRunnerInlineGraphEditor), findsNWidgets(2));
   });
