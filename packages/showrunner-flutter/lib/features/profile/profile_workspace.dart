@@ -151,19 +151,17 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final files = await widget.dataService.listUserFiles('profiles');
-      final entries = <ProfileEntry>[];
-      for (final fileName in files) {
-        try {
-          final profile = await ProfileRepository(
-            File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
-          ).load();
-          entries.add((fileName: fileName, profile: profile, error: null));
-        } catch (error) {
-          entries.add((fileName: fileName, profile: null, error: error));
-        }
-      }
-      _entries = entries;
+      final entries = await ProfileRepository.loadDirectory(
+        Directory('${widget.dataService.userDirectory.path}/profiles'),
+      );
+      _entries = [
+        for (final entry in entries)
+          (
+            fileName: entry.fileName,
+            profile: entry.profile,
+            error: entry.error,
+          ),
+      ];
       if (_entries.isNotEmpty &&
           (_selectedIndex == null || _selectedIndex! >= _entries.length)) {
         _selectProfile(0);
