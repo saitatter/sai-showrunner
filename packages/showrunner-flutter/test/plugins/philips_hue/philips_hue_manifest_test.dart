@@ -83,4 +83,33 @@ void main() {
       'color_temperature': {'mirek': 250},
     });
   });
+
+  test('routes light actions through a resource-specific bridge', () async {
+    var resolved = false;
+    final registry = DartPluginRegistry()
+      ..register(
+        createPhilipsHuePlugin(
+          HueTransport((method, path, query, body) async {
+            throw StateError('base transport');
+          }),
+          transportResolver: (config) {
+            expect(config['host'], 'hue.local');
+            expect(config['hubKey'], 'resource-key');
+            resolved = true;
+            return HueTransport((method, path, query, body) async {
+              return <String, dynamic>{};
+            });
+          },
+        ),
+      );
+
+    await registry.invokeAction('philips-hue', 'setLightState', {
+      'host': 'hue.local',
+      'hubKey': 'resource-key',
+      'lightId': 'light-1',
+      'state': 'on',
+    });
+
+    expect(resolved, isTrue);
+  });
 }

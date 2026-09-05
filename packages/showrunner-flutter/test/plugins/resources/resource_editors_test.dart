@@ -37,6 +37,7 @@ void main() {
       'providerId': '',
       'host': '',
       'ip': '',
+      'hubKey': '',
       'model': '',
       'resourceType': 'light',
       'target': '',

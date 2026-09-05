@@ -95,8 +95,9 @@ Govee Cloud is also registered as a real Dart plugin with API-key settings,
 device discovery/state actions, and power, RGB, brightness, and color-temperature
 controls; LAN discovery and persisted device resources remain open.
 Philips Hue is registered with local Hue v2 discovery, scene recall, and light or
-group state updates, including HSB/Kelvin conversion; bridge discovery and
-persisted device-resource recovery remain open.
+group state updates, including HSB/Kelvin conversion; persisted Light resources
+can override the bridge host and application key, while bridge discovery and
+automatic device-resource recovery remain open.
 Twinkly is registered with the local XLED API, challenge/verify token lifecycle,
 RGB color, LED mode, movie, and power actions; subnet discovery and persisted
 device-resource recovery remain open.

@@ -310,9 +310,25 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   final hueTransport = hueIp.isNotEmpty && hueKey.isNotEmpty
       ? HueHttpTransport(host: hueIp, applicationKey: hueKey)
       : null;
+  final configuredHueTransport = HueTransport(
+    hueTransport?.request ?? _unconfiguredPhilipsHue,
+  );
   registry.register(
     createPhilipsHuePlugin(
-      HueTransport(hueTransport?.request ?? _unconfiguredPhilipsHue),
+      configuredHueTransport,
+      transportResolver: (config) {
+        final host = config['host']?.toString().trim() ?? '';
+        final key = config['hubKey']?.toString().trim() ?? '';
+        if (host.isEmpty || (key.isEmpty && hueKey.isEmpty)) {
+          return configuredHueTransport;
+        }
+        return HueTransport(
+          HueHttpTransport(
+            host: host,
+            applicationKey: key.isEmpty ? hueKey : key,
+          ).request,
+        );
+      },
     ),
   );
   final twinklyTransport = TwinklyHttpTransport();
@@ -491,6 +507,10 @@ IotResourceActionResolver _configuredIotResolver({
         throw UnsupportedError('Philips Hue plug resources are not supported.');
       }
       return registry.invokeAction('philips-hue', 'setLightState', {
+        if (device['host']?.toString().trim().isNotEmpty == true)
+          'host': device['host'],
+        if (device['hubKey']?.toString().trim().isNotEmpty == true)
+          'hubKey': device['hubKey'],
         'lightId': providerId,
         'resourceType': device['resourceType'] ?? 'light',
         'state': state,

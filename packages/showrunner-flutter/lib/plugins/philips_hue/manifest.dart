@@ -21,6 +21,8 @@ final class HueTransport {
   final HueRequest request;
 }
 
+typedef HueTransportResolver = HueTransport Function(RuntimeMap config);
+
 final class HueHttpTransport {
   const HueHttpTransport({required this.host, required this.applicationKey});
 
@@ -74,6 +76,17 @@ const _deviceSchema = DartDataInputSchema(
       required: true,
     ),
     DartDataInputSchema(
+      label: 'Bridge IP / Host',
+      key: 'host',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Bridge application key',
+      key: 'hubKey',
+      kind: DartDataInputKind.text,
+      secret: true,
+    ),
+    DartDataInputSchema(
       label: 'Resource type',
       key: 'resourceType',
       kind: DartDataInputKind.enumeration,
@@ -101,57 +114,59 @@ const _deviceSchema = DartDataInputSchema(
   ],
 );
 
-DartPluginManifest createPhilipsHuePlugin(HueTransport transport) =>
-    DartPluginManifest(
-      id: 'philips-hue',
-      name: 'Philips Hue',
-      settings: const [
-        DartSettingDefinition(id: 'hubIp', displayName: 'Hue Hub IP'),
-        DartSettingDefinition(
-          id: 'hubKey',
-          displayName: 'Hue Application Key',
-          secret: true,
-        ),
-      ],
-      actions: [
-        DartActionDefinition(
-          pluginId: 'philips-hue',
-          actionId: 'listLights',
-          displayName: 'List Lights',
-          invoke: (config, context) =>
-              transport.request('GET', '/resource/light', const {}, null),
-        ),
-        DartActionDefinition(
-          pluginId: 'philips-hue',
-          actionId: 'listGroups',
-          displayName: 'List Light Groups',
-          invoke: (config, context) => transport.request(
-            'GET',
-            '/resource/grouped_light',
-            const {},
-            null,
-          ),
-        ),
-        DartActionDefinition(
-          pluginId: 'philips-hue',
-          actionId: 'listScenes',
-          displayName: 'List Scenes',
-          invoke: (config, context) =>
-              transport.request('GET', '/resource/scene', const {}, null),
-        ),
-        DartActionDefinition(
-          pluginId: 'philips-hue',
-          actionId: 'setLightState',
-          displayName: 'Set Light State',
-          configSchema: _deviceSchema,
-          invoke: (config, context) =>
-              _setLightState(transport, config, context),
-        ),
-        DartActionDefinition(
-          pluginId: 'philips-hue',
-          actionId: 'recallScene',
-          displayName: 'Recall Hue Scene',
-          invoke: (config, context) => transport.request(
+DartPluginManifest createPhilipsHuePlugin(
+  HueTransport transport, {
+  HueTransportResolver? transportResolver,
+}) => DartPluginManifest(
+  id: 'philips-hue',
+  name: 'Philips Hue',
+  settings: const [
+    DartSettingDefinition(id: 'hubIp', displayName: 'Hue Hub IP'),
+    DartSettingDefinition(
+      id: 'hubKey',
+      displayName: 'Hue Application Key',
+      secret: true,
+    ),
+  ],
+  actions: [
+    DartActionDefinition(
+      pluginId: 'philips-hue',
+      actionId: 'listLights',
+      displayName: 'List Lights',
+      invoke: (config, context) =>
+          transport.request('GET', '/resource/light', const {}, null),
+    ),
+    DartActionDefinition(
+      pluginId: 'philips-hue',
+      actionId: 'listGroups',
+      displayName: 'List Light Groups',
+      invoke: (config, context) =>
+          transport.request('GET', '/resource/grouped_light', const {}, null),
+    ),
+    DartActionDefinition(
+      pluginId: 'philips-hue',
+      actionId: 'listScenes',
+      displayName: 'List Scenes',
+      invoke: (config, context) =>
+          transport.request('GET', '/resource/scene', const {}, null),
+    ),
+    DartActionDefinition(
+      pluginId: 'philips-hue',
+      actionId: 'setLightState',
+      displayName: 'Set Light State',
+      configSchema: _deviceSchema,
+      invoke: (config, context) => _setLightState(
+        transportResolver?.call(config) ?? transport,
+        config,
+        context,
+      ),
+    ),
+    DartActionDefinition(
+      pluginId: 'philips-hue',
+      actionId: 'recallScene',
+      displayName: 'Recall Hue Scene',
+      invoke: (config, context) =>
+          (transportResolver?.call(config) ?? transport).request(
             'PUT',
             '/resource/scene/${_required(config, 'sceneId')}',
             const {},
@@ -159,9 +174,9 @@ DartPluginManifest createPhilipsHuePlugin(HueTransport transport) =>
               'recall': {'action': 'active'},
             },
           ),
-        ),
-      ],
-    );
+    ),
+  ],
+);
 
 Future<Object?> _setLightState(
   HueTransport transport,
