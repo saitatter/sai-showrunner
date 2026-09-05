@@ -57,10 +57,19 @@ const plugins = main.plugins.map((expected) => {
   const categoryResults = Object.fromEntries(
     categories.map((category) => [category, compareCategory(expected[category], actual[category], category)]),
   );
+  const ui = {
+    expectedSourceFiles: expected.ui?.sourceFiles?.length || 0,
+    flutterWorkspace: Boolean(actual.ui?.contribution),
+    status: expected.ui?.sourceFiles?.length
+      ? actual.ui?.contribution ? 'equivalent' : 'partial'
+      : 'equivalent',
+  };
   const status = Object.values(categoryResults).some((result) => result.status === 'missing')
     ? 'partial'
     : Object.values(categoryResults).some((result) => result.status === 'partial')
       ? 'partial'
+      : ui.status === 'partial'
+        ? 'partial'
       : Object.values(categoryResults).some((result) => result.status === 'improved')
         ? 'improved'
         : 'equivalent';
@@ -68,13 +77,7 @@ const plugins = main.plugins.map((expected) => {
     id: expected.id,
     status,
     categories: categoryResults,
-    ui: {
-      expectedSourceFiles: expected.ui?.sourceFiles?.length || 0,
-      flutterWorkspace: Boolean(actual.ui?.contribution),
-      status: expected.ui?.sourceFiles?.length
-        ? actual.ui?.contribution ? 'equivalent' : 'partial'
-        : 'equivalent',
-    },
+    ui,
   };
 });
 

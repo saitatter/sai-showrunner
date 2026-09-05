@@ -3,7 +3,7 @@
   "plugins": [
     {
       "id": "advss",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -59,14 +59,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "aitum",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -128,14 +128,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "bluesky",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -195,14 +195,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "dashboards",
-      "status": "equivalent",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -250,14 +250,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 17,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "discord",
-      "status": "equivalent",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -309,14 +309,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "donordrive",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [
@@ -397,14 +397,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "elgato",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -466,14 +466,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 5,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "govee",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -533,14 +533,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "http",
-      "status": "equivalent",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -592,14 +592,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 5,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "input",
-      "status": "equivalent",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -657,14 +657,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 9,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "iot",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -725,14 +725,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 11,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "lifx",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [
@@ -797,14 +797,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "minecraft",
-      "status": "equivalent",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -856,9 +856,9 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 5,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
@@ -932,7 +932,7 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": true,
         "status": "equivalent"
       }
@@ -1070,14 +1070,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 32,
         "flutterWorkspace": true,
         "status": "equivalent"
       }
     },
     {
       "id": "os",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -1130,14 +1130,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "overlays",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -1204,14 +1204,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 46,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "philips-hue",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [
@@ -1277,14 +1277,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 7,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "random",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -1339,14 +1339,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "remote",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -1408,9 +1408,9 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 5,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
@@ -1524,7 +1524,7 @@
     },
     {
       "id": "sound",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [
@@ -1594,9 +1594,9 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 12,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
@@ -1657,14 +1657,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 9,
         "flutterWorkspace": true,
         "status": "equivalent"
       }
     },
     {
       "id": "stream-plans",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -1718,14 +1718,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 5,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "time",
-      "status": "equivalent",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -1785,14 +1785,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 5,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "tplink-kasa",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [
@@ -1855,14 +1855,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "twinkly",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [
@@ -1929,9 +1929,9 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 6,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
@@ -2179,14 +2179,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 44,
         "flutterWorkspace": true,
         "status": "equivalent"
       }
     },
     {
       "id": "variables",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -2245,14 +2245,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 13,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "voicemod",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [
@@ -2314,14 +2314,14 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 5,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
       "id": "wyze",
-      "status": "improved",
+      "status": "partial",
       "categories": {
         "settings": {
           "expected": [],
@@ -2397,9 +2397,9 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 7,
         "flutterWorkspace": false,
-        "status": "equivalent"
+        "status": "partial"
       }
     },
     {
@@ -2488,7 +2488,7 @@
         }
       },
       "ui": {
-        "expectedSourceFiles": 0,
+        "expectedSourceFiles": 7,
         "flutterWorkspace": true,
         "status": "equivalent"
       }

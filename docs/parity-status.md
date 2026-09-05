@@ -43,6 +43,14 @@ Unknown remote widget kinds are shown as an explicit placeholder so a dashboard
 remains inspectable. A new widget kind still needs a dedicated Flutter renderer
 before it can be considered visually equivalent.
 
+## Contract and UI audit
+
+`docs/parity.json` is generated from the frozen `main` tag and now catalogs
+renderer source files as well as action, trigger, setting, state, and resource
+IDs. The current report has no missing contract IDs, but it intentionally
+reports plugin-specific UI contributions that still need Flutter work as
+`partial`; a generic manifest page is not counted as pixel parity.
+
 ## Release and update limits
 
 The release workflow currently produces and smoke-tests a Windows ZIP archive.

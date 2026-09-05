@@ -6,14 +6,26 @@ function git(...args) {
   return execFileSync('git', args, { encoding: 'utf8' });
 }
 
-function sourceFiles() {
+function allPluginFiles() {
   return git('ls-tree', '-r', '--name-only', ref, '--', 'plugins')
     .split(/\r?\n/)
-    .filter((file) => file.endsWith('.ts') && file.includes('/main/src/'));
+    .filter((file) => /\.(css|json|md|ts|vue)$/.test(file));
 }
 
 function sourceFor(file) {
   return git('show', `${ref}:${file}`);
+}
+
+const pluginFilesByPlugin = new Map();
+
+function filesForPlugin(pluginId) {
+  if (!pluginFilesByPlugin.has(pluginId)) {
+    pluginFilesByPlugin.set(
+      pluginId,
+      allFiles.filter((file) => file.startsWith(`plugins/${pluginId}/`)),
+    );
+  }
+  return pluginFilesByPlugin.get(pluginId);
 }
 
 function builtInPlugin() {
@@ -116,17 +128,21 @@ function resourceIds(source) {
   ].map((match) => match[1]).sort();
 }
 
-const files = sourceFiles();
+const allFiles = allPluginFiles();
+const files = allFiles.filter(
+  (file) => file.endsWith('.ts') && file.includes('/main/src/'),
+);
 const pluginIds = [...new Set(
   files.map((file) => file.match(/^plugins\/([^/]+)\/main\/src\//)?.[1]),
 )].filter(Boolean).sort();
 
 const plugins = [
   ...pluginIds.map((pluginId) => {
-  const pluginFiles = files.filter((file) => file.startsWith(`plugins/${pluginId}/`));
+  const pluginFiles = filesForPlugin(pluginId);
   const sources = pluginFiles.map(sourceFor).join('\n');
+  const contractFiles = files.filter((file) => file.startsWith(`plugins/${pluginId}/`));
   const entry = sourceFor(
-    pluginFiles.find((file) => file.endsWith('/main.ts')) || pluginFiles[0],
+    contractFiles.find((file) => file.endsWith('/main.ts')) || contractFiles[0],
   );
   const metadata = entry.match(
     /define(?:Satellite)?Plugin\(\s*\{([\s\S]*?)\}\s*,/,
@@ -138,7 +154,7 @@ const plugins = [
   return {
     id: readMetadata('id') || pluginId,
     name: readMetadata('name') || pluginId,
-    sourceFiles: pluginFiles.sort(),
+    sourceFiles: contractFiles.sort(),
     actions: literalIds(sources, 'defineAction'),
     triggers: literalIds(sources, 'defineTrigger'),
     settings: literalIds(sources, 'defineSetting'),

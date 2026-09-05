@@ -21,4 +21,5 @@ created outside the repository and removed after the report is written.
 
 The `main` extractor is deliberately conservative: dynamic or computed IDs
 are omitted instead of being guessed. Such omissions remain visible in the
-report and require an explicit contract test in Flutter.
+report and require an explicit contract test in Flutter. Renderer source files
+are also catalogued so a contract match cannot be mistaken for visual parity.
