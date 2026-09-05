@@ -41,7 +41,7 @@ class ShowRunnerFlutterApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildShowRunnerTheme(),
       builder: showRunnerAppFrame,
-      home: GraphSpikePage(
+      home: ShowRunnerPage(
         dataService: ShowRunnerDataService(_showRunnerUserDirectory()),
       ),
     );
@@ -55,8 +55,8 @@ Directory _showRunnerUserDirectory() {
       : Directory('../../user');
 }
 
-class GraphSpikePage extends StatefulWidget {
-  const GraphSpikePage({
+class ShowRunnerPage extends StatefulWidget {
+  const ShowRunnerPage({
     super.key,
     required this.dataService,
     this.loadSampleGraph = true,
@@ -68,10 +68,10 @@ class GraphSpikePage extends StatefulWidget {
   final bool showGraphEditor;
 
   @override
-  State<GraphSpikePage> createState() => _GraphSpikePageState();
+  State<ShowRunnerPage> createState() => _ShowRunnerPageState();
 }
 
-class _GraphSpikePageState extends State<GraphSpikePage> {
+class _ShowRunnerPageState extends State<ShowRunnerPage> {
   late final ShowRunnerGraphEditor _graphEditor;
   late final DartActionQueue _actionQueue;
   late final Future<DartPluginRegistry> _pluginRegistryFuture;

@@ -92,7 +92,7 @@ class ShowRunnerShell extends StatelessWidget {
     final selectedTab = tabs.indexOf(selectedIndex);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ShowRunner / Flutter graph spike'),
+        title: const Text('ShowRunner / Flutter'),
         actions: [
           IconButton(
             tooltip: 'Frame selected nodes',
