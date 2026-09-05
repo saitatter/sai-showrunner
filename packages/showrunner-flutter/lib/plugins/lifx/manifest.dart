@@ -252,6 +252,22 @@ const _lightSchema = DartDataInputSchema(
       defaultValue: 'on',
     ),
     DartDataInputSchema(
+      label: 'Device IP / Host',
+      key: 'host',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'LAN Port',
+      key: 'port',
+      kind: DartDataInputKind.number,
+      defaultValue: 56700,
+    ),
+    DartDataInputSchema(
+      label: 'Target MAC (hex, optional)',
+      key: 'target',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
       label: 'Color',
       key: 'color',
       kind: DartDataInputKind.lightColor,
@@ -265,57 +281,65 @@ const _lightSchema = DartDataInputSchema(
   ],
 );
 
-DartPluginManifest createLifxPlugin(LifxTransport transport) =>
-    DartPluginManifest(
-      id: 'lifx',
-      name: 'LIFX',
-      settings: const [
-        DartSettingDefinition(id: 'host', displayName: 'Device IP / Host'),
-        DartSettingDefinition(
-          id: 'port',
-          displayName: 'LAN Port',
-          defaultValue: 56700,
-        ),
-        DartSettingDefinition(
-          id: 'target',
-          displayName: 'Target MAC (hex, optional)',
-        ),
-        DartSettingDefinition(
-          id: 'subnetMask',
-          displayName: 'Discovery Subnet Mask',
-          defaultValue: '255.255.255.255',
-        ),
-      ],
-      actions: [
-        DartActionDefinition(
-          pluginId: 'lifx',
-          actionId: 'getState',
-          displayName: 'Get Light State',
-          invoke: (config, context) => transport.getState(),
-        ),
-        DartActionDefinition(
-          pluginId: 'lifx',
-          actionId: 'setPower',
-          displayName: 'Set Power',
-          configSchema: _lightSchema,
-          invoke: (config, context) => _setPower(transport, config),
-        ),
-        DartActionDefinition(
-          pluginId: 'lifx',
-          actionId: 'setColor',
-          displayName: 'Set Color',
-          configSchema: _lightSchema,
-          invoke: (config, context) => _setColor(transport, config),
-        ),
-        DartActionDefinition(
-          pluginId: 'lifx',
-          actionId: 'setLightState',
-          displayName: 'Set Light State',
-          configSchema: _lightSchema,
-          invoke: (config, context) => _setLightState(transport, config),
-        ),
-      ],
-    );
+typedef LifxTransportResolver = LifxTransport Function(RuntimeMap config);
+
+DartPluginManifest createLifxPlugin(
+  LifxTransport transport, {
+  LifxTransportResolver? transportResolver,
+}) => DartPluginManifest(
+  id: 'lifx',
+  name: 'LIFX',
+  settings: const [
+    DartSettingDefinition(id: 'host', displayName: 'Device IP / Host'),
+    DartSettingDefinition(
+      id: 'port',
+      displayName: 'LAN Port',
+      defaultValue: 56700,
+    ),
+    DartSettingDefinition(
+      id: 'target',
+      displayName: 'Target MAC (hex, optional)',
+    ),
+    DartSettingDefinition(
+      id: 'subnetMask',
+      displayName: 'Discovery Subnet Mask',
+      defaultValue: '255.255.255.255',
+    ),
+  ],
+  actions: [
+    DartActionDefinition(
+      pluginId: 'lifx',
+      actionId: 'getState',
+      displayName: 'Get Light State',
+      invoke: (config, context) =>
+          (transportResolver?.call(config) ?? transport).getState(),
+    ),
+    DartActionDefinition(
+      pluginId: 'lifx',
+      actionId: 'setPower',
+      displayName: 'Set Power',
+      configSchema: _lightSchema,
+      invoke: (config, context) =>
+          _setPower(transportResolver?.call(config) ?? transport, config),
+    ),
+    DartActionDefinition(
+      pluginId: 'lifx',
+      actionId: 'setColor',
+      displayName: 'Set Color',
+      configSchema: _lightSchema,
+      invoke: (config, context) =>
+          _setColor(transportResolver?.call(config) ?? transport, config),
+    ),
+    DartActionDefinition(
+      pluginId: 'lifx',
+      actionId: 'setLightState',
+      displayName: 'Set Light State',
+      configSchema: _lightSchema,
+      invoke: (config, context) =>
+          _setLightState(transportResolver?.call(config) ?? transport, config),
+    ),
+  ],
+);
 
 Future<Object?> _setPower(LifxTransport transport, RuntimeMap config) async {
   var state = config['state'] ?? 'on';

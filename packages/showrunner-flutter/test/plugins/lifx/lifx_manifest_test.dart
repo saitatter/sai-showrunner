@@ -71,4 +71,40 @@ void main() {
       'kelvin': 4000,
     });
   });
+
+  test('routes resource actions through the configured device host', () async {
+    var resolved = false;
+    final registry = DartPluginRegistry()
+      ..register(
+        createLifxPlugin(
+          CallbackLifxTransport(
+            getStateCallback: () async => {'on': false},
+            setPowerCallback: (on, transition) async =>
+                throw StateError('base transport'),
+            setColorCallback: (color, transition) async =>
+                throw StateError('base transport'),
+          ),
+          transportResolver: (config) {
+            expect(config['host'], 'lifx.local');
+            expect(config['port'], 56701);
+            expect(config['target'], 'd073d50011223344');
+            resolved = true;
+            return CallbackLifxTransport(
+              getStateCallback: () async => {'on': false},
+              setPowerCallback: (on, transition) async => {'sent': true},
+              setColorCallback: (color, transition) async => {'sent': true},
+            );
+          },
+        ),
+      );
+
+    await registry.invokeAction('lifx', 'setPower', {
+      'host': 'lifx.local',
+      'port': 56701,
+      'target': 'd073d50011223344',
+      'state': 'on',
+    });
+
+    expect(resolved, isTrue);
+  });
 }

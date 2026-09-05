@@ -15,6 +15,8 @@ final class ElgatoTransport {
   final ElgatoRequest request;
 }
 
+typedef ElgatoTransportResolver = ElgatoTransport Function(RuntimeMap config);
+
 final class ElgatoHttpTransport {
   const ElgatoHttpTransport({required this.host, this.port = 9123});
 
@@ -64,6 +66,17 @@ const _lightSchema = DartDataInputSchema(
       defaultValue: 'on',
     ),
     DartDataInputSchema(
+      label: 'Device IP / Host',
+      key: 'host',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Device Port',
+      key: 'port',
+      kind: DartDataInputKind.number,
+      defaultValue: 9123,
+    ),
+    DartDataInputSchema(
       label: 'Color',
       key: 'color',
       kind: DartDataInputKind.lightColor,
@@ -81,6 +94,7 @@ DartPluginManifest createElgatoPlugin(
   ElgatoTransport transport, {
   bool supportsRgb = false,
   int numberOfLights = 1,
+  ElgatoTransportResolver? transportResolver,
 }) => DartPluginManifest(
   id: 'elgato',
   name: 'Elgato',
@@ -122,7 +136,7 @@ DartPluginManifest createElgatoPlugin(
       displayName: 'Set Light State',
       configSchema: _lightSchema,
       invoke: (config, context) => _setLightState(
-        transport,
+        transportResolver?.call(config) ?? transport,
         config,
         supportsRgb: supportsRgb,
         defaultNumberOfLights: numberOfLights,

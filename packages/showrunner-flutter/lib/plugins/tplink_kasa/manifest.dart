@@ -70,6 +70,17 @@ const _lightSchema = DartDataInputSchema(
       defaultValue: 'on',
     ),
     DartDataInputSchema(
+      label: 'Device IP / Host',
+      key: 'host',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Device Port',
+      key: 'port',
+      kind: DartDataInputKind.number,
+      defaultValue: 9999,
+    ),
+    DartDataInputSchema(
       label: 'Color',
       key: 'color',
       kind: DartDataInputKind.lightColor,
@@ -94,55 +105,74 @@ const _plugSchema = DartDataInputSchema(
       options: ['on', 'off', 'toggle'],
       defaultValue: 'on',
     ),
+    DartDataInputSchema(
+      label: 'Device IP / Host',
+      key: 'host',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Device Port',
+      key: 'port',
+      kind: DartDataInputKind.number,
+      defaultValue: 9999,
+    ),
   ],
 );
 
-DartPluginManifest createKasaPlugin(KasaTransport transport) =>
-    DartPluginManifest(
-      id: 'tplink-kasa',
-      name: 'TP-Link Kasa',
-      settings: const [
-        DartSettingDefinition(id: 'host', displayName: 'Device IP / Host'),
-        DartSettingDefinition(
-          id: 'port',
-          displayName: 'Device Port',
-          defaultValue: 9999,
-        ),
-        DartSettingDefinition(
-          id: 'subnetMask',
-          displayName: 'Discovery Subnet Mask',
-          defaultValue: '255.255.255.255',
-        ),
-      ],
-      actions: [
-        DartActionDefinition(
-          pluginId: 'tplink-kasa',
-          actionId: 'getDeviceInfo',
-          displayName: 'Get Device Info',
-          invoke: (config, context) => transport.request(_sysInfo),
-        ),
-        DartActionDefinition(
-          pluginId: 'tplink-kasa',
-          actionId: 'getLightState',
-          displayName: 'Get Light State',
-          invoke: (config, context) => transport.request(_sysInfo),
-        ),
-        DartActionDefinition(
-          pluginId: 'tplink-kasa',
-          actionId: 'setLightState',
-          displayName: 'Set Light State',
-          configSchema: _lightSchema,
-          invoke: (config, context) => _setLightState(transport, config),
-        ),
-        DartActionDefinition(
-          pluginId: 'tplink-kasa',
-          actionId: 'setPlugState',
-          displayName: 'Set Plug State',
-          configSchema: _plugSchema,
-          invoke: (config, context) => _setPlugState(transport, config),
-        ),
-      ],
-    );
+typedef KasaTransportResolver = KasaTransport Function(RuntimeMap config);
+
+DartPluginManifest createKasaPlugin(
+  KasaTransport transport, {
+  KasaTransportResolver? transportResolver,
+}) => DartPluginManifest(
+  id: 'tplink-kasa',
+  name: 'TP-Link Kasa',
+  settings: const [
+    DartSettingDefinition(id: 'host', displayName: 'Device IP / Host'),
+    DartSettingDefinition(
+      id: 'port',
+      displayName: 'Device Port',
+      defaultValue: 9999,
+    ),
+    DartSettingDefinition(
+      id: 'subnetMask',
+      displayName: 'Discovery Subnet Mask',
+      defaultValue: '255.255.255.255',
+    ),
+  ],
+  actions: [
+    DartActionDefinition(
+      pluginId: 'tplink-kasa',
+      actionId: 'getDeviceInfo',
+      displayName: 'Get Device Info',
+      invoke: (config, context) =>
+          (transportResolver?.call(config) ?? transport).request(_sysInfo),
+    ),
+    DartActionDefinition(
+      pluginId: 'tplink-kasa',
+      actionId: 'getLightState',
+      displayName: 'Get Light State',
+      invoke: (config, context) =>
+          (transportResolver?.call(config) ?? transport).request(_sysInfo),
+    ),
+    DartActionDefinition(
+      pluginId: 'tplink-kasa',
+      actionId: 'setLightState',
+      displayName: 'Set Light State',
+      configSchema: _lightSchema,
+      invoke: (config, context) =>
+          _setLightState(transportResolver?.call(config) ?? transport, config),
+    ),
+    DartActionDefinition(
+      pluginId: 'tplink-kasa',
+      actionId: 'setPlugState',
+      displayName: 'Set Plug State',
+      configSchema: _plugSchema,
+      invoke: (config, context) =>
+          _setPlugState(transportResolver?.call(config) ?? transport, config),
+    ),
+  ],
+);
 
 Future<Object?> _setLightState(
   KasaTransport transport,

@@ -135,8 +135,10 @@ Flutter now also exposes persisted `Light` and `Plug` device configurations unde
 `user/iot/lights` and `user/iot/plugs`. Their editor preserves provider-specific
 routing fields used by Govee, Hue, Twinkly, Elgato, Kasa, LIFX, and Wyze, while
 generic IoT actions reject unroutable devices instead of returning false success.
-Automatic recovery of dynamically discovered legacy device resources and dispatch
-through every persisted provider remain open until they have end-to-end coverage.
+Persisted device actions now dispatch through all migrated providers, including
+resource-specific host/port/target routing for Elgato, Kasa, and LIFX. Automatic
+recovery of dynamically discovered legacy device resources and multi-account or
+multi-bridge endpoint selection remain open until they have end-to-end coverage.
 
 ## Current Architecture
 

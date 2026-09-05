@@ -108,4 +108,28 @@ void main() {
       await server.close();
     }
   });
+
+  test('routes device actions through a resource-specific transport', () async {
+    var resolved = false;
+    final registry = DartPluginRegistry()
+      ..register(
+        createKasaPlugin(
+          KasaTransport((request) async => throw StateError('base transport')),
+          transportResolver: (config) {
+            expect(config['host'], 'kasa.local');
+            expect(config['port'], 10001);
+            resolved = true;
+            return KasaTransport((request) async => {'err_code': 0});
+          },
+        ),
+      );
+
+    await registry.invokeAction('tplink-kasa', 'setPlugState', {
+      'host': 'kasa.local',
+      'port': 10001,
+      'state': 'on',
+    });
+
+    expect(resolved, isTrue);
+  });
 }

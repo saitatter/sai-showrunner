@@ -72,4 +72,40 @@ void main() {
     });
     expect(puts, 0);
   });
+
+  test('routes resource actions through the configured device host', () async {
+    var resolved = false;
+    final registry = DartPluginRegistry()
+      ..register(
+        createElgatoPlugin(
+          ElgatoTransport((method, path, body) async {
+            throw StateError('base transport');
+          }),
+          transportResolver: (config) {
+            expect(config['host'], 'elgato.local');
+            expect(config['port'], 9124);
+            resolved = true;
+            return ElgatoTransport((method, path, body) async {
+              if (method == 'GET') {
+                return {
+                  'lights': [
+                    {'on': true, 'brightness': 80, 'temperature': 200},
+                  ],
+                };
+              }
+              return {'ok': true};
+            });
+          },
+        ),
+      );
+
+    await registry.invokeAction('elgato', 'setLightState', {
+      'host': 'elgato.local',
+      'port': 9124,
+      'state': 'on',
+      'color': 'kb(4000, 55)',
+    });
+
+    expect(resolved, isTrue);
+  });
 }

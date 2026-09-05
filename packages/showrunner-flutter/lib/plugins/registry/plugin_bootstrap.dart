@@ -329,11 +329,24 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   final elgatoTransport = elgatoHost?.isNotEmpty == true
       ? ElgatoHttpTransport(host: elgatoHost!, port: elgatoPort)
       : null;
+  final configuredElgatoTransport = ElgatoTransport(
+    elgatoTransport?.request ?? _unconfiguredElgato,
+  );
   registry.register(
     createElgatoPlugin(
-      ElgatoTransport(elgatoTransport?.request ?? _unconfiguredElgato),
+      configuredElgatoTransport,
       supportsRgb: elgatoRgb,
       numberOfLights: elgatoLights,
+      transportResolver: (config) {
+        final host = config['host']?.toString().trim() ?? '';
+        if (host.isEmpty) return configuredElgatoTransport;
+        return ElgatoTransport(
+          ElgatoHttpTransport(
+            host: host,
+            port: _port(config['port'], elgatoPort),
+          ).request,
+        );
+      },
     ),
   );
   final kasaSettings = await dataService.loadPluginSettings('tplink-kasa');
@@ -344,9 +357,22 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           port: _port(kasaSettings['port'], 9999),
         )
       : null;
+  final configuredKasaTransport = KasaTransport(
+    kasaTransport?.request ?? _unconfiguredKasa,
+  );
   registry.register(
     createKasaPlugin(
-      KasaTransport(kasaTransport?.request ?? _unconfiguredKasa),
+      configuredKasaTransport,
+      transportResolver: (config) {
+        final host = config['host']?.toString().trim() ?? '';
+        if (host.isEmpty) return configuredKasaTransport;
+        return KasaTransport(
+          KasaTcpTransport(
+            host: host,
+            port: _port(config['port'], 9999),
+          ).request,
+        );
+      },
     ),
   );
   final lifxSettings = await dataService.loadPluginSettings('lifx');
@@ -358,8 +384,20 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           target: parseLifxTarget(lifxSettings['target']?.toString()),
         )
       : null;
+  final configuredLifxTransport = lifxTransport ?? _unconfiguredLifxTransport;
   registry.register(
-    createLifxPlugin(lifxTransport ?? _unconfiguredLifxTransport),
+    createLifxPlugin(
+      configuredLifxTransport,
+      transportResolver: (config) {
+        final host = config['host']?.toString().trim() ?? '';
+        if (host.isEmpty) return configuredLifxTransport;
+        return LifxUdpTransport(
+          host: host,
+          port: _port(config['port'], 56700),
+          target: parseLifxTarget(config['target']?.toString()),
+        );
+      },
+    ),
   );
   final wyzeSettings = await dataService.loadPluginSettings('wyze');
   final wyzeTransport = WyzeHttpTransport(
@@ -483,6 +521,8 @@ IotResourceActionResolver _configuredIotResolver({
         throw UnsupportedError('Elgato plug resources are not supported.');
       }
       return registry.invokeAction('elgato', 'setLightState', {
+        'host': _deviceHost(device, resourceId),
+        'port': _positiveDeviceInt(device['port'], 9123),
         'state': state,
         'color': color,
         'numberOfLights': _positiveDeviceInt(device['numberOfLights'], 1),
@@ -492,6 +532,8 @@ IotResourceActionResolver _configuredIotResolver({
         'tplink-kasa',
         resourceType == 'Plug' ? 'setPlugState' : 'setLightState',
         {
+          'host': _deviceHost(device, resourceId),
+          'port': _positiveDeviceInt(device['port'], 9999),
           'state': state,
           if (resourceType == 'Light') ...{
             'color': color,
@@ -506,11 +548,19 @@ IotResourceActionResolver _configuredIotResolver({
       }
       if (hasPower && !hasColor) {
         return registry.invokeAction('lifx', 'setPower', {
+          'host': _deviceHost(device, resourceId),
+          'port': _positiveDeviceInt(device['port'], 56700),
+          if (device['target']?.toString().trim().isNotEmpty == true)
+            'target': device['target'],
           'state': state,
           'transition': transition,
         }, context: context);
       }
       return registry.invokeAction('lifx', 'setLightState', {
+        'host': _deviceHost(device, resourceId),
+        'port': _positiveDeviceInt(device['port'], 56700),
+        if (device['target']?.toString().trim().isNotEmpty == true)
+          'target': device['target'],
         'state': state,
         'color': color,
         'transition': transition,
