@@ -1038,12 +1038,20 @@
             "localObsRunning"
           ],
           "actual": [
+            "connected",
             "connection",
-            "localObsRunning"
+            "localObsRunning",
+            "recording",
+            "scene",
+            "streaming"
           ],
           "missing": [],
           "extra": [
-            "connection"
+            "connection",
+            "connected",
+            "scene",
+            "streaming",
+            "recording"
           ],
           "relocated": [],
           "status": "improved"
