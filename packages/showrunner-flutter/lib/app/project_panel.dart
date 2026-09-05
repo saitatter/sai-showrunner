@@ -225,6 +225,14 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             ],
           ),
           _ProjectItemRow(
+            title: 'Media',
+            icon: Icons.perm_media,
+            selected: widget.selectedIndex == showRunnerMediaWorkspaceIndex,
+            compact: compact,
+            onTap: () =>
+                widget.onDestinationSelected(showRunnerMediaWorkspaceIndex),
+          ),
+          _ProjectItemRow(
             title: 'Queues',
             icon: Icons.queue_music,
             selected: widget.selectedIndex == 5,
@@ -328,6 +336,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
 }
 
 const showRunnerHomeWorkspaceIndex = 13;
+const showRunnerMediaWorkspaceIndex = 14;
 
 class _CatalogEntries extends StatelessWidget {
   const _CatalogEntries({

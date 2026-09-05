@@ -656,7 +656,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
                 .map((value) => value.toInt())
                 .where(
                   (value) =>
-                      value >= 0 && value <= showRunnerHomeWorkspaceIndex,
+                      value >= 0 && value <= showRunnerMediaWorkspaceIndex,
                 )
                 .toSet()
                 .toList()
