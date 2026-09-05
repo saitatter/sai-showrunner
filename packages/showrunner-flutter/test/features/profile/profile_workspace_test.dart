@@ -5,8 +5,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/profile_repository.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
+import 'package:showrunner_flutter/features/profile/profile_workspace.dart';
 
 void main() {
+  test('queues a profile open request until the workspace attaches', () async {
+    final controller = ProfileWorkspaceController();
+    var openedFileName = '';
+
+    await controller.openProfile('queued.yaml');
+    controller.attach(
+      () async => true,
+      openProfile: (fileName) async => openedFileName = fileName,
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(openedFileName, 'queued.yaml');
+    controller.detach();
+  });
+
   test(
     'persists the profile trigger contract and activation condition',
     () async {

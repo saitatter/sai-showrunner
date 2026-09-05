@@ -101,6 +101,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   Object? _error;
   bool _profileDirty = false;
   bool _synchronizing = false;
+  late Future<void> _initialLoad;
 
   @override
   void initState() {
@@ -115,8 +116,8 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     _conditionController.addListener(_markDirty);
     _activationEditor.documentDirty.addListener(_markDirty);
     _deactivationEditor.documentDirty.addListener(_markDirty);
+    _initialLoad = _load();
     widget.controller?.attach(_confirmClose, openProfile: _openProfile);
-    _load();
   }
 
   @override
@@ -175,6 +176,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   Future<void> _openProfile(String fileName) async {
+    if (_loading) await _initialLoad;
     final index = _entries.indexWhere((entry) => entry.fileName == fileName);
     if (index < 0 || !await _confirmClose()) return;
     if (!mounted) return;
