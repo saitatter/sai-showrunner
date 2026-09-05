@@ -5,27 +5,34 @@ import '../../runtime/expression.dart';
 import '../../schema/automation.dart';
 import '../contracts/identifiers.dart';
 import 'plugin_contract.dart';
+import 'plugin_host_context.dart';
+import 'plugin_module.dart';
 
 export 'plugin_contract.dart';
 
 final class DartPluginRegistry extends ChangeNotifier {
-  final Map<PluginId, DartPluginManifest> _plugins = {};
+  final Map<PluginId, DartPluginModule> _modules = {};
   final Map<ActionKey, DartActionDefinition> _actions = {};
   final Map<TriggerKey, DartTriggerDefinition> _triggers = {};
   final Set<PluginId> _disabledPluginIds = {};
   final Map<PluginId, Map<StateId, dynamic>> _stateValues = {};
+  Future<void>? _initializeFuture;
   Future<void>? _startFuture;
   Future<void>? _closeFuture;
 
-  void register(DartPluginManifest plugin) {
+  void register(DartPluginManifest plugin) =>
+      registerModule(ManifestDartPluginModule(plugin));
+
+  void registerModule(DartPluginModule module) {
+    final plugin = module.manifest;
     if (_closeFuture != null) {
       throw StateError('Plugin registry is closed.');
     }
     if (plugin.id.isEmpty) throw ArgumentError.value(plugin.id, 'plugin.id');
-    if (_plugins.containsKey(plugin.pluginKey)) {
+    if (_modules.containsKey(plugin.pluginKey)) {
       throw ArgumentError('Plugin is registered more than once: ${plugin.id}');
     }
-    _plugins[plugin.pluginKey] = plugin;
+    _modules[plugin.pluginKey] = module;
     _stateValues[plugin.pluginKey] = {
       for (final state in plugin.states) StateId(state.id): state.initialValue,
     };
@@ -57,7 +64,10 @@ final class DartPluginRegistry extends ChangeNotifier {
     }
   }
 
-  Iterable<DartPluginManifest> get plugins => _plugins.values;
+  Iterable<DartPluginManifest> get plugins =>
+      _modules.values.map((module) => module.manifest);
+
+  Iterable<DartPluginModule> get modules => _modules.values;
 
   DartActionDefinition? findAction(String pluginId, String actionId) =>
       _actions[ActionKey(
@@ -66,7 +76,9 @@ final class DartPluginRegistry extends ChangeNotifier {
       )];
 
   DartPluginManifest? findPlugin(String pluginId) =>
-      _plugins[PluginId(pluginId)];
+      _modules[PluginId(pluginId)]?.manifest;
+
+  DartPluginModule? findModule(String pluginId) => _modules[PluginId(pluginId)];
 
   Map<String, dynamic> stateValues(String pluginId) {
     final states = _stateValues[PluginId(pluginId)];
@@ -82,7 +94,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   /// are updated by provider runtimes. Keeping this projection here prevents
   /// graph/profile code from reaching into plugin implementation details.
   Map<String, dynamic> stateContext() => {
-    for (final plugin in _plugins.values) plugin.id: stateValues(plugin.id),
+    for (final plugin in plugins) plugin.id: stateValues(plugin.id),
   };
 
   void updateState(String pluginId, String stateId, dynamic value) {
@@ -126,12 +138,25 @@ final class DartPluginRegistry extends ChangeNotifier {
   /// started only after the complete registry has been composed.
   Future<void> start() => _startFuture ??= _startInternal();
 
+  Future<void> initialize([
+    DartPluginHostContext host = const DartPluginHostContext(),
+  ]) => _initializeFuture ??= _initializeInternal(host);
+
+  Future<void> _initializeInternal(DartPluginHostContext host) async {
+    if (_closeFuture != null) {
+      throw StateError('Plugin registry is closed.');
+    }
+    for (final module in _modules.values) {
+      await module.initialize(host);
+    }
+  }
+
   Future<void> _startInternal() async {
     if (_closeFuture != null) {
       throw StateError('Plugin registry is closed.');
     }
-    for (final plugin in _plugins.values) {
-      await plugin.start?.call();
+    for (final module in _modules.values) {
+      await module.start();
     }
   }
 
@@ -193,9 +218,9 @@ final class DartPluginRegistry extends ChangeNotifier {
   Future<void> close() => _closeFuture ??= _closeInternal();
 
   Future<void> _closeInternal() async {
-    final plugins = _plugins.values.toList().reversed;
-    for (final plugin in plugins) {
-      await (plugin.stop ?? plugin.dispose)?.call();
+    final modules = _modules.values.toList().reversed;
+    for (final module in modules) {
+      await module.stop();
     }
     super.dispose();
   }

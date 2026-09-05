@@ -7,6 +7,7 @@ import '../../services/plugin_event_hub.dart';
 import '../../services/http_provider_transports.dart';
 import '../obs/actions.dart';
 import 'plugin_registry.dart';
+import 'plugin_host_context.dart';
 import '../obs/transport.dart';
 import '../../services/oauth_token.dart';
 import '../../services/showrunner_data_service.dart';
@@ -544,6 +545,11 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       registry.setPluginEnabled(pluginId, false);
     }
   }
+  await registry.initialize(
+    DartPluginHostContext(
+      services: {'dataService': dataService, 'eventHub': ?eventHub},
+    ),
+  );
   await registry.start();
   return registry;
 }

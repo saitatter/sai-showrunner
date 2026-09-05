@@ -4,6 +4,9 @@ import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_health.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_host_context.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_module.dart';
 
 void main() {
   test('keeps plugin contract keys typed and collision-safe', () {
@@ -321,4 +324,43 @@ void main() {
       ]);
     },
   );
+
+  test('registers module lifecycle independently from its manifest', () async {
+    final events = <String>[];
+    final module = _TestPluginModule(events);
+    final registry = DartPluginRegistry()..registerModule(module);
+
+    await registry.initialize(
+      const DartPluginHostContext(services: {'source': 'test'}),
+    );
+    await registry.start();
+    expect(await module.checkHealth(), const DartPluginHealth.ready());
+    await registry.close();
+
+    expect(events, ['initialize:test', 'start', 'stop']);
+  });
+}
+
+final class _TestPluginModule implements DartPluginModule {
+  _TestPluginModule(this.events);
+
+  final List<String> events;
+
+  @override
+  final manifest = const DartPluginManifest(id: 'module', name: 'Module');
+
+  @override
+  Future<void> initialize(DartPluginHostContext host) async {
+    events.add('initialize:${host.service<String>('source')}');
+  }
+
+  @override
+  Future<void> start() async => events.add('start');
+
+  @override
+  Future<void> stop() async => events.add('stop');
+
+  @override
+  Future<DartPluginHealth> checkHealth() async =>
+      const DartPluginHealth.ready();
 }
