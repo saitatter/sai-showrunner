@@ -84,10 +84,10 @@ void main() {
     final platform = _FakeInputPlatform();
     final plugin = createInputPlugin(platform: platform, startEvents: true);
 
-    await Future<void>.delayed(Duration.zero);
+    await plugin.start!.call();
     expect(platform.calls, ['start-events']);
 
-    await plugin.dispose!.call();
+    await plugin.stop!.call();
     expect(platform.calls, ['start-events', 'stop-events']);
   });
 

@@ -149,5 +149,6 @@ DartPluginManifest createRemotePlugin({
                 config['name']?.toString() == payload['name']?.toString(),
           ),
         ],
-  dispose: runtime?.stop,
+  start: runtime?.start,
+  stop: runtime?.stop,
 );

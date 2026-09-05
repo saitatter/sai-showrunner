@@ -292,7 +292,8 @@ DartPluginManifest createDonorDrivePlugin(
                     payload['milestoneId']?.toString(),
           ),
         ],
-  dispose: runtime == null ? null : () async => runtime.stop(),
+  start: runtime?.start,
+  stop: runtime == null ? null : () async => runtime.stop(),
 );
 
 bool _matchesDonation(RuntimeMap config, RuntimeMap payload) {

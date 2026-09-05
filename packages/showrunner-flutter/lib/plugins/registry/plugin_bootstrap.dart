@@ -167,7 +167,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   final httpEndpointService = DartHttpEndpointService(
     port: _port(appSettings['port'], 8181),
   );
-  await httpEndpointService.start();
   final registry = DartPluginRegistry();
   registry.register(createShowRunnerPlugin());
   final host = obs['host'] as String?;
@@ -287,7 +286,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
         )
       : null;
   registry.register(createDonorDrivePlugin(donorDriveRuntime));
-  if (donorDriveRuntime != null) unawaited(donorDriveRuntime.start());
   final remoteSettings = await dataService.loadPluginSettings('remote');
   final remoteEnabled = remoteSettings['enabled'] == true;
   final remoteHost = remoteSettings['host']?.toString().trim();
@@ -305,7 +303,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.register(
     createRemotePlugin(eventHub: eventHub, runtime: remoteRuntime),
   );
-  if (remoteRuntime != null) unawaited(remoteRuntime.start());
   final voiceModSettings = await dataService.loadPluginSettings('voicemod');
   final voiceModHost = voiceModSettings['host']?.toString().trim();
   final voiceModTransport = VoiceModWebSocketTransport(
@@ -547,6 +544,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       registry.setPluginEnabled(pluginId, false);
     }
   }
+  await registry.start();
   return registry;
 }
 

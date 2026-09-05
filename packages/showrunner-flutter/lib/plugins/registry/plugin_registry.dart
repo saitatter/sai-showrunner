@@ -25,6 +25,8 @@ typedef DartPluginWorkspaceBuilder =
       Future<DartPluginRegistry> registryFuture,
     );
 
+typedef DartPluginLifecycleHook = Future<void> Function();
+
 final class DartSettingDefinition {
   const DartSettingDefinition({
     required this.id,
@@ -108,6 +110,8 @@ final class DartPluginManifest {
     this.states = const <DartPluginStateDefinition>[],
     this.healthCheck,
     this.workspaceBuilder,
+    this.start,
+    this.stop,
     this.dispose,
   });
 
@@ -120,6 +124,9 @@ final class DartPluginManifest {
   final List<DartPluginStateDefinition> states;
   final Future<bool> Function()? healthCheck;
   final DartPluginWorkspaceBuilder? workspaceBuilder;
+  final DartPluginLifecycleHook? start;
+  final DartPluginLifecycleHook? stop;
+  @Deprecated('Use stop for runtime shutdown hooks.')
   final Future<void> Function()? dispose;
 
   PluginId get pluginKey => PluginId(id);
@@ -131,6 +138,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   final Map<TriggerKey, DartTriggerDefinition> _triggers = {};
   final Set<PluginId> _disabledPluginIds = {};
   final Map<PluginId, Map<StateId, dynamic>> _stateValues = {};
+  Future<void>? _startFuture;
   Future<void>? _closeFuture;
 
   void register(DartPluginManifest plugin) {
@@ -236,6 +244,21 @@ final class DartPluginRegistry extends ChangeNotifier {
     return check == null ? true : check();
   }
 
+  /// Starts all registered runtime modules in registration order.
+  ///
+  /// Factories remain side-effect free; long-lived workers and listeners are
+  /// started only after the complete registry has been composed.
+  Future<void> start() => _startFuture ??= _startInternal();
+
+  Future<void> _startInternal() async {
+    if (_closeFuture != null) {
+      throw StateError('Plugin registry is closed.');
+    }
+    for (final plugin in _plugins.values) {
+      await plugin.start?.call();
+    }
+  }
+
   Future<Object?> invoke(
     GraphNode node,
     EvaluationContext context,
@@ -296,7 +319,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   Future<void> _closeInternal() async {
     final plugins = _plugins.values.toList().reversed;
     for (final plugin in plugins) {
-      await plugin.dispose?.call();
+      await (plugin.stop ?? plugin.dispose)?.call();
     }
     super.dispose();
   }

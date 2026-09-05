@@ -287,4 +287,38 @@ void main() {
       throwsStateError,
     );
   });
+
+  test(
+    'starts plugin runtimes in registration order and stops them once',
+    () async {
+      final events = <String>[];
+      final registry = DartPluginRegistry()
+        ..register(
+          DartPluginManifest(
+            id: 'first',
+            name: 'First',
+            start: () async => events.add('start:first'),
+            stop: () async => events.add('stop:first'),
+          ),
+        )
+        ..register(
+          DartPluginManifest(
+            id: 'second',
+            name: 'Second',
+            start: () async => events.add('start:second'),
+            stop: () async => events.add('stop:second'),
+          ),
+        );
+
+      await Future.wait([registry.start(), registry.start()]);
+      await registry.close();
+
+      expect(events, [
+        'start:first',
+        'start:second',
+        'stop:second',
+        'stop:first',
+      ]);
+    },
+  );
 }

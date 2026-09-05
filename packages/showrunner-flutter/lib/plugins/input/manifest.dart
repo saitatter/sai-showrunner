@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import '../../components/data_inputs/data_input.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_registry.dart';
@@ -74,9 +72,6 @@ DartPluginManifest createInputPlugin({
   bool startEvents = false,
 }) {
   final inputPlatform = platform ?? const NativeInputPlatform();
-  if (startEvents) {
-    unawaited(inputPlatform.startEvents().catchError((_) {}));
-  }
   return DartPluginManifest(
     id: 'input',
     name: 'Input',
@@ -107,7 +102,8 @@ DartPluginManifest createInputPlugin({
         matches: matchesKeyboardShortcut,
       ),
     ],
-    dispose: startEvents ? inputPlatform.stopEvents : null,
+    start: startEvents ? inputPlatform.startEvents : null,
+    stop: startEvents ? inputPlatform.stopEvents : null,
   );
 }
 
