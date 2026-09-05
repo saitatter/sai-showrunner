@@ -8,14 +8,13 @@ import 'package:flutter/material.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../editor/showrunner_graph_editor.dart';
 import '../../persistence/profile_repository.dart';
-import '../../persistence/resource_repository.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../runtime/profile_runtime.dart';
 import '../../schema/automation.dart';
 import '../../schema/profile.dart';
 import '../../services/showrunner_data_service.dart';
-import '../resources/resource_editor_registry.dart';
+import '../resources/resource_options.dart';
 
 typedef ProfileEntry = ({
   String fileName,
@@ -59,8 +58,12 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   @override
   void initState() {
     super.initState();
-    _activationEditor = ShowRunnerGraphEditor();
-    _deactivationEditor = ShowRunnerGraphEditor();
+    _activationEditor = ShowRunnerGraphEditor(
+      resourceOptionsLoader: _resourceOptions,
+    );
+    _deactivationEditor = ShowRunnerGraphEditor(
+      resourceOptionsLoader: _resourceOptions,
+    );
     _load();
   }
 
@@ -274,14 +277,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   Future<List<String>> _resourceOptions(String resourceType) async {
-    final definition = createDefaultResourceEditorRegistry().find(resourceType);
-    if (definition == null) return const [];
-    final resources = await ResourceRepository(
-      Directory(
-        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
-      ),
-    ).list();
-    return resources.map((resource) => resource.id).toList(growable: false);
+    return loadResourceOptions(widget.dataService, resourceType);
   }
 
   void _removeTrigger(int index) {

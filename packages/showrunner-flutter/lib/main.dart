@@ -9,7 +9,6 @@ import 'app/showrunner_shell.dart';
 import 'app/window_configuration.dart';
 import 'editor/showrunner_graph_editor.dart';
 import 'persistence/automation_repository.dart';
-import 'persistence/resource_repository.dart';
 import 'persistence/viewer_data_repository.dart';
 import 'persistence/viewer_data_sync.dart';
 import 'plugins/registry/plugin_registry.dart';
@@ -26,8 +25,7 @@ import 'services/showrunner_data_service.dart';
 import 'services/update_check_service.dart';
 import 'features/automation/automation_starters.dart';
 import 'features/settings/interface_preferences.dart';
-import 'features/resources/resource_editor_registry.dart';
-import 'plugins/sound/windows_audio.dart';
+import 'features/resources/resource_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,30 +63,7 @@ Directory _showRunnerUserDirectory() {
 Future<List<String>> _resourceOptions(
   ShowRunnerDataService dataService,
   String resourceType,
-) async {
-  if (resourceType == 'SoundOutput') {
-    final systemOutputs = createDefaultSoundOutputRegistry().outputs.map(
-      (output) => output.id,
-    );
-    final splitters = await ResourceRepository(
-      Directory('${dataService.userDirectory.path}/sound/splitters'),
-    ).list();
-    return {
-      'system.default',
-      'system.communications',
-      ...systemOutputs,
-      ...splitters.map((resource) => resource.id),
-    }.toList(growable: false);
-  }
-  final definition = createDefaultResourceEditorRegistry().find(resourceType);
-  if (definition == null) return const [];
-  final resources = await ResourceRepository(
-    Directory(
-      '${dataService.userDirectory.path}/${definition.storageDirectory}',
-    ),
-  ).list();
-  return resources.map((resource) => resource.id).toList(growable: false);
-}
+) => loadResourceOptions(dataService, resourceType);
 
 class ShowRunnerPage extends StatefulWidget {
   const ShowRunnerPage({
