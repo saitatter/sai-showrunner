@@ -42,7 +42,6 @@ try {
     $smokeScenarios = @(
       'startup',
       'first-run',
-      'data-migration',
       'automation',
       'workflow',
       'profile',

@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../persistence/resource_repository.dart';
-import '../../persistence/legacy_viewer_data_import.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../runtime/expression.dart';
 import '../../schema/resource.dart';
@@ -412,35 +411,6 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
     }
   }
 
-  Future<void> _importLegacyDatabase() async {
-    final repository = widget.repository;
-    if (repository is! FileViewerDataRepository) return;
-    setState(() {
-      _loadingViewers = true;
-      _error = null;
-    });
-    try {
-      final report = await const LegacyViewerDataImporter().importFile(
-        databaseFile: repository.legacyDatabaseFile,
-        target: repository,
-      );
-      await _loadViewers();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Imported ${report.imported} viewer rows; '
-            '${report.skipped} already existed; ${report.invalid} invalid.',
-          ),
-        ),
-      );
-    } catch (error) {
-      if (mounted) setState(() => _error = error);
-    } finally {
-      if (mounted) setState(() => _loadingViewers = false);
-    }
-  }
-
   Future<void> _editDefinition([ViewerVariableDefinition? definition]) async {
     final result = await showDialog<ViewerVariableDefinition>(
       context: context,
@@ -660,12 +630,6 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
                 },
                 icon: Icon(_viewerSortDescending ? Icons.south : Icons.north),
               ),
-              if (widget.repository is FileViewerDataRepository)
-                OutlinedButton.icon(
-                  onPressed: _loadingViewers ? null : _importLegacyDatabase,
-                  icon: const Icon(Icons.file_download_outlined),
-                  label: const Text('Import legacy SQLite'),
-                ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: _loadingViewers ? null : () => _loadViewers(),

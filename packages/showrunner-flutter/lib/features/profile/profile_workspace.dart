@@ -254,6 +254,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         'trigger': selected.triggerId,
         'config': <String, dynamic>{},
         'description': selected.displayName,
+        'automation': _emptyAutomation().toJson(),
       });
     });
   }

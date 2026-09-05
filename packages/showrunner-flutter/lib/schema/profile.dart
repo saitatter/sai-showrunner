@@ -31,10 +31,12 @@ final class ShowRunnerProfile {
 
   factory ShowRunnerProfile.fromJson(JsonMap input) {
     final json = Map<String, dynamic>.from(input);
+    final triggers = _maps(json['triggers']);
+    _validateTriggers(triggers);
     return ShowRunnerProfile(
       name: json['name'] as String? ?? '',
       activationMode: json['activationMode'] as String? ?? 'toggle',
-      triggers: _maps(json['triggers']),
+      triggers: triggers,
       activationCondition: json['activationCondition'] is Map
           ? Map<String, dynamic>.from(json['activationCondition'] as Map)
           : const <String, dynamic>{},
@@ -68,3 +70,25 @@ List<JsonMap> _maps(dynamic value) => value is List
           .map((item) => Map<String, dynamic>.from(item))
           .toList()
     : <JsonMap>[];
+
+void _validateTriggers(List<JsonMap> triggers) {
+  for (final trigger in triggers) {
+    for (final key in const ['id', 'plugin', 'trigger']) {
+      if (trigger[key] is! String || (trigger[key] as String).isEmpty) {
+        throw FormatException('Profile trigger must contain a $key.');
+      }
+    }
+    if (trigger.containsKey('triggerNodes')) {
+      throw const FormatException(
+        'Profile triggers must use individual V2 trigger entries.',
+      );
+    }
+    final automation = trigger['automation'];
+    if (automation is! Map) {
+      throw const FormatException(
+        'Profile triggers must contain a V2 automation document.',
+      );
+    }
+    AutomationData.fromJson(Map<String, dynamic>.from(automation));
+  }
+}

@@ -65,8 +65,6 @@ final class FileViewerDataRepository implements ViewerDataRepository {
 
   File get definitionsFile => File('${directory.path}/variables.yaml');
 
-  File get legacyDatabaseFile => File('${directory.path}/db.sqlite3');
-
   @override
   Future<List<ViewerVariableDefinition>> loadDefinitions() async {
     if (!await definitionsFile.exists()) return const [];

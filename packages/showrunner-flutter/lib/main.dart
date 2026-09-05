@@ -357,25 +357,6 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
             providerSettings.any((settings) => settings.isNotEmpty)) {
           throw StateError('First-run smoke started with existing setup data.');
         }
-      } else if (scenario == 'data-migration') {
-        final directory = Directory(
-          '${widget.dataService.userDirectory.path}/automations',
-        );
-        final entries = await AutomationRepository.loadDirectory(directory);
-        if (entries.length != 1 || !entries.single.isValid) {
-          throw StateError(
-            'Data migration smoke did not load the seeded automation.',
-          );
-        }
-        final migratedFile = File(
-          '${directory.path}/${entries.single.fileName}',
-        );
-        final migratedContents = await migratedFile.readAsString();
-        if (!migratedContents.contains('"schemaVersion": 2')) {
-          throw StateError(
-            'Data migration smoke did not persist schemaVersion 2.',
-          );
-        }
       } else if (scenario == 'automation') {
         await _runAutomationSmoke();
       } else if (scenario == 'workflow') {
@@ -392,8 +373,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
         throw ArgumentError.value(
           scenario,
           'smokeScenario',
-          'Expected startup, first-run, data-migration, automation, profile, '
-              'workflow, integrations, overlays, or updates.',
+          'Expected startup, first-run, automation, workflow, profile, '
+              'integrations, overlays, or updates.',
         );
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));

@@ -39,9 +39,7 @@ final class AutomationRepository {
       );
     }
     final source = Map<String, dynamic>.from(decoded);
-    final automation = AutomationData.fromJson(source);
-    if (automationNeedsMigration(source)) await save(automation);
-    return automation;
+    return AutomationData.fromJson(source);
   }
 
   static Future<List<AutomationCatalogEntry>> loadDirectory(

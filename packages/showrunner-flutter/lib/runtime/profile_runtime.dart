@@ -104,16 +104,15 @@ final class DartProfileRuntime {
       if (triggerEntry != null && !identical(trigger, triggerEntry)) continue;
       final matchesTopLevel =
           trigger['plugin'] == pluginId && trigger['trigger'] == triggerId;
-      final triggerNodes = trigger['triggerNodes'];
-      final matchesNode =
-          triggerNodes is List &&
-          triggerNodes.whereType<Map>().any(
-            (node) =>
-                node['plugin'] == pluginId && node['trigger'] == triggerId,
-          );
-      if (!matchesTopLevel && !matchesNode) continue;
+      if (!matchesTopLevel) continue;
+      final automation = trigger['automation'];
+      if (automation is! Map) {
+        throw const FormatException(
+          'Profile trigger must contain a V2 automation document.',
+        );
+      }
       return _runAutomation(
-        AutomationData.fromJson(trigger),
+        AutomationData.fromJson(Map<String, dynamic>.from(automation)),
         EvaluationContext(
           locals: Map<String, dynamic>.from(context?.locals ?? const {}),
           contextState: {
@@ -144,41 +143,35 @@ final class DartProfileRuntime {
       final definition = registry.findTrigger(pluginId, triggerId);
       if (definition == null || !registry.isPluginEnabled(pluginId)) continue;
       subscriptions.add(
-        definition.listen().listen(
-          (payload) {
-            if (definition.matches?.call(target.config, payload) == false) {
-              return;
-            }
-            unawaited(
-              handleTrigger(
-                profileId,
-                profile,
-                pluginId,
-                triggerId,
-                payload,
-                context: context,
-                onNodeEnter: onNodeEnter,
-                onNodeExit: onNodeExit,
-                triggerEntry: target.entry,
-              ),
-            );
-          },
-        ),
+        definition.listen().listen((payload) {
+          if (definition.matches?.call(target.config, payload) == false) {
+            return;
+          }
+          unawaited(
+            handleTrigger(
+              profileId,
+              profile,
+              pluginId,
+              triggerId,
+              payload,
+              context: context,
+              onNodeEnter: onNodeEnter,
+              onNodeExit: onNodeExit,
+              triggerEntry: target.entry,
+            ),
+          );
+        }),
       );
     }
     return DartProfileSession._(subscriptions);
   }
 
-  Iterable<({
-    String? pluginId,
-    String? triggerId,
-    JsonMap config,
-    JsonMap entry,
-  })> _triggerTargets(
-    ShowRunnerProfile profile,
-  ) sync* {
+  Iterable<
+    ({String? pluginId, String? triggerId, JsonMap config, JsonMap entry})
+  >
+  _triggerTargets(ShowRunnerProfile profile) sync* {
+    final seen = <String>{};
     for (final trigger in profile.triggers) {
-      final seen = <String>{};
       final pluginId = trigger['plugin'] as String?;
       final triggerId = trigger['trigger'] as String?;
       if (pluginId != null &&
@@ -191,29 +184,11 @@ final class DartProfileRuntime {
           entry: trigger,
         );
       }
-      final triggerNodes = trigger['triggerNodes'];
-      if (triggerNodes is List) {
-        for (final node in triggerNodes.whereType<Map>()) {
-          final nodePluginId = node['plugin'] as String?;
-          final nodeTriggerId = node['trigger'] as String?;
-          if (nodePluginId != null &&
-              nodeTriggerId != null &&
-              seen.add('$nodePluginId\u0000$nodeTriggerId')) {
-            yield (
-              pluginId: nodePluginId,
-              triggerId: nodeTriggerId,
-              config: _triggerConfig(node['config']),
-              entry: trigger,
-            );
-          }
-        }
-      }
     }
   }
 
-  JsonMap _triggerConfig(dynamic value) => value is Map
-      ? Map<String, dynamic>.from(value)
-      : <String, dynamic>{};
+  JsonMap _triggerConfig(dynamic value) =>
+      value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 
   Future<GraphExecutionResult> _runAutomation(
     AutomationData automation,

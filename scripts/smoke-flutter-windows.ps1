@@ -3,7 +3,7 @@ param(
   [string]$ArchivePath = '',
   [ValidateSet('Debug', 'Release')]
   [string]$Configuration = 'Release',
-  [ValidateSet('startup', 'first-run', 'data-migration', 'automation', 'workflow', 'profile', 'integrations', 'overlays', 'updates')]
+  [ValidateSet('startup', 'first-run', 'automation', 'workflow', 'profile', 'integrations', 'overlays', 'updates')]
   [string]$Scenario = 'startup',
   [string]$UserDirectory = '',
   [int]$StartupTimeoutMilliseconds = 15000
@@ -55,27 +55,6 @@ try {
     New-Item -ItemType Directory -Force -Path $UserDirectory | Out-Null
   } elseif (-not (Test-Path -LiteralPath $UserDirectory -PathType Container)) {
     New-Item -ItemType Directory -Force -Path $UserDirectory | Out-Null
-  }
-
-  if ($Scenario -eq 'data-migration') {
-    $automationDirectory = Join-Path $UserDirectory 'automations'
-    New-Item -ItemType Directory -Force -Path $automationDirectory | Out-Null
-    $legacyAutomation = @'
-{
-  "name": "Legacy smoke automation",
-  "sequence": {
-    "actions": [
-      {
-        "id": "legacy-action",
-        "plugin": "sample",
-        "action": "emit",
-        "config": { "value": "smoke" }
-      }
-    ]
-  }
-}
-'@
-    Set-Content -LiteralPath (Join-Path $automationDirectory 'legacy.yaml') -Value $legacyAutomation -Encoding ASCII
   }
 
   $env:SHOWRUNNER_USER_DIR = [IO.Path]::GetFullPath($UserDirectory)

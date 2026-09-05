@@ -7,8 +7,29 @@ import 'package:showrunner_flutter/runtime/profile_runtime.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
 
+JsonMap _profileTrigger({
+  required String id,
+  required String plugin,
+  required String trigger,
+  required JsonMap graph,
+  JsonMap config = const {},
+}) => {
+  'id': id,
+  'plugin': plugin,
+  'trigger': trigger,
+  'config': config,
+  'automation': {
+    'schemaVersion': 2,
+    'graph': graph,
+    'subgraphs': [],
+    'dataWires': [],
+    'variableNodes': [],
+    'triggerNodes': [],
+  },
+};
+
 void main() {
-  test('evaluates legacy profile boolean groups and state values', () {
+  test('evaluates profile boolean groups and state values', () {
     final condition = <String, dynamic>{
       'type': 'group',
       'operator': 'and',
@@ -143,11 +164,11 @@ void main() {
       name: 'Main',
       activationMode: 'always',
       triggers: [
-        {
-          'id': 'chat-trigger',
-          'plugin': 'test',
-          'trigger': 'chat',
-          'graph': {
+        _profileTrigger(
+          id: 'chat-trigger',
+          plugin: 'test',
+          trigger: 'chat',
+          graph: {
             'nodes': [
               {
                 'id': 'record',
@@ -162,7 +183,7 @@ void main() {
             'edges': [],
             'entryNodeId': 'record',
           },
-        },
+        ),
       ],
       activationCondition: const {},
       activationAutomation: AutomationData(),
@@ -204,12 +225,11 @@ void main() {
         name: 'Main',
         activationMode: 'always',
         triggers: [
-          {
-            'triggerNodes': [
-              {'id': 'chat-trigger', 'plugin': 'test', 'trigger': 'chat'},
-              {'id': 'keyword-trigger', 'plugin': 'test', 'trigger': 'keyword'},
-            ],
-            'graph': {
+          _profileTrigger(
+            id: 'chat-trigger',
+            plugin: 'test',
+            trigger: 'chat',
+            graph: {
               'nodes': [
                 {
                   'id': 'record',
@@ -223,7 +243,26 @@ void main() {
               ],
               'entryNodeId': 'record',
             },
-          },
+          ),
+          _profileTrigger(
+            id: 'keyword-trigger',
+            plugin: 'test',
+            trigger: 'keyword',
+            graph: {
+              'nodes': [
+                {
+                  'id': 'record',
+                  'type': 'action',
+                  'x': 0,
+                  'y': 0,
+                  'plugin': 'test',
+                  'action': 'record',
+                  'config': {},
+                },
+              ],
+              'entryNodeId': 'record',
+            },
+          ),
         ],
         activationCondition: const {},
         activationAutomation: AutomationData(),
@@ -279,10 +318,11 @@ void main() {
       name: 'Main',
       activationMode: 'always',
       triggers: [
-        {
-          'plugin': 'test',
-          'trigger': 'chat',
-          'graph': {
+        _profileTrigger(
+          id: 'chat-trigger',
+          plugin: 'test',
+          trigger: 'chat',
+          graph: {
             'nodes': [
               {
                 'id': 'record',
@@ -293,7 +333,7 @@ void main() {
             ],
             'entryNodeId': 'record',
           },
-        },
+        ),
       ],
       activationCondition: const {},
       activationAutomation: AutomationData(),
@@ -345,12 +385,11 @@ void main() {
       name: 'Main',
       activationMode: 'always',
       triggers: [
-        {
-          'triggerNodes': [
-            {'id': 'chat-one', 'plugin': 'test', 'trigger': 'chat'},
-            {'id': 'chat-two', 'plugin': 'test', 'trigger': 'chat'},
-          ],
-          'graph': {
+        _profileTrigger(
+          id: 'chat-one',
+          plugin: 'test',
+          trigger: 'chat',
+          graph: {
             'nodes': [
               {
                 'id': 'record',
@@ -361,7 +400,23 @@ void main() {
             ],
             'entryNodeId': 'record',
           },
-        },
+        ),
+        _profileTrigger(
+          id: 'chat-two',
+          plugin: 'test',
+          trigger: 'chat',
+          graph: {
+            'nodes': [
+              {
+                'id': 'record',
+                'type': 'action',
+                'plugin': 'test',
+                'action': 'record',
+              },
+            ],
+            'entryNodeId': 'record',
+          },
+        ),
       ],
       activationCondition: const {},
       activationAutomation: AutomationData(),

@@ -171,21 +171,29 @@ void main() {
       activationMode: 'always',
       triggers: [
         {
+          'id': 'keyboard-shortcut',
           'plugin': 'input',
           'trigger': 'keyboardShortcut',
           'config': {
             'combo': ['LeftControl', 'A'],
           },
-          'graph': {
-            'nodes': [
-              {
-                'id': 'record',
-                'type': 'action',
-                'plugin': 'test',
-                'action': 'record',
-              },
-            ],
-            'entryNodeId': 'record',
+          'automation': {
+            'schemaVersion': 2,
+            'graph': {
+              'nodes': [
+                {
+                  'id': 'record',
+                  'type': 'action',
+                  'plugin': 'test',
+                  'action': 'record',
+                },
+              ],
+              'entryNodeId': 'record',
+            },
+            'subgraphs': [],
+            'dataWires': [],
+            'variableNodes': [],
+            'triggerNodes': [],
           },
         },
       ],

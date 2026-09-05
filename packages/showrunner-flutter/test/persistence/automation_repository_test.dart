@@ -29,49 +29,23 @@ void main() {
     expect(await repository.file.exists(), isFalse);
   });
 
-  test('persists legacy automation migration on first load', () async {
+  test('rejects non-V2 automation files', () async {
     final directory = await Directory.systemTemp.createTemp(
-      'showrunner-legacy-repository-',
+      'showrunner-invalid-automation-',
     );
     addTearDown(() => directory.delete(recursive: true));
-    final file = File('${directory.path}/automations/legacy.yaml');
+    final file = File('${directory.path}/automations/invalid.yaml');
     await file.parent.create(recursive: true);
     await file.writeAsString(
       jsonEncode({
-        'name': 'Legacy automation',
-        'sequence': {
-          'actions': [
-            {
-              'id': 'legacy-action',
-              'plugin': 'sample',
-              'action': 'emit',
-              'config': {'value': 'hello'},
-            },
-          ],
-        },
-        'floatingSequences': [
-          {
-            'id': 'legacy-floating',
-            'actions': [
-              {'plugin': 'sample', 'action': 'emit'},
-            ],
-          },
-        ],
-        'variableNodes': [
-          {'id': 'text', 'type': 'string', 'value': 'hello'},
-        ],
+        'schemaVersion': 1,
+        'graph': {'nodes': [], 'edges': [], 'entryNodeId': ''},
       }),
     );
 
-    final loaded = await AutomationRepository(file).load();
-    final persisted = jsonDecode(await file.readAsString()) as Map;
-
-    expect(loaded?.graph.nodes.single.id, 'legacy-action');
-    expect(loaded?.subgraphs.single.id, 'legacy-floating');
-    expect(loaded?.variableNodes.single['id'], 'text');
-    expect(persisted.containsKey('sequence'), isFalse);
-    expect(persisted.containsKey('floatingSequences'), isFalse);
-    expect(persisted['schemaVersion'], 2);
-    expect((persisted['graph'] as Map)['nodes'], isNotEmpty);
+    await expectLater(
+      AutomationRepository(file).load(),
+      throwsA(isA<FormatException>()),
+    );
   });
 }

@@ -227,24 +227,20 @@ final class AutomationData {
 
   factory AutomationData.fromJson(JsonMap input) {
     final json = Map<String, dynamic>.from(input);
+    if (json['schemaVersion'] != 2) {
+      throw const FormatException('Automation data must use schemaVersion 2.');
+    }
     final rawGraph = json['graph'];
-    final hasGraph = rawGraph is Map && rawGraph['nodes'] is List;
-    final graph = hasGraph
-        ? AutomationGraph.fromJson(Map<String, dynamic>.from(rawGraph))
-        : _graphFromLegacySequence(json['sequence']);
+    if (rawGraph is! Map || rawGraph['nodes'] is! List) {
+      throw const FormatException(
+        'Automation data must contain a graph with a nodes list.',
+      );
+    }
+    final graph = AutomationGraph.fromJson(Map<String, dynamic>.from(rawGraph));
     final subgraphs = _maps(json['subgraphs'])
         .map(SubgraphDefinition.fromJson)
         .where((subgraph) => subgraph.id.isNotEmpty)
         .toList();
-    final subgraphIds = subgraphs.map((subgraph) => subgraph.id).toSet();
-    for (final subgraph in _subgraphsFromLegacyFloatingSequences(
-      json['floatingSequences'],
-    )) {
-      if (subgraphIds.add(subgraph.id)) subgraphs.add(subgraph);
-    }
-    json
-      ..remove('sequence')
-      ..remove('floatingSequences');
     return AutomationData(
       schemaVersion: 2,
       graph: graph,
@@ -267,140 +263,6 @@ final class AutomationData {
         ),
     );
   }
-}
-
-bool automationNeedsMigration(JsonMap input) {
-  final graph = input['graph'];
-  return input.containsKey('sequence') ||
-      input.containsKey('floatingSequences') ||
-      input['schemaVersion'] != 2 ||
-      graph is! Map ||
-      graph['nodes'] is! List;
-}
-
-List<SubgraphDefinition> _subgraphsFromLegacyFloatingSequences(Object? value) {
-  if (value is! List) return const <SubgraphDefinition>[];
-  final ids = <String>{};
-  final subgraphs = <SubgraphDefinition>[];
-  for (var index = 0; index < value.length; index++) {
-    final item = value[index];
-    if (item is! Map) continue;
-    final sourceId = item['id']?.toString();
-    var id = sourceId?.isNotEmpty == true
-        ? sourceId!
-        : 'legacy-floating-${index + 1}';
-    var suffix = 2;
-    while (!ids.add(id)) {
-      id = '${sourceId ?? 'legacy-floating-${index + 1}'}-$suffix';
-      suffix++;
-    }
-    final graph = _graphFromLegacySequence(item);
-    subgraphs.add(
-      SubgraphDefinition(
-        id: id,
-        name: item['name']?.toString() ?? 'Legacy sequence ${index + 1}',
-        nodes: graph.nodes,
-        edges: graph.edges,
-        entryNodeId: graph.entryNodeId,
-      ),
-    );
-  }
-  return subgraphs;
-}
-
-AutomationGraph _graphFromLegacySequence(Object? value) {
-  if (value is! Map || value['actions'] is! List) {
-    return const AutomationGraph();
-  }
-  final nodes = <GraphNode>[];
-  final edges = <GraphEdge>[];
-  String? previousNodeId;
-  final usedIds = <String>{};
-
-  void appendAction(Object? value, int depth) {
-    if (value is! Map) return;
-    final stack = value['stack'];
-    if (stack is List) {
-      for (final child in stack) {
-        appendAction(child, depth + 1);
-      }
-      return;
-    }
-    final plugin = value['plugin']?.toString();
-    final action = value['action']?.toString();
-    if (plugin == null || plugin.isEmpty || action == null || action.isEmpty) {
-      return;
-    }
-    final sourceId = value['id']?.toString();
-    var nodeId = sourceId?.isNotEmpty == true
-        ? sourceId!
-        : 'legacy-action-${nodes.length + 1}';
-    var suffix = 2;
-    while (!usedIds.add(nodeId)) {
-      nodeId = '$nodeId-$suffix';
-      suffix++;
-    }
-    final data = <String, dynamic>{
-      'plugin': plugin,
-      'action': action,
-      'config': value['config'] is Map
-          ? Map<String, dynamic>.from(value['config'] as Map)
-          : <String, dynamic>{},
-    };
-    if (value['resultMapping'] is Map) {
-      data['resultMapping'] = Map<String, dynamic>.from(
-        value['resultMapping'] as Map,
-      );
-    }
-    final node = GraphNode(
-      id: nodeId,
-      type: 'action',
-      x: 320 + nodes.length * 285,
-      y: 120 + depth * 128,
-      data: data,
-    );
-    nodes.add(node);
-    if (previousNodeId != null) {
-      edges.add(
-        GraphEdge(
-          id: '$previousNodeId->$nodeId',
-          from: previousNodeId!,
-          to: nodeId,
-        ),
-      );
-    }
-    previousNodeId = nodeId;
-
-    final offsets = value['offsets'];
-    if (offsets is List) {
-      for (final offset in offsets) {
-        if (offset is Map && offset['actions'] is List) {
-          for (final child in offset['actions'] as List) {
-            appendAction(child, depth + 1);
-          }
-        }
-      }
-    }
-    final subFlows = value['subFlows'];
-    if (subFlows is List) {
-      for (final flow in subFlows) {
-        if (flow is Map && flow['actions'] is List) {
-          for (final child in flow['actions'] as List) {
-            appendAction(child, depth + 1);
-          }
-        }
-      }
-    }
-  }
-
-  for (final action in value['actions'] as List) {
-    appendAction(action, 0);
-  }
-  return AutomationGraph(
-    nodes: nodes,
-    edges: edges,
-    entryNodeId: nodes.firstOrNull?.id ?? '',
-  );
 }
 
 double _asDouble(Object? value) => value is num ? value.toDouble() : 0;

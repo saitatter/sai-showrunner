@@ -701,13 +701,6 @@ Future<List<String>> _loadRemoteButtonNames(
       ).load();
       if (profile == null) continue;
       for (final trigger in profile.triggers) {
-        final triggerNodes = trigger['triggerNodes'];
-        if (triggerNodes is List && triggerNodes.isNotEmpty) {
-          for (final node in triggerNodes) {
-            _addRemoteButtonName(names, node);
-          }
-          continue;
-        }
         _addRemoteButtonName(names, trigger);
       }
     } on Object {

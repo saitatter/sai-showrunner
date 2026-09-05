@@ -219,6 +219,7 @@ void main() {
     'executes compiled subgraph call frames and reports debugger depth',
     () async {
       final automation = AutomationData.fromJson({
+        'schemaVersion': 2,
         'graph': {
           'entryNodeId': 'call',
           'nodes': [
@@ -371,6 +372,7 @@ void main() {
     'executes direct subgraph calls before continuing the parent graph',
     () async {
       final automation = AutomationData.fromJson({
+        'schemaVersion': 2,
         'graph': {
           'entryNodeId': 'call',
           'nodes': [
@@ -480,32 +482,14 @@ void main() {
     );
   });
 
-  test('normalizes automation JSON without legacy sequence fields', () {
-    final automation = AutomationData.fromJson({
-      'schemaVersion': 1,
-      'plugin': 'chat',
-      'sequence': {'actions': <dynamic>[]},
-      'floatingSequences': <dynamic>[],
-      'graph': {
-        'nodes': [
-          {
-            'id': 'action-1',
-            'type': 'action',
-            'x': 12,
-            'y': 24,
-            'plugin': 'obs',
-          },
-        ],
-        'edges': [],
-      },
-    });
-
-    final json = automation.toJson();
-    expect(automation.schemaVersion, 2);
-    expect(automation.graph.entryNodeId, 'action-1');
-    expect(json.containsKey('sequence'), isFalse);
-    expect(json.containsKey('floatingSequences'), isFalse);
-    expect(json['plugin'], 'chat');
+  test('rejects automation data outside the V2 graph schema', () {
+    expect(
+      () => AutomationData.fromJson({
+        'schemaVersion': 1,
+        'graph': {'nodes': [], 'edges': [], 'entryNodeId': ''},
+      }),
+      throwsA(isA<FormatException>()),
+    );
   });
 
   test(
