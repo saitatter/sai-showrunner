@@ -373,7 +373,15 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           overlayStore: overlayStore,
           registry: registry,
           viewerDataRepository: variablesRepository,
+          soundOutputs: configuredSoundOutputs,
+          mediaRoot: Directory('${dataService.userDirectory.path}/media'),
+          ttsRoot: Directory('${Directory.systemTemp.path}/ShowRunner-tts'),
         );
+  if (overlayBridge != null) {
+    for (final resource in await overlayRepository.list()) {
+      overlayBridge.registerAudioOutput(resource.id);
+    }
+  }
   registry.register(
     createOverlaysPlugin(
       eventHub: eventHub,

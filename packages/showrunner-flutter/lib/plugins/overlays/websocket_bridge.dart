@@ -10,6 +10,7 @@ import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../http/manifest.dart';
 import '../registry/plugin_registry.dart';
+import '../sound/output.dart';
 import 'manifest.dart';
 
 /// Bridges the Flutter runtime to the browser/WebGL overlay.
@@ -23,6 +24,9 @@ final class DartOverlayWebSocketService {
     required this.overlayStore,
     required this.registry,
     required this.viewerDataRepository,
+    this.soundOutputs,
+    this.mediaRoot,
+    this.ttsRoot,
     Directory? webRoot,
   }) : webRoot = webRoot ?? _discoverWebRoot() {
     server.addRequestHandler(_handleHttpRequest);
@@ -47,6 +51,9 @@ final class DartOverlayWebSocketService {
   final OverlayResourceStore overlayStore;
   final DartPluginRegistry registry;
   final ViewerDataRepository viewerDataRepository;
+  final SoundOutputRegistry? soundOutputs;
+  final Directory? mediaRoot;
+  final Directory? ttsRoot;
   final Directory? webRoot;
   late final List<StreamSubscription<RuntimeMap>> _subscriptions;
   final _peers = <_OverlayPeer>{};
@@ -69,7 +76,12 @@ final class DartOverlayWebSocketService {
   Future<bool> _handleHttpRequest(HttpRequest request) async {
     if (request.method.toUpperCase() != 'GET') return false;
     final segments = request.uri.pathSegments;
-    if (segments.isEmpty || segments.first != 'overlays') return false;
+    if (segments.isEmpty) return false;
+
+    if (segments.first == 'media') {
+      return _serveMedia(request, segments);
+    }
+    if (segments.first != 'overlays') return false;
 
     if (segments.length == 3 && segments[2] == 'config') {
       final resource = await overlayStore.load(segments[1]);
@@ -77,6 +89,7 @@ final class DartOverlayWebSocketService {
         await _respond(request, HttpStatus.notFound);
         return true;
       }
+      registerAudioOutput(resource.id);
       request.response
         ..statusCode = HttpStatus.ok
         ..headers.contentType = ContentType.json;
@@ -124,6 +137,7 @@ final class DartOverlayWebSocketService {
       await socket.close(WebSocketStatus.normalClosure);
       return true;
     }
+    registerAudioOutput(resource.id);
     final peer = _OverlayPeer(socket);
     peer.overlayId = overlayId;
     peer.onRequest = (name, args) => _handlePeerRequest(peer, name, args);
@@ -141,6 +155,36 @@ final class DartOverlayWebSocketService {
     } finally {
       _peers.remove(peer);
     }
+  }
+
+  Future<bool> _serveMedia(HttpRequest request, List<String> segments) async {
+    if (segments.length < 3) return false;
+    final root = switch (segments[1]) {
+      'default' => mediaRoot,
+      'tts-cache' => ttsRoot,
+      _ => null,
+    };
+    if (root == null ||
+        segments.skip(2).any((segment) => segment == '..' || segment == '.')) {
+      await _respond(request, HttpStatus.notFound);
+      return true;
+    }
+    final file = File('${root.path}/${segments.skip(2).join('/')}');
+    final rootPath = Directory(root.path).absolute.path.toLowerCase();
+    final filePath = file.absolute.path.toLowerCase();
+    if (!filePath.startsWith('$rootPath${Platform.pathSeparator}')) {
+      await _respond(request, HttpStatus.badRequest);
+      return true;
+    }
+    if (!await file.exists()) {
+      await _respond(request, HttpStatus.notFound);
+      return true;
+    }
+    request.response
+      ..statusCode = HttpStatus.ok
+      ..headers.contentType = _contentType(file.path);
+    await file.openRead().pipe(request.response);
+    return true;
   }
 
   void _publishWidget(RuntimeMap event) {
@@ -193,6 +237,88 @@ final class DartOverlayWebSocketService {
     for (final peer in _targetPeers(overlayId)) {
       await _send(peer, 'overlays_setConfig', [_remoteConfig(resource)]);
     }
+  }
+
+  Future<bool> playAudio(String overlayId, SoundPlayRequest request) async {
+    final mediaFile = await _remoteMediaPath(request.file);
+    if (mediaFile == null) return false;
+    final peers = _targetPeers(overlayId).toList();
+    if (peers.isEmpty) return false;
+    final playId = 'overlay-audio-${DateTime.now().microsecondsSinceEpoch}';
+    await Future.wait(
+      peers.map(
+        (peer) => _send(peer, 'overlays_playAudio', [
+          mediaFile,
+          playId,
+          request.startSec,
+          request.endSec.isFinite ? request.endSec : null,
+          request.volume,
+        ]),
+      ),
+    );
+    final duration = request.endSec.isFinite
+        ? (request.endSec - request.startSec).clamp(0, double.infinity)
+        : 0;
+    if (duration > 0) {
+      await Future<void>.delayed(
+        Duration(milliseconds: (duration * 1000).round()),
+      );
+    }
+    return true;
+  }
+
+  Future<void> cancelAudio(String overlayId, String playId) async {
+    await Future.wait(
+      _targetPeers(
+        overlayId,
+      ).map((peer) => _send(peer, 'overlays_cancelAudio', [playId])),
+    );
+  }
+
+  Future<String?> _remoteMediaPath(String source) async {
+    final file = File(source);
+    if (!await file.exists()) return null;
+    final absolutePath = file.absolute.path;
+    final mediaRelative = _relativeTo(mediaRoot, absolutePath);
+    if (mediaRelative != null) return '/media/default/$mediaRelative';
+    final ttsRelative = _relativeTo(ttsRoot, absolutePath);
+    if (ttsRelative != null) return '/media/tts-cache/$ttsRelative';
+    return null;
+  }
+
+  String? _relativeTo(Directory? root, String filePath) {
+    if (root == null) return null;
+    final rootPath = Directory(root.path).absolute.path.replaceAll('\\', '/');
+    final normalizedRoot = rootPath.toLowerCase().replaceFirst(
+      RegExp(r'/+$'),
+      '',
+    );
+    final normalizedFilePath = filePath.replaceAll('\\', '/');
+    if (!normalizedFilePath.toLowerCase().startsWith('$normalizedRoot/')) {
+      return null;
+    }
+    final relative = normalizedFilePath.substring(normalizedRoot.length + 1);
+    if (relative.split(RegExp(r'[/\\]+')).any((part) => part == '..')) {
+      return null;
+    }
+    return relative
+        .split(RegExp(r'[/\\]+'))
+        .where((part) => part.isNotEmpty)
+        .map(Uri.encodeComponent)
+        .join('/');
+  }
+
+  void registerAudioOutput(String overlayId) {
+    final outputs = soundOutputs;
+    if (outputs == null || outputs.find('overlay-audio.$overlayId') != null) {
+      return;
+    }
+    outputs.register(
+      CallbackSoundOutput(
+        id: 'overlay-audio.$overlayId',
+        player: (request) => playAudio(overlayId, request),
+      ),
+    );
   }
 
   void _publishViewerData(String eventId, RuntimeMap event) {

@@ -159,10 +159,10 @@ export const useWebsocketBridge = defineStore("websocket-bridge", () => {
 
 	rpcs.handle(
 		"overlays_playAudio",
-		(mediaFile: string, playId: string, startSec: number, endSec: number, volume: number) => {
+		(mediaFile: string, playId: string, startSec: number, endSec: number | null, volume: number) => {
 			const url = `http://${window.location.host}/${mediaFile.startsWith("/") ? mediaFile.slice(1) : mediaFile}`
 
-			soundPlayer.playSound(playId, url, startSec, endSec, volume)
+			soundPlayer.playSound(playId, url, startSec, endSec ?? Number.POSITIVE_INFINITY, volume)
 		}
 	)
 

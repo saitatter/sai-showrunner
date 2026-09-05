@@ -10,6 +10,7 @@ import 'package:showrunner_flutter/plugins/http/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/websocket_bridge.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
+import 'package:showrunner_flutter/plugins/sound/output.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 
@@ -21,6 +22,10 @@ void main() {
     final webRoot = Directory('${directory.path}/web');
     await webRoot.create(recursive: true);
     await File('${webRoot.path}/overlay.html').writeAsString('<html />');
+    final mediaRoot = Directory('${directory.path}/media');
+    await mediaRoot.create(recursive: true);
+    final mediaFile = File('${mediaRoot.path}/beep.wav');
+    await mediaFile.writeAsBytes([1, 2, 3]);
     final repository = ResourceRepository(
       Directory('${directory.path}/overlays'),
     );
@@ -48,6 +53,7 @@ void main() {
       ),
       registry: registry,
       viewerDataRepository: InMemoryViewerDataRepository(),
+      mediaRoot: mediaRoot,
       webRoot: webRoot,
     );
     final client = HttpClient();
@@ -73,6 +79,7 @@ void main() {
       );
       final configReceived = Completer<JsonMap>();
       final broadcastReceived = Completer<List<dynamic>>();
+      final audioReceived = Completer<List<dynamic>>();
       socketSubscription = socket.listen((raw) {
         final message = jsonDecode(raw as String) as Map<String, dynamic>;
         if (message['requestId'] != null) {
@@ -87,6 +94,9 @@ void main() {
           }
           if (name == 'overlays_broadcast') {
             broadcastReceived.complete(args);
+          }
+          if (name == 'overlays_playAudio') {
+            audioReceived.complete(args);
           }
           socket!.add(
             jsonEncode({'responseId': message['requestId'], 'result': null}),
@@ -107,6 +117,16 @@ void main() {
         'showrunner_chat_message',
         {'message': 'hello'},
       ]);
+      expect(
+        await bridge
+            .playAudio(
+              'overlay-1',
+              SoundPlayRequest(file: mediaFile.path, volume: 75),
+            )
+            .timeout(const Duration(seconds: 2)),
+        isTrue,
+      );
+      expect((await audioReceived.future).first, '/media/default/beep.wav');
     } finally {
       await socketSubscription?.cancel();
       await socket?.close();
