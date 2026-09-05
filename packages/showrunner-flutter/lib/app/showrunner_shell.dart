@@ -30,6 +30,7 @@ import '../plugins/registry/plugin_registry.dart';
 import '../plugins/stream_plans/manifest.dart';
 import '../features/resources/resource_editor_registry.dart';
 import '../runtime/action_queue.dart';
+import '../runtime/automation_queue_manager.dart';
 import '../schema/automation.dart';
 import '../runtime/profile_runtime.dart';
 import '../services/showrunner_data_service.dart';
@@ -44,6 +45,7 @@ class ShowRunnerShell extends StatelessWidget {
     required this.dataService,
     required this.graphEditor,
     required this.actionQueue,
+    this.queueManager,
     required this.healthFuture,
     required this.providerEvents,
     required this.pluginRegistryFuture,
@@ -82,6 +84,7 @@ class ShowRunnerShell extends StatelessWidget {
   final ShowRunnerDataService dataService;
   final ShowRunnerGraphEditor graphEditor;
   final DartActionQueue actionQueue;
+  final DartAutomationQueueManager? queueManager;
   final Future<StartupHealthSnapshot> healthFuture;
   final ProviderEventRuntime providerEvents;
   final Future<DartPluginRegistry> pluginRegistryFuture;
@@ -404,7 +407,11 @@ class ShowRunnerShell extends StatelessWidget {
         controller: profileController,
         onDirtyChanged: onProfileDirtyChanged,
       ),
-      5 => QueueWorkspace(dataService: dataService, queue: actionQueue),
+      5 => QueueWorkspace(
+        dataService: dataService,
+        queue: actionQueue,
+        queueManager: queueManager,
+      ),
       6 => ResourcesWorkspace(
         dataService: dataService,
         editorRegistry: createDefaultResourceEditorRegistry(),

@@ -496,6 +496,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       dataService: widget.dataService,
       graphEditor: _graphEditor,
       actionQueue: _actionQueue,
+      queueManager: _automationQueueManager,
       healthFuture: _healthFuture,
       providerEvents: _providerEvents,
       pluginRegistryFuture: _pluginRegistryFuture,

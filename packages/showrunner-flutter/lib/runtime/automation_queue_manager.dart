@@ -64,6 +64,18 @@ final class DartAutomationQueueManager {
     return _queueLoads[key] ??= _loadQueue(key);
   }
 
+  Future<DartActionQueue> applyConfig(
+    String queueId,
+    QueueConfig config,
+  ) async {
+    final queue = await queueFor(queueId);
+    queue
+      ..setPaused(config.paused)
+      ..defaultGap = config.gap
+      ..defaultTimeout = config.timeout;
+    return queue;
+  }
+
   Future<QueuedGraphExecution> enqueue(
     AutomationData automation,
     EvaluationContext context, {

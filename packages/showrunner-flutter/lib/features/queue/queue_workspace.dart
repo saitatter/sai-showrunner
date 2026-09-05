@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../persistence/queue_config_repository.dart';
 import '../../runtime/action_queue.dart';
+import '../../runtime/automation_queue_manager.dart';
 import '../../schema/queue.dart';
 import '../../services/showrunner_data_service.dart';
 
@@ -12,10 +13,12 @@ class QueueWorkspace extends StatefulWidget {
     super.key,
     required this.dataService,
     required this.queue,
+    this.queueManager,
   });
 
   final ShowRunnerDataService dataService;
   final DartActionQueue queue;
+  final DartAutomationQueueManager? queueManager;
 
   @override
   State<QueueWorkspace> createState() => _QueueWorkspaceState();
@@ -27,8 +30,9 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
   int? _selectedIndex;
   bool _loading = true;
   Object? _error;
+  late DartActionQueue _selectedQueue;
 
-  DartActionQueue get queue => widget.queue;
+  DartActionQueue get queue => _selectedQueue;
   QueueConfig? get selectedConfig =>
       _selectedIndex == null || _selectedIndex! >= _entries.length
       ? null
@@ -37,6 +41,7 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
   @override
   void initState() {
     super.initState();
+    _selectedQueue = widget.queue;
     _repository = QueueConfigRepository(
       Directory('${widget.dataService.userDirectory.path}/queues'),
     );
@@ -46,16 +51,34 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
   Future<void> _load() async {
     try {
       final entries = await _repository.list();
+      var selectedIndex = _selectedIndex;
+      if (entries.isNotEmpty &&
+          (selectedIndex == null || selectedIndex >= entries.length)) {
+        selectedIndex = 0;
+      }
+      var selectedQueue = _selectedQueue;
+      final selectedConfig = selectedIndex == null
+          ? null
+          : entries[selectedIndex].config;
+      if (selectedConfig != null &&
+          selectedIndex != null &&
+          widget.queueManager != null) {
+        selectedQueue = await widget.queueManager!.applyConfig(
+          entries[selectedIndex].fileName,
+          selectedConfig,
+        );
+      }
       if (!mounted) return;
       setState(() {
         _entries = entries;
-        if (_entries.isNotEmpty &&
-            (_selectedIndex == null || _selectedIndex! >= _entries.length)) {
-          _selectedIndex = 0;
+        _selectedIndex = selectedIndex;
+        _selectedQueue = selectedQueue;
+        if (selectedConfig != null && widget.queueManager == null) {
+          _selectedQueue
+            ..setPaused(selectedConfig.paused)
+            ..defaultGap = selectedConfig.gap
+            ..defaultTimeout = selectedConfig.timeout;
         }
-        queue.setPaused(selectedConfig?.paused ?? false);
-        queue.defaultGap = selectedConfig?.gap ?? Duration.zero;
-        queue.defaultTimeout = selectedConfig?.timeout;
         _loading = false;
       });
     } catch (error) {
@@ -154,13 +177,42 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
     timeoutController.dispose();
     if (result == null || result.name.isEmpty) return;
     await _repository.save(fileName, result);
+    await widget.queueManager?.applyConfig(fileName, result);
     await _load();
   }
 
   Future<void> _deleteQueue(String fileName) async {
     await _repository.delete(fileName);
     _selectedIndex = null;
+    if (widget.queueManager?.registeredQueue(fileName) case final queue?) {
+      queue.clearPending();
+    }
     await _load();
+  }
+
+  Future<void> _selectQueue(
+    int index,
+    String fileName,
+    QueueConfig config,
+  ) async {
+    try {
+      final selected = widget.queueManager == null
+          ? widget.queue
+          : await widget.queueManager!.applyConfig(fileName, config);
+      if (!mounted) return;
+      setState(() {
+        _selectedIndex = index;
+        _selectedQueue = selected;
+        if (widget.queueManager == null) {
+          _selectedQueue
+            ..setPaused(config.paused)
+            ..defaultGap = config.gap
+            ..defaultTimeout = config.timeout;
+        }
+      });
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    }
   }
 
   void _replay(QueuedGraphExecution item) {
@@ -223,12 +275,7 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
                   ? Theme.of(context).colorScheme.surfaceContainerHighest
                   : null,
               child: ListTile(
-                onTap: () {
-                  setState(() => _selectedIndex = index);
-                  queue.setPaused(config.paused);
-                  queue.defaultGap = config.gap;
-                  queue.defaultTimeout = config.timeout;
-                },
+                onTap: () => _selectQueue(index, item.fileName, config),
                 leading: Icon(
                   config.paused ? Icons.pause_circle : Icons.check_circle,
                 ),
