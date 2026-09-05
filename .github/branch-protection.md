@@ -8,20 +8,19 @@ Protect `main` in GitHub repository settings with these rules:
 - Require linear history and squash merges for feature PRs.
 - Restrict direct pushes to `main`.
 - Require these status checks:
-  - `test-windows`
-  - `scripts-ubuntu`
+  - `flutter-windows`
+  - `browser-overlay`
   - `release-dry-run`
 - Keep releases gated by the `Release` workflow:
-  - `package-windows-preflight` must pass before semantic-release creates a draft release.
-  - `package-windows` must smoke packaged artifacts, upload assets, and publish the draft release.
+  - `package-windows` must build and smoke the Flutter Windows archive before
+    uploading and publishing the draft release.
 
 The release workflow intentionally creates draft GitHub releases first. The draft is only published after Windows assets are built, smoke-checked, uploaded, and verified to exclude `builder-debug.yml`.
 
-Only Windows packages are published for now:
+Only the Flutter Windows archive is published for now:
 
-- `SAI.Showrunner-<version>-x64.exe`
-- `SAI.Showrunner-<version>-x64.exe.blockmap`
-- `SAI.Showrunner-<version>-x64.zip`
-- `latest.yml`
+- `ShowRunner-Flutter-windows-<version>.zip`
 
-Do not add Linux or macOS release assets until those packages and updater metadata are tested in CI.
+The archive is currently unsigned and there is no installer or updater metadata
+asset. Do not add Linux, macOS, installer, or automatic replacement assets until
+those packages and their smoke tests exist in CI.
