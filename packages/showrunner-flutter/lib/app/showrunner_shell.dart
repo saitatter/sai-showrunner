@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app/startup_health.dart';
 import '../editor/showrunner_graph_editor.dart';
@@ -90,7 +93,7 @@ class ShowRunnerShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final tabs = openTabIndices.isEmpty ? [selectedIndex] : openTabIndices;
     final selectedTab = tabs.indexOf(selectedIndex);
-    return Scaffold(
+    final shell = Scaffold(
       appBar: AppBar(
         title: const Text('ShowRunner / Flutter'),
         actions: [
@@ -238,6 +241,17 @@ class ShowRunnerShell extends StatelessWidget {
           ),
         ],
       ),
+    );
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
+          unawaited(onSaveAutomation?.call());
+        },
+        const SingleActivator(LogicalKeyboardKey.keyS, meta: true): () {
+          unawaited(onSaveAutomation?.call());
+        },
+      },
+      child: Focus(autofocus: true, child: shell),
     );
   }
 
