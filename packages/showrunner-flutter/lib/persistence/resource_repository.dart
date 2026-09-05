@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:yaml/yaml.dart';
 
 import 'filesystem/atomic_file.dart';
+import 'migrations/legacy_import_service.dart';
 import '../schema/resource.dart';
 
 typedef _JsonMap = Map<String, dynamic>;
@@ -75,14 +76,29 @@ class ResourceRepository {
       if (decoded is! Map) {
         throw const FormatException('Resource JSON must contain an object.');
       }
-      return ResourceData.fromJson(Map<String, dynamic>.from(decoded));
+      return _normalizeResource(
+        ResourceData.fromJson(Map<String, dynamic>.from(decoded)),
+      );
     }
     final parsed = loadYaml(content);
     if (parsed is! YamlMap) {
       throw const FormatException('Resource YAML must contain a map.');
     }
     final id = file.uri.pathSegments.last.replaceFirst(RegExp(r'\.yaml$'), '');
-    return ResourceData(id: id, config: _yamlMap(parsed));
+    return _normalizeResource(ResourceData(id: id, config: _yamlMap(parsed)));
+  }
+
+  ResourceData _normalizeResource(ResourceData resource) {
+    final config = resource.config;
+    if (!config.containsKey('segments') ||
+        !config.containsKey('activationAutomation')) {
+      return resource;
+    }
+    return ResourceData(
+      id: resource.id,
+      config: const LegacyImportService().normalizeStreamPlanMap(config),
+      state: resource.state,
+    );
   }
 }
 

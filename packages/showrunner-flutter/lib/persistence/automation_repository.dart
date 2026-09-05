@@ -5,6 +5,7 @@ import 'package:yaml/yaml.dart';
 
 import 'filesystem/atomic_file.dart';
 import '../schema/automation.dart';
+import 'migrations/legacy_import_service.dart';
 
 final class AutomationCatalogEntry {
   const AutomationCatalogEntry({
@@ -26,6 +27,19 @@ final class AutomationRepository {
   final File file;
 
   Future<AutomationData?> load() async {
+    try {
+      return await loadStrict();
+    } on FormatException {
+      if (!await file.exists()) rethrow;
+      return (await const LegacyImportService().migrateAutomationFile(
+        file,
+      )).automation;
+    }
+  }
+
+  /// Loads only canonical V2 data. Compatibility conversion is deliberately
+  /// kept in [load], at the persistence boundary.
+  Future<AutomationData?> loadStrict() async {
     if (!await file.exists()) return null;
     final contents = await file.readAsString();
     dynamic decoded;
