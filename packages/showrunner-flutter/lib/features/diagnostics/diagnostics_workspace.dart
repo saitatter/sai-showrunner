@@ -222,7 +222,22 @@ class _QueueDiagnostics extends StatelessWidget {
               if (queue.history.first.reason != null)
                 Text(queue.history.first.reason!),
               if (queue.history.first.error != null)
-                Text(queue.history.first.error!),
+                Text(
+                  queue.history.first.errorUserMessage ??
+                      queue.history.first.error!,
+                ),
+              if (queue.history.first.errorCode != null)
+                Text(
+                  [
+                    queue.history.first.errorCode!,
+                    if (queue.history.first.errorPluginId != null)
+                      queue.history.first.errorPluginId!,
+                    if (queue.history.first.errorOperationId != null)
+                      queue.history.first.errorOperationId!,
+                    if (queue.history.first.errorRetryable == true) 'retryable',
+                  ].join(' | '),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
             ],
           ],
         ),

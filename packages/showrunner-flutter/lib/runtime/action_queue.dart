@@ -2,6 +2,8 @@ import 'expression.dart';
 import 'dart:async';
 import 'dart:math';
 
+import '../domain/errors/showrunner_error.dart';
+
 final class QueuedGraphExecution {
   QueuedGraphExecution({
     required this.id,
@@ -11,6 +13,11 @@ final class QueuedGraphExecution {
     this.startedAt,
     this.completedAt,
     this.error,
+    this.errorCode,
+    this.errorUserMessage,
+    this.errorPluginId,
+    this.errorOperationId,
+    this.errorRetryable,
     this.reason,
   });
 
@@ -21,6 +28,11 @@ final class QueuedGraphExecution {
   DateTime? startedAt;
   DateTime? completedAt;
   String? error;
+  String? errorCode;
+  String? errorUserMessage;
+  String? errorPluginId;
+  String? errorOperationId;
+  bool? errorRetryable;
   String? reason;
 
   Duration? get duration => startedAt == null || completedAt == null
@@ -35,6 +47,11 @@ final class QueuedGraphExecution {
     if (startedAt != null) 'startedAt': startedAt!.toIso8601String(),
     if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
     if (error != null) 'error': error,
+    if (errorCode != null) 'errorCode': errorCode,
+    if (errorUserMessage != null) 'errorUserMessage': errorUserMessage,
+    if (errorPluginId != null) 'errorPluginId': errorPluginId,
+    if (errorOperationId != null) 'errorOperationId': errorOperationId,
+    if (errorRetryable != null) 'errorRetryable': errorRetryable,
     if (reason != null) 'reason': reason,
   };
 
@@ -46,6 +63,11 @@ final class QueuedGraphExecution {
     startedAt: _dateTime(value['startedAt']),
     completedAt: _dateTime(value['completedAt']),
     error: value['error']?.toString(),
+    errorCode: value['errorCode']?.toString(),
+    errorUserMessage: value['errorUserMessage']?.toString(),
+    errorPluginId: value['errorPluginId']?.toString(),
+    errorOperationId: value['errorOperationId']?.toString(),
+    errorRetryable: value['errorRetryable'] as bool?,
     reason: value['reason']?.toString(),
   );
 }
@@ -126,6 +148,13 @@ final class DartActionQueue {
       } else {
         item.status = 'failed';
         item.error = error.toString();
+        if (error is ShowRunnerError) {
+          item.errorCode = error.code;
+          item.errorUserMessage = error.userMessage;
+          item.errorPluginId = error.pluginId?.value;
+          item.errorOperationId = error.operationId;
+          item.errorRetryable = error.retryable;
+        }
       }
       recorded = true;
       rethrow;

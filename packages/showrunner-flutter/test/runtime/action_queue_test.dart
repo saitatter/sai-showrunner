@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/persistence/queue_repository.dart';
+import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
+import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
 
 void main() {
   test('processes, pauses, replays, and bounds Dart queue history', () async {
@@ -55,6 +57,32 @@ void main() {
     expect(queue.history.single.status, 'skipped');
     expect(queue.history.single.reason, 'Skipped by operator');
     expect(queue.history.single.completedAt, isNotNull);
+  });
+
+  test('records typed action error metadata in queue history', () async {
+    final queue = DartActionQueue();
+    queue.enqueue({'type': 'graph'}, {});
+
+    await expectLater(
+      queue.processNext((item) async {
+        throw const ActionExecutionError(
+          pluginId: PluginId('obs'),
+          operationId: 'scene',
+          technicalMessage: 'OBS action failed.',
+          userMessage: 'OBS could not switch the scene.',
+          retryable: true,
+        );
+      }),
+      throwsA(isA<ActionExecutionError>()),
+    );
+
+    final item = queue.history.single;
+    expect(item.errorCode, 'action.execution');
+    expect(item.errorUserMessage, 'OBS could not switch the scene.');
+    expect(item.errorPluginId, 'obs');
+    expect(item.errorOperationId, 'scene');
+    expect(item.errorRetryable, isTrue);
+    await queue.dispose();
   });
 
   test(

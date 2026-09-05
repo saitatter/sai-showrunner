@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../domain/errors/showrunner_error.dart';
+
 enum LogLevel { debug, info, warning, error }
 
 class LogEntry {
@@ -10,6 +12,7 @@ class LogEntry {
     required this.message,
     this.details,
     this.error,
+    this.typedError,
   });
 
   final DateTime timestamp;
@@ -18,6 +21,7 @@ class LogEntry {
   final String message;
   final Map<String, dynamic>? details;
   final Object? error;
+  final ShowRunnerError? typedError;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'timestamp': timestamp.toIso8601String(),
@@ -26,6 +30,7 @@ class LogEntry {
     'message': message,
     if (details != null) 'details': details,
     if (error != null) 'error': error.toString(),
+    if (typedError != null) 'errorDetails': typedError!.toJson(),
   };
 }
 
@@ -47,6 +52,7 @@ class ShowRunnerLogger {
     String message, {
     Map<String, dynamic>? details,
     Object? error,
+    ShowRunnerError? typedError,
   }) {
     final entry = LogEntry(
       timestamp: DateTime.now(),
@@ -55,6 +61,7 @@ class ShowRunnerLogger {
       message: message,
       details: details,
       error: error,
+      typedError: typedError,
     );
     _logs.add(entry);
     if (_logs.length > maxHistory) {

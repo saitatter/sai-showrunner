@@ -3,6 +3,7 @@ import 'package:showrunner_flutter/plugins/obs/obs.dart';
 import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
 
 void main() {
   test('keeps plugin contract keys typed and collision-safe', () {
@@ -215,6 +216,22 @@ void main() {
     });
 
     expect(requests, ['ToggleStream']);
+  });
+
+  test('reports disabled and missing actions with typed errors', () {
+    final registry = DartPluginRegistry()
+      ..register(const DartPluginManifest(id: 'sample', name: 'Sample'));
+    registry.setPluginEnabled('sample', false);
+
+    expect(
+      () => registry.invokeAction('sample', 'run', const {}),
+      throwsA(isA<PluginConfigurationError>()),
+    );
+    registry.setPluginEnabled('sample', true);
+    expect(
+      () => registry.invokeAction('sample', 'run', const {}),
+      throwsA(isA<ActionExecutionError>()),
+    );
   });
 
   test('discovers Dart plugin settings, triggers, and health', () async {

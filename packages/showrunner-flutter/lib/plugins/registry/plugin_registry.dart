@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../components/data_inputs/data_input.dart';
+import '../../domain/errors/showrunner_error.dart';
 import '../../runtime/expression.dart';
 import '../../schema/automation.dart';
 import '../../services/showrunner_data_service.dart';
@@ -246,10 +247,20 @@ final class DartPluginRegistry extends ChangeNotifier {
         ? findAction(plugin, action)
         : null;
     if (plugin is String && !isPluginEnabled(plugin)) {
-      throw StateError('Plugin is disabled: $plugin');
+      throw PluginConfigurationError(
+        pluginId: PluginId(plugin),
+        operationId: action is String ? action : null,
+        technicalMessage: 'Plugin is disabled: $plugin',
+        userMessage: 'Enable the $plugin integration before running it.',
+      );
     }
     if (definition == null) {
-      throw StateError('Unknown Dart action: $plugin:$action');
+      throw ActionExecutionError(
+        pluginId: plugin is String ? PluginId(plugin) : null,
+        operationId: action is String ? action : null,
+        technicalMessage: 'Unknown Dart action: $plugin:$action',
+        userMessage: 'This automation action is no longer available.',
+      );
     }
     return definition.invoke(config, context);
   }
@@ -261,11 +272,21 @@ final class DartPluginRegistry extends ChangeNotifier {
     EvaluationContext? context,
   }) {
     if (!isPluginEnabled(pluginId)) {
-      throw StateError('Plugin is disabled: $pluginId');
+      throw PluginConfigurationError(
+        pluginId: PluginId(pluginId),
+        operationId: actionId,
+        technicalMessage: 'Plugin is disabled: $pluginId',
+        userMessage: 'Enable the $pluginId integration before running it.',
+      );
     }
     final definition = findAction(pluginId, actionId);
     if (definition == null) {
-      throw StateError('Unknown Dart action: $pluginId:$actionId');
+      throw ActionExecutionError(
+        pluginId: PluginId(pluginId),
+        operationId: actionId,
+        technicalMessage: 'Unknown Dart action: $pluginId:$actionId',
+        userMessage: 'This automation action is no longer available.',
+      );
     }
     return definition.invoke(config, context ?? EvaluationContext());
   }
