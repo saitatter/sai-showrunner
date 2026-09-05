@@ -360,6 +360,61 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
       fields: const ['name', 'twitchId'],
     ),
   );
+  registry.register(
+    _pluginDefinition(
+      pluginId: 'iot',
+      resourceType: 'Light',
+      displayName: 'Smart Light',
+      storageDirectory: 'iot/lights',
+      defaultConfig: (name) => {
+        'name': name,
+        'provider': '',
+        'providerId': '',
+        'host': '',
+        'ip': '',
+        'model': '',
+        'resourceType': 'light',
+        'target': '',
+        'rgbAvailable': true,
+        'kelvinAvailable': true,
+        'dimmingAvailable': true,
+        'transitionsAvailable': true,
+      },
+      fields: const [
+        'name',
+        'provider',
+        'providerId',
+        'host',
+        'ip',
+        'model',
+        'resourceType',
+        'target',
+        'numberOfLights',
+        'ledCount',
+        'rgbAvailable',
+        'kelvinAvailable',
+        'dimmingAvailable',
+        'transitionsAvailable',
+      ],
+    ),
+  );
+  registry.register(
+    _pluginDefinition(
+      pluginId: 'iot',
+      resourceType: 'Plug',
+      displayName: 'Smart Plug',
+      storageDirectory: 'iot/plugs',
+      defaultConfig: (name) => {
+        'name': name,
+        'provider': '',
+        'providerId': '',
+        'host': '',
+        'ip': '',
+        'model': '',
+      },
+      fields: const ['name', 'provider', 'providerId', 'host', 'ip', 'model'],
+    ),
+  );
   return registry;
 }
 
@@ -401,6 +456,18 @@ DartResourceEditorDefinition _pluginDefinition({
     'SpellHook' => _SpellcastEditor(resource: resource, onSave: onSave),
     'ChannelPointReward' => _ChannelPointRewardEditor(
       resource: resource,
+      onSave: onSave,
+    ),
+    'Light' => _MapResourceEditor(
+      title: 'Edit smart light',
+      resource: resource,
+      fields: fields,
+      onSave: onSave,
+    ),
+    'Plug' => _MapResourceEditor(
+      title: 'Edit smart plug',
+      resource: resource,
+      fields: fields,
       onSave: onSave,
     ),
     _ => _MapResourceEditor(
@@ -2465,8 +2532,13 @@ class _MapResourceEditorState extends State<_MapResourceEditor> {
 
   DartDataInputSchema _schemaFor(String field) {
     final kind = switch (field) {
-      'port' || 'cost' => DartDataInputKind.number,
-      'local' => DartDataInputKind.boolean,
+      'port' || 'cost' || 'numberOfLights' || 'ledCount' =>
+        DartDataInputKind.number,
+      'local' ||
+      'rgbAvailable' ||
+      'kelvinAvailable' ||
+      'dimmingAvailable' ||
+      'transitionsAvailable' => DartDataInputKind.boolean,
       'userIds' => DartDataInputKind.array,
       'installPath' => DartDataInputKind.filePath,
       _ => DartDataInputKind.text,

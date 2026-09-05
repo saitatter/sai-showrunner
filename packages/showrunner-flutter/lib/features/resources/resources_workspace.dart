@@ -80,7 +80,9 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
               ],
             ),
             const SizedBox(height: 8),
-            const Text('Manage overlays, variables, and media items.'),
+            const Text(
+              'Manage overlays, variables, media items, and persisted smart-device routing.',
+            ),
             const SizedBox(height: 20),
             Text(
               'Overlays (${overlays.length})',

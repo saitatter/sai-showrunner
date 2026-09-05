@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/iot/light_color.dart';
+import 'package:showrunner_flutter/plugins/iot/manifest.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/iot/ui/light_color_input.dart';
 
 void main() {
@@ -29,6 +31,18 @@ void main() {
       lightColorMaxKelvin,
     );
     expect(lightColorPreview('hsb(0, 100, 100)'), isA<Color>());
+  });
+
+  test('generic IoT actions reject missing device routing instead of faking success', () async {
+    final registry = DartPluginRegistry()..register(createIotPlugin());
+
+    await expectLater(
+      registry.invokeAction('iot', 'setLightColor', {
+        'lightId': 'light-1',
+        'color': 'hsb(0, 100, 100)',
+      }),
+      throwsStateError,
+    );
   });
 
   testWidgets('picker exposes RGB and CCT controls and emits Kelvin values', (

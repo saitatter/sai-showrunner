@@ -22,8 +22,71 @@ void main() {
     expect(registry.find('SpellHook')?.pluginId, 'spellcast');
     expect(registry.find('AudioSplitterOutput')?.pluginId, 'sound');
     expect(registry.find('ChannelPointReward')?.pluginId, 'twitch');
+    expect(registry.find('Light')?.pluginId, 'iot');
+    expect(registry.find('Plug')?.pluginId, 'iot');
     expect(registry.find('StreamPlan')?.pluginId, 'stream-plans');
     expect(registry.find('Unknown'), isNull);
+  });
+
+  test('smart device defaults preserve provider routing fields', () {
+    final registry = createDefaultResourceEditorRegistry();
+
+    expect(registry.find('Light')!.defaultConfig('Studio bulb'), {
+      'name': 'Studio bulb',
+      'provider': '',
+      'providerId': '',
+      'host': '',
+      'ip': '',
+      'model': '',
+      'resourceType': 'light',
+      'target': '',
+      'rgbAvailable': true,
+      'kelvinAvailable': true,
+      'dimmingAvailable': true,
+      'transitionsAvailable': true,
+    });
+    expect(registry.find('Plug')!.defaultConfig('Desk plug'), {
+      'name': 'Desk plug',
+      'provider': '',
+      'providerId': '',
+      'host': '',
+      'ip': '',
+      'model': '',
+    });
+  });
+
+  testWidgets('smart light editor preserves provider-specific fields', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Light')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'light-1',
+        config: {
+          'name': 'Desk light',
+          'provider': 'govee',
+          'providerId': 'AA:BB',
+          'model': 'H6001',
+          'ip': '192.168.1.20',
+          'futureField': 'preserved',
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(find.text('Edit smart light'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(saved!.config['futureField'], 'preserved');
+    expect(saved!.config['provider'], 'govee');
+    expect(saved!.config['providerId'], 'AA:BB');
+    expect(saved!.config['model'], 'H6001');
+    expect(saved!.config['ip'], '192.168.1.20');
   });
 
   test('audio splitter defaults include a valid redirect collection', () {

@@ -127,6 +127,12 @@ Remote button trigger handling is available through a configurable Dart HTTP
 server at `/buttons/press`, with explicit runtime shutdown.
 VoiceMod is registered with a real lazy WebSocket transport for voice listing
 and voice selection, including RPC cleanup on shutdown.
+Flutter now also exposes persisted `Light` and `Plug` device configurations under
+`user/iot/lights` and `user/iot/plugs`. Their editor preserves provider-specific
+routing fields used by Govee, Hue, Twinkly, Elgato, Kasa, LIFX, and Wyze, while
+generic IoT actions reject unroutable devices instead of returning false success.
+Automatic recovery of dynamically discovered legacy device resources and dispatch
+through every persisted provider remain open until they have end-to-end coverage.
 
 ## Current Architecture
 
