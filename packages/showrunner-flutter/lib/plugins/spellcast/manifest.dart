@@ -15,12 +15,12 @@ DartPluginManifest createSpellcastPlugin({DartPluginEventHub? eventHub}) {
           eventHub: hub,
           providerEvents: providerEvents,
         ),
-    actions: const [
+    actions: [
       DartActionDefinition(
         pluginId: 'spellcast',
         actionId: 'castSpell',
         displayName: 'Cast Spell',
-        invoke: _castSpell,
+        invoke: (config, context) => _castSpell(hub, config),
       ),
     ],
     triggers: [
@@ -41,9 +41,14 @@ DartPluginManifest createSpellcastPlugin({DartPluginEventHub? eventHub}) {
   );
 }
 
-Future<Object?> _castSpell(RuntimeMap config, EvaluationContext context) async {
-  final spellId = config['spellId']?.toString() ?? '';
-  return {'cast': spellId.isNotEmpty, 'spellId': spellId};
+Future<Object?> _castSpell(
+  DartPluginEventHub eventHub,
+  RuntimeMap config,
+) async {
+  final spellId = _resourceId(config['spellId'] ?? config['spell']);
+  if (spellId.isEmpty) return {'cast': false, 'spellId': spellId};
+  eventHub.emit('spellcastCommand', {'spellId': spellId});
+  return {'cast': true, 'spellId': spellId};
 }
 
 bool _matchesSpellHook(RuntimeMap config, RuntimeMap payload) {

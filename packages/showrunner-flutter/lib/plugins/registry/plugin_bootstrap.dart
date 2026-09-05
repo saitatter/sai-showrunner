@@ -108,7 +108,7 @@ DartPluginRegistry createDefaultPluginRegistry({
       eventHub: eventHub,
     ),
   );
-  registry.register(createOverlaysPlugin());
+  registry.register(createOverlaysPlugin(eventHub: eventHub));
   registry.register(createSpellcastPlugin(eventHub: eventHub));
   registry.register(createIotPlugin());
   registry.register(createGoveePlugin(GoveeTransport(_unconfiguredGovee)));
@@ -289,7 +289,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       eventHub: eventHub,
     ),
   );
-  registry.register(createOverlaysPlugin());
+  registry.register(createOverlaysPlugin(eventHub: eventHub));
   registry.register(createSpellcastPlugin(eventHub: eventHub));
   final goveeSettings = await dataService.loadPluginSettings('govee');
   final goveeApiKey = goveeSettings['apiKey'] as String?;

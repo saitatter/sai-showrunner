@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/spellcast/manifest.dart';
+import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
@@ -50,4 +51,58 @@ void main() {
     await subscription.cancel();
     await hub.dispose();
   });
+
+  test(
+    'castSpell emits a command event for local automation consumers',
+    () async {
+      final hub = DartPluginEventHub();
+      final plugin = createSpellcastPlugin(eventHub: hub);
+      final events = <RuntimeMap>[];
+      final subscription = hub.stream('spellcastCommand').listen(events.add);
+
+      expect(
+        await plugin.actions.single.invoke({
+          'spellId': 'spell-1',
+        }, EvaluationContext()),
+        {'cast': true, 'spellId': 'spell-1'},
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(events, [
+        {'spellId': 'spell-1'},
+      ]);
+
+      await subscription.cancel();
+      await hub.dispose();
+    },
+  );
+
+  test(
+    'triggerWidget emits an overlay event for local automation consumers',
+    () async {
+      final hub = DartPluginEventHub();
+      final plugin = createOverlaysPlugin(eventHub: hub);
+      final events = <RuntimeMap>[];
+      final subscription = hub.stream('overlayWidget').listen(events.add);
+
+      expect(
+        await plugin.actions.single.invoke({
+          'widgetId': 'alert-1',
+          'overlayId': 'overlay-1',
+          'payload': {'message': 'Hello'},
+        }, EvaluationContext()),
+        {'triggered': true, 'widgetId': 'alert-1'},
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(events, [
+        {
+          'widgetId': 'alert-1',
+          'overlayId': 'overlay-1',
+          'payload': {'message': 'Hello'},
+        },
+      ]);
+
+      await subscription.cancel();
+      await hub.dispose();
+    },
+  );
 }
