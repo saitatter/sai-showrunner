@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'commands/app_command.dart';
 import '../app/startup_health.dart';
@@ -108,6 +109,10 @@ class ShowRunnerShell extends StatelessWidget {
 
     final shell = Scaffold(
       appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 12),
+          child: Icon(Icons.bolt),
+        ),
         title: const Text('ShowRunner'),
         actions: [
           PopupMenuButton<String>(
@@ -186,6 +191,7 @@ class ShowRunnerShell extends StatelessWidget {
             onPressed: () => runCommand('run.automation'),
             icon: const Icon(Icons.play_arrow),
           ),
+          if (Platform.isWindows) const _WindowControlButtons(),
           const SizedBox(width: 12),
         ],
       ),
@@ -417,6 +423,76 @@ class ShowRunnerShell extends StatelessWidget {
       );
     }
   }
+}
+
+class _WindowControlButtons extends StatefulWidget {
+  const _WindowControlButtons();
+
+  @override
+  State<_WindowControlButtons> createState() => _WindowControlButtonsState();
+}
+
+class _WindowControlButtonsState extends State<_WindowControlButtons>
+    with WindowListener {
+  bool _maximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    unawaited(_readMaximized());
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowMaximize() => setState(() => _maximized = true);
+
+  @override
+  void onWindowUnmaximize() => setState(() => _maximized = false);
+
+  Future<void> _readMaximized() async {
+    final maximized = await windowManager.isMaximized();
+    if (mounted) setState(() => _maximized = maximized);
+  }
+
+  Future<void> _toggleMaximize() async {
+    if (_maximized) {
+      await windowManager.unmaximize();
+    } else {
+      await windowManager.maximize();
+    }
+    await _readMaximized();
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      SrIconButton(
+        tooltip: 'Minimize',
+        icon: const Icon(Icons.minimize, size: 18),
+        onPressed: windowManager.minimize,
+      ),
+      SrIconButton(
+        tooltip: _maximized ? 'Restore' : 'Maximize',
+        icon: Icon(
+          _maximized ? Icons.filter_none : Icons.crop_square,
+          size: 17,
+        ),
+        onPressed: _toggleMaximize,
+      ),
+      SrIconButton(
+        tooltip: 'Close',
+        icon: const Icon(Icons.close, size: 18),
+        onPressed: windowManager.close,
+      ),
+    ],
+  );
 }
 
 class _WorkspaceTabBar extends StatelessWidget {
