@@ -398,7 +398,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       if (!await _confirmAutomationClose()) return false;
       await saveShowRunnerWindowState(_windowStateFile);
       await windowManager.setPreventClose(false);
-      await windowManager.destroy();
+      // Re-issue the close through the normal Win32 path after releasing the
+      // interception. This lets the runner finish its native shutdown flow.
+      await windowManager.close();
       return true;
     } finally {
       _isWindowCloseInProgress = false;
