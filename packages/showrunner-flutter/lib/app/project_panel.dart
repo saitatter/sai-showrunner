@@ -32,6 +32,8 @@ class ShowRunnerProjectPanel extends StatefulWidget {
     this.onOpenProfile,
     this.onResourceSelected,
     this.onOpenResource,
+    this.selectedResourceType,
+    this.selectedResourceId,
     this.onRenameAutomation,
     this.onDeleteAutomation,
     this.onRenameProfile,
@@ -56,6 +58,8 @@ class ShowRunnerProjectPanel extends StatefulWidget {
   final ValueChanged<String>? onResourceSelected;
   final FutureOr<void> Function(ResourceData resource, String resourceType)?
   onOpenResource;
+  final String? selectedResourceType;
+  final String? selectedResourceId;
   final FutureOr<void> Function(String fileName, String name)?
   onRenameAutomation;
   final FutureOr<void> Function(String fileName)? onDeleteAutomation;
@@ -155,6 +159,10 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
         ? null
         : () => callback(entry.resource, entry.resourceType);
   }
+
+  bool _isSelected(ProjectResourceCatalogEntry entry) =>
+      widget.selectedResourceType == entry.resourceType &&
+      widget.selectedResourceId == entry.resource.id;
 
   @override
   Widget build(BuildContext context) {
@@ -293,7 +301,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                       _ProjectItemRow(
                         title: entry.title,
                         icon: Icons.view_agenda_outlined,
-                        selected: false,
+                        selected: _isSelected(entry),
                         indent: 1,
                         compact: compact,
                         onRename: _resourceRename(entry),
@@ -363,7 +371,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                       _ProjectItemRow(
                         title: entry.title,
                         icon: Icons.speaker_outlined,
-                        selected: false,
+                        selected: _isSelected(entry),
                         indent: 1,
                         compact: compact,
                         onRename: _resourceRename(entry),
@@ -383,7 +391,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                       _ProjectItemRow(
                         title: entry.title,
                         icon: Icons.record_voice_over_outlined,
-                        selected: false,
+                        selected: _isSelected(entry),
                         indent: 1,
                         compact: compact,
                         onRename: _resourceRename(entry),
@@ -405,7 +413,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                       _ProjectItemRow(
                         title: entry.title,
                         icon: Icons.tune,
-                        selected: false,
+                        selected: _isSelected(entry),
                         indent: 1,
                         compact: compact,
                         onRename: _resourceRename(entry),
@@ -435,7 +443,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                       _ProjectItemRow(
                         title: entry.title,
                         icon: Icons.dashboard_customize_outlined,
-                        selected: false,
+                        selected: _isSelected(entry),
                         indent: 1,
                         compact: compact,
                         onRename: _resourceRename(entry),
@@ -482,7 +490,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                       _ProjectItemRow(
                         title: entry.title,
                         icon: Icons.layers_outlined,
-                        selected: false,
+                        selected: _isSelected(entry),
                         indent: 1,
                         compact: compact,
                         onRename: _resourceRename(entry),

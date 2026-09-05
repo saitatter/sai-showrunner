@@ -199,6 +199,8 @@ class ShowRunnerShell extends StatelessWidget {
                       onDeleteProfile: onDeleteProfile,
                       onResourceSelected: onResourceSelected,
                       onOpenResource: onOpenResource,
+                      selectedResourceType: selectedResourceType,
+                      selectedResourceId: selectedResourceId,
                       onRenameResource: onRenameResource,
                       onDeleteResource: onDeleteResource,
                       onOpenProfile: (fileName) {
