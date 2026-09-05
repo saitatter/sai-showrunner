@@ -31,6 +31,8 @@ import '../runtime/profile_runtime.dart';
 import '../services/showrunner_data_service.dart';
 import '../services/update_check_service.dart';
 
+enum _ShellCommand { newAutomation, save, resetSample, about }
+
 class ShowRunnerShell extends StatelessWidget {
   const ShowRunnerShell({
     super.key,
@@ -103,6 +105,48 @@ class ShowRunnerShell extends StatelessWidget {
       appBar: AppBar(
         title: const Text('ShowRunner'),
         actions: [
+          PopupMenuButton<_ShellCommand>(
+            tooltip: 'File',
+            icon: const Icon(Icons.folder_open),
+            onSelected: (command) {
+              switch (command) {
+                case _ShellCommand.newAutomation:
+                  unawaited(onCreateAutomation());
+                case _ShellCommand.save:
+                  unawaited(onSaveAutomation?.call());
+                case _ShellCommand.resetSample:
+                  onResetSampleGraph();
+                case _ShellCommand.about:
+                  onDestinationSelected(8);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: _ShellCommand.newAutomation,
+                child: Text('New automation'),
+              ),
+              PopupMenuItem(
+                value: _ShellCommand.save,
+                enabled: onSaveAutomation != null,
+                child: const Text('Save automation'),
+              ),
+              const PopupMenuItem(
+                value: _ShellCommand.resetSample,
+                child: Text('Reset sample graph'),
+              ),
+            ],
+          ),
+          PopupMenuButton<_ShellCommand>(
+            tooltip: 'Help',
+            icon: const Icon(Icons.help_outline),
+            onSelected: (_) => onDestinationSelected(8),
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: _ShellCommand.about,
+                child: Text('About ShowRunner'),
+              ),
+            ],
+          ),
           SrIconButton(
             tooltip: 'Frame selected nodes',
             onPressed: () => _frameSelected(context),
@@ -118,17 +162,17 @@ class ShowRunnerShell extends StatelessWidget {
             onPressed: () => graphEditor.pasteSelection(context: context),
             icon: const Icon(Icons.content_paste),
           ),
-          IconButton(
+          SrIconButton(
             tooltip: 'Cut selected nodes',
             onPressed: () => graphEditor.cutSelection(context: context),
             icon: const Icon(Icons.content_cut),
           ),
-          IconButton(
+          SrIconButton(
             tooltip: 'Reset sample graph',
             onPressed: onResetSampleGraph,
             icon: const Icon(Icons.refresh),
           ),
-          IconButton(
+          SrIconButton(
             tooltip: 'Save automation',
             onPressed: onSaveAutomation,
             icon: const Icon(Icons.save),
