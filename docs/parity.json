@@ -1,5 +1,5 @@
 {
-  "reference": "main",
+  "reference": "migration-reference/main-2026-09-05",
   "plugins": [
     {
       "id": "advss",

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
+const referenceRef = 'migration-reference/main-2026-09-05';
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'showrunner-parity-'));
 const mainPath = join(temporaryDirectory, 'main.json');
 const flutterPath = join(temporaryDirectory, 'flutter.json');
@@ -13,7 +14,11 @@ const reportPath = join(root, 'docs', 'parity.json');
 try {
   const main = execFileSync(
     process.execPath,
-    [join(root, 'tools/parity/extract-main-contracts/index.mjs'), '--ref', 'main'],
+    [
+      join(root, 'tools/parity/extract-main-contracts/index.mjs'),
+      '--ref',
+      referenceRef,
+    ],
     { cwd: root, encoding: 'utf8' },
   );
   const flutter = execFileSync(
