@@ -3,7 +3,7 @@
   "plugins": [
     {
       "id": "advss",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -14,7 +14,7 @@
           "extra": [
             "obsConnection"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [
@@ -29,10 +29,14 @@
         },
         "triggers": {
           "expected": [],
-          "actual": [],
+          "actual": [
+            "advssEvent"
+          ],
           "missing": [],
-          "extra": [],
-          "status": "equivalent"
+          "extra": [
+            "advssEvent"
+          ],
+          "status": "improved"
         },
         "states": {
           "expected": [],
@@ -57,7 +61,7 @@
     },
     {
       "id": "aitum",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -68,7 +72,7 @@
           "extra": [
             "obsConnection"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [
@@ -121,7 +125,7 @@
     },
     {
       "id": "bluesky",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -136,7 +140,7 @@
             "appPassword",
             "serviceUrl"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [
@@ -167,12 +171,12 @@
           "expected": [
             "BlueSkyAccount"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "BlueSkyAccount"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -183,7 +187,7 @@
     },
     {
       "id": "dashboards",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
@@ -217,12 +221,12 @@
           "expected": [
             "Dashboard"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "Dashboard"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -233,7 +237,7 @@
     },
     {
       "id": "discord",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
@@ -271,12 +275,12 @@
           "expected": [
             "DiscordWebhook"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "DiscordWebhook"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -303,7 +307,7 @@
           "extra": [
             "pollIntervalSeconds"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [],
@@ -371,7 +375,7 @@
     },
     {
       "id": "elgato",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -388,7 +392,7 @@
             "numberOfLights",
             "rgb"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [],
@@ -403,7 +407,7 @@
             "getLights",
             "setLightState"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -435,7 +439,7 @@
     },
     {
       "id": "govee",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -446,7 +450,7 @@
           "extra": [
             "apiKey"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [],
@@ -465,7 +469,7 @@
             "setColor",
             "setBrightness"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -611,7 +615,7 @@
     },
     {
       "id": "iot",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -636,7 +640,7 @@
             "setLightColor",
             "toggleLight"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -657,13 +661,13 @@
             "Light",
             "Plug"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "Light",
             "Plug"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -674,7 +678,7 @@
     },
     {
       "id": "lifx",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -692,7 +696,7 @@
             "port",
             "target"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [],
@@ -709,7 +713,7 @@
             "setColor",
             "setLightState"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -741,7 +745,7 @@
     },
     {
       "id": "minecraft",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
@@ -779,12 +783,12 @@
           "expected": [
             "RCONConnection"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "RCONConnection"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -795,7 +799,7 @@
     },
     {
       "id": "moderation",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -814,7 +818,7 @@
             "dashboardWsUrl",
             "forwardYouTube"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [
@@ -830,7 +834,7 @@
             "sendTestMessage",
             "requestOverride"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -848,7 +852,7 @@
           "extra": [
             "health"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "resources": {
           "expected": [],
@@ -949,7 +953,7 @@
             "browserUrl",
             "browserRefresh"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -977,12 +981,12 @@
           "expected": [
             "OBSConnection"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "OBSConnection"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -993,7 +997,7 @@
     },
     {
       "id": "os",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -1016,7 +1020,7 @@
           "extra": [
             "launchProcess"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -1081,7 +1085,7 @@
           "extra": [
             "triggerWidget"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -1131,7 +1135,7 @@
           "extra": [
             "hubKey"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [
@@ -1207,7 +1211,7 @@
           "extra": [
             "random"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [
@@ -1243,7 +1247,7 @@
     },
     {
       "id": "remote",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -1260,7 +1264,7 @@
             "port",
             "apiBase"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [],
@@ -1273,12 +1277,12 @@
           "expected": [
             "button"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "button"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "status": "equivalent"
         },
         "states": {
           "expected": [],
@@ -1289,7 +1293,7 @@
           "extra": [
             "server"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "resources": {
           "expected": [],
@@ -1336,7 +1340,7 @@
           "extra": [
             "speakTTS"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -1358,14 +1362,18 @@
             "TTSVoice",
             "TTSVoiceProvider"
           ],
-          "actual": [],
+          "actual": [
+            "AudioSplitterOutput",
+            "TTSVoice"
+          ],
           "missing": [
             "SoundOutput",
-            "TTSVoice",
             "TTSVoiceProvider"
           ],
-          "extra": [],
-          "status": "missing"
+          "extra": [
+            "AudioSplitterOutput"
+          ],
+          "status": "partial"
         }
       },
       "ui": {
@@ -1376,7 +1384,7 @@
     },
     {
       "id": "spellcast",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -1394,7 +1402,7 @@
           "extra": [
             "castSpell"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [
@@ -1418,12 +1426,12 @@
           "expected": [
             "SpellHook"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "SpellHook"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -1434,7 +1442,7 @@
     },
     {
       "id": "stream-plans",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -1472,10 +1480,14 @@
         },
         "resources": {
           "expected": [],
-          "actual": [],
+          "actual": [
+            "StreamPlan"
+          ],
           "missing": [],
-          "extra": [],
-          "status": "equivalent"
+          "extra": [
+            "StreamPlan"
+          ],
+          "status": "improved"
         }
       },
       "ui": {
@@ -1548,7 +1560,7 @@
     },
     {
       "id": "tplink-kasa",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -1564,7 +1576,7 @@
             "host",
             "port"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [],
@@ -1581,7 +1593,7 @@
             "setLightState",
             "setPlugState"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -1704,7 +1716,7 @@
             "moderatorId",
             "refreshToken"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [
@@ -1795,14 +1807,13 @@
             "walkon",
             "watchstreak"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "adEnded",
             "adSchedule",
             "adStarted",
             "ban",
-            "beforeRaid",
             "bits",
+            "chat",
             "firstTimeChat",
             "follow",
             "giftedSub",
@@ -1819,14 +1830,21 @@
             "raidOut",
             "raidStarted",
             "redemption",
+            "shoutoutReceived",
             "shoutoutSent",
             "subscription",
             "timeout",
-            "walkon",
             "watchstreak"
           ],
-          "extra": [],
-          "status": "missing"
+          "missing": [
+            "beforeRaid",
+            "walkon"
+          ],
+          "extra": [
+            "chat",
+            "shoutoutReceived"
+          ],
+          "status": "partial"
         },
         "states": {
           "expected": [
@@ -1907,14 +1925,15 @@
             "CustomTwitchViewerGroup",
             "TwitchAccount"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "ChannelPointReward",
-            "CustomTwitchViewerGroup",
+            "CustomTwitchViewerGroup"
+          ],
+          "missing": [
             "TwitchAccount"
           ],
           "extra": [],
-          "status": "missing"
+          "status": "partial"
         }
       },
       "ui": {
@@ -1987,7 +2006,7 @@
     },
     {
       "id": "voicemod",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -2001,7 +2020,7 @@
           "extra": [
             "port"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [
@@ -2015,7 +2034,7 @@
           "extra": [
             "getVoices"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -2033,7 +2052,7 @@
           "extra": [
             "connection"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "resources": {
           "expected": [],
@@ -2070,7 +2089,7 @@
             "accessToken",
             "refreshToken"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [],
@@ -2089,7 +2108,7 @@
             "setLightState",
             "setPlugState"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "triggers": {
           "expected": [],
@@ -2107,7 +2126,7 @@
           "extra": [
             "authentication"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "resources": {
           "expected": [
@@ -2148,7 +2167,7 @@
             "refreshToken",
             "liveChatId"
           ],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [
@@ -2174,15 +2193,15 @@
             "superChat",
             "superSticker"
           ],
-          "actual": [],
-          "missing": [
+          "actual": [
             "chatMessage",
             "membership",
             "superChat",
             "superSticker"
           ],
+          "missing": [],
           "extra": [],
-          "status": "missing"
+          "status": "equivalent"
         },
         "states": {
           "expected": [

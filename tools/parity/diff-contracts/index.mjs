@@ -23,7 +23,9 @@ function compareCategory(expected, actual) {
     actual: [...actualSet].sort(),
     missing,
     extra,
-    status: missing.length === 0 ? 'equivalent' : actualSet.size === 0 ? 'missing' : 'partial',
+    status: missing.length > 0
+      ? actualSet.size === 0 ? 'missing' : 'partial'
+      : actualSet.size > expectedSet.size ? 'improved' : 'equivalent',
   };
 }
 
@@ -46,7 +48,9 @@ const plugins = main.plugins.map((expected) => {
     ? 'partial'
     : Object.values(categoryResults).some((result) => result.status === 'partial')
       ? 'partial'
-      : 'equivalent';
+      : Object.values(categoryResults).some((result) => result.status === 'improved')
+        ? 'improved'
+        : 'equivalent';
   return {
     id: expected.id,
     status,

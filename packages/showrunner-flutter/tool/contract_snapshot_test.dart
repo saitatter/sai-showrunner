@@ -2,11 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
+import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
   test('writes the Flutter plugin contract snapshot', () async {
-    final registry = createDefaultPluginRegistry();
+    final eventHub = DartPluginEventHub();
+    final registry = createDefaultPluginRegistry(eventHub: eventHub);
+    final resourceEditors = createDefaultResourceEditorRegistry();
     try {
       final plugins = registry.plugins.toList()
         ..sort((left, right) => left.id.compareTo(right.id));
@@ -50,22 +54,34 @@ void main() {
                     'hasInitialValue': state.initialValue != null,
                   },
               ],
-              'resources': const <String>[],
-              'ui': {
-                'workspaceBuilder': plugin.workspaceBuilder != null,
-              },
+              'resources': [
+                for (final resource in resourceEditors.definitions.where(
+                  (resource) => resource.pluginId == plugin.id,
+                ))
+                  resource.resourceType,
+              ],
+              'ui': {'workspaceBuilder': plugin.workspaceBuilder != null},
             },
         ],
       };
-      final output = Platform.environment['SHOWRUNNER_PARITY_OUTPUT'];
-      if (output == null || output.isEmpty) {
-        fail('SHOWRUNNER_PARITY_OUTPUT was not provided.');
+      final configuredOutput = Platform.environment['SHOWRUNNER_PARITY_OUTPUT'];
+      final temporaryOutput =
+          configuredOutput == null || configuredOutput.isEmpty
+          ? File(
+              '${Directory.systemTemp.path}/showrunner-contract-${DateTime.now().microsecondsSinceEpoch}.json',
+            )
+          : null;
+      final output = temporaryOutput ?? File(configuredOutput!);
+      try {
+        await output.writeAsString(
+          const JsonEncoder.withIndent('  ').convert(snapshot),
+        );
+      } finally {
+        if (temporaryOutput != null) await temporaryOutput.delete();
       }
-      await File(output).writeAsString(
-        const JsonEncoder.withIndent('  ').convert(snapshot),
-      );
     } finally {
       await registry.close();
+      await eventHub.dispose();
     }
   });
 }
