@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../components/data_inputs/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../schema/resource.dart';
@@ -19,6 +21,7 @@ abstract final class OverlayEventIds {
   static const widget = 'overlayWidget';
   static const widgetRpc = 'overlayWidgetRPC';
   static const broadcast = 'overlayBroadcast';
+  static const configChanged = 'overlayConfigChanged';
 }
 
 const _triggerWidgetSchema = DartDataInputSchema(
@@ -372,7 +375,8 @@ DartPluginManifest createOverlaysPlugin({
         actionId: 'alert',
         displayName: 'Show Alert',
         configSchema: _alertSchema,
-        invoke: (config, context) => _showAlert(hub, config),
+        invoke: (config, context) =>
+            _showAlert(hub, config, overlayStore: overlayStore),
       ),
       DartActionDefinition(
         pluginId: 'overlays',
@@ -415,7 +419,7 @@ DartPluginManifest createOverlaysPlugin({
         displayName: 'Widget Visibility',
         configSchema: _visibilitySchema,
         invoke: (config, context) =>
-            _setWidgetVisibility(config, overlayStore: overlayStore),
+            _setWidgetVisibility(hub, config, overlayStore: overlayStore),
       ),
     ],
   );
@@ -437,17 +441,20 @@ Future<Object?> _triggerWidget(
 
 Future<Object?> _showAlert(
   DartPluginEventHub eventHub,
-  RuntimeMap config,
-) async {
+  RuntimeMap config, {
+  required OverlayResourceStore? overlayStore,
+}) async {
   final target = _target(config['alert']);
   if (target == null) return {'triggered': false};
+  final mediaIndex = await _alertMediaIndex(target, overlayStore);
+  if (mediaIndex == null) return {'triggered': false, ...target};
   eventHub.emit(OverlayEventIds.widgetRpc, {
     ...target,
     'rpcId': 'showAlert',
     'args': [
       config['title']?.toString() ?? '',
       config['subtitle']?.toString() ?? '',
-      0,
+      mediaIndex,
     ],
   });
   return {'triggered': true, ...target};
@@ -461,7 +468,7 @@ Future<Object?> _pushChatMessage(
   eventHub.emit(OverlayEventIds.broadcast, {
     'broadcastId': 'showrunner_chat_message',
     'payload': {
-      'id': _fallbackText(config['messageId'], 'showrunner-chat'),
+      'id': _eventId(config['messageId'], 'showrunner-chat'),
       'targetOverlayId': target?['overlayId'] ?? '',
       'targetWidgetId': target?['widgetId'] ?? '',
       'platform': _fallbackText(config['platform'], 'unknown'),
@@ -482,7 +489,7 @@ Future<Object?> _pushPaidAlert(
   eventHub.emit(OverlayEventIds.broadcast, {
     'broadcastId': 'showrunner_paid_alert',
     'payload': {
-      'id': _fallbackText(config['eventId'], 'showrunner-paid'),
+      'id': _eventId(config['eventId'], 'showrunner-paid'),
       'targetOverlayId': target?['overlayId'] ?? '',
       'targetWidgetId': target?['widgetId'] ?? '',
       'platform': _fallbackText(config['platform'], 'unknown'),
@@ -532,6 +539,7 @@ Future<Object?> _spawnEmotes(
 }
 
 Future<Object?> _setWidgetVisibility(
+  DartPluginEventHub eventHub,
   RuntimeMap config, {
   required OverlayResourceStore? overlayStore,
 }) async {
@@ -562,7 +570,39 @@ Future<Object?> _setWidgetVisibility(
       state: resource.state,
     ),
   );
+  eventHub.emit(OverlayEventIds.configChanged, {
+    'overlayId': overlayId,
+    'widgetId': widgetId,
+    'visible': visible,
+  });
   return {'widgetVisible': visible};
+}
+
+Future<int?> _alertMediaIndex(
+  Map<String, String> target,
+  OverlayResourceStore? overlayStore,
+) async {
+  if (overlayStore == null) return 0;
+  final resource = await overlayStore.load(target['overlayId']!);
+  if (resource == null) return null;
+  final widget = _maps(
+    resource.config['widgets'],
+  ).where((item) => item['id']?.toString() == target['widgetId']).firstOrNull;
+  final widgetConfig = widget?['config'];
+  final media = widgetConfig is Map ? _maps(widgetConfig['media']) : const [];
+  if (media.isEmpty) return null;
+  final weights = media
+      .map((item) => _number(item['weight'], 0))
+      .map((weight) => max(weight, 0))
+      .toList();
+  final total = weights.fold<double>(0, (sum, weight) => sum + weight);
+  if (total <= 0) return 0;
+  var targetWeight = Random().nextDouble() * total;
+  for (var index = 0; index < weights.length; index++) {
+    targetWeight -= weights[index];
+    if (targetWeight <= 0) return index;
+  }
+  return weights.length - 1;
 }
 
 Map<String, String>? _target(Object? value) {
@@ -577,6 +617,12 @@ String _fallbackText(Object? value, String fallback) {
   final text = value?.toString().trim();
   return text == null || text.isEmpty ? fallback : text;
 }
+
+String _eventId(Object? value, String prefix) =>
+    _fallbackText(value, '$prefix-${DateTime.now().microsecondsSinceEpoch}');
+
+double _number(Object? value, double fallback) =>
+    value is num ? value.toDouble() : double.tryParse('$value') ?? fallback;
 
 List<RuntimeMap> _maps(Object? value) => value is List
     ? value

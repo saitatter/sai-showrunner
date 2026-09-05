@@ -94,6 +94,7 @@ void main() {
       final chatEvent = eventHub.stream(OverlayEventIds.broadcast).first;
       await registry.invokeAction('overlays', 'pushChatMessage', {
         'targetWidget': {'overlayId': 'main', 'widgetId': 'chat'},
+        'messageId': 'message-1',
         'viewerName': 'viewer',
         'message': 'Hi',
         'platform': 'twitch',
@@ -103,7 +104,7 @@ void main() {
         'payload': {
           'targetOverlayId': 'main',
           'targetWidgetId': 'chat',
-          'id': 'showrunner-chat',
+          'id': 'message-1',
           'platform': 'twitch',
           'displayName': 'viewer',
           'username': 'viewer',
@@ -134,6 +135,7 @@ void main() {
   );
 
   test('widget visibility updates and persists the overlay resource', () async {
+    final eventHub = DartPluginEventHub();
     ResourceData? saved;
     final store = OverlayResourceStore(
       load: (id) async => id == 'main'
@@ -150,7 +152,8 @@ void main() {
       save: (resource) async => saved = resource,
     );
     final registry = DartPluginRegistry()
-      ..register(createOverlaysPlugin(overlayStore: store));
+      ..register(createOverlaysPlugin(eventHub: eventHub, overlayStore: store));
+    final configChanged = eventHub.stream(OverlayEventIds.configChanged).first;
 
     expect(
       await registry.invokeAction('overlays', 'widgetVisibility', {
@@ -162,7 +165,54 @@ void main() {
     expect(saved?.config['widgets'], [
       {'id': 'chat', 'visible': false},
     ]);
+    expect(await configChanged, {
+      'overlayId': 'main',
+      'widgetId': 'chat',
+      'visible': false,
+    });
     await registry.close();
+    await eventHub.dispose();
+  });
+
+  test('alert action selects an available weighted media entry', () async {
+    final eventHub = DartPluginEventHub();
+    final store = OverlayResourceStore(
+      load: (id) async => ResourceData(
+        id: id,
+        config: {
+          'widgets': [
+            {
+              'id': 'alert',
+              'config': {
+                'media': [
+                  {'weight': 0, 'duration': 1},
+                  {'weight': 1, 'duration': 1},
+                ],
+              },
+            },
+          ],
+        },
+      ),
+      save: (_) async {},
+    );
+    final registry = DartPluginRegistry()
+      ..register(createOverlaysPlugin(eventHub: eventHub, overlayStore: store));
+    final rpcEvent = eventHub.stream(OverlayEventIds.widgetRpc).first;
+
+    await registry.invokeAction('overlays', 'alert', {
+      'alert': {'overlayId': 'main', 'widgetId': 'alert'},
+      'title': 'Alert',
+      'subtitle': '',
+    });
+
+    expect(await rpcEvent, {
+      'overlayId': 'main',
+      'widgetId': 'alert',
+      'rpcId': 'showAlert',
+      'args': ['Alert', '', 1],
+    });
+    await registry.close();
+    await eventHub.dispose();
   });
 
   test('time action accepts dropdown toggle values', () async {
