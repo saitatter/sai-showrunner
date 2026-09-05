@@ -54,6 +54,10 @@ void main() {
     expect(find.text('ShowRunner'), findsOneWidget);
     expect(find.text('Automations'), findsOneWidget);
     expect(find.text('Integrations'), findsOneWidget);
+    expect(find.text('Stream Plans'), findsOneWidget);
+    expect(find.text('Media'), findsOneWidget);
+    expect(find.text('Overlays'), findsOneWidget);
+    expect(find.text('Viewer Variables'), findsOneWidget);
     expect(find.text('Tools'), findsOneWidget);
 
     await tester.tap(find.text('Tools'));
@@ -64,6 +68,6 @@ void main() {
     expect(selectedIndex, 5);
     await tester.tap(find.byIcon(Icons.chevron_right).first);
     await tester.pumpAndSettle();
-    expect(find.text('All Automations'), findsOneWidget);
+    expect(find.text('All Automations'), findsNothing);
   });
 }

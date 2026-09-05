@@ -55,8 +55,9 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
   late final Map<String, bool> _expanded = {
     'automations': false,
     'profiles': false,
-    'resources': false,
     'integrations': !widget.preferences.collapseIntegrationCategoriesByDefault,
+    'audio': false,
+    'dashboards': false,
     // Diagnostics and support workspaces are Flutter-only additions. Keep
     // them out of the reference-first view until the user expands the group.
     'tools': false,
@@ -109,14 +110,6 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             compact: compact,
             onToggle: _toggle,
             children: [
-              _ProjectItemRow(
-                title: 'All Automations',
-                icon: Icons.bolt_outlined,
-                selected: widget.selectedIndex == 3,
-                indent: 1,
-                compact: compact,
-                onTap: () => widget.onDestinationSelected(3),
-              ),
               if (_catalogFuture != null)
                 _CatalogEntries(
                   future: _catalogFuture!,
@@ -159,14 +152,6 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             compact: compact,
             onToggle: _toggle,
             children: [
-              _ProjectItemRow(
-                title: 'All Profiles',
-                icon: Icons.people_alt_outlined,
-                selected: widget.selectedIndex == 4,
-                indent: 1,
-                compact: compact,
-                onTap: () => widget.onDestinationSelected(4),
-              ),
               if (_catalogFuture != null)
                 _CatalogEntries(
                   future: _catalogFuture!,
@@ -198,31 +183,12 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                 ),
             ],
           ),
-          _ProjectGroupBlock(
-            id: 'resources',
-            title: 'Resources',
-            icon: Icons.layers_outlined,
-            expanded: _expanded['resources'] ?? false,
+          _ProjectItemRow(
+            title: 'Stream Plans',
+            icon: Icons.view_agenda_outlined,
+            selected: widget.selectedIndex == 6,
             compact: compact,
-            onToggle: _toggle,
-            children: [
-              _ProjectItemRow(
-                title: 'Stream Plans',
-                icon: Icons.view_agenda_outlined,
-                selected: widget.selectedIndex == 6,
-                indent: 1,
-                compact: compact,
-                onTap: () => widget.onDestinationSelected(6),
-              ),
-              _ProjectItemRow(
-                title: 'Resource Catalog',
-                icon: Icons.folder_open_outlined,
-                selected: widget.selectedIndex == 6,
-                indent: 1,
-                compact: compact,
-                onTap: () => widget.onDestinationSelected(6),
-              ),
-            ],
+            onTap: () => widget.onDestinationSelected(6),
           ),
           _ProjectItemRow(
             title: 'Media',
@@ -246,6 +212,64 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             compact: compact,
             onTap: () => widget.onDestinationSelected(11),
           ),
+          _ProjectItemRow(
+            title: 'Viewer Variables',
+            icon: Icons.table_chart_outlined,
+            selected: widget.selectedIndex == 11,
+            compact: compact,
+            onTap: () => widget.onDestinationSelected(11),
+          ),
+          _ProjectItemRow(
+            title: 'SpellCast',
+            icon: Icons.auto_awesome_outlined,
+            selected: widget.selectedIndex == 6,
+            compact: compact,
+            onTap: () => widget.onDestinationSelected(6),
+          ),
+          _ProjectGroupBlock(
+            id: 'audio',
+            title: 'Audio',
+            icon: Icons.volume_up_outlined,
+            expanded: _expanded['audio'] ?? false,
+            compact: compact,
+            onToggle: _toggle,
+            children: [
+              _ProjectItemRow(
+                title: 'Sound Outputs',
+                icon: Icons.speaker_outlined,
+                selected: widget.selectedIndex == 6,
+                indent: 1,
+                compact: compact,
+                onTap: () => widget.onDestinationSelected(6),
+              ),
+              _ProjectItemRow(
+                title: 'TTS Voices',
+                icon: Icons.record_voice_over_outlined,
+                selected: widget.selectedIndex == 6,
+                indent: 1,
+                compact: compact,
+                onTap: () => widget.onDestinationSelected(6),
+              ),
+            ],
+          ),
+          _ProjectGroupBlock(
+            id: 'dashboards',
+            title: 'Dashboards',
+            icon: Icons.dashboard_outlined,
+            expanded: _expanded['dashboards'] ?? false,
+            compact: compact,
+            onToggle: _toggle,
+            children: [
+              _ProjectItemRow(
+                title: 'Dashboards',
+                icon: Icons.dashboard_customize_outlined,
+                selected: widget.selectedIndex == 6,
+                indent: 1,
+                compact: compact,
+                onTap: () => widget.onDestinationSelected(6),
+              ),
+            ],
+          ),
           _ProjectGroupBlock(
             id: 'integrations',
             title: 'Integrations',
@@ -262,6 +286,13 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                 onToggle: widget.onPluginToggle,
               ),
             ],
+          ),
+          _ProjectItemRow(
+            title: 'Overlays',
+            icon: Icons.layers_outlined,
+            selected: widget.selectedIndex == 6,
+            compact: compact,
+            onTap: () => widget.onDestinationSelected(6),
           ),
           _ProjectGroupBlock(
             id: 'tools',
