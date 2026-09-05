@@ -6,11 +6,19 @@ DartPluginRegistry buildDefaultPluginRegistry({
   SoundOutputRegistry? soundOutputs,
   ViewerDataRepository? viewerDataRepository,
   DartAutomationQueueManager? queueManager,
+  ShowRunnerAutomationRunner? runAutomation,
+  ShowRunnerProfileActivation? activateProfile,
 }) {
   final variablesRepository =
       viewerDataRepository ?? InMemoryViewerDataRepository();
   final registry = DartPluginRegistry();
-  registry.register(createShowRunnerPlugin(queueManager: queueManager));
+  registry.register(
+    createShowRunnerPlugin(
+      queueManager: queueManager,
+      runAutomation: runAutomation,
+      activateProfile: activateProfile,
+    ),
+  );
   registry.register(createObsPlugin(CallbackObsTransport(_unconfiguredObs)));
   registry.register(
     createAitumPlugin(CallbackObsTransport(_unconfiguredAitum)),

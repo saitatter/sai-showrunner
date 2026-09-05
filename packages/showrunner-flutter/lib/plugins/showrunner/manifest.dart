@@ -230,13 +230,69 @@ const _completedQueueResultSchema = DartDataInputSchema(
     ),
   ],
 );
+const _profileReference = DartDataInputSchema(
+  label: 'Profile',
+  kind: DartDataInputKind.resource,
+  key: 'profile',
+  required: true,
+  resourceType: 'Profile',
+);
+const _profileActivationSchema = DartDataInputSchema(
+  label: '',
+  kind: DartDataInputKind.object,
+  fields: [
+    _profileReference,
+    DartDataInputSchema(
+      label: 'Activation',
+      kind: DartDataInputKind.enumeration,
+      key: 'activation',
+      options: ['true', 'false', 'toggle'],
+      required: true,
+      defaultValue: 'true',
+    ),
+  ],
+);
+const _profileResultSchema = DartDataInputSchema(
+  label: 'Returns',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Profile ID',
+      key: 'profileId',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Active',
+      key: 'active',
+      kind: DartDataInputKind.boolean,
+    ),
+  ],
+);
+const _runAutomationSchema = DartDataInputSchema(
+  label: '',
+  kind: DartDataInputKind.object,
+  fields: [_automationReference],
+);
 
 typedef ShowRunnerAutomationLoader =
     Future<AutomationData?> Function(String automationId);
+typedef ShowRunnerAutomationRunner =
+    Future<Object?> Function(
+      AutomationData automation,
+      EvaluationContext context,
+    );
+typedef ShowRunnerProfileActivation =
+    Future<bool> Function(
+      String profileId,
+      String activation,
+      EvaluationContext context,
+    );
 
 DartPluginManifest createShowRunnerPlugin({
   DartAutomationQueueManager? queueManager,
   ShowRunnerAutomationLoader? loadAutomation,
+  ShowRunnerAutomationRunner? runAutomation,
+  ShowRunnerProfileActivation? activateProfile,
 }) => DartPluginManifest(
   id: 'ShowRunner',
   name: 'ShowRunner',
@@ -430,6 +486,44 @@ DartPluginManifest createShowRunnerPlugin({
       configSchema: _pauseQueueSchema,
       invoke: (config, context) => _pauseQueue(config, queueManager),
     ),
+    DartActionDefinition(
+      pluginId: 'ShowRunner',
+      actionId: 'profileActivation',
+      displayName: 'Profile Activation',
+      configSchema: _profileActivationSchema,
+      resultSchema: _profileResultSchema,
+      invoke: (config, context) =>
+          _activateProfile(config, context, activateProfile: activateProfile),
+    ),
+    DartActionDefinition(
+      pluginId: 'ShowRunner',
+      actionId: 'toggleProfileActivation',
+      displayName: 'Toggle Profile Activation',
+      configSchema: const DartDataInputSchema(
+        label: '',
+        kind: DartDataInputKind.object,
+        fields: [_profileReference],
+      ),
+      resultSchema: _profileResultSchema,
+      invoke: (config, context) => _activateProfile(
+        config,
+        context,
+        activateProfile: activateProfile,
+        forceToggle: true,
+      ),
+    ),
+    DartActionDefinition(
+      pluginId: 'ShowRunner',
+      actionId: 'runAutomation',
+      displayName: 'Run Automation',
+      configSchema: _runAutomationSchema,
+      invoke: (config, context) => _runAutomationAction(
+        config,
+        context,
+        loadAutomation: loadAutomation,
+        runAutomation: runAutomation,
+      ),
+    ),
   ],
   triggers: queueManager == null
       ? const []
@@ -491,6 +585,47 @@ Future<Object?> _addToQueue(
     'automationId': automationId,
     'itemId': queued.id,
   };
+}
+
+Future<Object?> _activateProfile(
+  RuntimeMap config,
+  EvaluationContext context, {
+  required ShowRunnerProfileActivation? activateProfile,
+  bool forceToggle = false,
+}) async {
+  final profileId = config['profile']?.toString().trim() ?? '';
+  if (activateProfile == null || profileId.isEmpty) {
+    return {'profileId': profileId, 'active': false};
+  }
+  final activation = forceToggle
+      ? 'toggle-active'
+      : _activationValue(config['activation']);
+  final active = await activateProfile(profileId, activation, context);
+  return {'profileId': profileId, 'active': active};
+}
+
+Future<Object?> _runAutomationAction(
+  RuntimeMap config,
+  EvaluationContext context, {
+  required ShowRunnerAutomationLoader? loadAutomation,
+  required ShowRunnerAutomationRunner? runAutomation,
+}) async {
+  final automationId = config['automation']?.toString().trim() ?? '';
+  if (loadAutomation == null || runAutomation == null || automationId.isEmpty) {
+    return {'ran': false, 'automationId': automationId};
+  }
+  final automation = await loadAutomation(automationId);
+  if (automation == null) {
+    return {'ran': false, 'automationId': automationId};
+  }
+  await runAutomation(automation, context);
+  return {'ran': true, 'automationId': automationId};
+}
+
+String _activationValue(dynamic value) {
+  if (value == true || value == 'true') return 'true';
+  if (value == false || value == 'false') return 'false';
+  return 'toggle';
 }
 
 Future<Object?> _cancelQueueItem(

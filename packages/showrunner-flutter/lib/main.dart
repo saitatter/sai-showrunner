@@ -210,6 +210,17 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       eventHub: _eventHub,
       viewerDataRepository: _viewerDataRepository,
       queueManager: _automationQueueManager,
+      runAutomation: (automation, context) async {
+        final registry = await _pluginRegistryFuture;
+        return const DartGraphRuntime().executeWithRegistry(
+          graph: automation.graph,
+          context: context,
+          registry: registry,
+          dataWires: automation.dataWires,
+          subgraphs: automation.subgraphs,
+        );
+      },
+      activateProfile: _activateProfileResource,
     );
     unawaited(_bindProviderStateDiagnostics());
     _profileRuntimeFuture = _pluginRegistryFuture.then(
@@ -424,6 +435,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _graphEditor.documentDirty.removeListener(_onGraphDirtyChanged);
     if (Platform.isWindows) windowManager.removeListener(this);
     _graphEditor.dispose();
+    unawaited(_profileRuntimeFuture.then((runtime) => runtime.dispose()));
     unawaited(_automationQueueManager.dispose());
     unawaited(_pluginRegistryFuture.then((registry) => registry.close()));
     unawaited(_providerEvents.stop());
@@ -643,6 +655,57 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       !fileName.contains('\\') &&
       fileName != '.' &&
       fileName != '..';
+
+  Future<bool> _activateProfileResource(
+    String requestedProfileId,
+    String activation,
+    EvaluationContext context,
+  ) async {
+    final profileId = requestedProfileId.endsWith('.yaml')
+        ? requestedProfileId.substring(0, requestedProfileId.length - 5)
+        : requestedProfileId;
+    if (!_isSafeResourceId(profileId)) return false;
+    final file = File(
+      '${widget.dataService.userDirectory.path}/profiles/$profileId.yaml',
+    );
+    final repository = ProfileRepository(file);
+    final profile = await repository.load();
+    if (profile == null) return false;
+    final runtime = await _profileRuntimeFuture;
+    final nextMode = switch (activation) {
+      'true' => 'always',
+      'false' => 'manual',
+      'toggle-active' => runtime.isActive(profileId) ? 'manual' : 'always',
+      _ => 'toggle',
+    };
+    final updated = ShowRunnerProfile(
+      name: profile.name,
+      activationMode: nextMode,
+      triggers: profile.triggers,
+      activationCondition: profile.activationCondition,
+      activationAutomation: profile.activationAutomation,
+      deactivationAutomation: profile.deactivationAutomation,
+      extra: profile.extra,
+    );
+    if (updated.activationMode != profile.activationMode) {
+      await repository.save(updated);
+    }
+    final desired = runtime.shouldBeActive(updated, context: context);
+    await runtime.setManagedActive(
+      profileId,
+      updated,
+      active: desired,
+      context: context,
+    );
+    return runtime.isActive(profileId);
+  }
+
+  static bool _isSafeResourceId(String value) =>
+      value.isNotEmpty &&
+      value != '.' &&
+      value != '..' &&
+      !value.contains('/') &&
+      !value.contains('\\');
 
   Future<void> _persistNavigation() async {
     if (!_restoredNavigation) return;

@@ -27,6 +27,12 @@ Future<List<String>> loadResourceOptions(
         .map((fileName) => fileName.substring(0, fileName.length - 5))
         .toList(growable: false);
   }
+  if (resourceType == 'Profile') {
+    return (await dataService.listUserFiles('profiles'))
+        .where((fileName) => fileName.endsWith('.yaml'))
+        .map((fileName) => fileName.substring(0, fileName.length - 5))
+        .toList(growable: false);
+  }
   if (resourceType == 'SoundOutput') {
     final systemOutputs = createDefaultSoundOutputRegistry().outputs.map(
       (output) => output.id,

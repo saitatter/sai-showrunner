@@ -3,6 +3,7 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/showrunner/manifest.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
+import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 
 void main() {
@@ -91,6 +92,62 @@ void main() {
         {'cleared': true},
       );
       expect(queue.pending, isEmpty);
+    },
+  );
+
+  test(
+    'routes profile activation and run automation through app services',
+    () async {
+      String? activatedProfile;
+      String? activationMode;
+      AutomationData? executedAutomation;
+      EvaluationContext? executedContext;
+      final automation = AutomationData(extra: const {'name': 'Reusable'});
+      final registry = DartPluginRegistry()
+        ..register(
+          createShowRunnerPlugin(
+            loadAutomation: (id) async => id == 'reusable' ? automation : null,
+            activateProfile: (id, mode, context) async {
+              activatedProfile = id;
+              activationMode = mode;
+              return true;
+            },
+            runAutomation: (loaded, context) async {
+              executedAutomation = loaded;
+              executedContext = context;
+              return null;
+            },
+          ),
+        );
+      addTearDown(registry.close);
+
+      expect(
+        await registry.invokeAction('ShowRunner', 'profileActivation', {
+          'profile': 'alerts',
+          'activation': 'true',
+        }),
+        {'profileId': 'alerts', 'active': true},
+      );
+      expect(activatedProfile, 'alerts');
+      expect(activationMode, 'true');
+
+      expect(
+        await registry.invokeAction('ShowRunner', 'toggleProfileActivation', {
+          'profile': 'alerts',
+        }),
+        {'profileId': 'alerts', 'active': true},
+      );
+      expect(activationMode, 'toggle-active');
+
+      final context = EvaluationContext(contextState: {'event': 'hello'});
+      expect(
+        await registry.invokeAction('ShowRunner', 'runAutomation', {
+          'automation': 'reusable',
+        }, context: context),
+        {'ran': true, 'automationId': 'reusable'},
+      );
+      expect(executedAutomation, same(automation));
+      expect(executedContext, same(context));
     },
   );
 }

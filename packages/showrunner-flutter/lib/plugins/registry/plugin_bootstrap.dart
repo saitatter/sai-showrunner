@@ -63,6 +63,8 @@ DartPluginRegistry createDefaultPluginRegistry({
   SoundOutputRegistry? soundOutputs,
   ViewerDataRepository? viewerDataRepository,
   DartAutomationQueueManager? queueManager,
+  ShowRunnerAutomationRunner? runAutomation,
+  ShowRunnerProfileActivation? activateProfile,
 }) {
   return buildDefaultPluginRegistry(
     eventHub: eventHub,
@@ -70,6 +72,8 @@ DartPluginRegistry createDefaultPluginRegistry({
     soundOutputs: soundOutputs,
     viewerDataRepository: viewerDataRepository,
     queueManager: queueManager,
+    runAutomation: runAutomation,
+    activateProfile: activateProfile,
   );
 }
 
@@ -80,6 +84,8 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   SoundOutputRegistry? soundOutputs,
   ViewerDataRepository? viewerDataRepository,
   DartAutomationQueueManager? queueManager,
+  ShowRunnerAutomationRunner? runAutomation,
+  ShowRunnerProfileActivation? activateProfile,
 }) async {
   final variablesRepository =
       viewerDataRepository ??
@@ -105,6 +111,8 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       queueManager: queueManager,
       loadAutomation: (automationId) =>
           _loadAutomationResource(dataService, automationId),
+      runAutomation: runAutomation,
+      activateProfile: activateProfile,
     ),
   );
   final obsTransport = ObsConnectionRouter(

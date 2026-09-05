@@ -18,6 +18,7 @@ final class DartProfileRuntime {
   final DartGraphRuntime graphRuntime;
   final DartAutomationQueueManager? queueManager;
   final Map<String, bool> _activeProfiles = {};
+  final Map<String, DartProfileSession> _managedSessions = {};
 
   bool isActive(String profileId) => _activeProfiles[profileId] ?? false;
 
@@ -91,6 +92,51 @@ final class DartProfileRuntime {
     );
     _activeProfiles[profileId] = false;
     return result;
+  }
+
+  /// Changes a profile from a runtime action and owns the trigger subscription
+  /// created by that action. The profile editor keeps using [activate] and
+  /// [watch] separately so its existing close lifecycle remains explicit.
+  Future<GraphExecutionResult?> setManagedActive(
+    String profileId,
+    ShowRunnerProfile profile, {
+    required bool active,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) async {
+    if (active == isActive(profileId)) return null;
+    if (!active) {
+      await _managedSessions.remove(profileId)?.dispose();
+      return deactivate(
+        profileId,
+        profile,
+        context: context,
+        onNodeEnter: onNodeEnter,
+        onNodeExit: onNodeExit,
+      );
+    }
+    final result = await activate(
+      profileId,
+      profile,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+    _managedSessions[profileId] = watch(
+      profileId,
+      profile,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+    return result;
+  }
+
+  Future<void> dispose() async {
+    final sessions = _managedSessions.values.toList();
+    _managedSessions.clear();
+    await Future.wait(sessions.map((session) => session.dispose()));
   }
 
   Future<GraphExecutionResult?> handleTrigger(

@@ -51,6 +51,29 @@ void main() {
   });
 
   test(
+    'loads automation, queue, and profile IDs for graph resources',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'workflow-resource-options-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      await Directory('${directory.path}/automations').create(recursive: true);
+      await Directory('${directory.path}/queues').create(recursive: true);
+      await Directory('${directory.path}/profiles').create(recursive: true);
+      await File(
+        '${directory.path}/automations/worker.yaml',
+      ).writeAsString('{}');
+      await File('${directory.path}/queues/alerts.yaml').writeAsString('{}');
+      await File('${directory.path}/profiles/live.yaml').writeAsString('{}');
+
+      final dataService = ShowRunnerDataService(directory);
+      expect(await loadResourceOptions(dataService, 'Automation'), ['worker']);
+      expect(await loadResourceOptions(dataService, 'ActionQueue'), ['alerts']);
+      expect(await loadResourceOptions(dataService, 'Profile'), ['live']);
+    },
+  );
+
+  test(
     'uses the canonical directories for remote IoT resource slots',
     () async {
       final directory = await Directory.systemTemp.createTemp(
