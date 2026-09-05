@@ -1,8 +1,45 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../components/data_inputs/data_input.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_registry.dart';
+
+const _requestSchema = DartDataInputSchema(
+  label: 'HTTP request',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'URL',
+      key: 'url',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Method',
+      key: 'method',
+      kind: DartDataInputKind.enumeration,
+      options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+      required: true,
+      defaultValue: 'GET',
+    ),
+    DartDataInputSchema(
+      label: 'Content type',
+      key: 'contentType',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Headers (JSON)',
+      key: 'headers',
+      kind: DartDataInputKind.multilineText,
+    ),
+    DartDataInputSchema(
+      label: 'Body',
+      key: 'body',
+      kind: DartDataInputKind.multilineText,
+    ),
+  ],
+);
 
 DartPluginManifest createHttpPlugin() => const DartPluginManifest(
   id: 'http',
@@ -13,6 +50,7 @@ DartPluginManifest createHttpPlugin() => const DartPluginManifest(
       actionId: 'request',
       displayName: 'HTTP Request',
       invoke: _httpRequest,
+      configSchema: _requestSchema,
     ),
   ],
 );

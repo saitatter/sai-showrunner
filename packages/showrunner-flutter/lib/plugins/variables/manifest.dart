@@ -1,8 +1,102 @@
+import '../../components/data_inputs/data_input.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../runtime/expression.dart';
 import '../../schema/viewer_data.dart';
 import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_registry.dart';
+
+const _variableSchema = DartDataInputSchema(
+  label: 'Variable',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Variable',
+      key: 'variable',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Value',
+      key: 'value',
+      kind: DartDataInputKind.multilineText,
+    ),
+  ],
+);
+
+const _viewerVariableSchema = DartDataInputSchema(
+  label: 'Viewer variable',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Viewer',
+      key: 'viewer',
+      kind: DartDataInputKind.object,
+      required: true,
+      fields: [
+        DartDataInputSchema(
+          label: 'ID',
+          key: 'id',
+          kind: DartDataInputKind.text,
+          required: true,
+        ),
+        DartDataInputSchema(
+          label: 'Display name',
+          key: 'displayName',
+          kind: DartDataInputKind.text,
+        ),
+      ],
+    ),
+    DartDataInputSchema(
+      label: 'Variable',
+      key: 'variable',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Value',
+      key: 'value',
+      kind: DartDataInputKind.multilineText,
+    ),
+  ],
+);
+
+const _viewerOffsetSchema = DartDataInputSchema(
+  label: 'Viewer variable offset',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Viewer',
+      key: 'viewer',
+      kind: DartDataInputKind.object,
+      required: true,
+      fields: [
+        DartDataInputSchema(
+          label: 'ID',
+          key: 'id',
+          kind: DartDataInputKind.text,
+          required: true,
+        ),
+        DartDataInputSchema(
+          label: 'Display name',
+          key: 'displayName',
+          kind: DartDataInputKind.text,
+        ),
+      ],
+    ),
+    DartDataInputSchema(
+      label: 'Variable',
+      key: 'variable',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Offset',
+      key: 'offset',
+      kind: DartDataInputKind.number,
+      required: true,
+    ),
+  ],
+);
 
 DartPluginManifest createVariablesPlugin({
   ViewerDataRepository? viewerDataRepository,
@@ -17,18 +111,32 @@ DartPluginManifest createVariablesPlugin({
         pluginId: 'variables',
         actionId: 'setVariable',
         displayName: 'Set Variable',
+        configSchema: _variableSchema,
         invoke: _setVariable,
       ),
       DartActionDefinition(
         pluginId: 'variables',
         actionId: 'getVariable',
         displayName: 'Get Variable',
+        configSchema: const DartDataInputSchema(
+          label: 'Variable',
+          kind: DartDataInputKind.object,
+          fields: [
+            DartDataInputSchema(
+              label: 'Variable',
+              key: 'variable',
+              kind: DartDataInputKind.text,
+              required: true,
+            ),
+          ],
+        ),
         invoke: _getVariable,
       ),
       DartActionDefinition(
         pluginId: 'variables',
         actionId: 'setViewerVar',
         displayName: 'Set Viewer Variable',
+        configSchema: _viewerVariableSchema,
         invoke: (config, context) =>
             _setViewerVar(config, context, repository, eventHub),
       ),
@@ -36,6 +144,7 @@ DartPluginManifest createVariablesPlugin({
         pluginId: 'variables',
         actionId: 'offsetViewerVar',
         displayName: 'Offset Viewer Variable',
+        configSchema: _viewerOffsetSchema,
         invoke: (config, context) =>
             _offsetViewerVar(config, context, repository, eventHub),
       ),
