@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../../../components/data_inputs/data_input.dart';
 import '../../registry/plugin_registry.dart';
 import '../../../services/provider_settings_validator.dart';
 import '../../../services/showrunner_data_service.dart';
@@ -126,10 +127,12 @@ class _ObsTransformDialogState extends State<_ObsTransformDialog> {
 class _ObsInputSettingsDialog extends StatefulWidget {
   const _ObsInputSettingsDialog({
     required this.sourceName,
+    required this.inputKind,
     required this.settings,
   });
 
   final String sourceName;
+  final String inputKind;
   final RuntimeMap settings;
 
   @override
@@ -139,6 +142,7 @@ class _ObsInputSettingsDialog extends StatefulWidget {
 
 class _ObsInputSettingsDialogState extends State<_ObsInputSettingsDialog> {
   late final TextEditingController _settings;
+  late dynamic _structuredSettings;
   String? _error;
 
   @override
@@ -147,6 +151,7 @@ class _ObsInputSettingsDialogState extends State<_ObsInputSettingsDialog> {
     _settings = TextEditingController(
       text: const JsonEncoder.withIndent('  ').convert(widget.settings),
     );
+    _structuredSettings = Map<String, dynamic>.from(widget.settings);
   }
 
   @override
@@ -160,16 +165,25 @@ class _ObsInputSettingsDialogState extends State<_ObsInputSettingsDialog> {
     title: Text('Edit ${widget.sourceName} settings'),
     content: SizedBox(
       width: 600,
-      child: TextField(
-        controller: _settings,
-        minLines: 10,
-        maxLines: 20,
-        decoration: InputDecoration(
-          labelText: 'Input settings (JSON object)',
-          errorText: _error,
-          border: const OutlineInputBorder(),
-        ),
-        keyboardType: TextInputType.multiline,
+      child: SingleChildScrollView(
+        child: _structuredSchema == null
+            ? TextField(
+                controller: _settings,
+                minLines: 10,
+                maxLines: 20,
+                decoration: InputDecoration(
+                  labelText: 'Input settings (JSON object)',
+                  errorText: _error,
+                  border: const OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.multiline,
+              )
+            : DartDataInput(
+                schema: _structuredSchema!,
+                value: _structuredSettings,
+                onChanged: (value) =>
+                    setState(() => _structuredSettings = value),
+              ),
       ),
     ),
     actions: [
@@ -181,7 +195,20 @@ class _ObsInputSettingsDialogState extends State<_ObsInputSettingsDialog> {
     ],
   );
 
+  DartDataInputSchema? get _structuredSchema =>
+      obsInputSettingsSchemaForKind(widget.inputKind);
+
   void _save() {
+    if (_structuredSchema != null) {
+      final value = _structuredSettings;
+      if (value is Map) {
+        Navigator.pop(context, {
+          ...widget.settings,
+          ...Map<String, dynamic>.from(value),
+        });
+      }
+      return;
+    }
     try {
       final decoded = jsonDecode(_settings.text);
       if (decoded is! Map) {
@@ -195,6 +222,127 @@ class _ObsInputSettingsDialogState extends State<_ObsInputSettingsDialog> {
     }
   }
 }
+
+DartDataInputSchema? obsInputSettingsSchemaForKind(String inputKind) {
+  final fields = switch (inputKind.trim().toLowerCase()) {
+    'browser_source' => [
+      _textField('URL', 'url', required: true),
+      _numberField('Width', 'width', defaultValue: 1920),
+      _numberField('Height', 'height', defaultValue: 1080),
+      _numberField('FPS', 'fps', defaultValue: 30),
+      _textField('Custom CSS', 'css', multiline: true),
+      _booleanField('Shutdown source when not visible', 'shutdown'),
+      _booleanField(
+        'Refresh browser when scene becomes active',
+        'restart_when_active',
+      ),
+    ],
+    'text_gdiplus' || 'text_ft2_source' => [
+      _textField('Text', 'text', multiline: true),
+      _textField('Font face', 'font_face'),
+      _numberField('Font size', 'font_size', defaultValue: 32),
+      _textField('Color', 'color'),
+      _enumerationField('Horizontal alignment', 'align', const [
+        'left',
+        'center',
+        'right',
+      ]),
+      _enumerationField('Vertical alignment', 'valign', const [
+        'top',
+        'center',
+        'bottom',
+      ]),
+      _booleanField('Outline', 'outline'),
+    ],
+    'image_source' => [
+      _textField('Image file', 'file', filePath: true),
+      _booleanField('Unload image when not visible', 'unload'),
+    ],
+    'color_source' => [
+      _textField('Color', 'color'),
+      _numberField('Width', 'width', defaultValue: 1920),
+      _numberField('Height', 'height', defaultValue: 1080),
+    ],
+    'media_source' => [
+      _textField('Media file', 'local_file', filePath: true),
+      _booleanField('Loop', 'loop'),
+      _booleanField('Restart when active', 'restart_on_activate'),
+      _booleanField('Close when inactive', 'close_when_inactive'),
+      _booleanField('Clear when media ends', 'clear_on_media_end'),
+      _numberField('Playback speed (%)', 'speed_percent', defaultValue: 100),
+    ],
+    'ffmpeg_source' => [
+      _textField('Media file or URL', 'local_file', filePath: true),
+      _booleanField('Loop', 'loop'),
+      _booleanField('Restart when active', 'restart_on_activate'),
+      _booleanField('Close when inactive', 'close_when_inactive'),
+    ],
+    'dshow_input' => [
+      _textField('Device', 'device_id'),
+      _textField('Resolution', 'resolution'),
+      _textField('Frame rate', 'frame_rate'),
+    ],
+    'window_capture' || 'game_capture' => [
+      _textField('Window', 'window'),
+      _booleanField('Capture cursor', 'capture_cursor'),
+      _booleanField('Limit frame rate', 'limit_framerate'),
+    ],
+    _ => const <DartDataInputSchema>[],
+  };
+  if (fields.isEmpty) return null;
+  return DartDataInputSchema(
+    label: 'OBS ${inputKind.trim()} settings',
+    kind: DartDataInputKind.object,
+    fields: fields,
+  );
+}
+
+DartDataInputSchema _textField(
+  String label,
+  String key, {
+  bool required = false,
+  bool multiline = false,
+  bool filePath = false,
+}) => DartDataInputSchema(
+  label: label,
+  key: key,
+  kind: filePath
+      ? DartDataInputKind.filePath
+      : multiline
+      ? DartDataInputKind.multilineText
+      : DartDataInputKind.text,
+  required: required,
+  multiline: multiline,
+);
+
+DartDataInputSchema _numberField(
+  String label,
+  String key, {
+  dynamic defaultValue,
+}) => DartDataInputSchema(
+  label: label,
+  key: key,
+  kind: DartDataInputKind.number,
+  defaultValue: defaultValue,
+);
+
+DartDataInputSchema _booleanField(String label, String key) =>
+    DartDataInputSchema(
+      label: label,
+      key: key,
+      kind: DartDataInputKind.boolean,
+    );
+
+DartDataInputSchema _enumerationField(
+  String label,
+  String key,
+  List<String> options,
+) => DartDataInputSchema(
+  label: label,
+  key: key,
+  kind: DartDataInputKind.enumeration,
+  options: options,
+);
 
 Map<String, dynamic> _map(Object? value) =>
     value is Map ? Map<String, dynamic>.from(value) : const {};
@@ -346,7 +494,10 @@ class _ObsWorkspaceState extends State<ObsWorkspace> {
     await _refreshCatalog();
   }
 
-  Future<Object?> _editInputSettings(ObsSceneItem item) async {
+  Future<Object?> _editInputSettings(
+    ObsSceneItem item,
+    String inputKind,
+  ) async {
     final response = await _invoke('getInputSettings', {
       'sourceName': item.sourceName,
     });
@@ -356,6 +507,7 @@ class _ObsWorkspaceState extends State<ObsWorkspace> {
       context: context,
       builder: (context) => _ObsInputSettingsDialog(
         sourceName: item.sourceName,
+        inputKind: inputKind,
         settings: settings,
       ),
     );
@@ -474,7 +626,7 @@ class _ObsWorkspaceState extends State<ObsWorkspace> {
                                 tooltip: 'Edit input settings',
                                 onPressed: _busy
                                     ? null
-                                    : () => _editInputSettings(item),
+                                    : () => _editInputSettings(item, inputKind),
                                 icon: const Icon(Icons.tune),
                               ),
                             IconButton(

@@ -9,6 +9,24 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
+  test('exposes structured settings schemas for common OBS source kinds', () {
+    final browser = obsInputSettingsSchemaForKind('browser_source');
+    expect(browser?.fields.map((field) => field.key), [
+      'url',
+      'width',
+      'height',
+      'fps',
+      'css',
+      'shutdown',
+      'restart_when_active',
+    ]);
+    expect(
+      obsInputSettingsSchemaForKind('text_gdiplus')?.fields.first.key,
+      'text',
+    );
+    expect(obsInputSettingsSchemaForKind('unknown_source'), isNull);
+  });
+
   test(
     'loads OBS scenes and source transforms through an injectable call',
     () async {
