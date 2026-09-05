@@ -31,10 +31,11 @@ Flutter slices, but the old Electron renderer remains the supported desktop entr
 point until the cutover gates below pass.
 
 The Sound slice now includes direct system speech through `flutter_tts`, Windows
-PCM/WAV playback and WAV synthesis for installed system voices, and an injectable
-sound-output resolver that preserves legacy splitter fan-out, mute, volume
-scaling, duplicate-route selection, and cycle protection. Non-WAV playback,
-WASAPI endpoint routing, and external TTS providers remain open parity work.
+PCM/WAV playback and WAV synthesis for installed system voices, persisted global
+volume/default-output settings, and an injectable sound-output resolver that
+preserves legacy splitter fan-out, mute, volume scaling, duplicate-route
+selection, and cycle protection. Non-WAV playback, WASAPI endpoint routing, and
+external TTS providers remain open parity work.
 
 Deletion rule: a Vue file is deleted only when its user-visible behavior is present
 in Flutter, its runtime/build references are removed, and a focused test or smoke
