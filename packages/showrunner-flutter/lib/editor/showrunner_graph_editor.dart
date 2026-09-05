@@ -1365,28 +1365,6 @@ class ShowRunnerGraphEditor {
     );
     target.registerNodePrototype(
       _prototype(
-        idName: 'queue.addItem',
-        title: 'Add to queue',
-        color: const Color(0xffd97706),
-        input: true,
-        output: true,
-        hasPayloadInput: true,
-        fields: [_textField('queueName', 'Queue', 'default')],
-      ),
-    );
-    target.registerNodePrototype(
-      _prototype(
-        idName: 'overlay.pushChat',
-        title: 'Push chat overlay',
-        color: const Color(0xff059669),
-        input: true,
-        output: false,
-        hasPayloadInput: true,
-        fields: [_textField('message', 'Message', 'Chat message')],
-      ),
-    );
-    target.registerNodePrototype(
-      _prototype(
         idName: 'if',
         title: 'If',
         color: const Color(0xff7c3aed),
@@ -1608,7 +1586,20 @@ class ShowRunnerGraphEditor {
     );
   }
 
-  void loadSampleGraph() {
+  /// Loads the canonical graph fixture used by the desktop shell.
+  ///
+  /// It uses real trigger/action contracts so the initial workspace is a
+  /// valid product graph, rather than an editor-only demonstration.
+  void loadSampleGraph() => _loadGraphFixture(developerCompatibility: false);
+
+  /// Loads the pre-contract fixture used by adapter compatibility tests.
+  ///
+  /// This is intentionally not exposed by the graph palette or application
+  /// commands. It stays available for validating old persisted node shapes.
+  void loadDeveloperFixtureGraph() =>
+      _loadGraphFixture(developerCompatibility: true);
+
+  void _loadGraphFixture({required bool developerCompatibility}) {
     final wasSuspended = _suspendDirtyTracking;
     var completed = false;
     _suspendDirtyTracking = true;
@@ -1630,18 +1621,43 @@ class ShowRunnerGraphEditor {
       _schemaIdByLinkSignature.clear();
       _invalidFlowEdgesByGraph.clear();
       _invalidDataWiresByGraph.clear();
-      final trigger = controller.addNode(
-        'trigger.chatMessage',
-        offset: const Offset(-420, -80),
-      );
-      final queue = controller.addNode(
-        'queue.addItem',
-        offset: const Offset(-80, -80),
-      );
-      final overlay = controller.addNode(
-        'overlay.pushChat',
-        offset: const Offset(260, -80),
-      );
+      final NodeDataModel trigger;
+      final NodeDataModel queue;
+      final NodeDataModel overlay;
+      if (developerCompatibility) {
+        // Keep the deterministic compatibility fixture loadable while the
+        // product palette exposes only canonical manifest-backed actions.
+        _ensurePrototype('queue.addItem');
+        _ensurePrototype('overlay.pushChat');
+        trigger = controller.addNode(
+          'trigger.chatMessage',
+          offset: const Offset(-420, -80),
+        );
+        queue = controller.addNode(
+          'queue.addItem',
+          offset: const Offset(-80, -80),
+        );
+        overlay = controller.addNode(
+          'overlay.pushChat',
+          offset: const Offset(260, -80),
+        );
+      } else {
+        trigger =
+            controller.nodes[addNodeType(
+              'trigger.twitch.chat',
+              offset: const Offset(-420, -80),
+            )!]!;
+        queue =
+            controller.nodes[addNodeType(
+              'ShowRunner.addToQueue',
+              offset: const Offset(-80, -80),
+            )!]!;
+        overlay =
+            controller.nodes[addNodeType(
+              'overlays.pushChatMessage',
+              offset: const Offset(260, -80),
+            )!]!;
+      }
 
       controller.addLink(trigger.id, 'completed', queue.id, 'exec');
       controller.addLink(queue.id, 'completed', overlay.id, 'exec');
@@ -2498,6 +2514,10 @@ class ShowRunnerGraphEditor {
   }) {
     final editor = target ?? controller;
     if (editor.nodePrototypes.containsKey(nodeType)) return;
+    if (_isCompatibilityNodeType(nodeType)) {
+      _registerCompatibilityPrototype(nodeType, target: editor);
+      return;
+    }
     if (_isCoreConversionNodeType(nodeType)) {
       _registerCoreConversionPrototype(nodeType, target: editor);
       return;
@@ -2515,6 +2535,40 @@ class ShowRunnerGraphEditor {
       ),
     );
   }
+
+  void _registerCompatibilityPrototype(
+    String nodeType, {
+    required NodeEditorController target,
+  }) {
+    if (nodeType == 'queue.addItem') {
+      target.registerNodePrototype(
+        _prototype(
+          idName: nodeType,
+          title: 'Add to queue (compatibility)',
+          color: const Color(0xffd97706),
+          input: true,
+          output: true,
+          hasPayloadInput: true,
+          fields: [_textField('queueName', 'Queue', 'default')],
+        ),
+      );
+      return;
+    }
+    target.registerNodePrototype(
+      _prototype(
+        idName: nodeType,
+        title: 'Push chat overlay (compatibility)',
+        color: const Color(0xff059669),
+        input: true,
+        output: false,
+        hasPayloadInput: true,
+        fields: [_textField('message', 'Message', 'Chat message')],
+      ),
+    );
+  }
+
+  static bool _isCompatibilityNodeType(String nodeType) =>
+      nodeType == 'queue.addItem' || nodeType == 'overlay.pushChat';
 
   List<DartDataInputSchema> _resultFieldsForAction(String nodeType) {
     final parts = nodeType.split('.');

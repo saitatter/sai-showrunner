@@ -89,7 +89,7 @@ void main() {
   });
 
   test('builds a connected sample graph through the adapter', () {
-    final editor = ShowRunnerGraphEditor()..loadSampleGraph();
+    final editor = ShowRunnerGraphEditor()..loadDeveloperFixtureGraph();
 
     expect(editor.controller.nodes, hasLength(3));
     expect(editor.controller.project.projectData.links, hasLength(2));

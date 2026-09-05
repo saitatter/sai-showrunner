@@ -89,7 +89,7 @@ void main() {
   });
 
   test('builds a connected sample graph through the adapter', () {
-    final editor = ShowRunnerGraphEditor()..loadSampleGraph();
+    final editor = ShowRunnerGraphEditor()..loadDeveloperFixtureGraph();
 
     expect(editor.controller.nodes, hasLength(3));
     expect(editor.controller.project.projectData.links, hasLength(2));
@@ -830,38 +830,38 @@ deactivationAutomation:
     expect(await repository.load('res-1'), isNull);
   });
 
-  test(
-    'loads and edits YAML resources without creating duplicates',
-    () async {
-      final directory = await Directory.systemTemp.createTemp(
-        'showrunner-yaml-resource-repo-',
-      );
-      addTearDown(() => directory.delete(recursive: true));
-      final yamlResource = File('${directory.path}/yaml-resource.yaml');
-      await yamlResource.writeAsString('''
+  test('loads and edits YAML resources without creating duplicates', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'showrunner-yaml-resource-repo-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final yamlResource = File('${directory.path}/yaml-resource.yaml');
+    await yamlResource.writeAsString('''
 name: Overlay
 width: 1920
 widgets:
   - type: text
     text: Hello
 ''');
-      final repository = ResourceRepository(directory);
+    final repository = ResourceRepository(directory);
 
-      final loaded = await repository.load('yaml-resource');
-      expect(loaded?.config['name'], 'Overlay');
-      expect((loaded?.config['widgets'] as List).single['text'], 'Hello');
+    final loaded = await repository.load('yaml-resource');
+    expect(loaded?.config['name'], 'Overlay');
+    expect((loaded?.config['widgets'] as List).single['text'], 'Hello');
 
-      await repository.save(
-        ResourceData(
-          id: 'yaml-resource',
-          config: {...loaded!.config, 'name': 'Updated overlay'},
-        ),
-      );
-      expect(await File('${directory.path}/yaml-resource.json').exists(), isFalse);
-      expect((await repository.load('yaml-resource'))?.name, 'Updated overlay');
-      expect((await directory.list().toList()), hasLength(1));
-    },
-  );
+    await repository.save(
+      ResourceData(
+        id: 'yaml-resource',
+        config: {...loaded!.config, 'name': 'Updated overlay'},
+      ),
+    );
+    expect(
+      await File('${directory.path}/yaml-resource.json').exists(),
+      isFalse,
+    );
+    expect((await repository.load('yaml-resource'))?.name, 'Updated overlay');
+    expect((await directory.list().toList()), hasLength(1));
+  });
 
   testWidgets('mounts the deterministic navigation rail shell', (tester) async {
     await tester.pumpWidget(

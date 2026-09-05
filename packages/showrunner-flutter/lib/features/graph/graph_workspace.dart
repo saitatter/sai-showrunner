@@ -330,27 +330,6 @@ class _GraphNodePalette extends StatelessWidget {
 
   static const _nodes = <_NodePickerEntry>[
     _NodePickerEntry(
-      type: 'trigger.chatMessage',
-      label: 'Chat message',
-      icon: Icons.bolt,
-      category: 'Triggers',
-      group: 'Built-in',
-    ),
-    _NodePickerEntry(
-      type: 'queue.addItem',
-      label: 'Add to queue',
-      icon: Icons.low_priority,
-      category: 'Built-in',
-      group: 'Built-in',
-    ),
-    _NodePickerEntry(
-      type: 'overlay.pushChat',
-      label: 'Push chat overlay',
-      icon: Icons.layers_outlined,
-      category: 'Built-in',
-      group: 'Built-in',
-    ),
-    _NodePickerEntry(
       type: 'if',
       label: 'If',
       icon: Icons.call_split,

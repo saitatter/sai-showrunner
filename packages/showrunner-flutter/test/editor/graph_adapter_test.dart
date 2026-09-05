@@ -10,6 +10,26 @@ import 'package:showrunner_flutter/schema/automation.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('loads a canonical manifest-backed sample graph', () {
+    final editor = ShowRunnerGraphEditor()..loadSampleGraph();
+    addTearDown(editor.dispose);
+
+    final saved = editor.toAutomation(const AutomationData());
+
+    expect(
+      saved.graph.nodes.map(
+        (node) => '${node.data['plugin']}:${node.data['action']}',
+      ),
+      containsAll(<String>[
+        'ShowRunner:addToQueue',
+        'overlays:pushChatMessage',
+      ]),
+    );
+    expect(saved.triggerNodes.single['plugin'], 'twitch');
+    expect(saved.triggerNodes.single['trigger'], 'chat');
+    expect(validateAutomationGraph(saved), isEmpty);
+  });
+
   test('tracks graph edits without marking a loaded document dirty', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
@@ -33,7 +53,7 @@ void main() {
   test('round-trips graph links through the sai_nodes adapter', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadSampleGraph();
+    editor.loadDeveloperFixtureGraph();
     final automation = editor.toAutomation(const AutomationData());
 
     expect(automation.graph.nodes, hasLength(3));
@@ -67,7 +87,7 @@ void main() {
   test('surfaces rejected link feedback without creating an invalid link', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadSampleGraph();
+    editor.loadDeveloperFixtureGraph();
     final triggerId = editor.controller.nodes.values
         .firstWhere((node) => node.prototype.idName == 'trigger.chatMessage')
         .id;
@@ -174,19 +194,22 @@ void main() {
     );
   });
 
-  test('creates built-in conversion nodes with product-compatible defaults', () {
-    final editor = ShowRunnerGraphEditor();
-    addTearDown(editor.dispose);
+  test(
+    'creates built-in conversion nodes with product-compatible defaults',
+    () {
+      final editor = ShowRunnerGraphEditor();
+      addTearDown(editor.dispose);
 
-    editor.addNodeType('ShowRunner.convertStringToNumber');
-    final nodeId = editor.controller.nodes.keys.single;
+      editor.addNodeType('ShowRunner.convertStringToNumber');
+      final nodeId = editor.controller.nodes.keys.single;
 
-    expect(editor.nodeConfig(nodeId), {'value': '', 'fallback': 0});
-    expect(editor.nodeData(nodeId)['resultMapping'], {
-      'value': 'value',
-      'converted': 'converted',
-    });
-  });
+      expect(editor.nodeConfig(nodeId), {'value': '', 'fallback': 0});
+      expect(editor.nodeData(nodeId)['resultMapping'], {
+        'value': 'value',
+        'converted': 'converted',
+      });
+    },
+  );
 
   test('creates result ports and identity mappings from action metadata', () {
     final registry = DartPluginRegistry()
@@ -360,7 +383,7 @@ void main() {
       ),
     );
 
-    editor.loadSampleGraph();
+    editor.loadDeveloperFixtureGraph();
 
     final saved = editor.toAutomation(const AutomationData());
     expect(saved.triggerNodes, isEmpty);
@@ -375,7 +398,7 @@ void main() {
     () {
       final editor = ShowRunnerGraphEditor();
       addTearDown(editor.dispose);
-      editor.loadSampleGraph();
+      editor.loadDeveloperFixtureGraph();
       final queueId = editor.controller.nodes.values
           .firstWhere((node) => node.prototype.idName == 'queue.addItem')
           .id;
@@ -412,7 +435,7 @@ void main() {
     () {
       for (final terminalType in const ['return', 'break', 'continue']) {
         final editor = ShowRunnerGraphEditor();
-        editor.loadSampleGraph();
+        editor.loadDeveloperFixtureGraph();
         final queueId = editor.controller.nodes.values
             .firstWhere((node) => node.prototype.idName == 'queue.addItem')
             .id;
@@ -456,7 +479,7 @@ void main() {
   test('inserts conversion actions as data-only nodes', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadSampleGraph();
+    editor.loadDeveloperFixtureGraph();
     final triggerId = editor.controller.nodes.values
         .firstWhere((node) => node.prototype.idName == 'trigger.chatMessage')
         .id;
@@ -484,7 +507,7 @@ void main() {
   test('inserts an action on a flow edge and reconnects both endpoints', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadSampleGraph();
+    editor.loadDeveloperFixtureGraph();
     final queueId = editor.controller.nodes.values
         .firstWhere((node) => node.prototype.idName == 'queue.addItem')
         .id;
@@ -649,7 +672,7 @@ void main() {
     () async {
       final editor = ShowRunnerGraphEditor();
       addTearDown(editor.dispose);
-      editor.loadSampleGraph();
+      editor.loadDeveloperFixtureGraph();
       final firstId = editor.controller.nodes.values
           .firstWhere((node) => node.prototype.idName == 'queue.addItem')
           .id;
@@ -1434,7 +1457,7 @@ void main() {
   test('persists selected graph frames in automation metadata', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadSampleGraph();
+    editor.loadDeveloperFixtureGraph();
     editor.controller.selectNodesById({editor.controller.nodes.keys.first});
     editor.frameSelection(title: 'Entry');
 
@@ -1451,7 +1474,7 @@ void main() {
   test('renames and deletes selected graph frames', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadSampleGraph();
+    editor.loadDeveloperFixtureGraph();
     editor.controller.selectNodesById({editor.controller.nodes.keys.first});
     editor.frameSelection(title: 'Entry');
 
@@ -1633,7 +1656,7 @@ void main() {
   test('persists renamed nodes and searches node metadata', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadSampleGraph();
+    editor.loadDeveloperFixtureGraph();
     final nodeId = editor.controller.nodes.keys.first;
 
     editor.renameNode(nodeId, 'Entry trigger');

@@ -23,7 +23,7 @@ void main() {
   setUp(() async {
     userDirectory = await Directory.systemTemp.createTemp('graph-workspace-');
     dataService = ShowRunnerDataService(userDirectory);
-    editor = ShowRunnerGraphEditor()..loadSampleGraph();
+    editor = ShowRunnerGraphEditor()..loadDeveloperFixtureGraph();
   });
 
   tearDown(() async {
@@ -122,7 +122,7 @@ void main() {
 
     expect(find.byType(NodeEditorToolbar), findsOneWidget);
     expect(find.text('Chat message'), findsNWidgets(2));
-    expect(find.text('Add to queue'), findsOneWidget);
+    expect(find.text('Add to queue'), findsNothing);
   });
 
   testWidgets('renders rejected-link feedback and allows dismissing it', (

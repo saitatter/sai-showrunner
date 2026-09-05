@@ -107,9 +107,15 @@ final class DartGraphRuntime {
       final edges = outgoing[node.id] ?? const <GraphEdge>[];
       switch (node.type) {
         case 'action':
+        case 'queue.addItem':
+        case 'overlay.pushChat':
+          final executionNode = _compatibilityActionNode(node);
           final result = await action(
-            node,
-            _config(node, dataWires, runtimeContext),
+            executionNode,
+            _compatibilityConfig(
+              node,
+              _config(node, dataWires, runtimeContext),
+            ),
             runtimeContext,
           );
           final normalizedResult = _normalizeActionResult(result);
@@ -296,6 +302,48 @@ RuntimeMap _config(
   return interpolated is Map
       ? Map<String, dynamic>.from(interpolated)
       : resolved;
+}
+
+GraphNode _compatibilityActionNode(GraphNode node) {
+  if (node.type == 'action') return node;
+  final compatibility = switch (node.type) {
+    'queue.addItem' => const {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+    'overlay.pushChat' => const {
+      'plugin': 'overlays',
+      'action': 'pushChatMessage',
+    },
+    _ => const <String, dynamic>{},
+  };
+  return GraphNode(
+    id: node.id,
+    type: 'action',
+    x: node.x,
+    y: node.y,
+    data: {...node.data, ...compatibility},
+  );
+}
+
+RuntimeMap _compatibilityConfig(GraphNode node, RuntimeMap config) {
+  switch (node.type) {
+    case 'queue.addItem':
+      return {
+        ...config,
+        'queue': config['queue'] ?? node.data['queueName'] ?? 'default',
+        if (config['automation'] == null && node.data['automation'] != null)
+          'automation': node.data['automation'],
+        if (config['payload'] == null && node.data['payload'] != null)
+          'payload': node.data['payload'],
+      };
+    case 'overlay.pushChat':
+      return {
+        ...config,
+        if (config['targetWidget'] == null && node.data['targetWidget'] != null)
+          'targetWidget': node.data['targetWidget'],
+        'message': config['message'] ?? node.data['message'] ?? '',
+      };
+    default:
+      return config;
+  }
 }
 
 RuntimeMap _subgraphInputs(
