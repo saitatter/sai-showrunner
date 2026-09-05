@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/app_foundations.dart';
+import 'app/automation_document_manager.dart';
 import 'app/commands/app_command.dart';
 import 'app/data_directory.dart';
 import 'app/startup_health.dart';
@@ -130,14 +131,18 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   late final Future<StartupHealthSnapshot> _healthFuture;
   late final FlutterInterfacePreferences _interfacePreferences;
   late final AppCommandRegistry _commandRegistry;
-  AutomationData? _activeAutomation;
-  String? _activeAutomationFile;
+  final _automationDocuments = AutomationDocumentManager();
   DartPluginRegistry? _stateRegistry;
   bool _disposed = false;
   String _selectedPluginId = 'obs';
   final _workspaceDocuments = WorkspaceDocumentManager();
   Future<void> _navigationWrite = Future<void>.value();
   bool _restoredNavigation = false;
+
+  AutomationDocumentSession? get _activeAutomationSession =>
+      _automationDocuments.active;
+  AutomationData? get _activeAutomation => _activeAutomationSession?.data;
+  String? get _activeAutomationFile => _automationDocuments.activeFileName;
 
   @override
   void initState() {
@@ -389,6 +394,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   }
 
   void _onGraphDirtyChanged() {
+    _automationDocuments.setActiveDirty(_graphEditor.documentDirty.value);
     if (!mounted) return;
     setState(() {});
   }
@@ -407,7 +413,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     if (!mounted || _isWindowCloseInProgress) return false;
     _isWindowCloseInProgress = true;
     try {
-      if (!await _confirmAutomationClose()) return false;
+      if (!await _confirmAllAutomationClose()) return false;
       await saveShowRunnerWindowState(_windowStateFile);
       await windowManager.setPreventClose(false);
       // Re-issue the close through the normal Win32 path after releasing the
@@ -441,6 +447,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       selectedPluginId: _selectedPluginId,
       activeAutomationFile: _activeAutomationFile,
       activeAutomationDirty: _graphEditor.documentDirty.value,
+      automationDocuments: _automationDocuments,
       showGraphEditor: widget.showGraphEditor,
       onDestinationSelected: _openDestination,
       onTabSelected: _selectTab,
@@ -453,6 +460,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onRepairAutomation: _repairAutomation,
       onCreateAutomation: _createAutomation,
       onDeleteAutomation: _deleteAutomation,
+      onAutomationSelected: (fileName) =>
+          unawaited(_selectAutomationDocument(fileName)),
+      onAutomationClosed: _closeAutomationDocument,
+      onAutomationReordered: _reorderAutomationDocument,
     );
   }
 
@@ -494,6 +505,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       final selected = restoredSelected is num
           ? restoredSelected.toInt()
           : null;
+      if (widget.showGraphEditor) {
+        await _restoreAutomationDocuments(settings);
+      }
       if (!mounted) return;
       setState(() {
         _workspaceDocuments.restore(
@@ -507,6 +521,49 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     }
   }
 
+  Future<void> _restoreAutomationDocuments(
+    Map<String, dynamic> settings,
+  ) async {
+    final restored = settings['openAutomationTabs'];
+    if (restored is! List) return;
+    final fileNames = restored
+        .whereType<String>()
+        .where(_isSafeAutomationFileName)
+        .toSet();
+    for (final fileName in fileNames) {
+      try {
+        final automation = await AutomationRepository(
+          File(
+            '${widget.dataService.userDirectory.path}/automations/$fileName',
+          ),
+        ).load();
+        if (automation != null) {
+          _automationDocuments.open(automation, fileName);
+        }
+      } catch (_) {
+        // A deleted or invalid resource should not prevent the rest of the
+        // desktop session from being restored.
+      }
+    }
+    final selected = settings['selectedAutomationTab'];
+    if (selected is String && _automationDocuments.find(selected) != null) {
+      _automationDocuments.activate(selected);
+    }
+    final active = _activeAutomationSession;
+    if (active != null) {
+      _graphEditor.loadAutomation(active.data);
+      _graphEditor.restoreDocumentDirty(active.dirty);
+    }
+  }
+
+  static bool _isSafeAutomationFileName(String fileName) =>
+      fileName.isNotEmpty &&
+      fileName.endsWith('.yaml') &&
+      !fileName.contains('/') &&
+      !fileName.contains('\\') &&
+      fileName != '.' &&
+      fileName != '..';
+
   Future<void> _persistNavigation() async {
     if (!_restoredNavigation) return;
     _navigationWrite = _navigationWrite.then((_) async {
@@ -516,6 +573,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       await widget.dataService.savePluginSettings('showrunner-flutter', {
         ...settings,
         ..._workspaceDocuments.toSettings(),
+        ..._automationDocuments.toSettings(),
       });
     });
     await _navigationWrite;
@@ -855,16 +913,65 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   }
 
   Future<bool> _confirmAutomationClose() async {
-    if (_activeAutomationFile == null || !_graphEditor.documentDirty.value) {
-      return true;
+    _captureActiveAutomation();
+    final session = _activeAutomationSession;
+    if (session == null || !session.dirty) return true;
+    final decision = await _showAutomationCloseDialog(session.fileName);
+    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
+      return false;
     }
+    if (decision == _CloseDecision.save) {
+      return _saveAutomationSession(session);
+    }
+    return true;
+  }
+
+  Future<bool> _confirmAllAutomationClose() async {
+    _captureActiveAutomation();
+    final dirty = _automationDocuments.documents
+        .where((document) => document.dirty)
+        .toList();
+    if (dirty.isEmpty) return true;
     final decision = await showDialog<_CloseDecision>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Unsaved changes'),
         content: Text(
-          'Save changes to ${_activeAutomationFile!} before closing?',
+          'Save changes to ${dirty.map((document) => document.fileName).join(', ')} before exiting?',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(_CloseDecision.discard),
+            child: const Text("Don't Save"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
+            child: const Text('Save All'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
+      return false;
+    }
+    if (decision == _CloseDecision.save) {
+      for (final session in dirty) {
+        if (!await _saveAutomationSession(session)) return false;
+      }
+    }
+    return true;
+  }
+
+  Future<_CloseDecision?> _showAutomationCloseDialog(String fileName) {
+    return showDialog<_CloseDecision>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsaved changes'),
+        content: Text('Save changes to $fileName before closing?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
@@ -881,22 +988,65 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         ],
       ),
     );
-    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
-      return false;
+  }
+
+  Future<void> _closeAutomationDocument(String fileName) async {
+    final session = _automationDocuments.find(fileName);
+    if (session == null) return;
+    _captureActiveAutomation();
+    if (session.dirty) {
+      final decision = await _showAutomationCloseDialog(fileName);
+      if (!mounted || decision == null || decision == _CloseDecision.cancel) {
+        return;
+      }
+      if (decision == _CloseDecision.save &&
+          !await _saveAutomationSession(session)) {
+        return;
+      }
     }
-    if (decision == _CloseDecision.save) {
-      await _saveAutomation();
-      return mounted && !_graphEditor.documentDirty.value;
+    final wasActive = _activeAutomationFile == fileName;
+    _automationDocuments.close(fileName);
+    if (wasActive) {
+      final replacement = _activeAutomationSession;
+      if (replacement == null) {
+        _graphEditor.loadAutomation(const AutomationData());
+      } else {
+        _loadAutomationSession(replacement);
+      }
     }
-    return true;
+    if (!mounted) return;
+    setState(() {});
+    unawaited(_persistNavigation());
   }
 
   Future<void> _saveAutomation() async {
+    final current = _captureActiveAutomation();
     final fileName = _activeAutomationFile;
+    if (fileName == null || current == null) return;
+    final saved = await _saveAutomationSession(
+      _automationDocuments.find(fileName)!,
+      data: current,
+      showFeedback: true,
+    );
+    if (saved && mounted) setState(() {});
+  }
+
+  AutomationData? _captureActiveAutomation() {
     final original = _activeAutomation;
-    if (fileName == null || original == null) return;
+    if (original == null) return null;
+    final current = _graphEditor.toAutomation(original);
+    _automationDocuments.updateActive(current);
+    return current;
+  }
+
+  Future<bool> _saveAutomationSession(
+    AutomationDocumentSession session, {
+    AutomationData? data,
+    bool showFeedback = false,
+  }) async {
+    final saved = data ?? session.data;
+    final fileName = session.fileName;
     try {
-      final saved = _graphEditor.toAutomation(original);
       final issues = validateAutomationGraph(saved);
       if (issues.isNotEmpty) {
         throw FormatException(
@@ -906,16 +1056,23 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       await AutomationRepository(
         File('${widget.dataService.userDirectory.path}/automations/$fileName'),
       ).save(saved);
-      _graphEditor.markDocumentClean();
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Saved $fileName')));
+      _automationDocuments.markSaved(session.fileName, saved);
+      if (session.fileName == _activeAutomationFile) {
+        _graphEditor.markDocumentClean();
+      }
+      if (showFeedback && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Saved $fileName')));
+      }
+      return true;
     } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to save automation: $error')),
-      );
+      if (showFeedback && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to save automation: $error')),
+        );
+      }
+      return false;
     }
   }
 
@@ -955,31 +1112,57 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     }
   }
 
-  /// The current workspace has one persisted automation document. Keeping a
-  /// separate command makes the future multi-document implementation able to
-  /// expand Save All without changing the shell contract.
-  Future<void> _saveAll() => _saveAutomation();
+  Future<void> _saveAll() async {
+    _captureActiveAutomation();
+    for (final session in _automationDocuments.documents) {
+      if (session.dirty && !await _saveAutomationSession(session)) return;
+    }
+    if (mounted) setState(() {});
+  }
 
   Future<void> _openAutomation(
     AutomationData automation,
     String fileName,
   ) async {
-    if (_activeAutomationFile == fileName) {
-      _openDestination(0);
-      return;
-    }
-    if (!await _confirmAutomationClose()) return;
-    _graphEditor.loadAutomation(automation);
+    if (!_isSafeAutomationFileName(fileName)) return;
+    _captureActiveAutomation();
+    final session = _automationDocuments.open(automation, fileName);
+    _loadAutomationSession(session);
     if (!mounted) return;
     setState(() {
-      _activeAutomation = automation;
-      _activeAutomationFile = fileName;
       _workspaceDocuments.open(0);
       _workspaceDocuments.select(0);
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Loaded $fileName into the graph editor')),
     );
+  }
+
+  Future<void> _selectAutomationDocument(String fileName) async {
+    final session = _automationDocuments.find(fileName);
+    if (session == null || session.fileName == _activeAutomationFile) {
+      if (session != null) _openDestination(0);
+      return;
+    }
+    _captureActiveAutomation();
+    if (!_automationDocuments.activate(fileName)) return;
+    _loadAutomationSession(session);
+    if (!mounted) return;
+    setState(() {
+      _workspaceDocuments.open(0);
+      _workspaceDocuments.select(0);
+    });
+  }
+
+  void _loadAutomationSession(AutomationDocumentSession session) {
+    _graphEditor.loadAutomation(session.data);
+    _graphEditor.restoreDocumentDirty(session.dirty);
+  }
+
+  void _reorderAutomationDocument(int oldPosition, int newPosition) {
+    if (!_automationDocuments.reorder(oldPosition, newPosition)) return;
+    setState(() {});
+    unawaited(_persistNavigation());
   }
 
   Future<void> _createAutomation() async {
@@ -1012,7 +1195,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       ),
     );
     if (!mounted) return;
-    if (!await _confirmAutomationClose()) return;
+    _captureActiveAutomation();
     final fileName = 'automation-${DateTime.now().millisecondsSinceEpoch}.yaml';
     final automation =
         starter?.automation ??
@@ -1020,11 +1203,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     await AutomationRepository(
       File('${widget.dataService.userDirectory.path}/automations/$fileName'),
     ).save(automation);
-    _graphEditor.loadAutomation(automation);
+    final session = _automationDocuments.open(automation, fileName);
+    _loadAutomationSession(session);
     if (!mounted) return;
     setState(() {
-      _activeAutomation = automation;
-      _activeAutomationFile = fileName;
       _workspaceDocuments.open(0);
       _workspaceDocuments.select(0);
     });
@@ -1056,6 +1238,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   }
 
   Future<void> _deleteAutomation(String fileName) async {
+    if (!_isSafeAutomationFileName(fileName)) return;
     if (_activeAutomationFile == fileName && !await _confirmAutomationClose()) {
       return;
     }
@@ -1063,18 +1246,26 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       '${widget.dataService.userDirectory.path}/automations/$fileName',
     );
     await AutomationRepository(file).delete();
-    if (!mounted || _activeAutomationFile != fileName) return;
-    setState(() {
-      _activeAutomation = null;
-      _activeAutomationFile = null;
-    });
+    if (!mounted) return;
+    if (_activeAutomationFile == fileName) {
+      _automationDocuments.close(fileName);
+      final replacement = _activeAutomationSession;
+      if (replacement == null) {
+        _graphEditor.loadAutomation(const AutomationData());
+      } else {
+        _loadAutomationSession(replacement);
+      }
+    } else {
+      _automationDocuments.close(fileName);
+    }
+    setState(() {});
+    unawaited(_persistNavigation());
   }
 
   Future<void> _runAutomation() async {
-    final original = _activeAutomation;
-    if (original == null) return;
+    final automation = _captureActiveAutomation();
+    if (automation == null) return;
     _graphEditor.clearExecutionStates();
-    final automation = _graphEditor.toAutomation(original);
     final item = _actionQueue.enqueue(automation.toJson(), <String, dynamic>{});
     try {
       final registry = await _pluginRegistryFuture;
@@ -1104,10 +1295,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   }
 
   Future<void> _runNode(String schemaNodeId) async {
-    final original = _activeAutomation;
-    if (original == null) return;
+    final automation = _captureActiveAutomation();
+    if (automation == null) return;
     _graphEditor.clearExecutionStates();
-    final automation = _graphEditor.toAutomation(original);
     final item = _actionQueue.enqueue(automation.toJson(), <String, dynamic>{});
     try {
       final registry = await _pluginRegistryFuture;

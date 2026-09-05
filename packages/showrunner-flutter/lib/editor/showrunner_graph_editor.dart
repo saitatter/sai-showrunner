@@ -249,6 +249,10 @@ class ShowRunnerGraphEditor {
   /// Marks the current graph as persisted after a successful save.
   void markDocumentClean() => documentDirty.value = false;
 
+  /// Restores the dirty marker for a document session after its graph has
+  /// been loaded into the shared canvas.
+  void restoreDocumentDirty(bool dirty) => documentDirty.value = dirty;
+
   Future<String> copySelection({BuildContext? context}) async {
     final snapshots = controller.selectedNodeIds
         .map(_clipboardSnapshotForNode)

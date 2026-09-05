@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sai_nodes/sai_nodes.dart';
 import 'package:showrunner_flutter/app/startup_health.dart';
+import 'package:showrunner_flutter/app/automation_document_manager.dart';
 import 'package:showrunner_flutter/editor/showrunner_graph_editor.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
@@ -33,6 +34,8 @@ void main() {
   Future<void> pumpWorkspace(
     WidgetTester tester, {
     DartPluginRegistry? registry,
+    AutomationDocumentManager? automationDocuments,
+    ValueChanged<String>? onAutomationSelected,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -52,6 +55,8 @@ void main() {
               ),
               dataService: dataService,
               registryFuture: Future.value(registry ?? DartPluginRegistry()),
+              automationDocuments: automationDocuments,
+              onAutomationSelected: onAutomationSelected,
             ),
           ),
         ),
@@ -67,6 +72,36 @@ void main() {
     expect(find.text('Add node'), findsOneWidget);
     expect(find.text('Graph healthy'), findsOneWidget);
     expect(find.textContaining('3 nodes'), findsOneWidget);
+  });
+
+  testWidgets('renders independent automation tabs and selects a document', (
+    tester,
+  ) async {
+    final documents = AutomationDocumentManager()
+      ..open(
+        const AutomationData(extra: {'name': 'First automation'}),
+        'first.yaml',
+      )
+      ..open(
+        const AutomationData(extra: {'name': 'Second automation'}),
+        'second.yaml',
+      );
+    documents.activate('second.yaml');
+    String? selected;
+
+    await pumpWorkspace(
+      tester,
+      automationDocuments: documents,
+      onAutomationSelected: (fileName) {
+        selected = fileName;
+        documents.activate(fileName);
+      },
+    );
+
+    expect(find.text('First automation'), findsOneWidget);
+    expect(find.text('Second automation'), findsOneWidget);
+    await tester.tap(find.text('First automation'));
+    expect(selected, 'first.yaml');
   });
 
   testWidgets('renders the compact editor used by inline automations', (

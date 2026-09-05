@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'commands/app_command.dart';
+import 'automation_document_manager.dart';
 import '../app/startup_health.dart';
 import '../design_system/controls/controls.dart';
 import '../editor/showrunner_graph_editor.dart';
@@ -61,6 +62,10 @@ class ShowRunnerShell extends StatelessWidget {
     this.onTabSelected,
     this.onTabClosed,
     this.onTabReordered,
+    this.automationDocuments,
+    this.onAutomationSelected,
+    this.onAutomationClosed,
+    this.onAutomationReordered,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -94,6 +99,10 @@ class ShowRunnerShell extends StatelessWidget {
   final ValueChanged<int>? onTabSelected;
   final FutureOr<void> Function(int)? onTabClosed;
   final void Function(int oldPosition, int newPosition)? onTabReordered;
+  final AutomationDocumentManager? automationDocuments;
+  final ValueChanged<String>? onAutomationSelected;
+  final FutureOr<void> Function(String fileName)? onAutomationClosed;
+  final void Function(int oldPosition, int newPosition)? onAutomationReordered;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -344,6 +353,10 @@ class ShowRunnerShell extends StatelessWidget {
                 dataService: dataService,
                 registryFuture: pluginRegistryFuture,
                 onRunNode: onRunNode,
+                automationDocuments: automationDocuments,
+                onAutomationSelected: onAutomationSelected,
+                onAutomationClosed: onAutomationClosed,
+                onAutomationReordered: onAutomationReordered,
               )
             : const LogsWorkspace(),
       1 => PluginWorkspace(

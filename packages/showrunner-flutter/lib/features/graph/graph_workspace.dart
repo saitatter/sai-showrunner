@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
 
 import '../../app/startup_health.dart';
+import '../../app/automation_document_manager.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../editor/showrunner_graph_editor.dart';
 import '../../plugins/registry/plugin_registry.dart';
@@ -27,6 +28,10 @@ class GraphWorkspace extends StatelessWidget {
     required this.dataService,
     required this.registryFuture,
     this.onRunNode,
+    this.automationDocuments,
+    this.onAutomationSelected,
+    this.onAutomationClosed,
+    this.onAutomationReordered,
   });
 
   final ShowRunnerGraphEditor editor;
@@ -34,10 +39,22 @@ class GraphWorkspace extends StatelessWidget {
   final ShowRunnerDataService dataService;
   final Future<DartPluginRegistry> registryFuture;
   final Future<void> Function(String schemaNodeId)? onRunNode;
+  final AutomationDocumentManager? automationDocuments;
+  final ValueChanged<String>? onAutomationSelected;
+  final FutureOr<void> Function(String fileName)? onAutomationClosed;
+  final void Function(int oldPosition, int newPosition)? onAutomationReordered;
 
   @override
   Widget build(BuildContext context) => Column(
     children: [
+      if (automationDocuments != null && automationDocuments!.hasDocuments)
+        _AutomationDocumentTabBar(
+          documents: automationDocuments!.documents,
+          activeFileName: automationDocuments!.activeFileName,
+          onSelected: onAutomationSelected ?? (_) {},
+          onClosed: onAutomationClosed ?? (_) {},
+          onReordered: onAutomationReordered ?? (_, _) {},
+        ),
       _StartupHealthBanner(healthFuture: healthFuture),
       _GraphNodePalette(editor: editor, registryFuture: registryFuture),
       Expanded(
@@ -155,6 +172,75 @@ class GraphWorkspace extends StatelessWidget {
         ),
       ),
     ],
+  );
+}
+
+class _AutomationDocumentTabBar extends StatelessWidget {
+  const _AutomationDocumentTabBar({
+    required this.documents,
+    required this.activeFileName,
+    required this.onSelected,
+    required this.onClosed,
+    required this.onReordered,
+  });
+
+  final List<AutomationDocumentSession> documents;
+  final String? activeFileName;
+  final ValueChanged<String> onSelected;
+  final FutureOr<void> Function(String fileName) onClosed;
+  final void Function(int oldPosition, int newPosition) onReordered;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Theme.of(context).colorScheme.surfaceContainer,
+    child: SizedBox(
+      height: 42,
+      child: ReorderableListView.builder(
+        scrollDirection: Axis.horizontal,
+        shrinkWrap: true,
+        primary: false,
+        buildDefaultDragHandles: false,
+        padding: EdgeInsets.zero,
+        itemCount: documents.length,
+        onReorderItem: onReordered,
+        itemBuilder: (context, position) {
+          final document = documents[position];
+          final selected = document.fileName == activeFileName;
+          final title = document.data.extra['name']?.toString().trim();
+          return ReorderableDragStartListener(
+            key: ValueKey('automation-tab-${document.fileName}'),
+            index: position,
+            child: Material(
+              color: selected
+                  ? Theme.of(context).colorScheme.surfaceContainerHighest
+                  : Theme.of(context).colorScheme.surfaceContainer,
+              child: InkWell(
+                onTap: () => onSelected(document.fileName),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 12, right: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.bolt, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${title == null || title.isEmpty ? document.fileName : title}${document.dirty ? ' *' : ''}',
+                      ),
+                      IconButton(
+                        tooltip: 'Close ${document.fileName}',
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.close, size: 16),
+                        onPressed: () => onClosed(document.fileName),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
   );
 }
 
