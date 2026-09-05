@@ -114,10 +114,12 @@ flutter analyze
 flutter test
 Pop-Location
 .\scripts\package-flutter-windows.ps1 -Version 0.5.9
-.\scripts\smoke-flutter-windows.ps1 -Configuration Release
 ```
 
-The archive is written to `release/ShowRunner-Flutter-windows-<version>.zip`.
+The packaging script validates the required Flutter/media DLLs and runs the
+startup smoke from the generated archive. Use `-SkipSmoke` only when the smoke
+must be run separately. The archive is written to
+`release/ShowRunner-Flutter-windows-<version>.zip`.
 The startup smoke can also launch that archive directly with
 `-ArchivePath .\release\ShowRunner-Flutter-windows-<version>.zip`; it uses a
 temporary `SHOWRUNNER_USER_DIR` so local data is not modified.

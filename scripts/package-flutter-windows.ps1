@@ -1,6 +1,7 @@
 param(
   [string]$Version = '0.5.9',
-  [string]$OutputDirectory = 'release'
+  [string]$OutputDirectory = 'release',
+  [switch]$SkipSmoke
 )
 
 $ErrorActionPreference = 'Stop'
@@ -13,6 +14,21 @@ try {
     throw "Flutter Windows bundle was not produced at $bundle"
   }
 
+  $requiredBundlePaths = @(
+    'showrunner_flutter.exe',
+    'flutter_windows.dll',
+    'libmpv-2.dll',
+    'media_kit_libs_windows_audio_plugin.dll',
+    'data\flutter_assets'
+  )
+  $missingBundlePaths = @(
+    $requiredBundlePaths |
+      Where-Object { -not (Test-Path -LiteralPath (Join-Path $bundle $_)) }
+  )
+  if ($missingBundlePaths.Count -gt 0) {
+    throw "Flutter Windows bundle is missing required files: $($missingBundlePaths -join ', ')"
+  }
+
   $outputRoot = Join-Path (Get-Location) "..\..\$OutputDirectory"
   New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
   $archive = Join-Path $outputRoot "ShowRunner-Flutter-windows-$Version.zip"
@@ -21,6 +37,12 @@ try {
   }
   Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath $archive
   Write-Host "Created $archive"
+
+  if (-not $SkipSmoke) {
+    & (Join-Path $PSScriptRoot 'smoke-flutter-windows.ps1') `
+      -ArchivePath $archive `
+      -Configuration Release
+  }
 }
 finally {
   Pop-Location
