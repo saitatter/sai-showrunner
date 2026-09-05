@@ -12,6 +12,7 @@ import 'app/commands/app_command.dart';
 import 'app/data_directory.dart';
 import 'app/startup_health.dart';
 import 'app/showrunner_shell.dart';
+import 'app/single_instance_lock.dart';
 import 'app/window_configuration.dart';
 import 'app/workspace_document_manager.dart';
 import 'editor/showrunner_graph_editor.dart';
@@ -47,9 +48,22 @@ Future<void> main(List<String> args) async {
   MediaKit.ensureInitialized();
   final portable = args.contains('--portable');
   final userDirectory = showRunnerUserDirectory(portable: portable);
-  await configureShowRunnerWindow(
-    stateFile: File('${userDirectory.path}/state/window.json'),
-  );
+  final instanceLock = await SingleInstanceLock.acquire(userDirectory);
+  if (instanceLock == null) {
+    stderr.writeln(
+      'ShowRunner is already running for this user directory: '
+      '${userDirectory.path}',
+    );
+    return;
+  }
+  try {
+    await configureShowRunnerWindow(
+      stateFile: File('${userDirectory.path}/state/window.json'),
+    );
+  } on Object {
+    await instanceLock.release();
+    rethrow;
+  }
   final smokeArgument = args.cast<String?>().firstWhere(
     (argument) => argument?.startsWith('--showrunner-smoke=') == true,
     orElse: () => null,
@@ -59,6 +73,7 @@ Future<void> main(List<String> args) async {
       smokeScenario: smokeArgument?.split('=').last,
       portable: portable,
       userDirectory: userDirectory,
+      instanceLock: instanceLock,
     ),
   );
 }
@@ -69,11 +84,13 @@ class ShowRunnerFlutterApp extends StatelessWidget {
     this.smokeScenario,
     this.portable = false,
     this.userDirectory,
+    this.instanceLock,
   });
 
   final String? smokeScenario;
   final bool portable;
   final Directory? userDirectory;
+  final SingleInstanceLock? instanceLock;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +107,7 @@ class ShowRunnerFlutterApp extends StatelessWidget {
           currentVersion: showRunnerFlutterVersion,
         ),
         smokeScenario: smokeScenario,
+        instanceLock: instanceLock,
       ),
     );
   }
@@ -110,6 +128,7 @@ class ShowRunnerPage extends StatefulWidget {
     this.loadSampleGraph = true,
     this.showGraphEditor = true,
     this.smokeScenario,
+    this.instanceLock,
   });
 
   final ShowRunnerDataService dataService;
@@ -117,6 +136,7 @@ class ShowRunnerPage extends StatefulWidget {
   final bool loadSampleGraph;
   final bool showGraphEditor;
   final String? smokeScenario;
+  final SingleInstanceLock? instanceLock;
 
   @override
   State<ShowRunnerPage> createState() => _ShowRunnerPageState();
@@ -442,6 +462,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     unawaited(_viewerDataSynchronizer.stop());
     unawaited(_eventHub.dispose());
     _interfacePreferences.dispose();
+    unawaited(widget.instanceLock?.release());
     super.dispose();
   }
 
