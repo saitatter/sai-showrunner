@@ -268,6 +268,12 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         execute: (_) => _createAutomation(),
       ),
       AppCommand(
+        id: 'file.newAutomationFromStarter',
+        label: 'New automation from starter',
+        icon: Icons.auto_awesome,
+        execute: (_) => _createAutomation(starterOnly: true),
+      ),
+      AppCommand(
         id: 'file.newProfile',
         label: 'New profile',
         icon: Icons.people_alt,
@@ -1435,11 +1441,13 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     unawaited(_persistNavigation());
   }
 
-  Future<void> _createAutomation() async {
+  Future<void> _createAutomation({bool starterOnly = false}) async {
     final starter = await showDialog<AutomationStarter>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('New automation'),
+        title: Text(
+          starterOnly ? 'New automation from starter' : 'New automation',
+        ),
         content: SizedBox(
           width: 520,
           child: ListView(
@@ -1453,18 +1461,20 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
                   onTap: () => Navigator.pop(context, candidate),
                 ),
               ),
-              ListTile(
-                leading: const Icon(Icons.account_tree_outlined),
-                title: const Text('Blank graph'),
-                subtitle: const Text('Start with an empty automation.'),
-                onTap: () => Navigator.pop(context),
-              ),
+              if (!starterOnly)
+                ListTile(
+                  leading: const Icon(Icons.account_tree_outlined),
+                  title: const Text('Blank graph'),
+                  subtitle: const Text('Start with an empty automation.'),
+                  onTap: () => Navigator.pop(context),
+                ),
             ],
           ),
         ),
       ),
     );
     if (!mounted) return;
+    if (starterOnly && starter == null) return;
     _captureActiveAutomation();
     final fileName = 'automation-${DateTime.now().millisecondsSinceEpoch}.yaml';
     final automation =

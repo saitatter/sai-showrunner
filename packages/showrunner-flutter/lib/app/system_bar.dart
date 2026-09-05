@@ -51,6 +51,11 @@ class ShowRunnerSystemBar extends StatelessWidget {
                     commandContext,
                     commands,
                   ),
+                  _commandMenuItem(
+                    'file.newAutomationFromStarter',
+                    commandContext,
+                    commands,
+                  ),
                   const PopupMenuDivider(),
                   _commandMenuItem('file.save', commandContext, commands),
                   _commandMenuItem('file.saveAll', commandContext, commands),
