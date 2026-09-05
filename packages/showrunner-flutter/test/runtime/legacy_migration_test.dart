@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/editor/showrunner_graph_editor.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
@@ -223,6 +224,17 @@ void main() {
       );
       expect(reopened?.subgraphs.single.nodes.single.id, 'floating-action');
       expect(reopened?.dataWires.single.toNode, 'nested');
+
+      final editor = ShowRunnerGraphEditor();
+      addTearDown(editor.dispose);
+      editor.loadAutomation(reopened!);
+      expect(editor.controller.nodes, hasLength(6));
+      expect(editor.invalidDataWires.map((wire) => wire.id), [
+        'first-to-nested',
+      ]);
+      final editorSaved = editor.toAutomation(reopened);
+      expect(editorSaved.variableNodes.single['id'], 'message');
+      expect(editorSaved.dataWires.single.id, 'first-to-nested');
     },
   );
 }

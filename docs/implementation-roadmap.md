@@ -90,7 +90,7 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
 - [x] Capture repeatable Flutter smoke checks for startup, profile selection,
       integrations, automations, overlays, updates, and shutdown; compare them
       to the Electron baseline before cutover.
-- [ ] Complete migration/opening fixtures for stale variable nodes and data
+- [x] Complete migration/opening fixtures for stale variable nodes and data
       wires in addition to the existing sequence conversion coverage.
 - [ ] Run packaged-app smoke coverage for Settings, Updates, Integrations,
       starter templates, and the graph editor.
