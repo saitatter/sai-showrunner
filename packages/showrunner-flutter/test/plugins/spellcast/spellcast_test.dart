@@ -87,9 +87,12 @@ void main() {
       final plugin = createOverlaysPlugin(eventHub: hub);
       final events = <RuntimeMap>[];
       final subscription = hub.stream('overlayWidget').listen(events.add);
+      final triggerWidget = plugin.actions.firstWhere(
+        (action) => action.actionId == 'triggerWidget',
+      );
 
       expect(
-        await plugin.actions.single.invoke({
+        await triggerWidget.invoke({
           'widgetId': 'alert-1',
           'overlayId': 'overlay-1',
           'payload': {'message': 'Hello'},
