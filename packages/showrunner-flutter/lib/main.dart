@@ -159,6 +159,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   final _profileWorkspaceController = ProfileWorkspaceController();
   DartPluginRegistry? _stateRegistry;
   bool _disposed = false;
+  Future<void>? _shutdownFuture;
   String _selectedPluginId = 'obs';
   final _workspaceDocuments = WorkspaceDocumentManager(
     initial: const [showRunnerHomeWorkspaceIndex],
@@ -488,15 +489,25 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _graphEditor.documentDirty.removeListener(_onGraphDirtyChanged);
     if (Platform.isWindows) windowManager.removeListener(this);
     _graphEditor.dispose();
-    unawaited(_profileRuntimeFuture.then((runtime) => runtime.dispose()));
-    unawaited(_automationQueueManager.dispose());
-    unawaited(_pluginRegistryFuture.then((registry) => registry.close()));
-    unawaited(_providerEvents.stop());
-    unawaited(_viewerDataSynchronizer.stop());
-    unawaited(_eventHub.dispose());
     _interfacePreferences.dispose();
-    unawaited(widget.instanceLock?.release());
+    final shutdown = _shutdownFuture ??= _shutdown();
+    unawaited(
+      shutdown.catchError((error, stackTrace) {
+        stderr.writeln('ShowRunner shutdown failed: $error');
+        stderr.writeln(stackTrace);
+      }),
+    );
     super.dispose();
+  }
+
+  Future<void> _shutdown() async {
+    await _providerEvents.stop();
+    await _viewerDataSynchronizer.stop();
+    await _automationQueueManager.dispose();
+    await _profileRuntimeFuture.then((runtime) => runtime.dispose());
+    await _pluginRegistryFuture.then((registry) => registry.close());
+    await _eventHub.dispose();
+    await widget.instanceLock?.release();
   }
 
   Future<void> _bindProviderStateDiagnostics() async {
