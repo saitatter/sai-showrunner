@@ -1140,7 +1140,7 @@ const _integrationShortcutGroups = <_IntegrationShortcutGroup>[
       _IntegrationShortcut(
         title: 'Channel Point Rewards',
         icon: Icons.stars_outlined,
-        resourceType: 'ChannelPointReward',
+        pluginId: 'twitch',
       ),
       _IntegrationShortcut(
         title: 'Viewer Groups',
