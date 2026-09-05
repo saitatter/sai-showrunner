@@ -2,12 +2,13 @@ import '../../runtime/expression.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../registry/plugin_registry.dart';
 
-typedef IotResourceActionResolver = Future<Object?> Function(
-  String resourceType,
-  String resourceId,
-  RuntimeMap config,
-  EvaluationContext context,
-);
+typedef IotResourceActionResolver =
+    Future<Object?> Function(
+      String resourceType,
+      String resourceId,
+      RuntimeMap config,
+      EvaluationContext context,
+    );
 
 const _lightColorField = DartDataInputSchema(
   label: 'Color',
@@ -99,8 +100,7 @@ DartPluginManifest createIotPlugin({IotResourceActionResolver? resolver}) =>
           actionId: 'toggleLight',
           displayName: 'Toggle Light',
           configSchema: _toggleLightSchema,
-          invoke: (config, context) =>
-              _toggleLight(resolver, config, context),
+          invoke: (config, context) => _toggleLight(resolver, config, context),
         ),
         DartActionDefinition(
           pluginId: 'iot',
@@ -126,13 +126,11 @@ Future<Object?> _setLightColor(
   final lightId = _resourceId(config['lightId']);
   final color = config['color']?.toString() ?? '#ffffff';
   if (lightId.isEmpty) throw ArgumentError('lightId is required.');
-  return _resolve(
-    resolver,
-    'Light',
-    lightId,
-    {...config, 'lightId': lightId, 'color': color},
-    context,
-  );
+  return _resolve(resolver, 'Light', lightId, {
+    ...config,
+    'lightId': lightId,
+    'color': color,
+  }, context);
 }
 
 Future<Object?> _toggleLight(
@@ -143,13 +141,11 @@ Future<Object?> _toggleLight(
   final lightId = _resourceId(config['lightId']);
   final state = config['state'] ?? true;
   if (lightId.isEmpty) throw ArgumentError('lightId is required.');
-  return _resolve(
-    resolver,
-    'Light',
-    lightId,
-    {...config, 'lightId': lightId, 'state': state},
-    context,
-  );
+  return _resolve(resolver, 'Light', lightId, {
+    ...config,
+    'lightId': lightId,
+    'state': state,
+  }, context);
 }
 
 Future<Object?> _light(
@@ -159,18 +155,12 @@ Future<Object?> _light(
 ) async {
   final lightId = _resourceId(config['light'] ?? config['lightId']);
   if (lightId.isEmpty) throw ArgumentError('light is required.');
-  return _resolve(
-    resolver,
-    'Light',
-    lightId,
-    {
-      ...config,
-      'lightId': lightId,
-      'on': config['on'] ?? true,
-      'color': config['lightColor'] ?? config['color'],
-    },
-    context,
-  );
+  return _resolve(resolver, 'Light', lightId, {
+    ...config,
+    'lightId': lightId,
+    'on': config['on'] ?? true,
+    'color': config['lightColor'] ?? config['color'],
+  }, context);
 }
 
 Future<Object?> _plug(
@@ -180,17 +170,11 @@ Future<Object?> _plug(
 ) async {
   final plugId = _resourceId(config['plug'] ?? config['plugId']);
   if (plugId.isEmpty) throw ArgumentError('plug is required.');
-  return _resolve(
-    resolver,
-    'Plug',
-    plugId,
-    {
-      ...config,
-      'plugId': plugId,
-      'on': config['switch'] ?? config['on'] ?? true,
-    },
-    context,
-  );
+  return _resolve(resolver, 'Plug', plugId, {
+    ...config,
+    'plugId': plugId,
+    'on': config['switch'] ?? config['on'] ?? true,
+  }, context);
 }
 
 Future<Object?> _resolve(

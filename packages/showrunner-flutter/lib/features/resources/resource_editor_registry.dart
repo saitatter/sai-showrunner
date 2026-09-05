@@ -2532,8 +2532,10 @@ class _MapResourceEditorState extends State<_MapResourceEditor> {
 
   DartDataInputSchema _schemaFor(String field) {
     final kind = switch (field) {
-      'port' || 'cost' || 'numberOfLights' || 'ledCount' =>
-        DartDataInputKind.number,
+      'port' ||
+      'cost' ||
+      'numberOfLights' ||
+      'ledCount' => DartDataInputKind.number,
       'local' ||
       'rgbAvailable' ||
       'kelvinAvailable' ||

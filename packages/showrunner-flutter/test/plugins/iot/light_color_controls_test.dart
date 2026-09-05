@@ -22,28 +22,25 @@ void main() {
       serializeLightColor(lightColorForBrightness('kb(4200, 65)', 20)),
       'kb(4200, 20)',
     );
-    expect(
-      lightColorForKelvin(null, 1000).kelvin,
-      lightColorMinKelvin,
-    );
-    expect(
-      lightColorForKelvin(null, 9000).kelvin,
-      lightColorMaxKelvin,
-    );
+    expect(lightColorForKelvin(null, 1000).kelvin, lightColorMinKelvin);
+    expect(lightColorForKelvin(null, 9000).kelvin, lightColorMaxKelvin);
     expect(lightColorPreview('hsb(0, 100, 100)'), isA<Color>());
   });
 
-  test('generic IoT actions reject missing device routing instead of faking success', () async {
-    final registry = DartPluginRegistry()..register(createIotPlugin());
+  test(
+    'generic IoT actions reject missing device routing instead of faking success',
+    () async {
+      final registry = DartPluginRegistry()..register(createIotPlugin());
 
-    await expectLater(
-      registry.invokeAction('iot', 'setLightColor', {
-        'lightId': 'light-1',
-        'color': 'hsb(0, 100, 100)',
-      }),
-      throwsStateError,
-    );
-  });
+      await expectLater(
+        registry.invokeAction('iot', 'setLightColor', {
+          'lightId': 'light-1',
+          'color': 'hsb(0, 100, 100)',
+        }),
+        throwsStateError,
+      );
+    },
+  );
 
   testWidgets('picker exposes RGB and CCT controls and emits Kelvin values', (
     tester,
