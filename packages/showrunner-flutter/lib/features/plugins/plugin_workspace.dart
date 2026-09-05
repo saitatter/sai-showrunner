@@ -37,6 +37,8 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
   String? _saving;
   Object? _error;
   String _selectedPluginId = 'obs';
+  String _detailsTab = 'overview';
+  String _detailsFilter = '';
 
   final _fields = <String, List<String>>{};
   final _definitions = <String, DartSettingDefinition>{};
@@ -55,7 +57,11 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     super.didUpdateWidget(oldWidget);
     final selectedPluginId = widget.selectedPluginId;
     if (selectedPluginId != null && selectedPluginId != _selectedPluginId) {
-      _selectedPluginId = selectedPluginId;
+      setState(() {
+        _selectedPluginId = selectedPluginId;
+        _detailsTab = 'overview';
+        _detailsFilter = '';
+      });
     }
   }
 
@@ -241,7 +247,11 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
                   plugins: plugins,
                   selectedId: selected?.id,
                   registry: registry,
-                  onSelected: (id) => setState(() => _selectedPluginId = id),
+                  onSelected: (id) => setState(() {
+                    _selectedPluginId = id;
+                    _detailsTab = 'overview';
+                    _detailsFilter = '';
+                  }),
                   onEnabledChanged: _setEnabled,
                 ),
               ),
@@ -274,6 +284,40 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     DartPluginRegistry registry,
   ) {
     final isProvider = _fields[plugin.id]?.isNotEmpty == true;
+    final tabs = [
+      _PluginDetailsTab('overview', 'Overview', Icons.info_outline),
+      _PluginDetailsTab(
+        'usage',
+        'Usage',
+        Icons.account_tree_outlined,
+        count: null,
+      ),
+      if (plugin.settings.isNotEmpty)
+        _PluginDetailsTab(
+          'settings',
+          'Settings',
+          Icons.settings_outlined,
+          count: plugin.settings.length,
+        ),
+      _PluginDetailsTab(
+        'actions',
+        'Actions',
+        Icons.bolt,
+        count: plugin.actions.length,
+      ),
+      _PluginDetailsTab(
+        'triggers',
+        'Triggers',
+        Icons.notifications_active_outlined,
+        count: plugin.triggers.length,
+      ),
+      _PluginDetailsTab(
+        'state',
+        'State',
+        Icons.data_object,
+        count: plugin.states.length,
+      ),
+    ];
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -325,41 +369,188 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
             ),
           ],
         ),
-        const SizedBox(height: 24),
-        _PluginUsageSummary(
-          dataService: widget.dataService,
-          pluginId: plugin.id,
-        ),
-        _PluginRuntimeState(
-          registryFuture: widget.registryFuture,
-          plugin: plugin,
+        const SizedBox(height: 20),
+        TextField(
+          decoration: const InputDecoration(
+            labelText: 'Search integration details',
+            prefixIcon: Icon(Icons.search),
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (value) => setState(() => _detailsFilter = value),
         ),
         const SizedBox(height: 12),
-        if (isProvider) ...[
-          Text('Settings', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          _buildProviderSettings(context, plugin.id),
-        ] else ...[
-          _ManifestSection(
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final tab in tabs)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    selected: _detailsTab == tab.id,
+                    avatar: Icon(tab.icon, size: 16),
+                    label: Text(
+                      tab.count == null
+                          ? tab.label
+                          : '${tab.label} ${tab.count}',
+                    ),
+                    onSelected: (_) => setState(() => _detailsTab = tab.id),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        switch (_detailsTab) {
+          'usage' => _buildUsageTab(plugin),
+          'settings' =>
+            isProvider
+                ? _buildProviderSettings(context, plugin.id)
+                : _buildManifestTab(
+                    context,
+                    title: 'Settings',
+                    icon: Icons.settings_outlined,
+                    values: plugin.settings
+                        .map(
+                          (setting) => '${setting.displayName} · ${setting.id}',
+                        )
+                        .toList(),
+                  ),
+          'actions' => _buildManifestTab(
+            context,
             title: 'Actions',
             icon: Icons.bolt,
             values: plugin.actions
-                .map((a) => a.displayName ?? a.actionId)
+                .map(
+                  (action) =>
+                      '${action.displayName ?? action.actionId} · ${action.actionId}',
+                )
                 .toList(),
           ),
-          _ManifestSection(
+          'triggers' => _buildManifestTab(
+            context,
             title: 'Triggers',
             icon: Icons.notifications_active_outlined,
-            values: plugin.triggers.map((t) => t.displayName).toList(),
+            values: plugin.triggers
+                .map(
+                  (trigger) => '${trigger.displayName} · ${trigger.triggerId}',
+                )
+                .toList(),
           ),
-          _ManifestSection(
-            title: 'Settings',
-            icon: Icons.settings_outlined,
-            values: plugin.settings.map((s) => s.displayName).toList(),
-          ),
-        ],
+          'state' => _buildStateTab(context, plugin, registry),
+          _ => _buildOverviewTab(context, plugin),
+        },
       ],
     );
+  }
+
+  Widget _buildOverviewTab(BuildContext context, DartPluginManifest plugin) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Overview', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(
+            'Flutter runtime integration registered for ${plugin.name}.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _PluginStat(value: plugin.actions.length, label: 'actions'),
+              _PluginStat(value: plugin.triggers.length, label: 'triggers'),
+              _PluginStat(value: plugin.settings.length, label: 'settings'),
+              _PluginStat(value: plugin.states.length, label: 'state values'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _PluginUsageSummary(
+            dataService: widget.dataService,
+            pluginId: plugin.id,
+          ),
+        ],
+      );
+
+  Widget _buildUsageTab(DartPluginManifest plugin) =>
+      _PluginUsageSummary(dataService: widget.dataService, pluginId: plugin.id);
+
+  Widget _buildStateTab(
+    BuildContext context,
+    DartPluginManifest plugin,
+    DartPluginRegistry registry,
+  ) {
+    final values = registry.stateValues(plugin.id);
+    final rows = plugin.states
+        .where(
+          (state) => _matchesDetailFilter('${state.displayName} ${state.id}'),
+        )
+        .map(
+          (state) => ListTile(
+            dense: true,
+            title: Text(state.displayName),
+            subtitle: Text(state.id),
+            trailing: Text(values[state.id]?.toString() ?? 'null'),
+          ),
+        )
+        .toList();
+    return _buildRowsCard(
+      context,
+      title: 'State',
+      icon: Icons.data_object,
+      rows: rows,
+      emptyLabel: 'No runtime state registered',
+    );
+  }
+
+  Widget _buildManifestTab(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<String> values,
+  }) {
+    final rows = values
+        .where(_matchesDetailFilter)
+        .map((value) => ListTile(dense: true, title: Text(value)))
+        .toList();
+    return _buildRowsCard(
+      context,
+      title: title,
+      icon: icon,
+      rows: rows,
+      emptyLabel: _detailsFilter.trim().isEmpty
+          ? 'Nothing registered yet'
+          : 'No matches for "${_detailsFilter.trim()}".',
+    );
+  }
+
+  Widget _buildRowsCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<Widget> rows,
+    required String emptyLabel,
+  }) => Card(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          leading: Icon(icon),
+          title: Text(title),
+          subtitle: Text('${rows.length} visible'),
+        ),
+        if (rows.isEmpty)
+          ListTile(dense: true, title: Text(emptyLabel))
+        else
+          ...rows,
+      ],
+    ),
+  );
+
+  bool _matchesDetailFilter(String value) {
+    final query = _detailsFilter.trim().toLowerCase();
+    return query.isEmpty || value.toLowerCase().contains(query);
   }
 
   Widget _buildProviderSettings(BuildContext context, String selectedPluginId) {
@@ -704,29 +895,33 @@ class _PluginGroup extends StatelessWidget {
   );
 }
 
-class _ManifestSection extends StatelessWidget {
-  const _ManifestSection({
-    required this.title,
-    required this.icon,
-    required this.values,
-  });
+class _PluginDetailsTab {
+  const _PluginDetailsTab(this.id, this.label, this.icon, {this.count});
 
-  final String title;
+  final String id;
+  final String label;
   final IconData icon;
-  final List<String> values;
+  final int? count;
+}
+
+class _PluginStat extends StatelessWidget {
+  const _PluginStat({required this.value, required this.label});
+
+  final int value;
+  final String label;
 
   @override
   Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 12),
-    child: ExpansionTile(
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text('${values.length} registered'),
-      children: values.isEmpty
-          ? [const ListTile(title: Text('Nothing registered yet'))]
-          : values
-                .map((value) => ListTile(dense: true, title: Text(value)))
-                .toList(),
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$value', style: Theme.of(context).textTheme.headlineSmall),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
     ),
   );
 }
@@ -798,51 +993,6 @@ class _PluginUsageSummaryState extends State<_PluginUsageSummary> {
       );
     },
   );
-}
-
-class _PluginRuntimeState extends StatelessWidget {
-  const _PluginRuntimeState({
-    required this.registryFuture,
-    required this.plugin,
-  });
-
-  final Future<DartPluginRegistry> registryFuture;
-  final DartPluginManifest plugin;
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<DartPluginRegistry>(
-    future: registryFuture,
-    builder: (context, snapshot) {
-      final registry = snapshot.data;
-      if (registry == null) return _buildCard(context, null);
-      return ListenableBuilder(
-        listenable: registry,
-        builder: (context, _) => _buildCard(context, registry),
-      );
-    },
-  );
-
-  Widget _buildCard(BuildContext context, DartPluginRegistry? registry) {
-    final values = registry?.stateValues(plugin.id) ?? const {};
-    final rows = plugin.states.map(
-      (state) => ListTile(
-        dense: true,
-        title: Text(state.displayName),
-        subtitle: Text(state.id),
-        trailing: Text(values[state.id]?.toString() ?? 'null'),
-      ),
-    );
-    return Card(
-      child: ExpansionTile(
-        leading: const Icon(Icons.monitor_heart_outlined),
-        title: const Text('Runtime state'),
-        subtitle: Text('${plugin.states.length} registered values'),
-        children: rows.isEmpty
-            ? [const ListTile(title: Text('No runtime state registered'))]
-            : rows.toList(),
-      ),
-    );
-  }
 }
 
 IconData _pluginIcon(String id) => switch (id) {
