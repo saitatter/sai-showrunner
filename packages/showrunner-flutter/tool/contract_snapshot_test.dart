@@ -4,12 +4,21 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
+import 'package:showrunner_flutter/runtime/action_queue.dart';
+import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
   test('writes the Flutter plugin contract snapshot', () async {
     final eventHub = DartPluginEventHub();
-    final registry = createDefaultPluginRegistry(eventHub: eventHub);
+    final queueManager = DartAutomationQueueManager(
+      defaultQueue: DartActionQueue(),
+      execute: (automation, context, item) async => null,
+    );
+    final registry = createDefaultPluginRegistry(
+      eventHub: eventHub,
+      queueManager: queueManager,
+    );
     final resourceEditors = createDefaultResourceEditorRegistry();
     try {
       final plugins = registry.plugins.toList()
@@ -83,6 +92,7 @@ void main() {
       }
     } finally {
       await registry.close();
+      await queueManager.dispose();
       await eventHub.dispose();
     }
   });

@@ -1414,6 +1414,115 @@
       }
     },
     {
+      "id": "ShowRunner",
+      "status": "improved",
+      "categories": {
+        "settings": {
+          "expected": [
+            "port"
+          ],
+          "actual": [
+            "port"
+          ],
+          "missing": [],
+          "extra": [],
+          "relocated": [],
+          "status": "equivalent"
+        },
+        "actions": {
+          "expected": [
+            "addToQueue",
+            "cancelQueueItem",
+            "clearQueue",
+            "completeQueueItem",
+            "convertArrayToJsonString",
+            "convertBooleanToNumber",
+            "convertBooleanToString",
+            "convertJsonStringToArray",
+            "convertJsonStringToObject",
+            "convertNumberToBoolean",
+            "convertNumberToString",
+            "convertObjectToJsonString",
+            "convertStringToBoolean",
+            "convertStringToNumber",
+            "pause",
+            "profileActivation",
+            "runAutomation",
+            "skip",
+            "toggleProfileActivation"
+          ],
+          "actual": [
+            "addToQueue",
+            "cancelQueueItem",
+            "clearQueue",
+            "completeQueueItem",
+            "convertArrayToJsonString",
+            "convertBooleanToNumber",
+            "convertBooleanToString",
+            "convertJsonStringToArray",
+            "convertJsonStringToObject",
+            "convertNumberToBoolean",
+            "convertNumberToString",
+            "convertObjectToJsonString",
+            "convertStringToBoolean",
+            "convertStringToNumber",
+            "pause",
+            "profileActivation",
+            "runAutomation",
+            "skip",
+            "toggleProfileActivation"
+          ],
+          "missing": [],
+          "extra": [],
+          "relocated": [],
+          "status": "equivalent"
+        },
+        "triggers": {
+          "expected": [
+            "autoRun",
+            "condition",
+            "queueItemStarted"
+          ],
+          "actual": [
+            "autoRun",
+            "condition",
+            "queueItemStarted"
+          ],
+          "missing": [],
+          "extra": [],
+          "relocated": [],
+          "status": "equivalent"
+        },
+        "states": {
+          "expected": [],
+          "actual": [],
+          "missing": [],
+          "extra": [],
+          "relocated": [],
+          "status": "equivalent"
+        },
+        "resources": {
+          "expected": [],
+          "actual": [
+            "Overlay",
+            "Variable"
+          ],
+          "missing": [],
+          "extra": [
+            "Overlay",
+            "Variable"
+          ],
+          "relocated": [],
+          "status": "improved"
+        }
+      },
+      "ui": {
+        "expectedSourceFiles": 0,
+        "flutterWorkspace": false,
+        "status": "equivalent"
+      }
+    },
+    {
       "id": "sound",
       "status": "improved",
       "categories": {
@@ -2385,7 +2494,5 @@
       }
     }
   ],
-  "flutterOnly": [
-    "ShowRunner"
-  ]
+  "flutterOnly": []
 }

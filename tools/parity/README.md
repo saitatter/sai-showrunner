@@ -1,7 +1,8 @@
 # Contract parity checks
 
 The parity check compares the frozen `main` plugin surface with the Flutter
-registry. It reports IDs for settings, actions, triggers, states, resources,
+registry. It includes the built-in `ShowRunner` contract as well as external
+plugins and reports IDs for settings, actions, triggers, states, resources,
 and workspace contributions; it does not infer runtime equivalence from a
 folder name.
 

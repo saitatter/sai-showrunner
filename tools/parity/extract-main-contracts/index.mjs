@@ -16,6 +16,22 @@ function sourceFor(file) {
   return git('show', `${ref}:${file}`);
 }
 
+function builtInPlugin() {
+  const sourceFile = 'packages/showrunner/src/main/builtin-plugin.ts';
+  const source = sourceFor(sourceFile);
+  return {
+    id: 'ShowRunner',
+    name: 'ShowRunner',
+    sourceFiles: [sourceFile],
+    actions: literalIds(source, 'defineAction'),
+    triggers: literalIds(source, 'defineTrigger'),
+    settings: literalIds(source, 'defineSetting'),
+    states: literalIds(source, 'defineState'),
+    resources: [],
+    ui: { sourceFiles: [] },
+  };
+}
+
 function findBalancedObject(source, openIndex) {
   let depth = 0;
   let quote = null;
@@ -105,7 +121,8 @@ const pluginIds = [...new Set(
   files.map((file) => file.match(/^plugins\/([^/]+)\/main\/src\//)?.[1]),
 )].filter(Boolean).sort();
 
-const plugins = pluginIds.map((pluginId) => {
+const plugins = [
+  ...pluginIds.map((pluginId) => {
   const pluginFiles = files.filter((file) => file.startsWith(`plugins/${pluginId}/`));
   const sources = pluginFiles.map(sourceFor).join('\n');
   const entry = sourceFor(
@@ -129,6 +146,8 @@ const plugins = pluginIds.map((pluginId) => {
     resources: resourceIds(sources),
     ui: { sourceFiles: pluginFiles.filter((file) => file.includes('/renderer/')) },
   };
-});
+  }),
+  builtInPlugin(),
+].sort((left, right) => left.id.localeCompare(right.id));
 
 process.stdout.write(`${JSON.stringify({ reference: ref, plugins }, null, 2)}\n`);
