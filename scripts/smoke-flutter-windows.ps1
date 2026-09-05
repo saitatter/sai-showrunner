@@ -64,13 +64,22 @@ try {
     -RedirectStandardError $stderrPath `
     -PassThru
 
-  $ready = $process.WaitForInputIdle($StartupTimeoutMilliseconds)
   $process.Refresh()
+  $waitError = $null
+  $ready = $false
+  if (-not $process.HasExited) {
+    try {
+      $ready = $process.WaitForInputIdle($StartupTimeoutMilliseconds)
+    } catch {
+      $waitError = $_.Exception.Message
+    }
+    $process.Refresh()
+  }
   if (-not $ready -or $process.HasExited) {
     $stdout = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -Raw -LiteralPath $stdoutPath } else { '' }
     $stderr = if (Test-Path -LiteralPath $stderrPath) { Get-Content -Raw -LiteralPath $stderrPath } else { '' }
     $exitCode = if ($process.HasExited) { $process.ExitCode } else { 'running' }
-    throw "Flutter process did not reach an idle UI process. Exited=$($process.HasExited), ExitCode=$exitCode`nstdout: $stdout`nstderr: $stderr"
+    throw "Flutter process did not reach an idle UI process. Exited=$($process.HasExited), ExitCode=$exitCode, WaitError=$waitError`nstdout: $stdout`nstderr: $stderr"
   }
 
   Write-Host "Flutter Windows startup smoke passed: $resolvedExecutable"
