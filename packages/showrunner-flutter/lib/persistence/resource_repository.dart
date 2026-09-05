@@ -71,7 +71,11 @@ class ResourceRepository {
   Future<ResourceData> _read(File file) async {
     final content = await file.readAsString();
     if (file.path.endsWith('.json')) {
-      return ResourceData.fromJson(jsonDecode(content) as _JsonMap);
+      final decoded = jsonDecode(content);
+      if (decoded is! Map) {
+        throw const FormatException('Resource JSON must contain an object.');
+      }
+      return ResourceData.fromJson(Map<String, dynamic>.from(decoded));
     }
     final parsed = loadYaml(content);
     if (parsed is! YamlMap) {

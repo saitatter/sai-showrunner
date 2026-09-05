@@ -13,17 +13,40 @@ class ResourceData {
 
   String get name => (config['name'] as String?) ?? id;
 
-  factory ResourceData.fromJson(JsonMap json) => ResourceData(
-    id: json['id'] as String? ?? '',
-    config: (json['config'] as JsonMap?) ?? const <String, dynamic>{},
-    state: (json['state'] as JsonMap?) ?? const <String, dynamic>{},
-  );
+  factory ResourceData.fromJson(JsonMap json) {
+    final id = json['id'];
+    if (id is! String || id.trim().isEmpty) {
+      throw const FormatException('Resource JSON must contain a non-empty id.');
+    }
+    return ResourceData(
+      id: id,
+      config: _requiredMap(json, 'config'),
+      state: _optionalMap(json, 'state'),
+    );
+  }
 
   JsonMap toJson() => <String, dynamic>{
     'id': id,
     'config': config,
     'state': state,
   };
+}
+
+JsonMap _requiredMap(JsonMap json, String field) {
+  final value = json[field];
+  if (value is! Map) {
+    throw FormatException('Resource JSON field "$field" must be an object.');
+  }
+  return Map<String, dynamic>.from(value);
+}
+
+JsonMap _optionalMap(JsonMap json, String field) {
+  final value = json[field];
+  if (value == null) return const <String, dynamic>{};
+  if (value is! Map) {
+    throw FormatException('Resource JSON field "$field" must be an object.');
+  }
+  return Map<String, dynamic>.from(value);
 }
 
 class OverlayResource {
