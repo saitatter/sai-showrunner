@@ -96,7 +96,7 @@ class ShowRunnerShell extends StatelessWidget {
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
   final UpdateInstallService? installService;
-  final Future<void> Function()? onRestartRequested;
+  final Future<bool> Function()? onRestartRequested;
 
   @override
   Widget build(BuildContext context) {

@@ -123,7 +123,7 @@ class AboutWorkspace extends StatefulWidget {
   final UpdateCheckService? updateService;
   final UpdateArtifactService? artifactService;
   final UpdateInstallService? installService;
-  final Future<void> Function()? onRestartRequested;
+  final Future<bool> Function()? onRestartRequested;
   final Directory? downloadDirectory;
 
   @override
@@ -217,7 +217,13 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
         installDirectory: executable.parent,
       );
       if (!mounted) return;
-      await widget.onRestartRequested?.call();
+      final restarted = await widget.onRestartRequested?.call() ?? true;
+      if (!restarted && mounted) {
+        setState(() {
+          _installing = false;
+          _downloadError = 'Restart canceled.';
+        });
+      }
     } catch (error) {
       if (mounted) {
         setState(() {

@@ -241,7 +241,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         id: 'file.exit',
         label: 'Exit',
         icon: Icons.exit_to_app,
-        execute: (_) => _handleWindowClose(),
+        execute: (_) async {
+          await _handleWindowClose();
+        },
       ),
       AppCommand(
         id: 'edit.copy',
@@ -389,20 +391,21 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     unawaited(_handleWindowClose());
   }
 
-  Future<void> _handleWindowClose() async {
-    if (!mounted || _isWindowCloseInProgress) return;
+  Future<bool> _handleWindowClose() async {
+    if (!mounted || _isWindowCloseInProgress) return false;
     _isWindowCloseInProgress = true;
     try {
-      if (!await _confirmAutomationClose()) return;
+      if (!await _confirmAutomationClose()) return false;
       await saveShowRunnerWindowState(_windowStateFile);
       await windowManager.setPreventClose(false);
       await windowManager.destroy();
+      return true;
     } finally {
       _isWindowCloseInProgress = false;
     }
   }
 
-  Future<void> _handleUpdateRestart() => _handleWindowClose();
+  Future<bool> _handleUpdateRestart() => _handleWindowClose();
 
   @override
   Widget build(BuildContext context) {
