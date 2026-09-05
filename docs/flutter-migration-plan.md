@@ -483,14 +483,15 @@ For each surface:
 	active-spell lifecycle handling into the Dart event hub.
 - [x] Drive Cloud PubSub active-spell subscriptions from the active profile's
 	selected trigger set before removing the old renderer lifecycle hooks.
-- [x] Port Windows PCM/WAV playback, playback trimming, volume control, and
-	WinMM output enumeration into the Dart Sound runtime.
+- [x] Port Windows Sound playback with broad media/codec support, playback
+	trimming, volume control, and output-device routing into the Dart runtime.
 - [x] Port the OBS scene/source catalog, source/filter visibility toggles,
 	JSON input-settings editing, and structured source transform editing into
 	Flutter.
 - [x] Complete Windows WAV TTS generation for installed system voices.
-- [ ] Complete non-WAV Sound playback, WASAPI endpoint routing, and
-	external-provider parity before removing its active renderer components.
+- [x] Complete non-WAV Sound playback and WASAPI endpoint routing through the
+	Flutter media backend; retain the system TTS provider boundary for future
+	external providers, which are not active in the legacy runtime.
 - [ ] Complete structured OBS source configuration and Overlays widget/shader
 	editing before removing `plugins/obs/renderer/` or
 	`plugins/overlays/renderer/`.

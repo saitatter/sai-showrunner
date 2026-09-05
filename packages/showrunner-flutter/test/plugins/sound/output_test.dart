@@ -30,6 +30,36 @@ void main() {
     expect(() => parsePcmWave(bytes), throwsFormatException);
   });
 
+  test('routes multi-format playback through the MediaKit backend', () async {
+    SoundPlayRequest? request;
+    String? device;
+    final output = MediaKitSoundOutput(
+      id: 'system.custom',
+      name: 'Studio headphones',
+      preferredDeviceDescription: 'Studio headphones',
+      playback: (nextRequest, preferredDevice) async {
+        request = nextRequest;
+        device = preferredDevice;
+      },
+    );
+
+    final played = await output.playFile(
+      const SoundPlayRequest(
+        file: 'music.flac',
+        startSec: 1.25,
+        endSec: 4.5,
+        volume: 72,
+      ),
+    );
+
+    expect(played, isTrue);
+    expect(request?.file, 'music.flac');
+    expect(request?.startSec, 1.25);
+    expect(request?.endSec, 4.5);
+    expect(request?.volume, 72);
+    expect(device, 'Studio headphones');
+  });
+
   test('fans out splitter redirects with mute and scaled volume', () async {
     final output = _RecordingOutput('system.main');
     final registry = SoundOutputRegistry(defaultOutputId: 'splitter');

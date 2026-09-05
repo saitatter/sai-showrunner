@@ -3,10 +3,10 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:media_kit/media_kit.dart';
 
 import 'output.dart';
 
-const _waveMapper = 0xFFFFFFFF;
 const _waveHeaderDone = 0x00000001;
 
 final class SoundDeviceInfo {
@@ -143,31 +143,133 @@ SoundOutputRegistry createDefaultSoundOutputRegistry({
   if (!Platform.isWindows) return registry;
 
   registry.register(
-    WindowsWaveOutSoundOutput(
-      id: 'system.default',
-      name: 'Default output',
-      deviceId: _waveMapper,
-    ),
+    MediaKitSoundOutput(id: 'system.default', name: 'Default output'),
   );
   registry.register(
-    WindowsWaveOutSoundOutput(
+    MediaKitSoundOutput(
       id: 'system.communications',
       name: 'Communications output',
-      deviceId: _waveMapper,
     ),
   );
   for (final device in enumerateWindowsSoundOutputs()) {
     final index = int.tryParse(device.id.split('.').last);
     if (index == null) continue;
     registry.register(
-      WindowsWaveOutSoundOutput(
+      MediaKitSoundOutput(
         id: device.id,
         name: device.name,
-        deviceId: index,
+        preferredDeviceDescription: device.name,
       ),
     );
   }
   return registry;
+}
+
+typedef MediaKitSoundPlayback =
+    Future<void> Function(
+      SoundPlayRequest request,
+      String? preferredDeviceDescription,
+    );
+
+/// Plays the same local media files that the legacy HTML audio player handled.
+///
+/// media_kit uses libmpv on Windows, which keeps codec support broad (mp3,
+/// ogg, flac, m4a, wav, etc.) and exposes WASAPI devices instead of relying on
+/// the old WinMM PCM-only path. The callback is intentionally injectable so
+/// the action layer can be tested without loading native libmpv.
+final class MediaKitSoundOutput implements SoundOutput {
+  MediaKitSoundOutput({
+    required this.id,
+    required this.name,
+    this.preferredDeviceDescription,
+    this.playback,
+  });
+
+  @override
+  final String id;
+  final String name;
+  final String? preferredDeviceDescription;
+  final MediaKitSoundPlayback? playback;
+
+  @override
+  Future<bool> playFile(SoundPlayRequest request) async {
+    if (playback != null) {
+      await playback!(request, preferredDeviceDescription);
+      return true;
+    }
+    if (!Platform.isWindows) return false;
+
+    final file = File(request.file);
+    if (!await file.exists()) return false;
+    final start = request.startSec.clamp(0, double.infinity).toDouble();
+    final end = request.endSec;
+    if (end.isFinite && end <= start) return false;
+
+    final player = Player();
+    try {
+      final media = Media(
+        Uri.file(file.absolute.path).toString(),
+        start: Duration(microseconds: (start * 1000000).round()),
+        end: end.isFinite
+            ? Duration(microseconds: (end * 1000000).round())
+            : null,
+      );
+      await player.open(media, play: false);
+      await player.setVolume(request.volume.clamp(0, 100).toDouble());
+      final preferred = preferredDeviceDescription?.trim();
+      if (preferred != null && preferred.isNotEmpty) {
+        final device = await _findAudioDevice(player, preferred);
+        if (device == null) {
+          throw StateError('Audio output is unavailable: $preferred');
+        }
+        await player.setAudioDevice(device);
+      } else {
+        await player.setAudioDevice(AudioDevice.auto());
+      }
+      await player.play();
+      await Future.any<void>([
+        player.stream.completed.firstWhere((completed) => completed),
+        player.stream.error.first.then<void>(
+          (message) => throw StateError('Audio playback failed: $message'),
+        ),
+      ]);
+      return true;
+    } finally {
+      await player.dispose();
+    }
+  }
+}
+
+Future<AudioDevice?> _findAudioDevice(Player player, String description) async {
+  AudioDevice? match(Iterable<AudioDevice> devices) {
+    for (final device in devices) {
+      if (_matchesAudioDevice(device, description)) return device;
+    }
+    return null;
+  }
+
+  final immediate = match(player.state.audioDevices);
+  if (immediate != null) return immediate;
+  try {
+    return await player.stream.audioDevices
+        .map(match)
+        .where((device) => device != null)
+        .cast<AudioDevice>()
+        .first
+        .timeout(const Duration(seconds: 3));
+  } on Object {
+    return null;
+  }
+}
+
+bool _matchesAudioDevice(AudioDevice device, String description) {
+  final target = description.trim().toLowerCase();
+  final deviceDescription = device.description.trim().toLowerCase();
+  final deviceName = device.name.trim().toLowerCase();
+  return deviceDescription == target ||
+      deviceDescription.startsWith(target) ||
+      deviceName == target ||
+      deviceName.endsWith(target);
 }
 
 final class WindowsWaveOutSoundOutput implements SoundOutput {
