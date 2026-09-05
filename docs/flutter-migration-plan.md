@@ -39,6 +39,12 @@ selection, and cycle protection. Explicit named output routing is available
 through the Flutter media backend; the legacy communications-role distinction
 and external TTS providers remain open parity work.
 
+The overlay resource editor now catalogs all nine active overlay widgets. Common
+primitive values, nested text/block/border styles, alert media entries, leaderboard
+variables, and emote launchers have typed Flutter controls; background element
+unions and the shader graph remain JSON-backed because their browser-native
+preview/editor boundary is not yet replaced.
+
 Deletion rule: a Vue file is deleted only when its user-visible behavior is present
 in Flutter, its runtime/build references are removed, and a focused test or smoke
 check passes. Renderer packages that only contained no-op registration code have
