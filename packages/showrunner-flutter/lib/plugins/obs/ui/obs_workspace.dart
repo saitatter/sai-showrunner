@@ -241,7 +241,7 @@ DartDataInputSchema? obsInputSettingsSchemaForKind(String inputKind) {
       _textField('Text', 'text', multiline: true),
       _textField('Font face', 'font_face'),
       _numberField('Font size', 'font_size', defaultValue: 32),
-      _textField('Color', 'color'),
+      _numberField('Color (ARGB integer)', 'color'),
       _enumerationField('Horizontal alignment', 'align', const [
         'left',
         'center',
@@ -259,7 +259,7 @@ DartDataInputSchema? obsInputSettingsSchemaForKind(String inputKind) {
       _booleanField('Unload image when not visible', 'unload'),
     ],
     'color_source' => [
-      _textField('Color', 'color'),
+      _numberField('Color (ARGB integer)', 'color'),
       _numberField('Width', 'width', defaultValue: 1920),
       _numberField('Height', 'height', defaultValue: 1080),
     ],
@@ -282,10 +282,36 @@ DartDataInputSchema? obsInputSettingsSchemaForKind(String inputKind) {
       _textField('Resolution', 'resolution'),
       _textField('Frame rate', 'frame_rate'),
     ],
-    'window_capture' || 'game_capture' => [
+    'wasapi_input_capture' ||
+    'wasapi_output_capture' ||
+    'wasapi_process_output_capture' => [
+      _textField('Device', 'device_id'),
+      _booleanField('Use device timing', 'use_device_timing'),
+    ],
+    'window_capture' => [
       _textField('Window', 'window'),
+      _textField('Window match priority', 'priority'),
+      _booleanField('Capture cursor', 'capture_cursor'),
+      _booleanField('Client area only', 'client_area'),
+      _booleanField('Limit frame rate', 'limit_framerate'),
+    ],
+    'game_capture' => [
+      _textField('Window', 'window'),
+      _textField('Capture mode', 'mode'),
       _booleanField('Capture cursor', 'capture_cursor'),
       _booleanField('Limit frame rate', 'limit_framerate'),
+      _booleanField('Capture overlays', 'capture_overlays'),
+      _booleanField('Anti-cheat compatibility hook', 'anti_cheat_hook'),
+    ],
+    'monitor_capture' || 'display_capture' => [
+      _numberField('Monitor index', 'monitor', defaultValue: 0),
+      _booleanField('Capture cursor', 'capture_cursor'),
+    ],
+    'scene' => [_textField('Scene', 'scene')],
+    'ndi_source' => [
+      _textField('NDI source', 'source_name'),
+      _booleanField('Sync to main output', 'sync'),
+      _booleanField('Use alpha channel', 'use_alpha'),
     ],
     _ => const <DartDataInputSchema>[],
   };

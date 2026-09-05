@@ -24,6 +24,26 @@ void main() {
       obsInputSettingsSchemaForKind('text_gdiplus')?.fields.first.key,
       'text',
     );
+    expect(
+      obsInputSettingsSchemaForKind(
+        'wasapi_output_capture',
+      )?.fields.map((field) => field.key),
+      ['device_id', 'use_device_timing'],
+    );
+    expect(
+      obsInputSettingsSchemaForKind(
+        'game_capture',
+      )?.fields.map((field) => field.key),
+      [
+        'window',
+        'mode',
+        'capture_cursor',
+        'limit_framerate',
+        'capture_overlays',
+        'anti_cheat_hook',
+      ],
+    );
+    expect(obsInputSettingsSchemaForKind('scene')?.fields.single.key, 'scene');
     expect(obsInputSettingsSchemaForKind('unknown_source'), isNull);
   });
 

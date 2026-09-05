@@ -490,6 +490,9 @@ For each surface:
 - [x] Port the OBS scene/source catalog, source/filter visibility toggles,
 	JSON input-settings editing, and structured source transform editing into
 	Flutter.
+- [x] Add typed OBS settings for common browser, text, media, capture, audio,
+	scene, and NDI input kinds while retaining JSON fallback for plugin-specific
+	and playlist-shaped settings.
 - [x] Complete Windows WAV TTS generation for installed system voices.
 - [x] Complete non-WAV Sound playback and WASAPI endpoint routing through the
 	Flutter media backend; retain the system TTS provider boundary for future
