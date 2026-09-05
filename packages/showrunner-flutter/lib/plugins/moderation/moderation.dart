@@ -5,8 +5,89 @@
 library;
 
 import '../registry/plugin_registry.dart';
+import '../../components/data_inputs/data_input.dart';
 import 'runtime.dart';
 import 'ui/moderation_workspace.dart';
+
+const _moderateChatSchema = DartDataInputSchema(
+  label: 'Moderation chat message',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Platform',
+      key: 'platform',
+      kind: DartDataInputKind.text,
+      defaultValue: 'twitch',
+    ),
+    DartDataInputSchema(
+      label: 'Message ID',
+      key: 'messageId',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Viewer ID',
+      key: 'viewerId',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Viewer name',
+      key: 'viewerName',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Message',
+      key: 'message',
+      kind: DartDataInputKind.multilineText,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Badges (comma-separated)',
+      key: 'badges',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Moderator',
+      key: 'isModerator',
+      kind: DartDataInputKind.boolean,
+    ),
+    DartDataInputSchema(
+      label: 'Member',
+      key: 'isMember',
+      kind: DartDataInputKind.boolean,
+    ),
+    DartDataInputSchema(
+      label: 'Owner',
+      key: 'isOwner',
+      kind: DartDataInputKind.boolean,
+    ),
+  ],
+);
+
+const _overrideSchema = DartDataInputSchema(
+  label: 'Moderation override',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Message ID',
+      key: 'messageId',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Action',
+      key: 'action',
+      kind: DartDataInputKind.enumeration,
+      options: ['approve', 'block', 'falsePositive'],
+      required: true,
+      defaultValue: 'approve',
+    ),
+  ],
+);
+
+const _emptySchema = DartDataInputSchema(
+  label: 'Moderation action',
+  kind: DartDataInputKind.object,
+);
 
 DartPluginManifest createModerationPlugin(ModerationService service) =>
     DartPluginManifest(
@@ -47,18 +128,21 @@ DartPluginManifest createModerationPlugin(ModerationService service) =>
           pluginId: 'moderation',
           actionId: 'moderateChatMessage',
           displayName: 'Filter Chat Message',
+          configSchema: _moderateChatSchema,
           invoke: (config, context) => service.moderateChatMessage(config),
         ),
         DartActionDefinition(
           pluginId: 'moderation',
           actionId: 'sendTestMessage',
           displayName: 'Send Test Moderation Event',
+          configSchema: _emptySchema,
           invoke: (config, context) async => service.sendTestMessage(),
         ),
         DartActionDefinition(
           pluginId: 'moderation',
           actionId: 'requestOverride',
           displayName: 'Request Moderation Override',
+          configSchema: _overrideSchema,
           invoke: (config, context) => service.requestOverride(
             messageId: config['messageId']?.toString() ?? '',
             action: config['action']?.toString() ?? 'approve',

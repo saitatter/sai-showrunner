@@ -201,17 +201,30 @@ class _DartDataInputState extends State<DartDataInput> {
       value: widget.value,
       onChanged: widget.onChanged,
     ),
-    DartDataInputKind.resource => DropdownButtonFormField<String>(
-      initialValue: widget.schema.options.contains(widget.value?.toString())
-          ? widget.value.toString()
-          : null,
-      decoration: InputDecoration(labelText: widget.schema.label),
-      items: [
-        for (final option in widget.schema.options)
-          DropdownMenuItem(value: option, child: Text(option)),
-      ],
-      onChanged: widget.onChanged,
-    ),
+    DartDataInputKind.resource =>
+      widget.schema.options.isEmpty
+          ? TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                labelText: widget.schema.label,
+                hintText: widget.schema.resourceType == null
+                    ? 'Resource ID'
+                    : '${widget.schema.resourceType} ID',
+              ),
+              onChanged: (text) => widget.onChanged(text.trim()),
+            )
+          : DropdownButtonFormField<String>(
+              initialValue:
+                  widget.schema.options.contains(widget.value?.toString())
+                  ? widget.value.toString()
+                  : null,
+              decoration: InputDecoration(labelText: widget.schema.label),
+              items: [
+                for (final option in widget.schema.options)
+                  DropdownMenuItem(value: option, child: Text(option)),
+              ],
+              onChanged: widget.onChanged,
+            ),
     _ => TextField(
       controller: _controller,
       obscureText: widget.schema.secret,
@@ -353,7 +366,12 @@ class _ArrayInput extends StatelessWidget {
             ),
             IconButton(
               tooltip: 'Add item',
-              onPressed: () => onChanged([...items, '']),
+              onPressed: () => onChanged([
+                ...items,
+                schema.itemKind == DartDataInputKind.object
+                    ? <String, dynamic>{}
+                    : '',
+              ]),
               icon: const Icon(Icons.add),
             ),
           ],
@@ -363,7 +381,7 @@ class _ArrayInput extends StatelessWidget {
             children: [
               Expanded(
                 child: TextFormField(
-                  initialValue: items[index]?.toString() ?? '',
+                  initialValue: _displayValue(items[index]),
                   decoration: InputDecoration(
                     labelText: '${schema.label} ${index + 1}',
                     suffixIcon: schema.itemKind == DartDataInputKind.filePath
@@ -372,7 +390,7 @@ class _ArrayInput extends StatelessWidget {
                   ),
                   onChanged: (next) {
                     final updated = [...items];
-                    updated[index] = next;
+                    updated[index] = _parseValue(schema.itemKind, next);
                     onChanged(updated);
                   },
                 ),

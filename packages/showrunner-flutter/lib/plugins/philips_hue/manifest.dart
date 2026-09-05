@@ -114,6 +114,30 @@ const _deviceSchema = DartDataInputSchema(
   ],
 );
 
+const _sceneSchema = DartDataInputSchema(
+  label: 'Hue scene',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Scene ID',
+      key: 'sceneId',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Bridge IP / Host',
+      key: 'host',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Bridge application key',
+      key: 'hubKey',
+      kind: DartDataInputKind.text,
+      secret: true,
+    ),
+  ],
+);
+
 DartPluginManifest createPhilipsHuePlugin(
   HueTransport transport, {
   HueTransportResolver? transportResolver,
@@ -165,6 +189,7 @@ DartPluginManifest createPhilipsHuePlugin(
       pluginId: 'philips-hue',
       actionId: 'recallScene',
       displayName: 'Recall Hue Scene',
+      configSchema: _sceneSchema,
       invoke: (config, context) =>
           (transportResolver?.call(config) ?? transport).request(
             'PUT',

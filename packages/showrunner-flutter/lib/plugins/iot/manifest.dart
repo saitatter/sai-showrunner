@@ -82,6 +82,26 @@ const _lightSchema = DartDataInputSchema(
   ],
 );
 
+const _plugSchema = DartDataInputSchema(
+  label: 'Change plug',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Plug',
+      key: 'plug',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'State',
+      key: 'switch',
+      kind: DartDataInputKind.enumeration,
+      options: ['true', 'false', 'toggle'],
+      defaultValue: 'true',
+    ),
+  ],
+);
+
 DartPluginManifest createIotPlugin({IotResourceActionResolver? resolver}) =>
     DartPluginManifest(
       id: 'iot',
@@ -113,6 +133,7 @@ DartPluginManifest createIotPlugin({IotResourceActionResolver? resolver}) =>
           pluginId: 'iot',
           actionId: 'plug',
           displayName: 'Switch Plug',
+          configSchema: _plugSchema,
           invoke: (config, context) => _plug(resolver, config, context),
         ),
       ],

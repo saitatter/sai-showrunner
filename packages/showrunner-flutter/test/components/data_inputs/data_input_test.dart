@@ -63,6 +63,31 @@ void main() {
     expect(enumValue, 'two');
   });
 
+  testWidgets('allows entering a resource ID when no catalog is available', (
+    tester,
+  ) async {
+    dynamic value;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DartDataInput(
+            schema: const DartDataInputSchema(
+              label: 'Account',
+              kind: DartDataInputKind.resource,
+              resourceType: 'BlueSkyAccount',
+            ),
+            value: 'account-1',
+            onChanged: (next) => value = next,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'account-2');
+    expect(value, 'account-2');
+  });
+
   testWidgets('parses array and object input values', (tester) async {
     dynamic arrayValue;
     dynamic objectValue;
@@ -98,5 +123,29 @@ void main() {
     await tester.enterText(fields.at(1), '{"enabled":false}');
     expect(arrayValue, ['b']);
     expect(objectValue, {'enabled': false});
+  });
+
+  testWidgets('parses object items inside an array input', (tester) async {
+    dynamic value;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DartDataInput(
+            schema: const DartDataInputSchema(
+              label: 'Segments',
+              kind: DartDataInputKind.array,
+              itemKind: DartDataInputKind.object,
+            ),
+            value: const [{}],
+            onChanged: (next) => value = next,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextFormField), '{"id":"segment-1"}');
+    expect(value, [
+      {'id': 'segment-1'},
+    ]);
   });
 }
