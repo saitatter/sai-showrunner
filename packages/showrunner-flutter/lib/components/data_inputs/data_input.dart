@@ -39,6 +39,7 @@ final class DartDataInputSchema {
     this.defaultValue,
     this.resourceType,
     this.fields = const <DartDataInputSchema>[],
+    this.itemKind = DartDataInputKind.text,
   });
 
   final String label;
@@ -51,6 +52,7 @@ final class DartDataInputSchema {
   final dynamic defaultValue;
   final String? resourceType;
   final List<DartDataInputSchema> fields;
+  final DartDataInputKind itemKind;
 }
 
 dynamic constructDartDataInputDefault(DartDataInputSchema schema) {
@@ -190,7 +192,7 @@ class _DartDataInputState extends State<DartDataInput> {
       onChanged: widget.onChanged,
     ),
     DartDataInputKind.array => _ArrayInput(
-      label: widget.schema.label,
+      schema: widget.schema,
       value: widget.value,
       onChanged: widget.onChanged,
     ),
@@ -324,12 +326,12 @@ class _JsonObjectInputState extends State<_JsonObjectInput> {
 
 class _ArrayInput extends StatelessWidget {
   const _ArrayInput({
-    required this.label,
+    required this.schema,
     required this.value,
     required this.onChanged,
   });
 
-  final String label;
+  final DartDataInputSchema schema;
   final dynamic value;
   final ValueChanged<dynamic> onChanged;
 
@@ -344,7 +346,10 @@ class _ArrayInput extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text(label, style: Theme.of(context).textTheme.titleSmall),
+              child: Text(
+                schema.label,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
             ),
             IconButton(
               tooltip: 'Add item',
@@ -359,7 +364,12 @@ class _ArrayInput extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   initialValue: items[index]?.toString() ?? '',
-                  decoration: InputDecoration(labelText: '$label ${index + 1}'),
+                  decoration: InputDecoration(
+                    labelText: '${schema.label} ${index + 1}',
+                    suffixIcon: schema.itemKind == DartDataInputKind.filePath
+                        ? const Icon(Icons.folder_open_outlined)
+                        : null,
+                  ),
                   onChanged: (next) {
                     final updated = [...items];
                     updated[index] = next;

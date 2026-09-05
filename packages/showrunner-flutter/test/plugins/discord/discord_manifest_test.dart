@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/discord/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/runtime/expression.dart';
+import 'dart:convert';
+import 'dart:io';
 
 void main() {
   test('delivers a Discord webhook message through the transport', () async {
@@ -70,4 +73,74 @@ void main() {
       expect(requests, 0);
     },
   );
+
+  test('delivers configured files through the multipart transport', () async {
+    String? url;
+    RuntimeMap? body;
+    List<String>? files;
+    final registry = DartPluginRegistry()
+      ..register(
+        createDiscordPlugin(
+          transport: DiscordTransport(
+            (requestUrl, requestBody) async => {'statusCode': 204},
+            requestWithFiles: (requestUrl, requestBody, requestFiles) async {
+              url = requestUrl;
+              body = requestBody;
+              files = requestFiles;
+              return {'statusCode': 204};
+            },
+          ),
+        ),
+      );
+
+    final result = await registry.invokeAction('discord', 'discordMessage', {
+      'webhook': {'webhookUrl': 'https://discord.test/hooks/1'},
+      'message': 'See this file',
+      'files': ['  C:\\media\\show.png  ', 'notes.txt'],
+    });
+
+    expect(url, 'https://discord.test/hooks/1');
+    expect(body, {'content': 'See this file'});
+    expect(files, ['C:\\media\\show.png', 'notes.txt']);
+    expect(result, {
+      'sent': true,
+      'message': 'See this file',
+      'files': ['C:\\media\\show.png', 'notes.txt'],
+      'statusCode': 204,
+    });
+  });
+
+  test('posts Discord files as multipart form data', () async {
+    final directory = await Directory.systemTemp.createTemp('discord-test-');
+    final attachment = File('${directory.path}/hello.txt')
+      ..writeAsStringSync('attachment-body');
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    try {
+      final transport = DiscordHttpTransport();
+      final responseFuture = transport.requestWithFiles(
+        'http://127.0.0.1:${server.port}/hooks/1',
+        {'content': 'Hello multipart'},
+        [attachment.path],
+      );
+      final incoming = await server.first;
+      final requestBody = utf8.decode(
+        await incoming.expand((chunk) => chunk).toList(),
+      );
+      final contentType = incoming.headers.contentType;
+
+      expect(contentType?.mimeType, 'multipart/form-data');
+      expect(contentType?.parameters['boundary'], isNotEmpty);
+      expect(requestBody, contains('name="payload_json"'));
+      expect(requestBody, contains('{"content":"Hello multipart"}'));
+      expect(requestBody, contains('name="files[0]"; filename="hello.txt"'));
+      expect(requestBody, contains('attachment-body'));
+
+      incoming.response.statusCode = HttpStatus.noContent;
+      await incoming.response.close();
+      expect(await responseFuture, {'statusCode': HttpStatus.noContent});
+    } finally {
+      await server.close(force: true);
+      await directory.delete(recursive: true);
+    }
+  });
 }

@@ -501,11 +501,11 @@ For each surface:
 	Dashboard resource editor.
 - [x] Port Wyze cloud login, token refresh, device listing, and light/plug
 	state actions.
-- [x] Port Discord webhook JSON delivery and authenticated Minecraft TCP RCON
-	command execution; Discord file attachments and persistent RCON sessions
-	remain follow-up work.
-- [x] Port Bluesky app-password session creation and AT Protocol post delivery;
-	account-resource selection and login UI parity remain follow-up work.
+- [x] Port Discord webhook JSON/multipart delivery and authenticated Minecraft
+	TCP RCON command execution; persistent RCON sessions remain follow-up work.
+- [x] Port Bluesky app-password session creation, AT Protocol post delivery,
+	and persisted account-resource selection; login UI parity remains follow-up
+	work.
 - [x] Port Aitum vertical-canvas scene, stream, recording, backtrack, save, and
 	chapter actions over the shared OBS vendor-request transport.
 - [x] Port DonorDrive participant polling, donation/incentive/milestone events,
