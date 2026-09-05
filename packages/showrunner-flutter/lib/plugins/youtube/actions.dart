@@ -1,3 +1,4 @@
+import '../../components/data_inputs/data_input.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_registry.dart';
 import '../../services/plugin_event_hub.dart';
@@ -16,6 +17,67 @@ final class YouTubeTransport {
 
   final YouTubeRequest request;
 }
+
+DartDataInputSchema _youtubeObject(
+  String label,
+  List<DartDataInputSchema> fields,
+) => DartDataInputSchema(
+  label: label,
+  kind: DartDataInputKind.object,
+  fields: fields,
+);
+
+final _chatSchema = _youtubeObject('YouTube chat message', [
+  DartDataInputSchema(
+    label: 'Live chat ID',
+    key: 'liveChatId',
+    kind: DartDataInputKind.text,
+  ),
+  DartDataInputSchema(
+    label: 'Message',
+    key: 'message',
+    kind: DartDataInputKind.multilineText,
+    required: true,
+  ),
+]);
+
+final _deleteMessageSchema = _youtubeObject('YouTube chat message', [
+  DartDataInputSchema(
+    label: 'Message ID',
+    key: 'messageId',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+]);
+
+final _banSchema = _youtubeObject('YouTube chat ban', [
+  DartDataInputSchema(
+    label: 'Live chat ID',
+    key: 'liveChatId',
+    kind: DartDataInputKind.text,
+  ),
+  DartDataInputSchema(
+    label: 'Channel ID',
+    key: 'channelId',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Duration (seconds; 0 = permanent)',
+    key: 'banDurationSeconds',
+    kind: DartDataInputKind.number,
+    defaultValue: 0,
+  ),
+]);
+
+final _removeBanSchema = _youtubeObject('YouTube chat ban', [
+  DartDataInputSchema(
+    label: 'Ban ID',
+    key: 'banId',
+    kind: DartDataInputKind.text,
+    required: true,
+  ),
+]);
 
 DartPluginManifest createYouTubePlugin(
   YouTubeTransport transport, {
@@ -60,6 +122,7 @@ DartPluginManifest createYouTubePlugin(
       pluginId: 'youtube',
       actionId: 'sendChatMessage',
       displayName: 'Send Chat Message',
+      configSchema: _chatSchema,
       invoke: (config, context) => transport.request(
         'POST',
         '/youtube/v3/liveChat/messages',
@@ -78,6 +141,7 @@ DartPluginManifest createYouTubePlugin(
       pluginId: 'youtube',
       actionId: 'deleteMessage',
       displayName: 'Delete Chat Message',
+      configSchema: _deleteMessageSchema,
       invoke: (config, context) => transport.request(
         'DELETE',
         '/youtube/v3/liveChat/messages',
@@ -89,6 +153,7 @@ DartPluginManifest createYouTubePlugin(
       pluginId: 'youtube',
       actionId: 'banUser',
       displayName: 'Ban User from Chat',
+      configSchema: _banSchema,
       invoke: (config, context) {
         final duration = (config['banDurationSeconds'] as num?)?.toInt() ?? 0;
         return transport.request(
@@ -111,6 +176,7 @@ DartPluginManifest createYouTubePlugin(
       pluginId: 'youtube',
       actionId: 'removeBan',
       displayName: 'Unban User from Chat',
+      configSchema: _removeBanSchema,
       invoke: (config, context) => transport.request(
         'DELETE',
         '/youtube/v3/liveChat/bans',

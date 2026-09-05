@@ -92,4 +92,24 @@ void main() {
       'DELETE /helix/raids ',
     ]);
   });
+
+  test('declares editor schemas for every Twitch action', () {
+    final plugin = createTwitchPlugin(
+      TwitchTransport((method, path, query, body) async => const {}),
+    );
+
+    expect(plugin.actions, isNotEmpty);
+    expect(
+      plugin.actions.every((action) => action.configSchema != null),
+      isTrue,
+    );
+    expect(
+      plugin.actions
+          .firstWhere((action) => action.actionId == 'createPrediction')
+          .configSchema!
+          .fields
+          .map((field) => field.key),
+      containsAll(<String?>['title', 'duration', 'outcomes']),
+    );
+  });
 }

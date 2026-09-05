@@ -105,9 +105,9 @@ final class TwitchChannelPointRewardDraft {
           ? '#9147ff'
           : _text(value('backgroundColor')),
       cost: (_int(value('cost')) ?? 1).clamp(1, 1000000),
-      userInputRequired: value('userInputRequired') == true,
-      skipQueue: value('skipQueue') == true,
-      isEnabled: config['isEnabled'] != false,
+      userInputRequired: _bool(value('userInputRequired')),
+      skipQueue: _bool(value('skipQueue')),
+      isEnabled: value('isEnabled') == null || _bool(value('isEnabled')),
       maxRedemptionsPerStream: _positiveInt(value('maxRedemptionsPerStream')),
       maxRedemptionsPerUserPerStream: _positiveInt(
         value('maxRedemptionsPerUserPerStream'),
@@ -256,6 +256,11 @@ TwitchChannelPointReward _firstReward(RuntimeMap response) {
 }
 
 String _text(Object? value) => value?.toString() ?? '';
+
+bool _bool(Object? value) {
+  if (value is bool) return value;
+  return value?.toString().toLowerCase() == 'true';
+}
 
 int? _int(Object? value) =>
     value is num ? value.toInt() : int.tryParse('$value');

@@ -45,4 +45,16 @@ void main() {
       ]);
     },
   );
+
+  test('declares editor schemas for every YouTube action', () {
+    final plugin = createYouTubePlugin(
+      YouTubeTransport((method, path, query, body) async => const {}),
+    );
+
+    expect(plugin.actions, isNotEmpty);
+    expect(
+      plugin.actions.every((action) => action.configSchema != null),
+      isTrue,
+    );
+  });
 }
