@@ -99,7 +99,11 @@ DartPluginManifest createModerationPlugin(ModerationService service) =>
             ModerationWorkspace(service: service),
       ),
       settings: const [
-        DartSettingDefinition(id: 'enabled', displayName: 'Enabled'),
+        DartSettingDefinition(
+          id: 'enabled',
+          displayName: 'Enabled',
+          type: DartSettingType.boolean,
+        ),
         DartSettingDefinition(id: 'apiBaseUrl', displayName: 'API URL'),
         DartSettingDefinition(
           id: 'apiToken',

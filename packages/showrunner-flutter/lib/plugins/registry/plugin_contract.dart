@@ -14,18 +14,30 @@ typedef DartPluginTriggerMatcher =
 
 typedef DartPluginLifecycleHook = Future<void> Function();
 
+enum DartSettingType { text, number, boolean }
+
 final class DartSettingDefinition {
   const DartSettingDefinition({
     required this.id,
     required this.displayName,
     this.secret = false,
     this.defaultValue,
+    this.type,
   });
 
   final String id;
   final String displayName;
   final bool secret;
   final dynamic defaultValue;
+  final DartSettingType? type;
+
+  DartSettingType get valueType {
+    final explicitType = type;
+    if (explicitType != null) return explicitType;
+    if (defaultValue is bool) return DartSettingType.boolean;
+    if (defaultValue is num) return DartSettingType.number;
+    return DartSettingType.text;
+  }
 
   SettingId get key => SettingId(id);
 }

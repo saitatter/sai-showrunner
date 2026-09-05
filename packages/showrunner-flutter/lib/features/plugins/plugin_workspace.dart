@@ -73,8 +73,12 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         _settings[pluginId] = values;
         for (final field in _fields[pluginId]!) {
           final key = '$pluginId:$field';
+          final definition = _definitions[key]!;
+          final value = values.containsKey(field)
+              ? values[field]
+              : definition.defaultValue;
           _controllers[key] = TextEditingController(
-            text: values[field]?.toString() ?? '',
+            text: _encodeSettingValue(value),
           );
         }
       }
@@ -92,9 +96,10 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     try {
       final values = <String, dynamic>{};
       for (final field in _fields[pluginId]!) {
-        final value = _controllers['$pluginId:$field']!.text.trim();
-        if (value.isEmpty) continue;
-        values[field] = field == 'port' ? int.tryParse(value) ?? value : value;
+        final definition = _definitions['$pluginId:$field']!;
+        final rawValue = _controllers['$pluginId:$field']!.text.trim();
+        if (rawValue.isEmpty && definition.defaultValue == null) continue;
+        values[field] = _decodeSettingValue(definition, rawValue);
       }
       final validation = validateProviderSettings(pluginId, values);
       if (!validation.isValid) {
@@ -414,25 +419,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
                       ),
                       const SizedBox(height: 12),
                       ...entry.value.map(
-                        (field) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: TextField(
-                            controller: _controllers['${entry.key}:$field'],
-                            obscureText:
-                                _definitions['${entry.key}:$field']?.secret ??
-                                false,
-                            keyboardType: field == 'port'
-                                ? TextInputType.number
-                                : TextInputType.text,
-                            decoration: InputDecoration(
-                              labelText:
-                                  _definitions['${entry.key}:$field']
-                                      ?.displayName ??
-                                  field,
-                              border: const OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
+                        (field) => _buildSettingField(entry.key, field),
                       ),
                     ],
                   ),
@@ -448,6 +435,78 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         ),
       ],
     );
+  }
+
+  Widget _buildSettingField(String pluginId, String field) {
+    final key = '$pluginId:$field';
+    final definition = _definitions[key]!;
+    final controller = _controllers[key]!;
+    if (definition.valueType == DartSettingType.boolean) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: CheckboxListTile(
+          value: _decodeBoolean(controller.text) ?? false,
+          title: Text(definition.displayName),
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          onChanged: (value) {
+            controller.text = (value ?? false).toString();
+            setState(() {});
+          },
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: controller,
+        obscureText: definition.secret,
+        keyboardType: definition.valueType == DartSettingType.number
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : TextInputType.text,
+        decoration: InputDecoration(
+          labelText: definition.displayName,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+}
+
+String _encodeSettingValue(Object? value) => value?.toString() ?? '';
+
+dynamic _decodeSettingValue(DartSettingDefinition definition, String rawValue) {
+  if (definition.valueType == DartSettingType.boolean) {
+    return _decodeBoolean(rawValue) ?? definition.defaultValue ?? false;
+  }
+  if (definition.valueType == DartSettingType.number) {
+    final parsed = definition.defaultValue is int
+        ? int.tryParse(rawValue)
+        : double.tryParse(rawValue);
+    if (parsed == null) {
+      throw FormatException(
+        '${definition.displayName} must be a valid number.',
+      );
+    }
+    return parsed;
+  }
+  return rawValue;
+}
+
+bool? _decodeBoolean(String rawValue) {
+  switch (rawValue.trim().toLowerCase()) {
+    case 'true':
+    case '1':
+    case 'yes':
+    case 'on':
+      return true;
+    case 'false':
+    case '0':
+    case 'no':
+    case 'off':
+      return false;
+    default:
+      return null;
   }
 }
 
@@ -670,7 +729,7 @@ class _ManifestSection extends StatelessWidget {
   );
 }
 
-class _PluginUsageSummary extends StatelessWidget {
+class _PluginUsageSummary extends StatefulWidget {
   const _PluginUsageSummary({
     required this.dataService,
     required this.pluginId,
@@ -679,16 +738,38 @@ class _PluginUsageSummary extends StatelessWidget {
   final ShowRunnerDataService dataService;
   final String pluginId;
 
+  @override
+  State<_PluginUsageSummary> createState() => _PluginUsageSummaryState();
+}
+
+class _PluginUsageSummaryState extends State<_PluginUsageSummary> {
+  late Future<List<String>> _usageFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _usageFuture = _loadUsage();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PluginUsageSummary oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dataService != widget.dataService ||
+        oldWidget.pluginId != widget.pluginId) {
+      _usageFuture = _loadUsage();
+    }
+  }
+
   Future<List<String>> _loadUsage() async {
     final entries = await AutomationRepository.loadDirectory(
-      Directory('${dataService.userDirectory.path}/automations'),
+      Directory('${widget.dataService.userDirectory.path}/automations'),
     );
     final usage = <String>[];
     for (final entry in entries) {
       final graph = entry.automation?.graph;
       if (graph == null) continue;
       final usesPlugin = graph.nodes.any(
-        (node) => node.data['plugin'] == pluginId,
+        (node) => node.data['plugin'] == widget.pluginId,
       );
       if (usesPlugin) usage.add(entry.fileName);
     }
@@ -697,7 +778,7 @@ class _PluginUsageSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<String>>(
-    future: _loadUsage(),
+    future: _usageFuture,
     builder: (context, snapshot) {
       final usage = snapshot.data ?? const <String>[];
       return Card(
