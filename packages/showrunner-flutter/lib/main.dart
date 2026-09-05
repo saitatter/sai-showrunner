@@ -108,7 +108,7 @@ class ShowRunnerPage extends StatefulWidget {
   State<ShowRunnerPage> createState() => _ShowRunnerPageState();
 }
 
-class _ShowRunnerPageState extends State<ShowRunnerPage> {
+class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   late final ShowRunnerGraphEditor _graphEditor;
   late final DartActionQueue _actionQueue;
   late final Future<DartPluginRegistry> _pluginRegistryFuture;
@@ -137,6 +137,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
           _resourceOptions(widget.dataService, resourceType),
     );
     _graphEditor.documentDirty.addListener(_onGraphDirtyChanged);
+    if (Platform.isWindows) {
+      windowManager.addListener(this);
+      unawaited(windowManager.setPreventClose(true));
+    }
     if (widget.loadSampleGraph) _graphEditor.loadSampleGraph();
     _actionQueue = DartActionQueue();
     _eventHub = DartPluginEventHub();
@@ -178,6 +182,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
     _providerEvents.removeListener(_syncProviderStateDiagnostics);
     _stateRegistry = null;
     _graphEditor.documentDirty.removeListener(_onGraphDirtyChanged);
+    if (Platform.isWindows) windowManager.removeListener(this);
     _graphEditor.dispose();
     _actionQueue.dispose();
     unawaited(_pluginRegistryFuture.then((registry) => registry.close()));
@@ -214,6 +219,25 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
   void _onGraphDirtyChanged() {
     if (!mounted) return;
     setState(() {});
+  }
+
+  bool _isWindowCloseInProgress = false;
+
+  @override
+  void onWindowClose() {
+    unawaited(_handleWindowClose());
+  }
+
+  Future<void> _handleWindowClose() async {
+    if (!mounted || _isWindowCloseInProgress) return;
+    _isWindowCloseInProgress = true;
+    try {
+      if (!await _confirmAutomationClose()) return;
+      await windowManager.setPreventClose(false);
+      await windowManager.destroy();
+    } finally {
+      _isWindowCloseInProgress = false;
+    }
   }
 
   @override
@@ -637,37 +661,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
     if (index == 0 &&
         _activeAutomationFile != null &&
         _graphEditor.documentDirty.value) {
-      final decision = await showDialog<_CloseDecision>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Unsaved changes'),
-          content: Text(
-            'Save changes to ${_activeAutomationFile!} before closing?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(_CloseDecision.discard),
-              child: const Text("Don't Save"),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted || decision == null || decision == _CloseDecision.cancel) {
-        return;
-      }
-      if (decision == _CloseDecision.save) {
-        await _saveAutomation();
-        if (!mounted || _graphEditor.documentDirty.value) return;
-      }
+      if (!await _confirmAutomationClose()) return;
     }
     setState(() {
       final closingPosition = _openTabIndices.indexOf(index);
@@ -679,6 +673,43 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
       }
     });
     unawaited(_persistNavigation());
+  }
+
+  Future<bool> _confirmAutomationClose() async {
+    if (_activeAutomationFile == null || !_graphEditor.documentDirty.value) {
+      return true;
+    }
+    final decision = await showDialog<_CloseDecision>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsaved changes'),
+        content: Text(
+          'Save changes to ${_activeAutomationFile!} before closing?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(_CloseDecision.discard),
+            child: const Text("Don't Save"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
+      return false;
+    }
+    if (decision == _CloseDecision.save) {
+      await _saveAutomation();
+      return mounted && !_graphEditor.documentDirty.value;
+    }
+    return true;
   }
 
   Future<void> _saveAutomation() async {
