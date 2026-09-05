@@ -22,6 +22,7 @@ import 'schema/automation.dart';
 import 'runtime/action_queue.dart';
 import 'runtime/expression.dart';
 import 'services/showrunner_data_service.dart';
+import 'services/update_check_service.dart';
 import 'features/automation/automation_starters.dart';
 import 'features/settings/interface_preferences.dart';
 
@@ -43,6 +44,9 @@ class ShowRunnerFlutterApp extends StatelessWidget {
       builder: showRunnerAppFrame,
       home: ShowRunnerPage(
         dataService: ShowRunnerDataService(_showRunnerUserDirectory()),
+        updateService: const UpdateCheckService(
+          currentVersion: showRunnerFlutterVersion,
+        ),
       ),
     );
   }
@@ -59,11 +63,13 @@ class ShowRunnerPage extends StatefulWidget {
   const ShowRunnerPage({
     super.key,
     required this.dataService,
+    this.updateService,
     this.loadSampleGraph = true,
     this.showGraphEditor = true,
   });
 
   final ShowRunnerDataService dataService;
+  final UpdateCheckService? updateService;
   final bool loadSampleGraph;
   final bool showGraphEditor;
 
@@ -150,6 +156,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
       pluginRegistryFuture: _pluginRegistryFuture,
       profileRuntimeFuture: _profileRuntimeFuture,
       interfacePreferences: _interfacePreferences,
+      updateService: widget.updateService,
       selectedIndex: _selectedIndex,
       openTabIndices: _openTabIndices,
       selectedPluginId: _selectedPluginId,

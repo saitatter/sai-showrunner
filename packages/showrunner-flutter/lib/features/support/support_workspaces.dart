@@ -119,8 +119,8 @@ class AboutWorkspace extends StatefulWidget {
 
 class _AboutWorkspaceState extends State<AboutWorkspace> {
   UpdateInfo _updateInfo = const UpdateInfo(
-    currentVersion: '1.0.0-beta1',
-    latestVersion: '1.0.0-beta1',
+    currentVersion: showRunnerFlutterVersion,
+    latestVersion: showRunnerFlutterVersion,
     hasUpdate: false,
   );
   bool _checking = false;
@@ -129,7 +129,9 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
     setState(() => _checking = true);
     final result =
         await (widget.updateService ??
-                const UpdateCheckService(currentVersion: '1.0.0-beta1'))
+                const UpdateCheckService(
+                  currentVersion: showRunnerFlutterVersion,
+                ))
             .check();
     if (!mounted) return;
     setState(() {
