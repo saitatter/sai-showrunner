@@ -43,14 +43,23 @@ class OverlayResource {
 
   factory OverlayResource.fromResource(ResourceData resource) {
     final config = resource.config;
+    final size = config['size'] is Map
+        ? Map<String, dynamic>.from(config['size'] as Map)
+        : const <String, dynamic>{};
     final widgetsList =
         (config['widgets'] as List<dynamic>?)?.whereType<JsonMap>().toList() ??
         const [];
     return OverlayResource(
       id: resource.id,
       name: resource.name,
-      width: (config['width'] as num?)?.toInt() ?? 1920,
-      height: (config['height'] as num?)?.toInt() ?? 1080,
+      width:
+          (config['width'] as num?)?.toInt() ??
+          (size['width'] as num?)?.toInt() ??
+          1920,
+      height:
+          (config['height'] as num?)?.toInt() ??
+          (size['height'] as num?)?.toInt() ??
+          1080,
       widgets: widgetsList,
     );
   }

@@ -546,7 +546,17 @@ class _OverlayEditorState extends State<_OverlayEditor> {
           IconButton(
             tooltip: 'Add widget',
             onPressed: () => setState(
-              () => _widgets.add({'type': 'text', 'text': 'New widget'}),
+              () => _widgets.add({
+                'id': 'widget-${DateTime.now().microsecondsSinceEpoch}',
+                'plugin': 'overlays',
+                'widget': 'label',
+                'name': 'New widget',
+                'size': {'width': 300, 'height': 90},
+                'position': {'x': 0, 'y': 0},
+                'config': {'message': 'New widget'},
+                'visible': true,
+                'locked': false,
+              }),
             ),
             icon: const Icon(Icons.add_box_outlined),
           ),
@@ -573,6 +583,11 @@ class _OverlayEditorState extends State<_OverlayEditor> {
           'width': int.tryParse(_width.text) ?? 1920,
           'height': int.tryParse(_height.text) ?? 1080,
           'widgets': _widgets,
+          if (widget.resource.config['size'] is Map)
+            'size': {
+              'width': int.tryParse(_width.text) ?? 1920,
+              'height': int.tryParse(_height.text) ?? 1080,
+            },
         },
       ),
     ),
@@ -593,105 +608,116 @@ class _OverlayWidgetCard extends StatelessWidget {
   final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Widget ${index + 1}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+  Widget build(BuildContext context) {
+    if (widgetConfig.containsKey('plugin') ||
+        widgetConfig.containsKey('widget')) {
+      return _CanonicalOverlayWidgetCard(
+        index: index,
+        widgetConfig: widgetConfig,
+        onChanged: onChanged,
+        onDelete: onDelete,
+      );
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Widget ${index + 1}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Delete widget',
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline),
-              ),
-            ],
-          ),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              _enumField('type', '${widgetConfig['type'] ?? 'text'}', const [
-                'text',
-                'image',
-                'video',
-                'audio',
-                'media',
-              ], onChanged),
-              _field('text', '${widgetConfig['text'] ?? ''}', onChanged),
-              _mediaField(context),
-              _field(
-                'x',
-                '${widgetConfig['x'] ?? 0}',
-                onChanged,
-                numeric: true,
-              ),
-              _field(
-                'y',
-                '${widgetConfig['y'] ?? 0}',
-                onChanged,
-                numeric: true,
-              ),
-              _field(
-                'width',
-                '${widgetConfig['width'] ?? 320}',
-                onChanged,
-                numeric: true,
-              ),
-              _field(
-                'height',
-                '${widgetConfig['height'] ?? 80}',
-                onChanged,
-                numeric: true,
-              ),
-              _field(
-                'opacity',
-                '${widgetConfig['opacity'] ?? 1}',
-                onChanged,
-                numeric: true,
-              ),
-              _field(
-                'fontSize',
-                '${widgetConfig['fontSize'] ?? 16}',
-                onChanged,
-                numeric: true,
-              ),
-              ColorValueField(
-                label: 'color',
-                initialValue: '${widgetConfig['color'] ?? '#ffffff'}',
-                onChanged: (value) => onChanged('color', value),
-              ),
-              ColorValueField(
-                label: 'backgroundColor',
-                initialValue:
-                    '${widgetConfig['backgroundColor'] ?? 'transparent'}',
-                onChanged: (value) => onChanged('backgroundColor', value),
-              ),
-              _enumField(
-                'fontWeight',
-                '${widgetConfig['fontWeight'] ?? 'normal'}',
-                const ['normal', 'bold'],
-                onChanged,
-              ),
-              _enumField(
-                'textAlign',
-                '${widgetConfig['textAlign'] ?? 'left'}',
-                const ['left', 'center', 'right'],
-                onChanged,
-              ),
-            ],
-          ),
-        ],
+                IconButton(
+                  tooltip: 'Delete widget',
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                _enumField('type', '${widgetConfig['type'] ?? 'text'}', const [
+                  'text',
+                  'image',
+                  'video',
+                  'audio',
+                  'media',
+                ], onChanged),
+                _field('text', '${widgetConfig['text'] ?? ''}', onChanged),
+                _mediaField(context),
+                _field(
+                  'x',
+                  '${widgetConfig['x'] ?? 0}',
+                  onChanged,
+                  numeric: true,
+                ),
+                _field(
+                  'y',
+                  '${widgetConfig['y'] ?? 0}',
+                  onChanged,
+                  numeric: true,
+                ),
+                _field(
+                  'width',
+                  '${widgetConfig['width'] ?? 320}',
+                  onChanged,
+                  numeric: true,
+                ),
+                _field(
+                  'height',
+                  '${widgetConfig['height'] ?? 80}',
+                  onChanged,
+                  numeric: true,
+                ),
+                _field(
+                  'opacity',
+                  '${widgetConfig['opacity'] ?? 1}',
+                  onChanged,
+                  numeric: true,
+                ),
+                _field(
+                  'fontSize',
+                  '${widgetConfig['fontSize'] ?? 16}',
+                  onChanged,
+                  numeric: true,
+                ),
+                ColorValueField(
+                  label: 'color',
+                  initialValue: '${widgetConfig['color'] ?? '#ffffff'}',
+                  onChanged: (value) => onChanged('color', value),
+                ),
+                ColorValueField(
+                  label: 'backgroundColor',
+                  initialValue:
+                      '${widgetConfig['backgroundColor'] ?? 'transparent'}',
+                  onChanged: (value) => onChanged('backgroundColor', value),
+                ),
+                _enumField(
+                  'fontWeight',
+                  '${widgetConfig['fontWeight'] ?? 'normal'}',
+                  const ['normal', 'bold'],
+                  onChanged,
+                ),
+                _enumField(
+                  'textAlign',
+                  '${widgetConfig['textAlign'] ?? 'left'}',
+                  const ['left', 'center', 'right'],
+                  onChanged,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _enumField(
     String key,
@@ -765,6 +791,149 @@ class _OverlayWidgetCard extends StatelessWidget {
           onChanged(key, numeric ? num.tryParse(next) ?? 0 : next),
     ),
   );
+}
+
+class _CanonicalOverlayWidgetCard extends StatelessWidget {
+  const _CanonicalOverlayWidgetCard({
+    required this.index,
+    required this.widgetConfig,
+    required this.onChanged,
+    required this.onDelete,
+  });
+
+  final int index;
+  final JsonMap widgetConfig;
+  final void Function(String key, dynamic value) onChanged;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final position = widgetConfig['position'] is Map
+        ? Map<String, dynamic>.from(widgetConfig['position'] as Map)
+        : const <String, dynamic>{};
+    final size = widgetConfig['size'] is Map
+        ? Map<String, dynamic>.from(widgetConfig['size'] as Map)
+        : const <String, dynamic>{};
+    final config = widgetConfig['config'] is Map
+        ? Map<String, dynamic>.from(widgetConfig['config'] as Map)
+        : const <String, dynamic>{};
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Widget ${index + 1}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Delete widget',
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                _textField('Name', '${widgetConfig['name'] ?? ''}', 'name'),
+                _textField(
+                  'Plugin',
+                  '${widgetConfig['plugin'] ?? ''}',
+                  'plugin',
+                ),
+                _textField(
+                  'Widget',
+                  '${widgetConfig['widget'] ?? ''}',
+                  'widget',
+                ),
+                _numberField(
+                  'X',
+                  position['x'],
+                  (value) => onChanged('position', {...position, 'x': value}),
+                ),
+                _numberField(
+                  'Y',
+                  position['y'],
+                  (value) => onChanged('position', {...position, 'y': value}),
+                ),
+                _numberField(
+                  'Width',
+                  size['width'],
+                  (value) => onChanged('size', {...size, 'width': value}),
+                ),
+                _numberField(
+                  'Height',
+                  size['height'],
+                  (value) => onChanged('size', {...size, 'height': value}),
+                ),
+              ],
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Visible'),
+              value: widgetConfig['visible'] != false,
+              onChanged: (value) => onChanged('visible', value),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Locked'),
+              value: widgetConfig['locked'] == true,
+              onChanged: (value) => onChanged('locked', value),
+            ),
+            TextFormField(
+              initialValue: const JsonEncoder.withIndent('  ').convert(config),
+              minLines: 4,
+              maxLines: 10,
+              decoration: const InputDecoration(
+                labelText: 'Widget config (JSON object)',
+                alignLabelWithHint: true,
+              ),
+              onChanged: (value) {
+                try {
+                  final decoded = jsonDecode(value);
+                  if (decoded is Map) {
+                    onChanged('config', Map<String, dynamic>.from(decoded));
+                  }
+                } on FormatException {
+                  // Preserve the last valid config while the JSON is edited.
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _textField(String label, String value, String key) => SizedBox(
+    width: 180,
+    child: TextFormField(
+      initialValue: value,
+      decoration: InputDecoration(labelText: label),
+      onChanged: (next) => onChanged(key, next),
+    ),
+  );
+
+  Widget _numberField(String label, Object? value, ValueChanged<num> onValue) =>
+      SizedBox(
+        width: 110,
+        child: TextFormField(
+          initialValue: '${value ?? 0}',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(labelText: label),
+          onChanged: (next) {
+            final parsed = num.tryParse(next);
+            if (parsed != null) onValue(parsed);
+          },
+        ),
+      );
 }
 
 class _StreamPlanEditor extends StatefulWidget {

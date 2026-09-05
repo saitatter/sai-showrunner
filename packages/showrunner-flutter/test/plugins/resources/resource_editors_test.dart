@@ -525,6 +525,51 @@ void main() {
     expect(find.byTooltip('Select media'), findsOneWidget);
   });
 
+  testWidgets('overlay editor preserves canonical widget resources', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-canonical',
+        config: {
+          'name': 'Canonical overlay',
+          'size': {'width': 1280, 'height': 720},
+          'widgets': [
+            {
+              'id': 'widget-1',
+              'plugin': 'overlays',
+              'widget': 'shaderLayer',
+              'name': 'Background',
+              'position': {'x': 12, 'y': 24},
+              'size': {'width': 900, 'height': 500},
+              'config': {'preset': 'aurora', 'speed': 1},
+              'visible': true,
+              'locked': false,
+            },
+          ],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(find.text('Plugin'), findsOneWidget);
+    expect(find.text('Widget config (JSON object)'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(saved?.config['size'], {'width': 1280, 'height': 720});
+    final widget = (saved?.config['widgets'] as List).single as Map;
+    expect(widget['plugin'], 'overlays');
+    expect(widget['widget'], 'shaderLayer');
+    expect(widget['position'], {'x': 12, 'y': 24});
+    expect(widget['config'], {'preset': 'aurora', 'speed': 1});
+  });
+
   testWidgets('stream plan editor adds and persists ordered segments', (
     tester,
   ) async {
