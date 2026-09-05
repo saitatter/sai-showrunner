@@ -1,9 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../persistence/resource_repository.dart';
+import '../resources/resource_options.dart';
 import '../../schema/resource.dart';
 import '../../services/showrunner_data_service.dart';
 import '../../plugins/remote/satellite.dart';
@@ -433,11 +432,16 @@ class _RemoteSlotEditorState extends State<_RemoteSlotEditor> {
     _resources = _loadResources();
   }
 
-  Future<List<ResourceData>> _loadResources() => ResourceRepository(
-    Directory(
-      '${widget.dataService.userDirectory.path}/${widget.slot.resourceType.toLowerCase()}',
-    ),
-  ).list();
+  Future<List<ResourceData>> _loadResources() async {
+    final ids = await loadResourceOptions(
+      widget.dataService,
+      widget.slot.resourceType,
+    );
+    return [
+      for (final id in ids)
+        ResourceData(id: id, config: <String, dynamic>{'name': id}),
+    ];
+  }
 
   Future<void> _bind(String value) async {
     try {

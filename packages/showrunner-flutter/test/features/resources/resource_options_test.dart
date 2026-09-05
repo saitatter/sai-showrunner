@@ -49,4 +49,30 @@ void main() {
 
     expect(options, ['vip-group']);
   });
+
+  test(
+    'uses the canonical directories for remote IoT resource slots',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'remote-resource-options-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final lightRepository = ResourceRepository(
+        Directory('${directory.path}/iot/lights'),
+      );
+      final plugRepository = ResourceRepository(
+        Directory('${directory.path}/iot/plugs'),
+      );
+      await lightRepository.save(
+        const ResourceData(id: 'key-light', config: {'name': 'Key Light'}),
+      );
+      await plugRepository.save(
+        const ResourceData(id: 'desk-plug', config: {'name': 'Desk Plug'}),
+      );
+
+      final dataService = ShowRunnerDataService(directory);
+      expect(await loadResourceOptions(dataService, 'Light'), ['key-light']);
+      expect(await loadResourceOptions(dataService, 'Plug'), ['desk-plug']);
+    },
+  );
 }
