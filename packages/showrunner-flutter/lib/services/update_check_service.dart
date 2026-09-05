@@ -15,19 +15,37 @@ final class UpdateCheckService {
     this.repository = 'saitatter/sai-showrunner',
     this.timeout = const Duration(seconds: 8),
     this.fetcher,
+    this.canCheckForUpdates = true,
   });
 
   final String currentVersion;
   final String repository;
   final Duration timeout;
   final UpdateReleaseFetcher? fetcher;
+  final bool canCheckForUpdates;
 
   Future<UpdateInfo> check() async {
+    final checkedAt = DateTime.now().toUtc().toIso8601String();
+    if (!canCheckForUpdates) {
+      return UpdateInfo(
+        currentVersion: normalizeVersion(currentVersion),
+        latestVersion: normalizeVersion(currentVersion),
+        hasUpdate: false,
+        status: UpdateStatus.idle,
+        canCheckForUpdates: false,
+        checkedAt: checkedAt,
+        message: 'Update checks are unavailable in this development build.',
+      );
+    }
     try {
       final release = await (fetcher?.call() ?? _fetchLatestRelease()).timeout(
         timeout,
       );
-      return UpdateInfo.fromJson(release, currentVersion: currentVersion);
+      final result = UpdateInfo.fromJson(
+        release,
+        currentVersion: currentVersion,
+      );
+      return _withCheckedAt(result, checkedAt);
     } on Object catch (error) {
       return UpdateInfo(
         currentVersion: normalizeVersion(currentVersion),
@@ -35,6 +53,8 @@ final class UpdateCheckService {
         hasUpdate: false,
         status: UpdateStatus.error,
         errorMessage: _errorMessage(error),
+        canCheckForUpdates: canCheckForUpdates,
+        checkedAt: checkedAt,
       );
     }
   }
@@ -68,6 +88,22 @@ final class UpdateCheckService {
     }
   }
 }
+
+UpdateInfo _withCheckedAt(UpdateInfo update, String checkedAt) => UpdateInfo(
+  currentVersion: update.currentVersion,
+  latestVersion: update.latestVersion,
+  hasUpdate: update.hasUpdate,
+  releaseNotes: update.releaseNotes,
+  downloadUrl: update.downloadUrl,
+  artifactUrl: update.artifactUrl,
+  releaseDate: update.releaseDate,
+  status: update.status,
+  errorMessage: update.errorMessage,
+  canCheckForUpdates: update.canCheckForUpdates,
+  checkedAt: checkedAt,
+  message: update.message,
+  downloaded: update.downloaded,
+);
 
 String _errorMessage(Object error) {
   if (error is TimeoutException) return 'Update check timed out.';

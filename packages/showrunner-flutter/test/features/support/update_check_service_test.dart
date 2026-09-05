@@ -36,6 +36,8 @@ void main() {
     expect(result.downloadUrl, contains('/releases/tag/v1.1.0'));
     expect(result.artifactUrl, contains('/downloads/showrunner.zip'));
     expect(result.releaseDate, '2026-09-01T10:00:00Z');
+    expect(result.canCheckForUpdates, isTrue);
+    expect(result.checkedAt, isNotNull);
   });
 
   test('treats a v-prefixed current release as up to date', () async {
@@ -76,5 +78,21 @@ void main() {
 
     expect(result.status, UpdateStatus.error);
     expect(result.errorMessage, 'Update check timed out.');
+    expect(result.checkedAt, isNotNull);
+  });
+
+  test('reports when update checks are unavailable', () async {
+    final service = UpdateCheckService(
+      currentVersion: '1.0.0',
+      canCheckForUpdates: false,
+      fetcher: () async => throw StateError('must not fetch'),
+    );
+
+    final result = await service.check();
+
+    expect(result.status, UpdateStatus.idle);
+    expect(result.canCheckForUpdates, isFalse);
+    expect(result.message, contains('unavailable'));
+    expect(result.checkedAt, isNotNull);
   });
 }

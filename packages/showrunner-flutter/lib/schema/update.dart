@@ -1,6 +1,6 @@
 import 'automation.dart';
 
-enum UpdateStatus { idle, checking, available, upToDate, error }
+enum UpdateStatus { idle, checking, available, downloaded, upToDate, error }
 
 class UpdateInfo {
   const UpdateInfo({
@@ -13,6 +13,10 @@ class UpdateInfo {
     this.releaseDate = '',
     this.status = UpdateStatus.idle,
     this.errorMessage,
+    this.canCheckForUpdates = true,
+    this.checkedAt,
+    this.message,
+    this.downloaded = false,
   });
 
   final String currentVersion;
@@ -24,6 +28,10 @@ class UpdateInfo {
   final String releaseDate;
   final UpdateStatus status;
   final String? errorMessage;
+  final bool canCheckForUpdates;
+  final String? checkedAt;
+  final String? message;
+  final bool downloaded;
 
   factory UpdateInfo.fromJson(JsonMap json, {required String currentVersion}) {
     final normalizedCurrent = normalizeVersion(currentVersion);
@@ -49,6 +57,22 @@ class UpdateInfo {
     );
   }
 
+  UpdateInfo copyWith({UpdateStatus? status, bool? downloaded}) => UpdateInfo(
+    currentVersion: currentVersion,
+    latestVersion: latestVersion,
+    hasUpdate: hasUpdate,
+    releaseNotes: releaseNotes,
+    downloadUrl: downloadUrl,
+    artifactUrl: artifactUrl,
+    releaseDate: releaseDate,
+    status: status ?? this.status,
+    errorMessage: errorMessage,
+    canCheckForUpdates: canCheckForUpdates,
+    checkedAt: checkedAt,
+    message: message,
+    downloaded: downloaded ?? this.downloaded,
+  );
+
   JsonMap toJson() => <String, dynamic>{
     'currentVersion': currentVersion,
     'latestVersion': latestVersion,
@@ -57,6 +81,11 @@ class UpdateInfo {
     'downloadUrl': downloadUrl,
     'artifactUrl': artifactUrl,
     'releaseDate': releaseDate,
+    'status': status.name,
+    'canCheckForUpdates': canCheckForUpdates,
+    'checkedAt': checkedAt,
+    'message': message,
+    'downloaded': downloaded,
   };
 }
 

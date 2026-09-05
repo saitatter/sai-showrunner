@@ -182,7 +182,13 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
                     ),
               );
       if (!mounted) return;
-      setState(() => _downloadedArtifact = artifact);
+      setState(() {
+        _downloadedArtifact = artifact;
+        _updateInfo = _updateInfo.copyWith(
+          status: UpdateStatus.downloaded,
+          downloaded: true,
+        );
+      });
     } catch (error) {
       if (mounted) setState(() => _downloadError = error);
     } finally {
@@ -319,6 +325,10 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
     UpdateStatus.available => Text(
       'Update available: ${_updateInfo.latestVersion}',
       style: const TextStyle(color: Colors.lightGreenAccent),
+    ),
+    UpdateStatus.downloaded => const Text(
+      'Update downloaded and ready to install on restart.',
+      style: TextStyle(color: Colors.lightGreenAccent),
     ),
     UpdateStatus.error => Text(
       _updateInfo.errorMessage ?? 'Unable to check for updates.',
