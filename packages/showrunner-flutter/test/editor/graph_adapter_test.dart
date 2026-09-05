@@ -174,7 +174,7 @@ void main() {
     );
   });
 
-  test('creates built-in conversion nodes with Vue-compatible defaults', () {
+  test('creates built-in conversion nodes with product-compatible defaults', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
 

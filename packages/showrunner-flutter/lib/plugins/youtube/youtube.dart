@@ -1,7 +1,6 @@
 /// Public YouTube plugin surface.
 ///
-/// Keep the plugin's manifest and runtime contracts under this directory as
-/// they are migrated from the Vue plugin package.
+/// Keep the plugin's manifest and runtime contracts under this directory.
 library;
 
 export 'actions.dart';

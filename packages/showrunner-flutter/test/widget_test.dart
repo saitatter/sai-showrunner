@@ -674,7 +674,7 @@ void main() {
     expect(execution.nodeResults['action-1'], {'_result': 'ok'});
   });
 
-  test('lists migrated user files in stable order', () async {
+  test('lists user files in stable order', () async {
     final directory = await Directory.systemTemp.createTemp(
       'showrunner-catalog-',
     );

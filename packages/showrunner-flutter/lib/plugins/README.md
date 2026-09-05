@@ -1,6 +1,6 @@
 # Flutter plugin layout
 
-Each migrated plugin owns a directory that mirrors the Vue package boundary:
+Each plugin owns a directory with an explicit contract, runtime, and UI boundary:
 
 ```text
 plugins/<plugin>/

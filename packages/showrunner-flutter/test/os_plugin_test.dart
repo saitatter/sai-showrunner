@@ -3,7 +3,7 @@ import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/plugins/os/manifest.dart';
 
 void main() {
-  test('exposes Flutter configuration for migrated OS actions', () {
+  test('exposes Flutter configuration for OS actions', () {
     final plugin = createOsPlugin();
     final powershell = plugin.actions.firstWhere(
       (action) => action.actionId == 'powershell',

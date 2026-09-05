@@ -36,7 +36,7 @@ void main() {
     );
   });
 
-  test('bootstraps migrated provider manifests into the Dart registry', () {
+  test('bootstraps provider manifests into the Dart registry', () {
     final registry = createDefaultPluginRegistry();
 
     expect(
