@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/profile_repository.dart';
@@ -40,4 +41,33 @@ void main() {
       expect(saved.triggers.single['config'], {'user': 'alice'});
     },
   );
+
+  test('upgrades legacy profile automations and writes a backup', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'profile-migration-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/profiles/legacy.yaml');
+    await file.parent.create(recursive: true);
+    await file.writeAsString(
+      jsonEncode({
+        'name': 'Legacy',
+        'activationMode': 'toggle',
+        'triggers': const [],
+        'activationCondition': const {},
+        'activationAutomation': {
+          'sequence': {'actions': []},
+        },
+        'deactivationAutomation': {
+          'sequence': {'actions': []},
+        },
+      }),
+    );
+
+    final profile = await ProfileRepository(file).load();
+
+    expect(profile?.activationAutomation.schemaVersion, 2);
+    expect(await Directory('${directory.path}/backup').exists(), isTrue);
+    expect((await file.readAsString()).contains('sequence'), isFalse);
+  });
 }

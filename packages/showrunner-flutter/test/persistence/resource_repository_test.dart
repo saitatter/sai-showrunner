@@ -57,4 +57,50 @@ void main() {
     expect(resource.name, 'Resource');
     expect(resource.state, isEmpty);
   });
+
+  test(
+    'normalizes legacy inline stream-plan automations at the boundary',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'showrunner-stream-plan-schema-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final repository = ResourceRepository(directory);
+      final file = File('${directory.path}/plan.json');
+      await file.writeAsString(
+        jsonEncode({
+          'id': 'plan',
+          'config': {
+            'name': 'Legacy plan',
+            'activationAutomation': {
+              'sequence': {'actions': []},
+            },
+            'deactivationAutomation': {
+              'sequence': {'actions': []},
+            },
+            'segments': [
+              {
+                'id': 'intro',
+                'name': 'Intro',
+                'components': {},
+                'activationAutomation': {
+                  'sequence': {'actions': []},
+                },
+                'deactivationAutomation': {
+                  'sequence': {'actions': []},
+                },
+              },
+            ],
+          },
+        }),
+      );
+
+      final loaded = await repository.load('plan');
+      final config = loaded!.config;
+
+      expect(config['activationAutomation']['schemaVersion'], 2);
+      expect(config['activationAutomation'].containsKey('sequence'), isFalse);
+      expect(config['segments'][0]['activationAutomation']['schemaVersion'], 2);
+    },
+  );
 }
