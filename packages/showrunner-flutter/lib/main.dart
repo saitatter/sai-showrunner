@@ -378,6 +378,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
         }
       } else if (scenario == 'automation') {
         await _runAutomationSmoke();
+      } else if (scenario == 'workflow') {
+        await _runWorkflowSmoke();
       } else if (scenario == 'profile') {
         await _runProfileSmoke();
       } else if (scenario == 'integrations') {
@@ -391,7 +393,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
           scenario,
           'smokeScenario',
           'Expected startup, first-run, data-migration, automation, profile, '
-              'integrations, overlays, or updates.',
+              'workflow, integrations, overlays, or updates.',
         );
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
@@ -444,6 +446,86 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
       throw StateError(
         'Automation smoke did not execute and map the action result.',
       );
+    }
+  }
+
+  Future<void> _runWorkflowSmoke() async {
+    final registry = await _pluginRegistryFuture;
+    final editor = ShowRunnerGraphEditor(registry: registry);
+    ShowRunnerGraphEditor? reopenedEditor;
+    try {
+      final conditionId = editor.addNodeType('if');
+      final actionId = editor.addNodeType('overlays.triggerWidget');
+      if (conditionId == null || actionId == null) {
+        throw StateError('Workflow smoke could not create its graph nodes.');
+      }
+      editor.updateNodeConfig(actionId, const {
+        'widgetId': 'workflow-widget',
+        'overlayId': 'workflow-overlay',
+        'payload': {'source': 'packaged-workflow'},
+      });
+      final link = editor.controller.addLink(
+        conditionId,
+        'then',
+        actionId,
+        'exec',
+        eventId: 'workflow-condition-action',
+      );
+      if (link == null) {
+        throw StateError('Workflow smoke could not connect its control flow.');
+      }
+
+      final created = editor.toAutomation(
+        const AutomationData(extra: {'name': 'Packaged workflow smoke'}),
+      );
+      final file = File(
+        '${widget.dataService.userDirectory.path}/automations/workflow.yaml',
+      );
+      final repository = AutomationRepository(file);
+      await repository.save(created);
+      final loaded = await repository.load();
+      if (loaded == null) {
+        throw StateError('Workflow smoke could not reopen its saved graph.');
+      }
+      final nodesByType = {
+        for (final node in loaded.graph.nodes) node.type: node,
+      };
+      final flowEdge = loaded.graph.edges
+          .where(
+            (edge) =>
+                edge.from == nodesByType['if']?.id &&
+                edge.to == nodesByType['action']?.id,
+          )
+          .firstOrNull;
+      if (loaded.graph.entryNodeId != nodesByType['if']?.id ||
+          nodesByType['if'] == null ||
+          nodesByType['action'] == null ||
+          flowEdge?.port != 'then') {
+        throw StateError(
+          'Workflow smoke did not persist the editor control-flow graph.',
+        );
+      }
+
+      reopenedEditor = ShowRunnerGraphEditor(registry: registry)
+        ..loadAutomation(loaded);
+      if (reopenedEditor.controller.nodes.length != 2) {
+        throw StateError('Workflow smoke did not restore both graph nodes.');
+      }
+      final result = await const DartGraphRuntime().executeWithRegistry(
+        graph: loaded.graph,
+        context: EvaluationContext(),
+        registry: registry,
+        dataWires: loaded.dataWires,
+        subgraphs: loaded.subgraphs,
+      );
+      if (!result.completed) {
+        throw StateError(
+          'Workflow smoke did not test-run the saved control-flow graph.',
+        );
+      }
+    } finally {
+      reopenedEditor?.dispose();
+      editor.dispose();
     }
   }
 

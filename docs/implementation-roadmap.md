@@ -100,8 +100,8 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
       update-available, and downloaded states.
 - [ ] Add visual regression or Playwright coverage for Updates, Settings,
       Integrations, and the node-editor context menu.
-- [ ] Run the full end-to-end workflow: create automation, add control flow,
-      test-run, save, reopen, and verify.
+- [x] Run the full headless end-to-end workflow: create an automation, add
+      control flow, test-run, save, reopen, and verify it in the packaged app.
 - [ ] Validate install, update, and rollback for the packaged Flutter artifact
       before renderer cutover.
 - [x] Validate first-run/data migration and clean shutdown for the packaged

@@ -3,7 +3,7 @@ param(
   [string]$ArchivePath = '',
   [ValidateSet('Debug', 'Release')]
   [string]$Configuration = 'Release',
-  [ValidateSet('startup', 'first-run', 'data-migration', 'automation', 'profile', 'integrations', 'overlays', 'updates')]
+  [ValidateSet('startup', 'first-run', 'data-migration', 'automation', 'workflow', 'profile', 'integrations', 'overlays', 'updates')]
   [string]$Scenario = 'startup',
   [string]$UserDirectory = '',
   [int]$StartupTimeoutMilliseconds = 15000

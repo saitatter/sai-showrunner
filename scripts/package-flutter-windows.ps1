@@ -44,6 +44,7 @@ try {
       'first-run',
       'data-migration',
       'automation',
+      'workflow',
       'profile',
       'integrations',
       'overlays',
