@@ -29,9 +29,10 @@ DartPluginManifest createSpellcastPlugin({DartPluginEventHub? eventHub}) {
         triggerId: 'spellHook',
         displayName: 'Spellcast Spell',
         configSchema: const DartDataInputSchema(
-          label: 'Spell resource ID',
-          kind: DartDataInputKind.text,
+          label: 'Spell resource',
+          kind: DartDataInputKind.resource,
           key: 'spell',
+          resourceType: 'SpellHook',
           required: true,
         ),
         listen: () => hub.stream('spellcast'),

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/plugins/spellcast/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
@@ -11,6 +12,9 @@ void main() {
     final trigger = plugin.triggers.single;
 
     expect(trigger.triggerId, 'spellHook');
+    expect(trigger.configSchema?.key, 'spell');
+    expect(trigger.configSchema?.kind, DartDataInputKind.resource);
+    expect(trigger.configSchema?.resourceType, 'SpellHook');
     expect(
       trigger.matches?.call(
         {'spell': 'local-spell'},

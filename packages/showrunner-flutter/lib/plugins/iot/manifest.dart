@@ -23,7 +23,8 @@ const _setLightColorSchema = DartDataInputSchema(
     DartDataInputSchema(
       label: 'Light',
       key: 'lightId',
-      kind: DartDataInputKind.text,
+      kind: DartDataInputKind.resource,
+      resourceType: 'Light',
       required: true,
     ),
     DartDataInputSchema(
@@ -41,7 +42,8 @@ const _toggleLightSchema = DartDataInputSchema(
     DartDataInputSchema(
       label: 'Light',
       key: 'lightId',
-      kind: DartDataInputKind.text,
+      kind: DartDataInputKind.resource,
+      resourceType: 'Light',
       required: true,
     ),
     DartDataInputSchema(
@@ -61,7 +63,8 @@ const _lightSchema = DartDataInputSchema(
     DartDataInputSchema(
       label: 'Light',
       key: 'light',
-      kind: DartDataInputKind.text,
+      kind: DartDataInputKind.resource,
+      resourceType: 'Light',
       required: true,
     ),
     DartDataInputSchema(
@@ -89,7 +92,8 @@ const _plugSchema = DartDataInputSchema(
     DartDataInputSchema(
       label: 'Plug',
       key: 'plug',
-      kind: DartDataInputKind.text,
+      kind: DartDataInputKind.resource,
+      resourceType: 'Plug',
       required: true,
     ),
     DartDataInputSchema(
