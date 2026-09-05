@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -28,15 +30,27 @@ jobs:
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
+      - name: Setup Node.js for contract parity
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Analyze, test, and build Flutter desktop app
         shell: pwsh
         run: |
           Push-Location packages/showrunner-flutter
           flutter pub get
+          dart format --output=none --set-exit-if-changed lib test
           flutter analyze
           flutter test
           flutter build windows --debug
           Pop-Location
+
+      - name: Validate Flutter contract parity
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack yarn parity:check
 
       - name: Smoke Flutter Windows startup
         shell: pwsh
