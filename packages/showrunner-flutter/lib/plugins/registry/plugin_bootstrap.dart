@@ -12,6 +12,7 @@ import '../obs/connection_router.dart';
 import '../../services/oauth_token.dart';
 import '../../services/showrunner_data_service.dart';
 import '../../schema/automation.dart';
+import '../../runtime/automation_queue_manager.dart';
 import '../twitch/actions.dart';
 import '../youtube/actions.dart';
 import '../moderation/moderation.dart';
@@ -52,6 +53,7 @@ import '../sound/tts_runtime.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../persistence/resource_repository.dart';
 import '../../persistence/profile_repository.dart';
+import '../../persistence/automation_repository.dart';
 
 part 'default_plugin_registrar.dart';
 
@@ -60,12 +62,14 @@ DartPluginRegistry createDefaultPluginRegistry({
   TtsSpeechService? ttsService,
   SoundOutputRegistry? soundOutputs,
   ViewerDataRepository? viewerDataRepository,
+  DartAutomationQueueManager? queueManager,
 }) {
   return buildDefaultPluginRegistry(
     eventHub: eventHub,
     ttsService: ttsService,
     soundOutputs: soundOutputs,
     viewerDataRepository: viewerDataRepository,
+    queueManager: queueManager,
   );
 }
 
@@ -75,6 +79,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   TtsSpeechService? ttsService,
   SoundOutputRegistry? soundOutputs,
   ViewerDataRepository? viewerDataRepository,
+  DartAutomationQueueManager? queueManager,
 }) async {
   final variablesRepository =
       viewerDataRepository ??
@@ -95,7 +100,13 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     port: _port(appSettings['port'], 8181),
   );
   final registry = DartPluginRegistry();
-  registry.register(createShowRunnerPlugin());
+  registry.register(
+    createShowRunnerPlugin(
+      queueManager: queueManager,
+      loadAutomation: (automationId) =>
+          _loadAutomationResource(dataService, automationId),
+    ),
+  );
   final obsTransport = ObsConnectionRouter(
     dataService: dataService,
     eventHub: eventHub,
@@ -493,6 +504,24 @@ Future<List<String>> _loadRemoteButtonNames(
     }
   }
   return names.toList(growable: false);
+}
+
+Future<AutomationData?> _loadAutomationResource(
+  ShowRunnerDataService dataService,
+  String automationId,
+) async {
+  final normalized = automationId.trim();
+  if (normalized.isEmpty ||
+      normalized.contains('/') ||
+      normalized.contains('\\')) {
+    return null;
+  }
+  final fileName = normalized.endsWith('.yaml')
+      ? normalized
+      : '$normalized.yaml';
+  return AutomationRepository(
+    File('${dataService.userDirectory.path}/automations/$fileName'),
+  ).load();
 }
 
 void _addRemoteButtonName(Set<String> names, Object? trigger) {

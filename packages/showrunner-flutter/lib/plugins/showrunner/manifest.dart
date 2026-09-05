@@ -1,6 +1,9 @@
 import 'dart:convert';
 
 import '../../schema/data_input.dart';
+import '../../schema/automation.dart';
+import '../../runtime/automation_queue_manager.dart';
+import '../../runtime/action_queue.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
 
@@ -137,7 +140,104 @@ const _arrayConversionResult = DartDataInputSchema(
   ],
 );
 
-DartPluginManifest createShowRunnerPlugin() => const DartPluginManifest(
+const _queueReference = DartDataInputSchema(
+  label: 'Queue',
+  kind: DartDataInputKind.resource,
+  key: 'queue',
+  required: true,
+  resourceType: 'ActionQueue',
+);
+const _optionalQueueReference = DartDataInputSchema(
+  label: 'Queue',
+  kind: DartDataInputKind.resource,
+  key: 'queue',
+  resourceType: 'ActionQueue',
+);
+const _automationReference = DartDataInputSchema(
+  label: 'Worker Automation',
+  kind: DartDataInputKind.resource,
+  key: 'automation',
+  required: true,
+  resourceType: 'Automation',
+);
+const _addToQueueSchema = DartDataInputSchema(
+  label: '',
+  kind: DartDataInputKind.object,
+  fields: [
+    _queueReference,
+    _automationReference,
+    DartDataInputSchema(
+      label: 'Payload',
+      kind: DartDataInputKind.object,
+      key: 'payload',
+    ),
+  ],
+);
+const _queueControlSchema = DartDataInputSchema(
+  label: '',
+  kind: DartDataInputKind.object,
+  fields: [_queueReference],
+);
+const _pauseQueueSchema = DartDataInputSchema(
+  label: '',
+  kind: DartDataInputKind.object,
+  fields: [
+    _queueReference,
+    DartDataInputSchema(
+      label: 'Paused',
+      kind: DartDataInputKind.enumeration,
+      key: 'paused',
+      options: ['true', 'false', 'toggle'],
+      required: true,
+      defaultValue: 'toggle',
+    ),
+  ],
+);
+const _queueTriggerSchema = DartDataInputSchema(
+  label: '',
+  kind: DartDataInputKind.object,
+  fields: [_optionalQueueReference],
+);
+const _queueResultSchema = DartDataInputSchema(
+  label: 'Returns',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Queued',
+      key: 'queued',
+      kind: DartDataInputKind.boolean,
+    ),
+    DartDataInputSchema(
+      label: 'Queue ID',
+      key: 'queueId',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Automation ID',
+      key: 'automationId',
+      kind: DartDataInputKind.text,
+    ),
+  ],
+);
+const _completedQueueResultSchema = DartDataInputSchema(
+  label: 'Returns',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Completed',
+      key: 'completed',
+      kind: DartDataInputKind.boolean,
+    ),
+  ],
+);
+
+typedef ShowRunnerAutomationLoader =
+    Future<AutomationData?> Function(String automationId);
+
+DartPluginManifest createShowRunnerPlugin({
+  DartAutomationQueueManager? queueManager,
+  ShowRunnerAutomationLoader? loadAutomation,
+}) => DartPluginManifest(
   id: 'ShowRunner',
   name: 'ShowRunner',
   settings: [
@@ -282,8 +382,165 @@ DartPluginManifest createShowRunnerPlugin() => const DartPluginManifest(
         fields: [_jsonValue],
       ),
     ),
+    DartActionDefinition(
+      pluginId: 'ShowRunner',
+      actionId: 'addToQueue',
+      displayName: 'Add to Queue',
+      configSchema: _addToQueueSchema,
+      resultSchema: _queueResultSchema,
+      invoke: (config, context) => _addToQueue(
+        config,
+        context,
+        queueManager: queueManager,
+        loadAutomation: loadAutomation,
+      ),
+    ),
+    DartActionDefinition(
+      pluginId: 'ShowRunner',
+      actionId: 'completeQueueItem',
+      displayName: 'Complete Queue Item',
+      resultSchema: _completedQueueResultSchema,
+      invoke: (config, context) async => {'completed': true},
+    ),
+    DartActionDefinition(
+      pluginId: 'ShowRunner',
+      actionId: 'cancelQueueItem',
+      displayName: 'Cancel Queue Item',
+      configSchema: _queueControlSchema,
+      invoke: (config, context) => _cancelQueueItem(config, queueManager),
+    ),
+    DartActionDefinition(
+      pluginId: 'ShowRunner',
+      actionId: 'clearQueue',
+      displayName: 'Clear Queue',
+      configSchema: _queueControlSchema,
+      invoke: (config, context) => _clearQueue(config, queueManager),
+    ),
+    DartActionDefinition(
+      pluginId: 'ShowRunner',
+      actionId: 'skip',
+      displayName: 'Queue Skip',
+      configSchema: _queueControlSchema,
+      invoke: (config, context) => _cancelQueueItem(config, queueManager),
+    ),
+    DartActionDefinition(
+      pluginId: 'ShowRunner',
+      actionId: 'pause',
+      displayName: 'Pause Queue',
+      configSchema: _pauseQueueSchema,
+      invoke: (config, context) => _pauseQueue(config, queueManager),
+    ),
   ],
+  triggers: queueManager == null
+      ? const []
+      : [
+          DartTriggerDefinition(
+            pluginId: 'ShowRunner',
+            triggerId: 'queueItemStarted',
+            displayName: 'Queue Item Started',
+            listen: () => queueManager.queueItemStarted,
+            listenForConfig: (config) {
+              final queueId = config['queue']?.toString().trim();
+              final stream = queueManager.queueItemStarted;
+              return queueId == null || queueId.isEmpty
+                  ? stream
+                  : stream.where((event) => event['queueId'] == queueId);
+            },
+            configSchema: _queueTriggerSchema,
+          ),
+        ],
 );
+
+Future<Object?> _addToQueue(
+  RuntimeMap config,
+  EvaluationContext context, {
+  required DartAutomationQueueManager? queueManager,
+  required ShowRunnerAutomationLoader? loadAutomation,
+}) async {
+  final queueId = config['queue']?.toString().trim() ?? '';
+  final automationId = config['automation']?.toString().trim() ?? '';
+  if (queueManager == null ||
+      loadAutomation == null ||
+      queueId.isEmpty ||
+      automationId.isEmpty) {
+    return {'queued': false, 'queueId': '', 'automationId': ''};
+  }
+  final automation = await loadAutomation(automationId);
+  if (automation == null) {
+    return {'queued': false, 'queueId': queueId, 'automationId': automationId};
+  }
+  final payload = config['payload'] is Map
+      ? Map<String, dynamic>.from(config['payload'] as Map)
+      : context.contextState;
+  final queued = await queueManager.enqueue(
+    automation,
+    EvaluationContext(
+      locals: context.locals,
+      contextState: {
+        'payload': payload,
+        'queuedAt': DateTime.now().toIso8601String(),
+        'source': {'type': 'graph', 'action': 'addToQueue'},
+      },
+    ),
+    queueId: queueId,
+    sourceMetadata: {'sourceType': 'automation', 'sourceId': automationId},
+  );
+  return {
+    'queued': true,
+    'queueId': queueId,
+    'automationId': automationId,
+    'itemId': queued.id,
+  };
+}
+
+Future<Object?> _cancelQueueItem(
+  RuntimeMap config,
+  DartAutomationQueueManager? queueManager,
+) async {
+  final queue = await _resolveQueue(config, queueManager);
+  final running = queue?.running;
+  if (running != null) await queue?.cancelRunning();
+  return {'cancelled': running != null};
+}
+
+Future<Object?> _clearQueue(
+  RuntimeMap config,
+  DartAutomationQueueManager? queueManager,
+) async {
+  final queue = await _resolveQueue(config, queueManager);
+  queue?.clearPending();
+  return {'cleared': queue != null};
+}
+
+Future<Object?> _pauseQueue(
+  RuntimeMap config,
+  DartAutomationQueueManager? queueManager,
+) async {
+  final queueId = config['queue']?.toString().trim() ?? '';
+  final queue = await _resolveQueue(config, queueManager);
+  if (queue == null) return {'paused': false};
+  final value = config['paused'];
+  final paused = value == 'toggle' || value == null
+      ? !queue.paused
+      : value == true || value == 'true';
+  if (queueManager == null || queueId.isEmpty) {
+    queue.setPaused(paused);
+  } else {
+    await queueManager.setPaused(queueId, paused);
+  }
+  return {'paused': paused};
+}
+
+Future<DartActionQueue?> _resolveQueue(
+  RuntimeMap config,
+  DartAutomationQueueManager? queueManager,
+) {
+  final queueId = config['queue']?.toString().trim();
+  if (queueManager == null || queueId == null || queueId.isEmpty) {
+    return Future.value(null);
+  }
+  return queueManager.queueFor(queueId);
+}
 
 Future<Object?> _convertNumberToString(
   RuntimeMap config,

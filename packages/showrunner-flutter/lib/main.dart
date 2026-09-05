@@ -180,11 +180,6 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       eventHub: _eventHub,
     );
     unawaited(_providerEvents.start());
-    _pluginRegistryFuture = createConfiguredPluginRegistry(
-      widget.dataService,
-      eventHub: _eventHub,
-      viewerDataRepository: _viewerDataRepository,
-    );
     final queueRepository = QueueConfigRepository(
       Directory('${widget.dataService.userDirectory.path}/queues'),
     );
@@ -209,6 +204,12 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           subgraphs: automation.subgraphs,
         );
       },
+    );
+    _pluginRegistryFuture = createConfiguredPluginRegistry(
+      widget.dataService,
+      eventHub: _eventHub,
+      viewerDataRepository: _viewerDataRepository,
+      queueManager: _automationQueueManager,
     );
     unawaited(_bindProviderStateDiagnostics());
     _profileRuntimeFuture = _pluginRegistryFuture.then(

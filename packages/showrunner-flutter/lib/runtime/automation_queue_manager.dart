@@ -32,13 +32,18 @@ final class DartAutomationQueueManager {
   final DartQueuedAutomationExecutor execute;
   final DartQueueConfigLoader? loadConfig;
   final Map<String, DartActionQueue> _queues;
+  final Map<String, String> _queueNames = {'default': 'Default'};
   final Map<String, Future<DartActionQueue>> _queueLoads = {};
   final Map<String, Future<void>> _drains = {};
+  final StreamController<RuntimeMap> _started =
+      StreamController<RuntimeMap>.broadcast();
   bool _disposed = false;
 
   DartActionQueue get defaultQueue => _queues['default']!;
 
   Iterable<String> get queueIds => _queues.keys;
+
+  Stream<RuntimeMap> get queueItemStarted => _started.stream;
 
   DartActionQueue? registeredQueue(String queueId) => _queues[_key(queueId)];
 
@@ -53,6 +58,7 @@ final class DartAutomationQueueManager {
       throw ArgumentError('Queue is registered more than once: $queueId');
     }
     _queues[key] = queue;
+    _queueNames[key] = key;
   }
 
   Future<DartActionQueue> queueFor(String? queueId) {
@@ -73,17 +79,26 @@ final class DartAutomationQueueManager {
       ..setPaused(config.paused)
       ..defaultGap = config.gap
       ..defaultTimeout = config.timeout;
+    if (!config.paused) unawaited(drain(queueId));
     return queue;
+  }
+
+  Future<void> setPaused(String queueId, bool paused) async {
+    final queue = await queueFor(queueId);
+    queue.setPaused(paused);
+    if (!paused) await drain(queueId);
   }
 
   Future<QueuedGraphExecution> enqueue(
     AutomationData automation,
     EvaluationContext context, {
     String? queueId,
+    RuntimeMap? sourceMetadata,
   }) async {
     final queueKey = _key(queueId);
     final queue = await queueFor(queueKey);
     final source = automation.toJson();
+    if (sourceMetadata != null) source.addAll(sourceMetadata);
     final name = source['name']?.toString();
     if (name == null || name.trim().isEmpty) {
       source['name'] = 'Queued automation';
@@ -104,7 +119,12 @@ final class DartAutomationQueueManager {
   Future<void> drain(String? queueId) async {
     final key = _key(queueId).isEmpty ? 'default' : _key(queueId);
     final existing = _drains[key];
-    if (existing != null) return existing;
+    if (existing != null) {
+      await existing;
+      if (_disposed) return;
+      final queue = await queueFor(key);
+      if (queue.paused || queue.pending.isEmpty) return;
+    }
     final queue = await queueFor(key);
     final operation = _drainQueue(key, queue);
     _drains[key] = operation;
@@ -120,8 +140,10 @@ final class DartAutomationQueueManager {
     _disposed = true;
     await Future.wait(_queues.values.toSet().map((queue) => queue.dispose()));
     _queues.clear();
+    _queueNames.clear();
     _queueLoads.clear();
     _drains.clear();
+    await _started.close();
   }
 
   Future<DartActionQueue> _loadQueue(String key) async {
@@ -138,6 +160,7 @@ final class DartAutomationQueueManager {
       defaultTimeout: config.timeout,
     )..setPaused(config.paused);
     _queues[key] = queue;
+    _queueNames[key] = config.name.isEmpty ? key : config.name;
     return queue;
   }
 
@@ -145,6 +168,21 @@ final class DartAutomationQueueManager {
     while (!_disposed && !queue.paused && queue.pending.isNotEmpty) {
       try {
         await queue.processNext((item) async {
+          _started.add({
+            'queueId': key,
+            'queueName': _queueNames[key] ?? key,
+            'itemId': item.id,
+            'sourceType': item.source['sourceType'] ?? 'automation',
+            'sourceId': item.source['sourceId'] ?? item.source['name'] ?? '',
+            if (item.source['sourceSubId'] != null)
+              'sourceSubId': item.source['sourceSubId'],
+            'payload': item.contextState['payload'] is Map
+                ? item.contextState['payload']
+                : item.contextState,
+            if (item.contextState['queuedAt'] != null)
+              'queuedAt': item.contextState['queuedAt'],
+            'startedAt': item.startedAt?.toIso8601String(),
+          });
           final automation = AutomationData.fromJson(item.source);
           return execute(
             automation,

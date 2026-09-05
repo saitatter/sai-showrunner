@@ -5,11 +5,12 @@ DartPluginRegistry buildDefaultPluginRegistry({
   TtsSpeechService? ttsService,
   SoundOutputRegistry? soundOutputs,
   ViewerDataRepository? viewerDataRepository,
+  DartAutomationQueueManager? queueManager,
 }) {
   final variablesRepository =
       viewerDataRepository ?? InMemoryViewerDataRepository();
   final registry = DartPluginRegistry();
-  registry.register(createShowRunnerPlugin());
+  registry.register(createShowRunnerPlugin(queueManager: queueManager));
   registry.register(createObsPlugin(CallbackObsTransport(_unconfiguredObs)));
   registry.register(
     createAitumPlugin(CallbackObsTransport(_unconfiguredAitum)),

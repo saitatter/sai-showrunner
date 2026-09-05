@@ -15,6 +15,18 @@ Future<List<String>> loadResourceOptions(
   ShowRunnerDataService dataService,
   String resourceType,
 ) async {
+  if (resourceType == 'ActionQueue') {
+    return (await dataService.listUserFiles('queues'))
+        .where((fileName) => fileName.endsWith('.yaml'))
+        .map((fileName) => fileName.substring(0, fileName.length - 5))
+        .toList(growable: false);
+  }
+  if (resourceType == 'Automation') {
+    return (await dataService.listUserFiles('automations'))
+        .where((fileName) => fileName.endsWith('.yaml'))
+        .map((fileName) => fileName.substring(0, fileName.length - 5))
+        .toList(growable: false);
+  }
   if (resourceType == 'SoundOutput') {
     final systemOutputs = createDefaultSoundOutputRegistry().outputs.map(
       (output) => output.id,
