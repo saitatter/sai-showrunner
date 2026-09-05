@@ -263,8 +263,11 @@ class ShowRunnerShell extends StatelessWidget {
           const VerticalDivider(width: 1),
           ListenableBuilder(
             listenable: interfacePreferences,
-            builder: (context, child) => SizedBox(
-              width: interfacePreferences.compactProjectSidebar ? 208 : 240,
+            builder: (context, child) => _ResizableProjectSidebar(
+              initialWidth: interfacePreferences.compactProjectSidebar
+                  ? FlutterInterfacePreferences.minProjectSidebarWidth
+                  : interfacePreferences.projectSidebarWidth,
+              onWidthChanged: interfacePreferences.setProjectSidebarWidth,
               child: _ShellPluginSidebar(
                 registryFuture: pluginRegistryFuture,
                 preferences: interfacePreferences,
@@ -499,6 +502,70 @@ class _WindowControlButtonsState extends State<_WindowControlButtons>
     ],
   );
 }
+
+class _ResizableProjectSidebar extends StatefulWidget {
+  const _ResizableProjectSidebar({
+    required this.initialWidth,
+    required this.child,
+    this.onWidthChanged,
+  });
+
+  final double initialWidth;
+  final Widget child;
+  final FutureOr<void> Function(double width)? onWidthChanged;
+
+  @override
+  State<_ResizableProjectSidebar> createState() =>
+      _ResizableProjectSidebarState();
+}
+
+class _ResizableProjectSidebarState extends State<_ResizableProjectSidebar> {
+  late double _width = _clampWidth(widget.initialWidth);
+  bool _dragging = false;
+
+  @override
+  void didUpdateWidget(covariant _ResizableProjectSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_dragging && oldWidget.initialWidth != widget.initialWidth) {
+      _width = _clampWidth(widget.initialWidth);
+    }
+  }
+
+  void _resize(double delta) {
+    final next = _clampWidth(_width + delta);
+    if (next == _width) return;
+    setState(() {
+      _dragging = true;
+      _width = next;
+    });
+  }
+
+  void _finishResize() {
+    if (!_dragging) return;
+    setState(() => _dragging = false);
+    final callback = widget.onWidthChanged;
+    if (callback != null) {
+      unawaited(Future<void>.sync(() => callback(_width)).catchError((_) {}));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      SizedBox(width: _width, child: widget.child),
+      SrSplitter(
+        axis: Axis.vertical,
+        onDelta: _resize,
+        onDragEnd: _finishResize,
+      ),
+    ],
+  );
+}
+
+double _clampWidth(double width) => width.clamp(
+  FlutterInterfacePreferences.minProjectSidebarWidth,
+  FlutterInterfacePreferences.maxProjectSidebarWidth,
+);
 
 class _WorkspaceTabBar extends StatelessWidget {
   const _WorkspaceTabBar({

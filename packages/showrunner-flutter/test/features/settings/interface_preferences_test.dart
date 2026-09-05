@@ -17,17 +17,23 @@ void main() {
       await dataService.savePluginSettings('showrunner-flutter', {
         'disabledPlugins': ['obs'],
         'hideDisabledIntegrations': true,
+        'projectSidebarWidth': 360,
       });
 
       final preferences = FlutterInterfacePreferences(dataService: dataService);
       await preferences.load();
       expect(preferences.hideDisabledIntegrations, isTrue);
+      expect(preferences.projectSidebarWidth, 360);
 
       await preferences.setValue('showPluginSwitches', false);
+      await preferences.setProjectSidebarWidth(500);
       final saved = await dataService.loadPluginSettings('showrunner-flutter');
       expect(saved['hideDisabledIntegrations'], isTrue);
       expect(saved['showPluginSwitches'], isFalse);
       expect(saved['disabledPlugins'], ['obs']);
+      expect(saved['projectSidebarWidth'], 420);
+      await preferences.setProjectSidebarWidth(100);
+      expect(preferences.projectSidebarWidth, 208);
       preferences.dispose();
     },
   );
@@ -47,10 +53,15 @@ void main() {
 
       final preferences = FlutterInterfacePreferences(dataService: dataService);
       await preferences.load();
+      await preferences.setProjectSidebarWidth(360);
       await preferences.reset();
 
       expect(preferences.compactProjectSidebar, isFalse);
       expect(preferences.hideNativeIntegrationShortcuts, isTrue);
+      expect(
+        preferences.projectSidebarWidth,
+        FlutterInterfacePreferences.defaultProjectSidebarWidth,
+      );
       expect(
         (await dataService.loadPluginSettings(
           'showrunner-flutter',

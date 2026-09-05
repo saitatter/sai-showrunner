@@ -33,4 +33,28 @@ void main() {
       ShowRunnerSpacing.controlHeight,
     );
   });
+
+  testWidgets('reports splitter movement and drag completion', (tester) async {
+    var delta = 0.0;
+    var dragEnded = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 320,
+          height: 120,
+          child: SrSplitter(
+            axis: Axis.vertical,
+            onDelta: (value) => delta += value,
+            onDragEnd: () => dragEnded = true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(SrSplitter), const Offset(24, 0));
+
+    expect(delta, 24);
+    expect(dragEnded, isTrue);
+    expect(find.bySemanticsLabel('Resize sidebar'), findsOneWidget);
+  });
 }

@@ -105,3 +105,54 @@ class SrTextField extends StatelessWidget {
     decoration: InputDecoration(labelText: labelText, hintText: hintText),
   );
 }
+
+/// A thin draggable divider used between resizable desktop panels.
+class SrSplitter extends StatelessWidget {
+  const SrSplitter({
+    super.key,
+    required this.axis,
+    required this.onDelta,
+    this.onDragEnd,
+  });
+
+  /// [Axis.vertical] renders a vertical divider and tracks horizontal drags.
+  final Axis axis;
+  final ValueChanged<double> onDelta;
+  final VoidCallback? onDragEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final vertical = axis == Axis.vertical;
+    return Semantics(
+      label: vertical ? 'Resize sidebar' : 'Resize panel',
+      container: true,
+      child: MouseRegion(
+        cursor: vertical
+            ? SystemMouseCursors.resizeColumn
+            : SystemMouseCursors.resizeRow,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragUpdate: vertical
+              ? (details) => onDelta(details.primaryDelta ?? 0)
+              : null,
+          onVerticalDragUpdate: vertical
+              ? null
+              : (details) => onDelta(details.primaryDelta ?? 0),
+          onHorizontalDragEnd: vertical ? (_) => onDragEnd?.call() : null,
+          onVerticalDragEnd: vertical ? null : (_) => onDragEnd?.call(),
+          child: SizedBox(
+            width: vertical ? 8 : double.infinity,
+            height: vertical ? double.infinity : 8,
+            child: Center(
+              child: Container(
+                width: vertical ? 1 : double.infinity,
+                height: vertical ? double.infinity : 1,
+                color: ShowRunnerColors.surfaceBorder,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

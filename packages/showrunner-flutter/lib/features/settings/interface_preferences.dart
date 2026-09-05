@@ -6,6 +6,10 @@ import '../../services/showrunner_data_service.dart';
 final class FlutterInterfacePreferences extends ChangeNotifier {
   FlutterInterfacePreferences({required this.dataService});
 
+  static const defaultProjectSidebarWidth = 240.0;
+  static const minProjectSidebarWidth = 208.0;
+  static const maxProjectSidebarWidth = 420.0;
+
   static const _defaults = <String, bool>{
     'compactProjectSidebar': false,
     'hideDisabledIntegrations': false,
@@ -16,6 +20,7 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
 
   final ShowRunnerDataService dataService;
   final Map<String, bool> _values = Map<String, bool>.from(_defaults);
+  double _projectSidebarWidth = defaultProjectSidebarWidth;
   bool _loading = true;
   bool _saving = false;
 
@@ -31,6 +36,7 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
   bool get collapseIntegrationCategoriesByDefault =>
       value('collapseIntegrationCategoriesByDefault');
   bool get showPluginSwitches => value('showPluginSwitches');
+  double get projectSidebarWidth => _projectSidebarWidth;
 
   Future<void> load() async {
     try {
@@ -40,6 +46,12 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
       for (final entry in _defaults.entries) {
         final value = settings[entry.key];
         if (value is bool) _values[entry.key] = value;
+      }
+      final sidebarWidth = settings['projectSidebarWidth'];
+      if (sidebarWidth is num && sidebarWidth.isFinite) {
+        _projectSidebarWidth = _clampProjectSidebarWidth(
+          sidebarWidth.toDouble(),
+        );
       }
     } finally {
       _loading = false;
@@ -65,9 +77,11 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
 
   Future<void> reset() async {
     final previous = Map<String, bool>.from(_values);
+    final previousSidebarWidth = _projectSidebarWidth;
     _values
       ..clear()
       ..addAll(_defaults);
+    _projectSidebarWidth = defaultProjectSidebarWidth;
     notifyListeners();
     try {
       await _saveValues();
@@ -75,6 +89,22 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
       _values
         ..clear()
         ..addAll(previous);
+      _projectSidebarWidth = previousSidebarWidth;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> setProjectSidebarWidth(double width) async {
+    final next = _clampProjectSidebarWidth(width);
+    if (next == _projectSidebarWidth) return;
+    final previous = _projectSidebarWidth;
+    _projectSidebarWidth = next;
+    notifyListeners();
+    try {
+      await _saveValues();
+    } catch (_) {
+      _projectSidebarWidth = previous;
       notifyListeners();
       rethrow;
     }
@@ -101,12 +131,23 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
       await dataService.savePluginSettings('showrunner-flutter', {
         ...settings,
         ..._values,
+        'projectSidebarWidth': _projectSidebarWidth,
       });
     } finally {
       _saving = false;
       notifyListeners();
     }
   }
+}
+
+double _clampProjectSidebarWidth(double width) {
+  if (!width.isFinite) {
+    return FlutterInterfacePreferences.defaultProjectSidebarWidth;
+  }
+  return width.clamp(
+    FlutterInterfacePreferences.minProjectSidebarWidth,
+    FlutterInterfacePreferences.maxProjectSidebarWidth,
+  );
 }
 
 final class InterfacePreferenceDefinition {
