@@ -9,7 +9,7 @@ import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
 import '../services/project_catalog_service.dart';
 
-/// Project navigation matching the reference ProjectView.
+/// Project navigation following the reference ProjectView hierarchy.
 ///
 /// Workspace rows intentionally remain small and composable. A group header
 /// only owns expansion; opening a workspace is an explicit child action, just
@@ -57,7 +57,9 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
     'profiles': false,
     'resources': false,
     'integrations': !widget.preferences.collapseIntegrationCategoriesByDefault,
-    'tools': true,
+    // Diagnostics and support workspaces are Flutter-only additions. Keep
+    // them out of the reference-first view until the user expands the group.
+    'tools': false,
   };
 
   @override

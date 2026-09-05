@@ -54,6 +54,10 @@ void main() {
     expect(find.text('ShowRunner'), findsOneWidget);
     expect(find.text('Automations'), findsOneWidget);
     expect(find.text('Integrations'), findsOneWidget);
+    expect(find.text('Tools'), findsOneWidget);
+
+    await tester.tap(find.text('Tools'));
+    await tester.pump();
     expect(find.text('Automation Editor'), findsOneWidget);
 
     await tester.tap(find.text('Queues'));
