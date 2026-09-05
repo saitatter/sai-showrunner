@@ -320,7 +320,10 @@ class ShowRunnerShell extends StatelessWidget {
         dataService: dataService,
         eventHub: providerEvents.eventHub,
       ),
-      12 => RemoteWorkspace(dataService: dataService),
+      12 => RemoteWorkspace(
+        dataService: dataService,
+        registryFuture: pluginRegistryFuture,
+      ),
       _ => const LogsWorkspace(),
     };
   }

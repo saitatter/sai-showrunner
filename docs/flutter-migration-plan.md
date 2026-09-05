@@ -141,9 +141,14 @@ server-state diagnostics.
 VoiceMod is registered with a real lazy WebSocket transport for voice listing
 and voice selection, including RPC cleanup on shutdown.
 Flutter now also exposes a Remote workspace that authenticates discovery with
-the persisted Twitch token and lists dashboards from the remote API. WebRTC
-DataChannel connection, dashboard state streaming, and remote slot binding
-remain on the legacy satellite until the transport is ported and smoke-tested.
+the persisted Twitch token, connects to dashboards through the same Azure
+PubSub signaling and WebRTC DataChannel protocol as the legacy satellite,
+receives dashboard configuration/state updates, forwards widget RPCs, and
+binds local Light, Plug, and SoundOutput resources to remote slots. The
+Flutter viewer currently renders the migrated Label and Remote Button
+widgets, while unknown widgets have an explicit unsupported-state card;
+media transfer and the remaining dashboard widget catalog still require
+follow-up before the legacy satellite package can be retired.
 Flutter now also exposes persisted `Light` and `Plug` device configurations under
 `user/iot/lights` and `user/iot/plugs`. Their editor preserves provider-specific
 routing fields used by Govee, Hue, Twinkly, Elgato, Kasa, LIFX, and Wyze, while
@@ -527,8 +532,10 @@ For each surface:
 	with lazy connection and RPC cleanup.
 - [x] Add persisted Light and Plug resource settings for the migrated IoT
 	providers, with explicit rejection for unroutable generic actions.
-- [ ] Complete the Flutter remote dashboard connection, state, and slot-binding
-	workflows before removing `packages/showrunner-satellite/`.
+- [x] Complete the Flutter remote dashboard connection, state, and slot-binding
+	workflows before removing `packages/showrunner-satellite/`; retain the
+	legacy package until the remaining remote widgets and media transfer have
+	Flutter replacements.
 - [ ] Keep plugin runtime code in existing packages until the new boundary is proven.
 
 The Flutter plugin workspace now follows the original application's separation model: a registry-backed plugin catalog groups core integrations and platforms, while each selected plugin gets its own details surface. Provider credentials are generated from manifest-declared settings, and registered actions, triggers, and settings are exposed from the Dart manifest instead of being presented as one undifferentiated settings page. Plugin visibility is persisted in `user/settings/showrunner-flutter.yaml`, loaded into the Dart registry, and enforced when actions are invoked. Plugin details also expose automation usage and manifest-declared runtime state. Migrated plugin code now has per-plugin directories with `manifest.dart`, `runtime.dart`, `ui/`, and `resources/` boundaries, while legacy top-level files remain compatibility entry points. YouTube controls the real Dart live-chat worker, OBS exposes a registry-backed WebSocket health surface, Twitch exposes EventSub/chat activity, and Moderation owns its HTTP settings, health, queue, test-event, and override contracts. Resource editors are registered independently from manifests, persist Overlay and Variable data, and now load/edit plugin resources from Vue-compatible directories for OBS, Minecraft, Sound, and Twitch. Remaining work is deeper bespoke UX, input capture/native integration parity, satellite migration, and plugin-specific resource editor polish.

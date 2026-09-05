@@ -4,6 +4,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../services/showrunner_data_service.dart';
+import '../../runtime/expression.dart';
+import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/remote/satellite.dart';
+import 'remote_dashboard_view.dart';
 
 typedef RemoteDashboardFetcher =
     Future<List<RemoteDashboardInfo>> Function(String accessToken);
@@ -94,9 +98,16 @@ final class RemoteDashboardService {
 }
 
 class RemoteWorkspace extends StatefulWidget {
-  const RemoteWorkspace({super.key, required this.dataService});
+  const RemoteWorkspace({
+    super.key,
+    required this.dataService,
+    this.connectionManager,
+    this.registryFuture,
+  });
 
   final ShowRunnerDataService dataService;
+  final RemoteSatelliteConnectionManager? connectionManager;
+  final Future<DartPluginRegistry>? registryFuture;
 
   @override
   State<RemoteWorkspace> createState() => _RemoteWorkspaceState();
@@ -104,6 +115,8 @@ class RemoteWorkspace extends StatefulWidget {
 
 class _RemoteWorkspaceState extends State<RemoteWorkspace> {
   late final RemoteDashboardService _service;
+  late final RemoteSatelliteConnectionManager _connectionManager;
+  late final bool _ownsConnectionManager;
   Future<List<RemoteDashboardInfo>>? _dashboardsFuture;
   Object? _lastError;
 
@@ -111,7 +124,28 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
   void initState() {
     super.initState();
     _service = RemoteDashboardService(dataService: widget.dataService);
+    _ownsConnectionManager = widget.connectionManager == null;
+    _connectionManager =
+        widget.connectionManager ??
+        RemoteSatelliteConnectionManager(
+          dataService: widget.dataService,
+          resourceRpc: widget.registryFuture == null
+              ? null
+              : _invokeLocalResource,
+        );
+    _connectionManager.addListener(_connectionChanged);
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    _connectionManager.removeListener(_connectionChanged);
+    if (_ownsConnectionManager) _connectionManager.dispose();
+    super.dispose();
+  }
+
+  void _connectionChanged() {
+    if (mounted) setState(() {});
   }
 
   void _refresh() {
@@ -123,93 +157,181 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _connect(RemoteDashboardInfo dashboard) async {
+    final settings = await widget.dataService.loadPluginSettings('twitch');
+    final satelliteId = settings['broadcasterId']?.toString().trim() ?? '';
+    if (satelliteId.isEmpty) {
+      if (mounted) {
+        setState(
+          () => _lastError = StateError(
+            'Twitch broadcaster ID is required before connecting to a dashboard.',
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      setState(() => _lastError = null);
+      await _connectionManager.connect(
+        SatelliteConnectionConfig(
+          satelliteService: 'twitch',
+          satelliteId: satelliteId,
+          showRunnerService: 'twitch',
+          showRunnerId: dashboard.ownerId,
+          dashboardId: dashboard.dashboardId,
+        ),
+      );
+    } catch (error) {
+      if (mounted) setState(() => _lastError = error);
+    }
+  }
+
+  Future<void> _disconnect() => _connectionManager.disconnect();
+
+  Future<Object?> _invokeLocalResource(
+    RemoteResourceSlot slot,
+    String method,
+    List<dynamic> args,
+  ) async {
+    final resourceId = slot.resourceId;
+    if (resourceId == null || resourceId.isEmpty) {
+      throw StateError('Remote resource slot is not bound in Flutter.');
+    }
+    final registry = await widget.registryFuture!;
+    dynamic argument(int index) => index < args.length ? args[index] : null;
+    final context = EvaluationContext();
+    switch ('${slot.resourceType}:$method') {
+      case 'Light:setLightState':
+        return registry.invokeAction('iot', 'light', {
+          'light': resourceId,
+          'on': argument(1) ?? true,
+          'lightColor': argument(0),
+          'transition': argument(2) ?? 0.5,
+        }, context: context);
+      case 'Plug:setPlugState':
+        return registry.invokeAction('iot', 'plug', {
+          'plug': resourceId,
+          'switch': argument(0) ?? true,
+        }, context: context);
+      case 'SoundOutput:playFile':
+        if (argument(1)?.toString().trim().isEmpty != false) {
+          throw StateError('Remote sound request did not include a file path.');
+        }
+        return registry.invokeAction('sound', 'sound', {
+          'output': resourceId,
+          'sound': argument(1),
+          'startTime': argument(2) ?? 0,
+          'endTime': argument(3),
+          'volume': argument(4) ?? 100,
+        }, context: context);
+      case 'SoundOutput:abortPlay':
+        return null;
+      default:
+        throw UnsupportedError(
+          'Flutter has no local remote-resource handler for ${slot.resourceType}.$method.',
+        );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(24),
-    children: [
-      Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Remote workspace',
-              style: Theme.of(context).textTheme.headlineSmall,
+  Widget build(BuildContext context) {
+    final connection = _connectionManager.connection;
+    if (connection != null &&
+        connection.state != SatelliteConnectionState.disconnected) {
+      return RemoteDashboardView(
+        connection: connection,
+        dataService: widget.dataService,
+        onDisconnect: _disconnect,
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Remote workspace',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Discover dashboards shared with the authenticated Twitch account.',
+        ),
+        const SizedBox(height: 20),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.cloud_queue, color: Colors.blue),
+            title: const Text('Flutter remote dashboard connection'),
+            subtitle: const Text(
+              'Connect over WebRTC DataChannel, receive live dashboard configuration '
+              'and state updates, and bind local resources to remote slots.',
             ),
           ),
-          OutlinedButton.icon(
-            onPressed: _refresh,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
-          ),
-        ],
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Discover dashboards shared with the authenticated Twitch account.',
-      ),
-      const SizedBox(height: 20),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.sync_problem, color: Colors.orange),
-          title: const Text(
-            'Satellite connection is still a compatibility boundary',
-          ),
-          subtitle: const Text(
-            'Discovery is available in Flutter. WebRTC DataChannel connection, '
-            'dashboard state streaming, and remote slot binding remain on the '
-            'legacy satellite until the transport is ported and smoke-tested.',
-          ),
         ),
-      ),
-      if (_lastError != null)
-        Card(
-          color: Theme.of(context).colorScheme.errorContainer,
-          child: ListTile(
-            leading: const Icon(Icons.error_outline),
-            title: const Text('Remote dashboard discovery failed'),
-            subtitle: Text('$_lastError'),
+        if (_lastError != null)
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: ListTile(
+              leading: const Icon(Icons.error_outline),
+              title: const Text('Remote dashboard discovery failed'),
+              subtitle: Text('$_lastError'),
+            ),
           ),
+        const SizedBox(height: 12),
+        Text(
+          'Available dashboards',
+          style: Theme.of(context).textTheme.titleLarge,
         ),
-      const SizedBox(height: 12),
-      Text(
-        'Available dashboards',
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
-      FutureBuilder<List<RemoteDashboardInfo>>(
-        future: _dashboardsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          final dashboards = snapshot.data ?? const <RemoteDashboardInfo>[];
-          if (dashboards.isEmpty) {
-            return const ListTile(
-              leading: Icon(Icons.dashboard_outlined),
-              title: Text('No remote dashboards available'),
-              subtitle: Text(
-                'Authenticate Twitch or ask another broadcaster to share a dashboard.',
-              ),
-            );
-          }
-          return Column(
-            children: [
-              for (final dashboard in dashboards)
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.dashboard),
-                    title: Text(dashboard.name),
-                    subtitle: Text(
-                      'Owner ${dashboard.ownerId} · Dashboard ${dashboard.dashboardId}',
-                    ),
-                    trailing: const Chip(label: Text('Discovery only')),
-                  ),
+        FutureBuilder<List<RemoteDashboardInfo>>(
+          future: _dashboardsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final dashboards = snapshot.data ?? const <RemoteDashboardInfo>[];
+            if (dashboards.isEmpty) {
+              return const ListTile(
+                leading: Icon(Icons.dashboard_outlined),
+                title: Text('No remote dashboards available'),
+                subtitle: Text(
+                  'Authenticate Twitch or ask another broadcaster to share a dashboard.',
                 ),
-            ],
-          );
-        },
-      ),
-    ],
-  );
+              );
+            }
+            return Column(
+              children: [
+                for (final dashboard in dashboards)
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.dashboard),
+                      title: Text(dashboard.name),
+                      subtitle: Text(
+                        'Owner ${dashboard.ownerId} · Dashboard ${dashboard.dashboardId}',
+                      ),
+                      trailing: FilledButton.icon(
+                        onPressed: () => _connect(dashboard),
+                        icon: const Icon(Icons.link),
+                        label: const Text('Connect'),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
 }
