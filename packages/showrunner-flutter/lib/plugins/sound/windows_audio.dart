@@ -132,8 +132,14 @@ List<SoundDeviceInfo> enumerateWindowsSoundOutputs() {
   return devices;
 }
 
-SoundOutputRegistry createDefaultSoundOutputRegistry() {
-  final registry = SoundOutputRegistry(defaultOutputId: 'system.default');
+SoundOutputRegistry createDefaultSoundOutputRegistry({
+  String? defaultOutputId,
+}) {
+  final registry = SoundOutputRegistry(
+    defaultOutputId: defaultOutputId?.trim().isNotEmpty == true
+        ? defaultOutputId!.trim()
+        : 'system.default',
+  );
   if (!Platform.isWindows) return registry;
 
   registry.register(

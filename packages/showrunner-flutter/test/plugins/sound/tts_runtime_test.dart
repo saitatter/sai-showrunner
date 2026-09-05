@@ -121,6 +121,25 @@ void main() {
     expect(output.requests.single.volume, 60);
   });
 
+  test('applies the configured global volume to TTS output', () async {
+    final speech = _RecordingSpeechService();
+    final registry = DartPluginRegistry()
+      ..register(
+        createSoundPlugin(
+          ttsService: speech,
+          ttsFileService: CallbackTtsFileSynthesisService((_) async => null),
+          globalVolume: 50,
+        ),
+      );
+
+    await registry.invokeAction('sound', 'speakTTS', {
+      'text': 'Scaled voice',
+      'volume': 75,
+    });
+
+    expect(speech.requests.single.volume, closeTo(0.375, 0.0001));
+  });
+
   test('builds a deterministic Windows SAPI WAV synthesis command', () async {
     final directory = await Directory.systemTemp.createTemp('showrunner-tts-');
     addTearDown(() => directory.delete(recursive: true));

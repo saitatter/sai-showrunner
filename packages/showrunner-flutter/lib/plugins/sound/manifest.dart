@@ -101,12 +101,14 @@ final class _SoundDependencies {
     required this.ttsFile,
     required this.outputs,
     required this.resolveVoice,
+    required this.globalVolume,
   });
 
   final TtsSpeechService tts;
   final TtsFileSynthesisService? ttsFile;
   final SoundOutputRegistry outputs;
   final TtsVoiceResolver? resolveVoice;
+  final double globalVolume;
 }
 
 typedef TtsVoiceResolver = Future<RuntimeMap?> Function(String id);
@@ -116,24 +118,42 @@ DartPluginManifest createSoundPlugin({
   TtsFileSynthesisService? ttsFileService,
   SoundOutputRegistry? soundOutputs,
   TtsVoiceResolver? ttsVoiceResolver,
+  double globalVolume = 100,
 }) {
   final dependencies = _SoundDependencies(
     tts: ttsService ?? FlutterTtsSpeechService(),
     ttsFile: ttsFileService ?? createDefaultTtsFileSynthesisService(),
     outputs: soundOutputs ?? createDefaultSoundOutputRegistry(),
     resolveVoice: ttsVoiceResolver,
+    globalVolume: globalVolume.clamp(0, 100).toDouble(),
   );
   return DartPluginManifest(
     id: 'sound',
     name: 'Sound & TTS',
+    settings: const [
+      DartSettingDefinition(
+        id: 'globalVolume',
+        displayName: 'Global Volume (0-100)',
+        defaultValue: 100,
+      ),
+      DartSettingDefinition(
+        id: 'defaultOutput',
+        displayName: 'Default Sound Output',
+        defaultValue: 'system.default',
+      ),
+    ],
     actions: [
       DartActionDefinition(
         pluginId: 'sound',
         actionId: 'sound',
         displayName: 'Play Sound',
         configSchema: _soundSchema,
-        invoke: (config, context) =>
-            _playSound(config, context, dependencies.outputs),
+        invoke: (config, context) => _playSound(
+          config,
+          context,
+          dependencies.outputs,
+          globalVolume: dependencies.globalVolume,
+        ),
       ),
       DartActionDefinition(
         pluginId: 'sound',
@@ -147,6 +167,7 @@ DartPluginManifest createSoundPlugin({
           dependencies.ttsFile,
           dependencies.outputs,
           dependencies.resolveVoice,
+          globalVolume: dependencies.globalVolume,
         ),
       ),
       DartActionDefinition(
@@ -161,6 +182,7 @@ DartPluginManifest createSoundPlugin({
           dependencies.ttsFile,
           dependencies.outputs,
           dependencies.resolveVoice,
+          globalVolume: dependencies.globalVolume,
         ),
       ),
     ],
@@ -170,8 +192,9 @@ DartPluginManifest createSoundPlugin({
 Future<Object?> _playSound(
   RuntimeMap config,
   EvaluationContext context,
-  SoundOutputRegistry outputs,
-) async {
+  SoundOutputRegistry outputs, {
+  required double globalVolume,
+}) async {
   final file = _firstText(<Object?>[config['sound'], config['file']]);
   if (file == null) return {'played': false};
 
@@ -180,7 +203,10 @@ Future<Object?> _playSound(
     file: file,
     startSec: _soundNumber(config['startTime'], 0).clamp(0, double.infinity),
     endSec: _soundNumber(config['endTime'], double.infinity),
-    volume: _soundNumber(config['volume'], 100),
+    volume: _applyGlobalVolume(
+      _soundNumber(config['volume'], 100),
+      globalVolume,
+    ),
   );
   return {'played': result, 'sound': file};
 }
@@ -206,8 +232,9 @@ Future<Object?> _speakTTS(
   TtsSpeechService service,
   TtsFileSynthesisService? fileService,
   SoundOutputRegistry outputs,
-  TtsVoiceResolver? resolveVoice,
-) async {
+  TtsVoiceResolver? resolveVoice, {
+  double globalVolume = 100,
+}) async {
   final text = config['text']?.toString() ?? '';
   if (text.trim().isEmpty) return {'spoken': false, 'text': text};
 
@@ -244,7 +271,8 @@ Future<Object?> _speakTTS(
   ]);
   final pitch = _legacyPitch(providerConfig['pitch'] ?? config['pitch']);
   final rate = _legacyRate(providerConfig['rate'] ?? config['rate']);
-  final volume = _legacyVolume(config['volume']);
+  final volume =
+      _legacyVolume(config['volume']) * (globalVolume.clamp(0, 100) / 100);
   final request = TtsSpeechRequest(
     text: text,
     voiceProvider: voiceProvider,
@@ -278,6 +306,11 @@ String? _firstText(Iterable<Object?> values) {
 double _legacyVolume(Object? value) =>
     ((value is num ? value.toDouble() : double.tryParse('$value') ?? 100) / 100)
         .clamp(0, 1)
+        .toDouble();
+
+double _applyGlobalVolume(double volume, double globalVolume) =>
+    (volume.clamp(0, 100) * globalVolume.clamp(0, 100) / 100)
+        .clamp(0, 100)
         .toDouble();
 
 double _legacyRate(Object? value) {

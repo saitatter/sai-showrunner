@@ -109,6 +109,32 @@ void main() {
     expect(output.requests.single.startSec, 1);
     expect(output.requests.single.endSec, 4);
   });
+
+  test('applies the configured global volume to sound actions', () async {
+    final output = _RecordingOutput('system.main');
+    final outputs = SoundOutputRegistry(defaultOutputId: 'system.main')
+      ..register(output);
+    final registry = DartPluginRegistry()
+      ..register(createSoundPlugin(soundOutputs: outputs, globalVolume: 40));
+
+    await registry.invokeAction('sound', 'sound', {
+      'sound': 'notification.wav',
+      'volume': 75,
+    });
+
+    expect(output.requests.single.volume, 30);
+  });
+
+  test('exposes legacy global volume and default output settings', () {
+    final plugin = createSoundPlugin();
+
+    expect(plugin.settings.map((setting) => setting.id), [
+      'globalVolume',
+      'defaultOutput',
+    ]);
+    expect(plugin.settings.first.defaultValue, 100);
+    expect(plugin.settings.last.defaultValue, 'system.default');
+  });
 }
 
 final class _RecordingOutput implements SoundOutput {

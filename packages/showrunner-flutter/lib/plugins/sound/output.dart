@@ -142,7 +142,7 @@ final class AudioSplitterOutput implements SoundOutput {
 final class SoundOutputRegistry {
   SoundOutputRegistry({this.defaultOutputId = 'system.default'});
 
-  final String? defaultOutputId;
+  String? defaultOutputId;
   final Map<String, SoundOutput> _outputs = {};
 
   Iterable<SoundOutput> get outputs => _outputs.values;

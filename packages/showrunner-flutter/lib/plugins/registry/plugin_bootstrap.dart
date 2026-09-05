@@ -289,8 +289,14 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     host: voiceModHost?.isNotEmpty == true ? voiceModHost! : '127.0.0.1',
     port: _port(voiceModSettings['port'], 59129),
   );
+  final soundSettings = await dataService.loadPluginSettings('sound');
+  final defaultOutput = soundSettings['defaultOutput']?.toString().trim();
   final configuredSoundOutputs =
-      soundOutputs ?? createDefaultSoundOutputRegistry();
+      soundOutputs ??
+      createDefaultSoundOutputRegistry(defaultOutputId: defaultOutput);
+  if (soundOutputs != null && defaultOutput?.isNotEmpty == true) {
+    configuredSoundOutputs.defaultOutputId = defaultOutput;
+  }
   if (soundOutputs == null) {
     final splitters = await ResourceRepository(
       Directory('${dataService.userDirectory.path}/sound/splitters'),
@@ -313,6 +319,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
         ).load(id);
         return resource?.config;
       },
+      globalVolume: _percentage(soundSettings['globalVolume'], 100),
     ),
   );
   registry.register(createMinecraftPlugin());
@@ -907,4 +914,10 @@ int _port(Object? value, int fallback) {
 int _positiveInt(Object? value, int fallback) {
   final number = value is num ? value.toInt() : int.tryParse('$value');
   return number != null && number > 0 ? number : fallback;
+}
+
+double _percentage(Object? value, double fallback) {
+  final number = value is num ? value.toDouble() : double.tryParse('$value');
+  if (number == null || !number.isFinite) return fallback;
+  return number.clamp(0, 100).toDouble();
 }
