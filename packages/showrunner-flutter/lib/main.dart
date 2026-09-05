@@ -3,9 +3,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/app_foundations.dart';
+import 'app/commands/app_command.dart';
 import 'app/data_directory.dart';
 import 'app/startup_health.dart';
 import 'app/showrunner_shell.dart';
@@ -119,6 +121,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   late final ViewerDataSynchronizer _viewerDataSynchronizer;
   late final Future<StartupHealthSnapshot> _healthFuture;
   late final FlutterInterfacePreferences _interfacePreferences;
+  late final AppCommandRegistry _commandRegistry;
   AutomationData? _activeAutomation;
   String? _activeAutomationFile;
   DartPluginRegistry? _stateRegistry;
@@ -170,6 +173,117 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _interfacePreferences = FlutterInterfacePreferences(
       dataService: widget.dataService,
     );
+    _commandRegistry = AppCommandRegistry([
+      AppCommand(
+        id: 'file.newAutomation',
+        label: 'New automation',
+        icon: Icons.bolt,
+        execute: (_) => _createAutomation(),
+      ),
+      AppCommand(
+        id: 'file.save',
+        label: 'Save automation',
+        icon: Icons.save,
+        shortcut: const SingleActivator(LogicalKeyboardKey.keyS, control: true),
+        canExecute: (_) => _activeAutomationFile != null,
+        execute: (_) => _saveAutomation(),
+      ),
+      AppCommand(
+        id: 'file.saveAll',
+        label: 'Save all',
+        icon: Icons.save_as,
+        shortcut: const SingleActivator(
+          LogicalKeyboardKey.keyS,
+          control: true,
+          shift: true,
+        ),
+        canExecute: (_) => _activeAutomationFile != null,
+        execute: (_) => _saveAll(),
+      ),
+      AppCommand(
+        id: 'file.close',
+        label: 'Close workspace',
+        icon: Icons.close,
+        shortcut: const SingleActivator(LogicalKeyboardKey.keyW, control: true),
+        canExecute: (_) => _openTabIndices.length > 1,
+        execute: (_) => _closeTab(_selectedIndex),
+      ),
+      AppCommand(
+        id: 'edit.copy',
+        label: 'Copy selected nodes',
+        icon: Icons.copy,
+        shortcut: const SingleActivator(LogicalKeyboardKey.keyC, control: true),
+        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        execute: (commandContext) async {
+          final buildContext = commandContext.buildContext;
+          if (buildContext != null) {
+            await _graphEditor.copySelection(context: buildContext);
+          }
+        },
+      ),
+      AppCommand(
+        id: 'edit.paste',
+        label: 'Paste nodes',
+        icon: Icons.content_paste,
+        shortcut: const SingleActivator(LogicalKeyboardKey.keyV, control: true),
+        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        execute: (commandContext) async {
+          final buildContext = commandContext.buildContext;
+          if (buildContext != null) {
+            await _graphEditor.pasteSelection(context: buildContext);
+          }
+        },
+      ),
+      AppCommand(
+        id: 'edit.cut',
+        label: 'Cut selected nodes',
+        icon: Icons.content_cut,
+        shortcut: const SingleActivator(LogicalKeyboardKey.keyX, control: true),
+        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        execute: (commandContext) async {
+          final buildContext = commandContext.buildContext;
+          if (buildContext != null) {
+            await _graphEditor.cutSelection(context: buildContext);
+          }
+        },
+      ),
+      AppCommand(
+        id: 'edit.frameSelection',
+        label: 'Frame selected nodes',
+        icon: Icons.crop_free,
+        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        execute: (_) => _frameSelectionFromCommand(),
+      ),
+      AppCommand(
+        id: 'view.fitGraph',
+        label: 'Fit graph',
+        icon: Icons.fit_screen,
+        shortcut: const SingleActivator(LogicalKeyboardKey.home),
+        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        execute: (_) => _graphEditor.fitGraph(),
+      ),
+      AppCommand(
+        id: 'view.resetSample',
+        label: 'Reset sample graph',
+        icon: Icons.refresh,
+        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        execute: (_) => _graphEditor.loadSampleGraph(),
+      ),
+      AppCommand(
+        id: 'run.automation',
+        label: 'Run automation',
+        icon: Icons.play_arrow,
+        shortcut: const SingleActivator(LogicalKeyboardKey.f6),
+        canExecute: (_) => _activeAutomation != null,
+        execute: (_) => _runAutomation(),
+      ),
+      AppCommand(
+        id: 'help.about',
+        label: 'About ShowRunner',
+        icon: Icons.info,
+        execute: (_) => _openDestination(8),
+      ),
+    ]);
     unawaited(_interfacePreferences.load());
     unawaited(_restoreNavigation());
     unawaited(_openFirstRunSetupIfNeeded());
@@ -252,6 +366,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       profileRuntimeFuture: _profileRuntimeFuture,
       streamPlanRuntime: streamPlanRuntime,
       interfacePreferences: _interfacePreferences,
+      commands: _commandRegistry,
       updateService: widget.updateService,
       selectedIndex: _selectedIndex,
       openTabIndices: _openTabIndices,
@@ -264,9 +379,6 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onTabClosed: _closeTab,
       onPluginSelected: (pluginId) =>
           setState(() => _selectedPluginId = pluginId),
-      onResetSampleGraph: () => setState(_graphEditor.loadSampleGraph),
-      onSaveAutomation: _activeAutomationFile == null ? null : _saveAutomation,
-      onRunAutomation: _activeAutomation == null ? null : _runAutomation,
       onRunNode: _activeAutomation == null ? null : _runNode,
       onOpenAutomation: (automation, fileName) {
         _graphEditor.loadAutomation(automation);
@@ -739,6 +851,47 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       );
     }
   }
+
+  Future<void> _frameSelectionFromCommand() async {
+    final titleController = TextEditingController(text: 'Frame');
+    try {
+      final title = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Name annotation'),
+          content: TextField(
+            controller: titleController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Annotation title',
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(titleController.text),
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || title == null || title.trim().isEmpty) return;
+      _graphEditor.frameSelection(title: title.trim());
+    } finally {
+      titleController.dispose();
+    }
+  }
+
+  /// The current workspace has one persisted automation document. Keeping a
+  /// separate command makes the future multi-document implementation able to
+  /// expand Save All without changing the shell contract.
+  Future<void> _saveAll() => _saveAutomation();
 
   Future<void> _createAutomation() async {
     final starter = await showDialog<AutomationStarter>(

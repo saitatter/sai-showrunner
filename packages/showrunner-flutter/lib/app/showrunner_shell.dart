@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import 'commands/app_command.dart';
 import '../app/startup_health.dart';
 import '../design_system/controls/controls.dart';
 import '../editor/showrunner_graph_editor.dart';
@@ -31,8 +31,6 @@ import '../runtime/profile_runtime.dart';
 import '../services/showrunner_data_service.dart';
 import '../services/update_check_service.dart';
 
-enum _ShellCommand { newAutomation, save, resetSample, about }
-
 class ShowRunnerShell extends StatelessWidget {
   const ShowRunnerShell({
     super.key,
@@ -49,15 +47,13 @@ class ShowRunnerShell extends StatelessWidget {
     this.activeAutomationDirty = false,
     required this.showGraphEditor,
     required this.onDestinationSelected,
-    required this.onResetSampleGraph,
-    required this.onSaveAutomation,
-    required this.onRunAutomation,
     required this.onRunNode,
     required this.onOpenAutomation,
     required this.onRepairAutomation,
     required this.onCreateAutomation,
     required this.onDeleteAutomation,
     required this.interfacePreferences,
+    required this.commands,
     this.openTabIndices = const [0],
     this.onTabSelected,
     this.onTabClosed,
@@ -79,9 +75,6 @@ class ShowRunnerShell extends StatelessWidget {
   final bool activeAutomationDirty;
   final bool showGraphEditor;
   final ValueChanged<int> onDestinationSelected;
-  final VoidCallback onResetSampleGraph;
-  final Future<void> Function()? onSaveAutomation;
-  final Future<void> Function()? onRunAutomation;
   final Future<void> Function(String schemaNodeId)? onRunNode;
   final void Function(AutomationData automation, String fileName)
   onOpenAutomation;
@@ -90,6 +83,7 @@ class ShowRunnerShell extends StatelessWidget {
   final Future<void> Function() onCreateAutomation;
   final Future<void> Function(String fileName) onDeleteAutomation;
   final FlutterInterfacePreferences interfacePreferences;
+  final AppCommandRegistry commands;
   final List<int> openTabIndices;
   final ValueChanged<int>? onTabSelected;
   final FutureOr<void> Function(int)? onTabClosed;
@@ -101,85 +95,88 @@ class ShowRunnerShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final tabs = openTabIndices.isEmpty ? [selectedIndex] : openTabIndices;
     final selectedTab = tabs.indexOf(selectedIndex);
+    final commandContext = AppCommandContext(buildContext: context);
+    void runCommand(String id) {
+      unawaited(commands.run(id, commandContext));
+    }
+
     final shell = Scaffold(
       appBar: AppBar(
         title: const Text('ShowRunner'),
         actions: [
-          PopupMenuButton<_ShellCommand>(
+          PopupMenuButton<String>(
             tooltip: 'File',
             icon: const Icon(Icons.folder_open),
-            onSelected: (command) {
-              switch (command) {
-                case _ShellCommand.newAutomation:
-                  unawaited(onCreateAutomation());
-                case _ShellCommand.save:
-                  unawaited(onSaveAutomation?.call());
-                case _ShellCommand.resetSample:
-                  onResetSampleGraph();
-                case _ShellCommand.about:
-                  onDestinationSelected(8);
-              }
-            },
+            onSelected: runCommand,
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: _ShellCommand.newAutomation,
-                child: Text('New automation'),
-              ),
-              PopupMenuItem(
-                value: _ShellCommand.save,
-                enabled: onSaveAutomation != null,
-                child: const Text('Save automation'),
-              ),
-              const PopupMenuItem(
-                value: _ShellCommand.resetSample,
-                child: Text('Reset sample graph'),
-              ),
+              _commandMenuItem('file.newAutomation', commandContext),
+              _commandMenuItem('file.save', commandContext),
+              _commandMenuItem('file.saveAll', commandContext),
+              _commandMenuItem('file.close', commandContext),
             ],
           ),
-          PopupMenuButton<_ShellCommand>(
+          PopupMenuButton<String>(
             tooltip: 'Help',
             icon: const Icon(Icons.help_outline),
-            onSelected: (_) => onDestinationSelected(8),
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: _ShellCommand.about,
-                child: Text('About ShowRunner'),
-              ),
+            onSelected: runCommand,
+            itemBuilder: (context) => [
+              _commandMenuItem('help.about', commandContext),
+            ],
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Edit',
+            icon: const Icon(Icons.edit_outlined),
+            onSelected: runCommand,
+            itemBuilder: (context) => [
+              _commandMenuItem('edit.copy', commandContext),
+              _commandMenuItem('edit.cut', commandContext),
+              _commandMenuItem('edit.paste', commandContext),
+              const PopupMenuDivider(),
+              _commandMenuItem('edit.frameSelection', commandContext),
+            ],
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'View',
+            icon: const Icon(Icons.view_quilt_outlined),
+            onSelected: runCommand,
+            itemBuilder: (context) => [
+              _commandMenuItem('view.fitGraph', commandContext),
+              _commandMenuItem('view.resetSample', commandContext),
             ],
           ),
           SrIconButton(
             tooltip: 'Frame selected nodes',
-            onPressed: () => _frameSelected(context),
+            onPressed: () => runCommand('edit.frameSelection'),
             icon: const Icon(Icons.crop_free),
           ),
           SrIconButton(
             tooltip: 'Copy selected nodes',
-            onPressed: () => graphEditor.copySelection(context: context),
+            onPressed: () => runCommand('edit.copy'),
             icon: const Icon(Icons.copy),
           ),
           SrIconButton(
             tooltip: 'Paste nodes',
-            onPressed: () => graphEditor.pasteSelection(context: context),
+            onPressed: () => runCommand('edit.paste'),
             icon: const Icon(Icons.content_paste),
           ),
           SrIconButton(
             tooltip: 'Cut selected nodes',
-            onPressed: () => graphEditor.cutSelection(context: context),
+            onPressed: () => runCommand('edit.cut'),
             icon: const Icon(Icons.content_cut),
           ),
           SrIconButton(
             tooltip: 'Reset sample graph',
-            onPressed: onResetSampleGraph,
+            onPressed: () => runCommand('view.resetSample'),
             icon: const Icon(Icons.refresh),
           ),
           SrIconButton(
             tooltip: 'Save automation',
-            onPressed: onSaveAutomation,
+            onPressed: () => runCommand('file.save'),
             icon: const Icon(Icons.save),
           ),
           IconButton(
             tooltip: 'Run automation',
-            onPressed: onRunAutomation,
+            onPressed: () => runCommand('run.automation'),
             icon: const Icon(Icons.play_arrow),
           ),
           const SizedBox(width: 12),
@@ -296,14 +293,22 @@ class ShowRunnerShell extends StatelessWidget {
     );
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
-          unawaited(onSaveAutomation?.call());
-        },
-        const SingleActivator(LogicalKeyboardKey.keyS, meta: true): () {
-          unawaited(onSaveAutomation?.call());
-        },
+        for (final command in commands.shortcutCommands)
+          command.shortcut!: () => runCommand(command.id),
       },
       child: Focus(autofocus: true, child: shell),
+    );
+  }
+
+  PopupMenuItem<String> _commandMenuItem(String id, AppCommandContext context) {
+    final command = commands.find(id);
+    if (command == null) {
+      throw StateError('Command is not registered: $id');
+    }
+    return PopupMenuItem<String>(
+      value: id,
+      enabled: command.canExecute(context),
+      child: Text(command.label),
     );
   }
 
@@ -396,38 +401,6 @@ class ShowRunnerShell extends StatelessWidget {
         SnackBar(content: Text('Unable to update plugin: $error')),
       );
     }
-  }
-
-  Future<void> _frameSelected(BuildContext context) async {
-    final titleController = TextEditingController(text: 'Frame');
-    final title = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Name annotation'),
-        content: TextField(
-          controller: titleController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Annotation title',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (value) => Navigator.of(context).pop(value),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(titleController.text),
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
-    titleController.dispose();
-    if (!context.mounted || title == null || title.trim().isEmpty) return;
-    graphEditor.frameSelection(title: title.trim());
   }
 }
 
