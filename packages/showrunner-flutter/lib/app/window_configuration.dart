@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../persistence/filesystem/atomic_file.dart';
 import '../schema/automation.dart';
 import 'app_foundations.dart';
 
@@ -72,10 +73,7 @@ Future<void> saveShowRunnerWindowState(File file) async {
       position: await windowManager.getPosition(),
       maximized: await windowManager.isMaximized(),
     );
-    await file.parent.create(recursive: true);
-    final temporary = File('${file.path}.tmp');
-    await temporary.writeAsString(jsonEncode(state.toJson()));
-    await temporary.rename(file.path);
+    await writeAtomicText(file, jsonEncode(state.toJson()));
   } on Object {
     // Window persistence must never prevent an orderly application close.
   }

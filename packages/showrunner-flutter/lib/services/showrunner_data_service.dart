@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
+import '../persistence/filesystem/atomic_file.dart';
 import '../schema/automation.dart';
 
 final class ShowRunnerHealth {
@@ -57,11 +58,8 @@ final class ShowRunnerDataService {
   }
 
   Future<void> savePluginSettings(String pluginId, JsonMap settings) async {
-    await settingsDirectory.create(recursive: true);
     final file = File('${settingsDirectory.path}/$pluginId.yaml');
-    final temporaryFile = File('${file.path}.tmp');
-    await temporaryFile.writeAsString(_yamlEncode(settings));
-    await temporaryFile.rename(file.path);
+    await writeAtomicText(file, _yamlEncode(settings));
   }
 
   Future<void> updatePluginSetting(
@@ -98,11 +96,8 @@ final class ShowRunnerDataService {
     JsonMap config,
   ) async {
     final directory = Directory('${userDirectory.path}/$resourceDirectory');
-    await directory.create(recursive: true);
     final file = File('${directory.path}/$resourceId.yaml');
-    final temporaryFile = File('${file.path}.tmp');
-    await temporaryFile.writeAsString(_yamlEncode(config));
-    await temporaryFile.rename(file.path);
+    await writeAtomicText(file, _yamlEncode(config));
   }
 
   Future<List<String>> listUserFiles(String relativeDirectory) async {
