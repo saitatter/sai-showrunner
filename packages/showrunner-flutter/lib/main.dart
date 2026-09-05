@@ -12,6 +12,7 @@ import 'app/data_directory.dart';
 import 'app/startup_health.dart';
 import 'app/showrunner_shell.dart';
 import 'app/window_configuration.dart';
+import 'app/workspace_document_manager.dart';
 import 'editor/showrunner_graph_editor.dart';
 import 'persistence/automation_repository.dart';
 import 'persistence/profile_repository.dart';
@@ -133,9 +134,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   String? _activeAutomationFile;
   DartPluginRegistry? _stateRegistry;
   bool _disposed = false;
-  int _selectedIndex = 0;
   String _selectedPluginId = 'obs';
-  final _openTabIndices = <int>[0];
+  final _workspaceDocuments = WorkspaceDocumentManager();
   Future<void> _navigationWrite = Future<void>.value();
   bool _restoredNavigation = false;
 
@@ -227,14 +227,14 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         additionalShortcuts: const [
           SingleActivator(LogicalKeyboardKey.keyW, meta: true),
         ],
-        canExecute: (_) => _openTabIndices.length > 1,
-        execute: (_) => _closeTab(_selectedIndex),
+        canExecute: (_) => _workspaceDocuments.canClose,
+        execute: (_) => _closeTab(_workspaceDocuments.selectedWorkspaceIndex),
       ),
       AppCommand(
         id: 'file.closeOthers',
         label: 'Close other workspaces',
         icon: Icons.tab_unselected,
-        canExecute: (_) => _openTabIndices.length > 1,
+        canExecute: (_) => _workspaceDocuments.canCloseOthers,
         execute: (_) => _closeOtherTabs(),
       ),
       AppCommand(
@@ -253,7 +253,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         additionalShortcuts: const [
           SingleActivator(LogicalKeyboardKey.keyC, meta: true),
         ],
-        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        canExecute: (_) =>
+            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            widget.showGraphEditor,
         execute: (commandContext) async {
           final buildContext = commandContext.buildContext;
           if (buildContext != null) {
@@ -269,7 +271,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         additionalShortcuts: const [
           SingleActivator(LogicalKeyboardKey.keyV, meta: true),
         ],
-        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        canExecute: (_) =>
+            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            widget.showGraphEditor,
         execute: (commandContext) async {
           final buildContext = commandContext.buildContext;
           if (buildContext != null) {
@@ -285,7 +289,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         additionalShortcuts: const [
           SingleActivator(LogicalKeyboardKey.keyX, meta: true),
         ],
-        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        canExecute: (_) =>
+            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            widget.showGraphEditor,
         execute: (commandContext) async {
           final buildContext = commandContext.buildContext;
           if (buildContext != null) {
@@ -297,7 +303,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         id: 'edit.frameSelection',
         label: 'Frame selected nodes',
         icon: Icons.crop_free,
-        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        canExecute: (_) =>
+            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            widget.showGraphEditor,
         execute: (_) => _frameSelectionFromCommand(),
       ),
       AppCommand(
@@ -305,14 +313,18 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         label: 'Fit graph',
         icon: Icons.fit_screen,
         shortcut: const SingleActivator(LogicalKeyboardKey.home),
-        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        canExecute: (_) =>
+            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            widget.showGraphEditor,
         execute: (_) => _graphEditor.fitGraph(),
       ),
       AppCommand(
         id: 'view.resetSample',
         label: 'Reset sample graph',
         icon: Icons.refresh,
-        canExecute: (_) => _selectedIndex == 0 && widget.showGraphEditor,
+        canExecute: (_) =>
+            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            widget.showGraphEditor,
         execute: (_) => _graphEditor.loadSampleGraph(),
       ),
       AppCommand(
@@ -424,8 +436,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       commands: _commandRegistry,
       updateService: widget.updateService,
       onRestartRequested: _handleUpdateRestart,
-      selectedIndex: _selectedIndex,
-      openTabIndices: _openTabIndices,
+      selectedIndex: _workspaceDocuments.selectedWorkspaceIndex,
+      openTabIndices: _workspaceDocuments.openWorkspaceIndices,
       selectedPluginId: _selectedPluginId,
       activeAutomationFile: _activeAutomationFile,
       activeAutomationDirty: _graphEditor.documentDirty.value,
@@ -445,15 +457,15 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
 
   void _openDestination(int index) {
     setState(() {
-      if (!_openTabIndices.contains(index)) _openTabIndices.add(index);
-      _selectedIndex = index;
+      _workspaceDocuments.open(index);
+      _workspaceDocuments.select(index);
     });
     unawaited(_persistNavigation());
   }
 
   void _selectTab(int index) {
-    if (!_openTabIndices.contains(index)) return;
-    setState(() => _selectedIndex = index);
+    if (!_workspaceDocuments.select(index)) return;
+    setState(() {});
     unawaited(_persistNavigation());
   }
 
@@ -477,14 +489,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           : null;
       if (!mounted) return;
       setState(() {
-        if (tabs.isNotEmpty) {
-          _openTabIndices
-            ..clear()
-            ..addAll(tabs);
-        }
-        if (selected != null && _openTabIndices.contains(selected)) {
-          _selectedIndex = selected;
-        }
+        _workspaceDocuments.restore(
+          openWorkspaceIndices: tabs,
+          selected: selected,
+        );
         _restoredNavigation = true;
       });
     } catch (_) {
@@ -500,8 +508,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       );
       await widget.dataService.savePluginSettings('showrunner-flutter', {
         ...settings,
-        'openWorkspaceTabs': List<int>.from(_openTabIndices),
-        'selectedWorkspace': _selectedIndex,
+        ..._workspaceDocuments.toSettings(),
       });
     });
     await _navigationWrite;
@@ -522,8 +529,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     );
     if (hasProviderConfiguration || !mounted) return;
     setState(() {
-      if (!_openTabIndices.contains(10)) _openTabIndices.add(10);
-      _selectedIndex = 10;
+      _workspaceDocuments.open(10);
+      _workspaceDocuments.select(10);
     });
     unawaited(_persistNavigation());
   }
@@ -815,40 +822,28 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   }
 
   Future<void> _closeTab(int index) async {
-    if (_openTabIndices.length <= 1) return;
+    if (!_workspaceDocuments.canClose) return;
     if (index == 0 &&
         _activeAutomationFile != null &&
         _graphEditor.documentDirty.value) {
       if (!await _confirmAutomationClose()) return;
     }
-    setState(() {
-      final closingPosition = _openTabIndices.indexOf(index);
-      final wasSelected = _selectedIndex == index;
-      _openTabIndices.remove(index);
-      if (wasSelected) {
-        final nextPosition = closingPosition > 0 ? closingPosition - 1 : 0;
-        _selectedIndex = _openTabIndices[nextPosition];
-      }
-    });
+    if (!_workspaceDocuments.close(index)) return;
+    setState(() {});
     unawaited(_persistNavigation());
   }
 
   Future<void> _closeOtherTabs() async {
-    if (_openTabIndices.length <= 1 ||
-        !_openTabIndices.contains(_selectedIndex)) {
-      return;
-    }
-    if (_selectedIndex != 0 &&
+    final selected = _workspaceDocuments.selectedWorkspaceIndex;
+    if (!_workspaceDocuments.canCloseOthers) return;
+    if (selected != 0 &&
         _activeAutomationFile != null &&
         _graphEditor.documentDirty.value &&
         !await _confirmAutomationClose()) {
       return;
     }
-    setState(() {
-      _openTabIndices
-        ..clear()
-        ..add(_selectedIndex);
-    });
+    if (!_workspaceDocuments.closeOthers()) return;
+    setState(() {});
     unawaited(_persistNavigation());
   }
 
@@ -972,7 +967,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     setState(() {
       _activeAutomation = automation;
       _activeAutomationFile = fileName;
-      _selectedIndex = 0;
+      _workspaceDocuments.open(0);
+      _workspaceDocuments.select(0);
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Loaded $fileName into the graph editor')),
@@ -1022,7 +1018,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     setState(() {
       _activeAutomation = automation;
       _activeAutomationFile = fileName;
-      _selectedIndex = 0;
+      _workspaceDocuments.open(0);
+      _workspaceDocuments.select(0);
     });
     ScaffoldMessenger.of(
       context,
