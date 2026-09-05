@@ -326,6 +326,38 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         },
       ),
       AppCommand(
+        id: 'edit.undo',
+        label: 'Undo',
+        icon: Icons.undo,
+        shortcut: const SingleActivator(LogicalKeyboardKey.keyZ, control: true),
+        additionalShortcuts: const [
+          SingleActivator(LogicalKeyboardKey.keyZ, meta: true),
+        ],
+        canExecute: (_) =>
+            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            widget.showGraphEditor &&
+            _graphEditor.controller.history.canUndo,
+        execute: (_) => _graphEditor.controller.history.undo(),
+      ),
+      AppCommand(
+        id: 'edit.redo',
+        label: 'Redo',
+        icon: Icons.redo,
+        shortcut: const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ),
+        additionalShortcuts: const [
+          SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true),
+        ],
+        canExecute: (_) =>
+            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            widget.showGraphEditor &&
+            _graphEditor.controller.history.canRedo,
+        execute: (_) => _graphEditor.controller.history.redo(),
+      ),
+      AppCommand(
         id: 'edit.copy',
         label: 'Copy selected nodes',
         icon: Icons.copy,
