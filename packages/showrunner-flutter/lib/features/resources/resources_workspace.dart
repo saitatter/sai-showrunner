@@ -20,12 +20,14 @@ class ResourcesWorkspace extends StatefulWidget {
     required this.editorRegistry,
     this.registryFuture,
     this.streamPlanRuntime,
+    this.resourceType,
   });
 
   final ShowRunnerDataService dataService;
   final DartResourceEditorRegistry editorRegistry;
   final Future<DartPluginRegistry>? registryFuture;
   final DartStreamPlanRuntime? streamPlanRuntime;
+  final String? resourceType;
 
   @override
   State<ResourcesWorkspace> createState() => _ResourcesWorkspaceState();
@@ -68,6 +70,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
         final data = snapshot.data ?? {};
         final overlays = data['Overlay'] ?? [];
         final variables = data['Variable'] ?? [];
+        final focusedType = widget.resourceType;
+        final focusedDefinition = focusedType == null
+            ? null
+            : editorRegistry.find(focusedType);
 
         return ListView(
           padding: const EdgeInsets.all(24),
@@ -76,7 +82,8 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
               children: [
                 Expanded(
                   child: Text(
-                    'Resources',
+                    focusedDefinition?.displayName ??
+                        (focusedType ?? 'Resources'),
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                 ),
@@ -88,57 +95,62 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Manage overlays, variables, media items, and persisted smart-device routing.',
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Overlays (${overlays.length})',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            if (overlays.isEmpty)
-              const ListTile(
-                leading: Icon(Icons.layers_clear),
-                title: Text('No overlays defined'),
-              )
-            else
-              ...overlays.map((resource) {
-                final overlay = OverlayResource.fromResource(resource);
-                return ListTile(
-                  onTap: () => _edit(context, resource, 'Overlay'),
-                  leading: const Icon(Icons.layers),
-                  title: Text(overlay.name),
-                  subtitle: Text(
-                    '${overlay.width}x${overlay.height} · ${overlay.widgets.length} widgets',
-                  ),
-                  trailing: _editorLabel('Overlay'),
-                );
-              }),
-            const SizedBox(height: 20),
-            Text(
-              'Variables (${variables.length})',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            if (variables.isEmpty)
-              const ListTile(
-                leading: Icon(Icons.data_object),
-                title: Text('No variables defined'),
-              )
-            else
-              ...variables.map((resource) {
-                final variable = VariableResource.fromResource(resource);
-                return ListTile(
-                  onTap: () => _edit(context, resource, 'Variable'),
-                  leading: const Icon(Icons.tune),
-                  title: Text(variable.name),
-                  subtitle: Text(
-                    'Type: ${variable.type} · Default: ${variable.defaultValue ?? 'null'} · Current: ${variable.currentValue ?? 'null'}',
-                  ),
-                  trailing: _editorLabel('Variable'),
-                );
-              }),
+            if (focusedType == null)
+              const Text(
+                'Manage overlays, variables, media items, and persisted smart-device routing.',
+              ),
+            if (focusedType == null || focusedType == 'Overlay') ...[
+              const SizedBox(height: 20),
+              Text(
+                'Overlays (${overlays.length})',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              if (overlays.isEmpty)
+                const ListTile(
+                  leading: Icon(Icons.layers_clear),
+                  title: Text('No overlays defined'),
+                )
+              else
+                ...overlays.map((resource) {
+                  final overlay = OverlayResource.fromResource(resource);
+                  return ListTile(
+                    onTap: () => _edit(context, resource, 'Overlay'),
+                    leading: const Icon(Icons.layers),
+                    title: Text(overlay.name),
+                    subtitle: Text(
+                      '${overlay.width}x${overlay.height} · ${overlay.widgets.length} widgets',
+                    ),
+                    trailing: _editorLabel('Overlay'),
+                  );
+                }),
+            ],
+            if (focusedType == null || focusedType == 'Variable') ...[
+              const SizedBox(height: 20),
+              Text(
+                'Variables (${variables.length})',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              if (variables.isEmpty)
+                const ListTile(
+                  leading: Icon(Icons.data_object),
+                  title: Text('No variables defined'),
+                )
+              else
+                ...variables.map((resource) {
+                  final variable = VariableResource.fromResource(resource);
+                  return ListTile(
+                    onTap: () => _edit(context, resource, 'Variable'),
+                    leading: const Icon(Icons.tune),
+                    title: Text(variable.name),
+                    subtitle: Text(
+                      'Type: ${variable.type} · Default: ${variable.defaultValue ?? 'null'} · Current: ${variable.currentValue ?? 'null'}',
+                    ),
+                    trailing: _editorLabel('Variable'),
+                  );
+                }),
+            ],
             ..._buildPluginResources(context, data),
           ],
         );
@@ -194,7 +206,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
   Future<void> _create(BuildContext context) async {
     final selection = await showDialog<(String, String)?>(
       context: context,
-      builder: (context) => _NewResourceDialog(editorRegistry: editorRegistry),
+      builder: (context) => _NewResourceDialog(
+        editorRegistry: editorRegistry,
+        resourceType: widget.resourceType,
+      ),
     );
     if (selection == null || !mounted) return;
     final (resourceType, name) = selection;
@@ -251,9 +266,13 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     BuildContext context,
     Map<String, List<ResourceData>> data,
   ) {
-    final pluginDefs = editorRegistry.definitions.where(
-      (def) => def.resourceType != 'Overlay' && def.resourceType != 'Variable',
-    );
+    final pluginDefs = editorRegistry.definitions.where((def) {
+      if (def.resourceType == 'Overlay' || def.resourceType == 'Variable') {
+        return false;
+      }
+      return widget.resourceType == null ||
+          widget.resourceType == def.resourceType;
+    });
     return [
       for (final def in pluginDefs)
         _resourceSection(
@@ -422,9 +441,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
 }
 
 class _NewResourceDialog extends StatefulWidget {
-  const _NewResourceDialog({required this.editorRegistry});
+  const _NewResourceDialog({required this.editorRegistry, this.resourceType});
 
   final DartResourceEditorRegistry editorRegistry;
+  final String? resourceType;
 
   @override
   State<_NewResourceDialog> createState() => _NewResourceDialogState();
@@ -438,9 +458,11 @@ class _NewResourceDialogState extends State<_NewResourceDialog> {
   @override
   void initState() {
     super.initState();
-    _types = widget.editorRegistry.definitions
-        .map((def) => def.resourceType)
-        .toList();
+    _types = widget.resourceType == null
+        ? widget.editorRegistry.definitions
+              .map((def) => def.resourceType)
+              .toList()
+        : [widget.resourceType!];
     _type = _types.firstOrNull ?? 'Overlay';
   }
 

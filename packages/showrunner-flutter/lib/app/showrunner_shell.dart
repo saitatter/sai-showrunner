@@ -80,6 +80,8 @@ class ShowRunnerShell extends StatelessWidget {
     this.onProfileDirtyChanged,
     this.onProfileEntriesChanged,
     this.projectCatalogRevision = 0,
+    this.selectedResourceType,
+    this.onResourceSelected,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -123,6 +125,8 @@ class ShowRunnerShell extends StatelessWidget {
   final ValueChanged<bool>? onProfileDirtyChanged;
   final VoidCallback? onProfileEntriesChanged;
   final int projectCatalogRevision;
+  final String? selectedResourceType;
+  final ValueChanged<String>? onResourceSelected;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -164,6 +168,7 @@ class ShowRunnerShell extends StatelessWidget {
                       catalogRevision: projectCatalogRevision,
                       activeAutomationFile: activeAutomationFile,
                       onOpenAutomation: onOpenAutomation,
+                      onResourceSelected: onResourceSelected,
                       onOpenProfile: (fileName) {
                         onDestinationSelected(4);
                         return profileController?.openProfile(fileName);
@@ -275,6 +280,7 @@ class ShowRunnerShell extends StatelessWidget {
         editorRegistry: createDefaultResourceEditorRegistry(),
         registryFuture: pluginRegistryFuture,
         streamPlanRuntime: streamPlanRuntime,
+        resourceType: selectedResourceType,
       ),
       7 => const LogsWorkspace(),
       8 => AboutWorkspace(

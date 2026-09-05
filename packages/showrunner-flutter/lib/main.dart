@@ -167,6 +167,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   Future<void> _navigationWrite = Future<void>.value();
   bool _restoredNavigation = false;
   int _projectCatalogRevision = 0;
+  String? _selectedResourceType;
 
   AutomationDocumentSession? get _activeAutomationSession =>
       _automationDocuments.active;
@@ -593,6 +594,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       profileController: _profileWorkspaceController,
       profileDirty: _profileDirty,
       projectCatalogRevision: _projectCatalogRevision,
+      selectedResourceType: _selectedResourceType,
+      onResourceSelected: _openResourceType,
       onProfileEntriesChanged: _onProjectCatalogChanged,
       onProfileDirtyChanged: (dirty) {
         if (mounted) setState(() => _profileDirty = dirty);
@@ -623,8 +626,18 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
 
   void _openDestination(int index) {
     setState(() {
+      if (index != 6) _selectedResourceType = null;
       _workspaceDocuments.open(index);
       _workspaceDocuments.select(index);
+    });
+    unawaited(_persistNavigation());
+  }
+
+  void _openResourceType(String resourceType) {
+    setState(() {
+      _selectedResourceType = resourceType;
+      _workspaceDocuments.open(6);
+      _workspaceDocuments.select(6);
     });
     unawaited(_persistNavigation());
   }
@@ -664,6 +677,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           ? <int>[]
           : <int>[showRunnerHomeWorkspaceIndex];
       final restoredSelected = settings['selectedWorkspace'];
+      final restoredResourceType = settings['selectedResourceType'];
       final selected = restoredSelected is num
           ? restoredSelected.toInt()
           : hasRestoredWorkspaceTabs
@@ -678,6 +692,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           openWorkspaceIndices: tabs,
           selected: selected,
         );
+        _selectedResourceType = restoredResourceType is String
+            ? restoredResourceType
+            : null;
         _restoredNavigation = true;
       });
     } catch (_) {
@@ -789,6 +806,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         ...settings,
         ..._workspaceDocuments.toSettings(),
         ..._automationDocuments.toSettings(),
+        'selectedResourceType': ?_selectedResourceType,
       });
     });
     await _navigationWrite;

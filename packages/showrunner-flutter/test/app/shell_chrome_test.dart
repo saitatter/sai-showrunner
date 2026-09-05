@@ -32,6 +32,7 @@ void main() {
     var selectedIndex = -1;
     final registry = DartPluginRegistry();
     addTearDown(registry.dispose);
+    String? selectedResourceType;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -45,6 +46,7 @@ void main() {
             selectedPluginId: null,
             onPluginSelected: (_) {},
             onPluginToggle: (_, _) async {},
+            onResourceSelected: (type) => selectedResourceType = type,
           ),
         ),
       ),
@@ -69,5 +71,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.chevron_right).first);
     await tester.pumpAndSettle();
     expect(find.text('All Automations'), findsNothing);
+    await tester.tap(find.text('Stream Plans'));
+    expect(selectedResourceType, 'StreamPlan');
   });
 }

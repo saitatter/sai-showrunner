@@ -29,6 +29,7 @@ class ShowRunnerProjectPanel extends StatefulWidget {
     this.activeAutomationFile,
     this.onOpenAutomation,
     this.onOpenProfile,
+    this.onResourceSelected,
   });
 
   final int selectedIndex;
@@ -44,6 +45,7 @@ class ShowRunnerProjectPanel extends StatefulWidget {
   final FutureOr<void> Function(AutomationData automation, String fileName)?
   onOpenAutomation;
   final FutureOr<void> Function(String fileName)? onOpenProfile;
+  final ValueChanged<String>? onResourceSelected;
 
   @override
   State<ShowRunnerProjectPanel> createState() => _ShowRunnerProjectPanelState();
@@ -85,6 +87,15 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
 
   void _toggle(String id) =>
       setState(() => _expanded[id] = !(_expanded[id] ?? false));
+
+  void _openResource(String resourceType) {
+    final callback = widget.onResourceSelected;
+    if (callback != null) {
+      callback(resourceType);
+    } else {
+      widget.onDestinationSelected(6);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +199,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             icon: Icons.view_agenda_outlined,
             selected: widget.selectedIndex == 6,
             compact: compact,
-            onTap: () => widget.onDestinationSelected(6),
+            onTap: () => _openResource('StreamPlan'),
           ),
           _ProjectItemRow(
             title: 'Media',
@@ -224,7 +235,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             icon: Icons.auto_awesome_outlined,
             selected: widget.selectedIndex == 6,
             compact: compact,
-            onTap: () => widget.onDestinationSelected(6),
+            onTap: () => _openResource('SpellHook'),
           ),
           _ProjectGroupBlock(
             id: 'audio',
@@ -240,7 +251,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                 selected: widget.selectedIndex == 6,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(6),
+                onTap: () => _openResource('SoundOutput'),
               ),
               _ProjectItemRow(
                 title: 'TTS Voices',
@@ -248,7 +259,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                 selected: widget.selectedIndex == 6,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(6),
+                onTap: () => _openResource('TTSVoice'),
               ),
             ],
           ),
@@ -266,7 +277,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                 selected: widget.selectedIndex == 6,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(6),
+                onTap: () => _openResource('Dashboard'),
               ),
             ],
           ),
@@ -292,7 +303,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             icon: Icons.layers_outlined,
             selected: widget.selectedIndex == 6,
             compact: compact,
-            onTap: () => widget.onDestinationSelected(6),
+            onTap: () => _openResource('Overlay'),
           ),
           _ProjectGroupBlock(
             id: 'tools',
