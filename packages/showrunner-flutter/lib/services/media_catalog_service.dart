@@ -70,6 +70,27 @@ final class MediaCatalogService {
     }
   }
 
+  /// Copies supported files dropped from the desktop into the default media
+  /// folder. Existing files are left untouched, matching the reference
+  /// media store's duplicate handling.
+  Future<int> importFiles(Iterable<File> sources) async {
+    await mediaDirectory.create(recursive: true);
+    var imported = 0;
+    for (final source in sources) {
+      if (!await source.exists()) continue;
+      if (_kindFor(_extension(source.path)) == null) continue;
+      final name = source.uri.pathSegments.last;
+      if (name.isEmpty) continue;
+      final destination = File('${mediaDirectory.path}/$name');
+      if (_sameFile(source, destination) || await destination.exists()) {
+        continue;
+      }
+      await source.copy(destination.path);
+      imported++;
+    }
+    return imported;
+  }
+
   String _relativePath(File file) {
     final root = mediaDirectory.path.endsWith(Platform.pathSeparator)
         ? mediaDirectory.path
@@ -80,6 +101,9 @@ final class MediaCatalogService {
     return relative.replaceAll('\\', '/');
   }
 }
+
+bool _sameFile(File left, File right) =>
+    left.absolute.path.toLowerCase() == right.absolute.path.toLowerCase();
 
 String _extension(String path) {
   final name = path.split(Platform.pathSeparator).last;

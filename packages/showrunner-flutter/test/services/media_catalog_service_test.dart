@@ -31,4 +31,19 @@ void main() {
 
     expect(await MediaCatalogService(root).discover(), isEmpty);
   });
+
+  test(
+    'imports supported external files without overwriting duplicates',
+    () async {
+      final root = await Directory.systemTemp.createTemp('showrunner-media-');
+      addTearDown(() => root.delete(recursive: true));
+      final source = File('${root.path}/outside/intro.mp3');
+      await source.create(recursive: true);
+
+      final service = MediaCatalogService(root);
+      expect(await service.importFiles([source]), 1);
+      expect(await service.importFiles([source]), 0);
+      expect(await File('${root.path}/media/intro.mp3').exists(), isTrue);
+    },
+  );
 }

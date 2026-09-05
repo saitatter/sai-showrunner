@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -18,6 +21,7 @@ class _MediaWorkspaceState extends State<MediaWorkspace> {
   late final MediaCatalogService _catalogService;
   late Future<List<MediaFileEntry>> _filesFuture;
   String _filter = '';
+  bool _draggingFiles = false;
 
   @override
   void initState() {
@@ -98,26 +102,72 @@ class _MediaWorkspaceState extends State<MediaWorkspace> {
               ),
             ),
           Expanded(
-            child: files.isEmpty
-                ? Center(
-                    child: Text(
-                      snapshot.hasError
-                          ? 'Unable to load media files.'
-                          : _filter.isEmpty
-                          ? 'No media files found.'
-                          : 'No matching media.',
-                    ),
-                  )
-                : _MediaTreeView(
-                    files: files,
-                    onShowInExplorer: _catalogService.showInExplorer,
-                    expandFolders: _filter.isNotEmpty,
-                  ),
+            child: DropTarget(
+              onDragEntered: (_) => setState(() => _draggingFiles = true),
+              onDragExited: (_) => setState(() => _draggingFiles = false),
+              onDragDone: _importDroppedFiles,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                decoration: BoxDecoration(
+                  border: _draggingFiles
+                      ? Border.all(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        )
+                      : null,
+                ),
+                child: files.isEmpty
+                    ? Center(
+                        child: Text(
+                          snapshot.hasError
+                              ? 'Unable to load media files.'
+                              : _filter.isEmpty
+                              ? 'No media files found. Drop media files here.'
+                              : 'No matching media.',
+                        ),
+                      )
+                    : _MediaTreeView(
+                        files: files,
+                        onShowInExplorer: _catalogService.showInExplorer,
+                        expandFolders: _filter.isNotEmpty,
+                      ),
+              ),
+            ),
           ),
         ],
       );
     },
   );
+
+  Future<void> _importDroppedFiles(DropDoneDetails details) async {
+    setState(() => _draggingFiles = false);
+    final sources = <File>[];
+    void collect(DropItem item) {
+      if (item is DropItemDirectory) {
+        for (final child in item.children) {
+          collect(child);
+        }
+      } else if (item.path.isNotEmpty) {
+        sources.add(File(item.path));
+      }
+    }
+
+    for (final item in details.files) {
+      collect(item);
+    }
+    final imported = await _catalogService.importFiles(sources);
+    if (!mounted) return;
+    _reload();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          imported == 0
+              ? 'No new supported media files were imported.'
+              : 'Imported $imported media file${imported == 1 ? '' : 's'}.',
+        ),
+      ),
+    );
+  }
 }
 
 final class _MediaFolderNode {
