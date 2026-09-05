@@ -10,12 +10,16 @@ void main() {
       final hub = DartPluginEventHub();
       final messages = <RuntimeMap>[];
       final memberships = <RuntimeMap>[];
+      final stickers = <RuntimeMap>[];
       final messageSubscription = hub
           .stream('chatMessage')
           .listen(messages.add);
       final membershipSubscription = hub
           .stream('membership')
           .listen(memberships.add);
+      final stickerSubscription = hub
+          .stream('superSticker')
+          .listen(stickers.add);
       var requestCount = 0;
       final worker = YouTubeLiveChatWorker(
         liveChatId: 'chat-1',
@@ -31,7 +35,7 @@ void main() {
                 'snippet': {
                   'type': requestCount == 1
                       ? 'textMessageEvent'
-                      : 'newSponsorEvent',
+                      : 'superStickerEvent',
                 },
               },
             ],
@@ -44,9 +48,11 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(messages, hasLength(1));
-      expect(memberships, hasLength(1));
+      expect(memberships, isEmpty);
+      expect(stickers, hasLength(1));
       await messageSubscription.cancel();
       await membershipSubscription.cancel();
+      await stickerSubscription.cancel();
       await hub.dispose();
     },
   );

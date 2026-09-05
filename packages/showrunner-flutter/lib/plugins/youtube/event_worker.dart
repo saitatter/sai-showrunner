@@ -61,6 +61,7 @@ final class YouTubeLiveChatWorker {
           final type = (data['snippet'] as Map?)?['type']?.toString();
           final eventId = switch (type) {
             'superChatEvent' => 'superChat',
+            'superStickerEvent' => 'superSticker',
             'memberMilestoneChatEvent' || 'newSponsorEvent' => 'membership',
             _ => 'chatMessage',
           };

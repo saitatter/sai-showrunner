@@ -202,6 +202,12 @@ DartPluginManifest createYouTubePlugin(
           ),
           DartTriggerDefinition(
             pluginId: 'youtube',
+            triggerId: 'superSticker',
+            displayName: 'Super Sticker',
+            listen: () => eventHub.stream('superSticker'),
+          ),
+          DartTriggerDefinition(
+            pluginId: 'youtube',
             triggerId: 'membership',
             displayName: 'Membership',
             listen: () => eventHub.stream('membership'),
