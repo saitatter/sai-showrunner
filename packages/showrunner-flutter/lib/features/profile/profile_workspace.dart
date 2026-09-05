@@ -29,14 +29,20 @@ enum _ProfileCloseDecision { save, discard, cancel }
 final class ProfileWorkspaceController {
   Future<bool> Function()? _closeGuard;
   Future<void> Function(String fileName)? _openProfile;
+  Future<void> Function()? _reloadEntries;
   String? _pendingProfile;
+  String? _activeProfileFile;
+
+  String? get activeProfileFile => _activeProfileFile;
 
   void attach(
     Future<bool> Function() closeGuard, {
     Future<void> Function(String fileName)? openProfile,
+    Future<void> Function()? reloadEntries,
   }) {
     _closeGuard = closeGuard;
     _openProfile = openProfile;
+    _reloadEntries = reloadEntries;
     final pendingProfile = _pendingProfile;
     if (pendingProfile != null && openProfile != null) {
       _pendingProfile = null;
@@ -47,9 +53,19 @@ final class ProfileWorkspaceController {
   void detach() {
     _closeGuard = null;
     _openProfile = null;
+    _reloadEntries = null;
+    _activeProfileFile = null;
   }
 
   Future<bool> confirmClose() => _closeGuard?.call() ?? Future.value(true);
+
+  Future<void> reloadEntries() async {
+    await _reloadEntries?.call();
+  }
+
+  void setActiveProfileFile(String? fileName) {
+    _activeProfileFile = fileName;
+  }
 
   Future<void> openProfile(String fileName) async {
     final opener = _openProfile;
@@ -117,7 +133,11 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     _activationEditor.documentDirty.addListener(_markDirty);
     _deactivationEditor.documentDirty.addListener(_markDirty);
     _initialLoad = _load();
-    widget.controller?.attach(_confirmClose, openProfile: _openProfile);
+    widget.controller?.attach(
+      _confirmClose,
+      openProfile: _openProfile,
+      reloadEntries: _load,
+    );
   }
 
   @override
@@ -163,6 +183,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
             error: entry.error,
           ),
       ];
+      if (_entries.isEmpty) widget.controller?.setActiveProfileFile(null);
       if (_entries.isNotEmpty &&
           (_selectedIndex == null || _selectedIndex! >= _entries.length)) {
         _selectProfile(0);
@@ -193,6 +214,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       _profileActive = false;
     }
     final entry = _entries[index];
+    widget.controller?.setActiveProfileFile(entry.fileName);
     final profile = entry.profile;
     if (profile != null) {
       _nameController.text = profile.name;

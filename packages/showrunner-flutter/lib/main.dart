@@ -1555,10 +1555,18 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
 
   Future<void> _deleteProfileEntry(String fileName) async {
     if (!_isSafeAutomationFileName(fileName)) return;
+    final profileController = _profileWorkspaceController;
+    if (profileController.activeProfileFile == fileName &&
+        !await profileController.confirmClose()) {
+      return;
+    }
     final file = File(
       '${widget.dataService.userDirectory.path}/profiles/$fileName',
     );
     if (await file.exists()) await file.delete();
+    if (profileController.activeProfileFile == fileName) {
+      await profileController.reloadEntries();
+    }
     if (!mounted) return;
     setState(() => _projectCatalogRevision++);
   }
