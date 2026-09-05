@@ -76,7 +76,7 @@ class ShowRunnerShell extends StatelessWidget {
   final bool showGraphEditor;
   final ValueChanged<int> onDestinationSelected;
   final Future<void> Function(String schemaNodeId)? onRunNode;
-  final void Function(AutomationData automation, String fileName)
+  final FutureOr<void> Function(AutomationData automation, String fileName)
   onOpenAutomation;
   final Future<void> Function(AutomationData automation, String fileName)
   onRepairAutomation;

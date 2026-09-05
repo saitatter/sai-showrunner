@@ -380,17 +380,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onPluginSelected: (pluginId) =>
           setState(() => _selectedPluginId = pluginId),
       onRunNode: _activeAutomation == null ? null : _runNode,
-      onOpenAutomation: (automation, fileName) {
-        _graphEditor.loadAutomation(automation);
-        setState(() {
-          _activeAutomation = automation;
-          _activeAutomationFile = fileName;
-          _selectedIndex = 0;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Loaded $fileName into the graph editor')),
-        );
-      },
+      onOpenAutomation: _openAutomation,
       onRepairAutomation: _repairAutomation,
       onCreateAutomation: _createAutomation,
       onDeleteAutomation: _deleteAutomation,
@@ -893,6 +883,27 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   /// expand Save All without changing the shell contract.
   Future<void> _saveAll() => _saveAutomation();
 
+  Future<void> _openAutomation(
+    AutomationData automation,
+    String fileName,
+  ) async {
+    if (_activeAutomationFile == fileName) {
+      _openDestination(0);
+      return;
+    }
+    if (!await _confirmAutomationClose()) return;
+    _graphEditor.loadAutomation(automation);
+    if (!mounted) return;
+    setState(() {
+      _activeAutomation = automation;
+      _activeAutomationFile = fileName;
+      _selectedIndex = 0;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Loaded $fileName into the graph editor')),
+    );
+  }
+
   Future<void> _createAutomation() async {
     final starter = await showDialog<AutomationStarter>(
       context: context,
@@ -923,32 +934,30 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       ),
     );
     if (!mounted) return;
-    final editor = ShowRunnerGraphEditor();
-    try {
-      final fileName =
-          'automation-${DateTime.now().millisecondsSinceEpoch}.yaml';
-      final automation =
-          starter?.automation ??
-          const AutomationData(extra: {'name': 'New Automation'});
-      await AutomationRepository(
-        File('${widget.dataService.userDirectory.path}/automations/$fileName'),
-      ).save(automation);
-      _graphEditor.loadAutomation(automation);
-      if (!mounted) return;
-      setState(() {
-        _activeAutomation = automation;
-        _activeAutomationFile = fileName;
-        _selectedIndex = 0;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Created $fileName')));
-    } finally {
-      editor.dispose();
-    }
+    if (!await _confirmAutomationClose()) return;
+    final fileName = 'automation-${DateTime.now().millisecondsSinceEpoch}.yaml';
+    final automation =
+        starter?.automation ??
+        const AutomationData(extra: {'name': 'New Automation'});
+    await AutomationRepository(
+      File('${widget.dataService.userDirectory.path}/automations/$fileName'),
+    ).save(automation);
+    _graphEditor.loadAutomation(automation);
+    if (!mounted) return;
+    setState(() {
+      _activeAutomation = automation;
+      _activeAutomationFile = fileName;
+      _selectedIndex = 0;
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Created $fileName')));
   }
 
   Future<void> _deleteAutomation(String fileName) async {
+    if (_activeAutomationFile == fileName && !await _confirmAutomationClose()) {
+      return;
+    }
     final file = File(
       '${widget.dataService.userDirectory.path}/automations/$fileName',
     );

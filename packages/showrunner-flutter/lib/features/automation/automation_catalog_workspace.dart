@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -20,7 +21,8 @@ class AutomationCatalogWorkspace extends StatefulWidget {
 
   final ShowRunnerDataService dataService;
   final Future<List<AutomationCatalogEntry>> Function()? entriesLoader;
-  final void Function(AutomationData automation, String fileName)? onOpen;
+  final FutureOr<void> Function(AutomationData automation, String fileName)?
+  onOpen;
   final Future<void> Function(AutomationData automation, String fileName)?
   onRepair;
   final Future<void> Function()? onCreate;
@@ -160,8 +162,14 @@ class _AutomationCatalogWorkspaceState
                       IconButton(
                         tooltip: 'Open in graph editor',
                         icon: const Icon(Icons.open_in_new),
-                        onPressed: () =>
-                            widget.onOpen?.call(automation!, entry.fileName),
+                        onPressed: () => unawaited(
+                          Future<void>.sync(
+                            () => widget.onOpen?.call(
+                              automation!,
+                              entry.fileName,
+                            ),
+                          ),
+                        ),
                       )
                     else if (entry.isValid && automation != null)
                       IconButton(
@@ -179,7 +187,12 @@ class _AutomationCatalogWorkspaceState
                   ],
                 ),
                 onTap: entry.isValid && issues.isEmpty
-                    ? () => widget.onOpen?.call(automation!, entry.fileName)
+                    ? () => unawaited(
+                        Future<void>.sync(
+                          () =>
+                              widget.onOpen?.call(automation!, entry.fileName),
+                        ),
+                      )
                     : null,
               );
             }),
