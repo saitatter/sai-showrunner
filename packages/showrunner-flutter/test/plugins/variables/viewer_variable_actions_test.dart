@@ -25,45 +25,38 @@ void main() {
       ..register(createVariablesPlugin(viewerDataRepository: repository));
   });
 
-  test(
-    'invokes viewer actions against the injected repository',
-    () async {
-      final setResult = await registry.invokeAction(
-        'variables',
-        'setViewerVar',
-        {
-          'viewer': {'id': '42', 'displayName': 'Ada'},
-          'variable': 'title',
-          'value': 'Champion',
-        },
-      );
-      expect(setResult, {
-        'provider': 'twitch',
-        'viewer': '42',
-        'variable': 'title',
-        'value': 'Champion',
-      });
+  test('invokes viewer actions against the injected repository', () async {
+    final setResult = await registry.invokeAction('variables', 'setViewerVar', {
+      'viewer': {'id': '42', 'displayName': 'Ada'},
+      'variable': 'title',
+      'value': 'Champion',
+    });
+    expect(setResult, {
+      'provider': 'twitch',
+      'viewer': '42',
+      'variable': 'title',
+      'value': 'Champion',
+    });
 
-      final offsetResult = await registry.invokeAction(
-        'variables',
-        'offsetViewerVar',
-        {'viewer': '42', 'variable': 'points', 'offset': 2},
-      );
-      expect(offsetResult, {
-        'provider': 'twitch',
-        'viewer': '42',
-        'variable': 'points',
-        'value': 12,
-      });
-      expect(
-        (await repository.loadViewer(
-          'twitch',
-          const ViewerIdentity(id: '42', displayName: 'Ada'),
-        )).values,
-        {'points': 12, 'title': 'Champion'},
-      );
-    },
-  );
+    final offsetResult = await registry.invokeAction(
+      'variables',
+      'offsetViewerVar',
+      {'viewer': '42', 'variable': 'points', 'offset': 2},
+    );
+    expect(offsetResult, {
+      'provider': 'twitch',
+      'viewer': '42',
+      'variable': 'points',
+      'value': 12,
+    });
+    expect(
+      (await repository.loadViewer(
+        'twitch',
+        const ViewerIdentity(id: '42', displayName: 'Ada'),
+      )).values,
+      {'points': 12, 'title': 'Champion'},
+    );
+  });
 
   test('keeps global variable actions in evaluation context state', () async {
     final context = EvaluationContext(contextState: <String, dynamic>{});
@@ -85,6 +78,29 @@ void main() {
       )).persisted,
       isFalse,
     );
+  });
+
+  test('preserves global set and offset actions', () async {
+    final context = EvaluationContext(
+      contextState: <String, dynamic>{'counter': 8},
+    );
+
+    expect(
+      await registry.invokeAction('variables', 'set', {
+        'variable': 'counter',
+        'value': 4,
+      }, context: context),
+      {'variable': 'counter', 'value': 4},
+    );
+    expect(
+      await registry.invokeAction('variables', 'offset', {
+        'variable': 'counter',
+        'offset': 10,
+        'clamp': {'max': 12},
+      }, context: context),
+      {'variable': 'counter', 'value': 12},
+    );
+    expect(context.contextState['counter'], 12);
   });
 
   test('publishes viewer changes to the in-process event hub', () async {

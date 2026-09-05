@@ -98,6 +98,42 @@ const _viewerOffsetSchema = DartDataInputSchema(
   ],
 );
 
+const _offsetVariableSchema = DartDataInputSchema(
+  label: 'Variable offset',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Variable',
+      key: 'variable',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Offset',
+      key: 'offset',
+      kind: DartDataInputKind.number,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Clamp',
+      key: 'clamp',
+      kind: DartDataInputKind.object,
+      fields: [
+        DartDataInputSchema(
+          label: 'Minimum',
+          key: 'min',
+          kind: DartDataInputKind.number,
+        ),
+        DartDataInputSchema(
+          label: 'Maximum',
+          key: 'max',
+          kind: DartDataInputKind.number,
+        ),
+      ],
+    ),
+  ],
+);
+
 DartPluginManifest createVariablesPlugin({
   ViewerDataRepository? viewerDataRepository,
   DartPluginEventHub? eventHub,
@@ -107,6 +143,20 @@ DartPluginManifest createVariablesPlugin({
     id: 'variables',
     name: 'Variables',
     actions: [
+      DartActionDefinition(
+        pluginId: 'variables',
+        actionId: 'set',
+        displayName: 'Set Variable',
+        configSchema: _variableSchema,
+        invoke: _setVariable,
+      ),
+      DartActionDefinition(
+        pluginId: 'variables',
+        actionId: 'offset',
+        displayName: 'Offset Variable',
+        configSchema: _offsetVariableSchema,
+        invoke: _offsetVariable,
+      ),
       DartActionDefinition(
         pluginId: 'variables',
         actionId: 'setVariable',
@@ -170,6 +220,28 @@ Future<Object?> _getVariable(
 ) async {
   final variable = config['variable']?.toString() ?? '';
   final value = context.contextState[variable] ?? context.locals[variable];
+  return {'variable': variable, 'value': value};
+}
+
+Future<Object?> _offsetVariable(
+  RuntimeMap config,
+  EvaluationContext context,
+) async {
+  final variable = config['variable']?.toString() ?? '';
+  final current = context.contextState[variable] ?? context.locals[variable];
+  final offset = config['offset'];
+  if (variable.isEmpty || current is! num || offset is! num) {
+    return {'variable': variable, 'value': current};
+  }
+  var value = current + offset;
+  final clamp = config['clamp'];
+  if (clamp is Map) {
+    final minimum = clamp['min'];
+    final maximum = clamp['max'];
+    if (minimum is num && value < minimum) value = minimum;
+    if (maximum is num && value > maximum) value = maximum;
+  }
+  context.contextState[variable] = value;
   return {'variable': variable, 'value': value};
 }
 
