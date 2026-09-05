@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
+import 'filesystem/atomic_file.dart';
 import '../schema/profile.dart';
 
 final class ProfileRepository {
@@ -21,12 +22,10 @@ final class ProfileRepository {
   }
 
   Future<void> save(ShowRunnerProfile profile) async {
-    await file.parent.create(recursive: true);
-    final temporary = File('${file.path}.tmp');
-    await temporary.writeAsString(
+    await writeAtomicText(
+      file,
       const JsonEncoder.withIndent('  ').convert(profile.toJson()),
     );
-    await temporary.rename(file.path);
   }
 }
 

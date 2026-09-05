@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
+import 'filesystem/atomic_file.dart';
 import '../schema/automation.dart';
 import '../schema/viewer_data.dart';
 
@@ -90,10 +91,7 @@ final class FileViewerDataRepository implements ViewerDataRepository {
     Iterable<ViewerVariableDefinition> definitions,
   ) async {
     final values = definitions.toList(growable: false);
-    await directory.create(recursive: true);
-    final temporaryFile = File('${definitionsFile.path}.tmp');
-    await temporaryFile.writeAsString(_encodeDefinitions(values));
-    await temporaryFile.rename(definitionsFile.path);
+    await writeAtomicText(definitionsFile, _encodeDefinitions(values));
   }
 
   @override
@@ -319,11 +317,8 @@ final class FileViewerDataRepository implements ViewerDataRepository {
 
   Future<void> _writeViewer(ViewerDataRow row) async {
     final file = _viewerFile(row.provider, row.viewer.id);
-    await file.parent.create(recursive: true);
-    final temporaryFile = File('${file.path}.tmp');
     const encoder = JsonEncoder.withIndent('  ');
-    await temporaryFile.writeAsString(encoder.convert(row.toJson()));
-    await temporaryFile.rename(file.path);
+    await writeAtomicText(file, encoder.convert(row.toJson()));
   }
 
   File _viewerFile(String provider, String viewerId) {

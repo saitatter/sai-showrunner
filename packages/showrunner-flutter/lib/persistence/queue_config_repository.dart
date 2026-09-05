@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
+import 'filesystem/atomic_file.dart';
 import '../schema/automation.dart';
 import '../schema/queue.dart';
 
@@ -47,11 +48,8 @@ final class QueueConfigRepository {
   }
 
   Future<void> save(String fileName, QueueConfig config) async {
-    await directory.create(recursive: true);
     final file = File('${directory.path}/$fileName');
-    final temporary = File('${file.path}.tmp');
-    await temporary.writeAsString(_yamlEncode(config.toJson()));
-    await temporary.rename(file.path);
+    await writeAtomicText(file, _yamlEncode(config.toJson()));
   }
 
   Future<void> delete(String fileName) async {

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
+import 'filesystem/atomic_file.dart';
 import '../schema/automation.dart';
 
 final class AutomationCatalogEntry {
@@ -66,12 +67,10 @@ final class AutomationRepository {
   }
 
   Future<void> save(AutomationData automation) async {
-    await file.parent.create(recursive: true);
-    final temporaryFile = File('${file.path}.tmp');
-    await temporaryFile.writeAsString(
+    await writeAtomicText(
+      file,
       const JsonEncoder.withIndent('  ').convert(automation.toJson()),
     );
-    await temporaryFile.rename(file.path);
   }
 
   Future<void> delete() async {

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
+import 'filesystem/atomic_file.dart';
 import '../schema/resource.dart';
 
 typedef _JsonMap = Map<String, dynamic>;
@@ -51,11 +52,11 @@ class ResourceRepository {
     final jsonFile = File('${directory.path}/${resource.id}.json');
     final yamlFile = File('${directory.path}/${resource.id}.yaml');
     if (!await jsonFile.exists() && await yamlFile.exists()) {
-      await yamlFile.writeAsString(_encodeYaml(resource.config));
+      await writeAtomicText(yamlFile, _encodeYaml(resource.config));
       return;
     }
     const encoder = JsonEncoder.withIndent('  ');
-    await jsonFile.writeAsString(encoder.convert(resource.toJson()));
+    await writeAtomicText(jsonFile, encoder.convert(resource.toJson()));
   }
 
   Future<void> delete(String id) async {

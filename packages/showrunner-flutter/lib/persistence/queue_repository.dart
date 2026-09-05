@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'filesystem/atomic_file.dart';
 import '../runtime/action_queue.dart';
 
 final class QueueRepository {
@@ -9,12 +10,10 @@ final class QueueRepository {
   final File file;
 
   Future<void> save(DartActionQueue queue) async {
-    await file.parent.create(recursive: true);
-    final temporary = File('${file.path}.tmp');
-    await temporary.writeAsString(
+    await writeAtomicText(
+      file,
       const JsonEncoder.withIndent('  ').convert(queue.toJson()),
     );
-    await temporary.rename(file.path);
   }
 
   Future<void> load(DartActionQueue queue) async {
