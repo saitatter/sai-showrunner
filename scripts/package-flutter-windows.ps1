@@ -1,5 +1,5 @@
 param(
-  [string]$Version = '0.5.9',
+  [string]$Version = '1.0.0-beta1',
   [string]$OutputDirectory = 'release',
   [switch]$SkipSmoke
 )

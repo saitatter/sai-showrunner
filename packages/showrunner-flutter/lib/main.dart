@@ -609,7 +609,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
     final available = await UpdateCheckService(
       currentVersion: showRunnerFlutterVersion,
       fetcher: () async => {
-        'tag_name': 'v0.5.10',
+        'tag_name': 'v1.0.0-beta2',
         'body': 'Smoke update',
         'html_url': 'https://example.test/release',
       },
