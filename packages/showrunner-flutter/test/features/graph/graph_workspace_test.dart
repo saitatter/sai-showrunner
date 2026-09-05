@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sai_nodes/sai_nodes.dart';
@@ -227,4 +228,62 @@ void main() {
     expect(find.text('Configure If'), findsOneWidget);
     await tester.tap(find.text('Cancel').last);
   });
+
+  testWidgets(
+    'keeps disabled plugin nodes out of creation menus while preserving data',
+    (tester) async {
+      final registry = DartPluginRegistry()
+        ..register(
+          DartPluginManifest(
+            id: 'sample',
+            name: 'Sample',
+            actions: [
+              DartActionDefinition(
+                pluginId: 'sample',
+                actionId: 'emit',
+                displayName: 'Emit value',
+                invoke: (config, context) async => config['value'],
+              ),
+            ],
+          ),
+        );
+      registry.setPluginEnabled('sample', false);
+      const automation = AutomationData(
+        graph: AutomationGraph(
+          nodes: [
+            GraphNode(
+              id: 'disabled-action',
+              type: 'action',
+              x: 0,
+              y: 0,
+              data: {
+                'plugin': 'sample',
+                'action': 'emit',
+                'config': {'value': 'kept'},
+              },
+            ),
+          ],
+          entryNodeId: 'disabled-action',
+        ),
+      );
+      editor.loadAutomation(automation);
+
+      await pumpWorkspace(tester, registry: registry);
+
+      final saved = editor.toAutomation(const AutomationData());
+      expect(saved.graph.nodes.single.data['plugin'], 'sample');
+      expect(saved.graph.nodes.single.data['action'], 'emit');
+      expect(saved.graph.nodes.single.data['config'], {'value': 'kept'});
+
+      await tester.tapAt(
+        const Offset(1050, 650),
+        buttons: kSecondaryMouseButton,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Disabled plugins'), findsNothing);
+      expect(find.text('Emit value'), findsNothing);
+    },
+  );
 }

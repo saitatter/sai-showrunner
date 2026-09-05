@@ -58,8 +58,9 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
       detail tabs.
 - [x] Add a hidden-plugin match hint when a search only matches disabled
       plugins.
-- [ ] Decide whether plugin visibility is local UI preference or
-      profile/project configuration.
+- [x] Decide plugin visibility is a local UI preference persisted in the
+      Flutter user settings, not profile/project configuration; existing graph
+      nodes remain portable and are not rewritten when visibility changes.
 - [ ] Expose plugin-specific diagnostics and configuration editors where plugin
       state is still implicit.
 - [x] Add a persisted UI-preference reset action in Settings.
@@ -93,7 +94,7 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
       wires in addition to the existing sequence conversion coverage.
 - [ ] Run packaged-app smoke coverage for Settings, Updates, Integrations,
       starter templates, and the graph editor.
-- [ ] Confirm disabled plugins stay out of new-node menus while existing nodes
+- [x] Confirm disabled plugins stay out of new-node menus while existing nodes
       continue to render and save.
 - [ ] Verify update checks in development, offline, no-update,
       update-available, and downloaded states.

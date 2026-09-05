@@ -588,7 +588,6 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
   }
   if (registry != null) {
     final enabledNodes = _registeredNodeEntries(registry, enabled: true);
-    final disabledNodes = _registeredNodeEntries(registry, enabled: false);
     final triggers = enabledNodes.where((node) => node.category == 'Triggers');
     final actions = enabledNodes.where((node) => node.category == 'Actions');
     final conversions = enabledNodes.where((node) => node.category == 'Data');
@@ -661,33 +660,10 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
         ),
       );
     }
-    if (disabledNodes.isNotEmpty) {
-      final disabledPlugins = disabledNodes
-          .map((node) => node.pluginName ?? node.group)
-          .toSet()
-          .join(', ');
-      entries.add(
-        MenuItem<void>.submenu(
-          label: const Text('Disabled plugins'),
-          icon: const Icon(Icons.visibility_off_outlined),
-          items: [
-            MenuItem<void>(
-              label: Text('Enable in Integrations: $disabledPlugins'),
-              icon: const Icon(Icons.info_outline),
-              enabled: false,
-            ),
-            const MenuDivider(),
-            ..._groupedNodeMenuEntries(
-              disabledNodes,
-              editor,
-              position,
-              context: context,
-              registryFuture: registryFuture,
-            ),
-          ],
-        ),
-      );
-    }
+    // Disabled plugins remain registered so existing nodes can be hydrated,
+    // rendered, edited, and saved. They are intentionally omitted from all
+    // creation menus; re-enabling the plugin in Integrations is the only way
+    // to add new nodes from it.
   }
   final builtIns = _GraphNodePalette._nodes.where(
     (node) => node.category == 'Built-in',
