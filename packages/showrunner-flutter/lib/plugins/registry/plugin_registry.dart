@@ -114,8 +114,12 @@ final class DartPluginRegistry extends ChangeNotifier {
   final Map<String, DartActionDefinition> _actions = {};
   final Set<String> _disabledPluginIds = {};
   final Map<String, Map<String, dynamic>> _stateValues = {};
+  Future<void>? _closeFuture;
 
   void register(DartPluginManifest plugin) {
+    if (_closeFuture != null) {
+      throw StateError('Plugin registry is closed.');
+    }
     if (plugin.id.isEmpty) throw ArgumentError.value(plugin.id, 'plugin.id');
     _plugins[plugin.id] = plugin;
     _stateValues[plugin.id] = {
@@ -206,7 +210,9 @@ final class DartPluginRegistry extends ChangeNotifier {
     return definition.invoke(config, context ?? EvaluationContext());
   }
 
-  Future<void> close() async {
+  Future<void> close() => _closeFuture ??= _closeInternal();
+
+  Future<void> _closeInternal() async {
     final plugins = _plugins.values.toList().reversed;
     for (final plugin in plugins) {
       await plugin.dispose?.call();

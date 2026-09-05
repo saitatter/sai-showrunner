@@ -212,18 +212,23 @@ void main() {
   });
 
   test('closes registered plugin runtimes', () async {
-    var closed = false;
+    var closeCount = 0;
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
           id: 'lifecycle',
           name: 'Lifecycle',
-          dispose: () async => closed = true,
+          dispose: () async => closeCount++,
         ),
       );
 
-    await registry.close();
+    await Future.wait([registry.close(), registry.close()]);
 
-    expect(closed, isTrue);
+    expect(closeCount, 1);
+    expect(
+      () =>
+          registry.register(const DartPluginManifest(id: 'late', name: 'Late')),
+      throwsStateError,
+    );
   });
 }
