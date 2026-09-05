@@ -12,6 +12,10 @@ void main() {
         'paidAlert',
         'sceneBanner',
         'shaderLayer',
+        'bar',
+        'alert',
+        'leaderboard',
+        'emote-bounce',
       ]),
     );
     expect(findOverlayWidgetDefinition('overlays', 'chatFeed')?.width, 900);
@@ -29,5 +33,19 @@ void main() {
     expect(widget['plugin'], 'overlays');
     expect((widget['size'] as Map)['height'], 500);
     expect((widget['config'] as Map)['accentColor'], '#9146ff');
+  });
+
+  test('keeps the remaining legacy overlay widgets editable', () {
+    final bar = findOverlayWidgetDefinition('overlays', 'bar')!;
+    final alert = findOverlayWidgetDefinition('overlays', 'alert')!;
+    final leaderboard = findOverlayWidgetDefinition('overlays', 'leaderboard')!;
+    final bouncer = findOverlayWidgetDefinition('overlays', 'emote-bounce')!;
+
+    expect(bar.defaultConfig()['direction'], 'Right');
+    expect((bar.defaultConfig()['fillStyle'] as Map)['color'], '#00FF00');
+    expect(alert.defaultConfig()['textBelowMedia'], true);
+    expect(leaderboard.defaultConfig()['sortOrder'], -1);
+    expect((bouncer.defaultConfig()['lifeTime'] as Map)['min'], 7);
+    expect(bouncer.height, 1080);
   });
 }

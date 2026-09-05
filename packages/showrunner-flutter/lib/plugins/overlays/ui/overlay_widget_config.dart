@@ -355,6 +355,234 @@ const _shaderLayerConfig = DartDataInputSchema(
   ],
 );
 
+const _barConfig = DartDataInputSchema(
+  label: 'Configuration',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      key: 'value',
+      label: 'Value',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 25,
+    ),
+    DartDataInputSchema(
+      key: 'target',
+      label: 'Target',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 100,
+    ),
+    DartDataInputSchema(
+      key: 'direction',
+      label: 'Direction',
+      kind: DartDataInputKind.enumeration,
+      required: true,
+      options: ['Right', 'Left', 'Up', 'Down'],
+      defaultValue: 'Right',
+    ),
+    DartDataInputSchema(
+      key: 'outerRadius',
+      label: 'Outer Corners (JSON)',
+      kind: DartDataInputKind.object,
+    ),
+    DartDataInputSchema(
+      key: 'backgroundStyle',
+      label: 'Background Style (JSON)',
+      kind: DartDataInputKind.object,
+      defaultValue: <String, dynamic>{'color': '#FF0000', 'elements': []},
+    ),
+    DartDataInputSchema(
+      key: 'outline',
+      label: 'Outline (JSON)',
+      kind: DartDataInputKind.object,
+    ),
+    DartDataInputSchema(
+      key: 'fillStyle',
+      label: 'Fill Style (JSON)',
+      kind: DartDataInputKind.object,
+      defaultValue: <String, dynamic>{'color': '#00FF00', 'elements': []},
+    ),
+    DartDataInputSchema(
+      key: 'fillLine',
+      label: 'Fill Line (JSON)',
+      kind: DartDataInputKind.object,
+    ),
+  ],
+);
+
+const _alertConfig = DartDataInputSchema(
+  label: 'Configuration',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      key: 'media',
+      label: 'Alert Media',
+      kind: DartDataInputKind.array,
+      itemKind: DartDataInputKind.object,
+    ),
+    DartDataInputSchema(
+      key: 'textBelowMedia',
+      label: 'Text Below Media',
+      kind: DartDataInputKind.boolean,
+      required: true,
+      defaultValue: true,
+    ),
+    DartDataInputSchema(
+      key: 'transition',
+      label: 'Transition (JSON)',
+      kind: DartDataInputKind.object,
+    ),
+    DartDataInputSchema(
+      key: 'title',
+      label: 'Title Style (JSON)',
+      kind: DartDataInputKind.object,
+    ),
+    DartDataInputSchema(
+      key: 'subtitle',
+      label: 'Subtitle Style (JSON)',
+      kind: DartDataInputKind.object,
+    ),
+  ],
+);
+
+const _leaderboardConfig = DartDataInputSchema(
+  label: 'Configuration',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      key: 'sortBy',
+      label: 'Sort By Viewer Variable',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      key: 'sortOrder',
+      label: 'Sort Order (1 or -1)',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: -1,
+    ),
+    DartDataInputSchema(
+      key: 'count',
+      label: 'Count',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 10,
+    ),
+    DartDataInputSchema(
+      key: 'variables',
+      label: 'Display Variables',
+      kind: DartDataInputKind.array,
+      itemKind: DartDataInputKind.object,
+    ),
+    DartDataInputSchema(
+      key: 'nameFont',
+      label: 'Name Font (JSON)',
+      kind: DartDataInputKind.object,
+    ),
+    DartDataInputSchema(
+      key: 'nameTextAlign',
+      label: 'Name Alignment (JSON)',
+      kind: DartDataInputKind.object,
+    ),
+    DartDataInputSchema(
+      key: 'nameBackground',
+      label: 'Name Background (JSON)',
+      kind: DartDataInputKind.object,
+    ),
+    DartDataInputSchema(
+      key: 'nameBlock',
+      label: 'Name Block (JSON)',
+      kind: DartDataInputKind.object,
+    ),
+  ],
+);
+
+const _emoteBouncerConfig = DartDataInputSchema(
+  label: 'Configuration',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      key: 'lifeTime',
+      label: 'Emote Life Time (JSON range)',
+      kind: DartDataInputKind.object,
+      defaultValue: <String, dynamic>{'min': 7, 'max': 7},
+    ),
+    DartDataInputSchema(
+      key: 'emoteSize',
+      label: 'Emote Size (JSON range)',
+      kind: DartDataInputKind.object,
+      defaultValue: <String, dynamic>{'min': 80, 'max': 80},
+    ),
+    DartDataInputSchema(
+      key: 'velocityMax',
+      label: 'Launch Velocity Max',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 0.4,
+    ),
+    DartDataInputSchema(
+      key: 'shakeTime',
+      label: 'Time Between Shakes',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 5,
+    ),
+    DartDataInputSchema(
+      key: 'shakeStrength',
+      label: 'Shake Strength',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 1,
+    ),
+    DartDataInputSchema(
+      key: 'gravityXScale',
+      label: 'Gravity X Scale',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 0,
+    ),
+    DartDataInputSchema(
+      key: 'gravityYScale',
+      label: 'Gravity Y Scale',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 1,
+    ),
+    DartDataInputSchema(
+      key: 'spamPrevention',
+      label: 'Spam Prevention',
+      kind: DartDataInputKind.object,
+      fields: [
+        DartDataInputSchema(
+          key: 'emoteRatio',
+          label: 'Emote Ratio',
+          kind: DartDataInputKind.number,
+          required: true,
+          defaultValue: 1,
+        ),
+        DartDataInputSchema(
+          key: 'emoteCap',
+          label: 'Total Emote Cap',
+          kind: DartDataInputKind.number,
+        ),
+        DartDataInputSchema(
+          key: 'emoteCapPerMessage',
+          label: 'Max Emotes per Message',
+          kind: DartDataInputKind.number,
+        ),
+      ],
+    ),
+    DartDataInputSchema(
+      key: 'launchers',
+      label: 'Launchers',
+      kind: DartDataInputKind.array,
+      itemKind: DartDataInputKind.object,
+    ),
+  ],
+);
+
 const overlayWidgetDefinitions = <OverlayWidgetDefinition>[
   OverlayWidgetDefinition(
     plugin: 'overlays',
@@ -395,6 +623,38 @@ const overlayWidgetDefinitions = <OverlayWidgetDefinition>[
     width: 900,
     height: 500,
     configSchema: _shaderLayerConfig,
+  ),
+  OverlayWidgetDefinition(
+    plugin: 'overlays',
+    widget: 'bar',
+    name: 'Bar',
+    width: 400,
+    height: 90,
+    configSchema: _barConfig,
+  ),
+  OverlayWidgetDefinition(
+    plugin: 'overlays',
+    widget: 'alert',
+    name: 'Alert',
+    width: 300,
+    height: 200,
+    configSchema: _alertConfig,
+  ),
+  OverlayWidgetDefinition(
+    plugin: 'overlays',
+    widget: 'leaderboard',
+    name: 'Leader Board',
+    width: 300,
+    height: 500,
+    configSchema: _leaderboardConfig,
+  ),
+  OverlayWidgetDefinition(
+    plugin: 'overlays',
+    widget: 'emote-bounce',
+    name: 'Emote Bouncer',
+    width: 1920,
+    height: 1080,
+    configSchema: _emoteBouncerConfig,
   ),
 ];
 
