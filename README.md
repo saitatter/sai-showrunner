@@ -123,6 +123,8 @@ must be run separately. The archive is written to
 The startup smoke can also launch that archive directly with
 `-ArchivePath .\release\ShowRunner-Flutter-windows-<version>.zip`; it uses a
 temporary `SHOWRUNNER_USER_DIR` so local data is not modified.
+The packaged first-run and legacy automation migration scenarios can be run
+with `-Scenario first-run` and `-Scenario data-migration` respectively.
 Windows Release/archive builds also require `nuget.exe` on `PATH`; the
 `flutter_tts` Windows plugin uses it to resolve `Microsoft.Windows.CppWinRT`
 during CMake generation.

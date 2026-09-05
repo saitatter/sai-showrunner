@@ -3,6 +3,8 @@ param(
   [string]$ArchivePath = '',
   [ValidateSet('Debug', 'Release')]
   [string]$Configuration = 'Release',
+  [ValidateSet('startup', 'first-run', 'data-migration')]
+  [string]$Scenario = 'startup',
   [string]$UserDirectory = '',
   [int]$StartupTimeoutMilliseconds = 15000
 )
@@ -17,9 +19,10 @@ $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $temporaryDirectories = @()
 $ownsUserDirectory = [string]::IsNullOrWhiteSpace($UserDirectory)
 $previousUserDirectory = $env:SHOWRUNNER_USER_DIR
-$stdoutPath = $null
-$stderrPath = $null
 $process = $null
+$processStarted = $false
+$stdoutTask = $null
+$stderrTask = $null
 
 try {
   if ($ArchivePath) {
@@ -54,38 +57,69 @@ try {
     New-Item -ItemType Directory -Force -Path $UserDirectory | Out-Null
   }
 
-  $stdoutPath = Join-Path ([IO.Path]::GetTempPath()) "showrunner-flutter-smoke-$([guid]::NewGuid().ToString('N')).out.log"
-  $stderrPath = Join-Path ([IO.Path]::GetTempPath()) "showrunner-flutter-smoke-$([guid]::NewGuid().ToString('N')).err.log"
+  if ($Scenario -eq 'data-migration') {
+    $automationDirectory = Join-Path $UserDirectory 'automations'
+    New-Item -ItemType Directory -Force -Path $automationDirectory | Out-Null
+    $legacyAutomation = @'
+{
+  "name": "Legacy smoke automation",
+  "sequence": {
+    "actions": [
+      {
+        "id": "legacy-action",
+        "plugin": "sample",
+        "action": "emit",
+        "config": { "value": "smoke" }
+      }
+    ]
+  }
+}
+'@
+    Set-Content -LiteralPath (Join-Path $automationDirectory 'legacy.yaml') -Value $legacyAutomation -Encoding ASCII
+  }
+
   $env:SHOWRUNNER_USER_DIR = [IO.Path]::GetFullPath($UserDirectory)
-  $process = Start-Process `
-    -FilePath $resolvedExecutable `
-    -WorkingDirectory (Split-Path -Parent $resolvedExecutable) `
-    -RedirectStandardOutput $stdoutPath `
-    -RedirectStandardError $stderrPath `
-    -PassThru
-
-  $process.Refresh()
+  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+  $startInfo.FileName = $resolvedExecutable
+  $startInfo.WorkingDirectory = Split-Path -Parent $resolvedExecutable
+  $startInfo.Arguments = "--showrunner-smoke=$Scenario"
+  $startInfo.CreateNoWindow = $true
+  $startInfo.UseShellExecute = $false
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  $process = New-Object System.Diagnostics.Process
+  $process.StartInfo = $startInfo
+  [void]$process.Start()
+  $processStarted = $true
+  $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+  $stderrTask = $process.StandardError.ReadToEndAsync()
   $waitError = $null
-  $ready = $false
-  if (-not $process.HasExited) {
-    try {
-      $ready = $process.WaitForInputIdle($StartupTimeoutMilliseconds)
-    } catch {
-      $waitError = $_.Exception.Message
-    }
-    $process.Refresh()
+  try {
+    $exited = $process.WaitForExit($StartupTimeoutMilliseconds)
+  } catch {
+    $exited = $false
+    $waitError = $_.Exception.Message
   }
-  if (-not $ready -or $process.HasExited) {
-    $stdout = if (Test-Path -LiteralPath $stdoutPath) { Get-Content -Raw -LiteralPath $stdoutPath } else { '' }
-    $stderr = if (Test-Path -LiteralPath $stderrPath) { Get-Content -Raw -LiteralPath $stderrPath } else { '' }
-    $exitCode = if ($process.HasExited) { $process.ExitCode } else { 'running' }
-    throw "Flutter process did not reach an idle UI process. Exited=$($process.HasExited), ExitCode=$exitCode, WaitError=$waitError`nstdout: $stdout`nstderr: $stderr"
+  $process.Refresh()
+  if (-not $exited -or -not $process.HasExited) {
+    if (-not $process.HasExited) {
+      $process.Kill()
+      $process.WaitForExit()
+    }
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
+    throw "Flutter process did not finish the $Scenario smoke scenario. Exited=$($process.HasExited), WaitError=$waitError`nstdout: $stdout`nstderr: $stderr"
+  }
+  $stdout = $stdoutTask.GetAwaiter().GetResult()
+  $stderr = $stderrTask.GetAwaiter().GetResult()
+  if ($process.ExitCode -ne 0) {
+    throw "Flutter process failed the $Scenario smoke scenario. ExitCode=$($process.ExitCode)`nstdout: $stdout`nstderr: $stderr"
   }
 
-  Write-Host "Flutter Windows startup smoke passed: $resolvedExecutable"
+  Write-Host "Flutter Windows $Scenario smoke passed: $resolvedExecutable"
 }
 finally {
-  if ($process) {
+  if ($process -and $processStarted) {
     $process.Refresh()
     if (-not $process.HasExited) {
       $process.CloseMainWindow() | Out-Null
@@ -103,8 +137,6 @@ finally {
     $env:SHOWRUNNER_USER_DIR = $previousUserDirectory
   }
 
-  Remove-Item -LiteralPath $stdoutPath -Force -ErrorAction SilentlyContinue
-  Remove-Item -LiteralPath $stderrPath -Force -ErrorAction SilentlyContinue
   foreach ($temporaryDirectory in $temporaryDirectories) {
     Remove-Item -LiteralPath $temporaryDirectory -Recurse -Force -ErrorAction SilentlyContinue
   }

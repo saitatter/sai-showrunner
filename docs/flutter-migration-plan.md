@@ -211,7 +211,7 @@ Vue interaction or visual detail is still missing; it is not a runtime failure.
 | Variables and nested subgraphs | Done | ShowRunner adapter and dialogs; retain nested controller synchronization tests. |
 | Plugin catalog, settings, health, OAuth, bespoke workspaces | Partial | Dart plugin registry; generic settings, persisted enable/disable, health, OAuth, and initial OBS/YouTube/Twitch/Moderation workspaces exist. Complete the remaining bespoke plugin workspaces and resource-specific behavior. |
 | Overlay/widget/resource editors | Partial | Flutter resource registry; complete remaining widget configuration and browser/WebGL decisions. |
-| Packaging, renderer cutover, rollback | Partial | Versioned Flutter archives now have an isolated Windows startup smoke wired into CI/release; install/update, first-run/data migration, Electron removal, and one-cycle rollback evidence remain. |
+| Packaging, renderer cutover, rollback | Partial | Versioned Flutter archives now validate required native files and run isolated startup, first-run, and legacy-data migration smoke scenarios; install/update, Electron removal, and one-cycle rollback evidence remain. |
 
 ### Ownership Boundary
 
@@ -551,7 +551,8 @@ The Flutter plugin workspace now follows the original application's separation m
 - [ ] Compare startup time, memory, input latency, reconnect behavior, and packaged size.
 - [x] Produce a versioned Flutter Windows archive and verify that it contains the executable and bundled data directory.
 - [x] Add packaged Windows startup and clean-shutdown smoke for the Flutter archive.
-- [ ] Add packaged Windows smoke tests for install, update, first-run setup, and Dart data migration workflows.
+- [x] Add packaged Windows smoke tests for first-run setup and Dart data migration workflows.
+- [ ] Add packaged Windows smoke tests for install and update workflows.
 - [ ] Make Flutter the default renderer only after the beta checklist passes.
 - [ ] Keep a rollback switch for at least one release cycle.
 - [ ] Remove remaining unused Vue renderer routes and temporary compatibility code in separate, validated cleanup batches.

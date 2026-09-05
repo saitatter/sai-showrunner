@@ -97,8 +97,10 @@ WebGL surfaces remain web-owned unless a later decision changes that boundary.
       Integrations, and the node-editor context menu.
 - [ ] Run the full end-to-end workflow: create automation, add control flow,
       test-run, save, reopen, and verify.
-- [ ] Validate install, update, first-run/data migration, rollback, and clean
-      shutdown for the packaged Flutter artifact before renderer cutover.
+- [ ] Validate install, update, and rollback for the packaged Flutter artifact
+      before renderer cutover.
+- [x] Validate first-run/data migration and clean shutdown for the packaged
+      Flutter artifact with the scenario-aware Windows smoke harness.
 - [ ] Remove the legacy Electron renderer only after the replacement boundary,
       release, install/update, and rollback evidence is complete.
 - [ ] Remove stale locked `release/win-unpacked` output after the owning

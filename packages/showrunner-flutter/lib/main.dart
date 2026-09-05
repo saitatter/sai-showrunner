@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'app/app_foundations.dart';
 import 'app/startup_health.dart';
@@ -29,15 +30,21 @@ import 'features/automation/automation_starters.dart';
 import 'features/settings/interface_preferences.dart';
 import 'features/resources/resource_options.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   await configureShowRunnerWindow();
-  runApp(const ShowRunnerFlutterApp());
+  final smokeArgument = args.cast<String?>().firstWhere(
+    (argument) => argument?.startsWith('--showrunner-smoke=') == true,
+    orElse: () => null,
+  );
+  runApp(ShowRunnerFlutterApp(smokeScenario: smokeArgument?.split('=').last));
 }
 
 class ShowRunnerFlutterApp extends StatelessWidget {
-  const ShowRunnerFlutterApp({super.key});
+  const ShowRunnerFlutterApp({super.key, this.smokeScenario});
+
+  final String? smokeScenario;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +58,7 @@ class ShowRunnerFlutterApp extends StatelessWidget {
         updateService: const UpdateCheckService(
           currentVersion: showRunnerFlutterVersion,
         ),
+        smokeScenario: smokeScenario,
       ),
     );
   }
@@ -75,12 +83,14 @@ class ShowRunnerPage extends StatefulWidget {
     this.updateService,
     this.loadSampleGraph = true,
     this.showGraphEditor = true,
+    this.smokeScenario,
   });
 
   final ShowRunnerDataService dataService;
   final UpdateCheckService? updateService;
   final bool loadSampleGraph;
   final bool showGraphEditor;
+  final String? smokeScenario;
 
   @override
   State<ShowRunnerPage> createState() => _ShowRunnerPageState();
@@ -146,6 +156,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
     unawaited(_interfacePreferences.load());
     unawaited(_restoreNavigation());
     unawaited(_openFirstRunSetupIfNeeded());
+    if (widget.smokeScenario != null) unawaited(_runSmokeScenario());
   }
 
   @override
@@ -313,6 +324,63 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> {
       _selectedIndex = 10;
     });
     unawaited(_persistNavigation());
+  }
+
+  Future<void> _runSmokeScenario() async {
+    try {
+      await Future.wait([
+        _healthFuture,
+        _pluginRegistryFuture,
+        _profileRuntimeFuture,
+      ]);
+      final scenario = widget.smokeScenario;
+      if (scenario == 'first-run') {
+        final appSettings = await widget.dataService.loadPluginSettings(
+          'showrunner-flutter',
+        );
+        final providerSettings = await Future.wait([
+          widget.dataService.loadPluginSettings('obs'),
+          widget.dataService.loadPluginSettings('twitch'),
+          widget.dataService.loadPluginSettings('youtube'),
+        ]);
+        if (appSettings['setupCompleted'] == true ||
+            providerSettings.any((settings) => settings.isNotEmpty)) {
+          throw StateError('First-run smoke started with existing setup data.');
+        }
+      } else if (scenario == 'data-migration') {
+        final directory = Directory(
+          '${widget.dataService.userDirectory.path}/automations',
+        );
+        final entries = await AutomationRepository.loadDirectory(directory);
+        if (entries.length != 1 || !entries.single.isValid) {
+          throw StateError(
+            'Data migration smoke did not load the seeded automation.',
+          );
+        }
+        final migratedFile = File(
+          '${directory.path}/${entries.single.fileName}',
+        );
+        final migratedContents = await migratedFile.readAsString();
+        if (!migratedContents.contains('"schemaVersion": 2')) {
+          throw StateError(
+            'Data migration smoke did not persist schemaVersion 2.',
+          );
+        }
+      } else if (scenario != 'startup') {
+        throw ArgumentError.value(
+          scenario,
+          'smokeScenario',
+          'Expected startup, first-run, or data-migration.',
+        );
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      if (Platform.isWindows) await windowManager.close();
+    } catch (error, stackTrace) {
+      stderr.writeln('Flutter smoke failed: $error');
+      stderr.writeln(stackTrace);
+      exitCode = 1;
+      if (Platform.isWindows) await windowManager.destroy();
+    }
   }
 
   void _closeTab(int index) {
