@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
 
-import 'package:sai_nodes/sai_nodes.dart';
 import 'package:flutter/material.dart';
 
 import '../../components/data_inputs/data_input.dart';
@@ -854,81 +853,14 @@ class _InlineAutomationPanel extends StatelessWidget {
       title: Text(label),
       subtitle: Text('${editor.controller.nodes.length} nodes'),
       children: [
-        SizedBox(
-          height: 360,
-          child: NodeEditorShortcutsWidget(
-            controller: editor.controller,
-            child: NodeEditorWidget(
-              controller: editor.controller,
-              expandToParent: true,
-              headerBuilder: (context, node, style, onToggleCollapse) =>
-                  _inlineNodeHeader(
-                    context,
-                    node,
-                    style,
-                    onToggleCollapse,
-                    onEdit: () => unawaited(
-                      editShowRunnerGraphNodeConfiguration(
-                        context,
-                        editor,
-                        node.id,
-                        registryFuture: registryFuture,
-                      ),
-                    ),
-                  ),
-              fieldBuilder: (context, field, style) => Padding(
-                padding: const EdgeInsets.all(6),
-                child: Text(field.prototype.displayName(context)),
-              ),
-              overlay: () => const <OverlayData>[],
-            ),
-          ),
+        ShowRunnerInlineGraphEditor(
+          editor: editor,
+          registryFuture: registryFuture,
         ),
       ],
     ),
   );
 }
-
-Widget _inlineNodeHeader(
-  BuildContext context,
-  NodeDataModel node,
-  NodeStyle style,
-  VoidCallback onToggleCollapse, {
-  required VoidCallback onEdit,
-}) => Container(
-  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-  decoration: BoxDecoration(
-    color: const Color(0xff17313a),
-    borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-  ),
-  child: Row(
-    children: [
-      Expanded(
-        child: Text(
-          node.prototype.displayName(context),
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-      IconButton(
-        tooltip: 'Edit configuration',
-        onPressed: onEdit,
-        icon: const Icon(Icons.tune, size: 18),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 24, height: 24),
-      ),
-      IconButton(
-        tooltip: node.state.isCollapsed ? 'Expand node' : 'Collapse node',
-        onPressed: onToggleCollapse,
-        icon: Icon(
-          node.state.isCollapsed ? Icons.expand_more : Icons.expand_less,
-          size: 18,
-        ),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 24, height: 24),
-      ),
-    ],
-  ),
-);
 
 AutomationData _emptyAutomation() => AutomationData(
   schemaVersion: 2,

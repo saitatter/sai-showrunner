@@ -159,6 +159,82 @@ class GraphWorkspace extends StatelessWidget {
   );
 }
 
+/// A compact graph surface for inline automations such as profile activation
+/// and stream-plan transitions.
+///
+/// It omits the application-level health and settings panels while retaining
+/// the same canvas menus, toolbar, shortcuts, configuration dialogs, and
+/// persisted-resource hydration as the full graph workspace.
+class ShowRunnerInlineGraphEditor extends StatelessWidget {
+  const ShowRunnerInlineGraphEditor({
+    super.key,
+    required this.editor,
+    required this.registryFuture,
+    this.height = 420,
+  });
+
+  final ShowRunnerGraphEditor editor;
+  final Future<DartPluginRegistry> registryFuture;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: height,
+    child: Column(
+      children: [
+        NodeEditorToolbar(
+          controller: editor.controller,
+          onAutoLayout: editor.autoLayout,
+        ),
+        Expanded(
+          child: FutureBuilder<DartPluginRegistry>(
+            future: registryFuture,
+            builder: (context, registrySnapshot) => NodeEditorShortcutsWidget(
+              controller: editor.controller,
+              onCopy: (context) => editor.copySelection(context: context),
+              onPaste: (context) => editor.pasteSelection(context: context),
+              onCut: (context) => editor.cutSelection(context: context),
+              onDuplicate: () => editor.duplicateSelectedAction(),
+              onMoveSelection: (key, {required extendSelection}) =>
+                  editor.moveSelection(key, extendSelection: extendSelection),
+              child: NodeEditorWidget(
+                controller: editor.controller,
+                expandToParent: true,
+                overlay: () => const <OverlayData>[],
+                headerBuilder: (context, node, style, onToggleCollapse) =>
+                    _buildNodeHeader(
+                      context,
+                      node,
+                      style,
+                      onToggleCollapse,
+                      editor: editor,
+                    ),
+                fieldBuilder: _buildNodeField,
+                portBuilder: _buildNodePort,
+                nodeMenuBuilder: (context, node) => _nodeEditorContextMenu(
+                  context,
+                  editor,
+                  node,
+                  registryFuture: registryFuture,
+                ),
+                editorContextMenuBuilder: (context, position, defaults) =>
+                    _editorContextMenu(
+                      context: context,
+                      editor: editor,
+                      position: position,
+                      defaults: defaults,
+                      registry: registrySnapshot.data,
+                      registryFuture: registryFuture,
+                    ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 // Node insertion is ShowRunner-owned because plugin manifests and persisted
 // node metadata are not generic graph-editor concerns.
 class _GraphNodePalette extends StatelessWidget {

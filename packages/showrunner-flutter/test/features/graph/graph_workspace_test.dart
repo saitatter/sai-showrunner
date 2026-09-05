@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sai_nodes/sai_nodes.dart';
 import 'package:showrunner_flutter/app/startup_health.dart';
 import 'package:showrunner_flutter/editor/showrunner_graph_editor.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
@@ -65,6 +66,27 @@ void main() {
     expect(find.text('Add node'), findsOneWidget);
     expect(find.text('Graph healthy'), findsOneWidget);
     expect(find.textContaining('3 nodes'), findsOneWidget);
+  });
+
+  testWidgets('renders the compact editor used by inline automations', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ShowRunnerInlineGraphEditor(
+            editor: editor,
+            registryFuture: Future.value(DartPluginRegistry()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byType(NodeEditorToolbar), findsOneWidget);
+    expect(find.text('Chat message'), findsNWidgets(2));
+    expect(find.text('Add to queue'), findsOneWidget);
   });
 
   testWidgets('renders rejected-link feedback and allows dismissing it', (
