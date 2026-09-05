@@ -1,6 +1,7 @@
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
+import '../registry/plugin_ui.dart';
 import '../../services/plugin_event_hub.dart';
 import 'ui/youtube_workspace.dart';
 
@@ -85,12 +86,14 @@ DartPluginManifest createYouTubePlugin(
 }) => DartPluginManifest(
   id: 'youtube',
   name: 'YouTube',
-  workspaceBuilder: (context, dataService, providerEvents, registryFuture) =>
-      YouTubeWorkspace(
-        dataService: dataService,
-        providerEvents: providerEvents,
-        registryFuture: registryFuture,
-      ),
+  ui: DartFlutterPluginUiContribution(
+    builder: (context, dataService, providerEvents, registryFuture) =>
+        YouTubeWorkspace(
+          dataService: dataService,
+          providerEvents: providerEvents,
+          registryFuture: registryFuture,
+        ),
+  ),
   states: const [
     DartPluginStateDefinition(
       id: 'connection',

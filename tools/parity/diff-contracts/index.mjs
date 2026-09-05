@@ -70,9 +70,9 @@ const plugins = main.plugins.map((expected) => {
     categories: categoryResults,
     ui: {
       expectedSourceFiles: expected.ui?.sourceFiles?.length || 0,
-      flutterWorkspace: Boolean(actual.ui?.workspaceBuilder),
+      flutterWorkspace: Boolean(actual.ui?.contribution),
       status: expected.ui?.sourceFiles?.length
-        ? actual.ui?.workspaceBuilder ? 'equivalent' : 'partial'
+        ? actual.ui?.contribution ? 'equivalent' : 'partial'
         : 'equivalent',
     },
   };

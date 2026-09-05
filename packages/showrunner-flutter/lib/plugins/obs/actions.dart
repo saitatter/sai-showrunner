@@ -1,11 +1,12 @@
 import 'dart:math' as math;
 import 'dart:io';
 
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import 'ui/obs_workspace.dart';
 import 'transform.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
+import '../registry/plugin_ui.dart';
 
 typedef ObsCall = Future<RuntimeMap> Function(String request, RuntimeMap data);
 
@@ -360,8 +361,13 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
       await transport.call('GetVersion', {});
       return true;
     },
-    workspaceBuilder: (context, dataService, providerEvents, registryFuture) =>
-        ObsWorkspace(dataService: dataService, registryFuture: registryFuture),
+    ui: DartFlutterPluginUiContribution(
+      builder: (context, dataService, providerEvents, registryFuture) =>
+          ObsWorkspace(
+            dataService: dataService,
+            registryFuture: registryFuture,
+          ),
+    ),
     states: const [
       DartPluginStateDefinition(
         id: 'connection',

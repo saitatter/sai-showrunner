@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
 
 const _numberValue = DartDataInputSchema(
   label: 'Number',

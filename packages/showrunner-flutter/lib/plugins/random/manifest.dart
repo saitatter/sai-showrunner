@@ -1,10 +1,10 @@
 import 'dart:math';
 
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../overlays/manifest.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
 
 const _randomSchema = DartDataInputSchema(
   label: 'Random range',

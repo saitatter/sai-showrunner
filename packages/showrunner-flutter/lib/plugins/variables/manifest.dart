@@ -1,9 +1,9 @@
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../runtime/expression.dart';
 import '../../schema/viewer_data.dart';
 import '../../services/plugin_event_hub.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
 
 const _variableSchema = DartDataInputSchema(
   label: 'Variable',

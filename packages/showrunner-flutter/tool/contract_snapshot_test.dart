@@ -57,11 +57,12 @@ void main() {
               'resources': [
                 for (final resource in resourceEditors.definitions.where(
                   (resource) =>
-                      resource.pluginId.toLowerCase() == plugin.id.toLowerCase(),
+                      resource.pluginId.toLowerCase() ==
+                      plugin.id.toLowerCase(),
                 ))
                   resource.resourceType,
               ],
-              'ui': {'workspaceBuilder': plugin.workspaceBuilder != null},
+              'ui': {'contribution': plugin.ui != null},
             },
         ],
       };

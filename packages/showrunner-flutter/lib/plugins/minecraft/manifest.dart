@@ -1,6 +1,6 @@
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
 import 'rcon.dart';
 
 const _commandSchema = DartDataInputSchema(

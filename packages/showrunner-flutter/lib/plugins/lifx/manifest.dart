@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
 
 abstract interface class LifxTransport {
   Future<RuntimeMap> getState();

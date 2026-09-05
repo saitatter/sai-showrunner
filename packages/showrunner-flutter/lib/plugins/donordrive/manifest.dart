@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
 
 typedef DonorDriveRequest =
     Future<dynamic> Function(String path, RuntimeMap query);

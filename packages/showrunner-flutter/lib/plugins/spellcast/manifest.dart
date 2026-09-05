@@ -1,7 +1,8 @@
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
+import '../registry/plugin_ui.dart';
 import 'ui/spellcast_workspace.dart';
 
 DartPluginManifest createSpellcastPlugin({DartPluginEventHub? eventHub}) {
@@ -9,12 +10,14 @@ DartPluginManifest createSpellcastPlugin({DartPluginEventHub? eventHub}) {
   return DartPluginManifest(
     id: 'spellcast',
     name: 'Spellcast',
-    workspaceBuilder: (context, dataService, providerEvents, registryFuture) =>
-        SpellcastWorkspace(
-          dataService: dataService,
-          eventHub: hub,
-          providerEvents: providerEvents,
-        ),
+    ui: DartFlutterPluginUiContribution(
+      builder: (context, dataService, providerEvents, registryFuture) =>
+          SpellcastWorkspace(
+            dataService: dataService,
+            eventHub: hub,
+            providerEvents: providerEvents,
+          ),
+    ),
     actions: [
       DartActionDefinition(
         pluginId: 'spellcast',

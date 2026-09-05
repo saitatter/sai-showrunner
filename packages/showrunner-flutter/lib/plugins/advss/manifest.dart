@@ -1,7 +1,7 @@
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../services/plugin_event_hub.dart';
 import '../obs/actions.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
 
 const _vendorName = 'AdvancedSceneSwitcher';
 

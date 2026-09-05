@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import '../../runtime/expression.dart';
-import '../../components/data_inputs/data_input.dart';
-import '../registry/plugin_registry.dart';
+import '../../schema/data_input.dart';
+import '../registry/plugin_contract.dart';
 
 const _powerShellConfigSchema = DartDataInputSchema(
   label: '',

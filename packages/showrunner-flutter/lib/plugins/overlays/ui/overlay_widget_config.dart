@@ -1,4 +1,4 @@
-import '../../../components/data_inputs/data_input.dart';
+import '../../../schema/data_input.dart';
 
 class OverlayWidgetDefinition {
   const OverlayWidgetDefinition({

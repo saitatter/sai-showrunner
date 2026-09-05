@@ -1,6 +1,6 @@
 import '../../runtime/expression.dart';
-import '../../components/data_inputs/data_input.dart';
-import '../registry/plugin_registry.dart';
+import '../../schema/data_input.dart';
+import '../registry/plugin_contract.dart';
 import 'output.dart';
 import 'tts_runtime.dart';
 import 'windows_audio.dart';

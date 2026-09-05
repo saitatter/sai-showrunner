@@ -1,10 +1,10 @@
 import 'dart:math';
 
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../schema/resource.dart';
 import '../../services/plugin_event_hub.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
 
 typedef OverlayResourceLoader =
     Future<ResourceData?> Function(String overlayId);

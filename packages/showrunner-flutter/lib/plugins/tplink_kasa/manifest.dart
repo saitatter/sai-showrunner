@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
 
 typedef KasaRequest = Future<RuntimeMap> Function(RuntimeMap request);
 

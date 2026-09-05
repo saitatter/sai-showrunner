@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import '../../components/data_inputs/data_input.dart';
+import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
-import '../registry/plugin_registry.dart';
+import '../registry/plugin_contract.dart';
 
 abstract interface class VoiceModTransport {
   Future<List<RuntimeMap>> getVoices();
