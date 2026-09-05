@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
 
 import '../../services/media_catalog_service.dart';
 import '../../services/showrunner_data_service.dart';
@@ -131,7 +132,7 @@ class _MediaFileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-    leading: SizedBox.square(dimension: 50, child: _preview(context)),
+    leading: _MediaFilePreview(entry: entry),
     title: Text(entry.relativePath, overflow: TextOverflow.ellipsis),
     subtitle: Text(entry.file.path, overflow: TextOverflow.ellipsis),
     trailing: IconButton(
@@ -140,27 +141,181 @@ class _MediaFileTile extends StatelessWidget {
       icon: const Icon(Icons.folder_open),
     ),
   );
+}
 
-  Widget _preview(BuildContext context) {
+class _MediaFilePreview extends StatefulWidget {
+  const _MediaFilePreview({required this.entry});
+
+  final MediaFileEntry entry;
+
+  @override
+  State<_MediaFilePreview> createState() => _MediaFilePreviewState();
+}
+
+class _MediaFilePreviewState extends State<_MediaFilePreview> {
+  Player? _player;
+  bool _loading = false;
+  Object? _error;
+
+  @override
+  void dispose() {
+    final player = _player;
+    _player = null;
+    if (player != null) {
+      player.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _togglePlayback() async {
+    final existing = _player;
+    if (existing != null) {
+      if (existing.state.playing) {
+        await existing.pause();
+      } else {
+        await existing.play();
+      }
+      if (mounted) setState(() {});
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final player = Player();
+    _player = player;
+    try {
+      await player.open(
+        Media(Uri.file(widget.entry.file.absolute.path).toString()),
+        play: true,
+      );
+      if (mounted) setState(() => _loading = false);
+    } catch (error) {
+      await player.dispose();
+      if (_player == player) _player = null;
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = error;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
     if (entry.kind == MediaKind.image) {
-      return Image.file(
-        entry.file,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => Icon(_icon, color: Colors.white54),
+      return SizedBox.square(
+        dimension: 50,
+        child: Image.file(
+          entry.file,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _iconSurface(context),
+        ),
       );
     }
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(4),
+
+    final player = _player;
+    final playing = player?.state.playing ?? false;
+    return SizedBox(
+      width: 120,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox.square(
+            dimension: 40,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: _loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : IconButton(
+                      tooltip: playing ? 'Pause preview' : 'Play preview',
+                      padding: EdgeInsets.zero,
+                      onPressed: _togglePlayback,
+                      icon: Icon(
+                        playing ? Icons.pause : Icons.play_arrow,
+                        size: 20,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _DurationLabel(
+              player: player,
+              error: _error,
+              icon: entry.kind == MediaKind.audio
+                  ? Icons.audiotrack
+                  : Icons.movie_outlined,
+            ),
+          ),
+        ],
       ),
-      child: Icon(_icon, color: Colors.white54),
     );
   }
 
-  IconData get _icon => switch (entry.kind) {
-    MediaKind.image => Icons.image_outlined,
-    MediaKind.audio => Icons.audiotrack,
-    MediaKind.video => Icons.movie_outlined,
-  };
+  Widget _iconSurface(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: Icon(Icons.image_outlined, color: Colors.white54),
+  );
+}
+
+class _DurationLabel extends StatelessWidget {
+  const _DurationLabel({
+    required this.player,
+    required this.error,
+    required this.icon,
+  });
+
+  final Player? player;
+  final Object? error;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    if (error != null) {
+      return Tooltip(
+        message: '$error',
+        child: Icon(
+          Icons.error_outline,
+          size: 18,
+          color: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+    final currentPlayer = player;
+    if (currentPlayer == null)
+      return Icon(icon, size: 18, color: Colors.white54);
+    return StreamBuilder<Duration>(
+      stream: currentPlayer.stream.duration,
+      initialData: currentPlayer.state.duration,
+      builder: (context, durationSnapshot) => StreamBuilder<Duration>(
+        stream: currentPlayer.stream.position,
+        initialData: currentPlayer.state.position,
+        builder: (context, positionSnapshot) => Text(
+          '${_formatDuration(positionSnapshot.data ?? Duration.zero)} / ${_formatDuration(durationSnapshot.data ?? Duration.zero)}',
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ),
+    );
+  }
+}
+
+String _formatDuration(Duration value) {
+  final seconds = value.inSeconds;
+  final minutes = seconds ~/ 60;
+  final remainder = seconds % 60;
+  return '$minutes:${remainder.toString().padLeft(2, '0')}';
 }
