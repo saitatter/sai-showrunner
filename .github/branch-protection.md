@@ -15,7 +15,9 @@ Protect `main` in GitHub repository settings with these rules:
   - `package-windows` must build and smoke the Flutter Windows archive before
     uploading and publishing the draft release.
 
-The release workflow intentionally creates draft GitHub releases first. The draft is only published after Windows assets are built, smoke-checked, uploaded, and verified to exclude `builder-debug.yml`.
+The release workflow intentionally creates draft GitHub releases first. The
+draft is only published after the Windows archive is built, smoke-checked, and
+uploaded.
 
 Only the Flutter Windows archive is published for now:
 
