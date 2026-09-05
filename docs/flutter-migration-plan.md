@@ -565,7 +565,8 @@ The Flutter plugin workspace now follows the original application's separation m
 - [ ] Run Flutter and the existing Vue shell in parallel only as a temporary comparison mode.
 - [ ] Compare startup time, memory, input latency, reconnect behavior, and packaged size.
 - [x] Produce a versioned Flutter Windows archive and verify that it contains the executable and bundled data directory.
-- [x] Add packaged Windows startup and clean-shutdown smoke for the Flutter archive.
+- [x] Add packaged Windows startup, workflow, and clean-shutdown smoke for the
+	Flutter archive.
 - [x] Add packaged Windows smoke tests for first-run setup and Dart data migration workflows.
 - [ ] Add packaged Windows smoke tests for install and update workflows.
 - [x] Preserve Electron-compatible dev, portable, and packaged Release data

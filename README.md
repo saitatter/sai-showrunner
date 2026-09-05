@@ -117,8 +117,9 @@ Pop-Location
 ```
 
 The packaging script validates the required Flutter/media DLLs and runs the
-startup smoke from the generated archive. Use `-SkipSmoke` only when the smoke
-must be run separately. The archive is written to
+complete startup, first-run, legacy migration, automation, profile,
+integration, overlay, and update smoke suite from the generated archive. Use
+`-SkipSmoke` only when the smoke must be run separately. The archive is written to
 `release/ShowRunner-Flutter-windows-<version>.zip`.
 The startup smoke can also launch that archive directly with
 `-ArchivePath .\release\ShowRunner-Flutter-windows-<version>.zip`; it uses a

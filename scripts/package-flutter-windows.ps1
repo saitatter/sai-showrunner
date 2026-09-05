@@ -39,9 +39,23 @@ try {
   Write-Host "Created $archive"
 
   if (-not $SkipSmoke) {
-    & (Join-Path $PSScriptRoot 'smoke-flutter-windows.ps1') `
-      -ArchivePath $archive `
-      -Configuration Release
+    $smokeScenarios = @(
+      'startup',
+      'first-run',
+      'data-migration',
+      'automation',
+      'profile',
+      'integrations',
+      'overlays',
+      'updates'
+    )
+    foreach ($scenario in $smokeScenarios) {
+      & (Join-Path $PSScriptRoot 'smoke-flutter-windows.ps1') `
+        -ArchivePath $archive `
+        -Configuration Release `
+        -Scenario $scenario
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
   }
 }
 finally {
