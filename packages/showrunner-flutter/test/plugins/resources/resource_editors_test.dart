@@ -603,6 +603,57 @@ void main() {
     expect((saved!.config['segments'] as List).single['name'], 'New segment');
   });
 
+  testWidgets('stream plan segment editor persists Twitch tags', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find(
+      'StreamPlan',
+    )!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      ResourceData(
+        id: 'plan-tags',
+        config: {
+          'name': 'Tagged show',
+          'segments': [
+            {
+              'id': 'segment-1',
+              'name': 'Intro',
+              'components': {
+                'twitch-stream-info': {
+                  'title': 'Welcome',
+                  'category': 'Just Chatting',
+                  'tags': ['hello', 'showrunner'],
+                },
+              },
+            },
+          ],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(find.text('Tags (comma separated)'), findsOneWidget);
+    final tagsField = find.ancestor(
+      of: find.text('Tags (comma separated)'),
+      matching: find.byType(TextFormField),
+    );
+    expect(tagsField, findsOneWidget);
+    await tester.enterText(tagsField, 'hello, flutter');
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(
+      ((saved!.config['segments'] as List).single['components']
+          as Map)['twitch-stream-info']['tags'],
+      ['hello', 'flutter'],
+    );
+  });
+
   testWidgets('runtime stream plan editor exposes transition graphs', (
     tester,
   ) async {

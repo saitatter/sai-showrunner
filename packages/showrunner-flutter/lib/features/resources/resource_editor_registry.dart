@@ -1320,6 +1320,11 @@ class _StreamPlanSegmentCardState extends State<_StreamPlanSegmentCard> {
           'category',
           config['category']?.toString() ?? '',
         ),
+        _componentTagsField(
+          config['tags'] is List
+              ? (config['tags'] as List).map((tag) => tag.toString()).join(', ')
+              : '',
+        ),
       ],
     );
   }
@@ -1337,6 +1342,30 @@ class _StreamPlanSegmentCardState extends State<_StreamPlanSegmentCard> {
               widget.segment.components['twitch-stream-info'] as Map,
             ),
             key: next,
+          },
+        };
+        widget.onChanged(_copy(components: components));
+      },
+    ),
+  );
+
+  Widget _componentTagsField(String value) => SizedBox(
+    width: 260,
+    child: TextFormField(
+      initialValue: value,
+      decoration: const InputDecoration(labelText: 'Tags (comma separated)'),
+      onChanged: (next) {
+        final components = {
+          ...widget.segment.components,
+          'twitch-stream-info': {
+            ...Map<String, dynamic>.from(
+              widget.segment.components['twitch-stream-info'] as Map,
+            ),
+            'tags': next
+                .split(',')
+                .map((tag) => tag.trim())
+                .where((tag) => tag.isNotEmpty)
+                .toList(),
           },
         };
         widget.onChanged(_copy(components: components));
