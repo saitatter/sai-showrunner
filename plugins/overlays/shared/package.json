@@ -13,9 +13,6 @@
 		"typescript": "*"
 	},
 	"dependencies": {
-		"axios": "*",
-		"showrunner-core": "workspace:^",
-		"showrunner-plugin-sound-shared": "workspace:^",
 		"showrunner-schema": "workspace:^"
 	}
 }

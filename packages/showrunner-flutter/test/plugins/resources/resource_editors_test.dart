@@ -494,7 +494,7 @@ void main() {
                   'widgets': [
                     {
                       'id': 'widget-1',
-                      'plugin': 'legacy',
+                      'plugin': 'unknown',
                       'widget': 'custom',
                       'config': {'label': 'Alert'},
                     },

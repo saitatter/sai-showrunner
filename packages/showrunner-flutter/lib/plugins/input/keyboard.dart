@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-const legacyKeyboardKeyNames = <String>[
+const supportedKeyboardKeyNames = <String>[
   'Space',
   'Escape',
   'Tab',
@@ -246,7 +246,7 @@ final _logicalKeyboardKeyNames = <LogicalKeyboardKey, String>{
 String? keyboardKeyNameForLogicalKey(LogicalKeyboardKey key) =>
     _logicalKeyboardKeyNames[key];
 
-final legacyKeyboardVirtualKeyCodes = Map.unmodifiable(<String, int>{
+final windowsVirtualKeyCodes = Map.unmodifiable(<String, int>{
   'Space': 0x20,
   'Escape': 0x1b,
   'Tab': 0x09,
@@ -305,13 +305,13 @@ final legacyKeyboardVirtualKeyCodes = Map.unmodifiable(<String, int>{
   'MediaNext': 0xb0,
 });
 
-final _legacyKeyboardNamesByVirtualKey = _buildVirtualKeyNames();
+final _keyboardNamesByVirtualKey = _buildVirtualKeyNames();
 
 int? virtualKeyCodeForKeyboardKey(String key) =>
-    legacyKeyboardVirtualKeyCodes[key];
+    windowsVirtualKeyCodes[key];
 
 String? keyboardKeyNameForVirtualKey(int virtualKeyCode) =>
-    _legacyKeyboardNamesByVirtualKey[virtualKeyCode];
+    _keyboardNamesByVirtualKey[virtualKeyCode];
 
 String normalizeKeyboardKey(String key) {
   if (key.startsWith('Right')) return 'Left${key.substring(5)}';
@@ -351,7 +351,7 @@ int _keyboardKeyPriority(String key) => switch (normalizeKeyboardKey(key)) {
 
 Map<int, String> _buildVirtualKeyNames() {
   final names = <int, String>{};
-  for (final entry in legacyKeyboardVirtualKeyCodes.entries) {
+  for (final entry in windowsVirtualKeyCodes.entries) {
     names.putIfAbsent(entry.value, () => entry.key);
   }
   return Map.unmodifiable(names);

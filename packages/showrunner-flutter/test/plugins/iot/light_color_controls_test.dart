@@ -6,7 +6,7 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/iot/ui/light_color_input.dart';
 
 void main() {
-  test('preserves the legacy HSB and Kelvin color formats', () {
+  test('preserves HSB and Kelvin color formats', () {
     final hsb = parseLightColor('hsb(120, 50, 80)');
     final kelvin = parseLightColor('kb(4200, 65)');
 
@@ -17,7 +17,7 @@ void main() {
     expect(parseLightColor('rgb(255, 0, 0)'), isNull);
   });
 
-  test('updates brightness and clamps Kelvin to the legacy device range', () {
+  test('updates brightness and clamps Kelvin to the device range', () {
     expect(
       serializeLightColor(lightColorForBrightness('kb(4200, 65)', 20)),
       'kb(4200, 20)',

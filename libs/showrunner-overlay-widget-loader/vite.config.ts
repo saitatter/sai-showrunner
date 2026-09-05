@@ -14,7 +14,7 @@ export default defineConfig({
 		cssCodeSplit: true,
 		lib: {
 			entry: "src/main.ts",
-			name: "showrunner-widget-loader",
+			name: "showrunner-overlay-widget-loader",
 		},
 		rollupOptions: {
 			external: ["vue"],

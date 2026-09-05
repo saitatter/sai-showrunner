@@ -39,7 +39,6 @@ class GraphWorkspace extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     children: [
       _StartupHealthBanner(healthFuture: healthFuture),
-      _FlutterSettingsPanel(dataService: dataService),
       _GraphNodePalette(editor: editor, registryFuture: registryFuture),
       Expanded(
         child: ValueListenableBuilder<List<String>>(
@@ -2839,102 +2838,6 @@ class _StartupHealthBanner extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _FlutterSettingsPanel extends StatefulWidget {
-  const _FlutterSettingsPanel({required this.dataService});
-
-  final ShowRunnerDataService dataService;
-
-  @override
-  State<_FlutterSettingsPanel> createState() => _FlutterSettingsPanelState();
-}
-
-class _FlutterSettingsPanelState extends State<_FlutterSettingsPanel> {
-  static const _pluginId = 'showrunner-flutter';
-  static const _settingId = 'migrationProbeEnabled';
-
-  bool _enabled = false;
-  bool _loading = true;
-  bool _saving = false;
-  Object? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final settings = await widget.dataService.loadPluginSettings(_pluginId);
-      if (!mounted) return;
-      setState(() {
-        _enabled = settings[_settingId] == true;
-        _loading = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = error;
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _update(bool value) async {
-    final previous = _enabled;
-    setState(() {
-      _enabled = value;
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await widget.dataService.updatePluginSetting(
-        _pluginId,
-        _settingId,
-        value,
-      );
-      if (!mounted) return;
-      setState(() => _saving = false);
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _enabled = previous;
-        _saving = false;
-        _error = error;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final message = _error == null
-        ? 'Saved in user/settings/showrunner-flutter.yaml'
-        : 'Unable to load or save this setting';
-    return Material(
-      color: const Color(0xff182126),
-      child: ListTile(
-        dense: true,
-        leading: Icon(
-          Icons.tune,
-          color: Theme.of(context).colorScheme.secondary,
-        ),
-        title: const Text('Flutter migration settings'),
-        subtitle: Text(message),
-        trailing: _loading || _saving
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Switch(
-                value: _enabled,
-                onChanged: _error == null ? _update : null,
-              ),
-      ),
     );
   }
 }

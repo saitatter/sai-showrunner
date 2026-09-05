@@ -46,7 +46,6 @@ import { Duration, EmoteInfo, EmoteParsedString } from "showrunner-schema"
 import { OverlayWidgetSize } from "showrunner-plugin-overlays-shared"
 import { Range } from "showrunner-schema"
 import { onMounted, ref, watch } from "vue"
-import { template } from "showrunner-core"
 
 defineOptions({
 	widget: declareWidgetOptions({

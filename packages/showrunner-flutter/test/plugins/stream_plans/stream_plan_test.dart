@@ -5,7 +5,7 @@ import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
 
 void main() {
-  test('round-trips Stream Plan config with legacy defaults', () {
+  test('round-trips Stream Plan config with default values', () {
     final plan = StreamPlanData.fromConfig({
       'name': 'Friday show',
       'segments': [
@@ -70,7 +70,7 @@ void main() {
     streamPlanRuntime.deactivate();
   });
 
-  test('executes plan and segment transitions in legacy order', () async {
+  test('executes plan and segment transitions in configured order', () async {
     final events = <String>[];
     final registry = DartPluginRegistry()
       ..register(

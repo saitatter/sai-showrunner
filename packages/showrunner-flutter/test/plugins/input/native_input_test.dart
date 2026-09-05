@@ -33,7 +33,7 @@ void main() {
     );
   });
 
-  test('maps legacy keys to Windows virtual-key codes', () {
+  test('maps supported keys to Windows virtual-key codes', () {
     expect(virtualKeyCodeForKeyboardKey('F10'), 0x79);
     expect(virtualKeyCodeForKeyboardKey('F24'), 0x87);
     expect(keyboardKeyNameForVirtualKey(0x79), 'F10');
@@ -91,7 +91,7 @@ void main() {
     expect(platform.calls, ['start-events', 'stop-events']);
   });
 
-  test('input manifest exposes legacy mouse action schema', () {
+  test('input manifest exposes the mouse action schema', () {
     final mouse = createInputPlugin().actions.firstWhere(
       (action) => action.actionId == 'mouseButton',
     );

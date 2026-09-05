@@ -1,4 +1,4 @@
-/// Moderation plugin boundary reserved for the bespoke Flutter migration.
+/// Moderation plugin boundary for the Flutter desktop runtime.
 ///
 /// Moderation actions currently live in the YouTube and Twitch manifests;
 /// this directory is the target home for shared moderation contracts.

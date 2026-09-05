@@ -120,7 +120,7 @@ void main() {
     expect(await registry.playFile(file: 'cycle.wav'), isFalse);
   });
 
-  test('sound action resolves the legacy file and output fields', () async {
+  test('sound action resolves file and output fields', () async {
     final output = _RecordingOutput('system.main');
     final outputs = SoundOutputRegistry(defaultOutputId: 'system.main')
       ..register(output);
@@ -155,7 +155,7 @@ void main() {
     expect(output.requests.single.volume, 30);
   });
 
-  test('exposes legacy global volume and default output settings', () {
+  test('exposes global volume and default output settings', () {
     final plugin = createSoundPlugin();
 
     expect(plugin.settings.map((setting) => setting.id), [

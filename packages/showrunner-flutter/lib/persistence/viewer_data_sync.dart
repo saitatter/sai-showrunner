@@ -80,7 +80,7 @@ final class ViewerDataSynchronizer {
       await syncEvent(eventId, event);
     } catch (_) {
       // Provider events must not take down the worker when a local definition
-      // or a malformed legacy row cannot be synchronized.
+      // or a malformed row cannot be synchronized.
     }
   }
 

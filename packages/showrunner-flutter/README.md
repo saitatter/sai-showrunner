@@ -1,6 +1,6 @@
 # ShowRunner Flutter
 
-The Windows-first Flutter renderer and Dart runtime migration workspace for ShowRunner.
+The Flutter/Dart desktop application for ShowRunner on Windows.
 
 ## Local validation
 
@@ -13,13 +13,16 @@ flutter test
 flutter run -d windows
 ```
 
-The application reads and writes the existing ShowRunner user data directory. Keep a
-separate test profile or backup when exercising persistence and provider OAuth flows.
+The application reads and writes the ShowRunner user data directory. Keep a
+separate test profile or backup when exercising persistence and provider OAuth
+flows.
 
 ## Scope
 
-The package includes the Flutter shell, graph adapter, automation and profile catalogs,
-queue and diagnostics workspaces, resource editors, provider workers, and Dart plugin
-contracts. OBS overlays remain browser-based because OBS consumes them as browser sources.
+This package contains the Flutter shell, V2 graph editor, automation and profile
+catalogs, queue and diagnostics workspaces, resource editors, provider workers,
+and Dart plugin contracts. OBS overlays remain browser-based because OBS
+consumes them as browser sources.
 
-Migration status and release gates are tracked in `docs/flutter-migration-plan.md`.
+All persisted automation documents use `schemaVersion: 2`. The loader rejects
+other document shapes so the runtime and editor operate on one contract.

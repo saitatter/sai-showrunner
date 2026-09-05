@@ -26,7 +26,7 @@ void main() {
   });
 
   test(
-    'invokes legacy viewer actions against the injected repository',
+    'invokes viewer actions against the injected repository',
     () async {
       final setResult = await registry.invokeAction(
         'variables',

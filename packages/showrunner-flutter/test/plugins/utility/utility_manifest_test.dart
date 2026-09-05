@@ -72,7 +72,7 @@ void main() {
   });
 
   test(
-    'overlay actions preserve the legacy broadcast and widget RPC payloads',
+    'overlay actions preserve the broadcast and widget RPC payloads',
     () async {
       final eventHub = DartPluginEventHub();
       final registry = DartPluginRegistry()

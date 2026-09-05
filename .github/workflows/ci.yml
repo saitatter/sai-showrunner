@@ -12,24 +12,11 @@ permissions:
   contents: read
 
 jobs:
-  test-windows:
+  flutter-windows:
     runs-on: windows-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: yarn
-          cache-dependency-path: yarn.lock
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -41,21 +28,7 @@ jobs:
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
-      - name: Install distutils compatibility
-        run: pip install setuptools
-
-      - name: Install dependencies without native builds
-        run: yarn install --immutable
-        env:
-          YARN_ENABLE_SCRIPTS: false
-
-      - name: Run tests
-        run: yarn test
-
-      - name: Run checks
-        run: yarn check
-
-      - name: Analyze and test Flutter migration
+      - name: Analyze, test, and build Flutter desktop app
         shell: pwsh
         run: |
           Push-Location packages/showrunner-flutter
@@ -69,16 +42,11 @@ jobs:
         shell: pwsh
         run: .\scripts\smoke-flutter-windows.ps1 -Configuration Debug
 
-      - name: Run overlay smoke tests
-        run: yarn overlay:smoke
-
-  scripts-ubuntu:
+  browser-overlay:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -90,18 +58,21 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Install dependencies without native builds
+      - name: Install overlay dependencies
         run: yarn install --immutable
         env:
           YARN_ENABLE_SCRIPTS: false
 
-      - name: Test semantic-release changelog expansion
-        run: yarn test:semantic-release
+      - name: Test browser overlay runtime
+        run: yarn overlay:test
+
+      - name: Build browser overlay runtime
+        run: yarn overlay:build
 
   release-dry-run:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -118,12 +89,10 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Install dependencies without native builds
+      - name: Install release tooling
         run: yarn install --immutable
         env:
           YARN_ENABLE_SCRIPTS: false
 
       - name: Semantic release dry run
         run: yarn release:dry-run
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}

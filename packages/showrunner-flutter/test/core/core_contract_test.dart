@@ -526,7 +526,7 @@ void main() {
     await service.savePluginSettings('sample', {
       'enabled': true,
       'retryCount': 3,
-      'label': 'Dart migration',
+      'label': 'Flutter runtime',
       'metadata': {
         'channels': ['chat', 'alerts'],
       },
@@ -537,7 +537,7 @@ void main() {
     expect(settings, {
       'enabled': true,
       'retryCount': 3,
-      'label': 'Dart migration',
+      'label': 'Flutter runtime',
       'metadata': {
         'channels': ['chat', 'alerts'],
       },

@@ -320,7 +320,7 @@ void main() {
     await service.savePluginSettings('sample', {
       'enabled': true,
       'retryCount': 3,
-      'label': 'Dart migration',
+      'label': 'Flutter runtime',
       'metadata': {
         'channels': ['chat', 'alerts'],
       },
@@ -331,7 +331,7 @@ void main() {
     expect(settings, {
       'enabled': true,
       'retryCount': 3,
-      'label': 'Dart migration',
+      'label': 'Flutter runtime',
       'metadata': {
         'channels': ['chat', 'alerts'],
       },
@@ -831,15 +831,15 @@ deactivationAutomation:
   });
 
   test(
-    'loads and edits legacy YAML resources without creating duplicates',
+    'loads and edits YAML resources without creating duplicates',
     () async {
       final directory = await Directory.systemTemp.createTemp(
-        'showrunner-legacy-resource-repo-',
+        'showrunner-yaml-resource-repo-',
       );
       addTearDown(() => directory.delete(recursive: true));
-      final legacy = File('${directory.path}/legacy.yaml');
-      await legacy.writeAsString('''
-name: Legacy overlay
+      final yamlResource = File('${directory.path}/yaml-resource.yaml');
+      await yamlResource.writeAsString('''
+name: Overlay
 width: 1920
 widgets:
   - type: text
@@ -847,18 +847,18 @@ widgets:
 ''');
       final repository = ResourceRepository(directory);
 
-      final loaded = await repository.load('legacy');
-      expect(loaded?.config['name'], 'Legacy overlay');
+      final loaded = await repository.load('yaml-resource');
+      expect(loaded?.config['name'], 'Overlay');
       expect((loaded?.config['widgets'] as List).single['text'], 'Hello');
 
       await repository.save(
         ResourceData(
-          id: 'legacy',
+          id: 'yaml-resource',
           config: {...loaded!.config, 'name': 'Updated overlay'},
         ),
       );
-      expect(await File('${directory.path}/legacy.json').exists(), isFalse);
-      expect((await repository.load('legacy'))?.name, 'Updated overlay');
+      expect(await File('${directory.path}/yaml-resource.json').exists(), isFalse);
+      expect((await repository.load('yaml-resource'))?.name, 'Updated overlay');
       expect((await directory.list().toList()), hasLength(1));
     },
   );

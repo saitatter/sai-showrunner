@@ -14,7 +14,7 @@ export default defineConfig({
 		cssCodeSplit: true,
 		lib: {
 			entry: "src/main.ts",
-			name: "showrunner-ui-core",
+			name: "showrunner-overlay-overlays",
 		},
 		rollupOptions: {
 			external: ["vue"],

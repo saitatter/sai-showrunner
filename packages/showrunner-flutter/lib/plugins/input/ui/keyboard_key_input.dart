@@ -46,7 +46,7 @@ class _KeyboardKeyInputState extends State<KeyboardKeyInput> {
       children: [
         Expanded(
           child: DropdownButtonFormField<String>(
-            initialValue: legacyKeyboardKeyNames.contains(widget.value)
+            initialValue: supportedKeyboardKeyNames.contains(widget.value)
                 ? widget.value
                 : null,
             decoration: InputDecoration(
@@ -54,7 +54,7 @@ class _KeyboardKeyInputState extends State<KeyboardKeyInput> {
               helperText: _capturing ? 'Press a key' : null,
             ),
             items: [
-              for (final key in legacyKeyboardKeyNames)
+              for (final key in supportedKeyboardKeyNames)
                 DropdownMenuItem(
                   value: key,
                   child: Text(keyboardKeyDisplayName(key)),

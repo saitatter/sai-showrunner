@@ -9,83 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  package-windows-preflight:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: yarn
-          cache-dependency-path: yarn.lock
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.44.0'
-          channel: stable
-          cache: true
-
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
-
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Install distutils compatibility
-        run: pip install setuptools
-
-      - name: Install dependencies without native builds
-        run: yarn install --immutable
-        env:
-          YARN_ENABLE_SCRIPTS: false
-
-      - name: Setup Vite extensions
-        run: yarn setup-vite
-
-      - name: Rebuild native dependencies
-        run: |
-          yarn workspace showrunner-core run rebuild
-          yarn workspace showrunner-plugin-input-native run rebuild
-          yarn workspace showrunner-plugin-sound-native run rebuild
-        env:
-          GYP_MSVS_VERSION: 2022
-
-      - name: Build renderer and packages
-        run: node ./vite-util/multi-vite.mjs build
-        env:
-          VITE_APP_MIXPANEL_PROJECT_TOKEN: ${{ secrets.MIXPANEL_PROJECT_TOKEN }}
-          SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
-          SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
-
-      - name: Build Flutter Windows artifact
-        shell: pwsh
-        run: .\scripts\package-flutter-windows.ps1 -Version '0.0.0'
-
-      - name: Smoke Flutter Windows archive
-        shell: pwsh
-        run: .\scripts\smoke-flutter-windows.ps1 -ArchivePath '.\release\ShowRunner-Flutter-windows-0.0.0.zip'
-
-      - name: Package Windows app
-        run: yarn workspace showrunner run electron:build -- --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: Verify Windows artifacts
-        run: yarn release:smoke-artifacts
-
   release:
     runs-on: ubuntu-latest
-    needs: package-windows-preflight
     outputs:
       released: ${{ steps.semantic-release.outputs.new_release_published || 'false' }}
       version: ${{ steps.semantic-release.outputs.new_release_version }}
@@ -107,7 +32,7 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Install dependencies
+      - name: Install release tooling
         run: yarn install --immutable
         env:
           YARN_ENABLE_SCRIPTS: false
@@ -130,21 +55,10 @@ jobs:
     needs: release
     if: needs.release.outputs.released == 'true'
     steps:
-      - name: Checkout repo
+      - name: Checkout released commit
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: yarn
-          cache-dependency-path: yarn.lock
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
+          ref: ${{ needs.release.outputs.tag }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -156,70 +70,15 @@ jobs:
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Install distutils compatibility
-        run: pip install setuptools
-
-      - name: Install dependencies without native builds
-        run: yarn install --immutable
-        env:
-          YARN_ENABLE_SCRIPTS: false
-
-      - name: Setup Vite extensions
-        run: yarn setup-vite
-
-      - name: Rebuild native dependencies
-        run: |
-          yarn workspace showrunner-core run rebuild
-          yarn workspace showrunner-plugin-input-native run rebuild
-          yarn workspace showrunner-plugin-sound-native run rebuild
-        env:
-          GYP_MSVS_VERSION: 2022
-
-      - name: Build renderer and packages
-        run: node ./vite-util/multi-vite.mjs build
-        env:
-          VITE_APP_MIXPANEL_PROJECT_TOKEN: ${{ secrets.MIXPANEL_PROJECT_TOKEN }}
-          SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
-          SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
-
-      - name: Build Flutter Windows artifact
+      - name: Build and smoke-test Windows package
         shell: pwsh
         run: .\scripts\package-flutter-windows.ps1 -Version '${{ needs.release.outputs.version }}'
 
-      - name: Smoke Flutter Windows archive
-        shell: pwsh
-        run: .\scripts\smoke-flutter-windows.ps1 -ArchivePath '.\release\ShowRunner-Flutter-windows-${{ needs.release.outputs.version }}.zip'
-
-      - name: Package Windows app
-        run: yarn workspace showrunner run electron:build -- --config.extraMetadata.version=${{ needs.release.outputs.version }} --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: Smoke packaged artifacts
-        run: yarn release:smoke-artifacts
-
-      - name: Upload Windows artifacts
+      - name: Upload Windows package
         shell: pwsh
         run: |
-          $files = Get-ChildItem -Path release -File |
-            Where-Object {
-              $_.Name -eq "latest.yml" -or
-              $_.Name -like "*.exe" -or
-              $_.Name -like "*.exe.blockmap" -or
-              $_.Name -like "*.zip"
-            } |
-            ForEach-Object { $_.FullName }
-          $forbidden = $files | Where-Object { [System.IO.Path]::GetFileName($_) -eq "builder-debug.yml" }
-          if ($forbidden) {
-            throw "builder-debug.yml must not be published as a release asset."
-          }
-          if (-not $files) {
-            throw "No Windows package artifacts found in release/."
-          }
-          gh release upload "${{ needs.release.outputs.tag }}" $files --clobber
+          $archive = Get-Item -LiteralPath ".\release\ShowRunner-Flutter-windows-${{ needs.release.outputs.version }}.zip"
+          gh release upload "${{ needs.release.outputs.tag }}" $archive.FullName --clobber
           gh release edit "${{ needs.release.outputs.tag }}" --draft=false --latest
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}

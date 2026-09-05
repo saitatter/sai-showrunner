@@ -51,7 +51,7 @@ final class SocketMinecraftRconTransport {
 
 /// Keeps one authenticated RCON socket per configured connection.
 ///
-/// RCON servers are long-lived connections in the legacy application. The
+/// RCON servers are long-lived connections in the desktop runtime. The
 /// one-shot transport above remains available for isolated callers, while the
 /// plugin owns this transport so sequential graph actions reuse the session.
 final class PersistentMinecraftRconTransport {

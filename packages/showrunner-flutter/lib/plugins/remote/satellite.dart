@@ -124,7 +124,7 @@ typedef SatelliteSignalingNegotiator =
 typedef SatelliteSignalingSocketFactory =
     Future<CloudPubSubSocket> Function(Uri uri);
 
-/// Raw Azure Web PubSub signaling used by the legacy satellite.
+/// Raw Azure Web PubSub signaling used by remote satellite clients.
 ///
 /// The cloud endpoint already authenticates the connection with the Twitch
 /// token. Only the three satellite signaling events are surfaced to the

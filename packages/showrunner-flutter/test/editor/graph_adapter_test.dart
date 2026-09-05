@@ -662,7 +662,7 @@ void main() {
   );
 
   test(
-    'pastes internal data wires without changing legacy trigger storage',
+    'pastes internal data wires without changing trigger metadata',
     () async {
       final editor = ShowRunnerGraphEditor();
       addTearDown(editor.dispose);
@@ -802,7 +802,7 @@ void main() {
     );
   });
 
-  test('replaces a legacy trigger without migrating its storage', () {
+  test('replaces a trigger while preserving its metadata', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
     editor.loadAutomation(

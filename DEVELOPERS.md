@@ -1,72 +1,94 @@
-# ShowRunner Developer Notes
+# ShowRunner developer notes
 
 ## Setup
 
-ShowRunner is a Yarn 4 monorepo targeting Node.js 20+.
+The desktop application targets Windows and is developed with Flutter stable.
+
+```powershell
+Push-Location packages/showrunner-flutter
+flutter pub get
+flutter analyze
+flutter test
+Pop-Location
+```
+
+Build a release archive with:
+
+```powershell
+.\scripts\package-flutter-windows.ps1 -Version 1.0.0-beta1
+```
+
+Node.js and Yarn are optional and are used only for the OBS browser-overlay
+surface:
 
 ```powershell
 corepack enable
-corepack yarn install
-corepack yarn dev
-```
-
-Useful commands:
-
-```powershell
-corepack yarn test
-corepack yarn check
-corepack yarn overlay:smoke
-corepack yarn build
-corepack yarn release:dry-run
-```
-
-Windows packaging is the only release target at the moment. Use:
-
-```powershell
-$env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
-corepack yarn build
+yarn install
+yarn overlay:test
+yarn overlay:build
 ```
 
 ## Architecture
 
-ShowRunner is an AGPL-3.0 fork of CastMate. Keep upstream license notices intact and prefer small, reviewable changes around existing plugin boundaries.
+- `packages/showrunner-flutter/lib/schema` contains the canonical V2 data model.
+- `packages/showrunner-flutter/lib/editor` contains the graph editor and its
+  schema adapters.
+- `packages/showrunner-flutter/lib/runtime` contains expression evaluation,
+  graph execution, profile runtime, queues, and recovery diagnostics.
+- `packages/showrunner-flutter/lib/plugins` contains the Dart plugin contracts
+  and provider implementations.
+- `packages/showrunner-flutter/lib/persistence` reads and writes YAML/JSON
+  documents without changing their schema.
+- `packages/showrunner-obs-overlay` is the HTML browser-source runtime required
+  by OBS; it is not a desktop renderer.
 
-The automation runtime is graph-only:
+Automations and inline profile graphs must contain:
 
-- persisted automations use `schemaVersion: 2`;
-- stale `sequence` and `floatingSequences` fields are stripped by load-time normalization;
-- `ActionResolvers` provide automation sources and context schemas;
-- `GraphCompiler` compiles `AutomationGraph` + subgraphs + data wires into a flat `Program`;
-- `compileAutomationProgram()` caches compiled programs by graph signature;
-- `GraphVM` executes the program with abort support, queue timeouts, debug hooks, and subgraph calls.
+```yaml
+schemaVersion: 2
+graph:
+  nodes: []
+  edges: []
+  entryNodeId: ""
+subgraphs: []
+dataWires: []
+variableNodes: []
+triggerNodes: []
+```
 
-Queues are runtime schedulers, not a second automation model. Graph nodes enqueue, start, complete, cancel, and clear queue items. The Queues page should stay observability-focused.
+Profile trigger entries contain trigger metadata plus an `automation` object
+using the same V2 document. Invalid documents are reported to the user instead
+of being rewritten.
 
-## Automation UI Guidelines
+## Engineering rules
 
-- New features should target the node graph editor first.
-- Keep legacy sequence concepts out of public schema and new UI.
-- Preserve missing action/trigger nodes visually instead of crashing the editor.
-- Expression editor changes must validate inline and avoid JavaScript `eval()`.
-- Subgraph calls should expose typed ports from subgraph parameters and outputs.
+- Add new behavior to the Flutter/Dart application first.
+- Keep schema parsing strict and explicit; do not add alternate document forms.
+- Keep missing plugin nodes visible in the editor so a document remains
+  inspectable.
+- Keep expression evaluation inside the runtime DSL; do not introduce dynamic
+  code execution.
+- Keep queues as schedulers for graph work, not as a separate automation model.
+- Preserve upstream AGPL notices and use Conventional Commits.
 
-## Release Prep
+## Verification
 
-Semantic release is configured with squash-commit expansion and GitHub draft releases. Before a beta or stable release:
+Before submitting a change to the desktop app:
 
-1. Run `corepack yarn test`.
-2. Run `corepack yarn check`.
-3. Run `corepack yarn overlay:smoke`.
-4. Build Windows assets with `corepack yarn build`.
-5. Run `corepack yarn release:smoke-artifacts`.
-6. Run `corepack yarn release:dry-run`.
+```powershell
+Push-Location packages/showrunner-flutter
+flutter analyze
+flutter test
+flutter build windows --debug
+Pop-Location
+.\scripts\smoke-flutter-windows.ps1 -Configuration Debug
+```
 
-For the parallel Flutter Windows artifact, run
-`corepack yarn flutter:smoke-windows` after `flutter build windows --release`.
-The release workflow also launches the versioned Flutter archive with
-`scripts/smoke-flutter-windows.ps1` using an isolated user directory.
+For release verification, run the packaging script and its archive smoke suite.
+The CI workflow runs the same Flutter checks on Windows.
 
-For `1.0.0-beta`, confirm that [MIGRATION.md](MIGRATION.md) is current and release notes mention the graph-only automation breaking change.
+For overlay changes, also run `yarn overlay:build` and the browser overlay
+protocol tests under `packages/showrunner-obs-overlay`.
 
 ## References
 

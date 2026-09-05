@@ -269,10 +269,10 @@ Future<Object?> _speakTTS(
     voiceConfig['locale'],
     effectiveVoice is Map ? effectiveVoice['locale'] : null,
   ]);
-  final pitch = _legacyPitch(providerConfig['pitch'] ?? config['pitch']);
-  final rate = _legacyRate(providerConfig['rate'] ?? config['rate']);
+  final pitch = _normalizePitch(providerConfig['pitch'] ?? config['pitch']);
+  final rate = _normalizeRate(providerConfig['rate'] ?? config['rate']);
   final volume =
-      _legacyVolume(config['volume']) * (globalVolume.clamp(0, 100) / 100);
+      _normalizeVolume(config['volume']) * (globalVolume.clamp(0, 100) / 100);
   final request = TtsSpeechRequest(
     text: text,
     voiceProvider: voiceProvider,
@@ -303,7 +303,7 @@ String? _firstText(Iterable<Object?> values) {
   return null;
 }
 
-double _legacyVolume(Object? value) =>
+double _normalizeVolume(Object? value) =>
     ((value is num ? value.toDouble() : double.tryParse('$value') ?? 100) / 100)
         .clamp(0, 1)
         .toDouble();
@@ -313,12 +313,12 @@ double _applyGlobalVolume(double volume, double globalVolume) =>
         .clamp(0, 100)
         .toDouble();
 
-double _legacyRate(Object? value) {
+double _normalizeRate(Object? value) {
   final rate = value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
   return ((rate.clamp(-10, 10) + 10) / 20).clamp(0, 1).toDouble();
 }
 
-double _legacyPitch(Object? value) {
+double _normalizePitch(Object? value) {
   final pitch = value is num
       ? value.toDouble()
       : double.tryParse('$value') ?? 0;

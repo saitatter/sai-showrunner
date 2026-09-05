@@ -20,11 +20,6 @@ updates:
       time: "08:00"
     open-pull-requests-limit: 10
     groups:
-      electron:
-        patterns:
-          - "electron"
-          - "electron-builder"
-          - "@electron/*"
       vite:
         patterns:
           - "vite"
@@ -44,3 +39,10 @@ updates:
           - "semantic-release"
           - "@semantic-release/*"
           - "conventional-changelog-*"
+
+  - package-ecosystem: pub
+    directory: /packages/showrunner-flutter
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"

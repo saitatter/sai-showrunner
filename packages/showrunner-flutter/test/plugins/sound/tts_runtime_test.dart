@@ -13,7 +13,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
-    'maps legacy TTS resource configuration into a speech request',
+    'maps TTS resource configuration into a speech request',
     () async {
       final service = _RecordingSpeechService();
       final registry = DartPluginRegistry()

@@ -11,8 +11,6 @@ interface PackageJSON {
 export function plugins(folder: string, sublib: string = "renderer"): PluginOption {
 	const folderItems = fs.readdirSync(folder)
 
-	console.log(folderItems)
-
 	const result: PluginOption[] = []
 
 	for (let pluginFolder of folderItems) {

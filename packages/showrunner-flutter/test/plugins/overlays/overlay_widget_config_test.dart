@@ -35,7 +35,7 @@ void main() {
     expect((widget['config'] as Map)['accentColor'], '#9146ff');
   });
 
-  test('keeps the remaining legacy overlay widgets editable', () {
+  test('keeps supported overlay widgets editable', () {
     final bar = findOverlayWidgetDefinition('overlays', 'bar')!;
     final alert = findOverlayWidgetDefinition('overlays', 'alert')!;
     final leaderboard = findOverlayWidgetDefinition('overlays', 'leaderboard')!;

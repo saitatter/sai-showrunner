@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "axios": "*",
-    "showrunner-core": "workspace:^",
     "showrunner-schema": "workspace:^"
   }
 }

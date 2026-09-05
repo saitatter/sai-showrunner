@@ -171,7 +171,7 @@ typedef MediaKitSoundPlayback =
       String? preferredDeviceDescription,
     );
 
-/// Plays the same local media files that the legacy HTML audio player handled.
+/// Plays local media files for the desktop audio output.
 ///
 /// media_kit uses libmpv on Windows, which keeps codec support broad (mp3,
 /// ogg, flac, m4a, wav, etc.) and exposes WASAPI devices instead of relying on
