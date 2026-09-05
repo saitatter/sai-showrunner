@@ -42,7 +42,10 @@ import '../services/update_check_service.dart';
 import '../services/update_install_service.dart';
 
 export 'project_panel.dart'
-    show showRunnerHomeWorkspaceIndex, showRunnerMediaWorkspaceIndex;
+    show
+        showRunnerHomeWorkspaceIndex,
+        showRunnerMediaWorkspaceIndex,
+        showRunnerUpdatesWorkspaceIndex;
 
 class ShowRunnerShell extends StatelessWidget {
   const ShowRunnerShell({
@@ -318,7 +321,8 @@ class ShowRunnerShell extends StatelessWidget {
         resourceId: selectedResourceId,
       ),
       7 => const LogsWorkspace(),
-      8 => AboutWorkspace(
+      8 => const AboutWorkspace(),
+      showRunnerUpdatesWorkspaceIndex => UpdateWorkspace(
         updateService: updateService,
         installService: installService,
         onRestartRequested: onRestartRequested,
@@ -570,6 +574,7 @@ String _workspaceLabel(int index) => switch (index) {
   11 => 'Variables',
   12 => 'Remote',
   showRunnerMediaWorkspaceIndex => 'Media',
+  showRunnerUpdatesWorkspaceIndex => 'Updates',
   _ => 'Workspace',
 };
 
@@ -588,6 +593,7 @@ IconData _workspaceIcon(int index) => switch (index) {
   11 => Icons.data_object,
   12 => Icons.public,
   showRunnerMediaWorkspaceIndex => Icons.perm_media,
+  showRunnerUpdatesWorkspaceIndex => Icons.system_update,
   showRunnerHomeWorkspaceIndex => Icons.dashboard,
   _ => Icons.dashboard,
 };

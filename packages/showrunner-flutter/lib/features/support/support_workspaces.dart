@@ -110,8 +110,72 @@ class _LogsWorkspaceState extends State<LogsWorkspace> {
   }
 }
 
-class AboutWorkspace extends StatefulWidget {
-  const AboutWorkspace({
+class AboutWorkspace extends StatelessWidget {
+  const AboutWorkspace({super.key});
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(24),
+    children: [
+      Text(
+        'About ShowRunner',
+        style: Theme.of(context).textTheme.headlineSmall,
+      ),
+      const SizedBox(height: 8),
+      Text('v$showRunnerFlutterVersion'),
+      const SizedBox(height: 16),
+      _AboutLink(
+        label: 'ShowRunner GitHub',
+        url: Uri.parse('https://github.com/saitatter/sai-showrunner'),
+      ),
+      _AboutLink(
+        label: 'Upstream Project',
+        url: Uri.parse('https://www.github.com/LordTocs/ShowRunner'),
+      ),
+      _AboutLink(
+        label: 'Help Discord',
+        url: Uri.parse('https://discord.gg/txt4DUzYJM'),
+      ),
+      _AboutLink(
+        label: 'License',
+        url: Uri.parse(
+          'https://github.com/saitatter/sai-showrunner/blob/main/LICENSE.md',
+        ),
+      ),
+    ],
+  );
+}
+
+class _AboutLink extends StatelessWidget {
+  const _AboutLink({required this.label, required this.url});
+
+  final String label;
+  final Uri url;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: TextButton(
+      onPressed: () => _openExternalUrl(url),
+      child: Text(label),
+    ),
+  );
+}
+
+Future<void> _openExternalUrl(Uri url) async {
+  if (Platform.isWindows) {
+    await Process.start('cmd.exe', ['/c', 'start', '', url.toString()]);
+  } else if (Platform.isMacOS) {
+    await Process.start('open', [url.toString()]);
+  } else if (Platform.isLinux) {
+    await Process.start('xdg-open', [url.toString()]);
+  } else {
+    throw UnsupportedError('Opening external links is not supported.');
+  }
+}
+
+class UpdateWorkspace extends StatefulWidget {
+  const UpdateWorkspace({
     super.key,
     this.updateService,
     this.artifactService,
@@ -127,10 +191,10 @@ class AboutWorkspace extends StatefulWidget {
   final Directory? downloadDirectory;
 
   @override
-  State<AboutWorkspace> createState() => _AboutWorkspaceState();
+  State<UpdateWorkspace> createState() => _UpdateWorkspaceState();
 }
 
-class _AboutWorkspaceState extends State<AboutWorkspace> {
+class _UpdateWorkspaceState extends State<UpdateWorkspace> {
   UpdateInfo _updateInfo = const UpdateInfo(
     currentVersion: showRunnerFlutterVersion,
     latestVersion: showRunnerFlutterVersion,
@@ -239,10 +303,7 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Text(
-          'About ShowRunner',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
+        Text('Updates', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
         const Text(
           'SAI ShowRunner — Desktop Stream Engine & Automation Runtime',

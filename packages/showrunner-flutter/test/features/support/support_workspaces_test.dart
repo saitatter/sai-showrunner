@@ -6,11 +6,24 @@ import 'package:showrunner_flutter/features/support/support_workspaces.dart';
 import 'package:showrunner_flutter/services/update_check_service.dart';
 
 void main() {
+  testWidgets('renders the standalone about surface', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: AboutWorkspace())),
+    );
+
+    expect(find.text('About ShowRunner'), findsOneWidget);
+    expect(find.text('v1.0.0-beta1'), findsOneWidget);
+    expect(find.text('ShowRunner GitHub'), findsOneWidget);
+    expect(find.text('Upstream Project'), findsOneWidget);
+    expect(find.text('Help Discord'), findsOneWidget);
+    expect(find.text('License'), findsOneWidget);
+  });
+
   testWidgets('renders fetched release details and notes', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: AboutWorkspace(
+          body: UpdateWorkspace(
             updateService: UpdateCheckService(
               currentVersion: '1.0.0',
               fetcher: () async => {
@@ -45,7 +58,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: AboutWorkspace(
+          body: UpdateWorkspace(
             updateService: UpdateCheckService(
               currentVersion: '1.0.0',
               fetcher: () async => throw const SocketException('offline'),

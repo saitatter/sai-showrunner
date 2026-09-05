@@ -576,6 +576,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
 
 const showRunnerHomeWorkspaceIndex = 13;
 const showRunnerMediaWorkspaceIndex = 14;
+const showRunnerUpdatesWorkspaceIndex = 15;
 
 class _CatalogEntries extends StatelessWidget {
   const _CatalogEntries({

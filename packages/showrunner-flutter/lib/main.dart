@@ -464,7 +464,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         id: 'help.updates',
         label: 'Updates',
         icon: Icons.system_update_alt,
-        execute: (_) => _openDestination(8),
+        execute: (_) => _openDestination(showRunnerUpdatesWorkspaceIndex),
       ),
       AppCommand(
         id: 'help.discord',
@@ -693,7 +693,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
                 .map((value) => value.toInt())
                 .where(
                   (value) =>
-                      value >= 0 && value <= showRunnerMediaWorkspaceIndex,
+                      value >= 0 && value <= showRunnerUpdatesWorkspaceIndex,
                 )
                 .toSet()
                 .toList()
