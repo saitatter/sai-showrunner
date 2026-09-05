@@ -40,7 +40,11 @@ import 'features/resources/resource_options.dart';
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  await configureShowRunnerWindow();
+  final portable = args.contains('--portable');
+  final userDirectory = showRunnerUserDirectory(portable: portable);
+  await configureShowRunnerWindow(
+    stateFile: File('${userDirectory.path}/state/window.json'),
+  );
   final smokeArgument = args.cast<String?>().firstWhere(
     (argument) => argument?.startsWith('--showrunner-smoke=') == true,
     orElse: () => null,
@@ -48,7 +52,8 @@ Future<void> main(List<String> args) async {
   runApp(
     ShowRunnerFlutterApp(
       smokeScenario: smokeArgument?.split('=').last,
-      portable: args.contains('--portable'),
+      portable: portable,
+      userDirectory: userDirectory,
     ),
   );
 }
@@ -58,10 +63,12 @@ class ShowRunnerFlutterApp extends StatelessWidget {
     super.key,
     this.smokeScenario,
     this.portable = false,
+    this.userDirectory,
   });
 
   final String? smokeScenario;
   final bool portable;
+  final Directory? userDirectory;
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +79,7 @@ class ShowRunnerFlutterApp extends StatelessWidget {
       builder: showRunnerAppFrame,
       home: ShowRunnerPage(
         dataService: ShowRunnerDataService(
-          showRunnerUserDirectory(portable: portable),
+          userDirectory ?? showRunnerUserDirectory(portable: portable),
         ),
         updateService: const UpdateCheckService(
           currentVersion: showRunnerFlutterVersion,
@@ -337,6 +344,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
 
   bool _isWindowCloseInProgress = false;
 
+  File get _windowStateFile =>
+      File('${widget.dataService.userDirectory.path}/state/window.json');
+
   @override
   void onWindowClose() {
     unawaited(_handleWindowClose());
@@ -347,6 +357,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _isWindowCloseInProgress = true;
     try {
       if (!await _confirmAutomationClose()) return;
+      await saveShowRunnerWindowState(_windowStateFile);
       await windowManager.setPreventClose(false);
       await windowManager.destroy();
     } finally {
