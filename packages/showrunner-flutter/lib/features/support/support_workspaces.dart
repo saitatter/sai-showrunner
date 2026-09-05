@@ -6,6 +6,7 @@ import '../../schema/update.dart';
 import '../../services/structured_logger.dart';
 import '../../services/update_artifact_service.dart';
 import '../../services/update_check_service.dart';
+import '../../services/update_install_service.dart';
 
 class LogsWorkspace extends StatefulWidget {
   const LogsWorkspace({super.key});
@@ -114,11 +115,15 @@ class AboutWorkspace extends StatefulWidget {
     super.key,
     this.updateService,
     this.artifactService,
+    this.installService,
+    this.onRestartRequested,
     this.downloadDirectory,
   });
 
   final UpdateCheckService? updateService;
   final UpdateArtifactService? artifactService;
+  final UpdateInstallService? installService;
+  final Future<void> Function()? onRestartRequested;
   final Directory? downloadDirectory;
 
   @override
@@ -133,6 +138,7 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
   );
   bool _checking = false;
   bool _downloading = false;
+  bool _installing = false;
   File? _downloadedArtifact;
   Object? _downloadError;
 
@@ -193,6 +199,32 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
       if (mounted) setState(() => _downloadError = error);
     } finally {
       if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  Future<void> _installDownloadedArtifact() async {
+    final artifact = _downloadedArtifact;
+    if (artifact == null || _installing || !Platform.isWindows) return;
+    setState(() {
+      _installing = true;
+      _downloadError = null;
+    });
+    try {
+      final executable = File(Platform.resolvedExecutable);
+      await (widget.installService ?? const UpdateInstallService()).install(
+        artifact,
+        executable: executable,
+        installDirectory: executable.parent,
+      );
+      if (!mounted) return;
+      await widget.onRestartRequested?.call();
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _installing = false;
+          _downloadError = error;
+        });
+      }
     }
   }
 
@@ -305,6 +337,31 @@ class _AboutWorkspaceState extends State<AboutWorkspace> {
                     'Downloaded to ${_downloadedArtifact!.path}',
                     style: const TextStyle(color: Colors.lightGreenAccent),
                   ),
+                  if (Platform.isWindows) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: _installing
+                            ? null
+                            : _installDownloadedArtifact,
+                        icon: _installing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.restart_alt),
+                        label: Text(
+                          _installing
+                              ? 'Preparing restart...'
+                              : 'Install and Restart',
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
                 if (_downloadError != null) ...[
                   const SizedBox(height: 8),

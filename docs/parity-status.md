@@ -47,10 +47,12 @@ before it can be considered visually equivalent.
 
 The release workflow currently produces and smoke-tests a Windows ZIP archive.
 The application can query GitHub releases, detect the matching Windows ZIP, and
-open its download URL while reporting available, current, and offline states.
-There is no installer replacement, in-app installation, or rollback transaction
-in the current release path. Those operations must not be described as
-validated until they have an actual Windows implementation and a packaged test.
+open its download URL while reporting available, current, offline, and
+downloaded states. A Windows-only installer helper stages a downloaded ZIP,
+waits for the current process to close, replaces the bundle, and starts the new
+executable. It is unit-tested with an injected launcher; a signed production
+installation/rollback test still requires the installed Windows release
+environment and is not claimed by the package smoke suite.
 
 The automated smoke suite validates startup, first run, graph/workflow use,
 profiles, integrations, overlays, and update-state handling. It does not prove

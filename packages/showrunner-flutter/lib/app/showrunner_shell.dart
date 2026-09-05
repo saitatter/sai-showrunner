@@ -31,6 +31,7 @@ import '../schema/automation.dart';
 import '../runtime/profile_runtime.dart';
 import '../services/showrunner_data_service.dart';
 import '../services/update_check_service.dart';
+import '../services/update_install_service.dart';
 
 class ShowRunnerShell extends StatelessWidget {
   const ShowRunnerShell({
@@ -61,6 +62,8 @@ class ShowRunnerShell extends StatelessWidget {
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
+    this.installService,
+    this.onRestartRequested,
   });
 
   final ShowRunnerDataService dataService;
@@ -91,6 +94,8 @@ class ShowRunnerShell extends StatelessWidget {
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
+  final UpdateInstallService? installService;
+  final Future<void> Function()? onRestartRequested;
 
   @override
   Widget build(BuildContext context) {
@@ -362,6 +367,8 @@ class ShowRunnerShell extends StatelessWidget {
       7 => const LogsWorkspace(),
       8 => AboutWorkspace(
         updateService: updateService,
+        installService: installService,
+        onRestartRequested: onRestartRequested,
         downloadDirectory: Directory(
           '${dataService.userDirectory.path}/updates',
         ),

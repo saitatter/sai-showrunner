@@ -390,6 +390,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     }
   }
 
+  Future<void> _handleUpdateRestart() => _handleWindowClose();
+
   @override
   Widget build(BuildContext context) {
     return ShowRunnerShell(
@@ -404,6 +406,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       interfacePreferences: _interfacePreferences,
       commands: _commandRegistry,
       updateService: widget.updateService,
+      onRestartRequested: _handleUpdateRestart,
       selectedIndex: _selectedIndex,
       openTabIndices: _openTabIndices,
       selectedPluginId: _selectedPluginId,
