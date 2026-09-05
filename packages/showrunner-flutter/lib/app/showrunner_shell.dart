@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/startup_health.dart';
+import '../design_system/controls/controls.dart';
 import '../editor/showrunner_graph_editor.dart';
 import '../features/automation/automation_catalog_workspace.dart';
 import '../features/diagnostics/diagnostics_workspace.dart';
@@ -102,17 +103,17 @@ class ShowRunnerShell extends StatelessWidget {
       appBar: AppBar(
         title: const Text('ShowRunner'),
         actions: [
-          IconButton(
+          SrIconButton(
             tooltip: 'Frame selected nodes',
             onPressed: () => _frameSelected(context),
             icon: const Icon(Icons.crop_free),
           ),
-          IconButton(
+          SrIconButton(
             tooltip: 'Copy selected nodes',
             onPressed: () => graphEditor.copySelection(context: context),
             icon: const Icon(Icons.copy),
           ),
-          IconButton(
+          SrIconButton(
             tooltip: 'Paste nodes',
             onPressed: () => graphEditor.pasteSelection(context: context),
             icon: const Icon(Icons.content_paste),
@@ -466,7 +467,7 @@ class _WorkspaceTab extends StatelessWidget {
               const SizedBox(width: 8),
               Text('${_workspaceLabel(index)}${dirty ? ' •' : ''}'),
               if (canClose)
-                IconButton(
+                SrIconButton(
                   tooltip: 'Close ${_workspaceLabel(index)} tab',
                   icon: const Icon(Icons.close, size: 16),
                   visualDensity: VisualDensity.compact,
