@@ -81,6 +81,9 @@ DartPluginRegistry createDefaultPluginRegistry({
       eventHub: eventHub,
     ),
   );
+  _registerTwitchStreamPlanComponent(
+    transport: TwitchTransport(_unconfiguredTwitch),
+  );
   registry.register(createDiscordPlugin());
   registry.register(
     createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
@@ -197,16 +200,23 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       eventHub: eventHub,
     ),
   );
+  final configuredTwitchTransport = TwitchTransport((
+    method,
+    path,
+    query,
+    body,
+  ) async {
+    if (twitchTransport == null) {
+      return _unconfiguredTwitch(method, path, query, body);
+    }
+    return twitchTransport.request(method, path, query, body);
+  });
   registry.register(
-    createTwitchPlugin(
-      TwitchTransport((method, path, query, body) async {
-        if (twitchTransport == null) {
-          return _unconfiguredTwitch(method, path, query, body);
-        }
-        return twitchTransport.request(method, path, query, body);
-      }),
-      eventHub: eventHub,
-    ),
+    createTwitchPlugin(configuredTwitchTransport, eventHub: eventHub),
+  );
+  _registerTwitchStreamPlanComponent(
+    transport: configuredTwitchTransport,
+    broadcasterId: twitch['broadcasterId']?.toString(),
   );
   final moderationService = ModerationService(dataService: dataService);
   registry.register(createModerationPlugin(moderationService));
@@ -656,6 +666,35 @@ bool _iotState(Object? value) {
 int _positiveDeviceInt(Object? value, int fallback) {
   final number = value is num ? value.toInt() : int.tryParse('$value');
   return number != null && number > 0 ? number : fallback;
+}
+
+void _registerTwitchStreamPlanComponent({
+  required TwitchTransport transport,
+  String? broadcasterId,
+}) {
+  streamPlanRuntime.registerComponentType(
+    DartStreamPlanComponent(
+      id: 'twitch-stream-info',
+      onActivate: (segmentId, rawConfig) async {
+        final config = rawConfig is Map
+            ? Map<String, dynamic>.from(rawConfig)
+            : const <String, dynamic>{};
+        final category = config['categoryId'] ?? config['category'];
+        final categoryId = category is Map ? category['id'] : category;
+        final tags = config['tags'] is List ? config['tags'] : null;
+        final body = <String, dynamic>{
+          'title': ?config['title'],
+          'game_id': ?categoryId,
+          'tags': ?tags,
+        };
+        if (body.isEmpty) return;
+        await transport.request('PATCH', '/helix/channels', {
+          'broadcaster_id':
+              config['broadcasterId']?.toString() ?? broadcasterId ?? '',
+        }, body);
+      },
+    ),
+  );
 }
 
 OAuthTokenManager? _createTokenManager({
