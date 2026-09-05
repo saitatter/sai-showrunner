@@ -68,6 +68,20 @@ final class WorkspaceDocumentManager {
     return true;
   }
 
+  /// Reorders an open document by its final tab position.
+  bool reorder(int oldPosition, int newPosition) {
+    if (oldPosition < 0 || oldPosition >= _openWorkspaceIndices.length) {
+      return false;
+    }
+    if (newPosition < 0 || newPosition >= _openWorkspaceIndices.length) {
+      return false;
+    }
+    if (oldPosition == newPosition) return false;
+    final document = _openWorkspaceIndices.removeAt(oldPosition);
+    _openWorkspaceIndices.insert(newPosition, document);
+    return true;
+  }
+
   Map<String, dynamic> toSettings() => {
     'openWorkspaceTabs': openWorkspaceIndices,
     'selectedWorkspace': selectedWorkspaceIndex,

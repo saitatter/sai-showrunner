@@ -36,6 +36,19 @@ void main() {
     expect(manager.closeOthers(), isFalse);
   });
 
+  test('reorders workspaces while preserving the active selection', () {
+    final manager = WorkspaceDocumentManager(initial: [0, 4, 8]);
+    manager.select(8);
+
+    expect(manager.reorder(2, 0), isTrue);
+    expect(manager.openWorkspaceIndices, [8, 0, 4]);
+    expect(manager.selectedWorkspaceIndex, 8);
+    expect(manager.reorder(0, 2), isTrue);
+    expect(manager.openWorkspaceIndices, [0, 4, 8]);
+    expect(manager.reorder(-1, 0), isFalse);
+    expect(manager.reorder(0, 8), isFalse);
+  });
+
   test('restores a valid selection and falls back to the first workspace', () {
     final manager = WorkspaceDocumentManager();
 

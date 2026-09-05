@@ -445,6 +445,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onDestinationSelected: _openDestination,
       onTabSelected: _selectTab,
       onTabClosed: _closeTab,
+      onTabReordered: _reorderTab,
       onPluginSelected: (pluginId) =>
           setState(() => _selectedPluginId = pluginId),
       onRunNode: _activeAutomation == null ? null : _runNode,
@@ -465,6 +466,12 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
 
   void _selectTab(int index) {
     if (!_workspaceDocuments.select(index)) return;
+    setState(() {});
+    unawaited(_persistNavigation());
+  }
+
+  void _reorderTab(int oldPosition, int newPosition) {
+    if (!_workspaceDocuments.reorder(oldPosition, newPosition)) return;
     setState(() {});
     unawaited(_persistNavigation());
   }

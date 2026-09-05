@@ -60,6 +60,7 @@ class ShowRunnerShell extends StatelessWidget {
     this.openTabIndices = const [0],
     this.onTabSelected,
     this.onTabClosed,
+    this.onTabReordered,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -92,6 +93,7 @@ class ShowRunnerShell extends StatelessWidget {
   final List<int> openTabIndices;
   final ValueChanged<int>? onTabSelected;
   final FutureOr<void> Function(int)? onTabClosed;
+  final void Function(int oldPosition, int newPosition)? onTabReordered;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -287,6 +289,7 @@ class ShowRunnerShell extends StatelessWidget {
                   hasActiveAutomation: activeAutomationFile != null,
                   onSelected: onTabSelected ?? (_) {},
                   onClosed: onTabClosed ?? (_) {},
+                  onReordered: onTabReordered ?? (_, _) {},
                 ),
                 Expanded(
                   child: IndexedStack(
@@ -505,6 +508,7 @@ class _WorkspaceTabBar extends StatelessWidget {
     required this.hasActiveAutomation,
     required this.onSelected,
     required this.onClosed,
+    required this.onReordered,
   });
 
   final List<int> tabs;
@@ -513,6 +517,7 @@ class _WorkspaceTabBar extends StatelessWidget {
   final bool hasActiveAutomation;
   final ValueChanged<int> onSelected;
   final FutureOr<void> Function(int) onClosed;
+  final void Function(int oldPosition, int newPosition) onReordered;
 
   @override
   Widget build(BuildContext context) {
@@ -520,22 +525,29 @@ class _WorkspaceTabBar extends StatelessWidget {
       color: Theme.of(context).colorScheme.surfaceContainer,
       child: SizedBox(
         height: 48,
-        child: SingleChildScrollView(
+        child: ReorderableListView.builder(
           scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final tab in tabs)
-                _WorkspaceTab(
-                  index: tab,
-                  selected: tab == selectedIndex,
-                  dirty:
-                      tab == 0 && hasActiveAutomation && activeAutomationDirty,
-                  canClose: tabs.length > 1,
-                  onSelected: onSelected,
-                  onClosed: onClosed,
-                ),
-            ],
-          ),
+          shrinkWrap: true,
+          primary: false,
+          buildDefaultDragHandles: false,
+          padding: EdgeInsets.zero,
+          itemCount: tabs.length,
+          onReorderItem: onReordered,
+          itemBuilder: (context, position) {
+            final tab = tabs[position];
+            return ReorderableDragStartListener(
+              key: ValueKey('workspace-tab-$tab'),
+              index: position,
+              child: _WorkspaceTab(
+                index: tab,
+                selected: tab == selectedIndex,
+                dirty: tab == 0 && hasActiveAutomation && activeAutomationDirty,
+                canClose: tabs.length > 1,
+                onSelected: onSelected,
+                onClosed: onClosed,
+              ),
+            );
+          },
         ),
       ),
     );
