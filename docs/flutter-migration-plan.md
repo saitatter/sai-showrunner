@@ -556,6 +556,8 @@ The Flutter plugin workspace now follows the original application's separation m
 - [x] Add packaged Windows startup and clean-shutdown smoke for the Flutter archive.
 - [x] Add packaged Windows smoke tests for first-run setup and Dart data migration workflows.
 - [ ] Add packaged Windows smoke tests for install and update workflows.
+- [x] Preserve Electron-compatible dev, portable, and packaged Release data
+	locations, with an explicit `SHOWRUNNER_USER_DIR` override for smoke/tests.
 - [ ] Make Flutter the default renderer only after the beta checklist passes.
 - [ ] Keep a rollback switch for at least one release cycle.
 - [ ] Remove remaining unused Vue renderer routes and temporary compatibility code in separate, validated cleanup batches.

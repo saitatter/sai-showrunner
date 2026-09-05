@@ -6,6 +6,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/app_foundations.dart';
+import 'app/data_directory.dart';
 import 'app/startup_health.dart';
 import 'app/showrunner_shell.dart';
 import 'app/window_configuration.dart';
@@ -38,13 +39,23 @@ Future<void> main(List<String> args) async {
     (argument) => argument?.startsWith('--showrunner-smoke=') == true,
     orElse: () => null,
   );
-  runApp(ShowRunnerFlutterApp(smokeScenario: smokeArgument?.split('=').last));
+  runApp(
+    ShowRunnerFlutterApp(
+      smokeScenario: smokeArgument?.split('=').last,
+      portable: args.contains('--portable'),
+    ),
+  );
 }
 
 class ShowRunnerFlutterApp extends StatelessWidget {
-  const ShowRunnerFlutterApp({super.key, this.smokeScenario});
+  const ShowRunnerFlutterApp({
+    super.key,
+    this.smokeScenario,
+    this.portable = false,
+  });
 
   final String? smokeScenario;
+  final bool portable;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +65,9 @@ class ShowRunnerFlutterApp extends StatelessWidget {
       theme: buildShowRunnerTheme(),
       builder: showRunnerAppFrame,
       home: ShowRunnerPage(
-        dataService: ShowRunnerDataService(_showRunnerUserDirectory()),
+        dataService: ShowRunnerDataService(
+          showRunnerUserDirectory(portable: portable),
+        ),
         updateService: const UpdateCheckService(
           currentVersion: showRunnerFlutterVersion,
         ),
@@ -62,13 +75,6 @@ class ShowRunnerFlutterApp extends StatelessWidget {
       ),
     );
   }
-}
-
-Directory _showRunnerUserDirectory() {
-  final configured = Platform.environment['SHOWRUNNER_USER_DIR']?.trim();
-  return configured?.isNotEmpty == true
-      ? Directory(configured!)
-      : Directory('../../user');
 }
 
 Future<List<String>> _resourceOptions(

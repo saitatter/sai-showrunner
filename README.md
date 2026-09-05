@@ -125,6 +125,9 @@ The startup smoke can also launch that archive directly with
 temporary `SHOWRUNNER_USER_DIR` so local data is not modified.
 The packaged first-run and legacy automation migration scenarios can be run
 with `-Scenario first-run` and `-Scenario data-migration` respectively.
+Packaged Release builds store data under `%APPDATA%\ShowRunner\user`; use
+`--portable` to store it beside the executable or set `SHOWRUNNER_USER_DIR` to
+an explicit location.
 Windows Release/archive builds also require `nuget.exe` on `PATH`; the
 `flutter_tts` Windows plugin uses it to resolve `Microsoft.Windows.CppWinRT`
 during CMake generation.

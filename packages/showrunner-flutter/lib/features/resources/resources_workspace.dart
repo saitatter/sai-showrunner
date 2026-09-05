@@ -331,7 +331,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     final activeSegment = isActive ? runtime.activeSegmentId : null;
     return Text(
       isActive
-          ? 'Active${activeSegment == null ? '' : ' Â· Segment $activeSegment'} Â· ${plan.segments.length} segments'
+          ? 'Active${activeSegment == null ? '' : ' · Segment $activeSegment'} · ${plan.segments.length} segments'
           : '${plan.segments.length} segments',
     );
   }
