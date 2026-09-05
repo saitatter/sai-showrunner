@@ -1,5 +1,5 @@
 # Local runtime data and scratch files
-user*/
+/user/
 .tmp/
 /release/
 

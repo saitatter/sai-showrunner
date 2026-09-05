@@ -124,7 +124,7 @@ const _sceneSchema = DartDataInputSchema(
       kind: DartDataInputKind.text,
     ),
     DartDataInputSchema(
-      label: 'Scene (legacy config key)',
+      label: 'Scene alias',
       key: 'scene',
       kind: DartDataInputKind.text,
     ),

@@ -23,4 +23,4 @@ inside their process.
 ## Rejected alternative
 
 Removing remote support would break dashboard and remote-resource workflows,
-so it is not a valid cleanup operation for this migration.
+so it is not a valid cleanup operation for the Flutter cutover.
