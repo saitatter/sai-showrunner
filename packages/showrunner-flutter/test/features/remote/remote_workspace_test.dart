@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -50,4 +51,54 @@ void main() {
 
     expect(service.listAvailable, throwsStateError);
   });
+
+  test(
+    'fetches and filters remote dashboards through the configured API',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'showrunner-remote-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      final requests = <HttpRequest>[];
+      final subscription = server.listen((request) async {
+        requests.add(request);
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode([
+            {
+              'ownerId': 'owner-1',
+              'dashboardId': 'dashboard-1',
+              'dashboardName': 'Studio controls',
+            },
+            {'ownerId': 'missing-dashboard-id'},
+          ]),
+        );
+        await request.response.close();
+      });
+      addTearDown(subscription.cancel);
+
+      final dataService = ShowRunnerDataService(directory);
+      await dataService.savePluginSettings('twitch', {
+        'accessToken': 'twitch-token',
+      });
+      await dataService.savePluginSettings('remote', {
+        'apiBase': 'http://127.0.0.1:${server.port}',
+      });
+
+      final dashboards = await RemoteDashboardService(
+        dataService: dataService,
+      ).listAvailable();
+
+      expect(dashboards.map((dashboard) => dashboard.dashboardId), [
+        'dashboard-1',
+      ]);
+      expect(
+        requests.single.headers.value(HttpHeaders.authorizationHeader),
+        'Bearer twitch-token',
+      );
+      expect(requests.single.uri.path, '/api/dashboard-access/remote');
+    },
+  );
 }
