@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../components/data_inputs/data_input.dart';
 import '../../editor/showrunner_graph_editor.dart';
+import '../graph/graph_workspace.dart';
 import '../../persistence/profile_repository.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
@@ -460,11 +461,17 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                       _InlineAutomationPanel(
                         label: 'On Activate',
                         editor: _activationEditor,
+                        registryFuture:
+                            widget.registryFuture ??
+                            Future.value(DartPluginRegistry()),
                       ),
                       const SizedBox(height: 12),
                       _InlineAutomationPanel(
                         label: 'On Deactivate',
                         editor: _deactivationEditor,
+                        registryFuture:
+                            widget.registryFuture ??
+                            Future.value(DartPluginRegistry()),
                       ),
                       const SizedBox(height: 24),
                       Row(
@@ -829,10 +836,15 @@ Future<DartDataInputSchema> _hydrateResourceInputSchema(
 }
 
 class _InlineAutomationPanel extends StatelessWidget {
-  const _InlineAutomationPanel({required this.label, required this.editor});
+  const _InlineAutomationPanel({
+    required this.label,
+    required this.editor,
+    required this.registryFuture,
+  });
 
   final String label;
   final ShowRunnerGraphEditor editor;
+  final Future<DartPluginRegistry> registryFuture;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -850,7 +862,20 @@ class _InlineAutomationPanel extends StatelessWidget {
               controller: editor.controller,
               expandToParent: true,
               headerBuilder: (context, node, style, onToggleCollapse) =>
-                  _inlineNodeHeader(context, node, style, onToggleCollapse),
+                  _inlineNodeHeader(
+                    context,
+                    node,
+                    style,
+                    onToggleCollapse,
+                    onEdit: () => unawaited(
+                      editShowRunnerGraphNodeConfiguration(
+                        context,
+                        editor,
+                        node.id,
+                        registryFuture: registryFuture,
+                      ),
+                    ),
+                  ),
               fieldBuilder: (context, field, style) => Padding(
                 padding: const EdgeInsets.all(6),
                 child: Text(field.prototype.displayName(context)),
@@ -868,8 +893,9 @@ Widget _inlineNodeHeader(
   BuildContext context,
   NodeDataModel node,
   NodeStyle style,
-  VoidCallback onToggleCollapse,
-) => Container(
+  VoidCallback onToggleCollapse, {
+  required VoidCallback onEdit,
+}) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
   decoration: BoxDecoration(
     color: const Color(0xff17313a),
@@ -882,6 +908,13 @@ Widget _inlineNodeHeader(
           node.prototype.displayName(context),
           overflow: TextOverflow.ellipsis,
         ),
+      ),
+      IconButton(
+        tooltip: 'Edit configuration',
+        onPressed: onEdit,
+        icon: const Icon(Icons.tune, size: 18),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 24, height: 24),
       ),
       IconButton(
         tooltip: node.state.isCollapsed ? 'Expand node' : 'Collapse node',

@@ -3408,6 +3408,22 @@ Widget _panel(String title, String details, {Widget? action}) => DecoratedBox(
 
 // Configuration stays outside sai_nodes because schemas, defaults, and
 // persisted plugin payloads belong to ShowRunner's domain contract.
+Future<void> editShowRunnerGraphNodeConfiguration(
+  BuildContext context,
+  ShowRunnerGraphEditor editor,
+  String editorNodeId, {
+  required Future<DartPluginRegistry> registryFuture,
+}) async {
+  final node = editor.controller.nodes[editorNodeId];
+  if (node == null) return;
+  await _editNodeConfiguration(
+    context,
+    editor,
+    node,
+    registryFuture: registryFuture,
+  );
+}
+
 Future<void> _editNodeConfiguration(
   BuildContext context,
   ShowRunnerGraphEditor editor,
