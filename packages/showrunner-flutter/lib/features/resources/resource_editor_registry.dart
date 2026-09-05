@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../editor/showrunner_graph_editor.dart';
 import '../graph/graph_workspace.dart';
 import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/contracts/identifiers.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
 import '../../schema/stream_plan.dart';
@@ -143,10 +144,12 @@ final class DartResourceEditorDefinition {
   final JsonMap Function(String name) defaultConfig;
   final DartResourceEditorBuilder builder;
   final DartResourceEditorRuntimeBuilder? runtimeBuilder;
+
+  ResourceTypeId get key => ResourceTypeId(resourceType);
 }
 
 final class DartResourceEditorRegistry {
-  final _editors = <String, DartResourceEditorDefinition>{};
+  final _editors = <ResourceTypeId, DartResourceEditorDefinition>{};
 
   void register(DartResourceEditorDefinition definition) {
     if (definition.pluginId.isEmpty) {
@@ -158,11 +161,16 @@ final class DartResourceEditorRegistry {
         'definition.resourceType',
       );
     }
-    _editors[definition.resourceType] = definition;
+    if (_editors.containsKey(definition.key)) {
+      throw ArgumentError(
+        'Resource editor is registered more than once: ${definition.resourceType}',
+      );
+    }
+    _editors[definition.key] = definition;
   }
 
   DartResourceEditorDefinition? find(String resourceType) =>
-      _editors[resourceType];
+      _editors[ResourceTypeId(resourceType)];
 
   Iterable<DartResourceEditorDefinition> get definitions =>
       List.unmodifiable(_editors.values);

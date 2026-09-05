@@ -5,11 +5,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/resources/media_picker.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
+import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
 
 void main() {
+  test('uses typed resource keys and rejects duplicate editors', () {
+    final registry = DartResourceEditorRegistry();
+    final definition = DartResourceEditorDefinition(
+      pluginId: 'sample',
+      resourceType: 'Sample',
+      displayName: 'Sample',
+      storageDirectory: 'samples',
+      defaultConfig: (name) => {'name': name},
+      builder: (context, resource, onSave) => const SizedBox.shrink(),
+    );
+
+    expect(definition.key, const ResourceTypeId('Sample'));
+    registry.register(definition);
+    expect(registry.find('Sample'), same(definition));
+    expect(() => registry.register(definition), throwsArgumentError);
+  });
+
   test('resolves plugin resource editor types', () {
     final registry = createDefaultResourceEditorRegistry();
 
