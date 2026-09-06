@@ -1,53 +1,34 @@
 import 'dart:io';
 
-enum MediaKind { image, audio, video }
+import '../media/domain/media_file.dart';
+import '../media/scanner/media_file_enumerator.dart';
+import '../media/scanner/media_library_service.dart';
 
-final class MediaFileEntry {
-  const MediaFileEntry({
-    required this.file,
-    required this.relativePath,
-    required this.extension,
-    required this.kind,
-  });
-
-  final File file;
-  final String relativePath;
-  final String extension;
-  final MediaKind kind;
-}
+export '../media/domain/media_file.dart'
+    show
+        MediaFileEntry,
+        MediaKind,
+        MediaMetadata,
+        MediaScanMode,
+        MediaScanResult,
+        MediaScanStats;
 
 final class MediaCatalogService {
-  MediaCatalogService(this.userDirectory);
+  MediaCatalogService(this.userDirectory, {MediaMetadataReader? metadataReader})
+    : _library = MediaLibraryService(
+        userDirectory,
+        metadataReader: metadataReader,
+      );
 
   final Directory userDirectory;
+  final MediaLibraryService _library;
 
   Directory get mediaDirectory => Directory('${userDirectory.path}/media');
 
-  Future<List<MediaFileEntry>> discover() async {
-    if (!await mediaDirectory.exists()) return const <MediaFileEntry>[];
+  Future<List<MediaFileEntry>> discover() async => (await scan()).entries;
 
-    final entries = <MediaFileEntry>[];
-    await for (final entity in mediaDirectory.list(recursive: true)) {
-      if (entity is! File) continue;
-      final extension = _extension(entity.path);
-      final kind = _kindFor(extension);
-      if (kind == null) continue;
-      entries.add(
-        MediaFileEntry(
-          file: entity,
-          relativePath: _relativePath(entity),
-          extension: extension,
-          kind: kind,
-        ),
-      );
-    }
-    entries.sort(
-      (left, right) => left.relativePath.toLowerCase().compareTo(
-        right.relativePath.toLowerCase(),
-      ),
-    );
-    return entries;
-  }
+  Future<MediaScanResult> scan({MediaScanMode mode = MediaScanMode.quick}) =>
+      _library.scan(mode: mode);
 
   Future<void> openMediaFolder() async {
     await mediaDirectory.create(recursive: true);
@@ -78,7 +59,7 @@ final class MediaCatalogService {
     var imported = 0;
     for (final source in sources) {
       if (!await source.exists()) continue;
-      if (_kindFor(_extension(source.path)) == null) continue;
+      if (mediaKindForExtension(_extension(source.path)) == null) continue;
       final name = source.uri.pathSegments.last;
       if (name.isEmpty) continue;
       final destination = File('${mediaDirectory.path}/$name');
@@ -90,34 +71,13 @@ final class MediaCatalogService {
     }
     return imported;
   }
-
-  String _relativePath(File file) {
-    final root = mediaDirectory.path.endsWith(Platform.pathSeparator)
-        ? mediaDirectory.path
-        : '${mediaDirectory.path}${Platform.pathSeparator}';
-    final relative = file.path.startsWith(root)
-        ? file.path.substring(root.length)
-        : file.uri.pathSegments.last;
-    return relative.replaceAll('\\', '/');
-  }
 }
 
 bool _sameFile(File left, File right) =>
-    left.absolute.path.toLowerCase() == right.absolute.path.toLowerCase();
+    mediaPathKey(left.absolute.path) == mediaPathKey(right.absolute.path);
 
 String _extension(String path) {
   final name = path.split(Platform.pathSeparator).last;
   final dot = name.lastIndexOf('.');
   return dot < 0 ? '' : name.substring(dot + 1).toLowerCase();
 }
-
-MediaKind? _kindFor(String extension) {
-  if (_imageExtensions.contains(extension)) return MediaKind.image;
-  if (_audioExtensions.contains(extension)) return MediaKind.audio;
-  if (_videoExtensions.contains(extension)) return MediaKind.video;
-  return null;
-}
-
-const _imageExtensions = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'};
-const _audioExtensions = {'mp3', 'wav', 'ogg', 'flac', 'm4a'};
-const _videoExtensions = {'mp4', 'webm', 'mov', 'mkv', 'avi'};

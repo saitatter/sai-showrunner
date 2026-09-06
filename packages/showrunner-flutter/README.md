@@ -21,7 +21,8 @@ flows.
 
 This package contains the Flutter shell, V2 graph editor, automation and profile
 catalogs, queue and diagnostics workspaces, resource editors, provider workers,
-and Dart plugin contracts. OBS overlays remain browser-based because OBS
+and Dart plugin contracts. The media workspace uses a persistent SQLite index
+with Quick and Full scan modes. OBS overlays remain browser-based because OBS
 consumes them as browser sources.
 
 All persisted automation documents use `schemaVersion: 2`. The loader rejects

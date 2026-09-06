@@ -19,7 +19,7 @@ class MediaWorkspace extends StatefulWidget {
 class _MediaWorkspaceState extends State<MediaWorkspace> {
   final _filterController = TextEditingController();
   late final MediaCatalogService _catalogService;
-  late Future<List<MediaFileEntry>> _filesFuture;
+  late Future<MediaScanResult> _scanFuture;
   String _filter = '';
   bool _draggingFiles = false;
 
@@ -28,7 +28,7 @@ class _MediaWorkspaceState extends State<MediaWorkspace> {
     super.initState();
     _catalogService = MediaCatalogService(widget.dataService.userDirectory);
     _filterController.addListener(_onFilterChanged);
-    _filesFuture = _catalogService.discover();
+    _scanFuture = _catalogService.scan();
   }
 
   @override
@@ -45,18 +45,20 @@ class _MediaWorkspaceState extends State<MediaWorkspace> {
     setState(() => _filter = next);
   }
 
-  void _reload() {
-    setState(() => _filesFuture = _catalogService.discover());
+  void _reload({MediaScanMode mode = MediaScanMode.quick}) {
+    setState(() => _scanFuture = _catalogService.scan(mode: mode));
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<List<MediaFileEntry>>(
-    future: _filesFuture,
+  Widget build(BuildContext context) => FutureBuilder<MediaScanResult>(
+    future: _scanFuture,
     builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) {
         return const Center(child: CircularProgressIndicator());
       }
-      final files = (snapshot.data ?? const <MediaFileEntry>[]).where((file) {
+      final files = (snapshot.data?.entries ?? const <MediaFileEntry>[]).where((
+        file,
+      ) {
         return _filter.isEmpty ||
             file.relativePath.toLowerCase().contains(_filter);
       }).toList();
@@ -86,9 +88,15 @@ class _MediaWorkspaceState extends State<MediaWorkspace> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  tooltip: 'Refresh media',
+                  tooltip: 'Quick scan',
                   onPressed: _reload,
                   icon: const Icon(Icons.refresh),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'Full metadata rescan',
+                  onPressed: () => _reload(mode: MediaScanMode.full),
+                  icon: const Icon(Icons.manage_search),
                 ),
               ],
             ),
