@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../persistence/resource_repository.dart';
+import '../plugins/plugin_metadata.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/stream_plans/manifest.dart';
 import '../../schema/stream_plan.dart';
@@ -23,6 +24,7 @@ class ResourcesWorkspace extends StatefulWidget {
     this.streamPlanRuntime,
     this.resourceType,
     this.resourceId,
+    this.revision = 0,
   });
 
   final ShowRunnerDataService dataService;
@@ -31,6 +33,7 @@ class ResourcesWorkspace extends StatefulWidget {
   final DartStreamPlanRuntime? streamPlanRuntime;
   final String? resourceType;
   final String? resourceId;
+  final int revision;
 
   @override
   State<ResourcesWorkspace> createState() => _ResourcesWorkspaceState();
@@ -60,6 +63,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
         oldWidget.resourceId != widget.resourceId) {
       _lastOpenedResourceId = null;
     }
+    if (oldWidget.revision != widget.revision) _reload();
   }
 
   Future<Map<String, List<ResourceData>>> _loadAll() async {
@@ -104,12 +108,31 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
           padding: const EdgeInsets.all(24),
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (focusedDefinition != null) ...[
+                  Icon(
+                    pluginIconFor(focusedDefinition.pluginId),
+                    color: pluginColorFor(focusedDefinition.pluginId),
+                    size: 32,
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 Expanded(
-                  child: Text(
-                    focusedDefinition?.displayName ??
-                        (focusedType ?? 'Resources'),
-                    style: Theme.of(context).textTheme.headlineSmall,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        focusedDefinition?.displayName ??
+                            (focusedType ?? 'Resources'),
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      if (focusedType != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(_descriptionFor(focusedType)),
+                        ),
+                    ],
                   ),
                 ),
                 FilledButton.icon(
@@ -304,6 +327,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
           context,
           def.resourceType,
           data[def.resourceType] ?? const <ResourceData>[],
+          showTitle: widget.resourceType == null,
         ),
     ];
   }
@@ -311,16 +335,18 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
   Widget _resourceSection(
     BuildContext context,
     String resourceType,
-    List<ResourceData> resources,
-  ) => Column(
+    List<ResourceData> resources, {
+    bool showTitle = true,
+  }) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const SizedBox(height: 20),
-      Text(
-        '$resourceType (${resources.length})',
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
-      const SizedBox(height: 8),
+      if (showTitle)
+        Text(
+          '$resourceType (${resources.length})',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+      if (showTitle) const SizedBox(height: 8),
       if (resources.isEmpty)
         ListTile(
           leading: const Icon(Icons.folder_open),
@@ -463,6 +489,21 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     if (def != null) return def.storageDirectory;
     return resourceType.toLowerCase();
   }
+
+  String _descriptionFor(String resourceType) => switch (resourceType) {
+    'OBSConnection' =>
+      'Manage the OBS websocket connections used by actions, overlays, and stream automation.',
+    'TwitchAccount' =>
+      'Manage Twitch accounts used by chat, channel points, and stream automation.',
+    'CustomTwitchViewerGroup' =>
+      'Manage reusable Twitch viewer groups for automation conditions.',
+    'ChannelPointReward' =>
+      'Manage Twitch channel point rewards and their automation behavior.',
+    'StreamPlan' => 'Manage stream plans and their activation segments.',
+    'Overlay' => 'Manage browser-source overlays and their widgets.',
+    'Variable' => 'Manage persistent variables used by automations.',
+    _ => 'Manage persisted $resourceType resources used by ShowRunner.',
+  };
 }
 
 class _NewResourceDialog extends StatefulWidget {

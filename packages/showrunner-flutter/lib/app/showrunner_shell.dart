@@ -319,6 +319,7 @@ class ShowRunnerShell extends StatelessWidget {
         streamPlanRuntime: streamPlanRuntime,
         resourceType: selectedResourceType,
         resourceId: selectedResourceId,
+        revision: projectCatalogRevision,
       ),
       7 => const LogsWorkspace(),
       8 => const AboutWorkspace(),
