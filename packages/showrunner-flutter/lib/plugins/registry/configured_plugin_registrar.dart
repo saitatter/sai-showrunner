@@ -504,6 +504,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     ),
   );
   registry.registerUi('iot', createIotPluginUi());
+  _registerGenericPluginUis(registry);
   final disabled = appSettings['disabledPlugins'];
   if (disabled is List) {
     for (final pluginId in disabled.whereType<String>()) {

@@ -116,5 +116,27 @@ DartPluginRegistry buildDefaultPluginRegistry({
     createStreamPlansPlugin(registry: registry, queueManager: queueManager),
   );
   registry.registerUi('stream-plans', createStreamPlansPluginUi());
+  _registerGenericPluginUis(registry);
   return registry;
+}
+
+void _registerGenericPluginUis(DartPluginRegistry registry) {
+  for (final pluginId in const [
+    'advss',
+    'aitum',
+    'donordrive',
+    'elgato',
+    'govee',
+    'http',
+    'lifx',
+    'os',
+    'philips-hue',
+    'random',
+    'time',
+    'tplink-kasa',
+    'twinkly',
+    'voicemod',
+  ]) {
+    registry.registerUi(pluginId, createGenericPluginUi(pluginId));
+  }
 }

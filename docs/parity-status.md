@@ -48,10 +48,12 @@ before it can be considered visually equivalent.
 
 `docs/parity.json` is generated from the frozen `main` tag and now catalogs
 renderer source files as well as action, trigger, setting, state, and resource
-IDs. The current report has 14 `partial`, 14 `improved`, and 4 `equivalent`
-plugin entries, with no missing contract IDs. It intentionally reports
-plugin-specific UI contributions that still need Flutter work as `partial`; a
-generic manifest page is not counted as pixel parity.
+IDs. The current report has 26 `improved` and 6 `equivalent` plugin entries,
+with no missing contract IDs. Every plugin now has an explicit Flutter
+workspace contribution. The UI status confirms that the integration is
+reachable through the Flutter boundary; it does not claim pixel-perfect
+equivalence. Pixel parity still requires the reference screenshot catalog and
+golden/integration comparison described below.
 
 ## Release and update limits
 

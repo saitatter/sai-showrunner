@@ -3,7 +3,7 @@
   "plugins": [
     {
       "id": "advss",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -60,13 +60,13 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
       "id": "aitum",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -129,8 +129,8 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
@@ -316,7 +316,7 @@
     },
     {
       "id": "donordrive",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -398,13 +398,13 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
       "id": "elgato",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -467,13 +467,13 @@
       },
       "ui": {
         "expectedSourceFiles": 5,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
       "id": "govee",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -534,13 +534,13 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
       "id": "http",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
@@ -593,8 +593,8 @@
       },
       "ui": {
         "expectedSourceFiles": 5,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
@@ -732,7 +732,7 @@
     },
     {
       "id": "lifx",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -798,8 +798,8 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
@@ -1077,7 +1077,7 @@
     },
     {
       "id": "os",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -1131,8 +1131,8 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
@@ -1211,7 +1211,7 @@
     },
     {
       "id": "philips-hue",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -1280,13 +1280,13 @@
       },
       "ui": {
         "expectedSourceFiles": 7,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
       "id": "random",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -1342,8 +1342,8 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
@@ -1727,7 +1727,7 @@
     },
     {
       "id": "time",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
@@ -1788,13 +1788,13 @@
       },
       "ui": {
         "expectedSourceFiles": 5,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
       "id": "tplink-kasa",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -1858,13 +1858,13 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
       "id": "twinkly",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -1932,8 +1932,8 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
@@ -2254,7 +2254,7 @@
     },
     {
       "id": "voicemod",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -2317,8 +2317,8 @@
       },
       "ui": {
         "expectedSourceFiles": 5,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {

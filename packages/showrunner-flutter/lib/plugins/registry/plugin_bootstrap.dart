@@ -9,6 +9,7 @@ import '../obs/actions.dart';
 import '../obs/ui/plugin_ui.dart';
 import 'plugin_registry.dart';
 import 'plugin_host_context.dart';
+import 'generic_plugin_ui.dart';
 import '../obs/connection_router.dart';
 import '../../services/oauth_token.dart';
 import '../../services/showrunner_data_service.dart';

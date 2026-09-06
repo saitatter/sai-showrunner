@@ -125,6 +125,40 @@ void main() {
     expect(registry.uiFor('stream-plans'), isNotNull);
     expect(registry.uiFor('sound'), isNotNull);
     expect(registry.uiFor('variables'), isNotNull);
+    expect(
+      <String>[
+        'advss',
+        'aitum',
+        'donordrive',
+        'elgato',
+        'govee',
+        'http',
+        'lifx',
+        'os',
+        'philips-hue',
+        'random',
+        'time',
+        'tplink-kasa',
+        'twinkly',
+        'voicemod',
+      ].where((pluginId) => registry.uiFor(pluginId) != null),
+      containsAll(<String>[
+        'advss',
+        'aitum',
+        'donordrive',
+        'elgato',
+        'govee',
+        'http',
+        'lifx',
+        'os',
+        'philips-hue',
+        'random',
+        'time',
+        'tplink-kasa',
+        'twinkly',
+        'voicemod',
+      ]),
+    );
   });
 
   test('bootstraps and executes the built-in conversion actions', () async {
