@@ -64,4 +64,48 @@ void main() {
       expect(loaded?.config['refreshToken'], 'new-refresh');
     },
   );
+
+  test(
+    'signs in and persists the main Wyze account with secret tokens',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'showrunner-wyze-auth-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final dataService = ShowRunnerDataService(
+        root,
+        secretSettings: SecretSettingsStore(
+          directory: Directory('${root.path}/secrets'),
+          encrypt: (bytes) async => bytes.map((byte) => byte ^ 0x5a).toList(),
+          decrypt: (bytes) async => bytes.map((byte) => byte ^ 0x5a).toList(),
+        ),
+      );
+      await dataService.savePluginSettings('wyze', {
+        'keyId': 'key-id',
+        'apiKey': 'api-key',
+      });
+
+      final service = WyzeAccountAuthService(
+        dataService: dataService,
+        login: (email, password) async {
+          expect(email, 'owner@example.test');
+          expect(password, 'password');
+          return (accessToken: 'access-token', refreshToken: 'refresh-token');
+        },
+      );
+
+      final account = await service.signIn(
+        email: ' owner@example.test ',
+        password: 'password',
+        name: 'Main Wyze',
+      );
+
+      expect(account.id, 'main');
+      expect(account.config['email'], 'owner@example.test');
+      expect(account.state['authenticated'], isTrue);
+      final loaded = await service.loadAccount();
+      expect(loaded?.config['accessToken'], 'access-token');
+      expect(loaded?.config['refreshToken'], 'refresh-token');
+    },
+  );
 }

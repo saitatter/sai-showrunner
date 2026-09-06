@@ -57,6 +57,7 @@ import '../tplink_kasa/manifest.dart';
 import '../lifx/manifest.dart';
 import '../wyze/manifest.dart';
 import '../wyze/account_runtime.dart';
+import '../wyze/ui/plugin_ui.dart';
 import '../dashboards/manifest.dart';
 import '../input/manifest.dart';
 import '../stream_plans/manifest.dart';

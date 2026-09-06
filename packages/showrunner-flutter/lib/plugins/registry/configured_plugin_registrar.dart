@@ -472,6 +472,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     },
   );
   registry.register(createWyzePlugin(wyzeTransport));
+  registry.registerUi('wyze', createWyzePluginUi());
   registry.register(
     createDashboardPlugin(
       start: dashboardHost?.start,
