@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app/app_foundations.dart';
 import 'app/automation_document_manager.dart';
+import 'app/bootstrap/showrunner_services.dart';
 import 'app/commands/app_command.dart';
 import 'app/data_directory.dart';
 import 'app/lifecycle/app_lifecycle_coordinator.dart';
@@ -19,12 +20,8 @@ import 'app/workspace_document_manager.dart';
 import 'editor/showrunner_graph_editor.dart';
 import 'persistence/automation_repository.dart';
 import 'persistence/profile_repository.dart';
-import 'persistence/queue_config_repository.dart';
 import 'persistence/resource_repository.dart';
-import 'persistence/viewer_data_repository.dart';
-import 'persistence/viewer_data_sync.dart';
 import 'plugins/registry/plugin_registry.dart';
-import 'plugins/registry/plugin_bootstrap.dart';
 import 'plugins/dashboards/cloud_sync.dart';
 import 'plugins/stream_plans/manifest.dart';
 import 'plugins/overlays/manifest.dart';
@@ -152,17 +149,7 @@ class ShowRunnerPage extends StatefulWidget {
 
 class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   late final ShowRunnerGraphEditor _graphEditor;
-  late final DartActionQueue _actionQueue;
-  late final DartAutomationQueueManager _automationQueueManager;
-  late final Future<DartPluginRegistry> _pluginRegistryFuture;
-  late final Future<DartProfileRuntime> _profileRuntimeFuture;
-  late final Future<DartProfileLifecycleManager> _profileManagerFuture;
-  late final DartPluginEventHub _eventHub;
-  late final ProviderEventRuntime _providerEvents;
-  late final FileViewerDataRepository _viewerDataRepository;
-  late final ViewerDataSynchronizer _viewerDataSynchronizer;
-  late final DartVariableRuntime _variableRuntime;
-  late final Future<StartupHealthSnapshot> _healthFuture;
+  late final ShowRunnerServices _services;
   late final FlutterInterfacePreferences _interfacePreferences;
   late final AppCommandRegistry _commandRegistry;
   late final AppLifecycleCoordinator _lifecycle;
@@ -187,6 +174,20 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   String? get _activeAutomationFile => _automationDocuments.activeFileName;
   bool _profileDirty = false;
 
+  DartActionQueue get _actionQueue => _services.actionQueue;
+  DartAutomationQueueManager get _automationQueueManager =>
+      _services.queueManager;
+  Future<DartPluginRegistry> get _pluginRegistryFuture =>
+      _services.pluginRegistryFuture;
+  Future<DartProfileRuntime> get _profileRuntimeFuture =>
+      _services.profileRuntimeFuture;
+  Future<DartProfileLifecycleManager> get _profileManagerFuture =>
+      _services.profileManagerFuture;
+  DartPluginEventHub get _eventHub => _services.eventHub;
+  ProviderEventRuntime get _providerEvents => _services.providerEvents;
+  DartVariableRuntime get _variableRuntime => _services.variableRuntime;
+  Future<StartupHealthSnapshot> get _healthFuture => _services.healthFuture;
+
   @override
   void initState() {
     super.initState();
@@ -200,91 +201,14 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       unawaited(windowManager.setPreventClose(true));
     }
     if (widget.loadSampleGraph) _graphEditor.loadSampleGraph();
-    _actionQueue = DartActionQueue();
-    _eventHub = DartPluginEventHub();
-    _viewerDataRepository = FileViewerDataRepository(
-      Directory('${widget.dataService.userDirectory.path}/viewer-data'),
-    );
-    _viewerDataSynchronizer = ViewerDataSynchronizer(
-      repository: _viewerDataRepository,
-      eventHub: _eventHub,
-    );
-    unawaited(_viewerDataSynchronizer.start());
-    _variableRuntime = DartVariableRuntime(
-      directory: Directory(
-        '${widget.dataService.userDirectory.path}/variables',
-      ),
-      onChanged: (id, value) =>
-          _stateRegistry?.updateDynamicState('variables', id, value),
-    );
-    _providerEvents = ProviderEventRuntime(
+    _services = ShowRunnerServices.create(
       dataService: widget.dataService,
-      eventHub: _eventHub,
-    );
-    unawaited(_providerEvents.start());
-    final queueRepository = QueueConfigRepository(
-      Directory('${widget.dataService.userDirectory.path}/queues'),
-    );
-    _automationQueueManager = DartAutomationQueueManager(
-      defaultQueue: _actionQueue,
-      loadConfig: (queueId) async {
-        if (queueId.contains('/') || queueId.contains('\\')) return null;
-        final fileName = queueId.endsWith('.yaml') ? queueId : '$queueId.yaml';
-        final file = File(
-          '${widget.dataService.userDirectory.path}/queues/$fileName',
-        );
-        if (!await file.exists()) return null;
-        return queueRepository.load(file);
-      },
-      execute: (automation, context, item) async {
-        final registry = await _pluginRegistryFuture;
-        return const DartGraphRuntime().executeWithRegistry(
-          graph: automation.graph,
-          context: context,
-          registry: registry,
-          dataWires: automation.dataWires,
-          subgraphs: automation.subgraphs,
-        );
-      },
-    );
-    _pluginRegistryFuture = createConfiguredPluginRegistry(
-      widget.dataService,
-      eventHub: _eventHub,
-      viewerDataRepository: _viewerDataRepository,
-      queueManager: _automationQueueManager,
-      runAutomation: (automation, context) async {
-        final registry = await _pluginRegistryFuture;
-        return const DartGraphRuntime().executeWithRegistry(
-          graph: automation.graph,
-          context: context,
-          registry: registry,
-          dataWires: automation.dataWires,
-          subgraphs: automation.subgraphs,
-        );
-      },
+      onVariableChanged: (id, value) =>
+          _stateRegistry?.updateDynamicState('variables', id, value),
       activateProfile: _activateProfileResource,
-      variableRuntime: _variableRuntime,
     );
+    unawaited(_services.start());
     unawaited(_bindProviderStateDiagnostics());
-    _profileManagerFuture = _pluginRegistryFuture.then((registry) async {
-      final runtime = DartProfileRuntime(
-        registry: registry,
-        queueManager: _automationQueueManager,
-      );
-      final manager = DartProfileLifecycleManager(
-        directory: Directory(
-          '${widget.dataService.userDirectory.path}/profiles',
-        ),
-        runtime: runtime,
-        onActivityChanged: _providerEvents.updateProfileActivity,
-      );
-      await manager.start();
-      return manager;
-    });
-    _profileRuntimeFuture = _profileManagerFuture.then(
-      (manager) => manager.runtime,
-    );
-    _healthFuture = StartupHealthLoader(widget.dataService).load();
     _interfacePreferences = FlutterInterfacePreferences(
       dataService: widget.dataService,
     );
@@ -516,12 +440,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     ]);
     _lifecycle = AppLifecycleCoordinator(
       shutdownTasks: [
-        _providerEvents.stop,
-        _viewerDataSynchronizer.stop,
-        _automationQueueManager.dispose,
-        () async => (await _profileManagerFuture).dispose(),
-        () async => (await _pluginRegistryFuture).close(),
-        _eventHub.dispose,
+        _services.shutdown,
         () async => widget.instanceLock?.release(),
       ],
     );
@@ -841,7 +760,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     final repository = ProfileRepository(file);
     final profile = await repository.load();
     if (profile == null) return false;
-    final runtime = await _profileRuntimeFuture;
+    final runtime = await _services.profileRuntimeFuture;
     final nextMode = switch (activation) {
       'true' => 'always',
       'false' => 'manual',

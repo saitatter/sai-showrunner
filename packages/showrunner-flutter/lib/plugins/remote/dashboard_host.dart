@@ -402,24 +402,43 @@ final class RemoteDashboardHost extends ChangeNotifier {
 
   StreamSubscription<FileSystemEvent>? _watchUserDirectory() {
     if (!dataService.userDirectory.existsSync()) return null;
-    return dataService.userDirectory.watch(recursive: true).listen((event) {
-      final path = event.path.replaceAll('\\', '/');
-      final marker = '/dashboards/';
-      final markerIndex = path.indexOf(marker);
-      if (markerIndex < 0) return;
-      final name = path.substring(markerIndex + marker.length);
-      if (name.contains('/') ||
-          !(name.endsWith('.json') || name.endsWith('.yaml'))) {
-        return;
-      }
-      final id = name.replaceFirst(RegExp(r'\.(json|yaml)$'), '');
-      unawaited(
-        Future<void>.delayed(const Duration(milliseconds: 100), () async {
-          await refreshDashboard(id);
-          if (await _hasSharedDashboard()) await _ensureSignalingStarted();
-        }),
-      );
-    });
+    try {
+      return dataService.userDirectory
+          .watch(recursive: true)
+          .listen(
+            (event) {
+              final path = event.path.replaceAll('\\', '/');
+              final marker = '/dashboards/';
+              final markerIndex = path.indexOf(marker);
+              if (markerIndex < 0) return;
+              final name = path.substring(markerIndex + marker.length);
+              if (name.contains('/') ||
+                  !(name.endsWith('.json') || name.endsWith('.yaml'))) {
+                return;
+              }
+              final id = name.replaceFirst(RegExp(r'\.(json|yaml)$'), '');
+              unawaited(
+                Future<void>.delayed(
+                  const Duration(milliseconds: 100),
+                  () async {
+                    await refreshDashboard(id);
+                    if (await _hasSharedDashboard()) {
+                      await _ensureSignalingStarted();
+                    }
+                  },
+                ),
+              );
+            },
+            onError: (Object error, StackTrace stackTrace) {
+              _lastError = error;
+              notifyListeners();
+            },
+          );
+    } on Object catch (error) {
+      _lastError = error;
+      notifyListeners();
+      return null;
+    }
   }
 
   @override
