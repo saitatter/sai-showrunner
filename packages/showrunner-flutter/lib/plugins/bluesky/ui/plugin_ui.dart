@@ -1,5 +1,4 @@
 import '../../registry/plugin_ui.dart';
-import '../../registry/plugin_ui_contract.dart';
 import 'bluesky_workspace.dart';
 
 DartPluginUiContribution createBlueskyPluginUi() =>

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/oauth_token.dart';
 import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/registry/flutter_plugin_ui_contract.dart';
 import '../../plugins/philips_hue/discovery.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../services/provider_settings_validator.dart';
@@ -282,12 +283,13 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
             final contribution = registry.uiFor(selected.id);
             if (contribution != null && !widget.forceGenericDetails) {
               return contribution.build(
-                    context: context,
-                    dataService: widget.dataService,
-                    providerEvents: widget.providerEvents,
-                    registryFuture: widget.registryFuture,
-                  )
-                  as Widget;
+                context,
+                DartPluginUiHostContext(
+                  dataService: widget.dataService,
+                  providerEvents: widget.providerEvents,
+                  registryFuture: widget.registryFuture,
+                ),
+              );
             }
             return _buildPluginDetails(context, selected, registry);
           },

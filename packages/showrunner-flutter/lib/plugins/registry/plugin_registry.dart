@@ -7,7 +7,7 @@ import '../contracts/identifiers.dart';
 import 'plugin_contract.dart';
 import 'plugin_host_context.dart';
 import 'plugin_module.dart';
-import 'plugin_ui_contract.dart';
+import 'flutter_plugin_ui_contract.dart';
 
 export 'plugin_contract.dart';
 
