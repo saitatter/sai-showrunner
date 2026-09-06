@@ -1,4 +1,5 @@
 import '../../schema/data_input.dart';
+import '../../runtime/cancellation.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
 import 'keyboard.dart';
@@ -124,8 +125,9 @@ Future<Object?> _pressKey(
   await platform.simulateKeyDown(virtualKeyCode);
   try {
     if (boundedDuration > 0) {
-      await Future<void>.delayed(
+      await cancellableDelay(
         Duration(microseconds: (boundedDuration * 1000000).round()),
+        context.cancellationToken,
       );
     }
   } finally {
@@ -190,8 +192,9 @@ Future<Object?> _mouseButton(
   await platform.simulateMouseDown(button);
   try {
     if (boundedDuration > 0) {
-      await Future<void>.delayed(
+      await cancellableDelay(
         Duration(microseconds: (boundedDuration * 1000000).round()),
+        context.cancellationToken,
       );
     }
   } finally {

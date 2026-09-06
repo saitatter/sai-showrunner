@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../schema/data_input.dart';
+import '../../runtime/cancellation.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
 
@@ -206,7 +207,10 @@ Stream<RuntimeMap> _timerEvents(RuntimeMap config) async* {
 
 Future<Object?> _delay(RuntimeMap config, EvaluationContext context) async {
   final seconds = (config['duration'] as num?)?.toDouble() ?? 1.0;
-  await Future<void>.delayed(Duration(milliseconds: (seconds * 1000).toInt()));
+  await cancellableDelay(
+    Duration(milliseconds: (seconds * 1000).toInt()),
+    context.cancellationToken,
+  );
   return {'waited': seconds};
 }
 

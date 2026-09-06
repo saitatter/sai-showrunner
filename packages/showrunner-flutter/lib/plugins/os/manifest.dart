@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import '../../runtime/expression.dart';
@@ -91,25 +92,67 @@ Future<Object?> _runPowershell(
   if (!Platform.isWindows) {
     return {'executed': false, 'reason': 'Windows required'};
   }
-  final result = await Process.run('powershell.exe', ['-Command', command]);
-  return {
-    'executed': true,
-    'exitCode': result.exitCode,
-    'stdout': result.stdout?.toString(),
-    'stderr': result.stderr?.toString(),
-  };
+  context.cancellationToken?.throwIfCancelled();
+  final process = await Process.start('powershell.exe', ['-Command', command]);
+  void abort() {
+    process.kill();
+  }
+
+  final token = context.cancellationToken;
+  token?.addListener(abort);
+  try {
+    final output = await Future.wait<Object?>([
+      process.stdout.transform(utf8.decoder).join(),
+      process.stderr.transform(utf8.decoder).join(),
+      process.exitCode,
+    ]);
+    token?.throwIfCancelled();
+    return {'processOutput': output[0]?.toString() ?? ''};
+  } finally {
+    token?.removeListener(abort);
+  }
 }
 
 Future<Object?> _launchProcess(
   RuntimeMap config,
   EvaluationContext context,
 ) async {
+  context.cancellationToken?.throwIfCancelled();
   final path = (config['path'] ?? config['application'])?.toString() ?? '';
   if (path.isEmpty) return {'launched': false};
+  final ignoreIfRunning = switch (config['ignoreIfRunning']) {
+    false => false,
+    String value when value.trim().toLowerCase() == 'false' => false,
+    _ => true,
+  };
+  if (ignoreIfRunning && await isProcessRunning(_fileName(path))) {
+    return {'launched': false, 'reason': 'already-running'};
+  }
   final args = config['args'] is List
       ? (config['args'] as List).map((item) => item.toString()).toList()
       : const <String>[];
-  final workingDirectory = config['dir']?.toString();
-  await Process.start(path, args, workingDirectory: workingDirectory);
+  final configuredDirectory = config['dir']?.toString().trim() ?? '';
+  final workingDirectory = configuredDirectory.isEmpty
+      ? File(path).absolute.parent.path
+      : configuredDirectory;
+  await Process.start(
+    'cmd.exe',
+    ['/c', 'start', 'ShowRunner Launch', path, ...args],
+    workingDirectory: workingDirectory,
+    mode: ProcessStartMode.detached,
+  );
   return {'launched': true, 'path': path, 'args': args};
+}
+
+Future<bool> isProcessRunning(String application) async {
+  if (!Platform.isWindows || application.trim().isEmpty) return false;
+  final result = await Process.run('tasklist', const <String>[]);
+  return result.stdout.toString().toLowerCase().contains(
+    application.trim().toLowerCase(),
+  );
+}
+
+String _fileName(String path) {
+  final normalized = path.replaceAll('\\', '/');
+  return normalized.substring(normalized.lastIndexOf('/') + 1);
 }

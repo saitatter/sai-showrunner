@@ -6,6 +6,7 @@ import 'package:showrunner_flutter/plugins/input/keyboard.dart';
 import 'package:showrunner_flutter/plugins/input/manifest.dart';
 import 'package:showrunner_flutter/plugins/input/native_input.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/runtime/cancellation.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/runtime/profile_runtime.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
@@ -78,6 +79,25 @@ void main() {
 
     expect(platform.calls, isEmpty);
     expect(result, {'pressed': false, 'button': 'sideways', 'duration': 0.1});
+  });
+
+  test('pressKey cancellation releases the held key', () async {
+    final platform = _FakeInputPlatform();
+    final plugin = createInputPlugin(platform: platform);
+    final token = DartCancellationToken(id: 'input-cancel');
+    final action = plugin.actions.firstWhere(
+      (action) => action.actionId == 'pressKey',
+    );
+
+    final execution = action.invoke({
+      'key': 'A',
+      'duration': 10,
+    }, EvaluationContext(cancellationToken: token));
+    await Future<void>.delayed(Duration.zero);
+    token.cancel();
+
+    await expectLater(execution, throwsA(isA<DartCancelledException>()));
+    expect(platform.calls, ['key-down:65', 'key-up:65']);
   });
 
   test('configured input lifecycle starts and stops global events', () async {

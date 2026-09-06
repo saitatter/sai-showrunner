@@ -48,6 +48,20 @@ final class DartCancellationToken {
   static int _counter = 0;
 }
 
+Future<void> cancellableDelay(
+  Duration duration,
+  DartCancellationToken? token,
+) async {
+  token?.throwIfCancelled();
+  if (duration <= Duration.zero) return;
+  if (token == null) {
+    await Future<void>.delayed(duration);
+    return;
+  }
+  await Future.any<void>([Future<void>.delayed(duration), token.whenCancelled]);
+  token.throwIfCancelled();
+}
+
 final class DartCancelledException implements Exception {
   const DartCancelledException(this.tokenId);
 
