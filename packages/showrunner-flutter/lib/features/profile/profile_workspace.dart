@@ -114,6 +114,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   bool _saving = false;
   bool _profileActive = false;
   DartProfileSession? _profileSession;
+  bool _ownsProfileActivation = false;
   Object? _error;
   bool _profileDirty = false;
   bool _synchronizing = false;
@@ -212,6 +213,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       unawaited(_profileSession?.dispose());
       _profileSession = null;
       _profileActive = false;
+      _ownsProfileActivation = false;
     }
     final entry = _entries[index];
     widget.controller?.setActiveProfileFile(entry.fileName);
@@ -237,6 +239,22 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     }
     _synchronizing = false;
     _markClean();
+    unawaited(_syncRuntimeActive(entry.fileName));
+  }
+
+  Future<void> _syncRuntimeActive(String fileName) async {
+    final runtimeFuture = widget.runtimeFuture;
+    if (runtimeFuture == null) return;
+    final runtime = await runtimeFuture;
+    if (!mounted ||
+        _selectedIndex == null ||
+        _selectedIndex! >= _entries.length ||
+        _entries[_selectedIndex!].fileName != fileName) {
+      return;
+    }
+    if (_profileActive != runtime.isActive(fileName)) {
+      setState(() => _profileActive = runtime.isActive(fileName));
+    }
   }
 
   Future<void> _requestSelectProfile(int index) async {
@@ -289,7 +307,13 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   Future<bool> _stopCurrentProfile() async {
-    if (!_profileActive || _selectedIndex == null) return true;
+    if (!_ownsProfileActivation || _selectedIndex == null) {
+      await _profileSession?.dispose();
+      _profileSession = null;
+      _profileActive = false;
+      _ownsProfileActivation = false;
+      return true;
+    }
     final entry = _entries[_selectedIndex!];
     try {
       final runtime = widget.runtimeFuture == null
@@ -298,13 +322,18 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       await _profileSession?.dispose();
       _profileSession = null;
       if (runtime != null && entry.profile != null) {
-        await runtime.deactivate(entry.fileName, entry.profile!);
+        await runtime.setManagedActive(
+          entry.fileName,
+          entry.profile!,
+          active: false,
+        );
       }
       widget.providerEvents.updateProfileActivity(
         entry.fileName,
         active: false,
       );
       _profileActive = false;
+      _ownsProfileActivation = false;
       return true;
     } catch (error) {
       _error = error;
@@ -381,24 +410,15 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     setState(() => _saving = true);
     try {
       final runtime = await runtimeFuture;
-      if (_profileActive) {
-        await _profileSession?.dispose();
-        _profileSession = null;
-        await runtime.deactivate(entry.fileName, profile);
-        widget.providerEvents.updateProfileActivity(
-          entry.fileName,
-          active: false,
-        );
-      } else {
-        await runtime.activate(entry.fileName, profile);
-        _profileSession = runtime.watch(entry.fileName, profile);
-        widget.providerEvents.updateProfileActivity(
-          entry.fileName,
-          active: true,
-          triggers: profile.triggers,
-        );
-      }
-      if (mounted) setState(() => _profileActive = !_profileActive);
+      final active = !_profileActive;
+      await runtime.setManagedActive(entry.fileName, profile, active: active);
+      widget.providerEvents.updateProfileActivity(
+        entry.fileName,
+        active: active,
+        triggers: active ? profile.triggers : const [],
+      );
+      _ownsProfileActivation = true;
+      if (mounted) setState(() => _profileActive = active);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {

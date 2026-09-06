@@ -22,6 +22,9 @@ final class DartProfileRuntime {
 
   bool isActive(String profileId) => _activeProfiles[profileId] ?? false;
 
+  bool hasManagedSession(String profileId) =>
+      _managedSessions.containsKey(profileId);
+
   bool shouldBeActive(ShowRunnerProfile profile, {EvaluationContext? context}) {
     final runtimeContext = context ?? EvaluationContext();
     return switch (profile.activationMode) {
@@ -70,6 +73,11 @@ final class DartProfileRuntime {
     final result = await _runAutomation(
       profile.activationAutomation,
       _withRegistryState(context),
+      sourceMetadata: {
+        'sourceType': 'profile',
+        'sourceId': profileId,
+        'sourceSubId': 'activation',
+      },
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
     );
@@ -87,6 +95,11 @@ final class DartProfileRuntime {
     final result = await _runAutomation(
       profile.deactivationAutomation,
       _withRegistryState(context),
+      sourceMetadata: {
+        'sourceType': 'profile',
+        'sourceId': profileId,
+        'sourceSubId': 'deactivation',
+      },
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
     );
@@ -123,7 +136,7 @@ final class DartProfileRuntime {
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
     );
-    _managedSessions[profileId] = watch(
+    await replaceManagedSession(
       profileId,
       profile,
       context: context,
@@ -131,6 +144,31 @@ final class DartProfileRuntime {
       onNodeExit: onNodeExit,
     );
     return result;
+  }
+
+  Future<void> replaceManagedSession(
+    String profileId,
+    ShowRunnerProfile profile, {
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) async {
+    await _managedSessions.remove(profileId)?.dispose();
+    _managedSessions[profileId] = watch(
+      profileId,
+      profile,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    );
+  }
+
+  Future<void> disposeManagedSession(String profileId) async {
+    await _managedSessions.remove(profileId)?.dispose();
+  }
+
+  void forgetProfile(String profileId) {
+    _activeProfiles.remove(profileId);
   }
 
   Future<void> dispose() async {
@@ -151,31 +189,20 @@ final class DartProfileRuntime {
     JsonMap? triggerEntry,
   }) async {
     if (!isActive(profileId)) return null;
-    for (final trigger in profile.triggers) {
-      if (triggerEntry != null && !identical(trigger, triggerEntry)) continue;
-      final matchesTopLevel =
-          trigger['plugin'] == pluginId && trigger['trigger'] == triggerId;
-      if (!matchesTopLevel) continue;
-      final automation = trigger['automation'];
-      if (automation is! Map) {
-        throw const FormatException(
-          'Profile trigger must contain a V2 automation document.',
-        );
+    for (final target in _triggerTargets(profile)) {
+      if (triggerEntry != null && !identical(target.entry, triggerEntry)) {
+        continue;
       }
-      return _runAutomation(
-        AutomationData.fromJson(Map<String, dynamic>.from(automation)),
-        EvaluationContext(
-          locals: Map<String, dynamic>.from(context?.locals ?? const {}),
-          contextState: {
-            ...registry.stateContext(),
-            ...?context?.contextState,
-            ...payload,
-            'event': payload,
-          },
-        ),
+      if (target.pluginId != pluginId || target.triggerId != triggerId) {
+        continue;
+      }
+      return _runTriggerTarget(
+        profileId,
+        target,
+        payload,
+        context: context,
         onNodeEnter: onNodeEnter,
         onNodeExit: onNodeExit,
-        queueId: trigger['queue']?.toString(),
       );
     }
     return null;
@@ -278,16 +305,13 @@ final class DartProfileRuntime {
                 return;
               }
               unawaited(
-                handleTrigger(
+                _runTriggerTarget(
                   profileId,
-                  profile,
-                  pluginId,
-                  triggerId,
+                  target,
                   payload,
                   context: context,
                   onNodeEnter: onNodeEnter,
                   onNodeExit: onNodeExit,
-                  triggerEntry: target.entry,
                 ),
               );
             }),
@@ -300,13 +324,42 @@ final class DartProfileRuntime {
     ({String? pluginId, String? triggerId, JsonMap config, JsonMap entry})
   >
   _triggerTargets(ShowRunnerProfile profile) sync* {
-    final seen = <String>{};
     for (final trigger in profile.triggers) {
+      final rawAutomation = trigger['automation'];
+      if (rawAutomation is! Map) continue;
+      final automation = AutomationData.fromJson(
+        Map<String, dynamic>.from(rawAutomation),
+      );
+      if (automation.triggerNodes.isNotEmpty) {
+        for (final node in automation.triggerNodes) {
+          final pluginId = node['plugin'] as String?;
+          final triggerId = node['trigger'] as String?;
+          final nodeId = node['id']?.toString();
+          if (pluginId == null ||
+              triggerId == null ||
+              nodeId == null ||
+              nodeId.isEmpty) {
+            continue;
+          }
+          yield (
+            pluginId: pluginId,
+            triggerId: triggerId,
+            config: _triggerConfig(node['config']),
+            entry: {
+              ...trigger,
+              'id': nodeId,
+              'plugin': pluginId,
+              'trigger': triggerId,
+              'config': _triggerConfig(node['config']),
+              'stop': node['stop'] ?? trigger['stop'],
+            },
+          );
+        }
+        continue;
+      }
       final pluginId = trigger['plugin'] as String?;
       final triggerId = trigger['trigger'] as String?;
-      if (pluginId != null &&
-          triggerId != null &&
-          seen.add('$pluginId\u0000$triggerId')) {
+      if (pluginId != null && triggerId != null) {
         yield (
           pluginId: pluginId,
           triggerId: triggerId,
@@ -326,10 +379,53 @@ final class DartProfileRuntime {
         contextState: {...registry.stateContext(), ...?context?.contextState},
       );
 
+  Future<GraphExecutionResult> _runTriggerTarget(
+    String profileId,
+    ({String? pluginId, String? triggerId, JsonMap config, JsonMap entry})
+    target,
+    RuntimeMap payload, {
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) {
+    final rawAutomation = target.entry['automation'];
+    if (rawAutomation is! Map) {
+      throw const FormatException(
+        'Profile trigger must contain a V2 automation document.',
+      );
+    }
+    final automation = AutomationData.fromJson(
+      Map<String, dynamic>.from(rawAutomation),
+    );
+    final sourceSubId = target.entry['id']?.toString();
+    return _runAutomation(
+      automation,
+      EvaluationContext(
+        locals: Map<String, dynamic>.from(context?.locals ?? const {}),
+        contextState: {
+          ...registry.stateContext(),
+          ...?context?.contextState,
+          ...payload,
+          'event': payload,
+        },
+      ),
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+      queueId: target.entry['queue']?.toString(),
+      sourceMetadata: {
+        'sourceType': 'profile',
+        'sourceId': profileId,
+        if (sourceSubId != null && sourceSubId.isNotEmpty)
+          'sourceSubId': sourceSubId,
+      },
+    );
+  }
+
   Future<GraphExecutionResult> _runAutomation(
     AutomationData automation,
     EvaluationContext context, {
     String? queueId,
+    RuntimeMap? sourceMetadata,
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
   }) async {
@@ -340,6 +436,7 @@ final class DartProfileRuntime {
         automation,
         context,
         queueId: effectiveQueueId,
+        sourceMetadata: sourceMetadata,
       );
       return GraphExecutionResult(
         completed: true,

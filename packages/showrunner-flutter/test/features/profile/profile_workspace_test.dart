@@ -86,4 +86,63 @@ void main() {
     expect(await Directory('${directory.path}/backup').exists(), isTrue);
     expect((await file.readAsString()).contains('sequence'), isFalse);
   });
+
+  test('loads current V2 profiles with graph trigger nodes', () async {
+    final directory = await Directory.systemTemp.createTemp('profile-v2-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/profiles/graph.yaml');
+    await file.parent.create(recursive: true);
+    await file.writeAsString(
+      jsonEncode({
+        'name': 'Graph profile',
+        'activationMode': 'always',
+        'triggers': [
+          {
+            'id': 'automation-1',
+            'automation': {
+              'schemaVersion': 2,
+              'graph': {'nodes': [], 'edges': [], 'entryNodeId': ''},
+              'subgraphs': [],
+              'dataWires': [],
+              'variableNodes': [],
+              'triggerNodes': [
+                {
+                  'id': 'trigger-1',
+                  'plugin': 'twitch',
+                  'trigger': 'chat',
+                  'config': {},
+                },
+              ],
+            },
+          },
+        ],
+        'activationCondition': {},
+        'activationAutomation': {
+          'schemaVersion': 2,
+          'graph': {'nodes': [], 'edges': [], 'entryNodeId': ''},
+          'subgraphs': [],
+          'dataWires': [],
+          'variableNodes': [],
+          'triggerNodes': [],
+        },
+        'deactivationAutomation': {
+          'schemaVersion': 2,
+          'graph': {'nodes': [], 'edges': [], 'entryNodeId': ''},
+          'subgraphs': [],
+          'dataWires': [],
+          'variableNodes': [],
+          'triggerNodes': [],
+        },
+      }),
+    );
+
+    final profile = await ProfileRepository(file).load();
+
+    expect(profile, isNotNull);
+    expect(
+      profile!.triggers.single['automation']['triggerNodes'],
+      hasLength(1),
+    );
+    expect(await Directory('${directory.path}/backup').exists(), isFalse);
+  });
 }

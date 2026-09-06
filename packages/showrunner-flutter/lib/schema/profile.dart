@@ -73,15 +73,8 @@ List<JsonMap> _maps(dynamic value) => value is List
 
 void _validateTriggers(List<JsonMap> triggers) {
   for (final trigger in triggers) {
-    for (final key in const ['id', 'plugin', 'trigger']) {
-      if (trigger[key] is! String || (trigger[key] as String).isEmpty) {
-        throw FormatException('Profile trigger must contain a $key.');
-      }
-    }
-    if (trigger.containsKey('triggerNodes')) {
-      throw const FormatException(
-        'Profile triggers must use individual V2 trigger entries.',
-      );
+    if (trigger['id'] is! String || (trigger['id'] as String).isEmpty) {
+      throw const FormatException('Profile trigger must contain an id.');
     }
     final automation = trigger['automation'];
     if (automation is! Map) {
@@ -89,6 +82,25 @@ void _validateTriggers(List<JsonMap> triggers) {
         'Profile triggers must contain a V2 automation document.',
       );
     }
-    AutomationData.fromJson(Map<String, dynamic>.from(automation));
+    final parsedAutomation = AutomationData.fromJson(
+      Map<String, dynamic>.from(automation),
+    );
+    final triggerNodes = parsedAutomation.triggerNodes;
+    if (triggerNodes.isNotEmpty) {
+      for (final triggerNode in triggerNodes) {
+        for (final key in const ['id', 'plugin', 'trigger']) {
+          if (triggerNode[key] is! String ||
+              (triggerNode[key] as String).isEmpty) {
+            throw FormatException('Profile trigger node must contain a $key.');
+          }
+        }
+      }
+      continue;
+    }
+    for (final key in const ['plugin', 'trigger']) {
+      if (trigger[key] is! String || (trigger[key] as String).isEmpty) {
+        throw FormatException('Profile trigger must contain a $key.');
+      }
+    }
   }
 }

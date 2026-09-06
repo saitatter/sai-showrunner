@@ -31,6 +31,7 @@ import 'services/plugin_event_hub.dart';
 import 'plugins/runtime/provider_event_workers.dart';
 import 'runtime/graph_runtime.dart';
 import 'runtime/profile_runtime.dart';
+import 'runtime/profile_manager.dart';
 import 'runtime/automation_queue_manager.dart';
 import 'runtime/automation_recovery.dart';
 import 'schema/automation.dart';
@@ -152,6 +153,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   late final DartAutomationQueueManager _automationQueueManager;
   late final Future<DartPluginRegistry> _pluginRegistryFuture;
   late final Future<DartProfileRuntime> _profileRuntimeFuture;
+  late final Future<DartProfileLifecycleManager> _profileManagerFuture;
   late final DartPluginEventHub _eventHub;
   late final ProviderEventRuntime _providerEvents;
   late final FileViewerDataRepository _viewerDataRepository;
@@ -251,11 +253,23 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       activateProfile: _activateProfileResource,
     );
     unawaited(_bindProviderStateDiagnostics());
-    _profileRuntimeFuture = _pluginRegistryFuture.then(
-      (registry) => DartProfileRuntime(
+    _profileManagerFuture = _pluginRegistryFuture.then((registry) async {
+      final runtime = DartProfileRuntime(
         registry: registry,
         queueManager: _automationQueueManager,
-      ),
+      );
+      final manager = DartProfileLifecycleManager(
+        directory: Directory(
+          '${widget.dataService.userDirectory.path}/profiles',
+        ),
+        runtime: runtime,
+        onActivityChanged: _providerEvents.updateProfileActivity,
+      );
+      await manager.start();
+      return manager;
+    });
+    _profileRuntimeFuture = _profileManagerFuture.then(
+      (manager) => manager.runtime,
     );
     _healthFuture = StartupHealthLoader(widget.dataService).load();
     _interfacePreferences = FlutterInterfacePreferences(
@@ -516,7 +530,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     await _providerEvents.stop();
     await _viewerDataSynchronizer.stop();
     await _automationQueueManager.dispose();
-    await _profileRuntimeFuture.then((runtime) => runtime.dispose());
+    await _profileManagerFuture.then((manager) => manager.dispose());
     await _pluginRegistryFuture.then((registry) => registry.close());
     await _eventHub.dispose();
     await widget.instanceLock?.release();
@@ -641,6 +655,16 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   void _onProjectCatalogChanged() {
     if (!mounted) return;
     setState(() => _projectCatalogRevision++);
+    unawaited(_refreshProfileLifecycle());
+  }
+
+  Future<void> _refreshProfileLifecycle() async {
+    try {
+      await (await _profileManagerFuture).refresh();
+    } catch (error, stackTrace) {
+      stderr.writeln('Profile lifecycle refresh failed: $error');
+      stderr.writeln(stackTrace);
+    }
   }
 
   void _openDestination(int index) {

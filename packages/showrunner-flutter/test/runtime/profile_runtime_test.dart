@@ -526,7 +526,7 @@ void main() {
     expect(calls, ['auto', 'auto', 'condition']);
   });
 
-  test('watch deduplicates repeated persisted trigger targets', () async {
+  test('watch executes every repeated persisted trigger target', () async {
     final events = StreamController<RuntimeMap>.broadcast();
     addTearDown(events.close);
     var executions = 0;
@@ -602,7 +602,87 @@ void main() {
 
     events.add({});
     await Future<void>.delayed(Duration.zero);
-    expect(executions, 1);
+    expect(executions, 2);
     await session.dispose();
   });
+
+  test(
+    'watch supports graph trigger nodes inside a profile automation',
+    () async {
+      final events = StreamController<RuntimeMap>.broadcast();
+      addTearDown(events.close);
+      var executions = 0;
+      final registry = DartPluginRegistry()
+        ..register(
+          DartPluginManifest(
+            id: 'test',
+            name: 'Test',
+            actions: [
+              DartActionDefinition(
+                pluginId: 'test',
+                actionId: 'record',
+                invoke: (config, context) async {
+                  executions++;
+                  return null;
+                },
+              ),
+            ],
+            triggers: [
+              DartTriggerDefinition(
+                pluginId: 'test',
+                triggerId: 'chat',
+                displayName: 'Chat',
+                listen: () => events.stream,
+              ),
+            ],
+          ),
+        );
+      final profile = ShowRunnerProfile(
+        name: 'Graph trigger profile',
+        activationMode: 'always',
+        triggers: [
+          {
+            'id': 'automation-trigger',
+            'automation': {
+              'schemaVersion': 2,
+              'graph': {
+                'nodes': [
+                  {
+                    'id': 'record',
+                    'type': 'action',
+                    'plugin': 'test',
+                    'action': 'record',
+                  },
+                ],
+                'edges': [],
+                'entryNodeId': 'record',
+              },
+              'subgraphs': [],
+              'dataWires': [],
+              'variableNodes': [],
+              'triggerNodes': [
+                {
+                  'id': 'graph-trigger',
+                  'plugin': 'test',
+                  'trigger': 'chat',
+                  'config': {},
+                },
+              ],
+            },
+          },
+        ],
+        activationCondition: const {},
+        activationAutomation: const AutomationData(),
+        deactivationAutomation: const AutomationData(),
+      );
+      final runtime = DartProfileRuntime(registry: registry);
+      await runtime.activate('graph', profile);
+      final session = runtime.watch('graph', profile);
+
+      events.add({'message': 'hello'});
+      await Future<void>.delayed(Duration.zero);
+      expect(executions, 1);
+      await session.dispose();
+    },
+  );
 }
