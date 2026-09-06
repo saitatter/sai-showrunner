@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,10 +9,11 @@ import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/philips_hue/discovery.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../services/provider_settings_validator.dart';
-import '../../persistence/automation_repository.dart';
+import '../../schema/automation.dart';
 import '../../services/showrunner_data_service.dart';
 import 'plugin_visibility.dart';
 import 'plugin_metadata.dart';
+import 'plugin_usage.dart';
 
 class PluginWorkspace extends StatefulWidget {
   const PluginWorkspace({
@@ -509,8 +511,11 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         ],
       );
 
-  Widget _buildUsageTab(DartPluginManifest plugin) =>
-      _PluginUsageSummary(dataService: widget.dataService, pluginId: plugin.id);
+  Widget _buildUsageTab(DartPluginManifest plugin) => _PluginUsageDetails(
+    dataService: widget.dataService,
+    pluginId: plugin.id,
+    filter: _detailsFilter,
+  );
 
   Widget _buildStateTab(
     BuildContext context,
@@ -869,19 +874,13 @@ class _PluginUsageSummaryState extends State<_PluginUsageSummary> {
   }
 
   Future<List<String>> _loadUsage() async {
-    final entries = await AutomationRepository.loadDirectory(
-      Directory('${widget.dataService.userDirectory.path}/automations'),
+    final usage = await loadPluginUsage(
+      directory: Directory(
+        '${widget.dataService.userDirectory.path}/automations',
+      ),
+      pluginId: widget.pluginId,
     );
-    final usage = <String>[];
-    for (final entry in entries) {
-      final graph = entry.automation?.graph;
-      if (graph == null) continue;
-      final usesPlugin = graph.nodes.any(
-        (node) => node.data['plugin'] == widget.pluginId,
-      );
-      if (usesPlugin) usage.add(entry.fileName);
-    }
-    return usage;
+    return usage.map((entry) => entry.automationFile).toSet().toList()..sort();
   }
 
   @override
@@ -904,6 +903,112 @@ class _PluginUsageSummaryState extends State<_PluginUsageSummary> {
       );
     },
   );
+}
+
+final class _PluginUsageDetails extends StatefulWidget {
+  const _PluginUsageDetails({
+    required this.dataService,
+    required this.pluginId,
+    required this.filter,
+  });
+
+  final ShowRunnerDataService dataService;
+  final String pluginId;
+  final String filter;
+
+  @override
+  State<_PluginUsageDetails> createState() => _PluginUsageDetailsState();
+}
+
+final class _PluginUsageDetailsState extends State<_PluginUsageDetails> {
+  late Future<List<PluginUsageEntry>> _usageFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _usageFuture = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PluginUsageDetails oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dataService != widget.dataService ||
+        oldWidget.pluginId != widget.pluginId) {
+      _usageFuture = _load();
+    }
+  }
+
+  Future<List<PluginUsageEntry>> _load() => loadPluginUsage(
+    directory: Directory(
+      '${widget.dataService.userDirectory.path}/automations',
+    ),
+    pluginId: widget.pluginId,
+  );
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<PluginUsageEntry>>(
+    future: _usageFuture,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Card(
+          child: ListTile(title: Text('Scanning saved automations...')),
+        );
+      }
+      if (snapshot.hasError) {
+        return Card(
+          child: ListTile(title: Text('Usage error: ${snapshot.error}')),
+        );
+      }
+      final query = widget.filter.trim().toLowerCase();
+      final usage = (snapshot.data ?? const <PluginUsageEntry>[]).where((
+        entry,
+      ) {
+        if (query.isEmpty) return true;
+        return '${entry.automationName} ${entry.kind} ${entry.name} '
+                '${entry.automationFile} ${entry.config}'
+            .toLowerCase()
+            .contains(query);
+      }).toList();
+      return Card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ListTile(
+              leading: Icon(Icons.account_tree_outlined),
+              title: Text('Used in automations'),
+            ),
+            if (usage.isEmpty)
+              ListTile(
+                dense: true,
+                title: Text(
+                  query.isEmpty
+                      ? 'No current automations use this plugin.'
+                      : 'No matches for "${widget.filter.trim()}".',
+                ),
+              )
+            else
+              for (final entry in usage)
+                ListTile(
+                  dense: true,
+                  title: Text(entry.automationName),
+                  subtitle: Text(
+                    '${entry.kind} · ${entry.name} · ${entry.automationFile}'
+                    '${entry.config.isEmpty ? '' : '\n${_formatConfig(entry.config)}'}',
+                  ),
+                ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+String _formatConfig(JsonMap config) {
+  try {
+    return const JsonEncoder.withIndent('  ').convert(config);
+  } on Object {
+    return config.toString();
+  }
 }
 
 extension<T> on Iterable<T> {
