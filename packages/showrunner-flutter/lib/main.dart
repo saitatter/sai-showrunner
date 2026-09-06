@@ -3,13 +3,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/app_foundations.dart';
 import 'app/automation_document_manager.dart';
 import 'app/bootstrap/showrunner_services.dart';
 import 'app/commands/app_command.dart';
+import 'app/commands/app_command_registrar.dart';
 import 'app/data_directory.dart';
 import 'app/lifecycle/app_lifecycle_coordinator.dart';
 import 'app/startup_health.dart';
@@ -213,232 +213,37 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _interfacePreferences = FlutterInterfacePreferences(
       dataService: widget.dataService,
     );
-    _commandRegistry = AppCommandRegistry([
-      AppCommand(
-        id: 'file.newAutomation',
-        label: 'New automation',
-        icon: Icons.bolt,
-        execute: (_) => _createAutomation(),
-      ),
-      AppCommand(
-        id: 'file.newAutomationFromStarter',
-        label: 'New automation from starter',
-        icon: Icons.auto_awesome,
-        execute: (_) => _createAutomation(starterOnly: true),
-      ),
-      AppCommand(
-        id: 'file.newProfile',
-        label: 'New profile',
-        icon: Icons.people_alt,
-        execute: (_) => _createProfile(),
-      ),
-      AppCommand(
-        id: 'file.save',
-        label: 'Save automation',
-        icon: Icons.save,
-        shortcut: const SingleActivator(LogicalKeyboardKey.keyS, control: true),
-        additionalShortcuts: const [
-          SingleActivator(LogicalKeyboardKey.keyS, meta: true),
-        ],
-        canExecute: (_) => _activeAutomationFile != null,
-        execute: (_) => _saveAutomation(),
-      ),
-      AppCommand(
-        id: 'file.saveAll',
-        label: 'Save all',
-        icon: Icons.save_as,
-        shortcut: const SingleActivator(
-          LogicalKeyboardKey.keyS,
-          control: true,
-          shift: true,
-        ),
-        additionalShortcuts: const [
-          SingleActivator(LogicalKeyboardKey.keyS, meta: true, shift: true),
-        ],
-        canExecute: (_) =>
-            _automationDocuments.documents.any((document) => document.dirty),
-        execute: (_) => _saveAll(),
-      ),
-      AppCommand(
-        id: 'file.settings',
-        label: 'Settings',
-        icon: Icons.settings,
-        execute: (_) => _openDestination(WorkspaceIds.settings),
-      ),
-      AppCommand(
-        id: 'file.close',
-        label: 'Close workspace',
-        icon: Icons.close,
-        shortcut: const SingleActivator(LogicalKeyboardKey.keyW, control: true),
-        additionalShortcuts: const [
-          SingleActivator(LogicalKeyboardKey.keyW, meta: true),
-        ],
-        canExecute: (_) => _workspaceDocuments.canClose,
-        execute: (_) => _closeTab(_workspaceDocuments.selectedWorkspace),
-      ),
-      AppCommand(
-        id: 'file.closeOthers',
-        label: 'Close other workspaces',
-        icon: Icons.tab_unselected,
-        canExecute: (_) => _workspaceDocuments.canCloseOthers,
-        execute: (_) => _closeOtherTabs(),
-      ),
-      AppCommand(
-        id: 'file.exit',
-        label: 'Exit',
-        icon: Icons.exit_to_app,
-        execute: (_) async {
-          await _handleWindowClose();
-        },
-      ),
-      AppCommand(
-        id: 'edit.undo',
-        label: 'Undo',
-        icon: Icons.undo,
-        shortcut: const SingleActivator(LogicalKeyboardKey.keyZ, control: true),
-        additionalShortcuts: const [
-          SingleActivator(LogicalKeyboardKey.keyZ, meta: true),
-        ],
-        canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
-            widget.showGraphEditor &&
-            _graphEditor.controller.history.canUndo,
-        execute: (_) => _graphEditor.controller.history.undo(),
-      ),
-      AppCommand(
-        id: 'edit.redo',
-        label: 'Redo',
-        icon: Icons.redo,
-        shortcut: const SingleActivator(
-          LogicalKeyboardKey.keyZ,
-          control: true,
-          shift: true,
-        ),
-        additionalShortcuts: const [
-          SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true),
-        ],
-        canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
-            widget.showGraphEditor &&
-            _graphEditor.controller.history.canRedo,
-        execute: (_) => _graphEditor.controller.history.redo(),
-      ),
-      AppCommand(
-        id: 'edit.copy',
-        label: 'Copy selected nodes',
-        icon: Icons.copy,
-        shortcut: const SingleActivator(LogicalKeyboardKey.keyC, control: true),
-        additionalShortcuts: const [
-          SingleActivator(LogicalKeyboardKey.keyC, meta: true),
-        ],
-        canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
-            widget.showGraphEditor,
-        execute: (commandContext) async {
-          final buildContext = commandContext.buildContext;
-          if (buildContext != null) {
-            await _graphEditor.copySelection(context: buildContext);
-          }
-        },
-      ),
-      AppCommand(
-        id: 'edit.paste',
-        label: 'Paste nodes',
-        icon: Icons.content_paste,
-        shortcut: const SingleActivator(LogicalKeyboardKey.keyV, control: true),
-        additionalShortcuts: const [
-          SingleActivator(LogicalKeyboardKey.keyV, meta: true),
-        ],
-        canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
-            widget.showGraphEditor,
-        execute: (commandContext) async {
-          final buildContext = commandContext.buildContext;
-          if (buildContext != null) {
-            await _graphEditor.pasteSelection(context: buildContext);
-          }
-        },
-      ),
-      AppCommand(
-        id: 'edit.cut',
-        label: 'Cut selected nodes',
-        icon: Icons.content_cut,
-        shortcut: const SingleActivator(LogicalKeyboardKey.keyX, control: true),
-        additionalShortcuts: const [
-          SingleActivator(LogicalKeyboardKey.keyX, meta: true),
-        ],
-        canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
-            widget.showGraphEditor,
-        execute: (commandContext) async {
-          final buildContext = commandContext.buildContext;
-          if (buildContext != null) {
-            await _graphEditor.cutSelection(context: buildContext);
-          }
-        },
-      ),
-      AppCommand(
-        id: 'edit.frameSelection',
-        label: 'Frame selected nodes',
-        icon: Icons.crop_free,
-        canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
-            widget.showGraphEditor,
-        execute: (_) => _frameSelectionFromCommand(),
-      ),
-      AppCommand(
-        id: 'view.fitGraph',
-        label: 'Fit graph',
-        icon: Icons.fit_screen,
-        shortcut: const SingleActivator(LogicalKeyboardKey.home),
-        canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
-            widget.showGraphEditor,
-        execute: (_) => _graphEditor.fitGraph(),
-      ),
-      AppCommand(
-        id: 'view.resetSample',
-        label: 'Reset sample graph',
-        icon: Icons.refresh,
-        canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
-            widget.showGraphEditor,
-        execute: (_) => _graphEditor.loadSampleGraph(),
-      ),
-      AppCommand(
-        id: 'run.automation',
-        label: 'Run automation',
-        icon: Icons.play_arrow,
-        shortcut: const SingleActivator(LogicalKeyboardKey.f6),
-        canExecute: (_) => _activeAutomation != null,
-        execute: (_) => _runAutomation(),
-      ),
-      AppCommand(
-        id: 'help.about',
-        label: 'About ShowRunner',
-        icon: Icons.info,
-        execute: (_) => _openDestination(WorkspaceIds.about),
-      ),
-      AppCommand(
-        id: 'help.updates',
-        label: 'Updates',
-        icon: Icons.system_update_alt,
-        execute: (_) => _openDestination(WorkspaceIds.updates),
-      ),
-      AppCommand(
-        id: 'help.discord',
-        label: 'Discord',
-        icon: Icons.forum,
-        execute: (_) =>
-            _openExternal(Uri.parse('https://discord.gg/txt4DUzYJM')),
-      ),
-      AppCommand(
-        id: 'help.openLogFolder',
-        label: 'Open log folder',
-        icon: Icons.folder,
-        execute: (_) => _openLogFolder(),
-      ),
-    ]);
+    _commandRegistry = AppCommandRegistrar(
+      selectedWorkspace: () => _workspaceDocuments.selectedWorkspace,
+      graphEditorVisible: widget.showGraphEditor,
+      hasActiveAutomation: () => _activeAutomationFile != null,
+      hasDirtyAutomation: () =>
+          _automationDocuments.documents.any((document) => document.dirty),
+      canCloseWorkspace: () => _workspaceDocuments.canClose,
+      canCloseOthers: () => _workspaceDocuments.canCloseOthers,
+      onNewAutomation: _createAutomation,
+      onNewAutomationFromStarter: () => _createAutomation(starterOnly: true),
+      onNewProfile: _createProfile,
+      onSave: _saveAutomation,
+      onSaveAll: _saveAll,
+      onOpenDestination: _openDestination,
+      onCloseWorkspace: _closeTab,
+      onCloseOthers: _closeOtherTabs,
+      onExit: _handleWindowClose,
+      canUndo: () => _graphEditor.controller.history.canUndo,
+      canRedo: () => _graphEditor.controller.history.canRedo,
+      onUndo: _graphEditor.controller.history.undo,
+      onRedo: _graphEditor.controller.history.redo,
+      onCopy: (context) => _graphEditor.copySelection(context: context),
+      onPaste: (context) => _graphEditor.pasteSelection(context: context),
+      onCut: (context) => _graphEditor.cutSelection(context: context),
+      onFrameSelection: _frameSelectionFromCommand,
+      onFitGraph: _graphEditor.fitGraph,
+      onResetSample: _graphEditor.loadSampleGraph,
+      onRunAutomation: _runAutomation,
+      onOpenExternal: _openExternal,
+      onOpenLogFolder: _openLogFolder,
+    ).build();
     _lifecycle = AppLifecycleCoordinator(
       shutdownTasks: [
         _services.shutdown,
@@ -678,10 +483,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       }
       if (!mounted) return;
       setState(() {
-        _workspaceDocuments.restore(
-          openWorkspaces: tabs,
-          selected: selected,
-        );
+        _workspaceDocuments.restore(openWorkspaces: tabs, selected: selected);
         _selectedResourceType = restoredResourceType is String
             ? restoredResourceType
             : null;
