@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../services/showrunner_data_service.dart';
+import 'obs_setup_persistence.dart';
 
 class SetupWorkspace extends StatefulWidget {
   const SetupWorkspace({
@@ -25,6 +28,8 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
   final _portController = TextEditingController();
   final _passwordController = TextEditingController();
   final _settings = <String, Map<String, dynamic>>{};
+  final _obsPersistence = const ObsSetupPersistence();
+  String? _obsResourceId;
   int _stepIndex = 0;
   bool _loading = true;
   bool _saving = false;
@@ -61,11 +66,27 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
     try {
       final settings = await widget.dataService.loadPluginSettings(_pluginId);
       _settings[_pluginId] = settings;
-      _fillControllers(settings);
+      if (_pluginId == 'obs') {
+        await _loadObsResource(settings);
+      } else {
+        _fillControllers(settings);
+      }
     } catch (error) {
       _error = error;
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadObsResource(Map<String, dynamic> settings) async {
+    final directory = Directory(
+      '${widget.dataService.userDirectory.path}/obs/connections',
+    );
+    final selected = await _obsPersistence.loadSelected(
+      directory: directory,
+      settings: settings,
+    );
+    _obsResourceId = selected?.id;
+    _fillControllers({...settings, ...?selected?.config});
   }
 
   void _fillControllers(Map<String, dynamic> settings) {
@@ -100,9 +121,19 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
     try {
       final current = <String, dynamic>{...?_settings[_pluginId]};
       if (_pluginId == 'obs') {
-        current['host'] = _hostController.text.trim();
-        current['port'] = int.tryParse(_portController.text.trim()) ?? 4455;
-        current['password'] = _passwordController.text;
+        final host = _hostController.text.trim();
+        final port = int.tryParse(_portController.text.trim()) ?? 4455;
+        final id = await _obsPersistence.save(
+          directory: Directory(
+            '${widget.dataService.userDirectory.path}/obs/connections',
+          ),
+          resourceId: _obsResourceId,
+          host: host,
+          port: port,
+          password: _passwordController.text,
+        );
+        _obsResourceId = id;
+        current['obsDefault'] = id;
       } else {
         current['clientId'] = _clientIdController.text.trim();
         current['clientSecret'] = _clientSecretController.text;
