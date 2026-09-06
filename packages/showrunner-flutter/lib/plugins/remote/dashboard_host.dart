@@ -39,6 +39,7 @@ final class RemoteDashboardHost extends ChangeNotifier {
 
   final _connections = <String, _RemoteDashboardHostConnection>{};
   final _stateSubscriptions = <String, Set<String>>{};
+  final _pendingCandidates = <String, List<Object?>>{};
   StreamSubscription<SatelliteSignalingMessage>? _signalingSubscription;
   StreamSubscription<FileSystemEvent>? _fileSubscription;
   Object? _lastError;
@@ -81,6 +82,7 @@ final class RemoteDashboardHost extends ChangeNotifier {
     }
     _connections.clear();
     _stateSubscriptions.clear();
+    _pendingCandidates.clear();
     await signaling.stop();
     notifyListeners();
   }
@@ -112,7 +114,20 @@ final class RemoteDashboardHost extends ChangeNotifier {
       } else if (message.event == 'satelliteConnectionIceCandidate' &&
           message.data['side']?.toString() == 'satellite') {
         final connection = _findConnection(message.data);
-        await connection?.applyCandidate(message.data['candidate']);
+        if (connection != null) {
+          await connection.applyCandidate(message.data['candidate']);
+        } else {
+          final key = _signalKey(message.data);
+          if (key != null) {
+            final candidates = _pendingCandidates.putIfAbsent(
+              key,
+              () => <Object?>[],
+            );
+            if (candidates.length < 32) {
+              candidates.add(message.data['candidate']);
+            }
+          }
+        }
       }
     } on Object catch (error) {
       _lastError = error;
@@ -147,6 +162,13 @@ final class RemoteDashboardHost extends ChangeNotifier {
     _stateSubscriptions[connection.id] = <String>{};
     try {
       await connection.acceptOffer(data['sdp']);
+      final key = _signalKey(data);
+      final candidates = key == null ? null : _pendingCandidates.remove(key);
+      if (candidates != null) {
+        for (final candidate in candidates) {
+          await connection.applyCandidate(candidate);
+        }
+      }
       notifyListeners();
     } catch (_) {
       await _removeConnection(connection);
@@ -267,6 +289,8 @@ final class RemoteDashboardHost extends ChangeNotifier {
   ) async {
     if (_connections.remove(connection.id) == null) return;
     _stateSubscriptions.remove(connection.id);
+    final key = _signalKey(connection.config.toJson());
+    if (key != null) _pendingCandidates.remove(key);
     await connection.close();
     connection.dispose();
     notifyListeners();
@@ -302,6 +326,18 @@ final class RemoteDashboardHost extends ChangeNotifier {
       showRunnerId: showRunnerId,
       dashboardId: dashboardId,
     );
+  }
+
+  String? _signalKey(SatelliteJson data) {
+    final values = [
+      data['satelliteService']?.toString().trim() ?? '',
+      data['satelliteId']?.toString().trim() ?? '',
+      data['ShowRunnerService']?.toString().trim() ?? '',
+      data['ShowRunnerId']?.toString().trim() ?? '',
+      data['dashId']?.toString().trim() ?? '',
+    ];
+    if (values.any((value) => value.isEmpty)) return null;
+    return values.join('\u0000');
   }
 
   bool _requestIsAllowed(

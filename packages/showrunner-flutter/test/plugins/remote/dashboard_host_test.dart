@@ -85,6 +85,26 @@ void main() {
           'dataType': 'json',
           'data': {
             'plugin': 'satellite',
+            'event': 'satelliteConnectionIceCandidate',
+            'context': {
+              'satelliteService': 'twitch',
+              'satelliteId': 'satellite-1',
+              'ShowRunnerService': 'twitch',
+              'ShowRunnerId': 'owner-1',
+              'dashId': 'dash-1',
+              'side': 'satellite',
+              'candidate': {'candidate': 'candidate-before-offer'},
+            },
+          },
+        }),
+      );
+      await _settle();
+      socket.messagesController.add(
+        jsonEncode({
+          'type': 'message',
+          'dataType': 'json',
+          'data': {
+            'plugin': 'satellite',
             'event': 'satelliteConnectionRequest',
             'context': {
               'satelliteService': 'twitch',
@@ -112,6 +132,7 @@ void main() {
           'sdp': {'sdp': 'answer', 'type': 'answer'},
         },
       });
+      expect(peer.addedCandidates.single.candidate, 'candidate-before-offer');
 
       final channel = _FakeDataChannel();
       peer.emitDataChannel(channel);
@@ -211,6 +232,7 @@ class _FakeDataChannel implements SatelliteDataChannel {
 class _FakePeerConnection implements SatellitePeerConnection {
   void Function(SatellitePeerState state)? _onStateChanged;
   void Function(SatelliteDataChannel channel)? _onDataChannel;
+  final addedCandidates = <SatelliteIceCandidate>[];
 
   @override
   set onIceCandidate(
@@ -255,7 +277,8 @@ class _FakePeerConnection implements SatellitePeerConnection {
   ) async {}
 
   @override
-  Future<void> addCandidate(SatelliteIceCandidate candidate) async {}
+  Future<void> addCandidate(SatelliteIceCandidate candidate) async =>
+      addedCandidates.add(candidate);
 
   @override
   Future<void> close() async =>
