@@ -11,6 +11,7 @@ import '../runtime/automation_recovery.dart';
 import '../plugins/registry/plugin_bootstrap.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
+import 'sai_nodes/content_revision.dart';
 import 'sai_nodes/selection_navigation.dart';
 
 enum GraphNodeExecutionStatus { running, success, error }
@@ -233,21 +234,11 @@ class ShowRunnerGraphEditor {
   }
 
   void _markDocumentDirtyFromEvent(NodeEditorEvent event) {
-    if (_suspendDirtyTracking) return;
-    if (event is AddLinkEvent ||
-        event is RemoveLinkEvent ||
-        event is NodeResizeEvent ||
-        event is NodeRenameEvent ||
-        event is LinkLabelChangeEvent ||
-        event is DragSelectionEvent ||
-        event is AddNodeEvent ||
-        event is RemoveNodeEvent ||
-        event is PasteSelectionEvent ||
-        event is CutSelectionEvent ||
-        event is NodeLayoutEvent ||
-        (event is NodeFieldEvent && event.eventType != FieldEventType.change)) {
-      _markDocumentDirty();
+    if (_suspendDirtyTracking ||
+        !SaiNodesContentRevision.isContentMutation(event)) {
+      return;
     }
+    _markDocumentDirty();
   }
 
   /// Marks the current graph as persisted after a successful save.

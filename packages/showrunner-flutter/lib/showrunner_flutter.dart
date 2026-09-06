@@ -7,6 +7,7 @@ library;
 export 'app/startup_health.dart';
 export 'editor/showrunner_graph_editor.dart';
 export 'editor/sai_nodes/selection_navigation.dart';
+export 'editor/sai_nodes/content_revision.dart';
 export 'schema/automation.dart';
 export 'schema/data_input.dart';
 export 'schema/profile.dart';
