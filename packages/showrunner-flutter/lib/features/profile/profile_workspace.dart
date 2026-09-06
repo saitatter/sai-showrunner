@@ -9,6 +9,7 @@ import '../../editor/showrunner_graph_editor.dart';
 import '../graph/graph_workspace.dart';
 import '../../persistence/profile_repository.dart';
 import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/registry/plugin_bootstrap.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../runtime/profile_runtime.dart';
 import '../../schema/automation.dart';
@@ -479,6 +480,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       builder: (context) => _TriggerEditDialog(
         trigger: trigger,
         registry: registry,
+        registryFuture: widget.registryFuture,
         resourceOptionsLoader: _resourceOptions,
       ),
     );
@@ -818,11 +820,13 @@ class _TriggerEditDialog extends StatefulWidget {
   const _TriggerEditDialog({
     required this.trigger,
     required this.registry,
+    this.registryFuture,
     this.resourceOptionsLoader,
   });
 
   final JsonMap trigger;
   final DartPluginRegistry? registry;
+  final Future<DartPluginRegistry>? registryFuture;
   final GraphResourceOptionsLoader? resourceOptionsLoader;
 
   @override
@@ -836,6 +840,11 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
   late bool _stop;
   late String? _selectedTriggerId;
   late dynamic _configValue;
+  late final AutomationData _originalAutomation;
+  late final DartPluginRegistry _editorRegistry;
+  late final Future<DartPluginRegistry> _editorRegistryFuture;
+  late final ShowRunnerGraphEditor _automationEditor;
+  String? _graphTriggerNodeId;
   String? _error;
 
   List<DartTriggerDefinition> get _availableTriggers => [
@@ -866,14 +875,34 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
       ),
     );
     _stop = widget.trigger['stop'] == true;
-    _selectedTriggerId =
-        widget.trigger['plugin'] is String &&
-            widget.trigger['trigger'] is String
-        ? '${widget.trigger['plugin']}:${widget.trigger['trigger']}'
+    final rawAutomation = widget.trigger['automation'];
+    _originalAutomation = rawAutomation is Map
+        ? _parseAutomation(rawAutomation)
+        : AutomationData();
+    _editorRegistry = widget.registry ?? createDefaultPluginRegistry();
+    _editorRegistryFuture =
+        widget.registryFuture ?? Future.value(_editorRegistry);
+    _automationEditor = ShowRunnerGraphEditor(
+      registry: _editorRegistry,
+      resourceOptionsLoader: widget.resourceOptionsLoader,
+    )..loadAutomation(_originalAutomation);
+    final graphTrigger = _originalAutomation.triggerNodes.firstOrNull;
+    final plugin = widget.trigger['plugin'] is String
+        ? widget.trigger['plugin'] as String
+        : graphTrigger?['plugin']?.toString();
+    final triggerId = widget.trigger['trigger'] is String
+        ? widget.trigger['trigger'] as String
+        : graphTrigger?['trigger']?.toString();
+    _graphTriggerNodeId = graphTrigger?['id']?.toString();
+    _selectedTriggerId = plugin != null && triggerId != null
+        ? '$plugin:$triggerId'
         : null;
     _configValue = widget.trigger['config'] is Map
         ? Map<String, dynamic>.from(widget.trigger['config'] as Map)
+        : graphTrigger?['config'] is Map
+        ? Map<String, dynamic>.from(graphTrigger!['config'] as Map)
         : <String, dynamic>{};
+    _config.text = const JsonEncoder.withIndent('  ').convert(_configValue);
   }
 
   @override
@@ -881,6 +910,7 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
     _description.dispose();
     _queue.dispose();
     _config.dispose();
+    _automationEditor.dispose();
     super.dispose();
   }
 
@@ -898,8 +928,9 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
       return;
     }
     final selectedTrigger = _selectedTrigger;
-    Navigator.of(context).pop({
+    final result = <String, dynamic>{
       ...widget.trigger,
+      'automation': _saveAutomation(decoded, selectedTrigger),
       if (selectedTrigger != null) ...{
         'plugin': selectedTrigger.pluginId,
         'trigger': selectedTrigger.triggerId,
@@ -909,14 +940,46 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
       if (_queue.text.trim().isNotEmpty) 'queue': _queue.text.trim(),
       if (_queue.text.trim().isEmpty) 'queue': null,
       'stop': _stop,
-    });
+    };
+    if (_graphTriggerNodeId != null) {
+      result.remove('plugin');
+      result.remove('trigger');
+      result.remove('config');
+    }
+    Navigator.of(context).pop(result);
+  }
+
+  JsonMap _saveAutomation(
+    JsonMap config,
+    DartTriggerDefinition? selectedTrigger,
+  ) {
+    final automation = _automationEditor.toAutomation(_originalAutomation);
+    final json = automation.toJson();
+    final nodeId = _graphTriggerNodeId;
+    if (nodeId == null) return json;
+    final rawNodes = json['triggerNodes'];
+    if (rawNodes is! List) return json;
+    json['triggerNodes'] = [
+      for (final rawNode in rawNodes)
+        if (rawNode is Map)
+          {
+            ...Map<String, dynamic>.from(rawNode),
+            if (rawNode['id']?.toString() == nodeId) ...{
+              if (selectedTrigger != null) 'plugin': selectedTrigger.pluginId,
+              if (selectedTrigger != null) 'trigger': selectedTrigger.triggerId,
+              'config': config,
+              'stop': _stop,
+            },
+          },
+    ];
+    return json;
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('Edit trigger'),
     content: SizedBox(
-      width: 520,
+      width: 820,
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -976,6 +1039,25 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
               onChanged: (value) => setState(() => _stop = value),
             ),
             _buildConfigurationInput(),
+            const SizedBox(height: 12),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              leading: const Icon(Icons.account_tree_outlined),
+              title: const Text('Automation'),
+              subtitle: Text(
+                '${_automationEditor.controller.nodes.length} nodes',
+              ),
+              children: [
+                SizedBox(
+                  width: 760,
+                  height: 420,
+                  child: ShowRunnerInlineGraphEditor(
+                    editor: _automationEditor,
+                    registryFuture: _editorRegistryFuture,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -1016,6 +1098,14 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
             )
           : const LinearProgressIndicator(),
     );
+  }
+}
+
+AutomationData _parseAutomation(Object value) {
+  try {
+    return AutomationData.fromJson(Map<String, dynamic>.from(value as Map));
+  } on FormatException {
+    return AutomationData();
   }
 }
 
