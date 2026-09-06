@@ -54,6 +54,7 @@ jobs:
         run: |
           corepack enable
           corepack yarn parity:check
+          corepack yarn parity:product
 
       - name: Smoke Flutter Windows startup
         shell: pwsh

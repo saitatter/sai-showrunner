@@ -1,0 +1,181 @@
+{
+  "reference": "parity-reference/main-2026-09-05",
+  "statuses": [
+    "equivalent",
+    "partial",
+    "missing",
+    "improved",
+    "intentionally_removed",
+    "not_applicable"
+  ],
+  "workspaces": {
+    "home": {
+      "main": "ProjectView dashboard",
+      "flutter": "MainDashboardWorkspace",
+      "status": "equivalent"
+    },
+    "graph": {
+      "main": "NodeAutomationEdit",
+      "flutter": "ShowRunnerGraphEditor",
+      "status": "improved"
+    },
+    "plugins": {
+      "main": "Integration catalog",
+      "flutter": "PluginWorkspace",
+      "status": "improved"
+    },
+    "diagnostics": {
+      "main": "Integration feedback and status",
+      "flutter": "DiagnosticsWorkspace",
+      "status": "equivalent"
+    },
+    "automations": {
+      "main": "Automation catalog",
+      "flutter": "AutomationCatalogWorkspace",
+      "status": "equivalent"
+    },
+    "profiles": {
+      "main": "Profile editor",
+      "flutter": "ProfileWorkspace",
+      "status": "equivalent"
+    },
+    "queues": {
+      "main": "Queue page and dashboard widgets",
+      "flutter": "QueueWorkspace",
+      "status": "improved"
+    },
+    "resources": {
+      "main": "Resource catalog and editors",
+      "flutter": "ResourcesWorkspace",
+      "status": "improved"
+    },
+    "logs": {
+      "main": "Runtime feedback",
+      "flutter": "LogsWorkspace",
+      "status": "equivalent"
+    },
+    "about": {
+      "main": "About dialog",
+      "flutter": "AboutWorkspace",
+      "status": "equivalent"
+    },
+    "settings": {
+      "main": "Settings page",
+      "flutter": "SettingsWorkspace",
+      "status": "equivalent"
+    },
+    "setup": {
+      "main": "Setup and integration onboarding",
+      "flutter": "SetupWorkspace",
+      "status": "equivalent"
+    },
+    "variables": {
+      "main": "Variable viewer",
+      "flutter": "VariablesWorkspace",
+      "status": "improved"
+    },
+    "remote": {
+      "main": "Remote and Satellite dashboard",
+      "flutter": "RemoteWorkspace",
+      "status": "equivalent"
+    },
+    "updates": {
+      "main": "Update page and release metadata",
+      "flutter": "UpdateWorkspace",
+      "status": "partial"
+    },
+    "persistent-media-library": {
+      "main": null,
+      "flutter": null,
+      "status": "intentionally_removed",
+      "reason": "Migration-only scope; not part of the target CastMate/ShowRunner product."
+    }
+  },
+  "commands": {
+    "file.save": { "main": "Save", "flutter": "Save", "status": "equivalent" },
+    "file.saveAll": { "main": "Save All", "flutter": "Save All", "status": "equivalent" },
+    "file.close": { "main": "Close", "flutter": "Close", "status": "equivalent" },
+    "file.closeOthers": { "main": "Close Others", "flutter": "Close Others", "status": "equivalent" },
+    "edit.undo": { "main": "Undo", "flutter": "Undo", "status": "equivalent" },
+    "edit.redo": { "main": "Redo", "flutter": "Redo", "status": "equivalent" },
+    "edit.copy": { "main": "Copy", "flutter": "Copy", "status": "equivalent" },
+    "edit.paste": { "main": "Paste", "flutter": "Paste", "status": "equivalent" },
+    "edit.delete": { "main": "Delete", "flutter": "Delete", "status": "equivalent" },
+    "file.newAutomation": { "main": "New automation", "flutter": "New automation", "status": "equivalent" },
+    "file.newProfile": { "main": "New profile", "flutter": "New profile", "status": "equivalent" }
+  },
+  "documents": {
+    "automation": { "main": "Automation resource", "flutter": "AutomationData", "status": "equivalent" },
+    "profile": { "main": "Profile resource", "flutter": "ShowRunnerProfile", "status": "equivalent" },
+    "resource": { "main": "Plugin resource", "flutter": "ResourceData", "status": "improved" },
+    "stream-plan": { "main": "Stream plan resource", "flutter": "StreamPlanData", "status": "improved" }
+  },
+  "resources": {
+    "automation": { "main": "Automation", "flutter": "Automation", "status": "equivalent" },
+    "profile": { "main": "Profile", "flutter": "Profile", "status": "equivalent" },
+    "overlay": { "main": "Overlay", "flutter": "Overlay", "status": "improved" },
+    "variable": { "main": "Variable", "flutter": "Variable", "status": "improved" },
+    "dashboard": { "main": "Dashboard", "flutter": "Dashboard", "status": "equivalent" },
+    "stream-plan": { "main": "StreamPlan", "flutter": "StreamPlan", "status": "improved" },
+    "persistent-media-library": {
+      "main": null,
+      "flutter": null,
+      "status": "intentionally_removed",
+      "reason": "Local file selection is sufficient for sound and overlay resources; a persistent catalog is out of scope."
+    }
+  },
+  "editorModes": {
+    "graph": { "main": "Node editor", "flutter": "Node editor", "status": "improved" },
+    "timeline": {
+      "main": "Historical README label only",
+      "flutter": null,
+      "status": "intentionally_removed",
+      "reason": "Automation remains graph-only; timing semantics are represented by graph nodes. See ADR-002."
+    }
+  },
+  "systemMenus": {
+    "file": { "main": "File menu", "flutter": "File menu", "status": "equivalent" },
+    "edit": { "main": "Edit menu", "flutter": "Edit menu", "status": "equivalent" },
+    "view": { "main": "View menu", "flutter": "View menu", "status": "equivalent" },
+    "help": { "main": "Help menu", "flutter": "Help menu", "status": "equivalent" }
+  },
+  "appFeatures": {
+    "browser-overlay-runtime": { "main": "OBS Browser Source", "flutter": "showrunner-obs-overlay", "status": "not_applicable" },
+    "shader-graph-overlays": { "main": "Shader Graph", "flutter": "Flutter Shader Graph editor and compiler", "status": "improved" },
+    "sound-local-file-selection": { "main": "Sound file actions", "flutter": "Sound file actions and local picker", "status": "equivalent" },
+    "remote-agent": { "main": "Satellite protocol", "flutter": "Versioned remote agent protocol", "status": "equivalent" },
+    "persistent-media-library": {
+      "main": null,
+      "flutter": null,
+      "status": "intentionally_removed",
+      "reason": "Migration-only scope; no product workspace, catalog, scanner, database, or watcher is retained."
+    }
+  },
+  "discovery": {
+    "flutterFeatureDirectories": [
+      "automation",
+      "dashboard",
+      "diagnostics",
+      "graph",
+      "plugins",
+      "profile",
+      "queue",
+      "remote",
+      "resources",
+      "settings",
+      "setup",
+      "support",
+      "variables"
+    ],
+    "forbiddenFlutterMarkers": [
+      "MediaWorkspace",
+      "MediaCatalogService",
+      "MediaLibraryService",
+      "MediaLibraryWatcher",
+      "MediaIndexStore",
+      "media_scan_benchmark.dart",
+      "desktop_drop",
+      "package:sqlite3"
+    ]
+  }
+}
