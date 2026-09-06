@@ -437,7 +437,9 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     ),
   );
   registry.register(createInputPlugin(startEvents: true));
-  registry.register(createStreamPlansPlugin(registry: registry));
+  registry.register(
+    createStreamPlansPlugin(registry: registry, queueManager: queueManager),
+  );
   registry.register(
     createIotPlugin(
       resolver: createConfiguredIotResolver(

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../runtime/graph_runtime.dart';
+import '../../runtime/automation_queue_manager.dart';
 import '../../schema/automation.dart';
 import '../../schema/stream_plan.dart';
 import '../registry/plugin_registry.dart';
@@ -19,37 +20,28 @@ final class DartStreamPlanComponent {
     required this.id,
     this.onActivate,
     this.onDeactivate,
+    this.activeConfigChanged,
   });
 
   final String id;
   final DartStreamPlanComponentHandler? onActivate;
   final DartStreamPlanComponentHandler? onDeactivate;
+  final DartStreamPlanComponentHandler? activeConfigChanged;
 }
 
 const _segmentSchema = DartDataInputSchema(
   label: 'Stream plan segment',
   kind: DartDataInputKind.object,
-  fields: [
-    DartDataInputSchema(
-      label: 'Plan ID',
-      key: 'planId',
-      kind: DartDataInputKind.text,
-    ),
-    DartDataInputSchema(
-      label: 'Segment ID',
-      key: 'segmentId',
-      kind: DartDataInputKind.text,
-    ),
-    DartDataInputSchema(
-      label: 'Segments (JSON)',
-      key: 'segments',
-      kind: DartDataInputKind.array,
-      itemKind: DartDataInputKind.object,
-    ),
-  ],
+  // The reference actions have no user configuration. The optional fields
+  // remain accepted by the handler for old Flutter-authored graphs, but are
+  // intentionally not exposed as a new action contract.
+  fields: [],
 );
 
 final class DartStreamPlanRuntime extends ChangeNotifier {
+  DartStreamPlanRuntime({this.queueManager});
+
+  DartAutomationQueueManager? queueManager;
   String? activePlanId;
   String? activeSegmentId;
   StreamPlanData? _activePlan;
@@ -127,6 +119,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     await _runAutomation(
       plan.activationAutomation,
       planId: planId,
+      sourceSubId: 'activation',
       registry: registry,
       context: context,
       onNodeEnter: onNodeEnter,
@@ -180,6 +173,21 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
       onNodeExit: onNodeExit,
     ),
   );
+
+  /// Refreshes the component configuration of the active segment without
+  /// toggling the segment. This is used when an active Stream Plan resource
+  /// is edited while it is running.
+  Future<void> updateActivePlan(String planId, StreamPlanData plan) =>
+      _exclusive(() async {
+        if (activePlanId != planId || activeSegmentId == null) return;
+        final segment = plan.segments
+            .where((item) => item.id == activeSegmentId)
+            .firstOrNull;
+        if (segment == null) return;
+        _activePlan = plan;
+        notifyListeners();
+        await _invokeActiveConfigChanged(segment);
+      });
 
   Future<String?> transitionToNextSegment(
     String planId,
@@ -263,7 +271,6 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
   }) async {
-    if (activeSegmentId == segmentId) return;
     if (activeSegmentId != null) {
       await _deactivateSegmentInternal(
         planId,
@@ -284,6 +291,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
       segment.activationAutomation,
       planId: planId,
       segmentId: segment.id,
+      sourceSubId: '${segment.id}.activation',
       registry: registry,
       context: context,
       onNodeEnter: onNodeEnter,
@@ -309,6 +317,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
       segment.deactivationAutomation,
       planId: planId,
       segmentId: segment.id,
+      sourceSubId: '${segment.id}.deactivation',
       registry: registry,
       context: context,
       onNodeEnter: onNodeEnter,
@@ -347,6 +356,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     await _runAutomation(
       plan.deactivationAutomation,
       planId: planId,
+      sourceSubId: 'deactivation',
       registry: registry,
       context: context,
       onNodeEnter: onNodeEnter,
@@ -370,28 +380,63 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     }
   }
 
+  Future<void> _invokeActiveConfigChanged(StreamPlanSegmentData segment) async {
+    for (final entry in segment.components.entries) {
+      await _componentTypes[entry.key]?.activeConfigChanged?.call(
+        segment.id,
+        entry.value,
+      );
+    }
+  }
+
   Future<GraphExecutionResult> _runAutomation(
     JsonMap automation, {
     required String planId,
     String? segmentId,
+    String? sourceSubId,
     required DartPluginRegistry registry,
     EvaluationContext? context,
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
-  }) {
+  }) async {
     final baseContext = context ?? EvaluationContext();
     final parsed = AutomationData.fromJson(automation);
+    final executionContext = EvaluationContext(
+      locals: Map<String, dynamic>.from(baseContext.locals),
+      contextState: {
+        ...baseContext.contextState,
+        'streamPlan': {'planId': planId, 'segmentId': ?segmentId},
+        'streamPlan.planId': planId,
+        'streamPlan.segmentId': ?segmentId,
+      },
+      cancellationToken: baseContext.cancellationToken,
+    );
+    final queue = queueManager;
+    final queueId = parsed.queueId;
+    if (queue != null && queueId != null) {
+      final item = await queue.enqueue(
+        parsed,
+        executionContext,
+        queueId: queueId,
+        sourceMetadata: {
+          'sourceType': 'stream-plan',
+          'sourceId': planId,
+          ...?(sourceSubId == null
+              ? null
+              : <String, dynamic>{'sourceSubId': sourceSubId}),
+        },
+      );
+      return GraphExecutionResult(
+        completed: true,
+        steps: 0,
+        nodeResults: const <String, RuntimeMap>{},
+        contextState: Map<String, dynamic>.from(executionContext.contextState),
+        outputValues: {'queued': true, 'queueId': queueId, 'itemId': item.id},
+      );
+    }
     return const DartGraphRuntime().executeWithRegistry(
       graph: parsed.graph,
-      context: EvaluationContext(
-        locals: Map<String, dynamic>.from(baseContext.locals),
-        contextState: {
-          ...baseContext.contextState,
-          'streamPlan': {'planId': planId, 'segmentId': ?segmentId},
-          'streamPlan.planId': planId,
-          'streamPlan.segmentId': ?segmentId,
-        },
-      ),
+      context: executionContext,
       registry: registry,
       dataWires: parsed.dataWires,
       subgraphs: parsed.subgraphs,
@@ -440,8 +485,10 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
 DartPluginManifest createStreamPlansPlugin({
   DartStreamPlanRuntime? runtime,
   DartPluginRegistry? registry,
+  DartAutomationQueueManager? queueManager,
 }) {
   final activeRuntime = runtime ?? streamPlanRuntime;
+  if (queueManager != null) activeRuntime.queueManager = queueManager;
   return DartPluginManifest(
     id: 'stream-plans',
     name: 'Stream Plans',
@@ -483,14 +530,13 @@ Future<Object?> _nextSegment(
   final planId = config['planId']?.toString() ?? runtime.activePlanId;
   final segments = config['segments'];
   final segmentId =
-      registry != null &&
-          planId != null &&
-          planId == runtime.activePlanId &&
-          segments is List
+      registry != null && planId != null && planId == runtime.activePlanId
       ? await runtime.transitionToNextSegment(
           planId,
           runtime.activePlan ??
-              StreamPlanData.fromConfig({'segments': segments}),
+              StreamPlanData.fromConfig({
+                'segments': segments is List ? segments : const [],
+              }),
           registry: registry,
           context: context,
         )
@@ -507,14 +553,13 @@ Future<Object?> _previousSegment(
   final planId = config['planId']?.toString() ?? runtime.activePlanId;
   final segments = config['segments'];
   final segmentId =
-      registry != null &&
-          planId != null &&
-          planId == runtime.activePlanId &&
-          segments is List
+      registry != null && planId != null && planId == runtime.activePlanId
       ? await runtime.transitionToPreviousSegment(
           planId,
           runtime.activePlan ??
-              StreamPlanData.fromConfig({'segments': segments}),
+              StreamPlanData.fromConfig({
+                'segments': segments is List ? segments : const [],
+              }),
           registry: registry,
           context: context,
         )

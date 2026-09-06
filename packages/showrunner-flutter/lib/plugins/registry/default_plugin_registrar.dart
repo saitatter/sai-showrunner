@@ -101,6 +101,8 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(createWyzePlugin(_unconfiguredWyzeTransport));
   registry.register(dashboardPlugin);
   registry.register(createInputPlugin());
-  registry.register(createStreamPlansPlugin(registry: registry));
+  registry.register(
+    createStreamPlansPlugin(registry: registry, queueManager: queueManager),
+  );
   return registry;
 }

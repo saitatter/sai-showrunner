@@ -139,27 +139,30 @@ void _registerTwitchStreamPlanComponent({
   required TwitchTransport transport,
   String? broadcasterId,
 }) {
+  Future<void> updateStreamInfo(String segmentId, dynamic rawConfig) async {
+    final config = rawConfig is Map
+        ? Map<String, dynamic>.from(rawConfig)
+        : const <String, dynamic>{};
+    final category = config['categoryId'] ?? config['category'];
+    final categoryId = category is Map ? category['id'] : category;
+    final tags = config['tags'] is List ? config['tags'] : null;
+    final body = <String, dynamic>{
+      'title': ?config['title'],
+      'game_id': ?categoryId,
+      'tags': ?tags,
+    };
+    if (body.isEmpty) return;
+    await transport.request('PATCH', '/helix/channels', {
+      'broadcaster_id':
+          config['broadcasterId']?.toString() ?? broadcasterId ?? '',
+    }, body);
+  }
+
   streamPlanRuntime.registerComponentType(
     DartStreamPlanComponent(
       id: 'twitch-stream-info',
-      onActivate: (segmentId, rawConfig) async {
-        final config = rawConfig is Map
-            ? Map<String, dynamic>.from(rawConfig)
-            : const <String, dynamic>{};
-        final category = config['categoryId'] ?? config['category'];
-        final categoryId = category is Map ? category['id'] : category;
-        final tags = config['tags'] is List ? config['tags'] : null;
-        final body = <String, dynamic>{
-          'title': ?config['title'],
-          'game_id': ?categoryId,
-          'tags': ?tags,
-        };
-        if (body.isEmpty) return;
-        await transport.request('PATCH', '/helix/channels', {
-          'broadcaster_id':
-              config['broadcasterId']?.toString() ?? broadcasterId ?? '',
-        }, body);
-      },
+      onActivate: updateStreamInfo,
+      activeConfigChanged: updateStreamInfo,
     ),
   );
 }

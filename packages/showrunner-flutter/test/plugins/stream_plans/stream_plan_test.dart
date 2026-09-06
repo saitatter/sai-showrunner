@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/stream_plans/manifest.dart';
+import 'package:showrunner_flutter/runtime/action_queue.dart';
+import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
 
@@ -169,6 +171,64 @@ void main() {
     expect((result as Map)['segmentId'], 'two');
     expect(runtime.activeSegmentId, 'two');
     await runtime.deactivatePlan(registry: registry);
+  });
+
+  test(
+    'navigation actions use the active plan for empty action configs',
+    () async {
+      final runtime = DartStreamPlanRuntime();
+      final registry = DartPluginRegistry();
+      registry.register(
+        createStreamPlansPlugin(runtime: runtime, registry: registry),
+      );
+      addTearDown(registry.close);
+      final plan = StreamPlanData(
+        name: 'Show',
+        activationAutomation: emptyInlineAutomation(),
+        deactivationAutomation: emptyInlineAutomation(),
+        segments: [_segment('one'), _segment('two')],
+      );
+
+      await runtime.activatePlan('plan-1', plan, registry: registry);
+      final result = await registry.invokeAction(
+        'stream-plans',
+        'nextSegment',
+        const <String, dynamic>{},
+      );
+
+      expect((result as Map)['segmentId'], 'two');
+      expect(runtime.activeSegmentId, 'two');
+      await runtime.deactivatePlan(registry: registry);
+    },
+  );
+
+  test('queues inline stream-plan automations with source metadata', () async {
+    final queue = DartActionQueue()..setPaused(true);
+    final queueManager = DartAutomationQueueManager(
+      defaultQueue: queue,
+      execute: (automation, context, item) async => null,
+    );
+    addTearDown(queueManager.dispose);
+    final runtime = DartStreamPlanRuntime(queueManager: queueManager);
+    final registry = DartPluginRegistry();
+    addTearDown(registry.close);
+    final plan = StreamPlanData(
+      name: 'Show',
+      activationAutomation: {
+        ..._automation('plan:activate'),
+        'queue': 'default',
+      },
+      deactivationAutomation: emptyInlineAutomation(),
+      segments: const [],
+    );
+
+    await runtime.activatePlan('plan-1', plan, registry: registry);
+
+    expect(queue.pending, hasLength(1));
+    expect(queue.pending.single.source['sourceType'], 'stream-plan');
+    expect(queue.pending.single.source['sourceId'], 'plan-1');
+    expect(queue.pending.single.source['sourceSubId'], 'activation');
+    expect(queue.pending.single.contextState['streamPlan.planId'], 'plan-1');
   });
 }
 

@@ -239,6 +239,14 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
             ).synchronize(updated);
             await repository.save(synchronized);
           }
+          final streamPlanRuntime = widget.streamPlanRuntime;
+          if (resourceType == 'StreamPlan' &&
+              streamPlanRuntime?.activePlanId == updated.id) {
+            await streamPlanRuntime!.updateActivePlan(
+              updated.id,
+              StreamPlanData.fromConfig(updated.config),
+            );
+          }
         }
 
         final runtimeBuilder = editor.runtimeBuilder;
