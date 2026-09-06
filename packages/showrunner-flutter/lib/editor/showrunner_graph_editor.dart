@@ -12,6 +12,7 @@ import '../plugins/registry/plugin_bootstrap.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
 import 'sai_nodes/content_revision.dart';
+import 'sai_nodes/coordinate_transform.dart';
 import 'sai_nodes/showrunner_clipboard_payload.dart';
 import 'sai_nodes/selection_navigation.dart';
 
@@ -1715,12 +1716,11 @@ class ShowRunnerGraphEditor {
         ?.findRenderObject();
     if (renderObject is! RenderBox || renderObject.size.isEmpty) return null;
     final local = renderObject.globalToLocal(screenPosition);
-    final zoom = controller.viewportZoom;
-    final viewport = Offset(
-      -renderObject.size.width / 2 / zoom - controller.viewportOffset.dx,
-      -renderObject.size.height / 2 / zoom - controller.viewportOffset.dy,
-    );
-    return viewport + Offset(local.dx / zoom, local.dy / zoom);
+    return SaiNodesCoordinateTransform(
+      viewportSize: renderObject.size,
+      viewportOffset: controller.viewportOffset,
+      zoom: controller.viewportZoom,
+    ).screenToWorld(local);
   }
 
   String? insertActionAfterNode(

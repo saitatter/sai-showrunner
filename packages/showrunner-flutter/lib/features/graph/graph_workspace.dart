@@ -11,6 +11,7 @@ import '../../app/startup_health.dart';
 import '../../app/automation_document_manager.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../editor/showrunner_graph_editor.dart';
+import '../../editor/sai_nodes/coordinate_transform.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../schema/automation.dart';
 import '../../services/showrunner_data_service.dart';
@@ -2563,10 +2564,11 @@ class _ExecutionLinkPainter extends CustomPainter {
     }
   }
 
-  Offset _screenPoint(Offset world, Size size) => Offset(
-    size.width / 2 + (world.dx + viewportOffset.dx) * viewportZoom,
-    size.height / 2 + (world.dy + viewportOffset.dy) * viewportZoom,
-  );
+  Offset _screenPoint(Offset world, Size size) => SaiNodesCoordinateTransform(
+    viewportSize: size,
+    viewportOffset: viewportOffset,
+    zoom: viewportZoom,
+  ).worldToScreen(world);
 
   Path _pathFor(Offset source, Offset target) {
     final controlOffset = math.min((target.dx - source.dx).abs() / 2, 400);
@@ -2729,10 +2731,11 @@ class _InvalidLinkPainter extends CustomPainter {
         .firstOrNull;
   }
 
-  Offset _screenPoint(Offset world, Size size) => Offset(
-    size.width / 2 + (world.dx + viewportOffset.dx) * viewportZoom,
-    size.height / 2 + (world.dy + viewportOffset.dy) * viewportZoom,
-  );
+  Offset _screenPoint(Offset world, Size size) => SaiNodesCoordinateTransform(
+    viewportSize: size,
+    viewportOffset: viewportOffset,
+    zoom: viewportZoom,
+  ).worldToScreen(world);
 
   Path _pathFor(Offset source, Offset target) {
     final controlOffset = math.min((target.dx - source.dx).abs() / 2, 400);
@@ -4679,12 +4682,11 @@ class _GraphMinimapPainter extends CustomPainter {
         paint,
       );
     }
-    final viewportWorld = Rect.fromLTWH(
-      -viewportSize.width / (2 * viewportZoom) - viewportOffset.dx,
-      -viewportSize.height / (2 * viewportZoom) - viewportOffset.dy,
-      viewportSize.width / viewportZoom,
-      viewportSize.height / viewportZoom,
-    );
+    final viewportWorld = SaiNodesCoordinateTransform(
+      viewportSize: viewportSize,
+      viewportOffset: viewportOffset,
+      zoom: viewportZoom,
+    ).visibleWorldBounds;
     final viewportPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
