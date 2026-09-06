@@ -33,11 +33,12 @@ functionality rather than complete the desktop cutover.
 
 ## Current remote-dashboard coverage
 
-The Flutter remote surface supports connection negotiation, dashboard pages and
-sections, remote buttons, dashboard labels, state broadcasts, widget RPC, and
-resource-slot binding. The remote button preserves the raised shadow, pressed
-front movement, adaptive label sizing, and trigger RPC behavior of the runtime
-surface.
+The Flutter remote surface supports both sides of the connection negotiation:
+the desktop can host shared dashboards and can also connect as a satellite.
+Dashboard pages and sections, remote buttons, dashboard labels, state
+broadcasts, widget RPC, live config refresh, and resource-slot binding are
+covered. The remote button preserves the raised shadow, pressed front movement,
+adaptive label sizing, and trigger RPC behavior of the runtime surface.
 
 Unknown remote widget kinds are shown as an explicit placeholder so a dashboard
 remains inspectable. A new widget kind still needs a dedicated Flutter renderer
