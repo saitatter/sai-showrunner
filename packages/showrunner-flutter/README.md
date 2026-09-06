@@ -27,5 +27,8 @@ extraction remains an explicit follow-up for formats that need native TagLib
 support. OBS overlays remain browser-based because OBS consumes them as browser
 sources.
 
+Run `dart run tool/media_scan_benchmark.dart --files=1000` from this package to
+measure first-scan and unchanged quick-scan behavior on the current machine.
+
 All persisted automation documents use `schemaVersion: 2`. The loader rejects
 other document shapes so the runtime and editor operate on one contract.
