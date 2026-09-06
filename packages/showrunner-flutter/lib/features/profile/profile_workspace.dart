@@ -1102,11 +1102,7 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
 }
 
 AutomationData _parseAutomation(Object value) {
-  try {
-    return AutomationData.fromJson(Map<String, dynamic>.from(value as Map));
-  } on FormatException {
-    return AutomationData();
-  }
+  return AutomationData.fromJson(Map<String, dynamic>.from(value as Map));
 }
 
 Future<DartDataInputSchema> _hydrateResourceInputSchema(
