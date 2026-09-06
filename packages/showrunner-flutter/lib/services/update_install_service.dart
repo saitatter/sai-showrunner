@@ -87,6 +87,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $staging = Join-Path ([IO.Path]::GetTempPath()) "showrunner-update-$([guid]::NewGuid().ToString('N'))"
+$backup = Join-Path ([IO.Path]::GetTempPath()) "showrunner-update-backup-$([guid]::NewGuid().ToString('N'))"
+$backupReady = $false
 
 try {
   if (-not (Test-Path -LiteralPath $ArchivePath -PathType Leaf)) {
@@ -114,12 +116,34 @@ try {
   }
 
   $sourceRoot = Split-Path -Parent $candidate.FullName
-  Get-ChildItem -LiteralPath $sourceRoot -Force |
-    Copy-Item -Destination $InstallDirectory -Recurse -Force
+  New-Item -ItemType Directory -Force -Path $backup | Out-Null
+  Get-ChildItem -LiteralPath $InstallDirectory -Force |
+    Copy-Item -Destination $backup -Recurse -Force
+  $backupReady = $true
+
+  try {
+    Get-ChildItem -LiteralPath $sourceRoot -Force |
+      Copy-Item -Destination $InstallDirectory -Recurse -Force
+    if (-not (Test-Path -LiteralPath $ExecutablePath -PathType Leaf)) {
+      throw "Updated ShowRunner executable was not installed."
+    }
+  } catch {
+    if ($backupReady) {
+      Get-ChildItem -LiteralPath $InstallDirectory -Force |
+        Remove-Item -Recurse -Force
+      Get-ChildItem -LiteralPath $backup -Force |
+        Copy-Item -Destination $InstallDirectory -Recurse -Force
+    }
+    throw
+  }
+
   Start-Process -FilePath $ExecutablePath -WorkingDirectory $InstallDirectory
 } finally {
   if (Test-Path -LiteralPath $staging) {
     Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue
+  }
+  if (Test-Path -LiteralPath $backup) {
+    Remove-Item -LiteralPath $backup -Recurse -Force -ErrorAction SilentlyContinue
   }
   Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
 }

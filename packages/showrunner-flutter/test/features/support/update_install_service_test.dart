@@ -19,7 +19,17 @@ void main() {
       launcher: (script, arguments) async {
         captured.add(script);
         captured.add(arguments);
-        expect(await script.readAsString(), contains('Expand-Archive'));
+        final scriptText = await script.readAsString();
+        expect(scriptText, contains('Expand-Archive'));
+        expect(scriptText, contains(r'$backup'));
+        expect(
+          scriptText,
+          contains('Updated ShowRunner executable was not installed.'),
+        );
+        expect(
+          scriptText,
+          contains(r'Copy-Item -Destination $InstallDirectory'),
+        );
       },
     );
 
