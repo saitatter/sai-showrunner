@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../../schema/data_input.dart';
+import '../../runtime/cancellation.dart';
 import '../../runtime/expression.dart';
 import '../../schema/resource.dart';
 import '../../services/plugin_event_hub.dart';
@@ -377,8 +378,12 @@ DartPluginManifest createOverlaysPlugin({
         actionId: 'alert',
         displayName: 'Show Alert',
         configSchema: _alertSchema,
-        invoke: (config, context) =>
-            _showAlert(hub, config, overlayStore: overlayStore),
+        invoke: (config, context) => _showAlert(
+          hub,
+          config,
+          context: context,
+          overlayStore: overlayStore,
+        ),
       ),
       DartActionDefinition(
         pluginId: 'overlays',
@@ -444,21 +449,27 @@ Future<Object?> _triggerWidget(
 Future<Object?> _showAlert(
   DartPluginEventHub eventHub,
   RuntimeMap config, {
+  required EvaluationContext context,
   required OverlayResourceStore? overlayStore,
 }) async {
   final target = _target(config['alert']);
   if (target == null) return {'triggered': false};
-  final mediaIndex = await _alertMediaIndex(target, overlayStore);
-  if (mediaIndex == null) return {'triggered': false, ...target};
+  final selection = await _alertMediaSelection(target, overlayStore);
+  if (selection == null) return {'triggered': false, ...target};
+  context.cancellationToken?.throwIfCancelled();
   eventHub.emit(OverlayEventIds.widgetRpc, {
     ...target,
     'rpcId': 'showAlert',
     'args': [
       config['title']?.toString() ?? '',
       config['subtitle']?.toString() ?? '',
-      mediaIndex,
+      selection.index,
     ],
   });
+  await cancellableDelay(
+    Duration(milliseconds: (selection.duration * 1000).round()),
+    context.cancellationToken,
+  );
   return {'triggered': true, ...target};
 }
 
@@ -580,11 +591,11 @@ Future<Object?> _setWidgetVisibility(
   return {'widgetVisible': visible};
 }
 
-Future<int?> _alertMediaIndex(
+Future<({int index, double duration})?> _alertMediaSelection(
   Map<String, String> target,
   OverlayResourceStore? overlayStore,
 ) async {
-  if (overlayStore == null) return 0;
+  if (overlayStore == null) return (index: 0, duration: 0.0);
   final resource = await overlayStore.load(target['overlayId']!);
   if (resource == null) return null;
   final widget = _maps(
@@ -598,14 +609,22 @@ Future<int?> _alertMediaIndex(
       .map((weight) => max(weight, 0))
       .toList();
   final total = weights.fold<double>(0, (sum, weight) => sum + weight);
-  if (total <= 0) return 0;
+  if (total <= 0) {
+    return (index: 0, duration: _mediaDuration(media[0]));
+  }
   var targetWeight = Random().nextDouble() * total;
   for (var index = 0; index < weights.length; index++) {
     targetWeight -= weights[index];
-    if (targetWeight <= 0) return index;
+    if (targetWeight <= 0) {
+      return (index: index, duration: _mediaDuration(media[index]));
+    }
   }
-  return weights.length - 1;
+  final index = weights.length - 1;
+  return (index: index, duration: _mediaDuration(media[index]));
 }
+
+double _mediaDuration(RuntimeMap media) =>
+    _number(media['duration'], 0).clamp(0, double.infinity).toDouble();
 
 Map<String, String>? _target(Object? value) {
   if (value is! Map) return null;

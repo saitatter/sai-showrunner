@@ -57,6 +57,7 @@ final class DartOverlayWebSocketService {
   final Directory? webRoot;
   late final List<StreamSubscription<RuntimeMap>> _subscriptions;
   final _peers = <_OverlayPeer>{};
+  final _audioCancellations = <String, Completer<void>>{};
   bool _disposed = false;
 
   Future<void> dispose() async {
@@ -70,6 +71,10 @@ final class DartOverlayWebSocketService {
     );
     final peers = List<_OverlayPeer>.of(_peers);
     _peers.clear();
+    for (final cancellation in _audioCancellations.values) {
+      if (!cancellation.isCompleted) cancellation.complete();
+    }
+    _audioCancellations.clear();
     await Future.wait(peers.map((peer) => peer.close()));
   }
 
@@ -244,30 +249,47 @@ final class DartOverlayWebSocketService {
     if (mediaFile == null) return false;
     final peers = _targetPeers(overlayId).toList();
     if (peers.isEmpty) return false;
-    final playId = 'overlay-audio-${DateTime.now().microsecondsSinceEpoch}';
-    await Future.wait(
-      peers.map(
-        (peer) => _send(peer, 'overlays_playAudio', [
-          mediaFile,
-          playId,
-          request.startSec,
-          request.endSec.isFinite ? request.endSec : null,
-          request.volume,
-        ]),
-      ),
-    );
-    final duration = request.endSec.isFinite
-        ? (request.endSec - request.startSec).clamp(0, double.infinity)
-        : 0;
-    if (duration > 0) {
-      await Future<void>.delayed(
-        Duration(milliseconds: (duration * 1000).round()),
+    final playId = request.playId?.trim().isNotEmpty == true
+        ? request.playId!.trim()
+        : 'overlay-audio-${DateTime.now().microsecondsSinceEpoch}';
+    final cancellation = Completer<void>();
+    _audioCancellations[playId] = cancellation;
+    try {
+      await Future.wait(
+        peers.map(
+          (peer) => _send(peer, 'overlays_playAudio', [
+            mediaFile,
+            playId,
+            request.startSec,
+            request.endSec.isFinite ? request.endSec : null,
+            request.volume,
+          ]),
+        ),
       );
+      final duration = request.endSec.isFinite
+          ? (request.endSec - request.startSec).clamp(0, double.infinity)
+          : 0;
+      if (duration > 0) {
+        await Future.any<void>([
+          Future<void>.delayed(
+            Duration(milliseconds: (duration * 1000).round()),
+          ),
+          cancellation.future,
+        ]);
+      }
+      return true;
+    } finally {
+      if (identical(_audioCancellations[playId], cancellation)) {
+        _audioCancellations.remove(playId);
+      }
     }
-    return true;
   }
 
   Future<void> cancelAudio(String overlayId, String playId) async {
+    final cancellation = _audioCancellations[playId];
+    if (cancellation != null && !cancellation.isCompleted) {
+      cancellation.complete();
+    }
     await Future.wait(
       _targetPeers(
         overlayId,
@@ -317,6 +339,7 @@ final class DartOverlayWebSocketService {
       CallbackSoundOutput(
         id: 'overlay-audio.$overlayId',
         player: (request) => playAudio(overlayId, request),
+        aborter: (playId) => cancelAudio(overlayId, playId),
       ),
     );
   }
