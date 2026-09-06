@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../editor/showrunner_graph_editor.dart';
 import '../graph/graph_workspace.dart';
 import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/obs/transport.dart';
 import '../../plugins/contracts/identifiers.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
@@ -259,6 +260,20 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
         'installPath',
         'local',
       ],
+      runtimeBuilder:
+          (
+            context,
+            resource,
+            onSave, {
+            required registryFuture,
+            required resourceOptionsLoader,
+          }) => _ConnectionEditor(
+            title: 'Edit OBS connection',
+            resource: resource,
+            onSave: onSave,
+            supportsLocal: true,
+            testConnection: _testObsConnection,
+          ),
     ),
   );
   registry.register(
@@ -549,6 +564,7 @@ DartResourceEditorDefinition _pluginDefinition({
   required String storageDirectory,
   required JsonMap Function(String name) defaultConfig,
   required List<String> fields,
+  DartResourceEditorRuntimeBuilder? runtimeBuilder,
 }) => DartResourceEditorDefinition(
   pluginId: pluginId,
   resourceType: resourceType,
@@ -601,6 +617,7 @@ DartResourceEditorDefinition _pluginDefinition({
       onSave: onSave,
     ),
   },
+  runtimeBuilder: runtimeBuilder,
 );
 
 class _OverlayEditor extends StatefulWidget {
@@ -2183,12 +2200,15 @@ class _ConnectionEditor extends StatefulWidget {
     required this.resource,
     required this.onSave,
     this.supportsLocal = false,
+    this.testConnection,
   });
 
   final String title;
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
   final bool supportsLocal;
+  final Future<bool> Function(String host, int port, String? password)?
+  testConnection;
 
   @override
   State<_ConnectionEditor> createState() => _ConnectionEditorState();
@@ -2201,6 +2221,9 @@ class _ConnectionEditorState extends State<_ConnectionEditor> {
   late final TextEditingController _password;
   late final TextEditingController _installPath;
   late bool _local;
+  bool _testing = false;
+  bool? _testSuccess;
+  Object? _testError;
 
   @override
   void initState() {
@@ -2224,6 +2247,38 @@ class _ConnectionEditorState extends State<_ConnectionEditor> {
     super.dispose();
   }
 
+  Future<void> _test() async {
+    final tester = widget.testConnection;
+    if (tester == null) return;
+    final host = _host.text.trim();
+    final port = int.tryParse(_port.text.trim());
+    if (host.isEmpty || port == null || port < 0 || port > 65535) {
+      setState(() {
+        _testSuccess = false;
+        _testError = const FormatException('Enter a valid host and port.');
+      });
+      return;
+    }
+    setState(() {
+      _testing = true;
+      _testSuccess = null;
+      _testError = null;
+    });
+    try {
+      final success = await tester(host, port, _password.text);
+      if (!mounted) return;
+      setState(() => _testSuccess = success);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _testSuccess = false;
+        _testError = error;
+      });
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => _ResourceForm(
     title: widget.title,
@@ -2241,11 +2296,58 @@ class _ConnectionEditorState extends State<_ConnectionEditor> {
         keyboardType: TextInputType.number,
         decoration: const InputDecoration(labelText: 'Port'),
       ),
-      TextField(
-        controller: _password,
-        obscureText: true,
-        decoration: const InputDecoration(labelText: 'Password'),
-      ),
+      if (widget.testConnection != null)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _password,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'WebSocket Password',
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: _testing ? null : _test,
+              icon: _testing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      _testSuccess == true
+                          ? Icons.check
+                          : _testSuccess == false
+                          ? Icons.close
+                          : Icons.wifi_find,
+                    ),
+              label: const Text('Test'),
+            ),
+          ],
+        )
+      else
+        TextField(
+          controller: _password,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'Password'),
+        ),
+      if (_testError != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            'Connection test failed: $_testError',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        )
+      else if (_testSuccess == true)
+        const Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text('OBS responded successfully.'),
+        ),
       if (widget.supportsLocal) ...[
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
@@ -2276,6 +2378,20 @@ class _ConnectionEditorState extends State<_ConnectionEditor> {
       ),
     ),
   );
+}
+
+Future<bool> _testObsConnection(String host, int port, String? password) async {
+  final transport = ObsWebSocketTransport(
+    host: host,
+    port: port,
+    password: password?.isEmpty == true ? null : password,
+  );
+  try {
+    await transport.call('GetVersion', {});
+    return true;
+  } finally {
+    await transport.close();
+  }
 }
 
 class _TtsVoiceEditor extends StatefulWidget {
