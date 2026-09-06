@@ -37,7 +37,7 @@ Status values:
 | Updater | update page/dialog and release metadata | Update check, artifact and install services | partial | Signed installed Windows upgrade/rollback proof |
 | Data compatibility | `main` contains older document shapes | Strict V2 loader by explicit product decision | intentionally_removed | Older-shape conversion and automatic backup are out of scope |
 | External plugin templates | `plugin-template` and `plugin-native-template` | No third-party in-process loader | intentionally_removed | Resolved in `docs/architecture/adr-003-external-plugins.md` |
-| Media library | recursive media browser and import behavior | `MediaCatalogService`, SQLite `MediaIndexStore`, Quick/Full scan actions, debounced watcher and Media workspace | partial | TagLib extraction, isolate/worker and benchmark workstream |
+| Media library | recursive media browser and import behavior | `MediaCatalogService`, SQLite `MediaIndexStore`, Quick/Full scan actions, debounced watcher and Media workspace | improved | Extended long-library correctness/performance corpus and full-screen comparison |
 | Browser-only rendering | OBS HTML/WebGL runtime | `packages/showrunner-obs-overlay` remains browser-based | not_applicable | Protocol and browser build gates |
 
 ## Current closure order
@@ -46,9 +46,8 @@ Status values:
    for every parity-critical workspace.
 2. Expand document/runtime end-to-end coverage with close-flow and
    failure-injection scenarios around the existing fixtures.
-3. Finish media metadata extraction and worker isolation on top of the
-   incremental scanner; the deterministic benchmark harness is already in
-   place.
+3. Keep the media scanner within its persistent filesystem-index contract and
+   extend the long-library correctness/performance corpus as needed.
 4. Harden graph-editor stress behavior and close the remaining packaged
    updater proof.
 
