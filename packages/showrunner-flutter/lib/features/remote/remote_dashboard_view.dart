@@ -195,12 +195,19 @@ class _RemoteDashboardContentState extends State<_RemoteDashboardContent> {
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 16),
-                    for (final section in page.sections)
-                      _RemoteDashboardSection(
-                        connection: widget.connection,
-                        page: page,
-                        section: section,
-                      ),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [
+                        for (final section in page.sections)
+                          _RemoteDashboardSection(
+                            connection: widget.connection,
+                            page: page,
+                            section: section,
+                          ),
+                      ],
+                    ),
                   ],
                 ),
         ),
@@ -221,35 +228,140 @@ class _RemoteDashboardSection extends StatelessWidget {
   final RemoteDashboardSection section;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
+  Widget build(BuildContext context) {
+    final columns = section.columns.clamp(1, 12);
+    final placements = _placeDashboardWidgets(section.widgets, columns);
+    final gridWidth = columns * 100.0;
+    final trackWidth =
+        (gridWidth - (columns - 1) * _dashboardGridGap) / columns;
+    final gridRows = placements.fold<int>(
+      1,
+      (maximum, placement) => maximum > placement.row + placement.height
+          ? maximum
+          : placement.row + placement.height,
+    );
+    final gridPixelHeight =
+        gridRows * _dashboardGridRowHeight + (gridRows - 1) * _dashboardGridGap;
+
+    return Container(
+      width: gridWidth + 16,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.white),
+        borderRadius: BorderRadius.circular(4),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(section.name, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final widget in section.widgets)
-                SizedBox(
-                  width: widget.width * 100.0 + (widget.width - 1) * 4,
-                  height: widget.height * 80.0 + (widget.height - 1) * 4,
-                  child: _RemoteDashboardWidget(
-                    connection: connection,
-                    page: page,
-                    section: section,
-                    widget: widget,
+          const SizedBox(height: 4),
+          SizedBox(
+            width: gridWidth,
+            height: gridPixelHeight,
+            child: Stack(
+              children: [
+                for (final placement in placements)
+                  Positioned(
+                    left: placement.column * (trackWidth + _dashboardGridGap),
+                    top:
+                        placement.row *
+                        (_dashboardGridRowHeight + _dashboardGridGap),
+                    width:
+                        placement.width * trackWidth +
+                        (placement.width - 1) * _dashboardGridGap,
+                    height:
+                        placement.height * _dashboardGridRowHeight +
+                        (placement.height - 1) * _dashboardGridGap,
+                    child: _RemoteDashboardWidget(
+                      connection: connection,
+                      page: page,
+                      section: section,
+                      widget: placement.widget,
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
+}
+
+const _dashboardGridGap = 4.0;
+const _dashboardGridRowHeight = 100.0;
+
+final class _DashboardWidgetPlacement {
+  const _DashboardWidgetPlacement({
+    required this.widget,
+    required this.column,
+    required this.row,
+    required this.width,
+    required this.height,
+  });
+
+  final RemoteDashboardWidget widget;
+  final int column;
+  final int row;
+  final int width;
+  final int height;
+}
+
+List<_DashboardWidgetPlacement> _placeDashboardWidgets(
+  List<RemoteDashboardWidget> widgets,
+  int columns,
+) {
+  final occupied = <List<bool>>[];
+  final placements = <_DashboardWidgetPlacement>[];
+
+  bool isFree(int column, int row, int width, int height) {
+    for (var y = row; y < row + height; y++) {
+      if (y >= occupied.length) continue;
+      for (var x = column; x < column + width; x++) {
+        if (occupied[y][x]) return false;
+      }
+    }
+    return true;
+  }
+
+  void occupy(int column, int row, int width, int height) {
+    while (occupied.length < row + height) {
+      occupied.add(List<bool>.filled(columns, false));
+    }
+    for (var y = row; y < row + height; y++) {
+      for (var x = column; x < column + width; x++) {
+        occupied[y][x] = true;
+      }
+    }
+  }
+
+  for (final widget in widgets) {
+    final width = widget.width.clamp(1, columns);
+    final height = widget.height.clamp(1, 100);
+    var row = 0;
+    var column = 0;
+    while (true) {
+      if (column + width <= columns && isFree(column, row, width, height)) {
+        occupy(column, row, width, height);
+        placements.add(
+          _DashboardWidgetPlacement(
+            widget: widget,
+            column: column,
+            row: row,
+            width: width,
+            height: height,
+          ),
+        );
+        break;
+      }
+      column++;
+      if (column + width > columns) {
+        column = 0;
+        row++;
+      }
+    }
+  }
+  return placements;
 }
 
 class _RemoteDashboardWidget extends StatelessWidget {
