@@ -34,6 +34,7 @@ const Map<String, Set<String>> secretResourceFieldIdsByType = {
   'OBSConnection': {'password'},
   'RCONConnection': {'password'},
   'DiscordWebhook': {'webhookUrl'},
+  'Plug': {'hubKey'},
   'TwitchAccount': {'accessToken', 'refreshToken'},
   'BlueSkyAccount': {'appPassword', 'session'},
   'WyzeAccount': {'accessToken', 'refreshToken'},

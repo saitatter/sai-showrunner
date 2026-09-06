@@ -3,6 +3,8 @@ import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
 import 'rcon.dart';
 
+typedef RconConnectionResolver = Future<RuntimeMap?> Function(String id);
+
 const _commandSchema = DartDataInputSchema(
   label: 'Minecraft command',
   kind: DartDataInputKind.object,
@@ -23,7 +25,10 @@ const _commandSchema = DartDataInputSchema(
   ],
 );
 
-DartPluginManifest createMinecraftPlugin({MinecraftTransport? transport}) {
+DartPluginManifest createMinecraftPlugin({
+  MinecraftTransport? transport,
+  RconConnectionResolver? connectionResolver,
+}) {
   final persistentTransport = transport == null
       ? PersistentMinecraftRconTransport()
       : null;
@@ -38,8 +43,11 @@ DartPluginManifest createMinecraftPlugin({MinecraftTransport? transport}) {
         actionId: 'mineCmd',
         displayName: 'Minecraft RCON Command',
         configSchema: _commandSchema,
-        invoke: (config, context) =>
-            _sendRconCommand(effectiveTransport, config),
+        invoke: (config, context) => _sendRconCommand(
+          effectiveTransport,
+          config,
+          connectionResolver: connectionResolver,
+        ),
       ),
     ],
   );
@@ -47,8 +55,9 @@ DartPluginManifest createMinecraftPlugin({MinecraftTransport? transport}) {
 
 Future<Object?> _sendRconCommand(
   MinecraftTransport transport,
-  RuntimeMap config,
-) async {
+  RuntimeMap config, {
+  RconConnectionResolver? connectionResolver,
+}) async {
   final command = config['command']?.toString() ?? '';
   if (command.trim().isEmpty) {
     return {
@@ -58,8 +67,15 @@ Future<Object?> _sendRconCommand(
     };
   }
 
-  final server = config['server'];
-  final values = server is Map ? server : config;
+  final serverReference = config['server'];
+  final server = serverReference is String && connectionResolver != null
+      ? await connectionResolver(serverReference)
+      : serverReference;
+  final values = server is Map && server['config'] is Map
+      ? server['config'] as Map
+      : server is Map
+      ? server
+      : config;
   final host = values['host']?.toString().trim() ?? '';
   final port = _asInt(values['port']) ?? 25575;
   final password = values['password']?.toString() ?? '';

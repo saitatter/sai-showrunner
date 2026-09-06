@@ -141,6 +141,35 @@ void main() {
       await server.close();
     }
   });
+
+  test('resolves a persisted RCON connection ID', () async {
+    String? host;
+    final registry = DartPluginRegistry()
+      ..register(
+        createMinecraftPlugin(
+          transport: MinecraftTransport((
+            requestHost,
+            requestPort,
+            requestPassword,
+            requestCommand,
+          ) async {
+            host = requestHost;
+            return 'ok';
+          }),
+          connectionResolver: (id) async => id == 'server-1'
+              ? {'host': 'minecraft.test', 'port': 25575, 'password': 'secret'}
+              : null,
+        ),
+      );
+
+    final result = await registry.invokeAction('minecraft', 'mineCmd', {
+      'server': 'server-1',
+      'command': 'list',
+    });
+
+    expect(result, {'executed': true, 'command': 'list', 'response': 'ok'});
+    expect(host, 'minecraft.test');
+  });
 }
 
 final class _TestPacket {

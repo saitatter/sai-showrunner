@@ -13,6 +13,7 @@ typedef DiscordFileRequest =
       RuntimeMap body,
       List<String> files,
     );
+typedef DiscordWebhookResolver = Future<RuntimeMap?> Function(String id);
 
 final class DiscordTransport {
   const DiscordTransport(this.request, {this.requestWithFiles});
@@ -153,30 +154,37 @@ const _messageSchema = DartDataInputSchema(
   ],
 );
 
-DartPluginManifest createDiscordPlugin({DiscordTransport? transport}) =>
-    DartPluginManifest(
-      id: 'discord',
-      name: 'Discord',
-      actions: [
-        DartActionDefinition(
-          pluginId: 'discord',
-          actionId: 'discordMessage',
-          displayName: 'Discord Message',
-          configSchema: _messageSchema,
-          invoke: (config, context) => _sendDiscordMessage(
-            transport ?? DiscordTransport(DiscordHttpTransport().request),
-            config,
-          ),
-        ),
-      ],
-    );
+DartPluginManifest createDiscordPlugin({
+  DiscordTransport? transport,
+  DiscordWebhookResolver? webhookResolver,
+}) => DartPluginManifest(
+  id: 'discord',
+  name: 'Discord',
+  actions: [
+    DartActionDefinition(
+      pluginId: 'discord',
+      actionId: 'discordMessage',
+      displayName: 'Discord Message',
+      configSchema: _messageSchema,
+      invoke: (config, context) => _sendDiscordMessage(
+        transport ?? DiscordTransport(DiscordHttpTransport().request),
+        config,
+        webhookResolver: webhookResolver,
+      ),
+    ),
+  ],
+);
 
 Future<Object?> _sendDiscordMessage(
   DiscordTransport transport,
-  RuntimeMap config,
-) async {
+  RuntimeMap config, {
+  DiscordWebhookResolver? webhookResolver,
+}) async {
   final message = config['message']?.toString() ?? '';
-  final webhook = config['webhook'];
+  final webhookReference = config['webhook'];
+  final webhook = webhookReference is String && webhookResolver != null
+      ? await webhookResolver(webhookReference)
+      : webhookReference;
   final url = webhook is Map
       ? webhook['webhookUrl']?.toString().trim()
       : config['webhookUrl']?.toString().trim();

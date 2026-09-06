@@ -143,4 +143,32 @@ void main() {
       await directory.delete(recursive: true);
     }
   });
+
+  test('resolves a persisted webhook resource ID', () async {
+    String? url;
+    final registry = DartPluginRegistry()
+      ..register(
+        createDiscordPlugin(
+          transport: DiscordTransport((requestUrl, requestBody) async {
+            url = requestUrl;
+            return {'statusCode': 204};
+          }),
+          webhookResolver: (id) async => id == 'webhook-1'
+              ? {'webhookUrl': 'https://discord.test/hooks/1'}
+              : null,
+        ),
+      );
+
+    final result = await registry.invokeAction('discord', 'discordMessage', {
+      'webhook': 'webhook-1',
+      'message': 'Resource webhook',
+    });
+
+    expect(result, {
+      'sent': true,
+      'message': 'Resource webhook',
+      'statusCode': 204,
+    });
+    expect(url, 'https://discord.test/hooks/1');
+  });
 }

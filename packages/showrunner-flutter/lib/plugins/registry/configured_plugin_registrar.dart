@@ -123,7 +123,17 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     'moderation',
     createModerationPluginUi(moderationService),
   );
-  registry.register(createDiscordPlugin());
+  final discordWebhookRepository = ResourceRepository(
+    Directory('${dataService.userDirectory.path}/discord/webhooks'),
+    resourceType: 'DiscordWebhook',
+    secretSettings: dataService.secretSettingsStore,
+  );
+  registry.register(
+    createDiscordPlugin(
+      webhookResolver: (id) async =>
+          (await discordWebhookRepository.load(id))?.config,
+    ),
+  );
   final blueskySettings = await dataService.loadPluginSettings('bluesky');
   final blueskyIdentifier = blueskySettings['identifier']?.toString().trim();
   final blueskyPassword = blueskySettings['appPassword']?.toString().trim();
@@ -241,7 +251,17 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       globalVolume: _percentage(soundSettings['globalVolume'], 100),
     ),
   );
-  registry.register(createMinecraftPlugin());
+  final rconConnectionRepository = ResourceRepository(
+    Directory('${dataService.userDirectory.path}/minecraft/connections'),
+    resourceType: 'RCONConnection',
+    secretSettings: dataService.secretSettingsStore,
+  );
+  registry.register(
+    createMinecraftPlugin(
+      connectionResolver: (id) async =>
+          (await rconConnectionRepository.load(id))?.config,
+    ),
+  );
   registry.register(
     createHttpPlugin(eventHub: eventHub, endpointService: httpEndpointService),
   );
