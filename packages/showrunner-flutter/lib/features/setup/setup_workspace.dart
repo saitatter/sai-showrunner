@@ -33,6 +33,9 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
   int _stepIndex = 0;
   bool _loading = true;
   bool _saving = false;
+  bool _testingObs = false;
+  bool? _obsTestPassed;
+  Object? _obsTestError;
   Object? _error;
 
   String get _pluginId => _steps[_stepIndex];
@@ -67,6 +70,8 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
       final settings = await widget.dataService.loadPluginSettings(_pluginId);
       _settings[_pluginId] = settings;
       if (_pluginId == 'obs') {
+        _obsTestPassed = null;
+        _obsTestError = null;
         await _loadObsResource(settings);
       } else {
         _fillControllers(settings);
@@ -147,6 +152,40 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
       _error = error;
     }
     if (mounted) setState(() => _saving = false);
+  }
+
+  Future<void> _testObsConnection() async {
+    final host = _hostController.text.trim();
+    final port = int.tryParse(_portController.text.trim());
+    if (host.isEmpty || port == null || port < 1 || port > 65535) {
+      setState(() {
+        _obsTestPassed = false;
+        _obsTestError = StateError('Enter a valid OBS host and port first.');
+      });
+      return;
+    }
+    setState(() {
+      _testingObs = true;
+      _obsTestPassed = null;
+      _obsTestError = null;
+    });
+    try {
+      await const ObsSetupConnectionTester().verify(
+        host: host,
+        port: port,
+        password: _passwordController.text,
+      );
+      if (mounted) setState(() => _obsTestPassed = true);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _obsTestPassed = false;
+          _obsTestError = error;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _testingObs = false);
+    }
   }
 
   Future<void> _skip() async {
@@ -249,6 +288,37 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
                   labelText: 'Server password',
                   border: OutlineInputBorder(),
                 ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _testingObs ? null : _testObsConnection,
+                    icon: _testingObs
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.sync),
+                    label: const Text('Test connection'),
+                  ),
+                  const SizedBox(width: 12),
+                  if (_obsTestPassed == true)
+                    const Text(
+                      'Connected and responding.',
+                      style: TextStyle(color: Colors.green),
+                    ),
+                  if (_obsTestPassed == false)
+                    Expanded(
+                      child: Text(
+                        'Connection failed: $_obsTestError',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ] else ...[
               TextField(

@@ -57,4 +57,23 @@ void main() {
     expect(isLocalHost('::1'), isTrue);
     expect(isLocalHost('obs.example.test'), isFalse);
   });
+
+  test('tests OBS through an injectable probe', () async {
+    String? receivedHost;
+    int? receivedPort;
+    String? receivedPassword;
+    final tester = ObsSetupConnectionTester(
+      probe: (host, port, password) async {
+        receivedHost = host;
+        receivedPort = port;
+        receivedPassword = password;
+      },
+    );
+
+    await tester.verify(host: 'obs.local', port: 4455, password: 'secret');
+
+    expect(receivedHost, 'obs.local');
+    expect(receivedPort, 4455);
+    expect(receivedPassword, 'secret');
+  });
 }

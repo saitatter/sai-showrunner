@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../plugins/obs/transport.dart';
 import '../../persistence/resource_repository.dart';
 import '../../schema/resource.dart';
 
@@ -50,4 +51,34 @@ bool isLocalHost(String host) {
   return normalized == 'localhost' ||
       normalized == '127.0.0.1' ||
       normalized == '::1';
+}
+
+typedef ObsSetupProbe =
+    Future<void> Function(String host, int port, String? password);
+
+/// Performs the same authenticated OBS WebSocket handshake used by runtime
+/// actions, but keeps setup UI independent from network implementation.
+final class ObsSetupConnectionTester {
+  const ObsSetupConnectionTester({this.probe});
+
+  final ObsSetupProbe? probe;
+
+  Future<void> verify({
+    required String host,
+    required int port,
+    String? password,
+  }) => (probe ?? _probe)(host, port, password);
+
+  Future<void> _probe(String host, int port, String? password) async {
+    final transport = ObsWebSocketTransport(
+      host: host,
+      port: port,
+      password: password?.isEmpty == true ? null : password,
+    );
+    try {
+      await transport.call('GetVersion', const <String, dynamic>{});
+    } finally {
+      await transport.close();
+    }
+  }
 }
