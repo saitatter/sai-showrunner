@@ -29,7 +29,7 @@ final class ShowRunnerDataService {
   final Directory userDirectory;
   final SecretSettingsStore? secretSettings;
 
-  SecretSettingsStore get _secretStore =>
+  SecretSettingsStore get secretSettingsStore =>
       secretSettings ??
       SecretSettingsStore(
         directory: Directory('${userDirectory.path}/secrets'),
@@ -65,7 +65,7 @@ final class ShowRunnerDataService {
       if (parsed is YamlMap) values.addAll(_toMap(parsed));
     }
     try {
-      values.addAll(await _secretStore.load(pluginId));
+      values.addAll(await secretSettingsStore.load(pluginId));
     } on Object {
       // Keep public settings usable if a secret file belongs to another
       // Windows profile or cannot be decrypted in this environment.
@@ -85,7 +85,7 @@ final class ShowRunnerDataService {
     };
     if (secretSettings.isNotEmpty) {
       final existing = await _loadSecretSettings(pluginId);
-      await _secretStore.save(pluginId, {...existing, ...secretSettings});
+      await secretSettingsStore.save(pluginId, {...existing, ...secretSettings});
     }
     final file = File('${settingsDirectory.path}/$pluginId.yaml');
     await writeAtomicText(file, _yamlEncode(publicSettings));
@@ -103,7 +103,7 @@ final class ShowRunnerDataService {
 
   Future<JsonMap> _loadSecretSettings(String pluginId) async {
     try {
-      return await _secretStore.load(pluginId);
+      return await secretSettingsStore.load(pluginId);
     } on Object {
       return <String, dynamic>{};
     }

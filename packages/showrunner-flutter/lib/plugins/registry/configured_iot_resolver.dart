@@ -12,6 +12,8 @@ IotResourceActionResolver createConfiguredIotResolver({
   final directory = resourceType == 'Light' ? 'iot/lights' : 'iot/plugs';
   final resource = await ResourceRepository(
     Directory('${dataService.userDirectory.path}/$directory'),
+    resourceType: resourceType,
+    secretSettings: dataService.secretSettingsStore,
   ).load(resourceId);
   if (resource == null) {
     throw StateError('$resourceType resource "$resourceId" was not found.');

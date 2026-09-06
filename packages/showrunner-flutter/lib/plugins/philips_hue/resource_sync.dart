@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import '../../persistence/resource_repository.dart';
+import '../../persistence/secret_settings_store.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
 import 'manifest.dart';
@@ -10,10 +11,12 @@ final class PhilipsHueResourceSynchronizer {
   const PhilipsHueResourceSynchronizer({
     required this.lightDirectory,
     required this.plugDirectory,
+    this.secretSettings,
   });
 
   final Directory lightDirectory;
   final Directory plugDirectory;
+  final SecretSettingsStore? secretSettings;
 
   Future<void> sync(HueTransport transport) async {
     final lightsResponse = await transport.request(
@@ -22,8 +25,16 @@ final class PhilipsHueResourceSynchronizer {
       const {},
       null,
     );
-    final lightRepository = ResourceRepository(lightDirectory);
-    final plugRepository = ResourceRepository(plugDirectory);
+    final lightRepository = ResourceRepository(
+      lightDirectory,
+      resourceType: 'Light',
+      secretSettings: secretSettings,
+    );
+    final plugRepository = ResourceRepository(
+      plugDirectory,
+      resourceType: 'Plug',
+      secretSettings: secretSettings,
+    );
     final lights = _maps(lightsResponse['data']);
     for (final light in lights) {
       final id = _requiredId(light);

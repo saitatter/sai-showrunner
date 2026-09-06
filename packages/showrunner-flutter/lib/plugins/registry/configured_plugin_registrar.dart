@@ -335,6 +335,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           '${dataService.userDirectory.path}/iot/lights',
         ),
         plugDirectory: Directory('${dataService.userDirectory.path}/iot/plugs'),
+        secretSettings: dataService.secretSettingsStore,
       ).sync(configuredHueTransport);
     } catch (_) {
       // Resource discovery is best effort; actions can still use manually
