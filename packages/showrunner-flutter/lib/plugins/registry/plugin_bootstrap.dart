@@ -42,6 +42,7 @@ import '../os/manifest.dart';
 import '../random/manifest.dart';
 import '../variables/manifest.dart';
 import '../variables/runtime.dart';
+import '../variables/ui/plugin_ui.dart';
 import '../overlays/manifest.dart';
 import '../overlays/websocket_bridge.dart';
 import '../spellcast/manifest.dart';

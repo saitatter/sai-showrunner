@@ -84,6 +84,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
       eventHub: eventHub,
     ),
   );
+  registry.registerUi('variables', createVariablesPluginUi());
   registry.register(createOverlaysPlugin(eventHub: eventHub));
   final spellcastHub = eventHub ?? DartPluginEventHub();
   registry.register(createSpellcastPlugin(eventHub: spellcastHub));

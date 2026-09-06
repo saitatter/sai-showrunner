@@ -285,6 +285,10 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       variableRuntime: configuredVariableRuntime,
     ),
   );
+  registry.registerUi(
+    'variables',
+    createVariablesPluginUi(variableRuntime: configuredVariableRuntime),
+  );
   final overlayRepository = ResourceRepository(
     Directory('${dataService.userDirectory.path}/overlays'),
   );
