@@ -70,8 +70,8 @@ void main() {
     expect(manager.openWorkspaces, [WorkspaceIds.profiles, WorkspaceIds.about]);
     expect(manager.selectedWorkspace, WorkspaceIds.about);
     expect(manager.toSettings(), {
-      'openWorkspaceTabs': [4, 8],
-      'selectedWorkspace': 8,
+      'openWorkspaceTabs': ['workspace.profiles', 'workspace.about'],
+      'selectedWorkspace': 'workspace.about',
     });
 
     manager.restore(openWorkspaces: const [], selected: WorkspaceIds.updates);

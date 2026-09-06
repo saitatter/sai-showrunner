@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 
 /// Stable identity for a top-level ShowRunner workspace.
-///
-/// Workspace identities are persisted as their historical numeric values only
-/// at the settings boundary. Application and widget code uses these IDs so
-/// removing or reordering a workspace cannot silently route to another page.
 extension type const WorkspaceId(String value) {}
 
 abstract final class WorkspaceIds {
@@ -42,45 +38,6 @@ abstract final class WorkspaceIds {
     updates,
   ];
 
-  /// Converts the pre-registry settings representation at the persistence
-  /// boundary. This is the only application code that knows those numbers.
-  static WorkspaceId? fromLegacyIndex(int index) => switch (index) {
-    0 => graph,
-    1 => plugins,
-    2 => diagnostics,
-    3 => automations,
-    4 => profiles,
-    5 => queues,
-    6 => resources,
-    7 => logs,
-    8 => about,
-    9 => settings,
-    10 => setup,
-    11 => variables,
-    12 => remote,
-    13 => home,
-    14 => updates,
-    _ => null,
-  };
-
-  static int legacyIndex(WorkspaceId id) => switch (id) {
-    graph => 0,
-    plugins => 1,
-    diagnostics => 2,
-    automations => 3,
-    profiles => 4,
-    queues => 5,
-    resources => 6,
-    logs => 7,
-    about => 8,
-    settings => 9,
-    setup => 10,
-    variables => 11,
-    remote => 12,
-    home => 13,
-    updates => 14,
-    _ => throw ArgumentError('Unknown workspace: ${id.value}'),
-  };
 }
 
 final class WorkspaceDescriptor {

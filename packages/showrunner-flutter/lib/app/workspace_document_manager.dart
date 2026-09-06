@@ -2,9 +2,8 @@ import 'workspace_registry.dart';
 
 /// Owns the open workspace documents and the active document.
 ///
-/// The persisted representation intentionally remains a list of legacy
-/// workspace indices so existing user settings continue to load without an
-/// upgrade. Widgets use stable IDs instead of mutating or comparing indices.
+/// Workspace IDs are persisted as stable strings, so reordering the registry
+/// cannot silently route an existing tab to another page.
 final class WorkspaceDocumentManager {
   WorkspaceDocumentManager({
     Iterable<WorkspaceId> initial = const [WorkspaceIds.graph],
@@ -90,8 +89,8 @@ final class WorkspaceDocumentManager {
 
   Map<String, dynamic> toSettings() => {
     'openWorkspaceTabs': openWorkspaces
-        .map(WorkspaceIds.legacyIndex)
+        .map((workspace) => workspace.value)
         .toList(growable: false),
-    'selectedWorkspace': WorkspaceIds.legacyIndex(selectedWorkspace),
+    'selectedWorkspace': selectedWorkspace.value,
   };
 }

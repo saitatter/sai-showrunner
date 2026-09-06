@@ -466,15 +466,15 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       );
       final restoredTabs = settings['openWorkspaceTabs'];
       final tabs = restoredTabs is List
-          ? _workspaceIdsFromLegacySettings(restoredTabs)
+          ? _workspaceIdsFromSettings(restoredTabs)
           : hasRestoredWorkspaceTabs
           ? <WorkspaceId>[]
           : <WorkspaceId>[WorkspaceIds.home];
       final restoredSelected = settings['selectedWorkspace'];
       final restoredResourceType = settings['selectedResourceType'];
       final restoredResourceId = settings['selectedResourceId'];
-      final selected = restoredSelected is num
-          ? WorkspaceIds.fromLegacyIndex(restoredSelected.toInt())
+      final selected = restoredSelected is String
+          ? _workspaceIdFromSettings(restoredSelected)
           : hasRestoredWorkspaceTabs
           ? null
           : WorkspaceIds.home;
@@ -497,14 +497,19 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     }
   }
 
-  static List<WorkspaceId> _workspaceIdsFromLegacySettings(Object? value) {
+  static List<WorkspaceId> _workspaceIdsFromSettings(Object? value) {
     if (value is! List) return const [];
     final ids = <WorkspaceId>{};
-    for (final item in value.whereType<num>()) {
-      final id = WorkspaceIds.fromLegacyIndex(item.toInt());
+    for (final item in value.whereType<String>()) {
+      final id = _workspaceIdFromSettings(item);
       if (id != null) ids.add(id);
     }
     return ids.toList(growable: false);
+  }
+
+  static WorkspaceId? _workspaceIdFromSettings(String value) {
+    final id = WorkspaceId(value);
+    return WorkspaceIds.all.contains(id) ? id : null;
   }
 
   Future<void> _restoreAutomationDocuments(
