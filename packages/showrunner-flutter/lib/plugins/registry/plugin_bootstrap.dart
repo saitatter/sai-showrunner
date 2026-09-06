@@ -27,6 +27,8 @@ import '../donordrive/manifest.dart';
 import '../aitum/manifest.dart';
 import '../advss/manifest.dart';
 import '../remote/manifest.dart';
+import '../remote/dashboard_host.dart';
+import '../remote/satellite.dart';
 import '../voicemod/manifest.dart';
 import '../sound/manifest.dart';
 import '../sound/output.dart';

@@ -128,7 +128,7 @@ typedef SatelliteSignalingSocketFactory =
 ///
 /// The cloud endpoint already authenticates the connection with the Twitch
 /// token. Only the three satellite signaling events are surfaced to the
-/// connection manager; unrelated PubSub traffic is ignored.
+/// connection managers; unrelated PubSub traffic is ignored.
 final class SatelliteSignalingController extends ChangeNotifier {
   SatelliteSignalingController({
     required this.dataService,
@@ -216,7 +216,8 @@ final class SatelliteSignalingController extends ChangeNotifier {
         : decoded;
     if (payload['plugin']?.toString() != 'satellite') return;
     final event = payload['event']?.toString() ?? '';
-    if (event != 'satelliteConnectionResponse' &&
+    if (event != 'satelliteConnectionRequest' &&
+        event != 'satelliteConnectionResponse' &&
         event != 'satelliteConnectionIceCandidate') {
       return;
     }
@@ -259,6 +260,7 @@ abstract interface class SatellitePeerConnection {
   set onStateChanged(void Function(SatellitePeerState state)? listener);
   Future<SatelliteDataChannel> createDataChannel(String label);
   Future<SatelliteSessionDescription> createOffer();
+  Future<SatelliteSessionDescription> createAnswer();
   Future<void> setLocalDescription(SatelliteSessionDescription description);
   Future<SatelliteSessionDescription?> getLocalDescription();
   Future<void> setRemoteDescription(SatelliteSessionDescription description);
@@ -338,6 +340,15 @@ final class FlutterSatellitePeerConnection implements SatellitePeerConnection {
     return SatelliteSessionDescription(
       sdp: description.sdp ?? '',
       type: description.type ?? 'offer',
+    );
+  }
+
+  @override
+  Future<SatelliteSessionDescription> createAnswer() async {
+    final description = await _peer.createAnswer(<String, dynamic>{});
+    return SatelliteSessionDescription(
+      sdp: description.sdp ?? '',
+      type: description.type ?? 'answer',
     );
   }
 

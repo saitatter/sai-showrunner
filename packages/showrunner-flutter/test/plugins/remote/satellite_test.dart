@@ -284,6 +284,10 @@ class _FakePeerConnection implements SatellitePeerConnection {
       const SatelliteSessionDescription(sdp: 'offer', type: 'offer');
 
   @override
+  Future<SatelliteSessionDescription> createAnswer() async =>
+      const SatelliteSessionDescription(sdp: 'answer', type: 'answer');
+
+  @override
   Future<void> setLocalDescription(
     SatelliteSessionDescription description,
   ) async {}

@@ -29,6 +29,14 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     port: _port(appSettings['port'], 8181),
   );
   final registry = DartPluginRegistry();
+  final dashboardHost = eventHub == null
+      ? null
+      : RemoteDashboardHost(
+          dataService: dataService,
+          registry: registry,
+          eventHub: eventHub,
+          signaling: SatelliteSignalingController(dataService: dataService),
+        );
   registry.register(
     createShowRunnerPlugin(
       queueManager: queueManager,
@@ -422,7 +430,12 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     },
   );
   registry.register(createWyzePlugin(wyzeTransport));
-  registry.register(dashboardPlugin);
+  registry.register(
+    createDashboardPlugin(
+      start: dashboardHost?.start,
+      stop: dashboardHost?.stop,
+    ),
+  );
   registry.register(createInputPlugin(startEvents: true));
   registry.register(createStreamPlansPlugin(registry: registry));
   registry.register(
