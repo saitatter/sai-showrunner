@@ -12,6 +12,7 @@ import '../plugins/registry/plugin_bootstrap.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
 import 'sai_nodes/content_revision.dart';
+import 'sai_nodes/showrunner_clipboard_payload.dart';
 import 'sai_nodes/selection_navigation.dart';
 
 enum GraphNodeExecutionStatus { running, success, error }
@@ -28,22 +29,6 @@ final class GraphNodeExecutionVisual {
   final DateTime startedAt;
   final Duration? duration;
   final String? error;
-}
-
-final class _ClipboardNodeSnapshot {
-  const _ClipboardNodeSnapshot({
-    required this.nodeType,
-    required this.data,
-    this.title,
-    this.isVariable = false,
-    this.isTrigger = false,
-  });
-
-  final String nodeType;
-  final JsonMap data;
-  final String? title;
-  final bool isVariable;
-  final bool isTrigger;
 }
 
 typedef GraphResourceOptionsLoader =
@@ -141,13 +126,12 @@ class ShowRunnerGraphEditor {
   final ValueNotifier<bool> documentDirty = ValueNotifier(false);
   final Map<String, String> _nodeTitles = {};
   final Map<String, String> _prototypeTitles = {};
-  final Map<String, List<_ClipboardNodeSnapshot>> _clipboardMetadata = {};
+  final _clipboardPayload = ShowRunnerClipboardPayloadStore();
   // Trigger metadata is separate from executable trigger nodes so persisted
   // trigger subscriptions can be restored without changing node prototypes.
   final Set<String> _triggerEditorIds = {};
-  String? _inMemoryClipboardPayload;
   List<String>? _pendingPasteNodeIds;
-  List<_ClipboardNodeSnapshot>? _pendingPasteSnapshots;
+  List<ShowRunnerClipboardSnapshot>? _pendingPasteSnapshots;
   bool _triggerNodeStateInitialized = false;
   bool _suspendDirtyTracking = false;
 
@@ -205,7 +189,7 @@ class ShowRunnerGraphEditor {
         _restorePastedMetadata();
       }
       if (event is CopySelectionEvent) {
-        _inMemoryClipboardPayload = event.clipboardContent;
+        _clipboardPayload.inMemoryPayload = event.clipboardContent;
         _rememberClipboardMetadata(event.clipboardContent);
       }
       if (event is! NodeFieldEvent ||
@@ -251,11 +235,11 @@ class ShowRunnerGraphEditor {
   Future<String> copySelection({BuildContext? context}) async {
     final snapshots = controller.selectedNodeIds
         .map(_clipboardSnapshotForNode)
-        .whereType<_ClipboardNodeSnapshot>()
+        .whereType<ShowRunnerClipboardSnapshot>()
         .toList();
     final payload = await controller.clipboard.copySelection(context: context);
     if (payload.isNotEmpty && snapshots.isNotEmpty) {
-      _inMemoryClipboardPayload = payload;
+      _clipboardPayload.inMemoryPayload = payload;
       _rememberClipboardMetadata(payload, snapshots: snapshots);
     }
     return payload;
@@ -263,12 +247,13 @@ class ShowRunnerGraphEditor {
 
   Future<void> pasteSelection({Offset? position, BuildContext? context}) async {
     final clipboardData = await Clipboard.getData('text/plain');
-    final clipboardContent = clipboardData?.text ?? _inMemoryClipboardPayload;
+    final clipboardContent =
+        clipboardData?.text ?? _clipboardPayload.inMemoryPayload;
     final existingNodeIds = controller.nodes.keys.toSet();
     _pendingPasteNodeIds = [];
     _pendingPasteSnapshots = clipboardContent == null
         ? null
-        : _clipboardMetadata[clipboardContent];
+        : _clipboardPayload.snapshotsFor(clipboardContent);
     await controller.clipboard.pasteSelection(
       position: position,
       clipboardContent: clipboardContent,
@@ -285,37 +270,34 @@ class ShowRunnerGraphEditor {
   Future<void> cutSelection({BuildContext? context}) async {
     final snapshots = controller.selectedNodeIds
         .map(_clipboardSnapshotForNode)
-        .whereType<_ClipboardNodeSnapshot>()
+        .whereType<ShowRunnerClipboardSnapshot>()
         .toList();
     final payload = await controller.clipboard.cutSelection(context: context);
     if (payload.isNotEmpty && snapshots.isNotEmpty) {
-      _inMemoryClipboardPayload = payload;
+      _clipboardPayload.inMemoryPayload = payload;
       _rememberClipboardMetadata(payload, snapshots: snapshots);
     }
   }
 
   void _rememberClipboardMetadata(
     String payload, {
-    List<_ClipboardNodeSnapshot>? snapshots,
+    List<ShowRunnerClipboardSnapshot>? snapshots,
   }) {
     if (payload.isEmpty) return;
     final value =
         snapshots ??
         controller.selectedNodeIds
             .map(_clipboardSnapshotForNode)
-            .whereType<_ClipboardNodeSnapshot>()
+            .whereType<ShowRunnerClipboardSnapshot>()
             .toList();
     if (value.isEmpty) return;
-    _clipboardMetadata[payload] = value;
-    while (_clipboardMetadata.length > 8) {
-      _clipboardMetadata.remove(_clipboardMetadata.keys.first);
-    }
+    _clipboardPayload.remember(payload, value);
   }
 
-  _ClipboardNodeSnapshot? _clipboardSnapshotForNode(String nodeId) {
+  ShowRunnerClipboardSnapshot? _clipboardSnapshotForNode(String nodeId) {
     final node = controller.nodes[nodeId];
     if (node == null) return null;
-    return _ClipboardNodeSnapshot(
+    return ShowRunnerClipboardSnapshot(
       nodeType: node.prototype.idName,
       data: Map<String, dynamic>.from(
         _nodeDataByEditorId[nodeId] ?? const <String, dynamic>{},
