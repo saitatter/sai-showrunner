@@ -24,6 +24,7 @@ import 'persistence/viewer_data_repository.dart';
 import 'persistence/viewer_data_sync.dart';
 import 'plugins/registry/plugin_registry.dart';
 import 'plugins/registry/plugin_bootstrap.dart';
+import 'plugins/dashboards/cloud_sync.dart';
 import 'plugins/stream_plans/manifest.dart';
 import 'plugins/overlays/manifest.dart';
 import 'services/plugin_event_hub.dart';
@@ -1594,11 +1595,19 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       config: {...resource.config, 'name': name},
       state: resource.state,
     );
-    await ResourceRepository(
+    final repository = ResourceRepository(
       Directory(
         '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
       ),
-    ).save(updated);
+    );
+    await repository.save(updated);
+    if (resourceType == 'Dashboard') {
+      await repository.save(
+        await DashboardCloudSyncService(
+          dataService: widget.dataService,
+        ).synchronize(updated),
+      );
+    }
     if (!mounted) return;
     setState(() => _projectCatalogRevision++);
   }
@@ -1610,11 +1619,23 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     if (!_isSafeResourceId(resource.id)) return;
     final definition = createDefaultResourceEditorRegistry().find(resourceType);
     if (definition == null) return;
-    await ResourceRepository(
+    final repository = ResourceRepository(
       Directory(
         '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
       ),
-    ).delete(resource.id);
+    );
+    if (resourceType == 'Dashboard') {
+      await DashboardCloudSyncService(
+        dataService: widget.dataService,
+      ).synchronize(
+        ResourceData(
+          id: resource.id,
+          config: {...resource.config, 'remoteTwitchIds': const <String>[]},
+          state: resource.state,
+        ),
+      );
+    }
+    await repository.delete(resource.id);
     if (!mounted) return;
     setState(() => _projectCatalogRevision++);
   }
