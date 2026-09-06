@@ -69,6 +69,7 @@ import '../wyze/ui/plugin_ui.dart';
 import '../dashboards/manifest.dart';
 import '../dashboards/ui/plugin_ui.dart';
 import '../input/manifest.dart';
+import '../input/native_input.dart';
 import '../input/ui/plugin_ui.dart';
 import '../stream_plans/manifest.dart';
 import '../stream_plans/ui/plugin_ui.dart';

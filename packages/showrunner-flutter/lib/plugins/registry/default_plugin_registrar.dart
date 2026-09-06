@@ -19,7 +19,14 @@ DartPluginRegistry buildDefaultPluginRegistry({
       activateProfile: activateProfile,
     ),
   );
-  registry.register(createObsPlugin(CallbackObsTransport(_unconfiguredObs)));
+  final obsTransport = CallbackObsTransport(_unconfiguredObs);
+  registry.register(
+    createObsPlugin(obsTransport),
+    onHealthCheck: () async {
+      await obsTransport.call('GetVersion', {});
+      return true;
+    },
+  );
   registry.registerUi('obs', createObsPluginUi());
   registry.register(
     createAitumPlugin(CallbackObsTransport(_unconfiguredAitum)),
@@ -50,7 +57,12 @@ DartPluginRegistry buildDefaultPluginRegistry({
   final moderationService = ModerationService(
     dataService: ShowRunnerDataService(Directory.systemTemp),
   );
-  registry.register(createModerationPlugin(moderationService));
+  registry.register(
+    createModerationPlugin(moderationService),
+    onHealthCheck: () async =>
+        (await moderationService.checkHealth()).health == 'healthy',
+    onStop: moderationService.dispose,
+  );
   registry.registerUi(
     'moderation',
     createModerationPluginUi(moderationService),
@@ -64,13 +76,13 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(createDonorDrivePlugin(null, eventHub: eventHub));
   registry.register(createRemotePlugin(eventHub: eventHub));
   registry.registerUi('remote', createRemotePluginUi());
+  final voiceModTransport = CallbackVoiceModTransport(
+    getVoicesCallback: _unconfiguredVoiceModVoices,
+    selectVoiceCallback: _unconfiguredVoiceMod,
+  );
   registry.register(
-    createVoiceModPlugin(
-      CallbackVoiceModTransport(
-        getVoicesCallback: _unconfiguredVoiceModVoices,
-        selectVoiceCallback: _unconfiguredVoiceMod,
-      ),
-    ),
+    createVoiceModPlugin(voiceModTransport),
+    onStop: voiceModTransport.close,
   );
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
@@ -106,7 +118,10 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(createElgatoPlugin(ElgatoTransport(_unconfiguredElgato)));
   registry.register(createKasaPlugin(KasaTransport(_unconfiguredKasa)));
   registry.register(createLifxPlugin(_unconfiguredLifxTransport));
-  registry.register(createWyzePlugin(_unconfiguredWyzeTransport));
+  registry.register(
+    createWyzePlugin(_unconfiguredWyzeTransport),
+    onStop: _unconfiguredWyzeTransport.close,
+  );
   registry.registerUi('wyze', createWyzePluginUi());
   registry.register(dashboardPlugin);
   registry.registerUi('dashboards', createDashboardsPluginUi());

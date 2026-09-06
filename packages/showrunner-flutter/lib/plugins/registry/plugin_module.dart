@@ -16,27 +16,35 @@ abstract interface class DartPluginModule {
 
 /// Manifest-backed module for built-in plugins.
 final class ManifestDartPluginModule implements DartPluginModule {
-  const ManifestDartPluginModule(this.manifest);
+  const ManifestDartPluginModule(
+    this.manifest, {
+    this.onStart,
+    this.onStop,
+    this.onHealthCheck,
+  });
 
   @override
   final DartPluginManifest manifest;
+  final DartPluginLifecycleHook? onStart;
+  final DartPluginLifecycleHook? onStop;
+  final Future<bool> Function()? onHealthCheck;
 
   @override
   Future<void> initialize(DartPluginHostContext host) async {}
 
   @override
   Future<void> start() async {
-    await manifest.start?.call();
+    await onStart?.call();
   }
 
   @override
   Future<void> stop() async {
-    await manifest.stop?.call();
+    await onStop?.call();
   }
 
   @override
   Future<DartPluginHealth> checkHealth() async {
-    final healthCheck = manifest.healthCheck;
+    final healthCheck = onHealthCheck;
     if (healthCheck == null) return const DartPluginHealth.ready();
     try {
       return await healthCheck()

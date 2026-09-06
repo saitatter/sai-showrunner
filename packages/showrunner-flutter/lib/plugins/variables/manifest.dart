@@ -144,7 +144,6 @@ DartPluginManifest createVariablesPlugin({
   return DartPluginManifest(
     id: 'variables',
     name: 'Variables',
-    start: variableRuntime?.load,
     actions: [
       DartActionDefinition(
         pluginId: 'variables',

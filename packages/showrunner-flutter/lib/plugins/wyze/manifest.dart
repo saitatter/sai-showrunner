@@ -423,7 +423,6 @@ DartPluginManifest createWyzePlugin(WyzeTransport transport) =>
           invoke: (config, context) => _setPlugState(transport, config),
         ),
       ],
-      stop: transport.close,
     );
 
 Future<Object?> _login(WyzeTransport transport, RuntimeMap config) async {

@@ -360,10 +360,6 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
   return DartPluginManifest(
     id: 'obs',
     name: 'OBS Studio',
-    healthCheck: () async {
-      await transport.call('GetVersion', {});
-      return true;
-    },
     states: const [
       DartPluginStateDefinition(
         id: 'connection',

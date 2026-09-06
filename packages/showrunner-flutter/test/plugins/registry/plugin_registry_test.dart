@@ -327,8 +327,8 @@ void main() {
             },
           ),
         ],
-        healthCheck: () async => true,
       ),
+      onHealthCheck: () async => true,
     );
 
     final trigger = registry.findTrigger('sample', 'event');
@@ -342,11 +342,8 @@ void main() {
     var closeCount = 0;
     final registry = DartPluginRegistry()
       ..register(
-        DartPluginManifest(
-          id: 'lifecycle',
-          name: 'Lifecycle',
-          stop: () async => closeCount++,
-        ),
+        DartPluginManifest(id: 'lifecycle', name: 'Lifecycle'),
+        onStop: () async => closeCount++,
       );
 
     await Future.wait([registry.close(), registry.close()]);
@@ -365,20 +362,14 @@ void main() {
       final events = <String>[];
       final registry = DartPluginRegistry()
         ..register(
-          DartPluginManifest(
-            id: 'first',
-            name: 'First',
-            start: () async => events.add('start:first'),
-            stop: () async => events.add('stop:first'),
-          ),
+          DartPluginManifest(id: 'first', name: 'First'),
+          onStart: () async => events.add('start:first'),
+          onStop: () async => events.add('stop:first'),
         )
         ..register(
-          DartPluginManifest(
-            id: 'second',
-            name: 'Second',
-            start: () async => events.add('start:second'),
-            stop: () async => events.add('stop:second'),
-          ),
+          DartPluginManifest(id: 'second', name: 'Second'),
+          onStart: () async => events.add('start:second'),
+          onStop: () async => events.add('stop:second'),
         );
 
       await Future.wait([registry.start(), registry.start()]);

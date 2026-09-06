@@ -52,7 +52,13 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     eventHub: eventHub,
     onStateChanged: (state, value) => registry.updateState('obs', state, value),
   );
-  registry.register(createObsPlugin(obsTransport));
+  registry.register(
+    createObsPlugin(obsTransport),
+    onHealthCheck: () async {
+      await obsTransport.call('GetVersion', {});
+      return true;
+    },
+  );
   registry.registerUi('obs', createObsPluginUi());
   registry.register(createAitumPlugin(obsTransport));
   registry.register(createAdvssPlugin(obsTransport, eventHub: eventHub));
@@ -118,7 +124,12 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     broadcasterId: twitch['broadcasterId']?.toString(),
   );
   final moderationService = ModerationService(dataService: dataService);
-  registry.register(createModerationPlugin(moderationService));
+  registry.register(
+    createModerationPlugin(moderationService),
+    onHealthCheck: () async =>
+        (await moderationService.checkHealth()).health == 'healthy',
+    onStop: moderationService.dispose,
+  );
   registry.registerUi(
     'moderation',
     createModerationPluginUi(moderationService),
@@ -187,7 +198,13 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           pollInterval: donorDriveInterval,
         )
       : null;
-  registry.register(createDonorDrivePlugin(donorDriveRuntime));
+  registry.register(
+    createDonorDrivePlugin(donorDriveRuntime),
+    onStart: donorDriveRuntime?.start,
+    onStop: donorDriveRuntime == null
+        ? null
+        : () async => donorDriveRuntime.stop(),
+  );
   final remoteSettings = await dataService.loadPluginSettings('remote');
   final remoteEnabled = remoteSettings['enabled'] == true;
   final remoteHost = remoteSettings['host']?.toString().trim();
@@ -204,6 +221,8 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       : null;
   registry.register(
     createRemotePlugin(eventHub: eventHub, runtime: remoteRuntime),
+    onStart: remoteRuntime?.start,
+    onStop: remoteRuntime?.stop,
   );
   registry.registerUi('remote', createRemotePluginUi());
   final voiceModSettings = await dataService.loadPluginSettings('voicemod');
@@ -240,7 +259,10 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   if (soundOutputs == null) {
     await refreshSoundSplitters();
   }
-  registry.register(createVoiceModPlugin(voiceModTransport));
+  registry.register(
+    createVoiceModPlugin(voiceModTransport),
+    onStop: voiceModTransport.close,
+  );
   registry.register(
     createSoundPlugin(
       ttsService: ttsService,
@@ -269,6 +291,8 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.registerUi('minecraft', createMinecraftPluginUi());
   registry.register(
     createHttpPlugin(eventHub: eventHub, endpointService: httpEndpointService),
+    onStart: httpEndpointService.start,
+    onStop: httpEndpointService.stop,
   );
   final configuredVariableRuntime =
       variableRuntime ??
@@ -288,6 +312,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       eventHub: eventHub,
       variableRuntime: configuredVariableRuntime,
     ),
+    onStart: configuredVariableRuntime.load,
   );
   registry.registerUi(
     'variables',
@@ -318,11 +343,8 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     }
   }
   registry.register(
-    createOverlaysPlugin(
-      eventHub: eventHub,
-      overlayStore: overlayStore,
-      onStop: overlayBridge?.dispose,
-    ),
+    createOverlaysPlugin(eventHub: eventHub, overlayStore: overlayStore),
+    onStop: overlayBridge?.dispose,
   );
   registry.registerUi('overlays', createOverlaysPluginUi());
   final spellcastHub = eventHub ?? DartPluginEventHub();
@@ -480,16 +502,23 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       );
     },
   );
-  registry.register(createWyzePlugin(wyzeTransport));
+  registry.register(
+    createWyzePlugin(wyzeTransport),
+    onStop: wyzeTransport.close,
+  );
   registry.registerUi('wyze', createWyzePluginUi());
   registry.register(
-    createDashboardPlugin(
-      start: dashboardHost?.start,
-      stop: dashboardHost?.stop,
-    ),
+    createDashboardPlugin(),
+    onStart: dashboardHost?.start,
+    onStop: dashboardHost?.stop,
   );
   registry.registerUi('dashboards', createDashboardsPluginUi());
-  registry.register(createInputPlugin(startEvents: true));
+  final inputPlatform = const NativeInputPlatform();
+  registry.register(
+    createInputPlugin(platform: inputPlatform),
+    onStart: inputPlatform.startEvents,
+    onStop: inputPlatform.stopEvents,
+  );
   registry.registerUi('input', createInputPluginUi());
   registry.register(
     createStreamPlansPlugin(registry: registry, queueManager: queueManager),

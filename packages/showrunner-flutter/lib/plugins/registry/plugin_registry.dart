@@ -22,8 +22,19 @@ final class DartPluginRegistry extends ChangeNotifier {
   Future<void>? _startFuture;
   Future<void>? _closeFuture;
 
-  void register(DartPluginManifest plugin) =>
-      registerModule(ManifestDartPluginModule(plugin));
+  void register(
+    DartPluginManifest plugin, {
+    DartPluginLifecycleHook? onStart,
+    DartPluginLifecycleHook? onStop,
+    Future<bool> Function()? onHealthCheck,
+  }) => registerModule(
+    ManifestDartPluginModule(
+      plugin,
+      onStart: onStart,
+      onStop: onStop,
+      onHealthCheck: onHealthCheck,
+    ),
+  );
 
   void registerModule(DartPluginModule module) {
     final plugin = module.manifest;

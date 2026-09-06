@@ -6,6 +6,7 @@ import 'package:showrunner_flutter/plugins/input/keyboard.dart';
 import 'package:showrunner_flutter/plugins/input/manifest.dart';
 import 'package:showrunner_flutter/plugins/input/native_input.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_module.dart';
 import 'package:showrunner_flutter/runtime/cancellation.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/runtime/profile_runtime.dart';
@@ -102,12 +103,16 @@ void main() {
 
   test('configured input lifecycle starts and stops global events', () async {
     final platform = _FakeInputPlatform();
-    final plugin = createInputPlugin(platform: platform, startEvents: true);
+    final module = ManifestDartPluginModule(
+      createInputPlugin(platform: platform),
+      onStart: platform.startEvents,
+      onStop: platform.stopEvents,
+    );
 
-    await plugin.start!.call();
+    await module.start();
     expect(platform.calls, ['start-events']);
 
-    await plugin.stop!.call();
+    await module.stop();
     expect(platform.calls, ['start-events', 'stop-events']);
   });
 

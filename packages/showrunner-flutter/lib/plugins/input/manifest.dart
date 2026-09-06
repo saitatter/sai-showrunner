@@ -68,10 +68,7 @@ const _mouseButtonConfigSchema = DartDataInputSchema(
   ],
 );
 
-DartPluginManifest createInputPlugin({
-  InputPlatform? platform,
-  bool startEvents = false,
-}) {
+DartPluginManifest createInputPlugin({InputPlatform? platform}) {
   final inputPlatform = platform ?? const NativeInputPlatform();
   return DartPluginManifest(
     id: 'input',
@@ -103,8 +100,6 @@ DartPluginManifest createInputPlugin({
         matches: matchesKeyboardShortcut,
       ),
     ],
-    start: startEvents ? inputPlatform.startEvents : null,
-    stop: startEvents ? inputPlatform.stopEvents : null,
   );
 }
 

@@ -107,9 +107,6 @@ final class DartPluginManifest {
     this.settings = const <DartSettingDefinition>[],
     this.triggers = const <DartTriggerDefinition>[],
     this.states = const <DartPluginStateDefinition>[],
-    this.healthCheck,
-    this.start,
-    this.stop,
   });
 
   final String id;
@@ -119,9 +116,6 @@ final class DartPluginManifest {
   final List<DartSettingDefinition> settings;
   final List<DartTriggerDefinition> triggers;
   final List<DartPluginStateDefinition> states;
-  final Future<bool> Function()? healthCheck;
-  final DartPluginLifecycleHook? start;
-  final DartPluginLifecycleHook? stop;
 
   PluginId get pluginKey => PluginId(id);
 }

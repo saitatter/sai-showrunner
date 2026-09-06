@@ -281,8 +281,6 @@ DartPluginManifest createHttpPlugin({
               matches: _matchesEndpoint,
             ),
           ],
-    start: endpointService?.start,
-    stop: endpointService?.stop,
   );
 }
 

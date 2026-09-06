@@ -5,12 +5,5 @@ const dashboardPlugin = DartPluginManifest(
   name: 'Dashboards',
 );
 
-DartPluginManifest createDashboardPlugin({
-  Future<void> Function()? start,
-  Future<void> Function()? stop,
-}) => DartPluginManifest(
-  id: 'dashboards',
-  name: 'Dashboards',
-  start: start,
-  stop: stop,
-);
+DartPluginManifest createDashboardPlugin() =>
+    DartPluginManifest(id: 'dashboards', name: 'Dashboards');
