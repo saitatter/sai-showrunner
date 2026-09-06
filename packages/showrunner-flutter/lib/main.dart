@@ -27,6 +27,7 @@ import 'plugins/registry/plugin_bootstrap.dart';
 import 'plugins/dashboards/cloud_sync.dart';
 import 'plugins/stream_plans/manifest.dart';
 import 'plugins/overlays/manifest.dart';
+import 'plugins/variables/runtime.dart';
 import 'services/plugin_event_hub.dart';
 import 'plugins/runtime/provider_event_workers.dart';
 import 'runtime/graph_runtime.dart';
@@ -158,6 +159,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   late final ProviderEventRuntime _providerEvents;
   late final FileViewerDataRepository _viewerDataRepository;
   late final ViewerDataSynchronizer _viewerDataSynchronizer;
+  late final DartVariableRuntime _variableRuntime;
   late final Future<StartupHealthSnapshot> _healthFuture;
   late final FlutterInterfacePreferences _interfacePreferences;
   late final AppCommandRegistry _commandRegistry;
@@ -205,6 +207,13 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       eventHub: _eventHub,
     );
     unawaited(_viewerDataSynchronizer.start());
+    _variableRuntime = DartVariableRuntime(
+      directory: Directory(
+        '${widget.dataService.userDirectory.path}/variables',
+      ),
+      onChanged: (id, value) =>
+          _stateRegistry?.updateDynamicState('variables', id, value),
+    );
     _providerEvents = ProviderEventRuntime(
       dataService: widget.dataService,
       eventHub: _eventHub,
@@ -251,6 +260,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         );
       },
       activateProfile: _activateProfileResource,
+      variableRuntime: _variableRuntime,
     );
     unawaited(_bindProviderStateDiagnostics());
     _profileManagerFuture = _pluginRegistryFuture.then((registry) async {
@@ -540,6 +550,13 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     final registry = await _pluginRegistryFuture;
     if (_disposed) return;
     _stateRegistry = registry;
+    for (final definition in _variableRuntime.definitions) {
+      registry.updateDynamicState(
+        'variables',
+        definition.id,
+        definition.currentValue,
+      );
+    }
     _providerEvents.addListener(_syncProviderStateDiagnostics);
     _syncProviderStateDiagnostics();
   }
@@ -606,6 +623,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       pluginRegistryFuture: _pluginRegistryFuture,
       profileRuntimeFuture: _profileRuntimeFuture,
       streamPlanRuntime: streamPlanRuntime,
+      variableRuntime: _variableRuntime,
       interfacePreferences: _interfacePreferences,
       commands: _commandRegistry,
       updateService: widget.updateService,

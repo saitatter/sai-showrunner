@@ -31,6 +31,7 @@ import '../plugins/runtime/provider_event_workers.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../plugins/stream_plans/manifest.dart';
 import '../features/resources/resource_editor_registry.dart';
+import '../plugins/variables/runtime.dart';
 import '../runtime/action_queue.dart';
 import '../runtime/automation_queue_manager.dart';
 import '../schema/automation.dart';
@@ -59,6 +60,7 @@ class ShowRunnerShell extends StatelessWidget {
     required this.pluginRegistryFuture,
     required this.profileRuntimeFuture,
     this.streamPlanRuntime,
+    this.variableRuntime,
     required this.selectedIndex,
     required this.activeAutomationFile,
     this.activeAutomationDirty = false,
@@ -110,6 +112,7 @@ class ShowRunnerShell extends StatelessWidget {
   final Future<DartPluginRegistry> pluginRegistryFuture;
   final Future<DartProfileRuntime> profileRuntimeFuture;
   final DartStreamPlanRuntime? streamPlanRuntime;
+  final DartVariableRuntime? variableRuntime;
   final int selectedIndex;
   final String? activeAutomationFile;
   final bool activeAutomationDirty;
@@ -317,6 +320,7 @@ class ShowRunnerShell extends StatelessWidget {
         editorRegistry: createDefaultResourceEditorRegistry(),
         registryFuture: pluginRegistryFuture,
         streamPlanRuntime: streamPlanRuntime,
+        variableRuntime: variableRuntime,
         resourceType: selectedResourceType,
         resourceId: selectedResourceId,
         revision: projectCatalogRevision,
@@ -346,6 +350,7 @@ class ShowRunnerShell extends StatelessWidget {
       11 => VariablesWorkspace(
         dataService: dataService,
         eventHub: providerEvents.eventHub,
+        variableRuntime: variableRuntime,
       ),
       12 => RemoteWorkspace(
         dataService: dataService,

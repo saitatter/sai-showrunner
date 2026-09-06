@@ -87,6 +87,33 @@ enabled:
     expect(restored.valueOf('count'), 4.5);
   });
 
+  test('reload keeps session variables in memory', () async {
+    final root = await Directory.systemTemp.createTemp('showrunner-variables-');
+    addTearDown(() => root.delete(recursive: true));
+    final directory = Directory('${root.path}/variables');
+    final repository = ResourceRepository(directory);
+    await repository.save(
+      const ResourceData(
+        id: 'sessionCount',
+        config: {
+          'name': 'Session count',
+          'type': 'number',
+          'defaultValue': 0,
+          'persistent': false,
+        },
+      ),
+    );
+
+    final runtime = DartVariableRuntime(directory: directory);
+    await runtime.load();
+    expect(await runtime.setValue('sessionCount', 9), 9);
+
+    await runtime.reload();
+
+    expect(runtime.valueOf('sessionCount'), 9);
+    expect((await repository.load('sessionCount'))?.state, isEmpty);
+  });
+
   test('registry executions start with current variable state', () async {
     final registry = DartPluginRegistry();
     registry.register(createVariablesPlugin());

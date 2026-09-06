@@ -8,6 +8,7 @@ import '../plugins/plugin_metadata.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/dashboards/cloud_sync.dart';
 import '../../plugins/stream_plans/manifest.dart';
+import '../../plugins/variables/runtime.dart';
 import '../../schema/stream_plan.dart';
 import 'resource_editor_registry.dart';
 import '../../schema/automation.dart';
@@ -26,6 +27,7 @@ class ResourcesWorkspace extends StatefulWidget {
     this.resourceType,
     this.resourceId,
     this.revision = 0,
+    this.variableRuntime,
   });
 
   final ShowRunnerDataService dataService;
@@ -35,6 +37,7 @@ class ResourcesWorkspace extends StatefulWidget {
   final String? resourceType;
   final String? resourceId;
   final int revision;
+  final DartVariableRuntime? variableRuntime;
 
   @override
   State<ResourcesWorkspace> createState() => _ResourcesWorkspaceState();
@@ -239,6 +242,9 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
             ).synchronize(updated);
             await repository.save(synchronized);
           }
+          if (resourceType == 'Variable') {
+            await widget.variableRuntime?.reload();
+          }
           final streamPlanRuntime = widget.streamPlanRuntime;
           if (resourceType == 'StreamPlan' &&
               streamPlanRuntime?.activePlanId == updated.id) {
@@ -288,6 +294,9 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
         '${dataService.userDirectory.path}/${_resourceDirectory(resourceType)}',
       ),
     ).save(resource);
+    if (resourceType == 'Variable') {
+      await widget.variableRuntime?.reload();
+    }
     if (mounted) setState(_reload);
   }
 
@@ -332,6 +341,9 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       );
     }
     await repository.delete(resource.id);
+    if (resourceType == 'Variable') {
+      await widget.variableRuntime?.reload();
+    }
     if (mounted) setState(_reload);
   }
 

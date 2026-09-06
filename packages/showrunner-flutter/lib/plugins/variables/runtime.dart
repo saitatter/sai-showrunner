@@ -117,7 +117,7 @@ final class DartVariableRuntime extends ChangeNotifier {
       if (resource.id == 'variables' && resource.config['type'] == null) {
         continue;
       }
-      final definition = _fromResource(resource);
+      final definition = _fromResource(resource, _definitions[resource.id]);
       if (definition != null) next[definition.id] = definition;
     }
 
@@ -180,7 +180,10 @@ final class DartVariableRuntime extends ChangeNotifier {
     return imported;
   }
 
-  DartVariableDefinition? _fromResource(ResourceData resource) {
+  DartVariableDefinition? _fromResource(
+    ResourceData resource,
+    DartVariableDefinition? previous,
+  ) {
     final type = resource.config['type']?.toString().trim();
     if (type == null || type.isEmpty) return null;
     final defaultValue = _normalizeValue(type, resource.config['defaultValue']);
@@ -188,14 +191,17 @@ final class DartVariableRuntime extends ChangeNotifier {
     final rawCurrent = resource.state.containsKey('value')
         ? resource.state['value']
         : defaultValue;
+    final currentValue = persistent
+        ? _normalizeValue(type, rawCurrent)
+        : previous?.type == type
+        ? previous!.currentValue
+        : defaultValue;
     return DartVariableDefinition(
       id: resource.id,
       name: resource.config['name']?.toString(),
       type: type,
       defaultValue: defaultValue,
-      currentValue: persistent
-          ? _normalizeValue(type, rawCurrent)
-          : defaultValue,
+      currentValue: currentValue,
       persistent: persistent,
     );
   }

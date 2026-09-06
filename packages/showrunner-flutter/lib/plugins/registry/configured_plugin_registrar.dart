@@ -9,6 +9,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   DartAutomationQueueManager? queueManager,
   ShowRunnerAutomationRunner? runAutomation,
   ShowRunnerProfileActivation? activateProfile,
+  DartVariableRuntime? variableRuntime,
 }) async {
   final variablesRepository =
       viewerDataRepository ??
@@ -234,19 +235,23 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.register(
     createHttpPlugin(eventHub: eventHub, endpointService: httpEndpointService),
   );
-  final variableRuntime = DartVariableRuntime(
-    directory: Directory('${dataService.userDirectory.path}/variables'),
-    onChanged: (id, value) =>
-        registry.updateDynamicState('variables', id, value),
+  final configuredVariableRuntime =
+      variableRuntime ??
+      DartVariableRuntime(
+        directory: Directory('${dataService.userDirectory.path}/variables'),
+        onChanged: (id, value) =>
+            registry.updateDynamicState('variables', id, value),
+      );
+  registry.register(
+    createTimePlugin(variableRuntime: configuredVariableRuntime),
   );
-  registry.register(createTimePlugin(variableRuntime: variableRuntime));
   registry.register(createOsPlugin());
   registry.register(createRandomPlugin(eventHub: eventHub));
   registry.register(
     createVariablesPlugin(
       viewerDataRepository: variablesRepository,
       eventHub: eventHub,
-      variableRuntime: variableRuntime,
+      variableRuntime: configuredVariableRuntime,
     ),
   );
   final overlayRepository = ResourceRepository(

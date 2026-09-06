@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../persistence/resource_repository.dart';
 import '../../persistence/viewer_data_repository.dart';
+import '../../plugins/variables/runtime.dart';
 import '../../runtime/expression.dart';
 import '../../schema/resource.dart';
 import '../../schema/viewer_data.dart';
@@ -17,10 +18,12 @@ class VariablesWorkspace extends StatefulWidget {
     super.key,
     required this.dataService,
     this.eventHub,
+    this.variableRuntime,
   });
 
   final ShowRunnerDataService dataService;
   final DartPluginEventHub? eventHub;
+  final DartVariableRuntime? variableRuntime;
 
   @override
   State<VariablesWorkspace> createState() => _VariablesWorkspaceState();
@@ -44,18 +47,27 @@ class _VariablesWorkspaceState extends State<VariablesWorkspace> {
     _viewerDataRepository = FileViewerDataRepository(
       Directory('${widget.dataService.userDirectory.path}/viewer-data'),
     );
+    widget.variableRuntime?.addListener(_onRuntimeChanged);
     _load();
   }
 
   @override
   void dispose() {
+    widget.variableRuntime?.removeListener(_onRuntimeChanged);
     _filterController.dispose();
     super.dispose();
   }
 
+  void _onRuntimeChanged() {
+    if (mounted) unawaited(_load());
+  }
+
   Future<void> _load() async {
     try {
-      final variables = await _repository.list();
+      final persisted = await _repository.list();
+      final variables = [
+        for (final resource in persisted) _withRuntimeValue(resource),
+      ];
       variables.sort(
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
       );
@@ -76,6 +88,21 @@ class _VariablesWorkspaceState extends State<VariablesWorkspace> {
     }
   }
 
+  ResourceData _withRuntimeValue(ResourceData resource) {
+    final definition = widget.variableRuntime?.definitionOf(resource.id);
+    if (definition == null) return resource;
+    return ResourceData(
+      id: resource.id,
+      config: resource.config,
+      state: {'value': definition.currentValue},
+    );
+  }
+
+  Future<void> _save(ResourceData resource) async {
+    await _repository.save(resource);
+    await widget.variableRuntime?.reload();
+  }
+
   List<ResourceData> get _filteredVariables {
     final filter = _filter.trim().toLowerCase();
     if (filter.isEmpty) return _variables;
@@ -93,7 +120,7 @@ class _VariablesWorkspaceState extends State<VariablesWorkspace> {
       builder: (context) => const _VariableDialog(title: 'Create variable'),
     );
     if (result == null) return;
-    await _repository.save(result);
+    await _save(result);
     await _load();
   }
 
@@ -104,13 +131,13 @@ class _VariablesWorkspaceState extends State<VariablesWorkspace> {
           _VariableDialog(title: 'Edit ${resource.name}', resource: resource),
     );
     if (result == null) return;
-    await _repository.save(result);
+    await _save(result);
     await _load();
   }
 
   Future<void> _reset(ResourceData resource) async {
     final variable = VariableResource.fromResource(resource);
-    await _repository.save(
+    await _save(
       ResourceData(
         id: resource.id,
         config: resource.config,
@@ -140,6 +167,7 @@ class _VariablesWorkspaceState extends State<VariablesWorkspace> {
     );
     if (confirmed != true) return;
     await _repository.delete(resource.id);
+    await widget.variableRuntime?.reload();
     await _load();
   }
 
@@ -197,13 +225,18 @@ class _VariablesWorkspaceState extends State<VariablesWorkspace> {
               onReset: () => _reset(resource),
               onDelete: () => _delete(resource),
               onValueChanged: (value) async {
-                await _repository.save(
-                  ResourceData(
-                    id: resource.id,
-                    config: resource.config,
-                    state: {'value': value},
-                  ),
-                );
+                final runtime = widget.variableRuntime;
+                if (runtime != null) {
+                  await runtime.setValue(resource.id, value);
+                } else {
+                  await _repository.save(
+                    ResourceData(
+                      id: resource.id,
+                      config: resource.config,
+                      state: {'value': value},
+                    ),
+                  );
+                }
                 await _load();
               },
             ),
