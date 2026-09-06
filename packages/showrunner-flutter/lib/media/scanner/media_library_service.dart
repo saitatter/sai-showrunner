@@ -50,12 +50,12 @@ final class MediaLibraryService {
     final generation = await indexStore.nextGeneration(root);
     final existing = await indexStore.loadRoot(root);
     final byPath = {for (final record in existing) record.pathKey: record};
+    final snapshotPathKeys = snapshots
+        .map((snapshot) => snapshot.pathKey)
+        .toSet();
     final seenIds = <int>{};
     final unmatched = existing
-        .where(
-          (record) =>
-              !snapshots.any((snapshot) => snapshot.pathKey == record.pathKey),
-        )
+        .where((record) => !snapshotPathKeys.contains(record.pathKey))
         .toList(growable: false);
     final availableMoves = [...unmatched];
     final records = <MediaIndexRecord>[];
