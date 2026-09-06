@@ -15,6 +15,8 @@ import 'color_field.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../plugins/sound/ui/tts_voice_provider_picker.dart';
 import '../../plugins/overlays/ui/overlay_widget_config.dart';
+import '../../plugins/overlays/shader_graph/shader_graph_editor.dart';
+import '../../plugins/overlays/shader_graph/shader_graph_model.dart';
 import '../../plugins/dashboards/ui/dashboard_widget_config.dart';
 
 List<JsonMap> _maps(Object? value) => value is List
@@ -1195,6 +1197,33 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
               config: config,
               onChanged: (value) => onChanged('config', value),
             ),
+            if (widgetConfig['plugin']?.toString() == 'overlays' &&
+                widgetConfig['widget']?.toString() == 'shaderLayer')
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('Open Shader Graph'),
+                  onPressed: () async {
+                    final result = await showDialog<ShaderGraphEditorResult>(
+                      context: context,
+                      builder: (context) =>
+                          ShaderGraphEditorDialog(config: config),
+                    );
+                    if (result == null) return;
+                    onChanged(
+                      'config',
+                      applyCompiledShaderGraph(
+                        config: config,
+                        graph: result.graph,
+                        glsl: result.glsl,
+                        uniforms: result.uniforms,
+                        bindings: result.bindings,
+                      ),
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),
