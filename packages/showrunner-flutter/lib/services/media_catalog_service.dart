@@ -3,6 +3,7 @@ import 'dart:io';
 import '../media/domain/media_file.dart';
 import '../media/scanner/media_file_enumerator.dart';
 import '../media/scanner/media_library_service.dart';
+import '../media/scanner/media_library_watcher.dart';
 
 export '../media/domain/media_file.dart'
     show
@@ -12,6 +13,15 @@ export '../media/domain/media_file.dart'
         MediaScanMode,
         MediaScanResult,
         MediaScanStats;
+export '../media/scanner/media_file_enumerator.dart'
+    show
+        mediaAudioExtensions,
+        mediaImageExtensions,
+        mediaVideoExtensions,
+        mediaExtensionForPath,
+        mediaKindForExtension,
+        mediaExtensionSupportsKind;
+export '../media/scanner/media_library_watcher.dart';
 
 final class MediaCatalogService {
   MediaCatalogService(this.userDirectory, {MediaMetadataReader? metadataReader})
@@ -29,6 +39,16 @@ final class MediaCatalogService {
 
   Future<MediaScanResult> scan({MediaScanMode mode = MediaScanMode.quick}) =>
       _library.scan(mode: mode);
+
+  MediaLibraryWatcher watch({
+    required Future<void> Function() onChanged,
+    Duration debounce = const Duration(milliseconds: 250),
+    void Function(Object error, StackTrace stackTrace)? onError,
+  }) => _library.watch(
+    onChanged: onChanged,
+    debounce: debounce,
+    onError: onError,
+  );
 
   Future<void> openMediaFolder() async {
     await mediaDirectory.create(recursive: true);
@@ -59,7 +79,9 @@ final class MediaCatalogService {
     var imported = 0;
     for (final source in sources) {
       if (!await source.exists()) continue;
-      if (mediaKindForExtension(_extension(source.path)) == null) continue;
+      if (mediaKindForExtension(mediaExtensionForPath(source.path)) == null) {
+        continue;
+      }
       final name = source.uri.pathSegments.last;
       if (name.isEmpty) continue;
       final destination = File('${mediaDirectory.path}/$name');
@@ -75,9 +97,3 @@ final class MediaCatalogService {
 
 bool _sameFile(File left, File right) =>
     mediaPathKey(left.absolute.path) == mediaPathKey(right.absolute.path);
-
-String _extension(String path) {
-  final name = path.split(Platform.pathSeparator).last;
-  final dot = name.lastIndexOf('.');
-  return dot < 0 ? '' : name.substring(dot + 1).toLowerCase();
-}

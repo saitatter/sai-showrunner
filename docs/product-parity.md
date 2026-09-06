@@ -37,14 +37,15 @@ Status values:
 | Updater | update page/dialog and release metadata | Update check, artifact and install services | partial | Signed installed Windows upgrade/rollback proof |
 | Data compatibility | `main` contains explicit migration UI and old-shape handling | Strict V2 loader by explicit product decision | intentionally_removed | No automatic import, backup, or legacy conversion |
 | External plugin templates | `plugin-template` and `plugin-native-template` | No third-party in-process loader | intentionally_removed | Resolved in `docs/architecture/adr-003-external-plugins.md` |
-| Media library | recursive media browser and import behavior | `MediaCatalogService`, SQLite `MediaIndexStore`, Quick/Full scan actions and Media workspace | partial | TagLib extraction, watcher, isolate/worker and benchmark workstream |
+| Media library | recursive media browser and import behavior | `MediaCatalogService`, SQLite `MediaIndexStore`, Quick/Full scan actions, debounced watcher and Media workspace | partial | TagLib extraction, isolate/worker and benchmark workstream |
 | Browser-only rendering | OBS HTML/WebGL runtime | `packages/showrunner-obs-overlay` remains browser-based | not_applicable | Protocol and browser build gates |
 
 ## Current closure order
 
 1. Add full-screen visual references and controlled screenshot comparison.
 2. Add document and runtime end-to-end fixtures.
-3. Replace the simple media catalog with an incremental scanner.
+3. Finish media metadata extraction, worker isolation and benchmarks on top of
+   the incremental scanner.
 4. Harden the editor, composition root and packaged Windows lifecycle.
 
 The `partial` entries are the remaining product-proof or infrastructure work.

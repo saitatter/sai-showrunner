@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../media/domain/media_file.dart';
+import '../../media/scanner/media_file_enumerator.dart';
+
 class MediaPickerScope extends InheritedWidget {
   const MediaPickerScope({
     super.key,
@@ -77,13 +80,13 @@ class _MediaPickerState extends State<MediaPicker> {
   }
 
   bool _allowed(String path) {
-    final extension = path.split('.').last.toLowerCase();
-    const audio = {'mp3', 'wav', 'ogg', 'flac', 'm4a'};
-    const images = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'};
-    const video = {'mp4', 'webm', 'mov', 'mkv', 'avi'};
-    return (widget.allowAudio && audio.contains(extension)) ||
-        (widget.allowImages && images.contains(extension)) ||
-        (widget.allowVideo && video.contains(extension));
+    final extension = mediaExtensionForPath(path);
+    return (widget.allowAudio &&
+            mediaExtensionSupportsKind(extension, MediaKind.audio)) ||
+        (widget.allowImages &&
+            mediaExtensionSupportsKind(extension, MediaKind.image)) ||
+        (widget.allowVideo &&
+            mediaExtensionSupportsKind(extension, MediaKind.video));
   }
 
   @override
@@ -141,14 +144,11 @@ class _MediaPickerState extends State<MediaPicker> {
   }
 
   IconData _iconFor(String path) {
-    final extension = path.split('.').last.toLowerCase();
-    if ({'mp3', 'wav', 'ogg', 'flac', 'm4a'}.contains(extension)) {
-      return Icons.audiotrack;
-    }
-    if ({'mp4', 'webm', 'mov', 'mkv', 'avi'}.contains(extension)) {
-      return Icons.movie_outlined;
-    }
-    return Icons.image_outlined;
+    return switch (mediaKindForExtension(mediaExtensionForPath(path))) {
+      MediaKind.audio => Icons.audiotrack,
+      MediaKind.video => Icons.movie_outlined,
+      _ => Icons.image_outlined,
+    };
   }
 }
 

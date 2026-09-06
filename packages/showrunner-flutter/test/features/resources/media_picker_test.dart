@@ -13,7 +13,9 @@ void main() {
             rootDirectory: Directory('unused'),
             mediaFiles: [
               File(r'C:\media\logo.png'),
+              File(r'C:\media\logo.svg'),
               File(r'C:\media\track.mp3'),
+              File(r'C:\media\clip.ogg'),
               File(r'C:\media\clip.mp4'),
             ],
             allowImages: true,
@@ -25,6 +27,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('logo.png'), findsOneWidget);
+    expect(find.text('logo.svg'), findsOneWidget);
+    expect(find.text('clip.ogg'), findsOneWidget);
     expect(find.text('clip.mp4'), findsOneWidget);
     expect(find.text('track.mp3'), findsNothing);
 

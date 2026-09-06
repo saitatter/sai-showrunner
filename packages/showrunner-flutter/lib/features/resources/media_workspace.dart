@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -19,6 +20,7 @@ class MediaWorkspace extends StatefulWidget {
 class _MediaWorkspaceState extends State<MediaWorkspace> {
   final _filterController = TextEditingController();
   late final MediaCatalogService _catalogService;
+  late final MediaLibraryWatcher _watcher;
   late Future<MediaScanResult> _scanFuture;
   String _filter = '';
   bool _draggingFiles = false;
@@ -29,10 +31,19 @@ class _MediaWorkspaceState extends State<MediaWorkspace> {
     _catalogService = MediaCatalogService(widget.dataService.userDirectory);
     _filterController.addListener(_onFilterChanged);
     _scanFuture = _catalogService.scan();
+    _watcher = _catalogService.watch(
+      onChanged: _reloadFromWatcher,
+      onError: (_, _) {
+        // The next explicit scan remains authoritative if the platform watcher
+        // is unavailable or reports an event it cannot decode.
+      },
+    );
+    unawaited(_watcher.start());
   }
 
   @override
   void dispose() {
+    unawaited(_watcher.dispose());
     _filterController
       ..removeListener(_onFilterChanged)
       ..dispose();
@@ -47,6 +58,13 @@ class _MediaWorkspaceState extends State<MediaWorkspace> {
 
   void _reload({MediaScanMode mode = MediaScanMode.quick}) {
     setState(() => _scanFuture = _catalogService.scan(mode: mode));
+  }
+
+  Future<void> _reloadFromWatcher() async {
+    if (!mounted) return;
+    final scan = _catalogService.scan();
+    setState(() => _scanFuture = scan);
+    await scan;
   }
 
   @override

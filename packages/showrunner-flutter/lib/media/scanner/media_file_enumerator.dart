@@ -13,7 +13,7 @@ final class MediaFileEnumerator {
     final snapshots = <MediaFileSnapshot>[];
     await for (final entity in root.list(recursive: true, followLinks: false)) {
       if (entity is! File) continue;
-      final extension = _extension(entity.path);
+      final extension = mediaExtensionForPath(entity.path);
       final kind = mediaKindForExtension(extension);
       if (kind == null) continue;
       try {
@@ -56,19 +56,45 @@ final class MediaFileEnumerator {
 
 String mediaPathKey(String path) => path.replaceAll('\\', '/').toLowerCase();
 
-String _extension(String path) {
-  final name = path.split(Platform.pathSeparator).last;
+String mediaExtensionForPath(String path) {
+  final name = path.replaceAll('\\', '/').split('/').last;
   final dot = name.lastIndexOf('.');
   return dot < 0 ? '' : name.substring(dot + 1).toLowerCase();
 }
 
 MediaKind? mediaKindForExtension(String extension) {
-  if (_imageExtensions.contains(extension)) return MediaKind.image;
-  if (_audioExtensions.contains(extension)) return MediaKind.audio;
-  if (_videoExtensions.contains(extension)) return MediaKind.video;
+  final normalized = extension.toLowerCase().replaceFirst('.', '');
+  if (mediaImageExtensions.contains(normalized)) return MediaKind.image;
+  if (mediaAudioExtensions.contains(normalized)) return MediaKind.audio;
+  if (mediaVideoExtensions.contains(normalized)) return MediaKind.video;
   return null;
 }
 
-const _imageExtensions = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'};
-const _audioExtensions = {'mp3', 'wav', 'ogg', 'flac', 'm4a'};
-const _videoExtensions = {'mp4', 'webm', 'mov', 'mkv', 'avi'};
+bool mediaExtensionSupportsKind(String extension, MediaKind kind) {
+  final normalized = extension.toLowerCase().replaceFirst('.', '');
+  if (normalized == 'ogg') {
+    // OGG is present in both reference format lists; the container's actual
+    // stream determines whether a file is audio or video.
+    return kind == MediaKind.audio || kind == MediaKind.video;
+  }
+  return mediaKindForExtension(normalized) == kind;
+}
+
+/// Formats supported by the reference media contract.
+///
+/// Keep these sets public so the media browser, picker and import path cannot
+/// silently drift apart again.
+const mediaImageExtensions = {
+  'gif',
+  'png',
+  'jpg',
+  'jpeg',
+  'apng',
+  'avif',
+  'webp',
+  'svg',
+  'bmp',
+  'tiff',
+};
+const mediaAudioExtensions = {'mp3', 'wav', 'ogg', 'flac', 'm4a'};
+const mediaVideoExtensions = {'mp4', 'webm', 'ogg', 'mov', 'mkv', 'avi'};

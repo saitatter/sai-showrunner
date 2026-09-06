@@ -4,6 +4,34 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/services/media_catalog_service.dart';
 
 void main() {
+  test('matches the reference media format contract', () {
+    for (final extension in [
+      'gif',
+      'png',
+      'jpg',
+      'jpeg',
+      'apng',
+      'avif',
+      'webp',
+      'svg',
+      'bmp',
+      'tiff',
+    ]) {
+      expect(mediaKindForExtension(extension), MediaKind.image);
+    }
+    for (final extension in ['mp3', 'wav', 'ogg', 'flac', 'm4a']) {
+      expect(mediaKindForExtension(extension), MediaKind.audio);
+    }
+    for (final extension in ['mp4', 'webm', 'mov', 'mkv', 'avi']) {
+      expect(mediaKindForExtension(extension), MediaKind.video);
+    }
+    expect(mediaKindForExtension('.SVG'), MediaKind.image);
+    expect(mediaKindForExtension('txt'), isNull);
+    expect(mediaExtensionSupportsKind('ogg', MediaKind.audio), isTrue);
+    expect(mediaExtensionSupportsKind('ogg', MediaKind.video), isTrue);
+    expect(mediaExtensionSupportsKind('ogg', MediaKind.image), isFalse);
+  });
+
   test('discovers supported media recursively in stable order', () async {
     final root = await Directory.systemTemp.createTemp('showrunner-media-');
     addTearDown(() => root.delete(recursive: true));

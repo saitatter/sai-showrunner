@@ -3,6 +3,7 @@ import 'dart:io';
 import '../domain/media_file.dart';
 import '../persistence/media_index_store.dart';
 import 'media_file_enumerator.dart';
+import 'media_library_watcher.dart';
 
 abstract interface class MediaMetadataReader {
   Future<MediaMetadata?> read(MediaFileSnapshot file);
@@ -22,7 +23,9 @@ final class MediaLibraryService {
     MediaMetadataReader? metadataReader,
   }) : indexStore =
            indexStore ??
-           MediaIndexStore(File('${userDirectory.path}/media/library.sqlite')),
+           MediaIndexStore(
+             File('${userDirectory.path}/state/media-library.sqlite'),
+           ),
        metadataReader = metadataReader ?? const EmptyMediaMetadataReader();
 
   final Directory userDirectory;
@@ -142,6 +145,17 @@ final class MediaLibraryService {
       ),
     );
   }
+
+  MediaLibraryWatcher watch({
+    required Future<void> Function() onChanged,
+    Duration debounce = const Duration(milliseconds: 250),
+    void Function(Object error, StackTrace stackTrace)? onError,
+  }) => MediaLibraryWatcher(
+    mediaDirectory,
+    onChanged: onChanged,
+    debounce: debounce,
+    onError: onError,
+  );
 }
 
 int _findMoveCandidate(
