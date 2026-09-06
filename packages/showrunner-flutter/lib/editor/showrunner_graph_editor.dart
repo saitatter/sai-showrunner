@@ -11,6 +11,7 @@ import '../runtime/automation_recovery.dart';
 import '../plugins/registry/plugin_bootstrap.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
+import 'sai_nodes/selection_navigation.dart';
 
 enum GraphNodeExecutionStatus { running, success, error }
 
@@ -118,6 +119,8 @@ class ShowRunnerGraphEditor {
   final Map<String, List<GraphEdge>> _invalidFlowEdgesByGraph = {};
   final Map<String, List<DataWire>> _invalidDataWiresByGraph = {};
   final Map<NodeEditorController, StreamSubscription> _fieldEvents = {};
+  final Map<NodeEditorController, SaiNodesSelectionNavigation>
+  _selectionNavigation = {};
   final Map<String, String> _entryNodeIdByGraph = {};
   final Set<String> _variableEditorIds = {};
   final ValueNotifier<List<String>> activeGraphPath = ValueNotifier(const []);
@@ -181,6 +184,7 @@ class ShowRunnerGraphEditor {
         if (type == CallbackType.error) graphFeedback.value = message;
       },
     );
+    _selectionNavigation[created] = SaiNodesSelectionNavigation(created);
     _registerPrototypes(created);
     _fieldEvents[created] = created.eventBus.events.listen((event) {
       _markDocumentDirtyFromEvent(event);
@@ -639,46 +643,20 @@ class ShowRunnerGraphEditor {
     LogicalKeyboardKey direction, {
     bool extendSelection = false,
   }) {
-    if (controller.selectedNodeIds.isEmpty) return null;
-    final currentId = controller.selectedNodeIds.last;
-    final current = controller.nodes[currentId];
-    if (current == null) return null;
-    final candidates = controller.nodes.values.where(
-      (node) => node.id != current.id,
+    final navigation = _selectionNavigation[controller];
+    if (navigation == null) return null;
+    final mappedDirection = switch (direction) {
+      LogicalKeyboardKey.arrowRight => SaiNodesNavigationDirection.right,
+      LogicalKeyboardKey.arrowLeft => SaiNodesNavigationDirection.left,
+      LogicalKeyboardKey.arrowDown => SaiNodesNavigationDirection.down,
+      LogicalKeyboardKey.arrowUp => SaiNodesNavigationDirection.up,
+      _ => null,
+    };
+    if (mappedDirection == null) return null;
+    return navigation.navigate(
+      mappedDirection,
+      extendSelection: extendSelection,
     );
-    NodeDataModel? best;
-    var bestScore = double.infinity;
-    for (final candidate in candidates) {
-      final delta = candidate.offset - current.offset;
-      final inDirection = switch (direction) {
-        LogicalKeyboardKey.arrowRight => delta.dx > 20,
-        LogicalKeyboardKey.arrowLeft => delta.dx < -20,
-        LogicalKeyboardKey.arrowDown => delta.dy > 20,
-        LogicalKeyboardKey.arrowUp => delta.dy < -20,
-        _ => false,
-      };
-      if (!inDirection) continue;
-      final primaryDistance = switch (direction) {
-        LogicalKeyboardKey.arrowRight => delta.dx,
-        LogicalKeyboardKey.arrowLeft => -delta.dx,
-        LogicalKeyboardKey.arrowDown => delta.dy,
-        LogicalKeyboardKey.arrowUp => -delta.dy,
-        _ => double.infinity,
-      };
-      final crossDistance =
-          direction == LogicalKeyboardKey.arrowLeft ||
-              direction == LogicalKeyboardKey.arrowRight
-          ? delta.dy.abs()
-          : delta.dx.abs();
-      final score = primaryDistance + crossDistance * 2;
-      if (score < bestScore) {
-        bestScore = score;
-        best = candidate;
-      }
-    }
-    if (best == null) return null;
-    controller.selectNodesById({best.id}, holdSelection: extendSelection);
-    return best.id;
   }
 
   String? addVariableNode(
@@ -1299,6 +1277,7 @@ class ShowRunnerGraphEditor {
     _entryNodeIdByGraph.remove(subgraphId);
     if (deletedController != null) {
       _fieldEvents.remove(deletedController)?.cancel();
+      _selectionNavigation.remove(deletedController);
       deletedController.dispose();
     }
     _markDocumentDirty();
@@ -2909,6 +2888,7 @@ class ShowRunnerGraphEditor {
     for (final graphController in _controllers.values) {
       graphController.dispose();
     }
+    _selectionNavigation.clear();
   }
 
   static String _linkSignature(
