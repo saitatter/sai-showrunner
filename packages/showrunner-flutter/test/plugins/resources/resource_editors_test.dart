@@ -756,7 +756,7 @@ void main() {
       const ResourceData(
         id: 'overlay-canonicalize',
         config: {
-          'name': 'Legacy dimensions',
+          'name': 'Stored dimensions',
           'width': 1280,
           'height': 720,
           'preview': {'source': 'obs', 'offsetX': -10, 'offsetY': 20},

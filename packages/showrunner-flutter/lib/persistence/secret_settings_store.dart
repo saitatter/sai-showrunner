@@ -11,8 +11,8 @@ import 'filesystem/atomic_file.dart';
 typedef SecretSettingsCipher = Future<List<int>> Function(List<int> bytes);
 
 /// Secret setting names declared by the built-in plugin contracts. The
-/// service also accepts legacy files that contain these values, so callers do
-/// not have to duplicate the list at every persistence call site.
+/// service centralizes these declarations so callers do not have to duplicate
+/// the list at every persistence call site.
 const Map<String, Set<String>> secretSettingIdsByPlugin = {
   'obs': {'password'},
   'twitch': {'clientSecret', 'accessToken', 'refreshToken'},
@@ -29,7 +29,7 @@ Set<String> secretSettingIdsFor(String pluginId) =>
 
 /// Secret fields used by resources whose public configuration is persisted in
 /// a normal YAML/JSON resource file. Account resources also use this boundary
-/// so imported Electron account credentials never get copied to public files.
+/// so sensitive account credentials never get copied to public files.
 const Map<String, Set<String>> secretResourceFieldIdsByType = {
   'OBSConnection': {'password'},
   'RCONConnection': {'password'},
@@ -39,12 +39,6 @@ const Map<String, Set<String>> secretResourceFieldIdsByType = {
   'BlueSkyAccount': {'appPassword', 'session'},
   'WyzeAccount': {'accessToken', 'refreshToken'},
   'Light': {'hubKey'},
-};
-
-const Map<String, String> accountDirectoryByResourceType = {
-  'TwitchAccount': 'twitch',
-  'BlueSkyAccount': 'bluesky',
-  'WyzeAccount': 'wyze',
 };
 
 Set<String> secretResourceFieldIdsFor(String resourceType) =>
@@ -88,23 +82,6 @@ final class SecretSettingsStore {
   Future<void> deleteResource(String resourceType, String resourceId) async {
     final file = _resourceFile(resourceType, resourceId);
     if (await file.exists()) await file.delete();
-  }
-
-  /// Reads the encrypted account filename used by the Electron runtime.
-  ///
-  /// Account public files live under `accounts/<provider>`, while Flutter's
-  /// resource editor uses the same public directory after import. Keeping the
-  /// old `.syaml` lookup here makes the first Flutter load recover credentials
-  /// without requiring a second manual login.
-  Future<JsonMap> loadLegacyAccount(String resourceType, String resourceId) {
-    final accountDirectory = accountDirectoryByResourceType[resourceType];
-    if (accountDirectory == null) return Future.value(<String, dynamic>{});
-    return _loadFile(
-      File(
-        '${directory.parent.path}/accounts/$accountDirectory/$resourceId.syaml',
-      ),
-      'Account secrets',
-    );
   }
 
   Future<JsonMap> _loadFile(File file, String label) async {

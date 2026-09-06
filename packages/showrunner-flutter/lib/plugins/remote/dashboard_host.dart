@@ -17,7 +17,7 @@ typedef RemoteDashboardHostPeerFactory =
       Map<String, dynamic> configuration,
     );
 
-/// Hosts shared dashboards for the Electron-compatible satellite protocol.
+/// Hosts shared dashboards for the satellite protocol.
 ///
 /// The desktop app is the ShowRunner side of the connection. Signaling is
 /// still performed through the cloud PubSub service, while dashboard data and

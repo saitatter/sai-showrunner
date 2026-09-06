@@ -20,8 +20,7 @@ typedef TwitchIdentityLoader =
 /// Signs in and persists one of the reference Twitch account resources.
 ///
 /// The channel and bot accounts deliberately share the configured OAuth app,
-/// but keep separate scopes, identities and credentials. This mirrors the
-/// Electron account model while using the Flutter persistence boundary.
+/// but keep separate scopes, identities and credentials.
 final class TwitchAccountAuthService {
   TwitchAccountAuthService({
     required this.dataService,
@@ -198,10 +197,8 @@ Future<void> _openAuthorizationUrl(Uri url) async {
 
 /// Resolves the account resources used by the reference Twitch plugin.
 ///
-/// Older Flutter profiles stored these values in `settings/twitch.yaml`, so
-/// the settings map remains the fallback. Account resources win when present,
-/// which makes imported `channel` and `bot` accounts operational without a
-/// second manual configuration step.
+/// Plugin settings provide shared defaults while account resources provide
+/// account-specific identity and credentials when present.
 Future<JsonMap> loadTwitchChannelSettings(
   ShowRunnerDataService dataService,
 ) async {

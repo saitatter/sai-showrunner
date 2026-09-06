@@ -345,9 +345,8 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       ),
     );
     if (resourceType == 'Dashboard') {
-      // The Electron resource lifecycle removes the public share before the
-      // local dashboard file. Keep the same ordering so a failed cloud
-      // request never leaves a silently orphaned share behind.
+      // Remove the public share before the local dashboard file. Keep the
+      // ordering so a failed cloud request never leaves an orphaned share.
       await DashboardCloudSyncService(dataService: dataService).synchronize(
         ResourceData(
           id: resource.id,

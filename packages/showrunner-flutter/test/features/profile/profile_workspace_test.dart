@@ -58,35 +58,6 @@ void main() {
     },
   );
 
-  test('upgrades legacy profile automations and writes a backup', () async {
-    final directory = await Directory.systemTemp.createTemp(
-      'profile-migration-',
-    );
-    addTearDown(() => directory.delete(recursive: true));
-    final file = File('${directory.path}/profiles/legacy.yaml');
-    await file.parent.create(recursive: true);
-    await file.writeAsString(
-      jsonEncode({
-        'name': 'Legacy',
-        'activationMode': 'toggle',
-        'triggers': const [],
-        'activationCondition': const {},
-        'activationAutomation': {
-          'sequence': {'actions': []},
-        },
-        'deactivationAutomation': {
-          'sequence': {'actions': []},
-        },
-      }),
-    );
-
-    final profile = await ProfileRepository(file).load();
-
-    expect(profile?.activationAutomation.schemaVersion, 2);
-    expect(await Directory('${directory.path}/backup').exists(), isTrue);
-    expect((await file.readAsString()).contains('sequence'), isFalse);
-  });
-
   test('loads current V2 profiles with graph trigger nodes', () async {
     final directory = await Directory.systemTemp.createTemp('profile-v2-');
     addTearDown(() => directory.delete(recursive: true));

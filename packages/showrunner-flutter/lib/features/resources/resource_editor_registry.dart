@@ -3013,24 +3013,9 @@ class _ChannelPointRewardEditorState extends State<_ChannelPointRewardEditor> {
 
   Map<String, dynamic> get _configuredRewardData {
     final configured = widget.resource.config['rewardData'];
-    final rewardData = configured is Map
+    return configured is Map
         ? Map<String, dynamic>.from(configured)
         : <String, dynamic>{};
-    // Older Flutter-created files briefly stored these fields at the root.
-    // Read them as fallbacks so opening the editor is lossless for users.
-    for (final key in [
-      'prompt',
-      'backgroundColor',
-      'userInputRequired',
-      'cost',
-      'cooldown',
-      'maxRedemptionsPerStream',
-      'maxRedemptionsPerUserPerStream',
-      'skipQueue',
-    ]) {
-      rewardData.putIfAbsent(key, () => widget.resource.config[key]);
-    }
-    return rewardData;
   }
 
   @override

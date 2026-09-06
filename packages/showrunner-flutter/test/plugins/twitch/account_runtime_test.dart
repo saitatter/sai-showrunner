@@ -11,7 +11,7 @@ import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
   test(
-    'prefers imported channel and bot accounts over legacy plugin settings',
+    'prefers channel and bot account resources over plugin settings',
     () async {
       final root = await Directory.systemTemp.createTemp('showrunner-twitch-');
       addTearDown(() => root.delete(recursive: true));

@@ -14,7 +14,7 @@ abstract interface class DartPluginModule {
   Future<DartPluginHealth> checkHealth();
 }
 
-/// Compatibility adapter for built-in plugins that already expose a manifest.
+/// Manifest-backed module for built-in plugins.
 final class ManifestDartPluginModule implements DartPluginModule {
   const ManifestDartPluginModule(this.manifest);
 

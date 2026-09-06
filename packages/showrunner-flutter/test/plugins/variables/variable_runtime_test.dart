@@ -11,40 +11,6 @@ import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 
 void main() {
-  test(
-    'imports the Electron variables file into backed-up resources',
-    () async {
-      final root = await Directory.systemTemp.createTemp(
-        'showrunner-variables-',
-      );
-      addTearDown(() => root.delete(recursive: true));
-      final directory = Directory('${root.path}/variables');
-      await directory.create(recursive: true);
-      final legacy = File('${directory.path}/variables.yaml');
-      await legacy.writeAsString('''
-count:
-  type: Number
-  serialized: true
-  defaultValue: 1
-  savedValue: 3
-enabled:
-  type: Boolean
-  serialized: false
-  defaultValue: true
-  savedValue: false
-''');
-
-      final runtime = DartVariableRuntime(directory: directory);
-      await runtime.load();
-
-      expect(runtime.valueOf('count'), 3);
-      expect(runtime.valueOf('enabled'), true);
-      expect(await legacy.exists(), isFalse);
-      expect(await ResourceRepository(directory).load('count'), isNotNull);
-      expect(await Directory('${root.path}/backup').exists(), isTrue);
-    },
-  );
-
   test('variable actions persist values and expose dynamic state', () async {
     final root = await Directory.systemTemp.createTemp('showrunner-variables-');
     addTearDown(() => root.delete(recursive: true));

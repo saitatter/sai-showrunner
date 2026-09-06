@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:yaml/yaml.dart';
+
 import 'filesystem/atomic_file.dart';
-import 'migrations/legacy_import_service.dart';
 import '../schema/profile.dart';
 
 final class ProfileCatalogEntry {
@@ -49,20 +50,18 @@ final class ProfileRepository {
 
   Future<ShowRunnerProfile?> load() async {
     if (!await file.exists()) return null;
-    final source = await readStructuredMap(file);
+    final contents = await file.readAsString();
+    dynamic decoded;
     try {
-      return ShowRunnerProfile.fromJson(source);
+      decoded = jsonDecode(contents);
     } on FormatException {
-      final service = const LegacyImportService();
-      final normalized = service.normalizeProfileMap(source);
-      final profile = ShowRunnerProfile.fromJson(normalized);
-      await backupOriginalFile(file);
-      await writeAtomicText(
-        file,
-        const JsonEncoder.withIndent('  ').convert(profile.toJson()),
-      );
-      return profile;
+      decoded = _yamlToDart(loadYaml(contents));
     }
+    if (decoded is! Map) {
+      throw const FormatException('Profile file must contain a JSON object.');
+    }
+    final source = Map<String, dynamic>.from(decoded);
+    return ShowRunnerProfile.fromJson(source);
   }
 
   Future<void> save(ShowRunnerProfile profile) async {
@@ -71,4 +70,15 @@ final class ProfileRepository {
       const JsonEncoder.withIndent('  ').convert(profile.toJson()),
     );
   }
+}
+
+dynamic _yamlToDart(dynamic value) {
+  if (value is YamlMap) {
+    return <String, dynamic>{
+      for (final entry in value.entries)
+        entry.key.toString(): _yamlToDart(entry.value),
+    };
+  }
+  if (value is YamlList) return value.map(_yamlToDart).toList();
+  return value;
 }

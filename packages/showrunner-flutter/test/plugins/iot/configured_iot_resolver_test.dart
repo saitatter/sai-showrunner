@@ -11,55 +11,50 @@ import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
-  test(
-    'executes legacy Kasa resources through the configured resolver',
-    () async {
-      final root = await Directory.systemTemp.createTemp('showrunner-iot-');
-      addTearDown(() => root.delete(recursive: true));
+  test('executes Kasa resources through the configured resolver', () async {
+    final root = await Directory.systemTemp.createTemp('showrunner-iot-');
+    addTearDown(() => root.delete(recursive: true));
 
-      await ResourceRepository(Directory('${root.path}/iot/plugs')).save(
-        const ResourceData(
-          id: 'kasa-plug',
-          config: {
-            'name': 'Desk plug',
-            'provider': 'kasa',
-            'providerId': 'device-1',
-            'host': '192.168.1.50',
-          },
+    await ResourceRepository(Directory('${root.path}/iot/plugs')).save(
+      const ResourceData(
+        id: 'kasa-plug',
+        config: {
+          'name': 'Desk plug',
+          'provider': 'kasa',
+          'providerId': 'device-1',
+          'host': '192.168.1.50',
+        },
+      ),
+    );
+
+    final requests = <Map<String, dynamic>>[];
+    final registry = DartPluginRegistry();
+    registry.register(
+      createKasaPlugin(
+        KasaTransport((request) async {
+          requests.add(request);
+          return <String, dynamic>{};
+        }),
+      ),
+    );
+    registry.register(
+      createIotPlugin(
+        resolver: createConfiguredIotResolver(
+          registry: registry,
+          dataService: ShowRunnerDataService(root),
         ),
-      );
+      ),
+    );
 
-      final requests = <Map<String, dynamic>>[];
-      final registry = DartPluginRegistry();
-      registry.register(
-        createKasaPlugin(
-          KasaTransport((request) async {
-            requests.add(request);
-            return <String, dynamic>{};
-          }),
-        ),
-      );
-      registry.register(
-        createIotPlugin(
-          resolver: createConfiguredIotResolver(
-            registry: registry,
-            dataService: ShowRunnerDataService(root),
-          ),
-        ),
-      );
+    await registry.invokeAction('iot', 'plug', {
+      'plug': 'kasa-plug',
+      'switch': 'on',
+    });
 
-      await registry.invokeAction('iot', 'plug', {
-        'plug': 'kasa-plug',
-        'switch': 'on',
-      });
-
-      expect(requests.single['system'], isA<Map>());
-      expect((requests.single['system'] as Map)['set_relay_state'], {
-        'state': 1,
-      });
-      registry.dispose();
-    },
-  );
+    expect(requests.single['system'], isA<Map>());
+    expect((requests.single['system'] as Map)['set_relay_state'], {'state': 1});
+    registry.dispose();
+  });
 
   test(
     'preserves Philips Hue plug and grouped-light resource semantics',

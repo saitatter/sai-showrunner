@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:yaml/yaml.dart';
 
 import 'filesystem/atomic_file.dart';
-import 'migrations/legacy_import_service.dart';
 import '../schema/resource.dart';
 import 'secret_settings_store.dart';
 
@@ -111,10 +110,7 @@ class ResourceRepository {
       if (decoded is! Map) {
         throw const FormatException('Resource JSON must contain an object.');
       }
-      resource = await _normalizeResource(
-        file,
-        ResourceData.fromJson(Map<String, dynamic>.from(decoded)),
-      );
+      resource = ResourceData.fromJson(Map<String, dynamic>.from(decoded));
     } else {
       final parsed = loadYaml(content);
       if (parsed is! YamlMap) {
@@ -124,10 +120,7 @@ class ResourceRepository {
         RegExp(r'\.yaml$'),
         '',
       );
-      resource = await _normalizeResource(
-        file,
-        ResourceData(id: id, config: _yamlMap(parsed)),
-      );
+      resource = ResourceData(id: id, config: _yamlMap(parsed));
     }
     return _withSecretResourceConfig(resource);
   }
@@ -155,54 +148,7 @@ class ResourceRepository {
     if (type == null || secretSettings == null) {
       return <String, dynamic>{};
     }
-    var secrets = await secretSettings!.loadResource(type, resourceId);
-    if (secrets.isEmpty) {
-      try {
-        secrets = await secretSettings!.loadLegacyAccount(type, resourceId);
-      } on Object {
-        // A missing/incompatible legacy account must not hide public config.
-      }
-    }
-    return secrets;
-  }
-
-  Future<ResourceData> _normalizeResource(
-    File file,
-    ResourceData resource,
-  ) async {
-    final config = resource.config;
-    if (!config.containsKey('segments') ||
-        !config.containsKey('activationAutomation')) {
-      return resource;
-    }
-    final normalizedConfig = const LegacyImportService().normalizeStreamPlanMap(
-      config,
-    );
-    if (jsonEncode(normalizedConfig) == jsonEncode(config)) {
-      return resource;
-    }
-
-    // Inline stream-plan automations were persisted by the Electron runtime
-    // in the same resource file. Keep the original recoverable before
-    // replacing it with the canonical V2 representation.
-    await backupOriginalFile(file);
-    await writeAtomicText(
-      file,
-      file.path.endsWith('.yaml')
-          ? _encodeYaml(normalizedConfig)
-          : const JsonEncoder.withIndent('  ').convert(
-              ResourceData(
-                id: resource.id,
-                config: normalizedConfig,
-                state: resource.state,
-              ).toJson(),
-            ),
-    );
-    return ResourceData(
-      id: resource.id,
-      config: normalizedConfig,
-      state: resource.state,
-    );
+    return secretSettings!.loadResource(type, resourceId);
   }
 }
 

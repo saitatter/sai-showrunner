@@ -1592,10 +1592,10 @@ class ShowRunnerGraphEditor {
   /// valid product graph, rather than an editor-only demonstration.
   void loadSampleGraph() => _loadGraphFixture(developerCompatibility: false);
 
-  /// Loads the pre-contract fixture used by adapter compatibility tests.
+  /// Loads the deterministic fixture used by graph adapter tests.
   ///
   /// This is intentionally not exposed by the graph palette or application
-  /// commands. It stays available for validating old persisted node shapes.
+  /// commands. It exercises the adapter's supported action node variants.
   void loadDeveloperFixtureGraph() =>
       _loadGraphFixture(developerCompatibility: true);
 

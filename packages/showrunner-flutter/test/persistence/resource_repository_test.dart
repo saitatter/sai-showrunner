@@ -48,7 +48,7 @@ void main() {
     },
   );
 
-  test('keeps optional resource state backward compatible when omitted', () {
+  test('accepts resources without optional state', () {
     final resource = ResourceData.fromJson({
       'id': 'resource-1',
       'config': {'name': 'Resource'},
@@ -58,75 +58,6 @@ void main() {
     expect(resource.name, 'Resource');
     expect(resource.state, isEmpty);
   });
-
-  test(
-    'normalizes legacy inline stream-plan automations at the boundary',
-    () async {
-      final directory = await Directory.systemTemp.createTemp(
-        'showrunner-stream-plan-schema-',
-      );
-      addTearDown(() => directory.delete(recursive: true));
-      final storage = Directory('${directory.path}/stream-plans');
-      await storage.create(recursive: true);
-      final repository = ResourceRepository(storage);
-      final file = File('${storage.path}/plan.json');
-      final legacy = {
-        'id': 'plan',
-        'config': {
-          'name': 'Legacy plan',
-          'activationAutomation': {
-            'sequence': {'actions': []},
-          },
-          'deactivationAutomation': {
-            'sequence': {'actions': []},
-          },
-          'segments': [
-            {
-              'id': 'intro',
-              'name': 'Intro',
-              'components': {},
-              'activationAutomation': {
-                'sequence': {'actions': []},
-              },
-              'deactivationAutomation': {
-                'sequence': {'actions': []},
-              },
-            },
-          ],
-        },
-      };
-      await file.writeAsString(jsonEncode(legacy));
-
-      final loaded = await repository.load('plan');
-      final config = loaded!.config;
-
-      expect(config['activationAutomation']['schemaVersion'], 2);
-      expect(config['activationAutomation'].containsKey('sequence'), isFalse);
-      expect(config['segments'][0]['activationAutomation']['schemaVersion'], 2);
-      final persisted = await file.readAsString();
-      expect(persisted, isNot(contains('sequence')));
-      final backups = Directory('${directory.path}/backup');
-      expect(await backups.exists(), isTrue);
-      final backupFiles = await backups
-          .list(recursive: true)
-          .where((entity) => entity is File)
-          .cast<File>()
-          .toList();
-      expect(backupFiles, hasLength(1));
-      expect(await backupFiles.single.readAsString(), jsonEncode(legacy));
-
-      final reopened = await repository.load('plan');
-      expect(reopened!.config['activationAutomation']['schemaVersion'], 2);
-      expect(
-        (await backups
-            .list(recursive: true)
-            .where((entity) => entity is File)
-            .cast<File>()
-            .toList()),
-        hasLength(1),
-      );
-    },
-  );
 
   test('keeps resource secrets outside the public resource file', () async {
     final root = await Directory.systemTemp.createTemp(
@@ -175,40 +106,5 @@ void main() {
       ).exists(),
       isFalse,
     );
-  });
-
-  test('imports encrypted Electron account secrets on first load', () async {
-    final root = await Directory.systemTemp.createTemp(
-      'showrunner-account-secrets-',
-    );
-    addTearDown(() => root.delete(recursive: true));
-    Future<List<int>> cipher(List<int> bytes) async =>
-        bytes.map((byte) => byte ^ 0x5a).toList();
-    final secrets = SecretSettingsStore(
-      directory: Directory('${root.path}/secrets'),
-      encrypt: cipher,
-      decrypt: cipher,
-    );
-    final legacySecretFile = File(
-      '${root.path}/accounts/twitch/account-1.syaml',
-    )..parent.createSync(recursive: true);
-    await legacySecretFile.writeAsBytes(
-      await cipher(utf8.encode('accessToken: "legacy-token"\n')),
-    );
-    final repository = ResourceRepository(
-      Directory('${root.path}/accounts/twitch'),
-      resourceType: 'TwitchAccount',
-      secretSettings: secrets,
-    );
-    await repository.save(
-      const ResourceData(
-        id: 'account-1',
-        config: {'name': 'Legacy account', 'twitchId': '42'},
-      ),
-    );
-
-    final loaded = await repository.load('account-1');
-    expect(loaded?.config['twitchId'], '42');
-    expect(loaded?.config['accessToken'], 'legacy-token');
   });
 }

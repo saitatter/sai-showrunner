@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:yaml/yaml.dart';
 
-import '../../persistence/migrations/legacy_import_service.dart';
 import '../../persistence/resource_repository.dart';
 import '../../schema/resource.dart';
 
@@ -41,10 +39,8 @@ final class DartVariableDefinition {
 
 /// Runtime-backed variables shared by all graph executions.
 ///
-/// The Electron implementation stores definitions in one YAML map. Flutter
-/// uses one resource per variable so the resource editor and runtime share a
-/// persistence boundary. A legacy YAML file is imported once, backed up, and
-/// converted to those resources before it is removed.
+/// Flutter stores one resource per variable so the resource editor and runtime
+/// share the same persistence boundary.
 final class DartVariableRuntime extends ChangeNotifier {
   DartVariableRuntime({required this.directory, this.onChanged});
 
@@ -121,63 +117,9 @@ final class DartVariableRuntime extends ChangeNotifier {
       if (definition != null) next[definition.id] = definition;
     }
 
-    final legacy = File('${directory.path}/variables.yaml');
-    if (await legacy.exists()) {
-      final imported = await _readLegacy(legacy, next);
-      if (imported.isNotEmpty) {
-        final backup = await backupOriginalFile(legacy);
-        for (final definition in imported) {
-          await repository.save(definition.toResource());
-          next[definition.id] = definition;
-        }
-        // The backup is the recovery path; the active directory contains
-        // only the canonical Flutter resource representation after import.
-        await legacy.delete();
-        if (!await backup.exists()) {
-          throw StateError('Variable migration backup was not created.');
-        }
-      }
-    }
-
     _definitions
       ..clear()
       ..addAll(next);
-  }
-
-  Future<List<DartVariableDefinition>> _readLegacy(
-    File file,
-    Map<String, DartVariableDefinition> existing,
-  ) async {
-    final parsed = loadYaml(await file.readAsString());
-    if (parsed is! YamlMap) return const [];
-    final imported = <DartVariableDefinition>[];
-    for (final entry in parsed.entries) {
-      final id = entry.key.toString().trim();
-      if (!_isSafeId(id) ||
-          existing.containsKey(id) ||
-          entry.value is! YamlMap) {
-        continue;
-      }
-      final value = _yamlToDart(entry.value);
-      if (value is! Map) continue;
-      final map = Map<String, dynamic>.from(value);
-      final type = map['type']?.toString() ?? 'dynamic';
-      final defaultValue = _normalizeValue(type, map['defaultValue']);
-      final persistent = map['serialized'] != false;
-      final currentValue = persistent && map.containsKey('savedValue')
-          ? _normalizeValue(type, map['savedValue'])
-          : defaultValue;
-      imported.add(
-        DartVariableDefinition(
-          id: id,
-          type: type,
-          defaultValue: defaultValue,
-          currentValue: currentValue,
-          persistent: persistent,
-        ),
-      );
-    }
-    return imported;
   }
 
   DartVariableDefinition? _fromResource(
@@ -234,13 +176,6 @@ final class DartVariableRuntime extends ChangeNotifier {
   }
 }
 
-bool _isSafeId(String value) =>
-    value.isNotEmpty &&
-    !value.contains('/') &&
-    !value.contains('\\') &&
-    value != '.' &&
-    value != '..';
-
 dynamic _normalizeValue(String type, dynamic value) {
   if (value is String) {
     final normalized = type.trim().toLowerCase();
@@ -261,16 +196,5 @@ dynamic _normalizeValue(String type, dynamic value) {
       }
     }
   }
-  return value;
-}
-
-dynamic _yamlToDart(dynamic value) {
-  if (value is YamlMap) {
-    return <String, dynamic>{
-      for (final entry in value.entries)
-        entry.key.toString(): _yamlToDart(entry.value),
-    };
-  }
-  if (value is YamlList) return value.map(_yamlToDart).toList();
   return value;
 }
