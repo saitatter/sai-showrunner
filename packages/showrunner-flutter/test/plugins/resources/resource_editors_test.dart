@@ -745,6 +745,42 @@ void main() {
     expect(widget['config'], {'preset': 'aurora', 'speed': 1});
   });
 
+  testWidgets('overlay editor writes canonical size and preview settings', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-canonicalize',
+        config: {
+          'name': 'Legacy dimensions',
+          'width': 1280,
+          'height': 720,
+          'preview': {'source': 'obs', 'offsetX': -10, 'offsetY': 20},
+          'widgets': [],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    await tester.tap(find.text('4K'));
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(saved!.config['size'], {'width': 3840, 'height': 2160});
+    expect(saved!.config.containsKey('width'), isFalse);
+    expect(saved!.config.containsKey('height'), isFalse);
+    expect(saved!.config['preview'], {
+      'offsetX': -10,
+      'offsetY': 20,
+      'source': 'obs',
+    });
+  });
+
   testWidgets('overlay editor adds a canonical widget from the catalog', (
     tester,
   ) async {

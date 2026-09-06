@@ -91,8 +91,7 @@ class OverlayResource {
     id: id,
     config: <String, dynamic>{
       'name': name,
-      'width': width,
-      'height': height,
+      'size': {'width': width, 'height': height},
       'widgets': widgets,
     },
   );

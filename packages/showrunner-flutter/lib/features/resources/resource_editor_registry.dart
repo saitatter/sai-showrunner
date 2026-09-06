@@ -195,8 +195,7 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
       storageDirectory: 'overlays',
       defaultConfig: (name) => {
         'name': name,
-        'width': 1920,
-        'height': 1080,
+        'size': {'width': 1920, 'height': 1080},
         'widgets': [],
       },
       builder: (context, resource, onSave) =>
@@ -642,7 +641,12 @@ class _OverlayEditorState extends State<_OverlayEditor> {
   late final TextEditingController _name;
   late final TextEditingController _width;
   late final TextEditingController _height;
+  late final TextEditingController _previewSource;
+  late final TextEditingController _previewOffsetX;
+  late final TextEditingController _previewOffsetY;
   late List<JsonMap> _widgets;
+  late bool _previewEnabled;
+  late bool _previewFromObs;
 
   @override
   void initState() {
@@ -651,6 +655,16 @@ class _OverlayEditorState extends State<_OverlayEditor> {
     _name = TextEditingController(text: overlay.name);
     _width = TextEditingController(text: '${overlay.width}');
     _height = TextEditingController(text: '${overlay.height}');
+    final preview = widget.resource.config['preview'] is Map
+        ? Map<String, dynamic>.from(widget.resource.config['preview'] as Map)
+        : const <String, dynamic>{};
+    _previewEnabled = widget.resource.config['preview'] is Map;
+    _previewFromObs = preview['source']?.toString() == 'obs';
+    _previewSource = TextEditingController(
+      text: _previewFromObs ? '' : '${preview['source'] ?? ''}',
+    );
+    _previewOffsetX = TextEditingController(text: '${preview['offsetX'] ?? 0}');
+    _previewOffsetY = TextEditingController(text: '${preview['offsetY'] ?? 0}');
     _widgets = overlay.widgets
         .map((widget) => <String, dynamic>{...widget})
         .toList();
@@ -661,6 +675,9 @@ class _OverlayEditorState extends State<_OverlayEditor> {
     _name.dispose();
     _width.dispose();
     _height.dispose();
+    _previewSource.dispose();
+    _previewOffsetX.dispose();
+    _previewOffsetY.dispose();
     super.dispose();
   }
 
@@ -681,6 +698,74 @@ class _OverlayEditorState extends State<_OverlayEditor> {
         controller: _height,
         keyboardType: TextInputType.number,
         decoration: const InputDecoration(labelText: 'Height'),
+      ),
+      const SizedBox(height: 8),
+      const Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Canvas presets',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+      Wrap(
+        spacing: 8,
+        children: [
+          _sizePreset('1080p', 1920, 1080),
+          _sizePreset('1440p', 2560, 1440),
+          _sizePreset('4K', 3840, 2160),
+          _sizePreset('Vertical', 1080, 1920),
+        ],
+      ),
+      ExpansionTile(
+        title: const Text('Preview'),
+        initiallyExpanded: _previewEnabled,
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Enable preview'),
+            value: _previewEnabled,
+            onChanged: (value) => setState(() => _previewEnabled = value),
+          ),
+          if (_previewEnabled) ...[
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Preview OBS output'),
+              value: _previewFromObs,
+              onChanged: (value) => setState(() => _previewFromObs = value),
+            ),
+            if (!_previewFromObs)
+              TextField(
+                controller: _previewSource,
+                decoration: const InputDecoration(
+                  labelText: 'Preview image',
+                  hintText: 'Optional PNG/JPG/BMP/WebP path',
+                ),
+              ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _previewOffsetX,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      signed: true,
+                    ),
+                    decoration: const InputDecoration(labelText: 'Offset X'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _previewOffsetY,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      signed: true,
+                    ),
+                    decoration: const InputDecoration(labelText: 'Offset Y'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
       Row(
         children: [
@@ -716,23 +801,42 @@ class _OverlayEditorState extends State<_OverlayEditor> {
             ),
           ),
     ],
-    onSave: () => widget.onSave(
-      ResourceData(
-        id: widget.resource.id,
-        config: {
-          ...widget.resource.config,
-          'name': _name.text.trim(),
+    onSave: () {
+      final config = <String, dynamic>{
+        ...widget.resource.config,
+        'name': _name.text.trim(),
+        'size': {
           'width': int.tryParse(_width.text) ?? 1920,
           'height': int.tryParse(_height.text) ?? 1080,
-          'widgets': _widgets,
-          if (widget.resource.config['size'] is Map)
-            'size': {
-              'width': int.tryParse(_width.text) ?? 1920,
-              'height': int.tryParse(_height.text) ?? 1080,
-            },
         },
-      ),
-    ),
+        'widgets': _widgets,
+      };
+      config.remove('width');
+      config.remove('height');
+      if (_previewEnabled) {
+        config['preview'] = {
+          'offsetX': num.tryParse(_previewOffsetX.text) ?? 0,
+          'offsetY': num.tryParse(_previewOffsetY.text) ?? 0,
+          if (_previewFromObs)
+            'source': 'obs'
+          else if (_previewSource.text.trim().isNotEmpty)
+            'source': _previewSource.text.trim(),
+        };
+      } else {
+        config.remove('preview');
+      }
+      return widget.onSave(
+        ResourceData(id: widget.resource.id, config: config),
+      );
+    },
+  );
+
+  Widget _sizePreset(String label, int width, int height) => OutlinedButton(
+    onPressed: () => setState(() {
+      _width.text = '$width';
+      _height.text = '$height';
+    }),
+    child: Text(label),
   );
 
   Future<void> _addWidget() async {
