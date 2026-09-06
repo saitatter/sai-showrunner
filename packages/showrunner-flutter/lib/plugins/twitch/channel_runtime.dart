@@ -1,6 +1,7 @@
 import '../../runtime/expression.dart';
 import '../../services/http_provider_transports.dart';
 import '../../services/showrunner_data_service.dart';
+import 'account_runtime.dart';
 
 typedef TwitchChannelRequest =
     Future<RuntimeMap> Function(
@@ -45,7 +46,7 @@ final class TwitchChannelInfoService {
   final TwitchChannelRequest? request;
 
   Future<TwitchChannelSnapshot> load() async {
-    final settings = await dataService.loadPluginSettings('twitch');
+    final settings = await loadTwitchChannelSettings(dataService);
     final token = settings['accessToken']?.toString().trim() ?? '';
     final clientId = settings['clientId']?.toString().trim() ?? '';
     final broadcasterId = settings['broadcasterId']?.toString().trim() ?? '';

@@ -6,6 +6,7 @@ import '../../schema/automation.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/http_provider_transports.dart';
 import '../twitch/event_worker.dart';
+import '../twitch/account_runtime.dart';
 import '../youtube/event_worker.dart';
 import '../youtube/actions.dart';
 import '../../services/showrunner_data_service.dart';
@@ -194,7 +195,7 @@ final class ProviderEventRuntime extends ChangeNotifier {
   }
 
   Future<void> startTwitch() async {
-    await _startTwitch(await dataService.loadPluginSettings('twitch'));
+    await _startTwitch(await loadTwitchChannelSettings(dataService));
   }
 
   Future<void> _startTwitch(Map<String, dynamic> twitchSettings) async {
@@ -233,7 +234,7 @@ final class ProviderEventRuntime extends ChangeNotifier {
   }
 
   Future<void> start() async {
-    final twitchSettings = await dataService.loadPluginSettings('twitch');
+    final twitchSettings = await loadTwitchChannelSettings(dataService);
     final youtubeSettings = await dataService.loadPluginSettings('youtube');
     final twitchToken = twitchSettings['accessToken'] as String?;
     if (twitchToken?.isNotEmpty == true &&

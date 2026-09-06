@@ -1,6 +1,7 @@
 import '../../runtime/expression.dart';
 import '../../services/http_provider_transports.dart';
 import '../../services/showrunner_data_service.dart';
+import 'account_runtime.dart';
 
 typedef TwitchChannelPointRequest =
     Future<RuntimeMap> Function(
@@ -211,7 +212,7 @@ final class TwitchChannelPointService {
     RuntimeMap query,
     dynamic body,
   ) async {
-    final settings = await dataService.loadPluginSettings('twitch');
+    final settings = await loadTwitchChannelSettings(dataService);
     final token = settings['accessToken']?.toString().trim() ?? '';
     final clientId = settings['clientId']?.toString().trim() ?? '';
     if (token.isEmpty || clientId.isEmpty) {
@@ -228,8 +229,8 @@ final class TwitchChannelPointService {
   }
 
   Future<String> _broadcasterId() async {
-    final id = (await dataService.loadPluginSettings(
-      'twitch',
+    final id = (await loadTwitchChannelSettings(
+      dataService,
     ))['broadcasterId']?.toString().trim();
     if (id == null || id.isEmpty) {
       throw StateError('Twitch broadcaster ID is required.');

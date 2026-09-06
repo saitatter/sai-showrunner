@@ -17,7 +17,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
         Directory('${dataService.userDirectory.path}/viewer-data'),
       );
   final youtube = await dataService.loadPluginSettings('youtube');
-  final twitch = await dataService.loadPluginSettings('twitch');
+  final twitch = await loadTwitchChannelSettings(dataService);
   final interfaceSettings = await dataService.loadPluginSettings(
     'showrunner-flutter',
   );

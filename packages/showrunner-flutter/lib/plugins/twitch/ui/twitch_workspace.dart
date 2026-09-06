@@ -9,6 +9,7 @@ import '../../../services/showrunner_data_service.dart';
 import '../../../features/resources/duration_field.dart';
 import '../channel_runtime.dart';
 import '../channel_points.dart';
+import '../account_runtime.dart';
 
 class TwitchWorkspace extends StatefulWidget {
   const TwitchWorkspace({
@@ -127,7 +128,7 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
     });
     try {
       final registry = await widget.registryFuture;
-      final settings = await widget.dataService.loadPluginSettings('twitch');
+      final settings = await loadTwitchChannelSettings(widget.dataService);
       await registry.invokeAction('twitch', actionId, {
         ...config,
         'broadcasterId': settings['broadcasterId'],
