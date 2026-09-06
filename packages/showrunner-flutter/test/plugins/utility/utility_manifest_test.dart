@@ -262,14 +262,14 @@ void main() {
         'timer': 'utility-test',
         'on': 'false',
       }),
-      {'timer': 'utility-test', 'running': false},
+      {'timerRunning': false},
     );
     expect(
       await registry.invokeAction('time', 'toggleTimer', {
         'timer': 'utility-test',
         'on': 'true',
       }),
-      {'timer': 'utility-test', 'running': true},
+      {'timerRunning': true},
     );
   });
 
