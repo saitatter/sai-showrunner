@@ -21,10 +21,9 @@ flows.
 
 This package contains the Flutter shell, V2 graph editor, automation and profile
 catalogs, queue and diagnostics workspaces, resource editors, provider workers,
-and Dart plugin contracts. The media workspace uses a persistent SQLite index
-with Quick and Full scan modes plus a debounced filesystem watcher. It indexes
-filesystem state and does not include native TagLib metadata extraction; media
-preview and playback use the existing `media_kit` boundary. OBS overlays remain
+and Dart plugin contracts. The media workspace uses a persistent index with
+Quick and Full scan modes plus a debounced filesystem watcher. Media preview
+and playback use the existing `media_kit` boundary. OBS overlays remain
 browser-based because OBS consumes them as browser sources.
 
 ## Differences from CastMate upstream
@@ -42,7 +41,7 @@ boundaries:
 - first-party plugins are compiled Dart modules; external plugin code is not
   loaded in-process, and remote control uses a versioned agent protocol;
 - media indexing is SQLite-backed with fingerprinted quick scans, explicit full
-  scans, and a debounced watcher, without native TagLib extraction;
+  scans, and a debounced watcher;
 - OBS overlay rendering stays in the browser package because the consumer is
   an OBS Browser Source.
 
