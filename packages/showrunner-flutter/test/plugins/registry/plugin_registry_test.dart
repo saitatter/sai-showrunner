@@ -115,6 +115,8 @@ void main() {
     expect(registry.findAction('lifx', 'setLightState'), isNotNull);
     expect(registry.findAction('wyze', 'setLightState'), isNotNull);
     expect(registry.findPlugin('dashboards'), isNotNull);
+    expect(registry.uiFor('discord'), isNotNull);
+    expect(registry.uiFor('minecraft'), isNotNull);
     expect(registry.uiFor('dashboards'), isNotNull);
     expect(registry.uiFor('overlays'), isNotNull);
     expect(registry.uiFor('remote'), isNotNull);

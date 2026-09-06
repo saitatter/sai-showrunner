@@ -257,7 +257,7 @@
     },
     {
       "id": "discord",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
@@ -310,8 +310,8 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
@@ -804,7 +804,7 @@
     },
     {
       "id": "minecraft",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
@@ -857,8 +857,8 @@
       },
       "ui": {
         "expectedSourceFiles": 5,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {

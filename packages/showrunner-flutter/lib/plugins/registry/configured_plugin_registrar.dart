@@ -134,6 +134,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           (await discordWebhookRepository.load(id))?.config,
     ),
   );
+  registry.registerUi('discord', createDiscordPluginUi());
   final blueskySettings = await dataService.loadPluginSettings('bluesky');
   final blueskyIdentifier = blueskySettings['identifier']?.toString().trim();
   final blueskyPassword = blueskySettings['appPassword']?.toString().trim();
@@ -264,6 +265,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           (await rconConnectionRepository.load(id))?.config,
     ),
   );
+  registry.registerUi('minecraft', createMinecraftPluginUi());
   registry.register(
     createHttpPlugin(eventHub: eventHub, endpointService: httpEndpointService),
   );

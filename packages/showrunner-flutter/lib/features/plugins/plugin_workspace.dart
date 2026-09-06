@@ -23,12 +23,14 @@ class PluginWorkspace extends StatefulWidget {
     required this.registryFuture,
     required this.providerEvents,
     this.selectedPluginId,
+    this.forceGenericDetails = false,
   });
 
   final ShowRunnerDataService dataService;
   final Future<DartPluginRegistry> registryFuture;
   final ProviderEventRuntime providerEvents;
   final String? selectedPluginId;
+  final bool forceGenericDetails;
 
   @override
   State<PluginWorkspace> createState() => _PluginWorkspaceState();
@@ -278,7 +280,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
               return const Center(child: Text('Select an integration'));
             }
             final contribution = registry.uiFor(selected.id);
-            if (contribution != null) {
+            if (contribution != null && !widget.forceGenericDetails) {
               return contribution.build(
                     context: context,
                     dataService: widget.dataService,

@@ -56,6 +56,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
     createModerationPluginUi(moderationService),
   );
   registry.register(createDiscordPlugin());
+  registry.registerUi('discord', createDiscordPluginUi());
   registry.register(
     createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
   );
@@ -75,6 +76,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
   registry.register(createMinecraftPlugin());
+  registry.registerUi('minecraft', createMinecraftPluginUi());
   registry.register(createHttpPlugin(eventHub: eventHub));
   registry.register(createTimePlugin());
   registry.register(createOsPlugin());
