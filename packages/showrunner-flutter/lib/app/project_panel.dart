@@ -10,6 +10,7 @@ import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
 import '../schema/resource.dart';
 import '../services/project_catalog_service.dart';
+import 'workspace_registry.dart';
 
 /// Project navigation following the reference ProjectView hierarchy.
 ///
@@ -19,7 +20,7 @@ import '../services/project_catalog_service.dart';
 class ShowRunnerProjectPanel extends StatefulWidget {
   const ShowRunnerProjectPanel({
     super.key,
-    required this.selectedIndex,
+    required this.selectedWorkspace,
     required this.onDestinationSelected,
     required this.pluginRegistryFuture,
     required this.preferences,
@@ -43,8 +44,8 @@ class ShowRunnerProjectPanel extends StatefulWidget {
     this.onDeleteResource,
   });
 
-  final int selectedIndex;
-  final ValueChanged<int> onDestinationSelected;
+  final WorkspaceId selectedWorkspace;
+  final ValueChanged<WorkspaceId> onDestinationSelected;
   final Future<DartPluginRegistry> pluginRegistryFuture;
   final FlutterInterfacePreferences preferences;
   final String? selectedPluginId;
@@ -123,13 +124,13 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
     if (callback != null) {
       callback(resourceType);
     } else {
-      widget.onDestinationSelected(6);
+      widget.onDestinationSelected(WorkspaceIds.resources);
     }
   }
 
   void _openPlugin(String pluginId) {
     widget.onPluginSelected(pluginId);
-    widget.onDestinationSelected(1);
+    widget.onDestinationSelected(WorkspaceIds.plugins);
   }
 
   VoidCallback _resourceOpen(ProjectResourceCatalogEntry entry) => () {
@@ -176,10 +177,10 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
           _ProjectItemRow(
             title: 'ShowRunner',
             icon: Icons.crop_square,
-            selected: widget.selectedIndex == showRunnerHomeWorkspaceIndex,
+            selected: widget.selectedWorkspace == WorkspaceIds.home,
             compact: compact,
             onTap: () =>
-                widget.onDestinationSelected(showRunnerHomeWorkspaceIndex),
+                widget.onDestinationSelected(WorkspaceIds.home),
           ),
           _ProjectGroupBlock(
             id: 'automations',
@@ -316,29 +317,29 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
           _ProjectItemRow(
             title: 'Queues',
             icon: Icons.queue_music,
-            selected: widget.selectedIndex == 5,
+            selected: widget.selectedWorkspace == WorkspaceIds.queues,
             compact: compact,
-            onTap: () => widget.onDestinationSelected(5),
+            onTap: () => widget.onDestinationSelected(WorkspaceIds.queues),
           ),
           _ProjectItemRow(
             title: 'Variables',
             icon: Icons.data_object,
-            selected: widget.selectedIndex == 11,
+            selected: widget.selectedWorkspace == WorkspaceIds.variables,
             compact: compact,
-            onTap: () => widget.onDestinationSelected(11),
+            onTap: () => widget.onDestinationSelected(WorkspaceIds.variables),
           ),
           _ProjectItemRow(
             title: 'Viewer Variables',
             icon: Icons.table_chart_outlined,
-            selected: widget.selectedIndex == 11,
+            selected: widget.selectedWorkspace == WorkspaceIds.variables,
             compact: compact,
-            onTap: () => widget.onDestinationSelected(11),
+            onTap: () => widget.onDestinationSelected(WorkspaceIds.variables),
           ),
           _ProjectItemRow(
             title: 'SpellCast',
             icon: Icons.auto_awesome_outlined,
             selected:
-                widget.selectedIndex == 1 &&
+                widget.selectedWorkspace == WorkspaceIds.plugins &&
                 widget.selectedPluginId == 'spellcast',
             compact: compact,
             onTap: () => _openPlugin('spellcast'),
@@ -510,58 +511,59 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
               _ProjectItemRow(
                 title: 'Automation Editor',
                 icon: Icons.account_tree_outlined,
-                selected: widget.selectedIndex == 0,
+                selected: widget.selectedWorkspace == WorkspaceIds.graph,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(0),
+                onTap: () => widget.onDestinationSelected(WorkspaceIds.graph),
               ),
               _ProjectItemRow(
                 title: 'Diagnostics',
                 icon: Icons.monitor_heart_outlined,
-                selected: widget.selectedIndex == 2,
+                selected: widget.selectedWorkspace == WorkspaceIds.diagnostics,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(2),
+                onTap: () =>
+                    widget.onDestinationSelected(WorkspaceIds.diagnostics),
               ),
               _ProjectItemRow(
                 title: 'Logs',
                 icon: Icons.receipt_long_outlined,
-                selected: widget.selectedIndex == 7,
+                selected: widget.selectedWorkspace == WorkspaceIds.logs,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(7),
+                onTap: () => widget.onDestinationSelected(WorkspaceIds.logs),
               ),
               _ProjectItemRow(
                 title: 'Remote',
                 icon: Icons.public,
-                selected: widget.selectedIndex == 12,
+                selected: widget.selectedWorkspace == WorkspaceIds.remote,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(12),
+                onTap: () => widget.onDestinationSelected(WorkspaceIds.remote),
               ),
               _ProjectItemRow(
                 title: 'Setup',
                 icon: Icons.rocket_launch_outlined,
-                selected: widget.selectedIndex == 10,
+                selected: widget.selectedWorkspace == WorkspaceIds.setup,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(10),
+                onTap: () => widget.onDestinationSelected(WorkspaceIds.setup),
               ),
               _ProjectItemRow(
                 title: 'Settings',
                 icon: Icons.settings_outlined,
-                selected: widget.selectedIndex == 9,
+                selected: widget.selectedWorkspace == WorkspaceIds.settings,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(9),
+                onTap: () => widget.onDestinationSelected(WorkspaceIds.settings),
               ),
               _ProjectItemRow(
                 title: 'About',
                 icon: Icons.info_outline,
-                selected: widget.selectedIndex == 8,
+                selected: widget.selectedWorkspace == WorkspaceIds.about,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(8),
+                onTap: () => widget.onDestinationSelected(WorkspaceIds.about),
               ),
             ],
           ),
@@ -570,9 +572,6 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
     );
   }
 }
-
-const showRunnerHomeWorkspaceIndex = 13;
-const showRunnerUpdatesWorkspaceIndex = 14;
 
 class _CatalogEntries extends StatelessWidget {
   const _CatalogEntries({

@@ -20,6 +20,8 @@ export 'persistence/viewer_data_sync.dart';
 export 'services/showrunner_data_service.dart';
 export 'app/lifecycle/app_lifecycle_coordinator.dart';
 export 'app/bootstrap/showrunner_services.dart';
+export 'app/workspace_document_manager.dart';
+export 'app/workspace_registry.dart';
 export 'runtime/expression.dart';
 export 'runtime/graph_runtime.dart';
 export 'runtime/graph_compiler.dart';

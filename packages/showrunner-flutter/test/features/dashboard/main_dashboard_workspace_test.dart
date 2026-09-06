@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/app/workspace_registry.dart';
 import 'package:showrunner_flutter/features/dashboard/main_dashboard_workspace.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/runtime/provider_event_workers.dart';
@@ -21,7 +22,7 @@ void main() {
       eventHub: DartPluginEventHub(),
     );
 
-    final destinations = <int>[];
+    final destinations = <WorkspaceId>[];
     await tester.pumpWidget(
       MaterialApp(
         home: MainDashboardWorkspace(
@@ -49,6 +50,6 @@ void main() {
     expect(find.text('Open Twitch settings'), findsOneWidget);
 
     await tester.tap(find.text('Setup OBS'));
-    expect(destinations, [6]);
+    expect(destinations, [WorkspaceIds.resources]);
   });
 }

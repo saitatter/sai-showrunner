@@ -17,6 +17,7 @@ import 'app/showrunner_shell.dart';
 import 'app/single_instance_lock.dart';
 import 'app/window_configuration.dart';
 import 'app/workspace_document_manager.dart';
+import 'app/workspace_registry.dart';
 import 'editor/showrunner_graph_editor.dart';
 import 'persistence/automation_repository.dart';
 import 'persistence/profile_repository.dart';
@@ -160,7 +161,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   Future<void>? _shutdownFuture;
   String _selectedPluginId = 'obs';
   final _workspaceDocuments = WorkspaceDocumentManager(
-    initial: const [showRunnerHomeWorkspaceIndex],
+    initial: const [WorkspaceIds.home],
   );
   Future<void> _navigationWrite = Future<void>.value();
   bool _restoredNavigation = false;
@@ -262,7 +263,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         id: 'file.settings',
         label: 'Settings',
         icon: Icons.settings,
-        execute: (_) => _openDestination(9),
+        execute: (_) => _openDestination(WorkspaceIds.settings),
       ),
       AppCommand(
         id: 'file.close',
@@ -273,7 +274,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           SingleActivator(LogicalKeyboardKey.keyW, meta: true),
         ],
         canExecute: (_) => _workspaceDocuments.canClose,
-        execute: (_) => _closeTab(_workspaceDocuments.selectedWorkspaceIndex),
+        execute: (_) => _closeTab(_workspaceDocuments.selectedWorkspace),
       ),
       AppCommand(
         id: 'file.closeOthers',
@@ -299,7 +300,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           SingleActivator(LogicalKeyboardKey.keyZ, meta: true),
         ],
         canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
             widget.showGraphEditor &&
             _graphEditor.controller.history.canUndo,
         execute: (_) => _graphEditor.controller.history.undo(),
@@ -317,7 +318,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true),
         ],
         canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
             widget.showGraphEditor &&
             _graphEditor.controller.history.canRedo,
         execute: (_) => _graphEditor.controller.history.redo(),
@@ -331,7 +332,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           SingleActivator(LogicalKeyboardKey.keyC, meta: true),
         ],
         canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
             widget.showGraphEditor,
         execute: (commandContext) async {
           final buildContext = commandContext.buildContext;
@@ -349,7 +350,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           SingleActivator(LogicalKeyboardKey.keyV, meta: true),
         ],
         canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
             widget.showGraphEditor,
         execute: (commandContext) async {
           final buildContext = commandContext.buildContext;
@@ -367,7 +368,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           SingleActivator(LogicalKeyboardKey.keyX, meta: true),
         ],
         canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
             widget.showGraphEditor,
         execute: (commandContext) async {
           final buildContext = commandContext.buildContext;
@@ -381,7 +382,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         label: 'Frame selected nodes',
         icon: Icons.crop_free,
         canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
             widget.showGraphEditor,
         execute: (_) => _frameSelectionFromCommand(),
       ),
@@ -391,7 +392,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         icon: Icons.fit_screen,
         shortcut: const SingleActivator(LogicalKeyboardKey.home),
         canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
             widget.showGraphEditor,
         execute: (_) => _graphEditor.fitGraph(),
       ),
@@ -400,7 +401,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         label: 'Reset sample graph',
         icon: Icons.refresh,
         canExecute: (_) =>
-            _workspaceDocuments.selectedWorkspaceIndex == 0 &&
+            _workspaceDocuments.selectedWorkspace == WorkspaceIds.graph &&
             widget.showGraphEditor,
         execute: (_) => _graphEditor.loadSampleGraph(),
       ),
@@ -416,13 +417,13 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         id: 'help.about',
         label: 'About ShowRunner',
         icon: Icons.info,
-        execute: (_) => _openDestination(8),
+        execute: (_) => _openDestination(WorkspaceIds.about),
       ),
       AppCommand(
         id: 'help.updates',
         label: 'Updates',
         icon: Icons.system_update_alt,
-        execute: (_) => _openDestination(showRunnerUpdatesWorkspaceIndex),
+        execute: (_) => _openDestination(WorkspaceIds.updates),
       ),
       AppCommand(
         id: 'help.discord',
@@ -551,8 +552,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       commands: _commandRegistry,
       updateService: widget.updateService,
       onRestartRequested: _handleUpdateRestart,
-      selectedIndex: _workspaceDocuments.selectedWorkspaceIndex,
-      openTabIndices: _workspaceDocuments.openWorkspaceIndices,
+      selectedWorkspace: _workspaceDocuments.selectedWorkspace,
+      openWorkspaces: _workspaceDocuments.openWorkspaces,
       selectedPluginId: _selectedPluginId,
       activeAutomationFile: _activeAutomationFile,
       activeAutomationDirty: _graphEditor.documentDirty.value,
@@ -608,12 +609,12 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     }
   }
 
-  void _openDestination(int index) {
+  void _openDestination(WorkspaceId workspace) {
     setState(() {
-      if (index != 6) _selectedResourceType = null;
-      if (index != 6) _selectedResourceId = null;
-      _workspaceDocuments.open(index);
-      _workspaceDocuments.select(index);
+      if (workspace != WorkspaceIds.resources) _selectedResourceType = null;
+      if (workspace != WorkspaceIds.resources) _selectedResourceId = null;
+      _workspaceDocuments.open(workspace);
+      _workspaceDocuments.select(workspace);
     });
     unawaited(_persistNavigation());
   }
@@ -622,8 +623,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     setState(() {
       _selectedResourceType = resourceType;
       _selectedResourceId = null;
-      _workspaceDocuments.open(6);
-      _workspaceDocuments.select(6);
+      _workspaceDocuments.open(WorkspaceIds.resources);
+      _workspaceDocuments.select(WorkspaceIds.resources);
     });
     unawaited(_persistNavigation());
   }
@@ -632,14 +633,14 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     setState(() {
       _selectedResourceType = resourceType;
       _selectedResourceId = resource.id;
-      _workspaceDocuments.open(6);
-      _workspaceDocuments.select(6);
+      _workspaceDocuments.open(WorkspaceIds.resources);
+      _workspaceDocuments.select(WorkspaceIds.resources);
     });
     unawaited(_persistNavigation());
   }
 
-  void _selectTab(int index) {
-    if (!_workspaceDocuments.select(index)) return;
+  void _selectTab(WorkspaceId workspace) {
+    if (!_workspaceDocuments.select(workspace)) return;
     setState(() {});
     unawaited(_persistNavigation());
   }
@@ -660,33 +661,25 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       );
       final restoredTabs = settings['openWorkspaceTabs'];
       final tabs = restoredTabs is List
-          ? restoredTabs
-                .whereType<num>()
-                .map((value) => value.toInt())
-                .where(
-                  (value) =>
-                      value >= 0 && value <= showRunnerUpdatesWorkspaceIndex,
-                )
-                .toSet()
-                .toList()
+          ? _workspaceIdsFromLegacySettings(restoredTabs)
           : hasRestoredWorkspaceTabs
-          ? <int>[]
-          : <int>[showRunnerHomeWorkspaceIndex];
+          ? <WorkspaceId>[]
+          : <WorkspaceId>[WorkspaceIds.home];
       final restoredSelected = settings['selectedWorkspace'];
       final restoredResourceType = settings['selectedResourceType'];
       final restoredResourceId = settings['selectedResourceId'];
       final selected = restoredSelected is num
-          ? restoredSelected.toInt()
+          ? WorkspaceIds.fromLegacyIndex(restoredSelected.toInt())
           : hasRestoredWorkspaceTabs
           ? null
-          : showRunnerHomeWorkspaceIndex;
+          : WorkspaceIds.home;
       if (widget.showGraphEditor) {
         await _restoreAutomationDocuments(settings);
       }
       if (!mounted) return;
       setState(() {
         _workspaceDocuments.restore(
-          openWorkspaceIndices: tabs,
+          openWorkspaces: tabs,
           selected: selected,
         );
         _selectedResourceType = restoredResourceType is String
@@ -700,6 +693,16 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     } catch (_) {
       if (mounted) setState(() => _restoredNavigation = true);
     }
+  }
+
+  static List<WorkspaceId> _workspaceIdsFromLegacySettings(Object? value) {
+    if (value is! List) return const [];
+    final ids = <WorkspaceId>{};
+    for (final item in value.whereType<num>()) {
+      final id = WorkspaceIds.fromLegacyIndex(item.toInt());
+      if (id != null) ids.add(id);
+    }
+    return ids.toList(growable: false);
   }
 
   Future<void> _restoreAutomationDocuments(
@@ -828,8 +831,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     );
     if (hasProviderConfiguration || !mounted) return;
     setState(() {
-      _workspaceDocuments.open(10);
-      _workspaceDocuments.select(10);
+      _workspaceDocuments.open(WorkspaceIds.setup);
+      _workspaceDocuments.select(WorkspaceIds.setup);
     });
     unawaited(_persistNavigation());
   }
@@ -1120,32 +1123,33 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     }
   }
 
-  Future<void> _closeTab(int index) async {
+  Future<void> _closeTab(WorkspaceId workspace) async {
     if (!_workspaceDocuments.canClose) return;
-    if (index == 0 &&
+    if (workspace == WorkspaceIds.graph &&
         _activeAutomationFile != null &&
         _graphEditor.documentDirty.value) {
       if (!await _confirmAutomationClose()) return;
     }
-    if (index == 4 && !await _profileWorkspaceController.confirmClose()) {
+    if (workspace == WorkspaceIds.profiles &&
+        !await _profileWorkspaceController.confirmClose()) {
       return;
     }
-    if (!_workspaceDocuments.close(index)) return;
+    if (!_workspaceDocuments.close(workspace)) return;
     setState(() {});
     unawaited(_persistNavigation());
   }
 
   Future<void> _closeOtherTabs() async {
-    final selected = _workspaceDocuments.selectedWorkspaceIndex;
+    final selected = _workspaceDocuments.selectedWorkspace;
     if (!_workspaceDocuments.canCloseOthers) return;
-    if (selected != 0 &&
+    if (selected != WorkspaceIds.graph &&
         _activeAutomationFile != null &&
         _graphEditor.documentDirty.value &&
         !await _confirmAutomationClose()) {
       return;
     }
-    if (selected != 4 &&
-        _workspaceDocuments.openWorkspaceIndices.contains(4) &&
+    if (selected != WorkspaceIds.profiles &&
+        _workspaceDocuments.openWorkspaces.contains(WorkspaceIds.profiles) &&
         !await _profileWorkspaceController.confirmClose()) {
       return;
     }
@@ -1372,8 +1376,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _loadAutomationSession(session);
     if (!mounted) return;
     setState(() {
-      _workspaceDocuments.open(0);
-      _workspaceDocuments.select(0);
+      _workspaceDocuments.open(WorkspaceIds.graph);
+      _workspaceDocuments.select(WorkspaceIds.graph);
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Loaded $fileName into the graph editor')),
@@ -1383,7 +1387,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   Future<void> _selectAutomationDocument(String fileName) async {
     final session = _automationDocuments.find(fileName);
     if (session == null || session.fileName == _activeAutomationFile) {
-      if (session != null) _openDestination(0);
+      if (session != null) _openDestination(WorkspaceIds.graph);
       return;
     }
     _captureActiveAutomation();
@@ -1391,8 +1395,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _loadAutomationSession(session);
     if (!mounted) return;
     setState(() {
-      _workspaceDocuments.open(0);
-      _workspaceDocuments.select(0);
+      _workspaceDocuments.open(WorkspaceIds.graph);
+      _workspaceDocuments.select(WorkspaceIds.graph);
     });
   }
 
@@ -1453,8 +1457,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _loadAutomationSession(session);
     if (!mounted) return;
     setState(() {
-      _workspaceDocuments.open(0);
-      _workspaceDocuments.select(0);
+      _workspaceDocuments.open(WorkspaceIds.graph);
+      _workspaceDocuments.select(WorkspaceIds.graph);
       _projectCatalogRevision++;
     });
     ScaffoldMessenger.of(
@@ -1479,7 +1483,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     ).save(profile);
     if (!mounted) return;
     _onProjectCatalogChanged();
-    _openDestination(4);
+    _openDestination(WorkspaceIds.profiles);
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('Created $fileName')));

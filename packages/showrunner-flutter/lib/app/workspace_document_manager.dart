@@ -1,89 +1,97 @@
+import 'workspace_registry.dart';
+
 /// Owns the open workspace documents and the active document.
 ///
-/// The persisted representation intentionally remains a list of workspace
-/// indices so existing user settings continue to load without an upgrade.
-/// Widgets should use this manager instead of mutating the tab list directly.
+/// The persisted representation intentionally remains a list of legacy
+/// workspace indices so existing user settings continue to load without an
+/// upgrade. Widgets use stable IDs instead of mutating or comparing indices.
 final class WorkspaceDocumentManager {
-  WorkspaceDocumentManager({Iterable<int> initial = const [0]}) {
-    restore(openWorkspaceIndices: initial);
+  WorkspaceDocumentManager({
+    Iterable<WorkspaceId> initial = const [WorkspaceIds.graph],
+  }) {
+    restore(openWorkspaces: initial);
   }
 
-  final _openWorkspaceIndices = <int>[];
-  int _selectedWorkspaceIndex = 0;
+  final _openWorkspaces = <WorkspaceId>[];
+  WorkspaceId _selectedWorkspace = WorkspaceIds.home;
 
-  List<int> get openWorkspaceIndices =>
-      List<int>.unmodifiable(_openWorkspaceIndices);
+  List<WorkspaceId> get openWorkspaces => List.unmodifiable(_openWorkspaces);
 
-  int get selectedWorkspaceIndex => _selectedWorkspaceIndex;
+  WorkspaceId get selectedWorkspace => _selectedWorkspace;
 
-  bool get canClose => _openWorkspaceIndices.length > 1;
+  bool get canClose => _openWorkspaces.length > 1;
 
   bool get canCloseOthers => canClose;
 
-  void open(int workspaceIndex) {
-    if (!_openWorkspaceIndices.contains(workspaceIndex)) {
-      _openWorkspaceIndices.add(workspaceIndex);
+  void open(WorkspaceId workspace) {
+    if (!_openWorkspaces.contains(workspace)) {
+      _openWorkspaces.add(workspace);
     }
   }
 
-  bool select(int workspaceIndex) {
-    if (!_openWorkspaceIndices.contains(workspaceIndex)) return false;
-    final changed = _selectedWorkspaceIndex != workspaceIndex;
-    _selectedWorkspaceIndex = workspaceIndex;
+  bool select(WorkspaceId workspace) {
+    if (!_openWorkspaces.contains(workspace)) return false;
+    final changed = _selectedWorkspace != workspace;
+    _selectedWorkspace = workspace;
     return changed;
   }
 
   /// Restores a session while guaranteeing that at least one document exists.
-  void restore({required Iterable<int> openWorkspaceIndices, int? selected}) {
-    _openWorkspaceIndices
+  void restore({
+    required Iterable<WorkspaceId> openWorkspaces,
+    WorkspaceId? selected,
+  }) {
+    _openWorkspaces
       ..clear()
-      ..addAll(openWorkspaceIndices.toSet());
-    if (_openWorkspaceIndices.isEmpty) _openWorkspaceIndices.add(0);
-    _selectedWorkspaceIndex =
-        selected != null && _openWorkspaceIndices.contains(selected)
+      ..addAll(openWorkspaces.toSet());
+    if (_openWorkspaces.isEmpty) _openWorkspaces.add(WorkspaceIds.graph);
+    _selectedWorkspace =
+        selected != null && _openWorkspaces.contains(selected)
         ? selected
-        : _openWorkspaceIndices.first;
+        : _openWorkspaces.first;
   }
 
-  bool close(int workspaceIndex) {
+  bool close(WorkspaceId workspace) {
     if (!canClose) return false;
-    final closingPosition = _openWorkspaceIndices.indexOf(workspaceIndex);
+    final closingPosition = _openWorkspaces.indexOf(workspace);
     if (closingPosition < 0) return false;
-    final wasSelected = _selectedWorkspaceIndex == workspaceIndex;
-    _openWorkspaceIndices.removeAt(closingPosition);
+    final wasSelected = _selectedWorkspace == workspace;
+    _openWorkspaces.removeAt(closingPosition);
     if (wasSelected) {
       final nextPosition = closingPosition > 0 ? closingPosition - 1 : 0;
-      _selectedWorkspaceIndex = _openWorkspaceIndices[nextPosition];
+      _selectedWorkspace = _openWorkspaces[nextPosition];
     }
     return true;
   }
 
   bool closeOthers() {
-    if (!canClose || !_openWorkspaceIndices.contains(_selectedWorkspaceIndex)) {
+    if (!canClose || !_openWorkspaces.contains(_selectedWorkspace)) {
       return false;
     }
-    _openWorkspaceIndices
+    _openWorkspaces
       ..clear()
-      ..add(_selectedWorkspaceIndex);
+      ..add(_selectedWorkspace);
     return true;
   }
 
   /// Reorders an open document by its final tab position.
   bool reorder(int oldPosition, int newPosition) {
-    if (oldPosition < 0 || oldPosition >= _openWorkspaceIndices.length) {
+    if (oldPosition < 0 || oldPosition >= _openWorkspaces.length) {
       return false;
     }
-    if (newPosition < 0 || newPosition >= _openWorkspaceIndices.length) {
+    if (newPosition < 0 || newPosition >= _openWorkspaces.length) {
       return false;
     }
     if (oldPosition == newPosition) return false;
-    final document = _openWorkspaceIndices.removeAt(oldPosition);
-    _openWorkspaceIndices.insert(newPosition, document);
+    final document = _openWorkspaces.removeAt(oldPosition);
+    _openWorkspaces.insert(newPosition, document);
     return true;
   }
 
   Map<String, dynamic> toSettings() => {
-    'openWorkspaceTabs': openWorkspaceIndices,
-    'selectedWorkspace': selectedWorkspaceIndex,
+    'openWorkspaceTabs': openWorkspaces
+        .map(WorkspaceIds.legacyIndex)
+        .toList(growable: false),
+    'selectedWorkspace': WorkspaceIds.legacyIndex(selectedWorkspace),
   };
 }

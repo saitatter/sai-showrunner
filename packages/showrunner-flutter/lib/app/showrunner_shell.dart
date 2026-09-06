@@ -10,6 +10,7 @@ import '../design_system/controls/controls.dart';
 import '../design_system/tokens/tokens.dart';
 import 'project_panel.dart';
 import 'system_bar.dart';
+import 'workspace_registry.dart';
 import '../editor/showrunner_graph_editor.dart';
 import '../features/automation/automation_catalog_workspace.dart';
 import '../features/diagnostics/diagnostics_workspace.dart';
@@ -41,11 +42,6 @@ import '../services/project_catalog_service.dart';
 import '../services/update_check_service.dart';
 import '../services/update_install_service.dart';
 
-export 'project_panel.dart'
-    show
-        showRunnerHomeWorkspaceIndex,
-        showRunnerUpdatesWorkspaceIndex;
-
 class ShowRunnerShell extends StatelessWidget {
   const ShowRunnerShell({
     super.key,
@@ -59,7 +55,7 @@ class ShowRunnerShell extends StatelessWidget {
     required this.profileRuntimeFuture,
     this.streamPlanRuntime,
     this.variableRuntime,
-    required this.selectedIndex,
+    required this.selectedWorkspace,
     required this.activeAutomationFile,
     this.activeAutomationDirty = false,
     required this.showGraphEditor,
@@ -73,7 +69,7 @@ class ShowRunnerShell extends StatelessWidget {
     required this.onDeleteAutomation,
     required this.interfacePreferences,
     required this.commands,
-    this.openTabIndices = const [0],
+    this.openWorkspaces = const [WorkspaceIds.graph],
     this.onTabSelected,
     this.onTabClosed,
     this.onTabReordered,
@@ -111,11 +107,11 @@ class ShowRunnerShell extends StatelessWidget {
   final Future<DartProfileRuntime> profileRuntimeFuture;
   final DartStreamPlanRuntime? streamPlanRuntime;
   final DartVariableRuntime? variableRuntime;
-  final int selectedIndex;
+  final WorkspaceId selectedWorkspace;
   final String? activeAutomationFile;
   final bool activeAutomationDirty;
   final bool showGraphEditor;
-  final ValueChanged<int> onDestinationSelected;
+  final ValueChanged<WorkspaceId> onDestinationSelected;
   final Future<void> Function(String schemaNodeId)? onRunNode;
   final FutureOr<void> Function(AutomationData automation, String fileName)
   onOpenAutomation;
@@ -128,9 +124,9 @@ class ShowRunnerShell extends StatelessWidget {
   final Future<void> Function(String fileName) onDeleteAutomation;
   final FlutterInterfacePreferences interfacePreferences;
   final AppCommandRegistry commands;
-  final List<int> openTabIndices;
-  final ValueChanged<int>? onTabSelected;
-  final FutureOr<void> Function(int)? onTabClosed;
+  final List<WorkspaceId> openWorkspaces;
+  final ValueChanged<WorkspaceId>? onTabSelected;
+  final FutureOr<void> Function(WorkspaceId)? onTabClosed;
   final void Function(int oldPosition, int newPosition)? onTabReordered;
   final AutomationDocumentManager? automationDocuments;
   final ValueChanged<String>? onAutomationSelected;
@@ -164,8 +160,10 @@ class ShowRunnerShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = openTabIndices.isEmpty ? [selectedIndex] : openTabIndices;
-    final selectedTab = tabs.indexOf(selectedIndex);
+    final tabs = openWorkspaces.isEmpty
+        ? [selectedWorkspace]
+        : openWorkspaces;
+    final selectedTab = tabs.indexOf(selectedWorkspace);
     void runCommand(String id) {
       unawaited(commands.run(id, AppCommandContext(buildContext: context)));
     }
@@ -186,7 +184,7 @@ class ShowRunnerShell extends StatelessWidget {
                         : interfacePreferences.projectSidebarWidth,
                     onWidthChanged: interfacePreferences.setProjectSidebarWidth,
                     child: ShowRunnerProjectPanel(
-                      selectedIndex: selectedIndex,
+                      selectedWorkspace: selectedWorkspace,
                       onDestinationSelected: onDestinationSelected,
                       pluginRegistryFuture: pluginRegistryFuture,
                       preferences: interfacePreferences,
@@ -208,12 +206,12 @@ class ShowRunnerShell extends StatelessWidget {
                       onRenameResource: onRenameResource,
                       onDeleteResource: onDeleteResource,
                       onOpenProfile: (fileName) {
-                        onDestinationSelected(4);
+                        onDestinationSelected(WorkspaceIds.profiles);
                         return profileController?.openProfile(fileName);
                       },
                       onPluginSelected: (pluginId) {
                         onPluginSelected?.call(pluginId);
-                        onDestinationSelected(1);
+                          onDestinationSelected(WorkspaceIds.plugins);
                       },
                       onPluginToggle: (pluginId, enabled) =>
                           _setPluginEnabled(context, pluginId, enabled),
@@ -225,7 +223,7 @@ class ShowRunnerShell extends StatelessWidget {
                     children: [
                       _WorkspaceTabBar(
                         tabs: tabs,
-                        selectedIndex: selectedIndex,
+                        selectedWorkspace: selectedWorkspace,
                         activeAutomationDirty: activeAutomationDirty,
                         hasActiveAutomation: activeAutomationFile != null,
                         activeProfileDirty: profileDirty,
@@ -264,9 +262,9 @@ class ShowRunnerShell extends StatelessWidget {
     );
   }
 
-  Widget _buildWorkspace(BuildContext context, int index) {
-    return switch (index) {
-      0 =>
+  Widget _buildWorkspace(BuildContext context, WorkspaceId workspace) {
+    return switch (workspace) {
+      WorkspaceIds.graph =>
         showGraphEditor
             ? GraphWorkspace(
                 editor: graphEditor,
@@ -280,26 +278,26 @@ class ShowRunnerShell extends StatelessWidget {
                 onAutomationReordered: onAutomationReordered,
               )
             : const LogsWorkspace(),
-      1 => PluginWorkspace(
+      WorkspaceIds.plugins => PluginWorkspace(
         dataService: dataService,
         registryFuture: pluginRegistryFuture,
         providerEvents: providerEvents,
         selectedPluginId: selectedPluginId,
       ),
-      2 => DiagnosticsWorkspace(
+      WorkspaceIds.diagnostics => DiagnosticsWorkspace(
         healthFuture: healthFuture,
         queue: actionQueue,
         providerEvents: providerEvents,
         registryFuture: pluginRegistryFuture,
       ),
-      3 => AutomationCatalogWorkspace(
+      WorkspaceIds.automations => AutomationCatalogWorkspace(
         dataService: dataService,
         onOpen: onOpenAutomation,
         onRepair: onRepairAutomation,
         onCreate: onCreateAutomation,
         onDelete: onDeleteAutomation,
       ),
-      4 => ProfileWorkspace(
+      WorkspaceIds.profiles => ProfileWorkspace(
         dataService: dataService,
         providerEvents: providerEvents,
         registryFuture: pluginRegistryFuture,
@@ -308,12 +306,12 @@ class ShowRunnerShell extends StatelessWidget {
         onDirtyChanged: onProfileDirtyChanged,
         onEntriesChanged: onProfileEntriesChanged,
       ),
-      5 => QueueWorkspace(
+      WorkspaceIds.queues => QueueWorkspace(
         dataService: dataService,
         queue: actionQueue,
         queueManager: queueManager,
       ),
-      6 => ResourcesWorkspace(
+      WorkspaceIds.resources => ResourcesWorkspace(
         dataService: dataService,
         editorRegistry: createDefaultResourceEditorRegistry(),
         registryFuture: pluginRegistryFuture,
@@ -323,9 +321,9 @@ class ShowRunnerShell extends StatelessWidget {
         resourceId: selectedResourceId,
         revision: projectCatalogRevision,
       ),
-      7 => const LogsWorkspace(),
-      8 => const AboutWorkspace(),
-      showRunnerUpdatesWorkspaceIndex => UpdateWorkspace(
+      WorkspaceIds.logs => const LogsWorkspace(),
+      WorkspaceIds.about => const AboutWorkspace(),
+      WorkspaceIds.updates => UpdateWorkspace(
         updateService: updateService,
         installService: installService,
         onRestartRequested: onRestartRequested,
@@ -333,28 +331,28 @@ class ShowRunnerShell extends StatelessWidget {
           '${dataService.userDirectory.path}/updates',
         ),
       ),
-      9 => SettingsWorkspace(
+      WorkspaceIds.settings => SettingsWorkspace(
         preferences: interfacePreferences,
         registryFuture: pluginRegistryFuture,
         dataService: dataService,
       ),
-      10 => SetupWorkspace(
+      WorkspaceIds.setup => SetupWorkspace(
         dataService: dataService,
         onOpenPlugin: (pluginId) {
           onPluginSelected?.call(pluginId);
-          onDestinationSelected(1);
+          onDestinationSelected(WorkspaceIds.plugins);
         },
       ),
-      11 => VariablesWorkspace(
+      WorkspaceIds.variables => VariablesWorkspace(
         dataService: dataService,
         eventHub: providerEvents.eventHub,
         variableRuntime: variableRuntime,
       ),
-      12 => RemoteWorkspace(
+      WorkspaceIds.remote => RemoteWorkspace(
         dataService: dataService,
         registryFuture: pluginRegistryFuture,
       ),
-      showRunnerHomeWorkspaceIndex => MainDashboardWorkspace(
+      WorkspaceIds.home => MainDashboardWorkspace(
         dataService: dataService,
         actionQueue: actionQueue,
         providerEvents: providerEvents,
@@ -455,7 +453,7 @@ double _clampWidth(double width) => width.clamp(
 class _WorkspaceTabBar extends StatelessWidget {
   const _WorkspaceTabBar({
     required this.tabs,
-    required this.selectedIndex,
+    required this.selectedWorkspace,
     required this.activeAutomationDirty,
     required this.hasActiveAutomation,
     required this.activeProfileDirty,
@@ -464,13 +462,13 @@ class _WorkspaceTabBar extends StatelessWidget {
     required this.onReordered,
   });
 
-  final List<int> tabs;
-  final int selectedIndex;
+  final List<WorkspaceId> tabs;
+  final WorkspaceId selectedWorkspace;
   final bool activeAutomationDirty;
   final bool hasActiveAutomation;
   final bool activeProfileDirty;
-  final ValueChanged<int> onSelected;
-  final FutureOr<void> Function(int) onClosed;
+  final ValueChanged<WorkspaceId> onSelected;
+  final FutureOr<void> Function(WorkspaceId) onClosed;
   final void Function(int oldPosition, int newPosition) onReordered;
 
   @override
@@ -493,13 +491,13 @@ class _WorkspaceTabBar extends StatelessWidget {
               key: ValueKey('workspace-tab-$tab'),
               index: position,
               child: _WorkspaceTab(
-                index: tab,
-                selected: tab == selectedIndex,
+                workspace: tab,
+                selected: tab == selectedWorkspace,
                 dirty:
-                    (tab == 0 &&
+                    (tab == WorkspaceIds.graph &&
                         hasActiveAutomation &&
                         activeAutomationDirty) ||
-                    (tab == 4 && activeProfileDirty),
+                    (tab == WorkspaceIds.profiles && activeProfileDirty),
                 canClose: tabs.length > 1,
                 onSelected: onSelected,
                 onClosed: onClosed,
@@ -514,7 +512,7 @@ class _WorkspaceTabBar extends StatelessWidget {
 
 class _WorkspaceTab extends StatelessWidget {
   const _WorkspaceTab({
-    required this.index,
+    required this.workspace,
     required this.selected,
     required this.dirty,
     required this.canClose,
@@ -522,12 +520,12 @@ class _WorkspaceTab extends StatelessWidget {
     required this.onClosed,
   });
 
-  final int index;
+  final WorkspaceId workspace;
   final bool selected;
   final bool dirty;
   final bool canClose;
-  final ValueChanged<int> onSelected;
-  final FutureOr<void> Function(int) onClosed;
+  final ValueChanged<WorkspaceId> onSelected;
+  final FutureOr<void> Function(WorkspaceId) onClosed;
 
   @override
   Widget build(BuildContext context) {
@@ -537,21 +535,24 @@ class _WorkspaceTab extends StatelessWidget {
           ? colorScheme.surfaceContainerHighest
           : colorScheme.surfaceContainer,
       child: InkWell(
-        onTap: () => onSelected(index),
+        onTap: () => onSelected(workspace),
         child: Padding(
           padding: const EdgeInsets.only(left: 14, right: 4),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(_workspaceIcon(index), size: 17),
+              Icon(workspaceDescriptorFor(workspace).icon, size: 17),
               const SizedBox(width: 8),
-              Text('${_workspaceLabel(index)}${dirty ? ' •' : ''}'),
+              Text(
+                '${workspaceDescriptorFor(workspace).title}${dirty ? ' •' : ''}',
+              ),
               if (canClose)
                 SrIconButton(
-                  tooltip: 'Close ${_workspaceLabel(index)} tab',
+                  tooltip:
+                      'Close ${workspaceDescriptorFor(workspace).title} tab',
                   icon: const Icon(Icons.close, size: 16),
                   visualDensity: VisualDensity.compact,
-                  onPressed: () => onClosed(index),
+                  onPressed: () => onClosed(workspace),
                 ),
               if (!canClose) const SizedBox(width: 10),
             ],
@@ -561,40 +562,3 @@ class _WorkspaceTab extends StatelessWidget {
     );
   }
 }
-
-String _workspaceLabel(int index) => switch (index) {
-  0 => 'Graph',
-  1 => 'Plugins',
-  2 => 'Diagnostics',
-  3 => 'Automations',
-  4 => 'Profiles',
-  5 => 'Queues',
-  6 => 'Resources',
-  7 => 'Logs',
-  8 => 'About',
-  9 => 'Settings',
-  10 => 'Setup',
-  11 => 'Variables',
-  12 => 'Remote',
-  showRunnerUpdatesWorkspaceIndex => 'Updates',
-  _ => 'Workspace',
-};
-
-IconData _workspaceIcon(int index) => switch (index) {
-  0 => Icons.account_tree,
-  1 => Icons.extension,
-  2 => Icons.monitor_heart,
-  3 => Icons.bolt,
-  4 => Icons.people_alt,
-  5 => Icons.queue_music,
-  6 => Icons.layers,
-  7 => Icons.receipt_long,
-  8 => Icons.info,
-  9 => Icons.settings,
-  10 => Icons.rocket_launch,
-  11 => Icons.data_object,
-  12 => Icons.public,
-  showRunnerUpdatesWorkspaceIndex => Icons.system_update,
-  showRunnerHomeWorkspaceIndex => Icons.dashboard,
-  _ => Icons.dashboard,
-};

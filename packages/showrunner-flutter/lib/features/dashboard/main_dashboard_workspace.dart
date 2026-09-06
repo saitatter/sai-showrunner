@@ -15,6 +15,7 @@ import '../../schema/resource.dart';
 import '../../schema/stream_plan.dart';
 import '../../services/showrunner_data_service.dart';
 import '../../plugins/twitch/account_runtime.dart';
+import '../../app/workspace_registry.dart';
 
 /// The desktop landing page from the reference application.
 ///
@@ -38,7 +39,7 @@ class MainDashboardWorkspace extends StatefulWidget {
   final ProviderEventRuntime providerEvents;
   final Future<DartPluginRegistry> registryFuture;
   final DartStreamPlanRuntime? streamPlanRuntime;
-  final ValueChanged<int> onOpenWorkspace;
+  final ValueChanged<WorkspaceId> onOpenWorkspace;
   final Future<MainDashboardData> Function()? resourcesLoader;
 
   @override
@@ -170,7 +171,8 @@ class _MainDashboardWorkspaceState extends State<MainDashboardWorkspace> {
             ),
             const SizedBox(width: 12),
             FilledButton(
-              onPressed: () => widget.onOpenWorkspace(6),
+              onPressed: () =>
+                  widget.onOpenWorkspace(WorkspaceIds.resources),
               child: const Text('Setup OBS'),
             ),
           ],
@@ -185,8 +187,8 @@ class _MainDashboardWorkspaceState extends State<MainDashboardWorkspace> {
           _ObsConnectionDashboardCard(
             connection: connection,
             registryFuture: widget.registryFuture,
-            onOpenControls: () => widget.onOpenWorkspace(1),
-            onEdit: () => widget.onOpenWorkspace(6),
+            onOpenControls: () => widget.onOpenWorkspace(WorkspaceIds.plugins),
+            onEdit: () => widget.onOpenWorkspace(WorkspaceIds.resources),
           ),
       ],
     );
@@ -200,13 +202,13 @@ class _MainDashboardWorkspaceState extends State<MainDashboardWorkspace> {
       loading: _channelLoading,
       providerEvents: widget.providerEvents,
       onRefresh: _refreshChannel,
-      onOpen: () => widget.onOpenWorkspace(1),
+      onOpen: () => widget.onOpenWorkspace(WorkspaceIds.plugins),
     );
     final plan = _StreamPlanDashboardCard(
       plans: resources.streamPlans,
       runtime: widget.streamPlanRuntime,
       registryFuture: widget.registryFuture,
-      onOpen: () => widget.onOpenWorkspace(6),
+      onOpen: () => widget.onOpenWorkspace(WorkspaceIds.resources),
     );
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -240,7 +242,7 @@ class _MainDashboardWorkspaceState extends State<MainDashboardWorkspace> {
           children: [
             const Expanded(child: Text('No action queues configured.')),
             OutlinedButton(
-              onPressed: () => widget.onOpenWorkspace(5),
+              onPressed: () => widget.onOpenWorkspace(WorkspaceIds.queues),
               child: const Text('Open queues'),
             ),
           ],
@@ -259,7 +261,7 @@ class _MainDashboardWorkspaceState extends State<MainDashboardWorkspace> {
                   : entry.config!.name,
               queue: widget.actionQueue,
               configuredPaused: entry.config!.paused,
-              onOpen: () => widget.onOpenWorkspace(5),
+              onOpen: () => widget.onOpenWorkspace(WorkspaceIds.queues),
             ),
           ),
       ],

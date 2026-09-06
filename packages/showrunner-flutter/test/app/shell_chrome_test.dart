@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/app/commands/app_command.dart';
 import 'package:showrunner_flutter/app/project_panel.dart';
 import 'package:showrunner_flutter/app/system_bar.dart';
+import 'package:showrunner_flutter/app/workspace_registry.dart';
 import 'package:showrunner_flutter/features/settings/interface_preferences.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
@@ -30,7 +31,7 @@ void main() {
       initialValues: {'hideNativeIntegrationShortcuts': false},
     );
     addTearDown(preferences.dispose);
-    var selectedIndex = -1;
+    WorkspaceId? selectedWorkspace;
     String? selectedResourceType;
     final registry = DartPluginRegistry();
     for (final plugin in const [
@@ -49,8 +50,8 @@ void main() {
           width: 300,
           height: 1200,
           child: ShowRunnerProjectPanel(
-            selectedIndex: 0,
-            onDestinationSelected: (index) => selectedIndex = index,
+            selectedWorkspace: WorkspaceIds.graph,
+            onDestinationSelected: (workspace) => selectedWorkspace = workspace,
             pluginRegistryFuture: Future.value(registry),
             preferences: preferences,
             selectedPluginId: null,
@@ -100,7 +101,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Queues'));
     await tester.tap(find.text('Queues'));
-    expect(selectedIndex, 5);
+    expect(selectedWorkspace, WorkspaceIds.queues);
     await tester.tap(find.byIcon(Icons.chevron_right).first);
     await tester.pumpAndSettle();
     expect(find.text('All Automations'), findsNothing);
@@ -123,7 +124,7 @@ void main() {
           width: 300,
           height: 900,
           child: ShowRunnerProjectPanel(
-            selectedIndex: 0,
+            selectedWorkspace: WorkspaceIds.graph,
             onDestinationSelected: (_) {},
             pluginRegistryFuture: Future.value(registry),
             preferences: preferences,
