@@ -121,6 +121,7 @@ void main() {
     expect(registry.uiFor('overlays'), isNotNull);
     expect(registry.uiFor('remote'), isNotNull);
     expect(registry.uiFor('stream-plans'), isNotNull);
+    expect(registry.uiFor('sound'), isNotNull);
     expect(registry.uiFor('variables'), isNotNull);
   });
 

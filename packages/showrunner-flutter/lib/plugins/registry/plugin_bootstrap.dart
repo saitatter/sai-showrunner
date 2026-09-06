@@ -37,6 +37,7 @@ import '../voicemod/manifest.dart';
 import '../sound/manifest.dart';
 import '../sound/output.dart';
 import '../sound/windows_audio.dart';
+import '../sound/ui/plugin_ui.dart';
 import '../minecraft/manifest.dart';
 import '../minecraft/ui/plugin_ui.dart';
 import '../http/manifest.dart';

@@ -26,6 +26,7 @@ class ResourcesWorkspace extends StatefulWidget {
     this.registryFuture,
     this.streamPlanRuntime,
     this.resourceType,
+    this.resourceTypes,
     this.resourceId,
     this.revision = 0,
     this.variableRuntime,
@@ -36,6 +37,7 @@ class ResourcesWorkspace extends StatefulWidget {
   final Future<DartPluginRegistry>? registryFuture;
   final DartStreamPlanRuntime? streamPlanRuntime;
   final String? resourceType;
+  final Set<String>? resourceTypes;
   final String? resourceId;
   final int revision;
   final DartVariableRuntime? variableRuntime;
@@ -152,11 +154,14 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
               ],
             ),
             const SizedBox(height: 8),
-            if (focusedType == null)
+            if (focusedType == null && widget.resourceTypes == null)
               const Text(
                 'Manage overlays, variables, media items, and persisted smart-device routing.',
               ),
-            if (focusedType == null || focusedType == 'Overlay') ...[
+            if (focusedType == 'Overlay' ||
+                (focusedType == null &&
+                    (widget.resourceTypes == null ||
+                        widget.resourceTypes!.contains('Overlay')))) ...[
               const SizedBox(height: 20),
               Text(
                 'Overlays (${overlays.length})',
@@ -182,7 +187,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
                   );
                 }),
             ],
-            if (focusedType == null || focusedType == 'Variable') ...[
+            if (focusedType == 'Variable' ||
+                (focusedType == null &&
+                    (widget.resourceTypes == null ||
+                        widget.resourceTypes!.contains('Variable')))) ...[
               const SizedBox(height: 20),
               Text(
                 'Variables (${variables.length})',
@@ -286,6 +294,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       builder: (context) => _NewResourceDialog(
         editorRegistry: editorRegistry,
         resourceType: widget.resourceType,
+        resourceTypes: widget.resourceTypes,
       ),
     );
     if (selection == null || !mounted) return;
@@ -366,6 +375,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
   ) {
     final pluginDefs = editorRegistry.definitions.where((def) {
       if (def.resourceType == 'Overlay' || def.resourceType == 'Variable') {
+        return false;
+      }
+      if (widget.resourceTypes != null &&
+          !widget.resourceTypes!.contains(def.resourceType)) {
         return false;
       }
       return widget.resourceType == null ||
@@ -564,10 +577,15 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
 }
 
 class _NewResourceDialog extends StatefulWidget {
-  const _NewResourceDialog({required this.editorRegistry, this.resourceType});
+  const _NewResourceDialog({
+    required this.editorRegistry,
+    this.resourceType,
+    this.resourceTypes,
+  });
 
   final DartResourceEditorRegistry editorRegistry;
   final String? resourceType;
+  final Set<String>? resourceTypes;
 
   @override
   State<_NewResourceDialog> createState() => _NewResourceDialogState();
@@ -584,6 +602,11 @@ class _NewResourceDialogState extends State<_NewResourceDialog> {
     _types = widget.resourceType == null
         ? widget.editorRegistry.definitions
               .map((def) => def.resourceType)
+              .where(
+                (type) =>
+                    widget.resourceTypes == null ||
+                    widget.resourceTypes!.contains(type),
+              )
               .toList()
         : [widget.resourceType!];
     _type = _types.firstOrNull ?? 'Overlay';

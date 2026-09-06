@@ -75,6 +75,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
+  registry.registerUi('sound', createSoundPluginUi());
   registry.register(createMinecraftPlugin());
   registry.registerUi('minecraft', createMinecraftPluginUi());
   registry.register(createHttpPlugin(eventHub: eventHub));

@@ -1526,7 +1526,7 @@
     },
     {
       "id": "sound",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
@@ -1597,8 +1597,8 @@
       },
       "ui": {
         "expectedSourceFiles": 12,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {

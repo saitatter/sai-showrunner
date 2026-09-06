@@ -254,6 +254,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       globalVolume: _percentage(soundSettings['globalVolume'], 100),
     ),
   );
+  registry.registerUi('sound', createSoundPluginUi());
   final rconConnectionRepository = ResourceRepository(
     Directory('${dataService.userDirectory.path}/minecraft/connections'),
     resourceType: 'RCONConnection',

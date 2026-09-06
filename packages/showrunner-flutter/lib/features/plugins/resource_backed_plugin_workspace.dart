@@ -13,14 +13,16 @@ final class ResourceBackedPluginWorkspace extends StatelessWidget {
   const ResourceBackedPluginWorkspace({
     super.key,
     required this.pluginId,
-    required this.resourceType,
+    this.resourceType,
+    this.resourceTypes,
     required this.dataService,
     required this.registryFuture,
     required this.providerEvents,
   });
 
   final String pluginId;
-  final String resourceType;
+  final String? resourceType;
+  final Set<String>? resourceTypes;
   final ShowRunnerDataService dataService;
   final Future<DartPluginRegistry> registryFuture;
   final ProviderEventRuntime providerEvents;
@@ -51,6 +53,7 @@ final class ResourceBackedPluginWorkspace extends StatelessWidget {
                 editorRegistry: createDefaultResourceEditorRegistry(),
                 registryFuture: registryFuture,
                 resourceType: resourceType,
+                resourceTypes: resourceTypes,
               ),
             ],
           ),
