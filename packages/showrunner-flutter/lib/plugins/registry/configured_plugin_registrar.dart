@@ -204,6 +204,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.register(
     createRemotePlugin(eventHub: eventHub, runtime: remoteRuntime),
   );
+  registry.registerUi('remote', createRemotePluginUi());
   final voiceModSettings = await dataService.loadPluginSettings('voicemod');
   final voiceModHost = voiceModSettings['host']?.toString().trim();
   final voiceModTransport = VoiceModWebSocketTransport(
@@ -320,6 +321,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       onDispose: overlayBridge?.dispose,
     ),
   );
+  registry.registerUi('overlays', createOverlaysPluginUi());
   final spellcastHub = eventHub ?? DartPluginEventHub();
   registry.register(createSpellcastPlugin(eventHub: spellcastHub));
   registry.registerUi('spellcast', createSpellcastPluginUi(spellcastHub));
@@ -483,10 +485,12 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       stop: dashboardHost?.stop,
     ),
   );
+  registry.registerUi('dashboards', createDashboardsPluginUi());
   registry.register(createInputPlugin(startEvents: true));
   registry.register(
     createStreamPlansPlugin(registry: registry, queueManager: queueManager),
   );
+  registry.registerUi('stream-plans', createStreamPlansPluginUi());
   registry.register(
     createIotPlugin(
       resolver: createConfiguredIotResolver(

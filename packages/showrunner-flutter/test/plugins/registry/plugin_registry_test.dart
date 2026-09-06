@@ -115,6 +115,11 @@ void main() {
     expect(registry.findAction('lifx', 'setLightState'), isNotNull);
     expect(registry.findAction('wyze', 'setLightState'), isNotNull);
     expect(registry.findPlugin('dashboards'), isNotNull);
+    expect(registry.uiFor('dashboards'), isNotNull);
+    expect(registry.uiFor('overlays'), isNotNull);
+    expect(registry.uiFor('remote'), isNotNull);
+    expect(registry.uiFor('stream-plans'), isNotNull);
+    expect(registry.uiFor('variables'), isNotNull);
   });
 
   test('bootstraps and executes the built-in conversion actions', () async {

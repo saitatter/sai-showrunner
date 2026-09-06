@@ -48,10 +48,10 @@ before it can be considered visually equivalent.
 
 `docs/parity.json` is generated from the frozen `main` tag and now catalogs
 renderer source files as well as action, trigger, setting, state, and resource
-IDs. The current report has 23 `partial` and 9 `improved` plugin entries, with
-no missing contract IDs. It intentionally reports plugin-specific UI
-contributions that still need Flutter work as `partial`; a generic manifest
-page is not counted as pixel parity.
+IDs. The current report has 19 `partial`, 12 `improved`, and 1 `equivalent`
+plugin entries, with no missing contract IDs. It intentionally reports
+plugin-specific UI contributions that still need Flutter work as `partial`; a
+generic manifest page is not counted as pixel parity.
 
 ## Release and update limits
 

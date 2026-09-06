@@ -62,6 +62,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.registerUi('bluesky', createBlueskyPluginUi());
   registry.register(createDonorDrivePlugin(null, eventHub: eventHub));
   registry.register(createRemotePlugin(eventHub: eventHub));
+  registry.registerUi('remote', createRemotePluginUi());
   registry.register(
     createVoiceModPlugin(
       CallbackVoiceModTransport(
@@ -86,6 +87,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   );
   registry.registerUi('variables', createVariablesPluginUi());
   registry.register(createOverlaysPlugin(eventHub: eventHub));
+  registry.registerUi('overlays', createOverlaysPluginUi());
   final spellcastHub = eventHub ?? DartPluginEventHub();
   registry.register(createSpellcastPlugin(eventHub: spellcastHub));
   registry.registerUi('spellcast', createSpellcastPluginUi(spellcastHub));
@@ -103,9 +105,11 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(createWyzePlugin(_unconfiguredWyzeTransport));
   registry.registerUi('wyze', createWyzePluginUi());
   registry.register(dashboardPlugin);
+  registry.registerUi('dashboards', createDashboardsPluginUi());
   registry.register(createInputPlugin());
   registry.register(
     createStreamPlansPlugin(registry: registry, queueManager: queueManager),
   );
+  registry.registerUi('stream-plans', createStreamPlansPluginUi());
   return registry;
 }
