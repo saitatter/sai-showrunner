@@ -160,6 +160,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           (await blueskyAccountRepository.load(id))?.config,
     ),
   );
+  registry.registerUi('bluesky', createBlueskyPluginUi());
   final donorDriveSettings = await dataService.loadPluginSettings('donordrive');
   final donorDriveApiBase = donorDriveSettings['apiBase']?.toString().trim();
   final donorDriveParticipant = donorDriveSettings['participantId']

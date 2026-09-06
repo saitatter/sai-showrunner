@@ -24,6 +24,7 @@ import '../moderation/runtime.dart';
 import '../moderation/ui/plugin_ui.dart';
 import '../discord/manifest.dart';
 import '../bluesky/manifest.dart';
+import '../bluesky/ui/plugin_ui.dart';
 import '../donordrive/manifest.dart';
 import '../aitum/manifest.dart';
 import '../advss/manifest.dart';

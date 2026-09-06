@@ -27,6 +27,11 @@ final class BlueskyHttpTransport {
 
   final String baseUrl;
 
+  Future<RuntimeMap> login(String identifier, String appPassword) => _request(
+    '/xrpc/com.atproto.server.createSession',
+    {'identifier': identifier, 'password': appPassword},
+  );
+
   Future<RuntimeMap> post(
     String identifier,
     String appPassword,
