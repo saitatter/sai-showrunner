@@ -9,6 +9,7 @@ import '../../schema/resource.dart';
 import '../../services/http_provider_transports.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
+import '../twitch/account_runtime.dart';
 
 typedef CloudPubSubNegotiator = Future<String> Function(String accessToken);
 typedef CloudPubSubSocketFactory = Future<CloudPubSubSocket> Function(Uri uri);
@@ -114,7 +115,7 @@ final class SpellcastCloudPubSubController extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
     try {
-      final settings = await dataService.loadPluginSettings('twitch');
+      final settings = await loadTwitchChannelSettings(dataService);
       final token = settings['accessToken']?.toString().trim() ?? '';
       if (token.isEmpty) {
         throw StateError(

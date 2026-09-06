@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../../schema/resource.dart';
 import '../../services/showrunner_data_service.dart';
+import '../twitch/account_runtime.dart';
 
 /// Synchronizes the share registration used by the dashboard satellite.
 ///
@@ -20,7 +21,7 @@ final class DashboardCloudSyncService {
     final cloudId = config['cloudId']?.toString().trim() ?? '';
     if (allowedTwitchIds.isEmpty && cloudId.isEmpty) return resource;
 
-    final twitch = await dataService.loadPluginSettings('twitch');
+    final twitch = await loadTwitchChannelSettings(dataService);
     final accessToken = twitch['accessToken']?.toString().trim() ?? '';
     if (accessToken.isEmpty) {
       throw StateError(

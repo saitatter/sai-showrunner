@@ -1,6 +1,7 @@
 import '../../runtime/expression.dart';
 import '../../services/http_provider_transports.dart';
 import '../../services/showrunner_data_service.dart';
+import '../twitch/account_runtime.dart';
 
 typedef SpellcastRequest =
     Future<dynamic> Function(
@@ -153,7 +154,7 @@ final class SpellcastService {
   }
 
   Future<RuntimeMap> _settings() async {
-    final settings = await dataService.loadPluginSettings('twitch');
+    final settings = await loadTwitchChannelSettings(dataService);
     final token = settings['accessToken']?.toString() ?? '';
     final streamId = _streamId(settings);
     if (token.isEmpty || streamId.isEmpty) {

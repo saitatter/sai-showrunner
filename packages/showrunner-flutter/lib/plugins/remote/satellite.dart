@@ -8,6 +8,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import '../../runtime/expression.dart';
 import '../../services/http_provider_transports.dart';
 import '../../services/showrunner_data_service.dart';
+import '../twitch/account_runtime.dart';
 import '../spellcast/cloud_pubsub.dart';
 
 typedef SatelliteJson = Map<String, dynamic>;
@@ -152,7 +153,7 @@ final class SatelliteSignalingController extends ChangeNotifier {
 
   Future<void> start() async {
     if (_socket != null && _connected) return;
-    final settings = await dataService.loadPluginSettings('twitch');
+    final settings = await loadTwitchChannelSettings(dataService);
     final token = settings['accessToken']?.toString().trim() ?? '';
     if (token.isEmpty) {
       throw StateError(

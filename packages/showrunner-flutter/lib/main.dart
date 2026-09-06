@@ -30,6 +30,7 @@ import 'plugins/overlays/manifest.dart';
 import 'plugins/variables/runtime.dart';
 import 'services/plugin_event_hub.dart';
 import 'plugins/runtime/provider_event_workers.dart';
+import 'plugins/twitch/account_runtime.dart';
 import 'runtime/graph_runtime.dart';
 import 'runtime/profile_runtime.dart';
 import 'runtime/profile_manager.dart';
@@ -897,7 +898,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     if (appSettings['setupCompleted'] == true) return;
     final providerSettings = await Future.wait([
       widget.dataService.loadPluginSettings('obs'),
-      widget.dataService.loadPluginSettings('twitch'),
+      loadTwitchChannelSettings(widget.dataService),
       widget.dataService.loadPluginSettings('youtube'),
     ]);
     final hasProviderConfiguration = providerSettings.any(
@@ -925,7 +926,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         );
         final providerSettings = await Future.wait([
           widget.dataService.loadPluginSettings('obs'),
-          widget.dataService.loadPluginSettings('twitch'),
+          loadTwitchChannelSettings(widget.dataService),
           widget.dataService.loadPluginSettings('youtube'),
         ]);
         if (appSettings['setupCompleted'] == true ||

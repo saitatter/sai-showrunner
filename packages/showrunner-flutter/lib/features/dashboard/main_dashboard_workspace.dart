@@ -14,6 +14,7 @@ import '../../schema/queue.dart';
 import '../../schema/resource.dart';
 import '../../schema/stream_plan.dart';
 import '../../services/showrunner_data_service.dart';
+import '../../plugins/twitch/account_runtime.dart';
 
 /// The desktop landing page from the reference application.
 ///
@@ -80,7 +81,7 @@ class _MainDashboardWorkspaceState extends State<MainDashboardWorkspace> {
       ResourceRepository(Directory('$root/obs/connections')).list(),
       QueueConfigRepository(Directory('$root/queues')).list(),
       ResourceRepository(Directory('$root/stream-plans')).list(),
-      widget.dataService.loadPluginSettings('twitch'),
+      loadTwitchChannelSettings(widget.dataService),
     ]);
     return MainDashboardData(
       obsConnections: (results[0] as List<ResourceData>),

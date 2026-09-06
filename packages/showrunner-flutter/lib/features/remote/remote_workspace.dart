@@ -7,6 +7,7 @@ import '../../services/showrunner_data_service.dart';
 import '../../runtime/expression.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/remote/satellite.dart';
+import '../../plugins/twitch/account_runtime.dart';
 import 'remote_dashboard_view.dart';
 
 typedef RemoteDashboardFetcher =
@@ -49,7 +50,7 @@ final class RemoteDashboardService {
   final RemoteDashboardFetcher? fetcher;
 
   Future<List<RemoteDashboardInfo>> listAvailable() async {
-    final settings = await dataService.loadPluginSettings('twitch');
+    final settings = await loadTwitchChannelSettings(dataService);
     final token = settings['accessToken']?.toString().trim() ?? '';
     if (token.isEmpty) {
       throw StateError(
@@ -158,7 +159,7 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
   }
 
   Future<void> _connect(RemoteDashboardInfo dashboard) async {
-    final settings = await widget.dataService.loadPluginSettings('twitch');
+    final settings = await loadTwitchChannelSettings(widget.dataService);
     final satelliteId = settings['broadcasterId']?.toString().trim() ?? '';
     if (satelliteId.isEmpty) {
       if (mounted) {
