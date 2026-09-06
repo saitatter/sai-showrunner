@@ -60,7 +60,8 @@ class ResourceRepository {
     final secretFields = secretResourceFieldIdsFor(resourceType ?? '');
     final publicConfig = <String, dynamic>{
       for (final entry in resource.config.entries)
-        if (!secretFields.contains(entry.key)) entry.key: entry.value,
+        if (secretSettings == null || !secretFields.contains(entry.key))
+          entry.key: entry.value,
     };
     if (secretFields.isNotEmpty && secretSettings != null) {
       final existing = await _loadSecretResource(resource.id);

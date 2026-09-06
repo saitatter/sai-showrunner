@@ -51,9 +51,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
   ShowRunnerDataService get dataService => widget.dataService;
   DartResourceEditorRegistry get editorRegistry => widget.editorRegistry;
 
-  SecretSettingsStore get secretSettings => SecretSettingsStore(
-    directory: Directory('${dataService.userDirectory.path}/secrets'),
-  );
+  SecretSettingsStore get secretSettings => dataService.secretSettingsStore;
 
   @override
   void initState() {

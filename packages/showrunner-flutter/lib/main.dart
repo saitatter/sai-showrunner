@@ -20,7 +20,6 @@ import 'persistence/automation_repository.dart';
 import 'persistence/profile_repository.dart';
 import 'persistence/queue_config_repository.dart';
 import 'persistence/resource_repository.dart';
-import 'persistence/secret_settings_store.dart';
 import 'persistence/viewer_data_repository.dart';
 import 'persistence/viewer_data_sync.dart';
 import 'plugins/registry/plugin_registry.dart';
@@ -1643,11 +1642,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
       ),
       resourceType: resourceType,
-      secretSettings: SecretSettingsStore(
-        directory: Directory(
-          '${widget.dataService.userDirectory.path}/secrets',
-        ),
-      ),
+      secretSettings: widget.dataService.secretSettingsStore,
     );
     await repository.save(updated);
     if (resourceType == 'Dashboard') {
@@ -1673,11 +1668,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
       ),
       resourceType: resourceType,
-      secretSettings: SecretSettingsStore(
-        directory: Directory(
-          '${widget.dataService.userDirectory.path}/secrets',
-        ),
-      ),
+      secretSettings: widget.dataService.secretSettingsStore,
     );
     if (resourceType == 'Dashboard') {
       await DashboardCloudSyncService(
