@@ -685,4 +685,89 @@ void main() {
       await session.dispose();
     },
   );
+
+  test('honors stop propagation for shared profile trigger streams', () async {
+    final events = StreamController<RuntimeMap>.broadcast();
+    addTearDown(events.close);
+    final calls = <String>[];
+    final registry = DartPluginRegistry()
+      ..register(
+        DartPluginManifest(
+          id: 'test',
+          name: 'Test',
+          actions: [
+            DartActionDefinition(
+              pluginId: 'test',
+              actionId: 'record',
+              invoke: (config, context) async {
+                calls.add(config['value'] as String);
+                return null;
+              },
+            ),
+          ],
+          triggers: [
+            DartTriggerDefinition(
+              pluginId: 'test',
+              triggerId: 'chat',
+              displayName: 'Chat',
+              listen: () => events.stream,
+            ),
+          ],
+        ),
+      );
+    final profile = ShowRunnerProfile(
+      name: 'Stop propagation',
+      activationMode: 'always',
+      triggers: [
+        {
+          ..._profileTrigger(
+            id: 'stop-first',
+            plugin: 'test',
+            trigger: 'chat',
+            graph: {
+              'nodes': [
+                {
+                  'id': 'record',
+                  'type': 'action',
+                  'plugin': 'test',
+                  'action': 'record',
+                  'config': {'value': 'first'},
+                },
+              ],
+              'entryNodeId': 'record',
+            },
+          ),
+          'stop': true,
+        },
+        _profileTrigger(
+          id: 'stop-second',
+          plugin: 'test',
+          trigger: 'chat',
+          graph: {
+            'nodes': [
+              {
+                'id': 'record',
+                'type': 'action',
+                'plugin': 'test',
+                'action': 'record',
+                'config': {'value': 'second'},
+              },
+            ],
+            'entryNodeId': 'record',
+          },
+        ),
+      ],
+      activationCondition: const {},
+      activationAutomation: const AutomationData(),
+      deactivationAutomation: const AutomationData(),
+    );
+    final runtime = DartProfileRuntime(registry: registry);
+    await runtime.activate('stop', profile);
+    final session = runtime.watch('stop', profile);
+
+    events.add({});
+    await Future<void>.delayed(Duration.zero);
+    expect(calls, ['first']);
+    await session.dispose();
+  });
 }

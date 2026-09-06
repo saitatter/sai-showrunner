@@ -7,6 +7,13 @@ import 'expression.dart';
 import 'graph_runtime.dart';
 import 'automation_queue_manager.dart';
 
+typedef _ProfileTriggerTarget = ({
+  String? pluginId,
+  String? triggerId,
+  JsonMap config,
+  JsonMap entry,
+});
+
 final class DartProfileRuntime {
   DartProfileRuntime({
     required this.registry,
@@ -217,6 +224,7 @@ final class DartProfileRuntime {
   }) {
     final subscriptions = <StreamSubscription<RuntimeMap>>[];
     final listenerRemovers = <void Function()>[];
+    final sharedTargets = <String, List<_ProfileTriggerTarget>>{};
     for (final target in _triggerTargets(profile)) {
       final pluginId = target.pluginId;
       final triggerId = target.triggerId;
@@ -298,32 +306,59 @@ final class DartProfileRuntime {
       }
       final definition = registry.findTrigger(pluginId, triggerId);
       if (definition == null || !registry.isPluginEnabled(pluginId)) continue;
+      final configuredStream = definition.listenForConfig?.call(target.config);
+      if (configuredStream != null) {
+        subscriptions.add(
+          configuredStream.listen((payload) {
+            if (definition.matches?.call(target.config, payload) == false) {
+              return;
+            }
+            unawaited(
+              _runTriggerTarget(
+                profileId,
+                target,
+                payload,
+                context: context,
+                onNodeEnter: onNodeEnter,
+                onNodeExit: onNodeExit,
+              ),
+            );
+          }),
+        );
+      } else {
+        sharedTargets
+            .putIfAbsent('$pluginId\u0000$triggerId', () => [])
+            .add(target);
+      }
+    }
+    for (final targets in sharedTargets.values) {
+      final first = targets.first;
+      final pluginId = first.pluginId!;
+      final triggerId = first.triggerId!;
+      final definition = registry.findTrigger(pluginId, triggerId);
+      if (definition == null) continue;
       subscriptions.add(
-        (definition.listenForConfig?.call(target.config) ?? definition.listen())
-            .listen((payload) {
-              if (definition.matches?.call(target.config, payload) == false) {
-                return;
-              }
-              unawaited(
-                _runTriggerTarget(
-                  profileId,
-                  target,
-                  payload,
-                  context: context,
-                  onNodeEnter: onNodeEnter,
-                  onNodeExit: onNodeExit,
-                ),
-              );
-            }),
+        definition.listen().listen((payload) {
+          unawaited(
+            _dispatchTriggerTargets(
+              profileId,
+              definition,
+              targets,
+              payload,
+              context: context,
+              onNodeEnter: onNodeEnter,
+              onNodeExit: onNodeExit,
+            ),
+          );
+        }),
       );
     }
     return DartProfileSession._(subscriptions, listenerRemovers);
   }
 
-  Iterable<
-    ({String? pluginId, String? triggerId, JsonMap config, JsonMap entry})
-  >
-  _triggerTargets(ShowRunnerProfile profile) sync* {
+  Iterable<_ProfileTriggerTarget> _triggerTargets(
+    ShowRunnerProfile profile,
+  ) sync* {
     for (final trigger in profile.triggers) {
       final rawAutomation = trigger['automation'];
       if (rawAutomation is! Map) continue;
@@ -373,6 +408,29 @@ final class DartProfileRuntime {
   JsonMap _triggerConfig(dynamic value) =>
       value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 
+  Future<void> _dispatchTriggerTargets(
+    String profileId,
+    DartTriggerDefinition definition,
+    List<_ProfileTriggerTarget> targets,
+    RuntimeMap payload, {
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
+  }) async {
+    for (final target in targets) {
+      if (definition.matches?.call(target.config, payload) == false) continue;
+      await _runTriggerTarget(
+        profileId,
+        target,
+        payload,
+        context: context,
+        onNodeEnter: onNodeEnter,
+        onNodeExit: onNodeExit,
+      );
+      if (target.entry['stop'] == true) break;
+    }
+  }
+
   EvaluationContext _withRegistryState(EvaluationContext? context) =>
       EvaluationContext(
         locals: Map<String, dynamic>.from(context?.locals ?? const {}),
@@ -381,8 +439,7 @@ final class DartProfileRuntime {
 
   Future<GraphExecutionResult> _runTriggerTarget(
     String profileId,
-    ({String? pluginId, String? triggerId, JsonMap config, JsonMap entry})
-    target,
+    _ProfileTriggerTarget target,
     RuntimeMap payload, {
     EvaluationContext? context,
     void Function(String nodeId)? onNodeEnter,
