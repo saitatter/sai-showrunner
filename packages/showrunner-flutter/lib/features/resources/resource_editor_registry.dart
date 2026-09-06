@@ -326,7 +326,7 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
       pluginId: 'twitch',
       resourceType: 'TwitchAccount',
       displayName: 'Twitch Account',
-      storageDirectory: 'twitch/accounts',
+      storageDirectory: 'accounts/twitch',
       defaultConfig: (name) => {
         'name': name,
         'twitchId': '',
@@ -360,7 +360,7 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
       pluginId: 'bluesky',
       resourceType: 'BlueSkyAccount',
       displayName: 'BlueSky Account',
-      storageDirectory: 'bluesky/accounts',
+      storageDirectory: 'accounts/bluesky',
       defaultConfig: (name) => {
         'name': name,
         'identifier': '',
@@ -552,7 +552,7 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
       pluginId: 'wyze',
       resourceType: 'WyzeAccount',
       displayName: 'Wyze Account',
-      storageDirectory: 'wyze/accounts',
+      storageDirectory: 'accounts/wyze',
       defaultConfig: (name) => {
         'name': name,
         'email': '',

@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/setup/obs_setup_persistence.dart';
-import 'package:showrunner_flutter/persistence/resource_repository.dart';
 
 void main() {
   test(
@@ -43,7 +42,10 @@ void main() {
         password: 'second',
       );
       expect(updatedId, id);
-      final resource = await ResourceRepository(directory).load(id);
+      final resource = await persistence.loadSelected(
+        directory: directory,
+        settings: {'obsDefault': id},
+      );
       expect(resource?.config['host'], 'obs.example.test');
       expect(resource?.config['port'], 4456);
       expect(resource?.config['password'], 'second');

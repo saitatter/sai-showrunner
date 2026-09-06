@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../persistence/resource_repository.dart';
+import '../../persistence/secret_settings_store.dart';
 import '../../schema/resource.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
@@ -79,6 +80,12 @@ final class ObsConnectionRouter implements ObsTransport {
         await (resourceLoader?.call() ??
             ResourceRepository(
               Directory('${dataService.userDirectory.path}/obs/connections'),
+              resourceType: 'OBSConnection',
+              secretSettings: SecretSettingsStore(
+                directory: Directory(
+                  '${dataService.userDirectory.path}/secrets',
+                ),
+              ),
             ).list());
     final selectedId = settings['obsDefault']?.toString();
     final selected = resources

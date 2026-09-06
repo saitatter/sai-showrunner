@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../persistence/resource_repository.dart';
+import '../../persistence/secret_settings_store.dart';
 import '../plugins/plugin_metadata.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/dashboards/cloud_sync.dart';
@@ -50,6 +51,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
   ShowRunnerDataService get dataService => widget.dataService;
   DartResourceEditorRegistry get editorRegistry => widget.editorRegistry;
 
+  SecretSettingsStore get secretSettings => SecretSettingsStore(
+    directory: Directory('${dataService.userDirectory.path}/secrets'),
+  );
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +80,8 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     for (final def in editorRegistry.definitions) {
       resources[def.resourceType] = await ResourceRepository(
         Directory('${dataService.userDirectory.path}/${def.storageDirectory}'),
+        resourceType: def.resourceType,
+        secretSettings: secretSettings,
       ).list();
     }
     return resources;
@@ -234,7 +241,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       context: context,
       builder: (context) {
         Future<void> save(ResourceData updated) async {
-          final repository = ResourceRepository(directory);
+          final repository = _repository(resourceType, directory);
           await repository.save(updated);
           if (resourceType == 'Dashboard') {
             final synchronized = await DashboardCloudSyncService(
@@ -289,7 +296,8 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       id: 'resource-${DateTime.now().microsecondsSinceEpoch}',
       config: _defaultConfig(resourceType, name),
     );
-    await ResourceRepository(
+    await _repository(
+      resourceType,
       Directory(
         '${dataService.userDirectory.path}/${_resourceDirectory(resourceType)}',
       ),
@@ -323,7 +331,8 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       ),
     );
     if (confirmed != true) return;
-    final repository = ResourceRepository(
+    final repository = _repository(
+      resourceType,
       Directory(
         '${dataService.userDirectory.path}/${_resourceDirectory(resourceType)}',
       ),
@@ -532,6 +541,13 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     if (def != null) return def.storageDirectory;
     return resourceType.toLowerCase();
   }
+
+  ResourceRepository _repository(String resourceType, Directory directory) =>
+      ResourceRepository(
+        directory,
+        resourceType: resourceType,
+        secretSettings: secretSettings,
+      );
 
   String _descriptionFor(String resourceType) => switch (resourceType) {
     'OBSConnection' =>

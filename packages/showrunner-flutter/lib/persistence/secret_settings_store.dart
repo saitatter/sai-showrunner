@@ -27,6 +27,28 @@ const Map<String, Set<String>> secretSettingIdsByPlugin = {
 Set<String> secretSettingIdsFor(String pluginId) =>
     secretSettingIdsByPlugin[pluginId.toLowerCase()] ?? const <String>{};
 
+/// Secret fields used by resources whose public configuration is persisted in
+/// a normal YAML/JSON resource file. Account resources also use this boundary
+/// so imported Electron account credentials never get copied to public files.
+const Map<String, Set<String>> secretResourceFieldIdsByType = {
+  'OBSConnection': {'password'},
+  'RCONConnection': {'password'},
+  'DiscordWebhook': {'webhookUrl'},
+  'TwitchAccount': {'accessToken', 'refreshToken'},
+  'BlueSkyAccount': {'appPassword', 'session'},
+  'WyzeAccount': {'accessToken', 'refreshToken'},
+  'Light': {'hubKey'},
+};
+
+const Map<String, String> accountDirectoryByResourceType = {
+  'TwitchAccount': 'twitch',
+  'BlueSkyAccount': 'bluesky',
+  'WyzeAccount': 'wyze',
+};
+
+Set<String> secretResourceFieldIdsFor(String resourceType) =>
+    secretResourceFieldIdsByType[resourceType] ?? const <String>{};
+
 /// Reads and writes the per-plugin secret files used by the desktop app.
 ///
 /// Electron's Windows safeStorage implementation is backed by DPAPI. Keeping
@@ -40,21 +62,65 @@ final class SecretSettingsStore {
   final SecretSettingsCipher? decrypt;
 
   Future<JsonMap> load(String pluginId) async {
-    final file = _file(pluginId);
+    return _loadFile(_file(pluginId), 'Secret settings');
+  }
+
+  Future<void> save(String pluginId, JsonMap values) async {
+    await _saveFile(_file(pluginId), values);
+  }
+
+  Future<JsonMap> loadResource(String resourceType, String resourceId) async {
+    return _loadFile(
+      _resourceFile(resourceType, resourceId),
+      'Resource secrets',
+    );
+  }
+
+  Future<void> saveResource(
+    String resourceType,
+    String resourceId,
+    JsonMap values,
+  ) async {
+    await _saveFile(_resourceFile(resourceType, resourceId), values);
+  }
+
+  Future<void> deleteResource(String resourceType, String resourceId) async {
+    final file = _resourceFile(resourceType, resourceId);
+    if (await file.exists()) await file.delete();
+  }
+
+  /// Reads the encrypted account filename used by the Electron runtime.
+  ///
+  /// Account public files live under `accounts/<provider>`, while Flutter's
+  /// resource editor uses the same public directory after import. Keeping the
+  /// old `.syaml` lookup here makes the first Flutter load recover credentials
+  /// without requiring a second manual login.
+  Future<JsonMap> loadLegacyAccount(String resourceType, String resourceId) {
+    final accountDirectory = accountDirectoryByResourceType[resourceType];
+    if (accountDirectory == null) return Future.value(<String, dynamic>{});
+    return _loadFile(
+      File(
+        '${directory.parent.path}/accounts/$accountDirectory/$resourceId.syaml',
+      ),
+      'Account secrets',
+    );
+  }
+
+  Future<JsonMap> _loadFile(File file, String label) async {
     if (!await file.exists()) return <String, dynamic>{};
     final encrypted = await file.readAsBytes();
     final plaintext = await (decrypt ?? decryptWithWindowsDpapi)(encrypted);
     final parsed = loadYaml(utf8.decode(plaintext));
     if (parsed is! YamlMap) {
-      throw const FormatException('Secret settings must contain a map.');
+      throw FormatException('$label must contain a map.');
     }
     return _yamlMap(parsed);
   }
 
-  Future<void> save(String pluginId, JsonMap values) async {
+  Future<void> _saveFile(File file, JsonMap values) async {
     final plaintext = utf8.encode(_yamlEncode(values));
     final encrypted = await (encrypt ?? encryptWithWindowsDpapi)(plaintext);
-    await writeAtomicBytes(_file(pluginId), encrypted);
+    await writeAtomicBytes(file, encrypted);
   }
 
   File _file(String pluginId) {
@@ -62,6 +128,15 @@ final class SecretSettingsStore {
       throw ArgumentError.value(pluginId, 'pluginId');
     }
     return File('${directory.path}/$pluginId.yaml');
+  }
+
+  File _resourceFile(String resourceType, String resourceId) {
+    if (!_isSafePluginId(resourceType) || !_isSafePluginId(resourceId)) {
+      throw ArgumentError(
+        'Resource secret path contains an unsafe identifier.',
+      );
+    }
+    return File('${directory.path}/resources/$resourceType/$resourceId.yaml');
   }
 }
 

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import '../../plugins/obs/transport.dart';
 import '../../persistence/resource_repository.dart';
+import '../../persistence/secret_settings_store.dart';
 import '../../schema/resource.dart';
 
 final class ObsSetupPersistence {
@@ -13,7 +14,7 @@ final class ObsSetupPersistence {
   }) async {
     final selectedId = settings['obsDefault']?.toString();
     if (selectedId == null || selectedId.isEmpty) return null;
-    return ResourceRepository(directory).load(selectedId);
+    return _repository(directory).load(selectedId);
   }
 
   Future<String> save({
@@ -23,7 +24,7 @@ final class ObsSetupPersistence {
     required int port,
     required String password,
   }) async {
-    final repository = ResourceRepository(directory);
+    final repository = _repository(directory);
     final id = resourceId == null || resourceId.isEmpty
         ? 'obs-main-${DateTime.now().microsecondsSinceEpoch}'
         : resourceId;
@@ -44,6 +45,14 @@ final class ObsSetupPersistence {
     );
     return id;
   }
+
+  ResourceRepository _repository(Directory directory) => ResourceRepository(
+    directory,
+    resourceType: 'OBSConnection',
+    secretSettings: SecretSettingsStore(
+      directory: Directory('${directory.parent.parent.path}/secrets'),
+    ),
+  );
 }
 
 bool isLocalHost(String host) {

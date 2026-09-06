@@ -3,6 +3,7 @@ import 'dart:io';
 import '../persistence/automation_repository.dart';
 import '../persistence/profile_repository.dart';
 import '../persistence/resource_repository.dart';
+import '../persistence/secret_settings_store.dart';
 import '../schema/resource.dart';
 
 /// The persisted resources that have first-class entries in the reference
@@ -41,6 +42,9 @@ final class ShowRunnerProjectCatalogService {
     final resourceDirectories = _projectResourceDirectories.entries.toList(
       growable: false,
     );
+    final secretSettings = SecretSettingsStore(
+      directory: Directory('${userDirectory.path}/secrets'),
+    );
     final results = await Future.wait<Object>([
       AutomationRepository.loadDirectory(
         Directory('${userDirectory.path}/automations'),
@@ -51,6 +55,8 @@ final class ShowRunnerProjectCatalogService {
       for (final entry in resourceDirectories)
         ResourceRepository(
           Directory('${userDirectory.path}/${entry.value}'),
+          resourceType: entry.key,
+          secretSettings: secretSettings,
         ).list(),
     ]);
     final resources = <String, List<ProjectResourceCatalogEntry>>{};
@@ -90,4 +96,7 @@ const _projectResourceDirectories = <String, String>{
   'CustomTwitchViewerGroup': 'twitch/groups',
   'ChannelPointReward': 'twitch/channelpoints',
   'SpellHook': 'spellcast/spells',
+  'TwitchAccount': 'accounts/twitch',
+  'BlueSkyAccount': 'accounts/bluesky',
+  'WyzeAccount': 'accounts/wyze',
 };
