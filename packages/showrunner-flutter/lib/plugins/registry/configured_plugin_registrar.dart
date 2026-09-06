@@ -490,6 +490,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   );
   registry.registerUi('dashboards', createDashboardsPluginUi());
   registry.register(createInputPlugin(startEvents: true));
+  registry.registerUi('input', createInputPluginUi());
   registry.register(
     createStreamPlansPlugin(registry: registry, queueManager: queueManager),
   );
@@ -502,6 +503,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       ),
     ),
   );
+  registry.registerUi('iot', createIotPluginUi());
   final disabled = appSettings['disabledPlugins'];
   if (disabled is List) {
     for (final pluginId in disabled.whereType<String>()) {

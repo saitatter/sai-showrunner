@@ -599,7 +599,7 @@
     },
     {
       "id": "input",
-      "status": "partial",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [],
@@ -658,13 +658,13 @@
       },
       "ui": {
         "expectedSourceFiles": 9,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
       "id": "iot",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -726,8 +726,8 @@
       },
       "ui": {
         "expectedSourceFiles": 11,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {

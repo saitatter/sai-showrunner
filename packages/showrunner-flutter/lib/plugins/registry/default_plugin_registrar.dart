@@ -95,6 +95,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(createSpellcastPlugin(eventHub: spellcastHub));
   registry.registerUi('spellcast', createSpellcastPluginUi(spellcastHub));
   registry.register(createIotPlugin());
+  registry.registerUi('iot', createIotPluginUi());
   registry.register(createGoveePlugin(GoveeTransport(_unconfiguredGovee)));
   registry.register(
     createPhilipsHuePlugin(HueTransport(_unconfiguredPhilipsHue)),
@@ -110,6 +111,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(dashboardPlugin);
   registry.registerUi('dashboards', createDashboardsPluginUi());
   registry.register(createInputPlugin());
+  registry.registerUi('input', createInputPluginUi());
   registry.register(
     createStreamPlansPlugin(registry: registry, queueManager: queueManager),
   );
