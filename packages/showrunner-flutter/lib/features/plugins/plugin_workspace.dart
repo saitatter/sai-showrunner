@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/oauth_token.dart';
 import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/philips_hue/discovery.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../services/provider_settings_validator.dart';
 import '../../persistence/automation_repository.dart';
@@ -36,6 +37,8 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
   bool _loading = true;
   String? _saving;
   Object? _error;
+  bool _huePairing = false;
+  bool _huePaired = false;
   String _selectedPluginId = 'obs';
   String _detailsTab = 'overview';
   String _detailsFilter = '';
@@ -196,6 +199,35 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
       _error = error;
     }
     if (mounted) setState(() => _saving = null);
+  }
+
+  Future<void> _pairHueBridge() async {
+    setState(() {
+      _huePairing = true;
+      _huePaired = false;
+      _error = null;
+    });
+    try {
+      final pairing = await const PhilipsHueDiscoveryService().findAndPair();
+      if (pairing == null) {
+        throw StateError(
+          'No Philips Hue bridge was paired. Press the bridge button and try again.',
+        );
+      }
+      final values = <String, dynamic>{
+        ..._settings['philips-hue'] ?? const <String, dynamic>{},
+        'hubIp': pairing.host,
+        'hubKey': pairing.applicationKey,
+      };
+      await widget.dataService.savePluginSettings('philips-hue', values);
+      _settings['philips-hue'] = values;
+      _controllers['philips-hue:hubIp']?.text = pairing.host;
+      _controllers['philips-hue:hubKey']?.text = pairing.applicationKey;
+      _huePaired = true;
+    } catch (error) {
+      _error = error;
+    }
+    if (mounted) setState(() => _huePairing = false);
   }
 
   Future<void> _openAuthorizationUrl(Uri url) async {
@@ -585,6 +617,27 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         else
           Column(
             children: [
+              if (selectedPluginId == 'philips-hue') ...[
+                Card(
+                  child: ListTile(
+                    leading: Icon(
+                      _huePaired ? Icons.check_circle : Icons.lightbulb_outline,
+                      color: _huePaired ? Colors.green : null,
+                    ),
+                    title: const Text('Philips Hue Bridge'),
+                    subtitle: Text(
+                      _huePaired
+                          ? 'Hub paired and credentials saved.'
+                          : 'Press the button on the Hue bridge, then pair it automatically.',
+                    ),
+                    trailing: OutlinedButton(
+                      onPressed: _huePairing ? null : _pairHueBridge,
+                      child: Text(_huePairing ? 'Searching...' : 'Pair Hub'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
