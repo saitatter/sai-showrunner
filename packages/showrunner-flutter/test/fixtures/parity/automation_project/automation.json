@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 2,
+  "graph": {
+    "nodes": [
+      {
+        "id": "chat-trigger",
+        "type": "trigger.twitch.chat",
+        "x": 0,
+        "y": 80
+      },
+      {
+        "id": "queue-alert",
+        "type": "action",
+        "x": 360,
+        "y": 80,
+        "plugin": "ShowRunner",
+        "action": "addToQueue",
+        "config": {
+          "queue": "alerts",
+          "automation": "paid-alert"
+        }
+      },
+      {
+        "id": "push-message",
+        "type": "action",
+        "x": 720,
+        "y": 80,
+        "plugin": "overlays",
+        "action": "pushChatMessage",
+        "config": {
+          "message": "Hello from the parity fixture"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-trigger-queue",
+        "from": "chat-trigger",
+        "to": "queue-alert",
+        "port": "completed"
+      },
+      {
+        "id": "edge-queue-overlay",
+        "from": "queue-alert",
+        "to": "push-message",
+        "port": "completed"
+      }
+    ],
+    "entryNodeId": "chat-trigger"
+  },
+  "subgraphs": [],
+  "dataWires": [],
+  "variableNodes": [],
+  "triggerNodes": [
+    {
+      "id": "chat-trigger",
+      "plugin": "twitch",
+      "trigger": "chat"
+    }
+  ]
+}

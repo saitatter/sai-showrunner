@@ -1,0 +1,51 @@
+{
+  "name": "Parity Profile",
+  "activationMode": "toggle",
+  "triggers": [
+    {
+      "id": "profile-chat",
+      "plugin": "twitch",
+      "trigger": "chat",
+      "automation": {
+        "schemaVersion": 2,
+        "graph": {
+          "nodes": [],
+          "edges": [],
+          "entryNodeId": ""
+        },
+        "subgraphs": [],
+        "dataWires": [],
+        "variableNodes": [],
+        "triggerNodes": []
+      }
+    }
+  ],
+  "activationCondition": {
+    "type": "literal",
+    "value": true
+  },
+  "activationAutomation": {
+    "schemaVersion": 2,
+    "graph": {
+      "nodes": [],
+      "edges": [],
+      "entryNodeId": ""
+    },
+    "subgraphs": [],
+    "dataWires": [],
+    "variableNodes": [],
+    "triggerNodes": []
+  },
+  "deactivationAutomation": {
+    "schemaVersion": 2,
+    "graph": {
+      "nodes": [],
+      "edges": [],
+      "entryNodeId": ""
+    },
+    "subgraphs": [],
+    "dataWires": [],
+    "variableNodes": [],
+    "triggerNodes": []
+  }
+}
