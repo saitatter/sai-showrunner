@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../persistence/resource_repository.dart';
 import '../plugins/plugin_metadata.dart';
 import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/dashboards/cloud_sync.dart';
 import '../../plugins/stream_plans/manifest.dart';
 import '../../schema/stream_plan.dart';
 import 'resource_editor_registry.dart';
@@ -229,8 +230,17 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     await showDialog<void>(
       context: context,
       builder: (context) {
-        Future<void> save(ResourceData updated) =>
-            ResourceRepository(directory).save(updated);
+        Future<void> save(ResourceData updated) async {
+          final repository = ResourceRepository(directory);
+          await repository.save(updated);
+          if (resourceType == 'Dashboard') {
+            final synchronized = await DashboardCloudSyncService(
+              dataService: dataService,
+            ).synchronize(updated);
+            await repository.save(synchronized);
+          }
+        }
+
         final runtimeBuilder = editor.runtimeBuilder;
         final content = runtimeBuilder != null && widget.registryFuture != null
             ? runtimeBuilder(
