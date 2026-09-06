@@ -150,6 +150,12 @@ const _sceneSchema = DartDataInputSchema(
   kind: DartDataInputKind.object,
   fields: [
     DartDataInputSchema(
+      label: 'Group',
+      key: 'group',
+      kind: DartDataInputKind.resource,
+      resourceType: 'Light',
+    ),
+    DartDataInputSchema(
       label: 'Scene ID',
       key: 'sceneId',
       kind: DartDataInputKind.text,

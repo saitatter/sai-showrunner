@@ -37,6 +37,10 @@ void main() {
     await registry.invokeAction('philips-hue', 'recallScene', {
       'sceneId': 'scene-1',
     });
+    await registry.invokeAction('philips-hue', 'scene', {
+      'group': {'id': 'hue-group-1'},
+      'scene': 'scene-2',
+    });
 
     expect(requests.map((request) => '${request.method} ${request.path}'), [
       'GET /resource/light',
@@ -45,6 +49,7 @@ void main() {
       'GET /resource/light/light-1',
       'PUT /resource/light/light-1',
       'PUT /resource/scene/scene-1',
+      'PUT /resource/scene/scene-2',
     ]);
     expect(requests[4].body, {
       'on': {'on': false},
@@ -53,6 +58,9 @@ void main() {
       'color': {'xy': isA<Map<String, double>>()},
     });
     expect(requests[5].body, {
+      'recall': {'action': 'active'},
+    });
+    expect(requests[6].body, {
       'recall': {'action': 'active'},
     });
   });
