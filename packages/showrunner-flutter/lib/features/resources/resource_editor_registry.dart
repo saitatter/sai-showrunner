@@ -9,6 +9,7 @@ import '../../plugins/contracts/identifiers.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
 import '../../schema/stream_plan.dart';
+import '../../persistence/secret_settings_store.dart';
 import 'media_picker.dart';
 import 'color_field.dart';
 import '../../components/data_inputs/data_input.dart';
@@ -609,18 +610,21 @@ DartResourceEditorDefinition _pluginDefinition({
       title: 'Edit smart light',
       resource: resource,
       fields: fields,
+      secretFields: secretResourceFieldIdsFor(resourceType),
       onSave: onSave,
     ),
     'Plug' => _MapResourceEditor(
       title: 'Edit smart plug',
       resource: resource,
       fields: fields,
+      secretFields: secretResourceFieldIdsFor(resourceType),
       onSave: onSave,
     ),
     _ => _MapResourceEditor(
       title: 'Edit $displayName',
       resource: resource,
       fields: fields,
+      secretFields: secretResourceFieldIdsFor(resourceType),
       onSave: onSave,
     ),
   },
@@ -3427,12 +3431,14 @@ class _MapResourceEditor extends StatefulWidget {
     required this.resource,
     required this.fields,
     required this.onSave,
+    this.secretFields = const <String>{},
   });
 
   final String title;
   final ResourceData resource;
   final List<String> fields;
   final Future<void> Function(ResourceData resource) onSave;
+  final Set<String> secretFields;
 
   @override
   State<_MapResourceEditor> createState() => _MapResourceEditorState();
@@ -3487,7 +3493,9 @@ class _MapResourceEditorState extends State<_MapResourceEditor> {
     return DartDataInputSchema(
       label: field,
       kind: kind,
-      secret: field.toLowerCase().contains('password'),
+      secret:
+          widget.secretFields.contains(field) ||
+          field.toLowerCase().contains('password'),
     );
   }
 }
