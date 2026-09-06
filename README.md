@@ -81,6 +81,38 @@ product differences are intentional:
 These differences keep the supported live-production workflows while giving
 ShowRunner its own desktop experience.
 
+### ShowRunner-specific additions
+
+Compared with the public CastMate feature description, ShowRunner also brings
+these production features into the same application:
+
+- **Shader Graph overlays** — create shader-driven OBS overlays with a visual
+  node editor, procedural noise and terrain, lighting, camera and material
+  effects, generated shaders, and controls connected to automation state;
+- **YouTube workflows** — live chat, memberships, paid messages, and matching
+  overlay/automation starters alongside Twitch workflows;
+- **Segmented Stream Plans** — organize a broadcast into reusable segments with
+  separate start and stop automations, then control the plan from the dashboard;
+- **Automation queues** — sequence alerts, sounds, scene changes, and other
+  actions with queue controls and status visible in the app;
+- **Media Library** — browse local media from a persistent catalog with quick
+  scans, full scans, and automatic updates when folders change;
+- **Production dashboards** — see connection health, stream plans, queue state,
+  and live-service status from one workspace;
+- **Remote and Satellite control** — trigger and monitor ShowRunner from other
+  programs or a separate agent through the remote control protocol;
+- **SAI services and moderation** — ShowRunner-specific service integration and
+  moderation workflows that connect automations to the SAI stack;
+- **an expanded integration surface** — including Bluesky, DonorDrive, Elgato,
+  Govee, LIFX, TP-Link/Kasa, Twinkly, Wyze, Voicemod, Aitum, ADVSS, HTTP,
+  IoT, operating-system and input controls, in addition to the core OBS and
+  streaming integrations.
+
+This list describes ShowRunner's supported product surface. Optional or
+community CastMate plugins may overlap with individual integrations; the
+important difference is that these capabilities are planned and maintained as
+part of ShowRunner itself.
+
 ## Optional overlay development
 
 Node.js and Yarn are only needed when changing the browser overlay:
