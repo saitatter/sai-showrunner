@@ -106,4 +106,38 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('All Automations'), findsNothing);
   });
+
+  testWidgets('hides duplicate native integration shortcuts by default', (
+    tester,
+  ) async {
+    final preferences = FlutterInterfacePreferences(
+      dataService: ShowRunnerDataService(Directory.systemTemp),
+    );
+    addTearDown(preferences.dispose);
+    final registry = DartPluginRegistry()
+      ..register(const DartPluginManifest(id: 'obs', name: 'OBS'));
+    addTearDown(registry.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 300,
+          height: 900,
+          child: ShowRunnerProjectPanel(
+            selectedIndex: 0,
+            onDestinationSelected: (_) {},
+            pluginRegistryFuture: Future.value(registry),
+            preferences: preferences,
+            selectedPluginId: null,
+            onPluginSelected: (_) {},
+            onPluginToggle: (_, _) async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('OBS'), findsOneWidget);
+    expect(find.text('Connections'), findsNothing);
+  });
 }
