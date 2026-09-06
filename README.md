@@ -60,36 +60,38 @@ separate product surface and is built with `yarn overlay:build`; it consumes the
 overlay protocol and resources produced by the Flutter application. It does not
 provide a second desktop application or a second automation runtime.
 
-## Differences from upstream
+## Differences from CastMate upstream
 
-For this repository, “upstream” means the frozen Electron/Vue `main` reference
-used by the parity checks. Flutter is the replacement desktop implementation;
-the differences below are deliberate and documented rather than accidental
-feature gaps:
+The upstream project is [CastMate](https://github.com/LordTocs/CastMate). This
+repository is a ShowRunner fork and Flutter replacement implementation; `main`
+is only the frozen local product reference used by parity checks. The
+differences below are deliberate and documented rather than accidental feature
+gaps:
 
-- the desktop shell and runtime are Flutter/Dart, with typed plugin contracts,
-  explicit service composition, and an owned shutdown lifecycle instead of
-  Electron/Vue stores and renderer-side composition;
-- persisted automation documents are V2-only. Older document shapes are not
-  converted, rewritten, or backed up automatically;
-- Timeline is not a separate Flutter editor because the reference renderer does
-  not contain an implemented Timeline workflow; the decision is recorded in
-  `docs/architecture/adr-002-timeline.md`;
-- first-party integrations are compiled Dart modules. The old in-process
-  external plugin templates are not loaded by the desktop process; the remote
-  and Satellite boundary remains a versioned agent protocol;
-- the media workspace uses a persistent SQLite index, quick/full filesystem
-  scans, and a debounced watcher. It does not use native TagLib metadata
+- CastMate's desktop application is Electron/Vue/Node-based; ShowRunner's
+  desktop shell and runtime are Flutter/Dart with typed plugin contracts,
+  explicit service composition, and an owned shutdown lifecycle;
+- ShowRunner persists V2 automation documents only. It does not carry a
+  compatibility importer that converts or rewrites older CastMate document
+  shapes;
+- CastMate's public product description refers to timeline automation;
+  ShowRunner's Flutter replacement uses graph automations and does not expose a
+  separate Timeline editor;
+- first-party ShowRunner integrations are compiled Dart modules. External
+  plugin code is not loaded in-process, while remote control remains a
+  versioned agent protocol;
+- the media workspace adds a persistent SQLite index, fingerprinted quick/full
+  scans, and a debounced watcher. It does not include native TagLib metadata
   extraction; previews and playback use the existing `media_kit` boundary;
-- the OBS overlay renderer remains a separate browser runtime because OBS
-  consumes browser sources, while Flutter owns its resource configuration and
-  protocol-facing services;
-- the Windows updater keeps a temporary bundle backup and restores it when an
-  install fails. Release archives remain unsigned until signing is enabled in
-  the release environment.
+- OBS overlay rendering remains browser-based in both products because OBS
+  consumes browser sources, while ShowRunner owns the Flutter-side resource
+  configuration and protocol services;
+- the ShowRunner Windows updater keeps a temporary bundle backup and restores
+  it when an install fails. Release archives remain unsigned until signing is
+  enabled in the release environment.
 
-These differences preserve the supported user workflows while removing
-implementation details that are specific to the upstream Electron/Vue stack.
+These differences preserve the ShowRunner-supported workflows while replacing
+CastMate-specific desktop implementation details.
 
 ## Optional overlay development
 

@@ -27,17 +27,20 @@ filesystem state and does not include native TagLib metadata extraction; media
 preview and playback use the existing `media_kit` boundary. OBS overlays remain
 browser-based because OBS consumes them as browser sources.
 
-## Differences from upstream
+## Differences from CastMate upstream
 
-The upstream reference is the Electron/Vue `main` application. Flutter keeps
-the supported product workflows but changes the implementation boundaries:
+The upstream project is [CastMate](https://github.com/LordTocs/CastMate). The
+frozen Electron/Vue `main` branch is only the local parity reference. Flutter
+keeps the supported ShowRunner workflows but changes the implementation
+boundaries:
 
-- desktop UI and runtime are Flutter/Dart with typed contracts and explicit
-  service ownership;
+- desktop UI and runtime are Flutter/Dart with typed contracts, explicit
+  service ownership, and a centralized shutdown lifecycle instead of the
+  Electron/Vue/Node desktop stack;
 - automation persistence accepts V2 documents only and does not convert older
-  shapes or create automatic conversion backups;
-- external in-process plugin templates are not loaded; first-party plugins are
-  compiled Dart modules and remote control uses a versioned agent protocol;
+  CastMate document shapes or create automatic conversion backups;
+- first-party plugins are compiled Dart modules; external plugin code is not
+  loaded in-process, and remote control uses a versioned agent protocol;
 - media indexing is SQLite-backed with fingerprinted quick scans, explicit full
   scans, and a debounced watcher, without native TagLib extraction;
 - OBS overlay rendering stays in the browser package because the consumer is
