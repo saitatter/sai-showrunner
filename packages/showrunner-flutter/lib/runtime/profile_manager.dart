@@ -68,6 +68,9 @@ final class DartProfileLifecycleManager {
     }
     _managedIds.clear();
     _profiles.clear();
+    _lastBoundProfiles.clear();
+    _notifiedActive.clear();
+    _notifiedTriggers.clear();
     await runtime.dispose();
   }
 
@@ -80,11 +83,18 @@ final class DartProfileLifecycleManager {
     if (running == null) {
       final operation = _reconcileLoop();
       _refreshFuture = operation;
-      unawaited(
-        operation.whenComplete(() {
-          if (identical(_refreshFuture, operation)) _refreshFuture = null;
-        }),
-      );
+      unawaited(_finishBackgroundRefresh(operation));
+    }
+  }
+
+  Future<void> _finishBackgroundRefresh(Future<void> operation) async {
+    try {
+      await operation;
+    } on Object catch (error, stackTrace) {
+      stderr.writeln('Profile lifecycle refresh failed: $error');
+      stderr.writeln(stackTrace);
+    } finally {
+      if (identical(_refreshFuture, operation)) _refreshFuture = null;
     }
   }
 
@@ -122,58 +132,67 @@ final class DartProfileLifecycleManager {
       if (_notifiedActive.remove(profileId) == true) {
         onActivityChanged?.call(profileId, active: false, triggers: const []);
       }
+      _notifiedTriggers.remove(profileId);
     }
 
     for (final entry in _profiles.entries) {
       final profileId = entry.key;
       final profile = entry.value;
-      final shouldManage = profile.activationMode != 'manual';
-      if (!shouldManage) {
-        if (_managedIds.remove(profileId)) {
-          await runtime.disposeManagedSession(profileId);
-          if (runtime.isActive(profileId)) {
-            await runtime.deactivate(profileId, profile, context: context);
+      try {
+        final shouldManage = profile.activationMode != 'manual';
+        if (!shouldManage) {
+          if (_managedIds.remove(profileId)) {
+            await runtime.disposeManagedSession(profileId);
+            if (runtime.isActive(profileId)) {
+              await runtime.deactivate(profileId, profile, context: context);
+            }
+            runtime.forgetProfile(profileId);
+            _lastBoundProfiles.remove(profileId);
+            _notifyActivity(profileId, profile, false);
           }
-          runtime.forgetProfile(profileId);
-          _notifyActivity(profileId, profile, false);
+          continue;
         }
-        continue;
-      }
 
-      _managedIds.add(profileId);
-      final wasActive = runtime.isActive(profileId);
-      await runtime.reconcile(profileId, profile, context: context);
-      final isActive = runtime.isActive(profileId);
-      if (isActive && !runtime.hasManagedSession(profileId)) {
-        await runtime.replaceManagedSession(
-          profileId,
-          profile,
-          context: context,
-        );
-      } else if (!isActive && runtime.hasManagedSession(profileId)) {
-        await runtime.disposeManagedSession(profileId);
-      } else if (wasActive &&
-          isActive &&
-          runtime.hasManagedSession(profileId)) {
-        // File refreshes can replace the trigger configuration while a
-        // profile remains active. Rebind subscriptions to the new config.
-        final persisted = jsonEncode(profile.toJson());
-        final previous = _lastBoundProfiles[profileId];
-        if (previous != persisted) {
+        _managedIds.add(profileId);
+        final wasActive = runtime.isActive(profileId);
+        await runtime.reconcile(profileId, profile, context: context);
+        final isActive = runtime.isActive(profileId);
+        if (isActive && !runtime.hasManagedSession(profileId)) {
           await runtime.replaceManagedSession(
             profileId,
             profile,
             context: context,
           );
+        } else if (!isActive && runtime.hasManagedSession(profileId)) {
+          await runtime.disposeManagedSession(profileId);
+        } else if (wasActive &&
+            isActive &&
+            runtime.hasManagedSession(profileId)) {
+          // File refreshes can replace the trigger configuration while a
+          // profile remains active. Rebind subscriptions to the new config.
+          final persisted = jsonEncode(profile.toJson());
+          final previous = _lastBoundProfiles[profileId];
+          if (previous != persisted) {
+            await runtime.replaceManagedSession(
+              profileId,
+              profile,
+              context: context,
+            );
+          }
+          _lastBoundProfiles[profileId] = persisted;
         }
-        _lastBoundProfiles[profileId] = persisted;
+        if (isActive) {
+          _lastBoundProfiles[profileId] = jsonEncode(profile.toJson());
+        } else {
+          _lastBoundProfiles.remove(profileId);
+        }
+        _notifyActivity(profileId, profile, isActive);
+      } on Object catch (error, stackTrace) {
+        // A malformed or unavailable profile must not take down the global
+        // lifecycle listener or prevent other profiles from reconciling.
+        stderr.writeln('Profile "$profileId" reconciliation failed: $error');
+        stderr.writeln(stackTrace);
       }
-      if (isActive) {
-        _lastBoundProfiles[profileId] = jsonEncode(profile.toJson());
-      } else {
-        _lastBoundProfiles.remove(profileId);
-      }
-      _notifyActivity(profileId, profile, isActive);
     }
   }
 
@@ -182,8 +201,13 @@ final class DartProfileLifecycleManager {
     ShowRunnerProfile profile,
     bool active,
   ) {
-    if (_notifiedActive[profileId] == active) return;
+    final triggerSnapshot = jsonEncode(profile.triggers);
+    if (_notifiedActive[profileId] == active &&
+        _notifiedTriggers[profileId] == triggerSnapshot) {
+      return;
+    }
     _notifiedActive[profileId] = active;
+    _notifiedTriggers[profileId] = triggerSnapshot;
     onActivityChanged?.call(
       profileId,
       active: active,
@@ -193,4 +217,5 @@ final class DartProfileLifecycleManager {
 
   final Map<String, String> _lastBoundProfiles = {};
   final Map<String, bool> _notifiedActive = {};
+  final Map<String, String> _notifiedTriggers = {};
 }
