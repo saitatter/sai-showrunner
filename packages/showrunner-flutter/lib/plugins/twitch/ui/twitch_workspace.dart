@@ -6,6 +6,7 @@ import '../../registry/plugin_registry.dart';
 import '../../runtime/provider_event_workers.dart';
 import '../../../runtime/expression.dart';
 import '../../../services/showrunner_data_service.dart';
+import '../../../schema/resource.dart';
 import '../../../features/resources/duration_field.dart';
 import '../channel_runtime.dart';
 import '../channel_points.dart';
@@ -48,7 +49,9 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
   late final TextEditingController _raidTargetController;
   late final TwitchChannelInfoService _channelInfoService;
   late final TwitchChannelPointService _channelPointService;
+  late final TwitchAccountAuthService _accountAuthService;
   TwitchChannelSnapshot? _channelSnapshot;
+  Future<List<ResourceData?>>? _accountsFuture;
   Future<List<TwitchChannelPointReward>>? _rewardsFuture;
   Object? _channelInfoError;
   bool _channelInfoLoading = true;
@@ -58,6 +61,8 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
   int _pollDuration = 30;
   String _announcementColor = 'primary';
   Object? _error;
+  Object? _accountError;
+  String? _accountBusy;
   bool _busy = false;
 
   @override
@@ -83,6 +88,10 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
     _channelPointService = TwitchChannelPointService(
       dataService: widget.dataService,
     );
+    _accountAuthService = TwitchAccountAuthService(
+      dataService: widget.dataService,
+    );
+    _reloadAccounts();
     unawaited(_refreshChannelInfo());
     _reloadRewards();
     _chatSubscription = widget.providerEvents.eventHub.stream('chat').listen((
@@ -179,6 +188,29 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
     if (mounted) setState(() {});
   }
 
+  void _reloadAccounts() {
+    _accountsFuture = Future.wait([
+      _accountAuthService.loadAccount('channel'),
+      _accountAuthService.loadAccount('bot'),
+    ]);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _signInAccount(String accountId) async {
+    setState(() {
+      _accountBusy = accountId;
+      _accountError = null;
+    });
+    try {
+      await _accountAuthService.authorizeAccount(accountId);
+      _reloadAccounts();
+    } catch (error) {
+      if (mounted) setState(() => _accountError = error);
+    } finally {
+      if (mounted) setState(() => _accountBusy = null);
+    }
+  }
+
   Future<void> _createReward() async {
     final draft = await showDialog<TwitchChannelPointRewardDraft>(
       context: context,
@@ -246,6 +278,8 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
         const SizedBox(height: 8),
         const Text('EventSub connection and chat activity.'),
         const SizedBox(height: 24),
+        _buildAccountSection(context),
+        const SizedBox(height: 16),
         FutureBuilder<bool>(
           future: widget.registryFuture.then(
             (registry) => registry.checkHealth('twitch'),
@@ -899,6 +933,106 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
             ),
         ],
       ],
+    );
+  }
+
+  Widget _buildAccountSection(BuildContext context) =>
+      FutureBuilder<List<ResourceData?>>(
+        future: _accountsFuture,
+        builder: (context, snapshot) {
+          final accounts = snapshot.data ?? const <ResourceData?>[null, null];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_accountError != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('Account sign-in error: $_accountError'),
+                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _accountCard(
+                      context,
+                      accountId: 'channel',
+                      title: 'Channel Account',
+                      description: 'Sign into your main channel account here.',
+                      icon: Icons.live_tv,
+                      account: accounts.isNotEmpty ? accounts[0] : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _accountCard(
+                      context,
+                      accountId: 'bot',
+                      title: 'Bot Account',
+                      description:
+                          'This account is used to send chat messages.',
+                      icon: Icons.smart_toy_outlined,
+                      account: accounts.length > 1 ? accounts[1] : null,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      );
+
+  Widget _accountCard(
+    BuildContext context, {
+    required String accountId,
+    required String title,
+    required String description,
+    required IconData icon,
+    required ResourceData? account,
+  }) {
+    final config = account?.config ?? const <String, dynamic>{};
+    final authenticated =
+        (config['accessToken']?.toString().isNotEmpty ?? false) &&
+        (config['twitchId']?.toString().isNotEmpty ?? false);
+    final label = authenticated
+        ? (config['name']?.toString().trim().isNotEmpty == true
+              ? config['name'].toString()
+              : config['twitchId'].toString())
+        : 'Not connected';
+    final busy = _accountBusy == accountId;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                icon,
+                color: authenticated ? Colors.green : Colors.amber,
+              ),
+              title: Text(title),
+              subtitle: Text(label),
+            ),
+            Text(description),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: busy ? null : () => _signInAccount(accountId),
+                icon: busy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.login),
+                label: Text(authenticated ? 'Sign in again' : 'Sign in'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
