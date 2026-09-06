@@ -23,6 +23,14 @@ List<JsonMap> _maps(Object? value) => value is List
           .toList()
     : <JsonMap>[];
 
+void _moveListItem<T>(List<T> items, int from, int to) {
+  if (from < 0 || from >= items.length || to < 0 || to >= items.length) {
+    return;
+  }
+  final item = items.removeAt(from);
+  items.insert(to, item);
+}
+
 List<String> _strings(Object? value) =>
     value is List ? value.map((item) => item.toString()).toList() : <String>[];
 
@@ -1699,14 +1707,42 @@ class _DashboardEditorState extends State<_DashboardEditor> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.link),
-            title: Text('${_resourceSlots[index]['name'] ?? 'Unnamed slot'}'),
+            title: TextFormField(
+              initialValue:
+                  '${_resourceSlots[index]['name'] ?? 'Unnamed slot'}',
+              decoration: const InputDecoration(labelText: 'Slot name'),
+              onChanged: (value) => _resourceSlots[index]['name'] = value,
+            ),
             subtitle: Text(
               '${_resourceSlots[index]['slotType'] ?? 'unknown'} · ${_resourceSlots[index]['id'] ?? ''}',
             ),
-            trailing: IconButton(
-              tooltip: 'Delete resource slot',
-              onPressed: () => setState(() => _resourceSlots.removeAt(index)),
-              icon: const Icon(Icons.delete_outline),
+            trailing: Wrap(
+              children: [
+                IconButton(
+                  tooltip: 'Move slot up',
+                  onPressed: index == 0
+                      ? null
+                      : () => setState(
+                          () => _moveListItem(_resourceSlots, index, index - 1),
+                        ),
+                  icon: const Icon(Icons.arrow_upward),
+                ),
+                IconButton(
+                  tooltip: 'Move slot down',
+                  onPressed: index == _resourceSlots.length - 1
+                      ? null
+                      : () => setState(
+                          () => _moveListItem(_resourceSlots, index, index + 1),
+                        ),
+                  icon: const Icon(Icons.arrow_downward),
+                ),
+                IconButton(
+                  tooltip: 'Delete resource slot',
+                  onPressed: () =>
+                      setState(() => _resourceSlots.removeAt(index)),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
             ),
           ),
     ],
@@ -1746,6 +1782,24 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                     decoration: const InputDecoration(labelText: 'Page name'),
                     onChanged: (value) => page['name'] = value,
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Move page up',
+                  onPressed: pageIndex == 0
+                      ? null
+                      : () => setState(
+                          () => _moveListItem(_pages, pageIndex, pageIndex - 1),
+                        ),
+                  icon: const Icon(Icons.arrow_upward),
+                ),
+                IconButton(
+                  tooltip: 'Move page down',
+                  onPressed: pageIndex == _pages.length - 1
+                      ? null
+                      : () => setState(
+                          () => _moveListItem(_pages, pageIndex, pageIndex + 1),
+                        ),
+                  icon: const Icon(Icons.arrow_downward),
                 ),
                 IconButton(
                   tooltip: 'Delete page',
@@ -1805,6 +1859,32 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                 },
               ),
               IconButton(
+                tooltip: 'Move section up',
+                onPressed: sectionIndex == 0
+                    ? null
+                    : () => setState(
+                        () => _moveListItem(
+                          sections,
+                          sectionIndex,
+                          sectionIndex - 1,
+                        ),
+                      ),
+                icon: const Icon(Icons.arrow_upward),
+              ),
+              IconButton(
+                tooltip: 'Move section down',
+                onPressed: sectionIndex == sections.length - 1
+                    ? null
+                    : () => setState(
+                        () => _moveListItem(
+                          sections,
+                          sectionIndex,
+                          sectionIndex + 1,
+                        ),
+                      ),
+                icon: const Icon(Icons.arrow_downward),
+              ),
+              IconButton(
                 tooltip: 'Delete section',
                 onPressed: () =>
                     setState(() => sections.removeAt(sectionIndex)),
@@ -1826,10 +1906,32 @@ class _DashboardEditorState extends State<_DashboardEditor> {
               subtitle: Text(
                 '${widgets[index]['plugin'] ?? 'unknown'} / ${widgets[index]['widget'] ?? widgets[index]['type'] ?? 'unknown'}',
               ),
-              trailing: IconButton(
-                tooltip: 'Delete widget',
-                onPressed: () => setState(() => widgets.removeAt(index)),
-                icon: const Icon(Icons.delete_outline),
+              trailing: Wrap(
+                children: [
+                  IconButton(
+                    tooltip: 'Move widget up',
+                    onPressed: index == 0
+                        ? null
+                        : () => setState(
+                            () => _moveListItem(widgets, index, index - 1),
+                          ),
+                    icon: const Icon(Icons.arrow_upward),
+                  ),
+                  IconButton(
+                    tooltip: 'Move widget down',
+                    onPressed: index == widgets.length - 1
+                        ? null
+                        : () => setState(
+                            () => _moveListItem(widgets, index, index + 1),
+                          ),
+                    icon: const Icon(Icons.arrow_downward),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete widget',
+                    onPressed: () => setState(() => widgets.removeAt(index)),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
               ),
             ),
         ],

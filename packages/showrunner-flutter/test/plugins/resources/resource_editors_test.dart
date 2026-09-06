@@ -495,6 +495,107 @@ void main() {
     expect(widget['config'], {'label': 'Alert'});
   });
 
+  testWidgets(
+    'dashboard editor preserves page, section, widget, and slot order',
+    (tester) async {
+      final definition = createDefaultResourceEditorRegistry().find(
+        'Dashboard',
+      )!;
+      ResourceData? saved;
+      await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+      final editor = definition.builder(
+        tester.element(find.byType(Scaffold)),
+        const ResourceData(
+          id: 'dashboard-order',
+          config: {
+            'name': 'Studio',
+            'pages': [
+              {
+                'id': 'page-a',
+                'name': 'Page A',
+                'sections': [
+                  {
+                    'id': 'section-a1',
+                    'name': 'Section A1',
+                    'columns': 4,
+                    'widgets': [
+                      {
+                        'id': 'widget-a1',
+                        'plugin': 'dashboards',
+                        'widget': 'label',
+                        'size': {'width': 4, 'height': 1},
+                        'config': {'label': 'Widget A1'},
+                      },
+                      {
+                        'id': 'widget-a2',
+                        'plugin': 'dashboards',
+                        'widget': 'label',
+                        'size': {'width': 4, 'height': 1},
+                        'config': {'label': 'Widget A2'},
+                      },
+                    ],
+                  },
+                  {
+                    'id': 'section-a2',
+                    'name': 'Section A2',
+                    'columns': 4,
+                    'widgets': [],
+                  },
+                ],
+              },
+              {'id': 'page-b', 'name': 'Page B', 'sections': []},
+            ],
+            'resourceSlots': [
+              {
+                'id': 'slot-a',
+                'name': 'Slot A',
+                'slotType': 'SoundOutput',
+                'config': {},
+              },
+              {
+                'id': 'slot-b',
+                'name': 'Slot B',
+                'slotType': 'SoundOutput',
+                'config': {},
+              },
+            ],
+          },
+        ),
+        (resource) async => saved = resource,
+      );
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+      await tester.tap(find.byTooltip('Move page down').first);
+      await tester.tap(find.byTooltip('Move section down').first);
+      await tester.tap(find.byTooltip('Move widget down').first);
+      final moveSlotDown = find.byTooltip('Move slot down').first;
+      await tester.ensureVisible(moveSlotDown);
+      await tester.tap(moveSlotDown);
+      await tester.tap(find.widgetWithText(FilledButton, 'Save').last);
+      await tester.pumpAndSettle();
+
+      final pages = saved!.config['pages'] as List;
+      expect((pages[0] as Map)['id'], 'page-b');
+      final pageA = pages[1] as Map;
+      expect(
+        (pageA['sections'] as List).map((section) => (section as Map)['id']),
+        ['section-a2', 'section-a1'],
+      );
+      final widgets =
+          ((pageA['sections'] as List)[1] as Map)['widgets'] as List;
+      expect(widgets.map((widget) => (widget as Map)['id']), [
+        'widget-a2',
+        'widget-a1',
+      ]);
+      expect(
+        (saved!.config['resourceSlots'] as List).map(
+          (slot) => (slot as Map)['id'],
+        ),
+        ['slot-b', 'slot-a'],
+      );
+    },
+  );
+
   testWidgets('dashboard widget editor reports invalid config JSON', (
     tester,
   ) async {
