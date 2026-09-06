@@ -169,7 +169,7 @@ final class DartPluginRegistry extends ChangeNotifier {
 
   Future<bool> checkHealth(String pluginId) async {
     final module = findModule(pluginId);
-    if (module == null) return true;
+    if (module == null) return false;
     return (await module.checkHealth()).isHealthy;
   }
 

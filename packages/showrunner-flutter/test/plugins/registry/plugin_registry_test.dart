@@ -334,6 +334,7 @@ void main() {
     final trigger = registry.findTrigger('sample', 'event');
     expect(registry.findPlugin('sample')?.settings.single.secret, isTrue);
     expect(await registry.checkHealth('sample'), isTrue);
+    expect(await registry.checkHealth('missing'), isFalse);
     expect(await trigger!.listen().first, {'value': 1});
   });
 
