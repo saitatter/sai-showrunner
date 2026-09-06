@@ -18,6 +18,7 @@ export 'persistence/queue_config_repository.dart';
 export 'persistence/viewer_data_repository.dart';
 export 'persistence/viewer_data_sync.dart';
 export 'services/showrunner_data_service.dart';
+export 'app/lifecycle/app_lifecycle_coordinator.dart';
 export 'services/media_catalog_service.dart';
 export 'media/domain/media_file.dart';
 export 'media/scanner/media_library_service.dart';

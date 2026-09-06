@@ -10,6 +10,7 @@ import 'app/app_foundations.dart';
 import 'app/automation_document_manager.dart';
 import 'app/commands/app_command.dart';
 import 'app/data_directory.dart';
+import 'app/lifecycle/app_lifecycle_coordinator.dart';
 import 'app/startup_health.dart';
 import 'app/showrunner_shell.dart';
 import 'app/single_instance_lock.dart';
@@ -164,6 +165,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   late final Future<StartupHealthSnapshot> _healthFuture;
   late final FlutterInterfacePreferences _interfacePreferences;
   late final AppCommandRegistry _commandRegistry;
+  late final AppLifecycleCoordinator _lifecycle;
   final _automationDocuments = AutomationDocumentManager();
   final _profileWorkspaceController = ProfileWorkspaceController();
   DartPluginRegistry? _stateRegistry;
@@ -512,6 +514,17 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         execute: (_) => _openLogFolder(),
       ),
     ]);
+    _lifecycle = AppLifecycleCoordinator(
+      shutdownTasks: [
+        _providerEvents.stop,
+        _viewerDataSynchronizer.stop,
+        _automationQueueManager.dispose,
+        () async => (await _profileManagerFuture).dispose(),
+        () async => (await _pluginRegistryFuture).close(),
+        _eventHub.dispose,
+        () async => widget.instanceLock?.release(),
+      ],
+    );
     unawaited(_interfacePreferences.load());
     unawaited(_restoreNavigation());
     unawaited(_openFirstRunSetupIfNeeded());
@@ -527,7 +540,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     if (Platform.isWindows) windowManager.removeListener(this);
     _graphEditor.dispose();
     _interfacePreferences.dispose();
-    final shutdown = _shutdownFuture ??= _shutdown();
+    final shutdown = _shutdownFuture ??= _lifecycle.shutdown();
     unawaited(
       shutdown.catchError((error, stackTrace) {
         stderr.writeln('ShowRunner shutdown failed: $error');
@@ -535,16 +548,6 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       }),
     );
     super.dispose();
-  }
-
-  Future<void> _shutdown() async {
-    await _providerEvents.stop();
-    await _viewerDataSynchronizer.stop();
-    await _automationQueueManager.dispose();
-    await _profileManagerFuture.then((manager) => manager.dispose());
-    await _pluginRegistryFuture.then((registry) => registry.close());
-    await _eventHub.dispose();
-    await widget.instanceLock?.release();
   }
 
   Future<void> _bindProviderStateDiagnostics() async {
