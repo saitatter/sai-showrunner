@@ -101,4 +101,79 @@ void main() {
     expect(result, {'posted': true, 'text': 'Resource post'});
     expect(requests, ['creator.test:resource-password:Resource post']);
   });
+
+  test(
+    'resolves a persisted account ID before using global credentials',
+    () async {
+      final requests = <String>[];
+      final registry = DartPluginRegistry()
+        ..register(
+          createBlueskyPlugin(
+            BlueskyTransport((identifier, password, text) async {
+              requests.add('$identifier:$password:$text');
+              return <String, dynamic>{};
+            }),
+            identifier: 'global.test',
+            appPassword: 'global-password',
+            accountResolver: (id) async => id == 'creator-account'
+                ? {
+                    'identifier': 'creator.test',
+                    'appPassword': 'resource-password',
+                  }
+                : null,
+          ),
+        );
+
+      final result = await registry.invokeAction('bluesky', 'post', {
+        'account': 'creator-account',
+        'text': 'Resolved resource post',
+      });
+
+      expect(result, {'posted': true, 'text': 'Resolved resource post'});
+      expect(requests, [
+        'creator.test:resource-password:Resolved resource post',
+      ]);
+    },
+  );
+
+  test(
+    'uses an imported account session when app-password credentials are absent',
+    () async {
+      final sessions = <String>[];
+      final registry = DartPluginRegistry()
+        ..register(
+          createBlueskyPlugin(
+            BlueskyTransport(
+              (identifier, password, text) async => <String, dynamic>{},
+              postWithSession: (session, text) async {
+                sessions.add('${session['did']}:$text');
+                return {'uri': 'at://session/post', 'cid': 'session-cid'};
+              },
+            ),
+            accountResolver: (id) async => id == 'imported-account'
+                ? {
+                    'session': {
+                      'did': 'did:plc:imported',
+                      'accessJwt': 'access-token',
+                      'refreshJwt': 'refresh-token',
+                    },
+                  }
+                : null,
+          ),
+        );
+
+      final result = await registry.invokeAction('bluesky', 'post', {
+        'account': 'imported-account',
+        'text': 'Session post',
+      });
+
+      expect(result, {
+        'posted': true,
+        'text': 'Session post',
+        'uri': 'at://session/post',
+        'cid': 'session-cid',
+      });
+      expect(sessions, ['did:plc:imported:Session post']);
+    },
+  );
 }

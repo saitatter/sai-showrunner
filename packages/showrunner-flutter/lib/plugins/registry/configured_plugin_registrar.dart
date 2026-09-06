@@ -133,11 +133,21 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
         ? blueskyServiceUrl!
         : 'https://bsky.social',
   );
+  final blueskyAccountRepository = ResourceRepository(
+    Directory('${dataService.userDirectory.path}/accounts/bluesky'),
+    resourceType: 'BlueSkyAccount',
+    secretSettings: dataService.secretSettingsStore,
+  );
   registry.register(
     createBlueskyPlugin(
-      BlueskyTransport(blueskyHttp.post),
+      BlueskyTransport(
+        blueskyHttp.post,
+        postWithSession: blueskyHttp.postWithSession,
+      ),
       identifier: blueskyIdentifier,
       appPassword: blueskyPassword,
+      accountResolver: (id) async =>
+          (await blueskyAccountRepository.load(id))?.config,
     ),
   );
   final donorDriveSettings = await dataService.loadPluginSettings('donordrive');

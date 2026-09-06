@@ -11,11 +11,15 @@ typedef BlueskyPost =
       String appPassword,
       String text,
     );
+typedef BlueskyAccountResolver = Future<RuntimeMap?> Function(String id);
+typedef BlueskySessionPost =
+    Future<RuntimeMap> Function(RuntimeMap session, String text);
 
 final class BlueskyTransport {
-  const BlueskyTransport(this.post);
+  const BlueskyTransport(this.post, {this.postWithSession});
 
   final BlueskyPost post;
+  final BlueskySessionPost? postWithSession;
 }
 
 final class BlueskyHttpTransport {
@@ -36,6 +40,26 @@ final class BlueskyHttpTransport {
     final did = session['did']?.toString().trim() ?? '';
     if (accessJwt.isEmpty || did.isEmpty) {
       throw const FormatException('Bluesky session response is incomplete.');
+    }
+    final record = await _request('/xrpc/com.atproto.repo.createRecord', {
+      'repo': did,
+      'collection': 'app.bsky.feed.post',
+      'record': {
+        r'\$type': 'app.bsky.feed.post',
+        'text': text,
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
+      },
+    }, accessToken: accessJwt);
+    return {...record, 'did': did};
+  }
+
+  Future<RuntimeMap> postWithSession(RuntimeMap session, String text) async {
+    final accessJwt = session['accessJwt']?.toString().trim() ?? '';
+    final did = session['did']?.toString().trim() ?? '';
+    if (accessJwt.isEmpty || did.isEmpty) {
+      throw const FormatException(
+        'Bluesky session credentials are incomplete.',
+      );
     }
     final record = await _request('/xrpc/com.atproto.repo.createRecord', {
       'repo': did,
@@ -118,6 +142,7 @@ DartPluginManifest createBlueskyPlugin(
   BlueskyTransport transport, {
   String? identifier,
   String? appPassword,
+  BlueskyAccountResolver? accountResolver,
 }) => DartPluginManifest(
   id: 'bluesky',
   name: 'BlueSky',
@@ -145,6 +170,7 @@ DartPluginManifest createBlueskyPlugin(
         config,
         defaultIdentifier: identifier,
         defaultPassword: appPassword,
+        accountResolver: accountResolver,
       ),
     ),
   ],
@@ -155,17 +181,34 @@ Future<Object?> _post(
   RuntimeMap config, {
   String? defaultIdentifier,
   String? defaultPassword,
+  BlueskyAccountResolver? accountResolver,
 }) async {
   final text = config['text']?.toString() ?? '';
   if (text.trim().isEmpty) {
     return {'posted': false, 'text': text, 'reason': 'Post is empty'};
   }
-  final account = config['account'];
+  final accountReference = config['account'];
+  final account = accountReference is String && accountResolver != null
+      ? await accountResolver(accountReference)
+      : accountReference;
   final accountValues = account is Map && account['config'] is Map
       ? account['config'] as Map
       : account is Map
       ? account
       : const <String, dynamic>{};
+  final session = accountValues['session'];
+  if (session is Map && transport.postWithSession != null) {
+    final response = await transport.postWithSession!(
+      Map<String, dynamic>.from(session),
+      text,
+    );
+    return {
+      'posted': true,
+      'text': text,
+      if (response['uri'] != null) 'uri': response['uri'],
+      if (response['cid'] != null) 'cid': response['cid'],
+    };
+  }
   final identifier = _firstText([
     config['identifier'],
     accountValues['identifier'],
