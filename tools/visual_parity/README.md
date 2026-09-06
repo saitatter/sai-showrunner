@@ -29,6 +29,12 @@ Inter variable font
 same selected workspace and fixture content
 ```
 
-The current repository does not contain the `main` captures yet. The
-reference catalog documents the required names and is intentionally separate
-from component goldens.
+The Flutter capture harness is run with:
+
+```powershell
+corepack yarn visual:flutter
+```
+
+It writes captures to `test/reference/flutter/`. The `main` captures are kept
+separately because they must be produced from the frozen reference build. Once
+both sides exist, compare a pair with `corepack yarn visual:compare`.

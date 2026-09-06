@@ -160,9 +160,7 @@ class ShowRunnerShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = openWorkspaces.isEmpty
-        ? [selectedWorkspace]
-        : openWorkspaces;
+    final tabs = openWorkspaces.isEmpty ? [selectedWorkspace] : openWorkspaces;
     final selectedTab = tabs.indexOf(selectedWorkspace);
     void runCommand(String id) {
       unawaited(commands.run(id, AppCommandContext(buildContext: context)));
@@ -211,7 +209,7 @@ class ShowRunnerShell extends StatelessWidget {
                       },
                       onPluginSelected: (pluginId) {
                         onPluginSelected?.call(pluginId);
-                          onDestinationSelected(WorkspaceIds.plugins);
+                        onDestinationSelected(WorkspaceIds.plugins);
                       },
                       onPluginToggle: (pluginId, enabled) =>
                           _setPluginEnabled(context, pluginId, enabled),
@@ -258,7 +256,10 @@ class ShowRunnerShell extends StatelessWidget {
           for (final activator in command.activators)
             activator: () => runCommand(command.id),
       },
-      child: Focus(autofocus: true, child: shell),
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(resizeToAvoidBottomInset: false, body: shell),
+      ),
     );
   }
 

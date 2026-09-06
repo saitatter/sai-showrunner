@@ -32,3 +32,9 @@ updater.png
 Flutter captures belong in the matching `test/reference/flutter/` directory.
 Use `tools/visual_parity/compare.mjs` for each pair and retain the JSON report
 and diff artifact outside the committed fixture set.
+
+The deterministic Flutter harness can produce its empty-shell capture with:
+
+```powershell
+corepack yarn visual:flutter
+```

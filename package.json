@@ -11,6 +11,8 @@
     "parity:check": "node ./tools/parity/check.mjs",
     "parity:product": "node ./tools/parity/product/check.mjs",
     "visual:compare": "node ./tools/visual_parity/compare.mjs",
+    "visual:flutter": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/capture-flutter-visual.ps1",
+    "test:flutter-integration": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-flutter-integration.ps1",
     "flutter:smoke-windows": "pwsh -NoProfile -File ./scripts/smoke-flutter-windows.ps1",
     "flutter:package-windows": "pwsh -NoProfile -File ./scripts/package-flutter-windows.ps1",
     "release:dry-run": "semantic-release --dry-run --no-ci"
