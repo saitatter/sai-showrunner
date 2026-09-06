@@ -436,19 +436,18 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       },
     ),
   );
-  final wyzeSettings = await dataService.loadPluginSettings('wyze');
+  final wyzeSettings = await loadWyzeAccountSettings(dataService);
   final wyzeTransport = WyzeHttpTransport(
     keyId: wyzeSettings['keyId']?.toString() ?? '',
     apiKey: wyzeSettings['apiKey']?.toString() ?? '',
     accessToken: wyzeSettings['accessToken']?.toString(),
     refreshToken: wyzeSettings['refreshToken']?.toString(),
     onTokens: (tokens) async {
-      final current = await dataService.loadPluginSettings('wyze');
-      await dataService.savePluginSettings('wyze', {
-        ...current,
-        'accessToken': tokens.accessToken,
-        'refreshToken': tokens.refreshToken,
-      });
+      await saveWyzeAccountTokens(
+        dataService,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      );
     },
   );
   registry.register(createWyzePlugin(wyzeTransport));
