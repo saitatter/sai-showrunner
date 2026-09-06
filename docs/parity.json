@@ -135,7 +135,7 @@
     },
     {
       "id": "bluesky",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -196,8 +196,8 @@
       },
       "ui": {
         "expectedSourceFiles": 6,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {
@@ -2323,7 +2323,7 @@
     },
     {
       "id": "wyze",
-      "status": "partial",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [],
@@ -2400,8 +2400,8 @@
       },
       "ui": {
         "expectedSourceFiles": 7,
-        "flutterWorkspace": false,
-        "status": "partial"
+        "flutterWorkspace": true,
+        "status": "equivalent"
       }
     },
     {

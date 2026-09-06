@@ -59,6 +59,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(
     createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
   );
+  registry.registerUi('bluesky', createBlueskyPluginUi());
   registry.register(createDonorDrivePlugin(null, eventHub: eventHub));
   registry.register(createRemotePlugin(eventHub: eventHub));
   registry.register(
@@ -99,6 +100,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(createKasaPlugin(KasaTransport(_unconfiguredKasa)));
   registry.register(createLifxPlugin(_unconfiguredLifxTransport));
   registry.register(createWyzePlugin(_unconfiguredWyzeTransport));
+  registry.registerUi('wyze', createWyzePluginUi());
   registry.register(dashboardPlugin);
   registry.register(createInputPlugin());
   registry.register(
