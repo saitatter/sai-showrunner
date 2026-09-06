@@ -31,7 +31,9 @@ IotResourceActionResolver createConfiguredIotResolver({
 
   final hasColor = device['color']?.toString().trim().isNotEmpty == true;
   final hasPower = device.containsKey('on') || device.containsKey('state');
-  final state = _iotState(device['on'] ?? device['state'] ?? 'on');
+  final requestedState = device['on'] ?? device['state'] ?? 'on';
+  final state = _iotState(requestedState);
+  final toggleAwareState = _iotStateOrToggle(requestedState);
   final color = device['color'] ?? device['lightColor'];
   final transition = device['transition'] ?? 0.5;
 
@@ -57,17 +59,29 @@ IotResourceActionResolver createConfiguredIotResolver({
         'color': color,
       }, context: context);
     case 'philips-hue':
-      if (resourceType != 'Light') {
-        throw UnsupportedError('Philips Hue plug resources are not supported.');
+      if (resourceType == 'Plug') {
+        return registry.invokeAction('philips-hue', 'setPlugState', {
+          if (device['host']?.toString().trim().isNotEmpty == true)
+            'host': device['host'],
+          if (device['hubKey']?.toString().trim().isNotEmpty == true)
+            'hubKey': device['hubKey'],
+          'lightId': providerId,
+          'state': toggleAwareState,
+        }, context: context);
       }
+      final hueResourceType = device['resourceType']?.toString().trim();
       return registry.invokeAction('philips-hue', 'setLightState', {
         if (device['host']?.toString().trim().isNotEmpty == true)
           'host': device['host'],
         if (device['hubKey']?.toString().trim().isNotEmpty == true)
           'hubKey': device['hubKey'],
         'lightId': providerId,
-        'resourceType': device['resourceType'] ?? 'light',
-        'state': state,
+        'resourceType': hueResourceType?.isNotEmpty == true
+            ? hueResourceType
+            : device['hueType']?.toString().trim().toLowerCase() == 'group'
+            ? 'grouped_light'
+            : 'light',
+        'state': toggleAwareState,
         'color': color,
         'transition': transition,
       }, context: context);
@@ -185,6 +199,13 @@ bool _iotState(Object? value) {
   if (value is bool) return value;
   final text = value?.toString().trim().toLowerCase();
   return text != 'false' && text != 'off' && text != '0';
+}
+
+Object _iotStateOrToggle(Object? value) {
+  if (value is bool) return value;
+  final text = value?.toString().trim().toLowerCase();
+  if (text == 'toggle') return 'toggle';
+  return _iotState(value);
 }
 
 int _positiveDeviceInt(Object? value, int fallback) {
