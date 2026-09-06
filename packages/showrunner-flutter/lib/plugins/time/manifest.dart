@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import '../../schema/data_input.dart';
+import '../../schema/automation.dart';
 import '../../runtime/cancellation.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
+import '../variables/runtime.dart';
 
 const _delaySchema = DartDataInputSchema(
   label: 'Delay',
@@ -30,7 +32,7 @@ const _toggleTimerSchema = DartDataInputSchema(
       required: true,
     ),
     DartDataInputSchema(
-      label: 'Running',
+      label: 'Start/Stop',
       key: 'on',
       kind: DartDataInputKind.enumeration,
       options: ['true', 'false', 'toggle'],
@@ -55,7 +57,7 @@ const _timerSchema = DartDataInputSchema(
       key: 'duration',
       kind: DartDataInputKind.duration,
       required: true,
-      defaultValue: 0,
+      defaultValue: 5,
     ),
   ],
 );
@@ -100,58 +102,62 @@ const _timerTriggerSchema = DartDataInputSchema(
   ],
 );
 
-DartPluginManifest createTimePlugin() => const DartPluginManifest(
-  id: 'time',
-  name: 'Time',
-  actions: [
-    DartActionDefinition(
-      pluginId: 'time',
-      actionId: 'delay',
-      displayName: 'Delay',
-      invoke: _delay,
-      configSchema: _delaySchema,
-    ),
-    DartActionDefinition(
-      pluginId: 'time',
-      actionId: 'toggleTimer',
-      displayName: 'Toggle Timer',
-      invoke: _toggleTimer,
-      configSchema: _toggleTimerSchema,
-    ),
-    DartActionDefinition(
-      pluginId: 'time',
-      actionId: 'setTimer',
-      displayName: 'Set Timer',
-      invoke: _setTimer,
-      configSchema: _timerSchema,
-    ),
-    DartActionDefinition(
-      pluginId: 'time',
-      actionId: 'offsetTimer',
-      displayName: 'Offset Timer',
-      invoke: _offsetTimer,
-      configSchema: _timerSchema,
-    ),
-  ],
-  triggers: [
-    DartTriggerDefinition(
-      pluginId: 'time',
-      triggerId: 'repeat',
-      displayName: 'Repeat',
-      configSchema: _repeatSchema,
-      listen: _emptyTrigger,
-      listenForConfig: _repeatEvents,
-    ),
-    DartTriggerDefinition(
-      pluginId: 'time',
-      triggerId: 'timer',
-      displayName: 'Timer',
-      configSchema: _timerTriggerSchema,
-      listen: _emptyTrigger,
-      listenForConfig: _timerEvents,
-    ),
-  ],
-);
+DartPluginManifest createTimePlugin({DartVariableRuntime? variableRuntime}) =>
+    DartPluginManifest(
+      id: 'time',
+      name: 'Time',
+      actions: [
+        DartActionDefinition(
+          pluginId: 'time',
+          actionId: 'delay',
+          displayName: 'Delay',
+          invoke: _delay,
+          configSchema: _delaySchema,
+        ),
+        DartActionDefinition(
+          pluginId: 'time',
+          actionId: 'toggleTimer',
+          displayName: 'Toggle Timer',
+          invoke: (config, context) =>
+              _toggleTimer(config, context, variableRuntime),
+          configSchema: _toggleTimerSchema,
+        ),
+        DartActionDefinition(
+          pluginId: 'time',
+          actionId: 'setTimer',
+          displayName: 'Set Timer',
+          invoke: (config, context) =>
+              _setTimer(config, context, variableRuntime),
+          configSchema: _timerSchema,
+        ),
+        DartActionDefinition(
+          pluginId: 'time',
+          actionId: 'offsetTimer',
+          displayName: 'Offset Timer',
+          invoke: (config, context) =>
+              _offsetTimer(config, context, variableRuntime),
+          configSchema: _timerSchema,
+        ),
+      ],
+      triggers: [
+        DartTriggerDefinition(
+          pluginId: 'time',
+          triggerId: 'repeat',
+          displayName: 'Repeat',
+          configSchema: _repeatSchema,
+          listen: _emptyTrigger,
+          listenForConfig: _repeatEvents,
+        ),
+        DartTriggerDefinition(
+          pluginId: 'time',
+          triggerId: 'timer',
+          displayName: 'Timer',
+          configSchema: _timerTriggerSchema,
+          listen: _emptyTrigger,
+          listenForConfig: (config) => _timerEvents(config, variableRuntime),
+        ),
+      ],
+    );
 
 final _timers = <String, _TimerValue>{};
 
@@ -171,16 +177,25 @@ Stream<RuntimeMap> _repeatEvents(RuntimeMap config) async* {
   }
 }
 
-Stream<RuntimeMap> _timerEvents(RuntimeMap config) async* {
+Stream<RuntimeMap> _timerEvents(
+  RuntimeMap config,
+  DartVariableRuntime? variableRuntime,
+) async* {
   final timerName = config['timer']?.toString().trim() ?? '';
   final offset = _duration(config['offset']);
-  var firedGeneration = -1;
+  String? firedGeneration;
   while (true) {
-    final timer = _timers[timerName];
+    if (variableRuntime != null) await variableRuntime.reload();
+    final timer = variableRuntime == null
+        ? _timers[timerName]
+        : _timerValue(variableRuntime.valueOf(timerName));
     final remaining = timer?.remaining ?? Duration.zero;
     if (timer != null && timer.endAt != null) {
-      if (timer.generation != firedGeneration && remaining <= offset) {
-        firedGeneration = timer.generation;
+      final signature = timer.signature;
+      if (signature != null &&
+          signature != firedGeneration &&
+          remaining <= offset) {
+        firedGeneration = signature;
         yield {
           'timer': timerName,
           'offset': offset.inMilliseconds / 1000,
@@ -217,10 +232,26 @@ Future<Object?> _delay(RuntimeMap config, EvaluationContext context) async {
 Future<Object?> _toggleTimer(
   RuntimeMap config,
   EvaluationContext context,
+  DartVariableRuntime? variableRuntime,
 ) async {
   final timer = config['timer']?.toString() ?? '';
   final requested = config['on'] ?? true;
   final normalized = _toggleValue(requested);
+  if (variableRuntime != null) {
+    await variableRuntime.reload();
+    final definition = variableRuntime.definitionOf(timer);
+    if (definition == null) return {'timerRunning': false};
+    final value = _timerValue(definition.currentValue) ?? _TimerValue();
+    final on = normalized == 'toggle' ? value.running : normalized == true;
+    if (on) {
+      value.endAt = DateTime.now().add(value.remaining);
+    } else {
+      value.endAt = null;
+    }
+    await variableRuntime.setValue(definition.id, value.toJson());
+    _setTimerContext(context, definition.id, value.toJson());
+    return {'timerRunning': on};
+  }
   final current = _timers.putIfAbsent(timer, _TimerValue.new);
   final on = normalized == 'toggle' ? !current.running : normalized == true;
   if (on) {
@@ -229,7 +260,7 @@ Future<Object?> _toggleTimer(
     current.endAt = null;
   }
   current.generation++;
-  return {'timer': timer, 'running': on};
+  return {'timerRunning': on};
 }
 
 dynamic _toggleValue(dynamic value) => value is String
@@ -240,9 +271,26 @@ dynamic _toggleValue(dynamic value) => value is String
       }
     : value;
 
-Future<Object?> _setTimer(RuntimeMap config, EvaluationContext context) async {
+Future<Object?> _setTimer(
+  RuntimeMap config,
+  EvaluationContext context,
+  DartVariableRuntime? variableRuntime,
+) async {
   final timer = config['timer']?.toString() ?? '';
   final seconds = (config['duration'] as num?)?.toDouble() ?? 0;
+  if (variableRuntime != null) {
+    await variableRuntime.reload();
+    final definition = variableRuntime.definitionOf(timer);
+    if (definition == null) return {'timer': timer, 'duration': seconds};
+    final value = _timerValue(definition.currentValue) ?? _TimerValue();
+    final wasRunning = value.running;
+    final duration = Duration(milliseconds: (seconds * 1000).round());
+    value.remaining = duration;
+    value.endAt = wasRunning ? DateTime.now().add(duration) : null;
+    await variableRuntime.setValue(definition.id, value.toJson());
+    _setTimerContext(context, definition.id, value.toJson());
+    return {'timer': definition.id, 'duration': seconds};
+  }
   final value = _timers.putIfAbsent(timer, _TimerValue.new);
   final wasRunning = value.running;
   final duration = Duration(milliseconds: (seconds * 1000).round());
@@ -255,9 +303,30 @@ Future<Object?> _setTimer(RuntimeMap config, EvaluationContext context) async {
 Future<Object?> _offsetTimer(
   RuntimeMap config,
   EvaluationContext context,
+  DartVariableRuntime? variableRuntime,
 ) async {
   final timer = config['timer']?.toString() ?? '';
   final seconds = (config['duration'] as num?)?.toDouble() ?? 0;
+  if (variableRuntime != null) {
+    await variableRuntime.reload();
+    final definition = variableRuntime.definitionOf(timer);
+    if (definition == null) return {'timer': timer, 'duration': 0};
+    final value = _timerValue(definition.currentValue) ?? _TimerValue();
+    final duration = Duration(milliseconds: (seconds * 1000).round());
+    if (value.endAt != null) {
+      value.endAt = value.endAt!.isAfter(DateTime.now())
+          ? value.endAt!.add(duration)
+          : DateTime.now().add(duration);
+    } else {
+      value.remaining += duration;
+    }
+    await variableRuntime.setValue(definition.id, value.toJson());
+    _setTimerContext(context, definition.id, value.toJson());
+    return {
+      'timer': definition.id,
+      'duration': value.remaining.inMilliseconds / 1000,
+    };
+  }
   final value = _timers.putIfAbsent(timer, _TimerValue.new);
   final wasRunning = value.running;
   final duration =
@@ -295,4 +364,36 @@ final class _TimerValue {
   set remaining(Duration value) => _pausedRemaining = value;
 
   Duration _pausedRemaining = Duration.zero;
+
+  String? get signature => endAt?.millisecondsSinceEpoch.toString();
+
+  JsonMap toJson() => endAt != null
+      ? {'endTime': endAt!.millisecondsSinceEpoch}
+      : {'remainingTime': remaining.inMilliseconds / 1000};
+}
+
+_TimerValue? _timerValue(dynamic raw) {
+  if (raw is! Map) return null;
+  final timer = _TimerValue();
+  final endTime = raw['endTime'];
+  if (endTime is num) {
+    timer.endAt = DateTime.fromMillisecondsSinceEpoch(endTime.toInt());
+    return timer;
+  }
+  final remainingTime = raw['remainingTime'];
+  if (remainingTime is num) {
+    timer.remaining = Duration(milliseconds: (remainingTime * 1000).round());
+    return timer;
+  }
+  return timer;
+}
+
+void _setTimerContext(EvaluationContext context, String timer, JsonMap value) {
+  context.contextState[timer] = value;
+  final variables = context.contextState['variables'];
+  if (variables is Map) {
+    variables[timer] = value;
+  } else {
+    context.contextState['variables'] = {timer: value};
+  }
 }

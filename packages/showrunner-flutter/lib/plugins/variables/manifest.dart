@@ -4,6 +4,7 @@ import '../../runtime/expression.dart';
 import '../../schema/viewer_data.dart';
 import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_contract.dart';
+import 'runtime.dart';
 
 const _variableSchema = DartDataInputSchema(
   label: 'Variable',
@@ -137,32 +138,37 @@ const _offsetVariableSchema = DartDataInputSchema(
 DartPluginManifest createVariablesPlugin({
   ViewerDataRepository? viewerDataRepository,
   DartPluginEventHub? eventHub,
+  DartVariableRuntime? variableRuntime,
 }) {
   final repository = viewerDataRepository ?? InMemoryViewerDataRepository();
   return DartPluginManifest(
     id: 'variables',
     name: 'Variables',
+    start: variableRuntime?.load,
     actions: [
       DartActionDefinition(
         pluginId: 'variables',
         actionId: 'set',
         displayName: 'Set Variable',
         configSchema: _variableSchema,
-        invoke: _setVariable,
+        invoke: (config, context) =>
+            _setVariable(config, context, variableRuntime),
       ),
       DartActionDefinition(
         pluginId: 'variables',
         actionId: 'offset',
         displayName: 'Offset Variable',
         configSchema: _offsetVariableSchema,
-        invoke: _offsetVariable,
+        invoke: (config, context) =>
+            _offsetVariable(config, context, variableRuntime),
       ),
       DartActionDefinition(
         pluginId: 'variables',
         actionId: 'setVariable',
         displayName: 'Set Variable',
         configSchema: _variableSchema,
-        invoke: _setVariable,
+        invoke: (config, context) =>
+            _setVariable(config, context, variableRuntime),
       ),
       DartActionDefinition(
         pluginId: 'variables',
@@ -180,7 +186,8 @@ DartPluginManifest createVariablesPlugin({
             ),
           ],
         ),
-        invoke: _getVariable,
+        invoke: (config, context) =>
+            _getVariable(config, context, variableRuntime),
       ),
       DartActionDefinition(
         pluginId: 'variables',
@@ -205,11 +212,22 @@ DartPluginManifest createVariablesPlugin({
 Future<Object?> _setVariable(
   RuntimeMap config,
   EvaluationContext context,
+  DartVariableRuntime? variableRuntime,
 ) async {
   final variable = config['variable']?.toString() ?? '';
   final value = config['value'];
+  if (variableRuntime != null) {
+    await variableRuntime.reload();
+    final definition = variableRuntime.definitionOf(variable);
+    if (definition == null) {
+      return {'variable': variable, 'value': null, 'updated': false};
+    }
+    final updated = await variableRuntime.setValue(variable, value);
+    _setContextVariable(context, definition.id, updated);
+    return {'variable': definition.id, 'value': updated, 'updated': true};
+  }
   if (variable.isNotEmpty) {
-    context.contextState[variable] = value;
+    _setContextVariable(context, variable, value);
   }
   return {'variable': variable, 'value': value};
 }
@@ -217,18 +235,49 @@ Future<Object?> _setVariable(
 Future<Object?> _getVariable(
   RuntimeMap config,
   EvaluationContext context,
+  DartVariableRuntime? variableRuntime,
 ) async {
   final variable = config['variable']?.toString() ?? '';
-  final value = context.contextState[variable] ?? context.locals[variable];
+  if (variableRuntime != null) {
+    await variableRuntime.reload();
+    final definition = variableRuntime.definitionOf(variable);
+    if (definition == null) return {'variable': variable, 'value': null};
+    final value = definition.currentValue;
+    _setContextVariable(context, definition.id, value);
+    return {'variable': definition.id, 'value': value};
+  }
+  final value = _contextVariable(context, variable);
   return {'variable': variable, 'value': value};
 }
 
 Future<Object?> _offsetVariable(
   RuntimeMap config,
   EvaluationContext context,
+  DartVariableRuntime? variableRuntime,
 ) async {
   final variable = config['variable']?.toString() ?? '';
-  final current = context.contextState[variable] ?? context.locals[variable];
+  if (variableRuntime != null) {
+    await variableRuntime.reload();
+    final definition = variableRuntime.definitionOf(variable);
+    final offset = config['offset'];
+    if (definition == null || offset is! num) {
+      return {
+        'variable': variable,
+        'value': definition?.currentValue,
+        'updated': false,
+      };
+    }
+    final clamp = config['clamp'];
+    final updated = await variableRuntime.offsetValue(
+      definition.id,
+      offset,
+      minimum: clamp is Map && clamp['min'] is num ? clamp['min'] as num : null,
+      maximum: clamp is Map && clamp['max'] is num ? clamp['max'] as num : null,
+    );
+    _setContextVariable(context, definition.id, updated);
+    return {'variable': definition.id, 'value': updated, 'updated': true};
+  }
+  final current = _contextVariable(context, variable);
   final offset = config['offset'];
   if (variable.isEmpty || current is! num || offset is! num) {
     return {'variable': variable, 'value': current};
@@ -241,8 +290,33 @@ Future<Object?> _offsetVariable(
     if (minimum is num && value < minimum) value = minimum;
     if (maximum is num && value > maximum) value = maximum;
   }
-  context.contextState[variable] = value;
+  _setContextVariable(context, variable, value);
   return {'variable': variable, 'value': value};
+}
+
+dynamic _contextVariable(EvaluationContext context, String variable) {
+  if (context.contextState.containsKey(variable)) {
+    return context.contextState[variable];
+  }
+  final variables = context.contextState['variables'];
+  if (variables is Map && variables.containsKey(variable)) {
+    return variables[variable];
+  }
+  return context.locals[variable];
+}
+
+void _setContextVariable(
+  EvaluationContext context,
+  String variable,
+  dynamic value,
+) {
+  context.contextState[variable] = value;
+  final state = context.contextState['variables'];
+  if (state is Map) {
+    state[variable] = value;
+  } else {
+    context.contextState['variables'] = {variable: value};
+  }
 }
 
 Future<Object?> _setViewerVar(

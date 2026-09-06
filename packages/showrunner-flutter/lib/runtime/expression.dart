@@ -6,11 +6,13 @@ final _runtimeTemplatePattern = RegExp(r'\{\{\s*([^}]+?)\s*\}\}');
 
 final class EvaluationContext {
   EvaluationContext({
-    this.locals = const <String, dynamic>{},
-    this.contextState = const <String, dynamic>{},
+    Map<String, dynamic>? locals,
+    Map<String, dynamic>? contextState,
     Map<String, RuntimeMap>? nodeResults,
     this.cancellationToken,
-  }) : nodeResults = nodeResults ?? <String, RuntimeMap>{};
+  }) : locals = Map<String, dynamic>.from(locals ?? const {}),
+       contextState = Map<String, dynamic>.from(contextState ?? const {}),
+       nodeResults = nodeResults ?? <String, RuntimeMap>{};
 
   final Map<String, dynamic> locals;
   final Map<String, dynamic> contextState;

@@ -234,13 +234,19 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   registry.register(
     createHttpPlugin(eventHub: eventHub, endpointService: httpEndpointService),
   );
-  registry.register(createTimePlugin());
+  final variableRuntime = DartVariableRuntime(
+    directory: Directory('${dataService.userDirectory.path}/variables'),
+    onChanged: (id, value) =>
+        registry.updateDynamicState('variables', id, value),
+  );
+  registry.register(createTimePlugin(variableRuntime: variableRuntime));
   registry.register(createOsPlugin());
   registry.register(createRandomPlugin(eventHub: eventHub));
   registry.register(
     createVariablesPlugin(
       viewerDataRepository: variablesRepository,
       eventHub: eventHub,
+      variableRuntime: variableRuntime,
     ),
   );
   final overlayRepository = ResourceRepository(

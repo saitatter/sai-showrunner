@@ -126,6 +126,26 @@ final class DartPluginRegistry extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Registers or updates a state exposed by a runtime-defined provider.
+  ///
+  /// Variables are user-defined in the persisted project, so their state IDs
+  /// cannot be enumerated in a const plugin manifest.
+  void updateDynamicState(String pluginId, String stateId, dynamic value) {
+    final states = _stateValues[PluginId(pluginId)];
+    if (states == null) return;
+    final typedStateId = StateId(stateId);
+    if (states[typedStateId] == value && states.containsKey(typedStateId)) {
+      return;
+    }
+    states[typedStateId] = value;
+    notifyListeners();
+  }
+
+  void removeDynamicState(String pluginId, String stateId) {
+    final states = _stateValues[PluginId(pluginId)];
+    if (states?.remove(StateId(stateId)) != null) notifyListeners();
+  }
+
   bool isPluginEnabled(String pluginId) =>
       !_disabledPluginIds.contains(PluginId(pluginId));
 

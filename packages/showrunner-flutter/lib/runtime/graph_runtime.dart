@@ -52,7 +52,11 @@ final class DartGraphRuntime {
   }) {
     return execute(
       graph: graph,
-      context: context,
+      context: EvaluationContext(
+        locals: context.locals,
+        contextState: {...registry.stateContext(), ...context.contextState},
+        cancellationToken: context.cancellationToken,
+      ),
       dataWires: dataWires,
       subgraphs: {for (final subgraph in subgraphs) subgraph.id: subgraph},
       entryNodeId: entryNodeId,
