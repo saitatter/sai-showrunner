@@ -42,11 +42,15 @@ Status values:
 
 ## Current closure order
 
-1. Add full-screen visual references and controlled screenshot comparison.
-2. Add document and runtime end-to-end fixtures.
-3. Finish media metadata extraction, worker isolation and benchmarks on top of
-   the incremental scanner.
-4. Harden the editor, composition root and packaged Windows lifecycle.
+1. Capture the frozen `main` screens and run the new controlled PNG comparison
+   for every parity-critical workspace.
+2. Expand document/runtime end-to-end coverage with close-flow and
+   failure-injection scenarios around the existing fixtures.
+3. Finish media metadata extraction and worker isolation on top of the
+   incremental scanner; the deterministic benchmark harness is already in
+   place.
+4. Harden graph-editor stress behavior and close the remaining packaged
+   updater proof.
 
 The `partial` entries are the remaining product-proof or infrastructure work.
 They are not missing plugin contracts.

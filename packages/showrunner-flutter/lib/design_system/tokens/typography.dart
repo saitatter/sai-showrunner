@@ -1,7 +1,7 @@
 abstract final class ShowRunnerTypography {
-  /// Segoe UI is the stable Windows fallback until the Inter variable font is
-  /// bundled in the desktop package. It keeps system text metrics consistent
-  /// with the native Flutter shell.
-  static const uiFontFamily = 'Segoe UI';
+  /// The renderer reference uses the bundled Inter variable font. Keeping the
+  /// same family in Flutter prevents platform-specific Windows fallbacks from
+  /// changing text metrics in parity-critical screens.
+  static const uiFontFamily = 'Inter var';
   static const monospaceFontFamily = 'Cascadia Code';
 }

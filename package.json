@@ -9,6 +9,7 @@
     "overlay:build": "yarn setup-vite && yarn workspace showrunner-obs-overlay build:test",
     "overlay:test": "vitest run",
     "parity:check": "node ./tools/parity/check.mjs",
+    "visual:compare": "node ./tools/visual_parity/compare.mjs",
     "flutter:smoke-windows": "pwsh -NoProfile -File ./scripts/smoke-flutter-windows.ps1",
     "flutter:package-windows": "pwsh -NoProfile -File ./scripts/package-flutter-windows.ps1",
     "release:dry-run": "semantic-release --dry-run --no-ci"
