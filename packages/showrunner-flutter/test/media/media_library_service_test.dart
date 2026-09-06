@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -87,6 +88,30 @@ void main() {
       expect(reader.calls, 2);
     },
   );
+
+  test('serializes overlapping scans and preserves request order', () async {
+    final root = await Directory.systemTemp.createTemp('showrunner-media-');
+    addTearDown(() => root.delete(recursive: true));
+    await Directory('${root.path}/media').create();
+    await File('${root.path}/media/alert.mp3').writeAsString('audio');
+    final reader = _BlockingMetadataReader();
+    final service = MediaLibraryService(root, metadataReader: reader);
+
+    final first = service.scan();
+    await reader.started.future;
+    final second = service.scan(mode: MediaScanMode.full);
+
+    await expectLater(
+      second.timeout(const Duration(milliseconds: 20)),
+      throwsA(isA<TimeoutException>()),
+    );
+    reader.release();
+    final results = await Future.wait([first, second]);
+
+    expect(results[0].stats.mode, MediaScanMode.quick);
+    expect(results[1].stats.mode, MediaScanMode.full);
+    expect(reader.calls, 2);
+  });
 }
 
 final class _CountingMetadataReader implements MediaMetadataReader {
@@ -97,4 +122,20 @@ final class _CountingMetadataReader implements MediaMetadataReader {
     calls++;
     return MediaMetadata(title: file.relativePath);
   }
+}
+
+final class _BlockingMetadataReader implements MediaMetadataReader {
+  final started = Completer<void>();
+  final _release = Completer<void>();
+  var calls = 0;
+
+  @override
+  Future<MediaMetadata?> read(MediaFileSnapshot file) async {
+    calls++;
+    if (!started.isCompleted) started.complete();
+    await _release.future;
+    return MediaMetadata(title: file.relativePath);
+  }
+
+  void release() => _release.complete();
 }

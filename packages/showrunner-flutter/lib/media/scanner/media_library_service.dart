@@ -31,12 +31,19 @@ final class MediaLibraryService {
   final Directory userDirectory;
   final MediaIndexStore indexStore;
   final MediaMetadataReader metadataReader;
+  Future<void> _scanTail = Future<void>.value();
 
   Directory get mediaDirectory => Directory('${userDirectory.path}/media');
 
-  Future<MediaScanResult> scan({
-    MediaScanMode mode = MediaScanMode.quick,
-  }) async {
+  Future<MediaScanResult> scan({MediaScanMode mode = MediaScanMode.quick}) {
+    final result = _scanTail.then((_) => _scanInternal(mode));
+    // Keep the queue alive after an individual scan failure while preserving
+    // the failure for the caller that requested that scan.
+    _scanTail = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return result;
+  }
+
+  Future<MediaScanResult> _scanInternal(MediaScanMode mode) async {
     final enumerator = MediaFileEnumerator(mediaDirectory);
     final snapshots = await enumerator.enumerate();
     final root = mediaDirectory.absolute.path;
