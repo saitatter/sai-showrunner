@@ -1238,7 +1238,8 @@
             "listScenes",
             "recallScene",
             "scene",
-            "setLightState"
+            "setLightState",
+            "setPlugState"
           ],
           "missing": [],
           "extra": [
@@ -1246,6 +1247,7 @@
             "listGroups",
             "listScenes",
             "setLightState",
+            "setPlugState",
             "recallScene"
           ],
           "relocated": [],
