@@ -10,6 +10,7 @@ import '../../plugins/philips_hue/discovery.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../services/provider_settings_validator.dart';
 import '../../schema/automation.dart';
+import '../../schema/data_input.dart';
 import '../../services/showrunner_data_service.dart';
 import 'plugin_visibility.dart';
 import 'plugin_metadata.dart';
@@ -372,6 +373,15 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
+                    'INTEGRATION PLUGIN',
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  Text(
                     plugin.name,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
@@ -407,6 +417,10 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
             ),
           ],
         ),
+        if (pluginDescriptionFor(plugin.id).trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(pluginDescriptionFor(plugin.id)),
+        ],
         const SizedBox(height: 20),
         TextField(
           decoration: const InputDecoration(
@@ -454,27 +468,8 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
                         )
                         .toList(),
                   ),
-          'actions' => _buildManifestTab(
-            context,
-            title: 'Actions',
-            icon: Icons.bolt,
-            values: plugin.actions
-                .map(
-                  (action) =>
-                      '${action.displayName ?? action.actionId} · ${action.actionId}',
-                )
-                .toList(),
-          ),
-          'triggers' => _buildManifestTab(
-            context,
-            title: 'Triggers',
-            icon: Icons.notifications_active_outlined,
-            values: plugin.triggers
-                .map(
-                  (trigger) => '${trigger.displayName} · ${trigger.triggerId}',
-                )
-                .toList(),
-          ),
+          'actions' => _buildActionTab(context, plugin),
+          'triggers' => _buildTriggerTab(context, plugin),
           'state' => _buildStateTab(context, plugin, registry),
           _ => _buildOverviewTab(context, plugin),
         },
@@ -559,6 +554,67 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
       context,
       title: title,
       icon: icon,
+      rows: rows,
+      emptyLabel: _detailsFilter.trim().isEmpty
+          ? 'Nothing registered yet'
+          : 'No matches for "${_detailsFilter.trim()}".',
+    );
+  }
+
+  Widget _buildActionTab(BuildContext context, DartPluginManifest plugin) {
+    final rows = plugin.actions
+        .where(
+          (action) => _matchesDetailFilter(
+            '${action.displayName ?? action.actionId} ${action.actionId}',
+          ),
+        )
+        .map(
+          (action) => ListTile(
+            dense: true,
+            leading: const Icon(Icons.bolt),
+            title: Text(action.displayName ?? action.actionId),
+            subtitle: Text(
+              '${action.actionId}\n'
+              'Config: ${_schemaSummary(action.configSchema)}\n'
+              'Result: ${_schemaSummary(action.resultSchema)}',
+            ),
+          ),
+        )
+        .toList();
+    return _buildRowsCard(
+      context,
+      title: 'Actions',
+      icon: Icons.bolt,
+      rows: rows,
+      emptyLabel: _detailsFilter.trim().isEmpty
+          ? 'Nothing registered yet'
+          : 'No matches for "${_detailsFilter.trim()}".',
+    );
+  }
+
+  Widget _buildTriggerTab(BuildContext context, DartPluginManifest plugin) {
+    final rows = plugin.triggers
+        .where(
+          (trigger) => _matchesDetailFilter(
+            '${trigger.displayName} ${trigger.triggerId}',
+          ),
+        )
+        .map(
+          (trigger) => ListTile(
+            dense: true,
+            leading: const Icon(Icons.notifications_active_outlined),
+            title: Text(trigger.displayName),
+            subtitle: Text(
+              '${trigger.triggerId}\n'
+              'Config: ${_schemaSummary(trigger.configSchema)}',
+            ),
+          ),
+        )
+        .toList();
+    return _buildRowsCard(
+      context,
+      title: 'Triggers',
+      icon: Icons.notifications_active_outlined,
       rows: rows,
       emptyLabel: _detailsFilter.trim().isEmpty
           ? 'Nothing registered yet'
@@ -740,6 +796,39 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
       ),
     );
   }
+}
+
+String _schemaSummary(DartDataInputSchema? schema) {
+  if (schema == null) return 'none';
+  if (schema.kind != DartDataInputKind.object) {
+    return '${schema.label}: ${_schemaTypeName(schema)}';
+  }
+  if (schema.fields.isEmpty) return 'none';
+  return schema.fields
+      .map((field) {
+        final required = field.required ? ', required' : '';
+        return '${field.label}: ${_schemaTypeName(field)}$required';
+      })
+      .join(', ');
+}
+
+String _schemaTypeName(DartDataInputSchema schema) {
+  if (schema.kind == DartDataInputKind.resource &&
+      schema.resourceType?.isNotEmpty == true) {
+    return 'resource<${schema.resourceType}>';
+  }
+  return switch (schema.kind) {
+    DartDataInputKind.multilineText => 'text',
+    DartDataInputKind.filePath => 'file',
+    DartDataInputKind.lightColor => 'light color',
+    DartDataInputKind.obsTransform => 'OBS transform',
+    DartDataInputKind.keyboardKey => 'keyboard key',
+    DartDataInputKind.keyCombo => 'key combo',
+    DartDataInputKind.array => 'array',
+    DartDataInputKind.object => 'object',
+    DartDataInputKind.enumeration => 'enum',
+    _ => schema.kind.name,
+  };
 }
 
 String _encodeSettingValue(Object? value) => value?.toString() ?? '';

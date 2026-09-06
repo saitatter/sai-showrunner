@@ -51,3 +51,36 @@ Color pluginColorFor(String id) => switch (id) {
   'sound' => const Color(0xfff59e0b),
   _ => const Color(0xff2dd4bf),
 };
+
+/// Descriptions mirrored from the reference integration manifests.
+///
+/// This is presentation metadata rather than part of the runtime contract;
+/// keeping it here means plugin manifests remain usable without Flutter.
+String pluginDescriptionFor(String id) => switch (id) {
+  'advss' => 'Integration for Advanced Scene Switcher by WarmUpTill',
+  'aitum' => 'Integration for Aitum OBS Plugins',
+  'bluesky' => 'Blue Sky',
+  'dashboards' => 'DASHBOARDS',
+  'discord' => 'UI Description',
+  'donordrive' => '',
+  'elgato' => 'UI Description',
+  'http' => 'UI Description',
+  'input' => 'Input!',
+  'iot' => 'UI Description',
+  'minecraft' => 'Communicate with minecraft servers via RCON',
+  'moderation' => 'Connects ShowRunner events to the SAI moderation docker.',
+  'obs' => 'Provides OBS Control over OBS Websocket 5',
+  'os' => 'Operating System',
+  'overlays' => 'Overlay Plugin',
+  'random' => 'Randomness',
+  'remote' => 'Allows various programs to remotely trigger ShowRunner',
+  'sound' => 'SOUND!',
+  'spellcast' => 'UI Description',
+  'stream-plans' => 'Stream Plan',
+  'time' => 'Time Utilities',
+  'twitch' => 'Provides Twitch triggers for chat, raids, and more',
+  'voicemod' => 'Control VoiceMod with ShowRunner',
+  'youtube' =>
+    'Provides YouTube Live triggers for chat, memberships, and paid messages.',
+  _ => '',
+};
