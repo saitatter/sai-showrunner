@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
@@ -179,7 +180,7 @@ typedef MediaKitSoundPlayback =
 /// ogg, flac, m4a, wav, etc.) and exposes WASAPI devices instead of relying on
 /// the old WinMM PCM-only path. The callback is intentionally injectable so
 /// the action layer can be tested without loading native libmpv.
-final class MediaKitSoundOutput implements SoundOutput {
+final class MediaKitSoundOutput implements AbortableSoundOutput {
   MediaKitSoundOutput({
     required this.id,
     required this.name,
@@ -192,6 +193,9 @@ final class MediaKitSoundOutput implements SoundOutput {
   final String name;
   final String? preferredDeviceDescription;
   final MediaKitSoundPlayback? playback;
+  final Map<String, Player> _players = {};
+  final Map<String, Completer<void>> _abortSignals = {};
+  final Set<String> _pendingAborts = {};
 
   @override
   Future<bool> playFile(SoundPlayRequest request) async {
@@ -202,12 +206,28 @@ final class MediaKitSoundOutput implements SoundOutput {
     if (!Platform.isWindows) return false;
 
     final file = File(request.file);
-    if (!await file.exists()) return false;
+    if (!await file.exists()) {
+      if (request.playId != null) _pendingAborts.remove(request.playId);
+      return false;
+    }
     final start = request.startSec.clamp(0, double.infinity).toDouble();
     final end = request.endSec;
-    if (end.isFinite && end <= start) return false;
+    if (end.isFinite && end <= start) {
+      if (request.playId != null) _pendingAborts.remove(request.playId);
+      return false;
+    }
 
     final player = Player();
+    final playId = request.playId;
+    if (playId != null && _pendingAborts.remove(playId)) {
+      await player.dispose();
+      return false;
+    }
+    final abortSignal = playId == null ? null : Completer<void>();
+    if (playId != null) {
+      _players[playId] = player;
+      _abortSignals[playId] = abortSignal!;
+    }
     try {
       final media = Media(
         Uri.file(file.absolute.path).toString(),
@@ -229,15 +249,42 @@ final class MediaKitSoundOutput implements SoundOutput {
         await player.setAudioDevice(AudioDevice.auto());
       }
       await player.play();
-      await Future.any<void>([
+      final completion = Future.any<void>([
         player.stream.completed.firstWhere((completed) => completed),
         player.stream.error.first.then<void>(
           (message) => throw StateError('Audio playback failed: $message'),
         ),
       ]);
+      if (abortSignal == null) {
+        await completion;
+      } else {
+        await Future.any<void>([completion, abortSignal.future]);
+      }
       return true;
     } finally {
+      if (playId != null && identical(_players[playId], player)) {
+        _players.remove(playId);
+        _abortSignals.remove(playId);
+      }
       await player.dispose();
+    }
+  }
+
+  @override
+  Future<void> abortPlay(String playId) async {
+    final signal = _abortSignals[playId];
+    if (signal == null) {
+      _pendingAborts.add(playId);
+      return;
+    }
+    if (!signal.isCompleted) signal.complete();
+    final player = _players[playId];
+    if (player != null) {
+      try {
+        await player.stop();
+      } on Object {
+        // Disposal in playFile remains the final cleanup path.
+      }
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -146,6 +147,31 @@ void main() {
     expect(await registry.playFile(file: 'test.wav', volume: 100), isTrue);
 
     expect(playedVolumes, [40, 80]);
+  });
+
+  test('aborts an active playback by its protocol play ID', () async {
+    final finished = Completer<bool>();
+    String? abortedPlayId;
+    final output = CallbackSoundOutput(
+      id: 'system.main',
+      player: (_) => finished.future,
+      aborter: (playId) async {
+        abortedPlayId = playId;
+        if (!finished.isCompleted) finished.complete(true);
+      },
+    );
+    final registry = SoundOutputRegistry(defaultOutputId: 'system.main')
+      ..register(output);
+
+    final playback = registry.playFile(
+      file: 'long-running.wav',
+      playId: 'remote-play-7',
+    );
+    await Future<void>.delayed(Duration.zero);
+    await registry.abortPlay('remote-play-7');
+
+    expect(await playback, isTrue);
+    expect(abortedPlayId, 'remote-play-7');
   });
 
   test('sound action resolves file and output fields', () async {

@@ -195,6 +195,11 @@ Future<Object?> _playSound(
   SoundOutputRegistry outputs, {
   required double globalVolume,
 }) async {
+  final abortPlayId = _firstText([config['_abortPlay']]);
+  if (abortPlayId != null) {
+    await outputs.abortPlay(abortPlayId);
+    return {'aborted': true, 'playId': abortPlayId};
+  }
   final file = _firstText(<Object?>[config['sound'], config['file']]);
   if (file == null) return {'played': false};
 
@@ -207,6 +212,7 @@ Future<Object?> _playSound(
       _soundNumber(config['volume'], 100),
       globalVolume,
     ),
+    playId: _firstText([config['_playId']]),
   );
   return {'played': result, 'sound': file};
 }

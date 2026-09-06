@@ -219,13 +219,18 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
         }
         return registry.invokeAction('sound', 'sound', {
           'output': resourceId,
+          '_playId': argument(0),
           'sound': argument(1),
           'startTime': argument(2) ?? 0,
           'endTime': argument(3),
           'volume': argument(4) ?? 100,
         }, context: context);
       case 'SoundOutput:abortPlay':
-        return null;
+        final playId = argument(0)?.toString().trim() ?? '';
+        if (playId.isEmpty) return {'aborted': false};
+        return registry.invokeAction('sound', 'sound', {
+          '_abortPlay': playId,
+        }, context: context);
       default:
         throw UnsupportedError(
           'Flutter has no local remote-resource handler for ${slot.resourceType}.$method.',

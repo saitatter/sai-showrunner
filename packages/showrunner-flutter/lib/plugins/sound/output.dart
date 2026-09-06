@@ -1,5 +1,6 @@
 typedef SoundOutputResolver = SoundOutput? Function(String id);
 typedef SoundFilePlayer = Future<bool> Function(SoundPlayRequest request);
+typedef SoundFileAborter = Future<void> Function(String playId);
 typedef SoundOutputRefresher = Future<void> Function();
 
 final class SoundPlayRequest {
@@ -8,18 +9,21 @@ final class SoundPlayRequest {
     this.startSec = 0,
     this.endSec = double.infinity,
     this.volume = 100,
+    this.playId,
   });
 
   final String file;
   final double startSec;
   final double endSec;
   final double volume;
+  final String? playId;
 
   SoundPlayRequest withVolume(double nextVolume) => SoundPlayRequest(
     file: file,
     startSec: startSec,
     endSec: endSec,
     volume: nextVolume,
+    playId: playId,
   );
 }
 
@@ -29,15 +33,25 @@ abstract interface class SoundOutput {
   Future<bool> playFile(SoundPlayRequest request);
 }
 
-final class CallbackSoundOutput implements SoundOutput {
-  CallbackSoundOutput({required this.id, required this.player});
+abstract interface class AbortableSoundOutput implements SoundOutput {
+  Future<void> abortPlay(String playId);
+}
+
+final class CallbackSoundOutput implements AbortableSoundOutput {
+  CallbackSoundOutput({required this.id, required this.player, this.aborter});
 
   @override
   final String id;
   final SoundFilePlayer player;
+  final SoundFileAborter? aborter;
 
   @override
   Future<bool> playFile(SoundPlayRequest request) => player(request);
+
+  @override
+  Future<void> abortPlay(String playId) async {
+    await aborter?.call(playId);
+  }
 }
 
 final class AudioSplitterRedirect {
@@ -68,7 +82,7 @@ final class AudioSplitterRedirect {
   }
 }
 
-final class AudioSplitterOutput implements SoundOutput {
+final class AudioSplitterOutput implements AbortableSoundOutput {
   AudioSplitterOutput({
     required this.id,
     required this.redirects,
@@ -79,24 +93,45 @@ final class AudioSplitterOutput implements SoundOutput {
   final String id;
   final List<AudioSplitterRedirect> redirects;
   final SoundOutputResolver resolve;
+  final Map<String, List<AbortableSoundOutput>> _activePlaybacks = {};
 
   @override
   Future<bool> playFile(SoundPlayRequest request) async {
     final targets = _resolveTargets(request.volume);
     if (targets.isEmpty) return false;
 
-    final results = await Future.wait(
-      targets.map((target) async {
-        try {
-          return await target.output.playFile(
-            request.withVolume(target.volume),
-          );
-        } catch (_) {
-          return false;
-        }
-      }),
-    );
-    return results.any((result) => result);
+    final playId = request.playId;
+    final abortableTargets = targets
+        .map((target) => target.output)
+        .whereType<AbortableSoundOutput>()
+        .toList(growable: false);
+    if (playId != null && abortableTargets.isNotEmpty) {
+      _activePlaybacks[playId] = abortableTargets;
+    }
+
+    try {
+      final results = await Future.wait(
+        targets.map((target) async {
+          try {
+            return await target.output.playFile(
+              request.withVolume(target.volume),
+            );
+          } catch (_) {
+            return false;
+          }
+        }),
+      );
+      return results.any((result) => result);
+    } finally {
+      if (playId != null) _activePlaybacks.remove(playId);
+    }
+  }
+
+  @override
+  Future<void> abortPlay(String playId) async {
+    final targets = _activePlaybacks[playId];
+    if (targets == null) return;
+    await Future.wait(targets.map((target) => target.abortPlay(playId)));
   }
 
   List<_ResolvedSoundOutput> _resolveTargets(double rootVolume) {
@@ -146,6 +181,8 @@ final class SoundOutputRegistry {
   String? defaultOutputId;
   final SoundOutputRefresher? refresh;
   final Map<String, SoundOutput> _outputs = {};
+  final Map<String, SoundOutput> _activePlaybacks = {};
+  final Set<String> _pendingAborts = {};
 
   Iterable<SoundOutput> get outputs => _outputs.values;
 
@@ -183,6 +220,7 @@ final class SoundOutputRegistry {
     double startSec = 0,
     double endSec = double.infinity,
     double volume = 100,
+    String? playId,
   }) async {
     // Resource editors persist splitter changes independently of the runtime
     // registry. Refresh persisted outputs before resolving the root so an
@@ -196,15 +234,42 @@ final class SoundOutputRegistry {
         ? outputId!.trim()
         : defaultOutputId;
     final output = id == null ? null : find(id);
-    if (output == null) return Future.value(false);
-    return output.playFile(
-      SoundPlayRequest(
-        file: file,
-        startSec: startSec,
-        endSec: endSec,
-        volume: volume.clamp(0, 100).toDouble(),
-      ),
+    if (output == null) {
+      if (playId != null) _pendingAborts.remove(playId.trim());
+      return false;
+    }
+    final request = SoundPlayRequest(
+      file: file,
+      startSec: startSec,
+      endSec: endSec,
+      volume: volume.clamp(0, 100).toDouble(),
+      playId: playId?.trim().isNotEmpty == true ? playId!.trim() : null,
     );
+    if (request.playId != null && _pendingAborts.remove(request.playId)) {
+      return false;
+    }
+    if (request.playId != null) _activePlaybacks[request.playId!] = output;
+    try {
+      return await output.playFile(request);
+    } finally {
+      if (request.playId != null &&
+          identical(_activePlaybacks[request.playId], output)) {
+        _activePlaybacks.remove(request.playId);
+      }
+    }
+  }
+
+  Future<void> abortPlay(String playId) async {
+    final normalized = playId.trim();
+    if (normalized.isEmpty) return;
+    final output = _activePlaybacks[normalized];
+    if (output == null) {
+      _pendingAborts.add(normalized);
+      return;
+    }
+    if (output is AbortableSoundOutput) {
+      await output.abortPlay(normalized);
+    }
   }
 }
 
