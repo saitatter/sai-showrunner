@@ -134,11 +134,13 @@ List<SoundDeviceInfo> enumerateWindowsSoundOutputs() {
 
 SoundOutputRegistry createDefaultSoundOutputRegistry({
   String? defaultOutputId,
+  SoundOutputRefresher? refresh,
 }) {
   final registry = SoundOutputRegistry(
     defaultOutputId: defaultOutputId?.trim().isNotEmpty == true
         ? defaultOutputId!.trim()
         : 'system.default',
+    refresh: refresh,
   );
   if (!Platform.isWindows) return registry;
 

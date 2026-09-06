@@ -182,22 +182,31 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   );
   final soundSettings = await dataService.loadPluginSettings('sound');
   final defaultOutput = soundSettings['defaultOutput']?.toString().trim();
-  final configuredSoundOutputs =
-      soundOutputs ??
-      createDefaultSoundOutputRegistry(defaultOutputId: defaultOutput);
-  if (soundOutputs != null && defaultOutput?.isNotEmpty == true) {
-    configuredSoundOutputs.defaultOutputId = defaultOutput;
-  }
-  if (soundOutputs == null) {
-    final splitters = await ResourceRepository(
-      Directory('${dataService.userDirectory.path}/sound/splitters'),
-    ).list();
+  final splitterDirectory = Directory(
+    '${dataService.userDirectory.path}/sound/splitters',
+  );
+  late final SoundOutputRegistry configuredSoundOutputs;
+  Future<void> refreshSoundSplitters() async {
+    final splitters = await ResourceRepository(splitterDirectory).list();
     for (final splitter in splitters) {
       configuredSoundOutputs.registerSplitterConfig(
         splitter.id,
         splitter.config,
       );
     }
+  }
+
+  configuredSoundOutputs =
+      soundOutputs ??
+      createDefaultSoundOutputRegistry(
+        defaultOutputId: defaultOutput,
+        refresh: refreshSoundSplitters,
+      );
+  if (soundOutputs != null && defaultOutput?.isNotEmpty == true) {
+    configuredSoundOutputs.defaultOutputId = defaultOutput;
+  }
+  if (soundOutputs == null) {
+    await refreshSoundSplitters();
   }
   registry.register(createVoiceModPlugin(voiceModTransport));
   registry.register(

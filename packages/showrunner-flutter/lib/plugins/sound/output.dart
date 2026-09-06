@@ -1,5 +1,6 @@
 typedef SoundOutputResolver = SoundOutput? Function(String id);
 typedef SoundFilePlayer = Future<bool> Function(SoundPlayRequest request);
+typedef SoundOutputRefresher = Future<void> Function();
 
 final class SoundPlayRequest {
   const SoundPlayRequest({
@@ -140,9 +141,10 @@ final class AudioSplitterOutput implements SoundOutput {
 }
 
 final class SoundOutputRegistry {
-  SoundOutputRegistry({this.defaultOutputId = 'system.default'});
+  SoundOutputRegistry({this.defaultOutputId = 'system.default', this.refresh});
 
   String? defaultOutputId;
+  final SoundOutputRefresher? refresh;
   final Map<String, SoundOutput> _outputs = {};
 
   Iterable<SoundOutput> get outputs => _outputs.values;
@@ -181,7 +183,15 @@ final class SoundOutputRegistry {
     double startSec = 0,
     double endSec = double.infinity,
     double volume = 100,
-  }) {
+  }) async {
+    // Resource editors persist splitter changes independently of the runtime
+    // registry. Refresh persisted outputs before resolving the root so an
+    // edited graph takes effect without restarting ShowRunner.
+    try {
+      await refresh?.call();
+    } on Object {
+      // Keep cached outputs usable while the resource directory is unavailable.
+    }
     final id = outputId?.trim().isNotEmpty == true
         ? outputId!.trim()
         : defaultOutputId;

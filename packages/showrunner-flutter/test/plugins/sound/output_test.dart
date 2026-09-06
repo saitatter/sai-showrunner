@@ -120,6 +120,34 @@ void main() {
     expect(await registry.playFile(file: 'cycle.wav'), isFalse);
   });
 
+  test('refreshes persisted splitter routes before playback', () async {
+    final playedVolumes = <double>[];
+    final output = CallbackSoundOutput(
+      id: 'system.main',
+      player: (request) async {
+        playedVolumes.add(request.volume);
+        return true;
+      },
+    );
+    var splitterVolume = 40.0;
+    late final SoundOutputRegistry registry;
+    registry = SoundOutputRegistry(
+      defaultOutputId: 'splitter',
+      refresh: () async {
+        registry.register(output);
+        registry.registerSplitter('splitter', [
+          AudioSplitterRedirect(output: 'system.main', volume: splitterVolume),
+        ]);
+      },
+    );
+
+    expect(await registry.playFile(file: 'test.wav', volume: 100), isTrue);
+    splitterVolume = 80;
+    expect(await registry.playFile(file: 'test.wav', volume: 100), isTrue);
+
+    expect(playedVolumes, [40, 80]);
+  });
+
   test('sound action resolves file and output fields', () async {
     final output = _RecordingOutput('system.main');
     final outputs = SoundOutputRegistry(defaultOutputId: 'system.main')
