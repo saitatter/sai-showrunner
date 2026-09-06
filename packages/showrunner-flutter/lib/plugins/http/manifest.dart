@@ -346,8 +346,16 @@ Future<Object?> _httpRequest(
 }
 
 Uri _appendQuery(Uri uri, String rawQuery) {
-  final extra = Uri.splitQueryString(rawQuery);
-  return uri.replace(queryParameters: {...uri.queryParameters, ...extra});
+  final query = rawQuery.startsWith('?') ? rawQuery.substring(1) : rawQuery;
+  if (query.isEmpty) return uri;
+  final source = uri.toString();
+  final fragmentIndex = source.indexOf('#');
+  final base = fragmentIndex < 0 ? source : source.substring(0, fragmentIndex);
+  final fragment = fragmentIndex < 0 ? '' : source.substring(fragmentIndex);
+  final separator = base.contains('?')
+      ? (base.endsWith('?') || base.endsWith('&') ? '' : '&')
+      : '?';
+  return Uri.parse('$base$separator$query$fragment');
 }
 
 bool _matchesEndpoint(RuntimeMap config, RuntimeMap payload) {

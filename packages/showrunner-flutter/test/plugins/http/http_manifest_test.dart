@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/http/manifest.dart';
+import 'package:showrunner_flutter/runtime/expression.dart';
 
 void main() {
   test(
@@ -64,4 +66,33 @@ void main() {
       await service.stop();
     }
   });
+
+  test(
+    'HTTP request appends query values without dropping duplicates',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      final received = Completer<Uri>();
+      server.listen((request) async {
+        if (!received.isCompleted) received.complete(request.uri);
+        request.response
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode({'ok': true}));
+        await request.response.close();
+      });
+
+      final action = createHttpPlugin().actions.single;
+      final result = await action.invoke({
+        'url': 'http://127.0.0.1:${server.port}/request?tag=original',
+        'query': 'tag=extra&tag=second&empty',
+        'method': 'GET',
+      }, EvaluationContext());
+
+      expect(result, {'ok': true});
+      final uri = await received.future;
+      expect(uri.path, '/request');
+      expect(uri.queryParametersAll['tag'], ['original', 'extra', 'second']);
+      expect(uri.queryParametersAll['empty'], ['']);
+    },
+  );
 }
