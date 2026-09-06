@@ -21,6 +21,7 @@ export 'services/showrunner_data_service.dart';
 export 'services/media_catalog_service.dart';
 export 'media/domain/media_file.dart';
 export 'media/scanner/media_library_service.dart';
+export 'media/scanner/media_library_watcher.dart';
 export 'media/persistence/media_index_store.dart';
 export 'runtime/expression.dart';
 export 'runtime/graph_runtime.dart';
