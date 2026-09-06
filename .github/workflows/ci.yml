@@ -4,9 +4,11 @@ on:
   pull_request:
     branches:
       - main
+      - migration/flutter
   push:
     branches:
       - main
+      - migration/flutter
 
 permissions:
   contents: read
@@ -40,10 +42,11 @@ jobs:
         run: |
           Push-Location packages/showrunner-flutter
           flutter pub get
-          dart format --output=none --set-exit-if-changed lib test
+          dart format --output=none --set-exit-if-changed lib test tool
           flutter analyze
           flutter test
           flutter build windows --debug
+          flutter build windows --release
           Pop-Location
 
       - name: Validate Flutter contract parity
@@ -55,6 +58,10 @@ jobs:
       - name: Smoke Flutter Windows startup
         shell: pwsh
         run: .\scripts\smoke-flutter-windows.ps1 -Configuration Debug
+
+      - name: Smoke Flutter Windows release startup
+        shell: pwsh
+        run: .\scripts\smoke-flutter-windows.ps1 -Configuration Release
 
   browser-overlay:
     runs-on: ubuntu-latest
