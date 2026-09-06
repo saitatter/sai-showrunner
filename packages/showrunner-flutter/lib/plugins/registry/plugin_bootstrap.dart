@@ -45,6 +45,7 @@ import '../iot/manifest.dart';
 import 'configured_iot_resolver.dart';
 import '../govee/manifest.dart';
 import '../philips_hue/manifest.dart';
+import '../philips_hue/resource_sync.dart';
 import '../twinkly/manifest.dart';
 import '../elgato/manifest.dart';
 import '../tplink_kasa/manifest.dart';

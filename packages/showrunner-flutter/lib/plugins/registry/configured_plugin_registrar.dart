@@ -300,6 +300,19 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       },
     ),
   );
+  if (hueTransport != null) {
+    try {
+      await PhilipsHueResourceSynchronizer(
+        lightDirectory: Directory(
+          '${dataService.userDirectory.path}/iot/lights',
+        ),
+        plugDirectory: Directory('${dataService.userDirectory.path}/iot/plugs'),
+      ).sync(configuredHueTransport);
+    } catch (_) {
+      // Resource discovery is best effort; actions can still use manually
+      // configured Hue resources when the bridge is temporarily offline.
+    }
+  }
   final twinklyTransport = TwinklyHttpTransport();
   registry.register(
     createTwinklyPlugin(TwinklyTransport(twinklyTransport.request)),
