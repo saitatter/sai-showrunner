@@ -24,7 +24,6 @@ import '../features/variables/variables_workspace.dart';
 import '../features/profile/profile_workspace.dart';
 import '../features/queue/queue_workspace.dart';
 import '../features/resources/resources_workspace.dart';
-import '../features/resources/media_workspace.dart';
 import '../features/support/support_workspaces.dart';
 import '../features/remote/remote_workspace.dart';
 import '../plugins/runtime/provider_event_workers.dart';
@@ -45,7 +44,6 @@ import '../services/update_install_service.dart';
 export 'project_panel.dart'
     show
         showRunnerHomeWorkspaceIndex,
-        showRunnerMediaWorkspaceIndex,
         showRunnerUpdatesWorkspaceIndex;
 
 class ShowRunnerShell extends StatelessWidget {
@@ -356,7 +354,6 @@ class ShowRunnerShell extends StatelessWidget {
         dataService: dataService,
         registryFuture: pluginRegistryFuture,
       ),
-      showRunnerMediaWorkspaceIndex => MediaWorkspace(dataService: dataService),
       showRunnerHomeWorkspaceIndex => MainDashboardWorkspace(
         dataService: dataService,
         actionQueue: actionQueue,
@@ -579,7 +576,6 @@ String _workspaceLabel(int index) => switch (index) {
   10 => 'Setup',
   11 => 'Variables',
   12 => 'Remote',
-  showRunnerMediaWorkspaceIndex => 'Media',
   showRunnerUpdatesWorkspaceIndex => 'Updates',
   _ => 'Workspace',
 };
@@ -598,7 +594,6 @@ IconData _workspaceIcon(int index) => switch (index) {
   10 => Icons.rocket_launch,
   11 => Icons.data_object,
   12 => Icons.public,
-  showRunnerMediaWorkspaceIndex => Icons.perm_media,
   showRunnerUpdatesWorkspaceIndex => Icons.system_update,
   showRunnerHomeWorkspaceIndex => Icons.dashboard,
   _ => Icons.dashboard,

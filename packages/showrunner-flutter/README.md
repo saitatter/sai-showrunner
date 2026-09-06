@@ -22,11 +22,10 @@ flows.
 This package contains the Flutter shell, V2 graph editor, automation and profile
 catalogs, queue and diagnostics workspaces, resource editors, provider workers,
 and Dart plugin contracts. Overlay widgets include a Flutter Shader Graph
-editor and compiler; OBS still displays the resulting browser source. The
-media workspace uses a persistent index with
-Quick and Full scan modes plus a debounced filesystem watcher. Media preview
-and playback use the existing `media_kit` boundary. OBS overlays remain
-browser-based because OBS consumes them as browser sources.
+editor and compiler; OBS still displays the resulting browser source. Local
+asset selection and sound playback remain available without a persistent media
+catalog. OBS overlays remain browser-based because OBS consumes them as browser
+sources.
 
 ## Differences from CastMate upstream
 
@@ -42,13 +41,10 @@ boundaries:
   CastMate document shapes or create automatic conversion backups;
 - first-party plugins are compiled Dart modules; external plugin code is not
   loaded in-process, and remote control uses a versioned agent protocol;
-- media indexing is SQLite-backed with fingerprinted quick scans, explicit full
-  scans, and a debounced watcher;
+- local asset selection is performed only when a resource is edited; there is no
+  persistent media catalog or background filesystem scanner;
 - OBS overlay rendering stays in the browser package because the consumer is
   an OBS Browser Source.
-
-Run `dart run tool/media_scan_benchmark.dart --files=1000` from this package to
-measure first-scan and unchanged quick-scan behavior on the current machine.
 
 All persisted automation documents use `schemaVersion: 2`. The loader rejects
 other document shapes so the runtime and editor operate on one contract.

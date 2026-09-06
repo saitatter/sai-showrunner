@@ -95,8 +95,8 @@ these production features into the same application:
   separate start and stop automations, then control the plan from the dashboard;
 - **Automation queues** — sequence alerts, sounds, scene changes, and other
   actions with queue controls and status visible in the app;
-- **Media Library** — browse local media from a persistent catalog with quick
-  scans, full scans, and automatic updates when folders change;
+- **local media assets** — choose sound, image, and video files for overlays and
+  playback without a separate media-management application;
 - **Production dashboards** — see connection health, stream plans, queue state,
   and live-service status from one workspace;
 - **Remote and Satellite control** — trigger and monitor ShowRunner from other

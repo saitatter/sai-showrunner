@@ -69,7 +69,6 @@ void main() {
     expect(find.text('Automations'), findsOneWidget);
     expect(find.text('Integrations'), findsOneWidget);
     expect(find.text('Stream Plans'), findsOneWidget);
-    expect(find.text('Media'), findsOneWidget);
     expect(find.text('Viewer Variables'), findsOneWidget);
     expect(find.text('OBS'), findsNWidgets(2));
     expect(find.text('Connections'), findsOneWidget);

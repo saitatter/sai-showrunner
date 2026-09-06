@@ -6,6 +6,8 @@ This inventory compares the Flutter replacement candidate with the frozen
 The generated contract report is `docs/parity.json`, based on
 `parity-reference/main-2026-09-05`. It currently reports 26 `improved` and 6
 `equivalent` plugin entries, with no missing contract IDs.
+The broader product-surface manifest is `docs/migration/product-surface.json`
+and is checked by `corepack yarn parity:product`.
 
 Status values:
 
@@ -38,7 +40,7 @@ Status values:
 | Updater | update page/dialog and release metadata | Update check, artifact and install services | partial | Signed installed Windows upgrade/rollback proof |
 | Data compatibility | `main` contains older document shapes | Strict V2 loader by explicit product decision | intentionally_removed | Older-shape conversion and automatic backup are out of scope |
 | External plugin templates | `plugin-template` and `plugin-native-template` | No third-party in-process loader | intentionally_removed | Resolved in `docs/architecture/adr-003-external-plugins.md` |
-| Media library | recursive media browser and import behavior | `MediaCatalogService`, SQLite `MediaIndexStore`, Quick/Full scan actions, debounced watcher and Media workspace | improved | Extended long-library correctness/performance corpus and full-screen comparison |
+| Persistent Media Library | No target product surface | No persistent catalog, scanner, database, watcher, or workspace; local file selection remains available for sound and overlay resources | intentionally_removed | Migration-only scope; not part of the target CastMate/ShowRunner product |
 | Browser-only rendering | OBS HTML/WebGL runtime | `packages/showrunner-obs-overlay` remains browser-based | not_applicable | Protocol and browser build gates |
 
 ## Current closure order
@@ -47,9 +49,7 @@ Status values:
    for every parity-critical workspace.
 2. Expand document/runtime end-to-end coverage with close-flow and
    failure-injection scenarios around the existing fixtures.
-3. Keep the media scanner within its persistent filesystem-index contract and
-   extend the long-library correctness/performance corpus as needed.
-4. Harden graph-editor stress behavior and close the remaining packaged
+3. Harden graph-editor stress behavior and close the remaining packaged
    updater proof.
 
 The `partial` entries are the remaining product-proof or infrastructure work.

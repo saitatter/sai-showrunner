@@ -2,8 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../media/domain/media_file.dart';
-import '../../media/scanner/media_file_enumerator.dart';
+import 'local_file_types.dart';
 
 class MediaPickerScope extends InheritedWidget {
   const MediaPickerScope({
