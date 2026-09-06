@@ -321,7 +321,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     createOverlaysPlugin(
       eventHub: eventHub,
       overlayStore: overlayStore,
-      onDispose: overlayBridge?.dispose,
+      onStop: overlayBridge?.dispose,
     ),
   );
   registry.registerUi('overlays', createOverlaysPluginUi());

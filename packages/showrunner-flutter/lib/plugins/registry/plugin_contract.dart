@@ -110,7 +110,6 @@ final class DartPluginManifest {
     this.healthCheck,
     this.start,
     this.stop,
-    this.dispose,
   });
 
   final String id;
@@ -123,8 +122,6 @@ final class DartPluginManifest {
   final Future<bool> Function()? healthCheck;
   final DartPluginLifecycleHook? start;
   final DartPluginLifecycleHook? stop;
-  @Deprecated('Use stop for runtime shutdown hooks.')
-  final DartPluginLifecycleHook? dispose;
 
   PluginId get pluginKey => PluginId(id);
 }

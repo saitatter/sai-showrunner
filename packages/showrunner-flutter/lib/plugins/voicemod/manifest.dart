@@ -270,7 +270,7 @@ DartPluginManifest createVoiceModPlugin(VoiceModTransport transport) =>
           invoke: (config, context) => _selectVoice(transport, config),
         ),
       ],
-      dispose: transport.close,
+      stop: transport.close,
     );
 
 Future<Object?> _selectVoice(

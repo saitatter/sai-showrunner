@@ -344,7 +344,7 @@ void main() {
         DartPluginManifest(
           id: 'lifecycle',
           name: 'Lifecycle',
-          dispose: () async => closeCount++,
+          stop: () async => closeCount++,
         ),
       );
 

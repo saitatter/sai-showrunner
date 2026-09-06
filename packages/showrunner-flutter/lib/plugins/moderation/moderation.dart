@@ -123,7 +123,7 @@ DartPluginManifest createModerationPlugin(ModerationService service) =>
       ],
       healthCheck: () async =>
           (await service.checkHealth()).health == 'healthy',
-      dispose: service.dispose,
+      stop: service.dispose,
       actions: [
         DartActionDefinition(
           pluginId: 'moderation',

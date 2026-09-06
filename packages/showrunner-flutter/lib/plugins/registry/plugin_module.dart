@@ -31,7 +31,7 @@ final class ManifestDartPluginModule implements DartPluginModule {
 
   @override
   Future<void> stop() async {
-    await (manifest.stop ?? manifest.dispose)?.call();
+    await manifest.stop?.call();
   }
 
   @override
