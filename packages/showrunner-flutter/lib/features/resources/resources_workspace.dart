@@ -306,11 +306,24 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       ),
     );
     if (confirmed != true) return;
-    await ResourceRepository(
+    final repository = ResourceRepository(
       Directory(
         '${dataService.userDirectory.path}/${_resourceDirectory(resourceType)}',
       ),
-    ).delete(resource.id);
+    );
+    if (resourceType == 'Dashboard') {
+      // The Electron resource lifecycle removes the public share before the
+      // local dashboard file. Keep the same ordering so a failed cloud
+      // request never leaves a silently orphaned share behind.
+      await DashboardCloudSyncService(dataService: dataService).synchronize(
+        ResourceData(
+          id: resource.id,
+          config: {...resource.config, 'remoteTwitchIds': const <String>[]},
+          state: resource.state,
+        ),
+      );
+    }
+    await repository.delete(resource.id);
     if (mounted) setState(_reload);
   }
 
