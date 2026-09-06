@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:yaml/yaml.dart';
 
 import '../persistence/filesystem/atomic_file.dart';
+import '../persistence/secret_settings_store.dart';
 import '../schema/automation.dart';
 
 final class ShowRunnerHealth {
@@ -23,9 +24,16 @@ final class ShowRunnerHealth {
 }
 
 final class ShowRunnerDataService {
-  const ShowRunnerDataService(this.userDirectory);
+  const ShowRunnerDataService(this.userDirectory, {this.secretSettings});
 
   final Directory userDirectory;
+  final SecretSettingsStore? secretSettings;
+
+  SecretSettingsStore get _secretStore =>
+      secretSettings ??
+      SecretSettingsStore(
+        directory: Directory('${userDirectory.path}/secrets'),
+      );
 
   Directory get settingsDirectory =>
       Directory('${userDirectory.path}/settings');
@@ -51,15 +59,36 @@ final class ShowRunnerDataService {
 
   Future<JsonMap> loadPluginSettings(String pluginId) async {
     final file = File('${settingsDirectory.path}/$pluginId.yaml');
-    if (!await file.exists()) return <String, dynamic>{};
-    final parsed = loadYaml(await file.readAsString());
-    if (parsed is! YamlMap) return <String, dynamic>{};
-    return _toMap(parsed);
+    final values = <String, dynamic>{};
+    if (await file.exists()) {
+      final parsed = loadYaml(await file.readAsString());
+      if (parsed is YamlMap) values.addAll(_toMap(parsed));
+    }
+    try {
+      values.addAll(await _secretStore.load(pluginId));
+    } on Object {
+      // Keep public settings usable if a secret file belongs to another
+      // Windows profile or cannot be decrypted in this environment.
+    }
+    return values;
   }
 
   Future<void> savePluginSettings(String pluginId, JsonMap settings) async {
+    final secretKeys = secretSettingIdsFor(pluginId);
+    final publicSettings = <String, dynamic>{
+      for (final entry in settings.entries)
+        if (!secretKeys.contains(entry.key)) entry.key: entry.value,
+    };
+    final secretSettings = <String, dynamic>{
+      for (final key in secretKeys)
+        if (settings.containsKey(key)) key: settings[key],
+    };
+    if (secretSettings.isNotEmpty) {
+      final existing = await _loadSecretSettings(pluginId);
+      await _secretStore.save(pluginId, {...existing, ...secretSettings});
+    }
     final file = File('${settingsDirectory.path}/$pluginId.yaml');
-    await writeAtomicText(file, _yamlEncode(settings));
+    await writeAtomicText(file, _yamlEncode(publicSettings));
   }
 
   Future<void> updatePluginSetting(
@@ -70,6 +99,14 @@ final class ShowRunnerDataService {
     final settings = await loadPluginSettings(pluginId);
     settings[settingId] = value;
     await savePluginSettings(pluginId, settings);
+  }
+
+  Future<JsonMap> _loadSecretSettings(String pluginId) async {
+    try {
+      return await _secretStore.load(pluginId);
+    } on Object {
+      return <String, dynamic>{};
+    }
   }
 
   Future<Map<String, JsonMap>> loadResourceConfigs(

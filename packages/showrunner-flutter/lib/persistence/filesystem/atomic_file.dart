@@ -13,3 +13,17 @@ Future<void> writeAtomicText(File file, String contents) async {
     rethrow;
   }
 }
+
+/// Byte equivalent of [writeAtomicText] for encrypted or otherwise binary
+/// artifacts.
+Future<void> writeAtomicBytes(File file, List<int> bytes) async {
+  await file.parent.create(recursive: true);
+  final temporary = File('${file.path}.tmp');
+  try {
+    await temporary.writeAsBytes(bytes, flush: true);
+    await temporary.rename(file.path);
+  } catch (_) {
+    if (await temporary.exists()) await temporary.delete();
+    rethrow;
+  }
+}
