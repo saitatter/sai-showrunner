@@ -163,14 +163,17 @@ void main() {
 
   test('checks OBS health through the transport', () async {
     final requests = <String>[];
+    final transport = CallbackObsTransport((request, data) async {
+      requests.add(request);
+      return {'obsVersion': '30.0.0'};
+    });
     final registry = DartPluginRegistry()
       ..register(
-        createObsPlugin(
-          CallbackObsTransport((request, data) async {
-            requests.add(request);
-            return {'obsVersion': '30.0.0'};
-          }),
-        ),
+        createObsPlugin(transport),
+        onHealthCheck: () async {
+          await transport.call('GetVersion', {});
+          return true;
+        },
       );
 
     expect(await registry.checkHealth('obs'), isTrue);
@@ -178,13 +181,16 @@ void main() {
   });
 
   test('reports OBS health transport failures', () async {
+    final transport = CallbackObsTransport((request, data) async {
+      throw StateError('OBS is offline');
+    });
     final registry = DartPluginRegistry()
       ..register(
-        createObsPlugin(
-          CallbackObsTransport((request, data) async {
-            throw StateError('OBS is offline');
-          }),
-        ),
+        createObsPlugin(transport),
+        onHealthCheck: () async {
+          await transport.call('GetVersion', {});
+          return true;
+        },
       );
 
     expect(await registry.checkHealth('obs'), isFalse);
