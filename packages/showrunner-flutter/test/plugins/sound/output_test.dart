@@ -6,6 +6,8 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/sound/manifest.dart';
 import 'package:showrunner_flutter/plugins/sound/output.dart';
 import 'package:showrunner_flutter/plugins/sound/windows_audio.dart';
+import 'package:showrunner_flutter/runtime/cancellation.dart';
+import 'package:showrunner_flutter/runtime/expression.dart';
 
 void main() {
   test('parses PCM WAVE data and trims playback to frame boundaries', () {
@@ -172,6 +174,35 @@ void main() {
 
     expect(await playback, isTrue);
     expect(abortedPlayId, 'remote-play-7');
+  });
+
+  test('binds graph cancellation to sound playback', () async {
+    final finished = Completer<bool>();
+    String? requestedPlayId;
+    final output = CallbackSoundOutput(
+      id: 'system.main',
+      player: (request) {
+        requestedPlayId = request.playId;
+        return finished.future;
+      },
+      aborter: (_) async {
+        if (!finished.isCompleted) finished.complete(true);
+      },
+    );
+    final outputs = SoundOutputRegistry(defaultOutputId: 'system.main')
+      ..register(output);
+    final registry = DartPluginRegistry()
+      ..register(createSoundPlugin(soundOutputs: outputs));
+    final token = DartCancellationToken(id: 'sound-cancel');
+
+    final playback = registry.invokeAction('sound', 'sound', {
+      'sound': 'long-running.wav',
+    }, context: EvaluationContext(cancellationToken: token));
+    await Future<void>.delayed(Duration.zero);
+    token.cancel();
+
+    expect(await playback, {'played': true, 'sound': 'long-running.wav'});
+    expect(requestedPlayId, 'sound-cancel');
   });
 
   test('sound action resolves file and output fields', () async {

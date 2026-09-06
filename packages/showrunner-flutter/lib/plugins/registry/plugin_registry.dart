@@ -186,6 +186,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     EvaluationContext context,
     RuntimeMap config,
   ) {
+    context.cancellationToken?.throwIfCancelled();
     final plugin = node.data['plugin'];
     final action = node.data['action'];
     final definition = plugin is String && action is String
@@ -216,6 +217,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     RuntimeMap config, {
     EvaluationContext? context,
   }) {
+    context?.cancellationToken?.throwIfCancelled();
     if (!isPluginEnabled(pluginId)) {
       throw PluginConfigurationError(
         pluginId: PluginId(pluginId),

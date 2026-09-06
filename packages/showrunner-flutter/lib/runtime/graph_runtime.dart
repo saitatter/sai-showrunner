@@ -76,6 +76,7 @@ final class DartGraphRuntime {
     void Function(String nodeId)? onNodeExit,
     int depth = 0,
   }) async {
+    context.cancellationToken?.throwIfCancelled();
     if (depth > maxDepth) {
       throw StateError('Maximum graph recursion depth exceeded: $maxDepth');
     }
@@ -90,6 +91,7 @@ final class DartGraphRuntime {
       locals: Map<String, dynamic>.from(context.locals),
       contextState: Map<String, dynamic>.from(context.contextState),
       nodeResults: results,
+      cancellationToken: context.cancellationToken,
     );
     var current = entryNodeId ?? graph.entryNodeId;
     var steps = 0;
@@ -100,6 +102,7 @@ final class DartGraphRuntime {
       current = outgoing[current]?.firstOrNull?.to ?? '';
     }
     while (current.isNotEmpty && steps < maxSteps) {
+      runtimeContext.cancellationToken?.throwIfCancelled();
       final node = nodes[current];
       if (node == null) break;
       steps++;
@@ -248,6 +251,7 @@ final class DartGraphRuntime {
             context: EvaluationContext(
               locals: inputs,
               contextState: runtimeContext.contextState,
+              cancellationToken: runtimeContext.cancellationToken,
             ),
             onNodeEnter: onNodeEnter,
             onNodeExit: onNodeExit,

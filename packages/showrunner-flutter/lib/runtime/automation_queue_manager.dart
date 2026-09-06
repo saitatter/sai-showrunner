@@ -189,6 +189,7 @@ final class DartAutomationQueueManager {
             EvaluationContext(
               locals: item.locals,
               contextState: item.contextState,
+              cancellationToken: queue.runningCancellationToken,
             ),
             item,
           );

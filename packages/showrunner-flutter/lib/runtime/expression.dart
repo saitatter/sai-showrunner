@@ -1,3 +1,5 @@
+import 'cancellation.dart';
+
 typedef RuntimeMap = Map<String, dynamic>;
 
 final _runtimeTemplatePattern = RegExp(r'\{\{\s*([^}]+?)\s*\}\}');
@@ -7,11 +9,13 @@ final class EvaluationContext {
     this.locals = const <String, dynamic>{},
     this.contextState = const <String, dynamic>{},
     Map<String, RuntimeMap>? nodeResults,
+    this.cancellationToken,
   }) : nodeResults = nodeResults ?? <String, RuntimeMap>{};
 
   final Map<String, dynamic> locals;
   final Map<String, dynamic> contextState;
   final Map<String, RuntimeMap> nodeResults;
+  final DartCancellationToken? cancellationToken;
 }
 
 /// Resolves the interpolation syntax used by persisted starter templates.

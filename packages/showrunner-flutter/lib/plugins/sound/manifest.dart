@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../runtime/expression.dart';
 import '../../schema/data_input.dart';
 import '../registry/plugin_contract.dart';
@@ -203,7 +205,9 @@ Future<Object?> _playSound(
   final file = _firstText(<Object?>[config['sound'], config['file']]);
   if (file == null) return {'played': false};
 
-  final result = await outputs.playFile(
+  final result = await _playOutput(
+    outputs,
+    context,
     outputId: _resourceId(config['output']),
     file: file,
     startSec: _soundNumber(config['startTime'], 0).clamp(0, double.infinity),
@@ -290,7 +294,9 @@ Future<Object?> _speakTTS(
   );
   final generatedFile = await fileService?.synthesizeToFile(request);
   if (generatedFile != null) {
-    final played = await outputs.playFile(
+    final played = await _playOutput(
+      outputs,
+      context,
       outputId: _resourceId(config['output']),
       file: generatedFile,
       volume: volume * 100,
@@ -299,6 +305,38 @@ Future<Object?> _speakTTS(
   }
   final result = await service.speak(request);
   return result.toMap();
+}
+
+Future<bool> _playOutput(
+  SoundOutputRegistry outputs,
+  EvaluationContext context, {
+  String? outputId,
+  required String file,
+  double startSec = 0,
+  double endSec = double.infinity,
+  double volume = 100,
+  String? playId,
+}) async {
+  final token = context.cancellationToken;
+  final effectivePlayId = _firstText([playId]) ?? token?.id;
+  void abort() {
+    final id = effectivePlayId;
+    if (id != null) unawaited(outputs.abortPlay(id));
+  }
+
+  token?.addListener(abort);
+  try {
+    return await outputs.playFile(
+      outputId: outputId,
+      file: file,
+      startSec: startSec,
+      endSec: endSec,
+      volume: volume,
+      playId: effectivePlayId,
+    );
+  } finally {
+    token?.removeListener(abort);
+  }
 }
 
 String? _firstText(Iterable<Object?> values) {

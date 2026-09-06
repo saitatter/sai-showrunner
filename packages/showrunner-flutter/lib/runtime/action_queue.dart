@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:math';
 
 import '../domain/errors/showrunner_error.dart';
+import 'cancellation.dart';
 
 final class QueuedGraphExecution {
   QueuedGraphExecution({
@@ -96,6 +97,7 @@ final class DartActionQueue {
   bool paused = false;
   int _nextId = 0;
   Future<void> Function()? _cancelRunning;
+  DartCancellationToken? _runningCancellationToken;
   bool _cancelRequested = false;
   String? _cancelReason;
 
@@ -103,6 +105,8 @@ final class DartActionQueue {
 
   bool get isRunning => running != null;
   bool get isReady => !paused && !isRunning && pending.isEmpty;
+  DartCancellationToken? get runningCancellationToken =>
+      _runningCancellationToken;
 
   void setPaused(bool value) {
     if (paused == value) return;
@@ -137,6 +141,8 @@ final class DartActionQueue {
     item.status = 'running';
     item.startedAt = DateTime.now();
     _cancelRunning = cancelRunning;
+    final cancellationToken = DartCancellationToken(id: item.id);
+    _runningCancellationToken = cancellationToken;
     _cancelRequested = false;
     _cancelReason = null;
     _changes.add(item);
@@ -147,7 +153,12 @@ final class DartActionQueue {
       if (limit == null) {
         await operation;
       } else {
-        await operation.timeout(limit);
+        try {
+          await operation.timeout(limit);
+        } on TimeoutException {
+          cancellationToken.cancel();
+          rethrow;
+        }
       }
       item.status = _cancelRequested ? 'cancelled' : 'completed';
       item.reason = _cancelRequested ? _cancelReason : null;
@@ -177,6 +188,7 @@ final class DartActionQueue {
       }
       running = null;
       _cancelRunning = null;
+      _runningCancellationToken = null;
       _cancelRequested = false;
       _cancelReason = null;
       _changes.add(null);
@@ -220,6 +232,7 @@ final class DartActionQueue {
     item.status = 'cancelling';
     item.reason = reason;
     _changes.add(item);
+    _runningCancellationToken?.cancel();
     final cancel = _cancelRunning;
     if (cancel != null) await cancel();
   }

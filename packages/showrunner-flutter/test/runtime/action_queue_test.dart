@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
+import 'package:showrunner_flutter/runtime/cancellation.dart';
 import 'package:showrunner_flutter/persistence/queue_repository.dart';
 import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
 import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
@@ -33,10 +34,12 @@ void main() {
     );
     final started = Completer<void>();
     var cancelled = false;
+    DartCancellationToken? token;
     queue.enqueue({'type': 'manual'}, {});
 
     final processing = queue.processNext((item) async {
       started.complete();
+      token = queue.runningCancellationToken;
       await Future<void>.delayed(const Duration(seconds: 1));
       return null;
     }, cancelRunning: () async => cancelled = true);
@@ -44,6 +47,7 @@ void main() {
     await queue.cancelRunning();
     await expectLater(processing, throwsA(isA<TimeoutException>()));
     expect(cancelled, isTrue);
+    expect(token?.isCancelled, isTrue);
     expect(queue.running, isNull);
   });
 

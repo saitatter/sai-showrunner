@@ -1676,7 +1676,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         final loaded = AutomationData.fromJson(queued.source);
         return const DartGraphRuntime().executeWithRegistry(
           graph: loaded.graph,
-          context: EvaluationContext(),
+          context: EvaluationContext(
+            cancellationToken: _actionQueue.runningCancellationToken,
+          ),
           registry: registry,
           dataWires: loaded.dataWires,
           subgraphs: loaded.subgraphs,
@@ -1708,7 +1710,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         final loaded = AutomationData.fromJson(queued.source);
         return const DartGraphRuntime().executeWithRegistry(
           graph: loaded.graph,
-          context: EvaluationContext(),
+          context: EvaluationContext(
+            cancellationToken: _actionQueue.runningCancellationToken,
+          ),
           registry: registry,
           dataWires: loaded.dataWires,
           subgraphs: loaded.subgraphs,
