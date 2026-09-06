@@ -77,6 +77,7 @@ class ResourceRepository {
         throw const FormatException('Resource JSON must contain an object.');
       }
       return _normalizeResource(
+        file,
         ResourceData.fromJson(Map<String, dynamic>.from(decoded)),
       );
     }
@@ -85,18 +86,47 @@ class ResourceRepository {
       throw const FormatException('Resource YAML must contain a map.');
     }
     final id = file.uri.pathSegments.last.replaceFirst(RegExp(r'\.yaml$'), '');
-    return _normalizeResource(ResourceData(id: id, config: _yamlMap(parsed)));
+    return _normalizeResource(
+      file,
+      ResourceData(id: id, config: _yamlMap(parsed)),
+    );
   }
 
-  ResourceData _normalizeResource(ResourceData resource) {
+  Future<ResourceData> _normalizeResource(
+    File file,
+    ResourceData resource,
+  ) async {
     final config = resource.config;
     if (!config.containsKey('segments') ||
         !config.containsKey('activationAutomation')) {
       return resource;
     }
+    final normalizedConfig = const LegacyImportService().normalizeStreamPlanMap(
+      config,
+    );
+    if (jsonEncode(normalizedConfig) == jsonEncode(config)) {
+      return resource;
+    }
+
+    // Inline stream-plan automations were persisted by the Electron runtime
+    // in the same resource file. Keep the original recoverable before
+    // replacing it with the canonical V2 representation.
+    await backupOriginalFile(file);
+    await writeAtomicText(
+      file,
+      file.path.endsWith('.yaml')
+          ? _encodeYaml(normalizedConfig)
+          : const JsonEncoder.withIndent('  ').convert(
+              ResourceData(
+                id: resource.id,
+                config: normalizedConfig,
+                state: resource.state,
+              ).toJson(),
+            ),
+    );
     return ResourceData(
       id: resource.id,
-      config: const LegacyImportService().normalizeStreamPlanMap(config),
+      config: normalizedConfig,
       state: resource.state,
     );
   }

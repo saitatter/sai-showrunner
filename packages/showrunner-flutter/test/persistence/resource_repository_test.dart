@@ -65,35 +65,36 @@ void main() {
         'showrunner-stream-plan-schema-',
       );
       addTearDown(() => directory.delete(recursive: true));
-      final repository = ResourceRepository(directory);
-      final file = File('${directory.path}/plan.json');
-      await file.writeAsString(
-        jsonEncode({
-          'id': 'plan',
-          'config': {
-            'name': 'Legacy plan',
-            'activationAutomation': {
-              'sequence': {'actions': []},
-            },
-            'deactivationAutomation': {
-              'sequence': {'actions': []},
-            },
-            'segments': [
-              {
-                'id': 'intro',
-                'name': 'Intro',
-                'components': {},
-                'activationAutomation': {
-                  'sequence': {'actions': []},
-                },
-                'deactivationAutomation': {
-                  'sequence': {'actions': []},
-                },
-              },
-            ],
+      final storage = Directory('${directory.path}/stream-plans');
+      await storage.create(recursive: true);
+      final repository = ResourceRepository(storage);
+      final file = File('${storage.path}/plan.json');
+      final legacy = {
+        'id': 'plan',
+        'config': {
+          'name': 'Legacy plan',
+          'activationAutomation': {
+            'sequence': {'actions': []},
           },
-        }),
-      );
+          'deactivationAutomation': {
+            'sequence': {'actions': []},
+          },
+          'segments': [
+            {
+              'id': 'intro',
+              'name': 'Intro',
+              'components': {},
+              'activationAutomation': {
+                'sequence': {'actions': []},
+              },
+              'deactivationAutomation': {
+                'sequence': {'actions': []},
+              },
+            },
+          ],
+        },
+      };
+      await file.writeAsString(jsonEncode(legacy));
 
       final loaded = await repository.load('plan');
       final config = loaded!.config;
@@ -101,6 +102,28 @@ void main() {
       expect(config['activationAutomation']['schemaVersion'], 2);
       expect(config['activationAutomation'].containsKey('sequence'), isFalse);
       expect(config['segments'][0]['activationAutomation']['schemaVersion'], 2);
+      final persisted = await file.readAsString();
+      expect(persisted, isNot(contains('sequence')));
+      final backups = Directory('${directory.path}/backup');
+      expect(await backups.exists(), isTrue);
+      final backupFiles = await backups
+          .list(recursive: true)
+          .where((entity) => entity is File)
+          .cast<File>()
+          .toList();
+      expect(backupFiles, hasLength(1));
+      expect(await backupFiles.single.readAsString(), jsonEncode(legacy));
+
+      final reopened = await repository.load('plan');
+      expect(reopened!.config['activationAutomation']['schemaVersion'], 2);
+      expect(
+        (await backups
+            .list(recursive: true)
+            .where((entity) => entity is File)
+            .cast<File>()
+            .toList()),
+        hasLength(1),
+      );
     },
   );
 }
