@@ -50,7 +50,8 @@ directory and does not modify `user/`.
 - connect Twitch, YouTube, OBS, moderation, sound, lighting, remote controls,
   and other production tools;
 - organize profiles and stream plans for different shows or broadcasts;
-- create and manage browser overlays for OBS;
+- create and manage browser overlays for OBS, including shader-driven effects
+  built with a visual Shader Graph editor;
 - keep projects, settings, diagnostics, and updates in one Windows app.
 
 ## Browser overlay boundary

@@ -21,7 +21,9 @@ flows.
 
 This package contains the Flutter shell, V2 graph editor, automation and profile
 catalogs, queue and diagnostics workspaces, resource editors, provider workers,
-and Dart plugin contracts. The media workspace uses a persistent index with
+and Dart plugin contracts. Overlay widgets include a Flutter Shader Graph
+editor and compiler; OBS still displays the resulting browser source. The
+media workspace uses a persistent index with
 Quick and Full scan modes plus a debounced filesystem watcher. Media preview
 and playback use the existing `media_kit` boundary. OBS overlays remain
 browser-based because OBS consumes them as browser sources.

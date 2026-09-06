@@ -7,8 +7,10 @@ import Bar from "./widgets/Bar.vue"
 import LeaderBoard from "./widgets/LeaderBoard.vue"
 import ChatFeed from "./widgets/ChatFeed.vue"
 import ShaderLayer from "./widgets/ShaderLayer.vue"
+import PaidAlert from "./widgets/PaidAlert.vue"
+import SceneBanner from "./widgets/SceneBanner.vue"
 
 export default definePluginOverlays({
 	id: "overlays",
-	widgets: [LabelVue, EmoteBouncer, Alert, Bar, LeaderBoard, ChatFeed, ShaderLayer],
+	widgets: [LabelVue, EmoteBouncer, Alert, Bar, LeaderBoard, ChatFeed, ShaderLayer, PaidAlert, SceneBanner],
 })

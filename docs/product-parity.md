@@ -29,7 +29,8 @@ Status values:
 | Stream plans | stream-plan editor and resources | Stream Plan resource/editor/runtime surfaces | improved | Full-screen visual comparison |
 | Integrations | plugin details/settings pages | Typed Dart plugin registry, workspaces, health and settings | improved | Full-screen visual comparison |
 | Resources | resource store and resource editors | Resource repositories, typed editors, resource workspaces | improved | Full-screen visual comparison |
-| Overlays | Vue browser-source overlay and editor | Flutter resource configuration plus browser overlay package | equivalent | Overlay visual/protocol comparison |
+| Overlays | Vue browser-source overlay and editor | Flutter resource configuration, Shader Graph editor/compiler, plus browser overlay package | improved | Overlay visual/protocol comparison in OBS |
+| Shader Graph | `shader-graph/shader-nodes.ts`, `shader-graph-state.ts`, `ShaderGraphEditor.vue` | Flutter `shader_graph_model`, `shader_graph_compiler`, `shader_graph_editor` using `sai_nodes` | improved | Compare compiled shaders and final OBS visuals |
 | Variables | variable nodes and viewer data | Persistent variable resources and viewer-variable workspace | improved | Runtime fixtures |
 | Queues | queue page and dashboard queue widgets | Queue workspace, queue manager and graph actions | improved | Runtime fixtures and E2E flow |
 | Logs and diagnostics | integration feedback and update/status surfaces | Structured logs and diagnostics workspace | equivalent | Failure-injection E2E suite |
