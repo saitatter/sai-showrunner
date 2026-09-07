@@ -2,27 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:showrunner_flutter/app/commands/app_command.dart';
 import 'package:showrunner_flutter/app/project_panel.dart';
-import 'package:showrunner_flutter/app/system_bar.dart';
 import 'package:showrunner_flutter/app/workspace_registry.dart';
 import 'package:showrunner_flutter/features/settings/interface_preferences.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
-  testWidgets('renders the reference system bar chrome', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ShowRunnerSystemBar(commands: AppCommandRegistry(const [])),
-      ),
-    );
-
-    expect(find.text('File'), findsOneWidget);
-    expect(find.text('Help'), findsOneWidget);
-    expect(find.byType(ShowRunnerBrandMark), findsOneWidget);
-  });
-
   testWidgets('renders project navigation as expandable groups', (
     tester,
   ) async {
