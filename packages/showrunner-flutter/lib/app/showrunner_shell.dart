@@ -170,19 +170,7 @@ class ShowRunnerShell extends StatelessWidget {
       color: ShowRunnerColors.background,
       child: Column(
         children: [
-          ShowRunnerSystemBar(
-            commands: commands,
-            centerContent: _WorkspaceTabBar(
-              tabs: tabs,
-              selectedWorkspace: selectedWorkspace,
-              activeAutomationDirty: activeAutomationDirty,
-              hasActiveAutomation: activeAutomationFile != null,
-              activeProfileDirty: profileDirty,
-              onSelected: onTabSelected ?? (_) {},
-              onClosed: onTabClosed ?? (_) {},
-              onReordered: onTabReordered ?? (_, _) {},
-            ),
-          ),
+          ShowRunnerSystemBar(commands: commands),
           Expanded(
             child: Row(
               children: [
@@ -231,6 +219,16 @@ class ShowRunnerShell extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
+                      _WorkspaceTabBar(
+                        tabs: tabs,
+                        selectedWorkspace: selectedWorkspace,
+                        activeAutomationDirty: activeAutomationDirty,
+                        hasActiveAutomation: activeAutomationFile != null,
+                        activeProfileDirty: profileDirty,
+                        onSelected: onTabSelected ?? (_) {},
+                        onClosed: onTabClosed ?? (_) {},
+                        onReordered: onTabReordered ?? (_, _) {},
+                      ),
                       Expanded(
                         child: IndexedStack(
                           index: selectedTab < 0 ? 0 : selectedTab,
