@@ -3,6 +3,19 @@ import 'package:flutter/foundation.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../services/showrunner_data_service.dart';
 
+enum WindowCloseBehavior {
+  ask,
+  hideToTray,
+  alwaysClose;
+
+  static WindowCloseBehavior? fromStored(Object? value) => switch (value) {
+    'ask' => WindowCloseBehavior.ask,
+    'hideToTray' => WindowCloseBehavior.hideToTray,
+    'alwaysClose' => WindowCloseBehavior.alwaysClose,
+    _ => null,
+  };
+}
+
 final class FlutterInterfacePreferences extends ChangeNotifier {
   FlutterInterfacePreferences({
     required this.dataService,
@@ -30,6 +43,7 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
   final ShowRunnerDataService dataService;
   final Map<String, bool> _values = Map<String, bool>.from(_defaults);
   double _projectSidebarWidth = defaultProjectSidebarWidth;
+  WindowCloseBehavior _windowCloseBehavior = WindowCloseBehavior.ask;
   bool _loading = true;
   bool _saving = false;
 
@@ -46,6 +60,7 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
       value('collapseIntegrationCategoriesByDefault');
   bool get showPluginSwitches => value('showPluginSwitches');
   double get projectSidebarWidth => _projectSidebarWidth;
+  WindowCloseBehavior get windowCloseBehavior => _windowCloseBehavior;
 
   Future<void> load() async {
     try {
@@ -56,6 +71,9 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
         final value = settings[entry.key];
         if (value is bool) _values[entry.key] = value;
       }
+      _windowCloseBehavior =
+          WindowCloseBehavior.fromStored(settings['windowCloseBehavior']) ??
+          WindowCloseBehavior.ask;
       final sidebarWidth = settings['projectSidebarWidth'];
       if (sidebarWidth is num && sidebarWidth.isFinite) {
         _projectSidebarWidth = _clampProjectSidebarWidth(
@@ -87,10 +105,12 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
   Future<void> reset() async {
     final previous = Map<String, bool>.from(_values);
     final previousSidebarWidth = _projectSidebarWidth;
+    final previousCloseBehavior = _windowCloseBehavior;
     _values
       ..clear()
       ..addAll(_defaults);
     _projectSidebarWidth = defaultProjectSidebarWidth;
+    _windowCloseBehavior = WindowCloseBehavior.ask;
     notifyListeners();
     try {
       await _saveValues();
@@ -99,6 +119,7 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
         ..clear()
         ..addAll(previous);
       _projectSidebarWidth = previousSidebarWidth;
+      _windowCloseBehavior = previousCloseBehavior;
       notifyListeners();
       rethrow;
     }
@@ -114,6 +135,20 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
       await _saveValues();
     } catch (_) {
       _projectSidebarWidth = previous;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> setWindowCloseBehavior(WindowCloseBehavior behavior) async {
+    if (behavior == _windowCloseBehavior) return;
+    final previous = _windowCloseBehavior;
+    _windowCloseBehavior = behavior;
+    notifyListeners();
+    try {
+      await _saveValues();
+    } catch (_) {
+      _windowCloseBehavior = previous;
       notifyListeners();
       rethrow;
     }
@@ -140,6 +175,7 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
       await dataService.savePluginSettings('showrunner-flutter', {
         ...settings,
         ..._values,
+        'windowCloseBehavior': _windowCloseBehavior.name,
         'projectSidebarWidth': _projectSidebarWidth,
       });
     } finally {

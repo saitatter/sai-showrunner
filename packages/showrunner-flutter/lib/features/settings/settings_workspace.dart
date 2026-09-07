@@ -81,6 +81,15 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace> {
     }
   }
 
+  Future<void> _setWindowCloseBehavior(WindowCloseBehavior behavior) async {
+    setState(() => _error = null);
+    try {
+      await widget.preferences.setWindowCloseBehavior(behavior);
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    }
+  }
+
   Future<void> _enableAll() async {
     setState(() => _error = null);
     try {
@@ -202,6 +211,33 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace> {
                 ],
               ),
             ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.notifications_active_outlined),
+              title: const Text('When closing ShowRunner'),
+              subtitle: const Text(
+                'Choose whether closing hides ShowRunner in the system tray or exits it.',
+              ),
+              trailing: DropdownButton<WindowCloseBehavior>(
+                value: widget.preferences.windowCloseBehavior,
+                onChanged: widget.preferences.isSaving
+                    ? null
+                    : (behavior) {
+                        if (behavior != null) {
+                          _setWindowCloseBehavior(behavior);
+                        }
+                      },
+                items: [
+                  for (final behavior in WindowCloseBehavior.values)
+                    DropdownMenuItem(
+                      value: behavior,
+                      child: Text(_windowCloseBehaviorLabel(behavior)),
+                    ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           FutureBuilder<void>(
             future: _pluginSettingsFuture,
@@ -331,6 +367,13 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace> {
     );
   }
 }
+
+String _windowCloseBehaviorLabel(WindowCloseBehavior behavior) =>
+    switch (behavior) {
+      WindowCloseBehavior.ask => 'Ask every time',
+      WindowCloseBehavior.hideToTray => 'Always hide to tray',
+      WindowCloseBehavior.alwaysClose => 'Always close',
+    };
 
 String _displaySettingValue(dynamic value) {
   if (value is Map || value is List) return value.toString();

@@ -14,6 +14,7 @@ import 'app/data_directory.dart';
 import 'app/lifecycle/app_lifecycle_coordinator.dart';
 import 'app/startup_health.dart';
 import 'app/showrunner_shell.dart';
+import 'app/showrunner_tray.dart';
 import 'app/single_instance_lock.dart';
 import 'app/window_configuration.dart';
 import 'app/workspace_document_manager.dart';
@@ -122,6 +123,8 @@ class ShowRunnerFlutterApp extends StatelessWidget {
 
 enum _CloseDecision { save, discard, cancel }
 
+enum _WindowCloseChoice { hide, close, cancel }
+
 Future<List<String>> _resourceOptions(
   ShowRunnerDataService dataService,
   String resourceType,
@@ -155,6 +158,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   late final FlutterInterfacePreferences _interfacePreferences;
   late final AppCommandRegistry _commandRegistry;
   late final AppLifecycleCoordinator _lifecycle;
+  ShowRunnerTrayController? _tray;
   final _automationDocuments = AutomationDocumentManager();
   final _profileWorkspaceController = ProfileWorkspaceController();
   DartPluginRegistry? _stateRegistry;
@@ -214,6 +218,19 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _interfacePreferences = FlutterInterfacePreferences(
       dataService: widget.dataService,
     );
+    if (Platform.isWindows) {
+      final tray = ShowRunnerTrayController(
+        onShowRequested: _showWindow,
+        onExitRequested: () => _handleWindowClose(forceClose: true),
+      );
+      _tray = tray;
+      unawaited(
+        tray.initialize().catchError((error, stackTrace) {
+          stderr.writeln('ShowRunner tray initialization failed: $error');
+          stderr.writeln(stackTrace);
+        }),
+      );
+    }
     _commandRegistry = AppCommandRegistrar(
       selectedWorkspace: () => _workspaceDocuments.selectedWorkspace,
       graphEditorVisible: widget.showGraphEditor,
@@ -264,6 +281,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     if (Platform.isWindows) windowManager.removeListener(this);
     _graphEditor.dispose();
     _interfacePreferences.dispose();
+    final tray = _tray;
+    _tray = null;
+    unawaited(tray?.dispose() ?? Future<void>.value());
     final shutdown = _shutdownFuture ??= _lifecycle.shutdown();
     unawaited(
       shutdown.catchError((error, stackTrace) {
@@ -320,10 +340,76 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     unawaited(_handleWindowClose());
   }
 
-  Future<bool> _handleWindowClose() async {
+  Future<void> _showWindow() async {
+    final tray = _tray;
+    if (tray != null) {
+      await tray.showWindow();
+    } else {
+      await windowManager.show();
+      await windowManager.focus();
+    }
+  }
+
+  Future<bool> _hideToTray() async {
+    try {
+      final tray = _tray;
+      if (tray == null) return false;
+      await tray.hideWindow();
+      return true;
+    } catch (error, stackTrace) {
+      stderr.writeln('ShowRunner could not hide to tray: $error');
+      stderr.writeln(stackTrace);
+      return false;
+    }
+  }
+
+  Future<_WindowCloseChoice> _askWindowCloseChoice() async {
+    return await showDialog<_WindowCloseChoice>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text('Close ShowRunner?'),
+            content: const Text(
+              'Would you like to keep ShowRunner running in the system tray or close it completely?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_WindowCloseChoice.cancel),
+                child: const Text('Cancel'),
+              ),
+              OutlinedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_WindowCloseChoice.hide),
+                child: const Text('Hide to tray'),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_WindowCloseChoice.close),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        ) ??
+        _WindowCloseChoice.cancel;
+  }
+
+  Future<bool> _handleWindowClose({bool forceClose = false}) async {
     if (!mounted || _isWindowCloseInProgress) return false;
     _isWindowCloseInProgress = true;
     try {
+      if (!forceClose) {
+        final behavior = _interfacePreferences.windowCloseBehavior;
+        if (behavior == WindowCloseBehavior.hideToTray) {
+          if (await _hideToTray()) return false;
+        } else if (behavior == WindowCloseBehavior.ask) {
+          final choice = await _askWindowCloseChoice();
+          if (choice == _WindowCloseChoice.cancel) return false;
+          if (choice == _WindowCloseChoice.hide) {
+            if (await _hideToTray()) return false;
+          }
+        }
+      }
       if (!await _confirmAllAutomationClose()) return false;
       if (!await _profileWorkspaceController.confirmClose()) return false;
       await saveShowRunnerWindowState(_windowStateFile);

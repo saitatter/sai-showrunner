@@ -17,19 +17,23 @@ void main() {
       await dataService.savePluginSettings('showrunner-flutter', {
         'disabledPlugins': ['obs'],
         'hideDisabledIntegrations': true,
+        'windowCloseBehavior': 'hideToTray',
         'projectSidebarWidth': 360,
       });
 
       final preferences = FlutterInterfacePreferences(dataService: dataService);
       await preferences.load();
       expect(preferences.hideDisabledIntegrations, isTrue);
+      expect(preferences.windowCloseBehavior, WindowCloseBehavior.hideToTray);
       expect(preferences.projectSidebarWidth, 360);
 
       await preferences.setValue('showPluginSwitches', false);
+      await preferences.setWindowCloseBehavior(WindowCloseBehavior.alwaysClose);
       await preferences.setProjectSidebarWidth(500);
       final saved = await dataService.loadPluginSettings('showrunner-flutter');
       expect(saved['hideDisabledIntegrations'], isTrue);
       expect(saved['showPluginSwitches'], isFalse);
+      expect(saved['windowCloseBehavior'], 'alwaysClose');
       expect(saved['disabledPlugins'], ['obs']);
       expect(saved['projectSidebarWidth'], 420);
       await preferences.setProjectSidebarWidth(100);
@@ -58,6 +62,7 @@ void main() {
 
       expect(preferences.compactProjectSidebar, isFalse);
       expect(preferences.hideNativeIntegrationShortcuts, isTrue);
+      expect(preferences.windowCloseBehavior, WindowCloseBehavior.ask);
       expect(
         preferences.projectSidebarWidth,
         FlutterInterfacePreferences.defaultProjectSidebarWidth,
