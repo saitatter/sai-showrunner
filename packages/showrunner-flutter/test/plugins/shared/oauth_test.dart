@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/services/oauth_token.dart';
 import 'package:showrunner_flutter/services/provider_settings_validator.dart';
@@ -48,6 +50,41 @@ void main() {
       request.authorizationUrl.queryParameters['scope'],
       'chat.read chat.write',
     );
+  });
+
+  test('completes the Twitch-style browser fragment flow', () async {
+    final flow = const OAuthImplicitAuthorizationFlow();
+    final token = await flow.authorize(
+      authorizationEndpoint: 'https://id.twitch.tv/oauth2/authorize',
+      clientId: 'public-client',
+      scopes: const ['chat:read'],
+      openAuthorizationUrl: (url) async {
+        expect(url.queryParameters['response_type'], 'token');
+        expect(url.queryParameters['client_id'], 'public-client');
+        expect(url.queryParameters.containsKey('client_secret'), isFalse);
+        final redirect = Uri.parse(url.queryParameters['redirect_uri']!);
+        final client = HttpClient();
+        try {
+          final page = await client.getUrl(redirect);
+          await page.close();
+          final callback = redirect.replace(
+            queryParameters: {
+              'access_token': 'browser-token',
+              'state': url.queryParameters['state']!,
+              'expires_in': '3600',
+            },
+          );
+          final response = await client.getUrl(callback);
+          await response.close();
+        } finally {
+          client.close(force: true);
+        }
+      },
+    );
+
+    expect(token.accessToken, 'browser-token');
+    expect(token.refreshToken, isNull);
+    expect(token.expiresAt, isNotNull);
   });
 
   test('validates provider settings before transport startup', () {

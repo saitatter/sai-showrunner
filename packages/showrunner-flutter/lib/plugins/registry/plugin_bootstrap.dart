@@ -194,17 +194,23 @@ OAuthTokenManager? _createTokenManager({
   final refreshToken = settings['refreshToken'] as String?;
   final clientId = settings['clientId'] as String?;
   final clientSecret = settings['clientSecret'] as String?;
+  final canUsePublicTwitchToken =
+      pluginId == 'twitch' && accessToken?.isNotEmpty == true;
   if ((accessToken?.isNotEmpty != true && refreshToken?.isNotEmpty != true) ||
       clientId?.isNotEmpty != true ||
-      clientSecret?.isNotEmpty != true) {
+      (clientSecret?.isNotEmpty != true && !canUsePublicTwitchToken)) {
     return null;
   }
   final rawExpiry = settings['expiresAt'];
   final expiresAt = rawExpiry is String ? DateTime.tryParse(rawExpiry) : null;
+  final effectiveRefreshToken =
+      pluginId == 'twitch' && clientSecret?.isNotEmpty != true
+      ? null
+      : refreshToken;
   final manager = OAuthTokenManager(
     current: OAuthTokenSet(
       accessToken: accessToken ?? '',
-      refreshToken: refreshToken,
+      refreshToken: effectiveRefreshToken,
       expiresAt: expiresAt,
     ),
     refresh: (token) async {

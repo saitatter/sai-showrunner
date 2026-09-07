@@ -153,6 +153,129 @@ final class OAuthAuthorizationFlow {
   }
 }
 
+/// OAuth implicit flow used by Twitch's public desktop application client.
+///
+/// Twitch returns the token in the URL fragment, which browsers deliberately
+/// do not send to an HTTP server. The callback page therefore forwards the
+/// fragment to the loopback server with a same-origin request.
+final class OAuthImplicitAuthorizationFlow {
+  const OAuthImplicitAuthorizationFlow({
+    this.httpServerFactory = _bindLoopback,
+  });
+
+  final Future<HttpServer> Function() httpServerFactory;
+
+  Future<OAuthTokenSet> authorize({
+    required String authorizationEndpoint,
+    required String clientId,
+    required List<String> scopes,
+    required Future<void> Function(Uri authorizationUrl) openAuthorizationUrl,
+    Duration timeout = const Duration(minutes: 5),
+  }) async {
+    final server = await httpServerFactory();
+    final redirectUri = Uri(
+      scheme: 'http',
+      host: InternetAddress.loopbackIPv4.host,
+      port: server.port,
+      path: '/oauth/callback',
+    );
+    final state = createOAuthState();
+    final authorizationUrl = Uri.parse(authorizationEndpoint).replace(
+      queryParameters: {
+        'client_id': clientId,
+        'redirect_uri': redirectUri.toString(),
+        'response_type': 'token',
+        'scope': scopes.join(' '),
+        'state': state,
+        'force_verify': 'true',
+      },
+    );
+    try {
+      final token = _readCallback(server, state, timeout);
+      await openAuthorizationUrl(authorizationUrl);
+      return await token;
+    } finally {
+      await server.close(force: true);
+    }
+  }
+
+  Future<OAuthTokenSet> _readCallback(
+    HttpServer server,
+    String expectedState,
+    Duration timeout,
+  ) async {
+    try {
+      await for (final request in server.timeout(timeout)) {
+        if (request.uri.path != '/oauth/callback') {
+          request.response.statusCode = HttpStatus.notFound;
+          await request.response.close();
+          continue;
+        }
+        final query = request.uri.queryParameters;
+        final response = request.response;
+        response.headers.contentType = ContentType.html;
+        if (query.isEmpty) {
+          response.write(_implicitCallbackPage);
+          await response.close();
+          continue;
+        }
+        if (query['error'] != null) {
+          response.write('Authorization failed. You can close this window.');
+          await response.close();
+          throw StateError('OAuth authorization failed: ${query['error']}');
+        }
+        if (query['state'] != expectedState) {
+          response.write(
+            'Authorization state did not match. You can close this window.',
+          );
+          await response.close();
+          throw StateError('OAuth authorization state did not match.');
+        }
+        final accessToken = query['access_token'];
+        if (accessToken == null || accessToken.isEmpty) {
+          response.write(
+            'Authorization token was missing. You can close this window.',
+          );
+          await response.close();
+          throw const FormatException(
+            'OAuth callback did not contain an access token.',
+          );
+        }
+        response.write('Authorization complete. You can close this window.');
+        await response.close();
+        final expiresIn = int.tryParse(query['expires_in'] ?? '');
+        return OAuthTokenSet(
+          accessToken: accessToken,
+          expiresAt: expiresIn == null
+              ? null
+              : DateTime.now().add(Duration(seconds: expiresIn)),
+        );
+      }
+      throw TimeoutException('OAuth authorization timed out.', timeout);
+    } on TimeoutException {
+      rethrow;
+    }
+  }
+}
+
+const _implicitCallbackPage = '''
+<!doctype html>
+<html><head><meta charset="utf-8"><title>ShowRunner Twitch sign-in</title></head>
+<body>
+<p>Completing Twitch authorization…</p>
+<script>
+const fragment = window.location.hash.substring(1);
+if (fragment) {
+  fetch(window.location.pathname + '?' + fragment)
+    .then(() => document.body.innerHTML = '<p>Authorization complete. You can close this window.</p>')
+    .catch(() => document.body.innerHTML = '<p>Authorization could not be delivered. You can close this window.</p>');
+} else {
+  document.body.innerHTML = '<p>No authorization response was received.</p>';
+}
+</script>
+</body></html>
+''';
+
 final class OAuthTokenClient {
   const OAuthTokenClient({this.httpClientFactory = _defaultHttpClient});
 

@@ -42,6 +42,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
   Object? _obsTestError;
   Object? _error;
   Future<List<ResourceData?>>? _twitchAccountsFuture;
+  bool _twitchAccountsReady = false;
   String? _twitchAccountBusy;
   Object? _twitchAccountError;
 
@@ -118,6 +119,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
           port > 0 &&
           port <= 65535;
     }
+    if (_pluginId == 'twitch') return _twitchAccountsReady;
     final settings = _settings[_pluginId] ?? const <String, dynamic>{};
     return (_clientIdController.text.trim().isNotEmpty &&
             _clientSecretController.text.trim().isNotEmpty) ||
@@ -127,31 +129,34 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
 
   void _reloadTwitchAccounts() {
     final auth = TwitchAccountAuthService(dataService: widget.dataService);
-    _twitchAccountsFuture = Future.wait([
+    final future = Future.wait([
       auth.loadAccount('channel'),
       auth.loadAccount('bot'),
     ]);
+    _twitchAccountsFuture = future;
+    future.then((accounts) {
+      if (!mounted) return;
+      setState(() {
+        _twitchAccountsReady = accounts.every(_isAuthenticated);
+      });
+    });
     if (mounted) setState(() {});
   }
 
+  static bool _isAuthenticated(ResourceData? account) {
+    final config = account?.config ?? const <String, dynamic>{};
+    return config['accessToken']?.toString().isNotEmpty == true &&
+        config['twitchId']?.toString().isNotEmpty == true;
+  }
+
   Future<void> _signInTwitchAccount(String accountId) async {
-    final clientId = _clientIdController.text.trim();
-    final clientSecret = _clientSecretController.text;
-    if (clientId.isEmpty || clientSecret.isEmpty) {
-      setState(() {
-        _twitchAccountError =
-            'Save the Twitch OAuth client ID and secret before signing in.';
-      });
-      return;
-    }
     setState(() {
       _twitchAccountBusy = accountId;
       _twitchAccountError = null;
     });
     try {
       final current = <String, dynamic>{...?_settings['twitch']};
-      current['clientId'] = clientId;
-      current['clientSecret'] = clientSecret;
+      current['clientId'] = twitchPublicClientId;
       await widget.dataService.savePluginSettings('twitch', current);
       _settings['twitch'] = current;
       await TwitchAccountAuthService(
@@ -187,6 +192,8 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
         );
         _obsResourceId = id;
         current['obsDefault'] = id;
+      } else if (_pluginId == 'twitch') {
+        current['clientId'] = twitchPublicClientId;
       } else {
         current['clientId'] = _clientIdController.text.trim();
         current['clientSecret'] = _clientSecretController.text;
@@ -269,7 +276,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
         const SizedBox(height: 8),
         Text(
           _isDone
-              ? 'Setup complete. Provider credentials can be authorized from Plugins.'
+              ? 'Setup complete. You can manage integrations from Plugins.'
               : 'Configure the providers ShowRunner uses for chat, automation, and OBS control.',
         ),
         const SizedBox(height: 24),
@@ -305,7 +312,9 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
           children: [
             Row(
               children: [
-                Icon(_pluginId == 'obs' ? Icons.tv : Icons.live_tv),
+                _pluginId == 'twitch'
+                    ? const TwitchBrandIcon()
+                    : Icon(_pluginId == 'obs' ? Icons.tv : Icons.live_tv),
                 const SizedBox(width: 10),
                 Text(
                   providerName,
@@ -373,6 +382,37 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
                     ),
                 ],
               ),
+            ] else if (_pluginId == 'twitch') ...[
+              Text(
+                'Sign in to both your channel account and your bot account. '
+                'If you do not use a separate bot, sign in the channel account twice.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 12),
+              _buildTwitchAccounts(context),
+              if (_twitchAccountError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Twitch sign-in error: $_twitchAccountError',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  _ready ? Icons.check_circle : Icons.info_outline,
+                  color: _ready ? Colors.green : null,
+                ),
+                title: Text(
+                  _ready
+                      ? 'Both accounts are connected'
+                      : 'Sign-in is still required',
+                ),
+                subtitle: const Text(
+                  'The sign-in buttons open Twitch in your browser.',
+                ),
+              ),
             ] else ...[
               TextField(
                 controller: _clientIdController,
@@ -391,25 +431,6 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
                 ),
               ),
               const SizedBox(height: 12),
-              if (_pluginId == 'twitch') ...[
-                Text(
-                  'Sign in to both your channel account and your bot account. '
-                  'If you do not use a separate bot, sign in the channel account twice.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 12),
-                _buildTwitchAccounts(context),
-                if (_twitchAccountError != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Twitch sign-in error: $_twitchAccountError',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-              ],
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
@@ -422,9 +443,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
                       : 'Authorization is still required',
                 ),
                 subtitle: Text(
-                  _pluginId == 'twitch'
-                      ? 'Use the account buttons above to run browser authorization.'
-                      : 'Use the Plugins tab to run the browser authorization flow.',
+                  'Use the Plugins tab to run the browser authorization flow.',
                 ),
                 trailing: OutlinedButton(
                   onPressed: () => widget.onOpenPlugin(_pluginId),
@@ -528,10 +547,11 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: Icon(
-            icon,
-            color: authenticated ? Colors.green : Colors.amber,
-          ),
+          leading: accountId == 'channel'
+              ? TwitchBrandIcon(
+                  color: authenticated ? Colors.green : const Color(0xff9146ff),
+                )
+              : Icon(icon, color: authenticated ? Colors.green : Colors.amber),
           title: Text(title),
           subtitle: Text(
             authenticated
@@ -555,6 +575,52 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
       ),
     );
   }
+}
+
+class TwitchBrandIcon extends StatelessWidget {
+  const TwitchBrandIcon({super.key, this.color = const Color(0xff9146ff)});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    size: const Size.square(24),
+    painter: _TwitchBrandIconPainter(color),
+  );
+}
+
+class _TwitchBrandIconPainter extends CustomPainter {
+  const _TwitchBrandIconPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale = size.shortestSide / 24;
+    final body = Path()
+      ..moveTo(3 * scale, 2 * scale)
+      ..lineTo(21 * scale, 2 * scale)
+      ..lineTo(21 * scale, 16 * scale)
+      ..lineTo(14 * scale, 16 * scale)
+      ..lineTo(10 * scale, 21 * scale)
+      ..lineTo(10 * scale, 16 * scale)
+      ..lineTo(3 * scale, 16 * scale)
+      ..close();
+    canvas.drawPath(body, Paint()..color = color);
+    final glyphPaint = Paint()..color = Colors.white;
+    canvas.drawRect(
+      Rect.fromLTWH(8 * scale, 6 * scale, 2 * scale, 6 * scale),
+      glyphPaint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(14 * scale, 6 * scale, 2 * scale, 6 * scale),
+      glyphPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TwitchBrandIconPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _StepIndicator extends StatelessWidget {

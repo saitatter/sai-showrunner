@@ -17,6 +17,10 @@ typedef TwitchAccountAuthorizer =
 typedef TwitchIdentityLoader =
     Future<JsonMap> Function(String accessToken, String clientId);
 
+/// Public Twitch application client used by the reference desktop app.
+/// Twitch's implicit flow does not require users to provide an app secret.
+const twitchPublicClientId = 'qnybd4aoxlom3u3wjbsstsp5yd2sdl';
+
 /// Signs in and persists one of the reference Twitch account resources.
 ///
 /// The channel and bot accounts deliberately share the configured OAuth app,
@@ -37,20 +41,19 @@ final class TwitchAccountAuthService {
   Future<ResourceData> authorizeAccount(String accountId) async {
     final normalizedId = _accountId(accountId);
     final settings = await dataService.loadPluginSettings('twitch');
-    final clientId = settings['clientId']?.toString().trim() ?? '';
+    final configuredClientId = settings['clientId']?.toString().trim() ?? '';
+    final clientId = configuredClientId.isEmpty
+        ? twitchPublicClientId
+        : configuredClientId;
     final clientSecret = settings['clientSecret']?.toString().trim() ?? '';
-    if (clientId.isEmpty || clientSecret.isEmpty) {
+    if (authorize != null && clientSecret.isEmpty) {
       throw StateError(
         'Twitch client ID and client secret are required before account sign-in.',
       );
     }
     final scopes = normalizedId == 'bot' ? _botScopes : _channelScopes;
     final token = authorize == null
-        ? await _authorizeWithBrowser(
-            clientId: clientId,
-            clientSecret: clientSecret,
-            scopes: scopes,
-          )
+        ? await _authorizeWithBrowser(clientId: clientId, scopes: scopes)
         : await authorize!(
             clientId: clientId,
             clientSecret: clientSecret,
@@ -80,6 +83,10 @@ final class TwitchAccountAuthService {
       if (token.expiresAt != null)
         'expiresAt': token.expiresAt!.toIso8601String(),
     };
+    await dataService.savePluginSettings('twitch', {
+      ...settings,
+      'clientId': clientId,
+    });
     final updated = ResourceData(
       id: normalizedId,
       config: config,
@@ -100,24 +107,12 @@ final class TwitchAccountAuthService {
 
   Future<OAuthTokenSet> _authorizeWithBrowser({
     required String clientId,
-    required String clientSecret,
     required List<String> scopes,
-  }) => OAuthAuthorizationFlow().authorize(
-    requestBuilder: (redirectUri) {
-      final state = createOAuthState();
-      return const OAuthAuthorizationClient().buildRequest(
-        authorizationEndpoint: 'https://id.twitch.tv/oauth2/authorize',
-        clientId: clientId,
-        redirectUri: redirectUri.toString(),
-        state: state,
-        scopes: scopes,
-      );
-    },
-    openAuthorizationUrl: openAuthorizationUrl ?? _openAuthorizationUrl,
-    tokenClient: const OAuthTokenClient(),
-    tokenEndpoint: 'https://id.twitch.tv/oauth2/token',
+  }) => OAuthImplicitAuthorizationFlow().authorize(
+    authorizationEndpoint: 'https://id.twitch.tv/oauth2/authorize',
     clientId: clientId,
-    clientSecret: clientSecret,
+    scopes: scopes,
+    openAuthorizationUrl: openAuthorizationUrl ?? _openAuthorizationUrl,
   );
 }
 
