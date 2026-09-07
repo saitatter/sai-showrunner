@@ -36,6 +36,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Enable Corepack
+        shell: pwsh
+        run: corepack enable
+
+      - name: Install parity dependencies
+        shell: pwsh
+        run: yarn install --immutable
+        env:
+          YARN_ENABLE_SCRIPTS: false
 
       - name: Analyze, test, and build Flutter desktop app
         shell: pwsh
@@ -54,9 +66,8 @@ jobs:
       - name: Validate Flutter contract parity
         shell: pwsh
         run: |
-          corepack enable
-          corepack yarn parity:check
-          corepack yarn parity:product
+          yarn parity:check
+          yarn parity:product
 
       - name: Smoke Flutter Windows startup
         shell: pwsh
