@@ -71,6 +71,7 @@ class ShowRunnerSystemBar extends StatelessWidget {
                   _commandMenuItem('file.exit', commandContext, commands),
                 ],
               ),
+              const SizedBox(width: 4),
               _SystemMenuButton(
                 label: 'Help',
                 onSelected: runCommand,
@@ -95,7 +96,7 @@ class ShowRunnerSystemBar extends StatelessWidget {
   }
 }
 
-class _SystemMenuButton extends StatelessWidget {
+class _SystemMenuButton extends StatefulWidget {
   const _SystemMenuButton({
     required this.label,
     required this.onSelected,
@@ -107,13 +108,64 @@ class _SystemMenuButton extends StatelessWidget {
   final PopupMenuItemBuilder<String> itemBuilder;
 
   @override
-  Widget build(BuildContext context) => PopupMenuButton<String>(
-    tooltip: label,
-    onSelected: onSelected,
-    itemBuilder: itemBuilder,
-    padding: const EdgeInsets.symmetric(horizontal: 10),
-    child: Text(label),
-  );
+  State<_SystemMenuButton> createState() => _SystemMenuButtonState();
+}
+
+class _SystemMenuButtonState extends State<_SystemMenuButton> {
+  bool _hovered = false;
+  bool _opened = false;
+
+  void _setHovered(bool hovered) {
+    if (mounted) setState(() => _hovered = hovered);
+  }
+
+  void _setOpened(bool opened) {
+    if (mounted) setState(() => _opened = opened);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final highlighted = _hovered || _opened;
+    return MouseRegion(
+      onEnter: (_) => _setHovered(true),
+      onExit: (_) => _setHovered(false),
+      child: PopupMenuButton<String>(
+        tooltip: widget.label,
+        onOpened: () => _setOpened(true),
+        onCanceled: () => _setOpened(false),
+        onSelected: (value) {
+          _setOpened(false);
+          widget.onSelected(value);
+        },
+        itemBuilder: widget.itemBuilder,
+        padding: EdgeInsets.zero,
+        position: PopupMenuPosition.under,
+        offset: const Offset(0, 2),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: ShowRunnerSpacing.toolbarHeight - 8,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: highlighted ? ShowRunnerColors.surfaceD : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: _opened
+                  ? ShowRunnerColors.primary.withValues(alpha: 0.7)
+                  : Colors.transparent,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(widget.label),
+              const SizedBox(width: 4),
+              const Icon(Icons.keyboard_arrow_down, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 PopupMenuItem<String> _commandMenuItem(

@@ -21,6 +21,7 @@ void main() {
     expect(find.text('File'), findsOneWidget);
     expect(find.text('Help'), findsOneWidget);
     expect(find.byType(ShowRunnerBrandMark), findsOneWidget);
+    expect(find.byIcon(Icons.keyboard_arrow_down), findsNWidgets(2));
   });
 
   testWidgets('renders project navigation as expandable groups', (
