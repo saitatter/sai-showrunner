@@ -699,7 +699,7 @@ class _ProjectGroupBlock extends StatelessWidget {
                 child: Text(
                   title,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: compact ? 12.5 : 14),
+                  style: TextStyle(fontSize: compact ? 13.5 : 15.5),
                 ),
               ),
             ],
@@ -759,7 +759,7 @@ class _ProjectItemRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: textColor,
-                      fontSize: compact ? 12.5 : 14,
+                      fontSize: compact ? 13.5 : 15.5,
                     ),
                   ),
                 ),
@@ -1221,7 +1221,7 @@ class _IntegrationShortcutGroupView extends StatelessWidget {
                 child: Text(
                   group.title,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: compact ? 12.5 : 14),
+                  style: TextStyle(fontSize: compact ? 13.5 : 15.5),
                 ),
               ),
             ],
@@ -1331,7 +1331,13 @@ class _IntegrationCategoryHeader extends StatelessWidget {
           ),
           Icon(icon, size: 17),
           const SizedBox(width: 7),
-          Expanded(child: Text(title, overflow: TextOverflow.ellipsis)),
+          Expanded(
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: compact ? 13.5 : 15.5),
+            ),
+          ),
         ],
       ),
     ),
@@ -1432,7 +1438,7 @@ class _HighlightedIntegrationName extends StatelessWidget {
   Widget build(BuildContext context) {
     final baseStyle = TextStyle(
       color: selected ? ShowRunnerColors.highlightText : ShowRunnerColors.text,
-      fontSize: compact ? 12.5 : 14,
+      fontSize: compact ? 13.5 : 15.5,
     );
     final needle = query.trim();
     if (needle.isEmpty) {
