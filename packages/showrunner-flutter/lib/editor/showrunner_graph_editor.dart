@@ -11,10 +11,7 @@ import '../runtime/automation_recovery.dart';
 import '../plugins/registry/plugin_bootstrap.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
-import 'sai_nodes/content_revision.dart';
-import 'sai_nodes/coordinate_transform.dart';
 import 'sai_nodes/showrunner_clipboard_payload.dart';
-import 'sai_nodes/selection_navigation.dart';
 
 enum GraphNodeExecutionStatus { running, success, error }
 
@@ -106,8 +103,6 @@ class ShowRunnerGraphEditor {
   final Map<String, List<GraphEdge>> _invalidFlowEdgesByGraph = {};
   final Map<String, List<DataWire>> _invalidDataWiresByGraph = {};
   final Map<NodeEditorController, StreamSubscription> _fieldEvents = {};
-  final Map<NodeEditorController, SaiNodesSelectionNavigation>
-  _selectionNavigation = {};
   final Map<String, String> _entryNodeIdByGraph = {};
   final Set<String> _variableEditorIds = {};
   final ValueNotifier<List<String>> activeGraphPath = ValueNotifier(const []);
@@ -127,12 +122,10 @@ class ShowRunnerGraphEditor {
   final ValueNotifier<bool> documentDirty = ValueNotifier(false);
   final Map<String, String> _nodeTitles = {};
   final Map<String, String> _prototypeTitles = {};
-  final _clipboardPayload = ShowRunnerClipboardPayloadStore();
+  String? _clipboardFallbackPayload;
   // Trigger metadata is separate from executable trigger nodes so persisted
   // trigger subscriptions can be restored without changing node prototypes.
   final Set<String> _triggerEditorIds = {};
-  List<String>? _pendingPasteNodeIds;
-  List<ShowRunnerClipboardSnapshot>? _pendingPasteSnapshots;
   bool _triggerNodeStateInitialized = false;
   bool _suspendDirtyTracking = false;
 
@@ -159,18 +152,20 @@ class ShowRunnerGraphEditor {
   }
 
   NodeEditorController _createController() {
-    final created = NodeEditorController(
+    late final NodeEditorController created;
+    created = NodeEditorController(
       config: const NodeEditorConfig(
         autoBuildGraph: false,
         autoRunGraph: false,
         enableNodeResize: true,
       ),
+      clipboardPayloadEncoder: _encodeClipboardPayload,
+      clipboardPayloadDecoder: _decodeClipboardPayload,
       onCallback: (type, message) {
         debugPrint('sai_nodes $type: $message');
         if (type == CallbackType.error) graphFeedback.value = message;
       },
     );
-    _selectionNavigation[created] = SaiNodesSelectionNavigation(created);
     _registerPrototypes(created);
     _fieldEvents[created] = created.eventBus.events.listen((event) {
       _markDocumentDirtyFromEvent(event);
@@ -185,13 +180,6 @@ class ShowRunnerGraphEditor {
       }
       if (event is AddNodeEvent) {
         _trackAddedNode(created, event.node);
-      }
-      if (event is PasteSelectionEvent) {
-        _restorePastedMetadata();
-      }
-      if (event is CopySelectionEvent) {
-        _clipboardPayload.inMemoryPayload = event.clipboardContent;
-        _rememberClipboardMetadata(event.clipboardContent);
       }
       if (event is! NodeFieldEvent ||
           event.eventType == FieldEventType.change) {
@@ -219,8 +207,7 @@ class ShowRunnerGraphEditor {
   }
 
   void _markDocumentDirtyFromEvent(NodeEditorEvent event) {
-    if (_suspendDirtyTracking ||
-        !SaiNodesContentRevision.isContentMutation(event)) {
+    if (_suspendDirtyTracking || !isNodeEditorContentMutation(event)) {
       return;
     }
     _markDocumentDirty();
@@ -234,65 +221,27 @@ class ShowRunnerGraphEditor {
   void restoreDocumentDirty(bool dirty) => documentDirty.value = dirty;
 
   Future<String> copySelection({BuildContext? context}) async {
-    final snapshots = controller.selectedNodeIds
-        .map(_clipboardSnapshotForNode)
-        .whereType<ShowRunnerClipboardSnapshot>()
-        .toList();
     final payload = await controller.clipboard.copySelection(context: context);
-    if (payload.isNotEmpty && snapshots.isNotEmpty) {
-      _clipboardPayload.inMemoryPayload = payload;
-      _rememberClipboardMetadata(payload, snapshots: snapshots);
-    }
+    if (payload.isNotEmpty) _clipboardFallbackPayload = payload;
     return payload;
   }
 
   Future<void> pasteSelection({Offset? position, BuildContext? context}) async {
     final clipboardData = await Clipboard.getData('text/plain');
-    final clipboardContent =
-        clipboardData?.text ?? _clipboardPayload.inMemoryPayload;
-    final existingNodeIds = controller.nodes.keys.toSet();
-    _pendingPasteNodeIds = [];
-    _pendingPasteSnapshots = clipboardContent == null
-        ? null
-        : _clipboardPayload.snapshotsFor(clipboardContent);
+    final clipboardContent = clipboardData?.text?.isNotEmpty == true
+        ? clipboardData!.text
+        : _clipboardFallbackPayload;
+    if (context != null && !context.mounted) return;
     await controller.clipboard.pasteSelection(
       position: position,
+      context: context,
       clipboardContent: clipboardContent,
     );
-    if (_pendingPasteSnapshots != null &&
-        (_pendingPasteNodeIds?.isEmpty ?? false)) {
-      _pendingPasteNodeIds = controller.nodes.keys
-          .where((id) => !existingNodeIds.contains(id))
-          .toList();
-    }
-    _restorePastedMetadata();
   }
 
   Future<void> cutSelection({BuildContext? context}) async {
-    final snapshots = controller.selectedNodeIds
-        .map(_clipboardSnapshotForNode)
-        .whereType<ShowRunnerClipboardSnapshot>()
-        .toList();
     final payload = await controller.clipboard.cutSelection(context: context);
-    if (payload.isNotEmpty && snapshots.isNotEmpty) {
-      _clipboardPayload.inMemoryPayload = payload;
-      _rememberClipboardMetadata(payload, snapshots: snapshots);
-    }
-  }
-
-  void _rememberClipboardMetadata(
-    String payload, {
-    List<ShowRunnerClipboardSnapshot>? snapshots,
-  }) {
-    if (payload.isEmpty) return;
-    final value =
-        snapshots ??
-        controller.selectedNodeIds
-            .map(_clipboardSnapshotForNode)
-            .whereType<ShowRunnerClipboardSnapshot>()
-            .toList();
-    if (value.isEmpty) return;
-    _clipboardPayload.remember(payload, value);
+    if (payload.isNotEmpty) _clipboardFallbackPayload = payload;
   }
 
   ShowRunnerClipboardSnapshot? _clipboardSnapshotForNode(String nodeId) {
@@ -309,8 +258,49 @@ class ShowRunnerGraphEditor {
     );
   }
 
+  Map<String, dynamic>? _encodeClipboardPayload(Iterable<NodeDataModel> nodes) {
+    final snapshots = nodes
+        .map((node) => _clipboardSnapshotForNode(node.id))
+        .whereType<ShowRunnerClipboardSnapshot>()
+        .map((snapshot) => snapshot.toJson())
+        .toList();
+    return snapshots.isEmpty ? null : {'version': 1, 'snapshots': snapshots};
+  }
+
+  void _decodeClipboardPayload(
+    Map<String, dynamic> payload,
+    Iterable<NodeDataModel> pastedNodes,
+  ) {
+    final rawSnapshots = payload['snapshots'];
+    if (rawSnapshots is! List) return;
+
+    final snapshots = rawSnapshots
+        .map(ShowRunnerClipboardSnapshot.fromJson)
+        .whereType<ShowRunnerClipboardSnapshot>()
+        .toList();
+    final nodes = pastedNodes.toList();
+    var restored = false;
+    for (
+      var index = 0;
+      index < snapshots.length && index < nodes.length;
+      index++
+    ) {
+      final nodeId = nodes[index].id;
+      final snapshot = snapshots[index];
+      _nodeDataByEditorId[nodeId] = _cloneJsonMap(snapshot.data);
+      _schemaIdByEditorId[nodeId] = nodeId;
+      if (snapshot.title != null) _nodeTitles[nodeId] = snapshot.title!;
+      if (snapshot.isVariable) _variableEditorIds.add(nodeId);
+      if (snapshot.isTrigger) {
+        _triggerEditorIds.add(nodeId);
+        _triggerNodeStateInitialized = true;
+      }
+      restored = true;
+    }
+    if (restored) nodeRevision.value++;
+  }
+
   void _trackAddedNode(NodeEditorController owner, NodeDataModel node) {
-    _pendingPasteNodeIds?.add(node.id);
     _schemaIdByEditorId.putIfAbsent(node.id, () => node.id);
     if (_nodeDataByEditorId.containsKey(node.id)) return;
     final parts = node.prototype.idName.split('.');
@@ -320,31 +310,6 @@ class ShowRunnerGraphEditor {
         'action': parts.last,
       };
     }
-  }
-
-  void _restorePastedMetadata() {
-    final nodeIds = _pendingPasteNodeIds;
-    final snapshots = _pendingPasteSnapshots;
-    _pendingPasteNodeIds = null;
-    _pendingPasteSnapshots = null;
-    if (nodeIds == null || snapshots == null) return;
-    for (
-      var index = 0;
-      index < nodeIds.length && index < snapshots.length;
-      index++
-    ) {
-      final nodeId = nodeIds[index];
-      final snapshot = snapshots[index];
-      _nodeDataByEditorId[nodeId] = Map<String, dynamic>.from(snapshot.data);
-      _schemaIdByEditorId[nodeId] = nodeId;
-      if (snapshot.title != null) _nodeTitles[nodeId] = snapshot.title!;
-      if (snapshot.isVariable) _variableEditorIds.add(nodeId);
-      if (snapshot.isTrigger) {
-        _triggerEditorIds.add(nodeId);
-        _triggerNodeStateInitialized = true;
-      }
-    }
-    nodeRevision.value++;
   }
 
   void setActiveNodeIds(Iterable<String> ids) {
@@ -617,17 +582,15 @@ class ShowRunnerGraphEditor {
     LogicalKeyboardKey direction, {
     bool extendSelection = false,
   }) {
-    final navigation = _selectionNavigation[controller];
-    if (navigation == null) return null;
     final mappedDirection = switch (direction) {
-      LogicalKeyboardKey.arrowRight => SaiNodesNavigationDirection.right,
-      LogicalKeyboardKey.arrowLeft => SaiNodesNavigationDirection.left,
-      LogicalKeyboardKey.arrowDown => SaiNodesNavigationDirection.down,
-      LogicalKeyboardKey.arrowUp => SaiNodesNavigationDirection.up,
+      LogicalKeyboardKey.arrowRight => NodeNavigationDirection.right,
+      LogicalKeyboardKey.arrowLeft => NodeNavigationDirection.left,
+      LogicalKeyboardKey.arrowDown => NodeNavigationDirection.down,
+      LogicalKeyboardKey.arrowUp => NodeNavigationDirection.up,
       _ => null,
     };
     if (mappedDirection == null) return null;
-    return navigation.navigate(
+    return controller.navigateSelection(
       mappedDirection,
       extendSelection: extendSelection,
     );
@@ -1251,7 +1214,6 @@ class ShowRunnerGraphEditor {
     _entryNodeIdByGraph.remove(subgraphId);
     if (deletedController != null) {
       _fieldEvents.remove(deletedController)?.cancel();
-      _selectionNavigation.remove(deletedController);
       deletedController.dispose();
     }
     _markDocumentDirty();
@@ -1716,11 +1678,7 @@ class ShowRunnerGraphEditor {
         ?.findRenderObject();
     if (renderObject is! RenderBox || renderObject.size.isEmpty) return null;
     final local = renderObject.globalToLocal(screenPosition);
-    return SaiNodesCoordinateTransform(
-      viewportSize: renderObject.size,
-      viewportOffset: controller.viewportOffset,
-      zoom: controller.viewportZoom,
-    ).screenToWorld(local);
+    return controller.screenToWorld(local, renderObject.size);
   }
 
   String? insertActionAfterNode(
@@ -2861,7 +2819,6 @@ class ShowRunnerGraphEditor {
     for (final graphController in _controllers.values) {
       graphController.dispose();
     }
-    _selectionNavigation.clear();
   }
 
   static String _linkSignature(

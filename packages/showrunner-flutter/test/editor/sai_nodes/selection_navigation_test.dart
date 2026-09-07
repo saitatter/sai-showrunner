@@ -1,10 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sai_nodes/sai_nodes.dart';
-import 'package:showrunner_flutter/editor/sai_nodes/selection_navigation.dart';
 
 void main() {
   late NodeEditorController controller;
-  late SaiNodesSelectionNavigation navigation;
 
   setUp(() {
     controller = NodeEditorController(
@@ -21,7 +19,6 @@ void main() {
         onExecute: (_, _, _, _, _) async {},
       ),
     );
-    navigation = SaiNodesSelectionNavigation(controller);
   });
 
   tearDown(() => controller.dispose());
@@ -32,7 +29,10 @@ void main() {
     controller.addNode('test.node', offset: const Offset(260, 0));
     controller.selectNodesById({origin.id});
 
-    expect(navigation.navigate(SaiNodesNavigationDirection.right), near.id);
+    expect(
+      controller.navigateSelection(NodeNavigationDirection.right),
+      near.id,
+    );
     expect(controller.selectedNodeIds, {near.id});
   });
 
@@ -40,7 +40,7 @@ void main() {
     final origin = controller.addNode('test.node');
     controller.selectNodesById({origin.id});
 
-    expect(navigation.navigate(SaiNodesNavigationDirection.left), isNull);
+    expect(controller.navigateSelection(NodeNavigationDirection.left), isNull);
     expect(controller.selectedNodeIds, {origin.id});
   });
 
@@ -49,8 +49,8 @@ void main() {
     final next = controller.addNode('test.node', offset: const Offset(120, 0));
     controller.selectNodesById({origin.id});
 
-    navigation.navigate(
-      SaiNodesNavigationDirection.right,
+    controller.navigateSelection(
+      NodeNavigationDirection.right,
       extendSelection: true,
     );
 

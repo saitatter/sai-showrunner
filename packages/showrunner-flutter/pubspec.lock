@@ -515,10 +515,10 @@ packages:
     dependency: "direct main"
     description:
       name: sai_nodes
-      sha256: "3659438469336b4c4b9dd634fc2858d89eda962f373d3f37b20cd57aa031330b"
+      sha256: "8bb316650288a7544aa5c170e423eccc72895d3cf53912c4cf3bcb376238d0d5"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.0"
+    version: "0.2.1"
   screen_retriever:
     dependency: transitive
     description:

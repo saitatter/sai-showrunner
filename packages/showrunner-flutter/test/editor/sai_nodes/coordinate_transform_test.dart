@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
-import 'package:showrunner_flutter/editor/sai_nodes/coordinate_transform.dart';
+import 'package:sai_nodes/sai_nodes.dart';
 
 void main() {
-  const transform = SaiNodesCoordinateTransform(
+  const transform = NodeEditorViewportTransform(
     viewportSize: Size(1000, 600),
     viewportOffset: Offset(40, -20),
     zoom: 2,

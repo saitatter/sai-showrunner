@@ -19,42 +19,39 @@ final class ShowRunnerClipboardSnapshot {
   final String? title;
   final bool isVariable;
   final bool isTrigger;
+
+  JsonMap toJson() => {
+    'nodeType': nodeType,
+    'data': _cloneJsonMap(data),
+    if (title != null) 'title': title,
+    'isVariable': isVariable,
+    'isTrigger': isTrigger,
+  };
+
+  static ShowRunnerClipboardSnapshot? fromJson(dynamic value) {
+    if (value is! Map) return null;
+    final nodeType = value['nodeType'];
+    final data = value['data'];
+    if (nodeType is! String || data is! Map) return null;
+
+    final title = value['title'];
+    return ShowRunnerClipboardSnapshot(
+      nodeType: nodeType,
+      data: _cloneJsonMap(data),
+      title: title is String ? title : null,
+      isVariable: value['isVariable'] == true,
+      isTrigger: value['isTrigger'] == true,
+    );
+  }
 }
 
-/// Bounded host-payload storage for the generic `sai_nodes` clipboard.
-///
-/// The system clipboard contains the package payload. This store is an
-/// in-process fallback for payloads copied by the current editor and is
-/// deliberately bounded so a long-running desktop session cannot retain an
-/// unbounded history of graph metadata.
-final class ShowRunnerClipboardPayloadStore {
-  ShowRunnerClipboardPayloadStore({this.maxEntries = 8})
-    : assert(maxEntries > 0);
+JsonMap _cloneJsonMap(Map<dynamic, dynamic> source) => {
+  for (final entry in source.entries)
+    entry.key.toString(): _cloneJsonValue(entry.value),
+};
 
-  final int maxEntries;
-  final Map<String, List<ShowRunnerClipboardSnapshot>> _metadata = {};
-  String? inMemoryPayload;
-
-  List<ShowRunnerClipboardSnapshot>? snapshotsFor(String payload) {
-    final snapshots = _metadata[payload];
-    return snapshots == null ? null : List.unmodifiable(snapshots);
-  }
-
-  void remember(
-    String payload,
-    Iterable<ShowRunnerClipboardSnapshot> snapshots,
-  ) {
-    if (payload.isEmpty) return;
-    final value = List<ShowRunnerClipboardSnapshot>.unmodifiable(snapshots);
-    if (value.isEmpty) return;
-    _metadata[payload] = value;
-    while (_metadata.length > maxEntries) {
-      _metadata.remove(_metadata.keys.first);
-    }
-  }
-
-  void clear() {
-    inMemoryPayload = null;
-    _metadata.clear();
-  }
+dynamic _cloneJsonValue(dynamic value) {
+  if (value is Map) return _cloneJsonMap(value);
+  if (value is List) return value.map(_cloneJsonValue).toList();
+  return value;
 }

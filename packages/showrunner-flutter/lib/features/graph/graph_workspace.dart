@@ -11,7 +11,6 @@ import '../../app/startup_health.dart';
 import '../../app/automation_document_manager.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../editor/showrunner_graph_editor.dart';
-import '../../editor/sai_nodes/coordinate_transform.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../schema/automation.dart';
 import '../../services/showrunner_data_service.dart';
@@ -2564,7 +2563,7 @@ class _ExecutionLinkPainter extends CustomPainter {
     }
   }
 
-  Offset _screenPoint(Offset world, Size size) => SaiNodesCoordinateTransform(
+  Offset _screenPoint(Offset world, Size size) => NodeEditorViewportTransform(
     viewportSize: size,
     viewportOffset: viewportOffset,
     zoom: viewportZoom,
@@ -2731,7 +2730,7 @@ class _InvalidLinkPainter extends CustomPainter {
         .firstOrNull;
   }
 
-  Offset _screenPoint(Offset world, Size size) => SaiNodesCoordinateTransform(
+  Offset _screenPoint(Offset world, Size size) => NodeEditorViewportTransform(
     viewportSize: size,
     viewportOffset: viewportOffset,
     zoom: viewportZoom,
@@ -4682,7 +4681,7 @@ class _GraphMinimapPainter extends CustomPainter {
         paint,
       );
     }
-    final viewportWorld = SaiNodesCoordinateTransform(
+    final viewportWorld = NodeEditorViewportTransform(
       viewportSize: viewportSize,
       viewportOffset: viewportOffset,
       zoom: viewportZoom,

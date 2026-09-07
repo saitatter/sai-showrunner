@@ -45,7 +45,8 @@ jobs:
           dart format --output=none --set-exit-if-changed lib test tool
           flutter analyze
           flutter test
-          flutter test integration_test
+          flutter test integration_test/application/document_lifecycle_test.dart -d windows
+          flutter test integration_test/visual/app_surface_test.dart -d windows
           flutter build windows --debug
           flutter build windows --release
           Pop-Location

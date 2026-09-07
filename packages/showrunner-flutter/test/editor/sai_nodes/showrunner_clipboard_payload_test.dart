@@ -2,31 +2,32 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/editor/sai_nodes/showrunner_clipboard_payload.dart';
 
 void main() {
-  ShowRunnerClipboardSnapshot snapshot(String id) =>
-      ShowRunnerClipboardSnapshot(nodeType: id, data: {'id': id});
-
-  test('keeps host metadata bounded and returns immutable lists', () {
-    final store = ShowRunnerClipboardPayloadStore(maxEntries: 2);
-
-    store.remember('one', [snapshot('one')]);
-    store.remember('two', [snapshot('two')]);
-    store.remember('three', [snapshot('three')]);
-
-    expect(store.snapshotsFor('one'), isNull);
-    expect(store.snapshotsFor('two')!.single.nodeType, 'two');
-    expect(
-      () => store.snapshotsFor('two')!.add(snapshot('invalid')),
-      throwsUnsupportedError,
+  test('round-trips host metadata through the sai_nodes extension payload', () {
+    const snapshot = ShowRunnerClipboardSnapshot(
+      nodeType: 'obs.switchScene',
+      data: {
+        'plugin': 'obs',
+        'nested': {'value': 42},
+      },
+      title: 'Switch scene',
+      isTrigger: true,
     );
+
+    final restored = ShowRunnerClipboardSnapshot.fromJson(snapshot.toJson());
+
+    expect(restored, isNotNull);
+    expect(restored!.nodeType, snapshot.nodeType);
+    expect(restored.data, snapshot.data);
+    expect(restored.title, snapshot.title);
+    expect(restored.isVariable, isFalse);
+    expect(restored.isTrigger, isTrue);
   });
 
-  test('ignores empty payloads and empty metadata', () {
-    final store = ShowRunnerClipboardPayloadStore();
-
-    store.remember('', [snapshot('ignored')]);
-    store.remember('empty', const []);
-
-    expect(store.snapshotsFor(''), isNull);
-    expect(store.snapshotsFor('empty'), isNull);
+  test('rejects malformed host metadata', () {
+    expect(ShowRunnerClipboardSnapshot.fromJson(null), isNull);
+    expect(
+      ShowRunnerClipboardSnapshot.fromJson({'nodeType': 'missing-data'}),
+      isNull,
+    );
   });
 }
