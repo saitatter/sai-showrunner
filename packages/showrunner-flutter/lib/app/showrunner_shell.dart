@@ -9,6 +9,7 @@ import '../app/startup_health.dart';
 import '../design_system/controls/controls.dart';
 import '../design_system/tokens/tokens.dart';
 import 'project_panel.dart';
+import 'system_bar.dart';
 import 'workspace_registry.dart';
 import '../editor/showrunner_graph_editor.dart';
 import '../features/automation/automation_catalog_workspace.dart';
@@ -169,6 +170,7 @@ class ShowRunnerShell extends StatelessWidget {
       color: ShowRunnerColors.background,
       child: Column(
         children: [
+          ShowRunnerSystemBar(commands: commands),
           Expanded(
             child: Row(
               children: [
