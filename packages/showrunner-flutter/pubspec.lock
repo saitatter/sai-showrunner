@@ -546,11 +546,12 @@ packages:
   sai_nodes:
     dependency: "direct main"
     description:
-      name: sai_nodes
-      sha256: "8bb316650288a7544aa5c170e423eccc72895d3cf53912c4cf3bcb376238d0d5"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.1"
+      path: "."
+      ref: ca6cd7f
+      resolved-ref: ca6cd7f8da44c7aa40d95852aa84bfe0a2d8f806
+      url: "https://github.com/saitatter/sai_nodes.git"
+    source: git
+    version: "0.2.2"
   screen_retriever:
     dependency: transitive
     description:
