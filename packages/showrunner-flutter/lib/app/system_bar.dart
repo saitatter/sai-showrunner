@@ -13,9 +13,14 @@ import 'commands/app_command.dart';
 /// workspace contents and gives menus, shortcuts and window controls one
 /// stable place to evolve.
 class ShowRunnerSystemBar extends StatelessWidget {
-  const ShowRunnerSystemBar({super.key, required this.commands});
+  const ShowRunnerSystemBar({
+    super.key,
+    required this.commands,
+    this.centerContent,
+  });
 
   final AppCommandRegistry commands;
+  final Widget? centerContent;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +33,7 @@ class ShowRunnerSystemBar extends StatelessWidget {
     return Material(
       color: ShowRunnerColors.surfaceA,
       child: Container(
-        height: ShowRunnerSpacing.toolbarHeight,
+        height: centerContent == null ? ShowRunnerSpacing.toolbarHeight : 48,
         decoration: const BoxDecoration(
           border: Border(
             bottom: BorderSide(color: ShowRunnerColors.surfaceBorder),
@@ -84,7 +89,11 @@ class ShowRunnerSystemBar extends StatelessWidget {
                   ),
                 ],
               ),
-              const Spacer(),
+              if (centerContent != null) ...[
+                const SizedBox(width: 8),
+                Expanded(child: centerContent!),
+              ] else
+                const Spacer(),
               if (Platform.isWindows) const ShowRunnerWindowControls(),
               const SizedBox(width: 6),
             ],
