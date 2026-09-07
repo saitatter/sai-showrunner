@@ -2604,22 +2604,24 @@ class _InvalidLinkOverlay extends StatelessWidget {
   final ShowRunnerGraphEditor editor;
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([
-      editor.controller,
-      editor.nodeRevision,
-      editor.activeGraphPath,
-    ]),
-    builder: (context, child) => CustomPaint(
-      painter: _InvalidLinkPainter(
-        flowEdges: editor.invalidFlowEdges,
-        dataWires: editor.invalidDataWires,
-        nodes: editor.controller.nodes,
-        editor: editor,
-        viewportOffset: editor.controller.viewportOffset,
-        viewportZoom: editor.controller.viewportZoom,
+  Widget build(BuildContext context) => IgnorePointer(
+    child: AnimatedBuilder(
+      animation: Listenable.merge([
+        editor.controller,
+        editor.nodeRevision,
+        editor.activeGraphPath,
+      ]),
+      builder: (context, child) => CustomPaint(
+        painter: _InvalidLinkPainter(
+          flowEdges: editor.invalidFlowEdges,
+          dataWires: editor.invalidDataWires,
+          nodes: editor.controller.nodes,
+          editor: editor,
+          viewportOffset: editor.controller.viewportOffset,
+          viewportZoom: editor.controller.viewportZoom,
+        ),
+        size: Size.infinite,
       ),
-      size: Size.infinite,
     ),
   );
 }

@@ -1999,8 +1999,23 @@ class ShowRunnerGraphEditor {
     for (final node in graph.nodes) {
       final subgraphId = node.data['subgraphId']?.toString();
       final subgraph = subgraphId == null ? null : _findSubgraph(subgraphId);
+      // Persisted action nodes use the schema type `action` and keep their
+      // plugin/action identity in the payload. Rehydrate them with the
+      // canonical editor prototype so old documents never fall back to a
+      // generic node named simply "action".
+      final actionPlugin = node.data['plugin']?.toString().trim();
+      final actionId = node.data['action']?.toString().trim();
+      final canonicalActionType =
+          actionPlugin != null &&
+              actionPlugin.isNotEmpty &&
+              actionId != null &&
+              actionId.isNotEmpty
+          ? '$actionPlugin.$actionId'
+          : null;
       final editorNodeType = node.type == 'subgraphCall' && subgraph != null
           ? _subgraphCallPrototypeId(subgraph.id)
+          : node.type == 'action' && canonicalActionType != null
+          ? canonicalActionType
           : node.type;
       if (subgraph != null) {
         _ensureSubgraphCallPrototype(subgraph, target: target);
@@ -2433,10 +2448,11 @@ class ShowRunnerGraphEditor {
       return;
     }
     final isTrigger = nodeType.startsWith('trigger.');
+    final prototypeTitle = _manifestDisplayName(nodeType) ?? title ?? nodeType;
     editor.registerNodePrototype(
       _prototype(
         idName: nodeType,
-        title: title ?? nodeType,
+        title: prototypeTitle,
         color: const Color(0xff64748b),
         input: !isTrigger,
         output: true,
@@ -2444,6 +2460,19 @@ class ShowRunnerGraphEditor {
         dataOutputs: _resultFieldsForAction(nodeType),
       ),
     );
+  }
+
+  String? _manifestDisplayName(String nodeType) {
+    final parts = nodeType.split('.');
+    if (parts.length == 2) {
+      return _registry.findAction(parts.first, parts.last)?.displayName;
+    }
+    if (parts.length >= 3 && parts.first == 'trigger') {
+      return _registry
+          .findTrigger(parts[1], parts.sublist(2).join('.'))
+          ?.displayName;
+    }
+    return null;
   }
 
   void _registerCompatibilityPrototype(

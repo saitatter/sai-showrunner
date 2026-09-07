@@ -167,6 +167,36 @@ void main() {
     expect(saved.graph.nodes.single.data['editorSize'], [320.0, 180.0]);
   });
 
+  test('rehydrates persisted action nodes with their canonical prototype', () {
+    final editor = ShowRunnerGraphEditor();
+    addTearDown(editor.dispose);
+    editor.loadAutomation(
+      const AutomationData(
+        graph: AutomationGraph(
+          nodes: [
+            GraphNode(
+              id: 'action-1',
+              type: 'action',
+              x: 10,
+              y: 20,
+              data: {
+                'plugin': 'overlays',
+                'action': 'pushChatMessage',
+                'title': 'Push Chat Message',
+              },
+            ),
+          ],
+          entryNodeId: 'action-1',
+        ),
+      ),
+    );
+
+    final editorNodeId = editor.editorNodeIdForSchema('action-1')!;
+    final node = editor.controller.nodes[editorNodeId]!;
+    expect(node.prototype.idName, 'overlays.pushChatMessage');
+    expect(editor.customNodeTitle(editorNodeId), 'Push Chat Message');
+  });
+
   test('updates configuration for a selected node', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
