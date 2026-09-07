@@ -34,62 +34,56 @@ class ShowRunnerSystemBar extends StatelessWidget {
             bottom: BorderSide(color: ShowRunnerColors.surfaceBorder),
           ),
         ),
-        child: DragToMoveArea(
-          child: Row(
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(left: 12, right: 10),
-                child: ShowRunnerBrandMark(),
-              ),
-              _SystemMenuButton(
-                label: 'File',
-                onSelected: runCommand,
-                itemBuilder: (context) => [
-                  _commandMenuItem('file.newProfile', commandContext, commands),
-                  _commandMenuItem(
-                    'file.newAutomation',
-                    commandContext,
-                    commands,
-                  ),
-                  _commandMenuItem(
-                    'file.newAutomationFromStarter',
-                    commandContext,
-                    commands,
-                  ),
-                  const PopupMenuDivider(),
-                  _commandMenuItem('file.save', commandContext, commands),
-                  _commandMenuItem('file.saveAll', commandContext, commands),
-                  const PopupMenuDivider(),
-                  _commandMenuItem('file.settings', commandContext, commands),
-                  _commandMenuItem('file.close', commandContext, commands),
-                  _commandMenuItem(
-                    'file.closeOthers',
-                    commandContext,
-                    commands,
-                  ),
-                  const PopupMenuDivider(),
-                  _commandMenuItem('file.exit', commandContext, commands),
-                ],
-              ),
-              const SizedBox(width: 4),
-              _SystemMenuButton(
-                label: 'Help',
-                onSelected: runCommand,
-                itemBuilder: (context) => [
-                  _commandMenuItem('help.about', commandContext, commands),
-                  _commandMenuItem('help.updates', commandContext, commands),
-                  _commandMenuItem(
-                    'help.openLogFolder',
-                    commandContext,
-                    commands,
-                  ),
-                ],
-              ),
-              const Spacer(),
-              if (Platform.isWindows) const ShowRunnerWindowControls(),
-              const SizedBox(width: 6),
-            ],
-          ),
+        child: Row(
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 12, right: 10),
+              child: ShowRunnerBrandMark(),
+            ),
+            _SystemMenuButton(
+              label: 'File',
+              onSelected: runCommand,
+              itemBuilder: (context) => [
+                _commandMenuItem('file.newProfile', commandContext, commands),
+                _commandMenuItem(
+                  'file.newAutomation',
+                  commandContext,
+                  commands,
+                ),
+                _commandMenuItem(
+                  'file.newAutomationFromStarter',
+                  commandContext,
+                  commands,
+                ),
+                const PopupMenuDivider(),
+                _commandMenuItem('file.save', commandContext, commands),
+                _commandMenuItem('file.saveAll', commandContext, commands),
+                const PopupMenuDivider(),
+                _commandMenuItem('file.settings', commandContext, commands),
+                _commandMenuItem('file.close', commandContext, commands),
+                _commandMenuItem('file.closeOthers', commandContext, commands),
+                const PopupMenuDivider(),
+                _commandMenuItem('file.exit', commandContext, commands),
+              ],
+            ),
+            const SizedBox(width: 4),
+            _SystemMenuButton(
+              label: 'Help',
+              onSelected: runCommand,
+              itemBuilder: (context) => [
+                _commandMenuItem('help.about', commandContext, commands),
+                _commandMenuItem('help.updates', commandContext, commands),
+                _commandMenuItem(
+                  'help.openLogFolder',
+                  commandContext,
+                  commands,
+                ),
+              ],
+            ),
+            Expanded(child: DragToMoveArea(child: const SizedBox.expand())),
+            if (Platform.isWindows) const ShowRunnerWindowControls(),
+            const SizedBox(width: 6),
+          ],
         ),
       ),
     );
@@ -141,6 +135,7 @@ class _SystemMenuButtonState extends State<_SystemMenuButton> {
         padding: EdgeInsets.zero,
         position: PopupMenuPosition.under,
         offset: const Offset(0, 2),
+        popUpAnimationStyle: AnimationStyle.noAnimation,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           height: ShowRunnerSpacing.toolbarHeight - 8,
