@@ -475,9 +475,14 @@ class _WorkspaceTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      child: SizedBox(
+      color: ShowRunnerColors.surfaceB,
+      child: Container(
         height: 48,
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: ShowRunnerColors.surfaceBorder),
+          ),
+        ),
         child: Align(
           alignment: Alignment.centerLeft,
           child: ReorderableListView.builder(
@@ -535,32 +540,47 @@ class _WorkspaceTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? colorScheme.surfaceContainerHighest
-          : colorScheme.surfaceContainer,
-      child: InkWell(
-        onTap: () => onSelected(workspace),
-        child: Padding(
-          padding: const EdgeInsets.only(left: 14, right: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(workspaceDescriptorFor(workspace).icon, size: 17),
-              const SizedBox(width: 8),
-              Text(
-                '${workspaceDescriptorFor(workspace).title}${dirty ? ' •' : ''}',
-              ),
-              if (canClose)
-                SrIconButton(
-                  tooltip:
-                      'Close ${workspaceDescriptorFor(workspace).title} tab',
-                  icon: const Icon(Icons.close, size: 16),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => onClosed(workspace),
+    final borderColor = ShowRunnerColors.surfaceBorder;
+    return SizedBox(
+      height: 48,
+      child: Material(
+        color: selected ? ShowRunnerColors.surfaceD : ShowRunnerColors.surfaceB,
+        child: InkWell(
+          onTap: () => onSelected(workspace),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(color: borderColor),
+                right: BorderSide(color: borderColor),
+                top: BorderSide(
+                  color: selected ? colorScheme.primary : borderColor,
+                  width: selected ? 2 : 1,
                 ),
-              if (!canClose) const SizedBox(width: 10),
-            ],
+                bottom: selected
+                    ? BorderSide.none
+                    : BorderSide(color: borderColor, width: 2),
+              ),
+            ),
+            padding: const EdgeInsets.only(left: 14, right: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(workspaceDescriptorFor(workspace).icon, size: 17),
+                const SizedBox(width: 8),
+                Text(
+                  '${workspaceDescriptorFor(workspace).title}${dirty ? ' •' : ''}',
+                ),
+                if (canClose)
+                  SrIconButton(
+                    tooltip:
+                        'Close ${workspaceDescriptorFor(workspace).title} tab',
+                    icon: const Icon(Icons.close, size: 16),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onClosed(workspace),
+                  ),
+                if (!canClose) const SizedBox(width: 10),
+              ],
+            ),
           ),
         ),
       ),

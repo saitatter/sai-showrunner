@@ -36,7 +36,6 @@ void main() {
       onFitGraph: () async {},
       onResetSample: () async {},
       onRunAutomation: () async {},
-      onOpenExternal: (_) async {},
       onOpenLogFolder: () async {},
     ).build();
 
@@ -44,6 +43,7 @@ void main() {
     expect(registry.find('edit.undo'), isNotNull);
     expect(registry.find('run.automation'), isNotNull);
     expect(registry.find('help.updates'), isNotNull);
+    expect(registry.find('help.discord'), isNull);
     expect(registry.shortcutCommands.length, greaterThanOrEqualTo(8));
 
     final context = const AppCommandContext();

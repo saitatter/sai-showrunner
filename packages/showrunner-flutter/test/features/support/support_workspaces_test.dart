@@ -15,7 +15,7 @@ void main() {
     expect(find.text('v1.0.0-beta1'), findsOneWidget);
     expect(find.text('ShowRunner GitHub'), findsOneWidget);
     expect(find.text('Upstream Project'), findsOneWidget);
-    expect(find.text('Help Discord'), findsOneWidget);
+    expect(find.text('Help Discord'), findsNothing);
     expect(find.text('License'), findsOneWidget);
   });
 

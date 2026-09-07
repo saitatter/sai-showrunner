@@ -130,11 +130,7 @@ class AboutWorkspace extends StatelessWidget {
       ),
       _AboutLink(
         label: 'Upstream Project',
-        url: Uri.parse('https://www.github.com/LordTocs/ShowRunner'),
-      ),
-      _AboutLink(
-        label: 'Help Discord',
-        url: Uri.parse('https://discord.gg/txt4DUzYJM'),
+        url: Uri.parse('https://github.com/LordTocs/CastMate'),
       ),
       _AboutLink(
         label: 'License',

@@ -40,7 +40,6 @@ final class AppCommandRegistrar {
     required this.onFitGraph,
     required this.onResetSample,
     required this.onRunAutomation,
-    required this.onOpenExternal,
     required this.onOpenLogFolder,
   });
 
@@ -71,7 +70,6 @@ final class AppCommandRegistrar {
   final FutureOr<void> Function() onFitGraph;
   final FutureOr<void> Function() onResetSample;
   final FutureOr<void> Function() onRunAutomation;
-  final FutureOr<void> Function(Uri uri) onOpenExternal;
   final FutureOr<void> Function() onOpenLogFolder;
 
   bool get _isGraphWorkspace =>
@@ -261,13 +259,6 @@ final class AppCommandRegistrar {
       label: 'Updates',
       icon: Icons.system_update_alt,
       execute: (_) => onOpenDestination(WorkspaceIds.updates),
-    ),
-    AppCommand(
-      id: 'help.discord',
-      label: 'Discord',
-      icon: Icons.forum,
-      execute: (_) =>
-          onOpenExternal(Uri.parse('https://discord.gg/txt4DUzYJM')),
     ),
     AppCommand(
       id: 'help.openLogFolder',

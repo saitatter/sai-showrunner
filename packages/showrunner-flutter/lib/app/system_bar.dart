@@ -77,7 +77,6 @@ class ShowRunnerSystemBar extends StatelessWidget {
                 itemBuilder: (context) => [
                   _commandMenuItem('help.about', commandContext, commands),
                   _commandMenuItem('help.updates', commandContext, commands),
-                  _commandMenuItem('help.discord', commandContext, commands),
                   _commandMenuItem(
                     'help.openLogFolder',
                     commandContext,

@@ -242,7 +242,6 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onFitGraph: _graphEditor.fitGraph,
       onResetSample: _graphEditor.loadSampleGraph,
       onRunAutomation: _runAutomation,
-      onOpenExternal: _openExternal,
       onOpenLogFolder: _openLogFolder,
     ).build();
     _lifecycle = AppLifecycleCoordinator(
@@ -1561,25 +1560,6 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Unable to repair automation: $error')),
-      );
-    }
-  }
-
-  Future<void> _openExternal(Uri uri) async {
-    try {
-      if (Platform.isWindows) {
-        await Process.start('cmd.exe', ['/c', 'start', '', uri.toString()]);
-      } else if (Platform.isMacOS) {
-        await Process.start('open', [uri.toString()]);
-      } else if (Platform.isLinux) {
-        await Process.start('xdg-open', [uri.toString()]);
-      } else {
-        throw UnsupportedError('Opening external links is not supported.');
-      }
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to open ${uri.host}: $error')),
       );
     }
   }
