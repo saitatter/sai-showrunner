@@ -44,8 +44,7 @@ final class WorkspaceDocumentManager {
       ..clear()
       ..addAll(openWorkspaces.toSet());
     if (_openWorkspaces.isEmpty) _openWorkspaces.add(WorkspaceIds.graph);
-    _selectedWorkspace =
-        selected != null && _openWorkspaces.contains(selected)
+    _selectedWorkspace = selected != null && _openWorkspaces.contains(selected)
         ? selected
         : _openWorkspaces.first;
   }

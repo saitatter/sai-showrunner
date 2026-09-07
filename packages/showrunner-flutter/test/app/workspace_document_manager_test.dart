@@ -48,10 +48,18 @@ void main() {
     manager.select(WorkspaceIds.about);
 
     expect(manager.reorder(2, 0), isTrue);
-    expect(manager.openWorkspaces, [WorkspaceIds.about, WorkspaceIds.graph, WorkspaceIds.profiles]);
+    expect(manager.openWorkspaces, [
+      WorkspaceIds.about,
+      WorkspaceIds.graph,
+      WorkspaceIds.profiles,
+    ]);
     expect(manager.selectedWorkspace, WorkspaceIds.about);
     expect(manager.reorder(0, 2), isTrue);
-    expect(manager.openWorkspaces, [WorkspaceIds.graph, WorkspaceIds.profiles, WorkspaceIds.about]);
+    expect(manager.openWorkspaces, [
+      WorkspaceIds.graph,
+      WorkspaceIds.profiles,
+      WorkspaceIds.about,
+    ]);
     expect(manager.reorder(-1, 0), isFalse);
     expect(manager.reorder(0, 8), isFalse);
   });

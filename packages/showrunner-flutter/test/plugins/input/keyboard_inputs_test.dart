@@ -6,22 +6,16 @@ import 'package:showrunner_flutter/plugins/input/keyboard.dart';
 
 void main() {
   test('maps Flutter logical keys and normalizes combo order', () {
-    expect(
-      keyboardKeyNameForLogicalKey(LogicalKeyboardKey.keyA),
-      'A',
-    );
+    expect(keyboardKeyNameForLogicalKey(LogicalKeyboardKey.keyA), 'A');
     expect(
       keyboardKeyNameForLogicalKey(LogicalKeyboardKey.controlRight),
       'RightControl',
     );
-    expect(
-      appendKeyboardKey(['A'], 'RightControl'),
-      ['LeftControl', 'A'],
-    );
-    expect(
-      appendKeyboardKey(['LeftControl', 'A'], 'RightControl'),
-      ['LeftControl', 'A'],
-    );
+    expect(appendKeyboardKey(['A'], 'RightControl'), ['LeftControl', 'A']);
+    expect(appendKeyboardKey(['LeftControl', 'A'], 'RightControl'), [
+      'LeftControl',
+      'A',
+    ]);
     expect(keyboardComboDisplayName(['LeftControl', 'A']), 'Control + A');
   });
 
@@ -69,9 +63,8 @@ void main() {
                 kind: DartDataInputKind.keyCombo,
               ),
               value: selected,
-              onChanged: (next) => setState(
-                () => selected = List<String>.from(next as List),
-              ),
+              onChanged: (next) =>
+                  setState(() => selected = List<String>.from(next as List)),
             ),
           ),
         ),

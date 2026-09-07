@@ -21,10 +21,7 @@ abstract interface class InputPlatform {
 }
 
 final class InputKeyEvent {
-  const InputKeyEvent({
-    required this.virtualKeyCode,
-    required this.pressed,
-  });
+  const InputKeyEvent({required this.virtualKeyCode, required this.pressed});
 
   final int virtualKeyCode;
   final bool pressed;
@@ -41,10 +38,11 @@ final class InputKeyEvent {
   static InputKeyEvent? tryParse(Object? value) {
     if (value is! Map) return null;
     final rawVirtualKeyCode = value['vkCode'];
-    final virtualKeyCode = rawVirtualKeyCode is num &&
-        rawVirtualKeyCode == rawVirtualKeyCode.toInt() &&
-        rawVirtualKeyCode >= 0 &&
-        rawVirtualKeyCode <= 255
+    final virtualKeyCode =
+        rawVirtualKeyCode is num &&
+            rawVirtualKeyCode == rawVirtualKeyCode.toInt() &&
+            rawVirtualKeyCode >= 0 &&
+            rawVirtualKeyCode <= 255
         ? rawVirtualKeyCode.toInt()
         : null;
     final type = value['type'];
@@ -75,28 +73,20 @@ final class NativeInputPlatform implements InputPlatform {
   }
 
   @override
-  Future<void> simulateKeyDown(int virtualKeyCode) => _invoke(
-    'simulateKeyDown',
-    {'vkCode': virtualKeyCode},
-  );
+  Future<void> simulateKeyDown(int virtualKeyCode) =>
+      _invoke('simulateKeyDown', {'vkCode': virtualKeyCode});
 
   @override
-  Future<void> simulateKeyUp(int virtualKeyCode) => _invoke(
-    'simulateKeyUp',
-    {'vkCode': virtualKeyCode},
-  );
+  Future<void> simulateKeyUp(int virtualKeyCode) =>
+      _invoke('simulateKeyUp', {'vkCode': virtualKeyCode});
 
   @override
-  Future<void> simulateMouseDown(String button) => _invoke(
-    'simulateMouseDown',
-    {'button': button},
-  );
+  Future<void> simulateMouseDown(String button) =>
+      _invoke('simulateMouseDown', {'button': button});
 
   @override
-  Future<void> simulateMouseUp(String button) => _invoke(
-    'simulateMouseUp',
-    {'button': button},
-  );
+  Future<void> simulateMouseUp(String button) =>
+      _invoke('simulateMouseUp', {'button': button});
 
   @override
   Future<void> startEvents() => _invoke('startEvents', null);
@@ -107,10 +97,9 @@ final class NativeInputPlatform implements InputPlatform {
   @override
   Future<bool> isKeyDown(int virtualKeyCode) async {
     if (!Platform.isWindows) return false;
-    final result = await _methods.invokeMethod<bool>(
-      'isKeyDown',
-      {'vkCode': virtualKeyCode},
-    );
+    final result = await _methods.invokeMethod<bool>('isKeyDown', {
+      'vkCode': virtualKeyCode,
+    });
     return result ?? false;
   }
 

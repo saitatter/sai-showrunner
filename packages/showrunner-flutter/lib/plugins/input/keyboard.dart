@@ -290,8 +290,7 @@ final windowsVirtualKeyCodes = Map.unmodifiable(<String, int>{
   'Multiply': 0x6a,
   'Divide': 0x6f,
   'Decimal': 0x6e,
-  for (var number = 0; number <= 9; number++)
-    'NumPad$number': 0x60 + number,
+  for (var number = 0; number <= 9; number++) 'NumPad$number': 0x60 + number,
   'CapsLock': 0x14,
   'ScrollLock': 0x91,
   'NumLock': 0x90,
@@ -307,8 +306,7 @@ final windowsVirtualKeyCodes = Map.unmodifiable(<String, int>{
 
 final _keyboardNamesByVirtualKey = _buildVirtualKeyNames();
 
-int? virtualKeyCodeForKeyboardKey(String key) =>
-    windowsVirtualKeyCodes[key];
+int? virtualKeyCodeForKeyboardKey(String key) => windowsVirtualKeyCodes[key];
 
 String? keyboardKeyNameForVirtualKey(int virtualKeyCode) =>
     _keyboardNamesByVirtualKey[virtualKeyCode];
@@ -330,17 +328,16 @@ List<String> appendKeyboardKey(List<String> combo, String key) {
   if (normalizedCombo.contains(normalizedKey)) return normalizedCombo;
   final next = [...normalizedCombo, normalizedKey];
   next.sort((left, right) {
-    final priority = _keyboardKeyPriority(right).compareTo(
-      _keyboardKeyPriority(left),
-    );
+    final priority = _keyboardKeyPriority(
+      right,
+    ).compareTo(_keyboardKeyPriority(left));
     return priority == 0 ? left.compareTo(right) : priority;
   });
   return next;
 }
 
-String keyboardComboDisplayName(Iterable<String> combo) => combo
-    .map(keyboardKeyDisplayName)
-    .join(' + ');
+String keyboardComboDisplayName(Iterable<String> combo) =>
+    combo.map(keyboardKeyDisplayName).join(' + ');
 
 int _keyboardKeyPriority(String key) => switch (normalizeKeyboardKey(key)) {
   'LeftControl' => 4,

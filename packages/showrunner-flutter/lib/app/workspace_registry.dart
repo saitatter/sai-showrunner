@@ -37,7 +37,6 @@ abstract final class WorkspaceIds {
     home,
     updates,
   ];
-
 }
 
 final class WorkspaceDescriptor {
@@ -93,11 +92,7 @@ const workspaceDescriptors = <WorkspaceDescriptor>[
     title: 'Logs',
     icon: Icons.receipt_long,
   ),
-  WorkspaceDescriptor(
-    id: WorkspaceIds.about,
-    title: 'About',
-    icon: Icons.info,
-  ),
+  WorkspaceDescriptor(id: WorkspaceIds.about, title: 'About', icon: Icons.info),
   WorkspaceDescriptor(
     id: WorkspaceIds.settings,
     title: 'Settings',

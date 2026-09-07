@@ -12,38 +12,35 @@ import 'package:showrunner_flutter/plugins/sound/tts_runtime.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test(
-    'maps TTS resource configuration into a speech request',
-    () async {
-      final service = _RecordingSpeechService();
-      final registry = DartPluginRegistry()
-        ..register(
-          createSoundPlugin(
-            ttsService: service,
-            ttsFileService: CallbackTtsFileSynthesisService((_) async => null),
-          ),
-        );
+  test('maps TTS resource configuration into a speech request', () async {
+    final service = _RecordingSpeechService();
+    final registry = DartPluginRegistry()
+      ..register(
+        createSoundPlugin(
+          ttsService: service,
+          ttsFileService: CallbackTtsFileSynthesisService((_) async => null),
+        ),
+      );
 
-      final result = await registry.invokeAction('sound', 'speakTTS', {
-        'text': 'Hello from ShowRunner',
-        'voice': {
-          'config': {
-            'voiceProvider': 'system.voice-1',
-            'providerConfig': {'pitch': 2, 'rate': -3},
-          },
+    final result = await registry.invokeAction('sound', 'speakTTS', {
+      'text': 'Hello from ShowRunner',
+      'voice': {
+        'config': {
+          'voiceProvider': 'system.voice-1',
+          'providerConfig': {'pitch': 2, 'rate': -3},
         },
-        'volume': 75,
-      });
+      },
+      'volume': 75,
+    });
 
-      expect(result, {'spoken': true, 'text': 'Hello from ShowRunner'});
-      expect(service.requests, hasLength(1));
-      final request = service.requests.single;
-      expect(request.voiceProvider, 'system.voice-1');
-      expect(request.volume, closeTo(0.75, 0.0001));
-      expect(request.pitch, closeTo(1.2, 0.0001));
-      expect(request.rate, closeTo(0.35, 0.0001));
-    },
-  );
+    expect(result, {'spoken': true, 'text': 'Hello from ShowRunner'});
+    expect(service.requests, hasLength(1));
+    final request = service.requests.single;
+    expect(request.voiceProvider, 'system.voice-1');
+    expect(request.volume, closeTo(0.75, 0.0001));
+    expect(request.pitch, closeTo(1.2, 0.0001));
+    expect(request.rate, closeTo(0.35, 0.0001));
+  });
 
   test('resolves a persisted TTS voice resource by ID', () async {
     final service = _RecordingSpeechService();

@@ -50,13 +50,11 @@ ObsTransformMap obsTransformToWebSocket(dynamic value) {
   return result;
 }
 
-ObsTransformMap _group(dynamic value) => value is Map
-    ? Map<String, dynamic>.from(value)
-    : <String, dynamic>{};
+ObsTransformMap _group(dynamic value) =>
+    value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 
-Map<String, dynamic> _map(dynamic value) => value is Map
-    ? Map<String, dynamic>.from(value)
-    : const <String, dynamic>{};
+Map<String, dynamic> _map(dynamic value) =>
+    value is Map ? Map<String, dynamic>.from(value) : const <String, dynamic>{};
 
 void _copy(Map<String, dynamic> target, String key, dynamic value) {
   if (value != null) target[key] = value;

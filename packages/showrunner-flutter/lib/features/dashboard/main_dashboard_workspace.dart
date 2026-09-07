@@ -171,8 +171,7 @@ class _MainDashboardWorkspaceState extends State<MainDashboardWorkspace> {
             ),
             const SizedBox(width: 12),
             FilledButton(
-              onPressed: () =>
-                  widget.onOpenWorkspace(WorkspaceIds.resources),
+              onPressed: () => widget.onOpenWorkspace(WorkspaceIds.resources),
               child: const Text('Setup OBS'),
             ),
           ],

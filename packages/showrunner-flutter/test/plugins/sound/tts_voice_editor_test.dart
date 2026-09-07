@@ -4,7 +4,9 @@ import 'package:showrunner_flutter/features/resources/resource_editor_registry.d
 import 'package:showrunner_flutter/schema/resource.dart';
 
 void main() {
-  testWidgets('edits a system TTS voice provider configuration', (tester) async {
+  testWidgets('edits a system TTS voice provider configuration', (
+    tester,
+  ) async {
     final definition = createDefaultResourceEditorRegistry().find('TTSVoice')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));

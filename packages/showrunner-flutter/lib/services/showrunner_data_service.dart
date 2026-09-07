@@ -85,7 +85,10 @@ final class ShowRunnerDataService {
     };
     if (secretSettings.isNotEmpty) {
       final existing = await _loadSecretSettings(pluginId);
-      await secretSettingsStore.save(pluginId, {...existing, ...secretSettings});
+      await secretSettingsStore.save(pluginId, {
+        ...existing,
+        ...secretSettings,
+      });
     }
     final file = File('${settingsDirectory.path}/$pluginId.yaml');
     await writeAtomicText(file, _yamlEncode(publicSettings));

@@ -64,7 +64,9 @@ class _KeyComboInputState extends State<KeyComboInput> {
               icon: const Icon(Icons.clear),
             ),
           IconButton(
-            tooltip: _capturing ? 'Stop key capture' : 'Capture key combination',
+            tooltip: _capturing
+                ? 'Stop key capture'
+                : 'Capture key combination',
             onPressed: _beginCapture,
             icon: Icon(_capturing ? Icons.stop : Icons.keyboard),
           ),

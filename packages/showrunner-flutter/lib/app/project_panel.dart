@@ -179,8 +179,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             icon: Icons.crop_square,
             selected: widget.selectedWorkspace == WorkspaceIds.home,
             compact: compact,
-            onTap: () =>
-                widget.onDestinationSelected(WorkspaceIds.home),
+            onTap: () => widget.onDestinationSelected(WorkspaceIds.home),
           ),
           _ProjectGroupBlock(
             id: 'automations',
@@ -555,7 +554,8 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
                 selected: widget.selectedWorkspace == WorkspaceIds.settings,
                 indent: 1,
                 compact: compact,
-                onTap: () => widget.onDestinationSelected(WorkspaceIds.settings),
+                onTap: () =>
+                    widget.onDestinationSelected(WorkspaceIds.settings),
               ),
               _ProjectItemRow(
                 title: 'About',

@@ -55,11 +55,7 @@ class _ObsTransformInputState extends State<ObsTransformInput> {
         ),
       ),
       _numberField('Rotation', null, 'rotation'),
-      _enumField(
-        'Alignment',
-        'alignment',
-        _alignmentOptions,
-      ),
+      _enumField('Alignment', 'alignment', _alignmentOptions),
       _section(
         context,
         'Size',
@@ -108,11 +104,7 @@ class _ObsTransformInputState extends State<ObsTransformInput> {
         'Bounds',
         Column(
           children: [
-            _enumField(
-              'Alignment',
-              'boundingBox.alignment',
-              _alignmentOptions,
-            ),
+            _enumField('Alignment', 'boundingBox.alignment', _alignmentOptions),
             _enumField(
               'Bounds type',
               'boundingBox.boxType',
@@ -155,9 +147,7 @@ class _ObsTransformInputState extends State<ObsTransformInput> {
   );
 
   Widget _numberField(String label, String? group, String field) {
-    final value = group == null
-        ? _value[field]
-        : _readGroupValue(group, field);
+    final value = group == null ? _value[field] : _readGroupValue(group, field);
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: TextFormField(
@@ -218,7 +208,9 @@ class _ObsTransformInputState extends State<ObsTransformInput> {
         'scale': {
           ...scale,
           field: number,
-          field == 'x' ? 'y' : 'x': field == 'x' ? number / ratio : number * ratio,
+          field == 'x' ? 'y' : 'x': field == 'x'
+              ? number / ratio
+              : number * ratio,
         },
       };
       _emit(next);
@@ -287,14 +279,8 @@ const _alignmentOptions = <DropdownMenuItem<Object>>[
 const _boundsTypeOptions = <DropdownMenuItem<Object>>[
   DropdownMenuItem(value: 'OBS_BOUNDS_NONE', child: Text('None')),
   DropdownMenuItem(value: 'OBS_BOUNDS_STRETCH', child: Text('Stretch')),
-  DropdownMenuItem(
-    value: 'OBS_BOUNDS_SCALE_INNER',
-    child: Text('Scale inner'),
-  ),
-  DropdownMenuItem(
-    value: 'OBS_BOUNDS_SCALE_OUTER',
-    child: Text('Scale outer'),
-  ),
+  DropdownMenuItem(value: 'OBS_BOUNDS_SCALE_INNER', child: Text('Scale inner')),
+  DropdownMenuItem(value: 'OBS_BOUNDS_SCALE_OUTER', child: Text('Scale outer')),
   DropdownMenuItem(
     value: 'OBS_BOUNDS_SCALE_TO_WIDTH',
     child: Text('Scale to width'),

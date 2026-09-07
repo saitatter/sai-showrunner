@@ -28,10 +28,7 @@ void main() {
                 children: [
                   Row(
                     children: [
-                      const SrButton(
-                        onPressed: null,
-                        child: Text('Save'),
-                      ),
+                      const SrButton(onPressed: null, child: Text('Save')),
                       const SizedBox(width: ShowRunnerSpacing.inline),
                       SrIconButton(
                         tooltip: 'Copy',

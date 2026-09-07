@@ -44,9 +44,9 @@ class _LightColorInputState extends State<LightColorInput> {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(widget.value?.trim().isNotEmpty == true
-              ? widget.value!
-              : 'Not set'),
+          child: Text(
+            widget.value?.trim().isNotEmpty == true ? widget.value! : 'Not set',
+          ),
         ),
       ],
     ),
@@ -82,7 +82,9 @@ class _LightColorDialogState extends State<_LightColorDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.initialValue == null ? 'Choose light color' : 'Edit light color'),
+    title: Text(
+      widget.initialValue == null ? 'Choose light color' : 'Edit light color',
+    ),
     content: SizedBox(
       width: 360,
       height: 250,
@@ -90,7 +92,8 @@ class _LightColorDialogState extends State<_LightColorDialog> {
         children: [
           ToggleButtons(
             isSelected: [_mode == 'rgb', _mode == 'cct'],
-            onPressed: (index) => setState(() => _mode = index == 0 ? 'rgb' : 'cct'),
+            onPressed: (index) =>
+                setState(() => _mode = index == 0 ? 'rgb' : 'cct'),
             children: const [Text('RGB'), Text('CCT')],
           ),
           const SizedBox(height: 18),
@@ -100,12 +103,18 @@ class _LightColorDialogState extends State<_LightColorDialog> {
                 Expanded(
                   child: _mode == 'rgb'
                       ? LightColorWheel(value: _value, onChanged: _update)
-                      : LightTemperatureSlider(value: _value, onChanged: _update),
+                      : LightTemperatureSlider(
+                          value: _value,
+                          onChanged: _update,
+                        ),
                 ),
                 const SizedBox(width: 14),
                 SizedBox(
                   width: 44,
-                  child: LightBrightnessSlider(value: _value, onChanged: _update),
+                  child: LightBrightnessSlider(
+                    value: _value,
+                    onChanged: _update,
+                  ),
                 ),
               ],
             ),
@@ -197,7 +206,8 @@ final class LightTemperatureSlider extends StatelessWidget {
     final height = size?.height ?? 0;
     if (height <= 0) return;
     final fraction = (position.dy / height).clamp(0.0, 1.0);
-    final kelvin = lightColorMinKelvin +
+    final kelvin =
+        lightColorMinKelvin +
         fraction * (lightColorMaxKelvin - lightColorMinKelvin);
     onChanged(serializeLightColor(lightColorForKelvin(value, kelvin)));
   }
@@ -228,7 +238,9 @@ final class LightBrightnessSlider extends StatelessWidget {
     final height = size?.height ?? 0;
     if (height <= 0) return;
     final fraction = (position.dy / height).clamp(0.0, 1.0);
-    onChanged(serializeLightColor(lightColorForBrightness(value, (1 - fraction) * 100)));
+    onChanged(
+      serializeLightColor(lightColorForBrightness(value, (1 - fraction) * 100)),
+    );
   }
 }
 
@@ -273,10 +285,12 @@ class _LightColorWheelPainter extends CustomPainter {
     final hue = parsed?.isKelvin == false ? parsed!.hue! : 0;
     final saturation = parsed?.isKelvin == false ? parsed!.saturation! : 100;
     final angle = (hue - 90) * math.pi / 180;
-    final point = center + Offset(
-      math.cos(angle) * radius * saturation / 100,
-      math.sin(angle) * radius * saturation / 100,
-    );
+    final point =
+        center +
+        Offset(
+          math.cos(angle) * radius * saturation / 100,
+          math.sin(angle) * radius * saturation / 100,
+        );
     canvas.drawCircle(
       point,
       6,
@@ -313,7 +327,8 @@ class _LightTemperaturePainter extends CustomPainter {
         lightColorPreview(
           serializeLightColor(
             LightColorValue.kelvin(
-              kelvin: lightColorMinKelvin +
+              kelvin:
+                  lightColorMinKelvin +
                   index / 10 * (lightColorMaxKelvin - lightColorMinKelvin),
               brightness: 100,
             ),
@@ -322,13 +337,19 @@ class _LightTemperaturePainter extends CustomPainter {
     ];
     canvas.drawRRect(
       RRect.fromRectAndRadius(rect, const Radius.circular(18)),
-      Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: colors).createShader(rect),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: colors,
+        ).createShader(rect),
     );
     final parsed = parseLightColor(value);
     final kelvin = parsed?.isKelvin == true
         ? parsed!.kelvin!
         : (lightColorMinKelvin + lightColorMaxKelvin) / 2;
-    final fraction = (kelvin - lightColorMinKelvin) /
+    final fraction =
+        (kelvin - lightColorMinKelvin) /
         (lightColorMaxKelvin - lightColorMinKelvin);
     _drawSliderDot(canvas, Offset(size.width / 2, size.height * fraction));
   }
@@ -353,11 +374,17 @@ class _LightBrightnessPainter extends CustomPainter {
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [lightColorPreview(serializeLightColor(fullValue)), Colors.black],
+          colors: [
+            lightColorPreview(serializeLightColor(fullValue)),
+            Colors.black,
+          ],
         ).createShader(rect),
     );
     final brightness = parseLightColor(value)?.brightness ?? 100;
-    _drawSliderDot(canvas, Offset(size.width / 2, size.height * (1 - brightness / 100)));
+    _drawSliderDot(
+      canvas,
+      Offset(size.width / 2, size.height * (1 - brightness / 100)),
+    );
   }
 
   @override

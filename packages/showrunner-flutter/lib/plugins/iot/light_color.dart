@@ -12,11 +12,9 @@ final class LightColorValue {
     required this.brightness,
   }) : kelvin = null;
 
-  const LightColorValue.kelvin({
-    required this.kelvin,
-    required this.brightness,
-  }) : hue = null,
-       saturation = null;
+  const LightColorValue.kelvin({required this.kelvin, required this.brightness})
+    : hue = null,
+      saturation = null;
 
   final double? hue;
   final double? saturation;
@@ -44,10 +42,7 @@ LightColorValue? parseLightColor(String? value) {
     );
   }
   if (isKelvin && values.length == 2) {
-    return LightColorValue.kelvin(
-      kelvin: values[0]!,
-      brightness: values[1]!,
-    );
+    return LightColorValue.kelvin(kelvin: values[0]!, brightness: values[1]!);
   }
   return null;
 }
@@ -87,7 +82,11 @@ LightColorValue lightColorForBrightness(String? value, double brightness) {
   final current = parseLightColor(value);
   if (current?.isKelvin == true) {
     return LightColorValue.kelvin(
-      kelvin: _clamp(current!.kelvin!, lightColorMinKelvin, lightColorMaxKelvin),
+      kelvin: _clamp(
+        current!.kelvin!,
+        lightColorMinKelvin,
+        lightColorMaxKelvin,
+      ),
       brightness: _clamp(brightness, 0, 100),
     );
   }
