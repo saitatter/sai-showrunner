@@ -1,0 +1,6 @@
+Pictogrammers Free License
+
+The Material Design Icons desktop font is distributed under the Apache 2.0
+license. See https://www.apache.org/licenses/LICENSE-2.0.
+
+Source: https://github.com/Templarian/MaterialDesign-Webfont

@@ -187,7 +187,10 @@ Future<void> _openAuthorizationUrl(Uri url) async {
       'Twitch account authorization is supported on Windows only.',
     );
   }
-  await Process.start('cmd.exe', ['/c', 'start', '', url.toString()]);
+  // Passing the URL through `cmd /c start` lets `&` be interpreted as a
+  // command separator, which silently drops query parameters such as
+  // Twitch's response_type. Explorer receives the URI as one argument.
+  await Process.start('explorer.exe', [url.toString()]);
 }
 
 /// Resolves the account resources used by the reference Twitch plugin.

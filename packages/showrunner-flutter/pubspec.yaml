@@ -77,6 +77,9 @@ flutter:
         - asset: assets/fonts/Inter-italic.var.woff2
           style: italic
           weight: 400
+    - family: Material Design Icons
+      fonts:
+        - asset: assets/fonts/materialdesignicons-webfont.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

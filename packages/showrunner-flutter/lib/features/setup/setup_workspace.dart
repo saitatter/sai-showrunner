@@ -582,45 +582,10 @@ class TwitchBrandIcon extends StatelessWidget {
 
   final Color color;
 
-  @override
-  Widget build(BuildContext context) => CustomPaint(
-    size: const Size.square(24),
-    painter: _TwitchBrandIconPainter(color),
-  );
-}
-
-class _TwitchBrandIconPainter extends CustomPainter {
-  const _TwitchBrandIconPainter(this.color);
-
-  final Color color;
+  static const _icon = IconData(0xF0543, fontFamily: 'Material Design Icons');
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final scale = size.shortestSide / 24;
-    final body = Path()
-      ..moveTo(3 * scale, 2 * scale)
-      ..lineTo(21 * scale, 2 * scale)
-      ..lineTo(21 * scale, 16 * scale)
-      ..lineTo(14 * scale, 16 * scale)
-      ..lineTo(10 * scale, 21 * scale)
-      ..lineTo(10 * scale, 16 * scale)
-      ..lineTo(3 * scale, 16 * scale)
-      ..close();
-    canvas.drawPath(body, Paint()..color = color);
-    final glyphPaint = Paint()..color = Colors.white;
-    canvas.drawRect(
-      Rect.fromLTWH(8 * scale, 6 * scale, 2 * scale, 6 * scale),
-      glyphPaint,
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(14 * scale, 6 * scale, 2 * scale, 6 * scale),
-      glyphPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_TwitchBrandIconPainter oldDelegate) =>
-      oldDelegate.color != color;
+  Widget build(BuildContext context) => Icon(_icon, color: color, size: 24);
 }
 
 class _StepIndicator extends StatelessWidget {
