@@ -136,7 +136,7 @@ yarn overlay:build
 The Windows package can be built and smoke-tested with:
 
 ```powershell
-.\scripts\package-flutter-windows.ps1 -Version 1.0.0-beta1
+.\scripts\package-flutter-windows.ps1 -Version 2.0.0
 ```
 
 ## 🗂️ Repository layout

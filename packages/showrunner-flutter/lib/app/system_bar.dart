@@ -55,14 +55,14 @@ class ShowRunnerSystemBar extends StatelessWidget {
                   commandContext,
                   commands,
                 ),
-                const PopupMenuDivider(),
+                _showRunnerMenuDivider,
                 _commandMenuItem('file.save', commandContext, commands),
                 _commandMenuItem('file.saveAll', commandContext, commands),
-                const PopupMenuDivider(),
+                _showRunnerMenuDivider,
                 _commandMenuItem('file.settings', commandContext, commands),
                 _commandMenuItem('file.close', commandContext, commands),
                 _commandMenuItem('file.closeOthers', commandContext, commands),
-                const PopupMenuDivider(),
+                _showRunnerMenuDivider,
                 _commandMenuItem('file.exit', commandContext, commands),
               ],
             ),
@@ -139,7 +139,7 @@ class _SystemMenuButtonState extends State<_SystemMenuButton> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           height: ShowRunnerSpacing.toolbarHeight - 8,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: highlighted ? ShowRunnerColors.surfaceD : Colors.transparent,
             borderRadius: BorderRadius.circular(4),
@@ -175,6 +175,7 @@ PopupMenuItem<String> _commandMenuItem(
   return PopupMenuItem<String>(
     value: id,
     enabled: command.canExecute(context),
+    padding: const EdgeInsets.symmetric(horizontal: 10),
     child: Row(
       children: [
         if (command.icon != null) ...[
@@ -186,6 +187,14 @@ PopupMenuItem<String> _commandMenuItem(
     ),
   );
 }
+
+const _showRunnerMenuDivider = PopupMenuDivider(
+  height: 12,
+  thickness: 1.5,
+  color: Color(0xff606060),
+  indent: 8,
+  endIndent: 8,
+);
 
 class ShowRunnerBrandMark extends StatelessWidget {
   const ShowRunnerBrandMark({super.key});

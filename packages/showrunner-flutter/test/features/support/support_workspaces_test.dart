@@ -12,7 +12,7 @@ void main() {
     );
 
     expect(find.text('About ShowRunner'), findsOneWidget);
-    expect(find.text('v1.0.0-beta1'), findsOneWidget);
+    expect(find.text('v2.0.0'), findsOneWidget);
     expect(find.text('ShowRunner GitHub'), findsOneWidget);
     expect(find.text('Upstream Project'), findsOneWidget);
     expect(find.text('Help Discord'), findsNothing);

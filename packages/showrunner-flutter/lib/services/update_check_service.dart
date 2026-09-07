@@ -7,7 +7,7 @@ import '../schema/update.dart';
 
 typedef UpdateReleaseFetcher = Future<JsonMap> Function();
 
-const showRunnerFlutterVersion = '1.0.0-beta1';
+const showRunnerFlutterVersion = '2.0.0';
 
 final class UpdateCheckService {
   const UpdateCheckService({

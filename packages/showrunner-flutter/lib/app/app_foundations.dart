@@ -27,12 +27,16 @@ ThemeData buildShowRunnerTheme() {
         outlineVariant: ShowRunnerColors.surfaceBorder,
       );
   final controlFill = ShowRunnerColors.surfaceC;
+  final textTheme = _scaledTextTheme(
+    ThemeData.dark(useMaterial3: true).textTheme,
+  );
 
   return ThemeData(
     brightness: Brightness.dark,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: ShowRunnerColors.background,
     fontFamily: ShowRunnerTypography.uiFontFamily,
+    textTheme: textTheme,
     useMaterial3: true,
     visualDensity: VisualDensity.standard,
     focusColor: colorScheme.primary.withValues(alpha: 0.24),
@@ -58,6 +62,33 @@ ThemeData buildShowRunnerTheme() {
     tooltipTheme: const TooltipThemeData(
       waitDuration: Duration(milliseconds: 450),
     ),
+  );
+}
+
+TextTheme _scaledTextTheme(TextTheme base) => TextTheme(
+  displayLarge: _scaleTextStyle(base.displayLarge),
+  displayMedium: _scaleTextStyle(base.displayMedium),
+  displaySmall: _scaleTextStyle(base.displaySmall),
+  headlineLarge: _scaleTextStyle(base.headlineLarge),
+  headlineMedium: _scaleTextStyle(base.headlineMedium),
+  headlineSmall: _scaleTextStyle(base.headlineSmall),
+  titleLarge: _scaleTextStyle(base.titleLarge),
+  titleMedium: _scaleTextStyle(base.titleMedium),
+  titleSmall: _scaleTextStyle(base.titleSmall),
+  bodyLarge: _scaleTextStyle(base.bodyLarge),
+  bodyMedium: _scaleTextStyle(base.bodyMedium),
+  bodySmall: _scaleTextStyle(base.bodySmall),
+  labelLarge: _scaleTextStyle(base.labelLarge),
+  labelMedium: _scaleTextStyle(base.labelMedium),
+  labelSmall: _scaleTextStyle(base.labelSmall),
+);
+
+TextStyle? _scaleTextStyle(TextStyle? style) {
+  if (style == null) return null;
+  final fontSize = style.fontSize;
+  return style.copyWith(
+    fontFamily: ShowRunnerTypography.uiFontFamily,
+    fontSize: fontSize == null ? null : fontSize * 1.06,
   );
 }
 
