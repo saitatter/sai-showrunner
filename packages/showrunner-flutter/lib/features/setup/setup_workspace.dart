@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../services/showrunner_data_service.dart';
+import '../../schema/resource.dart';
+import '../../plugins/twitch/account_runtime.dart';
 import 'obs_setup_persistence.dart';
 
 class SetupWorkspace extends StatefulWidget {
@@ -10,10 +12,12 @@ class SetupWorkspace extends StatefulWidget {
     super.key,
     required this.dataService,
     required this.onOpenPlugin,
+    this.onCompleted,
   });
 
   final ShowRunnerDataService dataService;
   final ValueChanged<String> onOpenPlugin;
+  final VoidCallback? onCompleted;
 
   @override
   State<SetupWorkspace> createState() => _SetupWorkspaceState();
@@ -37,6 +41,9 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
   bool? _obsTestPassed;
   Object? _obsTestError;
   Object? _error;
+  Future<List<ResourceData?>>? _twitchAccountsFuture;
+  String? _twitchAccountBusy;
+  Object? _twitchAccountError;
 
   String get _pluginId => _steps[_stepIndex];
   bool get _isDone => _pluginId == 'done';
@@ -75,6 +82,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
         await _loadObsResource(settings);
       } else {
         _fillControllers(settings);
+        if (_pluginId == 'twitch') _reloadTwitchAccounts();
       }
     } catch (error) {
       _error = error;
@@ -115,6 +123,46 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
             _clientSecretController.text.trim().isNotEmpty) ||
         settings['accessToken']?.toString().isNotEmpty == true ||
         settings['refreshToken']?.toString().isNotEmpty == true;
+  }
+
+  void _reloadTwitchAccounts() {
+    final auth = TwitchAccountAuthService(dataService: widget.dataService);
+    _twitchAccountsFuture = Future.wait([
+      auth.loadAccount('channel'),
+      auth.loadAccount('bot'),
+    ]);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _signInTwitchAccount(String accountId) async {
+    final clientId = _clientIdController.text.trim();
+    final clientSecret = _clientSecretController.text;
+    if (clientId.isEmpty || clientSecret.isEmpty) {
+      setState(() {
+        _twitchAccountError =
+            'Save the Twitch OAuth client ID and secret before signing in.';
+      });
+      return;
+    }
+    setState(() {
+      _twitchAccountBusy = accountId;
+      _twitchAccountError = null;
+    });
+    try {
+      final current = <String, dynamic>{...?_settings['twitch']};
+      current['clientId'] = clientId;
+      current['clientSecret'] = clientSecret;
+      await widget.dataService.savePluginSettings('twitch', current);
+      _settings['twitch'] = current;
+      await TwitchAccountAuthService(
+        dataService: widget.dataService,
+      ).authorizeAccount(accountId);
+      _reloadTwitchAccounts();
+    } catch (error) {
+      if (mounted) setState(() => _twitchAccountError = error);
+    } finally {
+      if (mounted) setState(() => _twitchAccountBusy = null);
+    }
   }
 
   Future<void> _saveStep() async {
@@ -228,7 +276,10 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
         _StepIndicator(current: _stepIndex),
         const SizedBox(height: 24),
         if (_isDone)
-          _DoneStep(onOpenPlugins: () => widget.onOpenPlugin('twitch'))
+          _DoneStep(
+            onOpenPlugins: () => widget.onOpenPlugin('twitch'),
+            onCompleted: widget.onCompleted,
+          )
         else
           _buildProviderStep(context),
       ],
@@ -243,6 +294,8 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
         : 'YouTube';
     final description = _pluginId == 'obs'
         ? 'ShowRunner connects through the OBS WebSocket server.'
+        : _pluginId == 'twitch'
+        ? 'Configure Twitch and sign in to the channel and bot accounts.'
         : 'Save OAuth client credentials, then finish authorization in Plugins.';
     return Card(
       child: Padding(
@@ -338,6 +391,25 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (_pluginId == 'twitch') ...[
+                Text(
+                  'Sign in to both your channel account and your bot account. '
+                  'If you do not use a separate bot, sign in the channel account twice.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                _buildTwitchAccounts(context),
+                if (_twitchAccountError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Twitch sign-in error: $_twitchAccountError',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+              ],
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
@@ -349,8 +421,10 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
                       ? 'Credentials are present'
                       : 'Authorization is still required',
                 ),
-                subtitle: const Text(
-                  'Use the Plugins tab to run the browser authorization flow.',
+                subtitle: Text(
+                  _pluginId == 'twitch'
+                      ? 'Use the account buttons above to run browser authorization.'
+                      : 'Use the Plugins tab to run the browser authorization flow.',
                 ),
                 trailing: OutlinedButton(
                   onPressed: () => widget.onOpenPlugin(_pluginId),
@@ -406,6 +480,81 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
       ),
     );
   }
+
+  Widget _buildTwitchAccounts(BuildContext context) =>
+      FutureBuilder<List<ResourceData?>>(
+        future: _twitchAccountsFuture,
+        builder: (context, snapshot) {
+          final accounts = snapshot.data ?? const <ResourceData?>[null, null];
+          return Column(
+            children: [
+              _buildTwitchAccountCard(
+                context,
+                accountId: 'channel',
+                title: 'Channel account',
+                description: 'Used for channel control and EventSub.',
+                icon: Icons.live_tv,
+                account: accounts.isNotEmpty ? accounts[0] : null,
+              ),
+              const SizedBox(height: 8),
+              _buildTwitchAccountCard(
+                context,
+                accountId: 'bot',
+                title: 'Bot account',
+                description: 'Used to send chat messages and bot events.',
+                icon: Icons.smart_toy_outlined,
+                account: accounts.length > 1 ? accounts[1] : null,
+              ),
+            ],
+          );
+        },
+      );
+
+  Widget _buildTwitchAccountCard(
+    BuildContext context, {
+    required String accountId,
+    required String title,
+    required String description,
+    required IconData icon,
+    required ResourceData? account,
+  }) {
+    final config = account?.config ?? const <String, dynamic>{};
+    final authenticated =
+        config['accessToken']?.toString().isNotEmpty == true &&
+        config['twitchId']?.toString().isNotEmpty == true;
+    final busy = _twitchAccountBusy == accountId;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(
+            icon,
+            color: authenticated ? Colors.green : Colors.amber,
+          ),
+          title: Text(title),
+          subtitle: Text(
+            authenticated
+                ? (config['name']?.toString().trim().isNotEmpty == true
+                      ? config['name'].toString()
+                      : 'Connected')
+                : description,
+          ),
+          trailing: OutlinedButton.icon(
+            onPressed: busy ? null : () => _signInTwitchAccount(accountId),
+            icon: busy
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.login),
+            label: Text(authenticated ? 'Sign in again' : 'Sign in'),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _StepIndicator extends StatelessWidget {
@@ -438,9 +587,10 @@ class _StepIndicator extends StatelessWidget {
 }
 
 class _DoneStep extends StatelessWidget {
-  const _DoneStep({required this.onOpenPlugins});
+  const _DoneStep({required this.onOpenPlugins, this.onCompleted});
 
   final VoidCallback onOpenPlugins;
+  final VoidCallback? onCompleted;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -457,10 +607,23 @@ class _DoneStep extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: onOpenPlugins,
-            icon: const Icon(Icons.extension_outlined),
-            label: const Text('Open Plugins'),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onOpenPlugins,
+                icon: const Icon(Icons.extension_outlined),
+                label: const Text('Open Plugins'),
+              ),
+              if (onCompleted != null)
+                FilledButton.icon(
+                  onPressed: onCompleted,
+                  icon: const Icon(Icons.arrow_forward),
+                  label: const Text('Get started'),
+                ),
+            ],
           ),
         ],
       ),

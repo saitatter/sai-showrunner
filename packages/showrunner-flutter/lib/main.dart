@@ -48,6 +48,7 @@ import 'features/profile/profile_workspace.dart';
 import 'features/settings/interface_preferences.dart';
 import 'features/resources/resource_options.dart';
 import 'features/resources/resource_editor_registry.dart';
+import 'features/setup/setup_workspace.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -251,8 +252,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       ],
     );
     unawaited(_interfacePreferences.load());
-    unawaited(_restoreNavigation());
-    unawaited(_openFirstRunSetupIfNeeded());
+    unawaited(_initializeNavigationAndFirstRun());
     if (widget.smokeScenario != null) unawaited(_runSmokeScenario());
   }
 
@@ -497,6 +497,11 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     }
   }
 
+  Future<void> _initializeNavigationAndFirstRun() async {
+    await _restoreNavigation();
+    await _openFirstRunSetupIfNeeded();
+  }
+
   static List<WorkspaceId> _workspaceIdsFromSettings(Object? value) {
     if (value is! List) return const [];
     final ids = <WorkspaceId>{};
@@ -637,11 +642,30 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       (settings) => settings.isNotEmpty,
     );
     if (hasProviderConfiguration || !mounted) return;
-    setState(() {
-      _workspaceDocuments.open(WorkspaceIds.setup);
-      _workspaceDocuments.select(WorkspaceIds.setup);
-    });
-    unawaited(_persistNavigation());
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        child: SizedBox(
+          width: 860,
+          height: 700,
+          child: SetupWorkspace(
+            dataService: widget.dataService,
+            onOpenPlugin: (pluginId) {
+              Navigator.of(dialogContext).pop();
+              if (!mounted) return;
+              setState(() => _selectedPluginId = pluginId);
+              _openDestination(WorkspaceIds.plugins);
+            },
+            onCompleted: () {
+              Navigator.of(dialogContext).pop();
+              if (!mounted) return;
+              _openDestination(WorkspaceIds.home);
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _runSmokeScenario() async {
