@@ -648,7 +648,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       builder: (dialogContext) {
         final viewport = MediaQuery.sizeOf(dialogContext);
         final width = (viewport.width * .82).clamp(900.0, 1280.0).toDouble();
-        final height = (viewport.height * .90).clamp(640.0, 860.0).toDouble();
+        final height = (viewport.height * .82).clamp(620.0, 760.0).toDouble();
         return Dialog(
           insetPadding: const EdgeInsets.all(24),
           child: SizedBox(

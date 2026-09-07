@@ -1,50 +1,76 @@
 import 'package:flutter/material.dart';
 
+import '../../design_system/brand_icons.dart';
+
 /// Presentation metadata mirrored from the reference integration catalog.
 ///
 /// Plugin contracts stay independent from Flutter; this mapping is kept at
 /// the UI boundary so manifests remain usable by runtime and schema code
 /// without importing Material icons or colors.
 IconData pluginIconFor(String id) => switch (id) {
-  'ShowRunner' => Icons.directions_run,
-  'advss' => Icons.apps,
-  'aitum' => Icons.link,
-  'bluesky' => Icons.cloud_outlined,
-  'dashboards' => Icons.dashboard_outlined,
+  'ShowRunner' => mdiIcon(0xF046E),
+  'advss' => mdiIcon(0xF0C8C),
+  'aitum' => mdiIcon(0xF0FE8),
+  'bluesky' => mdiIcon(0xF0163),
+  'dashboards' => mdiIcon(0xF0A1D),
   'discord' => Icons.forum_outlined,
-  'donordrive' => Icons.volunteer_activism_outlined,
-  'elgato' => Icons.keyboard_outlined,
-  'govee' => Icons.lightbulb_outline,
-  'http' => Icons.language,
-  'input' => Icons.keyboard_alt_outlined,
-  'iot' => Icons.memory,
-  'lifx' => Icons.lightbulb_outline,
-  'minecraft' => Icons.view_in_ar_outlined,
-  'moderation' => Icons.shield_outlined,
+  'donordrive' => mdiIcon(0xF157E),
+  'elgato' => mdiIcon(0xF097B),
+  'govee' => mdiIcon(0xF1051),
+  'http' => mdiIcon(0xF059F),
+  'input' => mdiIcon(0xF030C),
+  'iot' => mdiIcon(0xF061A),
+  'lifx' => mdiIcon(0xF06E9),
+  'minecraft' => mdiIcon(0xF0373),
+  'moderation' => mdiIcon(0xF0565),
   'obs' => Icons.tv,
-  'os' => Icons.desktop_windows_outlined,
-  'overlays' => Icons.layers_outlined,
-  'philips-hue' => Icons.lightbulb,
-  'random' => Icons.casino_outlined,
-  'remote' => Icons.settings_remote_outlined,
-  'sound' => Icons.volume_up_outlined,
-  'spellcast' => Icons.auto_fix_high_outlined,
-  'stream-plans' => Icons.calendar_month_outlined,
-  'time' => Icons.schedule_outlined,
-  'tplink-kasa' => Icons.power_outlined,
-  'twinkly' => Icons.wb_incandescent_outlined,
-  'twitch' => Icons.live_tv,
-  'variables' => Icons.data_object,
-  'voicemod' => Icons.mic_none_outlined,
-  'wyze' => Icons.videocam_outlined,
-  'youtube' => Icons.smart_display,
-  _ => Icons.extension_outlined,
+  'os' => mdiIcon(0xF0379),
+  'overlays' => mdiIcon(0xF09FE),
+  'philips-hue' => mdiIcon(0xF1254),
+  'random' => mdiIcon(0xF1156),
+  'remote' => mdiIcon(0xF0454),
+  'sound' => mdiIcon(0xF057E),
+  'spellcast' => mdiIcon(0xF0068),
+  'stream-plans' => mdiIcon(0xF00F0),
+  'time' => mdiIcon(0xF0150),
+  'tplink-kasa' => mdiIcon(0xF0427),
+  'twinkly' => mdiIcon(0xF12BA),
+  'twitch' => mdiIcon(0xF0543),
+  'variables' => mdiIcon(0xF0AE7),
+  'voicemod' => mdiIcon(0xF0370),
+  'wyze' => mdiIcon(0xF07AE),
+  'youtube' => mdiIcon(0xF05C3),
+  _ => mdiIcon(0xF0A66),
+};
+
+Widget pluginIconWidgetFor(
+  String id, {
+  required Color color,
+  double size = 16,
+}) => switch (id) {
+  'obs' => ObsBrandIcon(color: color, size: size),
+  'discord' => BrandSvgIcon(
+    asset: 'assets/icons/discord.svg',
+    color: color,
+    size: size,
+  ),
+  'advss' => BrandSvgIcon(
+    asset: 'assets/icons/advss.svg',
+    color: color,
+    size: size,
+  ),
+  'aitum' => BrandSvgIcon(
+    asset: 'assets/icons/aitum.svg',
+    color: color,
+    size: size,
+  ),
+  _ => Icon(pluginIconFor(id), size: size, color: color),
 };
 
 Color pluginColorFor(String id) => switch (id) {
-  'obs' => const Color(0xff8b9bb4),
+  'obs' => const Color(0xff256eff),
   'youtube' => const Color(0xffff5f56),
-  'twitch' => const Color(0xffa970ff),
+  'twitch' => const Color(0xff9146ff),
   'discord' => const Color(0xff5865f2),
   'bluesky' => const Color(0xff208bfe),
   'moderation' => const Color(0xff22c55e),

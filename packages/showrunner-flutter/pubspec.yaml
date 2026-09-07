@@ -38,6 +38,7 @@ dependencies:
   ffi: ^2.1.3
   sai_nodes: ^0.2.1
   flutter_context_menu: 0.4.2
+  flutter_svg: ^2.0.17
   yaml: ^3.1.3
   window_manager: ^0.5.1
   flutter_tts: 4.2.5
@@ -80,6 +81,12 @@ flutter:
     - family: Material Design Icons
       fonts:
         - asset: assets/fonts/materialdesignicons-webfont.ttf
+
+  assets:
+    - assets/icons/obs.svg
+    - assets/icons/discord.svg
+    - assets/icons/advss.svg
+    - assets/icons/aitum.svg
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -2,9 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../services/showrunner_data_service.dart';
+import '../../design_system/brand_icons.dart';
 import '../../schema/resource.dart';
 import '../../plugins/twitch/account_runtime.dart';
+import '../../services/showrunner_data_service.dart';
 import 'obs_setup_persistence.dart';
 
 class SetupWorkspace extends StatefulWidget {
@@ -312,9 +313,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
           children: [
             Row(
               children: [
-                _pluginId == 'twitch'
-                    ? const TwitchBrandIcon()
-                    : Icon(_pluginId == 'obs' ? Icons.tv : Icons.live_tv),
+                _providerIcon,
                 const SizedBox(width: 10),
                 Text(
                   providerName,
@@ -575,17 +574,13 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
       ),
     );
   }
-}
 
-class TwitchBrandIcon extends StatelessWidget {
-  const TwitchBrandIcon({super.key, this.color = const Color(0xff9146ff)});
-
-  final Color color;
-
-  static const _icon = IconData(0xF0543, fontFamily: 'Material Design Icons');
-
-  @override
-  Widget build(BuildContext context) => Icon(_icon, color: color, size: 24);
+  Widget get _providerIcon => switch (_pluginId) {
+    'obs' => const ObsBrandIcon(),
+    'twitch' => const TwitchBrandIcon(),
+    'youtube' => const YoutubeBrandIcon(),
+    _ => const Icon(Icons.extension_outlined),
+  };
 }
 
 class _StepIndicator extends StatelessWidget {

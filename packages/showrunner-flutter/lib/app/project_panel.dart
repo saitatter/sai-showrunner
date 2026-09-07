@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../design_system/brand_icons.dart';
 import '../design_system/tokens/tokens.dart';
 import '../features/plugins/plugin_catalog_filter.dart';
 import '../features/plugins/plugin_metadata.dart';
@@ -323,13 +324,6 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
           _ProjectItemRow(
             title: 'Variables',
             icon: Icons.data_object,
-            selected: widget.selectedWorkspace == WorkspaceIds.variables,
-            compact: compact,
-            onTap: () => widget.onDestinationSelected(WorkspaceIds.variables),
-          ),
-          _ProjectItemRow(
-            title: 'Viewer Variables',
-            icon: Icons.table_chart_outlined,
             selected: widget.selectedWorkspace == WorkspaceIds.variables,
             compact: compact,
             onTap: () => widget.onDestinationSelected(WorkspaceIds.variables),
@@ -1039,12 +1033,14 @@ class _ShowRunnerIntegrationTreeState extends State<ShowRunnerIntegrationTree> {
                     _expanded[group.title] = !(_expanded[group.title] ?? true),
               ),
             ),
-            if (_expanded[group.title] ?? true)
+            if ((_expanded[group.title] ?? true) ||
+                (_query.trim().isNotEmpty && groups[group]!.isNotEmpty))
               for (final plugin in groups[group]!)
                 _IntegrationPluginRow(
                   plugin: plugin,
                   registry: registry,
                   preferences: widget.preferences,
+                  query: _query,
                   selected: plugin.id == widget.selectedPluginId,
                   onSelected: widget.onSelected,
                   onToggle: widget.onToggle,
@@ -1347,6 +1343,7 @@ class _IntegrationPluginRow extends StatelessWidget {
     required this.plugin,
     required this.registry,
     required this.preferences,
+    required this.query,
     required this.selected,
     required this.onSelected,
     required this.onToggle,
@@ -1355,6 +1352,7 @@ class _IntegrationPluginRow extends StatelessWidget {
   final DartPluginManifest plugin;
   final DartPluginRegistry registry;
   final FlutterInterfacePreferences preferences;
+  final String query;
   final bool selected;
   final ValueChanged<String> onSelected;
   final Future<void> Function(String pluginId, bool enabled) onToggle;
@@ -1363,7 +1361,11 @@ class _IntegrationPluginRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = registry.isPluginEnabled(plugin.id);
     return Material(
-      color: selected ? ShowRunnerColors.highlight : Colors.transparent,
+      color: selected
+          ? ShowRunnerColors.highlight
+          : query.trim().isNotEmpty
+          ? ShowRunnerColors.highlight.withAlpha(70)
+          : Colors.transparent,
       child: InkWell(
         onTap: () => onSelected(plugin.id),
         hoverColor: ShowRunnerColors.highlight,
@@ -1373,19 +1375,18 @@ class _IntegrationPluginRow extends StatelessWidget {
             padding: const EdgeInsets.only(left: 54, right: 6),
             child: Row(
               children: [
-                Icon(
-                  pluginIconFor(plugin.id),
+                pluginIconWidgetFor(
+                  plugin.id,
                   size: 16,
                   color: enabled ? pluginColorFor(plugin.id) : Colors.white38,
                 ),
                 const SizedBox(width: 7),
                 Expanded(
-                  child: Text(
-                    plugin.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: preferences.compactProjectSidebar ? 12.5 : 14,
-                    ),
+                  child: _HighlightedIntegrationName(
+                    name: plugin.name,
+                    query: query,
+                    selected: selected,
+                    compact: preferences.compactProjectSidebar,
                   ),
                 ),
                 if (preferences.showPluginSwitches)
@@ -1414,6 +1415,55 @@ class _IntegrationPluginRow extends StatelessWidget {
   }
 }
 
+class _HighlightedIntegrationName extends StatelessWidget {
+  const _HighlightedIntegrationName({
+    required this.name,
+    required this.query,
+    required this.selected,
+    required this.compact,
+  });
+
+  final String name;
+  final String query;
+  final bool selected;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = TextStyle(
+      color: selected ? ShowRunnerColors.highlightText : ShowRunnerColors.text,
+      fontSize: compact ? 12.5 : 14,
+    );
+    final needle = query.trim();
+    if (needle.isEmpty) {
+      return Text(name, overflow: TextOverflow.ellipsis, style: baseStyle);
+    }
+    final lowerName = name.toLowerCase();
+    final match = lowerName.indexOf(needle.toLowerCase());
+    if (match < 0) {
+      return Text(name, overflow: TextOverflow.ellipsis, style: baseStyle);
+    }
+    return Text.rich(
+      TextSpan(
+        style: baseStyle,
+        children: [
+          TextSpan(text: name.substring(0, match)),
+          TextSpan(
+            text: name.substring(match, match + needle.length),
+            style: TextStyle(
+              color: selected ? ShowRunnerColors.highlightText : Colors.white,
+              backgroundColor: ShowRunnerColors.highlight,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          TextSpan(text: name.substring(match + needle.length)),
+        ],
+      ),
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
 final class _IntegrationGroup {
   const _IntegrationGroup({
     required this.title,
@@ -1426,10 +1476,10 @@ final class _IntegrationGroup {
   final Set<String> pluginIds;
 }
 
-const _integrationGroups = <_IntegrationGroup>[
+final _integrationGroups = <_IntegrationGroup>[
   _IntegrationGroup(
     title: 'Streaming & Chat',
-    icon: Icons.message_outlined,
+    icon: mdiIcon(0xF036B),
     pluginIds: {
       'twitch',
       'youtube',
@@ -1442,7 +1492,7 @@ const _integrationGroups = <_IntegrationGroup>[
   ),
   _IntegrationGroup(
     title: 'Production & Overlays',
-    icon: Icons.layers_outlined,
+    icon: mdiIcon(0xF0F59),
     pluginIds: {
       'obs',
       'overlays',
@@ -1455,7 +1505,7 @@ const _integrationGroups = <_IntegrationGroup>[
   ),
   _IntegrationGroup(
     title: 'Devices & Lights',
-    icon: Icons.lightbulb_outline,
+    icon: mdiIcon(0xF1254),
     pluginIds: {
       'elgato',
       'govee',
@@ -1471,7 +1521,7 @@ const _integrationGroups = <_IntegrationGroup>[
   ),
   _IntegrationGroup(
     title: 'Data & Utility',
-    icon: Icons.build_outlined,
+    icon: mdiIcon(0xF09AD),
     pluginIds: {
       'ShowRunner',
       'http',
@@ -1483,9 +1533,5 @@ const _integrationGroups = <_IntegrationGroup>[
       'donordrive',
     },
   ),
-  _IntegrationGroup(
-    title: 'Other',
-    icon: Icons.extension_outlined,
-    pluginIds: {},
-  ),
+  _IntegrationGroup(title: 'Other', icon: mdiIcon(0xF0A66), pluginIds: {}),
 ];

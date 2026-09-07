@@ -70,7 +70,8 @@ void main() {
     expect(find.text('Automations'), findsOneWidget);
     expect(find.text('Integrations'), findsOneWidget);
     expect(find.text('Stream Plans'), findsOneWidget);
-    expect(find.text('Viewer Variables'), findsOneWidget);
+    expect(find.text('Variables'), findsOneWidget);
+    expect(find.text('Viewer Variables'), findsNothing);
     expect(find.text('OBS'), findsNWidgets(2));
     expect(find.text('Connections'), findsOneWidget);
     expect(find.text('Twitch'), findsNWidgets(2));
@@ -139,5 +140,48 @@ void main() {
 
     expect(find.text('OBS'), findsOneWidget);
     expect(find.text('Connections'), findsNothing);
+  });
+
+  testWidgets('search opens the matching integration group', (tester) async {
+    final preferences = FlutterInterfacePreferences(
+      dataService: ShowRunnerDataService(Directory.systemTemp),
+      initialValues: {'collapseIntegrationCategoriesByDefault': true},
+    );
+    addTearDown(preferences.dispose);
+    final registry = DartPluginRegistry()
+      ..register(const DartPluginManifest(id: 'twitch', name: 'Twitch'));
+    addTearDown(registry.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 300,
+          height: 900,
+          child: ShowRunnerProjectPanel(
+            selectedWorkspace: WorkspaceIds.graph,
+            onDestinationSelected: (_) {},
+            pluginRegistryFuture: Future.value(registry),
+            preferences: preferences,
+            selectedPluginId: null,
+            onPluginSelected: (_) {},
+            onPluginToggle: (_, _) async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Integrations'));
+    await tester.pumpAndSettle();
+    expect(find.text('Twitch'), findsNothing);
+
+    await tester.enterText(find.byType(TextField), 'Twitch');
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is RichText && widget.text.toPlainText() == 'Twitch',
+      ),
+      findsOneWidget,
+    );
   });
 }

@@ -478,33 +478,37 @@ class _WorkspaceTabBar extends StatelessWidget {
       color: Theme.of(context).colorScheme.surfaceContainer,
       child: SizedBox(
         height: 48,
-        child: ReorderableListView.builder(
-          scrollDirection: Axis.horizontal,
-          shrinkWrap: true,
-          primary: false,
-          buildDefaultDragHandles: false,
-          padding: EdgeInsets.zero,
-          itemCount: tabs.length,
-          onReorderItem: onReordered,
-          itemBuilder: (context, position) {
-            final tab = tabs[position];
-            return ReorderableDragStartListener(
-              key: ValueKey('workspace-tab-$tab'),
-              index: position,
-              child: _WorkspaceTab(
-                workspace: tab,
-                selected: tab == selectedWorkspace,
-                dirty:
-                    (tab == WorkspaceIds.graph &&
-                        hasActiveAutomation &&
-                        activeAutomationDirty) ||
-                    (tab == WorkspaceIds.profiles && activeProfileDirty),
-                canClose: tabs.length > 1,
-                onSelected: onSelected,
-                onClosed: onClosed,
-              ),
-            );
-          },
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: ReorderableListView.builder(
+            scrollDirection: Axis.horizontal,
+            shrinkWrap: true,
+            primary: false,
+            anchor: 0,
+            buildDefaultDragHandles: false,
+            padding: EdgeInsets.zero,
+            itemCount: tabs.length,
+            onReorderItem: onReordered,
+            itemBuilder: (context, position) {
+              final tab = tabs[position];
+              return ReorderableDragStartListener(
+                key: ValueKey('workspace-tab-$tab'),
+                index: position,
+                child: _WorkspaceTab(
+                  workspace: tab,
+                  selected: tab == selectedWorkspace,
+                  dirty:
+                      (tab == WorkspaceIds.graph &&
+                          hasActiveAutomation &&
+                          activeAutomationDirty) ||
+                      (tab == WorkspaceIds.profiles && activeProfileDirty),
+                  canClose: tabs.length > 1,
+                  onSelected: onSelected,
+                  onClosed: onClosed,
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
