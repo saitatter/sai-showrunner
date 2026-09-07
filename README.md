@@ -21,19 +21,34 @@ overlays, queues, profiles, and production tools into one workspace. It is
 designed for creators who want to prepare a show, connect their services, and
 run the whole broadcast from one place.
 
-## What you can do
+## 📸 Demo
 
-- Build visual automations with conditions, variables, reusable sections, and
+<p align="center">
+  <em>Demo screenshots and GIFs will be added here.</em>
+</p>
+
+<!--
+Suggested demo assets:
+
+<p align="center">
+  <img src="docs/images/showrunner-dashboard.png" alt="ShowRunner dashboard" width="48%">
+  <img src="docs/images/showrunner-automation-editor.png" alt="ShowRunner automation editor" width="48%">
+</p>
+-->
+
+## ✨ What you can do
+
+- ⚡ Build visual automations with conditions, variables, reusable sections, and
   queues.
-- Connect Twitch, YouTube, OBS, moderation, sound, lighting, remote controls,
-  and other production services.
-- Organize broadcasts with profiles and segmented Stream Plans.
-- Create browser overlays for OBS, including shader-driven effects made in the
-  visual Shader Graph editor powered by [SAI Nodes](https://github.com/saitatter/sai_nodes).
-- Manage connection health, live state, diagnostics, updates, and resources
+- 🔌 Connect Twitch, YouTube, OBS, moderation, sound, lighting, remote
+  controls, and other production services.
+- 🎬 Organize broadcasts with profiles and segmented Stream Plans.
+- 🎨 Create browser overlays for OBS, including shader-driven effects made in
+  the visual Shader Graph editor powered by [SAI Nodes](https://github.com/saitatter/sai_nodes).
+- 📊 Manage connection health, live state, diagnostics, updates, and resources
   from the same workspace.
 
-## ShowRunner features beyond CastMate
+## 🚀 ShowRunner features beyond CastMate
 
 ShowRunner is based on the [CastMate](https://github.com/LordTocs/CastMate)
 project, but it is developed as its own product and desktop experience.
@@ -66,7 +81,7 @@ Optional CastMate plugins may overlap with individual integrations. The
 important distinction is that these workflows are maintained as part of
 ShowRunner itself.
 
-## Differences from CastMate
+## 🔄 Differences from CastMate
 
 - ShowRunner uses a Flutter desktop application instead of CastMate's Electron
   desktop application.
@@ -81,14 +96,14 @@ ShowRunner itself.
 The original Electron/Vue implementation is kept only as a frozen product
 reference for parity checks. It is not part of the current desktop runtime.
 
-## Download
+## 📦 Download
 
 Windows releases are available on the
 [GitHub Releases page](https://github.com/saitatter/sai-showrunner/releases).
 The current release target is Windows and downloaded builds may show a
 SmartScreen warning while signing is not yet configured.
 
-## Run locally
+## 🛠️ Run locally
 
 The desktop application is developed from `packages/showrunner-flutter`:
 
@@ -124,15 +139,15 @@ The Windows package can be built and smoke-tested with:
 .\scripts\package-flutter-windows.ps1 -Version 1.0.0-beta1
 ```
 
-## Repository layout
+## 🗂️ Repository layout
 
-- `packages/showrunner-flutter` — the Flutter desktop application.
-- `packages/showrunner-obs-overlay` — the browser runtime loaded by OBS.
-- `plugins/*/overlay` and `libs/*overlay*` — reusable overlay widgets and
+- 🖥️ `packages/showrunner-flutter` — the Flutter desktop application.
+- 🌐 `packages/showrunner-obs-overlay` — the browser runtime loaded by OBS.
+- 🧩 `plugins/*/overlay` and `libs/*overlay*` — reusable overlay widgets and
   protocol packages.
-- `docs` — product, parity, and contributor documentation.
+- 📚 `docs` — product, parity, and contributor documentation.
 
-## License
+## 📄 License
 
 ShowRunner is distributed under the [AGPL-3.0 license](LICENSE.md) and retains
 the upstream CastMate license notices.
