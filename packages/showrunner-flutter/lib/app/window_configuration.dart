@@ -91,6 +91,8 @@ Future<void> configureShowRunnerWindow({File? stateFile}) async {
     minimumSize: showRunnerMinimumWindowSize,
     center: false,
     title: 'ShowRunner',
+    titleBarStyle: TitleBarStyle.hidden,
+    windowButtonVisibility: false,
   );
   await windowManager.waitUntilReadyToShow(options, () async {
     if (saved != null) {
