@@ -45,9 +45,12 @@ void main() {
     expect(find.text('OBS'), findsOneWidget);
     expect(find.text('Twitch'), findsOneWidget);
     expect(find.text('Stream Plan'), findsOneWidget);
-    expect(find.text('Action queues'), findsOneWidget);
+    expect(find.text('Action queues'), findsNothing);
     expect(find.text('Setup OBS'), findsOneWidget);
-    expect(find.text('Open Twitch settings'), findsOneWidget);
+    expect(find.text('Sign into Channel'), findsOneWidget);
+    expect(find.text('Sign into Bot'), findsOneWidget);
+    expect(find.text('Add Tag'), findsOneWidget);
+    expect(find.text('Save'), findsOneWidget);
 
     await tester.tap(find.text('Setup OBS'));
     expect(destinations, [WorkspaceIds.resources]);
