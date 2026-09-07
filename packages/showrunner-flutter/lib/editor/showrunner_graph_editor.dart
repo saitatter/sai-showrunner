@@ -50,6 +50,24 @@ dynamic _cloneJsonValue(dynamic value) {
 JsonMap _jsonEntry(String key, dynamic value) =>
     value == null ? const <String, dynamic>{} : <String, dynamic>{key: value};
 
+String _summarizeGraphValue(dynamic value) {
+  if (value == null) return '—';
+  if (value is String) {
+    if (value.isEmpty) return '—';
+    return value.length > 28 ? '${value.substring(0, 25)}…' : value;
+  }
+  if (value is num || value is bool) return value.toString();
+  if (value is List) {
+    return '[${value.length} item${value.length == 1 ? '' : 's'}]';
+  }
+  if (value is Map) {
+    if (value.isEmpty) return '{}';
+    final keys = value.keys.take(2).map((key) => key.toString()).join(', ');
+    return '{$keys${value.length > 2 ? '…' : ''}}';
+  }
+  return value.toString();
+}
+
 Size? _editorSizeFromJson(dynamic value, NodeEditorConfig config) {
   if (value is! List || value.length < 2) return null;
   final width = value[0];
@@ -158,6 +176,27 @@ class ShowRunnerGraphEditor {
         autoBuildGraph: false,
         autoRunGraph: false,
         enableNodeResize: true,
+        minZoom: 0.35,
+        maxZoom: 1.5,
+        snapToGridSize: 42,
+      ),
+      style: const NodeEditorStyle(
+        decoration: BoxDecoration(color: Color(0xff101316)),
+        gridStyle: GridStyle(
+          gridSpacingX: 42,
+          gridSpacingY: 42,
+          lineWidth: 0.8,
+          lineColor: Color.fromARGB(56, 112, 126, 142),
+          intersectionColor: Color.fromARGB(88, 146, 161, 178),
+          intersectionRadius: 1.2,
+          showGrid: true,
+        ),
+        highlightAreaStyle: HighlightAreaStyle(
+          color: Color.fromARGB(38, 185, 117, 255),
+          borderWidth: 1.5,
+          borderColor: Color.fromARGB(190, 212, 137, 255),
+          borderDrawMode: LineDrawMode.solid,
+        ),
       ),
       clipboardPayloadEncoder: _encodeClipboardPayload,
       clipboardPayloadDecoder: _decodeClipboardPayload,
@@ -348,6 +387,165 @@ class ShowRunnerGraphEditor {
                 .idName] ??
             controller.nodes[editorNodeId]?.prototype.idName ??
             '';
+
+  /// The desktop reference renders the plugin/operation identity below the
+  /// node title. Keep that information in the editor adapter instead of
+  /// making the generic sai_nodes package know about ShowRunner semantics.
+  String nodeSubtitle(String editorNodeId) {
+    final node = controller.nodes[editorNodeId];
+    if (node == null) return '';
+    final data = _nodeDataByEditorId[editorNodeId] ?? const <String, dynamic>{};
+    final type = node.prototype.idName;
+    if (_variableEditorIds.contains(editorNodeId)) {
+      final variableType = data['type']?.toString();
+      return variableType == null || variableType.isEmpty
+          ? 'Variable'
+          : '$variableType variable';
+    }
+    if (type.startsWith('trigger.')) {
+      final parts = type.split('.');
+      if (parts.length >= 3) {
+        final plugin = _registry.findPlugin(parts[1]);
+        return '${plugin?.name ?? parts[1]} / ${parts.sublist(2).join('.')}';
+      }
+    }
+    final plugin = data['plugin']?.toString();
+    final action = data['action']?.toString();
+    if (plugin != null &&
+        plugin.isNotEmpty &&
+        action != null &&
+        action.isNotEmpty) {
+      return '${_registry.findPlugin(plugin)?.name ?? plugin} / $action';
+    }
+    return switch (type) {
+      'if' => 'condition',
+      'switch' => 'branch',
+      'for' || 'forEach' || 'while' => 'flow control',
+      'break' || 'continue' || 'return' => 'flow control',
+      _ when type.startsWith('subgraphCall:') => 'subgraph call',
+      _ => '',
+    };
+  }
+
+  String? nodeBadge(String editorNodeId) {
+    final node = controller.nodes[editorNodeId];
+    if (node == null) return null;
+    final type = node.prototype.idName.toLowerCase();
+    final data = _nodeDataByEditorId[editorNodeId];
+    if (data?['plugin'] != null && data?['action'] != null) {
+      final plugin = data!['plugin'].toString();
+      final action = data['action'].toString();
+      if (_registry.findAction(plugin, action) == null) return 'Missing';
+      if (_isCoreConversionNodeType(node.prototype.idName)) return 'Convert';
+      if (plugin.toLowerCase() == 'showrunner' &&
+          (action.toLowerCase().contains('queue') ||
+              action.toLowerCase() == 'skip')) {
+        return 'Queue';
+      }
+    }
+    if (type.startsWith('trigger.')) return 'Trigger';
+    if (type.startsWith('variable.')) return 'Variable';
+    if (type.startsWith('subgraphcall:')) return 'Subgraph';
+    if (type == 'queue.additem' || type == 'overlay.pushchat') {
+      return type.startsWith('queue') ? 'Queue' : 'Overlay';
+    }
+    return null;
+  }
+
+  List<(String, String)> nodeConfigLines(String editorNodeId) {
+    final lines = <(String, String)>[];
+    final data = _nodeDataByEditorId[editorNodeId] ?? const <String, dynamic>{};
+    if (_variableEditorIds.contains(editorNodeId)) {
+      final name = data['name']?.toString().trim();
+      if (name != null && name.isNotEmpty) {
+        lines.add(('name', name));
+      }
+      if (data['value'] != null) {
+        lines.add(('value', _summarizeGraphValue(data['value'])));
+      }
+      return lines;
+    }
+    final config = data['config'];
+    if (config is! Map) return lines;
+    for (final entry in config.entries) {
+      if (lines.length >= 4) break;
+      if (entry.value == null) continue;
+      lines.add((entry.key.toString(), _summarizeGraphValue(entry.value)));
+    }
+    if (config.length > lines.length) {
+      lines.add(('…', '+${config.length - lines.length} more'));
+    }
+    return lines;
+  }
+
+  IconData nodeIcon(String editorNodeId) {
+    final node = controller.nodes[editorNodeId];
+    if (node == null) return Icons.extension_outlined;
+    final type = node.prototype.idName.toLowerCase();
+    final data = _nodeDataByEditorId[editorNodeId];
+    if (data?['plugin'] != null && data?['action'] != null) {
+      if (_registry.findAction(
+            data!['plugin'].toString(),
+            data['action'].toString(),
+          ) ==
+          null) {
+        return Icons.error_outline;
+      }
+      if (_isCoreConversionNodeType(node.prototype.idName)) {
+        return Icons.swap_horizontal_circle_outlined;
+      }
+    }
+    if (type.startsWith('trigger.')) return Icons.bolt;
+    if (type.startsWith('variable.')) return Icons.data_object;
+    if (type.startsWith('subgraphcall:')) return Icons.functions;
+    return switch (type) {
+      'if' => Icons.call_split,
+      'switch' => Icons.alt_route,
+      'for' || 'foreach' => Icons.repeat,
+      'while' => Icons.sync,
+      'break' => Icons.exit_to_app,
+      'continue' => Icons.skip_next,
+      'return' => Icons.keyboard_return,
+      'queue.additem' => Icons.low_priority,
+      'overlay.pushchat' => Icons.layers_outlined,
+      _ => Icons.extension_outlined,
+    };
+  }
+
+  Color nodeAccent(String editorNodeId) {
+    final node = controller.nodes[editorNodeId];
+    if (node == null) return const Color(0xff94a3b8);
+    final type = node.prototype.idName.toLowerCase();
+    final data = _nodeDataByEditorId[editorNodeId];
+    if (data?['plugin'] != null && data?['action'] != null) {
+      final plugin = data!['plugin'].toString().toLowerCase();
+      final action = data['action'].toString().toLowerCase();
+      if (_registry.findAction(plugin, action) == null) {
+        return const Color(0xffef5350);
+      }
+      if (_isCoreConversionNodeType(node.prototype.idName)) {
+        return const Color(0xff4dd0e1);
+      }
+      if (plugin == 'showrunner' &&
+          (action.contains('queue') || action == 'skip')) {
+        return const Color(0xffffcf5a);
+      }
+    }
+    return switch (type) {
+      _ when type.startsWith('trigger.') => const Color(0xff60a5fa),
+      'if' => const Color(0xff64b5f6),
+      'switch' => const Color(0xff7c4dff),
+      'for' || 'foreach' => const Color(0xff68d391),
+      'while' => const Color(0xff4db6ac),
+      'break' || 'continue' => const Color(0xffef9a9a),
+      'return' => const Color(0xffffab91),
+      'queue.additem' => const Color(0xffffcf5a),
+      'overlay.pushchat' => const Color(0xff34d399),
+      _ when type.startsWith('variable.') => const Color(0xff90a4ae),
+      _ when type.startsWith('subgraphcall:') => const Color(0xff4dd0e1),
+      _ => const Color(0xff94a3b8),
+    };
+  }
 
   String? customNodeTitle(String editorNodeId) =>
       _nodeTitles[editorNodeId] ?? controller.nodes[editorNodeId]?.customTitle;
@@ -1453,11 +1651,22 @@ class ShowRunnerGraphEditor {
       idName: idName,
       displayName: (_) => title,
       description: (_) => 'ShowRunner graph node: $title',
-      styleBuilder: (_) => NodeStyle(
+      styleBuilder: (state) => NodeStyle(
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.16),
-          border: Border.all(color: color),
-          borderRadius: BorderRadius.circular(8),
+          color: color.withValues(alpha: state.isSelected ? 0.24 : 0.16),
+          border: Border.all(
+            color: state.isSelected ? const Color(0xffffdf6b) : color,
+            width: state.isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: state.isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xffffdf6b).withValues(alpha: 0.2),
+                    blurRadius: 10,
+                  ),
+                ]
+              : null,
         ),
       ),
       ports: [
@@ -1547,14 +1756,17 @@ class ShowRunnerGraphEditor {
         trigger = controller.addNode(
           'trigger.chatMessage',
           offset: const Offset(-420, -80),
+          snapToGrid: false,
         );
         queue = controller.addNode(
           'queue.addItem',
           offset: const Offset(-80, -80),
+          snapToGrid: false,
         );
         overlay = controller.addNode(
           'overlay.pushChat',
           offset: const Offset(260, -80),
+          snapToGrid: false,
         );
       } else {
         trigger =
@@ -2025,6 +2237,7 @@ class ShowRunnerGraphEditor {
       final editorNode = target.addNode(
         editorNodeType,
         offset: Offset(node.x, node.y),
+        snapToGrid: false,
       );
       nodes[node.id] = editorNode;
       _nodeDataByEditorId[editorNode.id] = Map<String, dynamic>.from(node.data);
@@ -2142,7 +2355,11 @@ class ShowRunnerGraphEditor {
           : 'trigger';
       _ensurePrototype(type, target: target);
       final offset = Offset(_number(trigger['x']), _number(trigger['y']));
-      final editorNode = target.addNode(type, offset: offset);
+      final editorNode = target.addNode(
+        type,
+        offset: offset,
+        snapToGrid: false,
+      );
       nodes[schemaId] = editorNode;
       _triggerEditorIds.add(editorNode.id);
       _schemaIdByEditorId[editorNode.id] = schemaId;
@@ -2191,7 +2408,11 @@ class ShowRunnerGraphEditor {
       if (id.isEmpty || !_variableTypes.contains(type)) continue;
       _ensurePrototype('variable.$type', target: target);
       final offset = Offset(_number(variable['x']), _number(variable['y']));
-      final editorNode = target.addNode('variable.$type', offset: offset);
+      final editorNode = target.addNode(
+        'variable.$type',
+        offset: offset,
+        snapToGrid: false,
+      );
       nodes[id] = editorNode;
       _variableEditorIds.add(editorNode.id);
       _schemaIdByEditorId[editorNode.id] = id;
@@ -2453,13 +2674,30 @@ class ShowRunnerGraphEditor {
       _prototype(
         idName: nodeType,
         title: prototypeTitle,
-        color: const Color(0xff64748b),
+        color: _prototypeColor(nodeType),
         input: !isTrigger,
         output: true,
         hasPayloadOutput: isTrigger,
         dataOutputs: _resultFieldsForAction(nodeType),
       ),
     );
+  }
+
+  Color _prototypeColor(String nodeType) {
+    final normalized = nodeType.toLowerCase();
+    if (normalized.startsWith('trigger.')) return const Color(0xff60a5fa);
+    if (_isCoreConversionNodeType(nodeType)) {
+      return const Color(0xff4dd0e1);
+    }
+    if (normalized.startsWith('variable.')) return const Color(0xff90a4ae);
+    if (normalized.startsWith('showrunner.') &&
+        (normalized.contains('queue') || normalized.endsWith('.skip'))) {
+      return const Color(0xffffcf5a);
+    }
+    if (normalized == 'overlays.pushchatmessage') {
+      return const Color(0xff34d399);
+    }
+    return const Color(0xff7d32d4);
   }
 
   String? _manifestDisplayName(String nodeType) {

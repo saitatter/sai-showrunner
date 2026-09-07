@@ -161,6 +161,43 @@ void main() {
     );
   });
 
+  testWidgets('selects and drags a node from the rendered graph canvas', (
+    tester,
+  ) async {
+    await pumpWorkspace(tester);
+
+    final node = editor.controller.nodes.values.first;
+    final editorRenderObject = editor.controller.editorKey.currentContext
+        ?.findRenderObject();
+    expect(editorRenderObject, isA<RenderBox>());
+    final editorBox = editorRenderObject! as RenderBox;
+    final nodeRenderObject = node.key.currentContext?.findRenderObject();
+    expect(nodeRenderObject, isA<RenderBox>());
+    final nodeBox = nodeRenderObject! as RenderBox;
+    final nodeTopLeft = editor.controller.worldToScreen(
+      node.offset,
+      editorBox.size,
+    );
+    final nodeCenter = editorBox.localToGlobal(
+      nodeTopLeft + nodeBox.size.center(Offset.zero),
+    );
+
+    await tester.tapAt(nodeCenter);
+    await tester.pump();
+    expect(editor.controller.selectedNodeIds, contains(node.id));
+
+    final initialOffset = node.offset;
+    await tester.dragFrom(
+      nodeCenter,
+      const Offset(56, 28),
+      buttons: kPrimaryMouseButton,
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+
+    expect(node.offset, isNot(initialOffset));
+  });
+
   testWidgets('exposes structural graph issues through graph health', (
     tester,
   ) async {

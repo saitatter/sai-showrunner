@@ -197,6 +197,41 @@ void main() {
     expect(editor.customNodeTitle(editorNodeId), 'Push Chat Message');
   });
 
+  test('preserves reference node metadata and exact persisted positions', () {
+    final editor = ShowRunnerGraphEditor();
+    addTearDown(editor.dispose);
+    editor.loadAutomation(
+      const AutomationData(
+        graph: AutomationGraph(
+          nodes: [
+            GraphNode(
+              id: 'action-1',
+              type: 'action',
+              x: 13,
+              y: 27,
+              data: {
+                'plugin': 'overlays',
+                'action': 'pushChatMessage',
+                'config': {'message': 'Hello', 'duration': 5},
+              },
+            ),
+          ],
+          entryNodeId: 'action-1',
+        ),
+      ),
+    );
+
+    final editorNodeId = editor.editorNodeIdForSchema('action-1')!;
+    final node = editor.controller.nodes[editorNodeId]!;
+    expect(node.offset, const Offset(13, 27));
+    expect(editor.nodeSubtitle(editorNodeId), 'Overlays / pushChatMessage');
+    expect(editor.nodeBadge(editorNodeId), isNull);
+    expect(editor.nodeConfigLines(editorNodeId), [
+      ('message', 'Hello'),
+      ('duration', '5'),
+    ]);
+  });
+
   test('updates configuration for a selected node', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
@@ -373,8 +408,8 @@ void main() {
           'trigger': 'chat',
           'config': {'room': 'main'},
           'stop': true,
-          'x': -256.0,
-          'y': 64.0,
+          'x': -240.0,
+          'y': 40.0,
         },
       ]);
     },
@@ -395,8 +430,8 @@ void main() {
         'trigger': 'message',
         'config': <String, dynamic>{},
         'stop': false,
-        'x': 64.0,
-        'y': 64.0,
+        'x': 84.0,
+        'y': 84.0,
       },
     ]);
   });
@@ -552,7 +587,7 @@ void main() {
     );
 
     expect(insertedId, isNotNull);
-    expect(editor.controller.nodes[insertedId]!.offset, const Offset(640, 128));
+    expect(editor.controller.nodes[insertedId]!.offset, const Offset(630, 126));
     expect(
       editor.controller.linksAsList,
       contains(
@@ -1498,7 +1533,7 @@ void main() {
     addTearDown(restored.dispose);
     restored.loadAutomation(saved);
     expect(restored.frames.value.single.title, 'Entry');
-    expect(restored.frames.value.single.bounds.left, -472);
+    expect(restored.frames.value.single.bounds.left, -444.0);
   });
 
   test('renames and deletes selected graph frames', () {
@@ -1563,7 +1598,7 @@ void main() {
     editor.moveFrame(frame.id, const Offset(70, 70));
     expect(
       editor.controller.nodes[secondEditorId]!.offset,
-      const Offset(320, 64),
+      const Offset(294, 84),
     );
 
     editor.controller.clearSelection();

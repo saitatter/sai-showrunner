@@ -1841,7 +1841,7 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
     animation: Listenable.merge([_stateChanges, _pulseController]),
     builder: (context, child) {
       final node = widget.node;
-      final accent = _nodeAccent(node);
+      final accent = widget.editor.nodeAccent(node.id);
       final headerStyle = node.builtHeaderStyle;
       final active = widget.editor.activeNodeIds.value.contains(node.id);
       final execution = widget.editor.executionStates.value[node.id];
@@ -1892,46 +1892,114 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(_nodeIcon(node), size: 17, color: accent),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.editor.customNodeTitle(node.id) ??
-                        node.prototype.displayName(context),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: headerStyle.textStyle.copyWith(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0,
+                Row(
+                  children: [
+                    Icon(
+                      widget.editor.nodeIcon(node.id),
+                      size: 17,
+                      color: accent,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.editor.nodeTitle(node.id),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: headerStyle.textStyle.copyWith(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ),
+                    if (widget.editor.nodeBadge(node.id) case final badge?)
+                      Container(
+                        margin: const EdgeInsets.only(left: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.24),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          badge,
+                          style: TextStyle(
+                            color: accent,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    if (execution != null) ...[
+                      const SizedBox(width: 4),
+                      _ExecutionBadge(execution: execution),
+                    ],
+                    IconButton(
+                      tooltip: node.state.isCollapsed
+                          ? 'Expand node'
+                          : 'Collapse node',
+                      onPressed: widget.onToggleCollapse,
+                      icon: Icon(
+                        node.state.isCollapsed
+                            ? Icons.expand_more
+                            : Icons.expand_less,
+                        size: 18,
+                        color: Colors.white60,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 24,
+                        height: 24,
+                      ),
+                    ),
+                  ],
+                ),
+                if (widget.editor.nodeSubtitle(node.id).isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 25, top: 2),
+                    child: Text(
+                      widget.editor.nodeSubtitle(node.id),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
-                ),
-                if (execution != null) ...[
-                  _ExecutionBadge(execution: execution),
-                  const SizedBox(width: 4),
-                ],
-                IconButton(
-                  tooltip: node.state.isCollapsed
-                      ? 'Expand node'
-                      : 'Collapse node',
-                  onPressed: widget.onToggleCollapse,
-                  icon: Icon(
-                    node.state.isCollapsed
-                        ? Icons.expand_more
-                        : Icons.expand_less,
-                    size: 18,
-                    color: Colors.white60,
+                for (final line in widget.editor.nodeConfigLines(node.id))
+                  Padding(
+                    padding: const EdgeInsets.only(left: 25, top: 3),
+                    child: Row(
+                      children: [
+                        Text(
+                          line.$1,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 10,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            line.$2,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 24,
-                    height: 24,
-                  ),
-                ),
               ],
             ),
           ),
@@ -2834,20 +2902,6 @@ Widget _buildNodePort(
         : [Flexible(child: label), const SizedBox(width: 6), marker],
   );
 }
-
-Color _nodeAccent(NodeDataModel node) => switch (node.prototype.idName) {
-  'trigger.chatMessage' => const Color(0xff60a5fa),
-  'queue.addItem' => const Color(0xfff59e0b),
-  'overlay.pushChat' => const Color(0xff34d399),
-  _ => const Color(0xff94a3b8),
-};
-
-IconData _nodeIcon(NodeDataModel node) => switch (node.prototype.idName) {
-  'trigger.chatMessage' => Icons.bolt,
-  'queue.addItem' => Icons.low_priority,
-  'overlay.pushChat' => Icons.layers_outlined,
-  _ => Icons.extension_outlined,
-};
 
 // The remaining widgets are graph-domain panels layered over the canvas.
 class _StartupHealthBanner extends StatelessWidget {
