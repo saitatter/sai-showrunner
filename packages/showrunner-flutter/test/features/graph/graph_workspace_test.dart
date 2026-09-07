@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sai_nodes/sai_nodes.dart';
 import 'package:showrunner_flutter/app/startup_health.dart';
@@ -39,6 +40,7 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.windows),
         home: Scaffold(
           body: SizedBox(
             width: 1200,
@@ -196,6 +198,63 @@ void main() {
     await tester.pump();
 
     expect(node.offset, isNot(initialOffset));
+  });
+
+  testWidgets('keeps area selection and node context menus aligned', (
+    tester,
+  ) async {
+    await pumpWorkspace(tester);
+    final node = editor.controller.nodes.values.first;
+    final editorRenderObject = editor.controller.editorKey.currentContext
+        ?.findRenderObject();
+    expect(editorRenderObject, isA<RenderBox>());
+    final editorBox = editorRenderObject! as RenderBox;
+    final nodeRenderObject = node.key.currentContext?.findRenderObject();
+    expect(nodeRenderObject, isA<RenderBox>());
+    final nodeBox = nodeRenderObject! as RenderBox;
+    final nodeTopLeft = editor.controller.worldToScreen(
+      node.offset,
+      editorBox.size,
+    );
+    final nodeRect =
+        nodeTopLeft & (nodeBox.size * editor.controller.viewportZoom);
+    final selectionStart = editorBox.localToGlobal(
+      Offset(4, nodeRect.top - 24),
+    );
+    final selectionEnd = editorBox.localToGlobal(
+      nodeRect.bottomRight + const Offset(24, 24),
+    );
+
+    editor.controller.clearSelection();
+    await tester.dragFrom(
+      selectionStart,
+      selectionEnd - selectionStart,
+      buttons: kPrimaryMouseButton,
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+
+    expect(editor.controller.selectedNodeIds, contains(node.id));
+
+    final contextNode = editor.controller.nodes.values.elementAt(1);
+    final contextNodeBox = contextNode.key.currentContext?.findRenderObject();
+    expect(contextNodeBox, isA<RenderBox>());
+    final contextNodeTopLeft = editor.controller.worldToScreen(
+      contextNode.offset,
+      editorBox.size,
+    );
+    final nodeCenter = editorBox.localToGlobal(
+      contextNodeTopLeft +
+          (contextNodeBox! as RenderBox).size.center(Offset.zero) *
+              editor.controller.viewportZoom,
+    );
+    await tester.tapAt(nodeCenter, buttons: kSecondaryMouseButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Focus node'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
   });
 
   testWidgets('exposes structural graph issues through graph health', (

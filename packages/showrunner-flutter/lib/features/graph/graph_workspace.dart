@@ -629,12 +629,12 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
   final entries = <ContextMenuEntry>[...defaults, const MenuDivider()];
   if (editor.recentNodeTypes.value.isNotEmpty) {
     entries.add(
-      MenuItem<void>.submenu(
+      MenuItem<dynamic>.submenu(
         label: const Text('Recently used'),
         icon: const Icon(Icons.history),
         items: [
           for (final type in editor.recentNodeTypes.value)
-            MenuItem<void>(
+            MenuItem<dynamic>(
               label: Text(_nodeLabelForType(type, registry)),
               icon: Icon(_nodeIconForType(type, registry)),
               onSelected: (_) => _addAndConfigureNode(
@@ -658,7 +658,7 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
 
     if (triggers.isNotEmpty) {
       entries.add(
-        MenuItem<void>.submenu(
+        MenuItem<dynamic>.submenu(
           label: const Text('Add trigger'),
           icon: const Icon(Icons.bolt),
           items: _groupedNodeMenuEntries(
@@ -673,7 +673,7 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
     }
     if (actions.isNotEmpty) {
       entries.add(
-        MenuItem<void>.submenu(
+        MenuItem<dynamic>.submenu(
           label: const Text('Add action'),
           icon: const Icon(Icons.play_circle_outline),
           items: _groupedNodeMenuEntries(
@@ -690,12 +690,12 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
         categories.putIfAbsent(_actionCategory(action), () => []).add(action);
       }
       entries.add(
-        MenuItem<void>.submenu(
+        MenuItem<dynamic>.submenu(
           label: const Text('Action categories'),
           icon: const Icon(Icons.category_outlined),
           items: [
             for (final category in categories.entries)
-              MenuItem<void>.submenu(
+              MenuItem<dynamic>.submenu(
                 label: Text(category.key),
                 items: _nodeMenuItems(
                   category.value,
@@ -711,7 +711,7 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
     }
     if (conversions.isNotEmpty) {
       entries.add(
-        MenuItem<void>.submenu(
+        MenuItem<dynamic>.submenu(
           label: const Text('Conversions'),
           icon: const Icon(Icons.swap_horiz),
           items: _groupedNodeMenuEntries(
@@ -734,7 +734,7 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
   );
   if (builtIns.isNotEmpty) {
     entries.add(
-      MenuItem<void>.submenu(
+      MenuItem<dynamic>.submenu(
         label: const Text('Built-in nodes'),
         icon: const Icon(Icons.widgets_outlined),
         items: _nodeMenuItems(
@@ -749,12 +749,12 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
   }
   if (editor.activeSubgraphId == null) {
     entries.add(
-      MenuItem<void>.submenu(
+      MenuItem<dynamic>.submenu(
         label: const Text('Add variable'),
         icon: const Icon(Icons.data_object),
         items: [
           for (final type in const ['string', 'number', 'boolean', 'color'])
-            MenuItem<void>(
+            MenuItem<dynamic>(
               label: Text('${type[0].toUpperCase()}${type.substring(1)}'),
               onSelected: (_) =>
                   editor.addVariableNodeAtScreenPosition(type, position),
@@ -764,14 +764,14 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
     );
   }
   entries.add(
-    MenuItem<void>.submenu(
+    MenuItem<dynamic>.submenu(
       label: const Text('Add control flow'),
       icon: const Icon(Icons.account_tree_outlined),
       items: [
         for (final node in _GraphNodePalette._nodes.where(
           (node) => node.category == 'Control flow',
         ))
-          MenuItem<void>(
+          MenuItem<dynamic>(
             label: Text(node.label),
             icon: Icon(node.icon),
             onSelected: (_) => _addAndConfigureNode(
@@ -788,12 +788,12 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
   );
   if (editor.subgraphs.value.isNotEmpty) {
     entries.add(
-      MenuItem<void>.submenu(
+      MenuItem<dynamic>.submenu(
         label: const Text('Call subgraph'),
         icon: const Icon(Icons.functions),
         items: [
           for (final subgraph in editor.subgraphs.value)
-            MenuItem<void>(
+            MenuItem<dynamic>(
               label: Text(subgraph.name.isEmpty ? subgraph.id : subgraph.name),
               onSelected: (_) =>
                   editor.addSubgraphCallAtScreenPosition(subgraph.id, position),
@@ -805,7 +805,7 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
   entries
     ..add(const MenuDivider())
     ..add(
-      MenuItem<void>(
+      MenuItem<dynamic>(
         label: const Text('Search and add node'),
         icon: const Icon(Icons.search),
         onSelected: (_) => _addNodeAtScreenPosition(
@@ -911,7 +911,7 @@ List<ContextMenuEntry> _groupedNodeMenuEntries(
   }
   return [
     for (final group in groups.entries)
-      MenuItem<void>.submenu(
+      MenuItem<dynamic>.submenu(
         label: Text(group.key),
         icon: Icon(_nodeIconForType(group.value.first.type)),
         items: _nodeMenuItems(
@@ -933,7 +933,7 @@ List<ContextMenuEntry> _nodeMenuItems(
   required Future<DartPluginRegistry> registryFuture,
 }) => [
   for (final entry in entries)
-    MenuItem<void>(
+    MenuItem<dynamic>(
       label: Text(entry.label),
       icon: Icon(entry.icon),
       enabled: entry.enabled,
