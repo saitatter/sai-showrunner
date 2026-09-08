@@ -12,6 +12,7 @@ import '../plugins/registry/plugin_bootstrap.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
 import 'sai_nodes/showrunner_clipboard_payload.dart';
+import 'graph_node_style.dart';
 
 enum GraphNodeExecutionStatus { running, success, error }
 
@@ -31,6 +32,8 @@ final class GraphNodeExecutionVisual {
 
 typedef GraphResourceOptionsLoader =
     Future<List<String>> Function(String resourceType);
+
+const _fallbackGraphNodeSize = Size(220, 90);
 
 JsonMap _cloneJsonMap(Map<String, dynamic> source) => {
   for (final entry in source.entries) entry.key: _cloneJsonValue(entry.value),
@@ -132,9 +135,16 @@ class ShowRunnerGraphEditor {
   );
   final ValueNotifier<Map<String, GraphNodeExecutionVisual>> executionStates =
       ValueNotifier(const {});
+
+  /// State for the editor-only preview playhead. This never starts runtime
+  /// plugins or executes actions; it only previews graph order and timing.
+  final ValueNotifier<String?> previewNodeId = ValueNotifier(null);
+  final ValueNotifier<bool> previewPlaying = ValueNotifier(false);
+  final ValueNotifier<Duration> previewElapsed = ValueNotifier(Duration.zero);
   final ValueNotifier<String?> graphFeedback = ValueNotifier(null);
   final ValueNotifier<String> searchQuery = ValueNotifier('');
   final ValueNotifier<int> searchMatchIndex = ValueNotifier(0);
+  final ValueNotifier<bool> canvasSearchOpen = ValueNotifier(false);
   final ValueNotifier<List<String>> recentNodeTypes = ValueNotifier(const []);
   final ValueNotifier<int> nodeRevision = ValueNotifier(0);
   final ValueNotifier<bool> documentDirty = ValueNotifier(false);
@@ -146,6 +156,8 @@ class ShowRunnerGraphEditor {
   final Set<String> _triggerEditorIds = {};
   bool _triggerNodeStateInitialized = false;
   bool _suspendDirtyTracking = false;
+  Timer? _previewTimer;
+  DateTime? _previewStartedAt;
 
   String? get activeSubgraphId => activeGraphPath.value.lastOrNull;
 
@@ -181,14 +193,14 @@ class ShowRunnerGraphEditor {
         snapToGridSize: 42,
       ),
       style: const NodeEditorStyle(
-        decoration: BoxDecoration(color: Color(0xff101316)),
+        decoration: BoxDecoration(color: Color(0xff202020)),
         gridStyle: GridStyle(
           gridSpacingX: 42,
           gridSpacingY: 42,
-          lineWidth: 0.8,
-          lineColor: Color.fromARGB(56, 112, 126, 142),
-          intersectionColor: Color.fromARGB(88, 146, 161, 178),
-          intersectionRadius: 1.2,
+          lineWidth: 1,
+          lineColor: Color(0xff353535),
+          intersectionColor: Color(0xff353535),
+          intersectionRadius: 0,
           showGrid: true,
         ),
         highlightAreaStyle: HighlightAreaStyle(
@@ -372,6 +384,14 @@ class ShowRunnerGraphEditor {
   String? schemaNodeIdForEditor(String editorNodeId) =>
       _schemaIdByEditorId[editorNodeId];
 
+  /// Returns the persisted subgraph referenced by an editor node, if any.
+  ///
+  /// Navigation is intentionally kept in the ShowRunner adapter. The generic
+  /// canvas only reports the double-click; it must not know what a subgraph or
+  /// a ShowRunner resource is.
+  String? subgraphIdForEditor(String editorNodeId) =>
+      _nodeDataByEditorId[editorNodeId]?['subgraphId']?.toString();
+
   String nodeTitle(String editorNodeId) =>
       (_variableEditorIds.contains(editorNodeId) &&
           _nodeDataByEditorId[editorNodeId]?['name'] is String &&
@@ -532,7 +552,7 @@ class ShowRunnerGraphEditor {
       }
     }
     return switch (type) {
-      _ when type.startsWith('trigger.') => const Color(0xff60a5fa),
+      _ when type.startsWith('trigger.') => const Color(0xffe9aaff),
       'if' => const Color(0xff64b5f6),
       'switch' => const Color(0xff7c4dff),
       'for' || 'foreach' => const Color(0xff68d391),
@@ -543,7 +563,7 @@ class ShowRunnerGraphEditor {
       'overlay.pushchat' => const Color(0xff34d399),
       _ when type.startsWith('variable.') => const Color(0xff90a4ae),
       _ when type.startsWith('subgraphcall:') => const Color(0xff4dd0e1),
-      _ => const Color(0xff94a3b8),
+      _ => const Color(0xff7d32d4),
     };
   }
 
@@ -821,8 +841,17 @@ class ShowRunnerGraphEditor {
 
   void deleteVariableNode(String editorNodeId) {
     if (!isVariableNode(editorNodeId)) return;
+    final schemaId = _schemaIdByEditorId[editorNodeId] ?? editorNodeId;
     _removeEditorNodeFromFrames(editorNodeId);
     controller.removeNodeById(editorNodeId);
+    // Links that failed to hydrate (for example an old incompatible wire) are
+    // kept for diagnostics. Once their source/target resource is deleted they
+    // must be removed as well, otherwise saving resurrects a dangling wire.
+    for (final entry in _invalidDataWiresByGraph.entries) {
+      entry.value.removeWhere(
+        (wire) => wire.fromNode == schemaId || wire.toNode == schemaId,
+      );
+    }
     _variableEditorIds.remove(editorNodeId);
     _schemaIdByEditorId.remove(editorNodeId);
     _nodeDataByEditorId.remove(editorNodeId);
@@ -833,6 +862,16 @@ class ShowRunnerGraphEditor {
   void setSearchQuery(String query) {
     searchQuery.value = query.trim();
     searchMatchIndex.value = 0;
+  }
+
+  void openCanvasSearch() {
+    searchQuery.value = '';
+    canvasSearchOpen.value = true;
+    searchMatchIndex.value = 0;
+  }
+
+  void closeCanvasSearch() {
+    canvasSearchOpen.value = false;
   }
 
   Set<String> searchNodeIds([String? query]) {
@@ -853,7 +892,9 @@ class ShowRunnerGraphEditor {
 
   void focusSearchResults() {
     final matches = searchNodeIds();
-    if (matches.isNotEmpty) controller.focusNodesById(matches);
+    if (matches.isNotEmpty) {
+      controller.focusNodesById(matches, animate: false);
+    }
   }
 
   int searchResultCount() => searchNodeIds().length;
@@ -869,7 +910,7 @@ class ShowRunnerGraphEditor {
         : (searchMatchIndex.value - 1 + matches.length) % matches.length;
     searchMatchIndex.value = nextIndex;
     final nodeId = matches[nextIndex];
-    controller.focusNodesById({nodeId});
+    controller.focusNodesById({nodeId}, animate: false);
     return nodeId;
   }
 
@@ -943,10 +984,22 @@ class ShowRunnerGraphEditor {
             200,
           )
         : Rect.fromLTRB(
-            selected.map((node) => node.offset.dx).reduce(math.min) - 24,
-            selected.map((node) => node.offset.dy).reduce(math.min) - 44,
-            selected.map((node) => node.offset.dx + 180).reduce(math.max) + 24,
-            selected.map((node) => node.offset.dy + 90).reduce(math.max) + 24,
+            selected
+                    .map((node) => _nodeWorldBounds(node).left)
+                    .reduce(math.min) -
+                24,
+            selected
+                    .map((node) => _nodeWorldBounds(node).top)
+                    .reduce(math.min) -
+                44,
+            selected
+                    .map((node) => _nodeWorldBounds(node).right)
+                    .reduce(math.max) +
+                24,
+            selected
+                    .map((node) => _nodeWorldBounds(node).bottom)
+                    .reduce(math.max) +
+                24,
           );
     final framePrefix = 'frame-${DateTime.now().microsecondsSinceEpoch}';
     var frameId = framePrefix;
@@ -1129,10 +1182,7 @@ class ShowRunnerGraphEditor {
         .whereType<String>()
         .map((id) => controller.nodes[id])
         .whereType<NodeDataModel>();
-    final bounds = [
-      for (final node in nodes)
-        Rect.fromLTWH(node.offset.dx, node.offset.dy, 180, 90),
-    ];
+    final bounds = [for (final node in nodes) _nodeWorldBounds(node)];
     if (bounds.isEmpty) return null;
     return bounds.reduce((a, b) => a.expandToInclude(b));
   }
@@ -1168,9 +1218,17 @@ class ShowRunnerGraphEditor {
         .whereType<String>()
         .map((id) => controller.nodes[id])
         .whereType<NodeDataModel>()
-        .map((node) => Rect.fromLTWH(node.offset.dx, node.offset.dy, 180, 90));
+        .map(_nodeWorldBounds);
     if (members.isEmpty) return null;
     return members.reduce((a, b) => a.expandToInclude(b));
+  }
+
+  Rect _nodeWorldBounds(NodeDataModel node) {
+    final renderObject = node.key.currentContext?.findRenderObject();
+    final size = renderObject is RenderBox && renderObject.hasSize
+        ? renderObject.size
+        : node.customSize ?? _fallbackGraphNodeSize;
+    return node.offset & size;
   }
 
   void deleteSelectedFrame() {
@@ -1561,36 +1619,22 @@ class ShowRunnerGraphEditor {
         idName: prototypeId,
         displayName: (_) => subgraph.name,
         description: (_) => 'ShowRunner subgraph call: ${subgraph.name}',
-        styleBuilder: (_) => NodeStyle(
-          decoration: BoxDecoration(
-            color: const Color(0xff0891b2).withValues(alpha: 0.16),
-            border: Border.all(color: const Color(0xff0891b2)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
+        styleBuilder: (state) => graphNodeStyle(state, const Color(0xff4dd0e1)),
         ports: [
           ControlInputPortPrototype(
             idName: 'exec',
             displayName: (_) => 'Execute',
-            styleBuilder: defaultPortStyleBuilder,
+            styleBuilder: _flowPortStyleBuilder,
           ),
           for (final parameter in subgraph.parameters)
-            DataInputPortPrototype<dynamic>(
-              idName: parameter['name']?.toString() ?? '',
-              displayName: (_) => parameter['name']?.toString() ?? '',
-              styleBuilder: defaultPortStyleBuilder,
-            ),
+            _subgraphPort(parameter, input: true),
           ControlOutputPortPrototype(
             idName: 'completed',
             displayName: (_) => 'Completed',
-            styleBuilder: defaultPortStyleBuilder,
+            styleBuilder: _flowPortStyleBuilder,
           ),
           for (final output in subgraph.outputs)
-            DataOutputPortPrototype<dynamic>(
-              idName: output['name']?.toString() ?? '',
-              displayName: (_) => output['name']?.toString() ?? '',
-              styleBuilder: defaultPortStyleBuilder,
-            ),
+            _subgraphPort(output, input: false),
         ],
         onExecute: (ports, fields, state, forward, put) async {
           await forward({'completed'});
@@ -1611,28 +1655,186 @@ class ShowRunnerGraphEditor {
       idName: 'variable.$type',
       displayName: (_) => title,
       description: (_) => 'ShowRunner variable node: $title',
-      styleBuilder: (_) => NodeStyle(
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.16),
-          border: Border.all(color: color),
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
+      styleBuilder: (state) => graphNodeStyle(state, color),
       ports: [
-        DataInputPortPrototype<dynamic>(
+        _typedPort(
           idName: 'value',
-          displayName: (_) => 'Set',
-          styleBuilder: defaultPortStyleBuilder,
+          label: 'Set',
+          kind: _kindForVariableType(type),
+          input: true,
         ),
-        DataOutputPortPrototype<dynamic>(
+        _typedPort(
           idName: 'value',
-          displayName: (_) => 'Value',
-          styleBuilder: defaultPortStyleBuilder,
+          label: 'Value',
+          kind: _kindForVariableType(type),
+          input: false,
         ),
       ],
       onExecute: (ports, fields, state, forward, put) async {},
     );
   }
+
+  static PortPrototype _subgraphPort(JsonMap port, {required bool input}) {
+    final id = port['name']?.toString().trim() ?? '';
+    final label = port['label']?.toString().trim();
+    return _typedPort(
+      idName: id,
+      label: label == null || label.isEmpty ? id : label,
+      kind: _kindForTypeName(port['type']?.toString()),
+      input: input,
+    );
+  }
+
+  static PortPrototype _dataPort(
+    DartDataInputSchema schema, {
+    required bool input,
+  }) => _typedPort(
+    idName: schema.key ?? schema.label,
+    label: schema.label,
+    kind: schema.kind,
+    input: input,
+  );
+
+  /// Creates the concrete generic port instance required by sai_nodes. Using
+  /// a real generic type here is important: sai_nodes uses it to reject an
+  /// invalid data connection before it reaches the persisted graph.
+  static PortPrototype _typedPort({
+    required String idName,
+    required String label,
+    required DartDataInputKind kind,
+    required bool input,
+  }) {
+    final normalizedId = idName.trim().isEmpty ? label : idName.trim();
+    final normalizedLabel = label.trim().isEmpty ? normalizedId : label;
+    if (input) {
+      return switch (kind) {
+        DartDataInputKind.text ||
+        DartDataInputKind.multilineText ||
+        DartDataInputKind.enumeration ||
+        DartDataInputKind.color ||
+        DartDataInputKind.lightColor ||
+        DartDataInputKind.filePath ||
+        DartDataInputKind.resource ||
+        DartDataInputKind.keyboardKey => DataInputPortPrototype<String>(
+          idName: normalizedId,
+          displayName: (_) => normalizedLabel,
+          styleBuilder: _dataPortStyleBuilder(kind),
+        ),
+        DartDataInputKind.number ||
+        DartDataInputKind.duration => DataInputPortPrototype<num>(
+          idName: normalizedId,
+          displayName: (_) => normalizedLabel,
+          styleBuilder: _dataPortStyleBuilder(kind),
+        ),
+        DartDataInputKind.boolean => DataInputPortPrototype<bool>(
+          idName: normalizedId,
+          displayName: (_) => normalizedLabel,
+          styleBuilder: _dataPortStyleBuilder(kind),
+        ),
+        DartDataInputKind.array ||
+        DartDataInputKind.keyCombo => DataInputPortPrototype<List<dynamic>>(
+          idName: normalizedId,
+          displayName: (_) => normalizedLabel,
+          styleBuilder: _dataPortStyleBuilder(kind),
+        ),
+        DartDataInputKind.object || DartDataInputKind.obsTransform =>
+          DataInputPortPrototype<Map<String, dynamic>>(
+            idName: normalizedId,
+            displayName: (_) => normalizedLabel,
+            styleBuilder: _dataPortStyleBuilder(kind),
+          ),
+      };
+    }
+    return switch (kind) {
+      DartDataInputKind.text ||
+      DartDataInputKind.multilineText ||
+      DartDataInputKind.enumeration ||
+      DartDataInputKind.color ||
+      DartDataInputKind.lightColor ||
+      DartDataInputKind.filePath ||
+      DartDataInputKind.resource ||
+      DartDataInputKind.keyboardKey => DataOutputPortPrototype<String>(
+        idName: normalizedId,
+        displayName: (_) => normalizedLabel,
+        styleBuilder: _dataPortStyleBuilder(kind),
+      ),
+      DartDataInputKind.number ||
+      DartDataInputKind.duration => DataOutputPortPrototype<num>(
+        idName: normalizedId,
+        displayName: (_) => normalizedLabel,
+        styleBuilder: _dataPortStyleBuilder(kind),
+      ),
+      DartDataInputKind.boolean => DataOutputPortPrototype<bool>(
+        idName: normalizedId,
+        displayName: (_) => normalizedLabel,
+        styleBuilder: _dataPortStyleBuilder(kind),
+      ),
+      DartDataInputKind.array ||
+      DartDataInputKind.keyCombo => DataOutputPortPrototype<List<dynamic>>(
+        idName: normalizedId,
+        displayName: (_) => normalizedLabel,
+        styleBuilder: _dataPortStyleBuilder(kind),
+      ),
+      DartDataInputKind.object || DartDataInputKind.obsTransform =>
+        DataOutputPortPrototype<Map<String, dynamic>>(
+          idName: normalizedId,
+          displayName: (_) => normalizedLabel,
+          styleBuilder: _dataPortStyleBuilder(kind),
+        ),
+    };
+  }
+
+  static DartDataInputKind _kindForVariableType(String type) =>
+      _kindForTypeName(type);
+
+  static DartDataInputKind _kindForTypeName(String? type) =>
+      switch (type?.trim().toLowerCase()) {
+        'string' || 'text' => DartDataInputKind.text,
+        'number' || 'num' || 'double' || 'int' => DartDataInputKind.number,
+        'boolean' || 'bool' => DartDataInputKind.boolean,
+        'array' || 'list' => DartDataInputKind.array,
+        'object' || 'map' || 'json' => DartDataInputKind.object,
+        'color' => DartDataInputKind.color,
+        _ => DartDataInputKind.object,
+      };
+
+  static PortStyle _flowPortStyleBuilder(PortState state) =>
+      _portStyle(const Color(0xffe9aaff), state);
+
+  static PortStyle Function(PortState) _dataPortStyleBuilder(
+    DartDataInputKind kind,
+  ) =>
+      (state) => _portStyle(_dataPortColor(kind), state);
+
+  static PortStyle _portStyle(Color color, PortState state) => PortStyle(
+    shape: PortShape.circle,
+    color: color,
+    radius: 5,
+    linkStyleBuilder: (link) => LinkStyle(
+      color: link.isSelected ? const Color(0xffffcc00) : color,
+      lineWidth: link.isSelected ? 3.5 : 2.5,
+      drawMode: LineDrawMode.solid,
+      curveType: LinkCurveType.bezier,
+    ),
+  );
+
+  static Color _dataPortColor(DartDataInputKind kind) => switch (kind) {
+    DartDataInputKind.text ||
+    DartDataInputKind.multilineText ||
+    DartDataInputKind.enumeration ||
+    DartDataInputKind.filePath ||
+    DartDataInputKind.resource ||
+    DartDataInputKind.keyboardKey => const Color(0xff81c784),
+    DartDataInputKind.number ||
+    DartDataInputKind.duration => const Color(0xff4fc3f7),
+    DartDataInputKind.boolean => const Color(0xffffb74d),
+    DartDataInputKind.object ||
+    DartDataInputKind.obsTransform => const Color(0xffce93d8),
+    DartDataInputKind.array ||
+    DartDataInputKind.keyCombo => const Color(0xffa1887f),
+    DartDataInputKind.color ||
+    DartDataInputKind.lightColor => const Color(0xfff06292),
+  };
 
   NodePrototype _prototype({
     required String idName,
@@ -1643,6 +1845,7 @@ class ShowRunnerGraphEditor {
     bool hasPayloadInput = false,
     bool hasPayloadOutput = false,
     List<String>? flowOutputs,
+    List<DartDataInputSchema> dataInputs = const [],
     List<DartDataInputSchema> dataOutputs = const [],
     List<FieldPrototype> fields = const [],
   }) {
@@ -1651,57 +1854,43 @@ class ShowRunnerGraphEditor {
       idName: idName,
       displayName: (_) => title,
       description: (_) => 'ShowRunner graph node: $title',
-      styleBuilder: (state) => NodeStyle(
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: state.isSelected ? 0.24 : 0.16),
-          border: Border.all(
-            color: state.isSelected ? const Color(0xffffdf6b) : color,
-            width: state.isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: state.isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xffffdf6b).withValues(alpha: 0.2),
-                    blurRadius: 10,
-                  ),
-                ]
-              : null,
-        ),
+      styleBuilder: (state) => graphNodeStyle(
+        state,
+        idName.startsWith('trigger.') ? const Color(0xffe9aaff) : color,
+        trigger: idName.startsWith('trigger.'),
       ),
       ports: [
         if (input)
           ControlInputPortPrototype(
             idName: 'exec',
             displayName: (_) => 'Execute',
-            styleBuilder: defaultPortStyleBuilder,
+            styleBuilder: _flowPortStyleBuilder,
           ),
+        for (final dataInput in dataInputs) _dataPort(dataInput, input: true),
         if (hasPayloadInput)
-          DataInputPortPrototype<dynamic>(
+          _typedPort(
             idName: 'payload',
-            displayName: (_) => 'Payload',
-            styleBuilder: defaultPortStyleBuilder,
+            label: 'Payload',
+            kind: DartDataInputKind.object,
+            input: true,
           ),
         if (output || flowOutputs != null)
           ...((flowOutputs ?? const ['completed']).map(
             (port) => ControlOutputPortPrototype(
               idName: port,
               displayName: (_) => _flowPortLabel(port),
-              styleBuilder: defaultPortStyleBuilder,
+              styleBuilder: _flowPortStyleBuilder,
             ),
           )),
         if (hasPayloadOutput)
-          DataOutputPortPrototype<dynamic>(
+          _typedPort(
             idName: 'payload',
-            displayName: (_) => 'Payload',
-            styleBuilder: defaultPortStyleBuilder,
+            label: 'Payload',
+            kind: DartDataInputKind.object,
+            input: false,
           ),
         for (final dataOutput in dataOutputs)
-          DataOutputPortPrototype<dynamic>(
-            idName: dataOutput.key ?? dataOutput.label,
-            displayName: (_) => dataOutput.label,
-            styleBuilder: defaultPortStyleBuilder,
-          ),
+          _dataPort(dataOutput, input: false),
       ],
       fields: fields,
       onExecute: (ports, fields, state, forward, put) async {
@@ -1893,6 +2082,25 @@ class ShowRunnerGraphEditor {
     return controller.screenToWorld(local, renderObject.size);
   }
 
+  /// Finds the topmost graph node under a global pointer position.
+  ///
+  /// This is intentionally resolved through the same RenderBox-local
+  /// conversion used by insertion. Keeping both operations on one coordinate
+  /// path prevents drag-and-drop from reintroducing the selection offset bug.
+  String? nodeIdAtScreenPosition(Offset screenPosition) {
+    final renderObject = controller.editorKey.currentContext
+        ?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+    final local = renderObject.globalToLocal(screenPosition);
+    final world = controller.screenToWorld(local, renderObject.size);
+    final candidates = controller.nodesSpatialHashGrid.queryCoords(world);
+    for (final id in candidates.toList().reversed) {
+      final node = controller.nodes[id];
+      if (node != null && _nodeWorldBounds(node).contains(world)) return id;
+    }
+    return null;
+  }
+
   String? insertActionAfterNode(
     String nodeType,
     String anchorEditorId, {
@@ -1920,15 +2128,9 @@ class ShowRunnerGraphEditor {
     );
     if (insertedId == null) return null;
     if (conversion) {
-      final dataPort = _firstDataOutputPort(anchor);
-      if (dataPort != null) {
-        controller.addLink(
-          anchorEditorId,
-          dataPort,
-          insertedId,
-          _conversionInputPort('value'),
-        );
-      }
+      // Conversion actions are data-only in the reference editor. They are
+      // inserted without sequence flow or an implicit data wire; the user
+      // explicitly connects a compatible value port afterwards.
       return insertedId;
     }
 
@@ -2677,6 +2879,7 @@ class ShowRunnerGraphEditor {
         color: _prototypeColor(nodeType),
         input: !isTrigger,
         output: true,
+        dataInputs: _configFieldsForAction(nodeType),
         hasPayloadOutput: isTrigger,
         dataOutputs: _resultFieldsForAction(nodeType),
       ),
@@ -2751,9 +2954,26 @@ class ShowRunnerGraphEditor {
     final parts = nodeType.split('.');
     if (parts.length != 2) return const [];
     final schema = _registry.findAction(parts.first, parts.last)?.resultSchema;
+    return _objectSchemaFields(schema);
+  }
+
+  List<DartDataInputSchema> _configFieldsForAction(String nodeType) {
+    final parts = nodeType.split('.');
+    if (parts.length != 2) return const [];
+    final schema = _registry.findAction(parts.first, parts.last)?.configSchema;
+    return _objectSchemaFields(schema);
+  }
+
+  static List<DartDataInputSchema> _objectSchemaFields(
+    DartDataInputSchema? schema,
+  ) {
     if (schema?.kind != DartDataInputKind.object) return const [];
+    // The reference editor limits the visible port list so a node remains
+    // readable. The complete schema is still available in the configuration
+    // editor and runtime.
     return schema!.fields
         .where((field) => (field.key ?? field.label).trim().isNotEmpty)
+        .take(8)
         .toList(growable: false);
   }
 
@@ -2790,41 +3010,71 @@ class ShowRunnerGraphEditor {
         idName: nodeType,
         displayName: (_) => title,
         description: (_) => 'ShowRunner data conversion: $title',
-        styleBuilder: (_) => NodeStyle(
-          decoration: BoxDecoration(
-            color: const Color(0xff65a30d).withValues(alpha: 0.16),
-            border: Border.all(color: const Color(0xff65a30d)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
+        styleBuilder: (state) => graphNodeStyle(state, const Color(0xff4dd0e1)),
         ports: [
-          DataInputPortPrototype<dynamic>(
+          _typedPort(
             idName: _conversionInputPort('value'),
-            displayName: (_) => 'Value',
-            styleBuilder: defaultPortStyleBuilder,
+            label: 'Value',
+            kind: _conversionValueKind(normalized),
+            input: true,
           ),
           if (hasFallback)
-            DataInputPortPrototype<dynamic>(
+            _typedPort(
               idName: _conversionInputPort('fallback'),
-              displayName: (_) => 'Fallback',
-              styleBuilder: defaultPortStyleBuilder,
+              label: 'Fallback',
+              kind: normalized == 'convertstringtoboolean'
+                  ? DartDataInputKind.boolean
+                  : DartDataInputKind.number,
+              input: true,
             ),
-          DataOutputPortPrototype<dynamic>(
+          _typedPort(
             idName: 'value',
-            displayName: (_) => 'Value',
-            styleBuilder: defaultPortStyleBuilder,
+            label: 'Value',
+            kind: _conversionResultKind(normalized),
+            input: false,
           ),
           if (hasConverted)
-            DataOutputPortPrototype<dynamic>(
+            _typedPort(
               idName: 'converted',
-              displayName: (_) => 'Converted',
-              styleBuilder: defaultPortStyleBuilder,
+              label: 'Converted',
+              kind: DartDataInputKind.boolean,
+              input: false,
             ),
         ],
         onExecute: (ports, fields, state, forward, put) async {},
       ),
     );
   }
+
+  static DartDataInputKind _conversionValueKind(String normalized) =>
+      switch (normalized) {
+        'convertnumbertostring' ||
+        'convertnumbertoboolean' => DartDataInputKind.number,
+        'convertbooleantostring' ||
+        'convertbooleantonumber' => DartDataInputKind.boolean,
+        'convertstringtonumber' ||
+        'convertstringtoboolean' => DartDataInputKind.text,
+        'convertobjecttojsonstring' => DartDataInputKind.object,
+        'convertarraytojsonstring' => DartDataInputKind.array,
+        'convertjsonstringtoobject' ||
+        'convertjsonstringtoarray' => DartDataInputKind.multilineText,
+        _ => DartDataInputKind.object,
+      };
+
+  static DartDataInputKind _conversionResultKind(String normalized) =>
+      switch (normalized) {
+        'convertnumbertostring' ||
+        'convertbooleantostring' ||
+        'convertobjecttojsonstring' ||
+        'convertarraytojsonstring' => DartDataInputKind.text,
+        'convertstringtonumber' ||
+        'convertbooleantonumber' => DartDataInputKind.number,
+        'convertstringtoboolean' ||
+        'convertnumbertoboolean' => DartDataInputKind.boolean,
+        'convertjsonstringtoobject' => DartDataInputKind.object,
+        'convertjsonstringtoarray' => DartDataInputKind.array,
+        _ => DartDataInputKind.object,
+      };
 
   static String _conversionInputPort(String name) => 'input:$name';
 
@@ -2894,15 +3144,6 @@ class ShowRunnerGraphEditor {
         .map((port) => port.prototype.idName)
         .firstOrNull;
   }
-
-  static String? _firstDataOutputPort(NodeDataModel node) => node.ports.values
-      .where(
-        (port) =>
-            port.prototype.type == PortType.data &&
-            port.prototype.direction == PortDirection.output,
-      )
-      .map((port) => port.prototype.idName)
-      .firstOrNull;
 
   void _registerSwitchPrototype(
     Iterable<String> ports, {
@@ -3063,7 +3304,105 @@ class ShowRunnerGraphEditor {
   }
 
   void fitGraph() {
-    controller.focusNodesById(controller.nodes.keys.toSet());
+    controller.focusNodesById(controller.nodes.keys.toSet(), animate: false);
+  }
+
+  List<NodeDataModel> get _previewNodes =>
+      controller.nodes.values.where((node) => !isTriggerNode(node.id)).toList()
+        ..sort((a, b) {
+          final x = a.offset.dx.compareTo(b.offset.dx);
+          return x != 0 ? x : a.offset.dy.compareTo(b.offset.dy);
+        });
+
+  Duration previewDurationFor(String nodeId) {
+    final data = _nodeDataByEditorId[nodeId];
+    final config = data?['config'];
+    if (config is Map) {
+      for (final key in const [
+        'duration',
+        'durationSeconds',
+        'delay',
+        'seconds',
+      ]) {
+        final value = config[key];
+        final seconds = value is num
+            ? value.toDouble()
+            : double.tryParse('$value');
+        if (seconds != null && seconds.isFinite && seconds > 0) {
+          return Duration(milliseconds: (seconds * 1000).round());
+        }
+      }
+    }
+    return const Duration(milliseconds: 900);
+  }
+
+  Duration get previewTotal => _previewNodes.fold(
+    Duration.zero,
+    (total, node) => total + previewDurationFor(node.id),
+  );
+
+  double get previewProgress {
+    final total = previewTotal.inMicroseconds;
+    if (total <= 0) return 0;
+    return (previewElapsed.value.inMicroseconds / total).clamp(0, 1).toDouble();
+  }
+
+  String? get previewRouteLabel {
+    final node = controller.nodes[previewNodeId.value];
+    return node?.prototype.idName;
+  }
+
+  void togglePreview() {
+    if (previewPlaying.value) {
+      _stopPreview();
+      return;
+    }
+    final total = previewTotal;
+    if (total <= Duration.zero) return;
+    if (previewElapsed.value >= total) previewElapsed.value = Duration.zero;
+    previewPlaying.value = true;
+    _previewStartedAt = DateTime.now().subtract(previewElapsed.value);
+    _updatePreview();
+    _previewTimer ??= Timer.periodic(
+      const Duration(milliseconds: 100),
+      (_) => _updatePreview(),
+    );
+  }
+
+  void _updatePreview() {
+    if (!previewPlaying.value) return;
+    final total = previewTotal;
+    final startedAt = _previewStartedAt;
+    if (startedAt == null || total <= Duration.zero) {
+      resetPreview();
+      return;
+    }
+    final elapsed = DateTime.now().difference(startedAt);
+    previewElapsed.value = elapsed >= total ? total : elapsed;
+    var remaining = previewElapsed.value;
+    String? current;
+    for (final node in _previewNodes) {
+      final duration = previewDurationFor(node.id);
+      if (remaining < duration) {
+        current = node.id;
+        break;
+      }
+      remaining -= duration;
+    }
+    previewNodeId.value = current ?? _previewNodes.lastOrNull?.id;
+    if (elapsed >= total) _stopPreview();
+  }
+
+  void _stopPreview() {
+    previewPlaying.value = false;
+    _previewTimer?.cancel();
+    _previewTimer = null;
+  }
+
+  void resetPreview() {
+    _stopPreview();
+    previewElapsed.value = Duration.zero;
+    previewNodeId.value = null;
   }
 
   void dispose() {
@@ -3075,10 +3414,15 @@ class ShowRunnerGraphEditor {
     subgraphs.dispose();
     activeGraphPath.dispose();
     executionStates.dispose();
+    _previewTimer?.cancel();
+    previewNodeId.dispose();
+    previewPlaying.dispose();
+    previewElapsed.dispose();
     graphFeedback.dispose();
     selectedFrameId.dispose();
     searchQuery.dispose();
     searchMatchIndex.dispose();
+    canvasSearchOpen.dispose();
     recentNodeTypes.dispose();
     nodeRevision.removeListener(_markDocumentDirtyFromRevision);
     nodeRevision.dispose();

@@ -558,15 +558,11 @@ void main() {
 
     expect(inserted.ports.keys, containsAll(<String>['value', 'converted']));
     expect(inserted.ports.keys, isNot(contains('exec')));
+    // Conversion actions are data-only and are not implicitly wired when
+    // inserted, matching the reference editor. The user can connect a
+    // compatible string output explicitly afterwards.
     expect(saved.graph.edges, hasLength(2));
-    expect(
-      saved.dataWires,
-      contains(
-        isA<DataWire>()
-            .having((wire) => wire.toNode, 'toNode', insertedId)
-            .having((wire) => wire.toPort, 'toPort', 'value'),
-      ),
-    );
+    expect(saved.dataWires, isEmpty);
   });
 
   test('inserts an action on a flow edge and reconnects both endpoints', () {

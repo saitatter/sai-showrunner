@@ -14,6 +14,8 @@ import '../../editor/showrunner_graph_editor.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../schema/automation.dart';
 import '../../services/showrunner_data_service.dart';
+import 'graph_canvas_controls.dart';
+import 'graph_canvas_search.dart';
 
 /// Composes the ShowRunner graph surface around the generic `sai_nodes` canvas.
 ///
@@ -62,11 +64,7 @@ class GraphWorkspace extends StatelessWidget {
           valueListenable: editor.activeGraphPath,
           builder: (context, path, child) => Column(
             children: [
-              _GraphBreadcrumb(editor: editor),
-              NodeEditorToolbar(
-                controller: editor.controller,
-                onAutoLayout: editor.autoLayout,
-              ),
+              if (path.isNotEmpty) _GraphBreadcrumb(editor: editor),
               Expanded(
                 child: FutureBuilder<DartPluginRegistry>(
                   future: registryFuture,
@@ -85,84 +83,106 @@ class GraphWorkspace extends StatelessWidget {
                               key,
                               extendSelection: extendSelection,
                             ),
-                        child: NodeEditorWidget(
-                          controller: editor.controller,
-                          expandToParent: true,
-                          overlay: () => [
-                            OverlayData(
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: _GraphFramesOverlay(editor: editor),
-                            ),
-                            OverlayData(
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: _ExecutionLinkOverlay(editor: editor),
-                            ),
-                            OverlayData(
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: _InvalidLinkOverlay(editor: editor),
-                            ),
-                            OverlayData(
-                              top: 16,
-                              left: 16,
-                              child: _GraphStatus(editor: editor),
-                            ),
-                            OverlayData(
-                              bottom: 16,
-                              left: 16,
-                              child: _GraphHealth(editor: editor),
-                            ),
-                            OverlayData(
-                              top: 16,
-                              right: 16,
-                              child: _SelectedNodeDetails(
-                                editor: editor,
-                                registryFuture: registryFuture,
+                        onSearch: editor.openCanvasSearch,
+                        child: _GraphActionDropTarget(
+                          editor: editor,
+                          registryFuture: registryFuture,
+                          child: NodeEditorWidget(
+                            controller: editor.controller,
+                            expandToParent: true,
+                            overlay: () => [
+                              OverlayData(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: _GraphFramesOverlay(editor: editor),
                               ),
-                            ),
-                            OverlayData(
-                              bottom: 16,
-                              right: 16,
-                              child: _GraphMinimap(editor: editor),
-                            ),
-                          ],
-                          headerBuilder:
-                              (context, node, style, onToggleCollapse) =>
-                                  _buildNodeHeader(
-                                    context,
-                                    node,
-                                    style,
-                                    onToggleCollapse,
-                                    editor: editor,
-                                  ),
-                          fieldBuilder: _buildNodeField,
-                          portBuilder: _buildNodePort,
-                          nodeMenuBuilder: (context, node) =>
-                              _nodeEditorContextMenu(
-                                context,
-                                editor,
-                                node,
-                                registryFuture: registryFuture,
-                                onRunNode: onRunNode,
+                              OverlayData(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: _ExecutionLinkOverlay(editor: editor),
                               ),
-                          editorContextMenuBuilder:
-                              (context, position, defaults) =>
-                                  _editorContextMenu(
-                                    context: context,
-                                    editor: editor,
-                                    position: position,
-                                    defaults: defaults,
-                                    registry: registrySnapshot.data,
-                                    registryFuture: registryFuture,
-                                  ),
+                              OverlayData(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: _InvalidLinkOverlay(editor: editor),
+                              ),
+                              OverlayData(
+                                top: 12,
+                                left: 12,
+                                right: 12,
+                                child: Align(
+                                  alignment: Alignment.topLeft,
+                                  child: GraphCanvasControls(editor: editor),
+                                ),
+                              ),
+                              OverlayData(
+                                top: 12,
+                                right: 12,
+                                child: GraphCanvasSearch(editor: editor),
+                              ),
+                              OverlayData(
+                                top: 68,
+                                left: 16,
+                                child: _GraphStatus(editor: editor),
+                              ),
+                              OverlayData(
+                                bottom: 16,
+                                left: 16,
+                                child: _GraphHealth(editor: editor),
+                              ),
+                              OverlayData(
+                                top: 68,
+                                right: 16,
+                                child: _SelectedNodeDetails(
+                                  editor: editor,
+                                  registryFuture: registryFuture,
+                                ),
+                              ),
+                              OverlayData(
+                                bottom: 16,
+                                right: 16,
+                                child: _GraphMinimap(editor: editor),
+                              ),
+                            ],
+                            headerBuilder:
+                                (context, node, style, onToggleCollapse) =>
+                                    _buildNodeHeader(
+                                      context,
+                                      node,
+                                      style,
+                                      onToggleCollapse,
+                                      editor: editor,
+                                      onRunNode: onRunNode,
+                                    ),
+                            fieldBuilder: _buildNodeField,
+                            portBuilder: _buildNodePort,
+                            nodeMenuBuilder: (context, node) =>
+                                _nodeEditorContextMenu(
+                                  context,
+                                  editor,
+                                  node,
+                                  registryFuture: registryFuture,
+                                  onRunNode: onRunNode,
+                                ),
+                            onNodeDoubleTap: (context, node) =>
+                                _handleNodeDoubleTap(context, editor, node),
+                            editorContextMenuBuilder:
+                                (context, position, defaults) =>
+                                    _editorContextMenu(
+                                      context: context,
+                                      editor: editor,
+                                      position: position,
+                                      defaults: defaults,
+                                      registry: registrySnapshot.data,
+                                      registryFuture: registryFuture,
+                                    ),
+                          ),
                         ),
                       ),
                 ),
@@ -267,10 +287,7 @@ class ShowRunnerInlineGraphEditor extends StatelessWidget {
     height: height,
     child: Column(
       children: [
-        NodeEditorToolbar(
-          controller: editor.controller,
-          onAutoLayout: editor.autoLayout,
-        ),
+        GraphCanvasControls(editor: editor),
         Expanded(
           child: FutureBuilder<DartPluginRegistry>(
             future: registryFuture,
@@ -282,10 +299,17 @@ class ShowRunnerInlineGraphEditor extends StatelessWidget {
               onDuplicate: () => editor.duplicateSelectedAction(),
               onMoveSelection: (key, {required extendSelection}) =>
                   editor.moveSelection(key, extendSelection: extendSelection),
+              onSearch: editor.openCanvasSearch,
               child: NodeEditorWidget(
                 controller: editor.controller,
                 expandToParent: true,
-                overlay: () => const <OverlayData>[],
+                overlay: () => [
+                  OverlayData(
+                    top: 12,
+                    right: 12,
+                    child: GraphCanvasSearch(editor: editor),
+                  ),
+                ],
                 headerBuilder: (context, node, style, onToggleCollapse) =>
                     _buildNodeHeader(
                       context,
@@ -302,6 +326,8 @@ class ShowRunnerInlineGraphEditor extends StatelessWidget {
                   node,
                   registryFuture: registryFuture,
                 ),
+                onNodeDoubleTap: (context, node) =>
+                    _handleNodeDoubleTap(context, editor, node),
                 editorContextMenuBuilder: (context, position, defaults) =>
                     _editorContextMenu(
                       context: context,
@@ -513,30 +539,71 @@ class _GraphNodePalette extends StatelessWidget {
                               for (final type in recent.take(3))
                                 Padding(
                                   padding: const EdgeInsets.only(left: 4),
-                                  child: ActionChip(
-                                    label: Text(
-                                      _nodeLabelForType(
-                                        type,
-                                        registrySnapshot.data,
+                                  child: Draggable<String>(
+                                    data: type,
+                                    feedback: Material(
+                                      color: Colors.transparent,
+                                      child: _NodeDragFeedback(
+                                        label: _nodeLabelForType(
+                                          type,
+                                          registrySnapshot.data,
+                                        ),
                                       ),
-                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    avatar: Icon(
-                                      _nodeIconForType(
-                                        type,
-                                        registrySnapshot.data,
+                                    childWhenDragging: Opacity(
+                                      opacity: 0.45,
+                                      child: ActionChip(
+                                        label: Text(
+                                          _nodeLabelForType(
+                                            type,
+                                            registrySnapshot.data,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        avatar: Icon(
+                                          _nodeIconForType(
+                                            type,
+                                            registrySnapshot.data,
+                                          ),
+                                          size: 16,
+                                        ),
+                                        onPressed: () => _addAndConfigureNode(
+                                          context,
+                                          editor,
+                                          type,
+                                          title: _nodeLabelForType(
+                                            type,
+                                            registrySnapshot.data,
+                                          ),
+                                          registryFuture: registryFuture,
+                                        ),
                                       ),
-                                      size: 16,
                                     ),
-                                    onPressed: () => _addAndConfigureNode(
-                                      context,
-                                      editor,
-                                      type,
-                                      title: _nodeLabelForType(
-                                        type,
-                                        registrySnapshot.data,
+                                    child: ActionChip(
+                                      label: Text(
+                                        _nodeLabelForType(
+                                          type,
+                                          registrySnapshot.data,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      registryFuture: registryFuture,
+                                      avatar: Icon(
+                                        _nodeIconForType(
+                                          type,
+                                          registrySnapshot.data,
+                                        ),
+                                        size: 16,
+                                      ),
+                                      onPressed: () => _addAndConfigureNode(
+                                        context,
+                                        editor,
+                                        type,
+                                        title: _nodeLabelForType(
+                                          type,
+                                          registrySnapshot.data,
+                                        ),
+                                        registryFuture: registryFuture,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -549,6 +616,79 @@ class _GraphNodePalette extends StatelessWidget {
         ),
       ],
     ),
+  );
+}
+
+class _GraphActionDropTarget extends StatelessWidget {
+  const _GraphActionDropTarget({
+    required this.editor,
+    required this.registryFuture,
+    required this.child,
+  });
+
+  final ShowRunnerGraphEditor editor;
+  final Future<DartPluginRegistry> registryFuture;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DragTarget<String>(
+    onWillAcceptWithDetails: (details) => details.data.trim().isNotEmpty,
+    onAcceptWithDetails: (details) => unawaited(
+      _dropGraphAction(
+        context,
+        editor,
+        details.data,
+        details.offset,
+        registryFuture: registryFuture,
+      ),
+    ),
+    builder: (context, candidateData, rejectedData) => child,
+  );
+}
+
+class _NodeDragFeedback extends StatelessWidget {
+  const _NodeDragFeedback({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: const Color(0xff40256c),
+      border: Border.all(color: const Color(0xffe9aaff), width: 2),
+      borderRadius: BorderRadius.circular(6),
+      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 12)],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Text(label, style: const TextStyle(color: Colors.white)),
+    ),
+  );
+}
+
+Future<void> _dropGraphAction(
+  BuildContext context,
+  ShowRunnerGraphEditor editor,
+  String nodeType,
+  Offset screenPosition, {
+  required Future<DartPluginRegistry> registryFuture,
+}) async {
+  final registry = await registryFuture;
+  if (!context.mounted) return;
+  final title = _nodeLabelForType(nodeType, registry);
+  final targetNode = editor.nodeIdAtScreenPosition(screenPosition);
+  final nodeId = targetNode == null
+      ? editor.addNodeTypeAtScreenPosition(
+          nodeType,
+          screenPosition,
+          title: title,
+        )
+      : editor.insertActionAfterNode(nodeType, targetNode);
+  await _configureInsertedNode(
+    context,
+    editor,
+    nodeId,
+    registryFuture: Future.value(registry),
   );
 }
 
@@ -1772,22 +1912,41 @@ Widget _buildNodeHeader(
   NodeStyle style,
   VoidCallback onToggleCollapse, {
   required ShowRunnerGraphEditor editor,
+  Future<void> Function(String schemaNodeId)? onRunNode,
 }) => _GraphNodeHeader(
   editor: editor,
   node: node,
   onToggleCollapse: onToggleCollapse,
+  onRunNode: onRunNode,
 );
+
+void _handleNodeDoubleTap(
+  BuildContext context,
+  ShowRunnerGraphEditor editor,
+  NodeDataModel node,
+) {
+  final subgraphId = editor.subgraphIdForEditor(node.id);
+  if (subgraphId != null) {
+    editor.enterSubgraph(subgraphId);
+    return;
+  }
+  if (editor.isVariableNode(node.id)) {
+    unawaited(_renameNode(context, editor, node));
+  }
+}
 
 class _GraphNodeHeader extends StatefulWidget {
   const _GraphNodeHeader({
     required this.editor,
     required this.node,
     required this.onToggleCollapse,
+    this.onRunNode,
   });
 
   final ShowRunnerGraphEditor editor;
   final NodeDataModel node;
   final VoidCallback onToggleCollapse;
+  final Future<void> Function(String schemaNodeId)? onRunNode;
 
   @override
   State<_GraphNodeHeader> createState() => _GraphNodeHeaderState();
@@ -1869,11 +2028,11 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
                     Colors.white,
                     pulse * 0.22,
                   )
-                : accent.withValues(alpha: 0.22),
+                : Colors.transparent,
             gradient: null,
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(8),
-              topRight: Radius.circular(8),
+              topLeft: Radius.circular(6),
+              topRight: Radius.circular(6),
             ),
             border: Border.all(
               color: active || execution != null
@@ -1897,10 +2056,18 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
               children: [
                 Row(
                   children: [
-                    Icon(
-                      widget.editor.nodeIcon(node.id),
-                      size: 17,
-                      color: accent,
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0x1fffffff),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Icon(
+                        widget.editor.nodeIcon(node.id),
+                        size: 20,
+                        color: accent,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -1910,12 +2077,44 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
                         overflow: TextOverflow.ellipsis,
                         style: headerStyle.textStyle.copyWith(
                           color: Colors.white,
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0,
                         ),
                       ),
                     ),
+                    if (widget.editor.isTriggerNode(node.id) &&
+                        widget.onRunNode != null &&
+                        widget.editor.schemaNodeIdForEditor(node.id) != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Tooltip(
+                          message: 'Run automation',
+                          child: InkWell(
+                            onTap: () => unawaited(
+                              widget.onRunNode!(
+                                widget.editor.schemaNodeIdForEditor(node.id)!,
+                              ),
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            child: const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Color(0xff68d391),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.play_arrow,
+                                  color: Color(0xff101316),
+                                  size: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     if (widget.editor.nodeBadge(node.id) case final badge?)
                       Container(
                         margin: const EdgeInsets.only(left: 6),
@@ -1924,14 +2123,14 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.24),
+                          color: const Color(0xffe9aaff),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           badge,
                           style: TextStyle(
-                            color: accent,
-                            fontSize: 9,
+                            color: const Color(0xff1b0f21),
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -1962,14 +2161,14 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
                 ),
                 if (widget.editor.nodeSubtitle(node.id).isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(left: 25, top: 2),
+                    padding: const EdgeInsets.only(left: 40, top: 2),
                     child: Text(
                       widget.editor.nodeSubtitle(node.id),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 10,
+                        color: Color(0xffd6d6d6),
+                        fontSize: 12.5,
                       ),
                     ),
                   ),
@@ -2329,33 +2528,42 @@ class _GraphFramesOverlay extends StatelessWidget {
     builder: (context, child) => LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _GraphFramesPainter(
-                    frames: editor.frames.value,
-                    selectedFrameId: editor.selectedFrameId.value,
-                    viewportOffset: editor.controller.viewportOffset,
-                    viewportZoom: editor.controller.viewportZoom,
+        final canvasBounds = Offset.zero & size;
+        return ClipRect(
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _GraphFramesPainter(
+                      frames: editor.frames.value,
+                      selectedFrameId: editor.selectedFrameId.value,
+                      viewportOffset: editor.controller.viewportOffset,
+                      viewportZoom: editor.controller.viewportZoom,
+                    ),
                   ),
                 ),
               ),
-            ),
-            for (final frame in editor.frames.value)
-              _FrameInteractionLayer(
-                editor: editor,
-                frame: frame,
-                screenBounds: _frameScreenBounds(
+              for (final frame in editor.frames.value)
+                if (!_frameScreenBounds(
                   frame,
                   size,
                   editor.controller.viewportOffset,
                   editor.controller.viewportZoom,
-                ),
-              ),
-          ],
+                ).intersect(canvasBounds).isEmpty)
+                  _FrameInteractionLayer(
+                    editor: editor,
+                    frame: frame,
+                    screenBounds: _frameScreenBounds(
+                      frame,
+                      size,
+                      editor.controller.viewportOffset,
+                      editor.controller.viewportZoom,
+                    ).intersect(canvasBounds),
+                  ),
+            ],
+          ),
         );
       },
     ),
@@ -2445,6 +2653,8 @@ class _GraphFramesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
     for (final frame in frames) {
       final bounds = _frameScreenBounds(
         frame,
@@ -2480,6 +2690,7 @@ class _GraphFramesPainter extends CustomPainter {
       )..layout(maxWidth: math.max(40, bounds.width - 16));
       label.paint(canvas, Offset(bounds.left + 8, bounds.top + 6));
     }
+    canvas.restore();
   }
 
   @override
@@ -2878,28 +3089,21 @@ Widget _buildNodePort(
   NodeStyle style,
 ) {
   final isInput = port.prototype.direction == PortDirection.input;
-  final color = port.state.isHovered ? Colors.white : port.style.color;
   final label = Text(
     port.prototype.displayName(context),
     overflow: TextOverflow.ellipsis,
     textAlign: isInput ? TextAlign.left : TextAlign.right,
     style: const TextStyle(color: Colors.white70, fontSize: 11),
   );
-  final marker = Container(
-    width: 9,
-    height: 9,
-    decoration: BoxDecoration(
-      color: port.prototype.type == PortType.data ? Colors.transparent : color,
-      shape: BoxShape.circle,
-      border: Border.all(color: color, width: 1.5),
-    ),
-  );
+  // sai_nodes paints the interactive marker at the actual wire endpoint.
+  // Drawing another marker here suggests a second, non-interactive port.
   return Row(
     key: port.key,
     mainAxisSize: MainAxisSize.min,
-    children: isInput
-        ? [marker, const SizedBox(width: 6), Flexible(child: label)]
-        : [Flexible(child: label), const SizedBox(width: 6), marker],
+    mainAxisAlignment: isInput
+        ? MainAxisAlignment.start
+        : MainAxisAlignment.end,
+    children: [Flexible(child: label)],
   );
 }
 
@@ -4625,7 +4829,7 @@ class _GraphMinimap extends StatelessWidget {
           child: SizedBox(
             width: 180,
             height: 120,
-            child: CustomPaint(painter: painter),
+            child: ClipRect(child: CustomPaint(painter: painter)),
           ),
         ),
       );
@@ -4652,34 +4856,30 @@ class _GraphMinimapPainter extends CustomPainter {
   final double viewportZoom;
   final Size viewportSize;
 
-  ({double minX, double minY, double scale})? get _metrics {
-    if (nodes.isEmpty) return null;
-    final minX = nodes
-        .map((node) => node.offset.dx)
-        .reduce((a, b) => a < b ? a : b);
-    final minY = nodes
-        .map((node) => node.offset.dy)
-        .reduce((a, b) => a < b ? a : b);
-    final maxX = nodes
-        .map((node) => node.offset.dx + 180)
-        .reduce((a, b) => a > b ? a : b);
-    final maxY = nodes
-        .map((node) => node.offset.dy + 90)
-        .reduce((a, b) => a > b ? a : b);
-    return (
-      minX: minX,
-      minY: minY,
-      scale: math.min(180 / (maxX - minX + 40), 120 / (maxY - minY + 40)),
+  Rect _nodeBounds(NodeDataModel node) {
+    final box = node.key.currentContext?.findRenderObject();
+    final size = box is RenderBox && box.hasSize
+        ? box.size
+        : node.customSize ?? const Size(220, 90);
+    return node.offset & size;
+  }
+
+  NodeEditorMinimapTransform? get _metrics {
+    final bounds = [
+      ...nodes.map(_nodeBounds),
+      ...frames.map((frame) => frame.bounds),
+    ];
+    if (bounds.isEmpty) return null;
+    return NodeEditorMinimapTransform(
+      bounds: bounds.reduce((a, b) => a.expandToInclude(b)),
+      size: const Size(180, 120),
     );
   }
 
   Offset? worldPositionFor(Offset localPosition) {
     final metrics = _metrics;
     if (metrics == null) return null;
-    return Offset(
-      metrics.minX + (localPosition.dx - 20) / metrics.scale,
-      metrics.minY + (localPosition.dy - 20) / metrics.scale,
-    );
+    return metrics.minimapToWorld(localPosition);
   }
 
   @override
@@ -4710,11 +4910,13 @@ class _GraphMinimapPainter extends CustomPainter {
         executionStates[source.id]?.status,
       ).withValues(alpha: 0.7);
       final sourcePoint = _toMiniPoint(
-        source.offset + const Offset(140, 28),
+        source.offset +
+            (source.ports[link.endpoints.sourcePortId]?.offset ?? Offset.zero),
         metrics,
       );
       final targetPoint = _toMiniPoint(
-        target.offset + const Offset(0, 28),
+        target.offset +
+            (target.ports[link.endpoints.targetPortId]?.offset ?? Offset.zero),
         metrics,
       );
       canvas.drawLine(sourcePoint, targetPoint, linkPaint);
@@ -4726,12 +4928,7 @@ class _GraphMinimapPainter extends CustomPainter {
       );
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(
-            20 + (node.offset.dx - metrics.minX) * metrics.scale,
-            20 + (node.offset.dy - metrics.minY) * metrics.scale,
-            140 * metrics.scale,
-            55 * metrics.scale,
-          ),
+          metrics.worldRectToMinimap(_nodeBounds(node)),
           const Radius.circular(2),
         ),
         paint,
@@ -4749,23 +4946,11 @@ class _GraphMinimapPainter extends CustomPainter {
     canvas.drawRect(_toMiniRect(viewportWorld, metrics), viewportPaint);
   }
 
-  Rect _toMiniRect(
-    Rect rect,
-    ({double minX, double minY, double scale}) metrics,
-  ) => Rect.fromLTRB(
-    20 + (rect.left - metrics.minX) * metrics.scale,
-    20 + (rect.top - metrics.minY) * metrics.scale,
-    20 + (rect.right - metrics.minX) * metrics.scale,
-    20 + (rect.bottom - metrics.minY) * metrics.scale,
-  );
+  Rect _toMiniRect(Rect rect, NodeEditorMinimapTransform metrics) =>
+      metrics.worldRectToMinimap(rect);
 
-  Offset _toMiniPoint(
-    Offset point,
-    ({double minX, double minY, double scale}) metrics,
-  ) => Offset(
-    20 + (point.dx - metrics.minX) * metrics.scale,
-    20 + (point.dy - metrics.minY) * metrics.scale,
-  );
+  Offset _toMiniPoint(Offset point, NodeEditorMinimapTransform metrics) =>
+      metrics.worldToMinimap(point);
 
   @override
   bool shouldRepaint(_GraphMinimapPainter oldDelegate) =>

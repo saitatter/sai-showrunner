@@ -9,6 +9,8 @@ import 'package:showrunner_flutter/app/startup_health.dart';
 import 'package:showrunner_flutter/app/automation_document_manager.dart';
 import 'package:showrunner_flutter/editor/showrunner_graph_editor.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
+import 'package:showrunner_flutter/features/graph/graph_canvas_controls.dart';
+import 'package:showrunner_flutter/features/graph/graph_canvas_search.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
@@ -37,14 +39,16 @@ void main() {
     DartPluginRegistry? registry,
     AutomationDocumentManager? automationDocuments,
     ValueChanged<String>? onAutomationSelected,
+    Size size = const Size(1200, 800),
   }) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData(platform: TargetPlatform.windows),
         home: Scaffold(
+          backgroundColor: const Color(0xff101010),
           body: SizedBox(
-            width: 1200,
-            height: 800,
+            width: size.width,
+            height: size.height,
             child: GraphWorkspace(
               editor: editor,
               healthFuture: dataService.health().then(
@@ -74,6 +78,123 @@ void main() {
     expect(find.text('Add node'), findsOneWidget);
     expect(find.text('Graph healthy'), findsOneWidget);
     expect(find.textContaining('3 nodes'), findsOneWidget);
+  });
+
+  test('builds action ports from the manifest schemas', () {
+    final nodeId = editor.addNodeType('ShowRunner.addToQueue');
+    final node = editor.controller.nodes[nodeId];
+
+    expect(node, isNotNull);
+    expect(
+      node!.ports.values
+          .where((port) => port.prototype.direction == PortDirection.input)
+          .map((port) => port.prototype.idName),
+      containsAll(<String>['exec', 'queue', 'automation', 'payload']),
+    );
+    expect(node.ports['queue']!.prototype.dataType, equals(String));
+    expect(
+      node.ports['payload']!.prototype.dataType,
+      equals(Map<String, dynamic>),
+    );
+    expect(node.ports['queued']!.prototype.dataType, equals(bool));
+    expect(node.ports['queueId']!.prototype.dataType, equals(String));
+  });
+
+  test('rejects data wires with incompatible schema types', () {
+    final numberVariable = editor.addVariableNode('number');
+    final actionId = editor.addNodeType('ShowRunner.addToQueue');
+
+    expect(numberVariable, isNotNull);
+    expect(actionId, isNotNull);
+    final link = editor.controller.addLink(
+      numberVariable!,
+      'value',
+      actionId!,
+      'queue',
+    );
+
+    expect(link, isNull);
+    expect(
+      editor.controller.linksAsList.where(
+        (candidate) =>
+            candidate.endpoints.sourceNodeId == numberVariable &&
+            candidate.endpoints.sourcePortId == 'value',
+      ),
+      isEmpty,
+    );
+  });
+
+  test('preview playhead follows graph order and can be reset', () {
+    expect(editor.previewTotal, const Duration(milliseconds: 1800));
+    editor.togglePreview();
+    expect(editor.previewPlaying.value, isTrue);
+    expect(editor.previewNodeId.value, isNotNull);
+    expect(editor.previewProgress, greaterThanOrEqualTo(0));
+    editor.resetPreview();
+    expect(editor.previewPlaying.value, isFalse);
+    expect(editor.previewNodeId.value, isNull);
+    expect(editor.previewElapsed.value, Duration.zero);
+  });
+
+  testWidgets('canvas controls zoom without selecting or moving nodes', (
+    tester,
+  ) async {
+    await pumpWorkspace(tester);
+    final offsets = {
+      for (final node in editor.controller.nodes.values) node.id: node.offset,
+    };
+    final zoomButton = find.byWidgetPredicate(
+      (widget) => widget is IconButton && widget.tooltip == 'Zoom out',
+    );
+    expect(zoomButton, findsOneWidget);
+    await tester.tap(zoomButton);
+    await tester.pump();
+    expect(editor.controller.viewportZoom, closeTo(0.9, 0.001));
+    expect(find.text('90%'), findsOneWidget);
+    expect(editor.controller.selectedNodeIds, isEmpty);
+    expect({
+      for (final node in editor.controller.nodes.values) node.id: node.offset,
+    }, offsets);
+  });
+
+  testWidgets('opens graph search and cycles matching nodes', (tester) async {
+    await pumpWorkspace(tester);
+
+    // The generic sai_nodes shortcut owns focus and delegates Ctrl+F to the
+    // ShowRunner-specific find overlay.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(editor.canvasSearchOpen.value, isTrue);
+    expect(find.byType(GraphCanvasSearch), findsOneWidget);
+
+    final searchField = find.descendant(
+      of: find.byType(GraphCanvasSearch),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(searchField, 'Chat');
+    await tester.pump();
+    expect(editor.searchResultCount(), greaterThan(0));
+    expect(find.textContaining('/'), findsWidgets);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(editor.canvasSearchOpen.value, isFalse);
+  });
+
+  testWidgets('editor desktop visual regression', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await pumpWorkspace(tester, size: const Size(1440, 900));
+    await tester.pump(const Duration(milliseconds: 350));
+    editor.controller.focusAllNodes(animate: false);
+    await tester.pump();
+    await expectLater(
+      find.byType(GraphWorkspace),
+      matchesGoldenFile('goldens/editor_workspace.png'),
+    );
   });
 
   testWidgets('renders independent automation tabs and selects a document', (
@@ -122,7 +243,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.byType(NodeEditorToolbar), findsOneWidget);
+    expect(find.byType(GraphCanvasControls), findsOneWidget);
     expect(find.text('Chat message'), findsNWidgets(2));
     expect(find.text('Add to queue'), findsNothing);
   });
@@ -195,7 +316,10 @@ void main() {
       buttons: kPrimaryMouseButton,
       kind: PointerDeviceKind.mouse,
     );
-    await tester.pump();
+    // The app-level double-click hook is layered above the generic node
+    // gesture recognizer. Let its single-tap disambiguation timer settle
+    // before the widget tree is disposed.
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(node.offset, isNot(initialOffset));
   });
