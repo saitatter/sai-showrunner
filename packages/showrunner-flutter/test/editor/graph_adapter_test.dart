@@ -65,7 +65,10 @@ void main() {
         (edge) =>
             nodeIds.contains(edge.from) &&
             nodeIds.contains(edge.to) &&
-            edge.port == 'completed',
+            // `completed` is the editor's internal port name. The persisted
+            // ShowRunner schema omits it for the default flow output, just
+            // like the reference implementation does.
+            edge.port == null,
       ),
       isTrue,
     );

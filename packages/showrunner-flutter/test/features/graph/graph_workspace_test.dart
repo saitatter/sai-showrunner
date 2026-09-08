@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -190,7 +191,16 @@ void main() {
     await pumpWorkspace(tester, size: const Size(1440, 900));
     await tester.pump(const Duration(milliseconds: 350));
     editor.controller.focusAllNodes(animate: false);
-    await tester.pump();
+    // The fixture is loaded before the widget exists; explicitly publish the
+    // final graph snapshot so projection layers such as the minimap repaint
+    // from the same link list as the canvas.
+    editor.controller.notifyListeners();
+    // The editor keeps a live ticker for its viewport projections, so settle
+    // is intentionally not used here. A short bounded frame window lets
+    // layout, link events, and the minimap repaint complete deterministically.
+    for (var frame = 0; frame < 8; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     await expectLater(
       find.byType(GraphWorkspace),
       matchesGoldenFile('goldens/editor_workspace.png'),
@@ -281,6 +291,61 @@ void main() {
     expect(
       editor.controller.nodes[insertedId]!.offset,
       isNot(const Offset(80, 80)),
+    );
+  });
+
+  testWidgets('resolves flow links in global screen coordinates', (
+    tester,
+  ) async {
+    await pumpWorkspace(tester);
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final link = editor.controller.linksAsList.first;
+    final source = editor.controller.nodes[link.endpoints.sourceNodeId]!;
+    final target = editor.controller.nodes[link.endpoints.targetNodeId]!;
+    final sourcePort = source.ports[link.endpoints.sourcePortId]!;
+    final targetPort = target.ports[link.endpoints.targetPortId]!;
+    final start = source.offset + sourcePort.offset;
+    final end = target.offset + targetPort.offset;
+    final control = math.min((end.dx - start.dx).abs() / 2, 400.0);
+    const inverse = 0.5;
+    final firstControl = Offset(start.dx + control, start.dy);
+    final secondControl = Offset(end.dx - control, end.dy);
+    final midpoint =
+        start * (inverse * inverse * inverse) +
+        firstControl * (3 * inverse * inverse * 0.5) +
+        secondControl * (3 * inverse * 0.5 * 0.5) +
+        end * (0.5 * 0.5 * 0.5);
+    final editorBox =
+        editor.controller.editorKey.currentContext!.findRenderObject()!
+            as RenderBox;
+    final globalPoint = editorBox.localToGlobal(
+      editor.controller.worldToScreen(midpoint, editorBox.size),
+    );
+
+    expect(editor.flowLinkIdAtScreenPosition(globalPoint), link.id);
+  });
+
+  testWidgets('publishes alignment guides while moving a selected node', (
+    tester,
+  ) async {
+    await pumpWorkspace(tester);
+    final node = editor.controller.nodes.values.first;
+    editor.controller.selectNodesById({node.id});
+    editor.controller.dragSelection(const Offset(24, 0), isWorldDelta: true);
+    await tester.pump();
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    await tester.pump();
+
+    expect(editor.alignmentGuides.value, isNotEmpty);
+    expect(
+      editor.alignmentGuides.value
+          .map((guide) => guide.axis)
+          .contains(GraphAlignmentAxis.horizontal),
+      isTrue,
     );
   });
 
@@ -402,6 +467,70 @@ void main() {
 
     expect(find.text('Graph health'), findsOneWidget);
     expect(find.textContaining('missing node'), findsOneWidget);
+  });
+
+  testWidgets('selects and cleans stale links from the canvas health banner', (
+    tester,
+  ) async {
+    editor.loadAutomation(
+      const AutomationData(
+        graph: AutomationGraph(
+          nodes: [GraphNode(id: 'start', type: 'queue.addItem', x: 0, y: 0)],
+          edges: [GraphEdge(id: 'stale', from: 'start', to: 'missing')],
+          entryNodeId: 'start',
+        ),
+      ),
+    );
+    await pumpWorkspace(tester);
+
+    expect(find.text('1 invalid sequence edge'), findsOneWidget);
+    await tester.tap(find.text('Select').first);
+    await tester.pump();
+
+    expect(editor.selectedInvalidFlowEdgeId.value, 'stale');
+    expect(find.text('Invalid sequence edge'), findsOneWidget);
+    await tester.tap(find.text('Clean up').last);
+    await tester.pump();
+
+    expect(editor.invalidFlowEdges, isEmpty);
+    expect(find.text('1 invalid sequence edge'), findsNothing);
+  });
+
+  testWidgets('renders branch labels from persisted control-flow metadata', (
+    tester,
+  ) async {
+    editor.loadAutomation(
+      const AutomationData(
+        graph: AutomationGraph(
+          nodes: [
+            GraphNode(
+              id: 'switch',
+              type: 'switch',
+              x: -180,
+              y: 0,
+              data: {
+                'cases': [
+                  {'value': 'subscriber', 'port': 'case:0'},
+                ],
+              },
+            ),
+            GraphNode(id: 'target', type: 'queue.addItem', x: 180, y: 0),
+          ],
+          edges: [
+            GraphEdge(
+              id: 'branch',
+              from: 'switch',
+              to: 'target',
+              port: 'case:0',
+            ),
+          ],
+          entryNodeId: 'switch',
+        ),
+      ),
+    );
+    await pumpWorkspace(tester);
+
+    expect(editor.controller.linksAsList.single.label, 'case: subscriber');
   });
 
   testWidgets('shows recent dynamic nodes with their display labels', (

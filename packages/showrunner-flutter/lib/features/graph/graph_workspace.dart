@@ -78,6 +78,7 @@ class GraphWorkspace extends StatelessWidget {
                         onCut: (context) =>
                             editor.cutSelection(context: context),
                         onDuplicate: () => editor.duplicateSelectedAction(),
+                        onDeleteSelection: editor.deleteSelection,
                         onMoveSelection: (key, {required extendSelection}) =>
                             editor.moveSelection(
                               key,
@@ -97,6 +98,22 @@ class GraphWorkspace extends StatelessWidget {
                                 right: 0,
                                 bottom: 0,
                                 child: _GraphFramesOverlay(editor: editor),
+                              ),
+                              OverlayData(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: _GraphDropTargetOverlay(editor: editor),
+                              ),
+                              OverlayData(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: _GraphAlignmentGuidesOverlay(
+                                  editor: editor,
+                                ),
                               ),
                               OverlayData(
                                 top: 0,
@@ -130,6 +147,12 @@ class GraphWorkspace extends StatelessWidget {
                                 top: 68,
                                 left: 16,
                                 child: _GraphStatus(editor: editor),
+                              ),
+                              OverlayData(
+                                top: 112,
+                                left: 16,
+                                right: 16,
+                                child: _GraphWireHealthOverlay(editor: editor),
                               ),
                               OverlayData(
                                 bottom: 16,
@@ -297,46 +320,71 @@ class ShowRunnerInlineGraphEditor extends StatelessWidget {
               onPaste: (context) => editor.pasteSelection(context: context),
               onCut: (context) => editor.cutSelection(context: context),
               onDuplicate: () => editor.duplicateSelectedAction(),
+              onDeleteSelection: editor.deleteSelection,
               onMoveSelection: (key, {required extendSelection}) =>
                   editor.moveSelection(key, extendSelection: extendSelection),
               onSearch: editor.openCanvasSearch,
-              child: NodeEditorWidget(
-                controller: editor.controller,
-                expandToParent: true,
-                overlay: () => [
-                  OverlayData(
-                    top: 12,
-                    right: 12,
-                    child: GraphCanvasSearch(editor: editor),
+              child: _GraphActionDropTarget(
+                editor: editor,
+                registryFuture: registryFuture,
+                child: NodeEditorWidget(
+                  controller: editor.controller,
+                  expandToParent: true,
+                  overlay: () => [
+                    OverlayData(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: _GraphDropTargetOverlay(editor: editor),
+                    ),
+                    OverlayData(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: _GraphAlignmentGuidesOverlay(editor: editor),
+                    ),
+                    OverlayData(
+                      top: 12,
+                      right: 12,
+                      child: GraphCanvasSearch(editor: editor),
+                    ),
+                    OverlayData(
+                      top: 12,
+                      left: 12,
+                      right: 12,
+                      child: _GraphWireHealthOverlay(editor: editor),
+                    ),
+                  ],
+                  headerBuilder: (context, node, style, onToggleCollapse) =>
+                      _buildNodeHeader(
+                        context,
+                        node,
+                        style,
+                        onToggleCollapse,
+                        editor: editor,
+                      ),
+                  fieldBuilder: _buildNodeField,
+                  portBuilder: _buildNodePort,
+                  nodeMenuBuilder: (context, node) => _nodeEditorContextMenu(
+                    context,
+                    editor,
+                    node,
+                    registryFuture: registryFuture,
                   ),
-                ],
-                headerBuilder: (context, node, style, onToggleCollapse) =>
-                    _buildNodeHeader(
-                      context,
-                      node,
-                      style,
-                      onToggleCollapse,
-                      editor: editor,
-                    ),
-                fieldBuilder: _buildNodeField,
-                portBuilder: _buildNodePort,
-                nodeMenuBuilder: (context, node) => _nodeEditorContextMenu(
-                  context,
-                  editor,
-                  node,
-                  registryFuture: registryFuture,
+                  onNodeDoubleTap: (context, node) =>
+                      _handleNodeDoubleTap(context, editor, node),
+                  editorContextMenuBuilder: (context, position, defaults) =>
+                      _editorContextMenu(
+                        context: context,
+                        editor: editor,
+                        position: position,
+                        defaults: defaults,
+                        registry: registrySnapshot.data,
+                        registryFuture: registryFuture,
+                      ),
                 ),
-                onNodeDoubleTap: (context, node) =>
-                    _handleNodeDoubleTap(context, editor, node),
-                editorContextMenuBuilder: (context, position, defaults) =>
-                    _editorContextMenu(
-                      context: context,
-                      editor: editor,
-                      position: position,
-                      defaults: defaults,
-                      registry: registrySnapshot.data,
-                      registryFuture: registryFuture,
-                    ),
               ),
             ),
           ),
@@ -633,15 +681,18 @@ class _GraphActionDropTarget extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DragTarget<String>(
     onWillAcceptWithDetails: (details) => details.data.trim().isNotEmpty,
-    onAcceptWithDetails: (details) => unawaited(
-      _dropGraphAction(
+    onMove: (details) => editor.updateActionDropTarget(details.offset),
+    onLeave: (_) => editor.clearActionDropTarget(),
+    onAcceptWithDetails: (details) => unawaited(() async {
+      editor.clearActionDropTarget();
+      await _dropGraphAction(
         context,
         editor,
         details.data,
         details.offset,
         registryFuture: registryFuture,
-      ),
-    ),
+      );
+    }()),
     builder: (context, candidateData, rejectedData) => child,
   );
 }
@@ -676,14 +727,20 @@ Future<void> _dropGraphAction(
   final registry = await registryFuture;
   if (!context.mounted) return;
   final title = _nodeLabelForType(nodeType, registry);
-  final targetNode = editor.nodeIdAtScreenPosition(screenPosition);
-  final nodeId = targetNode == null
-      ? editor.addNodeTypeAtScreenPosition(
-          nodeType,
-          screenPosition,
-          title: title,
-        )
-      : editor.insertActionAfterNode(nodeType, targetNode);
+  final flowLinkId = editor.flowLinkIdAtScreenPosition(screenPosition);
+  String? nodeId;
+  if (flowLinkId != null) {
+    nodeId = editor.insertActionOnFlowEdge(nodeType, flowLinkId);
+  } else {
+    final targetNode = editor.nodeIdAtScreenPosition(screenPosition);
+    nodeId = targetNode == null
+        ? editor.addNodeTypeAtScreenPosition(
+            nodeType,
+            screenPosition,
+            title: title,
+          )
+        : editor.insertActionAfterNode(nodeType, targetNode);
+  }
   await _configureInsertedNode(
     context,
     editor,
@@ -1963,6 +2020,8 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
     widget.editor.executionStates,
     widget.editor.nodeRevision,
     widget.editor.searchQuery,
+    widget.editor.searchMatchIndex,
+    widget.editor.dropTargetNodeId,
   ]);
 
   @override
@@ -2004,6 +2063,14 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
       final headerStyle = node.builtHeaderStyle;
       final active = widget.editor.activeNodeIds.value.contains(node.id);
       final execution = widget.editor.executionStates.value[node.id];
+      final dropTarget = widget.editor.dropTargetNodeId.value == node.id;
+      final searchMatches = widget.editor.searchNodeIds();
+      final searchMatch =
+          searchMatches.isNotEmpty &&
+          searchMatches.elementAt(
+                widget.editor.searchMatchIndex.value % searchMatches.length,
+              ) ==
+              node.id;
       final statusColor = switch (execution?.status) {
         GraphNodeExecutionStatus.success => const Color(0xff4ade80),
         GraphNodeExecutionStatus.error => const Color(0xfff87171),
@@ -2035,19 +2102,38 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
               topRight: Radius.circular(6),
             ),
             border: Border.all(
-              color: active || execution != null
+              color: dropTarget
+                  ? const Color(0xff2ed47a)
+                  : searchMatch
+                  ? const Color(0xffffcc00)
+                  : active || execution != null
                   ? statusColor
                   : Colors.transparent,
-              width: active ? 1.5 + pulse * 1.5 : 1,
+              width: dropTarget
+                  ? 2.5
+                  : searchMatch
+                  ? 2
+                  : (active ? 1.5 + pulse * 1.5 : 1),
             ),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: statusColor.withValues(alpha: 0.18 + pulse * 0.18),
-                      blurRadius: 8 + pulse * 8,
-                    ),
-                  ]
-                : null,
+            boxShadow: [
+              if (dropTarget)
+                const BoxShadow(
+                  color: Color(0x772ed47a),
+                  blurRadius: 0,
+                  spreadRadius: 3,
+                ),
+              if (searchMatch)
+                const BoxShadow(
+                  color: Color(0x99ffcc00),
+                  blurRadius: 0,
+                  spreadRadius: 2,
+                ),
+              if (active)
+                BoxShadow(
+                  color: statusColor.withValues(alpha: 0.18 + pulse * 0.18),
+                  blurRadius: 8 + pulse * 8,
+                ),
+            ],
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
@@ -2501,6 +2587,92 @@ Future<void> _renameNode(
   if (title != null) editor.renameNode(node.id, title);
 }
 
+class _GraphAlignmentGuidesOverlay extends StatelessWidget {
+  const _GraphAlignmentGuidesOverlay({required this.editor});
+
+  final ShowRunnerGraphEditor editor;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: ValueListenableBuilder<List<GraphAlignmentGuide>>(
+      valueListenable: editor.alignmentGuides,
+      builder: (context, guides, child) => ClipRect(
+        child: CustomPaint(
+          painter: _GraphAlignmentGuidesPainter(
+            guides: guides,
+            viewportOffset: editor.controller.viewportOffset,
+            viewportZoom: editor.controller.viewportZoom,
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    ),
+  );
+}
+
+class _GraphAlignmentGuidesPainter extends CustomPainter {
+  const _GraphAlignmentGuidesPainter({
+    required this.guides,
+    required this.viewportOffset,
+    required this.viewportZoom,
+  });
+
+  final List<GraphAlignmentGuide> guides;
+  final Offset viewportOffset;
+  final double viewportZoom;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty || guides.isEmpty) return;
+    final transform = NodeEditorViewportTransform(
+      viewportSize: size,
+      viewportOffset: viewportOffset,
+      zoom: viewportZoom,
+    );
+    final paint = Paint()
+      ..color = const Color(0xffff6b6b).withValues(alpha: 0.9)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+    for (final guide in guides) {
+      final start = guide.axis == GraphAlignmentAxis.vertical
+          ? transform.worldToScreen(Offset(guide.position, guide.from))
+          : transform.worldToScreen(Offset(guide.from, guide.position));
+      final end = guide.axis == GraphAlignmentAxis.vertical
+          ? transform.worldToScreen(Offset(guide.position, guide.to))
+          : transform.worldToScreen(Offset(guide.to, guide.position));
+      _drawDashedLine(canvas, start, end, paint);
+    }
+  }
+
+  static void _drawDashedLine(
+    Canvas canvas,
+    Offset start,
+    Offset end,
+    Paint paint,
+  ) {
+    final delta = end - start;
+    final length = delta.distance;
+    if (length <= 0) return;
+    final direction = delta / length;
+    const dash = 4.0;
+    const gap = 3.0;
+    for (var distance = 0.0; distance < length; distance += dash + gap) {
+      final dashEnd = math.min(distance + dash, length);
+      canvas.drawLine(
+        start + direction * distance,
+        start + direction * dashEnd,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GraphAlignmentGuidesPainter oldDelegate) =>
+      oldDelegate.guides != guides ||
+      oldDelegate.viewportOffset != viewportOffset ||
+      oldDelegate.viewportZoom != viewportZoom;
+}
+
 // Execution and invalid-link overlays are projections of runtime/schema state;
 // they deliberately do not alter sai_nodes' link model.
 class _ExecutionLinkOverlay extends StatefulWidget {
@@ -2587,52 +2759,57 @@ class _FrameInteractionLayer extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final headerWidth = math.min(screenBounds.width, 220.0);
-    return Stack(
-      children: [
-        Positioned(
-          left: screenBounds.left,
-          top: screenBounds.top,
-          width: headerWidth,
-          height: 34,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => editor.selectFrame(frame.id),
-            onPanStart: (_) => editor.selectFrame(frame.id),
-            onPanUpdate: (details) => editor.moveFrame(
-              frame.id,
-              details.delta / editor.controller.viewportZoom,
-            ),
-            child: const SizedBox.expand(),
-          ),
-        ),
-        Positioned(
-          left: screenBounds.right - 22,
-          top: screenBounds.bottom - 22,
-          width: 22,
-          height: 22,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => editor.selectFrame(frame.id),
-            onPanStart: (_) => editor.selectFrame(frame.id),
-            onPanUpdate: (details) => editor.resizeFrame(
-              frame.id,
-              details.delta / editor.controller.viewportZoom,
-            ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: const Color(0xff101010).withValues(alpha: 0.88),
-                border: Border.all(color: Colors.white38),
-                borderRadius: BorderRadius.circular(3),
+    // This widget is itself a child of the canvas Stack. Without an explicit
+    // Positioned parent, a Stack containing only Positioned children gets no
+    // usable layout size and the frame controls become impossible to hit.
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          Positioned(
+            left: screenBounds.left,
+            top: screenBounds.top,
+            width: headerWidth,
+            height: 34,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => editor.selectFrame(frame.id),
+              onPanStart: (_) => editor.selectFrame(frame.id),
+              onPanUpdate: (details) => editor.moveFrame(
+                frame.id,
+                details.delta / editor.controller.viewportZoom,
               ),
-              child: const Icon(
-                Icons.north_west,
-                size: 14,
-                color: Colors.white70,
-              ),
+              child: const SizedBox.expand(),
             ),
           ),
-        ),
-      ],
+          Positioned(
+            left: screenBounds.right - 22,
+            top: screenBounds.bottom - 22,
+            width: 22,
+            height: 22,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => editor.selectFrame(frame.id),
+              onPanStart: (_) => editor.selectFrame(frame.id),
+              onPanUpdate: (details) => editor.resizeFrame(
+                frame.id,
+                details.delta / editor.controller.viewportZoom,
+              ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0xff101010).withValues(alpha: 0.88),
+                  border: Border.all(color: Colors.white38),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: const Icon(
+                  Icons.north_west,
+                  size: 14,
+                  color: Colors.white70,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2744,16 +2921,18 @@ class _ExecutionLinkOverlayState extends State<_ExecutionLinkOverlay>
         widget.editor.controller.viewportZoomNotifier,
         _animationController,
       ]),
-      builder: (context, child) => CustomPaint(
-        painter: _ExecutionLinkPainter(
-          links: widget.editor.controller.linksAsList,
-          nodes: widget.editor.controller.nodes,
-          executionStates: widget.editor.executionStates.value,
-          progress: _animationController.value,
-          viewportOffset: widget.editor.controller.viewportOffset,
-          viewportZoom: widget.editor.controller.viewportZoom,
+      builder: (context, child) => ClipRect(
+        child: CustomPaint(
+          painter: _ExecutionLinkPainter(
+            links: widget.editor.controller.linksAsList,
+            nodes: widget.editor.controller.nodes,
+            executionStates: widget.editor.executionStates.value,
+            progress: _animationController.value,
+            viewportOffset: widget.editor.controller.viewportOffset,
+            viewportZoom: widget.editor.controller.viewportZoom,
+          ),
+          child: const SizedBox.expand(),
         ),
-        size: Size.infinite,
       ),
     ),
   );
@@ -2889,17 +3068,23 @@ class _InvalidLinkOverlay extends StatelessWidget {
         editor.controller,
         editor.nodeRevision,
         editor.activeGraphPath,
+        editor.selectedInvalidFlowEdgeId,
+        editor.selectedInvalidDataWireId,
       ]),
-      builder: (context, child) => CustomPaint(
-        painter: _InvalidLinkPainter(
-          flowEdges: editor.invalidFlowEdges,
-          dataWires: editor.invalidDataWires,
-          nodes: editor.controller.nodes,
-          editor: editor,
-          viewportOffset: editor.controller.viewportOffset,
-          viewportZoom: editor.controller.viewportZoom,
+      builder: (context, child) => ClipRect(
+        child: CustomPaint(
+          painter: _InvalidLinkPainter(
+            flowEdges: editor.invalidFlowEdges,
+            dataWires: editor.invalidDataWires,
+            nodes: editor.controller.nodes,
+            editor: editor,
+            viewportOffset: editor.controller.viewportOffset,
+            viewportZoom: editor.controller.viewportZoom,
+            selectedFlowEdgeId: editor.selectedInvalidFlowEdgeId.value,
+            selectedDataWireId: editor.selectedInvalidDataWireId.value,
+          ),
+          child: const SizedBox.expand(),
         ),
-        size: Size.infinite,
       ),
     ),
   );
@@ -2913,6 +3098,8 @@ class _InvalidLinkPainter extends CustomPainter {
     required this.editor,
     required this.viewportOffset,
     required this.viewportZoom,
+    required this.selectedFlowEdgeId,
+    required this.selectedDataWireId,
   });
 
   final List<GraphEdge> flowEdges;
@@ -2921,22 +3108,55 @@ class _InvalidLinkPainter extends CustomPainter {
   final ShowRunnerGraphEditor editor;
   final Offset viewportOffset;
   final double viewportZoom;
+  final String? selectedFlowEdgeId;
+  final String? selectedDataWireId;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..color = const Color(0xfff87171).withValues(alpha: 0.92);
     for (final edge in flowEdges) {
       final path = _flowPath(edge, size);
-      if (path != null) _drawDashedPath(canvas, path, paint);
+      if (path != null) {
+        _paintInvalidPath(
+          canvas,
+          path,
+          selected: edge.id == selectedFlowEdgeId,
+        );
+      }
     }
     for (final wire in dataWires) {
       final path = _dataPath(wire, size);
-      if (path != null) _drawDashedPath(canvas, path, paint);
+      if (path != null) {
+        _paintInvalidPath(
+          canvas,
+          path,
+          selected: wire.id == selectedDataWireId,
+        );
+      }
     }
+  }
+
+  void _paintInvalidPath(Canvas canvas, Path path, {required bool selected}) {
+    if (selected) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = 9
+          ..color = const Color(0xffffc857).withValues(alpha: 0.25),
+      );
+    }
+    _drawDashedPath(
+      canvas,
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = selected ? 3.5 : 2.5
+        ..color = selected
+            ? const Color(0xffffc857)
+            : const Color(0xfff87171).withValues(alpha: 0.92),
+    );
   }
 
   Path? _flowPath(GraphEdge edge, Size size) {
@@ -3048,7 +3268,9 @@ class _InvalidLinkPainter extends CustomPainter {
       oldDelegate.dataWires != dataWires ||
       oldDelegate.nodes != nodes ||
       oldDelegate.viewportOffset != viewportOffset ||
-      oldDelegate.viewportZoom != viewportZoom;
+      oldDelegate.viewportZoom != viewportZoom ||
+      oldDelegate.selectedFlowEdgeId != selectedFlowEdgeId ||
+      oldDelegate.selectedDataWireId != selectedDataWireId;
 }
 
 Widget _buildNodeField(
@@ -3095,6 +3317,15 @@ Widget _buildNodePort(
     textAlign: isInput ? TextAlign.left : TextAlign.right,
     style: const TextStyle(color: Colors.white70, fontSize: 11),
   );
+  final type = Text(
+    _graphPortTypeLabel(port.prototype),
+    overflow: TextOverflow.ellipsis,
+    style: const TextStyle(
+      color: Color(0x80ffffff),
+      fontFamily: 'Consolas',
+      fontSize: 9,
+    ),
+  );
   // sai_nodes paints the interactive marker at the actual wire endpoint.
   // Drawing another marker here suggests a second, non-interactive port.
   return Row(
@@ -3103,8 +3334,127 @@ Widget _buildNodePort(
     mainAxisAlignment: isInput
         ? MainAxisAlignment.start
         : MainAxisAlignment.end,
-    children: [Flexible(child: label)],
+    children: isInput
+        ? [Flexible(child: label), const SizedBox(width: 5), type]
+        : [type, const SizedBox(width: 5), Flexible(child: label)],
   );
+}
+
+String _graphPortTypeLabel(PortPrototype prototype) {
+  if (prototype.type == PortType.control) return 'flow';
+  return switch (prototype.dataType.toString()) {
+    'String' => 'string',
+    'num' => 'number',
+    'bool' => 'boolean',
+    'List<dynamic>' => 'array',
+    'Map<String, dynamic>' => 'object',
+    final value => value,
+  };
+}
+
+class _GraphDropTargetOverlay extends StatelessWidget {
+  const _GraphDropTargetOverlay({required this.editor});
+
+  final ShowRunnerGraphEditor editor;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: AnimatedBuilder(
+      animation: Listenable.merge([
+        editor.dropTargetLinkId,
+        editor.controller,
+        editor.controller.viewportOffsetNotifier,
+        editor.controller.viewportZoomNotifier,
+      ]),
+      builder: (context, child) => ClipRect(
+        child: CustomPaint(
+          painter: _GraphDropTargetPainter(
+            linkId: editor.dropTargetLinkId.value,
+            nodes: editor.controller.nodes,
+            links: editor.controller.links,
+            viewportOffset: editor.controller.viewportOffset,
+            viewportZoom: editor.controller.viewportZoom,
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    ),
+  );
+}
+
+class _GraphDropTargetPainter extends CustomPainter {
+  const _GraphDropTargetPainter({
+    required this.linkId,
+    required this.nodes,
+    required this.links,
+    required this.viewportOffset,
+    required this.viewportZoom,
+  });
+
+  final String? linkId;
+  final Map<String, NodeDataModel> nodes;
+  final Map<String, LinkDataModel> links;
+  final Offset viewportOffset;
+  final double viewportZoom;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final id = linkId;
+    if (id == null || size.isEmpty) return;
+    final link = links[id];
+    final source = link == null ? null : nodes[link.endpoints.sourceNodeId];
+    final target = link == null ? null : nodes[link.endpoints.targetNodeId];
+    final sourcePort = source?.ports[link?.endpoints.sourcePortId];
+    final targetPort = target?.ports[link?.endpoints.targetPortId];
+    if (source == null ||
+        target == null ||
+        sourcePort == null ||
+        targetPort == null) {
+      return;
+    }
+    final transform = NodeEditorViewportTransform(
+      viewportSize: size,
+      viewportOffset: viewportOffset,
+      zoom: viewportZoom,
+    );
+    final start = transform.worldToScreen(source.offset + sourcePort.offset);
+    final end = transform.worldToScreen(target.offset + targetPort.offset);
+    final control = math.min((end.dx - start.dx).abs() / 2, 400);
+    final path = Path()
+      ..moveTo(start.dx, start.dy)
+      ..cubicTo(
+        start.dx + control,
+        start.dy,
+        end.dx - control,
+        end.dy,
+        end.dx,
+        end.dy,
+      );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = 10
+        ..color = const Color(0xff2ed47a).withValues(alpha: 0.2),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = 4
+        ..color = const Color(0xff2ed47a),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GraphDropTargetPainter oldDelegate) =>
+      oldDelegate.linkId != linkId ||
+      oldDelegate.nodes != nodes ||
+      oldDelegate.links != links ||
+      oldDelegate.viewportOffset != viewportOffset ||
+      oldDelegate.viewportZoom != viewportZoom;
 }
 
 // The remaining widgets are graph-domain panels layered over the canvas.
@@ -3272,6 +3622,135 @@ class _GraphStatus extends StatelessWidget {
   }
 }
 
+class _GraphWireHealthOverlay extends StatelessWidget {
+  const _GraphWireHealthOverlay({required this.editor});
+
+  final ShowRunnerGraphEditor editor;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: Listenable.merge([
+      editor.nodeRevision,
+      editor.activeGraphPath,
+      editor.selectedInvalidFlowEdgeId,
+      editor.selectedInvalidDataWireId,
+    ]),
+    builder: (context, child) {
+      final invalidDataWires = editor.invalidDataWires;
+      final invalidFlowEdges = editor.invalidFlowEdges;
+      if (invalidDataWires.isEmpty && invalidFlowEdges.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Align(
+        alignment: Alignment.topLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (invalidDataWires.isNotEmpty)
+                _wireHealthBanner(
+                  context,
+                  title:
+                      '${invalidDataWires.length} invalid data wire'
+                      '${invalidDataWires.length == 1 ? '' : 's'}',
+                  message:
+                      'One or more data connections could not be restored.',
+                  onSelect: () =>
+                      editor.selectInvalidDataWire(invalidDataWires.first.id),
+                  onCleanup: () {
+                    for (final wire in List.of(invalidDataWires)) {
+                      editor.discardInvalidDataWire(wire.id);
+                    }
+                  },
+                ),
+              if (invalidDataWires.isNotEmpty && invalidFlowEdges.isNotEmpty)
+                const SizedBox(height: 6),
+              if (invalidFlowEdges.isNotEmpty)
+                _wireHealthBanner(
+                  context,
+                  title:
+                      '${invalidFlowEdges.length} invalid sequence edge'
+                      '${invalidFlowEdges.length == 1 ? '' : 's'}',
+                  message:
+                      'One or more execution connections could not be restored.',
+                  onSelect: () =>
+                      editor.selectInvalidFlowEdge(invalidFlowEdges.first.id),
+                  onCleanup: () {
+                    for (final edge in List.of(invalidFlowEdges)) {
+                      editor.discardInvalidFlowEdge(edge.id);
+                    }
+                  },
+                ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
+  Widget _wireHealthBanner(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required VoidCallback onSelect,
+    required VoidCallback onCleanup,
+  }) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: const Color(0xff4c292b).withValues(alpha: 0.96),
+      border: Border.all(color: const Color(0xff9f4d50)),
+      borderRadius: BorderRadius.circular(6),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x33000000),
+          blurRadius: 8,
+          offset: Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(Icons.warning_amber, color: Color(0xffffb4a9), size: 19),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xffffd7d2),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xffffc4be),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(onPressed: onSelect, child: const Text('Select')),
+          TextButton(onPressed: onCleanup, child: const Text('Clean up')),
+        ],
+      ),
+    ),
+  );
+}
+
 class _GraphHealth extends StatelessWidget {
   const _GraphHealth({required this.editor});
 
@@ -3355,6 +3834,10 @@ class _GraphHealth extends StatelessWidget {
                             '${edge.from} -> ${edge.to} '
                             '(${edge.port ?? 'completed'})',
                           ),
+                          onTap: () {
+                            editor.selectInvalidFlowEdge(edge.id);
+                            Navigator.of(context).pop();
+                          },
                           trailing: IconButton(
                             tooltip: 'Discard stale flow link',
                             onPressed: () {
@@ -3380,6 +3863,10 @@ class _GraphHealth extends StatelessWidget {
                             '${wire.fromNode}.${wire.fromPort} -> '
                             '${wire.toNode}.${wire.toPort}',
                           ),
+                          onTap: () {
+                            editor.selectInvalidDataWire(wire.id);
+                            Navigator.of(context).pop();
+                          },
                           trailing: IconButton(
                             tooltip: 'Discard stale data link',
                             onPressed: () {
@@ -3428,6 +3915,8 @@ class _SelectedNodeDetails extends StatelessWidget {
       editor.controller,
       editor.frames,
       editor.nodeRevision,
+      editor.selectedInvalidFlowEdgeId,
+      editor.selectedInvalidDataWireId,
       editor.controller.viewportOffsetNotifier,
       editor.controller.viewportZoomNotifier,
     ]),
@@ -3440,6 +3929,30 @@ class _SelectedNodeDetails extends StatelessWidget {
       final selectedFrame = editor.frames.value
           .where((frame) => frame.id == editor.selectedFrameId.value)
           .firstOrNull;
+      final selectedInvalidFlowEdge = editor.selectedInvalidFlowEdgeId.value;
+      if (selectedInvalidFlowEdge != null) {
+        return _panel(
+          'Invalid sequence edge',
+          selectedInvalidFlowEdge,
+          action: OutlinedButton.icon(
+            onPressed: editor.deleteSelection,
+            icon: const Icon(Icons.delete_outline, size: 16),
+            label: const Text('Clean up'),
+          ),
+        );
+      }
+      final selectedInvalidDataWire = editor.selectedInvalidDataWireId.value;
+      if (selectedInvalidDataWire != null) {
+        return _panel(
+          'Invalid data wire',
+          selectedInvalidDataWire,
+          action: OutlinedButton.icon(
+            onPressed: editor.deleteSelection,
+            icon: const Icon(Icons.delete_outline, size: 16),
+            label: const Text('Clean up'),
+          ),
+        );
+      }
       if (selectedFrame != null) {
         return _FrameDetailsPanel(editor: editor, frame: selectedFrame);
       }
@@ -4779,62 +5292,97 @@ class _SchemaConfigurationDialogState
 
 // sai_nodes supplies the canvas viewport; this minimap renders ShowRunner
 // frames, execution state, and persisted graph links in a compact projection.
-class _GraphMinimap extends StatelessWidget {
+class _GraphMinimap extends StatefulWidget {
   const _GraphMinimap({required this.editor});
 
   final ShowRunnerGraphEditor editor;
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([
-      editor.controller,
-      editor.frames,
-      editor.executionStates,
-    ]),
-    builder: (context, child) {
-      final nodes = editor.controller.nodes.values.toList();
-      final editorRenderObject = editor.controller.editorKey.currentContext
-          ?.findRenderObject();
-      final viewportSize =
-          editorRenderObject is RenderBox && editorRenderObject.hasSize
-          ? editorRenderObject.size
-          : Size.zero;
-      final painter = _GraphMinimapPainter(
-        nodes,
-        links: editor.controller.linksAsList,
-        frames: editor.frames.value,
-        executionStates: editor.executionStates.value,
-        viewportOffset: editor.controller.viewportOffset,
-        viewportZoom: editor.controller.viewportZoom,
-        viewportSize: viewportSize,
-      );
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xff182126).withValues(alpha: 0.94),
-          border: Border.all(color: const Color(0xff475569)),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (details) => _moveViewportToMinimapPosition(
-            editor,
-            painter,
-            details.localPosition,
+  State<_GraphMinimap> createState() => _GraphMinimapState();
+}
+
+class _GraphMinimapState extends State<_GraphMinimap> {
+  Size _lastViewportSize = Size.zero;
+  bool _hasMeasuredViewport = false;
+  bool _layoutRefreshScheduled = false;
+
+  ShowRunnerGraphEditor get editor => widget.editor;
+
+  Size _viewportSize() {
+    final renderObject = editor.controller.editorKey.currentContext
+        ?.findRenderObject();
+    return renderObject is RenderBox && renderObject.hasSize
+        ? renderObject.size
+        : Size.zero;
+  }
+
+  void _refreshAfterLayout(Size viewportSize) {
+    if (_layoutRefreshScheduled ||
+        (_hasMeasuredViewport && viewportSize == _lastViewportSize)) {
+      return;
+    }
+    _layoutRefreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _layoutRefreshScheduled = false;
+      if (!mounted) return;
+      final measuredSize = _viewportSize();
+      if (!_hasMeasuredViewport || measuredSize != _lastViewportSize) {
+        _hasMeasuredViewport = true;
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        editor.controller,
+        editor.frames,
+        editor.executionStates,
+      ]),
+      builder: (context, child) {
+        final nodes = editor.controller.nodes.values.toList();
+        final viewportSize = _viewportSize();
+        _refreshAfterLayout(viewportSize);
+        _lastViewportSize = viewportSize;
+        final painter = _GraphMinimapPainter(
+          nodes,
+          links: editor.controller.linksAsList,
+          frames: editor.frames.value,
+          executionStates: editor.executionStates.value,
+          viewportOffset: editor.controller.viewportOffset,
+          viewportZoom: editor.controller.viewportZoom,
+          viewportSize: viewportSize,
+        );
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xff182126).withValues(alpha: 0.94),
+            border: Border.all(color: const Color(0xff475569)),
+            borderRadius: BorderRadius.circular(6),
           ),
-          onPanUpdate: (details) => _moveViewportToMinimapPosition(
-            editor,
-            painter,
-            details.localPosition,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (details) => _moveViewportToMinimapPosition(
+              editor,
+              painter,
+              details.localPosition,
+            ),
+            onPanUpdate: (details) => _moveViewportToMinimapPosition(
+              editor,
+              painter,
+              details.localPosition,
+            ),
+            child: SizedBox(
+              width: 180,
+              height: 120,
+              child: ClipRect(child: CustomPaint(painter: painter)),
+            ),
           ),
-          child: SizedBox(
-            width: 180,
-            height: 120,
-            child: ClipRect(child: CustomPaint(painter: painter)),
-          ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+  }
 }
 
 class _GraphMinimapPainter extends CustomPainter {

@@ -30,6 +30,22 @@ final class GraphNodeExecutionVisual {
   final String? error;
 }
 
+enum GraphAlignmentAxis { vertical, horizontal }
+
+final class GraphAlignmentGuide {
+  const GraphAlignmentGuide({
+    required this.axis,
+    required this.position,
+    required this.from,
+    required this.to,
+  });
+
+  final GraphAlignmentAxis axis;
+  final double position;
+  final double from;
+  final double to;
+}
+
 typedef GraphResourceOptionsLoader =
     Future<List<String>> Function(String resourceType);
 
@@ -135,6 +151,12 @@ class ShowRunnerGraphEditor {
   );
   final ValueNotifier<Map<String, GraphNodeExecutionVisual>> executionStates =
       ValueNotifier(const {});
+  final ValueNotifier<List<GraphAlignmentGuide>> alignmentGuides =
+      ValueNotifier(const []);
+  final ValueNotifier<String?> dropTargetNodeId = ValueNotifier(null);
+  final ValueNotifier<String?> dropTargetLinkId = ValueNotifier(null);
+  final ValueNotifier<String?> selectedInvalidFlowEdgeId = ValueNotifier(null);
+  final ValueNotifier<String?> selectedInvalidDataWireId = ValueNotifier(null);
 
   /// State for the editor-only preview playhead. This never starts runtime
   /// plugins or executes actions; it only previews graph order and timing.
@@ -191,6 +213,7 @@ class ShowRunnerGraphEditor {
         minZoom: 0.35,
         maxZoom: 1.5,
         snapToGridSize: 42,
+        defaultNodeWidth: 220,
       ),
       style: const NodeEditorStyle(
         decoration: BoxDecoration(color: Color(0xff202020)),
@@ -209,6 +232,18 @@ class ShowRunnerGraphEditor {
           borderColor: Color.fromARGB(190, 212, 137, 255),
           borderDrawMode: LineDrawMode.solid,
         ),
+        linkLabelStyle: LinkLabelStyle(
+          textStyle: TextStyle(
+            color: Color(0xfff7e7ff),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+          backgroundColor: Color(0xeb121216),
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          borderRadius: BorderRadius.all(Radius.circular(11)),
+          maxWidth: 150,
+          minWidth: 60,
+        ),
       ),
       clipboardPayloadEncoder: _encodeClipboardPayload,
       clipboardPayloadDecoder: _decodeClipboardPayload,
@@ -220,17 +255,50 @@ class ShowRunnerGraphEditor {
     _registerPrototypes(created);
     _fieldEvents[created] = created.eventBus.events.listen((event) {
       _markDocumentDirtyFromEvent(event);
+      if ((event is NodeSelectionEvent && event.nodeIds.isNotEmpty) ||
+          (event is LinkSelectionEvent && event.linkIds.isNotEmpty)) {
+        clearInvalidSelection();
+      }
+      if (event is DragSelectionStartEvent) {
+        alignmentGuides.value = const [];
+      }
       if (event is DragSelectionEvent &&
           identical(created, _controllers[_mainGraphKey])) {
         _placeDraggedNodesInFrame(event.nodeIds);
+      }
+      if (event is DragSelectionEvent) {
+        _updateAlignmentGuides(created, event.nodeIds);
+      }
+      if (event is DragSelectionEndEvent) {
+        alignmentGuides.value = const [];
       }
       if (event is RemoveNodeEvent &&
           identical(created, _controllers[_mainGraphKey])) {
         _removeEditorNodeFromFrames(event.node.id);
         _triggerEditorIds.remove(event.node.id);
+        _nodeDataByEditorId.remove(event.node.id);
+        _nodeTitles.remove(event.node.id);
+        _schemaIdByEditorId.remove(event.node.id);
       }
       if (event is AddNodeEvent) {
         _trackAddedNode(created, event.node);
+      }
+      if (event is AddLinkEvent &&
+          event.link.endpoints.sourceNodeId.isNotEmpty) {
+        final source = created.nodes[event.link.endpoints.sourceNodeId];
+        final sourcePort = source?.ports[event.link.endpoints.sourcePortId];
+        if (sourcePort?.prototype.type == PortType.control) {
+          created.setLinkLabel(
+            event.link.id,
+            _flowLinkLabel(
+              event.link.endpoints.sourcePortId,
+              source: _schemaNodeForEditorNode(
+                created,
+                event.link.endpoints.sourceNodeId,
+              ),
+            ),
+          );
+        }
       }
       if (event is! NodeFieldEvent ||
           event.eventType == FieldEventType.change) {
@@ -247,8 +315,126 @@ class ShowRunnerGraphEditor {
     return created;
   }
 
+  GraphNode? _schemaNodeForEditorNode(
+    NodeEditorController graphController,
+    String editorNodeId,
+  ) {
+    final node = graphController.nodes[editorNodeId];
+    if (node == null) return null;
+    return GraphNode(
+      id: _schemaIdByEditorId[editorNodeId] ?? editorNodeId,
+      type: node.prototype.idName,
+      x: node.offset.dx,
+      y: node.offset.dy,
+      data: _cloneJsonMap(_nodeDataByEditorId[editorNodeId] ?? const {}),
+    );
+  }
+
   void _markDocumentDirtyFromRevision() {
     _markDocumentDirty();
+  }
+
+  void _updateAlignmentGuides(
+    NodeEditorController graphController,
+    Set<String> draggedIds,
+  ) {
+    if (draggedIds.isEmpty) {
+      alignmentGuides.value = const [];
+      return;
+    }
+
+    final dragged = graphController.nodes[draggedIds.first];
+    if (dragged == null) {
+      alignmentGuides.value = const [];
+      return;
+    }
+
+    final draggedBounds = _nodeWorldBounds(dragged);
+    final references = graphController.nodes.values.where(
+      (node) => !draggedIds.contains(node.id),
+    );
+    const threshold = 6.0;
+    var bestX = threshold + 1;
+    var bestY = threshold + 1;
+    final xMatches = <(double, double)>[];
+    final yMatches = <(double, double)>[];
+
+    for (final reference in references) {
+      final bounds = _nodeWorldBounds(reference);
+      final xPairs = <(double, double)>[
+        (draggedBounds.left, bounds.left),
+        (draggedBounds.left, bounds.right),
+        (draggedBounds.right, bounds.left),
+        (draggedBounds.right, bounds.right),
+        (draggedBounds.center.dx, bounds.center.dx),
+      ];
+      for (final pair in xPairs) {
+        final distance = (pair.$1 - pair.$2).abs();
+        if (distance < bestX) {
+          bestX = distance;
+          xMatches
+            ..clear()
+            ..add(pair);
+        } else if (distance == bestX) {
+          xMatches.add(pair);
+        }
+      }
+
+      final yPairs = <(double, double)>[
+        (draggedBounds.top, bounds.top),
+        (draggedBounds.top, bounds.bottom),
+        (draggedBounds.bottom, bounds.top),
+        (draggedBounds.bottom, bounds.bottom),
+        (draggedBounds.center.dy, bounds.center.dy),
+      ];
+      for (final pair in yPairs) {
+        final distance = (pair.$1 - pair.$2).abs();
+        if (distance < bestY) {
+          bestY = distance;
+          yMatches
+            ..clear()
+            ..add(pair);
+        } else if (distance == bestY) {
+          yMatches.add(pair);
+        }
+      }
+    }
+
+    if (bestX > threshold && bestY > threshold) {
+      alignmentGuides.value = const [];
+      return;
+    }
+
+    final guides = <GraphAlignmentGuide>[];
+    if (bestX <= threshold) {
+      for (final match in xMatches) {
+        guides.add(
+          GraphAlignmentGuide(
+            axis: GraphAlignmentAxis.vertical,
+            position: match.$2,
+            from: draggedBounds.top,
+            to: draggedBounds.bottom,
+          ),
+        );
+      }
+    }
+    if (bestY <= threshold) {
+      for (final match in yMatches) {
+        guides.add(
+          GraphAlignmentGuide(
+            axis: GraphAlignmentAxis.horizontal,
+            position: match.$2,
+            from: draggedBounds.left,
+            to: draggedBounds.right,
+          ),
+        );
+      }
+    }
+    final seen = <String>{};
+    alignmentGuides.value = guides.where((guide) {
+      final key = '${guide.axis}:${guide.position}:${guide.from}:${guide.to}';
+      return seen.add(key);
+    }).toList();
   }
 
   void _markDocumentDirty() {
@@ -293,6 +479,31 @@ class ShowRunnerGraphEditor {
   Future<void> cutSelection({BuildContext? context}) async {
     final payload = await controller.clipboard.cutSelection(context: context);
     if (payload.isNotEmpty) _clipboardFallbackPayload = payload;
+  }
+
+  /// Applies the desktop editor's delete command to the active selection.
+  ///
+  /// Annotation frames are editor resources rather than sai_nodes graph
+  /// nodes, so they must be deleted here before delegating node/link deletion
+  /// to the generic controller.
+  void deleteSelection() {
+    final invalidFlowEdgeId = selectedInvalidFlowEdgeId.value;
+    if (invalidFlowEdgeId != null) {
+      discardInvalidFlowEdge(invalidFlowEdgeId);
+      return;
+    }
+    final invalidDataWireId = selectedInvalidDataWireId.value;
+    if (invalidDataWireId != null) {
+      discardInvalidDataWire(invalidDataWireId);
+      return;
+    }
+    if (selectedFrameId.value != null) {
+      deleteSelectedFrame();
+      controller.clearSelection();
+      return;
+    }
+    controller.deleteSelection();
+    nodeRevision.value++;
   }
 
   ShowRunnerClipboardSnapshot? _clipboardSnapshotForNode(String nodeId) {
@@ -1018,6 +1229,7 @@ class ShowRunnerGraphEditor {
   }
 
   void selectFrame(String? frameId) {
+    clearInvalidSelection();
     selectedFrameId.value =
         frameId != null && frames.value.any((frame) => frame.id == frameId)
         ? frameId
@@ -1920,6 +2132,7 @@ class ShowRunnerGraphEditor {
       controller.clear();
       frames.value = const [];
       selectedFrameId.value = null;
+      clearInvalidSelection();
       subgraphs.value = const [];
       _entryNodeIdByGraph.clear();
       searchMatchIndex.value = 0;
@@ -2101,6 +2314,85 @@ class ShowRunnerGraphEditor {
     return null;
   }
 
+  /// Updates the visual drop target used when an action is dragged from the
+  /// palette over the graph. A flow edge takes precedence over a node so the
+  /// drop can insert into an existing sequence instead of appending after a
+  /// node that happens to overlap the edge hit area.
+  void updateActionDropTarget(Offset screenPosition) {
+    final linkId = flowLinkIdAtScreenPosition(screenPosition);
+    dropTargetLinkId.value = linkId;
+    dropTargetNodeId.value = linkId == null
+        ? nodeIdAtScreenPosition(screenPosition)
+        : null;
+  }
+
+  void clearActionDropTarget() {
+    dropTargetNodeId.value = null;
+    dropTargetLinkId.value = null;
+  }
+
+  /// Finds a control-flow link under a global pointer position.
+  ///
+  /// `sai_nodes` owns the actual pointer hit-test. This read-only projection
+  /// is for ShowRunner's product-specific workflow where dragging an action
+  /// from the palette onto an existing sequence edge inserts it between the
+  /// two connected nodes, matching `main`.
+  String? flowLinkIdAtScreenPosition(Offset screenPosition) {
+    final renderObject = controller.editorKey.currentContext
+        ?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+    final local = renderObject.globalToLocal(screenPosition);
+    final world = controller.screenToWorld(local, renderObject.size);
+
+    final tolerance = 12 / controller.viewportZoom;
+    for (final link in controller.linksAsList) {
+      final source = controller.nodes[link.endpoints.sourceNodeId];
+      final target = controller.nodes[link.endpoints.targetNodeId];
+      final sourcePort = source?.ports[link.endpoints.sourcePortId];
+      final targetPort = target?.ports[link.endpoints.targetPortId];
+      if (source == null ||
+          target == null ||
+          sourcePort == null ||
+          targetPort == null ||
+          sourcePort.prototype.type != PortType.control) {
+        continue;
+      }
+
+      final start = source.offset + sourcePort.offset;
+      final end = target.offset + targetPort.offset;
+      final control = math.min((end.dx - start.dx).abs() / 2, 400).toDouble();
+      final firstControl = Offset(start.dx + control, start.dy);
+      final secondControl = Offset(end.dx - control, end.dy);
+      var previous = start;
+      for (var index = 1; index <= 32; index++) {
+        final t = index / 32;
+        final inverse = 1 - t;
+        final point =
+            start * (inverse * inverse * inverse) +
+            firstControl * (3 * inverse * inverse * t) +
+            secondControl * (3 * inverse * t * t) +
+            end * (t * t * t);
+        if (_distanceToSegment(world, previous, point) <= tolerance) {
+          return link.id;
+        }
+        previous = point;
+      }
+    }
+    return null;
+  }
+
+  static double _distanceToSegment(Offset point, Offset start, Offset end) {
+    final delta = end - start;
+    final lengthSquared = delta.dx * delta.dx + delta.dy * delta.dy;
+    if (lengthSquared == 0) return (point - start).distance;
+    final projection =
+        ((point.dx - start.dx) * delta.dx + (point.dy - start.dy) * delta.dy) /
+        lengthSquared;
+    final t = projection.clamp(0.0, 1.0).toDouble();
+    final closest = Offset(start.dx + delta.dx * t, start.dy + delta.dy * t);
+    return (point - closest).distance;
+  }
+
   String? insertActionAfterNode(
     String nodeType,
     String anchorEditorId, {
@@ -2276,6 +2568,9 @@ class ShowRunnerGraphEditor {
     final remaining = invalid.where((edge) => edge.id != edgeId).toList();
     if (remaining.length == invalid.length) return;
     _invalidFlowEdgesByGraph[graphKey] = remaining;
+    if (selectedInvalidFlowEdgeId.value == edgeId) {
+      selectedInvalidFlowEdgeId.value = null;
+    }
     nodeRevision.value++;
   }
 
@@ -2286,7 +2581,31 @@ class ShowRunnerGraphEditor {
     final remaining = invalid.where((wire) => wire.id != wireId).toList();
     if (remaining.length == invalid.length) return;
     _invalidDataWiresByGraph[graphKey] = remaining;
+    if (selectedInvalidDataWireId.value == wireId) {
+      selectedInvalidDataWireId.value = null;
+    }
     nodeRevision.value++;
+  }
+
+  void selectInvalidFlowEdge(String edgeId) {
+    if (!invalidFlowEdges.any((edge) => edge.id == edgeId)) return;
+    selectedInvalidFlowEdgeId.value = edgeId;
+    selectedInvalidDataWireId.value = null;
+    selectedFrameId.value = null;
+    controller.clearSelection();
+  }
+
+  void selectInvalidDataWire(String wireId) {
+    if (!invalidDataWires.any((wire) => wire.id == wireId)) return;
+    selectedInvalidDataWireId.value = wireId;
+    selectedInvalidFlowEdgeId.value = null;
+    selectedFrameId.value = null;
+    controller.clearSelection();
+  }
+
+  void clearInvalidSelection() {
+    selectedInvalidFlowEdgeId.value = null;
+    selectedInvalidDataWireId.value = null;
   }
 
   void repairCurrentGraph() {
@@ -2322,6 +2641,7 @@ class ShowRunnerGraphEditor {
       controller.clear();
       frames.value = _framesFromExtra(automation.extra);
       selectedFrameId.value = null;
+      clearInvalidSelection();
       subgraphs.value = automation.subgraphs;
       activeGraphPath.value = const [];
       searchMatchIndex.value = 0;
@@ -2486,6 +2806,10 @@ class ShowRunnerGraphEditor {
         edge.port ?? 'completed',
         to.id,
         'exec',
+        label: _flowLinkLabel(
+          edge.port,
+          source: graph.nodes.where((node) => node.id == edge.from).firstOrNull,
+        ),
         eventId: edge.id,
       );
       if (link == null) {
@@ -2768,7 +3092,9 @@ class ShowRunnerGraphEditor {
                 link.id,
             from: from,
             to: to,
-            port: link.endpoints.sourcePortId,
+            port: link.endpoints.sourcePortId == 'completed'
+                ? null
+                : link.endpoints.sourcePortId,
           ),
         );
       }
@@ -3414,6 +3740,11 @@ class ShowRunnerGraphEditor {
     subgraphs.dispose();
     activeGraphPath.dispose();
     executionStates.dispose();
+    alignmentGuides.dispose();
+    dropTargetNodeId.dispose();
+    dropTargetLinkId.dispose();
+    selectedInvalidFlowEdgeId.dispose();
+    selectedInvalidDataWireId.dispose();
     _previewTimer?.cancel();
     previewNodeId.dispose();
     previewPlaying.dispose();
@@ -3580,6 +3911,31 @@ String _flowPortLabel(String port) => switch (port) {
   _ when port.startsWith('case:') => 'Case ${port.substring(5)}',
   _ => port,
 };
+
+String? _flowLinkLabel(String? port, {GraphNode? source}) {
+  if (port == null || port == 'completed') return null;
+  return switch (port) {
+    'then' => 'then',
+    'else' => 'else',
+    'default' => 'default',
+    'body' => 'loop body',
+    'next' => 'done',
+    _ when port.startsWith('case:') => _switchCaseLabel(port, source),
+    _ => port,
+  };
+}
+
+String _switchCaseLabel(String port, GraphNode? source) {
+  final cases = source?.data['cases'];
+  if (cases is List) {
+    for (final item in cases.whereType<Map>()) {
+      if (item['port']?.toString() == port) {
+        return 'case: ${item['value'] ?? port.substring(5)}';
+      }
+    }
+  }
+  return 'case ${port.substring(5)}';
+}
 
 SubgraphDefinition _removeSubgraphCalls(
   SubgraphDefinition subgraph,
