@@ -360,9 +360,66 @@ final class TwitchEventSubWorker {
       _ => null,
     };
     if (eventId != null) {
-      eventHub.emit(eventId, Map<String, dynamic>.from(event));
+      eventHub.emit(eventId, _normalizeTwitchEvent(eventId, event));
     }
   }
+}
+
+RuntimeMap _normalizeTwitchEvent(String eventId, Map event) {
+  final normalized = <String, dynamic>{
+    ...Map<String, dynamic>.from(event),
+    'eventType': eventId,
+    'platform': 'twitch',
+  };
+
+  void copyIfPresent(String target, Object? value) {
+    if (value != null) normalized[target] = value;
+  }
+
+  copyIfPresent('viewerId', event['user_id'] ?? event['chatter_user_id']);
+  copyIfPresent(
+    'viewerName',
+    event['user_name'] ?? event['user_login'] ?? event['chatter_user_name'],
+  );
+  copyIfPresent('message', event['message']);
+  copyIfPresent('messageId', event['message_id']);
+  copyIfPresent('bits', event['bits']);
+  copyIfPresent('tier', _tierNumber(event['tier']));
+  copyIfPresent('totalMonths', event['cumulative_months']);
+  copyIfPresent('streakMonths', event['streak_months']);
+  copyIfPresent('userInput', event['user_input']);
+  copyIfPresent('redemptionId', event['id']);
+  copyIfPresent('targetBroadcasterId', event['to_broadcaster_user_id']);
+  copyIfPresent('viewers', event['viewers']);
+
+  final badges = event['badges'];
+  if (badges is List) {
+    normalized['badges'] = badges
+        .whereType<Map>()
+        .map((badge) => badge['set_id']?.toString() ?? badge['title'])
+        .whereType<Object>()
+        .join(',');
+  }
+
+  final reward = event['reward'];
+  if (reward is Map) {
+    copyIfPresent('rewardId', reward['id']);
+    copyIfPresent('rewardName', reward['title']);
+  }
+
+  if (eventId == 'giftedSub') {
+    copyIfPresent('gifterId', event['user_id']);
+    copyIfPresent('gifterName', event['user_name']);
+    copyIfPresent('subs', event['total']);
+  }
+  return normalized;
+}
+
+num? _tierNumber(Object? value) {
+  if (value is num) return value;
+  final tier = int.tryParse(value?.toString() ?? '');
+  if (tier == null) return null;
+  return tier ~/ 1000;
 }
 
 Future<EventSubSocket> _connectSocket(Uri uri) async =>

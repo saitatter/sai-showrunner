@@ -6,12 +6,14 @@ import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/app_foundations.dart';
+import 'app/app_feedback.dart';
 import 'app/automation_document_manager.dart';
 import 'app/bootstrap/showrunner_services.dart';
 import 'app/commands/app_command.dart';
 import 'app/commands/app_command_registrar.dart';
 import 'app/data_directory.dart';
 import 'app/lifecycle/app_lifecycle_coordinator.dart';
+import 'app/name_dialog.dart';
 import 'app/startup_health.dart';
 import 'app/showrunner_shell.dart';
 import 'app/showrunner_tray.dart';
@@ -458,6 +460,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onProfileEntriesChanged: _onProjectCatalogChanged,
       onRenameProfile: _renameProfileEntry,
       onDeleteProfile: _deleteProfileEntry,
+      onCreateProfile: _createProfile,
       onProfileDirtyChanged: (dirty) {
         if (mounted) setState(() => _profileDirty = dirty);
       },
@@ -481,6 +484,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onAutomationReordered: _reorderAutomationDocument,
       onRenameResource: _renameResourceEntry,
       onDeleteResource: _deleteResourceEntry,
+      onCreateResource: _createResource,
     );
   }
 
@@ -1229,15 +1233,19 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         _graphEditor.markDocumentClean();
       }
       if (showFeedback && mounted) {
-        ScaffoldMessenger.of(
+        showShowRunnerFeedback(
           context,
-        ).showSnackBar(SnackBar(content: Text('Saved $fileName')));
+          'Saved $fileName',
+          severity: ShowRunnerFeedbackSeverity.success,
+        );
       }
       return true;
     } catch (error) {
       if (showFeedback && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to save automation: $error')),
+        showShowRunnerFeedback(
+          context,
+          'Unable to save automation: $error',
+          severity: ShowRunnerFeedbackSeverity.error,
         );
       }
       return false;
@@ -1301,8 +1309,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       _workspaceDocuments.open(WorkspaceIds.graph);
       _workspaceDocuments.select(WorkspaceIds.graph);
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Loaded $fileName into the graph editor')),
+    showShowRunnerFeedback(
+      context,
+      'Loaded $fileName into the graph editor',
+      severity: ShowRunnerFeedbackSeverity.info,
     );
   }
 
@@ -1334,44 +1344,26 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   }
 
   Future<void> _createAutomation({bool starterOnly = false}) async {
-    final starter = await showDialog<AutomationStarter>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          starterOnly ? 'New automation from starter' : 'New automation',
-        ),
-        content: SizedBox(
-          width: 520,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              ...defaultAutomationStarters().map(
-                (candidate) => ListTile(
-                  leading: const Icon(Icons.bolt),
-                  title: Text(candidate.name),
-                  subtitle: Text(candidate.description),
-                  onTap: () => Navigator.pop(context, candidate),
-                ),
-              ),
-              if (!starterOnly)
-                ListTile(
-                  leading: const Icon(Icons.account_tree_outlined),
-                  title: const Text('Blank graph'),
-                  subtitle: const Text('Start with an empty automation.'),
-                  onTap: () => Navigator.pop(context),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
+    final selection =
+        await showDialog<({String name, AutomationStarter? starter})>(
+          context: context,
+          builder: (context) => _NewAutomationDialog(starterOnly: starterOnly),
+        );
     if (!mounted) return;
-    if (starterOnly && starter == null) return;
+    if (selection == null) return;
     _captureActiveAutomation();
     final fileName = 'automation-${DateTime.now().millisecondsSinceEpoch}.yaml';
-    final automation =
-        starter?.automation ??
-        const AutomationData(extra: {'name': 'New Automation'});
+    final starter = selection.starter;
+    final base = starter?.automation ?? const AutomationData();
+    final automation = AutomationData(
+      schemaVersion: base.schemaVersion,
+      graph: base.graph,
+      subgraphs: base.subgraphs,
+      dataWires: base.dataWires,
+      variableNodes: base.variableNodes,
+      triggerNodes: base.triggerNodes,
+      extra: {...base.extra, 'name': selection.name},
+    );
     await AutomationRepository(
       File('${widget.dataService.userDirectory.path}/automations/$fileName'),
     ).save(automation);
@@ -1383,17 +1375,25 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       _workspaceDocuments.select(WorkspaceIds.graph);
       _projectCatalogRevision++;
     });
-    ScaffoldMessenger.of(
+    showShowRunnerFeedback(
       context,
-    ).showSnackBar(SnackBar(content: Text('Created $fileName')));
+      'Created ${selection.name}',
+      severity: ShowRunnerFeedbackSeverity.success,
+    );
   }
 
   Future<void> _createProfile() async {
+    final name = await showShowRunnerNameDialog(
+      context,
+      title: 'New profile',
+      initialName: 'New Profile',
+    );
+    if (name == null || !mounted) return;
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileName = 'profile_$timestamp.yaml';
     const emptyAutomation = AutomationData();
-    const profile = ShowRunnerProfile(
-      name: 'New Profile',
+    final profile = ShowRunnerProfile(
+      name: name,
       activationMode: 'toggle',
       triggers: [],
       activationCondition: {},
@@ -1406,9 +1406,42 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     if (!mounted) return;
     _onProjectCatalogChanged();
     _openDestination(WorkspaceIds.profiles);
-    ScaffoldMessenger.of(
+    showShowRunnerFeedback(
       context,
-    ).showSnackBar(SnackBar(content: Text('Created $fileName')));
+      'Created $name',
+      severity: ShowRunnerFeedbackSeverity.success,
+    );
+  }
+
+  Future<void> _createResource(String resourceType) async {
+    final definition = createDefaultResourceEditorRegistry().find(resourceType);
+    if (definition == null) return;
+    final name = await showShowRunnerNameDialog(
+      context,
+      title: 'New ${definition.displayName}',
+      initialName: definition.displayName,
+    );
+    if (name == null || !mounted) return;
+    final resource = ResourceData(
+      id: 'resource-${DateTime.now().microsecondsSinceEpoch}',
+      config: definition.defaultConfig(name),
+    );
+    await ResourceRepository(
+      Directory(
+        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
+      ),
+      resourceType: resourceType,
+      secretSettings: widget.dataService.secretSettingsStore,
+    ).save(resource);
+    if (resourceType == 'Variable') await _variableRuntime.reload();
+    if (!mounted) return;
+    _onProjectCatalogChanged();
+    _openResource(resource, resourceType);
+    showShowRunnerFeedback(
+      context,
+      'Created $name',
+      severity: ShowRunnerFeedbackSeverity.success,
+    );
   }
 
   Future<void> _renameAutomationEntry(String fileName, String name) async {
@@ -1582,15 +1615,19 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         );
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showShowRunnerFeedback(
         context,
-      ).showSnackBar(SnackBar(content: Text('Executed ${item.id}')));
+        'Executed ${item.id}',
+        severity: ShowRunnerFeedbackSeverity.success,
+      );
     } catch (error) {
       _graphEditor.markActiveSchemaNodeFailed(error);
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showShowRunnerFeedback(
         context,
-      ).showSnackBar(SnackBar(content: Text('Automation failed: $error')));
+        'Automation failed: $error',
+        severity: ShowRunnerFeedbackSeverity.error,
+      );
     }
   }
 
@@ -1617,15 +1654,19 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         );
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showShowRunnerFeedback(
         context,
-      ).showSnackBar(SnackBar(content: Text('Executed node from ${item.id}')));
+        'Executed node from ${item.id}',
+        severity: ShowRunnerFeedbackSeverity.success,
+      );
     } catch (error) {
       _graphEditor.markActiveSchemaNodeFailed(error);
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showShowRunnerFeedback(
         context,
-      ).showSnackBar(SnackBar(content: Text('Node execution failed: $error')));
+        'Node execution failed: $error',
+        severity: ShowRunnerFeedbackSeverity.error,
+      );
     }
   }
 
@@ -1639,13 +1680,17 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       ).save(repairAutomation(automation));
       if (!mounted) return;
       setState(() {});
-      ScaffoldMessenger.of(
+      showShowRunnerFeedback(
         context,
-      ).showSnackBar(SnackBar(content: Text('Repaired $fileName')));
+        'Repaired $fileName',
+        severity: ShowRunnerFeedbackSeverity.success,
+      );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to repair automation: $error')),
+      showShowRunnerFeedback(
+        context,
+        'Unable to repair automation: $error',
+        severity: ShowRunnerFeedbackSeverity.error,
       );
     }
   }
@@ -1667,9 +1712,108 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to open the log folder: $error')),
+      showShowRunnerFeedback(
+        context,
+        'Unable to open the log folder: $error',
+        severity: ShowRunnerFeedbackSeverity.error,
       );
     }
   }
+}
+
+class _NewAutomationDialog extends StatefulWidget {
+  const _NewAutomationDialog({required this.starterOnly});
+
+  final bool starterOnly;
+
+  @override
+  State<_NewAutomationDialog> createState() => _NewAutomationDialogState();
+}
+
+class _NewAutomationDialogState extends State<_NewAutomationDialog> {
+  late final TextEditingController _nameController = TextEditingController(
+    text: 'New Automation',
+  );
+  AutomationStarter? _starter;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _create() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty || (widget.starterOnly && _starter == null)) return;
+    Navigator.of(context).pop((name: name, starter: _starter));
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(
+      widget.starterOnly ? 'New automation from starter' : 'New automation',
+    ),
+    content: SizedBox(
+      width: 560,
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          TextField(
+            controller: _nameController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Automation name',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _create(),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Start from a template',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          RadioGroup<AutomationStarter?>(
+            groupValue: _starter,
+            onChanged: (value) => setState(() => _starter = value),
+            child: Column(
+              children: [
+                for (final candidate in defaultAutomationStarters())
+                  RadioListTile<AutomationStarter?>(
+                    value: candidate,
+                    secondary: const Icon(Icons.bolt),
+                    title: Text(candidate.name),
+                    subtitle: Text(candidate.description),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                if (!widget.starterOnly)
+                  const RadioListTile<AutomationStarter?>(
+                    value: null,
+                    secondary: Icon(Icons.account_tree_outlined),
+                    title: Text('Blank graph'),
+                    subtitle: Text('Start with an empty automation.'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed:
+            _nameController.text.trim().isEmpty ||
+                (widget.starterOnly && _starter == null)
+            ? null
+            : _create,
+        child: const Text('Create'),
+      ),
+    ],
+  );
 }

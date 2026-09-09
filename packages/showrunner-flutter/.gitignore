@@ -33,6 +33,7 @@
 .pub/
 /build/
 /coverage/
+**/test/**/failures/
 
 # Symbolication related
 app.*.symbols

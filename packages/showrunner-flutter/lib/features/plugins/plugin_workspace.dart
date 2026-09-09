@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../services/oauth_token.dart';
+import '../../app/app_feedback.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/registry/flutter_plugin_ui_contract.dart';
 import '../../plugins/philips_hue/discovery.dart';
@@ -403,14 +404,14 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
                   (r) => r.checkHealth(plugin.id),
                 );
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      healthy
-                          ? '${plugin.name} is ready'
-                          : '${plugin.name} is unavailable',
-                    ),
-                  ),
+                showShowRunnerFeedback(
+                  context,
+                  healthy
+                      ? '${plugin.name} is ready'
+                      : '${plugin.name} is unavailable',
+                  severity: healthy
+                      ? ShowRunnerFeedbackSeverity.success
+                      : ShowRunnerFeedbackSeverity.warning,
                 );
               },
               icon: const Icon(Icons.health_and_safety_outlined),

@@ -363,8 +363,22 @@ void main() {
     final trigger = editor.controller.nodes.values.firstWhere(
       (node) => node.prototype.idName == 'trigger.twitch.chat',
     );
-    expect(trigger.ports.keys, containsAll(<String>['completed', 'payload']));
+    expect(
+      trigger.ports.keys,
+      containsAll(<String>[
+        'completed',
+        'viewerId',
+        'viewerName',
+        'platform',
+        'message',
+        'messageId',
+        'badges',
+      ]),
+    );
+    expect(trigger.ports['message']!.prototype.dataType, equals(String));
+    expect(trigger.ports['viewerId']!.prototype.dataType, equals(String));
     expect(trigger.ports.keys, isNot(contains('exec')));
+    expect(trigger.ports.keys, isNot(contains('payload')));
   });
 
   test(

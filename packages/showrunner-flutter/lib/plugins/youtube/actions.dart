@@ -40,6 +40,138 @@ final _chatSchema = _youtubeObject('YouTube chat message', [
   ),
 ]);
 
+const _chatEventSchema = DartDataInputSchema(
+  label: 'YouTube chat event',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Viewer ID',
+      key: 'viewerId',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Viewer Name',
+      key: 'viewerName',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Message',
+      key: 'message',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Message ID',
+      key: 'messageId',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Avatar URL',
+      key: 'avatarUrl',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Moderator',
+      key: 'isModerator',
+      kind: DartDataInputKind.boolean,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Member',
+      key: 'isMember',
+      kind: DartDataInputKind.boolean,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Owner',
+      key: 'isOwner',
+      kind: DartDataInputKind.boolean,
+      required: true,
+    ),
+  ],
+);
+
+const _paidEventSchema = DartDataInputSchema(
+  label: 'YouTube paid event',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Viewer ID',
+      key: 'viewerId',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Viewer Name',
+      key: 'viewerName',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Message',
+      key: 'message',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Message ID',
+      key: 'messageId',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Amount Micros',
+      key: 'amountMicros',
+      kind: DartDataInputKind.number,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Currency',
+      key: 'currency',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+  ],
+);
+
+const _membershipEventSchema = DartDataInputSchema(
+  label: 'YouTube membership event',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Viewer Name',
+      key: 'viewerName',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Message',
+      key: 'message',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Event Type',
+      key: 'eventType',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Member Level',
+      key: 'memberLevelName',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Member Month',
+      key: 'memberMonth',
+      kind: DartDataInputKind.number,
+    ),
+  ],
+);
+
 final _deleteMessageSchema = _youtubeObject('YouTube chat message', [
   DartDataInputSchema(
     label: 'Message ID',
@@ -183,32 +315,39 @@ DartPluginManifest createYouTubePlugin(
       ),
     ),
   ],
-  triggers: eventHub == null
-      ? const []
-      : [
-          DartTriggerDefinition(
-            pluginId: 'youtube',
-            triggerId: 'chatMessage',
-            displayName: 'Chat Message',
-            listen: () => eventHub.stream('chatMessage'),
-          ),
-          DartTriggerDefinition(
-            pluginId: 'youtube',
-            triggerId: 'superChat',
-            displayName: 'Super Chat',
-            listen: () => eventHub.stream('superChat'),
-          ),
-          DartTriggerDefinition(
-            pluginId: 'youtube',
-            triggerId: 'superSticker',
-            displayName: 'Super Sticker',
-            listen: () => eventHub.stream('superSticker'),
-          ),
-          DartTriggerDefinition(
-            pluginId: 'youtube',
-            triggerId: 'membership',
-            displayName: 'Membership',
-            listen: () => eventHub.stream('membership'),
-          ),
-        ],
+  triggers: [
+    DartTriggerDefinition(
+      pluginId: 'youtube',
+      triggerId: 'chatMessage',
+      displayName: 'Chat Message',
+      listen: () => _youtubeEventStream(eventHub, 'chatMessage'),
+      eventSchema: _chatEventSchema,
+    ),
+    DartTriggerDefinition(
+      pluginId: 'youtube',
+      triggerId: 'superChat',
+      displayName: 'Super Chat',
+      listen: () => _youtubeEventStream(eventHub, 'superChat'),
+      eventSchema: _paidEventSchema,
+    ),
+    DartTriggerDefinition(
+      pluginId: 'youtube',
+      triggerId: 'superSticker',
+      displayName: 'Super Sticker',
+      listen: () => _youtubeEventStream(eventHub, 'superSticker'),
+      eventSchema: _paidEventSchema,
+    ),
+    DartTriggerDefinition(
+      pluginId: 'youtube',
+      triggerId: 'membership',
+      displayName: 'Membership',
+      listen: () => _youtubeEventStream(eventHub, 'membership'),
+      eventSchema: _membershipEventSchema,
+    ),
+  ],
 );
+
+Stream<RuntimeMap> _youtubeEventStream(
+  DartPluginEventHub? eventHub,
+  String eventId,
+) => eventHub?.stream(eventId) ?? const Stream<RuntimeMap>.empty();

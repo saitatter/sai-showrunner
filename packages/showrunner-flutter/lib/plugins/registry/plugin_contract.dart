@@ -48,6 +48,7 @@ final class DartTriggerDefinition {
     required this.displayName,
     required this.listen,
     this.configSchema,
+    this.eventSchema,
     this.matches,
     this.listenForConfig,
   });
@@ -57,6 +58,10 @@ final class DartTriggerDefinition {
   final String displayName;
   final DartPluginTrigger listen;
   final DartDataInputSchema? configSchema;
+
+  /// Fields emitted by this trigger at runtime. This is separate from
+  /// [configSchema], which describes how the trigger is configured.
+  final DartDataInputSchema? eventSchema;
   final DartPluginTriggerMatcher? matches;
   final DartPluginConfiguredTrigger? listenForConfig;
 

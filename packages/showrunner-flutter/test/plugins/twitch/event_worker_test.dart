@@ -24,6 +24,67 @@ void main() {
     await hub.dispose();
   });
 
+  test('normalizes EventSub chat payloads to typed graph fields', () async {
+    final hub = DartPluginEventHub();
+    final socket = _FakeEventSubSocket();
+    final worker = TwitchEventSubWorker(
+      accessToken: 'token',
+      clientId: 'client',
+      broadcasterId: 'broadcaster',
+      eventHub: hub,
+      subscriptionTypes: const ['channel.chat.message'],
+      request: (method, path, query, body) async => {},
+      socketFactory: (uri) async {
+        scheduleMicrotask(
+          () => socket.add(
+            jsonEncode({
+              'payload': {
+                'session': {'id': 'session-1'},
+              },
+            }),
+          ),
+        );
+        return socket;
+      },
+    );
+
+    await worker.start();
+    final eventFuture = hub.stream('chat').first;
+    socket.add(
+      jsonEncode({
+        'metadata': {'message_type': 'notification'},
+        'payload': {
+          'subscription': {'type': 'channel.chat.message'},
+          'event': {
+            'chatter_user_id': 'viewer-1',
+            'chatter_user_name': 'Viewer',
+            'message_id': 'message-1',
+            'message': 'hello',
+            'badges': [
+              {'set_id': 'subscriber'},
+            ],
+          },
+        },
+      }),
+    );
+
+    expect(await eventFuture, {
+      'chatter_user_id': 'viewer-1',
+      'chatter_user_name': 'Viewer',
+      'message_id': 'message-1',
+      'message': 'hello',
+      'eventType': 'chat',
+      'platform': 'twitch',
+      'viewerId': 'viewer-1',
+      'viewerName': 'Viewer',
+      'messageId': 'message-1',
+      'badges': 'subscriber',
+    });
+
+    await worker.stop();
+    await hub.dispose();
+  });
+
   test('reports lifecycle and failed reconnect states', () async {
     final hub = DartPluginEventHub();
     final sockets = <_FakeEventSubSocket>[];

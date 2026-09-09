@@ -39,10 +39,13 @@ class ShowRunnerProjectPanel extends StatefulWidget {
     this.selectedResourceId,
     this.onRenameAutomation,
     this.onDeleteAutomation,
+    this.onCreateAutomation,
     this.onRenameProfile,
     this.onDeleteProfile,
+    this.onCreateProfile,
     this.onRenameResource,
     this.onDeleteResource,
+    this.onCreateResource,
   });
 
   final WorkspaceId selectedWorkspace;
@@ -66,8 +69,10 @@ class ShowRunnerProjectPanel extends StatefulWidget {
   final FutureOr<void> Function(String fileName, String name)?
   onRenameAutomation;
   final FutureOr<void> Function(String fileName)? onDeleteAutomation;
+  final FutureOr<void> Function()? onCreateAutomation;
   final FutureOr<void> Function(String fileName, String name)? onRenameProfile;
   final FutureOr<void> Function(String fileName)? onDeleteProfile;
+  final FutureOr<void> Function()? onCreateProfile;
   final FutureOr<void> Function(
     ResourceData resource,
     String resourceType,
@@ -76,6 +81,7 @@ class ShowRunnerProjectPanel extends StatefulWidget {
   onRenameResource;
   final FutureOr<void> Function(ResourceData resource, String resourceType)?
   onDeleteResource;
+  final FutureOr<void> Function(String resourceType)? onCreateResource;
 
   @override
   State<ShowRunnerProjectPanel> createState() => _ShowRunnerProjectPanelState();
@@ -189,6 +195,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             expanded: _expanded['automations'] ?? false,
             compact: compact,
             onToggle: _toggle,
+            onCreate: widget.onCreateAutomation,
             children: [
               if (_catalogFuture != null)
                 _CatalogEntries(
@@ -242,6 +249,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             expanded: _expanded['profiles'] ?? false,
             compact: compact,
             onToggle: _toggle,
+            onCreate: widget.onCreateProfile,
             children: [
               if (_catalogFuture != null)
                 _CatalogEntries(
@@ -291,6 +299,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             expanded: _expanded['stream-plans'] ?? false,
             compact: compact,
             onToggle: _toggle,
+            onCreate: () => widget.onCreateResource?.call('StreamPlan'),
             children: [
               if (_catalogFuture != null)
                 _ResourceCatalogEntries(
@@ -470,6 +479,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             expanded: _expanded['overlays'] ?? false,
             compact: compact,
             onToggle: _toggle,
+            onCreate: () => widget.onCreateResource?.call('Overlay'),
             children: [
               if (_catalogFuture != null)
                 _ResourceCatalogEntries(
@@ -668,6 +678,7 @@ class _ProjectGroupBlock extends StatelessWidget {
     required this.compact,
     required this.onToggle,
     required this.children,
+    this.onCreate,
   });
 
   final String id;
@@ -677,6 +688,7 @@ class _ProjectGroupBlock extends StatelessWidget {
   final bool compact;
   final ValueChanged<String> onToggle;
   final List<Widget> children;
+  final FutureOr<void> Function()? onCreate;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -702,6 +714,18 @@ class _ProjectGroupBlock extends StatelessWidget {
                   style: TextStyle(fontSize: compact ? 13.5 : 15.5),
                 ),
               ),
+              if (onCreate != null)
+                IconButton(
+                  tooltip: 'Create $title',
+                  onPressed: () => onCreate!.call(),
+                  icon: const Icon(Icons.add, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 30,
+                  ),
+                  splashRadius: 16,
+                ),
             ],
           ),
         ),

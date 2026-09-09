@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../components/data_inputs/data_input.dart';
+import '../../app/name_dialog.dart';
 import '../../editor/showrunner_graph_editor.dart';
 import '../graph/graph_workspace.dart';
 import '../../persistence/profile_repository.dart';
@@ -88,6 +89,7 @@ class ProfileWorkspace extends StatefulWidget {
     this.controller,
     this.onDirtyChanged,
     this.onEntriesChanged,
+    this.onCreate,
   });
 
   final ShowRunnerDataService dataService;
@@ -97,6 +99,7 @@ class ProfileWorkspace extends StatefulWidget {
   final ProfileWorkspaceController? controller;
   final ValueChanged<bool>? onDirtyChanged;
   final VoidCallback? onEntriesChanged;
+  final FutureOr<void> Function()? onCreate;
 
   @override
   State<ProfileWorkspace> createState() => _ProfileWorkspaceState();
@@ -345,10 +348,17 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
 
   Future<void> _createProfile() async {
     if (!await _confirmClose()) return;
+    if (!mounted) return;
+    final name = await showShowRunnerNameDialog(
+      context,
+      title: 'New profile',
+      initialName: 'New Profile',
+    );
+    if (name == null || !mounted) return;
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileName = 'profile_$timestamp.yaml';
     final profile = ShowRunnerProfile(
-      name: 'New Profile',
+      name: name,
       activationMode: 'toggle',
       triggers: const [],
       activationCondition: const {},
@@ -525,7 +535,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.add),
-                    onPressed: _createProfile,
+                    onPressed: widget.onCreate ?? _createProfile,
                     tooltip: 'Create Profile',
                   ),
                 ),

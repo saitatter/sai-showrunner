@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'commands/app_command.dart';
+import 'app_feedback.dart';
 import 'automation_document_manager.dart';
 import '../app/startup_health.dart';
 import '../design_system/controls/controls.dart';
@@ -83,6 +84,7 @@ class ShowRunnerShell extends StatelessWidget {
     this.onProfileEntriesChanged,
     this.onRenameProfile,
     this.onDeleteProfile,
+    this.onCreateProfile,
     this.projectCatalogRevision = 0,
     this.selectedResourceType,
     this.selectedResourceId,
@@ -90,6 +92,7 @@ class ShowRunnerShell extends StatelessWidget {
     this.onOpenResource,
     this.onRenameResource,
     this.onDeleteResource,
+    this.onCreateResource,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -138,6 +141,7 @@ class ShowRunnerShell extends StatelessWidget {
   final VoidCallback? onProfileEntriesChanged;
   final FutureOr<void> Function(String fileName, String name)? onRenameProfile;
   final FutureOr<void> Function(String fileName)? onDeleteProfile;
+  final FutureOr<void> Function()? onCreateProfile;
   final int projectCatalogRevision;
   final String? selectedResourceType;
   final String? selectedResourceId;
@@ -152,6 +156,7 @@ class ShowRunnerShell extends StatelessWidget {
   onRenameResource;
   final FutureOr<void> Function(ResourceData resource, String resourceType)?
   onDeleteResource;
+  final FutureOr<void> Function(String resourceType)? onCreateResource;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -195,14 +200,17 @@ class ShowRunnerShell extends StatelessWidget {
                       onOpenAutomation: onOpenAutomation,
                       onRenameAutomation: onRenameAutomation,
                       onDeleteAutomation: onDeleteAutomationItem,
+                      onCreateAutomation: onCreateAutomation,
                       onRenameProfile: onRenameProfile,
                       onDeleteProfile: onDeleteProfile,
+                      onCreateProfile: onCreateProfile,
                       onResourceSelected: onResourceSelected,
                       onOpenResource: onOpenResource,
                       selectedResourceType: selectedResourceType,
                       selectedResourceId: selectedResourceId,
                       onRenameResource: onRenameResource,
                       onDeleteResource: onDeleteResource,
+                      onCreateResource: onCreateResource,
                       onOpenProfile: (fileName) {
                         onDestinationSelected(WorkspaceIds.profiles);
                         return profileController?.openProfile(fileName);
@@ -306,6 +314,7 @@ class ShowRunnerShell extends StatelessWidget {
         controller: profileController,
         onDirtyChanged: onProfileDirtyChanged,
         onEntriesChanged: onProfileEntriesChanged,
+        onCreate: onCreateProfile,
       ),
       WorkspaceIds.queues => QueueWorkspace(
         dataService: dataService,
@@ -321,6 +330,7 @@ class ShowRunnerShell extends StatelessWidget {
         resourceType: selectedResourceType,
         resourceId: selectedResourceId,
         revision: projectCatalogRevision,
+        onCreate: onCreateResource,
       ),
       WorkspaceIds.logs => const LogsWorkspace(),
       WorkspaceIds.about => const AboutWorkspace(),
@@ -380,8 +390,10 @@ class ShowRunnerShell extends StatelessWidget {
       );
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update plugin: $error')),
+      showShowRunnerFeedback(
+        context,
+        'Unable to update plugin: $error',
+        severity: ShowRunnerFeedbackSeverity.error,
       );
     }
   }

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../persistence/resource_repository.dart';
+import '../../app/app_feedback.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../plugins/variables/runtime.dart';
 import '../../runtime/expression.dart';
@@ -456,10 +457,10 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
     );
     if (duplicate) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Viewer variable already exists: ${result.name}'),
-          ),
+        showShowRunnerFeedback(
+          context,
+          'Viewer variable already exists: ${result.name}',
+          severity: ShowRunnerFeedbackSeverity.warning,
         );
       }
       return;

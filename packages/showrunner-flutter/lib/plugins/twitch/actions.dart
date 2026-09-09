@@ -98,6 +98,129 @@ final _chatSchema = _twitchObject('Twitch chat message', [
   _twitchText('Message', 'message', required: true, multiline: true),
 ]);
 
+final _chatEventSchema = _twitchObject('Twitch chat message event', [
+  _twitchText('Viewer ID', 'viewerId', required: true),
+  _twitchText('Viewer Name', 'viewerName', required: true),
+  _twitchText('Platform', 'platform', required: true),
+  _twitchText('Message', 'message', required: true, multiline: true),
+  _twitchText('Message ID', 'messageId', required: true),
+  _twitchText('Badges', 'badges'),
+]);
+
+final _viewerEventSchema = _twitchObject('Twitch viewer event', [
+  _twitchText('Viewer ID', 'viewerId', required: true),
+  _twitchText('Viewer Name', 'viewerName'),
+]);
+
+final _bitsEventSchema = _twitchObject('Twitch bits event', [
+  _twitchText('Viewer ID', 'viewerId', required: true),
+  _twitchText('Viewer Name', 'viewerName'),
+  DartDataInputSchema(
+    label: 'Bits',
+    key: 'bits',
+    kind: DartDataInputKind.number,
+    required: true,
+  ),
+  _twitchText('Message', 'message'),
+]);
+
+final _subscriptionEventSchema = _twitchObject('Twitch subscription event', [
+  _twitchText('Viewer ID', 'viewerId', required: true),
+  _twitchText('Viewer Name', 'viewerName'),
+  DartDataInputSchema(
+    label: 'Tier',
+    key: 'tier',
+    kind: DartDataInputKind.number,
+    required: true,
+  ),
+  DartDataInputSchema(
+    label: 'Total Months',
+    key: 'totalMonths',
+    kind: DartDataInputKind.number,
+  ),
+  DartDataInputSchema(
+    label: 'Streak Months',
+    key: 'streakMonths',
+    kind: DartDataInputKind.number,
+  ),
+  _twitchText('Message', 'message'),
+]);
+
+final _giftedSubscriptionEventSchema =
+    _twitchObject('Twitch gifted subscription event', [
+      _twitchText('Gifter ID', 'gifterId', required: true),
+      _twitchText('Gifter Name', 'gifterName'),
+      DartDataInputSchema(
+        label: 'Tier',
+        key: 'tier',
+        kind: DartDataInputKind.number,
+        required: true,
+      ),
+      DartDataInputSchema(
+        label: 'Subscriptions',
+        key: 'subs',
+        kind: DartDataInputKind.number,
+        required: true,
+      ),
+    ]);
+
+final _redemptionEventSchema = _twitchObject('Twitch redemption event', [
+  _twitchText('Viewer ID', 'viewerId', required: true),
+  _twitchText('Viewer Name', 'viewerName'),
+  _twitchText('Reward ID', 'rewardId'),
+  _twitchText('Reward Name', 'rewardName'),
+  _twitchText('User Input', 'userInput'),
+  _twitchText('Redemption ID', 'redemptionId'),
+]);
+
+final _predictionEventSchema = _twitchObject('Twitch prediction event', [
+  _twitchText('Prediction ID', 'predictionId'),
+  _twitchText('Title', 'title'),
+  _twitchText('Status', 'status'),
+]);
+
+final _pollEventSchema = _twitchObject('Twitch poll event', [
+  _twitchText('Poll ID', 'pollId'),
+  _twitchText('Title', 'title'),
+  _twitchText('Status', 'status'),
+]);
+
+final _raidEventSchema = _twitchObject('Twitch raid event', [
+  _twitchText('Viewer ID', 'viewerId'),
+  _twitchText('Viewer Name', 'viewerName'),
+  _twitchText('Target Broadcaster ID', 'targetBroadcasterId'),
+  DartDataInputSchema(
+    label: 'Viewers',
+    key: 'viewers',
+    kind: DartDataInputKind.number,
+  ),
+]);
+
+final _eventTypeSchema = _twitchObject('Twitch event', [
+  _twitchText('Event Type', 'eventType', required: true),
+]);
+
+final _twitchEventSchemas = <String, DartDataInputSchema>{
+  'chat': _chatEventSchema,
+  'ban': _viewerEventSchema,
+  'timeout': _viewerEventSchema,
+  'firstTimeChat': _chatEventSchema,
+  'bits': _bitsEventSchema,
+  'subscription': _subscriptionEventSchema,
+  'giftedSub': _giftedSubscriptionEventSchema,
+  'follow': _viewerEventSchema,
+  'redemption': _redemptionEventSchema,
+  'predictionStarted': _predictionEventSchema,
+  'predictionLocked': _predictionEventSchema,
+  'predictionSettled': _predictionEventSchema,
+  'pollStarted': _pollEventSchema,
+  'pollEnded': _pollEventSchema,
+  'raid': _raidEventSchema,
+  'raidOut': _raidEventSchema,
+  'shoutoutSent': _viewerEventSchema,
+  'shoutoutReceived': _viewerEventSchema,
+};
+
 final _announcementSchema = _twitchObject('Twitch announcement', [
   ..._identities,
   _twitchText('Message', 'message', required: true),
@@ -678,67 +801,74 @@ DartPluginManifest createTwitchPlugin(
           _clearViewerGroup(viewerGroupRepository, config),
     ),
   ],
-  triggers: eventHub == null
-      ? const []
-      : [
-          DartTriggerDefinition(
-            pluginId: 'twitch',
-            triggerId: 'chat',
-            displayName: 'Chat Message',
-            listen: () => eventHub.stream('chat'),
-          ),
-          DartTriggerDefinition(
-            pluginId: 'twitch',
-            triggerId: 'ban',
-            displayName: 'Viewer Banned',
-            listen: () => eventHub.stream('ban'),
-          ),
-          DartTriggerDefinition(
-            pluginId: 'twitch',
-            triggerId: 'timeout',
-            displayName: 'Viewer Timed Out',
-            listen: () => eventHub.stream('timeout'),
-          ),
-          for (final eventId in const [
-            'adStarted',
-            'adEnded',
-            'adSchedule',
-            'predictionStarted',
-            'predictionLocked',
-            'predictionSettled',
-            'pollStarted',
-            'pollEnded',
-            'subscription',
-            'giftedSub',
-            'follow',
-            'redemption',
-            'bits',
-            'watchstreak',
-            'raid',
-            'raidOut',
-            'raidStarted',
-            'raidCanceled',
-            'hypeTrainStarted',
-            'hypeTrainLevelUp',
-            'hypeTrainEnded',
-            'firstTimeChat',
-            'shoutoutSent',
-            'shoutoutReceived',
-            'beforeRaid',
-            'walkon',
-          ])
-            DartTriggerDefinition(
-              pluginId: 'twitch',
-              triggerId: eventId,
-              displayName: eventId,
-              listen: () => eventHub.stream(eventId),
-              configSchema: eventId == 'redemption'
-                  ? _redemptionTriggerSchema
-                  : null,
-              matches: eventId == 'redemption' ? _matchesRedemption : null,
-            ),
-        ],
+  triggers: [
+    DartTriggerDefinition(
+      pluginId: 'twitch',
+      triggerId: 'chat',
+      displayName: 'Chat Message',
+      listen: () => _twitchEventStream(eventHub, 'chat'),
+      eventSchema: _chatEventSchema,
+    ),
+    DartTriggerDefinition(
+      pluginId: 'twitch',
+      triggerId: 'ban',
+      displayName: 'Viewer Banned',
+      listen: () => _twitchEventStream(eventHub, 'ban'),
+      eventSchema: _viewerEventSchema,
+    ),
+    DartTriggerDefinition(
+      pluginId: 'twitch',
+      triggerId: 'timeout',
+      displayName: 'Viewer Timed Out',
+      listen: () => _twitchEventStream(eventHub, 'timeout'),
+      eventSchema: _viewerEventSchema,
+    ),
+    for (final eventId in const [
+      'adStarted',
+      'adEnded',
+      'adSchedule',
+      'predictionStarted',
+      'predictionLocked',
+      'predictionSettled',
+      'pollStarted',
+      'pollEnded',
+      'subscription',
+      'giftedSub',
+      'follow',
+      'redemption',
+      'bits',
+      'watchstreak',
+      'raid',
+      'raidOut',
+      'raidStarted',
+      'raidCanceled',
+      'hypeTrainStarted',
+      'hypeTrainLevelUp',
+      'hypeTrainEnded',
+      'firstTimeChat',
+      'shoutoutSent',
+      'shoutoutReceived',
+      'beforeRaid',
+      'walkon',
+    ])
+      DartTriggerDefinition(
+        pluginId: 'twitch',
+        triggerId: eventId,
+        displayName: eventId,
+        listen: () => _twitchEventStream(eventHub, eventId),
+        configSchema: eventId == 'redemption' ? _redemptionTriggerSchema : null,
+        eventSchema: eventId == 'redemption'
+            ? _redemptionEventSchema
+            : (_twitchEventSchemas[eventId] ?? _eventTypeSchema),
+        matches: eventId == 'redemption' ? _matchesRedemption : null,
+      ),
+  ],
 );
+
+Stream<RuntimeMap> _twitchEventStream(
+  DartPluginEventHub? eventHub,
+  String eventId,
+) => eventHub?.stream(eventId) ?? const Stream<RuntimeMap>.empty();
 
 String _id(RuntimeMap config, EvaluationContext context, String key) =>
     (config[key] ?? context.contextState[key])?.toString() ?? '';

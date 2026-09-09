@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../persistence/queue_config_repository.dart';
+import '../../app/app_feedback.dart';
 import '../../runtime/action_queue.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../../schema/queue.dart';
@@ -217,16 +218,20 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
 
   void _replay(QueuedGraphExecution item) {
     queue.replay(item.id);
-    ScaffoldMessenger.of(
+    showShowRunnerFeedback(
       context,
-    ).showSnackBar(SnackBar(content: Text('Queued replay of ${item.id}')));
+      'Queued replay of ${item.id}',
+      severity: ShowRunnerFeedbackSeverity.info,
+    );
   }
 
   void _skip(QueuedGraphExecution item) {
     queue.skip(item.id);
-    ScaffoldMessenger.of(
+    showShowRunnerFeedback(
       context,
-    ).showSnackBar(SnackBar(content: Text('Skipped ${item.id}')));
+      'Skipped ${item.id}',
+      severity: ShowRunnerFeedbackSeverity.info,
+    );
   }
 
   @override

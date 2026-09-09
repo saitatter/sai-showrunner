@@ -579,7 +579,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Recently used'), findsOneWidget);
-    expect(find.text('Chat message received'), findsNWidgets(2));
+    // Recently used nodes are intentionally kept in the picker/context menu;
+    // the compact toolbar no longer duplicates them above the canvas.
+    expect(find.text('Chat message received'), findsOneWidget);
   });
 
   testWidgets('filters conversion actions under the Data category', (

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../persistence/resource_repository.dart';
+import '../../app/app_feedback.dart';
 import '../../persistence/secret_settings_store.dart';
 import '../plugins/plugin_metadata.dart';
 import '../../plugins/registry/plugin_registry.dart';
@@ -30,6 +31,7 @@ class ResourcesWorkspace extends StatefulWidget {
     this.resourceId,
     this.revision = 0,
     this.variableRuntime,
+    this.onCreate,
   });
 
   final ShowRunnerDataService dataService;
@@ -41,6 +43,7 @@ class ResourcesWorkspace extends StatefulWidget {
   final String? resourceId;
   final int revision;
   final DartVariableRuntime? variableRuntime;
+  final FutureOr<void> Function(String resourceType)? onCreate;
 
   @override
   State<ResourcesWorkspace> createState() => _ResourcesWorkspaceState();
@@ -147,7 +150,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
                   ),
                 ),
                 FilledButton.icon(
-                  onPressed: () => _create(context),
+                  onPressed:
+                      widget.resourceType == null || widget.onCreate == null
+                      ? () => _create(context)
+                      : () => widget.onCreate!.call(widget.resourceType!),
                   icon: const Icon(Icons.add),
                   label: const Text('New resource'),
                 ),
@@ -540,8 +546,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       await action();
     } on Object catch (error) {
       if (!mounted || !context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Stream Plan action failed: $error')),
+      showShowRunnerFeedback(
+        context,
+        'Stream Plan action failed: $error',
+        severity: ShowRunnerFeedbackSeverity.error,
       );
     }
   }

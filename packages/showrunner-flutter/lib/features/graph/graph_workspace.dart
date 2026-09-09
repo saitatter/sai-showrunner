@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
 
+import '../../app/app_feedback.dart';
 import '../../app/startup_health.dart';
 import '../../app/automation_document_manager.dart';
 import '../../components/data_inputs/data_input.dart';
@@ -188,6 +189,14 @@ class GraphWorkspace extends StatelessWidget {
                                   registryFuture: registryFuture,
                                   onRunNode: onRunNode,
                                 ),
+                            nodeEditorMenuBuilder: (context, position) =>
+                                _canvasNodeEditorContextMenu(
+                                  context: context,
+                                  editor: editor,
+                                  position: position,
+                                  registryFuture: registryFuture,
+                                  registry: registrySnapshot.data,
+                                ),
                             onNodeDoubleTap: (context, node) =>
                                 _handleNodeDoubleTap(context, editor, node),
                             editorContextMenuBuilder:
@@ -368,6 +377,14 @@ class ShowRunnerInlineGraphEditor extends StatelessWidget {
                     node,
                     registryFuture: registryFuture,
                   ),
+                  nodeEditorMenuBuilder: (context, position) =>
+                      _canvasNodeEditorContextMenu(
+                        context: context,
+                        editor: editor,
+                        position: position,
+                        registryFuture: registryFuture,
+                        registry: registrySnapshot.data,
+                      ),
                   onNodeDoubleTap: (context, node) =>
                       _handleNodeDoubleTap(context, editor, node),
                   editorContextMenuBuilder: (context, position, defaults) =>
@@ -530,131 +547,49 @@ class _GraphNodePalette extends StatelessWidget {
         Expanded(
           child: FutureBuilder<DartPluginRegistry>(
             future: registryFuture,
-            builder: (context, registrySnapshot) =>
-                ValueListenableBuilder<List<String>>(
-                  valueListenable: editor.recentNodeTypes,
-                  builder: (context, recent, child) =>
-                      ValueListenableBuilder<String>(
-                        valueListenable: editor.searchQuery,
-                        builder: (context, query, child) => Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  prefixIcon: Icon(Icons.search, size: 18),
-                                  hintText: 'Search nodes',
-                                  border: OutlineInputBorder(),
-                                ),
-                                onChanged: editor.setSearchQuery,
-                                onSubmitted: (_) => editor.focusSearchResult(),
-                              ),
-                            ),
-                            if (query.isNotEmpty) ...[
-                              const SizedBox(width: 4),
-                              ValueListenableBuilder<int>(
-                                valueListenable: editor.searchMatchIndex,
-                                builder: (context, index, child) => Text(
-                                  '${editor.searchResultCount() == 0 ? 0 : index + 1}/${editor.searchResultCount()}',
-                                  style: Theme.of(context).textTheme.labelSmall,
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: 'Previous match',
-                                onPressed: editor.searchResultCount() == 0
-                                    ? null
-                                    : () => editor.focusSearchResult(
-                                        forward: false,
-                                      ),
-                                icon: const Icon(Icons.keyboard_arrow_up),
-                              ),
-                              IconButton(
-                                tooltip: 'Next match',
-                                onPressed: editor.searchResultCount() == 0
-                                    ? null
-                                    : () => editor.focusSearchResult(),
-                                icon: const Icon(Icons.keyboard_arrow_down),
-                              ),
-                            ],
-                            if (query.isEmpty && recent.isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              const Icon(Icons.history, size: 16),
-                              for (final type in recent.take(3))
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 4),
-                                  child: Draggable<String>(
-                                    data: type,
-                                    feedback: Material(
-                                      color: Colors.transparent,
-                                      child: _NodeDragFeedback(
-                                        label: _nodeLabelForType(
-                                          type,
-                                          registrySnapshot.data,
-                                        ),
-                                      ),
-                                    ),
-                                    childWhenDragging: Opacity(
-                                      opacity: 0.45,
-                                      child: ActionChip(
-                                        label: Text(
-                                          _nodeLabelForType(
-                                            type,
-                                            registrySnapshot.data,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        avatar: Icon(
-                                          _nodeIconForType(
-                                            type,
-                                            registrySnapshot.data,
-                                          ),
-                                          size: 16,
-                                        ),
-                                        onPressed: () => _addAndConfigureNode(
-                                          context,
-                                          editor,
-                                          type,
-                                          title: _nodeLabelForType(
-                                            type,
-                                            registrySnapshot.data,
-                                          ),
-                                          registryFuture: registryFuture,
-                                        ),
-                                      ),
-                                    ),
-                                    child: ActionChip(
-                                      label: Text(
-                                        _nodeLabelForType(
-                                          type,
-                                          registrySnapshot.data,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      avatar: Icon(
-                                        _nodeIconForType(
-                                          type,
-                                          registrySnapshot.data,
-                                        ),
-                                        size: 16,
-                                      ),
-                                      onPressed: () => _addAndConfigureNode(
-                                        context,
-                                        editor,
-                                        type,
-                                        title: _nodeLabelForType(
-                                          type,
-                                          registrySnapshot.data,
-                                        ),
-                                        registryFuture: registryFuture,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ],
-                        ),
+            builder: (context, registrySnapshot) => ValueListenableBuilder<String>(
+              valueListenable: editor.searchQuery,
+              builder: (context, query, child) => Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        prefixIcon: Icon(Icons.search, size: 18),
+                        hintText: 'Search nodes',
+                        border: OutlineInputBorder(),
                       ),
-                ),
+                      onChanged: editor.setSearchQuery,
+                      onSubmitted: (_) => editor.focusSearchResult(),
+                    ),
+                  ),
+                  if (query.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    ValueListenableBuilder<int>(
+                      valueListenable: editor.searchMatchIndex,
+                      builder: (context, index, child) => Text(
+                        '${editor.searchResultCount() == 0 ? 0 : index + 1}/${editor.searchResultCount()}',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Previous match',
+                      onPressed: editor.searchResultCount() == 0
+                          ? null
+                          : () => editor.focusSearchResult(forward: false),
+                      icon: const Icon(Icons.keyboard_arrow_up),
+                    ),
+                    IconButton(
+                      tooltip: 'Next match',
+                      onPressed: editor.searchResultCount() == 0
+                          ? null
+                          : () => editor.focusSearchResult(),
+                      icon: const Icon(Icons.keyboard_arrow_down),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -689,26 +624,6 @@ class _GraphActionDropTarget extends StatelessWidget {
       );
     }()),
     builder: (context, candidateData, rejectedData) => child,
-  );
-}
-
-class _NodeDragFeedback extends StatelessWidget {
-  const _NodeDragFeedback({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: const Color(0xff40256c),
-      border: Border.all(color: const Color(0xffe9aaff), width: 2),
-      borderRadius: BorderRadius.circular(6),
-      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 12)],
-    ),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Text(label, style: const TextStyle(color: Colors.white)),
-    ),
   );
 }
 
@@ -2006,6 +1921,7 @@ class _GraphNodeHeader extends StatefulWidget {
 
 class _GraphNodeHeaderState extends State<_GraphNodeHeader>
     with SingleTickerProviderStateMixin {
+  bool _runHovered = false;
   late final AnimationController _pulseController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 720),
@@ -2171,22 +2087,35 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
                         padding: const EdgeInsets.only(right: 4),
                         child: Tooltip(
                           message: 'Run automation',
-                          child: InkWell(
-                            onTap: () => unawaited(
-                              widget.onRunNode!(
-                                widget.editor.schemaNodeIdForEditor(node.id)!,
-                              ),
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                            child: const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: Color(0xff68d391),
-                                  shape: BoxShape.circle,
+                          child: MouseRegion(
+                            onEnter: (_) => setState(() => _runHovered = true),
+                            onExit: (_) => setState(() => _runHovered = false),
+                            child: InkWell(
+                              onTap: () => unawaited(
+                                widget.onRunNode!(
+                                  widget.editor.schemaNodeIdForEditor(node.id)!,
                                 ),
-                                child: Icon(
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 120),
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: _runHovered
+                                      ? const Color(0xffa7f3b9)
+                                      : const Color(0xff68d391),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    if (_runHovered)
+                                      const BoxShadow(
+                                        color: Color(0x8868d391),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                      ),
+                                  ],
+                                ),
+                                child: const Icon(
                                   Icons.play_arrow,
                                   color: Color(0xff101316),
                                   size: 14,
@@ -2443,6 +2372,232 @@ List<NodeEditorMenuEntry> _nodeEditorContextMenu(
     },
   ),
 ];
+
+List<NodeEditorMenuEntry> _canvasNodeEditorContextMenu({
+  required BuildContext context,
+  required ShowRunnerGraphEditor editor,
+  required Offset position,
+  required Future<DartPluginRegistry> registryFuture,
+  DartPluginRegistry? registry,
+}) {
+  NodeEditorMenuAction addNode(_NodePickerEntry entry) => NodeEditorMenuAction(
+    label: entry.label,
+    icon: entry.icon,
+    searchText: '${entry.pluginName} ${entry.group}',
+    onSelected: () => unawaited(
+      _addAndConfigureNode(
+        context,
+        editor,
+        entry.type,
+        position: position,
+        title: entry.label,
+        registryFuture: registryFuture,
+      ),
+    ),
+  );
+
+  List<NodeEditorMenuEntry> grouped(
+    Iterable<_NodePickerEntry> nodes, {
+    required bool actions,
+  }) {
+    final groups = <String, List<_NodePickerEntry>>{};
+    for (final node in nodes) {
+      groups.putIfAbsent(node.group, () => []).add(node);
+    }
+    return [
+      for (final group in groups.entries)
+        NodeEditorMenuSection(
+          label: group.key,
+          icon: actions ? Icons.extension_outlined : Icons.bolt,
+          entries: [for (final node in group.value) addNode(node)],
+        ),
+    ];
+  }
+
+  final entries = <NodeEditorMenuEntry>[
+    NodeEditorMenuSection(
+      label: 'Canvas',
+      icon: Icons.dashboard_outlined,
+      entries: [
+        NodeEditorMenuAction(
+          label: 'Center view',
+          icon: Icons.center_focus_strong,
+          onSelected: () =>
+              editor.controller.setViewportOffset(Offset.zero, absolute: true),
+        ),
+        NodeEditorMenuAction(
+          label: 'Reset zoom',
+          icon: Icons.zoom_in,
+          onSelected: () =>
+              editor.controller.setViewportZoom(1, absolute: true),
+        ),
+        NodeEditorMenuAction(
+          label: 'Select all nodes',
+          icon: Icons.select_all,
+          onSelected: editor.controller.selectAllNodes,
+        ),
+        NodeEditorMenuAction(
+          label: 'Clear selection',
+          icon: Icons.deselect,
+          onSelected: editor.controller.clearSelection,
+        ),
+        NodeEditorMenuAction(
+          label: 'Paste',
+          icon: Icons.paste,
+          onSelected: () => unawaited(
+            editor.pasteSelection(position: position, context: context),
+          ),
+        ),
+        const NodeEditorMenuDivider(),
+        NodeEditorMenuAction(
+          label: 'Undo',
+          icon: Icons.undo,
+          onSelected: editor.controller.history.undo,
+        ),
+        NodeEditorMenuAction(
+          label: 'Redo',
+          icon: Icons.redo,
+          onSelected: editor.controller.history.redo,
+        ),
+      ],
+    ),
+  ];
+
+  if (editor.recentNodeTypes.value.isNotEmpty) {
+    entries.add(
+      NodeEditorMenuSection(
+        label: 'Recently Used',
+        icon: Icons.history,
+        entries: [
+          for (final type in editor.recentNodeTypes.value)
+            NodeEditorMenuAction(
+              label: _nodeLabelForType(type, registry),
+              icon: _nodeIconForType(type, registry),
+              onSelected: () => unawaited(
+                _addAndConfigureNode(
+                  context,
+                  editor,
+                  type,
+                  position: position,
+                  title: _nodeLabelForType(type, registry),
+                  registryFuture: registryFuture,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  if (registry != null) {
+    final available = _registeredNodeEntries(registry, enabled: true);
+    final triggers = available.where((entry) => entry.category == 'Triggers');
+    final actions = available.where((entry) => entry.category == 'Actions');
+    final conversions = available.where((entry) => entry.category == 'Data');
+    final categories = <String, List<_NodePickerEntry>>{};
+    for (final action in actions) {
+      categories.putIfAbsent(_actionCategory(action), () => []).add(action);
+    }
+    if (categories.isNotEmpty) {
+      entries.add(
+        NodeEditorMenuSection(
+          label: 'Categories',
+          icon: Icons.category_outlined,
+          entries: [
+            for (final category in categories.entries)
+              NodeEditorMenuSection(
+                label: category.key,
+                icon: Icons.extension_outlined,
+                entries: [for (final node in category.value) addNode(node)],
+              ),
+          ],
+        ),
+      );
+    }
+    entries.add(
+      NodeEditorMenuSection(
+        label: 'Integrations',
+        icon: Icons.extension_outlined,
+        entries: [
+          NodeEditorMenuSection(
+            label: 'Triggers',
+            icon: Icons.bolt,
+            entries: grouped(triggers, actions: false),
+          ),
+          NodeEditorMenuSection(
+            label: 'Actions',
+            icon: Icons.play_circle_outline,
+            entries: grouped(actions, actions: true),
+          ),
+        ],
+      ),
+    );
+    entries.add(
+      NodeEditorMenuSection(
+        label: 'Data',
+        icon: Icons.data_object,
+        entries: [
+          if (conversions.isNotEmpty)
+            NodeEditorMenuSection(
+              label: 'Conversions',
+              icon: Icons.swap_horiz,
+              entries: [for (final node in conversions) addNode(node)],
+            ),
+          NodeEditorMenuSection(
+            label: 'Variables',
+            icon: Icons.data_object,
+            entries: [
+              for (final type in const ['string', 'number', 'boolean', 'color'])
+                NodeEditorMenuAction(
+                  label:
+                      '${type[0].toUpperCase()}${type.substring(1)} variable',
+                  icon: Icons.data_object,
+                  onSelected: () =>
+                      editor.addVariableNodeAtScreenPosition(type, position),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  final controlFlow = _GraphNodePalette._nodes.where(
+    (entry) => entry.category == 'Control flow',
+  );
+  entries.add(
+    NodeEditorMenuSection(
+      label: 'Flow',
+      icon: Icons.account_tree_outlined,
+      entries: [
+        for (final entry in controlFlow)
+          NodeEditorMenuAction(
+            label: entry.label,
+            icon: entry.icon,
+            onSelected: () => unawaited(
+              _addAndConfigureNode(
+                context,
+                editor,
+                entry.type,
+                position: position,
+                title: entry.label,
+                registryFuture: registryFuture,
+              ),
+            ),
+          ),
+        for (final subgraph in editor.subgraphs.value)
+          NodeEditorMenuAction(
+            label: subgraph.name.isEmpty ? subgraph.id : subgraph.name,
+            icon: Icons.functions,
+            searchText: 'Call subgraph',
+            onSelected: () =>
+                editor.addSubgraphCallAtScreenPosition(subgraph.id, position),
+          ),
+      ],
+    ),
+  );
+  return entries;
+}
 
 Future<void> _replaceTriggerNode(
   BuildContext context,
@@ -3325,7 +3480,7 @@ Widget _buildNodePort(
   // Drawing another marker here suggests a second, non-interactive port.
   return Row(
     key: port.key,
-    mainAxisSize: MainAxisSize.min,
+    mainAxisSize: MainAxisSize.max,
     mainAxisAlignment: isInput
         ? MainAxisAlignment.start
         : MainAxisAlignment.end,
@@ -3961,34 +4116,228 @@ class _SelectedNodeDetails extends StatelessWidget {
         return _panel('Selection', '${selected.length} nodes selected');
       }
       final node = selected.single;
-      final fields = node.fields.values
-          .map(
-            (field) => '${field.prototype.displayName(context)}: ${field.data}',
-          )
-          .join('\n');
-      final resultMapping = editor.nodeResultMapping(node.id);
-      final resultDetails = resultMapping.entries
-          .map((entry) => '${entry.key} -> ${entry.value}')
-          .join('\n');
-      final details = [
-        if (fields.isNotEmpty) fields,
-        if (resultDetails.isNotEmpty) 'Returns\n$resultDetails',
-      ].join('\n');
-      return _panel(
-        node.prototype.displayName(context),
-        details.isEmpty ? 'No editable fields' : details,
-        action: OutlinedButton.icon(
-          onPressed: () => _editNodeConfiguration(
-            context,
-            editor,
-            node,
-            registryFuture: registryFuture,
-          ),
-          icon: const Icon(Icons.tune, size: 16),
-          label: const Text('Edit configuration'),
-        ),
+      return _NodeInspectorPanel(
+        editor: editor,
+        node: node,
+        registryFuture: registryFuture,
       );
     },
+  );
+}
+
+class _NodeInspectorPanel extends StatelessWidget {
+  const _NodeInspectorPanel({
+    required this.editor,
+    required this.node,
+    required this.registryFuture,
+  });
+
+  final ShowRunnerGraphEditor editor;
+  final NodeDataModel node;
+  final Future<DartPluginRegistry> registryFuture;
+
+  @override
+  Widget build(BuildContext context) {
+    final visiblePorts = node.ports.values.where(
+      (port) =>
+          !(port.prototype.type == PortType.control &&
+              (port.prototype.idName == 'exec' ||
+                  port.prototype.idName == 'completed')),
+    );
+    final inputs = visiblePorts
+        .where((port) => port.prototype.direction == PortDirection.input)
+        .toList();
+    final outputs = visiblePorts
+        .where((port) => port.prototype.direction == PortDirection.output)
+        .toList();
+    final resultMapping = editor.nodeResultMapping(node.id);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xff121820).withValues(alpha: 0.98),
+        border: Border.all(color: const Color(0xff475569)),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(color: Color(0x66000000), blurRadius: 14, spreadRadius: 1),
+        ],
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 330, maxHeight: 620),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    editor.nodeIcon(node.id),
+                    color: editor.nodeAccent(node.id),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Inspector',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Clear selection',
+                    onPressed: editor.controller.clearSelection,
+                    icon: const Icon(Icons.close, size: 18),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 24,
+                      height: 24,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 18),
+              Text(
+                editor.nodeTitle(node.id),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                node.prototype.idName,
+                style: const TextStyle(
+                  color: Color(0xff94a3b8),
+                  fontFamily: 'Consolas',
+                  fontSize: 11,
+                ),
+              ),
+              if (node.fields.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const _InspectorSectionTitle('Configuration'),
+                for (final field in node.fields.values)
+                  _InspectorValueRow(
+                    label: field.prototype.displayName(context),
+                    value: _inspectorValue(field.data),
+                  ),
+              ],
+              if (inputs.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const _InspectorSectionTitle('Inputs'),
+                for (final port in inputs)
+                  _InspectorPortRow(port: port, input: true),
+              ],
+              if (outputs.isNotEmpty || resultMapping.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const _InspectorSectionTitle('Outputs'),
+                for (final port in outputs)
+                  _InspectorPortRow(port: port, input: false),
+                for (final entry in resultMapping.entries)
+                  _InspectorValueRow(label: entry.key, value: entry.value),
+              ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => _editNodeConfiguration(
+                    context,
+                    editor,
+                    node,
+                    registryFuture: registryFuture,
+                  ),
+                  icon: const Icon(Icons.tune, size: 17),
+                  label: const Text('Configure node'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InspectorSectionTitle extends StatelessWidget {
+  const _InspectorSectionTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    title.toUpperCase(),
+    style: const TextStyle(
+      color: Color(0xffc084fc),
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.8,
+    ),
+  );
+}
+
+class _InspectorValueRow extends StatelessWidget {
+  const _InspectorValueRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 7),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(label, style: const TextStyle(color: Colors.white70)),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _InspectorPortRow extends StatelessWidget {
+  const _InspectorPortRow({required this.port, required this.input});
+
+  final PortDataModel port;
+  final bool input;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 7),
+    child: Row(
+      children: [
+        Icon(
+          input ? Icons.login : Icons.logout,
+          size: 14,
+          color: input ? const Color(0xff81c784) : const Color(0xff4fc3f7),
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            port.prototype.displayName(context),
+            style: const TextStyle(color: Colors.white70),
+          ),
+        ),
+        Text(
+          _graphPortTypeLabel(port.prototype),
+          style: const TextStyle(
+            color: Color(0xff94a3b8),
+            fontFamily: 'Consolas',
+            fontSize: 10,
+          ),
+        ),
+      ],
+    ),
   );
 }
 
@@ -4196,6 +4545,14 @@ Widget _panel(String title, String details, {Widget? action}) => DecoratedBox(
   ),
 );
 
+String _inspectorValue(dynamic value) {
+  if (value == null) return '—';
+  if (value is String) return value.isEmpty ? '—' : value;
+  if (value is List) return '[${value.length} items]';
+  if (value is Map) return value.isEmpty ? '{}' : '{${value.length} fields}';
+  return value.toString();
+}
+
 // Configuration stays outside sai_nodes because schemas, defaults, and
 // persisted plugin payloads belong to ShowRunner's domain contract.
 Future<void> editShowRunnerGraphNodeConfiguration(
@@ -4349,9 +4706,11 @@ Future<void> _editNodeConfiguration(
               }
               Navigator.of(context).pop(Map<String, dynamic>.from(decoded));
             } on FormatException catch (error) {
-              ScaffoldMessenger.of(
+              showShowRunnerFeedback(
                 context,
-              ).showSnackBar(SnackBar(content: Text(error.message)));
+                error.message,
+                severity: ShowRunnerFeedbackSeverity.error,
+              );
             }
           },
           child: const Text('Apply'),

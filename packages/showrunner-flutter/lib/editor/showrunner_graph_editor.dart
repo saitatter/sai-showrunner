@@ -104,6 +104,23 @@ Size? _editorSizeFromJson(dynamic value, NodeEditorConfig config) {
   );
 }
 
+Size _showRunnerMinimumNodeSize({
+  required int inputPortCount,
+  required int outputPortCount,
+  required int fieldCount,
+}) {
+  // The outer sequence handles are not part of the visible port columns. The
+  // remaining rows need enough vertical room for both labels and type hints.
+  final visiblePortRows = math.max(
+    0,
+    math.max(inputPortCount - 1, outputPortCount - 1),
+  );
+  return Size(
+    220,
+    math.max(96, 96 + visiblePortRows * 24 + fieldCount * 28).toDouble(),
+  );
+}
+
 /// Adapter between ShowRunner's graph schema and the `sai_nodes` editor model.
 ///
 /// `sai_nodes` owns generic canvas behavior. This adapter owns the translation
@@ -214,6 +231,9 @@ class ShowRunnerGraphEditor {
         maxZoom: 1.5,
         snapToGridSize: 42,
         defaultNodeWidth: 220,
+        edgeInputPortId: 'exec',
+        edgeOutputPortId: 'completed',
+        minimumNodeSizeBuilder: _showRunnerMinimumNodeSize,
       ),
       style: const NodeEditorStyle(
         decoration: BoxDecoration(color: Color(0xff202020)),
@@ -2021,7 +2041,7 @@ class ShowRunnerGraphEditor {
   static PortStyle _portStyle(Color color, PortState state) => PortStyle(
     shape: PortShape.circle,
     color: color,
-    radius: 5,
+    radius: state.isHovered ? 7 : 5,
     linkStyleBuilder: (link) => LinkStyle(
       color: link.isSelected ? const Color(0xffffcc00) : color,
       lineWidth: link.isSelected ? 3.5 : 2.5,
@@ -3197,6 +3217,7 @@ class ShowRunnerGraphEditor {
       return;
     }
     final isTrigger = nodeType.startsWith('trigger.');
+    final triggerFields = _eventFieldsForTrigger(nodeType);
     final prototypeTitle = _manifestDisplayName(nodeType) ?? title ?? nodeType;
     editor.registerNodePrototype(
       _prototype(
@@ -3206,8 +3227,10 @@ class ShowRunnerGraphEditor {
         input: !isTrigger,
         output: true,
         dataInputs: _configFieldsForAction(nodeType),
-        hasPayloadOutput: isTrigger,
-        dataOutputs: _resultFieldsForAction(nodeType),
+        hasPayloadOutput: isTrigger && triggerFields.isEmpty,
+        dataOutputs: isTrigger
+            ? triggerFields
+            : _resultFieldsForAction(nodeType),
       ),
     );
   }
@@ -3287,6 +3310,15 @@ class ShowRunnerGraphEditor {
     final parts = nodeType.split('.');
     if (parts.length != 2) return const [];
     final schema = _registry.findAction(parts.first, parts.last)?.configSchema;
+    return _objectSchemaFields(schema);
+  }
+
+  List<DartDataInputSchema> _eventFieldsForTrigger(String nodeType) {
+    final parts = nodeType.split('.');
+    if (parts.length < 3 || parts.first != 'trigger') return const [];
+    final schema = _registry
+        .findTrigger(parts[1], parts.sublist(2).join('.'))
+        ?.eventSchema;
     return _objectSchemaFields(schema);
   }
 
