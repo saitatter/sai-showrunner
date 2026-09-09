@@ -242,50 +242,54 @@ class _AutomationDocumentTabBar extends StatelessWidget {
     color: Theme.of(context).colorScheme.surfaceContainer,
     child: SizedBox(
       height: 42,
-      child: ReorderableListView.builder(
-        scrollDirection: Axis.horizontal,
-        shrinkWrap: true,
-        primary: false,
-        buildDefaultDragHandles: false,
-        padding: EdgeInsets.zero,
-        itemCount: documents.length,
-        onReorderItem: onReordered,
-        itemBuilder: (context, position) {
-          final document = documents[position];
-          final selected = document.fileName == activeFileName;
-          final title = document.data.extra['name']?.toString().trim();
-          return ReorderableDragStartListener(
-            key: ValueKey('automation-tab-${document.fileName}'),
-            index: position,
-            child: Material(
-              color: selected
-                  ? Theme.of(context).colorScheme.surfaceContainerHighest
-                  : Theme.of(context).colorScheme.surfaceContainer,
-              child: InkWell(
-                onTap: () => onSelected(document.fileName),
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 12, right: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.bolt, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${title == null || title.isEmpty ? document.fileName : title}${document.dirty ? ' *' : ''}',
-                      ),
-                      IconButton(
-                        tooltip: 'Close ${document.fileName}',
-                        visualDensity: VisualDensity.compact,
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () => onClosed(document.fileName),
-                      ),
-                    ],
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ReorderableListView.builder(
+          scrollDirection: Axis.horizontal,
+          shrinkWrap: true,
+          primary: false,
+          anchor: 0,
+          buildDefaultDragHandles: false,
+          padding: EdgeInsets.zero,
+          itemCount: documents.length,
+          onReorderItem: onReordered,
+          itemBuilder: (context, position) {
+            final document = documents[position];
+            final selected = document.fileName == activeFileName;
+            final title = document.data.extra['name']?.toString().trim();
+            return ReorderableDragStartListener(
+              key: ValueKey('automation-tab-${document.fileName}'),
+              index: position,
+              child: Material(
+                color: selected
+                    ? Theme.of(context).colorScheme.surfaceContainerHighest
+                    : Theme.of(context).colorScheme.surfaceContainer,
+                child: InkWell(
+                  onTap: () => onSelected(document.fileName),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bolt, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${title == null || title.isEmpty ? document.fileName : title}${document.dirty ? ' *' : ''}',
+                        ),
+                        IconButton(
+                          tooltip: 'Close ${document.fileName}',
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.close, size: 16),
+                          onPressed: () => onClosed(document.fileName),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     ),
   );
@@ -4213,15 +4217,13 @@ class _NodeInspectorPanel extends StatelessWidget {
                   fontSize: 11,
                 ),
               ),
-              if (node.fields.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const _InspectorSectionTitle('Configuration'),
-                for (final field in node.fields.values)
-                  _InspectorValueRow(
-                    label: field.prototype.displayName(context),
-                    value: _inspectorValue(field.data),
-                  ),
-              ],
+              const SizedBox(height: 16),
+              const _InspectorSectionTitle('Configuration'),
+              _InspectorConfigurationEditor(
+                editor: editor,
+                node: node,
+                registryFuture: registryFuture,
+              ),
               if (inputs.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 const _InspectorSectionTitle('Inputs'),
@@ -4236,26 +4238,540 @@ class _NodeInspectorPanel extends StatelessWidget {
                 for (final entry in resultMapping.entries)
                   _InspectorValueRow(label: entry.key, value: entry.value),
               ],
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => _editNodeConfiguration(
-                    context,
-                    editor,
-                    node,
-                    registryFuture: registryFuture,
-                  ),
-                  icon: const Icon(Icons.tune, size: 17),
-                  label: const Text('Configure node'),
-                ),
-              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+class _InspectorConfigurationEditor extends StatefulWidget {
+  const _InspectorConfigurationEditor({
+    required this.editor,
+    required this.node,
+    required this.registryFuture,
+  });
+
+  final ShowRunnerGraphEditor editor;
+  final NodeDataModel node;
+  final Future<DartPluginRegistry> registryFuture;
+
+  @override
+  State<_InspectorConfigurationEditor> createState() =>
+      _InspectorConfigurationEditorState();
+}
+
+class _InspectorConfigurationEditorState
+    extends State<_InspectorConfigurationEditor> {
+  late Future<DartDataInputSchema?> _schemaFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _schemaFuture = _loadSchema();
+  }
+
+  @override
+  void didUpdateWidget(covariant _InspectorConfigurationEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.node.id != widget.node.id ||
+        oldWidget.registryFuture != widget.registryFuture) {
+      _schemaFuture = _loadSchema();
+    }
+  }
+
+  Future<DartDataInputSchema?> _loadSchema() async {
+    if (widget.editor.isVariableNode(widget.node.id) ||
+        ShowRunnerGraphEditor.isControlFlowType(widget.node.prototype.idName)) {
+      return null;
+    }
+    final registry = await widget.registryFuture;
+    final rawSchema = widget.editor.isTriggerNode(widget.node.id)
+        ? _triggerConfigurationSchema(
+            _triggerDefinition(widget.editor, registry, widget.node),
+            widget.editor.nodeConfig(widget.node.id),
+          )
+        : _configurationSchema(widget.editor, registry, widget.node);
+    if (rawSchema == null) return null;
+    return _hydrateResourceInputSchema(
+      rawSchema,
+      widget.editor.resourceOptionsLoader,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.editor.isVariableNode(widget.node.id)) {
+      return _buildVariableFields(context);
+    }
+    if (ShowRunnerGraphEditor.isControlFlowType(widget.node.prototype.idName)) {
+      return _InspectorControlConfigurationEditor(
+        editor: widget.editor,
+        node: widget.node,
+      );
+    }
+    return FutureBuilder<DartDataInputSchema?>(
+      future: _schemaFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: LinearProgressIndicator(minHeight: 2),
+          );
+        }
+        if (snapshot.hasError) {
+          return _buildFallback(
+            context,
+            'Unable to load configuration fields.',
+          );
+        }
+        final schema = snapshot.data;
+        final hasFields = schema != null && schema.fields.isNotEmpty;
+        final config = widget.editor.nodeConfig(widget.node.id);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!hasFields) _buildFallback(context, 'No configurable fields.'),
+            if (hasFields)
+              for (final field in schema.fields)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: DartDataInput(
+                    key: ValueKey('inspector-${widget.node.id}-${field.key}'),
+                    schema: field,
+                    value: config[field.key ?? field.label],
+                    onChanged: (value) {
+                      final key = field.key ?? field.label;
+                      widget.editor.updateNodeConfig(widget.node.id, {
+                        ...widget.editor.nodeConfig(widget.node.id),
+                        key: value,
+                      });
+                    },
+                  ),
+                ),
+            if (widget.editor.isTriggerNode(widget.node.id))
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Stop subsequent triggers'),
+                value: widget.editor.nodeData(widget.node.id)['stop'] == true,
+                onChanged: (value) => widget.editor.updateTriggerNodeData(
+                  widget.node.id,
+                  config: widget.editor.nodeConfig(widget.node.id),
+                  stop: value,
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildVariableFields(BuildContext context) {
+    final type = widget.editor.variableNodeType(widget.node.id) ?? 'string';
+    final data = widget.editor.variableNodeData(widget.node.id);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextFormField(
+          initialValue: data['name']?.toString() ?? '',
+          decoration: const InputDecoration(labelText: 'Name'),
+          onChanged: (value) =>
+              widget.editor.updateVariableNodeName(widget.node.id, value),
+        ),
+        const SizedBox(height: 8),
+        if (type == 'boolean')
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Value'),
+            value: data['value'] == true,
+            onChanged: (value) =>
+                widget.editor.updateVariableNodeValue(widget.node.id, value),
+          )
+        else
+          TextFormField(
+            initialValue: data['value']?.toString() ?? '',
+            keyboardType: type == 'number'
+                ? TextInputType.number
+                : TextInputType.text,
+            decoration: const InputDecoration(labelText: 'Value'),
+            onChanged: (value) => widget.editor.updateVariableNodeValue(
+              widget.node.id,
+              type == 'number' ? num.tryParse(value) ?? value : value,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFallback(BuildContext context, String message) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Text(
+      message,
+      style: const TextStyle(color: Color(0xff94a3b8), fontSize: 12),
+    ),
+  );
+}
+
+class _InspectorControlConfigurationEditor extends StatefulWidget {
+  const _InspectorControlConfigurationEditor({
+    required this.editor,
+    required this.node,
+  });
+
+  final ShowRunnerGraphEditor editor;
+  final NodeDataModel node;
+
+  @override
+  State<_InspectorControlConfigurationEditor> createState() =>
+      _InspectorControlConfigurationEditorState();
+}
+
+class _InspectorControlConfigurationEditorState
+    extends State<_InspectorControlConfigurationEditor> {
+  late TextEditingController _conditionVariableController;
+  late TextEditingController _conditionCompareController;
+  late TextEditingController _counterController;
+  late TextEditingController _startController;
+  late TextEditingController _endController;
+  late TextEditingController _stepController;
+  late TextEditingController _collectionController;
+  late TextEditingController _switchExpressionController;
+  late TextEditingController _maxIterationsController;
+  late String _conditionMode;
+  late List<Map<String, dynamic>> _cases;
+  late List<TextEditingController> _caseControllers;
+
+  String get _nodeType => widget.node.prototype.idName;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeFromNode();
+  }
+
+  @override
+  void didUpdateWidget(
+    covariant _InspectorControlConfigurationEditor oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.node.id != widget.node.id) {
+      _disposeControllers();
+      _initializeFromNode();
+    }
+  }
+
+  void _initializeFromNode() {
+    final data = widget.editor.nodeData(widget.node.id);
+    final condition = data['condition'];
+    _conditionMode = _ControlNodeConfigDialogState._expressionMode(condition);
+    _conditionVariableController = TextEditingController(
+      text: _ControlNodeConfigDialogState._expressionVariable(condition),
+    );
+    _conditionCompareController = TextEditingController(
+      text: _ControlNodeConfigDialogState._expressionCompareValue(condition),
+    );
+    _counterController = TextEditingController(
+      text: data['variable']?.toString() ?? 'i',
+    );
+    _startController = TextEditingController(
+      text: _ControlNodeConfigDialogState._literalNumber(
+        data['start'],
+      ).toString(),
+    );
+    _endController = TextEditingController(
+      text: _ControlNodeConfigDialogState._literalNumber(
+        data['end'],
+        10,
+      ).toString(),
+    );
+    _stepController = TextEditingController(
+      text: _ControlNodeConfigDialogState._literalNumber(
+        data['step'],
+        1,
+      ).toString(),
+    );
+    _collectionController = TextEditingController(
+      text: _ControlNodeConfigDialogState._expressionVariable(
+        data['collection'],
+      ),
+    );
+    _switchExpressionController = TextEditingController(
+      text: _ControlNodeConfigDialogState._expressionVariable(
+        data['expression'],
+      ),
+    );
+    _maxIterationsController = TextEditingController(
+      text: (data['maxIterations'] ?? 1000).toString(),
+    );
+    final rawCases = data['cases'];
+    _cases = rawCases is List
+        ? rawCases
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
+        : <Map<String, dynamic>>[];
+    _caseControllers = [
+      for (final item in _cases)
+        TextEditingController(text: item['value']?.toString() ?? ''),
+    ];
+  }
+
+  void _disposeControllers() {
+    _conditionVariableController.dispose();
+    _conditionCompareController.dispose();
+    _counterController.dispose();
+    _startController.dispose();
+    _endController.dispose();
+    _stepController.dispose();
+    _collectionController.dispose();
+    _switchExpressionController.dispose();
+    _maxIterationsController.dispose();
+    for (final controller in _caseControllers) {
+      controller.dispose();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposeControllers();
+    super.dispose();
+  }
+
+  void _update() =>
+      widget.editor.updateControlNodeData(widget.node.id, _result());
+
+  @override
+  Widget build(BuildContext context) {
+    final fields = switch (_nodeType) {
+      'if' || 'while' => <Widget>[
+        _expressionModeField(),
+        if (_conditionMode == 'variable' || _conditionMode == 'equals')
+          _textField(
+            controller: _conditionVariableController,
+            label: 'Variable',
+            hint: 'message.approved',
+          ),
+        if (_conditionMode == 'equals')
+          _textField(
+            controller: _conditionCompareController,
+            label: 'Equals',
+            hint: 'approved',
+          ),
+        if (_nodeType == 'while')
+          _textField(
+            controller: _maxIterationsController,
+            label: 'Max iterations',
+            keyboardType: TextInputType.number,
+          ),
+      ],
+      'for' => <Widget>[
+        _textField(controller: _counterController, label: 'Counter'),
+        _textField(
+          controller: _startController,
+          label: 'Start',
+          keyboardType: TextInputType.number,
+        ),
+        _textField(
+          controller: _endController,
+          label: 'End',
+          keyboardType: TextInputType.number,
+        ),
+        _textField(
+          controller: _stepController,
+          label: 'Step',
+          keyboardType: TextInputType.number,
+        ),
+      ],
+      'forEach' => <Widget>[
+        _textField(controller: _counterController, label: 'Item variable'),
+        _textField(
+          controller: _collectionController,
+          label: 'Collection variable',
+          hint: 'items',
+        ),
+      ],
+      'switch' => <Widget>[
+        _textField(
+          controller: _switchExpressionController,
+          label: 'Switch variable',
+          hint: 'platform',
+        ),
+        _switchCases(),
+      ],
+      _ => <Widget>[
+        const Text(
+          'This control node does not have editable fields yet.',
+          style: TextStyle(color: Color(0xff94a3b8), fontSize: 12),
+        ),
+      ],
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < fields.length; index++) ...[
+          if (index > 0) const SizedBox(height: 8),
+          fields[index],
+        ],
+      ],
+    );
+  }
+
+  Widget _expressionModeField() => DropdownButtonFormField<String>(
+    initialValue: _conditionMode,
+    isExpanded: true,
+    decoration: const InputDecoration(labelText: 'Condition'),
+    items: const [
+      DropdownMenuItem(value: 'true', child: Text('Always true')),
+      DropdownMenuItem(value: 'false', child: Text('Always false')),
+      DropdownMenuItem(value: 'variable', child: Text('Variable is truthy')),
+      DropdownMenuItem(value: 'equals', child: Text('Variable equals value')),
+    ],
+    onChanged: (value) => setState(() {
+      _conditionMode = value ?? 'true';
+      _update();
+    }),
+  );
+
+  Widget _switchCases() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const Text('Cases', style: TextStyle(fontWeight: FontWeight.w700)),
+      for (var index = 0; index < _cases.length; index++) ...[
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _caseControllers[index],
+                onChanged: (value) {
+                  _cases[index]['value'] = value;
+                  _update();
+                },
+                decoration: const InputDecoration(labelText: 'Case value'),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Delete case',
+              onPressed: () => setState(() {
+                _caseControllers.removeAt(index).dispose();
+                _cases.removeAt(index);
+                _update();
+              }),
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ],
+        ),
+      ],
+      const SizedBox(height: 8),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: () => setState(() {
+            final index = _cases.length;
+            _cases.add({'value': 'case${index + 1}', 'port': 'case:$index'});
+            _caseControllers.add(
+              TextEditingController(text: 'case${index + 1}'),
+            );
+            _update();
+          }),
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('Add case'),
+        ),
+      ),
+    ],
+  );
+
+  Widget _textField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    TextInputType? keyboardType,
+  }) => TextField(
+    controller: controller,
+    keyboardType: keyboardType,
+    decoration: InputDecoration(labelText: label, hintText: hint),
+    onChanged: (_) => _update(),
+  );
+
+  JsonMap _result() {
+    switch (_nodeType) {
+      case 'if':
+        return {'condition': _conditionExpression()};
+      case 'while':
+        return {
+          'condition': _conditionExpression(),
+          'maxIterations': _number(_maxIterationsController.text, 1000).toInt(),
+        };
+      case 'for':
+        return {
+          'variable': _counterController.text.trim().isEmpty
+              ? 'i'
+              : _counterController.text.trim(),
+          'start': _literal(_number(_startController.text, 0)),
+          'end': _literal(_number(_endController.text, 10)),
+          'step': _literal(_number(_stepController.text, 1)),
+        };
+      case 'forEach':
+        return {
+          'variable': _counterController.text.trim().isEmpty
+              ? 'item'
+              : _counterController.text.trim(),
+          'collection': _variableExpression(
+            _collectionController.text,
+            'items',
+          ),
+        };
+      case 'switch':
+        return {
+          'expression': _variableExpression(
+            _switchExpressionController.text,
+            'value',
+          ),
+          'cases': _cases,
+        };
+      default:
+        return {};
+    }
+  }
+
+  Map<String, dynamic> _conditionExpression() {
+    final variable = _conditionVariableController.text.trim();
+    switch (_conditionMode) {
+      case 'false':
+        return {'type': 'literal', 'value': false};
+      case 'variable':
+        return _variableExpression(variable, 'value');
+      case 'equals':
+        return {
+          'type': 'binary',
+          'op': '==',
+          'left': _variableExpression(variable, 'value'),
+          'right': {
+            'type': 'literal',
+            'value': _conditionCompareController.text,
+          },
+        };
+      default:
+        return {'type': 'literal', 'value': true};
+    }
+  }
+
+  static Map<String, dynamic> _variableExpression(
+    String value,
+    String fallback,
+  ) => {
+    'type': 'variable',
+    'name': value.trim().isEmpty ? fallback : value.trim(),
+  };
+
+  static Map<String, dynamic> _literal(num value) => {
+    'type': 'literal',
+    'value': value,
+  };
+
+  static double _number(String value, num fallback) =>
+      double.tryParse(value.trim()) ?? fallback.toDouble();
 }
 
 class _InspectorSectionTitle extends StatelessWidget {
@@ -4544,14 +5060,6 @@ Widget _panel(String title, String details, {Widget? action}) => DecoratedBox(
     ),
   ),
 );
-
-String _inspectorValue(dynamic value) {
-  if (value == null) return '—';
-  if (value is String) return value.isEmpty ? '—' : value;
-  if (value is List) return '[${value.length} items]';
-  if (value is Map) return value.isEmpty ? '{}' : '{${value.length} fields}';
-  return value.toString();
-}
 
 // Configuration stays outside sai_nodes because schemas, defaults, and
 // persisted plugin payloads belong to ShowRunner's domain contract.

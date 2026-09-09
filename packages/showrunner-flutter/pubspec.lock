@@ -547,8 +547,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "4f1654b"
-      resolved-ref: "4f1654bd362aa1e73a9d963b17c1ebd4de80996f"
+      ref: "9045014"
+      resolved-ref: "904501411b960d486b1c1991aa2021cc8b2e3720"
       url: "https://github.com/saitatter/sai_nodes.git"
     source: git
     version: "0.2.2"

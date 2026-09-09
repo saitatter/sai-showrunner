@@ -117,7 +117,7 @@ Size _showRunnerMinimumNodeSize({
   );
   return Size(
     220,
-    math.max(96, 96 + visiblePortRows * 24 + fieldCount * 28).toDouble(),
+    math.max(104, 104 + visiblePortRows * 24 + fieldCount * 28).toDouble(),
   );
 }
 
