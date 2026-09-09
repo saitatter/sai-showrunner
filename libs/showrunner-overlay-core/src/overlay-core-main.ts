@@ -2,6 +2,50 @@ export type CSSProperties = Record<string, string | number | undefined>
 
 export type Unsubscribe = () => void
 
+/** Owns every disposable resource created by one mounted overlay widget. */
+export class WidgetScope {
+	private readonly disposables = new Set<Unsubscribe>()
+	private disposed = false
+
+	add(dispose: Unsubscribe): Unsubscribe {
+		if (this.disposed) {
+			dispose()
+			return () => {}
+		}
+
+		let active = true
+		const remove = () => {
+			if (!active) return
+			active = false
+			this.disposables.delete(remove)
+			dispose()
+		}
+		this.disposables.add(remove)
+		return remove
+	}
+
+	/** Schedules work that is cancelled automatically with the widget. */
+	timeout(callback: () => void, delayMs: number): number {
+		const handle = window.setTimeout(callback, Math.max(0, delayMs))
+		this.add(() => window.clearTimeout(handle))
+		return handle
+	}
+
+	/** Schedules repeating work that is cancelled automatically with the widget. */
+	interval(callback: () => void, delayMs: number): number {
+		const handle = window.setInterval(callback, Math.max(1, delayMs))
+		this.add(() => window.clearInterval(handle))
+		return handle
+	}
+
+	dispose(): void {
+		if (this.disposed) return
+		this.disposed = true
+		for (const dispose of [...this.disposables]) dispose()
+		this.disposables.clear()
+	}
+}
+
 export interface OverlayWidgetConfig {
 	id: string
 	plugin: string
@@ -139,6 +183,7 @@ export interface WidgetBridge {
 export interface WidgetContext {
 	readonly overlayId: string
 	readonly widgetId: string
+	readonly scope: WidgetScope
 	readonly bridge: WidgetBridge
 	readonly state: StateAccess
 	readonly viewerData: ViewerDataAccess

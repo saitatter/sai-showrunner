@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { LegacyOverlayProtocolAdapter, OverlayPluginContribution, OverlayWidgetDefinition, mediaUrl } from "showrunner-overlay-core"
+import { LegacyOverlayProtocolAdapter, OverlayPluginContribution, OverlayWidgetDefinition, WidgetScope, mediaUrl } from "showrunner-overlay-core"
 import { StateStore, ViewerDataStore, WidgetRegistry } from "./overlay-widget-loader"
 
 const widget = (id: string): OverlayWidgetDefinition => ({
@@ -88,5 +88,23 @@ describe("mediaUrl", () => {
 		expect(mediaUrl("127.0.0.1:8181", "/default/alert.mp3")).toBe("http://127.0.0.1:8181/media/default/alert.mp3")
 		expect(mediaUrl("127.0.0.1:8181", "media/default/alert.mp3")).toBe("http://127.0.0.1:8181/media/default/alert.mp3")
 		expect(mediaUrl("127.0.0.1:8181", "https://cdn.example.test/alert.mp3")).toBe("https://cdn.example.test/alert.mp3")
+	})
+})
+
+describe("WidgetScope", () => {
+	it("disposes resources once and disposes late registrations immediately", () => {
+		const first = vi.fn()
+		const late = vi.fn()
+		const scope = new WidgetScope()
+		const remove = scope.add(first)
+
+		scope.dispose()
+		scope.dispose()
+		expect(first).toHaveBeenCalledTimes(1)
+
+		scope.add(late)
+		expect(late).toHaveBeenCalledTimes(1)
+		remove()
+		expect(first).toHaveBeenCalledTimes(1)
 	})
 })

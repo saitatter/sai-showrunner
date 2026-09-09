@@ -53,13 +53,12 @@ class WheelWidget implements OverlayWidget<AnyConfig> {
 	private frame?: number
 	private lastTimestamp?: number
 	private lastSlot = 0
-	private cleanupCommand?: () => void
 
 	mount(container: HTMLElement, config: AnyConfig, context: WidgetContext): void {
 		this.container = container
 		this.config = config ?? {}
 		this.context = context
-		this.cleanupCommand = context.bridge.exposeCommand("spinWheel", (args) => {
+		context.bridge.exposeCommand("spinWheel", (args) => {
 			this.spin(Number((args as unknown[])[0] ?? 1))
 			return undefined
 		})
@@ -74,8 +73,6 @@ class WheelWidget implements OverlayWidget<AnyConfig> {
 	destroy(): void {
 		if (this.frame !== undefined) cancelAnimationFrame(this.frame)
 		this.frame = undefined
-		this.cleanupCommand?.()
-		this.cleanupCommand = undefined
 		clearElement(this.container)
 	}
 

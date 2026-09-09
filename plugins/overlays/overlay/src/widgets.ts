@@ -27,7 +27,6 @@ abstract class DomWidget implements OverlayWidget<AnyConfig> {
 	protected container!: HTMLElement
 	protected config: AnyConfig = {}
 	protected context!: WidgetContext
-	protected readonly cleanups: (() => void)[] = []
 
 	mount(container: HTMLElement, config: AnyConfig, context: WidgetContext): void {
 		this.container = container
@@ -44,7 +43,6 @@ abstract class DomWidget implements OverlayWidget<AnyConfig> {
 	}
 
 	destroy(): void {
-		for (const cleanup of this.cleanups.splice(0)) cleanup()
 		this.onDestroy()
 		clearElement(this.container)
 	}
@@ -55,15 +53,15 @@ abstract class DomWidget implements OverlayWidget<AnyConfig> {
 
 	protected listen<K extends keyof HTMLElementEventMap>(element: HTMLElement, type: K, handler: (event: HTMLElementEventMap[K]) => void): void {
 		element.addEventListener(type, handler as EventListener)
-		this.cleanups.push(() => element.removeEventListener(type, handler as EventListener))
+		this.context.scope.add(() => element.removeEventListener(type, handler as EventListener))
 	}
 
 	protected onMessage(id: string, handler: (payload: any) => void): void {
-		this.cleanups.push(this.context.bridge.onEvent(id, handler))
+		this.context.bridge.onEvent(id, handler)
 	}
 
 	protected onCommand(id: string, handler: (args: unknown) => unknown | Promise<unknown>): void {
-		this.cleanups.push(this.context.bridge.exposeCommand(id, handler))
+		this.context.bridge.exposeCommand(id, handler)
 	}
 }
 
@@ -697,7 +695,7 @@ class LeaderboardWidget extends DomWidget {
 	protected onMount(): void {
 		const reload = async () => { this.rows = await this.context.viewerData.query(0, Number(this.config.count) || 10, this.config.sortBy, Number(this.config.sortOrder) || -1); this.render() }
 		void reload()
-		this.cleanups.push(this.context.viewerData.observe({ onNewViewerData: () => void reload(), onViewerDataChanged: () => void reload(), onViewerDataRemoved: () => void reload() }))
+		this.context.viewerData.observe({ onNewViewerData: () => void reload(), onViewerDataChanged: () => void reload(), onViewerDataRemoved: () => void reload() })
 	}
 
 	protected render(): void {
