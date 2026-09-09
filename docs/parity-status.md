@@ -81,7 +81,11 @@ The repeatable checks are:
 ```powershell
 corepack yarn install --immutable
 corepack yarn overlay:test
+corepack yarn overlay:forbid-vue
 corepack yarn overlay:build
+corepack yarn parity:check
+corepack yarn parity:product
+corepack yarn test:flutter-integration
 Push-Location packages/showrunner-flutter
 flutter analyze
 flutter test
