@@ -39,7 +39,7 @@ dependencies:
   sai_nodes:
     git:
       url: https://github.com/saitatter/sai_nodes.git
-      ref: '03fa13494bc448ec62ca0e6441c161bbd6e1dce6'
+      ref: '887b4762180d4fd08ac05932c5ca29c51186c7bc'
   flutter_context_menu: 0.4.2
   flutter_svg: ^2.0.17
   yaml: ^3.1.3

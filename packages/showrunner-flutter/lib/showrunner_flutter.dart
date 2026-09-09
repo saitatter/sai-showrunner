@@ -6,6 +6,7 @@ library;
 
 export 'app/startup_health.dart';
 export 'editor/showrunner_graph_editor.dart';
+export 'editor/models/graph_editor_models.dart';
 export 'editor/sai_nodes/showrunner_clipboard_payload.dart';
 export 'schema/automation.dart';
 export 'schema/data_input.dart';

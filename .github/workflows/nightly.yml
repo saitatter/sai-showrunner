@@ -1,0 +1,31 @@
+name: Nightly Flutter migration checks
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  graph-benchmark:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
+      - name: Run graph benchmark harness
+        shell: pwsh
+        run: |
+          Push-Location packages/showrunner-flutter
+          flutter pub get
+          flutter test tool/graph_benchmark_test.dart --reporter expanded
+          Pop-Location

@@ -17,6 +17,7 @@ Future<Directory> createShowRunnerFixtureDirectory() async {
 
 Widget buildShowRunnerTestApp({
   required ShowRunnerDataService dataService,
+  bool loadSampleGraph = false,
   bool showGraphEditor = true,
 }) => MaterialApp(
   title: 'ShowRunner integration test',
@@ -25,7 +26,7 @@ Widget buildShowRunnerTestApp({
   builder: showRunnerAppFrame,
   home: ShowRunnerPage(
     dataService: dataService,
-    loadSampleGraph: false,
+    loadSampleGraph: loadSampleGraph,
     showGraphEditor: showGraphEditor,
   ),
 );

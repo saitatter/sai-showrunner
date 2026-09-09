@@ -12,6 +12,7 @@ import '../../app/startup_health.dart';
 import '../../app/automation_document_manager.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../editor/showrunner_graph_editor.dart';
+import '../../editor/models/graph_editor_models.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../schema/automation.dart';
 import '../../services/showrunner_data_service.dart';

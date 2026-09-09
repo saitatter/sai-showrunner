@@ -9,6 +9,7 @@ import 'package:sai_nodes/sai_nodes.dart';
 import 'package:showrunner_flutter/app/startup_health.dart';
 import 'package:showrunner_flutter/app/automation_document_manager.dart';
 import 'package:showrunner_flutter/editor/showrunner_graph_editor.dart';
+import 'package:showrunner_flutter/editor/models/graph_editor_models.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
 import 'package:showrunner_flutter/features/graph/graph_canvas_controls.dart';
 import 'package:showrunner_flutter/features/graph/graph_canvas_search.dart';

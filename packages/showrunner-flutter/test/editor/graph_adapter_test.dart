@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sai_nodes/sai_nodes.dart';
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/editor/showrunner_graph_editor.dart';
+import 'package:showrunner_flutter/editor/models/graph_editor_models.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/automation_recovery.dart';
 import 'package:showrunner_flutter/schema/automation.dart';

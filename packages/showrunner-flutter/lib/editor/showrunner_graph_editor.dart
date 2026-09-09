@@ -13,43 +13,14 @@ import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
 import 'sai_nodes/showrunner_clipboard_payload.dart';
 import 'graph_node_style.dart';
-
-enum GraphNodeExecutionStatus { running, success, error }
-
-final class GraphNodeExecutionVisual {
-  const GraphNodeExecutionVisual({
-    required this.status,
-    required this.startedAt,
-    this.duration,
-    this.error,
-  });
-
-  final GraphNodeExecutionStatus status;
-  final DateTime startedAt;
-  final Duration? duration;
-  final String? error;
-}
-
-enum GraphAlignmentAxis { vertical, horizontal }
-
-final class GraphAlignmentGuide {
-  const GraphAlignmentGuide({
-    required this.axis,
-    required this.position,
-    required this.from,
-    required this.to,
-  });
-
-  final GraphAlignmentAxis axis;
-  final double position;
-  final double from;
-  final double to;
-}
+import 'models/graph_editor_models.dart';
 
 typedef GraphResourceOptionsLoader =
     Future<List<String>> Function(String resourceType);
 
 const _fallbackGraphNodeSize = Size(220, 90);
+
+double _number(Object? value) => value is num ? value.toDouble() : 0;
 
 JsonMap _cloneJsonMap(Map<String, dynamic> source) => {
   for (final entry in source.entries) entry.key: _cloneJsonValue(entry.value),
@@ -1594,31 +1565,9 @@ class ShowRunnerGraphEditor {
       for (final node in target.nodes.values.where(
         (node) => _nodeDataByEditorId[node.id]?['subgraphId'] == subgraphId,
       )) {
-        final desired = {
-          'exec',
-          'completed',
-          ...subgraph.parameters.map((item) => item['name'].toString()),
-          ...subgraph.outputs.map((item) => item['name'].toString()),
-        };
-        for (final portId in node.ports.keys.toList()) {
-          if (node.ports[portId]!.prototype.idName == 'exec' ||
-              node.ports[portId]!.prototype.idName == 'completed' ||
-              desired.contains(portId)) {
-            continue;
-          }
-          for (final link in node.ports[portId]!.links.toList()) {
-            target.removeLinkById(link.id);
-          }
-          node.ports.remove(portId);
-        }
         final prototype = target.nodePrototypes[prototypeId];
         if (prototype == null) continue;
-        for (final port in prototype.ports) {
-          node.ports.putIfAbsent(
-            port.idName,
-            () => PortDataModel(prototype: port, state: PortState()),
-          );
-        }
+        target.reconcileNodePorts(node.id, prototype.ports);
       }
       final selected = target.selectedNodeIds.toSet();
       target.clearSelection();
@@ -3907,75 +3856,6 @@ class ShowRunnerGraphEditor {
     );
   }
 }
-
-class GraphFrame {
-  const GraphFrame({
-    this.id = '',
-    required this.title,
-    required this.bounds,
-    this.color = '#64b5f6',
-    this.nodeIds = const [],
-  });
-
-  final String id;
-  final String title;
-  final Rect bounds;
-  final String color;
-  final List<String> nodeIds;
-
-  GraphFrame copyWith({
-    String? id,
-    String? title,
-    Rect? bounds,
-    String? color,
-    List<String>? nodeIds,
-  }) => GraphFrame(
-    id: id ?? this.id,
-    title: title ?? this.title,
-    bounds: bounds ?? this.bounds,
-    color: color ?? this.color,
-    nodeIds: nodeIds ?? this.nodeIds,
-  );
-
-  JsonMap toJson() => {
-    'id': id,
-    'title': title,
-    'label': title,
-    'color': color,
-    'nodeIds': nodeIds,
-    'left': bounds.left,
-    'top': bounds.top,
-    'right': bounds.right,
-    'bottom': bounds.bottom,
-    'x': bounds.left,
-    'y': bounds.top,
-    'width': bounds.width,
-    'height': bounds.height,
-  };
-
-  factory GraphFrame.fromJson(Map value, {String? fallbackId}) {
-    final left = _number(value['left'] ?? value['x']);
-    final top = _number(value['top'] ?? value['y']);
-    final right = value['right'] is num
-        ? _number(value['right'])
-        : left + _number(value['width']);
-    final bottom = value['bottom'] is num
-        ? _number(value['bottom'])
-        : top + _number(value['height']);
-    return GraphFrame(
-      id: value['id']?.toString() ?? fallbackId ?? '',
-      title:
-          value['title']?.toString() ?? value['label']?.toString() ?? 'Frame',
-      color: value['color']?.toString() ?? '#64b5f6',
-      nodeIds: value['nodeIds'] is List
-          ? (value['nodeIds'] as List).map((id) => id.toString()).toList()
-          : const [],
-      bounds: Rect.fromLTRB(left, top, right, bottom),
-    );
-  }
-}
-
-double _number(Object? value) => value is num ? value.toDouble() : 0;
 
 extension<T> on List<T> {
   T? get firstOrNull => isEmpty ? null : first;
