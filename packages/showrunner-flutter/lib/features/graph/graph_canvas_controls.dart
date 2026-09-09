@@ -25,20 +25,46 @@ class GraphCanvasControls extends StatelessWidget {
       final controller = editor.controller;
       final selectionCount = controller.selectedNodeIds.length;
       final hasNodes = controller.nodes.isNotEmpty;
+      final hasSelection = selectionCount > 0;
+      final canUndo = controller.history.canUndo;
+      final canRedo = controller.history.canRedo;
       final canAlign = selectionCount >= 2;
       final canDistribute = selectionCount >= 3;
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xe00f0f0f),
-          border: Border.all(color: const Color(0xff454545)),
-          borderRadius: BorderRadius.circular(6),
-        ),
+      return Material(
+        color: Colors.transparent,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              _button(
+                tooltip: 'Select all nodes',
+                icon: Icons.select_all,
+                onPressed: hasNodes ? controller.selectAllNodes : null,
+              ),
+              _button(
+                tooltip: 'Fit graph',
+                icon: Icons.fit_screen,
+                onPressed: hasNodes
+                    ? () => controller.focusAllNodes(animate: false)
+                    : null,
+              ),
+              _button(
+                tooltip: 'Fit to selection',
+                icon: Icons.center_focus_strong,
+                onPressed: hasSelection
+                    ? () => controller.focusNodesById(
+                        controller.selectedNodeIds,
+                        animate: false,
+                      )
+                    : null,
+              ),
+              _button(
+                tooltip: 'Reset view',
+                icon: Icons.refresh,
+                onPressed: () => controller.resetViewport(animate: false),
+              ),
               _button(
                 tooltip: 'Zoom out',
                 icon: Icons.remove,
@@ -61,28 +87,6 @@ class GraphCanvasControls extends StatelessWidget {
                 icon: Icons.add,
                 onPressed: () =>
                     controller.setViewportZoom(0.1, animate: false),
-              ),
-              _button(
-                tooltip: 'Fit graph',
-                icon: Icons.fit_screen,
-                onPressed: hasNodes
-                    ? () => controller.focusAllNodes(animate: false)
-                    : null,
-              ),
-              _button(
-                tooltip: 'Fit to selection',
-                icon: Icons.center_focus_strong,
-                onPressed: selectionCount == 0
-                    ? null
-                    : () => controller.focusNodesById(
-                        controller.selectedNodeIds,
-                        animate: false,
-                      ),
-              ),
-              _button(
-                tooltip: 'Reset view',
-                icon: Icons.refresh,
-                onPressed: () => controller.resetViewport(animate: false),
               ),
               _button(
                 tooltip: controller.config.enableSnapToGrid
@@ -131,14 +135,7 @@ class GraphCanvasControls extends StatelessWidget {
                 icon: Icons.rectangle_outlined,
                 onPressed: editor.frameSelection,
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 5),
-                child: SizedBox(
-                  width: 1,
-                  height: 22,
-                  child: ColoredBox(color: Color(0xff454545)),
-                ),
-              ),
+              _separator,
               _button(
                 tooltip: editor.previewPlaying.value
                     ? 'Pause preview playhead'
@@ -155,6 +152,24 @@ class GraphCanvasControls extends StatelessWidget {
                 onPressed: editor.resetPreview,
               ),
               _PreviewStatus(editor: editor),
+              _separator,
+              _button(
+                tooltip: 'Undo',
+                icon: Icons.undo,
+                onPressed: canUndo ? controller.history.undo : null,
+              ),
+              _button(
+                tooltip: 'Redo',
+                icon: Icons.redo,
+                onPressed: canRedo ? controller.history.redo : null,
+              ),
+              _button(
+                tooltip: 'Delete selection',
+                icon: Icons.delete_outline,
+                onPressed: hasSelection || controller.selectedLinkIds.isNotEmpty
+                    ? controller.deleteSelection
+                    : null,
+              ),
             ],
           ),
         ),
@@ -167,29 +182,24 @@ class GraphCanvasControls extends StatelessWidget {
     required IconData icon,
     required VoidCallback? onPressed,
     bool active = false,
-  }) => Tooltip(
-    message: tooltip,
-    child: IconButton(
+  }) => Builder(
+    builder: (context) => IconButton(
       tooltip: tooltip,
       onPressed: onPressed,
       icon: Icon(icon),
       style: IconButton.styleFrom(
-        minimumSize: const Size(32, 32),
-        maximumSize: const Size(32, 32),
-        padding: EdgeInsets.zero,
-        iconSize: 16,
-        foregroundColor: onPressed == null
-            ? const Color(0xff706477)
-            : const Color(0xffe9aaff),
-        backgroundColor: active
-            ? const Color(0xff8b35e6)
-            : const Color(0xff2b173d),
-        side: BorderSide(
-          color: active ? const Color(0xffe9aaff) : const Color(0xff7041a6),
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         visualDensity: VisualDensity.compact,
+        foregroundColor: active ? Theme.of(context).colorScheme.primary : null,
       ),
+    ),
+  );
+
+  static const Widget _separator = Padding(
+    padding: EdgeInsets.symmetric(horizontal: 5),
+    child: SizedBox(
+      width: 1,
+      height: 22,
+      child: ColoredBox(color: Color(0xff454545)),
     ),
   );
 }

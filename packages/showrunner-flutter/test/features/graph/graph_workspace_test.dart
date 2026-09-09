@@ -158,6 +158,26 @@ void main() {
     }, offsets);
   });
 
+  testWidgets(
+    'canvas controls keep the classic position and select-all action',
+    (tester) async {
+      await pumpWorkspace(tester);
+
+      final toolbar = find.byType(GraphCanvasControls);
+      final canvas = find.byType(NodeEditorWidget);
+      expect(toolbar, findsOneWidget);
+      expect(canvas, findsOneWidget);
+      expect(
+        tester.getBottomLeft(toolbar).dy,
+        lessThanOrEqualTo(tester.getTopLeft(canvas).dy),
+      );
+
+      await tester.tap(find.byTooltip('Select all nodes'));
+      await tester.pump();
+      expect(editor.controller.selectedNodeIds, hasLength(3));
+    },
+  );
+
   testWidgets('opens graph search and cycles matching nodes', (tester) async {
     await pumpWorkspace(tester);
 

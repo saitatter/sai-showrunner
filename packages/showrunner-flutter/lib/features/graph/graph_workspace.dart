@@ -65,6 +65,10 @@ class GraphWorkspace extends StatelessWidget {
           builder: (context, path, child) => Column(
             children: [
               if (path.isNotEmpty) _GraphBreadcrumb(editor: editor),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: GraphCanvasControls(editor: editor),
+              ),
               Expanded(
                 child: FutureBuilder<DartPluginRegistry>(
                   future: registryFuture,
@@ -131,25 +135,16 @@ class GraphWorkspace extends StatelessWidget {
                               ),
                               OverlayData(
                                 top: 12,
-                                left: 12,
-                                right: 12,
-                                child: Align(
-                                  alignment: Alignment.topLeft,
-                                  child: GraphCanvasControls(editor: editor),
-                                ),
-                              ),
-                              OverlayData(
-                                top: 12,
                                 right: 12,
                                 child: GraphCanvasSearch(editor: editor),
                               ),
                               OverlayData(
-                                top: 68,
+                                top: 16,
                                 left: 16,
                                 child: _GraphStatus(editor: editor),
                               ),
                               OverlayData(
-                                top: 112,
+                                top: 60,
                                 left: 16,
                                 right: 16,
                                 child: _GraphWireHealthOverlay(editor: editor),
