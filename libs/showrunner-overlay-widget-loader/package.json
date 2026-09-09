@@ -7,28 +7,12 @@
 	"devMain": "src/overlay-widget-loader.ts",
 	"types": "./dist/types/overlay-widget-loader.d.ts",
 	"scripts": {
-		"dev": "vite",
-		"build": "vue-tsc && vite build",
-		"preview": "vite preview"
+		"build": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@vueuse/core": "*",
-		"chromatism2": "*",
-		"nanoid": "^5.0.7",
-		"pinia": "^2.1.7",
-		"primevue": "^4.2.4",
-		"showrunner-overlay-core": "workspace:^",
-		"showrunner-plugin-overlays-overlays": "workspace:^",
-		"showrunner-plugin-random-overlays": "workspace:^",
-		"showrunner-plugin-twitch-overlays": "workspace:^",
-		"showrunner-schema": "workspace:^",
-		"vue": "^3.5.13"
+		"showrunner-overlay-core": "workspace:^"
 	},
 	"devDependencies": {
-		"@vitejs/plugin-vue": "^6.0.0",
-		"ts-toolbelt": "*",
-		"typescript": "*",
-		"vite": "^7.3.1",
-		"vue-tsc": "*"
+		"typescript": "*"
 	}
 }

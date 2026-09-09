@@ -1,7 +1,7 @@
 import { Color, SchemaBase, registerType } from "showrunner-schema"
 import _cloneDeep from "lodash/cloneDeep"
 
-import { CSSProperties } from "vue"
+export type CSSProperties = Record<string, string | number | undefined>
 
 export interface OverlayStrokeStyle {
 	width: number

@@ -604,6 +604,7 @@ JsonMap _remoteConfig(ResourceData resource) {
       : <JsonMap>[];
   return {
     'name': resource.name,
+    'schemaVersion': 1,
     'size': {'width': width, 'height': height},
     'widgets': widgets,
   };

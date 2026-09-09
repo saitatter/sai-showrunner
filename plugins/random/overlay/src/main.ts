@@ -1,8 +1,7 @@
-import { definePluginOverlays } from "showrunner-overlay-core"
+import { defineOverlayPlugin } from "showrunner-overlay-core"
+import { wheelWidget } from "./widgets"
 
-import WheelVue from "./widgets/Wheel.vue"
-
-export default definePluginOverlays({
-	id: "random",
-	widgets: [WheelVue],
+export default defineOverlayPlugin({
+	pluginId: "random",
+	widgets: [wheelWidget],
 })

@@ -17,6 +17,7 @@ import '../../plugins/sound/ui/tts_voice_provider_picker.dart';
 import '../../plugins/overlays/ui/overlay_widget_config.dart';
 import '../../plugins/overlays/shader_graph/shader_graph_editor.dart';
 import '../../plugins/overlays/shader_graph/shader_graph_model.dart';
+import '../../plugins/overlays/generated_widget_catalog.dart';
 import '../../plugins/dashboards/ui/dashboard_widget_config.dart';
 
 List<JsonMap> _maps(Object? value) => value is List
@@ -653,6 +654,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
   late List<JsonMap> _widgets;
   late bool _previewEnabled;
   late bool _previewFromObs;
+  Set<String> _generatedWidgetKeys = <String>{};
 
   @override
   void initState() {
@@ -674,6 +676,13 @@ class _OverlayEditorState extends State<_OverlayEditor> {
     _widgets = overlay.widgets
         .map((widget) => <String, dynamic>{...widget})
         .toList();
+    GeneratedOverlayWidgetCatalog.load().then((widgets) {
+      if (!mounted) return;
+      setState(
+        () =>
+            _generatedWidgetKeys = widgets.map((widget) => widget.key).toSet(),
+      );
+    });
   }
 
   @override
@@ -851,7 +860,13 @@ class _OverlayEditorState extends State<_OverlayEditor> {
       builder: (context) => SimpleDialog(
         title: const Text('Add overlay widget'),
         children: [
-          for (final option in overlayWidgetDefinitions)
+          for (final option in overlayWidgetDefinitions.where(
+            (option) =>
+                _generatedWidgetKeys.isEmpty ||
+                _generatedWidgetKeys.contains(
+                  '${option.plugin}.${option.widget}',
+                ),
+          ))
             SimpleDialogOption(
               onPressed: () => Navigator.of(context).pop(option),
               child: ListTile(

@@ -1,16 +1,7 @@
-import { definePluginOverlays } from "showrunner-overlay-core"
+import { defineOverlayPlugin } from "showrunner-overlay-core"
+import { overlayWidgets } from "./widgets"
 
-import LabelVue from "./widgets/Label.vue"
-import EmoteBouncer from "./widgets/EmoteBouncer.vue"
-import Alert from "./widgets/Alert.vue"
-import Bar from "./widgets/Bar.vue"
-import LeaderBoard from "./widgets/LeaderBoard.vue"
-import ChatFeed from "./widgets/ChatFeed.vue"
-import ShaderLayer from "./widgets/ShaderLayer.vue"
-import PaidAlert from "./widgets/PaidAlert.vue"
-import SceneBanner from "./widgets/SceneBanner.vue"
-
-export default definePluginOverlays({
-	id: "overlays",
-	widgets: [LabelVue, EmoteBouncer, Alert, Bar, LeaderBoard, ChatFeed, ShaderLayer, PaidAlert, SceneBanner],
+export default defineOverlayPlugin({
+	pluginId: "overlays",
+	widgets: overlayWidgets,
 })

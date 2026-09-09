@@ -23,6 +23,6 @@
 			"showrunner-overlay-core": ["../../../libs/showrunner-overlay-core/src/overlay-core-main.ts"]
 		}
 	},
-	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
+	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx"],
 	"references": [{ "path": "./tsconfig.node.json" }]
 }

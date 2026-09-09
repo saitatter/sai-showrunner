@@ -1,0 +1,502 @@
+{
+  "schemaVersion": 1,
+  "plugins": [
+    {
+      "pluginId": "overlays",
+      "widgets": [
+        {
+          "id": "alert",
+          "name": "Alert",
+          "description": "A classic alert box with text, images, GIFs, and videos.",
+          "icon": "mdi mdi-alert-box-outline",
+          "defaultSize": {
+            "width": 300,
+            "height": 200
+          },
+          "capabilities": {
+            "commands": [
+              "showAlert"
+            ]
+          },
+          "config": {
+            "media": {
+              "type": "array"
+            },
+            "transition": {
+              "type": "object"
+            },
+            "textBelowMedia": {
+              "type": "boolean",
+              "default": true
+            },
+            "title": {
+              "type": "object"
+            },
+            "subtitle": {
+              "type": "object"
+            },
+            "duration": {
+              "type": "number",
+              "default": 4
+            }
+          }
+        },
+        {
+          "id": "bar",
+          "name": "Bar",
+          "description": "Progress Bar",
+          "icon": "mdi mdi-square",
+          "defaultSize": {
+            "width": 400,
+            "height": 90
+          },
+          "config": {
+            "value": {
+              "type": "number",
+              "default": 25,
+              "template": true
+            },
+            "target": {
+              "type": "number",
+              "default": 100,
+              "template": true
+            },
+            "direction": {
+              "type": "string",
+              "default": "Right",
+              "enum": [
+                "Right",
+                "Left",
+                "Up",
+                "Down"
+              ]
+            },
+            "outerRadius": {
+              "type": "object"
+            },
+            "backgroundStyle": {
+              "type": "object"
+            },
+            "outline": {
+              "type": "object"
+            },
+            "fillStyle": {
+              "type": "object"
+            },
+            "fillLine": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "id": "chatFeed",
+          "name": "Chat Feed",
+          "description": "Displays approved chat messages pushed by ShowRunner automations.",
+          "icon": "mdi mdi-chat-processing-outline",
+          "defaultSize": {
+            "width": 900,
+            "height": 180
+          },
+          "capabilities": {
+            "events": [
+              "showrunner_chat_message"
+            ]
+          },
+          "config": {
+            "fontFamily": {
+              "type": "string",
+              "default": "Inter, Arial, sans-serif"
+            },
+            "fontSize": {
+              "type": "number",
+              "default": 24
+            },
+            "backgroundColor": {
+              "type": "string",
+              "default": "#0d1117"
+            },
+            "backgroundOpacity": {
+              "type": "number",
+              "default": 0.72
+            },
+            "fadeTime": {
+              "type": "number",
+              "default": 10
+            },
+            "maxMessages": {
+              "type": "number",
+              "default": 8
+            },
+            "orientation": {
+              "type": "string",
+              "default": "horizontal",
+              "enum": [
+                "horizontal",
+                "vertical"
+              ]
+            },
+            "twitchColor": {
+              "type": "string",
+              "default": "#9146ff"
+            },
+            "youtubeColor": {
+              "type": "string",
+              "default": "#ff0033"
+            },
+            "showBadges": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        {
+          "id": "emote-bounce",
+          "name": "Emote Bouncer",
+          "description": "Bounces Twitch emotes around the overlay.",
+          "icon": "mdi mdi-emoticon",
+          "defaultSize": {
+            "width": "canvas",
+            "height": "canvas"
+          },
+          "capabilities": {
+            "events": [
+              "twitch_message"
+            ],
+            "commands": [
+              "spawnEmotes"
+            ]
+          },
+          "config": {
+            "lifeTime": {
+              "type": "range",
+              "default": {
+                "min": 7,
+                "max": 7
+              }
+            },
+            "emoteSize": {
+              "type": "range",
+              "default": {
+                "min": 80,
+                "max": 80
+              }
+            },
+            "velocityMax": {
+              "type": "number",
+              "default": 0.4,
+              "template": true
+            },
+            "shakeTime": {
+              "type": "number",
+              "default": 5,
+              "template": true
+            },
+            "shakeStrength": {
+              "type": "number",
+              "default": 1,
+              "template": true
+            },
+            "gravityXScale": {
+              "type": "number",
+              "default": 0,
+              "template": true
+            },
+            "gravityYScale": {
+              "type": "number",
+              "default": 1,
+              "template": true
+            },
+            "spamPrevention": {
+              "type": "object"
+            },
+            "launchers": {
+              "type": "array"
+            }
+          }
+        },
+        {
+          "id": "label",
+          "name": "Label",
+          "description": "Puts some text in the overlay",
+          "icon": "mdi mdi-cursor-text",
+          "defaultSize": {
+            "width": 300,
+            "height": 200
+          },
+          "config": {
+            "message": {
+              "type": "string",
+              "default": "Label",
+              "template": true,
+              "multiLine": true
+            },
+            "font": {
+              "type": "object"
+            },
+            "textAlign": {
+              "type": "object"
+            },
+            "block": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "id": "leaderboard",
+          "name": "Leader Board (Beta)",
+          "description": "Displays ranked viewer data.",
+          "icon": "mdi mdi-table",
+          "defaultSize": {
+            "width": 300,
+            "height": 500
+          },
+          "config": {
+            "sortBy": {
+              "type": "viewerVariable"
+            },
+            "sortOrder": {
+              "type": "number",
+              "default": -1
+            },
+            "count": {
+              "type": "number",
+              "default": 10,
+              "min": 1,
+              "max": 50
+            },
+            "variables": {
+              "type": "array"
+            },
+            "nameFont": {
+              "type": "object"
+            },
+            "nameTextAlign": {
+              "type": "object"
+            },
+            "nameBackground": {
+              "type": "object"
+            },
+            "nameBlock": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "id": "paidAlert",
+          "name": "Paid Alert",
+          "description": "Displays YouTube paid messages, donations, and support events.",
+          "icon": "mdi mdi-cash-star",
+          "defaultSize": {
+            "width": 680,
+            "height": 190
+          },
+          "capabilities": {
+            "events": [
+              "showrunner_paid_alert"
+            ]
+          },
+          "config": {
+            "fontFamily": {
+              "type": "string",
+              "default": "Inter, Arial, sans-serif"
+            },
+            "accentColor": {
+              "type": "string",
+              "default": "#ffd166"
+            },
+            "backgroundColor": {
+              "type": "string",
+              "default": "#131313"
+            },
+            "backgroundOpacity": {
+              "type": "number",
+              "default": 0.86
+            },
+            "duration": {
+              "type": "number",
+              "default": 7
+            },
+            "previewTitle": {
+              "type": "string",
+              "default": "Super Chat"
+            },
+            "previewViewer": {
+              "type": "string",
+              "default": "Supporter"
+            },
+            "previewMessage": {
+              "type": "string",
+              "default": "Thanks for the stream!"
+            },
+            "previewAmount": {
+              "type": "string",
+              "default": "10.00"
+            },
+            "previewCurrency": {
+              "type": "string",
+              "default": "USD"
+            }
+          }
+        },
+        {
+          "id": "sceneBanner",
+          "name": "Scene Banner",
+          "description": "Displays scene begin/end automation events.",
+          "icon": "mdi mdi-motion-play-outline",
+          "defaultSize": {
+            "width": 900,
+            "height": 170
+          },
+          "capabilities": {
+            "events": [
+              "showrunner_scene_event"
+            ]
+          },
+          "config": {
+            "fontFamily": {
+              "type": "string",
+              "default": "Inter, Arial, sans-serif"
+            },
+            "accentColor": {
+              "type": "string",
+              "default": "#9146ff"
+            },
+            "backgroundColor": {
+              "type": "string",
+              "default": "#101010"
+            },
+            "backgroundOpacity": {
+              "type": "number",
+              "default": 0.82
+            },
+            "duration": {
+              "type": "number",
+              "default": 6
+            },
+            "previewTitle": {
+              "type": "string",
+              "default": "Starting Soon"
+            },
+            "previewSubtitle": {
+              "type": "string",
+              "default": "Scene automation preview"
+            }
+          }
+        },
+        {
+          "id": "shaderLayer",
+          "name": "Shader Layer",
+          "description": "Renders a bundled or locally edited WebGL shader.",
+          "icon": "mdi mdi-magic-staff",
+          "defaultSize": {
+            "width": 900,
+            "height": 500
+          },
+          "capabilities": {
+            "resizable": true
+          },
+          "config": {
+            "preset": {
+              "type": "string",
+              "default": "aurora",
+              "enum": [
+                "aurora",
+                "grid",
+                "plasma",
+                "nebula",
+                "scanlines",
+                "vortex",
+                "custom"
+              ]
+            },
+            "customFragmentShader": {
+              "type": "string",
+              "multiLine": true
+            },
+            "accentColor": {
+              "type": "string",
+              "default": "#9146ff"
+            },
+            "secondaryColor": {
+              "type": "string",
+              "default": "#00d1ff"
+            },
+            "intensity": {
+              "type": "number",
+              "default": 0.8
+            },
+            "speed": {
+              "type": "number",
+              "default": 1
+            },
+            "opacity": {
+              "type": "number",
+              "default": 1
+            },
+            "blendMode": {
+              "type": "string",
+              "default": "normal"
+            },
+            "text": {
+              "type": "string",
+              "default": "",
+              "template": true
+            },
+            "shaderGraph": {
+              "type": "object"
+            },
+            "shaderUniforms": {
+              "type": "object"
+            },
+            "shaderUniformBindings": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "pluginId": "random",
+      "widgets": [
+        {
+          "id": "wheel",
+          "name": "Wheel",
+          "description": "A wheel for randomly selecting things",
+          "icon": "mdi mdi-tire",
+          "defaultSize": {
+            "width": 500,
+            "height": 500
+          },
+          "capabilities": {
+            "commands": [
+              "spinWheel"
+            ],
+            "resizable": true
+          },
+          "config": {
+            "slices": {
+              "type": "number",
+              "default": 12
+            },
+            "items": {
+              "type": "array"
+            },
+            "style": {
+              "type": "array"
+            },
+            "damping": {
+              "type": "object"
+            },
+            "clicker": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "pluginId": "twitch",
+      "widgets": []
+    }
+  ]
+}

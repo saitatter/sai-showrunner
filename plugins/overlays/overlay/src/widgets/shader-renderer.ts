@@ -1,6 +1,6 @@
 /**
  * WebGL shader renderer — handles compilation, uniform binding, and frame loop.
- * Extracted from ShaderLayer.vue for maintainability.
+ * Framework-independent WebGL renderer used by the shader overlay widget.
  */
 
 export interface ShaderRendererOptions {

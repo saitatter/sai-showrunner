@@ -101,6 +101,11 @@ jobs:
       - name: Test browser overlay runtime
         run: yarn overlay:test
 
+      - name: Verify generated overlay registry
+        run: |
+          yarn overlay:generate
+          git diff --exit-code -- packages/showrunner-obs-overlay/src/generated packages/showrunner-flutter/assets/overlay_widgets.generated.json
+
       - name: Build browser overlay runtime
         run: yarn overlay:build
 

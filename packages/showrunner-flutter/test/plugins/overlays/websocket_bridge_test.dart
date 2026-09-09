@@ -70,6 +70,7 @@ void main() {
       final config = jsonDecode(await utf8.decoder.bind(configResponse).join());
       expect(config, {
         'name': 'Test Overlay',
+        'schemaVersion': 1,
         'size': {'width': 1280, 'height': 720},
         'widgets': [],
       });
@@ -106,6 +107,7 @@ void main() {
 
       expect(await configReceived.future, {
         'name': 'Test Overlay',
+        'schemaVersion': 1,
         'size': {'width': 1280, 'height': 720},
         'widgets': [],
       });

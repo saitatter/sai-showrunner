@@ -7,25 +7,54 @@
 	"devMain": "src/main.ts",
 	"types": "./dist/types/main.d.ts",
 	"scripts": {
-		"dev": "vite",
-		"build": "vue-tsc && vite build",
-		"preview": "vite preview"
+		"build": "tsc --noEmit"
+	},
+	"showrunner": {
+		"pluginId": "random",
+		"overlay": {
+			"entry": "./src/main.ts",
+			"widgets": [
+				{
+					"id": "wheel",
+					"name": "Wheel",
+					"description": "A wheel for randomly selecting things",
+					"icon": "mdi mdi-tire",
+					"defaultSize": {
+						"width": 500,
+						"height": 500
+					},
+					"capabilities": {
+						"commands": [
+							"spinWheel"
+						],
+						"resizable": true
+					},
+					"config": {
+						"slices": {
+							"type": "number",
+							"default": 12
+						},
+						"items": {
+							"type": "array"
+						},
+						"style": {
+							"type": "array"
+						},
+						"damping": {
+							"type": "object"
+						},
+						"clicker": {
+							"type": "object"
+						}
+					}
+				}
+			]
+		}
 	},
 	"dependencies": {
-		"@vueuse/core": "*",
-		"chromatism2": "*",
-		"nanoid": "^5.0.7",
-		"pinia": "^2.1.7",
-		"primevue": "^4.2.4",
-		"showrunner-overlay-core": "workspace:^",
-		"showrunner-schema": "workspace:^",
-		"vue": "^3.5.13"
+		"showrunner-overlay-core": "workspace:^"
 	},
 	"devDependencies": {
-		"@vitejs/plugin-vue": "^6.0.0",
-		"ts-toolbelt": "*",
-		"typescript": "*",
-		"vite": "^7.3.1",
-		"vue-tsc": "*"
+		"typescript": "*"
 	}
 }
