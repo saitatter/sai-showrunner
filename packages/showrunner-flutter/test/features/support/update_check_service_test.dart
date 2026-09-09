@@ -21,6 +21,8 @@ void main() {
             'name': 'ShowRunner-Flutter-windows-1.1.0.zip',
             'browser_download_url':
                 'https://example.test/downloads/showrunner.zip',
+            'digest':
+                'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
           },
         ],
       },
@@ -35,6 +37,10 @@ void main() {
     expect(result.releaseNotes, 'Important details\nx');
     expect(result.downloadUrl, contains('/releases/tag/v1.1.0'));
     expect(result.artifactUrl, contains('/downloads/showrunner.zip'));
+    expect(
+      result.artifactSha256,
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    );
     expect(result.releaseDate, '2026-09-01T10:00:00Z');
     expect(result.canCheckForUpdates, isTrue);
     expect(result.checkedAt, isNotNull);

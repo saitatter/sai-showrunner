@@ -10,6 +10,7 @@ class UpdateInfo {
     this.releaseNotes = '',
     this.downloadUrl = '',
     this.artifactUrl = '',
+    this.artifactSha256,
     this.releaseDate = '',
     this.status = UpdateStatus.idle,
     this.errorMessage,
@@ -25,6 +26,7 @@ class UpdateInfo {
   final String releaseNotes;
   final String downloadUrl;
   final String artifactUrl;
+  final String? artifactSha256;
   final String releaseDate;
   final UpdateStatus status;
   final String? errorMessage;
@@ -51,6 +53,9 @@ class UpdateInfo {
           (json['artifactUrl'] ?? _windowsArtifactUrl(json['assets']))
               ?.toString() ??
           '',
+      artifactSha256:
+          (json['artifactSha256'] ?? _windowsArtifactSha256(json['assets']))
+              ?.toString(),
       releaseDate:
           (json['releaseDate'] ?? json['published_at'])?.toString() ?? '',
       status: hasUp ? UpdateStatus.available : UpdateStatus.upToDate,
@@ -64,6 +69,7 @@ class UpdateInfo {
     releaseNotes: releaseNotes,
     downloadUrl: downloadUrl,
     artifactUrl: artifactUrl,
+    artifactSha256: artifactSha256,
     releaseDate: releaseDate,
     status: status ?? this.status,
     errorMessage: errorMessage,
@@ -80,6 +86,7 @@ class UpdateInfo {
     'releaseNotes': releaseNotes,
     'downloadUrl': downloadUrl,
     'artifactUrl': artifactUrl,
+    'artifactSha256': artifactSha256,
     'releaseDate': releaseDate,
     'status': status.name,
     'canCheckForUpdates': canCheckForUpdates,
@@ -100,6 +107,22 @@ String? _windowsArtifactUrl(dynamic assets) {
         name.endsWith('.zip')) {
       return url;
     }
+  }
+  return null;
+}
+
+String? _windowsArtifactSha256(dynamic assets) {
+  if (assets is! List) return null;
+  for (final asset in assets.whereType<Map>()) {
+    final name = asset['name']?.toString().toLowerCase() ?? '';
+    if (!name.contains('windows') || !name.endsWith('.zip')) continue;
+    final digest = asset['digest'] ?? asset['sha256'];
+    if (digest == null) return null;
+    final normalized = digest
+        .toString()
+        .replaceFirst(RegExp(r'^sha256:', caseSensitive: false), '')
+        .toLowerCase();
+    return RegExp(r'^[0-9a-f]{64}$').hasMatch(normalized) ? normalized : null;
   }
   return null;
 }

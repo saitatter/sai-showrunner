@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 import '../schema/update.dart';
 
 typedef UpdateArtifactDownloader =
@@ -35,6 +37,16 @@ final class UpdateArtifactService {
       await downloader(url, partial);
       if (!await partial.exists() || await partial.length() == 0) {
         throw const FormatException('The downloaded update artifact is empty.');
+      }
+      final expectedDigest = update.artifactSha256?.trim().toLowerCase();
+      if (expectedDigest != null && expectedDigest.isNotEmpty) {
+        final actualDigest = (await sha256.bind(partial.openRead()).first)
+            .toString();
+        if (actualDigest != expectedDigest) {
+          throw const FormatException(
+            'The downloaded update artifact failed its SHA-256 check.',
+          );
+        }
       }
       if (await destination.exists()) await destination.delete();
       return await partial.rename(destination.path);

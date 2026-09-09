@@ -96,6 +96,7 @@ UpdateInfo _withCheckedAt(UpdateInfo update, String checkedAt) => UpdateInfo(
   releaseNotes: update.releaseNotes,
   downloadUrl: update.downloadUrl,
   artifactUrl: update.artifactUrl,
+  artifactSha256: update.artifactSha256,
   releaseDate: update.releaseDate,
   status: update.status,
   errorMessage: update.errorMessage,
