@@ -101,6 +101,9 @@ jobs:
       - name: Test browser overlay runtime
         run: yarn overlay:test
 
+      - name: Typecheck overlay packages
+        run: yarn overlay:typecheck
+
       - name: Verify generated overlay registry
         run: |
           yarn overlay:generate

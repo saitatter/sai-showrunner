@@ -28,7 +28,8 @@ describe("generated overlay registry parity", () => {
 
 	it("keeps generated config metadata available for Flutter", () => {
 		const shader = manifest.plugins.find((plugin) => plugin.pluginId === "overlays")?.widgets.find((widget) => widget.id === "shaderLayer")
-		expect(shader?.config?.preset?.default).toBe("aurora")
-		expect(shader?.config?.shaderGraph?.type).toBe("object")
+		const config = shader?.config as Record<string, { default?: unknown; type?: unknown }> | undefined
+		expect(config?.preset?.default).toBe("aurora")
+		expect(config?.shaderGraph?.type).toBe("object")
 	})
 })

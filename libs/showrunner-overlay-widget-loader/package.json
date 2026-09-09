@@ -7,7 +7,8 @@
 	"devMain": "src/overlay-widget-loader.ts",
 	"types": "./dist/types/overlay-widget-loader.d.ts",
 	"scripts": {
-		"build": "tsc --noEmit"
+		"build": "tsc --noEmit",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"showrunner-overlay-core": "workspace:^"

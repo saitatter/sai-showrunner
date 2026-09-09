@@ -6,7 +6,8 @@
 	"devMain": "src/overlay.ts",
 	"scripts": {
 		"dev": "vite --port 5174",
-		"build:test": "vite build --mode production"
+		"build:test": "vite build --mode production",
+		"typecheck": "tsc --noEmit -p tsconfig.json"
 	},
 	"author": "",
 	"license": "ISC",

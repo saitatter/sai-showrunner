@@ -21,11 +21,12 @@ The repository is organized around these runtime surfaces:
 
 ## Intentional browser boundary
 
-OBS browser sources need an HTML/WebGL runtime. The overlay remains a Vue/TS
-browser product and is not a second desktop renderer. Shader/WebGL rendering,
-browser layout, and browser-only widget behavior therefore remain authoritative
-in that package. Flutter edits the typed resource fields and preserves the
-structured resource data needed by the browser runtime.
+OBS browser sources need an HTML/WebGL runtime. The overlay is a standalone
+TypeScript/DOM/WebGL browser runtime and is not a second desktop renderer.
+Shader/WebGL rendering, browser layout, and browser-only widget behavior
+therefore remain authoritative in that package. Flutter edits the typed
+resource fields and preserves the structured resource data needed by the
+browser runtime.
 
 This boundary is validated with the overlay protocol tests and Vite build in
 addition to the Flutter checks; deleting the browser surface would remove OBS
