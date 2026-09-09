@@ -805,7 +805,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         );
       }
       await Future<void>.delayed(const Duration(milliseconds: 250));
-      if (Platform.isWindows) await windowManager.close();
+      // Smoke runs are already isolated and must not open the interactive
+      // hide-to-tray/close dialog introduced for normal desktop shutdown.
+      if (Platform.isWindows) await _handleWindowClose(forceClose: true);
     } catch (error, stackTrace) {
       stderr.writeln('Flutter smoke failed: $error');
       stderr.writeln(stackTrace);
@@ -1036,9 +1038,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     final available = await UpdateCheckService(
       currentVersion: showRunnerFlutterVersion,
       fetcher: () async => {
-        'tag_name': 'v1.0.0-beta2',
+        'tag_name': 'v2.0.1',
         'body': 'Smoke update',
-        'html_url': 'https://example.test/release',
+        'html_url': 'https://example.test/releases/v2.0.1',
       },
     ).check();
     if (current.status != UpdateStatus.upToDate ||

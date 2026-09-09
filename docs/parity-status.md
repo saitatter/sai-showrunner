@@ -70,7 +70,9 @@ environment and is not claimed by the package smoke suite.
 The automated smoke suite validates startup, first run, graph/workflow use,
 profiles, integrations, overlays, and update-state handling. It does not prove
 pixel-perfect rendering or replace the manual checks in
-`docs/beta-regression-checklist.md`.
+`docs/beta-regression-checklist.md`. The complete replacement gate and its
+remaining environment-dependent proof are tracked in
+`docs/flutter-replacement-readiness.md`.
 
 ## Evidence
 
@@ -83,6 +85,7 @@ corepack yarn overlay:build
 Push-Location packages/showrunner-flutter
 flutter analyze
 flutter test
+flutter test tool/graph_benchmark_test.dart --reporter expanded
 flutter build windows --release
 Pop-Location
 .\scripts\smoke-flutter-windows.ps1 -Configuration Release
