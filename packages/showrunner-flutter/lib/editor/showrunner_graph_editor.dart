@@ -2224,13 +2224,37 @@ class ShowRunnerGraphEditor {
   }) {
     _ensurePrototype(nodeType, title: title);
     final node = controller.addNode(nodeType, offset: offset);
+    _registerNodeMetadata(node, nodeType, title: title);
+    if (title != null && title.trim().isNotEmpty) {
+      renameNode(node.id, title);
+    }
+    _markDocumentDirty();
+    return node.id;
+  }
+
+  NodeDataModel _createDetachedNodeType(
+    String nodeType, {
+    String? title,
+    required Offset offset,
+  }) {
+    _ensurePrototype(nodeType, title: title);
+    final node = controller.createNodeModel(nodeType, offset: offset);
+    _registerNodeMetadata(node, nodeType, title: title);
+    if (title != null && title.trim().isNotEmpty) {
+      node.customTitle = title.trim();
+    }
+    return node;
+  }
+
+  void _registerNodeMetadata(
+    NodeDataModel node,
+    String nodeType, {
+    String? title,
+  }) {
     recentNodeTypes.value = [
       nodeType,
       ...recentNodeTypes.value.where((type) => type != nodeType),
     ].take(8).toList();
-    if (title != null && title.trim().isNotEmpty) {
-      renameNode(node.id, title);
-    }
     final parts = nodeType.split('.');
     _schemaIdByEditorId[node.id] = node.id;
     if (parts.length >= 3 && parts.first == 'trigger') {
@@ -2263,8 +2287,12 @@ class ShowRunnerGraphEditor {
       final defaults = _defaultControlData(nodeType);
       if (defaults != null) _nodeDataByEditorId[node.id] = defaults;
     }
-    _markDocumentDirty();
-    return node.id;
+    final normalizedTitle = title?.trim();
+    if (normalizedTitle != null && normalizedTitle.isNotEmpty) {
+      _nodeTitles[node.id] = normalizedTitle;
+      _nodeDataByEditorId.putIfAbsent(node.id, () => {});
+      _nodeDataByEditorId[node.id]!['title'] = normalizedTitle;
+    }
   }
 
   String? addNodeTypeAtScreenPosition(
@@ -2525,28 +2553,48 @@ class ShowRunnerGraphEditor {
       );
     }
 
-    final insertedId = addNodeType(
-      nodeType,
-      offset: offset ?? source.offset + const Offset(280, 0),
+    final insertedOffset = offset ?? source.offset + const Offset(280, 0);
+    final detached = _createDetachedNodeType(nodeType, offset: insertedOffset);
+    final inputPort = _firstControlInputPort(detached);
+    final outputPort = _preferredFlowOutputPort(detached);
+    if (inputPort == null || outputPort == null) {
+      controller.addNodeFromExisting(detached);
+      _markDocumentDirty();
+      return detached.id;
+    }
+    final schemaLinkId =
+        _schemaIdByLinkSignature[_linkSignature(
+          link.endpoints.sourceNodeId,
+          link.endpoints.sourcePortId,
+          link.endpoints.targetNodeId,
+          link.endpoints.targetPortId,
+        )];
+    final inserted = controller.spliceNodeIntoLink(
+      link.id,
+      detached,
+      inputPortId: inputPort,
+      outputPortId: outputPort,
     );
-    if (insertedId == null) return null;
-    final inputPort = _firstControlInputPort(controller.nodes[insertedId]);
-    final outputPort = _preferredFlowOutputPort(controller.nodes[insertedId]);
-    if (inputPort == null || outputPort == null) return insertedId;
-    controller.removeLinkById(link.id);
-    controller.addLink(
-      link.endpoints.sourceNodeId,
-      link.endpoints.sourcePortId,
-      insertedId,
-      inputPort,
+    if (inserted == null) {
+      controller.addNodeFromExisting(detached);
+      _markDocumentDirty();
+      return detached.id;
+    }
+    final incoming = controller.linksAsList.firstWhere(
+      (candidate) =>
+          candidate.endpoints.targetNodeId == inserted.id &&
+          candidate.endpoints.sourceNodeId == link.endpoints.sourceNodeId,
     );
-    controller.addLink(
-      insertedId,
-      outputPort,
-      link.endpoints.targetNodeId,
-      link.endpoints.targetPortId,
-    );
-    return insertedId;
+    if (schemaLinkId != null) {
+      _schemaIdByLinkSignature[_linkSignature(
+            incoming.endpoints.sourceNodeId,
+            incoming.endpoints.sourcePortId,
+            incoming.endpoints.targetNodeId,
+            incoming.endpoints.targetPortId,
+          )] =
+          schemaLinkId;
+    }
+    return inserted.id;
   }
 
   void updateControlNodeData(String editorNodeId, JsonMap data) {

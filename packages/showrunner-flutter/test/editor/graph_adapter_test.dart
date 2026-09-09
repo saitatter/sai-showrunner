@@ -582,48 +582,65 @@ void main() {
     expect(saved.dataWires, isEmpty);
   });
 
-  test('inserts an action on a flow edge and reconnects both endpoints', () {
-    final editor = ShowRunnerGraphEditor();
-    addTearDown(editor.dispose);
-    editor.loadDeveloperFixtureGraph();
-    final queueId = editor.controller.nodes.values
-        .firstWhere((node) => node.prototype.idName == 'queue.addItem')
-        .id;
-    final link = editor.controller.linksAsList.firstWhere(
-      (candidate) => candidate.endpoints.sourceNodeId == queueId,
-    );
+  test(
+    'inserts an action on a flow edge and reconnects both endpoints',
+    () async {
+      final editor = ShowRunnerGraphEditor();
+      addTearDown(editor.dispose);
+      editor.loadDeveloperFixtureGraph();
+      final queueId = editor.controller.nodes.values
+          .firstWhere((node) => node.prototype.idName == 'queue.addItem')
+          .id;
+      final link = editor.controller.linksAsList.firstWhere(
+        (candidate) => candidate.endpoints.sourceNodeId == queueId,
+      );
 
-    final insertedId = editor.insertActionOnFlowEdge(
-      'obs.scene',
-      link.id,
-      offset: const Offset(640, 120),
-    );
+      final insertedId = editor.insertActionOnFlowEdge(
+        'obs.scene',
+        link.id,
+        offset: const Offset(640, 120),
+      );
+      await Future<void>.delayed(Duration.zero);
 
-    expect(insertedId, isNotNull);
-    expect(editor.controller.nodes[insertedId]!.offset, const Offset(630, 126));
-    expect(
-      editor.controller.linksAsList,
-      contains(
-        isA<LinkDataModel>().having(
-          (value) => value.endpoints.sourceNodeId,
-          'source',
-          queueId,
+      expect(insertedId, isNotNull);
+      expect(
+        editor.controller.nodes[insertedId]!.offset,
+        const Offset(630, 126),
+      );
+      expect(
+        editor.controller.linksAsList,
+        contains(
+          isA<LinkDataModel>().having(
+            (value) => value.endpoints.sourceNodeId,
+            'source',
+            queueId,
+          ),
         ),
-      ),
-    );
-    expect(
-      editor.controller.linksAsList,
-      contains(
-        isA<LinkDataModel>().having(
-          (value) => value.endpoints.targetNodeId,
-          'target',
-          editor.controller.nodes.values
-              .firstWhere((node) => node.prototype.idName == 'overlay.pushChat')
-              .id,
+      );
+      expect(
+        editor.controller.linksAsList,
+        contains(
+          isA<LinkDataModel>().having(
+            (value) => value.endpoints.targetNodeId,
+            'target',
+            editor.controller.nodes.values
+                .firstWhere(
+                  (node) => node.prototype.idName == 'overlay.pushChat',
+                )
+                .id,
+          ),
         ),
-      ),
-    );
-  });
+      );
+
+      editor.controller.history.undo();
+      expect(editor.controller.nodes[insertedId!], isNull);
+      expect(editor.controller.links, containsPair(link.id, link));
+
+      editor.controller.history.redo();
+      expect(editor.controller.nodes[insertedId], isNotNull);
+      expect(editor.controller.links, isNot(contains(link.id)));
+    },
+  );
 
   test('duplicates a configured selected action and reconnects its flow', () {
     final editor = ShowRunnerGraphEditor();
