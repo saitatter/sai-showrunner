@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -12,26 +11,14 @@ import '../design_system/tokens/tokens.dart';
 import 'project_panel.dart';
 import 'system_bar.dart';
 import 'workspace_registry.dart';
+import 'workspace_host.dart';
 import '../editor/showrunner_graph_editor.dart';
-import '../features/automation/automation_catalog_workspace.dart';
-import '../features/diagnostics/diagnostics_workspace.dart';
-import '../features/dashboard/main_dashboard_workspace.dart';
-import '../features/graph/graph_workspace.dart';
-import '../features/plugins/plugin_workspace.dart';
 import '../features/plugins/plugin_visibility.dart';
-import '../features/settings/interface_preferences.dart';
-import '../features/settings/settings_workspace.dart';
-import '../features/setup/setup_workspace.dart';
-import '../features/variables/variables_workspace.dart';
 import '../features/profile/profile_workspace.dart';
-import '../features/queue/queue_workspace.dart';
-import '../features/resources/resources_workspace.dart';
-import '../features/support/support_workspaces.dart';
-import '../features/remote/remote_workspace.dart';
+import '../features/settings/interface_preferences.dart';
 import '../plugins/runtime/provider_event_workers.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../plugins/stream_plans/manifest.dart';
-import '../features/resources/resource_editor_registry.dart';
 import '../plugins/variables/runtime.dart';
 import '../runtime/action_queue.dart';
 import '../runtime/automation_queue_manager.dart';
@@ -98,6 +85,7 @@ class ShowRunnerShell extends StatelessWidget {
     this.updateService,
     this.installService,
     this.onRestartRequested,
+    this.workspaceRegistry = const WorkspaceRegistry(),
   });
 
   final ShowRunnerDataService dataService;
@@ -162,6 +150,7 @@ class ShowRunnerShell extends StatelessWidget {
   final UpdateCheckService? updateService;
   final UpdateInstallService? installService;
   final Future<bool> Function()? onRestartRequested;
+  final WorkspaceRegistry workspaceRegistry;
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +159,51 @@ class ShowRunnerShell extends StatelessWidget {
     void runCommand(String id) {
       unawaited(commands.run(id, AppCommandContext(buildContext: context)));
     }
+
+    final workspaceHost = WorkspaceHostContext(
+      dataService: dataService,
+      graphEditor: graphEditor,
+      actionQueue: actionQueue,
+      queueManager: queueManager,
+      healthFuture: healthFuture,
+      providerEvents: providerEvents,
+      pluginRegistryFuture: pluginRegistryFuture,
+      profileRuntimeFuture: profileRuntimeFuture,
+      streamPlanRuntime: streamPlanRuntime,
+      variableRuntime: variableRuntime,
+      showGraphEditor: showGraphEditor,
+      onRunNode: onRunNode,
+      onOpenAutomation: onOpenAutomation,
+      onRepairAutomation: onRepairAutomation,
+      onCreateAutomation: onCreateAutomation,
+      onDeleteAutomation: onDeleteAutomation,
+      interfacePreferences: interfacePreferences,
+      onOpenWorkspace: onDestinationSelected,
+      automationDocuments: automationDocuments,
+      onAutomationSelected: onAutomationSelected,
+      onAutomationClosed: onAutomationClosed,
+      onAutomationReordered: onAutomationReordered,
+      profileController: profileController,
+      profileDirty: profileDirty,
+      onProfileDirtyChanged: onProfileDirtyChanged,
+      onProfileEntriesChanged: onProfileEntriesChanged,
+      onRenameProfile: onRenameProfile,
+      onDeleteProfile: onDeleteProfile,
+      onCreateProfile: onCreateProfile,
+      projectCatalogRevision: projectCatalogRevision,
+      selectedResourceType: selectedResourceType,
+      selectedResourceId: selectedResourceId,
+      onResourceSelected: onResourceSelected,
+      onOpenResource: onOpenResource,
+      onRenameResource: onRenameResource,
+      onDeleteResource: onDeleteResource,
+      onCreateResource: onCreateResource,
+      selectedPluginId: selectedPluginId,
+      onPluginSelected: onPluginSelected,
+      updateService: updateService,
+      installService: installService,
+      onRestartRequested: onRestartRequested,
+    );
 
     final shell = ColoredBox(
       color: ShowRunnerColors.background,
@@ -244,7 +278,11 @@ class ShowRunnerShell extends StatelessWidget {
                             for (final tab in tabs)
                               KeyedSubtree(
                                 key: ValueKey(tab),
-                                child: _buildWorkspace(context, tab),
+                                child: workspaceRegistry.build(
+                                  context,
+                                  tab,
+                                  workspaceHost,
+                                ),
                               ),
                           ],
                         ),
@@ -269,110 +307,6 @@ class ShowRunnerShell extends StatelessWidget {
         child: Scaffold(resizeToAvoidBottomInset: false, body: shell),
       ),
     );
-  }
-
-  Widget _buildWorkspace(BuildContext context, WorkspaceId workspace) {
-    return switch (workspace) {
-      WorkspaceIds.graph =>
-        showGraphEditor
-            ? GraphWorkspace(
-                editor: graphEditor,
-                healthFuture: healthFuture,
-                dataService: dataService,
-                registryFuture: pluginRegistryFuture,
-                onRunNode: onRunNode,
-                automationDocuments: automationDocuments,
-                onAutomationSelected: onAutomationSelected,
-                onAutomationClosed: onAutomationClosed,
-                onAutomationReordered: onAutomationReordered,
-              )
-            : const LogsWorkspace(),
-      WorkspaceIds.plugins => PluginWorkspace(
-        dataService: dataService,
-        registryFuture: pluginRegistryFuture,
-        providerEvents: providerEvents,
-        selectedPluginId: selectedPluginId,
-      ),
-      WorkspaceIds.diagnostics => DiagnosticsWorkspace(
-        healthFuture: healthFuture,
-        queue: actionQueue,
-        providerEvents: providerEvents,
-        registryFuture: pluginRegistryFuture,
-      ),
-      WorkspaceIds.automations => AutomationCatalogWorkspace(
-        dataService: dataService,
-        onOpen: onOpenAutomation,
-        onRepair: onRepairAutomation,
-        onCreate: onCreateAutomation,
-        onDelete: onDeleteAutomation,
-      ),
-      WorkspaceIds.profiles => ProfileWorkspace(
-        dataService: dataService,
-        providerEvents: providerEvents,
-        registryFuture: pluginRegistryFuture,
-        runtimeFuture: profileRuntimeFuture,
-        controller: profileController,
-        onDirtyChanged: onProfileDirtyChanged,
-        onEntriesChanged: onProfileEntriesChanged,
-        onCreate: onCreateProfile,
-      ),
-      WorkspaceIds.queues => QueueWorkspace(
-        dataService: dataService,
-        queue: actionQueue,
-        queueManager: queueManager,
-      ),
-      WorkspaceIds.resources => ResourcesWorkspace(
-        dataService: dataService,
-        editorRegistry: createDefaultResourceEditorRegistry(),
-        registryFuture: pluginRegistryFuture,
-        streamPlanRuntime: streamPlanRuntime,
-        variableRuntime: variableRuntime,
-        resourceType: selectedResourceType,
-        resourceId: selectedResourceId,
-        revision: projectCatalogRevision,
-        onCreate: onCreateResource,
-      ),
-      WorkspaceIds.logs => const LogsWorkspace(),
-      WorkspaceIds.about => const AboutWorkspace(),
-      WorkspaceIds.updates => UpdateWorkspace(
-        updateService: updateService,
-        installService: installService,
-        onRestartRequested: onRestartRequested,
-        downloadDirectory: Directory(
-          '${dataService.userDirectory.path}/updates',
-        ),
-      ),
-      WorkspaceIds.settings => SettingsWorkspace(
-        preferences: interfacePreferences,
-        registryFuture: pluginRegistryFuture,
-        dataService: dataService,
-      ),
-      WorkspaceIds.setup => SetupWorkspace(
-        dataService: dataService,
-        onOpenPlugin: (pluginId) {
-          onPluginSelected?.call(pluginId);
-          onDestinationSelected(WorkspaceIds.plugins);
-        },
-      ),
-      WorkspaceIds.variables => VariablesWorkspace(
-        dataService: dataService,
-        eventHub: providerEvents.eventHub,
-        variableRuntime: variableRuntime,
-      ),
-      WorkspaceIds.remote => RemoteWorkspace(
-        dataService: dataService,
-        registryFuture: pluginRegistryFuture,
-      ),
-      WorkspaceIds.home => MainDashboardWorkspace(
-        dataService: dataService,
-        actionQueue: actionQueue,
-        providerEvents: providerEvents,
-        registryFuture: pluginRegistryFuture,
-        streamPlanRuntime: streamPlanRuntime,
-        onOpenWorkspace: onDestinationSelected,
-      ),
-      _ => const LogsWorkspace(),
-    };
   }
 
   Future<void> _setPluginEnabled(
