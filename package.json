@@ -8,6 +8,7 @@
     "overlay:generate": "node ./tools/overlay_registry/generate.mjs",
     "overlay:build": "yarn overlay:generate && yarn workspace showrunner-obs-overlay build:test",
     "overlay:typecheck": "yarn workspace showrunner-overlay-core typecheck && yarn workspace showrunner-overlay-widget-loader typecheck && yarn workspace showrunner-plugin-overlays-overlays typecheck && yarn workspace showrunner-plugin-random-overlays typecheck && yarn workspace showrunner-plugin-twitch-overlays typecheck && yarn workspace showrunner-obs-overlay typecheck",
+    "overlay:forbid-vue": "node ./tools/overlay_registry/verify-no-vue.mjs",
     "overlay:test": "vitest run",
     "parity:check": "node ./tools/parity/check.mjs",
     "parity:product": "node ./tools/parity/product/check.mjs",

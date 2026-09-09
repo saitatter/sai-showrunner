@@ -104,6 +104,9 @@ jobs:
       - name: Typecheck overlay packages
         run: yarn overlay:typecheck
 
+      - name: Verify overlay runtime has no Vue compatibility layer
+        run: yarn overlay:forbid-vue
+
       - name: Verify generated overlay registry
         run: |
           yarn overlay:generate
