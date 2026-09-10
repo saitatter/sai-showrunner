@@ -5,7 +5,7 @@ part of '../showrunner_graph_editor.dart';
 /// Generic node/link invariants are provided by the shared editor package;
 /// this layer also validates persisted ShowRunner metadata and retained
 /// invalid user data.
-extension ShowRunnerGraphEditorValidation on ShowRunnerGraphEditor {
+extension ShowRunnerGraphDiagnostics on ShowRunnerGraphEditor {
   List<String> currentGraphIssues() {
     final saved = toAutomation(const AutomationData());
     final subgraphId = activeSubgraphId;

@@ -6,8 +6,8 @@ import 'package:sai_nodes/sai_nodes.dart';
 /// The service deliberately knows only about editor node IDs and callbacks for
 /// ShowRunner's display text and metadata. It does not know about persisted
 /// graph IDs, plugin contracts, or widgets.
-final class GraphSearchService {
-  GraphSearchService({
+final class GraphSearchController {
+  GraphSearchController({
     required this.controllerProvider,
     required this.titleForNode,
     required this.dataForNode,

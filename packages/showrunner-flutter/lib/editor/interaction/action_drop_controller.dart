@@ -4,7 +4,7 @@ part of '../showrunner_graph_editor.dart';
 ///
 /// Coordinate conversion is intentionally shared by insertion and hit-tests.
 /// Generic canvas gestures and viewport transforms remain in sai_nodes.
-extension ShowRunnerGraphEditorInteraction on ShowRunnerGraphEditor {
+extension ShowRunnerActionDropController on ShowRunnerGraphEditor {
   String? addNodeTypeAtScreenPosition(
     String nodeType,
     Offset screenPosition, {
@@ -101,12 +101,10 @@ extension ShowRunnerGraphEditorInteraction on ShowRunnerGraphEditor {
   }) {
     final anchor = controller.nodes[anchorEditorId];
     if (anchor == null) return null;
-    final conversion = ShowRunnerGraphEditor._isCoreConversionNodeType(
-      nodeType,
-    );
+    final conversion = _isCoreConversionNodeType(nodeType);
     final sourcePort = conversion
         ? null
-        : fromPort ?? ShowRunnerGraphEditor._firstFlowOutputPort(anchor);
+        : fromPort ?? _firstFlowOutputPort(anchor);
     final downstream = sourcePort == null
         ? null
         : controller.linksAsList
@@ -123,12 +121,8 @@ extension ShowRunnerGraphEditorInteraction on ShowRunnerGraphEditor {
     if (insertedId == null) return null;
     if (conversion) return insertedId;
 
-    final inputPort = ShowRunnerGraphEditor._firstControlInputPort(
-      controller.nodes[insertedId],
-    );
-    final outputPort = ShowRunnerGraphEditor._preferredFlowOutputPort(
-      controller.nodes[insertedId],
-    );
+    final inputPort = _firstControlInputPort(controller.nodes[insertedId]);
+    final outputPort = _preferredFlowOutputPort(controller.nodes[insertedId]);
     if (sourcePort == null || inputPort == null || outputPort == null) {
       return insertedId;
     }
@@ -156,8 +150,7 @@ extension ShowRunnerGraphEditorInteraction on ShowRunnerGraphEditor {
     }
     final anchor = controller.nodes[anchorEditorId];
     if (anchor == null) return null;
-    final sourcePort =
-        fromPort ?? ShowRunnerGraphEditor._firstFlowOutputPort(anchor);
+    final sourcePort = fromPort ?? _firstFlowOutputPort(anchor);
     if (sourcePort == null) return null;
     final source = anchor.ports[sourcePort];
     if (source?.prototype.type != PortType.control ||
@@ -176,9 +169,7 @@ extension ShowRunnerGraphEditorInteraction on ShowRunnerGraphEditor {
       offset: offset ?? anchor.offset + const Offset(280, 0),
     );
     if (insertedId == null) return null;
-    final inputPort = ShowRunnerGraphEditor._firstControlInputPort(
-      controller.nodes[insertedId],
-    );
+    final inputPort = _firstControlInputPort(controller.nodes[insertedId]);
     if (inputPort == null) return insertedId;
     if (downstream != null) controller.removeLinkById(downstream.id);
     controller.addLink(anchorEditorId, sourcePort, insertedId, inputPort);
@@ -200,7 +191,7 @@ extension ShowRunnerGraphEditorInteraction on ShowRunnerGraphEditor {
             PortType.control) {
       return null;
     }
-    if (ShowRunnerGraphEditor._isCoreConversionNodeType(nodeType)) {
+    if (_isCoreConversionNodeType(nodeType)) {
       return addNodeType(
         nodeType,
         offset: offset ?? source.offset + const Offset(280, 0),
@@ -209,8 +200,8 @@ extension ShowRunnerGraphEditorInteraction on ShowRunnerGraphEditor {
 
     final insertedOffset = offset ?? source.offset + const Offset(280, 0);
     final detached = _createDetachedNodeType(nodeType, offset: insertedOffset);
-    final inputPort = ShowRunnerGraphEditor._firstControlInputPort(detached);
-    final outputPort = ShowRunnerGraphEditor._preferredFlowOutputPort(detached);
+    final inputPort = _firstControlInputPort(detached);
+    final outputPort = _preferredFlowOutputPort(detached);
     if (inputPort == null || outputPort == null) {
       controller.addNodeFromExisting(detached);
       _markDocumentDirty();

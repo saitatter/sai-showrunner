@@ -5,7 +5,7 @@ part of '../showrunner_graph_editor.dart';
 /// Runtime execution is owned by the application runtime. This adapter only
 /// projects runtime callbacks onto graph nodes and provides the non-executing
 /// preview playhead used by the editor.
-extension ShowRunnerGraphEditorExecutionState on ShowRunnerGraphEditor {
+extension ShowRunnerGraphExecutionVisuals on ShowRunnerGraphEditor {
   void markSchemaNodeRunning(String schemaId) {
     final editorId = editorNodeIdForSchema(schemaId);
     setActiveSchemaNodeIds([schemaId]);

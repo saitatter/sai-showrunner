@@ -76,9 +76,7 @@ extension ShowRunnerGraphEditorNodePresentation on ShowRunnerGraphEditor {
       final plugin = data!['plugin'].toString();
       final action = data['action'].toString();
       if (_registry.findAction(plugin, action) == null) return 'Missing';
-      if (ShowRunnerGraphEditor._isCoreConversionNodeType(
-        node.prototype.idName,
-      )) {
+      if (_isCoreConversionNodeType(node.prototype.idName)) {
         return 'Convert';
       }
       if (plugin.toLowerCase() == 'showrunner' &&
@@ -132,9 +130,7 @@ extension ShowRunnerGraphEditorNodePresentation on ShowRunnerGraphEditor {
           null) {
         return Icons.error_outline;
       }
-      if (ShowRunnerGraphEditor._isCoreConversionNodeType(
-        node.prototype.idName,
-      )) {
+      if (_isCoreConversionNodeType(node.prototype.idName)) {
         return Icons.swap_horizontal_circle_outlined;
       }
     }
@@ -164,9 +160,7 @@ extension ShowRunnerGraphEditorNodePresentation on ShowRunnerGraphEditor {
       if (_registry.findAction(plugin, action) == null) {
         return const Color(0xffef5350);
       }
-      if (ShowRunnerGraphEditor._isCoreConversionNodeType(
-        node.prototype.idName,
-      )) {
+      if (_isCoreConversionNodeType(node.prototype.idName)) {
         return const Color(0xff4dd0e1);
       }
       if (plugin == 'showrunner' &&

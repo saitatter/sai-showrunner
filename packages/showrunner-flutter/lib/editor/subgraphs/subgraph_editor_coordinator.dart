@@ -5,7 +5,7 @@ part of '../showrunner_graph_editor.dart';
 /// Subgraphs are product resources, so their persistence, navigation, and
 /// call-node metadata stay in the ShowRunner adapter. Generic node and port
 /// behavior remains owned by sai_nodes.
-extension ShowRunnerGraphEditorSubgraphs on ShowRunnerGraphEditor {
+extension ShowRunnerSubgraphEditorCoordinator on ShowRunnerGraphEditor {
   String addSubgraph({String? name}) {
     final existingIds = subgraphs.value.map((subgraph) => subgraph.id).toSet();
     var index = subgraphs.value.length + 1;
@@ -89,13 +89,10 @@ extension ShowRunnerGraphEditorSubgraphs on ShowRunnerGraphEditor {
           ? type
           : 'any';
       if (!output) {
-        item['default'] = ShowRunnerGraphEditor._coerceSubgraphDefault(
-          item['type'],
-          item['default'],
-        );
+        item['default'] = _coerceSubgraphDefault(item['type'], item['default']);
       }
     } else if (field == 'default' && !output) {
-      item['default'] = ShowRunnerGraphEditor._coerceSubgraphDefault(
+      item['default'] = _coerceSubgraphDefault(
         item['type']?.toString() ?? 'any',
         value,
       );
@@ -129,9 +126,7 @@ extension ShowRunnerGraphEditorSubgraphs on ShowRunnerGraphEditor {
     String subgraphId,
     SubgraphDefinition subgraph,
   ) {
-    final prototypeId = ShowRunnerGraphEditor._subgraphCallPrototypeId(
-      subgraphId,
-    );
+    final prototypeId = _subgraphCallPrototypeId(subgraphId);
     for (final target in _controllers.values) {
       _ensureSubgraphCallPrototype(subgraph, target: target);
       for (final node in target.nodes.values.where(
@@ -243,7 +238,7 @@ extension ShowRunnerGraphEditorSubgraphs on ShowRunnerGraphEditor {
         : subgraph.name;
     _ensureSubgraphCallPrototype(subgraph);
     final node = controller.addNode(
-      ShowRunnerGraphEditor._subgraphCallPrototypeId(subgraphId),
+      _subgraphCallPrototypeId(subgraphId),
       offset: offset,
     );
     _nodeDataByEditorId[node.id] = {
@@ -276,4 +271,52 @@ extension ShowRunnerGraphEditorSubgraphs on ShowRunnerGraphEditor {
     subgraphs.value = updated;
     _markDocumentDirty();
   }
+}
+
+/// Call-node prototype registration for ShowRunner subgraphs.
+extension ShowRunnerSubgraphNodeAdapter on ShowRunnerGraphEditor {
+  String _subgraphCallPrototypeId(String subgraphId) =>
+      'subgraphCall:$subgraphId';
+
+  void _ensureSubgraphCallPrototype(
+    SubgraphDefinition subgraph, {
+    NodeEditorController? target,
+  }) {
+    final editor = target ?? controller;
+    final prototypeId = _subgraphCallPrototypeId(subgraph.id);
+    if (editor.nodePrototypes.containsKey(prototypeId)) {
+      editor.unregisterNodePrototype(prototypeId);
+    }
+    _prototypeTitles[prototypeId] = subgraph.name;
+    editor.registerNodePrototype(
+      NodePrototype(
+        idName: prototypeId,
+        displayName: (_) => subgraph.name,
+        description: (_) => 'ShowRunner subgraph call: ${subgraph.name}',
+        styleBuilder: (state) => graphNodeStyle(state, const Color(0xff4dd0e1)),
+        ports: [
+          ControlInputPortPrototype(
+            idName: 'exec',
+            displayName: (_) => 'Execute',
+            styleBuilder: _flowPortStyleBuilder,
+          ),
+          for (final parameter in subgraph.parameters)
+            _subgraphPort(parameter, input: true),
+          ControlOutputPortPrototype(
+            idName: 'completed',
+            displayName: (_) => 'Completed',
+            styleBuilder: _flowPortStyleBuilder,
+          ),
+          for (final output in subgraph.outputs)
+            _subgraphPort(output, input: false),
+        ],
+        onExecute: (ports, fields, state, forward, put) async {
+          await forward({'completed'});
+        },
+      ),
+    );
+  }
+
+  // Variable nodes expose a typed value output and an optional typed input for
+  // updates; their values are persisted separately from executable actions.
 }

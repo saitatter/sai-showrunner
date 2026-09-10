@@ -5,7 +5,7 @@ part of '../showrunner_graph_editor.dart';
 /// Geometry, membership, movement, resize history, and frame events are owned
 /// by sai_nodes. This layer maps persisted ShowRunner node IDs and keeps
 /// ShowRunner-only frame colors and selection state.
-extension ShowRunnerGraphEditorFrames on ShowRunnerGraphEditor {
+extension ShowRunnerFramePersistenceAdapter on ShowRunnerGraphEditor {
   String frameColor(String frameId) => _frameColors[frameId] ?? '#64b5f6';
 
   void frameSelection({String title = 'Frame'}) {
@@ -263,5 +263,50 @@ extension ShowRunnerGraphEditorFrames on ShowRunnerGraphEditor {
       _syncFrameProjection(controller);
     }
     selectedFrameId.value = null;
+  }
+}
+
+/// Persistence-only frame projection. Frame geometry and membership remain in
+/// sai_nodes; this extension only converts them to and from ShowRunner JSON.
+extension ShowRunnerFrameSerializer on ShowRunnerGraphEditor {
+  JsonMap _serializeFrame(NodeFrame frame) {
+    final schemaMembers = frame.members
+        .map((id) => _schemaIdByEditorId[id])
+        .whereType<String>()
+        .toList();
+    return {
+      'id': frame.id,
+      'title': frame.title,
+      'label': frame.title,
+      'color': _frameColors[frame.id] ?? '#64b5f6',
+      'nodeIds': schemaMembers,
+      'left': frame.bounds.left,
+      'top': frame.bounds.top,
+      'right': frame.bounds.right,
+      'bottom': frame.bounds.bottom,
+      'x': frame.bounds.left,
+      'y': frame.bounds.top,
+      'width': frame.bounds.width,
+      'height': frame.bounds.height,
+    };
+  }
+
+  List<NodeFrame> _framesFromExtra(JsonMap extra) {
+    final rawFrames = extra['editorFrames'];
+    _frameColors.clear();
+    if (rawFrames is! List) return const [];
+    final restored = <NodeFrame>[];
+    for (var index = 0; index < rawFrames.length; index++) {
+      final raw = rawFrames[index];
+      if (raw is! Map) continue;
+      final value = Map<String, dynamic>.from(raw);
+      var frame = NodeFrame.fromJson(value);
+      if (frame.id.isEmpty) {
+        frame = frame.copyWith(id: 'frame-$index');
+      }
+      _frameColors[frame.id] = value['color']?.toString() ?? '#64b5f6';
+      restored.add(frame);
+    }
+    return restored;
   }
 }
