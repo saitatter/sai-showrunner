@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'uuids.dart';
+
 enum BleAdapterState { unknown, unavailable, poweredOff, poweredOn }
 
 final class BleScanResult {
@@ -16,8 +18,8 @@ final class BleScanResult {
   final int? rssi;
 
   bool get hasHeartRateService => serviceUuids
-      .map((uuid) => uuid.toLowerCase().replaceAll('-', ''))
-      .contains('180d');
+      .map(HeartRateUuids.normalize)
+      .contains(HeartRateUuids.heartRateService);
 }
 
 final class BleServiceInfo {

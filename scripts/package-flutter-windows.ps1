@@ -19,6 +19,7 @@ try {
     'flutter_windows.dll',
     'libmpv-2.dll',
     'media_kit_libs_windows_audio_plugin.dll',
+    'universal_ble_plugin.dll',
     'data\flutter_assets'
   )
   $missingBundlePaths = @(

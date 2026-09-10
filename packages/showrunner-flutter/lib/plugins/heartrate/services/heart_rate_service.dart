@@ -55,6 +55,7 @@ final class HeartRateService extends ChangeNotifier {
   bool _simulation = false;
   int _malformedPacketCount = 0;
   int _packetCount = 0;
+  BleAdapterState _adapterState = BleAdapterState.unknown;
 
   HeartRateConnectionStatus get status => _status;
   BleScanResult? get device => _device;
@@ -69,6 +70,7 @@ final class HeartRateService extends ChangeNotifier {
   int get packetCount => _packetCount;
   int get malformedPacketCount => _malformedPacketCount;
   List<double> get rrIntervalsMs => _rrIntervalsMs;
+  BleAdapterState get adapterState => _adapterState;
 
   Future<void> initialize() async {
     final settings =
@@ -90,8 +92,16 @@ final class HeartRateService extends ChangeNotifier {
   Future<void> start() async {
     if (_started) return;
     _started = true;
-    final adapter = await transport.getAdapterState();
-    if (adapter != BleAdapterState.poweredOn) {
+    try {
+      _adapterState = await transport.getAdapterState();
+    } on Object {
+      _adapterState = BleAdapterState.unavailable;
+      _setStatus(HeartRateConnectionStatus.unavailable);
+      _lastError = 'Bluetooth adapter could not be accessed.';
+      _publishAllStates();
+      return;
+    }
+    if (_adapterState != BleAdapterState.poweredOn) {
       _setStatus(HeartRateConnectionStatus.unavailable);
       _lastError = 'Bluetooth adapter is not available.';
       _publishAllStates();
@@ -261,7 +271,7 @@ final class HeartRateService extends ChangeNotifier {
 
   Map<String, dynamic> get diagnostics => {
     'backend': transport.runtimeType.toString(),
-    'adapter': 'poweredOn',
+    'adapter': _adapterState.name,
     'status': _status.name,
     if (_device != null) 'deviceId': _device!.id,
     if (_device != null) 'deviceName': _device!.name,

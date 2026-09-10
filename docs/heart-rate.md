@@ -5,20 +5,31 @@ Bluetooth SIG Heart Rate Service devices such as the COOSPO H808S.
 
 ## Current milestone
 
-Phases 0-3 are implemented:
+Phases 0-4 are implemented:
 
 - typed Bluetooth transport boundary;
 - deterministic HRS measurement parser, including 16-bit BPM, sensor contact,
   energy expended, and RR intervals;
 - configurable heart-rate zones and incremental statistics;
-- fake H808S transport for tests and local UI/overlay development;
+- fake H808S transport for tests and local simulation;
+- Windows BLE transport using the packaged `universal_ble` WinRT backend;
 - Heart Rate integration page in Flutter;
 - Heart Rate state exposed through the existing plugin registry;
 - Heart Rate Browser Source widget using the existing ShowRunner overlay bridge.
 
-The native Bluetooth backend is intentionally not included yet. The next step
-is a Windows packaging spike for a production BLE transport. H808S hardware
-support has not been physically verified by this milestone.
+The configured desktop application uses the native Bluetooth transport. The
+default test registry keeps the deterministic fake transport so tests do not
+depend on a Bluetooth adapter. H808S hardware support still needs physical
+verification on the packaged Windows build.
+
+The native transport is deliberately behind the same typed boundary as the
+fake transport: scanning, GATT discovery, heart-rate notifications, battery
+reads, disconnect handling, and adapter-state diagnostics all flow through
+`BleTransport`.
+
+The Windows release archive has been verified to include the native BLE DLL,
+the Flutter executable, and the OBS overlay bundle. Physical H808S pairing and
+streaming still require a Bluetooth-enabled Windows machine with the sensor.
 
 ## Product boundary
 

@@ -69,7 +69,9 @@ class _HeartRateWorkspaceState extends State<HeartRateWorkspace> {
             Text(
               service.status == HeartRateConnectionStatus.unavailable
                   ? 'Bluetooth adapter is unavailable.'
-                  : 'Simulation backend ready. Native Bluetooth will be added in the packaging spike.',
+                  : service.simulation
+                  ? 'Simulation backend ready.'
+                  : 'Native Bluetooth backend ready.',
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -143,34 +145,36 @@ class _HeartRateWorkspaceState extends State<HeartRateWorkspace> {
           ],
         ),
       ),
-      const SizedBox(height: 12),
-      _sectionCard(
-        context,
-        title: 'Simulation',
-        icon: Icons.science_outlined,
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            FilledButton.icon(
-              onPressed: service.simulation
-                  ? null
-                  : () => unawaited(_startSimulation()),
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Start H808S simulation'),
-            ),
-            OutlinedButton.icon(
-              onPressed: service.simulation
-                  ? () => unawaited(service.stopSimulation())
-                  : null,
-              icon: const Icon(Icons.stop),
-              label: const Text('Stop simulation'),
-            ),
-            if (service.simulation) const Chip(label: Text('SIMULATED')),
-          ],
+      if (service.transport is FakeBleTransportLike) ...[
+        const SizedBox(height: 12),
+        _sectionCard(
+          context,
+          title: 'Simulation',
+          icon: Icons.science_outlined,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilledButton.icon(
+                onPressed: service.simulation
+                    ? null
+                    : () => unawaited(_startSimulation()),
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Start H808S simulation'),
+              ),
+              OutlinedButton.icon(
+                onPressed: service.simulation
+                    ? () => unawaited(service.stopSimulation())
+                    : null,
+                icon: const Icon(Icons.stop),
+                label: const Text('Stop simulation'),
+              ),
+              if (service.simulation) const Chip(label: Text('SIMULATED')),
+            ],
+          ),
         ),
-      ),
+      ],
       const SizedBox(height: 12),
       _sectionCard(
         context,

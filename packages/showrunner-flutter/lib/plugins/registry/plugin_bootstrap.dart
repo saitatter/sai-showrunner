@@ -77,6 +77,8 @@ import '../stream_plans/ui/plugin_ui.dart';
 import '../showrunner/manifest.dart';
 import '../heartrate/manifest.dart';
 import '../heartrate/ui/plugin_ui.dart';
+import '../heartrate/ble/fake_transport.dart';
+import '../heartrate/ble/universal_ble_transport.dart';
 import '../heartrate/services/heart_rate_service.dart';
 import '../sound/tts_runtime.dart';
 import '../../persistence/viewer_data_repository.dart';
@@ -92,6 +94,9 @@ HeartRateService _registerHeartRatePlugin(
   ShowRunnerDataService? dataService,
 }) {
   final service = createHeartRateService(
+    transport: dataService == null
+        ? FakeBleTransport()
+        : UniversalBleTransport(),
     loadSettings: dataService == null
         ? null
         : () => dataService.loadPluginSettings('heartrate'),

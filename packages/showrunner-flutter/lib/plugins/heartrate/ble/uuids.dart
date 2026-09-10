@@ -8,12 +8,11 @@ abstract final class HeartRateUuids {
   static const batteryLevel = '2a19';
   static const deviceInformationService = '180a';
 
-  static String normalize(String uuid) => uuid
-      .trim()
-      .toLowerCase()
-      .replaceAll('-', '')
-      .replaceFirst(
-        RegExp(r'^0000([0-9a-f]{4})00001000800000805f9b34fb$'),
-        r'\1',
-      );
+  static String normalize(String uuid) {
+    final compact = uuid.trim().toLowerCase().replaceAll('-', '');
+    final standardUuid = RegExp(
+      r'^0000([0-9a-f]{4})00001000800000805f9b34fb$',
+    ).firstMatch(compact);
+    return standardUuid?.group(1) ?? compact;
+  }
 }

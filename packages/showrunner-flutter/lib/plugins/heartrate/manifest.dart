@@ -50,7 +50,15 @@ final class HeartRatePluginModule implements DartPluginModule {
 
   @override
   Future<DartPluginHealth> checkHealth() async {
-    final adapter = await service.transport.getAdapterState();
+    late final BleAdapterState adapter;
+    try {
+      adapter = await service.transport.getAdapterState();
+    } on Object {
+      return const DartPluginHealth(
+        status: DartPluginHealthStatus.unavailable,
+        message: 'Bluetooth adapter could not be accessed.',
+      );
+    }
     return adapter == BleAdapterState.poweredOn
         ? const DartPluginHealth.ready()
         : const DartPluginHealth(
