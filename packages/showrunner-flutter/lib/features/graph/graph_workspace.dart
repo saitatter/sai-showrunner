@@ -535,7 +535,7 @@ class _GraphNodePalette extends StatelessWidget {
             icon: const Icon(Icons.account_tree_outlined),
           ),
         ),
-        ValueListenableBuilder<List<GraphFrame>>(
+        ValueListenableBuilder<List<NodeFrame>>(
           valueListenable: editor.frames,
           builder: (context, frames, child) => IconButton(
             tooltip: 'Manage frames',
@@ -1571,7 +1571,7 @@ class _FrameManager extends StatelessWidget {
     title: const Text('Graph frames'),
     content: SizedBox(
       width: 420,
-      child: ValueListenableBuilder<List<GraphFrame>>(
+      child: ValueListenableBuilder<List<NodeFrame>>(
         valueListenable: editor.frames,
         builder: (context, frames, child) => ListView(
           shrinkWrap: true,
@@ -1620,7 +1620,7 @@ class _FrameManager extends StatelessWidget {
 Future<void> _renameFrame(
   BuildContext context,
   ShowRunnerGraphEditor editor,
-  GraphFrame frame,
+  NodeFrame frame,
 ) async {
   final controller = TextEditingController(text: frame.title);
   final title = await showDialog<String>(
@@ -2865,6 +2865,10 @@ class _GraphFramesOverlay extends StatelessWidget {
                   child: CustomPaint(
                     painter: _GraphFramesPainter(
                       frames: editor.frames.value,
+                      frameColors: {
+                        for (final frame in editor.frames.value)
+                          frame.id: editor.frameColor(frame.id),
+                      },
                       selectedFrameId: editor.selectedFrameId.value,
                       viewportOffset: editor.controller.viewportOffset,
                       viewportZoom: editor.controller.viewportZoom,
@@ -2905,7 +2909,7 @@ class _FrameInteractionLayer extends StatelessWidget {
   });
 
   final ShowRunnerGraphEditor editor;
-  final GraphFrame frame;
+  final NodeFrame frame;
   final Rect screenBounds;
 
   @override
@@ -2972,12 +2976,14 @@ class _FrameInteractionLayer extends StatelessWidget {
 class _GraphFramesPainter extends CustomPainter {
   const _GraphFramesPainter({
     required this.frames,
+    required this.frameColors,
     required this.selectedFrameId,
     required this.viewportOffset,
     required this.viewportZoom,
   });
 
-  final List<GraphFrame> frames;
+  final List<NodeFrame> frames;
+  final Map<String, String> frameColors;
   final String? selectedFrameId;
   final Offset viewportOffset;
   final double viewportZoom;
@@ -2995,7 +3001,7 @@ class _GraphFramesPainter extends CustomPainter {
         viewportZoom,
       );
       final selected = frame.id == selectedFrameId;
-      final color = _parseFrameColor(frame.color);
+      final color = _parseFrameColor(frameColors[frame.id] ?? '#64b5f6');
       canvas.drawRRect(
         RRect.fromRectAndRadius(bounds, const Radius.circular(8)),
         Paint()..color = color.withValues(alpha: selected ? 0.08 : 0.035),
@@ -3028,13 +3034,14 @@ class _GraphFramesPainter extends CustomPainter {
   @override
   bool shouldRepaint(_GraphFramesPainter oldDelegate) =>
       oldDelegate.frames != frames ||
+      oldDelegate.frameColors != frameColors ||
       oldDelegate.selectedFrameId != selectedFrameId ||
       oldDelegate.viewportOffset != viewportOffset ||
       oldDelegate.viewportZoom != viewportZoom;
 }
 
 Rect _frameScreenBounds(
-  GraphFrame frame,
+  NodeFrame frame,
   Size size,
   Offset viewportOffset,
   double viewportZoom,
@@ -4862,7 +4869,7 @@ class _FrameDetailsPanel extends StatefulWidget {
   const _FrameDetailsPanel({required this.editor, required this.frame});
 
   final ShowRunnerGraphEditor editor;
-  final GraphFrame frame;
+  final NodeFrame frame;
 
   @override
   State<_FrameDetailsPanel> createState() => _FrameDetailsPanelState();
@@ -4876,7 +4883,9 @@ class _FrameDetailsPanelState extends State<_FrameDetailsPanel> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.frame.title);
-    _colorController = TextEditingController(text: widget.frame.color);
+    _colorController = TextEditingController(
+      text: widget.editor.frameColor(widget.frame.id),
+    );
   }
 
   @override
@@ -4884,7 +4893,7 @@ class _FrameDetailsPanelState extends State<_FrameDetailsPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.frame.id != widget.frame.id) {
       _titleController.text = widget.frame.title;
-      _colorController.text = widget.frame.color;
+      _colorController.text = widget.editor.frameColor(widget.frame.id);
     }
   }
 
@@ -4897,14 +4906,14 @@ class _FrameDetailsPanelState extends State<_FrameDetailsPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final memberCount = widget.frame.nodeIds
-        .where((id) => widget.editor.editorNodeIdForSchema(id) != null)
-        .length;
+    final memberCount = widget.frame.members.length;
     final selectionCount = widget.editor.controller.selectedNodeIds.length;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xff182126).withValues(alpha: 0.96),
-        border: Border.all(color: _parseFrameColor(widget.frame.color)),
+        border: Border.all(
+          color: _parseFrameColor(widget.editor.frameColor(widget.frame.id)),
+        ),
         borderRadius: BorderRadius.circular(6),
       ),
       child: ConstrainedBox(
@@ -4963,7 +4972,9 @@ class _FrameDetailsPanelState extends State<_FrameDetailsPanel> {
                     padding: const EdgeInsets.all(10),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: _parseFrameColor(widget.frame.color),
+                        color: _parseFrameColor(
+                          widget.editor.frameColor(widget.frame.id),
+                        ),
                         shape: BoxShape.circle,
                       ),
                       child: const SizedBox(width: 12, height: 12),
@@ -6261,7 +6272,7 @@ class _GraphMinimapPainter extends CustomPainter {
 
   final List<NodeDataModel> nodes;
   final List<LinkDataModel> links;
-  final List<GraphFrame> frames;
+  final List<NodeFrame> frames;
   final Map<String, GraphNodeExecutionVisual> executionStates;
   final Offset viewportOffset;
   final double viewportZoom;

@@ -1727,22 +1727,22 @@ void main() {
     editor.controller.selectNodesById({secondEditorId});
     editor.addSelectionToSelectedFrame();
     expect(
-      editor.frames.value.single.nodeIds,
-      containsAll(['first', 'second']),
+      editor.frames.value.single.members,
+      containsAll([firstEditorId, secondEditorId]),
     );
 
     editor.moveFrame(frame.id, const Offset(70, 70));
     expect(
       editor.controller.nodes[secondEditorId]!.offset,
-      const Offset(294, 84),
+      const Offset(310, 100),
     );
 
     editor.controller.clearSelection();
     editor.controller.selectNodesById({secondEditorId});
     editor.removeSelectionFromSelectedFrame();
-    expect(editor.frames.value.single.nodeIds, ['first']);
+    expect(editor.frames.value.single.members, {firstEditorId});
     editor.clearSelectedFrameNodes();
-    expect(editor.frames.value.single.nodeIds, isEmpty);
+    expect(editor.frames.value.single.members, isEmpty);
 
     final saved = editor.toAutomation(const AutomationData());
     final savedFrame = (saved.extra['editorFrames'] as List).single as Map;
@@ -1797,7 +1797,9 @@ void main() {
 
     editor.controller.removeNodeById(secondEditorId);
     expect(
-      editor.frames.value.every((frame) => !frame.nodeIds.contains('second')),
+      editor.frames.value.every(
+        (frame) => !frame.members.contains(secondEditorId),
+      ),
       isTrue,
     );
   });
@@ -1832,10 +1834,10 @@ void main() {
     expect(
       editor.frames.value
           .firstWhere((frame) => frame.id == oldFrame.id)
-          .nodeIds,
+          .members,
       isEmpty,
     );
-    expect(editor.frames.value.last.nodeIds, ['node-1']);
+    expect(editor.frames.value.last.members, {nodeId});
   });
 
   test('tracks running, completed, and failed schema node execution', () {

@@ -104,6 +104,7 @@ class ShowRunnerGraphEditor {
     nodeRevision.addListener(_markDocumentDirtyFromRevision);
     controller = _createController();
     _controllers[_mainGraphKey] = controller;
+    _syncFrameProjection(controller);
   }
 
   static const _mainGraphKey = '';
@@ -132,7 +133,14 @@ class ShowRunnerGraphEditor {
   final Set<String> _variableEditorIds = {};
   final ValueNotifier<List<String>> activeGraphPath = ValueNotifier(const []);
   final ValueNotifier<Set<String>> activeNodeIds = ValueNotifier(const {});
-  final ValueNotifier<List<GraphFrame>> frames = ValueNotifier(const []);
+
+  /// A read-only projection of the main graph's generic frames.
+  ///
+  /// Frame geometry, membership, and history belong to `sai_nodes`. This
+  /// notifier exists only so ShowRunner widgets can rebuild without knowing
+  /// about the controller's internal map.
+  final ValueNotifier<List<NodeFrame>> frames = ValueNotifier(const []);
+  final Map<String, String> _frameColors = {};
   final ValueNotifier<String?> selectedFrameId = ValueNotifier(null);
   final ValueNotifier<List<SubgraphDefinition>> subgraphs = ValueNotifier(
     const [],
@@ -170,6 +178,8 @@ class ShowRunnerGraphEditor {
   DateTime? _previewStartedAt;
 
   String? get activeSubgraphId => activeGraphPath.value.lastOrNull;
+
+  String frameColor(String frameId) => _frameColors[frameId] ?? '#64b5f6';
 
   List<GraphEdge> get invalidFlowEdges => List.unmodifiable(
     _invalidFlowEdgesByGraph[activeSubgraphId ?? _mainGraphKey] ??
@@ -246,6 +256,11 @@ class ShowRunnerGraphEditor {
     _registerPrototypes(created);
     _fieldEvents[created] = created.eventBus.events.listen((event) {
       _markDocumentDirtyFromEvent(event);
+      if (event is NodeFrameChangeEvent &&
+          identical(created, _controllers[_mainGraphKey])) {
+        if (event.nextFrame == null) _frameColors.remove(event.frameId);
+        _syncFrameProjection(created);
+      }
       if ((event is NodeSelectionEvent && event.nodeIds.isNotEmpty) ||
           (event is LinkSelectionEvent && event.linkIds.isNotEmpty)) {
         clearInvalidSelection();
@@ -304,6 +319,11 @@ class ShowRunnerGraphEditor {
       if (field != null) data[field.prototype.idName] = event.value;
     });
     return created;
+  }
+
+  void _syncFrameProjection(NodeEditorController graphController) {
+    if (!identical(graphController, _controllers[_mainGraphKey])) return;
+    frames.value = List.unmodifiable(graphController.frames.values);
   }
 
   GraphNode? _schemaNodeForEditorNode(
@@ -1199,14 +1219,18 @@ class ShowRunnerGraphEditor {
     final framePrefix = 'frame-${DateTime.now().microsecondsSinceEpoch}';
     var frameId = framePrefix;
     var frameSuffix = 1;
-    while (frames.value.any((frame) => frame.id == frameId)) {
+    while (controller.frames.containsKey(frameId)) {
       frameId = '$framePrefix-$frameSuffix';
       frameSuffix++;
     }
-    frames.value = [
-      ...frames.value,
-      GraphFrame(id: frameId, title: title, bounds: bounds, nodeIds: const []),
-    ];
+    _frameColors[frameId] = '#64b5f6';
+    controller.createFrame(
+      id: frameId,
+      title: title,
+      bounds: bounds,
+      members: selected.map((node) => node.id),
+    );
+    _syncFrameProjection(controller);
     if (selectedSchemaIds.isNotEmpty) {
       _placeSchemaNodesInFrame(frameId, selectedSchemaIds);
     }
@@ -1215,27 +1239,24 @@ class ShowRunnerGraphEditor {
   void selectFrame(String? frameId) {
     clearInvalidSelection();
     selectedFrameId.value =
-        frameId != null && frames.value.any((frame) => frame.id == frameId)
+        frameId != null && controller.frames.containsKey(frameId)
         ? frameId
         : null;
   }
 
   void renameFrame(String frameId, String title) {
-    final index = frames.value.indexWhere((frame) => frame.id == frameId);
-    if (index < 0) return;
-    final normalized = title.trim().isEmpty ? 'Frame' : title.trim();
-    final updated = [...frames.value];
-    updated[index] = updated[index].copyWith(title: normalized);
-    frames.value = updated;
+    if (controller.renameFrame(frameId, title) != null) {
+      _syncFrameProjection(controller);
+    }
   }
 
   void updateFrameColor(String frameId, String color) {
-    final index = frames.value.indexWhere((frame) => frame.id == frameId);
-    if (index < 0) return;
+    if (!controller.frames.containsKey(frameId)) return;
     final normalized = color.trim().isEmpty ? '#64b5f6' : color.trim();
-    final updated = [...frames.value];
-    updated[index] = updated[index].copyWith(color: normalized);
-    frames.value = updated;
+    if (_frameColors[frameId] == normalized) return;
+    _frameColors[frameId] = normalized;
+    _syncFrameProjection(controller);
+    _markDocumentDirty();
   }
 
   void addSelectionToSelectedFrame() {
@@ -1248,13 +1269,13 @@ class ShowRunnerGraphEditor {
   }
 
   void addNodesToFrame(String frameId, Iterable<String> nodeIds) {
-    final index = frames.value.indexWhere((frame) => frame.id == frameId);
-    if (index < 0) return;
-    final existingNodeIds = frames.value[index].nodeIds.toSet();
-    existingNodeIds.addAll(nodeIds);
-    final updated = [...frames.value];
-    updated[index] = updated[index].copyWith(nodeIds: existingNodeIds.toList());
-    frames.value = updated;
+    final editorIds = nodeIds
+        .map(editorNodeIdForSchema)
+        .whereType<String>()
+        .where(controller.nodes.containsKey);
+    if (controller.addNodesToFrame(frameId, editorIds) != null) {
+      _syncFrameProjection(controller);
+    }
   }
 
   bool placeDraggedNodesInFrame(String? frameId, Iterable<String> nodeIds) =>
@@ -1264,17 +1285,17 @@ class ShowRunnerGraphEditor {
     final memberBounds = _schemaNodeBounds(nodeIds);
     if (memberBounds == null) return null;
     final center = memberBounds.center;
-    return frames.value
+    return controller.frames.values
         .where((frame) => frame.bounds.contains(center))
         .map((frame) => frame.id)
         .firstOrNull;
   }
 
   List<String> frameIdsForNodes(Iterable<String> nodeIds) {
-    final ids = nodeIds.toSet();
+    final ids = nodeIds.map(editorNodeIdForSchema).whereType<String>().toSet();
     if (ids.isEmpty) return const [];
-    return frames.value
-        .where((frame) => frame.nodeIds.any(ids.contains))
+    return controller.frames.values
+        .where((frame) => frame.members.any(ids.contains))
         .map((frame) => frame.id)
         .toList();
   }
@@ -1286,47 +1307,27 @@ class ShowRunnerGraphEditor {
         .map((id) => _schemaIdByEditorId[id])
         .whereType<String>()
         .toSet();
-    final index = frames.value.indexWhere((frame) => frame.id == frameId);
-    if (index < 0) return;
-    final updated = [...frames.value];
-    updated[index] = updated[index].copyWith(
-      nodeIds: frames.value[index].nodeIds
-          .where((id) => !selectedSchemaIds.contains(id))
-          .toList(),
-    );
-    frames.value = updated;
+    final editorIds = selectedSchemaIds
+        .map(editorNodeIdForSchema)
+        .whereType<String>();
+    if (controller.removeNodesFromFrame(frameId, editorIds) != null) {
+      _syncFrameProjection(controller);
+    }
   }
 
   void clearSelectedFrameNodes() {
     final frameId = selectedFrameId.value;
     if (frameId == null) return;
-    final index = frames.value.indexWhere((frame) => frame.id == frameId);
-    if (index < 0) return;
-    final updated = [...frames.value];
-    updated[index] = updated[index].copyWith(nodeIds: const []);
-    frames.value = updated;
+    final members = controller.frames[frameId]?.members;
+    if (members == null || members.isEmpty) return;
+    if (controller.removeNodesFromFrame(frameId, members) != null) {
+      _syncFrameProjection(controller);
+    }
   }
 
   void moveFrame(String frameId, Offset worldDelta) {
-    final index = frames.value.indexWhere((frame) => frame.id == frameId);
-    if (index < 0) return;
-    final frame = frames.value[index];
-    final updated = [...frames.value];
-    updated[index] = frame.copyWith(bounds: frame.bounds.shift(worldDelta));
-    frames.value = updated;
-
-    final memberEditorIds = frame.nodeIds
-        .map(editorNodeIdForSchema)
-        .whereType<String>()
-        .where(controller.nodes.containsKey)
-        .toSet();
-    if (memberEditorIds.isEmpty) return;
-    final previousSelection = controller.selectedNodeIds.toSet();
-    controller.selectNodesById(memberEditorIds);
-    controller.dragSelection(worldDelta, isWorldDelta: true);
-    controller.clearSelection();
-    if (previousSelection.isNotEmpty) {
-      controller.selectNodesById(previousSelection);
+    if (controller.moveFrameWithMembers(frameId, worldDelta) != null) {
+      _syncFrameProjection(controller);
     }
   }
 
@@ -1340,29 +1341,32 @@ class ShowRunnerGraphEditor {
   }
 
   bool _placeSchemaNodesInFrame(String? frameId, Iterable<String> nodeIds) {
-    final ids = nodeIds.toSet();
-    if (ids.isEmpty) return false;
+    final editorIds = nodeIds
+        .map(editorNodeIdForSchema)
+        .whereType<String>()
+        .where(controller.nodes.containsKey)
+        .toSet();
+    if (editorIds.isEmpty) return false;
     final targetExists =
-        frameId != null && frames.value.any((frame) => frame.id == frameId);
+        frameId != null && controller.frames.containsKey(frameId);
     var changed = false;
-    final updated = [
-      for (final frame in frames.value)
-        frame.copyWith(
-          nodeIds: frame.nodeIds.where((id) {
-            final keep = !ids.contains(id) || frame.id == frameId;
-            if (!keep) changed = true;
-            return keep;
-          }).toList(),
-        ),
-    ];
-    if (targetExists) {
-      final index = updated.indexWhere((frame) => frame.id == frameId);
-      final target = updated[index];
-      final members = target.nodeIds.toSet()..addAll(ids);
-      if (members.length != target.nodeIds.length) changed = true;
-      updated[index] = target.copyWith(nodeIds: members.toList());
+    for (final frame in [...controller.frames.values]) {
+      if (frame.id == frameId) continue;
+      final remove = editorIds.where(frame.members.contains).toList();
+      if (remove.isNotEmpty) {
+        controller.removeNodesFromFrame(frame.id, remove);
+        changed = true;
+      }
     }
-    if (changed) frames.value = updated;
+    if (targetExists) {
+      final target = controller.frames[frameId]!;
+      final add = editorIds.where((id) => !target.members.contains(id));
+      if (add.isNotEmpty) {
+        controller.addNodesToFrame(frameId, add);
+        changed = true;
+      }
+    }
+    if (changed) _syncFrameProjection(controller);
     return changed;
   }
 
@@ -1384,34 +1388,33 @@ class ShowRunnerGraphEditor {
   }
 
   void resizeFrame(String frameId, Offset worldDelta) {
-    final index = frames.value.indexWhere((frame) => frame.id == frameId);
-    if (index < 0) return;
-    final frame = frames.value[index];
+    final frame = controller.frames[frameId];
+    if (frame == null) return;
     final memberBounds = _frameMemberBounds(frame);
-    final minimumWidth = math.max(
-      200,
-      (memberBounds?.right ?? frame.bounds.left) - frame.bounds.left + 40,
-    );
-    final minimumHeight = math.max(
-      120,
-      (memberBounds?.bottom ?? frame.bounds.top) - frame.bounds.top + 40,
-    );
-    final updated = [...frames.value];
-    updated[index] = frame.copyWith(
-      bounds: Rect.fromLTWH(
-        frame.bounds.left,
-        frame.bounds.top,
-        math.max(minimumWidth, frame.bounds.width + worldDelta.dx).toDouble(),
-        math.max(minimumHeight, frame.bounds.height + worldDelta.dy).toDouble(),
-      ),
-    );
-    frames.value = updated;
+    final minimumWidth = math
+        .max(
+          200.0,
+          (memberBounds?.right ?? frame.bounds.left) - frame.bounds.left + 40,
+        )
+        .toDouble();
+    final minimumHeight = math
+        .max(
+          120.0,
+          (memberBounds?.bottom ?? frame.bounds.top) - frame.bounds.top + 40,
+        )
+        .toDouble();
+    if (controller.resizeFrame(
+          frameId,
+          worldDelta,
+          minimumSize: Size(minimumWidth, minimumHeight),
+        ) !=
+        null) {
+      _syncFrameProjection(controller);
+    }
   }
 
-  Rect? _frameMemberBounds(GraphFrame frame) {
-    final members = frame.nodeIds
-        .map(editorNodeIdForSchema)
-        .whereType<String>()
+  Rect? _frameMemberBounds(NodeFrame frame) {
+    final members = frame.members
         .map((id) => controller.nodes[id])
         .whereType<NodeDataModel>()
         .map(_nodeWorldBounds);
@@ -1430,7 +1433,9 @@ class ShowRunnerGraphEditor {
   void deleteSelectedFrame() {
     final frameId = selectedFrameId.value;
     if (frameId == null) return;
-    frames.value = frames.value.where((frame) => frame.id != frameId).toList();
+    if (controller.removeFrame(frameId)) {
+      _syncFrameProjection(controller);
+    }
     selectedFrameId.value = null;
   }
 
@@ -2085,7 +2090,8 @@ class ShowRunnerGraphEditor {
     _suspendDirtyTracking = true;
     try {
       controller.clear();
-      frames.value = const [];
+      _frameColors.clear();
+      _syncFrameProjection(controller);
       selectedFrameId.value = null;
       clearInvalidSelection();
       subgraphs.value = const [];
@@ -2608,6 +2614,7 @@ class ShowRunnerGraphEditor {
     var completed = false;
     _suspendDirtyTracking = true;
     try {
+      final restoredFrames = _framesFromExtra(automation.extra);
       for (final entry in _controllers.entries.where(
         (entry) => entry.key != _mainGraphKey,
       )) {
@@ -2617,7 +2624,6 @@ class ShowRunnerGraphEditor {
       _controllers.removeWhere((key, _) => key != _mainGraphKey);
       controller = _controllers[_mainGraphKey]!;
       controller.clear();
-      frames.value = _framesFromExtra(automation.extra);
       selectedFrameId.value = null;
       clearInvalidSelection();
       subgraphs.value = automation.subgraphs;
@@ -2641,6 +2647,20 @@ class ShowRunnerGraphEditor {
         variableNodes: automation.variableNodes,
         triggerNodes: automation.triggerNodes,
       );
+      controller.restoreFrames(
+        restoredFrames.map(
+          (frame) => frame.copyWith(
+            members: frame.members
+                .map(
+                  (id) =>
+                      editorNodeIdForSchema(id) ??
+                      (controller.nodes.containsKey(id) ? id : null),
+                )
+                .whereType<String>(),
+          ),
+        ),
+      );
+      _syncFrameProjection(controller);
       completed = true;
     } finally {
       _suspendDirtyTracking = wasSuspended;
@@ -2679,7 +2699,9 @@ class ShowRunnerGraphEditor {
           : original.triggerNodes,
       extra: {
         ...original.extra,
-        'editorFrames': frames.value.map((frame) => frame.toJson()).toList(),
+        'editorFrames': _controllers[_mainGraphKey]!.frames.values
+            .map(_serializeFrame)
+            .toList(),
       },
     );
   }
@@ -3146,17 +3168,45 @@ class ShowRunnerGraphEditor {
       })
       .toList();
 
-  List<GraphFrame> _framesFromExtra(JsonMap extra) {
+  JsonMap _serializeFrame(NodeFrame frame) {
+    final schemaMembers = frame.members
+        .map((id) => _schemaIdByEditorId[id])
+        .whereType<String>()
+        .toList();
+    return {
+      'id': frame.id,
+      'title': frame.title,
+      'label': frame.title,
+      'color': frameColor(frame.id),
+      'nodeIds': schemaMembers,
+      'left': frame.bounds.left,
+      'top': frame.bounds.top,
+      'right': frame.bounds.right,
+      'bottom': frame.bounds.bottom,
+      'x': frame.bounds.left,
+      'y': frame.bounds.top,
+      'width': frame.bounds.width,
+      'height': frame.bounds.height,
+    };
+  }
+
+  List<NodeFrame> _framesFromExtra(JsonMap extra) {
     final rawFrames = extra['editorFrames'];
+    _frameColors.clear();
     if (rawFrames is! List) return const [];
-    return [
-      for (var index = 0; index < rawFrames.length; index++)
-        if (rawFrames[index] is Map)
-          GraphFrame.fromJson(
-            rawFrames[index] as Map,
-            fallbackId: 'frame-$index',
-          ),
-    ];
+    final restored = <NodeFrame>[];
+    for (var index = 0; index < rawFrames.length; index++) {
+      final raw = rawFrames[index];
+      if (raw is! Map) continue;
+      final value = Map<String, dynamic>.from(raw);
+      var frame = NodeFrame.fromJson(value);
+      if (frame.id.isEmpty) {
+        frame = frame.copyWith(id: 'frame-$index');
+      }
+      _frameColors[frame.id] = value['color']?.toString() ?? '#64b5f6';
+      restored.add(frame);
+    }
+    return restored;
   }
 
   void _ensurePrototype(
