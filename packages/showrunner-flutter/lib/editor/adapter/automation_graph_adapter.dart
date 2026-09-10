@@ -76,7 +76,9 @@ extension ShowRunnerGraphAdapter on ShowRunnerGraphEditor {
   }
 
   void _markDocumentDirtyFromEvent(NodeEditorEvent event) {
-    if (_suspendDirtyTracking || !isNodeEditorContentMutation(event)) {
+    if (_suspendDirtyTracking ||
+        _ignoreQueuedLoadMutations ||
+        !isNodeEditorContentMutation(event)) {
       return;
     }
     _markDocumentDirty();

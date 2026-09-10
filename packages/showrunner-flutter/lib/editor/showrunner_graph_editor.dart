@@ -202,6 +202,10 @@ class ShowRunnerGraphEditor {
   final Set<String> _triggerEditorIds = {};
   bool _triggerNodeStateInitialized = false;
   bool _suspendDirtyTracking = false;
+  // sai_nodes dispatches controller events through an async broadcast stream.
+  // Keep the load transaction open for the queued load events as well, so a
+  // clean document does not become dirty on the first frame after opening.
+  bool _ignoreQueuedLoadMutations = false;
   Timer? _previewTimer;
   DateTime? _previewStartedAt;
 

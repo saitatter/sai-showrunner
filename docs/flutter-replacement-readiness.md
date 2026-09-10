@@ -34,6 +34,27 @@ Flutter desktop build is used as the ShowRunner replacement candidate.
 - Windows Release smoke covers first run, automation, workflow, profile,
   integrations, overlays, and update-state handling.
 
+## Integration coverage
+
+The Flutter integration gate runs the full pre-cutover workflow suite, not only
+the original three smoke files. It covers:
+
+- graph edit → dirty → save → close → reopen;
+- Save All and Save / Discard / Cancel close decisions;
+- compiled graph execution, nested subgraphs, queue execution, and profile
+  triggers;
+- plugin disable/re-enable, provider failure handling, and Twitch reconnect;
+- resource create/read/update/delete;
+- strict schema failure handling without modifying an existing document.
+
+Legacy-shaped documents are rejected by design: the Flutter product no longer
+contains legacy/shim compatibility code. The migration test verifies that this
+failure is isolated and that canonical V2 data remains intact after a fresh
+repository reopen.
+
+The updater remains `partial` in `docs/migration/product-surface.json` until a
+signed installed Windows upgrade and rollback are demonstrated.
+
 ## Required checks
 
 ```powershell

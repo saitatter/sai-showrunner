@@ -82,7 +82,8 @@
     "updates": {
       "main": "Update page and release metadata",
       "flutter": "UpdateWorkspace",
-      "status": "partial"
+      "status": "partial",
+      "reason": "Feature implementation is complete; proof of a signed installed upgrade and rollback release is still pending."
     },
     "persistent-media-library": {
       "main": null,

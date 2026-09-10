@@ -8,6 +8,7 @@ extension ShowRunnerAutomationGraphSerializer on ShowRunnerGraphEditor {
   void loadAutomation(AutomationData automation) {
     final wasSuspended = _suspendDirtyTracking;
     var completed = false;
+    _ignoreQueuedLoadMutations = true;
     _suspendDirtyTracking = true;
     try {
       final restoredFrames = _framesFromExtra(automation.extra);
@@ -62,7 +63,15 @@ extension ShowRunnerAutomationGraphSerializer on ShowRunnerGraphEditor {
       completed = true;
     } finally {
       _suspendDirtyTracking = wasSuspended;
-      if (completed) markDocumentClean();
+      if (completed) {
+        markDocumentClean();
+        // NodeEditorEventBus uses an asynchronous broadcast stream. The
+        // queued AddNode/field events from this load are delivered after this
+        // method returns, so release the guard only after that microtask turn.
+        scheduleMicrotask(() => _ignoreQueuedLoadMutations = false);
+      } else {
+        _ignoreQueuedLoadMutations = false;
+      }
     }
   }
 
