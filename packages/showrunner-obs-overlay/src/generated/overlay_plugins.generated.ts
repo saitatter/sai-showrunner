@@ -3,11 +3,12 @@
 import { bindOverlayPlugin, type OverlayPluginFactories, type OverlayPluginManifest } from "showrunner-overlay-core"
 import manifest from "./overlay_widgets.generated.json"
 
-import plugin0 from "../../../../plugins/overlays/overlay/src/main.ts"
-import plugin1 from "../../../../plugins/random/overlay/src/main.ts"
-import plugin2 from "../../../../plugins/twitch/overlay/src/main.ts"
+import plugin0 from "../../../../plugins/heartrate/overlay/src/main.ts"
+import plugin1 from "../../../../plugins/overlays/overlay/src/main.ts"
+import plugin2 from "../../../../plugins/random/overlay/src/main.ts"
+import plugin3 from "../../../../plugins/twitch/overlay/src/main.ts"
 
-const pluginFactories: readonly OverlayPluginFactories[] = [plugin0, plugin1, plugin2]
+const pluginFactories: readonly OverlayPluginFactories[] = [plugin0, plugin1, plugin2, plugin3]
 
 export const builtInOverlayPlugins = (manifest.plugins as readonly OverlayPluginManifest[]).map((metadata) => {
 	const factories = pluginFactories.find((plugin) => plugin.pluginId === metadata.pluginId)

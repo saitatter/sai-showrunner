@@ -17,6 +17,7 @@ void main() {
           'overlays.chatFeed',
           'overlays.shaderLayer',
           'random.wheel',
+          'heartrate.heartRate',
         ]),
       );
       expect(
@@ -30,6 +31,12 @@ void main() {
             .firstWhere((widget) => widget.key == 'random.wheel')
             .capabilities['commands'],
         contains('spinWheel'),
+      );
+      expect(
+        widgets
+            .firstWhere((widget) => widget.key == 'heartrate.heartRate')
+            .config['showLabel']['default'],
+        true,
       );
     },
   );

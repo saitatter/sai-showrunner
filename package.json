@@ -7,7 +7,7 @@
   "scripts": {
     "overlay:generate": "node ./tools/overlay_registry/generate.mjs",
     "overlay:build": "yarn overlay:generate && yarn workspace showrunner-obs-overlay build:test",
-    "overlay:typecheck": "yarn workspace showrunner-overlay-core typecheck && yarn workspace showrunner-overlay-widget-loader typecheck && yarn workspace showrunner-plugin-overlays-overlays typecheck && yarn workspace showrunner-plugin-random-overlays typecheck && yarn workspace showrunner-plugin-twitch-overlays typecheck && yarn workspace showrunner-obs-overlay typecheck",
+    "overlay:typecheck": "yarn workspace showrunner-overlay-core typecheck && yarn workspace showrunner-overlay-widget-loader typecheck && yarn workspace showrunner-plugin-overlays-overlays typecheck && yarn workspace showrunner-plugin-random-overlays typecheck && yarn workspace showrunner-plugin-twitch-overlays typecheck && yarn workspace showrunner-plugin-heartrate-overlays typecheck && yarn workspace showrunner-obs-overlay typecheck",
     "overlay:forbid-vue": "node ./tools/overlay_registry/verify-no-vue.mjs",
     "overlay:test": "vitest run",
     "parity:check": "node ./tools/parity/check.mjs",
@@ -30,7 +30,8 @@
     "plugins/overlays/overlay",
     "plugins/random/overlay",
     "plugins/twitch/shared",
-    "plugins/twitch/overlay"
+    "plugins/twitch/overlay",
+    "plugins/heartrate/overlay"
   ],
   "author": "LordTocs",
   "license": "AGPL-3.0",

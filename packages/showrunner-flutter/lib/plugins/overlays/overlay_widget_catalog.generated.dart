@@ -4,6 +4,22 @@ import 'overlay_widget_catalog.dart';
 
 const generatedOverlayWidgets = <GeneratedOverlayWidget>[
   GeneratedOverlayWidget(
+    pluginId: "heartrate",
+    id: "heartRate",
+    name: "Heart Rate",
+    description: "Displays the live Heart Rate state from ShowRunner.",
+    icon: "mdi mdi-heart-pulse",
+    capabilities: {
+      "states": ["heartRate"],
+      "resizable": true,
+    },
+    defaultSize: {"width": 260, "height": 110},
+    config: {
+      "showLabel": {"type": "boolean", "default": true},
+      "accentColor": {"type": "string", "default": "#f43f5e"},
+    },
+  ),
+  GeneratedOverlayWidget(
     pluginId: "overlays",
     id: "alert",
     name: "Alert",

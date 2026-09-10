@@ -31,6 +31,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     port: _port(appSettings['port'], 8181),
   );
   final registry = DartPluginRegistry();
+  _registerHeartRatePlugin(registry, dataService: dataService);
   final dashboardHost = eventHub == null
       ? null
       : RemoteDashboardHost(

@@ -640,6 +640,7 @@ final _integrationGroups = <_IntegrationGroup>[
     pluginIds: {
       'elgato',
       'govee',
+      'heartrate',
       'iot',
       'lifx',
       'minecraft',

@@ -2,6 +2,37 @@
   "schemaVersion": 1,
   "plugins": [
     {
+      "pluginId": "heartrate",
+      "widgets": [
+        {
+          "id": "heartRate",
+          "name": "Heart Rate",
+          "description": "Displays the live Heart Rate state from ShowRunner.",
+          "icon": "mdi mdi-heart-pulse",
+          "defaultSize": {
+            "width": 260,
+            "height": 110
+          },
+          "capabilities": {
+            "states": [
+              "heartRate"
+            ],
+            "resizable": true
+          },
+          "config": {
+            "showLabel": {
+              "type": "boolean",
+              "default": true
+            },
+            "accentColor": {
+              "type": "string",
+              "default": "#f43f5e"
+            }
+          }
+        }
+      ]
+    },
+    {
       "pluginId": "overlays",
       "widgets": [
         {

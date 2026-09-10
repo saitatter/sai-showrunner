@@ -1,0 +1,52 @@
+{
+  "name": "showrunner-plugin-heartrate-overlays",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/main.ts",
+  "devMain": "src/main.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "showrunner": {
+    "pluginId": "heartrate",
+    "overlay": {
+      "entry": "./src/main.ts",
+      "widgets": [
+        {
+          "id": "heartRate",
+          "name": "Heart Rate",
+          "description": "Displays the live Heart Rate state from ShowRunner.",
+          "icon": "mdi mdi-heart-pulse",
+          "defaultSize": {
+            "width": 260,
+            "height": 110
+          },
+          "capabilities": {
+            "states": [
+              "heartRate"
+            ],
+            "resizable": true
+          },
+          "config": {
+            "showLabel": {
+              "type": "boolean",
+              "default": true
+            },
+            "accentColor": {
+              "type": "string",
+              "default": "#f43f5e"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "showrunner-overlay-core": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "*"
+  }
+}

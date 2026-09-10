@@ -96,6 +96,7 @@ void main() {
         'lifx',
         'wyze',
         'dashboards',
+        'heartrate',
       ]),
     );
     expect(registry.findAction('obs', 'scene'), isNotNull);
@@ -113,6 +114,10 @@ void main() {
     expect(registry.findAction('minecraft', 'mineCmd'), isNotNull);
     expect(registry.findAction('http', 'request'), isNotNull);
     expect(registry.findAction('govee', 'setColor'), isNotNull);
+    expect(registry.findAction('heartrate', 'startSimulation'), isNotNull);
+    expect(registry.findAction('heartrate', 'stopSimulation'), isNotNull);
+    expect(registry.findAction('heartrate', 'resetStatistics'), isNotNull);
+    expect(registry.uiFor('heartrate'), isNotNull);
     expect(registry.findAction('elgato', 'setLightState'), isNotNull);
     expect(registry.findAction('tplink-kasa', 'setLightState'), isNotNull);
     expect(registry.findAction('lifx', 'setLightState'), isNotNull);

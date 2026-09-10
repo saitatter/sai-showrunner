@@ -4803,6 +4803,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"showrunner-plugin-heartrate-overlays@workspace:plugins/heartrate/overlay":
+  version: 0.0.0-use.local
+  resolution: "showrunner-plugin-heartrate-overlays@workspace:plugins/heartrate/overlay"
+  dependencies:
+    showrunner-overlay-core: "workspace:^"
+    typescript: "npm:*"
+  languageName: unknown
+  linkType: soft
+
 "showrunner-plugin-overlays-overlays@workspace:^, showrunner-plugin-overlays-overlays@workspace:plugins/overlays/overlay":
   version: 0.0.0-use.local
   resolution: "showrunner-plugin-overlays-overlays@workspace:plugins/overlays/overlay"

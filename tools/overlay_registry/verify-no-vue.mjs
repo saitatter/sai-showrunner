@@ -9,6 +9,7 @@ const overlayRoots = [
 	"plugins/overlays/overlay",
 	"plugins/random/overlay",
 	"plugins/twitch/overlay",
+	"plugins/heartrate/overlay",
 ]
 
 const violations = []

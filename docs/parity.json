@@ -2496,5 +2496,7 @@
       }
     }
   ],
-  "flutterOnly": []
+  "flutterOnly": [
+    "heartrate"
+  ]
 }

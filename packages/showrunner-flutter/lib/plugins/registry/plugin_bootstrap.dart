@@ -75,6 +75,9 @@ import '../input/ui/plugin_ui.dart';
 import '../stream_plans/manifest.dart';
 import '../stream_plans/ui/plugin_ui.dart';
 import '../showrunner/manifest.dart';
+import '../heartrate/manifest.dart';
+import '../heartrate/ui/plugin_ui.dart';
+import '../heartrate/services/heart_rate_service.dart';
 import '../sound/tts_runtime.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../persistence/resource_repository.dart';
@@ -83,6 +86,25 @@ import '../../persistence/automation_repository.dart';
 
 part 'default_plugin_registrar.dart';
 part 'configured_plugin_registrar.dart';
+
+HeartRateService _registerHeartRatePlugin(
+  DartPluginRegistry registry, {
+  ShowRunnerDataService? dataService,
+}) {
+  final service = createHeartRateService(
+    loadSettings: dataService == null
+        ? null
+        : () => dataService.loadPluginSettings('heartrate'),
+    saveSettings: dataService == null
+        ? null
+        : (settings) => dataService.savePluginSettings('heartrate', settings),
+    onStateChanged: (stateId, value) =>
+        registry.updateState('heartrate', stateId, value),
+  );
+  registry.registerModule(createHeartRatePluginModule(service));
+  registry.registerUi('heartrate', createHeartRatePluginUi(service));
+  return service;
+}
 
 DartPluginRegistry createDefaultPluginRegistry({
   DartPluginEventHub? eventHub,
