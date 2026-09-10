@@ -78,8 +78,37 @@ function manifestFor(plugins) {
 	}
 }
 
-export function generateRegistry({ pluginsRoot, outputDirectory, flutterManifestOutput }) {
+function flutterCatalogFor(manifest) {
+	const widgets = manifest.plugins.flatMap((plugin) => plugin.widgets.map((widget) => {
+		const optional = [
+			widget.description === undefined ? "" : `description: ${JSON.stringify(widget.description)},`,
+			widget.icon === undefined ? "" : `icon: ${JSON.stringify(widget.icon)},`,
+			widget.capabilities === undefined ? "" : `capabilities: ${JSON.stringify(widget.capabilities)},`,
+		].filter(Boolean)
+		return [
+			"  GeneratedOverlayWidget(",
+			`    pluginId: ${JSON.stringify(plugin.pluginId)},`,
+			`    id: ${JSON.stringify(widget.id)},`,
+			`    name: ${JSON.stringify(widget.name)},`,
+			...optional.map((line) => `    ${line}`),
+			`    defaultSize: ${JSON.stringify(widget.defaultSize)},`,
+			`    config: ${JSON.stringify(widget.config ?? {})},`,
+			"  ),",
+		].join("\n")
+	}))
+	return [
+		"// GENERATED FILE - DO NOT EDIT.",
+		"",
+		"import 'overlay_widget_catalog.dart';",
+		"",
+		"const generatedOverlayWidgets = <GeneratedOverlayWidget>[",
+		...widgets,
+		"];"]
+}
+
+export function generateRegistry({ pluginsRoot, outputDirectory, flutterManifestOutput, flutterCatalogLibraryOutput }) {
 	const plugins = discoverOverlayPlugins(pluginsRoot)
+	const manifest = manifestFor(plugins)
 	fs.mkdirSync(outputDirectory, { recursive: true })
 	const imports = plugins.map((plugin, index) => {
 		let importPath = path.relative(outputDirectory, plugin.entryPath).replaceAll(path.sep, "/")
@@ -89,19 +118,32 @@ export function generateRegistry({ pluginsRoot, outputDirectory, flutterManifest
 	const source = [
 		"// GENERATED FILE - DO NOT EDIT.",
 		"",
+		"import { bindOverlayPlugin, type OverlayPluginFactories, type OverlayPluginManifest } from \"showrunner-overlay-core\"",
+		"import manifest from \"./overlay_widgets.generated.json\"",
+		"",
 		...imports,
 		"",
-		`export const builtInOverlayPlugins = [${plugins.map((_, index) => `plugin${index}`).join(", ")}] as const`,
+		`const pluginFactories: readonly OverlayPluginFactories[] = [${plugins.map((_, index) => `plugin${index}`).join(", ")}]`,
+		"",
+		"export const builtInOverlayPlugins = (manifest.plugins as readonly OverlayPluginManifest[]).map((metadata) => {",
+		"\tconst factories = pluginFactories.find((plugin) => plugin.pluginId === metadata.pluginId)",
+		"\tif (!factories) throw new Error(`Missing overlay plugin factories: ${metadata.pluginId}`)",
+		"\treturn bindOverlayPlugin(metadata, factories)",
+		"})",
 		"",
 	].join("\n")
 	fs.writeFileSync(path.join(outputDirectory, "overlay_plugins.generated.ts"), source)
-	const manifestSource = `${JSON.stringify(manifestFor(plugins), null, 2)}\n`
+	const manifestSource = `${JSON.stringify(manifest, null, 2)}\n`
 	fs.writeFileSync(path.join(outputDirectory, "overlay_widgets.generated.json"), manifestSource)
 	if (flutterManifestOutput) {
 		fs.mkdirSync(path.dirname(flutterManifestOutput), { recursive: true })
 		fs.writeFileSync(flutterManifestOutput, manifestSource)
 	}
-	return { plugins, manifest: manifestFor(plugins) }
+	if (flutterCatalogLibraryOutput) {
+		fs.mkdirSync(path.dirname(flutterCatalogLibraryOutput), { recursive: true })
+		fs.writeFileSync(flutterCatalogLibraryOutput, `${flutterCatalogFor(manifest).join("\n")}\n`)
+	}
+	return { plugins, manifest }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

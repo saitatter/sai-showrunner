@@ -409,6 +409,7 @@
 					"config": {
 						"preset": {
 							"type": "string",
+							"name": "Shader Preset",
 							"default": "aurora",
 							"enum": [
 								"aurora",
@@ -454,7 +455,8 @@
 							"template": true
 						},
 						"shaderGraph": {
-							"type": "object"
+							"type": "object",
+							"name": "Shader Graph (JSON)"
 						},
 						"shaderUniforms": {
 							"type": "object"

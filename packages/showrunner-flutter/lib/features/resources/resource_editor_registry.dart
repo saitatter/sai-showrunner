@@ -14,7 +14,6 @@ import 'media_picker.dart';
 import 'color_field.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../plugins/sound/ui/tts_voice_provider_picker.dart';
-import '../../plugins/overlays/ui/overlay_widget_config.dart';
 import '../../plugins/overlays/shader_graph/shader_graph_editor.dart';
 import '../../plugins/overlays/shader_graph/shader_graph_model.dart';
 import '../../plugins/overlays/generated_widget_catalog.dart';
@@ -654,7 +653,8 @@ class _OverlayEditorState extends State<_OverlayEditor> {
   late List<JsonMap> _widgets;
   late bool _previewEnabled;
   late bool _previewFromObs;
-  Set<String> _generatedWidgetKeys = <String>{};
+  List<GeneratedOverlayWidget> _overlayWidgetCatalog =
+      GeneratedOverlayWidgetCatalog.widgets;
 
   @override
   void initState() {
@@ -678,10 +678,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
         .toList();
     GeneratedOverlayWidgetCatalog.load().then((widgets) {
       if (!mounted) return;
-      setState(
-        () =>
-            _generatedWidgetKeys = widgets.map((widget) => widget.key).toSet(),
-      );
+      setState(() => _overlayWidgetCatalog = widgets);
     });
   }
 
@@ -813,6 +810,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
               onMoveDown: index == _widgets.length - 1
                   ? null
                   : () => _moveWidget(index, 1),
+              catalog: _overlayWidgetCatalog,
             ),
           ),
     ],
@@ -855,18 +853,14 @@ class _OverlayEditorState extends State<_OverlayEditor> {
   );
 
   Future<void> _addWidget() async {
-    final definition = await showDialog<OverlayWidgetDefinition>(
+    final catalog = await GeneratedOverlayWidgetCatalog.load();
+    if (!mounted) return;
+    final definition = await showDialog<GeneratedOverlayWidget>(
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('Add overlay widget'),
         children: [
-          for (final option in overlayWidgetDefinitions.where(
-            (option) =>
-                _generatedWidgetKeys.isEmpty ||
-                _generatedWidgetKeys.contains(
-                  '${option.plugin}.${option.widget}',
-                ),
-          ))
+          for (final option in catalog)
             SimpleDialogOption(
               onPressed: () => Navigator.of(context).pop(option),
               child: ListTile(
@@ -880,7 +874,10 @@ class _OverlayEditorState extends State<_OverlayEditor> {
       ),
     );
     if (!mounted || definition == null) return;
-    setState(() => _widgets.add(definition.createWidget()));
+    setState(() {
+      _overlayWidgetCatalog = catalog;
+      _widgets.add(definition.createWidget());
+    });
   }
 
   void _moveWidget(int index, int delta) {
@@ -901,6 +898,7 @@ class _OverlayWidgetCard extends StatelessWidget {
     required this.onDelete,
     required this.onMoveUp,
     required this.onMoveDown,
+    required this.catalog,
   });
 
   final int index;
@@ -909,6 +907,7 @@ class _OverlayWidgetCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback? onMoveUp;
   final VoidCallback? onMoveDown;
+  final List<GeneratedOverlayWidget> catalog;
 
   @override
   Widget build(BuildContext context) {
@@ -921,6 +920,7 @@ class _OverlayWidgetCard extends StatelessWidget {
         onDelete: onDelete,
         onMoveUp: onMoveUp,
         onMoveDown: onMoveDown,
+        catalog: catalog,
       );
     }
     return Card(
@@ -1106,6 +1106,7 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
     required this.onDelete,
     required this.onMoveUp,
     required this.onMoveDown,
+    required this.catalog,
   });
 
   final int index;
@@ -1114,6 +1115,7 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback? onMoveUp;
   final VoidCallback? onMoveDown;
+  final List<GeneratedOverlayWidget> catalog;
 
   @override
   Widget build(BuildContext context) {
@@ -1211,6 +1213,7 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
               widget: '${widgetConfig['widget'] ?? ''}',
               config: config,
               onChanged: (value) => onChanged('config', value),
+              catalog: catalog,
             ),
             if (widgetConfig['plugin']?.toString() == 'overlays' &&
                 widgetConfig['widget']?.toString() == 'shaderLayer')
@@ -1476,16 +1479,24 @@ class _OverlayWidgetConfigEditor extends StatelessWidget {
     required this.widget,
     required this.config,
     required this.onChanged,
+    required this.catalog,
   });
 
   final String plugin;
   final String widget;
   final JsonMap config;
   final ValueChanged<JsonMap> onChanged;
+  final List<GeneratedOverlayWidget> catalog;
 
   @override
   Widget build(BuildContext context) {
-    final definition = findOverlayWidgetDefinition(plugin, widget);
+    GeneratedOverlayWidget? definition;
+    for (final candidate in catalog) {
+      if (candidate.pluginId == plugin && candidate.id == widget) {
+        definition = candidate;
+        break;
+      }
+    }
     if (definition == null) {
       return TextFormField(
         initialValue: const JsonEncoder.withIndent('  ').convert(config),

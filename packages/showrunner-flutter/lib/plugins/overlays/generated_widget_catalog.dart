@@ -1,69 +1,29 @@
-import 'dart:convert';
+import 'overlay_widget_catalog.dart';
+import 'overlay_widget_catalog.generated.dart';
 
-import 'package:flutter/services.dart';
-
-class GeneratedOverlayWidget {
-  const GeneratedOverlayWidget({
-    required this.pluginId,
-    required this.id,
-    required this.name,
-    this.description,
-    this.icon,
-    required this.defaultSize,
-    this.config = const <String, dynamic>{},
-    this.capabilities = const <String, dynamic>{},
-  });
-
-  final String pluginId;
-  final String id;
-  final String name;
-  final String? description;
-  final String? icon;
-  final Map<String, dynamic> defaultSize;
-  final Map<String, dynamic> config;
-  final Map<String, dynamic> capabilities;
-
-  String get key => '$pluginId.$id';
-}
+export 'overlay_widget_catalog.dart'
+    show GeneratedOverlayWidget, overlayConfigSchema;
 
 class GeneratedOverlayWidgetCatalog {
   const GeneratedOverlayWidgetCatalog._();
 
   static const assetPath = 'assets/overlay_widgets.generated.json';
+  static const List<GeneratedOverlayWidget> widgets = generatedOverlayWidgets;
 
-  static Future<List<GeneratedOverlayWidget>> load() async {
-    final source = await rootBundle.loadString(assetPath);
-    final document = jsonDecode(source) as Map<String, dynamic>;
-    final plugins = document['plugins'] as List<dynamic>? ?? const [];
-    return [
-      for (final pluginValue in plugins)
-        ..._widgetsFor(pluginValue as Map<String, dynamic>),
-    ];
-  }
+  /// Returns the catalog generated from the plugin package manifests.
+  ///
+  /// The JSON asset is kept as the language-neutral artifact, while the const
+  /// Dart view avoids an asynchronous metadata gap when an editor is opened.
+  static Future<List<GeneratedOverlayWidget>> load() async =>
+      generatedOverlayWidgets;
 
-  static Iterable<GeneratedOverlayWidget> _widgetsFor(
-    Map<String, dynamic> plugin,
-  ) sync* {
-    final pluginId = plugin['pluginId']?.toString() ?? '';
-    final widgets = plugin['widgets'] as List<dynamic>? ?? const [];
-    for (final value in widgets) {
-      final widget = Map<String, dynamic>.from(value as Map);
-      yield GeneratedOverlayWidget(
-        pluginId: pluginId,
-        id: widget['id']?.toString() ?? '',
-        name: widget['name']?.toString() ?? '',
-        description: widget['description']?.toString(),
-        icon: widget['icon']?.toString(),
-        defaultSize: Map<String, dynamic>.from(
-          (widget['defaultSize'] as Map?) ?? const <String, dynamic>{},
-        ),
-        config: Map<String, dynamic>.from(
-          (widget['config'] as Map?) ?? const <String, dynamic>{},
-        ),
-        capabilities: Map<String, dynamic>.from(
-          (widget['capabilities'] as Map?) ?? const <String, dynamic>{},
-        ),
-      );
+  static Future<GeneratedOverlayWidget?> find(
+    String pluginId,
+    String widgetId,
+  ) async {
+    for (final widget in generatedOverlayWidgets) {
+      if (widget.pluginId == pluginId && widget.id == widgetId) return widget;
     }
+    return null;
   }
 }

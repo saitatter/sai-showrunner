@@ -799,6 +799,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Add widget'));
     await tester.pumpAndSettle();
+    expect(find.text('Wheel'), findsOneWidget);
     await tester.tap(find.text('Chat Feed'));
     await tester.pumpAndSettle();
 

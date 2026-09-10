@@ -7,4 +7,5 @@ generateRegistry({
 	pluginsRoot: path.join(root, "plugins"),
 	outputDirectory: path.join(root, "packages/showrunner-obs-overlay/src/generated"),
 	flutterManifestOutput: path.join(root, "packages/showrunner-flutter/assets/overlay_widgets.generated.json"),
+	flutterCatalogLibraryOutput: path.join(root, "packages/showrunner-flutter/lib/plugins/overlays/overlay_widget_catalog.generated.dart"),
 })

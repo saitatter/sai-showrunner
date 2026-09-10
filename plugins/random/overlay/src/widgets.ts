@@ -1,6 +1,6 @@
 import {
 	OverlayWidget,
-	OverlayWidgetDefinition,
+	OverlayWidgetFactory,
 	WidgetContext,
 	applyStyles,
 	clearElement,
@@ -204,19 +204,7 @@ class WheelWidget implements OverlayWidget<AnyConfig> {
 	}
 }
 
-export const wheelWidget: OverlayWidgetDefinition = {
+export const wheelWidget: OverlayWidgetFactory = {
 	id: "wheel",
-	name: "Wheel",
-	description: "A wheel for randomly selecting things",
-	icon: "mdi mdi-tire",
-	defaultSize: { width: 500, height: 500 },
-	config: {
-		slices: { type: "number", default: 12 },
-		items: { type: "array" },
-		style: { type: "array" },
-		damping: { type: "object" },
-		clicker: { type: "object" },
-	},
-	capabilities: { commands: ["spinWheel"], resizable: true },
 	create: () => new WheelWidget(),
 }

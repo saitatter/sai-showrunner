@@ -1,7 +1,7 @@
 import { defineOverlayPlugin } from "showrunner-overlay-core"
-import { overlayWidgets } from "./widgets"
+import { overlayWidgetFactories } from "./widgets"
 
 export default defineOverlayPlugin({
 	pluginId: "overlays",
-	widgets: overlayWidgets,
+	widgets: overlayWidgetFactories,
 })

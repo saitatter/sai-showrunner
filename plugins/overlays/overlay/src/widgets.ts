@@ -1,6 +1,6 @@
 import {
 	OverlayWidget,
-	OverlayWidgetDefinition,
+	OverlayWidgetFactory,
 	WidgetContext,
 	applyStyles,
 	clearElement,
@@ -21,7 +21,6 @@ import {
 import { ShaderRenderer } from "./widgets/shader-renderer"
 
 type AnyConfig = Record<string, any>
-type AnyDefinition = OverlayWidgetDefinition<AnyConfig>
 
 abstract class DomWidget implements OverlayWidget<AnyConfig> {
 	protected container!: HTMLElement
@@ -74,8 +73,8 @@ function positiveNumber(value: unknown, fallback: number): number {
 	return Number.isFinite(number) && number > 0 ? number : fallback
 }
 
-function widgetDefinition(config: Omit<AnyDefinition, "create">, create: AnyDefinition["create"]): AnyDefinition {
-	return { ...config, create } as AnyDefinition
+function widgetFactory(id: string, create: OverlayWidgetFactory["create"]): OverlayWidgetFactory {
+	return { id, create }
 }
 
 class LabelWidget extends DomWidget {
@@ -97,22 +96,7 @@ class LabelWidget extends DomWidget {
 	}
 }
 
-export const labelWidget = widgetDefinition(
-	{
-		id: "label",
-		name: "Label",
-		description: "Puts some text in the overlay",
-		icon: "mdi mdi-cursor-text",
-		defaultSize: { width: 300, height: 200 },
-		config: {
-			message: { type: "string", name: "Text", default: "Label", multiLine: true, template: true },
-			font: { type: "OverlayTextStyle", name: "Font" },
-			textAlign: { type: "OverlayTextAlignment", name: "Text Align" },
-			block: { type: "OverlayBlockStyle", name: "Block" },
-		},
-	},
-	() => new LabelWidget()
-)
+export const labelWidget = widgetFactory("label", () => new LabelWidget())
 
 class BarWidget extends DomWidget {
 	protected render(): void {
@@ -149,26 +133,7 @@ class BarWidget extends DomWidget {
 	}
 }
 
-export const barWidget = widgetDefinition(
-	{
-		id: "bar",
-		name: "Bar",
-		description: "Progress Bar",
-		icon: "mdi mdi-square",
-		defaultSize: { width: 400, height: 90 },
-		config: {
-			value: { type: "number", name: "Value", default: 25, template: true },
-			target: { type: "number", name: "Target", default: 100, template: true },
-			direction: { type: "string", name: "Direction", default: "Right", enum: ["Right", "Left", "Up", "Down"] },
-			outerRadius: { type: "WidgetBorderRadius", name: "Outer Corners" },
-			backgroundStyle: { type: "WidgetBackgroundStyle", name: "Background Style" },
-			outline: { type: "WidgetOutlineStyle", name: "Outline" },
-			fillStyle: { type: "WidgetBackgroundStyle", name: "Fill Style" },
-			fillLine: { type: "WidgetOutlineStyle", name: "Fill Line" },
-		},
-	},
-	() => new BarWidget()
-)
+export const barWidget = widgetFactory("bar", () => new BarWidget())
 
 interface ChatMessage {
 	id?: string
@@ -268,16 +233,7 @@ class ChatFeedWidget extends DomWidget {
 	}
 }
 
-export const chatFeedWidget = widgetDefinition(
-	{
-		id: "chatFeed", name: "Chat Feed", description: "Displays approved chat messages pushed by ShowRunner automations.", icon: "mdi mdi-chat-processing-outline", defaultSize: { width: 900, height: 180 },
-		config: {
-			fontFamily: { type: "string", default: "Inter, Arial, sans-serif" }, fontSize: { type: "number", default: 24 }, backgroundColor: { type: "string", default: "#0d1117" }, backgroundOpacity: { type: "number", default: 0.72 }, fadeTime: { type: "number", default: 10 }, maxMessages: { type: "number", default: 8 }, orientation: { type: "string", default: "horizontal", enum: ["horizontal", "vertical"] }, twitchColor: { type: "string", default: "#9146ff" }, youtubeColor: { type: "string", default: "#ff0033" }, showBadges: { type: "boolean", default: true },
-		},
-		capabilities: { events: ["showrunner_chat_message"] },
-	},
-	() => new ChatFeedWidget()
-)
+export const chatFeedWidget = widgetFactory("chatFeed", () => new ChatFeedWidget())
 
 interface TimedEvent { targetOverlayId?: string; targetWidgetId?: string; [key: string]: any }
 
@@ -317,10 +273,7 @@ class PaidAlertWidget extends DomWidget {
 	}
 }
 
-export const paidAlertWidget = widgetDefinition(
-	{ id: "paidAlert", name: "Paid Alert", description: "Displays YouTube paid messages, donations, and support events.", icon: "mdi mdi-cash-star", defaultSize: { width: 680, height: 190 }, config: { fontFamily: { type: "string", default: "Inter, Arial, sans-serif" }, accentColor: { type: "string", default: "#ffd166" }, backgroundColor: { type: "string", default: "#131313" }, backgroundOpacity: { type: "number", default: 0.86 }, duration: { type: "number", default: 7 }, previewTitle: { type: "string", default: "Super Chat" }, previewViewer: { type: "string", default: "Supporter" }, previewMessage: { type: "string", default: "Thanks for the stream!" }, previewAmount: { type: "string", default: "10.00" }, previewCurrency: { type: "string", default: "USD" } }, capabilities: { events: ["showrunner_paid_alert"] } },
-	() => new PaidAlertWidget()
-)
+export const paidAlertWidget = widgetFactory("paidAlert", () => new PaidAlertWidget())
 
 class SceneBannerWidget extends DomWidget {
 	private active?: TimedEvent
@@ -355,10 +308,7 @@ class SceneBannerWidget extends DomWidget {
 	}
 }
 
-export const sceneBannerWidget = widgetDefinition(
-	{ id: "sceneBanner", name: "Scene Banner", description: "Displays scene begin/end automation events.", icon: "mdi mdi-motion-play-outline", defaultSize: { width: 900, height: 170 }, config: { fontFamily: { type: "string", default: "Inter, Arial, sans-serif" }, accentColor: { type: "string", default: "#9146ff" }, backgroundColor: { type: "string", default: "#101010" }, backgroundOpacity: { type: "number", default: 0.82 }, duration: { type: "number", default: 6 }, previewTitle: { type: "string", default: "Starting Soon" }, previewSubtitle: { type: "string", default: "Scene automation preview" } }, capabilities: { events: ["showrunner_scene_event"] } },
-	() => new SceneBannerWidget()
-)
+export const sceneBannerWidget = widgetFactory("sceneBanner", () => new SceneBannerWidget())
 
 const shaderPresets: Record<string, string> = {
 	aurora: `precision mediump float;
@@ -456,10 +406,7 @@ function hexToVec3(hex: string, fallback: [number, number, number]): [number, nu
 	return [((parsed >> 16) & 255) / 255, ((parsed >> 8) & 255) / 255, (parsed & 255) / 255]
 }
 
-export const shaderLayerWidget = widgetDefinition(
-	{ id: "shaderLayer", name: "Shader Layer", description: "Renders a bundled or locally edited WebGL shader.", icon: "mdi mdi-magic-staff", defaultSize: { width: 900, height: 500 }, config: { preset: { type: "string", default: "aurora", enum: ["aurora", "grid", "plasma", "nebula", "scanlines", "vortex", "custom"] }, customFragmentShader: { type: "string", multiLine: true }, accentColor: { type: "string", default: "#9146ff" }, secondaryColor: { type: "string", default: "#00d1ff" }, intensity: { type: "number", default: 0.8 }, speed: { type: "number", default: 1 }, opacity: { type: "number", default: 1 }, blendMode: { type: "string", default: "normal" }, text: { type: "string", default: "", template: true }, shaderGraph: { type: "object", description: "Optional shader graph payload." }, shaderUniforms: { type: "object" }, shaderUniformBindings: { type: "object" } }, capabilities: { resizable: true } },
-	() => new ShaderLayerWidget()
-)
+export const shaderLayerWidget = widgetFactory("shaderLayer", () => new ShaderLayerWidget())
 
 class AlertWidget extends DomWidget {
 	private title = "Title"; private message = "Message"; private media?: string; private timer?: number
@@ -495,10 +442,7 @@ class AlertWidget extends DomWidget {
 	}
 }
 
-export const alertWidget = widgetDefinition(
-	{ id: "alert", name: "Alert", description: "A classic alert box with text, images, GIFs, and videos.", icon: "mdi mdi-alert-box-outline", defaultSize: { width: 300, height: 200 }, config: { media: { type: "array" }, transition: { type: "OverlayTransitionAnimation" }, textBelowMedia: { type: "boolean", default: true }, title: { type: "object" }, subtitle: { type: "object" }, duration: { type: "number", default: 4 } }, capabilities: { commands: ["showAlert"] } },
-	() => new AlertWidget()
-)
+export const alertWidget = widgetFactory("alert", () => new AlertWidget())
 
 interface BouncingEmote {
 	id: string
@@ -685,10 +629,7 @@ function positiveRange(value: any, fallback: number): number {
 }
 
 
-export const emoteBouncerWidget = widgetDefinition(
-	{ id: "emote-bounce", name: "Emote Bouncer", description: "Bounces Twitch emotes around the overlay.", icon: "mdi mdi-emoticon", defaultSize: { width: "canvas", height: "canvas" }, config: { lifeTime: { type: "range", default: { min: 7, max: 7 } }, emoteSize: { type: "range", default: { min: 80, max: 80 } }, velocityMax: { type: "number", default: 0.4 }, shakeTime: { type: "number", default: 5 }, shakeStrength: { type: "number", default: 1 }, gravityXScale: { type: "number", default: 0 }, gravityYScale: { type: "number", default: 1 }, spamPrevention: { type: "object" }, launchers: { type: "array" } }, capabilities: { events: ["twitch_message"], commands: ["spawnEmotes"] } },
-	() => new EmoteBouncerWidget()
-)
+export const emoteBouncerWidget = widgetFactory("emote-bounce", () => new EmoteBouncerWidget())
 
 class LeaderboardWidget extends DomWidget {
 	private rows: any[] = []
@@ -710,9 +651,6 @@ class LeaderboardWidget extends DomWidget {
 	}
 }
 
-export const leaderboardWidget = widgetDefinition(
-	{ id: "leaderboard", name: "Leader Board (Beta)", description: "Displays ranked viewer data.", icon: "mdi mdi-table", defaultSize: { width: 300, height: 500 }, config: { sortBy: { type: "viewerVariable", required: true }, sortOrder: { type: "number", default: -1 }, count: { type: "number", default: 10, min: 1, max: 50 }, variables: { type: "array" }, nameFont: { type: "OverlayTextStyle" }, nameTextAlign: { type: "OverlayTextAlignment" }, nameBackground: { type: "WidgetBackgroundStyle" }, nameBlock: { type: "OverlayBlockStyle" } } },
-	() => new LeaderboardWidget()
-)
+export const leaderboardWidget = widgetFactory("leaderboard", () => new LeaderboardWidget())
 
-export const overlayWidgets: readonly OverlayWidgetDefinition[] = [alertWidget, barWidget, chatFeedWidget, emoteBouncerWidget, labelWidget, leaderboardWidget, paidAlertWidget, sceneBannerWidget, shaderLayerWidget]
+export const overlayWidgetFactories: readonly OverlayWidgetFactory[] = [alertWidget, barWidget, chatFeedWidget, emoteBouncerWidget, labelWidget, leaderboardWidget, paidAlertWidget, sceneBannerWidget, shaderLayerWidget]

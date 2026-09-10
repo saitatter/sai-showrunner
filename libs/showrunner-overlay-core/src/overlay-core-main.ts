@@ -218,17 +218,71 @@ export interface OverlayWidgetDefinition<Config = Record<string, any>> {
 	create(context: WidgetContext, config: Config): OverlayWidget<Config>
 }
 
+/** Runtime-only contribution exported by a plugin package.
+ *
+ * Display metadata is deliberately not part of this shape. It is owned by
+ * the generated catalog so the browser and Flutter cannot drift apart.
+ */
+export interface OverlayWidgetFactory {
+	readonly id: string
+	create(context: WidgetContext, config: Record<string, any>): OverlayWidget<Record<string, any>>
+}
+
+export interface OverlayPluginFactories {
+	readonly pluginId: string
+	readonly widgets: readonly OverlayWidgetFactory[]
+}
+
 export interface OverlayPluginContribution {
 	readonly pluginId: string
 	readonly widgets: readonly OverlayWidgetDefinition[]
 }
 
-export function defineOverlayWidget<Config>(definition: OverlayWidgetDefinition<Config>) {
-	return definition
+export interface OverlayWidgetManifest {
+	readonly id: string
+	readonly name: string
+	readonly description?: string
+	readonly icon?: string
+	readonly defaultSize: { width: number | "canvas"; height: number | "canvas" }
+	readonly config: OverlayConfigSchema
+	readonly capabilities?: OverlayWidgetDefinition["capabilities"]
 }
 
-export function defineOverlayPlugin(contribution: OverlayPluginContribution) {
+export interface OverlayPluginManifest {
+	readonly pluginId: string
+	readonly widgets: readonly OverlayWidgetManifest[]
+}
+
+export function defineOverlayWidget<Config>(factory: OverlayWidgetFactory) {
+	return factory
+}
+
+export function defineOverlayPlugin(contribution: OverlayPluginFactories) {
 	return contribution
+}
+
+export function bindOverlayPlugin(
+	manifest: OverlayPluginManifest,
+	factories: OverlayPluginFactories,
+): OverlayPluginContribution {
+	if (manifest.pluginId !== factories.pluginId) {
+		throw new Error(`Overlay plugin ID mismatch: ${manifest.pluginId} !== ${factories.pluginId}`)
+	}
+
+	const factoryById = new Map(factories.widgets.map((factory) => [factory.id, factory]))
+	const widgets = manifest.widgets.map((metadata) => {
+		const factory = factoryById.get(metadata.id)
+		if (!factory) throw new Error(`Missing overlay widget factory: ${manifest.pluginId}.${metadata.id}`)
+		return { ...metadata, create: factory.create }
+	})
+
+	for (const factory of factories.widgets) {
+		if (!manifest.widgets.some((metadata) => metadata.id === factory.id)) {
+			throw new Error(`Undeclared overlay widget factory: ${manifest.pluginId}.${factory.id}`)
+		}
+	}
+
+	return { pluginId: manifest.pluginId, widgets }
 }
 
 /** Compatibility name used by older plugin packages while they are migrated. */
