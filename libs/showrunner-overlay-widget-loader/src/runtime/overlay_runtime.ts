@@ -32,6 +32,13 @@ interface WidgetInstance {
 	scope: WidgetScope
 }
 
+interface PendingRPC {
+	resolve: (value: unknown) => void
+	reject: (reason: unknown) => void
+	timeout: ReturnType<typeof setTimeout>
+	generation: number
+}
+
 export interface OverlayRuntimeOptions {
 	root: HTMLElement
 	transport: OverlayTransport
@@ -40,6 +47,7 @@ export interface OverlayRuntimeOptions {
 	isEditor?: boolean
 	statusVisible?: boolean
 	host?: string
+	rpcTimeoutMs?: number
 }
 
 /** Owns transport dispatch and mounted widget lifecycles for one browser source. */
@@ -48,28 +56,33 @@ export class OverlayRuntime {
 	private readonly instances = new Map<string, WidgetInstance>()
 	private readonly eventHandlers = new Map<string, Set<EventHandler>>()
 	private readonly commandHandlers = new Map<string, (args: unknown) => unknown | Promise<unknown>>()
-	private readonly pending = new Map<string, { resolve: (value: unknown) => void; reject: (reason: unknown) => void }>()
+	private readonly pending = new Map<string, PendingRPC>()
 	private readonly playingAudio = new Map<string, HTMLAudioElement>()
 	private readonly protocol = new LegacyOverlayProtocolAdapter()
 	private readonly stateStore: StateStore
 	private readonly viewerData: ViewerDataStore
+	private readonly rpcTimeoutMs: number
 	private config: OverlayConfig = { name: "UNLOADED OVERLAY", size: { width: 0, height: 0 }, widgets: [] }
 	private unsubscribeTransport?: Unsubscribe
 	private unsubscribeTransportStatus?: Unsubscribe
 	private nextRequest = 0
 	private hasConnected = false
+	private hasDisconnected = false
+	private connectionGeneration = 0
 	private readonly status?: HTMLElement
 
 	constructor(private readonly options: OverlayRuntimeOptions) {
+		this.rpcTimeoutMs = Math.max(1, options.rpcTimeoutMs ?? 10_000)
 		this.stateStore = new StateStore(
 			(pluginId, stateId) => void this.callBackend("overlays_acquireState", pluginId, stateId),
-			(pluginId, stateId) => void this.callBackend("overlays_freeState", pluginId, stateId)
+			(pluginId, stateId) => void this.callBackend("overlays_freeState", pluginId, stateId),
 		)
 		this.viewerData = new ViewerDataStore(
 			() => void this.callBackend("overlays_observeViewerData"),
 			() => void this.callBackend("overlays_unobserveViewerData"),
-			(start, end, sortBy, sortOrder) => this.callBackend<ViewerDataRow[]>("overlays_queryViewerData", start, end, sortBy, sortOrder),
-			() => this.callBackend<ViewerVariable[]>("overlays_getViewerVariables")
+			(start, end, sortBy, sortOrder) =>
+				this.callBackend<ViewerDataRow[]>("overlays_queryViewerData", start, end, sortBy, sortOrder),
+			() => this.callBackend<ViewerVariable[]>("overlays_getViewerVariables"),
 		)
 		if (options.statusVisible) {
 			this.status = document.createElement("div")
@@ -82,18 +95,11 @@ export class OverlayRuntime {
 		if (this.unsubscribeTransport) return
 		this.unsubscribeTransport = this.options.transport.onMessage((message) => void this.handleMessage(message))
 		this.unsubscribeTransportStatus = this.options.transport.onStatus?.((status) => {
-			this.setStatus(status)
-			if (status !== "connected") return
-			if (this.hasConnected) {
-				this.stateStore.reconnect()
-				this.viewerData.reconnect()
-			}
-			this.hasConnected = true
+			this.handleTransportStatus(status)
 		})
 		this.setStatus("connecting")
 		await this.options.transport.connect()
-		this.hasConnected = true
-		this.setStatus("connected")
+		this.handleTransportStatus("connected")
 	}
 
 	async stop(): Promise<void> {
@@ -102,12 +108,13 @@ export class OverlayRuntime {
 		this.unsubscribeTransportStatus?.()
 		this.unsubscribeTransportStatus = undefined
 		this.hasConnected = false
+		this.hasDisconnected = false
+		this.connectionGeneration++
 		for (const id of [...this.instances.keys()]) this.removeInstance(id)
 		this.stateStore.clear()
 		for (const audio of this.playingAudio.values()) audio.pause()
 		this.playingAudio.clear()
-		for (const pending of this.pending.values()) pending.reject(new Error("Overlay runtime stopped."))
-		this.pending.clear()
+		this.rejectPending(new Error("Overlay runtime stopped."))
 		await this.options.transport.close()
 		this.setStatus("idle")
 	}
@@ -122,12 +129,33 @@ export class OverlayRuntime {
 		this.status.textContent = status.charAt(0).toUpperCase() + status.slice(1)
 	}
 
+	private handleTransportStatus(status: "idle" | "connecting" | "connected" | "reconnecting"): void {
+		this.setStatus(status)
+		if (status !== "connected") {
+			if (this.hasConnected || this.hasDisconnected) {
+				this.connectionGeneration++
+				this.rejectPending(new Error(`Overlay transport ${status}.`))
+				this.hasDisconnected = true
+			}
+			this.hasConnected = false
+			return
+		}
+
+		if (this.hasDisconnected) {
+			this.stateStore.reconnect()
+			this.viewerData.reconnect()
+		}
+		this.hasConnected = true
+		this.hasDisconnected = false
+	}
+
 	private async handleMessage(message: OverlayTransportMessage): Promise<void> {
 		message = this.protocol.normalize(message)
 		if (message.responseId) {
 			const call = this.pending.get(message.responseId)
-			if (!call) return
+			if (!call || call.generation !== this.connectionGeneration) return
 			this.pending.delete(message.responseId)
+			clearTimeout(call.timeout)
 			if (message.failed) call.reject(message.failed)
 			else call.resolve(message.result)
 			return
@@ -184,7 +212,9 @@ export class OverlayRuntime {
 					if (audio && playId) {
 						this.playingAudio.get(playId)?.pause()
 						this.playingAudio.set(playId, audio)
-						const clear = () => { if (this.playingAudio.get(playId) === audio) this.playingAudio.delete(playId) }
+						const clear = () => {
+							if (this.playingAudio.get(playId) === audio) this.playingAudio.delete(playId)
+						}
 						audio.addEventListener("ended", clear, { once: true })
 						audio.addEventListener("pause", clear, { once: true })
 					}
@@ -332,9 +362,10 @@ export class OverlayRuntime {
 	}
 
 	private emitMessage(id: string, payload: unknown): void {
-		const target = payload && typeof payload === "object" && !Array.isArray(payload)
-			? (payload as Record<string, unknown>).targetWidgetId?.toString()
-			: undefined
+		const target =
+			payload && typeof payload === "object" && !Array.isArray(payload)
+				? (payload as Record<string, unknown>).targetWidgetId?.toString()
+				: undefined
 		for (const entry of this.eventHandlers.get(id) ?? []) {
 			if (target && target !== entry.widgetId) continue
 			try {
@@ -348,8 +379,34 @@ export class OverlayRuntime {
 	private callBackend<T = unknown>(name: string, ...args: unknown[]): Promise<T> {
 		const requestId = `overlay-${Date.now()}-${this.nextRequest++}`
 		return new Promise<T>((resolve, reject) => {
-			this.pending.set(requestId, { resolve: resolve as (value: unknown) => void, reject })
-			this.options.transport.send({ requestId, name, args })
+			const generation = this.connectionGeneration
+			const timeout = setTimeout(() => {
+				const call = this.pending.get(requestId)
+				if (!call || call.generation !== generation) return
+				this.pending.delete(requestId)
+				reject(new Error(`Overlay RPC timed out: ${name}.`))
+			}, this.rpcTimeoutMs)
+			this.pending.set(requestId, {
+				resolve: resolve as (value: unknown) => void,
+				reject,
+				timeout,
+				generation,
+			})
+			try {
+				this.options.transport.send({ requestId, name, args })
+			} catch (error) {
+				this.pending.delete(requestId)
+				clearTimeout(timeout)
+				reject(error)
+			}
 		})
+	}
+
+	private rejectPending(reason: Error): void {
+		for (const pending of this.pending.values()) {
+			clearTimeout(pending.timeout)
+			pending.reject(reason)
+		}
+		this.pending.clear()
 	}
 }

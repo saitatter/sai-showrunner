@@ -21,6 +21,10 @@ Flutter desktop build is used as the ShowRunner replacement candidate.
   runtime, persistence, shader graph, and overlay resource semantics.
 - Overlay packages use the generated registry and strict TypeScript checks;
   Vue/Pinia is not part of the browser runtime.
+- Overlay backend RPCs have a bounded lifecycle: every request has a timeout,
+  pending calls are rejected on transport reset and runtime stop, and late
+  responses from an older connection generation are ignored. The lifecycle
+  suite covers viewer-data queries, widget RPCs, timeout, reconnect, and stop.
 - Full-screen visual coverage includes deterministic empty-app and loaded-graph
   fixtures at 1440x900 with a 1x device scale.
 - The graph benchmark covers 100, 500, 1,000, and 5,000 synthetic nodes and
@@ -35,6 +39,7 @@ Flutter desktop build is used as the ShowRunner replacement candidate.
 ```powershell
 corepack yarn install --immutable
 corepack yarn overlay:test
+corepack yarn vitest run libs/showrunner-overlay-widget-loader/src/runtime/overlay_runtime.test.ts
 corepack yarn overlay:forbid-vue
 corepack yarn overlay:build
 corepack yarn parity:check

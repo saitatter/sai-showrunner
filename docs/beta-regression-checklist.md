@@ -35,8 +35,22 @@ overlay, or starter changes.
       widget configuration.
 - [ ] Load the browser source in OBS and confirm the presence indicator and RPC
       connection.
+- [ ] Reload or disconnect the browser source while a viewer-data query or
+      widget RPC is pending; confirm the call fails promptly, reconnect restores
+      subscriptions, and a late response from the old connection is ignored.
 - [ ] Check the update page in a development build and in a packaged build,
       including offline error handling.
+
+### P0 overlay transport reliability
+
+The automated lifecycle test is required before replacement/cutover:
+
+```powershell
+corepack yarn vitest run libs/showrunner-overlay-widget-loader/src/runtime/overlay_runtime.test.ts
+```
+
+It must cover request timeout, disconnect during `queryViewerData`, disconnect
+during widget RPC, late responses after reconnect, and stop with pending calls.
 
 ## Commands
 
