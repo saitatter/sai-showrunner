@@ -222,39 +222,41 @@ class ShowRunnerShell extends StatelessWidget {
                     onWidthChanged: interfacePreferences.setProjectSidebarWidth,
                     child: ShowRunnerProjectPanel(
                       selectedWorkspace: selectedWorkspace,
-                      onDestinationSelected: onDestinationSelected,
                       pluginRegistryFuture: pluginRegistryFuture,
                       preferences: interfacePreferences,
                       selectedPluginId: selectedPluginId,
+                      callbacks: ProjectPanelCallbacks(
+                        onDestinationSelected: onDestinationSelected,
+                        onPluginSelected: (pluginId) {
+                          onPluginSelected?.call(pluginId);
+                          onDestinationSelected(WorkspaceIds.plugins);
+                        },
+                        onPluginToggle: (pluginId, enabled) =>
+                            _setPluginEnabled(context, pluginId, enabled),
+                        onOpenAutomation: onOpenAutomation,
+                        onRenameAutomation: onRenameAutomation,
+                        onDeleteAutomation: onDeleteAutomationItem,
+                        onCreateAutomation: onCreateAutomation,
+                        onRenameProfile: onRenameProfile,
+                        onDeleteProfile: onDeleteProfile,
+                        onCreateProfile: onCreateProfile,
+                        onResourceSelected: onResourceSelected,
+                        onOpenResource: onOpenResource,
+                        onRenameResource: onRenameResource,
+                        onDeleteResource: onDeleteResource,
+                        onCreateResource: onCreateResource,
+                        onOpenProfile: (fileName) {
+                          onDestinationSelected(WorkspaceIds.profiles);
+                          return profileController?.openProfile(fileName);
+                        },
+                      ),
                       catalogService: ShowRunnerProjectCatalogService(
                         dataService.userDirectory,
                       ),
                       catalogRevision: projectCatalogRevision,
                       activeAutomationFile: activeAutomationFile,
-                      onOpenAutomation: onOpenAutomation,
-                      onRenameAutomation: onRenameAutomation,
-                      onDeleteAutomation: onDeleteAutomationItem,
-                      onCreateAutomation: onCreateAutomation,
-                      onRenameProfile: onRenameProfile,
-                      onDeleteProfile: onDeleteProfile,
-                      onCreateProfile: onCreateProfile,
-                      onResourceSelected: onResourceSelected,
-                      onOpenResource: onOpenResource,
                       selectedResourceType: selectedResourceType,
                       selectedResourceId: selectedResourceId,
-                      onRenameResource: onRenameResource,
-                      onDeleteResource: onDeleteResource,
-                      onCreateResource: onCreateResource,
-                      onOpenProfile: (fileName) {
-                        onDestinationSelected(WorkspaceIds.profiles);
-                        return profileController?.openProfile(fileName);
-                      },
-                      onPluginSelected: (pluginId) {
-                        onPluginSelected?.call(pluginId);
-                        onDestinationSelected(WorkspaceIds.plugins);
-                      },
-                      onPluginToggle: (pluginId, enabled) =>
-                          _setPluginEnabled(context, pluginId, enabled),
                     ),
                   ),
                 ),

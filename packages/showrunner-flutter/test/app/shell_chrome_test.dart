@@ -52,15 +52,18 @@ void main() {
           height: 1200,
           child: ShowRunnerProjectPanel(
             selectedWorkspace: WorkspaceIds.graph,
-            onDestinationSelected: (workspace) => selectedWorkspace = workspace,
             pluginRegistryFuture: Future.value(registry),
             preferences: preferences,
             selectedPluginId: null,
-            onPluginSelected: (_) {},
-            onPluginToggle: (_, _) async {},
-            onResourceSelected: (resourceType) {
-              selectedResourceType = resourceType;
-            },
+            callbacks: ProjectPanelCallbacks(
+              onDestinationSelected: (workspace) =>
+                  selectedWorkspace = workspace,
+              onPluginSelected: (_) {},
+              onPluginToggle: (_, _) async {},
+              onResourceSelected: (resourceType) {
+                selectedResourceType = resourceType;
+              },
+            ),
           ),
         ),
       ),
@@ -127,12 +130,14 @@ void main() {
           height: 900,
           child: ShowRunnerProjectPanel(
             selectedWorkspace: WorkspaceIds.graph,
-            onDestinationSelected: (_) {},
             pluginRegistryFuture: Future.value(registry),
             preferences: preferences,
             selectedPluginId: null,
-            onPluginSelected: (_) {},
-            onPluginToggle: (_, _) async {},
+            callbacks: ProjectPanelCallbacks(
+              onDestinationSelected: (_) {},
+              onPluginSelected: (_) {},
+              onPluginToggle: (_, _) async {},
+            ),
           ),
         ),
       ),
@@ -160,12 +165,14 @@ void main() {
           height: 900,
           child: ShowRunnerProjectPanel(
             selectedWorkspace: WorkspaceIds.graph,
-            onDestinationSelected: (_) {},
             pluginRegistryFuture: Future.value(registry),
             preferences: preferences,
             selectedPluginId: null,
-            onPluginSelected: (_) {},
-            onPluginToggle: (_, _) async {},
+            callbacks: ProjectPanelCallbacks(
+              onDestinationSelected: (_) {},
+              onPluginSelected: (_) {},
+              onPluginToggle: (_, _) async {},
+            ),
           ),
         ),
       ),

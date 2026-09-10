@@ -13,6 +13,13 @@ import '../schema/resource.dart';
 import '../services/project_catalog_service.dart';
 import 'workspace_registry.dart';
 
+part 'project_panel/project_panel_controller.dart';
+part 'project_panel/project_catalog_section.dart';
+part 'project_panel/automation_section.dart';
+part 'project_panel/profile_section.dart';
+part 'project_panel/resource_section.dart';
+part 'project_panel/integration_section.dart';
+
 /// Project navigation following the reference ProjectView hierarchy.
 ///
 /// Workspace rows intentionally remain small and composable. A group header
@@ -22,91 +29,44 @@ class ShowRunnerProjectPanel extends StatefulWidget {
   const ShowRunnerProjectPanel({
     super.key,
     required this.selectedWorkspace,
-    required this.onDestinationSelected,
     required this.pluginRegistryFuture,
     required this.preferences,
     required this.selectedPluginId,
-    required this.onPluginSelected,
-    required this.onPluginToggle,
+    required this.callbacks,
     this.catalogService,
     this.catalogRevision = 0,
     this.activeAutomationFile,
-    this.onOpenAutomation,
-    this.onOpenProfile,
-    this.onResourceSelected,
-    this.onOpenResource,
     this.selectedResourceType,
     this.selectedResourceId,
-    this.onRenameAutomation,
-    this.onDeleteAutomation,
-    this.onCreateAutomation,
-    this.onRenameProfile,
-    this.onDeleteProfile,
-    this.onCreateProfile,
-    this.onRenameResource,
-    this.onDeleteResource,
-    this.onCreateResource,
   });
 
   final WorkspaceId selectedWorkspace;
-  final ValueChanged<WorkspaceId> onDestinationSelected;
   final Future<DartPluginRegistry> pluginRegistryFuture;
   final FlutterInterfacePreferences preferences;
   final String? selectedPluginId;
-  final ValueChanged<String> onPluginSelected;
-  final Future<void> Function(String pluginId, bool enabled) onPluginToggle;
+  final ProjectPanelCallbacks callbacks;
   final ShowRunnerProjectCatalogService? catalogService;
   final int catalogRevision;
   final String? activeAutomationFile;
-  final FutureOr<void> Function(AutomationData automation, String fileName)?
-  onOpenAutomation;
-  final FutureOr<void> Function(String fileName)? onOpenProfile;
-  final ValueChanged<String>? onResourceSelected;
-  final FutureOr<void> Function(ResourceData resource, String resourceType)?
-  onOpenResource;
   final String? selectedResourceType;
   final String? selectedResourceId;
-  final FutureOr<void> Function(String fileName, String name)?
-  onRenameAutomation;
-  final FutureOr<void> Function(String fileName)? onDeleteAutomation;
-  final FutureOr<void> Function()? onCreateAutomation;
-  final FutureOr<void> Function(String fileName, String name)? onRenameProfile;
-  final FutureOr<void> Function(String fileName)? onDeleteProfile;
-  final FutureOr<void> Function()? onCreateProfile;
-  final FutureOr<void> Function(
-    ResourceData resource,
-    String resourceType,
-    String name,
-  )?
-  onRenameResource;
-  final FutureOr<void> Function(ResourceData resource, String resourceType)?
-  onDeleteResource;
-  final FutureOr<void> Function(String resourceType)? onCreateResource;
 
   @override
   State<ShowRunnerProjectPanel> createState() => _ShowRunnerProjectPanelState();
 }
 
 class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
-  Future<ShowRunnerProjectCatalog>? _catalogFuture;
-
-  late final Map<String, bool> _expanded = {
-    'automations': false,
-    'profiles': false,
-    'stream-plans': false,
-    'overlays': false,
-    'integrations': !widget.preferences.collapseIntegrationCategoriesByDefault,
-    'audio': false,
-    'dashboards': false,
-    // Diagnostics and support workspaces are Flutter-only additions. Keep
-    // them out of the reference-first view until the user expands the group.
-    'tools': false,
-  };
+  late final ProjectPanelController _controller;
 
   @override
   void initState() {
     super.initState();
-    _reloadCatalog();
+    _controller = ProjectPanelController(
+      catalogService: widget.catalogService,
+      catalogRevision: widget.catalogRevision,
+      expandIntegrationCategories:
+          !widget.preferences.collapseIntegrationCategoriesByDefault,
+    );
   }
 
   @override
@@ -114,68 +74,44 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.catalogService != widget.catalogService ||
         oldWidget.catalogRevision != widget.catalogRevision) {
-      _reloadCatalog();
+      _controller.updateCatalog(
+        service: widget.catalogService,
+        revision: widget.catalogRevision,
+      );
     }
   }
 
-  void _reloadCatalog() {
-    final service = widget.catalogService;
-    _catalogFuture = service?.load();
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  void _toggle(String id) =>
-      setState(() => _expanded[id] = !(_expanded[id] ?? false));
-
   void _openResource(String resourceType) {
-    final callback = widget.onResourceSelected;
+    final callback = widget.callbacks.onResourceSelected;
     if (callback != null) {
       callback(resourceType);
     } else {
-      widget.onDestinationSelected(WorkspaceIds.resources);
+      widget.callbacks.onDestinationSelected(WorkspaceIds.resources);
     }
   }
 
   void _openPlugin(String pluginId) {
-    widget.onPluginSelected(pluginId);
-    widget.onDestinationSelected(WorkspaceIds.plugins);
+    widget.callbacks.onPluginSelected(pluginId);
+    widget.callbacks.onDestinationSelected(WorkspaceIds.plugins);
   }
-
-  VoidCallback _resourceOpen(ProjectResourceCatalogEntry entry) => () {
-    final callback = widget.onOpenResource;
-    if (callback != null) {
-      unawaited(
-        Future<void>.sync(() => callback(entry.resource, entry.resourceType)),
-      );
-    } else {
-      _openResource(entry.resourceType);
-    }
-  };
-
-  FutureOr<void> Function(String name)? _resourceRename(
-    ProjectResourceCatalogEntry entry,
-  ) {
-    final callback = widget.onRenameResource;
-    return callback == null
-        ? null
-        : (name) => callback(entry.resource, entry.resourceType, name);
-  }
-
-  FutureOr<void> Function()? _resourceDelete(
-    ProjectResourceCatalogEntry entry,
-  ) {
-    final callback = widget.onDeleteResource;
-    return callback == null
-        ? null
-        : () => callback(entry.resource, entry.resourceType);
-  }
-
-  bool _isSelected(ProjectResourceCatalogEntry entry) =>
-      widget.selectedResourceType == entry.resourceType &&
-      widget.selectedResourceId == entry.resource.id;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _controller,
+    builder: (context, child) => _buildContent(context),
+  );
+
+  Widget _buildContent(BuildContext context) {
     final compact = widget.preferences.compactProjectSidebar;
+    final callbacks = widget.callbacks;
+    final future = _controller.catalogFuture;
+    final toggle = _controller.toggle;
     return Material(
       color: ShowRunnerColors.surfaceB,
       child: ListView(
@@ -186,156 +122,57 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             icon: Icons.crop_square,
             selected: widget.selectedWorkspace == WorkspaceIds.home,
             compact: compact,
-            onTap: () => widget.onDestinationSelected(WorkspaceIds.home),
+            onTap: () => callbacks.onDestinationSelected(WorkspaceIds.home),
           ),
-          _ProjectGroupBlock(
-            id: 'automations',
-            title: 'Automations',
-            icon: Icons.bolt,
-            expanded: _expanded['automations'] ?? false,
+          AutomationSection(
+            future: future,
             compact: compact,
-            onToggle: _toggle,
-            onCreate: widget.onCreateAutomation,
-            children: [
-              if (_catalogFuture != null)
-                _CatalogEntries(
-                  future: _catalogFuture!,
-                  compact: compact,
-                  emptyLabel: 'No saved automations',
-                  builder: (catalog) => [
-                    for (final entry in catalog.automations)
-                      _ProjectItemRow(
-                        title:
-                            entry.automation?.extra['name']?.toString() ??
-                            entry.fileName,
-                        icon: entry.isValid
-                            ? Icons.account_tree_outlined
-                            : Icons.error_outline,
-                        selected: entry.fileName == widget.activeAutomationFile,
-                        indent: 1,
-                        compact: compact,
-                        onRename: widget.onRenameAutomation == null
-                            ? null
-                            : (name) => widget.onRenameAutomation!.call(
-                                entry.fileName,
-                                name,
-                              ),
-                        onDelete: widget.onDeleteAutomation == null
-                            ? null
-                            : () => widget.onDeleteAutomation!.call(
-                                entry.fileName,
-                              ),
-                        onTap:
-                            entry.automation == null ||
-                                widget.onOpenAutomation == null
-                            ? () {}
-                            : () => unawaited(
-                                Future<void>.sync(
-                                  () => widget.onOpenAutomation!.call(
-                                    entry.automation!,
-                                    entry.fileName,
-                                  ),
-                                ),
-                              ),
-                      ),
-                  ],
-                ),
-            ],
+            expanded: _controller.isExpanded('automations'),
+            onToggle: toggle,
+            activeFile: widget.activeAutomationFile,
+            callbacks: callbacks,
           ),
-          _ProjectGroupBlock(
-            id: 'profiles',
-            title: 'Profiles',
-            icon: Icons.card_membership_outlined,
-            expanded: _expanded['profiles'] ?? false,
+          ProfileSection(
+            future: future,
             compact: compact,
-            onToggle: _toggle,
-            onCreate: widget.onCreateProfile,
-            children: [
-              if (_catalogFuture != null)
-                _CatalogEntries(
-                  future: _catalogFuture!,
-                  compact: compact,
-                  emptyLabel: 'No saved profiles',
-                  builder: (catalog) => [
-                    for (final entry in catalog.profiles)
-                      _ProjectItemRow(
-                        title: entry.profile?.name ?? entry.fileName,
-                        icon: entry.isValid
-                            ? Icons.card_membership_outlined
-                            : Icons.error_outline,
-                        selected: false,
-                        indent: 1,
-                        compact: compact,
-                        onRename: widget.onRenameProfile == null
-                            ? null
-                            : (name) => widget.onRenameProfile!.call(
-                                entry.fileName,
-                                name,
-                              ),
-                        onDelete: widget.onDeleteProfile == null
-                            ? null
-                            : () =>
-                                  widget.onDeleteProfile!.call(entry.fileName),
-                        onTap:
-                            entry.profile == null ||
-                                widget.onOpenProfile == null
-                            ? () {}
-                            : () => unawaited(
-                                Future<void>.sync(
-                                  () => widget.onOpenProfile!.call(
-                                    entry.fileName,
-                                  ),
-                                ),
-                              ),
-                      ),
-                  ],
-                ),
-            ],
+            expanded: _controller.isExpanded('profiles'),
+            onToggle: toggle,
+            callbacks: callbacks,
           ),
-          _ProjectGroupBlock(
+          ResourceSection(
             id: 'stream-plans',
             title: 'Stream Plans',
-            icon: Icons.view_agenda_outlined,
-            expanded: _expanded['stream-plans'] ?? false,
-            compact: compact,
-            onToggle: _toggle,
-            onCreate: () => widget.onCreateResource?.call('StreamPlan'),
-            children: [
-              if (_catalogFuture != null)
-                _ResourceCatalogEntries(
-                  future: _catalogFuture!,
-                  resourceType: 'StreamPlan',
-                  compact: compact,
-                  emptyLabel: 'No saved stream plans',
-                  builder: (entries) => [
-                    for (final entry in entries)
-                      _ProjectItemRow(
-                        title: entry.title,
-                        icon: Icons.view_agenda_outlined,
-                        selected: _isSelected(entry),
-                        indent: 1,
-                        compact: compact,
-                        onRename: _resourceRename(entry),
-                        onDelete: _resourceDelete(entry),
-                        onTap: _resourceOpen(entry),
-                      ),
-                  ],
-                ),
+            groupIcon: Icons.view_agenda_outlined,
+            allowCreate: true,
+            items: const [
+              ResourceSectionItem(
+                resourceType: 'StreamPlan',
+                emptyLabel: 'No saved stream plans',
+                icon: Icons.view_agenda_outlined,
+              ),
             ],
+            future: future,
+            compact: compact,
+            expanded: _controller.isExpanded('stream-plans'),
+            onToggle: toggle,
+            callbacks: callbacks,
+            selectedResourceType: widget.selectedResourceType,
+            selectedResourceId: widget.selectedResourceId,
           ),
           _ProjectItemRow(
             title: 'Queues',
             icon: Icons.queue_music,
             selected: widget.selectedWorkspace == WorkspaceIds.queues,
             compact: compact,
-            onTap: () => widget.onDestinationSelected(WorkspaceIds.queues),
+            onTap: () => callbacks.onDestinationSelected(WorkspaceIds.queues),
           ),
           _ProjectItemRow(
             title: 'Variables',
             icon: Icons.data_object,
             selected: widget.selectedWorkspace == WorkspaceIds.variables,
             compact: compact,
-            onTap: () => widget.onDestinationSelected(WorkspaceIds.variables),
+            onTap: () =>
+                callbacks.onDestinationSelected(WorkspaceIds.variables),
           ),
           _ProjectItemRow(
             title: 'SpellCast',
@@ -346,1222 +183,139 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             compact: compact,
             onTap: () => _openPlugin('spellcast'),
           ),
-          _ProjectGroupBlock(
+          ResourceSection(
             id: 'audio',
             title: 'Audio',
-            icon: Icons.volume_up_outlined,
-            expanded: _expanded['audio'] ?? false,
-            compact: compact,
-            onToggle: _toggle,
-            children: [
-              if (_catalogFuture != null)
-                _ResourceCatalogEntries(
-                  future: _catalogFuture!,
-                  resourceType: 'SoundOutput',
-                  compact: compact,
-                  emptyLabel: 'No sound outputs',
-                  filter: (entry) =>
-                      entry.resource.config['type'] != 'splitter',
-                  builder: (entries) => [
-                    for (final entry in entries)
-                      _ProjectItemRow(
-                        title: entry.title,
-                        icon: Icons.speaker_outlined,
-                        selected: _isSelected(entry),
-                        indent: 1,
-                        compact: compact,
-                        onRename: _resourceRename(entry),
-                        onDelete: _resourceDelete(entry),
-                        onTap: _resourceOpen(entry),
-                      ),
-                  ],
-                ),
-              if (_catalogFuture != null)
-                _ResourceCatalogEntries(
-                  future: _catalogFuture!,
-                  resourceType: 'TTSVoice',
-                  compact: compact,
-                  emptyLabel: 'No TTS voices',
-                  builder: (entries) => [
-                    for (final entry in entries)
-                      _ProjectItemRow(
-                        title: entry.title,
-                        icon: Icons.record_voice_over_outlined,
-                        selected: _isSelected(entry),
-                        indent: 1,
-                        compact: compact,
-                        onRename: _resourceRename(entry),
-                        onDelete: _resourceDelete(entry),
-                        onTap: _resourceOpen(entry),
-                      ),
-                  ],
-                ),
-              if (_catalogFuture != null)
-                _ResourceCatalogEntries(
-                  future: _catalogFuture!,
-                  resourceType: 'AudioSplitterOutput',
-                  compact: compact,
-                  emptyLabel: 'No audio splitters',
-                  builder: (entries) => [
-                    for (final entry in entries)
-                      _ProjectItemRow(
-                        title: entry.title,
-                        icon: Icons.tune,
-                        selected: _isSelected(entry),
-                        indent: 1,
-                        compact: compact,
-                        onRename: _resourceRename(entry),
-                        onDelete: _resourceDelete(entry),
-                        onTap: _resourceOpen(entry),
-                      ),
-                  ],
-                ),
+            groupIcon: Icons.volume_up_outlined,
+            items: const [
+              ResourceSectionItem(
+                resourceType: 'SoundOutput',
+                emptyLabel: 'No sound outputs',
+                icon: Icons.speaker_outlined,
+                filter: _notAudioSplitter,
+              ),
+              ResourceSectionItem(
+                resourceType: 'TTSVoice',
+                emptyLabel: 'No TTS voices',
+                icon: Icons.record_voice_over_outlined,
+              ),
+              ResourceSectionItem(
+                resourceType: 'AudioSplitterOutput',
+                emptyLabel: 'No audio splitters',
+                icon: Icons.tune,
+              ),
             ],
+            future: future,
+            compact: compact,
+            expanded: _controller.isExpanded('audio'),
+            onToggle: toggle,
+            callbacks: callbacks,
+            selectedResourceType: widget.selectedResourceType,
+            selectedResourceId: widget.selectedResourceId,
           ),
-          _ProjectGroupBlock(
+          ResourceSection(
             id: 'dashboards',
             title: 'Dashboards',
-            icon: Icons.dashboard_outlined,
-            expanded: _expanded['dashboards'] ?? false,
-            compact: compact,
-            onToggle: _toggle,
-            children: [
-              if (_catalogFuture != null)
-                _ResourceCatalogEntries(
-                  future: _catalogFuture!,
-                  resourceType: 'Dashboard',
-                  compact: compact,
-                  emptyLabel: 'No saved dashboards',
-                  builder: (entries) => [
-                    for (final entry in entries)
-                      _ProjectItemRow(
-                        title: entry.title,
-                        icon: Icons.dashboard_customize_outlined,
-                        selected: _isSelected(entry),
-                        indent: 1,
-                        compact: compact,
-                        onRename: _resourceRename(entry),
-                        onDelete: _resourceDelete(entry),
-                        onTap: _resourceOpen(entry),
-                      ),
-                  ],
-                ),
+            groupIcon: Icons.dashboard_outlined,
+            items: const [
+              ResourceSectionItem(
+                resourceType: 'Dashboard',
+                emptyLabel: 'No saved dashboards',
+                icon: Icons.dashboard_customize_outlined,
+              ),
             ],
+            future: future,
+            compact: compact,
+            expanded: _controller.isExpanded('dashboards'),
+            onToggle: toggle,
+            callbacks: callbacks,
+            selectedResourceType: widget.selectedResourceType,
+            selectedResourceId: widget.selectedResourceId,
           ),
           _ProjectGroupBlock(
             id: 'integrations',
             title: 'Integrations',
             icon: Icons.settings_input_component_outlined,
-            expanded: _expanded['integrations'] ?? false,
+            expanded: _controller.isExpanded('integrations'),
             compact: compact,
-            onToggle: _toggle,
+            onToggle: toggle,
             children: [
-              ShowRunnerIntegrationTree(
+              IntegrationSection(
                 registryFuture: widget.pluginRegistryFuture,
                 preferences: widget.preferences,
                 selectedPluginId: widget.selectedPluginId,
                 selectedResourceType: widget.selectedResourceType,
                 selectedResourceId: widget.selectedResourceId,
-                catalogFuture: _catalogFuture,
-                onSelected: widget.onPluginSelected,
-                onToggle: widget.onPluginToggle,
+                catalogFuture: future,
+                onSelected: callbacks.onPluginSelected,
+                onToggle: callbacks.onPluginToggle,
                 onResourceTypeSelected: _openResource,
-                onOpenResource: widget.onOpenResource,
-                onRenameResource: widget.onRenameResource,
-                onDeleteResource: widget.onDeleteResource,
+                onOpenResource: callbacks.onOpenResource,
+                onRenameResource: callbacks.onRenameResource,
+                onDeleteResource: callbacks.onDeleteResource,
               ),
             ],
           ),
-          _ProjectGroupBlock(
+          ResourceSection(
             id: 'overlays',
             title: 'Overlays',
-            icon: Icons.layers_outlined,
-            expanded: _expanded['overlays'] ?? false,
-            compact: compact,
-            onToggle: _toggle,
-            onCreate: () => widget.onCreateResource?.call('Overlay'),
-            children: [
-              if (_catalogFuture != null)
-                _ResourceCatalogEntries(
-                  future: _catalogFuture!,
-                  resourceType: 'Overlay',
-                  compact: compact,
-                  emptyLabel: 'No saved overlays',
-                  builder: (entries) => [
-                    for (final entry in entries)
-                      _ProjectItemRow(
-                        title: entry.title,
-                        icon: Icons.layers_outlined,
-                        selected: _isSelected(entry),
-                        indent: 1,
-                        compact: compact,
-                        onRename: _resourceRename(entry),
-                        onDelete: _resourceDelete(entry),
-                        onTap: _resourceOpen(entry),
-                      ),
-                  ],
-                ),
+            groupIcon: Icons.layers_outlined,
+            allowCreate: true,
+            items: const [
+              ResourceSectionItem(
+                resourceType: 'Overlay',
+                emptyLabel: 'No saved overlays',
+                icon: Icons.layers_outlined,
+              ),
             ],
+            future: future,
+            compact: compact,
+            expanded: _controller.isExpanded('overlays'),
+            onToggle: toggle,
+            callbacks: callbacks,
+            selectedResourceType: widget.selectedResourceType,
+            selectedResourceId: widget.selectedResourceId,
           ),
           _ProjectGroupBlock(
             id: 'tools',
             title: 'Tools',
             icon: Icons.build_outlined,
-            expanded: _expanded['tools'] ?? false,
+            expanded: _controller.isExpanded('tools'),
             compact: compact,
-            onToggle: _toggle,
+            onToggle: toggle,
             children: [
-              _ProjectItemRow(
-                title: 'Automation Editor',
-                icon: Icons.account_tree_outlined,
-                selected: widget.selectedWorkspace == WorkspaceIds.graph,
-                indent: 1,
-                compact: compact,
-                onTap: () => widget.onDestinationSelected(WorkspaceIds.graph),
-              ),
-              _ProjectItemRow(
-                title: 'Diagnostics',
-                icon: Icons.monitor_heart_outlined,
-                selected: widget.selectedWorkspace == WorkspaceIds.diagnostics,
-                indent: 1,
-                compact: compact,
-                onTap: () =>
-                    widget.onDestinationSelected(WorkspaceIds.diagnostics),
-              ),
-              _ProjectItemRow(
-                title: 'Logs',
-                icon: Icons.receipt_long_outlined,
-                selected: widget.selectedWorkspace == WorkspaceIds.logs,
-                indent: 1,
-                compact: compact,
-                onTap: () => widget.onDestinationSelected(WorkspaceIds.logs),
-              ),
-              _ProjectItemRow(
-                title: 'Remote',
-                icon: Icons.public,
-                selected: widget.selectedWorkspace == WorkspaceIds.remote,
-                indent: 1,
-                compact: compact,
-                onTap: () => widget.onDestinationSelected(WorkspaceIds.remote),
-              ),
-              _ProjectItemRow(
-                title: 'Setup',
-                icon: Icons.rocket_launch_outlined,
-                selected: widget.selectedWorkspace == WorkspaceIds.setup,
-                indent: 1,
-                compact: compact,
-                onTap: () => widget.onDestinationSelected(WorkspaceIds.setup),
-              ),
-              _ProjectItemRow(
-                title: 'Settings',
-                icon: Icons.settings_outlined,
-                selected: widget.selectedWorkspace == WorkspaceIds.settings,
-                indent: 1,
-                compact: compact,
-                onTap: () =>
-                    widget.onDestinationSelected(WorkspaceIds.settings),
-              ),
-              _ProjectItemRow(
-                title: 'About',
-                icon: Icons.info_outline,
-                selected: widget.selectedWorkspace == WorkspaceIds.about,
-                indent: 1,
-                compact: compact,
-                onTap: () => widget.onDestinationSelected(WorkspaceIds.about),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CatalogEntries extends StatelessWidget {
-  const _CatalogEntries({
-    required this.future,
-    required this.compact,
-    required this.emptyLabel,
-    required this.builder,
-  });
-
-  final Future<ShowRunnerProjectCatalog> future;
-  final bool compact;
-  final String emptyLabel;
-  final List<Widget> Function(ShowRunnerProjectCatalog catalog) builder;
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<ShowRunnerProjectCatalog>(
-    future: future,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return Padding(
-          padding: EdgeInsets.only(left: compact ? 46 : 54, top: 4, bottom: 4),
-          child: const Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox.square(
-              dimension: 14,
-              child: CircularProgressIndicator(strokeWidth: 1.5),
-            ),
-          ),
-        );
-      }
-      if (snapshot.hasError) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(compact ? 46 : 54, 4, 8, 4),
-          child: Text(
-            'Unable to load project items',
-            style: TextStyle(
-              color: ShowRunnerColors.secondary,
-              fontSize: compact ? 11.5 : 12.5,
-            ),
-          ),
-        );
-      }
-      final catalog = snapshot.data;
-      if (catalog == null) return const SizedBox.shrink();
-      final items = builder(catalog);
-      return items.isEmpty
-          ? Padding(
-              padding: EdgeInsets.fromLTRB(compact ? 46 : 54, 3, 8, 5),
-              child: Text(
-                emptyLabel,
-                style: TextStyle(
-                  color: ShowRunnerColors.secondary,
-                  fontSize: compact ? 11.5 : 12.5,
+              for (final item in [
+                (
+                  'Automation Editor',
+                  Icons.account_tree_outlined,
+                  WorkspaceIds.graph,
                 ),
-              ),
-            )
-          : Column(children: items);
-    },
-  );
-}
-
-class _ResourceCatalogEntries extends StatelessWidget {
-  const _ResourceCatalogEntries({
-    required this.future,
-    required this.resourceType,
-    required this.compact,
-    required this.emptyLabel,
-    required this.builder,
-    this.filter,
-  });
-
-  final Future<ShowRunnerProjectCatalog> future;
-  final String resourceType;
-  final bool compact;
-  final String emptyLabel;
-  final List<Widget> Function(List<ProjectResourceCatalogEntry> entries)
-  builder;
-  final bool Function(ProjectResourceCatalogEntry entry)? filter;
-
-  @override
-  Widget build(BuildContext context) => _CatalogEntries(
-    future: future,
-    compact: compact,
-    emptyLabel: emptyLabel,
-    builder: (catalog) {
-      final entries = (catalog.resources[resourceType] ?? const [])
-          .where(filter ?? (_) => true)
-          .toList(growable: false);
-      return builder(entries);
-    },
-  );
-}
-
-class _ProjectGroupBlock extends StatelessWidget {
-  const _ProjectGroupBlock({
-    required this.id,
-    required this.title,
-    required this.icon,
-    required this.expanded,
-    required this.compact,
-    required this.onToggle,
-    required this.children,
-    this.onCreate,
-  });
-
-  final String id;
-  final String title;
-  final IconData icon;
-  final bool expanded;
-  final bool compact;
-  final ValueChanged<String> onToggle;
-  final List<Widget> children;
-  final FutureOr<void> Function()? onCreate;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      InkWell(
-        onTap: () => onToggle(id),
-        child: SizedBox(
-          height: compact ? 25 : 32,
-          child: Row(
-            children: [
-              const SizedBox(width: 4),
-              Icon(
-                expanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
-                size: 18,
-              ),
-              Icon(icon, size: 17),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  title,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: compact ? 13.5 : 15.5),
+                (
+                  'Diagnostics',
+                  Icons.monitor_heart_outlined,
+                  WorkspaceIds.diagnostics,
                 ),
-              ),
-              if (onCreate != null)
-                IconButton(
-                  tooltip: 'Create $title',
-                  onPressed: () => onCreate!.call(),
-                  icon: const Icon(Icons.add, size: 18),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 32,
-                    height: 30,
-                  ),
-                  splashRadius: 16,
-                ),
-            ],
-          ),
-        ),
-      ),
-      if (expanded) ...children,
-    ],
-  );
-}
-
-class _ProjectItemRow extends StatelessWidget {
-  const _ProjectItemRow({
-    required this.title,
-    required this.icon,
-    required this.selected,
-    required this.compact,
-    required this.onTap,
-    this.indent = 0,
-    this.onRename,
-    this.onDelete,
-  });
-
-  final String title;
-  final IconData icon;
-  final bool selected;
-  final bool compact;
-  final int indent;
-  final VoidCallback onTap;
-  final FutureOr<void> Function(String name)? onRename;
-  final FutureOr<void> Function()? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = selected
-        ? ShowRunnerColors.highlightText
-        : ShowRunnerColors.text;
-    return Material(
-      color: selected ? ShowRunnerColors.highlight : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        onSecondaryTap: onRename == null && onDelete == null
-            ? null
-            : () => unawaited(_showContextMenu(context)),
-        hoverColor: ShowRunnerColors.highlight,
-        child: SizedBox(
-          height: compact ? 25 : 32,
-          child: Padding(
-            padding: EdgeInsets.only(left: 22.0 + indent * 16, right: 8),
-            child: Row(
-              children: [
-                Icon(icon, size: 17, color: textColor),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    title,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: compact ? 13.5 : 15.5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showContextMenu(BuildContext context) async {
-    final action = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (onRename != null)
-              ListTile(
-                leading: const Icon(Icons.drive_file_rename_outline),
-                title: const Text('Rename'),
-                onTap: () => Navigator.pop(context, 'rename'),
-              ),
-            if (onDelete != null)
-              ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: const Text('Delete'),
-                onTap: () => Navigator.pop(context, 'delete'),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-    if (!context.mounted) return;
-    if (action == 'rename' && onRename != null) {
-      final name = await showDialog<String>(
-        context: context,
-        builder: (context) => _RenameProjectItemDialog(initialName: title),
-      );
-      if (name != null && name.trim().isNotEmpty) {
-        await onRename!(name.trim());
-      }
-    } else if (action == 'delete' && onDelete != null) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Delete $title?'),
-          content: const Text('This action cannot be undone.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed == true) await onDelete!();
-    }
-  }
-}
-
-class _RenameProjectItemDialog extends StatefulWidget {
-  const _RenameProjectItemDialog({required this.initialName});
-
-  final String initialName;
-
-  @override
-  State<_RenameProjectItemDialog> createState() =>
-      _RenameProjectItemDialogState();
-}
-
-class _RenameProjectItemDialogState extends State<_RenameProjectItemDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialName,
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text('Rename ${widget.initialName}'),
-    content: TextField(
-      controller: _controller,
-      autofocus: true,
-      onSubmitted: (value) => Navigator.pop(context, value),
-      decoration: const InputDecoration(labelText: 'Name'),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(context, _controller.text),
-        child: const Text('Rename'),
-      ),
-    ],
-  );
-}
-
-class ShowRunnerIntegrationTree extends StatefulWidget {
-  const ShowRunnerIntegrationTree({
-    super.key,
-    required this.registryFuture,
-    required this.preferences,
-    required this.selectedPluginId,
-    required this.selectedResourceType,
-    required this.selectedResourceId,
-    required this.catalogFuture,
-    required this.onSelected,
-    required this.onToggle,
-    required this.onResourceTypeSelected,
-    required this.onOpenResource,
-    required this.onRenameResource,
-    required this.onDeleteResource,
-  });
-
-  final Future<DartPluginRegistry> registryFuture;
-  final FlutterInterfacePreferences preferences;
-  final String? selectedPluginId;
-  final String? selectedResourceType;
-  final String? selectedResourceId;
-  final Future<ShowRunnerProjectCatalog>? catalogFuture;
-  final ValueChanged<String> onSelected;
-  final Future<void> Function(String pluginId, bool enabled) onToggle;
-  final ValueChanged<String> onResourceTypeSelected;
-  final FutureOr<void> Function(ResourceData resource, String resourceType)?
-  onOpenResource;
-  final FutureOr<void> Function(
-    ResourceData resource,
-    String resourceType,
-    String name,
-  )?
-  onRenameResource;
-  final FutureOr<void> Function(ResourceData resource, String resourceType)?
-  onDeleteResource;
-
-  @override
-  State<ShowRunnerIntegrationTree> createState() =>
-      _ShowRunnerIntegrationTreeState();
-}
-
-class _ShowRunnerIntegrationTreeState extends State<ShowRunnerIntegrationTree> {
-  final _searchController = TextEditingController();
-  final _expanded = <String, bool>{};
-  String _query = '';
-
-  @override
-  void initState() {
-    super.initState();
-    for (final group in _integrationGroups) {
-      _expanded[group.title] =
-          !widget.preferences.collapseIntegrationCategoriesByDefault;
-    }
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<DartPluginRegistry>(
-    future: widget.registryFuture,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Padding(
-          padding: EdgeInsets.all(12),
-          child: Center(
-            child: SizedBox.square(
-              dimension: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-        );
-      }
-      if (snapshot.hasError) {
-        return Padding(
-          padding: const EdgeInsets.all(12),
-          child: Text('Plugin registry error: ${snapshot.error}'),
-        );
-      }
-      final registry = snapshot.data;
-      if (registry == null) return const SizedBox.shrink();
-      return ListenableBuilder(
-        listenable: registry,
-        builder: (context, child) => ListenableBuilder(
-          listenable: widget.preferences,
-          builder: (context, child) => _buildContent(context, registry),
-        ),
-      );
-    },
-  );
-
-  Widget _buildContent(BuildContext context, DartPluginRegistry registry) {
-    final plugins = registry.plugins.where((plugin) {
-      if (widget.preferences.hideDisabledIntegrations &&
-          !registry.isPluginEnabled(plugin.id)) {
-        return false;
-      }
-      return pluginMatchesSearch(plugin, _query);
-    }).toList()..sort((a, b) => a.name.compareTo(b.name));
-
-    final groups = <_IntegrationGroup, List<DartPluginManifest>>{
-      for (final group in _integrationGroups) group: [],
-    };
-    for (final plugin in plugins) {
-      final group = _integrationGroups.firstWhere(
-        (candidate) => candidate.pluginIds.contains(plugin.id),
-        orElse: () => _integrationGroups.last,
-      );
-      groups[group]!.add(plugin);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(22, 4, 8, 6),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (value) => setState(() => _query = value),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: 'Search integrations',
-              prefixIcon: const Icon(Icons.search, size: 18),
-              suffixIcon: _query.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'Clear integration search',
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _query = '');
-                      },
-                      icon: const Icon(Icons.clear, size: 17),
-                    ),
-            ),
-          ),
-        ),
-        if (plugins.isEmpty)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(22, 4, 8, 8),
-            child: Text('No integrations match this search.'),
-          ),
-        for (final group in _integrationGroups)
-          if (groups[group]!.isNotEmpty) ...[
-            _IntegrationCategoryHeader(
-              title: group.title,
-              icon: group.icon,
-              expanded: _expanded[group.title] ?? true,
-              compact: widget.preferences.compactProjectSidebar,
-              onTap: () => setState(
-                () =>
-                    _expanded[group.title] = !(_expanded[group.title] ?? true),
-              ),
-            ),
-            if ((_expanded[group.title] ?? true) ||
-                (_query.trim().isNotEmpty && groups[group]!.isNotEmpty))
-              for (final plugin in groups[group]!)
-                _IntegrationPluginRow(
-                  plugin: plugin,
-                  registry: registry,
-                  preferences: widget.preferences,
-                  query: _query,
-                  selected: plugin.id == widget.selectedPluginId,
-                  onSelected: widget.onSelected,
-                  onToggle: widget.onToggle,
-                ),
-          ],
-        if (!widget.preferences.hideNativeIntegrationShortcuts)
-          for (final shortcutGroup in _integrationShortcutGroups)
-            if (groups.values.any(
-              (plugins) =>
-                  plugins.any((plugin) => plugin.id == shortcutGroup.id),
-            ))
-              _IntegrationShortcutGroupView(
-                group: shortcutGroup,
-                expanded: _expanded[shortcutGroup.title] ?? true,
-                compact: widget.preferences.compactProjectSidebar,
-                catalogFuture: widget.catalogFuture,
-                selectedResourceType: widget.selectedResourceType,
-                selectedResourceId: widget.selectedResourceId,
-                onToggle: () => setState(
-                  () => _expanded[shortcutGroup.title] =
-                      !(_expanded[shortcutGroup.title] ?? true),
-                ),
-                onSelected: widget.onSelected,
-                onResourceTypeSelected: widget.onResourceTypeSelected,
-                onOpenResource: widget.onOpenResource,
-                onRenameResource: widget.onRenameResource,
-                onDeleteResource: widget.onDeleteResource,
-              ),
-      ],
-    );
-  }
-}
-
-final class _IntegrationShortcutGroup {
-  const _IntegrationShortcutGroup({
-    required this.id,
-    required this.title,
-    required this.icon,
-    required this.shortcuts,
-  });
-
-  final String id;
-  final String title;
-  final IconData icon;
-  final List<_IntegrationShortcut> shortcuts;
-}
-
-final class _IntegrationShortcut {
-  const _IntegrationShortcut({
-    required this.title,
-    required this.icon,
-    this.pluginId,
-    this.resourceType,
-  });
-
-  final String title;
-  final IconData icon;
-  final String? pluginId;
-  final String? resourceType;
-}
-
-const _integrationShortcutGroups = <_IntegrationShortcutGroup>[
-  _IntegrationShortcutGroup(
-    id: 'obs',
-    title: 'OBS',
-    icon: Icons.tv_outlined,
-    shortcuts: [
-      _IntegrationShortcut(
-        title: 'Connections',
-        icon: Icons.link,
-        resourceType: 'OBSConnection',
-      ),
-    ],
-  ),
-  _IntegrationShortcutGroup(
-    id: 'twitch',
-    title: 'Twitch',
-    icon: Icons.live_tv_outlined,
-    shortcuts: [
-      _IntegrationShortcut(
-        title: 'Account Login',
-        icon: Icons.key_outlined,
-        pluginId: 'twitch',
-      ),
-      _IntegrationShortcut(
-        title: 'Channel Point Rewards',
-        icon: Icons.stars_outlined,
-        pluginId: 'twitch',
-      ),
-      _IntegrationShortcut(
-        title: 'Viewer Groups',
-        icon: Icons.group_outlined,
-        resourceType: 'CustomTwitchViewerGroup',
-      ),
-    ],
-  ),
-  _IntegrationShortcutGroup(
-    id: 'youtube',
-    title: 'YouTube',
-    icon: Icons.ondemand_video_outlined,
-    shortcuts: [
-      _IntegrationShortcut(
-        title: 'Live Integration',
-        icon: Icons.broadcast_on_personal_outlined,
-        pluginId: 'youtube',
-      ),
-    ],
-  ),
-  _IntegrationShortcutGroup(
-    id: 'moderation',
-    title: 'Moderation',
-    icon: Icons.shield_outlined,
-    shortcuts: [
-      _IntegrationShortcut(
-        title: 'Moderation Docker',
-        icon: Icons.shield_outlined,
-        pluginId: 'moderation',
-      ),
-    ],
-  ),
-];
-
-class _IntegrationShortcutGroupView extends StatelessWidget {
-  const _IntegrationShortcutGroupView({
-    required this.group,
-    required this.expanded,
-    required this.compact,
-    required this.catalogFuture,
-    required this.selectedResourceType,
-    required this.selectedResourceId,
-    required this.onToggle,
-    required this.onSelected,
-    required this.onResourceTypeSelected,
-    required this.onOpenResource,
-    required this.onRenameResource,
-    required this.onDeleteResource,
-  });
-
-  final _IntegrationShortcutGroup group;
-  final bool expanded;
-  final bool compact;
-  final Future<ShowRunnerProjectCatalog>? catalogFuture;
-  final String? selectedResourceType;
-  final String? selectedResourceId;
-  final VoidCallback onToggle;
-  final ValueChanged<String> onSelected;
-  final ValueChanged<String> onResourceTypeSelected;
-  final FutureOr<void> Function(ResourceData resource, String resourceType)?
-  onOpenResource;
-  final FutureOr<void> Function(
-    ResourceData resource,
-    String resourceType,
-    String name,
-  )?
-  onRenameResource;
-  final FutureOr<void> Function(ResourceData resource, String resourceType)?
-  onDeleteResource;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      InkWell(
-        onTap: onToggle,
-        hoverColor: ShowRunnerColors.highlight,
-        child: SizedBox(
-          height: compact ? 25 : 32,
-          child: Row(
-            children: [
-              const SizedBox(width: 36),
-              Icon(
-                expanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
-                size: 18,
-              ),
-              Icon(group.icon, size: 17),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  group.title,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: compact ? 13.5 : 15.5),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      if (expanded) ...[
-        for (final shortcut in group.shortcuts)
-          _ProjectItemRow(
-            title: shortcut.title,
-            icon: shortcut.icon,
-            selected:
-                shortcut.resourceType != null &&
-                selectedResourceType == shortcut.resourceType,
-            indent: 2,
-            compact: compact,
-            onTap: () {
-              final resourceType = shortcut.resourceType;
-              if (resourceType != null) {
-                onResourceTypeSelected(resourceType);
-              } else if (shortcut.pluginId != null) {
-                onSelected(shortcut.pluginId!);
-              }
-            },
-          ),
-        if (group.id == 'twitch' && catalogFuture != null)
-          _ResourceCatalogEntries(
-            future: catalogFuture!,
-            resourceType: 'CustomTwitchViewerGroup',
-            compact: compact,
-            emptyLabel: 'No viewer groups',
-            builder: (entries) => [
-              for (final entry in entries)
+                ('Logs', Icons.receipt_long_outlined, WorkspaceIds.logs),
+                ('Remote', Icons.public, WorkspaceIds.remote),
+                ('Setup', Icons.rocket_launch_outlined, WorkspaceIds.setup),
+                ('Settings', Icons.settings_outlined, WorkspaceIds.settings),
+                ('About', Icons.info_outline, WorkspaceIds.about),
+              ])
                 _ProjectItemRow(
-                  title: entry.title,
-                  icon: Icons.person_search_outlined,
-                  selected:
-                      selectedResourceType == entry.resourceType &&
-                      selectedResourceId == entry.resource.id,
-                  indent: 3,
+                  title: item.$1,
+                  icon: item.$2,
+                  selected: widget.selectedWorkspace == item.$3,
+                  indent: 1,
                   compact: compact,
-                  onRename: _rename(entry),
-                  onDelete: _delete(entry),
-                  onTap: _open(entry),
+                  onTap: () => callbacks.onDestinationSelected(item.$3),
                 ),
             ],
           ),
-      ],
-    ],
-  );
-
-  VoidCallback _open(ProjectResourceCatalogEntry entry) => () {
-    final callback = onOpenResource;
-    if (callback != null) {
-      unawaited(
-        Future<void>.sync(() => callback(entry.resource, entry.resourceType)),
-      );
-    } else {
-      onResourceTypeSelected(entry.resourceType);
-    }
-  };
-
-  FutureOr<void> Function(String name)? _rename(
-    ProjectResourceCatalogEntry entry,
-  ) {
-    final callback = onRenameResource;
-    return callback == null
-        ? null
-        : (name) => callback(entry.resource, entry.resourceType, name);
-  }
-
-  FutureOr<void> Function()? _delete(ProjectResourceCatalogEntry entry) {
-    final callback = onDeleteResource;
-    return callback == null
-        ? null
-        : () => callback(entry.resource, entry.resourceType);
-  }
-}
-
-class _IntegrationCategoryHeader extends StatelessWidget {
-  const _IntegrationCategoryHeader({
-    required this.title,
-    required this.icon,
-    required this.expanded,
-    required this.compact,
-    required this.onTap,
-  });
-
-  final String title;
-  final IconData icon;
-  final bool expanded;
-  final bool compact;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    hoverColor: ShowRunnerColors.highlight,
-    child: SizedBox(
-      height: compact ? 25 : 32,
-      child: Row(
-        children: [
-          const SizedBox(width: 20),
-          Icon(
-            expanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
-            size: 18,
-          ),
-          Icon(icon, size: 17),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              title,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: compact ? 13.5 : 15.5),
-            ),
-          ),
         ],
       ),
-    ),
-  );
-}
-
-class _IntegrationPluginRow extends StatelessWidget {
-  const _IntegrationPluginRow({
-    required this.plugin,
-    required this.registry,
-    required this.preferences,
-    required this.query,
-    required this.selected,
-    required this.onSelected,
-    required this.onToggle,
-  });
-
-  final DartPluginManifest plugin;
-  final DartPluginRegistry registry;
-  final FlutterInterfacePreferences preferences;
-  final String query;
-  final bool selected;
-  final ValueChanged<String> onSelected;
-  final Future<void> Function(String pluginId, bool enabled) onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = registry.isPluginEnabled(plugin.id);
-    return Material(
-      color: selected
-          ? ShowRunnerColors.highlight
-          : query.trim().isNotEmpty
-          ? ShowRunnerColors.highlight.withAlpha(70)
-          : Colors.transparent,
-      child: InkWell(
-        onTap: () => onSelected(plugin.id),
-        hoverColor: ShowRunnerColors.highlight,
-        child: SizedBox(
-          height: preferences.compactProjectSidebar ? 25 : 32,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 54, right: 6),
-            child: Row(
-              children: [
-                pluginIconWidgetFor(
-                  plugin.id,
-                  size: 16,
-                  color: enabled ? pluginColorFor(plugin.id) : Colors.white38,
-                ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: _HighlightedIntegrationName(
-                    name: plugin.name,
-                    query: query,
-                    selected: selected,
-                    compact: preferences.compactProjectSidebar,
-                  ),
-                ),
-                if (preferences.showPluginSwitches)
-                  SizedBox(
-                    width: 32,
-                    child: Transform.scale(
-                      scale: 0.65,
-                      child: Switch(
-                        value: enabled,
-                        onChanged: (value) => onToggle(plugin.id, value),
-                      ),
-                    ),
-                  )
-                else
-                  Icon(
-                    enabled ? Icons.power : Icons.power_off,
-                    size: 15,
-                    color: enabled ? Colors.tealAccent : Colors.white38,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
 
-class _HighlightedIntegrationName extends StatelessWidget {
-  const _HighlightedIntegrationName({
-    required this.name,
-    required this.query,
-    required this.selected,
-    required this.compact,
-  });
-
-  final String name;
-  final String query;
-  final bool selected;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final baseStyle = TextStyle(
-      color: selected ? ShowRunnerColors.highlightText : ShowRunnerColors.text,
-      fontSize: compact ? 13.5 : 15.5,
-    );
-    final needle = query.trim();
-    if (needle.isEmpty) {
-      return Text(name, overflow: TextOverflow.ellipsis, style: baseStyle);
-    }
-    final lowerName = name.toLowerCase();
-    final match = lowerName.indexOf(needle.toLowerCase());
-    if (match < 0) {
-      return Text(name, overflow: TextOverflow.ellipsis, style: baseStyle);
-    }
-    return Text.rich(
-      TextSpan(
-        style: baseStyle,
-        children: [
-          TextSpan(text: name.substring(0, match)),
-          TextSpan(
-            text: name.substring(match, match + needle.length),
-            style: TextStyle(
-              color: selected ? ShowRunnerColors.highlightText : Colors.white,
-              backgroundColor: ShowRunnerColors.highlight,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          TextSpan(text: name.substring(match + needle.length)),
-        ],
-      ),
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-}
-
-final class _IntegrationGroup {
-  const _IntegrationGroup({
-    required this.title,
-    required this.icon,
-    required this.pluginIds,
-  });
-
-  final String title;
-  final IconData icon;
-  final Set<String> pluginIds;
-}
-
-final _integrationGroups = <_IntegrationGroup>[
-  _IntegrationGroup(
-    title: 'Streaming & Chat',
-    icon: mdiIcon(0xF036B),
-    pluginIds: {
-      'twitch',
-      'youtube',
-      'discord',
-      'bluesky',
-      'moderation',
-      'stream-plans',
-      'spellcast',
-    },
-  ),
-  _IntegrationGroup(
-    title: 'Production & Overlays',
-    icon: mdiIcon(0xF0F59),
-    pluginIds: {
-      'obs',
-      'overlays',
-      'sound',
-      'dashboards',
-      'advss',
-      'aitum',
-      'voicemod',
-    },
-  ),
-  _IntegrationGroup(
-    title: 'Devices & Lights',
-    icon: mdiIcon(0xF1254),
-    pluginIds: {
-      'elgato',
-      'govee',
-      'iot',
-      'lifx',
-      'minecraft',
-      'philips-hue',
-      'tplink-kasa',
-      'twinkly',
-      'wyze',
-      'input',
-    },
-  ),
-  _IntegrationGroup(
-    title: 'Data & Utility',
-    icon: mdiIcon(0xF09AD),
-    pluginIds: {
-      'ShowRunner',
-      'http',
-      'os',
-      'random',
-      'remote',
-      'time',
-      'variables',
-      'donordrive',
-    },
-  ),
-  _IntegrationGroup(title: 'Other', icon: mdiIcon(0xF0A66), pluginIds: {}),
-];
+bool _notAudioSplitter(ProjectResourceCatalogEntry entry) =>
+    entry.resource.config['type'] != 'splitter';
