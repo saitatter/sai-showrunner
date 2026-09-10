@@ -2,9 +2,15 @@ import '../../runtime/expression.dart';
 import '../../schema/data_input.dart';
 import '../../persistence/resource_repository.dart';
 import '../../schema/resource.dart';
-import '../registry/plugin_contract.dart';
 import '../../services/plugin_event_hub.dart';
+import '../registry/plugin_contract.dart';
 import 'channel_points.dart';
+
+part 'actions/chat.dart';
+part 'actions/moderation.dart';
+part 'actions/stream.dart';
+part 'actions/rewards.dart';
+part 'actions/ads.dart';
 
 typedef TwitchRequest =
     Future<RuntimeMap> Function(
@@ -401,439 +407,205 @@ DartPluginManifest createTwitchPlugin(
   TwitchTransport transport, {
   DartPluginEventHub? eventHub,
   ResourceRepository? viewerGroupRepository,
-}) => DartPluginManifest(
-  id: PluginId('twitch'),
-  name: 'Twitch',
-  states: const [
-    StateSpec(
-      id: StateId('connection'),
-      displayName: 'Connection',
-      initialValue: 'unconfigured',
-    ),
-    StateSpec(id: StateId('adSnoozeRefresh'), displayName: 'Ad Snooze Refresh'),
-    StateSpec(id: StateId('adSnoozes'), displayName: 'Ad Snoozes'),
-    StateSpec(id: StateId('adTimer'), displayName: 'Ad Timer'),
-    StateSpec(id: StateId('category'), displayName: 'Category'),
-    StateSpec(id: StateId('followers'), displayName: 'Followers'),
-    StateSpec(id: StateId('hypeTrainExists'), displayName: 'Hype Train Exists'),
-    StateSpec(id: StateId('hypeTrainGoal'), displayName: 'Hype Train Goal'),
-    StateSpec(id: StateId('hypeTrainLevel'), displayName: 'Hype Train Level'),
-    StateSpec(
-      id: StateId('hypeTrainProgress'),
-      displayName: 'Hype Train Progress',
-    ),
-    StateSpec(id: StateId('hypeTrainTotal'), displayName: 'Hype Train Total'),
-    StateSpec(id: StateId('inAdBreak'), displayName: 'In Ad Break'),
-    StateSpec(id: StateId('lastFollower'), displayName: 'Last Follower'),
-    StateSpec(id: StateId('lastSubscriber'), displayName: 'Last Subscriber'),
-    StateSpec(id: StateId('live'), displayName: 'Live'),
-    StateSpec(id: StateId('nextAdDuration'), displayName: 'Next Ad Duration'),
-    StateSpec(id: StateId('nextAdTimer'), displayName: 'Next Ad Timer'),
-    StateSpec(id: StateId('pollId'), displayName: 'Poll ID'),
-    StateSpec(id: StateId('pollTitle'), displayName: 'Poll Title'),
-    StateSpec(
-      id: StateId('predictionChoiceNames'),
-      displayName: 'Prediction Choice Names',
-    ),
-    StateSpec(
-      id: StateId('predictionChoiceTotals'),
-      displayName: 'Prediction Choice Totals',
-    ),
-    StateSpec(
-      id: StateId('predictionExists'),
-      displayName: 'Prediction Exists',
-    ),
-    StateSpec(id: StateId('predictionId'), displayName: 'Prediction ID'),
-    StateSpec(id: StateId('predictionTitle'), displayName: 'Prediction Title'),
-    StateSpec(id: StateId('predictionTotal'), displayName: 'Prediction Total'),
-    StateSpec(id: StateId('prerollFreeTime'), displayName: 'Preroll Free Time'),
-    StateSpec(id: StateId('raidTarget'), displayName: 'Raid Target'),
-    StateSpec(id: StateId('raidTimer'), displayName: 'Raid Timer'),
-    StateSpec(
-      id: StateId('subscriberPoints'),
-      displayName: 'Subscriber Points',
-    ),
-    StateSpec(id: StateId('subscribers'), displayName: 'Subscribers'),
-    StateSpec(id: StateId('title'), displayName: 'Title'),
-  ],
-  settings: const [
-    SettingSpec(id: SettingId('clientId'), displayName: 'Client ID'),
-    SettingSpec(
-      id: SettingId('clientSecret'),
-      displayName: 'Client Secret',
-      secret: true,
-    ),
-    SettingSpec(
-      id: SettingId('accessToken'),
-      displayName: 'Access Token',
-      secret: true,
-    ),
-    SettingSpec(id: SettingId('broadcasterId'), displayName: 'Broadcaster ID'),
-    SettingSpec(id: SettingId('moderatorId'), displayName: 'Moderator ID'),
-    SettingSpec(
-      id: SettingId('refreshToken'),
-      displayName: 'Refresh Token',
-      secret: true,
-    ),
-  ],
-  actions: [
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('createClip'),
-      displayName: 'Create Clip',
-      configSchema: _clipSchema,
-      invoke: (config, context) async {
-        final response = await transport.request(
-          'POST',
-          '/helix/clips',
-          {'broadcaster_id': _id(config, context, 'broadcasterId')},
-          {'has_delay': _bool(config['createAfterDelay'], fallback: true)},
-        );
-        return {'clipId': _clipId(response)};
-      },
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('streamMarker'),
-      displayName: 'Place Stream Marker',
-      configSchema: _markerSchema,
-      invoke: (config, context) => transport.request(
-        'POST',
-        '/helix/streams/markers',
-        {'broadcaster_id': _id(config, context, 'broadcasterId')},
-        {'comment': config['markerName'] ?? ''},
+}) {
+  final chatActions = _twitchChatActions(transport);
+  final moderationActions = _twitchModerationActions(
+    transport,
+    viewerGroupRepository,
+  );
+  final streamActions = _twitchStreamActions(transport);
+  final rewardActions = _twitchRewardActions(transport);
+  final adActions = _twitchAdActions(transport);
+  return DartPluginManifest(
+    id: PluginId('twitch'),
+    name: 'Twitch',
+    states: const [
+      StateSpec(
+        id: StateId('connection'),
+        displayName: 'Connection',
+        initialValue: 'unconfigured',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('runAd'),
-      displayName: 'Run Ad',
-      configSchema: _adSchema,
-      invoke: (config, context) => transport.request(
-        'POST',
-        '/helix/channels/commercial',
-        {'broadcaster_id': _id(config, context, 'broadcasterId')},
-        {'length': config['duration'] ?? 30},
+      StateSpec(
+        id: StateId('adSnoozeRefresh'),
+        displayName: 'Ad Snooze Refresh',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('snoozeAds'),
-      displayName: 'Snooze Ads',
-      configSchema: _twitchObject('Twitch ad schedule', [_broadcaster]),
-      invoke: (config, context) => transport.request(
-        'POST',
-        '/helix/channels/ads/schedule/snooze',
-        {'broadcaster_id': _id(config, context, 'broadcasterId')},
-        {},
+      StateSpec(id: StateId('adSnoozes'), displayName: 'Ad Snoozes'),
+      StateSpec(id: StateId('adTimer'), displayName: 'Ad Timer'),
+      StateSpec(id: StateId('category'), displayName: 'Category'),
+      StateSpec(id: StateId('followers'), displayName: 'Followers'),
+      StateSpec(
+        id: StateId('hypeTrainExists'),
+        displayName: 'Hype Train Exists',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('createPrediction'),
-      displayName: 'Create Prediction',
-      configSchema: _predictionSchema,
-      invoke: (config, context) => transport.request(
-        'POST',
-        '/helix/predictions',
-        {'broadcaster_id': _id(config, context, 'broadcasterId')},
-        {
-          'title': config['title'],
-          'prediction_window': config['duration'] ?? 30,
-          'outcomes': (config['outcomes'] as List? ?? const [])
-              .map((outcome) => outcome is Map ? outcome : {'title': outcome})
-              .toList(),
-        },
+      StateSpec(id: StateId('hypeTrainGoal'), displayName: 'Hype Train Goal'),
+      StateSpec(id: StateId('hypeTrainLevel'), displayName: 'Hype Train Level'),
+      StateSpec(
+        id: StateId('hypeTrainProgress'),
+        displayName: 'Hype Train Progress',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('chat'),
-      displayName: 'Chat Message',
-      configSchema: _chatSchema,
-      invoke: (config, context) =>
-          transport.request('POST', '/helix/chat/messages', {}, {
-            'broadcaster_id': _id(config, context, 'broadcasterId'),
-            'sender_id': _id(config, context, 'moderatorId'),
-            'message': config['message'],
-          }),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('annoucement'),
-      displayName: 'Make Announcement',
-      configSchema: _announcementSchema,
-      invoke: (config, context) => transport.request(
-        'POST',
-        '/helix/chat/announcements',
-        {
-          'broadcaster_id': _id(config, context, 'broadcasterId'),
-          'moderator_id': _id(config, context, 'moderatorId'),
-        },
-        {'message': config['message'], 'color': config['color'] ?? 'primary'},
+      StateSpec(id: StateId('hypeTrainTotal'), displayName: 'Hype Train Total'),
+      StateSpec(id: StateId('inAdBreak'), displayName: 'In Ad Break'),
+      StateSpec(id: StateId('lastFollower'), displayName: 'Last Follower'),
+      StateSpec(id: StateId('lastSubscriber'), displayName: 'Last Subscriber'),
+      StateSpec(id: StateId('live'), displayName: 'Live'),
+      StateSpec(id: StateId('nextAdDuration'), displayName: 'Next Ad Duration'),
+      StateSpec(id: StateId('nextAdTimer'), displayName: 'Next Ad Timer'),
+      StateSpec(id: StateId('pollId'), displayName: 'Poll ID'),
+      StateSpec(id: StateId('pollTitle'), displayName: 'Poll Title'),
+      StateSpec(
+        id: StateId('predictionChoiceNames'),
+        displayName: 'Prediction Choice Names',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('announcement'),
-      displayName: 'Make Announcement',
-      configSchema: _announcementSchema,
-      invoke: (config, context) => transport.request(
-        'POST',
-        '/helix/chat/announcements',
-        {
-          'broadcaster_id': _id(config, context, 'broadcasterId'),
-          'moderator_id': _id(config, context, 'moderatorId'),
-        },
-        {'message': config['message'], 'color': config['color'] ?? 'primary'},
+      StateSpec(
+        id: StateId('predictionChoiceTotals'),
+        displayName: 'Prediction Choice Totals',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('shoutout'),
-      displayName: 'Shoutout',
-      configSchema: _shoutoutSchema,
-      invoke: (config, context) =>
-          transport.request('POST', '/helix/chat/shoutouts', {
-            'from_broadcaster_id': _id(config, context, 'broadcasterId'),
-            'moderator_id': _id(config, context, 'moderatorId'),
-            'to_broadcaster_id': config['streamer'] ?? config['viewerId'],
-          }, {}),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('setStreamInfo'),
-      displayName: 'Update Stream Info',
-      configSchema: _streamInfoSchema,
-      invoke: (config, context) => transport.request(
-        'PATCH',
-        '/helix/channels',
-        {'broadcaster_id': _id(config, context, 'broadcasterId')},
-        {
-          if (config['title'] != null) 'title': config['title'],
-          if (config['categoryId'] != null) 'game_id': config['categoryId'],
-          if (config['tags'] is List) 'tags': config['tags'],
-        },
+      StateSpec(
+        id: StateId('predictionExists'),
+        displayName: 'Prediction Exists',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('createPoll'),
-      displayName: 'Create Poll',
-      configSchema: _pollSchema,
-      invoke: (config, context) => transport.request(
-        'POST',
-        '/helix/polls',
-        {'broadcaster_id': _id(config, context, 'broadcasterId')},
-        {
-          'title': config['title'],
-          'duration': config['duration'] ?? 30,
-          'choices': (config['choices'] as List? ?? const [])
-              .map((choice) => choice is Map ? choice : {'title': choice})
-              .toList(),
-        },
+      StateSpec(id: StateId('predictionId'), displayName: 'Prediction ID'),
+      StateSpec(
+        id: StateId('predictionTitle'),
+        displayName: 'Prediction Title',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('startRaid'),
-      displayName: 'Start Raid',
-      configSchema: _raidSchema,
-      invoke: (config, context) => transport.request('POST', '/helix/raids', {
-        'from_broadcaster_id': _id(config, context, 'broadcasterId'),
-        'to_broadcaster_id': config['target'] ?? config['targetId'],
-      }, {}),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('cancelRaid'),
-      displayName: 'Cancel Raid',
-      configSchema: _cancelRaidSchema,
-      invoke: (config, context) => transport.request('DELETE', '/helix/raids', {
-        'broadcaster_id': _id(config, context, 'broadcasterId'),
-      }, {}),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('listChannelPointRewards'),
-      displayName: 'List Channel Point Rewards',
-      configSchema: _listRewardsSchema,
-      invoke: (config, context) =>
-          transport.request('GET', '/helix/channel_points/custom_rewards', {
-            'broadcaster_id': _id(config, context, 'broadcasterId'),
-            if (_bool(config['onlyManageable']))
-              'only_manageable_rewards': 'true',
-          }, {}),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('createChannelPointReward'),
-      displayName: 'Create Channel Point Reward',
-      configSchema: _createRewardSchema,
-      invoke: (config, context) => transport.request(
-        'POST',
-        '/helix/channel_points/custom_rewards',
-        {'broadcaster_id': _id(config, context, 'broadcasterId')},
-        TwitchChannelPointRewardDraft.fromConfig(config).toRequestBody(),
+      StateSpec(
+        id: StateId('predictionTotal'),
+        displayName: 'Prediction Total',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('updateChannelPointReward'),
-      displayName: 'Update Channel Point Reward',
-      configSchema: _updateRewardSchema,
-      invoke: (config, context) => transport.request(
-        'PATCH',
-        '/helix/channel_points/custom_rewards',
-        {
-          'broadcaster_id': _id(config, context, 'broadcasterId'),
-          'id': _required(config, 'rewardId', fallback: 'twitchId'),
-        },
-        TwitchChannelPointRewardDraft.fromConfig(config).toRequestBody(),
+      StateSpec(
+        id: StateId('prerollFreeTime'),
+        displayName: 'Preroll Free Time',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('deleteChannelPointReward'),
-      displayName: 'Delete Channel Point Reward',
-      configSchema: _rewardIdSchema,
-      invoke: (config, context) =>
-          transport.request('DELETE', '/helix/channel_points/custom_rewards', {
-            'broadcaster_id': _id(config, context, 'broadcasterId'),
-            'id': _required(config, 'rewardId', fallback: 'twitchId'),
-          }, {}),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('updateChannelPointRedemption'),
-      displayName: 'Update Channel Point Redemption',
-      configSchema: _redemptionSchema,
-      invoke: (config, context) => transport.request(
-        'PATCH',
-        '/helix/channel_points/custom_rewards/redemptions',
-        {
-          'broadcaster_id': _id(config, context, 'broadcasterId'),
-          'reward_id': _required(config, 'rewardId'),
-          'id': _required(config, 'redemptionId'),
-        },
-        {'status': config['status'] ?? 'FULFILLED'},
+      StateSpec(id: StateId('raidTarget'), displayName: 'Raid Target'),
+      StateSpec(id: StateId('raidTimer'), displayName: 'Raid Timer'),
+      StateSpec(
+        id: StateId('subscriberPoints'),
+        displayName: 'Subscriber Points',
       ),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('timeout'),
-      displayName: 'Timeout Viewer',
-      configSchema: _timeoutSchema,
-      invoke: (config, context) =>
-          _ban(transport, config, context, includeDuration: true),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('ban'),
-      displayName: 'Ban Viewer',
-      configSchema: _moderationSchema,
-      invoke: (config, context) => _ban(transport, config, context),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('unban'),
-      displayName: 'Unban Viewer',
-      configSchema: _moderationSchema,
-      invoke: (config, context) =>
-          transport.request('DELETE', '/helix/moderation/bans', {
-            'broadcaster_id': _id(config, context, 'broadcasterId'),
-            'moderator_id': _id(config, context, 'moderatorId'),
-            'user_id': config['viewerId'],
-          }, {}),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('addViewerToGroup'),
-      displayName: 'Add Viewer to Group',
-      configSchema: _viewerGroupSchema,
-      invoke: (config, context) =>
-          _updateViewerGroup(viewerGroupRepository, config, add: true),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('removeViewerFromGroup'),
-      displayName: 'Remove Viewer from Group',
-      configSchema: _viewerGroupSchema,
-      invoke: (config, context) =>
-          _updateViewerGroup(viewerGroupRepository, config, add: false),
-    ),
-    ActionSpec<Map<String, dynamic>, Object?>(
-      pluginId: PluginId('twitch'),
-      actionId: ActionId('clearViewerGroup'),
-      displayName: 'Clear Viewer Group',
-      configSchema: _clearViewerGroupSchema,
-      invoke: (config, context) =>
-          _clearViewerGroup(viewerGroupRepository, config),
-    ),
-  ],
-  triggers: [
-    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-      pluginId: PluginId('twitch'),
-      triggerId: TriggerId('chat'),
-      displayName: 'Chat Message',
-      listen: () => _twitchEventStream(eventHub, 'chat'),
-      eventSchema: _chatEventSchema,
-    ),
-    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-      pluginId: PluginId('twitch'),
-      triggerId: TriggerId('ban'),
-      displayName: 'Viewer Banned',
-      listen: () => _twitchEventStream(eventHub, 'ban'),
-      eventSchema: _viewerEventSchema,
-    ),
-    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-      pluginId: PluginId('twitch'),
-      triggerId: TriggerId('timeout'),
-      displayName: 'Viewer Timed Out',
-      listen: () => _twitchEventStream(eventHub, 'timeout'),
-      eventSchema: _viewerEventSchema,
-    ),
-    for (final eventId in const [
-      'adStarted',
-      'adEnded',
-      'adSchedule',
-      'predictionStarted',
-      'predictionLocked',
-      'predictionSettled',
-      'pollStarted',
-      'pollEnded',
-      'subscription',
-      'giftedSub',
-      'follow',
-      'redemption',
-      'bits',
-      'watchstreak',
-      'raid',
-      'raidOut',
-      'raidStarted',
-      'raidCanceled',
-      'hypeTrainStarted',
-      'hypeTrainLevelUp',
-      'hypeTrainEnded',
-      'firstTimeChat',
-      'shoutoutSent',
-      'shoutoutReceived',
-      'beforeRaid',
-      'walkon',
-    ])
+      StateSpec(id: StateId('subscribers'), displayName: 'Subscribers'),
+      StateSpec(id: StateId('title'), displayName: 'Title'),
+    ],
+    settings: const [
+      SettingSpec(id: SettingId('clientId'), displayName: 'Client ID'),
+      SettingSpec(
+        id: SettingId('clientSecret'),
+        displayName: 'Client Secret',
+        secret: true,
+      ),
+      SettingSpec(
+        id: SettingId('accessToken'),
+        displayName: 'Access Token',
+        secret: true,
+      ),
+      SettingSpec(
+        id: SettingId('broadcasterId'),
+        displayName: 'Broadcaster ID',
+      ),
+      SettingSpec(id: SettingId('moderatorId'), displayName: 'Moderator ID'),
+      SettingSpec(
+        id: SettingId('refreshToken'),
+        displayName: 'Refresh Token',
+        secret: true,
+      ),
+    ],
+    actions: [
+      _twitchAction(adActions, 'createClip'),
+      _twitchAction(streamActions, 'streamMarker'),
+      _twitchAction(adActions, 'runAd'),
+      _twitchAction(adActions, 'snoozeAds'),
+      _twitchAction(streamActions, 'createPrediction'),
+      _twitchAction(chatActions, 'chat'),
+      _twitchAction(chatActions, 'annoucement'),
+      _twitchAction(chatActions, 'announcement'),
+      _twitchAction(chatActions, 'shoutout'),
+      _twitchAction(streamActions, 'setStreamInfo'),
+      _twitchAction(streamActions, 'createPoll'),
+      _twitchAction(streamActions, 'startRaid'),
+      _twitchAction(streamActions, 'cancelRaid'),
+      _twitchAction(rewardActions, 'listChannelPointRewards'),
+      _twitchAction(rewardActions, 'createChannelPointReward'),
+      _twitchAction(rewardActions, 'updateChannelPointReward'),
+      _twitchAction(rewardActions, 'deleteChannelPointReward'),
+      _twitchAction(rewardActions, 'updateChannelPointRedemption'),
+      _twitchAction(moderationActions, 'timeout'),
+      _twitchAction(moderationActions, 'ban'),
+      _twitchAction(moderationActions, 'unban'),
+      _twitchAction(moderationActions, 'addViewerToGroup'),
+      _twitchAction(moderationActions, 'removeViewerFromGroup'),
+      _twitchAction(moderationActions, 'clearViewerGroup'),
+    ],
+    triggers: [
       TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
         pluginId: PluginId('twitch'),
-        triggerId: TriggerId(eventId),
-        displayName: eventId,
-        listen: () => _twitchEventStream(eventHub, eventId),
-        configSchema: eventId == 'redemption' ? _redemptionTriggerSchema : null,
-        eventSchema: eventId == 'redemption'
-            ? _redemptionEventSchema
-            : (_twitchEventSchemas[eventId] ?? _eventTypeSchema),
-        matches: eventId == 'redemption' ? _matchesRedemption : null,
+        triggerId: TriggerId('chat'),
+        displayName: 'Chat Message',
+        listen: () => _twitchEventStream(eventHub, 'chat'),
+        eventSchema: _chatEventSchema,
       ),
-  ],
-);
+      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+        pluginId: PluginId('twitch'),
+        triggerId: TriggerId('ban'),
+        displayName: 'Viewer Banned',
+        listen: () => _twitchEventStream(eventHub, 'ban'),
+        eventSchema: _viewerEventSchema,
+      ),
+      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+        pluginId: PluginId('twitch'),
+        triggerId: TriggerId('timeout'),
+        displayName: 'Viewer Timed Out',
+        listen: () => _twitchEventStream(eventHub, 'timeout'),
+        eventSchema: _viewerEventSchema,
+      ),
+      for (final eventId in const [
+        'adStarted',
+        'adEnded',
+        'adSchedule',
+        'predictionStarted',
+        'predictionLocked',
+        'predictionSettled',
+        'pollStarted',
+        'pollEnded',
+        'subscription',
+        'giftedSub',
+        'follow',
+        'redemption',
+        'bits',
+        'watchstreak',
+        'raid',
+        'raidOut',
+        'raidStarted',
+        'raidCanceled',
+        'hypeTrainStarted',
+        'hypeTrainLevelUp',
+        'hypeTrainEnded',
+        'firstTimeChat',
+        'shoutoutSent',
+        'shoutoutReceived',
+        'beforeRaid',
+        'walkon',
+      ])
+        TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+          pluginId: PluginId('twitch'),
+          triggerId: TriggerId(eventId),
+          displayName: eventId,
+          listen: () => _twitchEventStream(eventHub, eventId),
+          configSchema: eventId == 'redemption'
+              ? _redemptionTriggerSchema
+              : null,
+          eventSchema: eventId == 'redemption'
+              ? _redemptionEventSchema
+              : (_twitchEventSchemas[eventId] ?? _eventTypeSchema),
+          matches: eventId == 'redemption' ? _matchesRedemption : null,
+        ),
+    ],
+  );
+}
+
+ActionSpec<Map<String, dynamic>, Object?> _twitchAction(
+  List<ActionSpec<Map<String, dynamic>, Object?>> actions,
+  String id,
+) => actions.firstWhere((action) => action.actionId.value == id);
 
 Stream<RuntimeMap> _twitchEventStream(
   DartPluginEventHub? eventHub,
