@@ -365,103 +365,19 @@ class ShowRunnerGraphEditor {
     NodeEditorController graphController,
     Set<String> draggedIds,
   ) {
-    if (draggedIds.isEmpty) {
-      alignmentGuides.value = const [];
-      return;
-    }
-
-    final dragged = graphController.nodes[draggedIds.first];
-    if (dragged == null) {
-      alignmentGuides.value = const [];
-      return;
-    }
-
-    final draggedBounds = _nodeWorldBounds(dragged);
-    final references = graphController.nodes.values.where(
-      (node) => !draggedIds.contains(node.id),
-    );
-    const threshold = 6.0;
-    var bestX = threshold + 1;
-    var bestY = threshold + 1;
-    final xMatches = <(double, double)>[];
-    final yMatches = <(double, double)>[];
-
-    for (final reference in references) {
-      final bounds = _nodeWorldBounds(reference);
-      final xPairs = <(double, double)>[
-        (draggedBounds.left, bounds.left),
-        (draggedBounds.left, bounds.right),
-        (draggedBounds.right, bounds.left),
-        (draggedBounds.right, bounds.right),
-        (draggedBounds.center.dx, bounds.center.dx),
-      ];
-      for (final pair in xPairs) {
-        final distance = (pair.$1 - pair.$2).abs();
-        if (distance < bestX) {
-          bestX = distance;
-          xMatches
-            ..clear()
-            ..add(pair);
-        } else if (distance == bestX) {
-          xMatches.add(pair);
-        }
-      }
-
-      final yPairs = <(double, double)>[
-        (draggedBounds.top, bounds.top),
-        (draggedBounds.top, bounds.bottom),
-        (draggedBounds.bottom, bounds.top),
-        (draggedBounds.bottom, bounds.bottom),
-        (draggedBounds.center.dy, bounds.center.dy),
-      ];
-      for (final pair in yPairs) {
-        final distance = (pair.$1 - pair.$2).abs();
-        if (distance < bestY) {
-          bestY = distance;
-          yMatches
-            ..clear()
-            ..add(pair);
-        } else if (distance == bestY) {
-          yMatches.add(pair);
-        }
-      }
-    }
-
-    if (bestX > threshold && bestY > threshold) {
-      alignmentGuides.value = const [];
-      return;
-    }
-
-    final guides = <GraphAlignmentGuide>[];
-    if (bestX <= threshold) {
-      for (final match in xMatches) {
-        guides.add(
-          GraphAlignmentGuide(
-            axis: GraphAlignmentAxis.vertical,
-            position: match.$2,
-            from: draggedBounds.top,
-            to: draggedBounds.bottom,
+    final result = graphController.alignmentGuidesFor(draggedIds);
+    alignmentGuides.value = result.guides
+        .map(
+          (guide) => GraphAlignmentGuide(
+            axis: guide.axis == AlignmentGuideAxis.vertical
+                ? GraphAlignmentAxis.vertical
+                : GraphAlignmentAxis.horizontal,
+            position: guide.position,
+            from: guide.from,
+            to: guide.to,
           ),
-        );
-      }
-    }
-    if (bestY <= threshold) {
-      for (final match in yMatches) {
-        guides.add(
-          GraphAlignmentGuide(
-            axis: GraphAlignmentAxis.horizontal,
-            position: match.$2,
-            from: draggedBounds.left,
-            to: draggedBounds.right,
-          ),
-        );
-      }
-    }
-    final seen = <String>{};
-    alignmentGuides.value = guides.where((guide) {
-      final key = '${guide.axis}:${guide.position}:${guide.from}:${guide.to}';
-      return seen.add(key);
-    }).toList();
+        )
+        .toList();
   }
 
   void _markDocumentDirty() {
