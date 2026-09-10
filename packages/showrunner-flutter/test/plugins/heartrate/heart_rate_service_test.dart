@@ -68,4 +68,55 @@ void main() {
       expect(service.batteryPercent, 44);
     },
   );
+
+  test(
+    'remembers a connected device and reconnects after range loss',
+    () async {
+      final transport = FakeBleTransport(emitMeasurements: false);
+      final settings = <String, dynamic>{};
+      final service = HeartRateService(
+        transport: transport,
+        reconnectDelay: Duration.zero,
+        loadSettings: () async => settings,
+        saveSettings: (next) async {
+          settings.addAll(next);
+        },
+      );
+      addTearDown(service.close);
+
+      await service.start();
+      await service.startSimulation(bpm: 132, batteryPercent: 73);
+      expect(settings['preferredDeviceId'], FakeBleTransport.fakeDeviceId);
+      expect(service.status, HeartRateConnectionStatus.connected);
+
+      transport.lastConnection!.simulateOutOfRange();
+      expect(service.status, HeartRateConnectionStatus.reconnecting);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(service.status, HeartRateConnectionStatus.connected);
+      expect(service.reconnectAttempt, 0);
+      expect(service.device!.id, FakeBleTransport.fakeDeviceId);
+    },
+  );
+
+  test('auto-connects to the persisted preferred device at startup', () async {
+    final transport = FakeBleTransport(emitMeasurements: false);
+    final service = HeartRateService(
+      transport: transport,
+      reconnectDelay: Duration.zero,
+      loadSettings: () async => {
+        'autoConnect': true,
+        'preferredDeviceId': FakeBleTransport.fakeDeviceId,
+        'preferredDeviceName': 'H808S (Simulated)',
+      },
+    );
+    addTearDown(service.close);
+
+    await service.initialize();
+    await service.start();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    expect(service.status, HeartRateConnectionStatus.connected);
+    expect(service.device!.name, 'H808S (Simulated)');
+  });
 }

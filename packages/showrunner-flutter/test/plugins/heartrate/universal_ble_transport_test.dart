@@ -106,8 +106,7 @@ void main() {
       ),
       [86],
     );
-    unsubscribe();
-    await Future<void>.delayed(Duration.zero);
+    await unsubscribe();
     removeDisconnectListener();
     await connection.disconnect();
 

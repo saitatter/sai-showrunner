@@ -26,21 +26,28 @@ final class HeartRateService extends ChangeNotifier {
     this.saveSettings,
     this.onStateChanged,
     this.staleAfter = const Duration(seconds: 3),
-  });
+    this.reconnectDelay = const Duration(seconds: 2),
+    this.maxReconnectDelay = const Duration(seconds: 30),
+  }) : _staleAfter = staleAfter;
 
   final BleTransport transport;
   final Future<Map<String, dynamic>> Function()? loadSettings;
   final Future<void> Function(Map<String, dynamic> settings)? saveSettings;
   final void Function(String stateId, dynamic value)? onStateChanged;
   final Duration staleAfter;
+  final Duration reconnectDelay;
+  final Duration maxReconnectDelay;
 
   HeartRateConnectionStatus _status = HeartRateConnectionStatus.idle;
   BleScanResult? _device;
   BleConnection? _connection;
-  void Function()? _unsubscribeMeasurement;
+  Future<void> Function()? _unsubscribeMeasurement;
   void Function()? _unsubscribeDisconnected;
   Timer? _staleTimer;
+  Timer? _reconnectTimer;
+  Timer? _batteryTimer;
   Future<List<BleScanResult>>? _scanFuture;
+  List<BleServiceInfo> _services = const [];
   HeartRateStats _stats = const HeartRateStats();
   List<double> _rrIntervalsMs = const [];
   List<HeartRateZoneConfig> _zones = defaultHeartRateZones;
@@ -51,8 +58,20 @@ final class HeartRateService extends ChangeNotifier {
   int? _batteryPercent;
   DateTime? _lastMeasurementAt;
   String? _lastError;
+  DateTime? _lastConnectedAt;
+  DateTime? _lastDisconnectedAt;
   bool _started = false;
+  bool _closing = false;
   bool _simulation = false;
+  bool _autoConnect = false;
+  bool _scanHeartRateOnly = true;
+  bool _reconnectEnabled = true;
+  String? _preferredDeviceId;
+  String? _preferredDeviceName;
+  int _batteryPollSeconds = 30;
+  Duration _staleAfter;
+  int _reconnectAttempt = 0;
+  bool _reconnectInFlight = false;
   int _malformedPacketCount = 0;
   int _packetCount = 0;
   BleAdapterState _adapterState = BleAdapterState.unknown;
@@ -71,11 +90,31 @@ final class HeartRateService extends ChangeNotifier {
   int get malformedPacketCount => _malformedPacketCount;
   List<double> get rrIntervalsMs => _rrIntervalsMs;
   BleAdapterState get adapterState => _adapterState;
+  bool get autoConnect => _autoConnect;
+  bool get reconnectEnabled => _reconnectEnabled;
+  String? get preferredDeviceId => _preferredDeviceId;
+  String? get preferredDeviceName => _preferredDeviceName;
+  Duration get effectiveStaleAfter => _staleAfter;
+  int get batteryPollSeconds => _batteryPollSeconds;
+  int get reconnectAttempt => _reconnectAttempt;
 
   Future<void> initialize() async {
     final settings =
         await (loadSettings?.call() ??
             Future<Map<String, dynamic>>.value(<String, dynamic>{}));
+    _autoConnect = _asBool(settings['autoConnect'], fallback: false);
+    _scanHeartRateOnly = _asBool(settings['scanHeartRateOnly'], fallback: true);
+    _reconnectEnabled = _asBool(settings['reconnectEnabled'], fallback: true);
+    _preferredDeviceId = _asString(settings['preferredDeviceId']);
+    _preferredDeviceName = _asString(settings['preferredDeviceName']);
+    final staleAfterMs = _asInt(settings['staleAfterMs']);
+    if (staleAfterMs != null && staleAfterMs >= 250) {
+      _staleAfter = Duration(milliseconds: staleAfterMs);
+    }
+    final batteryPollSeconds = _asInt(settings['batteryPollSeconds']);
+    if (batteryPollSeconds != null && batteryPollSeconds >= 5) {
+      _batteryPollSeconds = batteryPollSeconds.clamp(5, 3600);
+    }
     final rawZones = settings['zones'];
     if (rawZones is List) {
       final parsed = [
@@ -91,6 +130,7 @@ final class HeartRateService extends ChangeNotifier {
 
   Future<void> start() async {
     if (_started) return;
+    _closing = false;
     _started = true;
     try {
       _adapterState = await transport.getAdapterState();
@@ -108,17 +148,20 @@ final class HeartRateService extends ChangeNotifier {
       return;
     }
     _startStaleTimer();
+    if (_autoConnect && _preferredDeviceId != null) {
+      unawaited(_connectPreferred());
+    }
   }
 
   Future<List<BleScanResult>> scan({
     Duration duration = const Duration(seconds: 2),
-    bool heartRateOnly = true,
+    bool? heartRateOnly,
   }) {
     final active = _scanFuture;
     if (active != null) return active;
     final future = _scanInternal(
       duration: duration,
-      heartRateOnly: heartRateOnly,
+      heartRateOnly: heartRateOnly ?? _scanHeartRateOnly,
     );
     _scanFuture = future;
     return future.whenComplete(() => _scanFuture = null);
@@ -132,10 +175,28 @@ final class HeartRateService extends ChangeNotifier {
   }
 
   Future<void> connect(String deviceId, {String? deviceName}) async {
+    _cancelReconnect();
     await cancelScan();
+    await _connectInternal(
+      deviceId,
+      deviceName: deviceName,
+      reconnecting: false,
+    );
+  }
+
+  Future<void> _connectInternal(
+    String deviceId, {
+    String? deviceName,
+    required bool reconnecting,
+  }) async {
     await _disconnectCurrent(updateStatus: false);
     _lastError = null;
-    _setStatus(HeartRateConnectionStatus.connecting);
+    _setStatus(
+      reconnecting
+          ? HeartRateConnectionStatus.reconnecting
+          : HeartRateConnectionStatus.connecting,
+    );
+    if (reconnecting) _reconnectInFlight = true;
     try {
       final connection = await transport.connect(deviceId);
       final services = await connection.discoverServices();
@@ -155,6 +216,7 @@ final class HeartRateService extends ChangeNotifier {
         throw StateError('Heart Rate Service is not available on this device.');
       }
       _connection = connection;
+      _services = List.unmodifiable(services);
       _device = BleScanResult(
         id: deviceId,
         name: deviceName ?? deviceId,
@@ -167,7 +229,12 @@ final class HeartRateService extends ChangeNotifier {
         _onMeasurement,
       );
       _setStatus(HeartRateConnectionStatus.connected);
+      _lastConnectedAt = DateTime.now();
+      _lastDisconnectedAt = null;
+      _reconnectAttempt = 0;
       await _readBattery(services);
+      _startBatteryTimer();
+      await _rememberPreferredDevice(deviceId, deviceName ?? deviceId);
       _publishAllStates();
     } catch (error) {
       _lastError = error.toString();
@@ -175,10 +242,14 @@ final class HeartRateService extends ChangeNotifier {
       await _disconnectCurrent(updateStatus: false);
       _publishAllStates();
       rethrow;
+    } finally {
+      if (reconnecting) _reconnectInFlight = false;
     }
   }
 
   Future<void> disconnect() async {
+    _cancelReconnect();
+    _reconnectAttempt = 0;
     _simulation = false;
     await _disconnectCurrent(updateStatus: true);
   }
@@ -210,6 +281,10 @@ final class HeartRateService extends ChangeNotifier {
   Future<void> stopSimulation() => disconnect();
 
   Future<void> close() async {
+    _closing = true;
+    _cancelReconnect();
+    _batteryTimer?.cancel();
+    _batteryTimer = null;
     _staleTimer?.cancel();
     _staleTimer = null;
     await _disconnectCurrent(updateStatus: false);
@@ -241,6 +316,11 @@ final class HeartRateService extends ChangeNotifier {
     if (_lastError != null) 'message': _lastError,
     if (_device != null) 'deviceId': _device!.id,
     if (_device != null) 'deviceName': _device!.name,
+    if (_lastConnectedAt != null)
+      'lastConnectedAt': _lastConnectedAt!.toIso8601String(),
+    if (_lastDisconnectedAt != null)
+      'lastDisconnectedAt': _lastDisconnectedAt!.toIso8601String(),
+    if (_reconnectAttempt > 0) 'reconnectAttempt': _reconnectAttempt,
     'simulated': _simulation,
   };
 
@@ -298,12 +378,24 @@ final class HeartRateService extends ChangeNotifier {
   }) async {
     _setStatus(HeartRateConnectionStatus.scanning);
     final results = <String, BleScanResult>{};
+    final scanFinished = Completer<void>();
+    final timer = Timer(duration, () {
+      if (!scanFinished.isCompleted) scanFinished.complete();
+    });
     final subscription = transport
         .scan(heartRateOnly: heartRateOnly)
-        .listen((result) => results[result.id] = result);
+        .listen(
+          (result) => results[result.id] = result,
+          onError: (Object error, StackTrace stackTrace) {
+            if (!scanFinished.isCompleted) {
+              scanFinished.completeError(error, stackTrace);
+            }
+          },
+        );
     try {
-      await Future<void>.delayed(duration);
+      await scanFinished.future;
     } finally {
+      timer.cancel();
       await subscription.cancel();
       await transport.stopScan();
       if (_status == HeartRateConnectionStatus.scanning) {
@@ -339,24 +431,45 @@ final class HeartRateService extends ChangeNotifier {
   }
 
   void _onDisconnected() {
-    _connection = null;
-    _unsubscribeMeasurement = null;
+    final removeDisconnectedListener = _unsubscribeDisconnected;
     _unsubscribeDisconnected = null;
+    removeDisconnectedListener?.call();
+    final unsubscribeMeasurement = _unsubscribeMeasurement;
+    _unsubscribeMeasurement = null;
+    if (unsubscribeMeasurement != null) {
+      unawaited(unsubscribeMeasurement());
+    }
+    _connection = null;
+    _batteryTimer?.cancel();
+    _batteryTimer = null;
+    _lastDisconnectedAt = DateTime.now();
     _stale = true;
-    _setStatus(HeartRateConnectionStatus.idle);
+    final shouldReconnect =
+        _reconnectEnabled && !_closing && _device != null && _started;
+    _setStatus(
+      shouldReconnect
+          ? HeartRateConnectionStatus.reconnecting
+          : HeartRateConnectionStatus.idle,
+    );
     _publishAllStates();
     notifyListeners();
+    if (shouldReconnect) _scheduleReconnect();
   }
 
   Future<void> _disconnectCurrent({required bool updateStatus}) async {
     final unsubscribeMeasurement = _unsubscribeMeasurement;
     _unsubscribeMeasurement = null;
-    unsubscribeMeasurement?.call();
+    if (unsubscribeMeasurement != null) await unsubscribeMeasurement();
     _unsubscribeDisconnected?.call();
     _unsubscribeDisconnected = null;
     final connection = _connection;
     _connection = null;
-    if (connection != null) await connection.disconnect();
+    _batteryTimer?.cancel();
+    _batteryTimer = null;
+    if (connection != null) {
+      _lastDisconnectedAt = DateTime.now();
+      await connection.disconnect();
+    }
     _stale = true;
     if (updateStatus) _setStatus(HeartRateConnectionStatus.idle);
     _publishAllStates();
@@ -383,6 +496,8 @@ final class HeartRateService extends ChangeNotifier {
         HeartRateUuids.batteryLevel,
       );
       if (value.isNotEmpty) _batteryPercent = value.first.clamp(0, 100);
+      _publishState('device', deviceState);
+      notifyListeners();
     } on Object {
       // Battery is enrichment; it must never interrupt heart-rate streaming.
     }
@@ -393,7 +508,7 @@ final class HeartRateService extends ChangeNotifier {
     _staleTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
       final last = _lastMeasurementAt;
       final next =
-          last == null || DateTime.now().difference(last) >= staleAfter;
+          last == null || DateTime.now().difference(last) >= _staleAfter;
       if (next == _stale) return;
       _stale = next;
       _publishState('heartRate', heartRateState);
@@ -405,6 +520,104 @@ final class HeartRateService extends ChangeNotifier {
     if (_status == status) return;
     _status = status;
     _publishState('connection', connectionState);
+  }
+
+  void _startBatteryTimer() {
+    _batteryTimer?.cancel();
+    if (_services.every(
+      (service) =>
+          HeartRateUuids.normalize(service.uuid) !=
+          HeartRateUuids.batteryService,
+    )) {
+      return;
+    }
+    _batteryTimer = Timer.periodic(Duration(seconds: _batteryPollSeconds), (_) {
+      unawaited(_readBattery(_services));
+    });
+  }
+
+  void _scheduleReconnect() {
+    if (_closing || !_reconnectEnabled || _reconnectTimer != null) return;
+    final multiplier = 1 << _reconnectAttempt.clamp(0, 4);
+    final requestedMilliseconds = reconnectDelay.inMilliseconds * multiplier;
+    final delay = Duration(
+      milliseconds: requestedMilliseconds > maxReconnectDelay.inMilliseconds
+          ? maxReconnectDelay.inMilliseconds
+          : requestedMilliseconds,
+    );
+    _reconnectTimer = Timer(delay, () {
+      _reconnectTimer = null;
+      unawaited(_attemptReconnect());
+    });
+  }
+
+  Future<void> _attemptReconnect() async {
+    final device = _device;
+    if (device == null ||
+        _closing ||
+        !_reconnectEnabled ||
+        _reconnectInFlight) {
+      return;
+    }
+    _reconnectAttempt++;
+    _setStatus(HeartRateConnectionStatus.reconnecting);
+    try {
+      await _connectInternal(
+        device.id,
+        deviceName: device.name,
+        reconnecting: true,
+      );
+    } on Object {
+      if (!_closing && _reconnectEnabled) {
+        _setStatus(HeartRateConnectionStatus.reconnecting);
+        _publishAllStates();
+        _scheduleReconnect();
+      }
+    }
+  }
+
+  Future<void> _connectPreferred() async {
+    final deviceId = _preferredDeviceId;
+    if (deviceId == null || _closing) return;
+    try {
+      await _connectInternal(
+        deviceId,
+        deviceName: _preferredDeviceName,
+        reconnecting: true,
+      );
+    } on Object {
+      if (!_closing && _reconnectEnabled) {
+        _setStatus(HeartRateConnectionStatus.reconnecting);
+        _publishAllStates();
+        _scheduleReconnect();
+      }
+    }
+  }
+
+  void _cancelReconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _reconnectInFlight = false;
+  }
+
+  Future<void> _rememberPreferredDevice(
+    String deviceId,
+    String deviceName,
+  ) async {
+    _preferredDeviceId = deviceId;
+    _preferredDeviceName = deviceName;
+    final persist = saveSettings;
+    if (persist == null) return;
+    try {
+      final settings =
+          await (loadSettings?.call() ??
+              Future<Map<String, dynamic>>.value(<String, dynamic>{}));
+      settings['preferredDeviceId'] = deviceId;
+      settings['preferredDeviceName'] = deviceName;
+      await persist(settings);
+    } on Object {
+      // Persistence is enrichment and must not tear down a live connection.
+    }
   }
 
   void _publishState(String stateId, dynamic value) => onStateChanged?.call(
@@ -431,3 +644,11 @@ HeartRateZoneConfig _zoneFromJson(Map<String, dynamic> value) =>
 
 int? _asInt(Object? value) =>
     value is num ? value.toInt() : int.tryParse('$value');
+
+bool _asBool(Object? value, {required bool fallback}) =>
+    value is bool ? value : fallback;
+
+String? _asString(Object? value) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty ? null : text;
+}

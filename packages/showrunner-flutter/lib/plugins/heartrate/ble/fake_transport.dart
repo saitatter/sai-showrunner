@@ -128,7 +128,7 @@ final class FakeBleConnection implements BleConnection {
   ];
 
   @override
-  Future<void Function()> subscribe(
+  Future<Future<void> Function()> subscribe(
     String serviceUuid,
     String characteristicUuid,
     void Function(Uint8List data) onData,

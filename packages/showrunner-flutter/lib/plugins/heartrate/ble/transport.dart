@@ -37,7 +37,7 @@ abstract interface class BleConnection {
 
   Future<List<BleServiceInfo>> discoverServices();
 
-  Future<void Function()> subscribe(
+  Future<Future<void> Function()> subscribe(
     String serviceUuid,
     String characteristicUuid,
     void Function(Uint8List data) onData,

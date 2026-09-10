@@ -42,7 +42,11 @@ final class UniversalBleTransport implements BleTransport {
       if (disposed) return;
       disposed = true;
       await subscription?.cancel();
-      await _client.stopScan();
+      try {
+        await _client.stopScan();
+      } on Object {
+        // Cleanup should not mask the scan error that triggered it.
+      }
       if (!results.isClosed) await results.close();
     }
 
@@ -246,7 +250,7 @@ final class UniversalBleConnection implements BleConnection {
   }
 
   @override
-  Future<void Function()> subscribe(
+  Future<Future<void> Function()> subscribe(
     String serviceUuid,
     String characteristicUuid,
     void Function(Uint8List data) onData,

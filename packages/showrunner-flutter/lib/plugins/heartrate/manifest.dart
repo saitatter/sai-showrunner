@@ -98,6 +98,12 @@ DartPluginManifest createHeartRatePlugin(HeartRateService service) =>
           defaultValue: 3000,
           type: DartSettingType.number,
         ),
+        SettingSpec<int>(
+          id: SettingId('batteryPollSeconds'),
+          displayName: 'Battery refresh interval (seconds)',
+          defaultValue: 30,
+          type: DartSettingType.number,
+        ),
         SettingSpec<String>(
           id: SettingId('preferredDeviceId'),
           displayName: 'Preferred device ID',
