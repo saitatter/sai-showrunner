@@ -19,6 +19,7 @@ import 'search/graph_search_service.dart';
 part 'persistence/graph_editor_persistence.dart';
 part 'nodes/showrunner_node_presentation.dart';
 part 'subgraphs/showrunner_graph_subgraphs.dart';
+part 'clipboard/showrunner_graph_clipboard.dart';
 
 typedef GraphResourceOptionsLoader =
     Future<List<String>> Function(String resourceType);
@@ -257,8 +258,10 @@ class ShowRunnerGraphEditor {
           minWidth: 60,
         ),
       ),
-      clipboardPayloadEncoder: _encodeClipboardPayload,
-      clipboardPayloadDecoder: _decodeClipboardPayload,
+      clipboardPayloadEncoder: (nodes) =>
+          _encodeShowRunnerClipboardPayload(this, nodes),
+      clipboardPayloadDecoder: (payload, nodes) =>
+          _decodeClipboardPayload(payload, nodes),
       onCallback: (type, message) {
         debugPrint('sai_nodes $type: $message');
         if (type == CallbackType.error) graphFeedback.value = message;
@@ -478,111 +481,6 @@ class ShowRunnerGraphEditor {
   /// Restores the dirty marker for a document session after its graph has
   /// been loaded into the shared canvas.
   void restoreDocumentDirty(bool dirty) => documentDirty.value = dirty;
-
-  Future<String> copySelection({BuildContext? context}) async {
-    final payload = await controller.clipboard.copySelection(context: context);
-    if (payload.isNotEmpty) _clipboardFallbackPayload = payload;
-    return payload;
-  }
-
-  Future<void> pasteSelection({Offset? position, BuildContext? context}) async {
-    final clipboardData = await Clipboard.getData('text/plain');
-    final clipboardContent = clipboardData?.text?.isNotEmpty == true
-        ? clipboardData!.text
-        : _clipboardFallbackPayload;
-    if (context != null && !context.mounted) return;
-    await controller.clipboard.pasteSelection(
-      position: position,
-      context: context,
-      clipboardContent: clipboardContent,
-    );
-  }
-
-  Future<void> cutSelection({BuildContext? context}) async {
-    final payload = await controller.clipboard.cutSelection(context: context);
-    if (payload.isNotEmpty) _clipboardFallbackPayload = payload;
-  }
-
-  /// Applies the desktop editor's delete command to the active selection.
-  ///
-  /// Annotation frames are editor resources rather than sai_nodes graph
-  /// nodes, so they must be deleted here before delegating node/link deletion
-  /// to the generic controller.
-  void deleteSelection() {
-    final invalidFlowEdgeId = selectedInvalidFlowEdgeId.value;
-    if (invalidFlowEdgeId != null) {
-      discardInvalidFlowEdge(invalidFlowEdgeId);
-      return;
-    }
-    final invalidDataWireId = selectedInvalidDataWireId.value;
-    if (invalidDataWireId != null) {
-      discardInvalidDataWire(invalidDataWireId);
-      return;
-    }
-    if (selectedFrameId.value != null) {
-      deleteSelectedFrame();
-      controller.clearSelection();
-      return;
-    }
-    controller.deleteSelection();
-    nodeRevision.value++;
-  }
-
-  ShowRunnerClipboardSnapshot? _clipboardSnapshotForNode(String nodeId) {
-    final node = controller.nodes[nodeId];
-    if (node == null) return null;
-    return ShowRunnerClipboardSnapshot(
-      nodeType: node.prototype.idName,
-      data: Map<String, dynamic>.from(
-        _nodeDataByEditorId[nodeId] ?? const <String, dynamic>{},
-      ),
-      title: _nodeTitles[nodeId],
-      isVariable: _variableEditorIds.contains(nodeId),
-      isTrigger: _triggerEditorIds.contains(nodeId),
-    );
-  }
-
-  Map<String, dynamic>? _encodeClipboardPayload(Iterable<NodeDataModel> nodes) {
-    final snapshots = nodes
-        .map((node) => _clipboardSnapshotForNode(node.id))
-        .whereType<ShowRunnerClipboardSnapshot>()
-        .map((snapshot) => snapshot.toJson())
-        .toList();
-    return snapshots.isEmpty ? null : {'version': 1, 'snapshots': snapshots};
-  }
-
-  void _decodeClipboardPayload(
-    Map<String, dynamic> payload,
-    Iterable<NodeDataModel> pastedNodes,
-  ) {
-    final rawSnapshots = payload['snapshots'];
-    if (rawSnapshots is! List) return;
-
-    final snapshots = rawSnapshots
-        .map(ShowRunnerClipboardSnapshot.fromJson)
-        .whereType<ShowRunnerClipboardSnapshot>()
-        .toList();
-    final nodes = pastedNodes.toList();
-    var restored = false;
-    for (
-      var index = 0;
-      index < snapshots.length && index < nodes.length;
-      index++
-    ) {
-      final nodeId = nodes[index].id;
-      final snapshot = snapshots[index];
-      _nodeDataByEditorId[nodeId] = _cloneJsonMap(snapshot.data);
-      _schemaIdByEditorId[nodeId] = nodeId;
-      if (snapshot.title != null) _nodeTitles[nodeId] = snapshot.title!;
-      if (snapshot.isVariable) _variableEditorIds.add(nodeId);
-      if (snapshot.isTrigger) {
-        _triggerEditorIds.add(nodeId);
-        _triggerNodeStateInitialized = true;
-      }
-      restored = true;
-    }
-    if (restored) nodeRevision.value++;
-  }
 
   void _trackAddedNode(NodeEditorController owner, NodeDataModel node) {
     _schemaIdByEditorId.putIfAbsent(node.id, () => node.id);
