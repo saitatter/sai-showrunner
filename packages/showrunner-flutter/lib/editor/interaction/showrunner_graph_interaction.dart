@@ -1,0 +1,300 @@
+part of '../showrunner_graph_editor.dart';
+
+double _graphDistanceToSegment(Offset point, Offset start, Offset end) {
+  final delta = end - start;
+  final lengthSquared = delta.dx * delta.dx + delta.dy * delta.dy;
+  if (lengthSquared == 0) return (point - start).distance;
+  final projection =
+      ((point.dx - start.dx) * delta.dx + (point.dy - start.dy) * delta.dy) /
+      lengthSquared;
+  final t = projection.clamp(0.0, 1.0).toDouble();
+  final closest = Offset(start.dx + delta.dx * t, start.dy + delta.dy * t);
+  return (point - closest).distance;
+}
+
+/// ShowRunner-specific pointer hit-testing and insertion workflows.
+///
+/// Coordinate conversion is intentionally shared by insertion and hit-tests.
+/// Generic canvas gestures and viewport transforms remain in sai_nodes.
+extension ShowRunnerGraphEditorInteraction on ShowRunnerGraphEditor {
+  String? addNodeTypeAtScreenPosition(
+    String nodeType,
+    Offset screenPosition, {
+    String? title,
+  }) {
+    final worldPosition = _worldPositionForScreenPosition(screenPosition);
+    if (worldPosition == null) {
+      return addNodeType(nodeType, title: title);
+    }
+    return addNodeType(nodeType, title: title, offset: worldPosition);
+  }
+
+  String? addVariableNodeAtScreenPosition(
+    String type,
+    Offset screenPosition, {
+    String? name,
+    dynamic value,
+  }) {
+    final worldPosition = _worldPositionForScreenPosition(screenPosition);
+    return addVariableNode(
+      type,
+      name: name,
+      value: value,
+      offset: worldPosition ?? const Offset(80, 80),
+    );
+  }
+
+  String? addSubgraphCallAtScreenPosition(
+    String subgraphId,
+    Offset screenPosition, {
+    String? title,
+  }) {
+    final worldPosition = _worldPositionForScreenPosition(screenPosition);
+    return addSubgraphCall(
+      subgraphId,
+      title: title,
+      offset: worldPosition ?? const Offset(80, 80),
+    );
+  }
+
+  Offset? _worldPositionForScreenPosition(Offset screenPosition) {
+    final renderObject = controller.editorKey.currentContext
+        ?.findRenderObject();
+    if (renderObject is! RenderBox || renderObject.size.isEmpty) return null;
+    final local = renderObject.globalToLocal(screenPosition);
+    return controller.screenToWorld(local, renderObject.size);
+  }
+
+  /// Finds the topmost graph node under a global pointer position.
+  String? nodeIdAtScreenPosition(Offset screenPosition) {
+    final renderObject = controller.editorKey.currentContext
+        ?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+    final local = renderObject.globalToLocal(screenPosition);
+    final world = controller.screenToWorld(local, renderObject.size);
+    final candidates = controller.nodesSpatialHashGrid.queryCoords(world);
+    for (final id in candidates.toList().reversed) {
+      final node = controller.nodes[id];
+      if (node != null && _nodeWorldBounds(node).contains(world)) return id;
+    }
+    return null;
+  }
+
+  /// Updates the visual drop target used when an action is dragged from the
+  /// palette over the graph.
+  void updateActionDropTarget(Offset screenPosition) {
+    final linkId = flowLinkIdAtScreenPosition(screenPosition);
+    dropTargetLinkId.value = linkId;
+    dropTargetNodeId.value = linkId == null
+        ? nodeIdAtScreenPosition(screenPosition)
+        : null;
+  }
+
+  void clearActionDropTarget() {
+    dropTargetNodeId.value = null;
+    dropTargetLinkId.value = null;
+  }
+
+  /// Finds a control-flow link under a global pointer position.
+  String? flowLinkIdAtScreenPosition(Offset screenPosition) {
+    final renderObject = controller.editorKey.currentContext
+        ?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+    final local = renderObject.globalToLocal(screenPosition);
+    final world = controller.screenToWorld(local, renderObject.size);
+
+    final tolerance = 12 / controller.viewportZoom;
+    for (final link in controller.linksAsList) {
+      final source = controller.nodes[link.endpoints.sourceNodeId];
+      final target = controller.nodes[link.endpoints.targetNodeId];
+      final sourcePort = source?.ports[link.endpoints.sourcePortId];
+      final targetPort = target?.ports[link.endpoints.targetPortId];
+      if (source == null ||
+          target == null ||
+          sourcePort == null ||
+          targetPort == null ||
+          sourcePort.prototype.type != PortType.control) {
+        continue;
+      }
+
+      final start = source.offset + sourcePort.offset;
+      final end = target.offset + targetPort.offset;
+      final control = math.min((end.dx - start.dx).abs() / 2, 400).toDouble();
+      final firstControl = Offset(start.dx + control, start.dy);
+      final secondControl = Offset(end.dx - control, end.dy);
+      var previous = start;
+      for (var index = 1; index <= 32; index++) {
+        final t = index / 32;
+        final inverse = 1 - t;
+        final point =
+            start * (inverse * inverse * inverse) +
+            firstControl * (3 * inverse * inverse * t) +
+            secondControl * (3 * inverse * t * t) +
+            end * (t * t * t);
+        if (_graphDistanceToSegment(world, previous, point) <= tolerance) {
+          return link.id;
+        }
+        previous = point;
+      }
+    }
+    return null;
+  }
+
+  String? insertActionAfterNode(
+    String nodeType,
+    String anchorEditorId, {
+    String? fromPort,
+    Offset? offset,
+  }) {
+    final anchor = controller.nodes[anchorEditorId];
+    if (anchor == null) return null;
+    final conversion = ShowRunnerGraphEditor._isCoreConversionNodeType(
+      nodeType,
+    );
+    final sourcePort = conversion
+        ? null
+        : fromPort ?? ShowRunnerGraphEditor._firstFlowOutputPort(anchor);
+    final downstream = sourcePort == null
+        ? null
+        : controller.linksAsList
+              .where(
+                (link) =>
+                    link.endpoints.sourceNodeId == anchorEditorId &&
+                    link.endpoints.sourcePortId == sourcePort,
+              )
+              .firstOrNull;
+    final insertedId = addNodeType(
+      nodeType,
+      offset: offset ?? anchor.offset + const Offset(280, 0),
+    );
+    if (insertedId == null) return null;
+    if (conversion) return insertedId;
+
+    final inputPort = ShowRunnerGraphEditor._firstControlInputPort(
+      controller.nodes[insertedId],
+    );
+    final outputPort = ShowRunnerGraphEditor._preferredFlowOutputPort(
+      controller.nodes[insertedId],
+    );
+    if (sourcePort == null || inputPort == null || outputPort == null) {
+      return insertedId;
+    }
+    if (downstream != null) controller.removeLinkById(downstream.id);
+    controller.addLink(anchorEditorId, sourcePort, insertedId, inputPort);
+    if (downstream != null) {
+      controller.addLink(
+        insertedId,
+        outputPort,
+        downstream.endpoints.targetNodeId,
+        downstream.endpoints.targetPortId,
+      );
+    }
+    return insertedId;
+  }
+
+  String? insertControlFlowAfterNode(
+    String nodeType,
+    String anchorEditorId, {
+    String? fromPort,
+    Offset? offset,
+  }) {
+    if (!const {'break', 'continue', 'return'}.contains(nodeType)) {
+      return null;
+    }
+    final anchor = controller.nodes[anchorEditorId];
+    if (anchor == null) return null;
+    final sourcePort =
+        fromPort ?? ShowRunnerGraphEditor._firstFlowOutputPort(anchor);
+    if (sourcePort == null) return null;
+    final source = anchor.ports[sourcePort];
+    if (source?.prototype.type != PortType.control ||
+        source?.prototype.direction != PortDirection.output) {
+      return null;
+    }
+    final downstream = controller.linksAsList
+        .where(
+          (link) =>
+              link.endpoints.sourceNodeId == anchorEditorId &&
+              link.endpoints.sourcePortId == sourcePort,
+        )
+        .firstOrNull;
+    final insertedId = addNodeType(
+      nodeType,
+      offset: offset ?? anchor.offset + const Offset(280, 0),
+    );
+    if (insertedId == null) return null;
+    final inputPort = ShowRunnerGraphEditor._firstControlInputPort(
+      controller.nodes[insertedId],
+    );
+    if (inputPort == null) return insertedId;
+    if (downstream != null) controller.removeLinkById(downstream.id);
+    controller.addLink(anchorEditorId, sourcePort, insertedId, inputPort);
+    return insertedId;
+  }
+
+  String? insertActionOnFlowEdge(
+    String nodeType,
+    String linkId, {
+    Offset? offset,
+  }) {
+    final link = controller.linksAsList
+        .where((candidate) => candidate.id == linkId)
+        .firstOrNull;
+    if (link == null) return null;
+    final source = controller.nodes[link.endpoints.sourceNodeId];
+    if (source == null ||
+        source.ports[link.endpoints.sourcePortId]?.prototype.type !=
+            PortType.control) {
+      return null;
+    }
+    if (ShowRunnerGraphEditor._isCoreConversionNodeType(nodeType)) {
+      return addNodeType(
+        nodeType,
+        offset: offset ?? source.offset + const Offset(280, 0),
+      );
+    }
+
+    final insertedOffset = offset ?? source.offset + const Offset(280, 0);
+    final detached = _createDetachedNodeType(nodeType, offset: insertedOffset);
+    final inputPort = ShowRunnerGraphEditor._firstControlInputPort(detached);
+    final outputPort = ShowRunnerGraphEditor._preferredFlowOutputPort(detached);
+    if (inputPort == null || outputPort == null) {
+      controller.addNodeFromExisting(detached);
+      _markDocumentDirty();
+      return detached.id;
+    }
+    final schemaLinkId =
+        _schemaIdByLinkSignature[ShowRunnerGraphEditor._linkSignature(
+          link.endpoints.sourceNodeId,
+          link.endpoints.sourcePortId,
+          link.endpoints.targetNodeId,
+          link.endpoints.targetPortId,
+        )];
+    final inserted = controller.spliceNodeIntoLink(
+      link.id,
+      detached,
+      inputPortId: inputPort,
+      outputPortId: outputPort,
+    );
+    if (inserted == null) {
+      controller.addNodeFromExisting(detached);
+      _markDocumentDirty();
+      return detached.id;
+    }
+    final incoming = controller.linksAsList.firstWhere(
+      (candidate) =>
+          candidate.endpoints.targetNodeId == inserted.id &&
+          candidate.endpoints.sourceNodeId == link.endpoints.sourceNodeId,
+    );
+    if (schemaLinkId != null) {
+      _schemaIdByLinkSignature[ShowRunnerGraphEditor._linkSignature(
+            incoming.endpoints.sourceNodeId,
+            incoming.endpoints.sourcePortId,
+            incoming.endpoints.targetNodeId,
+            incoming.endpoints.targetPortId,
+          )] =
+          schemaLinkId;
+    }
+    return inserted.id;
+  }
+}
