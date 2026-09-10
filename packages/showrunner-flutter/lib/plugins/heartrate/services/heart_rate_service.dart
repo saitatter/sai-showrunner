@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import '../ble/heart_rate_parser.dart';
 import '../ble/transport.dart';
 import '../ble/uuids.dart';
+import '../events.dart';
+import '../../../services/plugin_event_hub.dart';
 import 'heart_rate_stats.dart';
 import 'heart_rate_zones.dart';
 
@@ -22,6 +24,7 @@ enum HeartRateConnectionStatus {
 final class HeartRateService extends ChangeNotifier {
   HeartRateService({
     required this.transport,
+    this.eventHub,
     this.loadSettings,
     this.saveSettings,
     this.onStateChanged,
@@ -31,6 +34,7 @@ final class HeartRateService extends ChangeNotifier {
   }) : _staleAfter = staleAfter;
 
   final BleTransport transport;
+  final DartPluginEventHub? eventHub;
   final Future<Map<String, dynamic>> Function()? loadSettings;
   final Future<void> Function(Map<String, dynamic> settings)? saveSettings;
   final void Function(String stateId, dynamic value)? onStateChanged;
@@ -97,6 +101,33 @@ final class HeartRateService extends ChangeNotifier {
   Duration get effectiveStaleAfter => _staleAfter;
   int get batteryPollSeconds => _batteryPollSeconds;
   int get reconnectAttempt => _reconnectAttempt;
+
+  Future<void> connectPreferredDevice() async {
+    _cancelReconnect();
+    await cancelScan();
+    final deviceId = _preferredDeviceId;
+    if (deviceId == null) {
+      throw StateError('No preferred heart-rate device has been saved.');
+    }
+    await _connectInternal(
+      deviceId,
+      deviceName: _preferredDeviceName,
+      reconnecting: false,
+    );
+  }
+
+  Future<void> forgetPreferredDevice() async {
+    await disconnect();
+    _preferredDeviceId = null;
+    _preferredDeviceName = null;
+    final settings =
+        await (loadSettings?.call() ??
+            Future<Map<String, dynamic>>.value(<String, dynamic>{}));
+    settings.remove('preferredDeviceId');
+    settings.remove('preferredDeviceName');
+    await saveSettings?.call(settings);
+    notifyListeners();
+  }
 
   Future<void> initialize() async {
     final settings =
@@ -189,7 +220,7 @@ final class HeartRateService extends ChangeNotifier {
     String? deviceName,
     required bool reconnecting,
   }) async {
-    await _disconnectCurrent(updateStatus: false);
+    await _disconnectCurrent(updateStatus: false, reason: 'replaced');
     _lastError = null;
     _setStatus(
       reconnecting
@@ -235,11 +266,16 @@ final class HeartRateService extends ChangeNotifier {
       await _readBattery(services);
       _startBatteryTimer();
       await _rememberPreferredDevice(deviceId, deviceName ?? deviceId);
+      eventHub?.emit(HeartRateEventIds.deviceConnected, {
+        'deviceName': _device!.name,
+        'deviceId': _device!.id,
+        if (_batteryPercent != null) 'battery': _batteryPercent,
+      });
       _publishAllStates();
     } catch (error) {
       _lastError = error.toString();
       _setStatus(HeartRateConnectionStatus.error);
-      await _disconnectCurrent(updateStatus: false);
+      await _disconnectCurrent(updateStatus: false, reason: 'error');
       _publishAllStates();
       rethrow;
     } finally {
@@ -287,7 +323,7 @@ final class HeartRateService extends ChangeNotifier {
     _batteryTimer = null;
     _staleTimer?.cancel();
     _staleTimer = null;
-    await _disconnectCurrent(updateStatus: false);
+    await _disconnectCurrent(updateStatus: false, reason: 'shutdown');
     await transport.dispose();
     _started = false;
   }
@@ -409,6 +445,9 @@ final class HeartRateService extends ChangeNotifier {
     _packetCount++;
     try {
       final measurement = parseHeartRateMeasurement(packet);
+      final previousZone = _bpm == null
+          ? null
+          : heartRateZoneFor(_bpm!, _zones);
       _bpm = measurement.bpm;
       _stale = false;
       _lastMeasurementAt = DateTime.now();
@@ -421,6 +460,22 @@ final class HeartRateService extends ChangeNotifier {
       _publishState('zone', zoneState);
       _publishState('connection', connectionState);
       _publishState('device', deviceState);
+      eventHub?.emit(HeartRateEventIds.measurement, {
+        'bpm': measurement.bpm,
+        'timestamp': _lastMeasurementAt!.toIso8601String(),
+        'stale': false,
+      });
+      final nextZone = heartRateZoneFor(measurement.bpm, _zones);
+      if (previousZone?.id != nextZone?.id) {
+        eventHub?.emit(HeartRateEventIds.zoneChanged, {
+          'bpm': measurement.bpm,
+          if (previousZone != null) 'previousZone': previousZone.name,
+          if (nextZone != null) ...{
+            'zone': nextZone.name,
+            'zoneIndex': _zones.indexOf(nextZone) + 1,
+          },
+        });
+      }
       notifyListeners();
     } on HeartRatePacketFormatException catch (error) {
       _malformedPacketCount++;
@@ -444,6 +499,11 @@ final class HeartRateService extends ChangeNotifier {
     _batteryTimer = null;
     _lastDisconnectedAt = DateTime.now();
     _stale = true;
+    eventHub?.emit(HeartRateEventIds.deviceDisconnected, {
+      if (_device != null) 'deviceName': _device!.name,
+      if (_device != null) 'deviceId': _device!.id,
+      'reason': 'connection_lost',
+    });
     final shouldReconnect =
         _reconnectEnabled && !_closing && _device != null && _started;
     _setStatus(
@@ -456,19 +516,28 @@ final class HeartRateService extends ChangeNotifier {
     if (shouldReconnect) _scheduleReconnect();
   }
 
-  Future<void> _disconnectCurrent({required bool updateStatus}) async {
+  Future<void> _disconnectCurrent({
+    required bool updateStatus,
+    String reason = 'manual',
+  }) async {
     final unsubscribeMeasurement = _unsubscribeMeasurement;
     _unsubscribeMeasurement = null;
     if (unsubscribeMeasurement != null) await unsubscribeMeasurement();
     _unsubscribeDisconnected?.call();
     _unsubscribeDisconnected = null;
     final connection = _connection;
+    final device = _device;
     _connection = null;
     _batteryTimer?.cancel();
     _batteryTimer = null;
     if (connection != null) {
       _lastDisconnectedAt = DateTime.now();
       await connection.disconnect();
+      eventHub?.emit(HeartRateEventIds.deviceDisconnected, {
+        if (device != null) 'deviceName': device.name,
+        if (device != null) 'deviceId': device.id,
+        'reason': reason,
+      });
     }
     _stale = true;
     if (updateStatus) _setStatus(HeartRateConnectionStatus.idle);

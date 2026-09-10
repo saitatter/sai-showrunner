@@ -17,6 +17,8 @@ Phases 0-6 are implemented:
   disconnect handling behind the transport boundary;
 - preferred-device persistence, auto-connect, stale data handling, battery
   refresh, and reconnect backoff;
+- semantic automation triggers for connection changes, zone changes, and
+  threshold crossings with hysteresis, plus connect/disconnect/reset actions;
 - Heart Rate integration page in Flutter;
 - Heart Rate state exposed through the existing plugin registry;
 - Heart Rate Browser Source widget using the existing ShowRunner overlay bridge.

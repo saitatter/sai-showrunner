@@ -92,11 +92,13 @@ part 'configured_plugin_registrar.dart';
 HeartRateService _registerHeartRatePlugin(
   DartPluginRegistry registry, {
   ShowRunnerDataService? dataService,
+  DartPluginEventHub? eventHub,
 }) {
   final service = createHeartRateService(
     transport: dataService == null
         ? FakeBleTransport()
         : UniversalBleTransport(),
+    eventHub: eventHub,
     loadSettings: dataService == null
         ? null
         : () => dataService.loadPluginSettings('heartrate'),

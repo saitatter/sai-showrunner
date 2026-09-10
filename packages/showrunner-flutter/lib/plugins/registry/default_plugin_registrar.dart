@@ -13,7 +13,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   final variablesRepository =
       viewerDataRepository ?? InMemoryViewerDataRepository();
   final registry = DartPluginRegistry();
-  _registerHeartRatePlugin(registry);
+  _registerHeartRatePlugin(registry, eventHub: eventHub);
   registry.register(
     createShowRunnerPlugin(
       queueManager: queueManager,
