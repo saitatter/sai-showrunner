@@ -22,13 +22,15 @@ describe("overlay registry generation", () => {
 			fs.writeFileSync(path.join(packageDirectory, "package.json"), JSON.stringify({ name: directory, showrunner: { pluginId: id, overlay: { entry: "./src/main.ts", widgets: [{ id: "widget", name: "Widget", defaultSize: { width: 10, height: 10 } }] } } }))
 		}
 		const ignored = path.join(plugins, "ignored"); fs.mkdirSync(ignored); fs.writeFileSync(path.join(ignored, "package.json"), JSON.stringify({ name: "ignored" }))
-		const output = path.join(root, "generated"); const flutterCatalog = path.join(root, "flutter", "overlay_widget_catalog.generated.dart")
-		const result = generateRegistry({ pluginsRoot: plugins, outputDirectory: output, flutterCatalogLibraryOutput: flutterCatalog })
+		const output = path.join(root, "generated"); const flutterCatalog = path.join(root, "flutter", "overlay_widget_catalog.generated.dart"); const coreContracts = path.join(root, "core", "overlay-contracts.generated.ts")
+		const result = generateRegistry({ pluginsRoot: plugins, outputDirectory: output, flutterCatalogLibraryOutput: flutterCatalog, coreContractsOutput: coreContracts })
 		expect(result.plugins.map((plugin) => plugin.pluginId)).toEqual(["alpha", "zeta"])
 		expect(fs.readFileSync(path.join(output, "overlay_plugins.generated.ts"), "utf8")).toContain("plugin0")
 		expect(JSON.parse(fs.readFileSync(path.join(output, "overlay_widgets.generated.json"), "utf8")).schemaVersion).toBe(1)
 		expect(fs.readFileSync(flutterCatalog, "utf8")).toContain("GeneratedOverlayWidget")
 		expect(fs.readFileSync(flutterCatalog, "utf8")).toContain('pluginId: "alpha"')
+		expect(fs.readFileSync(coreContracts, "utf8")).toContain('"alpha.widget"')
+		expect(fs.readFileSync(coreContracts, "utf8")).toContain("GeneratedOverlayCommandMap")
 	})
 
 	it("fails duplicate IDs and invalid dimensions", () => {

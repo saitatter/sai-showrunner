@@ -30,6 +30,19 @@
 						],
 						"resizable": true
 					},
+					"contracts": {
+						"commands": {
+							"spinWheel": {
+								"args": {
+									"type": "tuple",
+									"items": [
+										{ "type": "number", "optional": true }
+									]
+								},
+								"result": { "type": "unknown" }
+							}
+						}
+					},
 					"config": {
 						"slices": {
 							"type": "number",

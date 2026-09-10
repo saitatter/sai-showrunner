@@ -1,4 +1,5 @@
 import {
+	OverlayCommandMap,
 	OverlayWidget,
 	OverlayWidgetFactory,
 	WidgetContext,
@@ -58,8 +59,8 @@ class WheelWidget implements OverlayWidget<AnyConfig> {
 		this.container = container
 		this.config = config ?? {}
 		this.context = context
-		context.bridge.exposeCommand("spinWheel", (args) => {
-			this.spin(Number((args as unknown[])[0] ?? 1))
+		context.bridge.exposeCommand("spinWheel", (args: OverlayCommandMap["spinWheel"]["args"]) => {
+			this.spin(Number(args[0] ?? 1))
 			return undefined
 		})
 		this.render()

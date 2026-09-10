@@ -1,6 +1,8 @@
 import {
 	OverlayWidget,
 	OverlayWidgetFactory,
+	OverlayCommandMap,
+	OverlayEventMap,
 	WidgetContext,
 	applyStyles,
 	clearElement,
@@ -55,11 +57,11 @@ abstract class DomWidget implements OverlayWidget<AnyConfig> {
 		this.context.scope.add(() => element.removeEventListener(type, handler as EventListener))
 	}
 
-	protected onMessage(id: string, handler: (payload: any) => void): void {
+	protected onMessage<K extends keyof OverlayEventMap>(id: K, handler: (payload: OverlayEventMap[K]) => void): void {
 		this.context.bridge.onEvent(id, handler)
 	}
 
-	protected onCommand(id: string, handler: (args: unknown) => unknown | Promise<unknown>): void {
+	protected onCommand<K extends keyof OverlayCommandMap>(id: K, handler: (args: OverlayCommandMap[K]["args"]) => OverlayCommandMap[K]["result"] | Promise<OverlayCommandMap[K]["result"]>): void {
 		this.context.bridge.exposeCommand(id, handler)
 	}
 }
@@ -135,18 +137,7 @@ class BarWidget extends DomWidget {
 
 export const barWidget = widgetFactory("bar", () => new BarWidget())
 
-interface ChatMessage {
-	id?: string
-	platform?: string
-	user?: string
-	username?: string
-	displayName?: string
-	message?: string
-	text?: string
-	badges?: string[] | string
-	targetOverlayId?: string
-	targetWidgetId?: string
-}
+type ChatMessage = OverlayEventMap["showrunner_chat_message"]
 
 class ChatFeedWidget extends DomWidget {
 	private messages: Required<ChatMessage>[] = []
@@ -235,10 +226,11 @@ class ChatFeedWidget extends DomWidget {
 
 export const chatFeedWidget = widgetFactory("chatFeed", () => new ChatFeedWidget())
 
-interface TimedEvent { targetOverlayId?: string; targetWidgetId?: string; [key: string]: any }
+type PaidAlertEvent = OverlayEventMap["showrunner_paid_alert"]
+type SceneEvent = OverlayEventMap["showrunner_scene_event"]
 
 class PaidAlertWidget extends DomWidget {
-	private active?: TimedEvent
+	private active?: PaidAlertEvent
 	private timer?: number
 
 	protected onMount(): void {
@@ -246,7 +238,7 @@ class PaidAlertWidget extends DomWidget {
 		if (this.context.isEditor) this.show({ displayName: this.config.previewViewer, title: this.config.previewTitle, message: this.config.previewMessage, amount: this.config.previewAmount, currency: this.config.previewCurrency })
 	}
 
-	private show(message: TimedEvent): void {
+	private show(message: PaidAlertEvent): void {
 		if (!this.context.isEditor && message.targetOverlayId && message.targetOverlayId !== this.context.overlayId) return
 		if (!this.context.isEditor && message.targetWidgetId && message.targetWidgetId !== this.context.bridge.getConfig().id) return
 		this.active = message
@@ -276,7 +268,7 @@ class PaidAlertWidget extends DomWidget {
 export const paidAlertWidget = widgetFactory("paidAlert", () => new PaidAlertWidget())
 
 class SceneBannerWidget extends DomWidget {
-	private active?: TimedEvent
+	private active?: SceneEvent
 	private timer?: number
 
 	protected onMount(): void {
@@ -412,7 +404,7 @@ class AlertWidget extends DomWidget {
 	private title = "Title"; private message = "Message"; private media?: string; private timer?: number
 
 	protected onMount(): void {
-		this.onCommand("showAlert", (args) => { const [title, message, _color, index] = args as any[]; return this.show(String(title), String(message), Number(index) || 0) })
+		this.onCommand("showAlert", (args) => { const [title, message, _color, index] = args; return this.show(String(title), String(message), Number(index) || 0) })
 		if (this.context.isEditor) this.show("Title", "Message", 0)
 	}
 

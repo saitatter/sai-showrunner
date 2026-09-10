@@ -52,6 +52,7 @@ export function validateOverlayPlugins(plugins) {
 			if (widget.config !== undefined && (typeof widget.config !== "object" || Array.isArray(widget.config))) {
 				throw new Error(`Invalid config metadata: ${plugin.pluginId}.${widget.id}`)
 			}
+			if (widget.contracts !== undefined) validateContracts(widget.contracts, `${plugin.pluginId}.${widget.id}`)
 			widgetIds.add(widget.id)
 			const key = `${plugin.pluginId}.${widget.id}`
 			if (widgetKeys.has(key)) throw new Error(`Duplicate overlay widget key: ${key}`)
@@ -62,6 +63,18 @@ export function validateOverlayPlugins(plugins) {
 		}
 	}
 	return plugins.map((plugin) => ({ ...plugin, widgets: [...plugin.widgets].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0) }))
+}
+
+function validateContracts(contracts, widgetKey) {
+	if (!contracts || typeof contracts !== "object" || Array.isArray(contracts)) throw new Error(`Invalid contract metadata: ${widgetKey}`)
+	for (const [event, schema] of Object.entries(contracts.events ?? {})) {
+		if (!event || !schema || typeof schema !== "object" || Array.isArray(schema)) throw new Error(`Invalid event contract: ${widgetKey}.${event}`)
+	}
+	for (const [command, contract] of Object.entries(contracts.commands ?? {})) {
+		if (!command || !contract || typeof contract !== "object" || Array.isArray(contract)) throw new Error(`Invalid command contract: ${widgetKey}.${command}`)
+		if (contract.args !== undefined && (!contract.args || typeof contract.args !== "object" || Array.isArray(contract.args))) throw new Error(`Invalid command args contract: ${widgetKey}.${command}`)
+		if (contract.result !== undefined && (!contract.result || typeof contract.result !== "object" || Array.isArray(contract.result))) throw new Error(`Invalid command result contract: ${widgetKey}.${command}`)
+	}
 }
 
 function validDimension(value) {
@@ -106,7 +119,94 @@ function flutterCatalogFor(manifest) {
 		"];"]
 }
 
-export function generateRegistry({ pluginsRoot, outputDirectory, flutterManifestOutput, flutterCatalogLibraryOutput }) {
+function typeForSchema(schema, depth = 0) {
+	if (!schema || typeof schema !== "object") return "unknown"
+	const type = String(schema.type ?? "unknown").toLowerCase()
+	if (Array.isArray(schema.enum) && schema.enum.length) {
+		return schema.enum.map((value) => JSON.stringify(value)).join(" | ")
+	}
+	if (type === "tuple") {
+		const items = Array.isArray(schema.items) ? schema.items : []
+		return `readonly [${items.map((item) => `${typeForSchema(item, depth + 1)}${item?.optional === true ? "?" : ""}`).join(", ")}]`
+	}
+	if (type === "array" || type === "list") {
+		const itemSchema = schema.itemSchema ?? schema.item
+		return `readonly ${itemSchema ? typeForSchema(itemSchema, depth + 1) : "unknown"}[]`
+	}
+	if (type === "range") return "{ min?: number; max?: number }"
+	if (type === "object" || type === "map" || type === "json") {
+		const fields = schema.fields && typeof schema.fields === "object" && !Array.isArray(schema.fields) ? schema.fields : undefined
+		if (!fields || Object.keys(fields).length === 0) return "Record<string, unknown>"
+		const properties = Object.entries(fields).map(([key, value]) => propertyForSchema(key, value, depth + 1))
+		return `{ ${properties.join("; ")} }`
+	}
+	if (type === "string" || type === "multiline" || type === "multilinetext" || type === "color" || type === "filepath" || type === "file" || type === "resource" || type === "viewervariable") return "string"
+	if (type === "number" || type === "integer" || type === "float" || type === "duration") return "number"
+	if (type === "boolean" || type === "bool") return "boolean"
+	return "unknown"
+}
+
+function propertyForSchema(key, schema, depth = 0) {
+	const metadata = schema && typeof schema === "object" ? schema : {}
+	const optional = metadata.required === true ? "" : "?"
+	return `${JSON.stringify(key)}${optional}: ${typeForSchema(metadata, depth)}`
+}
+
+function configTypeFor(config) {
+	if (!config || typeof config !== "object" || Object.keys(config).length === 0) return "Record<string, unknown>"
+	return `{ ${Object.entries(config).map(([key, schema]) => propertyForSchema(key, schema)).join("; ")} }`
+}
+
+function contractTypeFor(contract) {
+	if (!contract || typeof contract !== "object") return "{ args: unknown; result: unknown }"
+	return `{ args: ${typeForSchema(contract.args)}; result: ${typeForSchema(contract.result)} }`
+}
+
+function contractsFor(manifest) {
+	const configEntries = []
+	const events = new Map()
+	const commands = new Map()
+	for (const plugin of manifest.plugins) {
+		for (const widget of plugin.widgets) {
+			configEntries.push([`${plugin.pluginId}.${widget.id}`, configTypeFor(widget.config)])
+			for (const event of widget.capabilities?.events ?? []) {
+				if (!events.has(event)) events.set(event, "unknown")
+			}
+			for (const [event, contract] of Object.entries(widget.contracts?.events ?? {})) events.set(event, typeForSchema(contract))
+			for (const command of widget.capabilities?.commands ?? []) {
+				if (!commands.has(command)) commands.set(command, "{ args: unknown; result: unknown }")
+			}
+			for (const [command, contract] of Object.entries(widget.contracts?.commands ?? {})) commands.set(command, contractTypeFor(contract))
+		}
+	}
+	const lines = [
+		"// GENERATED FILE - DO NOT EDIT.",
+		"",
+		"/** Type-level contracts generated from plugin package manifests. */",
+		"export interface GeneratedOverlayWidgetConfigMap {",
+		...configEntries.sort(([a], [b]) => a.localeCompare(b)).map(([key, type]) => `\t${JSON.stringify(key)}: ${type}`),
+		"}",
+		"",
+		"export type GeneratedOverlayWidgetKey = keyof GeneratedOverlayWidgetConfigMap",
+		"export type GeneratedOverlayWidgetConfig<K extends GeneratedOverlayWidgetKey> = GeneratedOverlayWidgetConfigMap[K]",
+		"",
+		"export interface GeneratedOverlayEventMap {",
+		...([...events.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([event, type]) => `\t${JSON.stringify(event)}: ${type}`)),
+		"}",
+		"",
+		"export type GeneratedOverlayEventName = keyof GeneratedOverlayEventMap",
+		"",
+		"export interface GeneratedOverlayCommandMap {",
+		...([...commands.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([command, type]) => `\t${JSON.stringify(command)}: ${type}`)),
+		"}",
+		"",
+		"export type GeneratedOverlayCommandName = keyof GeneratedOverlayCommandMap",
+		"",
+	]
+	return `${lines.join("\n")}\n`
+}
+
+export function generateRegistry({ pluginsRoot, outputDirectory, flutterManifestOutput, flutterCatalogLibraryOutput, coreContractsOutput }) {
 	const plugins = discoverOverlayPlugins(pluginsRoot)
 	const manifest = manifestFor(plugins)
 	fs.mkdirSync(outputDirectory, { recursive: true })
@@ -142,6 +242,10 @@ export function generateRegistry({ pluginsRoot, outputDirectory, flutterManifest
 	if (flutterCatalogLibraryOutput) {
 		fs.mkdirSync(path.dirname(flutterCatalogLibraryOutput), { recursive: true })
 		fs.writeFileSync(flutterCatalogLibraryOutput, `${flutterCatalogFor(manifest).join("\n")}\n`)
+	}
+	if (coreContractsOutput) {
+		fs.mkdirSync(path.dirname(coreContractsOutput), { recursive: true })
+		fs.writeFileSync(coreContractsOutput, contractsFor(manifest))
 	}
 	return { plugins, manifest }
 }

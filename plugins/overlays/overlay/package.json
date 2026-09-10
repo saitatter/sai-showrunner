@@ -29,6 +29,22 @@
 							"showAlert"
 						]
 					},
+					"contracts": {
+						"commands": {
+							"showAlert": {
+								"args": {
+									"type": "tuple",
+									"items": [
+										{ "type": "string" },
+										{ "type": "string" },
+										{ "type": "string", "optional": true },
+										{ "type": "number", "optional": true }
+									]
+								},
+								"result": { "type": "number" }
+							}
+						}
+					},
 					"config": {
 						"media": {
 							"type": "array"
@@ -113,6 +129,25 @@
 							"showrunner_chat_message"
 						]
 					},
+					"contracts": {
+						"events": {
+							"showrunner_chat_message": {
+								"type": "object",
+								"fields": {
+									"id": { "type": "string" },
+									"platform": { "type": "string" },
+									"user": { "type": "string" },
+									"username": { "type": "string" },
+									"displayName": { "type": "string" },
+									"message": { "type": "string" },
+									"text": { "type": "string" },
+									"badges": { "type": "array", "itemSchema": { "type": "string" } },
+									"targetOverlayId": { "type": "string" },
+									"targetWidgetId": { "type": "string" }
+								}
+							}
+						}
+					},
 					"config": {
 						"fontFamily": {
 							"type": "string",
@@ -176,6 +211,17 @@
 						"commands": [
 							"spawnEmotes"
 						]
+					},
+					"contracts": {
+						"events": {
+							"twitch_message": { "type": "unknown" }
+						},
+						"commands": {
+							"spawnEmotes": {
+								"args": { "type": "array" },
+								"result": { "type": "unknown" }
+							}
+						}
 					},
 					"config": {
 						"lifeTime": {
@@ -306,6 +352,22 @@
 							"showrunner_paid_alert"
 						]
 					},
+					"contracts": {
+						"events": {
+							"showrunner_paid_alert": {
+								"type": "object",
+								"fields": {
+									"displayName": { "type": "string" },
+									"title": { "type": "string" },
+									"message": { "type": "string" },
+									"amount": { "type": "string" },
+									"currency": { "type": "string" },
+									"targetOverlayId": { "type": "string" },
+									"targetWidgetId": { "type": "string" }
+								}
+							}
+						}
+					},
 					"config": {
 						"fontFamily": {
 							"type": "string",
@@ -362,6 +424,21 @@
 						"events": [
 							"showrunner_scene_event"
 						]
+					},
+					"contracts": {
+						"events": {
+							"showrunner_scene_event": {
+								"type": "object",
+								"fields": {
+									"type": { "type": "string" },
+									"title": { "type": "string" },
+									"subtitle": { "type": "string" },
+									"accentColor": { "type": "string" },
+									"targetOverlayId": { "type": "string" },
+									"targetWidgetId": { "type": "string" }
+								}
+							}
+						}
 					},
 					"config": {
 						"fontFamily": {

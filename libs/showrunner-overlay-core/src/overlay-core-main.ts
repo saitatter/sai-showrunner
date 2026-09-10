@@ -1,3 +1,13 @@
+import type {
+	GeneratedOverlayCommandMap,
+	GeneratedOverlayEventMap,
+	GeneratedOverlayWidgetConfig,
+	GeneratedOverlayWidgetKey,
+} from "./generated/overlay-contracts.generated"
+
+export type OverlayWidgetKey = GeneratedOverlayWidgetKey
+export type OverlayWidgetConfigFor<K extends OverlayWidgetKey> = GeneratedOverlayWidgetConfig<K>
+
 export type CSSProperties = Record<string, string | number | undefined>
 
 export type Unsubscribe = () => void
@@ -46,14 +56,14 @@ export class WidgetScope {
 	}
 }
 
-export interface OverlayWidgetConfig {
+export interface OverlayWidgetConfig<K extends string = string> {
 	id: string
 	plugin: string
 	widget: string
 	name: string
 	size: { width: number; height: number }
 	position: { x: number; y: number }
-	config: Record<string, any>
+	config: K extends GeneratedOverlayWidgetKey ? GeneratedOverlayWidgetConfig<K> : Record<string, unknown>
 	locked: boolean
 	visible: boolean
 }
@@ -66,13 +76,14 @@ export interface OverlayConfig {
 	preview?: { offsetX: number; offsetY: number; source?: string }
 }
 
-export interface OverlayEventMap {
-	[event: string]: unknown
-}
+/** Generated entries are open for plugin-specific module augmentation. */
+export interface OverlayEventMap extends GeneratedOverlayEventMap {}
 
-export interface OverlayCommandMap {
-	[command: string]: { args: unknown; result: unknown }
-}
+/** Generated entries are open for plugin-specific module augmentation. */
+export interface OverlayCommandMap extends GeneratedOverlayCommandMap {}
+
+export type OverlayEventName = keyof OverlayEventMap
+export type OverlayCommandName = keyof OverlayCommandMap
 
 export interface OverlayTransportMessage {
 	requestId?: string
@@ -99,7 +110,7 @@ export interface StateAccess {
 }
 
 export interface ViewerDataRow {
-	[variable: string]: any
+	[variable: string]: unknown
 }
 
 export interface ViewerVariable {
@@ -152,7 +163,7 @@ export interface WidgetContext {
 	mediaUrl(mediaFile: string): string
 }
 
-export interface OverlayWidget<Config = Record<string, any>> {
+export interface OverlayWidget<Config = Record<string, unknown>> {
 	mount(container: HTMLElement, config: Config, context: WidgetContext): void
 	update(config: Config): void
 	destroy(): void
@@ -162,7 +173,7 @@ export interface OverlayConfigSchema {
 	readonly [key: string]: unknown
 }
 
-export interface OverlayWidgetDefinition<Config = Record<string, any>> {
+export interface OverlayWidgetDefinition<Config = Record<string, unknown>> {
 	readonly id: string
 	readonly name: string
 	readonly description?: string
@@ -184,9 +195,9 @@ export interface OverlayWidgetDefinition<Config = Record<string, any>> {
  * Display metadata is deliberately not part of this shape. It is owned by
  * the generated catalog so the browser and Flutter cannot drift apart.
  */
-export interface OverlayWidgetFactory {
+export interface OverlayWidgetFactory<Config = Record<string, unknown>> {
 	readonly id: string
-	create(context: WidgetContext, config: Record<string, any>): OverlayWidget<Record<string, any>>
+	create(context: WidgetContext, config: Config): OverlayWidget<Config>
 }
 
 export interface OverlayPluginFactories {
@@ -206,7 +217,23 @@ export interface OverlayWidgetManifest {
 	readonly icon?: string
 	readonly defaultSize: { width: number | "canvas"; height: number | "canvas" }
 	readonly config: OverlayConfigSchema
+	readonly contracts?: OverlayWidgetContracts
 	readonly capabilities?: OverlayWidgetDefinition["capabilities"]
+}
+
+export interface OverlayWidgetContracts {
+	readonly events?: Readonly<Record<string, OverlayContractSchema>>
+	readonly commands?: Readonly<Record<string, OverlayCommandContractSchema>>
+}
+
+export interface OverlayContractSchema {
+	readonly type?: string
+	readonly [key: string]: unknown
+}
+
+export interface OverlayCommandContractSchema {
+	readonly args?: OverlayContractSchema
+	readonly result?: OverlayContractSchema
 }
 
 export interface OverlayPluginManifest {
@@ -214,7 +241,7 @@ export interface OverlayPluginManifest {
 	readonly widgets: readonly OverlayWidgetManifest[]
 }
 
-export function defineOverlayWidget<Config>(factory: OverlayWidgetFactory) {
+export function defineOverlayWidget<Config>(factory: OverlayWidgetFactory<Config>) {
 	return factory
 }
 
