@@ -1,17 +1,5 @@
 part of '../showrunner_graph_editor.dart';
 
-double _graphDistanceToSegment(Offset point, Offset start, Offset end) {
-  final delta = end - start;
-  final lengthSquared = delta.dx * delta.dx + delta.dy * delta.dy;
-  if (lengthSquared == 0) return (point - start).distance;
-  final projection =
-      ((point.dx - start.dx) * delta.dx + (point.dy - start.dy) * delta.dy) /
-      lengthSquared;
-  final t = projection.clamp(0.0, 1.0).toDouble();
-  final closest = Offset(start.dx + delta.dx * t, start.dy + delta.dy * t);
-  return (point - closest).distance;
-}
-
 /// ShowRunner-specific pointer hit-testing and insertion workflows.
 ///
 /// Coordinate conversion is intentionally shared by insertion and hit-tests.
@@ -67,17 +55,8 @@ extension ShowRunnerGraphEditorInteraction on ShowRunnerGraphEditor {
 
   /// Finds the topmost graph node under a global pointer position.
   String? nodeIdAtScreenPosition(Offset screenPosition) {
-    final renderObject = controller.editorKey.currentContext
-        ?.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
-    final local = renderObject.globalToLocal(screenPosition);
-    final world = controller.screenToWorld(local, renderObject.size);
-    final candidates = controller.nodesSpatialHashGrid.queryCoords(world);
-    for (final id in candidates.toList().reversed) {
-      final node = controller.nodes[id];
-      if (node != null && _nodeWorldBounds(node).contains(world)) return id;
-    }
-    return null;
+    final world = _worldPositionForScreenPosition(screenPosition);
+    return world == null ? null : controller.hitTestNode(world)?.nodeId;
   }
 
   /// Updates the visual drop target used when an action is dragged from the
@@ -97,47 +76,21 @@ extension ShowRunnerGraphEditorInteraction on ShowRunnerGraphEditor {
 
   /// Finds a control-flow link under a global pointer position.
   String? flowLinkIdAtScreenPosition(Offset screenPosition) {
-    final renderObject = controller.editorKey.currentContext
-        ?.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
-    final local = renderObject.globalToLocal(screenPosition);
-    final world = controller.screenToWorld(local, renderObject.size);
+    final world = _worldPositionForScreenPosition(screenPosition);
+    if (world == null) return null;
 
     final tolerance = 12 / controller.viewportZoom;
-    for (final link in controller.linksAsList) {
-      final source = controller.nodes[link.endpoints.sourceNodeId];
-      final target = controller.nodes[link.endpoints.targetNodeId];
-      final sourcePort = source?.ports[link.endpoints.sourcePortId];
-      final targetPort = target?.ports[link.endpoints.targetPortId];
-      if (source == null ||
-          target == null ||
-          sourcePort == null ||
-          targetPort == null ||
-          sourcePort.prototype.type != PortType.control) {
-        continue;
-      }
-
-      final start = source.offset + sourcePort.offset;
-      final end = target.offset + targetPort.offset;
-      final control = math.min((end.dx - start.dx).abs() / 2, 400).toDouble();
-      final firstControl = Offset(start.dx + control, start.dy);
-      final secondControl = Offset(end.dx - control, end.dy);
-      var previous = start;
-      for (var index = 1; index <= 32; index++) {
-        final t = index / 32;
-        final inverse = 1 - t;
-        final point =
-            start * (inverse * inverse * inverse) +
-            firstControl * (3 * inverse * inverse * t) +
-            secondControl * (3 * inverse * t * t) +
-            end * (t * t * t);
-        if (_graphDistanceToSegment(world, previous, point) <= tolerance) {
-          return link.id;
-        }
-        previous = point;
-      }
-    }
-    return null;
+    return controller
+        .hitTestLink(
+          world,
+          tolerance: tolerance,
+          where: (link) {
+            final source = controller.nodes[link.endpoints.sourceNodeId];
+            final sourcePort = source?.ports[link.endpoints.sourcePortId];
+            return sourcePort?.prototype.type == PortType.control;
+          },
+        )
+        ?.linkId;
   }
 
   String? insertActionAfterNode(
