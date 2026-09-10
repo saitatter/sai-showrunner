@@ -287,12 +287,12 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'sample',
+          id: PluginId('sample'),
           name: 'Sample',
           actions: [
-            DartActionDefinition(
-              pluginId: 'sample',
-              actionId: 'measure',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('sample'),
+              actionId: ActionId('measure'),
               invoke: (config, context) async => {'score': 42},
               resultSchema: const DartDataInputSchema(
                 label: '',

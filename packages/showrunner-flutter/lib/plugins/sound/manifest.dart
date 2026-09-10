@@ -130,24 +130,24 @@ DartPluginManifest createSoundPlugin({
     globalVolume: globalVolume.clamp(0, 100).toDouble(),
   );
   return DartPluginManifest(
-    id: 'sound',
+    id: PluginId('sound'),
     name: 'Sound & TTS',
     settings: const [
-      DartSettingDefinition(
-        id: 'globalVolume',
+      SettingSpec(
+        id: SettingId('globalVolume'),
         displayName: 'Global Volume (0-100)',
         defaultValue: 100,
       ),
-      DartSettingDefinition(
-        id: 'defaultOutput',
+      SettingSpec(
+        id: SettingId('defaultOutput'),
         displayName: 'Default Sound Output',
         defaultValue: 'system.default',
       ),
     ],
     actions: [
-      DartActionDefinition(
-        pluginId: 'sound',
-        actionId: 'sound',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('sound'),
+        actionId: ActionId('sound'),
         displayName: 'Play Sound',
         configSchema: _soundSchema,
         invoke: (config, context) => _playSound(
@@ -157,9 +157,9 @@ DartPluginManifest createSoundPlugin({
           globalVolume: dependencies.globalVolume,
         ),
       ),
-      DartActionDefinition(
-        pluginId: 'sound',
-        actionId: 'speakTTS',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('sound'),
+        actionId: ActionId('speakTTS'),
         displayName: 'Speak Text-to-Speech',
         configSchema: _speakTtsSchema,
         invoke: (config, context) => _speakTTS(
@@ -172,9 +172,9 @@ DartPluginManifest createSoundPlugin({
           globalVolume: dependencies.globalVolume,
         ),
       ),
-      DartActionDefinition(
-        pluginId: 'sound',
-        actionId: 'tts',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('sound'),
+        actionId: ActionId('tts'),
         displayName: 'Text to Speech',
         configSchema: _speakTtsSchema,
         invoke: (config, context) => _speakTTS(

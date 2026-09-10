@@ -82,7 +82,7 @@ void main() {
       });
 
       final action = createHttpPlugin().actions.single;
-      final result = await action.invoke({
+      final result = await action.invokeFromRuntime({
         'url': 'http://127.0.0.1:${server.port}/request?tag=original',
         'query': 'tag=extra&tag=second&empty',
         'method': 'GET',

@@ -108,34 +108,34 @@ const _plugSchema = DartDataInputSchema(
 
 DartPluginManifest createIotPlugin({IotResourceActionResolver? resolver}) =>
     DartPluginManifest(
-      id: 'iot',
+      id: PluginId('iot'),
       name: 'IoT & Smart Home',
       actions: [
-        DartActionDefinition(
-          pluginId: 'iot',
-          actionId: 'setLightColor',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('iot'),
+          actionId: ActionId('setLightColor'),
           displayName: 'Set Light Color',
           configSchema: _setLightColorSchema,
           invoke: (config, context) =>
               _setLightColor(resolver, config, context),
         ),
-        DartActionDefinition(
-          pluginId: 'iot',
-          actionId: 'toggleLight',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('iot'),
+          actionId: ActionId('toggleLight'),
           displayName: 'Toggle Light',
           configSchema: _toggleLightSchema,
           invoke: (config, context) => _toggleLight(resolver, config, context),
         ),
-        DartActionDefinition(
-          pluginId: 'iot',
-          actionId: 'light',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('iot'),
+          actionId: ActionId('light'),
           displayName: 'Change Light',
           configSchema: _lightSchema,
           invoke: (config, context) => _light(resolver, config, context),
         ),
-        DartActionDefinition(
-          pluginId: 'iot',
-          actionId: 'plug',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('iot'),
+          actionId: ActionId('plug'),
           displayName: 'Switch Plug',
           configSchema: _plugSchema,
           invoke: (config, context) => _plug(resolver, config, context),

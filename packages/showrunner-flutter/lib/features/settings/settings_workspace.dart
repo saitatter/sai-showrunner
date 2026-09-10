@@ -52,16 +52,20 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
     final registry = await widget.registryFuture;
     for (final plugin in registry.plugins) {
       if (plugin.settings.isEmpty) continue;
-      final values = await widget.dataService.loadPluginSettings(plugin.id);
-      _pluginValues[plugin.id] = {
+      final values = await widget.dataService.loadPluginSettings(
+        plugin.id.value,
+      );
+      _pluginValues[plugin.id.value] = {
         for (final setting in plugin.settings)
-          setting.id: values[setting.id] ?? setting.defaultValue,
+          setting.id.value: values[setting.id.value] ?? setting.defaultValue,
       };
       for (final setting in plugin.settings) {
         if (setting.defaultValue is bool) continue;
-        final key = '${plugin.id}:${setting.id}';
+        final key = '${plugin.id.value}:${setting.id.value}';
         _controllers[key] = TextEditingController(
-          text: _displaySettingValue(_pluginValues[plugin.id]![setting.id]),
+          text: _displaySettingValue(
+            _pluginValues[plugin.id.value]![setting.id.value],
+          ),
         );
       }
     }
@@ -107,25 +111,26 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
   Future<void> _savePlugin(DartPluginManifest plugin) async {
     setState(() {
       _error = null;
-      _savingPlugins.add(plugin.id);
+      _savingPlugins.add(plugin.id.value);
     });
     try {
-      final values = <String, dynamic>{...?_pluginValues[plugin.id]};
+      final values = <String, dynamic>{...?_pluginValues[plugin.id.value]};
       for (final setting in plugin.settings) {
-        final controller = _controllers['${plugin.id}:${setting.id}'];
+        final controller =
+            _controllers['${plugin.id.value}:${setting.id.value}'];
         if (controller != null) {
-          values[setting.id] = _parseSettingValue(
+          values[setting.id.value] = _parseSettingValue(
             controller.text,
             setting.defaultValue,
           );
         }
       }
-      await widget.dataService.savePluginSettings(plugin.id, values);
-      _pluginValues[plugin.id] = values;
+      await widget.dataService.savePluginSettings(plugin.id.value, values);
+      _pluginValues[plugin.id.value] = values;
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {
-      if (mounted) setState(() => _savingPlugins.remove(plugin.id));
+      if (mounted) setState(() => _savingPlugins.remove(plugin.id.value));
     }
   }
 
@@ -350,7 +355,7 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
     for (final plugin in registry.plugins) {
       final settings = plugin.settings.where((setting) {
         return filter.isEmpty ||
-            '${plugin.name} ${setting.displayName} ${setting.id}'
+            '${plugin.name} ${setting.displayName} ${setting.id.value}'
                 .toLowerCase()
                 .contains(filter);
       }).toList();
@@ -374,10 +379,10 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
                 Align(
                   alignment: Alignment.centerRight,
                   child: FilledButton.icon(
-                    onPressed: _savingPlugins.contains(plugin.id)
+                    onPressed: _savingPlugins.contains(plugin.id.value)
                         ? null
                         : () => _savePlugin(plugin),
-                    icon: _savingPlugins.contains(plugin.id)
+                    icon: _savingPlugins.contains(plugin.id.value)
                         ? const SizedBox(
                             width: 16,
                             height: 16,
@@ -399,32 +404,32 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
   Widget _buildPluginSetting(
     BuildContext context,
     DartPluginManifest plugin,
-    DartSettingDefinition setting,
+    SettingSpec setting,
   ) {
-    final values = _pluginValues[plugin.id] ?? const <String, dynamic>{};
-    final value = values[setting.id] ?? setting.defaultValue;
+    final values = _pluginValues[plugin.id.value] ?? const <String, dynamic>{};
+    final value = values[setting.id.value] ?? setting.defaultValue;
     if (setting.defaultValue is bool) {
       return SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: Text(setting.displayName),
-        subtitle: Text(setting.id),
+        subtitle: Text(setting.id.value),
         value: value == true,
-        onChanged: _savingPlugins.contains(plugin.id)
+        onChanged: _savingPlugins.contains(plugin.id.value)
             ? null
-            : (next) => setState(() => values[setting.id] = next),
+            : (next) => setState(() => values[setting.id.value] = next),
       );
     }
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextField(
-        controller: _controllers['${plugin.id}:${setting.id}'],
+        controller: _controllers['${plugin.id.value}:${setting.id.value}'],
         obscureText: setting.secret,
         keyboardType: setting.defaultValue is num
             ? TextInputType.number
             : TextInputType.text,
         decoration: InputDecoration(
           labelText: setting.displayName,
-          helperText: setting.id,
+          helperText: setting.id.value,
           border: const OutlineInputBorder(),
         ),
       ),

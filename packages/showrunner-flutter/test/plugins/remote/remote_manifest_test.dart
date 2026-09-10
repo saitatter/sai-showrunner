@@ -13,8 +13,14 @@ void main() {
       ..register(createRemotePlugin(eventHub: eventHub));
     final trigger = registry.findTrigger('remote', 'button')!;
 
-    expect(trigger.matches!({'name': 'Start'}, {'name': 'Start'}), isTrue);
-    expect(trigger.matches!({'name': 'Start'}, {'name': 'Stop'}), isFalse);
+    expect(
+      trigger.matchesRuntime({'name': 'Start'}, {'name': 'Start'}),
+      isTrue,
+    );
+    expect(
+      trigger.matchesRuntime({'name': 'Start'}, {'name': 'Stop'}),
+      isFalse,
+    );
 
     await eventHub.dispose();
   });

@@ -495,12 +495,12 @@ DartPluginManifest createStreamPlansPlugin({
   if (executionEngine != null) activeRuntime.executionEngine = executionEngine;
   if (queueManager != null) activeRuntime.queueManager = queueManager;
   return DartPluginManifest(
-    id: 'stream-plans',
+    id: PluginId('stream-plans'),
     name: 'Stream Plans',
     actions: [
-      DartActionDefinition(
-        pluginId: 'stream-plans',
-        actionId: 'nextSegment',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('stream-plans'),
+        actionId: ActionId('nextSegment'),
         displayName: 'Next Segment',
         configSchema: _segmentSchema,
         invoke: (config, context) => _nextSegment(
@@ -510,9 +510,9 @@ DartPluginManifest createStreamPlansPlugin({
           registry: registry,
         ),
       ),
-      DartActionDefinition(
-        pluginId: 'stream-plans',
-        actionId: 'prevSegment',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('stream-plans'),
+        actionId: ActionId('prevSegment'),
         displayName: 'Previous Segment',
         configSchema: _segmentSchema,
         invoke: (config, context) => _previousSegment(

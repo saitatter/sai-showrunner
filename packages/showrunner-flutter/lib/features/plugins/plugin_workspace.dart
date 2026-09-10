@@ -51,7 +51,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
   String _detailsFilter = '';
 
   final _fields = <String, List<String>>{};
-  final _definitions = <String, DartSettingDefinition>{};
+  final _definitions = <String, SettingSpec>{};
 
   @override
   void initState() {
@@ -79,9 +79,9 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     try {
       final registry = await widget.registryFuture;
       for (final plugin in registry.plugins) {
-        _fields[plugin.id] = plugin.settings.map((setting) {
-          _definitions['${plugin.id}:${setting.id}'] = setting;
-          return setting.id;
+        _fields[plugin.id.value] = plugin.settings.map((setting) {
+          _definitions['${plugin.id.value}:${setting.id.value}'] = setting;
+          return setting.id.value;
         }).toList();
       }
       for (final pluginId in _fields.keys) {
@@ -273,7 +273,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         }
         final plugins = snapshot.data?.plugins.toList() ?? const [];
         final selected = plugins
-            .where((p) => p.id == _selectedPluginId)
+            .where((p) => p.id.value == _selectedPluginId)
             .firstOrNull;
         return ListenableBuilder(
           listenable: registry,
@@ -281,7 +281,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
             if (selected == null) {
               return const Center(child: Text('Select an integration'));
             }
-            final contribution = registry.uiFor(selected.id);
+            final contribution = registry.uiFor(selected.id.value);
             if (contribution != null && !widget.forceGenericDetails) {
               return contribution.build(
                 context,
@@ -304,7 +304,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     DartPluginManifest plugin,
     DartPluginRegistry registry,
   ) {
-    final isProvider = _fields[plugin.id]?.isNotEmpty == true;
+    final isProvider = _fields[plugin.id.value]?.isNotEmpty == true;
     final tabs = [
       _PluginDetailsTab('overview', 'Overview', Icons.info_outline),
       _PluginDetailsTab(
@@ -321,7 +321,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
           count: plugin.settings
               .where(
                 (setting) => _matchesDetailFilter(
-                  '${setting.displayName} ${setting.id}',
+                  '${setting.displayName} ${setting.id.value}',
                 ),
               )
               .length,
@@ -333,7 +333,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         count: plugin.actions
             .where(
               (action) => _matchesDetailFilter(
-                '${action.displayName ?? action.actionId} ${action.actionId}',
+                '${action.displayName ?? action.actionId.value} ${action.actionId.value}',
               ),
             )
             .length,
@@ -345,7 +345,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         count: plugin.triggers
             .where(
               (trigger) => _matchesDetailFilter(
-                '${trigger.displayName} ${trigger.triggerId}',
+                '${trigger.displayName} ${trigger.triggerId.value}',
               ),
             )
             .length,
@@ -356,8 +356,9 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         Icons.data_object,
         count: plugin.states
             .where(
-              (state) =>
-                  _matchesDetailFilter('${state.displayName} ${state.id}'),
+              (state) => _matchesDetailFilter(
+                '${state.displayName} ${state.id.value}',
+              ),
             )
             .length,
       ),
@@ -368,8 +369,8 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         Row(
           children: [
             Icon(
-              pluginIconFor(plugin.id),
-              color: pluginColorFor(plugin.id),
+              pluginIconFor(plugin.id.value),
+              color: pluginColorFor(plugin.id.value),
               size: 28,
             ),
             const SizedBox(width: 12),
@@ -391,7 +392,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   Text(
-                    '${plugin.id}  |  v${plugin.version}',
+                    '${plugin.id.value}  |  v${plugin.version}',
                     style: const TextStyle(color: Colors.white54),
                   ),
                 ],
@@ -401,7 +402,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
               tooltip: 'Check plugin health',
               onPressed: () async {
                 final healthy = await widget.registryFuture.then(
-                  (r) => r.checkHealth(plugin.id),
+                  (r) => r.checkHealth(plugin.id.value),
                 );
                 if (!context.mounted) return;
                 showShowRunnerFeedback(
@@ -417,14 +418,14 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
               icon: const Icon(Icons.health_and_safety_outlined),
             ),
             Switch(
-              value: registry.isPluginEnabled(plugin.id),
-              onChanged: (value) => _setEnabled(plugin.id, value),
+              value: registry.isPluginEnabled(plugin.id.value),
+              onChanged: (value) => _setEnabled(plugin.id.value, value),
             ),
           ],
         ),
-        if (pluginDescriptionFor(plugin.id).trim().isNotEmpty) ...[
+        if (pluginDescriptionFor(plugin.id.value).trim().isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text(pluginDescriptionFor(plugin.id)),
+          Text(pluginDescriptionFor(plugin.id.value)),
         ],
         const SizedBox(height: 20),
         TextField(
@@ -462,14 +463,15 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
           'usage' => _buildUsageTab(plugin),
           'settings' =>
             isProvider
-                ? _buildProviderSettings(context, plugin.id)
+                ? _buildProviderSettings(context, plugin.id.value)
                 : _buildManifestTab(
                     context,
                     title: 'Settings',
                     icon: Icons.settings_outlined,
                     values: plugin.settings
                         .map(
-                          (setting) => '${setting.displayName} · ${setting.id}',
+                          (setting) =>
+                              '${setting.displayName} · ${setting.id.value}',
                         )
                         .toList(),
                   ),
@@ -506,14 +508,14 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
           const SizedBox(height: 12),
           _PluginUsageSummary(
             dataService: widget.dataService,
-            pluginId: plugin.id,
+            pluginId: plugin.id.value,
           ),
         ],
       );
 
   Widget _buildUsageTab(DartPluginManifest plugin) => _PluginUsageDetails(
     dataService: widget.dataService,
-    pluginId: plugin.id,
+    pluginId: plugin.id.value,
     filter: _detailsFilter,
   );
 
@@ -522,17 +524,18 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     DartPluginManifest plugin,
     DartPluginRegistry registry,
   ) {
-    final values = registry.stateValues(plugin.id);
+    final values = registry.stateValues(plugin.id.value);
     final rows = plugin.states
         .where(
-          (state) => _matchesDetailFilter('${state.displayName} ${state.id}'),
+          (state) =>
+              _matchesDetailFilter('${state.displayName} ${state.id.value}'),
         )
         .map(
           (state) => ListTile(
             dense: true,
             title: Text(state.displayName),
-            subtitle: Text(state.id),
-            trailing: Text(values[state.id]?.toString() ?? 'null'),
+            subtitle: Text(state.id.value),
+            trailing: Text(values[state.id.value]?.toString() ?? 'null'),
           ),
         )
         .toList();
@@ -570,16 +573,16 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     final rows = plugin.actions
         .where(
           (action) => _matchesDetailFilter(
-            '${action.displayName ?? action.actionId} ${action.actionId}',
+            '${action.displayName ?? action.actionId.value} ${action.actionId.value}',
           ),
         )
         .map(
           (action) => ListTile(
             dense: true,
             leading: const Icon(Icons.bolt),
-            title: Text(action.displayName ?? action.actionId),
+            title: Text(action.displayName ?? action.actionId.value),
             subtitle: Text(
-              '${action.actionId}\n'
+              '${action.actionId.value}\n'
               'Config: ${_schemaSummary(action.configSchema)}\n'
               'Result: ${_schemaSummary(action.resultSchema)}',
             ),
@@ -601,7 +604,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     final rows = plugin.triggers
         .where(
           (trigger) => _matchesDetailFilter(
-            '${trigger.displayName} ${trigger.triggerId}',
+            '${trigger.displayName} ${trigger.triggerId.value}',
           ),
         )
         .map(
@@ -610,7 +613,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
             leading: const Icon(Icons.notifications_active_outlined),
             title: Text(trigger.displayName),
             subtitle: Text(
-              '${trigger.triggerId}\n'
+              '${trigger.triggerId.value}\n'
               'Config: ${_schemaSummary(trigger.configSchema)}',
             ),
           ),
@@ -838,7 +841,7 @@ String _schemaTypeName(DartDataInputSchema schema) {
 
 String _encodeSettingValue(Object? value) => value?.toString() ?? '';
 
-dynamic _decodeSettingValue(DartSettingDefinition definition, String rawValue) {
+dynamic _decodeSettingValue(SettingSpec definition, String rawValue) {
   if (definition.valueType == DartSettingType.boolean) {
     return _decodeBoolean(rawValue) ?? definition.defaultValue ?? false;
   }

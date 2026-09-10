@@ -214,43 +214,40 @@ DartPluginManifest createYouTubePlugin(
   YouTubeTransport transport, {
   DartPluginEventHub? eventHub,
 }) => DartPluginManifest(
-  id: 'youtube',
+  id: PluginId('youtube'),
   name: 'YouTube',
   states: const [
-    DartPluginStateDefinition(
-      id: 'connection',
+    StateSpec(
+      id: StateId('connection'),
       displayName: 'Connection',
       initialValue: 'unconfigured',
     ),
-    DartPluginStateDefinition(id: 'broadcast', displayName: 'Broadcast'),
-    DartPluginStateDefinition(
-      id: 'latestMessage',
-      displayName: 'Latest Message',
-    ),
+    StateSpec(id: StateId('broadcast'), displayName: 'Broadcast'),
+    StateSpec(id: StateId('latestMessage'), displayName: 'Latest Message'),
   ],
   settings: const [
-    DartSettingDefinition(id: 'clientId', displayName: 'Client ID'),
-    DartSettingDefinition(
-      id: 'clientSecret',
+    SettingSpec(id: SettingId('clientId'), displayName: 'Client ID'),
+    SettingSpec(
+      id: SettingId('clientSecret'),
       displayName: 'Client Secret',
       secret: true,
     ),
-    DartSettingDefinition(
-      id: 'accessToken',
+    SettingSpec(
+      id: SettingId('accessToken'),
       displayName: 'Access Token',
       secret: true,
     ),
-    DartSettingDefinition(
-      id: 'refreshToken',
+    SettingSpec(
+      id: SettingId('refreshToken'),
       displayName: 'Refresh Token',
       secret: true,
     ),
-    DartSettingDefinition(id: 'liveChatId', displayName: 'Live Chat ID'),
+    SettingSpec(id: SettingId('liveChatId'), displayName: 'Live Chat ID'),
   ],
   actions: [
-    DartActionDefinition(
-      pluginId: 'youtube',
-      actionId: 'sendChatMessage',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('youtube'),
+      actionId: ActionId('sendChatMessage'),
       displayName: 'Send Chat Message',
       configSchema: _chatSchema,
       invoke: (config, context) => transport.request(
@@ -267,9 +264,9 @@ DartPluginManifest createYouTubePlugin(
         },
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'youtube',
-      actionId: 'deleteMessage',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('youtube'),
+      actionId: ActionId('deleteMessage'),
       displayName: 'Delete Chat Message',
       configSchema: _deleteMessageSchema,
       invoke: (config, context) => transport.request(
@@ -279,9 +276,9 @@ DartPluginManifest createYouTubePlugin(
         null,
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'youtube',
-      actionId: 'banUser',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('youtube'),
+      actionId: ActionId('banUser'),
       displayName: 'Ban User from Chat',
       configSchema: _banSchema,
       invoke: (config, context) {
@@ -302,9 +299,9 @@ DartPluginManifest createYouTubePlugin(
         );
       },
     ),
-    DartActionDefinition(
-      pluginId: 'youtube',
-      actionId: 'removeBan',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('youtube'),
+      actionId: ActionId('removeBan'),
       displayName: 'Unban User from Chat',
       configSchema: _removeBanSchema,
       invoke: (config, context) => transport.request(
@@ -316,30 +313,30 @@ DartPluginManifest createYouTubePlugin(
     ),
   ],
   triggers: [
-    DartTriggerDefinition(
-      pluginId: 'youtube',
-      triggerId: 'chatMessage',
+    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+      pluginId: PluginId('youtube'),
+      triggerId: TriggerId('chatMessage'),
       displayName: 'Chat Message',
       listen: () => _youtubeEventStream(eventHub, 'chatMessage'),
       eventSchema: _chatEventSchema,
     ),
-    DartTriggerDefinition(
-      pluginId: 'youtube',
-      triggerId: 'superChat',
+    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+      pluginId: PluginId('youtube'),
+      triggerId: TriggerId('superChat'),
       displayName: 'Super Chat',
       listen: () => _youtubeEventStream(eventHub, 'superChat'),
       eventSchema: _paidEventSchema,
     ),
-    DartTriggerDefinition(
-      pluginId: 'youtube',
-      triggerId: 'superSticker',
+    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+      pluginId: PluginId('youtube'),
+      triggerId: TriggerId('superSticker'),
       displayName: 'Super Sticker',
       listen: () => _youtubeEventStream(eventHub, 'superSticker'),
       eventSchema: _paidEventSchema,
     ),
-    DartTriggerDefinition(
-      pluginId: 'youtube',
-      triggerId: 'membership',
+    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+      pluginId: PluginId('youtube'),
+      triggerId: TriggerId('membership'),
       displayName: 'Membership',
       listen: () => _youtubeEventStream(eventHub, 'membership'),
       eventSchema: _membershipEventSchema,

@@ -358,61 +358,61 @@ final class CallbackObsTransport implements ObsTransport {
 DartPluginManifest createObsPlugin(ObsTransport transport) {
   final previousScenes = <String>[];
   return DartPluginManifest(
-    id: 'obs',
+    id: PluginId('obs'),
     name: 'OBS Studio',
     states: const [
-      DartPluginStateDefinition(
-        id: 'connection',
+      StateSpec(
+        id: StateId('connection'),
         displayName: 'Connection',
         initialValue: 'unconfigured',
       ),
-      DartPluginStateDefinition(
-        id: 'connected',
+      StateSpec(
+        id: StateId('connected'),
         displayName: 'Connected',
         initialValue: false,
       ),
-      DartPluginStateDefinition(id: 'scene', displayName: 'Scene'),
-      DartPluginStateDefinition(
-        id: 'streaming',
+      StateSpec(id: StateId('scene'), displayName: 'Scene'),
+      StateSpec(
+        id: StateId('streaming'),
         displayName: 'Streaming',
         initialValue: false,
       ),
-      DartPluginStateDefinition(
-        id: 'recording',
+      StateSpec(
+        id: StateId('recording'),
         displayName: 'Recording',
         initialValue: false,
       ),
-      DartPluginStateDefinition(
-        id: 'localObsRunning',
+      StateSpec(
+        id: StateId('localObsRunning'),
         displayName: 'Local OBS Running',
         initialValue: false,
       ),
     ],
     settings: const [
-      DartSettingDefinition(
-        id: 'obsDefault',
+      SettingSpec(
+        id: SettingId('obsDefault'),
         displayName: 'Default OBS Connection',
       ),
-      DartSettingDefinition(
-        id: 'host',
+      SettingSpec(
+        id: SettingId('host'),
         displayName: 'Host',
         defaultValue: '127.0.0.1',
       ),
-      DartSettingDefinition(
-        id: 'port',
+      SettingSpec(
+        id: SettingId('port'),
         displayName: 'Port',
         defaultValue: 4455,
       ),
-      DartSettingDefinition(
-        id: 'password',
+      SettingSpec(
+        id: SettingId('password'),
         displayName: 'Password',
         secret: true,
       ),
     ],
     actions: [
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'scene',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('scene'),
         displayName: 'Change Scene',
         configSchema: const DartDataInputSchema(
           label: 'Scene configuration',
@@ -440,9 +440,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           return null;
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'prevScene',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('prevScene'),
         displayName: 'Previous Scene',
         configSchema: _emptyConfigSchema,
         invoke: (config, context) async {
@@ -452,9 +452,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           return {'scene': scene};
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'hotkey',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('hotkey'),
         displayName: 'Hotkey',
         configSchema: const DartDataInputSchema(
           label: 'Hotkey configuration',
@@ -471,9 +471,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'hotkeyName': config['hotkey'],
         }),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'streamStartStop',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('streamStartStop'),
         displayName: 'Stream Start/Stop',
         configSchema: _streamConfigSchema,
         invoke: (config, context) async => _toggle(
@@ -484,9 +484,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'StopStream',
         ),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'recordingStartStop',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('recordingStartStop'),
         displayName: 'Recording Start/Stop',
         configSchema: _recordingConfigSchema,
         invoke: (config, context) async => _toggle(
@@ -497,9 +497,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'StopRecord',
         ),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'virtualCamStartStop',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('virtualCamStartStop'),
         displayName: 'Virtual Cam Start/Stop',
         configSchema: _virtualCamConfigSchema,
         invoke: (config, context) async => _toggle(
@@ -510,9 +510,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'StopVirtualCam',
         ),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'replayBufferStartStop',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('replayBufferStartStop'),
         displayName: 'Replay Buffer Start/Stop',
         configSchema: _replayBufferConfigSchema,
         invoke: (config, context) async => _toggle(
@@ -523,9 +523,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'StopReplayBuffer',
         ),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'replaySave',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('replaySave'),
         displayName: 'Save Replay Buffer',
         configSchema: _emptyConfigSchema,
         invoke: (config, context) async {
@@ -537,9 +537,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           return {'replayFile': response['savedReplayPath']};
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'toggleStudioMode',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('toggleStudioMode'),
         displayName: 'Toggle Studio Mode',
         configSchema: _studioModeConfigSchema,
         invoke: (config, context) async {
@@ -552,17 +552,17 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           });
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'triggerStudioModeTransition',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('triggerStudioModeTransition'),
         displayName: 'Trigger Studio Mode Transition',
         configSchema: _emptyConfigSchema,
         invoke: (config, context) =>
             transport.call('TriggerStudioModeTransition', {}),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'mute',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('mute'),
         displayName: 'Mute Source',
         configSchema: _muteConfigSchema,
         invoke: (config, context) async {
@@ -580,9 +580,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           return {'audioMuted': muted == true};
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'changeVolume',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('changeVolume'),
         displayName: 'Change Volume',
         configSchema: _volumeConfigSchema,
         invoke: (config, context) => transport.call('SetInputVolume', {
@@ -590,9 +590,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'inputVolumeDb': _sliderToDb(config['volume']),
         }),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'source',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('source'),
         displayName: 'Source Visibility',
         configSchema: _sourceVisibilityConfigSchema,
         invoke: (config, context) async {
@@ -612,9 +612,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           return {'sourceEnabled': enabled == true};
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'getInputSettings',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('getInputSettings'),
         displayName: 'Get Input Settings',
         configSchema: const DartDataInputSchema(
           label: 'Input settings query',
@@ -632,9 +632,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'inputName': config['sourceName'],
         }),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'setInputSettings',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('setInputSettings'),
         displayName: 'Set Input Settings',
         configSchema: const DartDataInputSchema(
           label: 'Input settings',
@@ -659,9 +659,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'inputSettings': config['inputSettings'],
         }),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'filter',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('filter'),
         displayName: 'Filter Visibility',
         configSchema: _filterConfigSchema,
         invoke: (config, context) async {
@@ -681,9 +681,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           return {'filterEnabled': enabled == true};
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'text',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('text'),
         displayName: 'Set Source Text',
         configSchema: _textConfigSchema,
         invoke: (config, context) => transport.call('SetInputSettings', {
@@ -691,9 +691,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'inputSettings': {'text': config['text']},
         }),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'mediaAction',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('mediaAction'),
         displayName: 'Media Controls',
         configSchema: _mediaActionConfigSchema,
         invoke: (config, context) => transport.call('TriggerMediaInputAction', {
@@ -701,9 +701,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'mediaAction': _mediaAction(config['action']),
         }),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'playMedia',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('playMedia'),
         displayName: 'Play Media',
         configSchema: _playMediaConfigSchema,
         invoke: (config, context) async {
@@ -728,18 +728,18 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           return {'playing': true};
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'chapterMarker',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('chapterMarker'),
         displayName: 'Chapter Marker',
         configSchema: _chapterConfigSchema,
         invoke: (config, context) => transport.call('CreateRecordChapter', {
           'chapterName': config['chapterName'],
         }),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'browserUrl',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('browserUrl'),
         displayName: 'Set Browser Source URL',
         configSchema: _browserUrlConfigSchema,
         invoke: (config, context) async {
@@ -751,9 +751,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           return null;
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'browserRefresh',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('browserRefresh'),
         displayName: 'Refresh Browser Source',
         configSchema: _browserRefreshConfigSchema,
         invoke: (config, context) async {
@@ -764,9 +764,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           return null;
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'refreshBrowser',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('refreshBrowser'),
         displayName: 'Refresh Browser',
         configSchema: _refreshBrowserConfigSchema,
         invoke: (config, context) => transport.call(
@@ -774,9 +774,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           {'inputName': config['sourceName'], 'propertyName': 'refreshnocache'},
         ),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'setBrowserURL',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('setBrowserURL'),
         displayName: 'Set Browser URL',
         configSchema: _setBrowserUrlConfigSchema,
         invoke: (config, context) => transport.call('SetInputSettings', {
@@ -784,9 +784,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'inputSettings': {'url': config['url']},
         }),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'setImage',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('setImage'),
         displayName: 'Set Image Source',
         configSchema: _setImageConfigSchema,
         invoke: (config, context) => transport.call('SetInputSettings', {
@@ -794,9 +794,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           'inputSettings': {'file': config['image']},
         }),
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'screenshot',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('screenshot'),
         displayName: 'Screenshot Source',
         configSchema: _screenshotConfigSchema,
         invoke: (config, context) async {
@@ -827,9 +827,9 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
           return {'screenshot': filePath};
         },
       ),
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'transform',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('transform'),
         displayName: 'Source Transform',
         configSchema: _transformConfigSchema,
         invoke: (config, context) => transport.call('SetSceneItemTransform', {

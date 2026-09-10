@@ -115,26 +115,26 @@ const _brightnessSchema = DartDataInputSchema(
 
 DartPluginManifest createGoveePlugin(GoveeTransport transport) =>
     DartPluginManifest(
-      id: 'govee',
+      id: PluginId('govee'),
       name: 'Govee',
       settings: const [
-        DartSettingDefinition(
-          id: 'apiKey',
+        SettingSpec(
+          id: SettingId('apiKey'),
           displayName: 'Govee API Key',
           secret: true,
         ),
       ],
       actions: [
-        DartActionDefinition(
-          pluginId: 'govee',
-          actionId: 'listDevices',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('govee'),
+          actionId: ActionId('listDevices'),
           displayName: 'List Devices',
           invoke: (config, context) =>
               transport.request('GET', '/v1/devices', const {}, null),
         ),
-        DartActionDefinition(
-          pluginId: 'govee',
-          actionId: 'getDeviceState',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('govee'),
+          actionId: ActionId('getDeviceState'),
           displayName: 'Get Device State',
           configSchema: _deviceSchema,
           invoke: (config, context) => transport.request(
@@ -144,23 +144,23 @@ DartPluginManifest createGoveePlugin(GoveeTransport transport) =>
             null,
           ),
         ),
-        DartActionDefinition(
-          pluginId: 'govee',
-          actionId: 'setPower',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('govee'),
+          actionId: ActionId('setPower'),
           displayName: 'Set Power',
           configSchema: _powerSchema,
           invoke: (config, context) => _setPower(transport, config, context),
         ),
-        DartActionDefinition(
-          pluginId: 'govee',
-          actionId: 'setColor',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('govee'),
+          actionId: ActionId('setColor'),
           displayName: 'Set Color',
           configSchema: _colorSchema,
           invoke: (config, context) => _setColor(transport, config, context),
         ),
-        DartActionDefinition(
-          pluginId: 'govee',
-          actionId: 'setBrightness',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('govee'),
+          actionId: ActionId('setBrightness'),
           displayName: 'Set Brightness',
           configSchema: _brightnessSchema,
           invoke: (config, context) =>

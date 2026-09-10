@@ -11,19 +11,19 @@ void main() {
     final plugin = createSpellcastPlugin(eventHub: hub);
     final trigger = plugin.triggers.single;
 
-    expect(trigger.triggerId, 'spellHook');
+    expect(trigger.triggerId.value, 'spellHook');
     expect(trigger.configSchema?.key, 'spell');
     expect(trigger.configSchema?.kind, DartDataInputKind.resource);
     expect(trigger.configSchema?.resourceType, 'SpellHook');
     expect(
-      trigger.matches?.call(
+      trigger.matchesRuntime(
         {'spell': 'local-spell'},
         {'spellId': 'local-spell', 'viewer': 'viewer-1', 'bits': 100},
       ),
       isTrue,
     );
     expect(
-      trigger.matches?.call(
+      trigger.matchesRuntime(
         {
           'spell': {'id': 'local-spell'},
         },
@@ -40,7 +40,7 @@ void main() {
     final plugin = createSpellcastPlugin(eventHub: hub);
     final trigger = plugin.triggers.single;
     final events = <RuntimeMap>[];
-    final subscription = trigger.listen().listen(events.add);
+    final subscription = trigger.listen().cast<RuntimeMap>().listen(events.add);
 
     hub.emit('spellcast', {
       'spellId': 'spell-1',
@@ -65,7 +65,7 @@ void main() {
       final subscription = hub.stream('spellcastCommand').listen(events.add);
 
       expect(
-        await plugin.actions.single.invoke({
+        await plugin.actions.single.invokeFromRuntime({
           'spellId': 'spell-1',
         }, EvaluationContext()),
         {'cast': true, 'spellId': 'spell-1'},
@@ -88,11 +88,11 @@ void main() {
       final events = <RuntimeMap>[];
       final subscription = hub.stream('overlayWidget').listen(events.add);
       final triggerWidget = plugin.actions.firstWhere(
-        (action) => action.actionId == 'triggerWidget',
+        (action) => action.actionId.value == 'triggerWidget',
       );
 
       expect(
-        await triggerWidget.invoke({
+        await triggerWidget.invokeFromRuntime({
           'widgetId': 'alert-1',
           'overlayId': 'overlay-1',
           'payload': {'message': 'Hello'},

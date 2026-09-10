@@ -110,7 +110,7 @@ void main() {
     );
     expect(
       plugin.actions
-          .firstWhere((action) => action.actionId == 'createPrediction')
+          .firstWhere((action) => action.actionId.value == 'createPrediction')
           .configSchema!
           .fields
           .map((field) => field.key),
@@ -123,15 +123,21 @@ void main() {
     final trigger = createTwitchPlugin(
       TwitchTransport((method, path, query, body) async => const {}),
       eventHub: hub,
-    ).triggers.firstWhere((trigger) => trigger.triggerId == 'redemption');
+    ).triggers.firstWhere((trigger) => trigger.triggerId.value == 'redemption');
 
     expect(trigger.configSchema?.fields.single.key, 'rewardId');
     expect(
-      trigger.matches?.call({'rewardId': 'reward-1'}, {'rewardId': 'reward-1'}),
+      trigger.matchesRuntime(
+        {'rewardId': 'reward-1'},
+        {'rewardId': 'reward-1'},
+      ),
       isTrue,
     );
     expect(
-      trigger.matches?.call({'rewardId': 'reward-1'}, {'rewardId': 'reward-2'}),
+      trigger.matchesRuntime(
+        {'rewardId': 'reward-1'},
+        {'rewardId': 'reward-2'},
+      ),
       isFalse,
     );
   });

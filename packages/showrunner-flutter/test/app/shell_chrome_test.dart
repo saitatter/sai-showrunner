@@ -36,10 +36,10 @@ void main() {
     String? selectedResourceType;
     final registry = DartPluginRegistry();
     for (final plugin in const [
-      ('obs', 'OBS'),
-      ('twitch', 'Twitch'),
-      ('youtube', 'YouTube'),
-      ('moderation', 'Moderation'),
+      (PluginId('obs'), 'OBS'),
+      (PluginId('twitch'), 'Twitch'),
+      (PluginId('youtube'), 'YouTube'),
+      (PluginId('moderation'), 'Moderation'),
     ]) {
       registry.register(DartPluginManifest(id: plugin.$1, name: plugin.$2));
     }
@@ -120,7 +120,7 @@ void main() {
     );
     addTearDown(preferences.dispose);
     final registry = DartPluginRegistry()
-      ..register(const DartPluginManifest(id: 'obs', name: 'OBS'));
+      ..register(const DartPluginManifest(id: PluginId('obs'), name: 'OBS'));
     addTearDown(registry.dispose);
 
     await tester.pumpWidget(
@@ -155,7 +155,9 @@ void main() {
     );
     addTearDown(preferences.dispose);
     final registry = DartPluginRegistry()
-      ..register(const DartPluginManifest(id: 'twitch', name: 'Twitch'));
+      ..register(
+        const DartPluginManifest(id: PluginId('twitch'), name: 'Twitch'),
+      );
     addTearDown(registry.dispose);
 
     await tester.pumpWidget(

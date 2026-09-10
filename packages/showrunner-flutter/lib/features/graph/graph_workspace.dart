@@ -937,18 +937,21 @@ List<_NodePickerEntry> _registeredNodeEntries(
 }) {
   final entries = <_NodePickerEntry>[];
   for (final plugin in registry.plugins.where(
-    (plugin) => registry.isPluginEnabled(plugin.id) == enabled,
+    (plugin) => registry.isPluginEnabled(plugin.id.value) == enabled,
   )) {
     for (final action in plugin.actions) {
-      final conversion = _isConversionEntry(plugin.id, action.actionId);
+      final conversion = _isConversionEntry(
+        plugin.id.value,
+        action.actionId.value,
+      );
       entries.add(
         _NodePickerEntry(
-          type: '${plugin.id}.${action.actionId}',
-          label: action.displayName ?? action.actionId,
+          type: '${plugin.id.value}.${action.actionId.value}',
+          label: action.displayName ?? action.actionId.value,
           icon: conversion ? Icons.swap_horiz : Icons.play_arrow,
           category: conversion ? 'Data' : 'Actions',
           group: conversion ? 'Conversions' : plugin.name,
-          pluginId: plugin.id,
+          pluginId: plugin.id.value,
           pluginName: plugin.name,
           enabled: enabled,
         ),
@@ -957,12 +960,12 @@ List<_NodePickerEntry> _registeredNodeEntries(
     for (final trigger in plugin.triggers) {
       entries.add(
         _NodePickerEntry(
-          type: 'trigger.${plugin.id}.${trigger.triggerId}',
+          type: 'trigger.${plugin.id.value}.${trigger.triggerId.value}',
           label: trigger.displayName,
           icon: Icons.bolt,
           category: 'Triggers',
           group: plugin.name,
-          pluginId: plugin.id,
+          pluginId: plugin.id.value,
           pluginName: plugin.name,
           enabled: enabled,
         ),
@@ -5794,7 +5797,7 @@ class _ControlNodeConfigDialogState extends State<_ControlNodeConfigDialog> {
   }
 }
 
-DartActionDefinition? _actionDefinition(
+ActionSpec? _actionDefinition(
   ShowRunnerGraphEditor editor,
   DartPluginRegistry registry,
   NodeDataModel node,
@@ -5810,7 +5813,7 @@ DartActionDefinition? _actionDefinition(
   return registry.findAction(parts.first, parts.last);
 }
 
-DartTriggerDefinition? _triggerDefinition(
+TriggerSpec? _triggerDefinition(
   ShowRunnerGraphEditor editor,
   DartPluginRegistry registry,
   NodeDataModel node,
@@ -5827,7 +5830,7 @@ DartTriggerDefinition? _triggerDefinition(
 }
 
 DartDataInputSchema? _triggerConfigurationSchema(
-  DartTriggerDefinition? definition,
+  TriggerSpec? definition,
   JsonMap config,
 ) {
   final declared = definition?.configSchema;

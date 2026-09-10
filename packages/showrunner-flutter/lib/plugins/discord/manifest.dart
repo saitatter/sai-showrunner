@@ -158,12 +158,12 @@ DartPluginManifest createDiscordPlugin({
   DiscordTransport? transport,
   DiscordWebhookResolver? webhookResolver,
 }) => DartPluginManifest(
-  id: 'discord',
+  id: PluginId('discord'),
   name: 'Discord',
   actions: [
-    DartActionDefinition(
-      pluginId: 'discord',
-      actionId: 'discordMessage',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('discord'),
+      actionId: ActionId('discordMessage'),
       displayName: 'Discord Message',
       configSchema: _messageSchema,
       invoke: (config, context) => _sendDiscordMessage(

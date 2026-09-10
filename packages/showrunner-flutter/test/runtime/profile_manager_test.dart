@@ -24,12 +24,12 @@ void main() {
       final registry = DartPluginRegistry()
         ..register(
           DartPluginManifest(
-            id: 'test',
+            id: PluginId('test'),
             name: 'Test',
             actions: [
-              DartActionDefinition(
-                pluginId: 'test',
-                actionId: 'record',
+              ActionSpec<Map<String, dynamic>, Object?>(
+                pluginId: PluginId('test'),
+                actionId: ActionId('record'),
                 invoke: (config, context) async {
                   executions++;
                   return null;
@@ -37,9 +37,9 @@ void main() {
               ),
             ],
             triggers: [
-              DartTriggerDefinition(
-                pluginId: 'test',
-                triggerId: 'event',
+              TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+                pluginId: PluginId('test'),
+                triggerId: TriggerId('event'),
                 displayName: 'Event',
                 listen: () => events.stream,
               ),
@@ -100,11 +100,11 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'test',
+          id: PluginId('test'),
           name: 'Test',
           states: [
-            const DartPluginStateDefinition(
-              id: 'enabled',
+            const StateSpec(
+              id: StateId('enabled'),
               displayName: 'Enabled',
               initialValue: false,
             ),

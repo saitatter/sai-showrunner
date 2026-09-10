@@ -243,7 +243,7 @@ void main() {
   test('exposes global volume and default output settings', () {
     final plugin = createSoundPlugin();
 
-    expect(plugin.settings.map((setting) => setting.id), [
+    expect(plugin.settings.map((setting) => setting.id.value), [
       'globalVolume',
       'defaultOutput',
     ]);

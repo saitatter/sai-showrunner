@@ -35,12 +35,12 @@ DartPluginManifest createMinecraftPlugin({
   final effectiveTransport =
       transport ?? MinecraftTransport(persistentTransport!.request);
   return DartPluginManifest(
-    id: 'minecraft',
+    id: PluginId('minecraft'),
     name: 'Minecraft',
     actions: [
-      DartActionDefinition(
-        pluginId: 'minecraft',
-        actionId: 'mineCmd',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('minecraft'),
+        actionId: ActionId('mineCmd'),
         displayName: 'Minecraft RCON Command',
         configSchema: _commandSchema,
         invoke: (config, context) => _sendRconCommand(

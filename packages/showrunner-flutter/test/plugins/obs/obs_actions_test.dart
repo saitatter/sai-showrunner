@@ -44,12 +44,12 @@ void main() {
       'transform',
     ];
 
-    expect(actions.map((action) => action.actionId), expectedIds);
+    expect(actions.map((action) => action.actionId.value), expectedIds);
     for (final action in actions) {
-      expect(action.configSchema, isNotNull, reason: action.actionId);
+      expect(action.configSchema, isNotNull, reason: action.actionId.value);
     }
     final stream = actions.firstWhere(
-      (action) => action.actionId == 'streamStartStop',
+      (action) => action.actionId.value == 'streamStartStop',
     );
     expect(stream.configSchema!.fields.single.key, 'streaming');
     expect(

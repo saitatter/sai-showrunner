@@ -15,7 +15,7 @@ void main() {
       eventHub: hub,
     );
     final trigger = twitch.triggers.firstWhere(
-      (item) => item.triggerId == 'chat',
+      (item) => item.triggerId.value == 'chat',
     );
     final eventFuture = trigger.listen().first;
     hub.emit('chat', {'viewerId': 'viewer-1', 'message': 'hello'});

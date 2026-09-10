@@ -217,61 +217,55 @@ DartPluginManifest createDonorDrivePlugin(
   DonorDriveRuntime? runtime, {
   DartPluginEventHub? eventHub,
 }) => DartPluginManifest(
-  id: 'donordrive',
+  id: PluginId('donordrive'),
   name: 'Donor Drive',
   settings: const [
-    DartSettingDefinition(
-      id: 'apiBase',
+    SettingSpec(
+      id: SettingId('apiBase'),
       displayName: 'API Base URL',
       defaultValue: 'https://www.extra-life.org/api',
     ),
-    DartSettingDefinition(id: 'participantId', displayName: 'Participant ID'),
-    DartSettingDefinition(
-      id: 'pollIntervalSeconds',
+    SettingSpec(id: SettingId('participantId'), displayName: 'Participant ID'),
+    SettingSpec(
+      id: SettingId('pollIntervalSeconds'),
       displayName: 'Poll Interval (seconds)',
       defaultValue: 15,
     ),
   ],
   states: const [
-    DartPluginStateDefinition(id: 'eventName', displayName: 'Event Name'),
-    DartPluginStateDefinition(id: 'goal', displayName: 'Goal'),
-    DartPluginStateDefinition(id: 'totalRaised', displayName: 'Total Raised'),
-    DartPluginStateDefinition(
-      id: 'totalDonations',
-      displayName: 'Total Donations',
-    ),
-    DartPluginStateDefinition(
-      id: 'donationCount',
-      displayName: 'Donation Count',
-    ),
-    DartPluginStateDefinition(id: 'totalPledges', displayName: 'Total Pledges'),
-    DartPluginStateDefinition(
-      id: 'currentMilestone',
+    StateSpec(id: StateId('eventName'), displayName: 'Event Name'),
+    StateSpec(id: StateId('goal'), displayName: 'Goal'),
+    StateSpec(id: StateId('totalRaised'), displayName: 'Total Raised'),
+    StateSpec(id: StateId('totalDonations'), displayName: 'Total Donations'),
+    StateSpec(id: StateId('donationCount'), displayName: 'Donation Count'),
+    StateSpec(id: StateId('totalPledges'), displayName: 'Total Pledges'),
+    StateSpec(
+      id: StateId('currentMilestone'),
       displayName: 'Current Milestone',
     ),
-    DartPluginStateDefinition(
-      id: 'currentMilestoneGoal',
+    StateSpec(
+      id: StateId('currentMilestoneGoal'),
       displayName: 'Current Milestone Goal',
     ),
-    DartPluginStateDefinition(
-      id: 'currentMilestoneStart',
+    StateSpec(
+      id: StateId('currentMilestoneStart'),
       displayName: 'Current Milestone Start',
     ),
   ],
   triggers: (runtime?.eventHub ?? eventHub) == null
       ? const []
       : [
-          DartTriggerDefinition(
-            pluginId: 'donordrive',
-            triggerId: 'donation',
+          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+            pluginId: PluginId('donordrive'),
+            triggerId: TriggerId('donation'),
             displayName: 'DonorDrive Donation',
             configSchema: _donationSchema,
             listen: () => (runtime?.eventHub ?? eventHub)!.stream('donation'),
             matches: _matchesDonation,
           ),
-          DartTriggerDefinition(
-            pluginId: 'donordrive',
-            triggerId: 'incentive',
+          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+            pluginId: PluginId('donordrive'),
+            triggerId: TriggerId('incentive'),
             displayName: 'DonorDrive Incentive',
             configSchema: _incentiveSchema,
             listen: () => (runtime?.eventHub ?? eventHub)!.stream('incentive'),
@@ -280,9 +274,9 @@ DartPluginManifest createDonorDrivePlugin(
                 config['incentive']?.toString() ==
                     payload['incentiveId']?.toString(),
           ),
-          DartTriggerDefinition(
-            pluginId: 'donordrive',
-            triggerId: 'milestone',
+          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+            pluginId: PluginId('donordrive'),
+            triggerId: TriggerId('milestone'),
             displayName: 'DonorDrive Milestone',
             configSchema: _milestoneSchema,
             listen: () => (runtime?.eventHub ?? eventHub)!.stream('milestone'),

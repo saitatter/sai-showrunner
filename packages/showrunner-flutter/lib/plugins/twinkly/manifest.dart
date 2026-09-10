@@ -165,19 +165,19 @@ const _movieSchema = DartDataInputSchema(
 
 DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
     DartPluginManifest(
-      id: 'twinkly',
+      id: PluginId('twinkly'),
       name: 'Twinkly',
       settings: const [
-        DartSettingDefinition(
-          id: 'subnetMask',
+        SettingSpec(
+          id: SettingId('subnetMask'),
           displayName: 'Subnet Mask',
           defaultValue: '255.255.255.255',
         ),
       ],
       actions: [
-        DartActionDefinition(
-          pluginId: 'twinkly',
-          actionId: 'getInfo',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('twinkly'),
+          actionId: ActionId('getInfo'),
           displayName: 'Get Device Info',
           configSchema: _deviceSchema,
           invoke: (config, context) => transport.request(
@@ -188,9 +188,9 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
             null,
           ),
         ),
-        DartActionDefinition(
-          pluginId: 'twinkly',
-          actionId: 'getMode',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('twinkly'),
+          actionId: ActionId('getMode'),
           displayName: 'Get LED Mode',
           configSchema: _deviceSchema,
           invoke: (config, context) => transport.request(
@@ -201,9 +201,9 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
             null,
           ),
         ),
-        DartActionDefinition(
-          pluginId: 'twinkly',
-          actionId: 'getColor',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('twinkly'),
+          actionId: ActionId('getColor'),
           displayName: 'Get LED Color',
           configSchema: _deviceSchema,
           invoke: (config, context) => transport.request(
@@ -214,16 +214,16 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
             null,
           ),
         ),
-        DartActionDefinition(
-          pluginId: 'twinkly',
-          actionId: 'setColor',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('twinkly'),
+          actionId: ActionId('setColor'),
           displayName: 'Set LED Color',
           configSchema: _colorSchema,
           invoke: (config, context) => _setColor(transport, config, context),
         ),
-        DartActionDefinition(
-          pluginId: 'twinkly',
-          actionId: 'turnOff',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('twinkly'),
+          actionId: ActionId('turnOff'),
           displayName: 'Turn LEDs Off',
           configSchema: _deviceSchema,
           invoke: (config, context) => transport.request(
@@ -234,9 +234,9 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
             {'mode': 'off', 'effect_id': 0},
           ),
         ),
-        DartActionDefinition(
-          pluginId: 'twinkly',
-          actionId: 'listMovies',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('twinkly'),
+          actionId: ActionId('listMovies'),
           displayName: 'List Movies',
           configSchema: _deviceSchema,
           invoke: (config, context) => transport.request(
@@ -247,16 +247,16 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
             null,
           ),
         ),
-        DartActionDefinition(
-          pluginId: 'twinkly',
-          actionId: 'setMovie',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('twinkly'),
+          actionId: ActionId('setMovie'),
           displayName: 'Set Movie',
           configSchema: _movieSchema,
           invoke: (config, context) => _setMovie(transport, config, context),
         ),
-        DartActionDefinition(
-          pluginId: 'twinkly',
-          actionId: 'movie',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('twinkly'),
+          actionId: ActionId('movie'),
           displayName: 'Twinkly Movie',
           configSchema: _movieSchema,
           invoke: (config, context) => _setMovie(transport, config, context),

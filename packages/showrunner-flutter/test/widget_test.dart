@@ -636,12 +636,12 @@ void main() {
     final registry = DartPluginRegistry();
     registry.register(
       DartPluginManifest(
-        id: 'sample',
+        id: PluginId('sample'),
         name: 'Sample plugin',
         actions: [
-          DartActionDefinition(
-            pluginId: 'sample',
-            actionId: 'echo',
+          ActionSpec<Map<String, dynamic>, Object?>(
+            pluginId: PluginId('sample'),
+            actionId: ActionId('echo'),
             invoke: (config, context) async => config['value'],
           ),
         ],

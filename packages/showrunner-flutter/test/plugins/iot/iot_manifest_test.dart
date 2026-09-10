@@ -12,10 +12,10 @@ void main() {
     );
 
     final light = plugin.actions.firstWhere(
-      (action) => action.actionId == 'light',
+      (action) => action.actionId.value == 'light',
     );
     final plug = plugin.actions.firstWhere(
-      (action) => action.actionId == 'plug',
+      (action) => action.actionId.value == 'plug',
     );
 
     expect(light.configSchema?.fields.first.kind, DartDataInputKind.resource);

@@ -8,7 +8,9 @@ import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 void main() {
   test('notifies listeners when plugin enabled state changes', () {
     final registry = DartPluginRegistry();
-    registry.register(const DartPluginManifest(id: 'sample', name: 'Sample'));
+    registry.register(
+      const DartPluginManifest(id: PluginId('sample'), name: 'Sample'),
+    );
     var notifications = 0;
     registry.addListener(() => notifications++);
 
@@ -29,7 +31,9 @@ void main() {
       addTearDown(() => directory.delete(recursive: true));
       final dataService = ShowRunnerDataService(directory);
       final registry = DartPluginRegistry();
-      registry.register(const DartPluginManifest(id: 'sample', name: 'Sample'));
+      registry.register(
+        const DartPluginManifest(id: PluginId('sample'), name: 'Sample'),
+      );
 
       await persistPluginEnabled(
         dataService: dataService,

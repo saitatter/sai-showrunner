@@ -90,7 +90,9 @@ void main() {
         'showPluginSwitches': false,
       });
       final registry = DartPluginRegistry()
-        ..register(const DartPluginManifest(id: 'sample', name: 'Sample'));
+        ..register(
+          const DartPluginManifest(id: PluginId('sample'), name: 'Sample'),
+        );
       registry.setPluginEnabled('sample', false);
       final preferences = FlutterInterfacePreferences(dataService: dataService);
 

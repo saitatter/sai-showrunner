@@ -5,7 +5,6 @@ import '../../editor/showrunner_graph_editor.dart';
 import '../graph/graph_workspace.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/obs/transport.dart';
-import '../../plugins/contracts/identifiers.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
 import '../../schema/stream_plan.dart';

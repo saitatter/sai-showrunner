@@ -277,7 +277,9 @@ class _PluginHealthDiagnostics extends StatelessWidget {
             else
               for (final plugin in plugins)
                 FutureBuilder<DartPluginHealth>(
-                  future: snapshot.data!.findModule(plugin.id)!.checkHealth(),
+                  future: snapshot.data!
+                      .findModule(plugin.id.value)!
+                      .checkHealth(),
                   builder: (context, healthSnapshot) {
                     final health = healthSnapshot.data;
                     final healthy = health?.isHealthy == true;

@@ -96,43 +96,43 @@ DartPluginManifest createElgatoPlugin(
   int numberOfLights = 1,
   ElgatoTransportResolver? transportResolver,
 }) => DartPluginManifest(
-  id: 'elgato',
+  id: PluginId('elgato'),
   name: 'Elgato',
   settings: const [
-    DartSettingDefinition(id: 'host', displayName: 'Device IP / Host'),
-    DartSettingDefinition(
-      id: 'port',
+    SettingSpec(id: SettingId('host'), displayName: 'Device IP / Host'),
+    SettingSpec(
+      id: SettingId('port'),
       displayName: 'Device Port',
       defaultValue: 9123,
     ),
-    DartSettingDefinition(
-      id: 'numberOfLights',
+    SettingSpec(
+      id: SettingId('numberOfLights'),
       displayName: 'Number of Lights',
       defaultValue: 1,
     ),
-    DartSettingDefinition(
-      id: 'rgb',
+    SettingSpec(
+      id: SettingId('rgb'),
       displayName: 'RGB / Light Strip',
       defaultValue: false,
     ),
   ],
   actions: [
-    DartActionDefinition(
-      pluginId: 'elgato',
-      actionId: 'getInfo',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('elgato'),
+      actionId: ActionId('getInfo'),
       displayName: 'Get Accessory Info',
       invoke: (config, context) =>
           transport.request('GET', '/accessory-info', null),
     ),
-    DartActionDefinition(
-      pluginId: 'elgato',
-      actionId: 'getLights',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('elgato'),
+      actionId: ActionId('getLights'),
       displayName: 'Get Light State',
       invoke: (config, context) => transport.request('GET', '/lights', null),
     ),
-    DartActionDefinition(
-      pluginId: 'elgato',
-      actionId: 'setLightState',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('elgato'),
+      actionId: ActionId('setLightState'),
       displayName: 'Set Light State',
       configSchema: _lightSchema,
       invoke: (config, context) => _setLightState(

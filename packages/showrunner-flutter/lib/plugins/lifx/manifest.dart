@@ -287,52 +287,52 @@ DartPluginManifest createLifxPlugin(
   LifxTransport transport, {
   LifxTransportResolver? transportResolver,
 }) => DartPluginManifest(
-  id: 'lifx',
+  id: PluginId('lifx'),
   name: 'LIFX',
   settings: const [
-    DartSettingDefinition(id: 'host', displayName: 'Device IP / Host'),
-    DartSettingDefinition(
-      id: 'port',
+    SettingSpec(id: SettingId('host'), displayName: 'Device IP / Host'),
+    SettingSpec(
+      id: SettingId('port'),
       displayName: 'LAN Port',
       defaultValue: 56700,
     ),
-    DartSettingDefinition(
-      id: 'target',
+    SettingSpec(
+      id: SettingId('target'),
       displayName: 'Target MAC (hex, optional)',
     ),
-    DartSettingDefinition(
-      id: 'subnetMask',
+    SettingSpec(
+      id: SettingId('subnetMask'),
       displayName: 'Discovery Subnet Mask',
       defaultValue: '255.255.255.255',
     ),
   ],
   actions: [
-    DartActionDefinition(
-      pluginId: 'lifx',
-      actionId: 'getState',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('lifx'),
+      actionId: ActionId('getState'),
       displayName: 'Get Light State',
       invoke: (config, context) =>
           (transportResolver?.call(config) ?? transport).getState(),
     ),
-    DartActionDefinition(
-      pluginId: 'lifx',
-      actionId: 'setPower',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('lifx'),
+      actionId: ActionId('setPower'),
       displayName: 'Set Power',
       configSchema: _lightSchema,
       invoke: (config, context) =>
           _setPower(transportResolver?.call(config) ?? transport, config),
     ),
-    DartActionDefinition(
-      pluginId: 'lifx',
-      actionId: 'setColor',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('lifx'),
+      actionId: ActionId('setColor'),
       displayName: 'Set Color',
       configSchema: _lightSchema,
       invoke: (config, context) =>
           _setColor(transportResolver?.call(config) ?? transport, config),
     ),
-    DartActionDefinition(
-      pluginId: 'lifx',
-      actionId: 'setLightState',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('lifx'),
+      actionId: ActionId('setLightState'),
       displayName: 'Set Light State',
       configSchema: _lightSchema,
       invoke: (config, context) =>

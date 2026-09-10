@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import '../../domain/errors/showrunner_error.dart';
 import '../../runtime/expression.dart';
 import '../../schema/automation.dart';
-import '../contracts/identifiers.dart';
 import 'plugin_contract.dart';
 import 'plugin_host_context.dart';
 import 'plugin_module.dart';
@@ -13,8 +12,8 @@ export 'plugin_contract.dart';
 
 final class DartPluginRegistry extends ChangeNotifier {
   final Map<PluginId, DartPluginModule> _modules = {};
-  final Map<ActionKey, DartActionDefinition> _actions = {};
-  final Map<TriggerKey, DartTriggerDefinition> _triggers = {};
+  final Map<ActionKey, ActionSpec<dynamic, dynamic>> _actions = {};
+  final Map<TriggerKey, TriggerSpec<dynamic, dynamic>> _triggers = {};
   final Map<PluginId, DartPluginUiContribution> _uiContributions = {};
   final Set<PluginId> _disabledPluginIds = {};
   final Map<PluginId, Map<StateId, dynamic>> _stateValues = {};
@@ -41,13 +40,15 @@ final class DartPluginRegistry extends ChangeNotifier {
     if (_closeFuture != null) {
       throw StateError('Plugin registry is closed.');
     }
-    if (plugin.id.isEmpty) throw ArgumentError.value(plugin.id, 'plugin.id');
-    if (_modules.containsKey(plugin.pluginKey)) {
+    if (plugin.id.value.isEmpty) {
+      throw ArgumentError.value(plugin.id, 'plugin.id');
+    }
+    if (_modules.containsKey(plugin.id)) {
       throw ArgumentError('Plugin is registered more than once: ${plugin.id}');
     }
-    _modules[plugin.pluginKey] = module;
-    _stateValues[plugin.pluginKey] = {
-      for (final state in plugin.states) StateId(state.id): state.initialValue,
+    _modules[plugin.id] = module;
+    _stateValues[plugin.id] = {
+      for (final state in plugin.states) state.id: state.initialValue,
     };
     for (final action in plugin.actions) {
       if (action.pluginId != plugin.id) {
@@ -100,7 +101,7 @@ final class DartPluginRegistry extends ChangeNotifier {
 
   Iterable<DartPluginModule> get modules => _modules.values;
 
-  DartActionDefinition? findAction(String pluginId, String actionId) =>
+  ActionSpec<dynamic, dynamic>? findAction(String pluginId, String actionId) =>
       _actions[ActionKey(
         plugin: PluginId(pluginId),
         action: ActionId(actionId),
@@ -125,7 +126,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   /// are updated by provider runtimes. Keeping this projection here prevents
   /// graph/profile code from reaching into plugin implementation details.
   Map<String, dynamic> stateContext() => {
-    for (final plugin in plugins) plugin.id: stateValues(plugin.id),
+    for (final plugin in plugins) plugin.id.value: stateValues(plugin.id.value),
   };
 
   void updateState(String pluginId, String stateId, dynamic value) {
@@ -171,7 +172,10 @@ final class DartPluginRegistry extends ChangeNotifier {
     if (wasEnabled != enabled) notifyListeners();
   }
 
-  DartTriggerDefinition? findTrigger(String pluginId, String triggerId) {
+  TriggerSpec<dynamic, dynamic>? findTrigger(
+    String pluginId,
+    String triggerId,
+  ) {
     return _triggers[TriggerKey(
       plugin: PluginId(pluginId),
       trigger: TriggerId(triggerId),
@@ -239,7 +243,7 @@ final class DartPluginRegistry extends ChangeNotifier {
         userMessage: 'This automation action is no longer available.',
       );
     }
-    return definition.invoke(config, context);
+    return definition.invokeFromRuntime(config, context);
   }
 
   Future<Object?> invokeAction(
@@ -266,7 +270,7 @@ final class DartPluginRegistry extends ChangeNotifier {
         userMessage: 'This automation action is no longer available.',
       );
     }
-    return definition.invoke(config, context ?? EvaluationContext());
+    return definition.invokeFromRuntime(config, context ?? EvaluationContext());
   }
 
   Future<void> close() => _closeFuture ??= _closeInternal();

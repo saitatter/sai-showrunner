@@ -234,37 +234,37 @@ const _selectVoiceSchema = DartDataInputSchema(
 
 DartPluginManifest createVoiceModPlugin(VoiceModTransport transport) =>
     DartPluginManifest(
-      id: 'voicemod',
+      id: PluginId('voicemod'),
       name: 'Voicemod',
       settings: const [
-        DartSettingDefinition(
-          id: 'host',
+        SettingSpec(
+          id: SettingId('host'),
           displayName: 'VoiceMod Hostname',
           defaultValue: '127.0.0.1',
         ),
-        DartSettingDefinition(
-          id: 'port',
+        SettingSpec(
+          id: SettingId('port'),
           displayName: 'VoiceMod Port',
           defaultValue: 59129,
         ),
       ],
       states: const [
-        DartPluginStateDefinition(
-          id: 'connection',
+        StateSpec(
+          id: StateId('connection'),
           displayName: 'Connection',
           initialValue: 'lazy',
         ),
       ],
       actions: [
-        DartActionDefinition(
-          pluginId: 'voicemod',
-          actionId: 'getVoices',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('voicemod'),
+          actionId: ActionId('getVoices'),
           displayName: 'List Voices',
           invoke: (config, context) => transport.getVoices(),
         ),
-        DartActionDefinition(
-          pluginId: 'voicemod',
-          actionId: 'selectVoice',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('voicemod'),
+          actionId: ActionId('selectVoice'),
           displayName: 'Change Voice',
           configSchema: _selectVoiceSchema,
           invoke: (config, context) => _selectVoice(transport, config),

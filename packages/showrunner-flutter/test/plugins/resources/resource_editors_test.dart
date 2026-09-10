@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/resources/media_picker.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
-import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';

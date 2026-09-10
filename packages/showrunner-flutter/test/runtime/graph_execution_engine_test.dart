@@ -589,30 +589,30 @@ DartPluginRegistry _registry(
   final registry = DartPluginRegistry();
   registry.register(
     DartPluginManifest(
-      id: 'fixture',
+      id: PluginId('fixture'),
       name: 'Fixture',
       actions: [
-        DartActionDefinition(
-          pluginId: 'fixture',
-          actionId: 'record',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('fixture'),
+          actionId: ActionId('record'),
           invoke: (config, context) async {
             final value = config['value'];
             trace.add('record:$value');
             return {'value': value};
           },
         ),
-        DartActionDefinition(
-          pluginId: 'fixture',
-          actionId: 'cancel',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('fixture'),
+          actionId: ActionId('cancel'),
           invoke: (config, context) async {
             trace.add('cancel');
             (cancelToken ?? context.cancellationToken)?.cancel();
             return const {};
           },
         ),
-        DartActionDefinition(
-          pluginId: 'fixture',
-          actionId: 'increment',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('fixture'),
+          actionId: ActionId('increment'),
           invoke: (config, context) async {
             trace.add('increment');
             context.locals['count'] =
@@ -620,9 +620,9 @@ DartPluginRegistry _registry(
             return {'value': context.locals['count']};
           },
         ),
-        DartActionDefinition(
-          pluginId: 'fixture',
-          actionId: 'fail',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('fixture'),
+          actionId: ActionId('fail'),
           invoke: (config, context) async {
             throw StateError('fixture action failed');
           },

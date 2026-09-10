@@ -63,19 +63,19 @@ const _spinWheelSchema = DartDataInputSchema(
 
 DartPluginManifest createRandomPlugin({DartPluginEventHub? eventHub}) =>
     DartPluginManifest(
-      id: 'random',
+      id: PluginId('random'),
       name: 'Random',
       actions: [
-        DartActionDefinition(
-          pluginId: 'random',
-          actionId: 'random',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('random'),
+          actionId: ActionId('random'),
           displayName: 'Random Decision',
           invoke: _random,
           configSchema: _randomSchema,
         ),
-        DartActionDefinition(
-          pluginId: 'random',
-          actionId: 'spinWheel',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('random'),
+          actionId: ActionId('spinWheel'),
           displayName: 'Spin Wheel',
           invoke: (config, context) => _spinWheel(eventHub, config, context),
           configSchema: _spinWheelSchema,
@@ -84,9 +84,9 @@ DartPluginManifest createRandomPlugin({DartPluginEventHub? eventHub}) =>
       triggers: eventHub == null
           ? const []
           : [
-              DartTriggerDefinition(
-                pluginId: 'random',
-                triggerId: 'wheelLanded',
+              TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+                pluginId: PluginId('random'),
+                triggerId: TriggerId('wheelLanded'),
                 displayName: 'Wheel Stopped',
                 configSchema: _wheelTriggerSchema,
                 listen: () => _wheelEvents(eventHub),

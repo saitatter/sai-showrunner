@@ -1,8 +1,8 @@
-/// Stable identifiers used at plugin contract boundaries.
+/// Stable identifiers used directly by plugin contracts.
 ///
-/// Manifest factories expose string IDs at the plugin boundary. Registry
-/// lookups use these value objects so an action or trigger cannot accidentally
-/// be addressed by an unrelated concatenated string.
+/// Persisted and protocol-facing code can use [value] at its boundary, while
+/// manifests, registries, and runtime contracts keep IDs strongly typed so an
+/// action or trigger cannot accidentally be addressed by an unrelated string.
 sealed class _ContractId {
   const _ContractId(this.value);
 

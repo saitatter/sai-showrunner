@@ -142,36 +142,36 @@ DartPluginManifest createVariablesPlugin({
 }) {
   final repository = viewerDataRepository ?? InMemoryViewerDataRepository();
   return DartPluginManifest(
-    id: 'variables',
+    id: PluginId('variables'),
     name: 'Variables',
     actions: [
-      DartActionDefinition(
-        pluginId: 'variables',
-        actionId: 'set',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('variables'),
+        actionId: ActionId('set'),
         displayName: 'Set Variable',
         configSchema: _variableSchema,
         invoke: (config, context) =>
             _setVariable(config, context, variableRuntime),
       ),
-      DartActionDefinition(
-        pluginId: 'variables',
-        actionId: 'offset',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('variables'),
+        actionId: ActionId('offset'),
         displayName: 'Offset Variable',
         configSchema: _offsetVariableSchema,
         invoke: (config, context) =>
             _offsetVariable(config, context, variableRuntime),
       ),
-      DartActionDefinition(
-        pluginId: 'variables',
-        actionId: 'setVariable',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('variables'),
+        actionId: ActionId('setVariable'),
         displayName: 'Set Variable',
         configSchema: _variableSchema,
         invoke: (config, context) =>
             _setVariable(config, context, variableRuntime),
       ),
-      DartActionDefinition(
-        pluginId: 'variables',
-        actionId: 'getVariable',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('variables'),
+        actionId: ActionId('getVariable'),
         displayName: 'Get Variable',
         configSchema: const DartDataInputSchema(
           label: 'Variable',
@@ -188,17 +188,17 @@ DartPluginManifest createVariablesPlugin({
         invoke: (config, context) =>
             _getVariable(config, context, variableRuntime),
       ),
-      DartActionDefinition(
-        pluginId: 'variables',
-        actionId: 'setViewerVar',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('variables'),
+        actionId: ActionId('setViewerVar'),
         displayName: 'Set Viewer Variable',
         configSchema: _viewerVariableSchema,
         invoke: (config, context) =>
             _setViewerVar(config, context, repository, eventHub),
       ),
-      DartActionDefinition(
-        pluginId: 'variables',
-        actionId: 'offsetViewerVar',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('variables'),
+        actionId: ActionId('offsetViewerVar'),
         displayName: 'Offset Viewer Variable',
         configSchema: _viewerOffsetSchema,
         invoke: (config, context) =>

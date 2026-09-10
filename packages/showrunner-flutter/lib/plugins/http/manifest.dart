@@ -257,12 +257,12 @@ DartPluginManifest createHttpPlugin({
 }) {
   final endpointStream = eventHub?.stream('httpEndpoint');
   return DartPluginManifest(
-    id: 'http',
+    id: PluginId('http'),
     name: 'HTTP',
     actions: const [
-      DartActionDefinition(
-        pluginId: 'http',
-        actionId: 'request',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('http'),
+        actionId: ActionId('request'),
         displayName: 'HTTP Request',
         invoke: _httpRequest,
         configSchema: _requestSchema,
@@ -271,9 +271,9 @@ DartPluginManifest createHttpPlugin({
     triggers: endpointStream == null && endpointService == null
         ? const []
         : [
-            DartTriggerDefinition(
-              pluginId: 'http',
-              triggerId: 'endpoint',
+            TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+              pluginId: PluginId('http'),
+              triggerId: TriggerId('endpoint'),
               displayName: 'HTTP Endpoint',
               listen: () => endpointStream ?? const Stream.empty(),
               listenForConfig: endpointService?.register,

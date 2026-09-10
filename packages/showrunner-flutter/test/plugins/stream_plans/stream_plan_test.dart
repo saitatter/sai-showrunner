@@ -77,12 +77,12 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'test',
+          id: PluginId('test'),
           name: 'Test',
           actions: [
-            DartActionDefinition(
-              pluginId: 'test',
-              actionId: 'record',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('test'),
+              actionId: ActionId('record'),
               invoke: (config, context) async {
                 events.add(config['value'].toString());
                 return null;

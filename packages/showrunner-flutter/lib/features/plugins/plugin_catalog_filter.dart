@@ -4,18 +4,21 @@ bool pluginMatchesSearch(DartPluginManifest plugin, String query) {
   final normalizedQuery = query.trim().toLowerCase();
   if (normalizedQuery.isEmpty) return true;
   final searchable = <String>[
-    plugin.id,
+    plugin.id.value,
     plugin.name,
     for (final action in plugin.actions) ...[
-      action.actionId,
+      action.actionId.value,
       action.displayName ?? '',
     ],
     for (final trigger in plugin.triggers) ...[
-      trigger.triggerId,
+      trigger.triggerId.value,
       trigger.displayName,
     ],
-    for (final setting in plugin.settings) ...[setting.id, setting.displayName],
-    for (final state in plugin.states) ...[state.id, state.displayName],
+    for (final setting in plugin.settings) ...[
+      setting.id.value,
+      setting.displayName,
+    ],
+    for (final state in plugin.states) ...[state.id.value, state.displayName],
   ];
   return searchable.any(
     (value) => value.toLowerCase().contains(normalizedQuery),

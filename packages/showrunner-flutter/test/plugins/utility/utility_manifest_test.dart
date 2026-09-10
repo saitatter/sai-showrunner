@@ -23,7 +23,7 @@ void main() {
         expect(
           action.configSchema,
           isNotNull,
-          reason: '${plugin.id}:${action.actionId}',
+          reason: '${plugin.id.value}:${action.actionId.value}',
         );
       }
     }
@@ -41,7 +41,7 @@ void main() {
     );
     expect(
       createVariablesPlugin().actions
-          .firstWhere((action) => action.actionId == 'offsetViewerVar')
+          .firstWhere((action) => action.actionId.value == 'offsetViewerVar')
           .configSchema!
           .fields
           .map((field) => field.key),
@@ -278,16 +278,16 @@ void main() {
     () async {
       final plugin = createTimePlugin();
       final repeat = plugin.triggers.firstWhere(
-        (trigger) => trigger.triggerId == 'repeat',
+        (trigger) => trigger.triggerId.value == 'repeat',
       );
-      final repeatEvent = await repeat.listenForConfig!
-          .call({'delay': 0.01, 'interval': 0.1})
+      final repeatEvent = await repeat
+          .listenForRuntime({'delay': 0.01, 'interval': 0.1})!
           .first
           .timeout(const Duration(seconds: 1));
       expect(repeatEvent['timestamp'], isNotNull);
 
       final timer = plugin.triggers.firstWhere(
-        (trigger) => trigger.triggerId == 'timer',
+        (trigger) => trigger.triggerId.value == 'timer',
       );
       final registry = DartPluginRegistry()..register(plugin);
       await registry.invokeAction('time', 'setTimer', {
@@ -298,8 +298,8 @@ void main() {
         'timer': 'utility-trigger',
         'on': true,
       });
-      final timerEvent = await timer.listenForConfig!
-          .call({'timer': 'utility-trigger', 'offset': 0})
+      final timerEvent = await timer
+          .listenForRuntime({'timer': 'utility-trigger', 'offset': 0})!
           .first
           .timeout(const Duration(seconds: 1));
       expect(timerEvent['timer'], 'utility-trigger');

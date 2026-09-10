@@ -71,19 +71,19 @@ const _mouseButtonConfigSchema = DartDataInputSchema(
 DartPluginManifest createInputPlugin({InputPlatform? platform}) {
   final inputPlatform = platform ?? const NativeInputPlatform();
   return DartPluginManifest(
-    id: 'input',
+    id: PluginId('input'),
     name: 'Input',
     actions: [
-      DartActionDefinition(
-        pluginId: 'input',
-        actionId: 'pressKey',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('input'),
+        actionId: ActionId('pressKey'),
         displayName: 'Simulate Keyboard',
         configSchema: _pressKeyConfigSchema,
         invoke: (config, context) => _pressKey(inputPlatform, config, context),
       ),
-      DartActionDefinition(
-        pluginId: 'input',
-        actionId: 'mouseButton',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('input'),
+        actionId: ActionId('mouseButton'),
         displayName: 'Simulate Mouse',
         configSchema: _mouseButtonConfigSchema,
         invoke: (config, context) =>
@@ -91,9 +91,9 @@ DartPluginManifest createInputPlugin({InputPlatform? platform}) {
       ),
     ],
     triggers: [
-      DartTriggerDefinition(
-        pluginId: 'input',
-        triggerId: 'keyboardShortcut',
+      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+        pluginId: PluginId('input'),
+        triggerId: TriggerId('keyboardShortcut'),
         displayName: 'Keyboard Shortcut',
         configSchema: _keyboardShortcutConfigSchema,
         listen: () => _listenKeyboardShortcuts(inputPlatform),

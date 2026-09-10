@@ -582,12 +582,12 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'twitch',
+          id: PluginId('twitch'),
           name: 'Twitch',
           triggers: [
-            DartTriggerDefinition(
-              pluginId: 'twitch',
-              triggerId: 'chat',
+            TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+              pluginId: PluginId('twitch'),
+              triggerId: TriggerId('chat'),
               displayName: 'Chat message received',
               listen: () => const Stream<RuntimeMap>.empty(),
             ),
@@ -613,12 +613,12 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'showrunner',
+          id: PluginId('showrunner'),
           name: 'ShowRunner',
           actions: [
-            DartActionDefinition(
-              pluginId: 'showrunner',
-              actionId: 'convertNumberToString',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('showrunner'),
+              actionId: ActionId('convertNumberToString'),
               displayName: 'Number to text',
               invoke: (config, context) async => null,
             ),
@@ -664,12 +664,12 @@ void main() {
       final registry = DartPluginRegistry()
         ..register(
           DartPluginManifest(
-            id: 'sample',
+            id: PluginId('sample'),
             name: 'Sample',
             actions: [
-              DartActionDefinition(
-                pluginId: 'sample',
-                actionId: 'emit',
+              ActionSpec<Map<String, dynamic>, Object?>(
+                pluginId: PluginId('sample'),
+                actionId: ActionId('emit'),
                 displayName: 'Emit value',
                 invoke: (config, context) async => config['value'],
               ),

@@ -361,19 +361,19 @@ DartPluginManifest createOverlaysPlugin({
 }) {
   final hub = eventHub ?? DartPluginEventHub();
   return DartPluginManifest(
-    id: 'overlays',
+    id: PluginId('overlays'),
     name: 'Overlays',
     actions: [
-      DartActionDefinition(
-        pluginId: 'overlays',
-        actionId: 'triggerWidget',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('triggerWidget'),
         displayName: 'Trigger Overlay Widget',
         configSchema: _triggerWidgetSchema,
         invoke: (config, context) => _triggerWidget(hub, config),
       ),
-      DartActionDefinition(
-        pluginId: 'overlays',
-        actionId: 'alert',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('alert'),
         displayName: 'Show Alert',
         configSchema: _alertSchema,
         invoke: (config, context) => _showAlert(
@@ -383,44 +383,44 @@ DartPluginManifest createOverlaysPlugin({
           overlayStore: overlayStore,
         ),
       ),
-      DartActionDefinition(
-        pluginId: 'overlays',
-        actionId: 'pushChatMessage',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('pushChatMessage'),
         displayName: 'Push Chat Message',
         configSchema: _chatMessageSchema,
         invoke: (config, context) => _pushChatMessage(hub, config),
       ),
-      DartActionDefinition(
-        pluginId: 'overlays',
-        actionId: 'pushPaidAlert',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('pushPaidAlert'),
         displayName: 'Push Paid Alert',
         configSchema: _paidAlertSchema,
         invoke: (config, context) => _pushPaidAlert(hub, config),
       ),
-      DartActionDefinition(
-        pluginId: 'overlays',
-        actionId: 'beginSceneOverlay',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('beginSceneOverlay'),
         displayName: 'Begin Scene Overlay',
         configSchema: _beginSceneSchema,
         invoke: (config, context) => _sceneEvent(hub, 'scene.begin', config),
       ),
-      DartActionDefinition(
-        pluginId: 'overlays',
-        actionId: 'endSceneOverlay',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('endSceneOverlay'),
         displayName: 'End Scene Overlay',
         configSchema: _endSceneSchema,
         invoke: (config, context) => _sceneEvent(hub, 'scene.end', config),
       ),
-      DartActionDefinition(
-        pluginId: 'overlays',
-        actionId: 'spawnEmotes',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('spawnEmotes'),
         displayName: 'Bounce Emotes',
         configSchema: _emoteSchema,
         invoke: (config, context) => _spawnEmotes(hub, config),
       ),
-      DartActionDefinition(
-        pluginId: 'overlays',
-        actionId: 'widgetVisibility',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('widgetVisibility'),
         displayName: 'Widget Visibility',
         configSchema: _visibilitySchema,
         invoke: (config, context) =>

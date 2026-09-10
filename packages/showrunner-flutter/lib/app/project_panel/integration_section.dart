@@ -97,7 +97,7 @@ class _IntegrationSectionState extends State<IntegrationSection> {
   Widget _buildContent(BuildContext context, DartPluginRegistry registry) {
     final plugins = registry.plugins.where((plugin) {
       if (widget.preferences.hideDisabledIntegrations &&
-          !registry.isPluginEnabled(plugin.id)) {
+          !registry.isPluginEnabled(plugin.id.value)) {
         return false;
       }
       return pluginMatchesSearch(plugin, _query);
@@ -108,7 +108,7 @@ class _IntegrationSectionState extends State<IntegrationSection> {
     };
     for (final plugin in plugins) {
       final group = _integrationGroups.firstWhere(
-        (candidate) => candidate.pluginIds.contains(plugin.id),
+        (candidate) => candidate.pluginIds.contains(plugin.id.value),
         orElse: () => _integrationGroups.last,
       );
       groups[group]!.add(plugin);
@@ -164,7 +164,7 @@ class _IntegrationSectionState extends State<IntegrationSection> {
                   registry: registry,
                   preferences: widget.preferences,
                   query: _query,
-                  selected: plugin.id == widget.selectedPluginId,
+                  selected: plugin.id.value == widget.selectedPluginId,
                   onSelected: widget.onSelected,
                   onToggle: widget.onToggle,
                 ),
@@ -173,7 +173,7 @@ class _IntegrationSectionState extends State<IntegrationSection> {
           for (final shortcutGroup in _integrationShortcutGroups)
             if (groups.values.any(
               (plugins) =>
-                  plugins.any((plugin) => plugin.id == shortcutGroup.id),
+                  plugins.any((plugin) => plugin.id.value == shortcutGroup.id),
             ))
               _IntegrationShortcutGroupView(
                 group: shortcutGroup,
@@ -488,7 +488,7 @@ class _IntegrationPluginRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = registry.isPluginEnabled(plugin.id);
+    final enabled = registry.isPluginEnabled(plugin.id.value);
     return Material(
       color: selected
           ? ShowRunnerColors.highlight
@@ -496,7 +496,7 @@ class _IntegrationPluginRow extends StatelessWidget {
           ? ShowRunnerColors.highlight.withAlpha(70)
           : Colors.transparent,
       child: InkWell(
-        onTap: () => onSelected(plugin.id),
+        onTap: () => onSelected(plugin.id.value),
         hoverColor: ShowRunnerColors.highlight,
         child: SizedBox(
           height: preferences.compactProjectSidebar ? 25 : 32,
@@ -505,9 +505,11 @@ class _IntegrationPluginRow extends StatelessWidget {
             child: Row(
               children: [
                 pluginIconWidgetFor(
-                  plugin.id,
+                  plugin.id.value,
                   size: 16,
-                  color: enabled ? pluginColorFor(plugin.id) : Colors.white38,
+                  color: enabled
+                      ? pluginColorFor(plugin.id.value)
+                      : Colors.white38,
                 ),
                 const SizedBox(width: 7),
                 Expanded(
@@ -525,7 +527,7 @@ class _IntegrationPluginRow extends StatelessWidget {
                       scale: 0.65,
                       child: Switch(
                         value: enabled,
-                        onChanged: (value) => onToggle(plugin.id, value),
+                        onChanged: (value) => onToggle(plugin.id.value, value),
                       ),
                     ),
                   )

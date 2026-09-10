@@ -125,47 +125,47 @@ DartPluginManifest createKasaPlugin(
   KasaTransport transport, {
   KasaTransportResolver? transportResolver,
 }) => DartPluginManifest(
-  id: 'tplink-kasa',
+  id: PluginId('tplink-kasa'),
   name: 'TP-Link Kasa',
   settings: const [
-    DartSettingDefinition(id: 'host', displayName: 'Device IP / Host'),
-    DartSettingDefinition(
-      id: 'port',
+    SettingSpec(id: SettingId('host'), displayName: 'Device IP / Host'),
+    SettingSpec(
+      id: SettingId('port'),
       displayName: 'Device Port',
       defaultValue: 9999,
     ),
-    DartSettingDefinition(
-      id: 'subnetMask',
+    SettingSpec(
+      id: SettingId('subnetMask'),
       displayName: 'Discovery Subnet Mask',
       defaultValue: '255.255.255.255',
     ),
   ],
   actions: [
-    DartActionDefinition(
-      pluginId: 'tplink-kasa',
-      actionId: 'getDeviceInfo',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('tplink-kasa'),
+      actionId: ActionId('getDeviceInfo'),
       displayName: 'Get Device Info',
       invoke: (config, context) =>
           (transportResolver?.call(config) ?? transport).request(_sysInfo),
     ),
-    DartActionDefinition(
-      pluginId: 'tplink-kasa',
-      actionId: 'getLightState',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('tplink-kasa'),
+      actionId: ActionId('getLightState'),
       displayName: 'Get Light State',
       invoke: (config, context) =>
           (transportResolver?.call(config) ?? transport).request(_sysInfo),
     ),
-    DartActionDefinition(
-      pluginId: 'tplink-kasa',
-      actionId: 'setLightState',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('tplink-kasa'),
+      actionId: ActionId('setLightState'),
       displayName: 'Set Light State',
       configSchema: _lightSchema,
       invoke: (config, context) =>
           _setLightState(transportResolver?.call(config) ?? transport, config),
     ),
-    DartActionDefinition(
-      pluginId: 'tplink-kasa',
-      actionId: 'setPlugState',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('tplink-kasa'),
+      actionId: ActionId('setPlugState'),
       displayName: 'Set Plug State',
       configSchema: _plugSchema,
       invoke: (config, context) =>

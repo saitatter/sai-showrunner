@@ -354,70 +354,70 @@ const _loginSchema = DartDataInputSchema(
 
 DartPluginManifest createWyzePlugin(WyzeTransport transport) =>
     DartPluginManifest(
-      id: 'wyze',
+      id: PluginId('wyze'),
       name: 'Wyze',
       settings: const [
-        DartSettingDefinition(
-          id: 'keyId',
+        SettingSpec(
+          id: SettingId('keyId'),
           displayName: 'Wyze Key ID',
           secret: true,
         ),
-        DartSettingDefinition(
-          id: 'apiKey',
+        SettingSpec(
+          id: SettingId('apiKey'),
           displayName: 'Wyze API Key',
           secret: true,
         ),
-        DartSettingDefinition(id: 'email', displayName: 'Wyze Email'),
-        DartSettingDefinition(
-          id: 'accessToken',
+        SettingSpec(id: SettingId('email'), displayName: 'Wyze Email'),
+        SettingSpec(
+          id: SettingId('accessToken'),
           displayName: 'Access Token',
           secret: true,
         ),
-        DartSettingDefinition(
-          id: 'refreshToken',
+        SettingSpec(
+          id: SettingId('refreshToken'),
           displayName: 'Refresh Token',
           secret: true,
         ),
       ],
       states: const [
-        DartPluginStateDefinition(
-          id: 'authentication',
+        StateSpec(
+          id: StateId('authentication'),
           displayName: 'Authentication',
           initialValue: 'configured',
         ),
       ],
       actions: [
-        DartActionDefinition(
-          pluginId: 'wyze',
-          actionId: 'login',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('wyze'),
+          actionId: ActionId('login'),
           displayName: 'Login',
           configSchema: _loginSchema,
           invoke: (config, context) => _login(transport, config),
         ),
-        DartActionDefinition(
-          pluginId: 'wyze',
-          actionId: 'listDevices',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('wyze'),
+          actionId: ActionId('listDevices'),
           displayName: 'List Devices',
           invoke: (config, context) => transport.getDevices(),
         ),
-        DartActionDefinition(
-          pluginId: 'wyze',
-          actionId: 'getDeviceState',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('wyze'),
+          actionId: ActionId('getDeviceState'),
           displayName: 'Get Device State',
           configSchema: _deviceSchema,
           invoke: (config, context) =>
               transport.getDeviceState(_device(config), _model(config)),
         ),
-        DartActionDefinition(
-          pluginId: 'wyze',
-          actionId: 'setLightState',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('wyze'),
+          actionId: ActionId('setLightState'),
           displayName: 'Set Light State',
           configSchema: _lightSchema,
           invoke: (config, context) => _setLightState(transport, config),
         ),
-        DartActionDefinition(
-          pluginId: 'wyze',
-          actionId: 'setPlugState',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('wyze'),
+          actionId: ActionId('setPlugState'),
           displayName: 'Set Plug State',
           configSchema: _plugSchema,
           invoke: (config, context) => _setPlugState(transport, config),

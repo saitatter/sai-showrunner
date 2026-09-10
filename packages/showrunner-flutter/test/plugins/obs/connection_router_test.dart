@@ -74,7 +74,7 @@ void main() {
   test('exposes the reference OBS state providers', () {
     final plugin = createObsPlugin(CallbackObsTransport((_, _) async => {}));
     expect(
-      plugin.states.map((state) => state.id),
+      plugin.states.map((state) => state.id.value),
       containsAll(<String>['connected', 'scene', 'streaming', 'recording']),
     );
   });

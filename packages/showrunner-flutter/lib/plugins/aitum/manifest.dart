@@ -46,57 +46,57 @@ const _chapterSchema = DartDataInputSchema(
 
 DartPluginManifest createAitumPlugin(ObsTransport transport) =>
     DartPluginManifest(
-      id: 'aitum',
+      id: PluginId('aitum'),
       name: 'Aitum',
       settings: const [
-        DartSettingDefinition(
-          id: 'obsConnection',
+        SettingSpec(
+          id: SettingId('obsConnection'),
           displayName: 'OBS Connection',
         ),
       ],
       actions: [
-        DartActionDefinition(
-          pluginId: 'aitum',
-          actionId: 'verticalScene',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('aitum'),
+          actionId: ActionId('verticalScene'),
           displayName: 'Change Vertical Scene',
           configSchema: _sceneSchema,
           invoke: (config, context) => _call(transport, 'switch_scene', {
             'scene': config['scene']?.toString() ?? '',
           }),
         ),
-        DartActionDefinition(
-          pluginId: 'aitum',
-          actionId: 'verticalStreamStartStop',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('aitum'),
+          actionId: ActionId('verticalStreamStartStop'),
           displayName: 'Vertical Stream Start/Stop',
           configSchema: _toggleSchema,
           invoke: (config, context) =>
               _toggle(transport, config['streaming'], 'streaming'),
         ),
-        DartActionDefinition(
-          pluginId: 'aitum',
-          actionId: 'verticalRecordingStartStop',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('aitum'),
+          actionId: ActionId('verticalRecordingStartStop'),
           displayName: 'Vertical Recording Start/Stop',
           configSchema: _toggleSchema,
           invoke: (config, context) =>
               _toggle(transport, config['streaming'], 'recording'),
         ),
-        DartActionDefinition(
-          pluginId: 'aitum',
-          actionId: 'verticalBacktrackStartStop',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('aitum'),
+          actionId: ActionId('verticalBacktrackStartStop'),
           displayName: 'Vertical Backtrack Start/Stop',
           configSchema: _toggleSchema,
           invoke: (config, context) =>
               _toggle(transport, config['streaming'], 'backtrack'),
         ),
-        DartActionDefinition(
-          pluginId: 'aitum',
-          actionId: 'saveBacktrack',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('aitum'),
+          actionId: ActionId('saveBacktrack'),
           displayName: 'Save Backtrack',
           invoke: (config, context) => _call(transport, 'save_backtrack', {}),
         ),
-        DartActionDefinition(
-          pluginId: 'aitum',
-          actionId: 'verticalChapterMarker',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('aitum'),
+          actionId: ActionId('verticalChapterMarker'),
           displayName: 'Vertical Chapter Marker',
           configSchema: _chapterSchema,
           invoke: (config, context) => _call(transport, 'add_chapter', {

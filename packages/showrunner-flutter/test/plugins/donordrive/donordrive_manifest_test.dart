@@ -93,20 +93,29 @@ void main() {
     final donation = registry.findTrigger('donordrive', 'donation')!;
     final incentive = registry.findTrigger('donordrive', 'incentive')!;
     final milestone = registry.findTrigger('donordrive', 'milestone')!;
-    expect(donation.matches!({'minimumAmount': 25}, {'amount': 50}), isTrue);
     expect(
-      donation.matches!(
+      donation.matchesRuntime({'minimumAmount': 25}, {'amount': 50}),
+      isTrue,
+    );
+    expect(
+      donation.matchesRuntime(
         {'incentive': true},
         {'amount': 50, 'isIncentive': false},
       ),
       isFalse,
     );
     expect(
-      incentive.matches!({'incentive': 'shirt'}, {'incentiveId': 'shirt'}),
+      incentive.matchesRuntime(
+        {'incentive': 'shirt'},
+        {'incentiveId': 'shirt'},
+      ),
       isTrue,
     );
     expect(
-      milestone.matches!({'milestone': 'goal-2'}, {'milestoneId': 'goal-1'}),
+      milestone.matchesRuntime(
+        {'milestone': 'goal-2'},
+        {'milestoneId': 'goal-1'},
+      ),
       isFalse,
     );
     runtime.stop();

@@ -6,10 +6,10 @@ void main() {
   test('exposes Flutter configuration for OS actions', () {
     final plugin = createOsPlugin();
     final powershell = plugin.actions.firstWhere(
-      (action) => action.actionId == 'powershell',
+      (action) => action.actionId.value == 'powershell',
     );
     final launch = plugin.actions.firstWhere(
-      (action) => action.actionId == 'launch',
+      (action) => action.actionId.value == 'launch',
     );
 
     expect(powershell.configSchema?.fields.map((field) => field.key), [

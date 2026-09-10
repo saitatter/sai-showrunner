@@ -71,12 +71,12 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'test',
+          id: PluginId('test'),
           name: 'Test',
           actions: [
-            DartActionDefinition(
-              pluginId: 'test',
-              actionId: 'record',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('test'),
+              actionId: ActionId('record'),
               invoke: (config, context) async {
                 calls.add(config['value'] as String);
                 return null;
@@ -150,12 +150,12 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'test',
+          id: PluginId('test'),
           name: 'Test',
           actions: [
-            DartActionDefinition(
-              pluginId: 'test',
-              actionId: 'record',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('test'),
+              actionId: ActionId('record'),
               invoke: (config, context) async {
                 payloads.add(context.contextState['event']);
                 return null;
@@ -209,12 +209,12 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'test',
+          id: PluginId('test'),
           name: 'Test',
           actions: [
-            DartActionDefinition(
-              pluginId: 'test',
-              actionId: 'record',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('test'),
+              actionId: ActionId('record'),
               invoke: (config, context) async {
                 calls.add(context.contextState['event']['message'] as String);
                 return null;
@@ -294,12 +294,12 @@ void main() {
       final registry = DartPluginRegistry()
         ..register(
           DartPluginManifest(
-            id: 'test',
+            id: PluginId('test'),
             name: 'Test',
             actions: [
-              DartActionDefinition(
-                pluginId: 'test',
-                actionId: 'record',
+              ActionSpec<Map<String, dynamic>, Object?>(
+                pluginId: PluginId('test'),
+                actionId: ActionId('record'),
                 invoke: (config, context) async {
                   payloads.add(context.contextState['event']);
                   return null;
@@ -379,12 +379,12 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'test',
+          id: PluginId('test'),
           name: 'Test',
           actions: [
-            DartActionDefinition(
-              pluginId: 'test',
-              actionId: 'record',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('test'),
+              actionId: ActionId('record'),
               invoke: (config, context) async {
                 executions++;
                 return null;
@@ -392,9 +392,9 @@ void main() {
             ),
           ],
           triggers: [
-            DartTriggerDefinition(
-              pluginId: 'test',
-              triggerId: 'chat',
+            TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+              pluginId: PluginId('test'),
+              triggerId: TriggerId('chat'),
               displayName: 'Chat',
               listen: () => events.stream,
             ),
@@ -444,19 +444,19 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'test',
+          id: PluginId('test'),
           name: 'Test',
           states: [
-            const DartPluginStateDefinition(
-              id: 'enabled',
+            const StateSpec(
+              id: StateId('enabled'),
               displayName: 'Enabled',
               initialValue: false,
             ),
           ],
           actions: [
-            DartActionDefinition(
-              pluginId: 'test',
-              actionId: 'record',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('test'),
+              actionId: ActionId('record'),
               invoke: (config, context) async {
                 calls.add(config['value'] as String);
                 return null;
@@ -533,12 +533,12 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'test',
+          id: PluginId('test'),
           name: 'Test',
           actions: [
-            DartActionDefinition(
-              pluginId: 'test',
-              actionId: 'record',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('test'),
+              actionId: ActionId('record'),
               invoke: (config, context) async {
                 executions++;
                 return null;
@@ -546,9 +546,9 @@ void main() {
             ),
           ],
           triggers: [
-            DartTriggerDefinition(
-              pluginId: 'test',
-              triggerId: 'chat',
+            TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+              pluginId: PluginId('test'),
+              triggerId: TriggerId('chat'),
               displayName: 'Chat',
               listen: () => events.stream,
             ),
@@ -615,12 +615,12 @@ void main() {
       final registry = DartPluginRegistry()
         ..register(
           DartPluginManifest(
-            id: 'test',
+            id: PluginId('test'),
             name: 'Test',
             actions: [
-              DartActionDefinition(
-                pluginId: 'test',
-                actionId: 'record',
+              ActionSpec<Map<String, dynamic>, Object?>(
+                pluginId: PluginId('test'),
+                actionId: ActionId('record'),
                 invoke: (config, context) async {
                   executions++;
                   return null;
@@ -628,9 +628,9 @@ void main() {
               ),
             ],
             triggers: [
-              DartTriggerDefinition(
-                pluginId: 'test',
-                triggerId: 'chat',
+              TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+                pluginId: PluginId('test'),
+                triggerId: TriggerId('chat'),
                 displayName: 'Chat',
                 listen: () => events.stream,
               ),
@@ -693,12 +693,12 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
-          id: 'test',
+          id: PluginId('test'),
           name: 'Test',
           actions: [
-            DartActionDefinition(
-              pluginId: 'test',
-              actionId: 'record',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('test'),
+              actionId: ActionId('record'),
               invoke: (config, context) async {
                 calls.add(config['value'] as String);
                 return null;
@@ -706,9 +706,9 @@ void main() {
             ),
           ],
           triggers: [
-            DartTriggerDefinition(
-              pluginId: 'test',
-              triggerId: 'chat',
+            TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+              pluginId: PluginId('test'),
+              triggerId: TriggerId('chat'),
               displayName: 'Chat',
               listen: () => events.stream,
             ),

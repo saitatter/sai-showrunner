@@ -402,114 +402,84 @@ DartPluginManifest createTwitchPlugin(
   DartPluginEventHub? eventHub,
   ResourceRepository? viewerGroupRepository,
 }) => DartPluginManifest(
-  id: 'twitch',
+  id: PluginId('twitch'),
   name: 'Twitch',
   states: const [
-    DartPluginStateDefinition(
-      id: 'connection',
+    StateSpec(
+      id: StateId('connection'),
       displayName: 'Connection',
       initialValue: 'unconfigured',
     ),
-    DartPluginStateDefinition(
-      id: 'adSnoozeRefresh',
-      displayName: 'Ad Snooze Refresh',
-    ),
-    DartPluginStateDefinition(id: 'adSnoozes', displayName: 'Ad Snoozes'),
-    DartPluginStateDefinition(id: 'adTimer', displayName: 'Ad Timer'),
-    DartPluginStateDefinition(id: 'category', displayName: 'Category'),
-    DartPluginStateDefinition(id: 'followers', displayName: 'Followers'),
-    DartPluginStateDefinition(
-      id: 'hypeTrainExists',
-      displayName: 'Hype Train Exists',
-    ),
-    DartPluginStateDefinition(
-      id: 'hypeTrainGoal',
-      displayName: 'Hype Train Goal',
-    ),
-    DartPluginStateDefinition(
-      id: 'hypeTrainLevel',
-      displayName: 'Hype Train Level',
-    ),
-    DartPluginStateDefinition(
-      id: 'hypeTrainProgress',
+    StateSpec(id: StateId('adSnoozeRefresh'), displayName: 'Ad Snooze Refresh'),
+    StateSpec(id: StateId('adSnoozes'), displayName: 'Ad Snoozes'),
+    StateSpec(id: StateId('adTimer'), displayName: 'Ad Timer'),
+    StateSpec(id: StateId('category'), displayName: 'Category'),
+    StateSpec(id: StateId('followers'), displayName: 'Followers'),
+    StateSpec(id: StateId('hypeTrainExists'), displayName: 'Hype Train Exists'),
+    StateSpec(id: StateId('hypeTrainGoal'), displayName: 'Hype Train Goal'),
+    StateSpec(id: StateId('hypeTrainLevel'), displayName: 'Hype Train Level'),
+    StateSpec(
+      id: StateId('hypeTrainProgress'),
       displayName: 'Hype Train Progress',
     ),
-    DartPluginStateDefinition(
-      id: 'hypeTrainTotal',
-      displayName: 'Hype Train Total',
-    ),
-    DartPluginStateDefinition(id: 'inAdBreak', displayName: 'In Ad Break'),
-    DartPluginStateDefinition(id: 'lastFollower', displayName: 'Last Follower'),
-    DartPluginStateDefinition(
-      id: 'lastSubscriber',
-      displayName: 'Last Subscriber',
-    ),
-    DartPluginStateDefinition(id: 'live', displayName: 'Live'),
-    DartPluginStateDefinition(
-      id: 'nextAdDuration',
-      displayName: 'Next Ad Duration',
-    ),
-    DartPluginStateDefinition(id: 'nextAdTimer', displayName: 'Next Ad Timer'),
-    DartPluginStateDefinition(id: 'pollId', displayName: 'Poll ID'),
-    DartPluginStateDefinition(id: 'pollTitle', displayName: 'Poll Title'),
-    DartPluginStateDefinition(
-      id: 'predictionChoiceNames',
+    StateSpec(id: StateId('hypeTrainTotal'), displayName: 'Hype Train Total'),
+    StateSpec(id: StateId('inAdBreak'), displayName: 'In Ad Break'),
+    StateSpec(id: StateId('lastFollower'), displayName: 'Last Follower'),
+    StateSpec(id: StateId('lastSubscriber'), displayName: 'Last Subscriber'),
+    StateSpec(id: StateId('live'), displayName: 'Live'),
+    StateSpec(id: StateId('nextAdDuration'), displayName: 'Next Ad Duration'),
+    StateSpec(id: StateId('nextAdTimer'), displayName: 'Next Ad Timer'),
+    StateSpec(id: StateId('pollId'), displayName: 'Poll ID'),
+    StateSpec(id: StateId('pollTitle'), displayName: 'Poll Title'),
+    StateSpec(
+      id: StateId('predictionChoiceNames'),
       displayName: 'Prediction Choice Names',
     ),
-    DartPluginStateDefinition(
-      id: 'predictionChoiceTotals',
+    StateSpec(
+      id: StateId('predictionChoiceTotals'),
       displayName: 'Prediction Choice Totals',
     ),
-    DartPluginStateDefinition(
-      id: 'predictionExists',
+    StateSpec(
+      id: StateId('predictionExists'),
       displayName: 'Prediction Exists',
     ),
-    DartPluginStateDefinition(id: 'predictionId', displayName: 'Prediction ID'),
-    DartPluginStateDefinition(
-      id: 'predictionTitle',
-      displayName: 'Prediction Title',
-    ),
-    DartPluginStateDefinition(
-      id: 'predictionTotal',
-      displayName: 'Prediction Total',
-    ),
-    DartPluginStateDefinition(
-      id: 'prerollFreeTime',
-      displayName: 'Preroll Free Time',
-    ),
-    DartPluginStateDefinition(id: 'raidTarget', displayName: 'Raid Target'),
-    DartPluginStateDefinition(id: 'raidTimer', displayName: 'Raid Timer'),
-    DartPluginStateDefinition(
-      id: 'subscriberPoints',
+    StateSpec(id: StateId('predictionId'), displayName: 'Prediction ID'),
+    StateSpec(id: StateId('predictionTitle'), displayName: 'Prediction Title'),
+    StateSpec(id: StateId('predictionTotal'), displayName: 'Prediction Total'),
+    StateSpec(id: StateId('prerollFreeTime'), displayName: 'Preroll Free Time'),
+    StateSpec(id: StateId('raidTarget'), displayName: 'Raid Target'),
+    StateSpec(id: StateId('raidTimer'), displayName: 'Raid Timer'),
+    StateSpec(
+      id: StateId('subscriberPoints'),
       displayName: 'Subscriber Points',
     ),
-    DartPluginStateDefinition(id: 'subscribers', displayName: 'Subscribers'),
-    DartPluginStateDefinition(id: 'title', displayName: 'Title'),
+    StateSpec(id: StateId('subscribers'), displayName: 'Subscribers'),
+    StateSpec(id: StateId('title'), displayName: 'Title'),
   ],
   settings: const [
-    DartSettingDefinition(id: 'clientId', displayName: 'Client ID'),
-    DartSettingDefinition(
-      id: 'clientSecret',
+    SettingSpec(id: SettingId('clientId'), displayName: 'Client ID'),
+    SettingSpec(
+      id: SettingId('clientSecret'),
       displayName: 'Client Secret',
       secret: true,
     ),
-    DartSettingDefinition(
-      id: 'accessToken',
+    SettingSpec(
+      id: SettingId('accessToken'),
       displayName: 'Access Token',
       secret: true,
     ),
-    DartSettingDefinition(id: 'broadcasterId', displayName: 'Broadcaster ID'),
-    DartSettingDefinition(id: 'moderatorId', displayName: 'Moderator ID'),
-    DartSettingDefinition(
-      id: 'refreshToken',
+    SettingSpec(id: SettingId('broadcasterId'), displayName: 'Broadcaster ID'),
+    SettingSpec(id: SettingId('moderatorId'), displayName: 'Moderator ID'),
+    SettingSpec(
+      id: SettingId('refreshToken'),
       displayName: 'Refresh Token',
       secret: true,
     ),
   ],
   actions: [
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'createClip',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('createClip'),
       displayName: 'Create Clip',
       configSchema: _clipSchema,
       invoke: (config, context) async {
@@ -522,9 +492,9 @@ DartPluginManifest createTwitchPlugin(
         return {'clipId': _clipId(response)};
       },
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'streamMarker',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('streamMarker'),
       displayName: 'Place Stream Marker',
       configSchema: _markerSchema,
       invoke: (config, context) => transport.request(
@@ -534,9 +504,9 @@ DartPluginManifest createTwitchPlugin(
         {'comment': config['markerName'] ?? ''},
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'runAd',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('runAd'),
       displayName: 'Run Ad',
       configSchema: _adSchema,
       invoke: (config, context) => transport.request(
@@ -546,9 +516,9 @@ DartPluginManifest createTwitchPlugin(
         {'length': config['duration'] ?? 30},
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'snoozeAds',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('snoozeAds'),
       displayName: 'Snooze Ads',
       configSchema: _twitchObject('Twitch ad schedule', [_broadcaster]),
       invoke: (config, context) => transport.request(
@@ -558,9 +528,9 @@ DartPluginManifest createTwitchPlugin(
         {},
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'createPrediction',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('createPrediction'),
       displayName: 'Create Prediction',
       configSchema: _predictionSchema,
       invoke: (config, context) => transport.request(
@@ -576,9 +546,9 @@ DartPluginManifest createTwitchPlugin(
         },
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'chat',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('chat'),
       displayName: 'Chat Message',
       configSchema: _chatSchema,
       invoke: (config, context) =>
@@ -588,9 +558,9 @@ DartPluginManifest createTwitchPlugin(
             'message': config['message'],
           }),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'annoucement',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('annoucement'),
       displayName: 'Make Announcement',
       configSchema: _announcementSchema,
       invoke: (config, context) => transport.request(
@@ -603,9 +573,9 @@ DartPluginManifest createTwitchPlugin(
         {'message': config['message'], 'color': config['color'] ?? 'primary'},
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'announcement',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('announcement'),
       displayName: 'Make Announcement',
       configSchema: _announcementSchema,
       invoke: (config, context) => transport.request(
@@ -618,9 +588,9 @@ DartPluginManifest createTwitchPlugin(
         {'message': config['message'], 'color': config['color'] ?? 'primary'},
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'shoutout',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('shoutout'),
       displayName: 'Shoutout',
       configSchema: _shoutoutSchema,
       invoke: (config, context) =>
@@ -630,9 +600,9 @@ DartPluginManifest createTwitchPlugin(
             'to_broadcaster_id': config['streamer'] ?? config['viewerId'],
           }, {}),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'setStreamInfo',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('setStreamInfo'),
       displayName: 'Update Stream Info',
       configSchema: _streamInfoSchema,
       invoke: (config, context) => transport.request(
@@ -646,9 +616,9 @@ DartPluginManifest createTwitchPlugin(
         },
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'createPoll',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('createPoll'),
       displayName: 'Create Poll',
       configSchema: _pollSchema,
       invoke: (config, context) => transport.request(
@@ -664,9 +634,9 @@ DartPluginManifest createTwitchPlugin(
         },
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'startRaid',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('startRaid'),
       displayName: 'Start Raid',
       configSchema: _raidSchema,
       invoke: (config, context) => transport.request('POST', '/helix/raids', {
@@ -674,18 +644,18 @@ DartPluginManifest createTwitchPlugin(
         'to_broadcaster_id': config['target'] ?? config['targetId'],
       }, {}),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'cancelRaid',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('cancelRaid'),
       displayName: 'Cancel Raid',
       configSchema: _cancelRaidSchema,
       invoke: (config, context) => transport.request('DELETE', '/helix/raids', {
         'broadcaster_id': _id(config, context, 'broadcasterId'),
       }, {}),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'listChannelPointRewards',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('listChannelPointRewards'),
       displayName: 'List Channel Point Rewards',
       configSchema: _listRewardsSchema,
       invoke: (config, context) =>
@@ -695,9 +665,9 @@ DartPluginManifest createTwitchPlugin(
               'only_manageable_rewards': 'true',
           }, {}),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'createChannelPointReward',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('createChannelPointReward'),
       displayName: 'Create Channel Point Reward',
       configSchema: _createRewardSchema,
       invoke: (config, context) => transport.request(
@@ -707,9 +677,9 @@ DartPluginManifest createTwitchPlugin(
         TwitchChannelPointRewardDraft.fromConfig(config).toRequestBody(),
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'updateChannelPointReward',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('updateChannelPointReward'),
       displayName: 'Update Channel Point Reward',
       configSchema: _updateRewardSchema,
       invoke: (config, context) => transport.request(
@@ -722,9 +692,9 @@ DartPluginManifest createTwitchPlugin(
         TwitchChannelPointRewardDraft.fromConfig(config).toRequestBody(),
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'deleteChannelPointReward',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('deleteChannelPointReward'),
       displayName: 'Delete Channel Point Reward',
       configSchema: _rewardIdSchema,
       invoke: (config, context) =>
@@ -733,9 +703,9 @@ DartPluginManifest createTwitchPlugin(
             'id': _required(config, 'rewardId', fallback: 'twitchId'),
           }, {}),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'updateChannelPointRedemption',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('updateChannelPointRedemption'),
       displayName: 'Update Channel Point Redemption',
       configSchema: _redemptionSchema,
       invoke: (config, context) => transport.request(
@@ -749,24 +719,24 @@ DartPluginManifest createTwitchPlugin(
         {'status': config['status'] ?? 'FULFILLED'},
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'timeout',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('timeout'),
       displayName: 'Timeout Viewer',
       configSchema: _timeoutSchema,
       invoke: (config, context) =>
           _ban(transport, config, context, includeDuration: true),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'ban',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('ban'),
       displayName: 'Ban Viewer',
       configSchema: _moderationSchema,
       invoke: (config, context) => _ban(transport, config, context),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'unban',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('unban'),
       displayName: 'Unban Viewer',
       configSchema: _moderationSchema,
       invoke: (config, context) =>
@@ -776,25 +746,25 @@ DartPluginManifest createTwitchPlugin(
             'user_id': config['viewerId'],
           }, {}),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'addViewerToGroup',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('addViewerToGroup'),
       displayName: 'Add Viewer to Group',
       configSchema: _viewerGroupSchema,
       invoke: (config, context) =>
           _updateViewerGroup(viewerGroupRepository, config, add: true),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'removeViewerFromGroup',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('removeViewerFromGroup'),
       displayName: 'Remove Viewer from Group',
       configSchema: _viewerGroupSchema,
       invoke: (config, context) =>
           _updateViewerGroup(viewerGroupRepository, config, add: false),
     ),
-    DartActionDefinition(
-      pluginId: 'twitch',
-      actionId: 'clearViewerGroup',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('twitch'),
+      actionId: ActionId('clearViewerGroup'),
       displayName: 'Clear Viewer Group',
       configSchema: _clearViewerGroupSchema,
       invoke: (config, context) =>
@@ -802,23 +772,23 @@ DartPluginManifest createTwitchPlugin(
     ),
   ],
   triggers: [
-    DartTriggerDefinition(
-      pluginId: 'twitch',
-      triggerId: 'chat',
+    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+      pluginId: PluginId('twitch'),
+      triggerId: TriggerId('chat'),
       displayName: 'Chat Message',
       listen: () => _twitchEventStream(eventHub, 'chat'),
       eventSchema: _chatEventSchema,
     ),
-    DartTriggerDefinition(
-      pluginId: 'twitch',
-      triggerId: 'ban',
+    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+      pluginId: PluginId('twitch'),
+      triggerId: TriggerId('ban'),
       displayName: 'Viewer Banned',
       listen: () => _twitchEventStream(eventHub, 'ban'),
       eventSchema: _viewerEventSchema,
     ),
-    DartTriggerDefinition(
-      pluginId: 'twitch',
-      triggerId: 'timeout',
+    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+      pluginId: PluginId('twitch'),
+      triggerId: TriggerId('timeout'),
       displayName: 'Viewer Timed Out',
       listen: () => _twitchEventStream(eventHub, 'timeout'),
       eventSchema: _viewerEventSchema,
@@ -851,9 +821,9 @@ DartPluginManifest createTwitchPlugin(
       'beforeRaid',
       'walkon',
     ])
-      DartTriggerDefinition(
-        pluginId: 'twitch',
-        triggerId: eventId,
+      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+        pluginId: PluginId('twitch'),
+        triggerId: TriggerId(eventId),
         displayName: eventId,
         listen: () => _twitchEventStream(eventHub, eventId),
         configSchema: eventId == 'redemption' ? _redemptionTriggerSchema : null,

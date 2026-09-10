@@ -187,12 +187,12 @@ DartPluginRegistry _registry() {
   final registry = DartPluginRegistry();
   registry.register(
     DartPluginManifest(
-      id: 'benchmark',
+      id: PluginId('benchmark'),
       name: 'Benchmark',
       actions: [
-        DartActionDefinition(
-          pluginId: 'benchmark',
-          actionId: 'noop',
+        ActionSpec(
+          pluginId: PluginId('benchmark'),
+          actionId: ActionId('noop'),
           invoke: (config, context) async => const {},
         ),
       ],

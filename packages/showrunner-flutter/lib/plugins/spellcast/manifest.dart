@@ -6,20 +6,20 @@ import '../registry/plugin_contract.dart';
 DartPluginManifest createSpellcastPlugin({DartPluginEventHub? eventHub}) {
   final hub = eventHub ?? DartPluginEventHub();
   return DartPluginManifest(
-    id: 'spellcast',
+    id: PluginId('spellcast'),
     name: 'Spellcast',
     actions: [
-      DartActionDefinition(
-        pluginId: 'spellcast',
-        actionId: 'castSpell',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('spellcast'),
+        actionId: ActionId('castSpell'),
         displayName: 'Cast Spell',
         invoke: (config, context) => _castSpell(hub, config),
       ),
     ],
     triggers: [
-      DartTriggerDefinition(
-        pluginId: 'spellcast',
-        triggerId: 'spellHook',
+      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+        pluginId: PluginId('spellcast'),
+        triggerId: TriggerId('spellHook'),
         displayName: 'Spellcast Spell',
         configSchema: const DartDataInputSchema(
           label: 'Spell resource',

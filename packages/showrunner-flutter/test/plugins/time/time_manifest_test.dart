@@ -14,9 +14,9 @@ void main() {
   test('delay observes graph cancellation', () async {
     final token = DartCancellationToken(id: 'time-cancel');
     final action = createTimePlugin().actions.firstWhere(
-      (action) => action.actionId == 'delay',
+      (action) => action.actionId.value == 'delay',
     );
-    final execution = action.invoke({
+    final execution = action.invokeFromRuntime({
       'duration': 10,
     }, EvaluationContext(cancellationToken: token));
     final expectedCancellation = expectLater(

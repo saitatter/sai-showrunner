@@ -149,25 +149,25 @@ DartPluginManifest createBlueskyPlugin(
   String? appPassword,
   BlueskyAccountResolver? accountResolver,
 }) => DartPluginManifest(
-  id: 'bluesky',
+  id: PluginId('bluesky'),
   name: 'BlueSky',
   settings: const [
-    DartSettingDefinition(id: 'identifier', displayName: 'Handle or DID'),
-    DartSettingDefinition(
-      id: 'appPassword',
+    SettingSpec(id: SettingId('identifier'), displayName: 'Handle or DID'),
+    SettingSpec(
+      id: SettingId('appPassword'),
       displayName: 'App Password',
       secret: true,
     ),
-    DartSettingDefinition(
-      id: 'serviceUrl',
+    SettingSpec(
+      id: SettingId('serviceUrl'),
       displayName: 'Service URL',
       defaultValue: 'https://bsky.social',
     ),
   ],
   actions: [
-    DartActionDefinition(
-      pluginId: 'bluesky',
-      actionId: 'post',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('bluesky'),
+      actionId: ActionId('post'),
       displayName: 'BlueSky Post',
       configSchema: _postSchema,
       invoke: (config, context) => _post(

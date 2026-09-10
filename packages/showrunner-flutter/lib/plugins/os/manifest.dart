@@ -56,26 +56,26 @@ const _launchConfigSchema = DartDataInputSchema(
 );
 
 DartPluginManifest createOsPlugin() => const DartPluginManifest(
-  id: 'os',
+  id: PluginId('os'),
   name: 'Operating System',
   actions: [
-    DartActionDefinition(
-      pluginId: 'os',
-      actionId: 'powershell',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('os'),
+      actionId: ActionId('powershell'),
       displayName: 'PowerShell Command',
       invoke: _runPowershell,
       configSchema: _powerShellConfigSchema,
     ),
-    DartActionDefinition(
-      pluginId: 'os',
-      actionId: 'launchProcess',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('os'),
+      actionId: ActionId('launchProcess'),
       displayName: 'Launch Process',
       invoke: _launchProcess,
       configSchema: _launchConfigSchema,
     ),
-    DartActionDefinition(
-      pluginId: 'os',
-      actionId: 'launch',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('os'),
+      actionId: ActionId('launch'),
       displayName: 'Launch App',
       invoke: _launchProcess,
       configSchema: _launchConfigSchema,

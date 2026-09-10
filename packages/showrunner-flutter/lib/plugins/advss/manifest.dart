@@ -35,15 +35,15 @@ DartPluginManifest createAdvssPlugin(
   ObsTransport transport, {
   DartPluginEventHub? eventHub,
 }) => DartPluginManifest(
-  id: 'advss',
+  id: PluginId('advss'),
   name: 'Advanced Scene Switcher',
   settings: const [
-    DartSettingDefinition(id: 'obsConnection', displayName: 'OBS Connection'),
+    SettingSpec(id: SettingId('obsConnection'), displayName: 'OBS Connection'),
   ],
   actions: [
-    DartActionDefinition(
-      pluginId: 'advss',
-      actionId: 'AdvSSMessage',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('advss'),
+      actionId: ActionId('AdvSSMessage'),
       displayName: 'Advanced Scene Switcher Message',
       configSchema: _messageSchema,
       invoke: (config, context) => transport.call('CallVendorRequest', {
@@ -56,9 +56,9 @@ DartPluginManifest createAdvssPlugin(
   triggers: eventHub == null
       ? const []
       : [
-          DartTriggerDefinition(
-            pluginId: 'advss',
-            triggerId: 'advssEvent',
+          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+            pluginId: PluginId('advss'),
+            triggerId: TriggerId('advssEvent'),
             displayName: 'Advanced Scene Switcher Event',
             configSchema: _eventSchema,
             listen: () => eventHub.stream('obsVendorEvent'),

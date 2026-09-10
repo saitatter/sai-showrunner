@@ -22,19 +22,19 @@ void main() {
     final resourceEditors = createDefaultResourceEditorRegistry();
     try {
       final plugins = registry.plugins.toList()
-        ..sort((left, right) => left.id.compareTo(right.id));
+        ..sort((left, right) => left.id.value.compareTo(right.id.value));
       final snapshot = {
         'implementation': 'flutter',
         'plugins': [
           for (final plugin in plugins)
             {
-              'id': plugin.id,
+              'id': plugin.id.value,
               'name': plugin.name,
               'version': plugin.version,
               'settings': [
                 for (final setting in plugin.settings)
                   {
-                    'id': setting.id,
+                    'id': setting.id.value,
                     'secret': setting.secret,
                     'hasDefault': setting.defaultValue != null,
                   },
@@ -42,7 +42,7 @@ void main() {
               'actions': [
                 for (final action in plugin.actions)
                   {
-                    'id': action.actionId,
+                    'id': action.actionId.value,
                     'displayName': action.displayName,
                     'hasConfigSchema': action.configSchema != null,
                     'hasResultSchema': action.resultSchema != null,
@@ -51,7 +51,7 @@ void main() {
               'triggers': [
                 for (final trigger in plugin.triggers)
                   {
-                    'id': trigger.triggerId,
+                    'id': trigger.triggerId.value,
                     'displayName': trigger.displayName,
                     'hasConfigSchema': trigger.configSchema != null,
                   },
@@ -59,7 +59,7 @@ void main() {
               'states': [
                 for (final state in plugin.states)
                   {
-                    'id': state.id,
+                    'id': state.id.value,
                     'hasInitialValue': state.initialValue != null,
                   },
               ],
@@ -67,11 +67,11 @@ void main() {
                 for (final resource in resourceEditors.definitions.where(
                   (resource) =>
                       resource.pluginId.toLowerCase() ==
-                      plugin.id.toLowerCase(),
+                      plugin.id.value.toLowerCase(),
                 ))
                   resource.resourceType,
               ],
-              'ui': {'contribution': registry.uiFor(plugin.id) != null},
+              'ui': {'contribution': registry.uiFor(plugin.id.value) != null},
             },
         ],
       };

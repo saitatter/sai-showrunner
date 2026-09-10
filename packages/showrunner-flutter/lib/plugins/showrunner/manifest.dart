@@ -316,19 +316,19 @@ DartPluginManifest createShowRunnerPlugin({
   ShowRunnerAutomationRunner? runAutomation,
   ShowRunnerProfileActivation? activateProfile,
 }) => DartPluginManifest(
-  id: 'ShowRunner',
+  id: PluginId('ShowRunner'),
   name: 'ShowRunner',
   settings: [
-    DartSettingDefinition(
-      id: 'port',
+    SettingSpec(
+      id: SettingId('port'),
       displayName: 'Internal Webserver Port',
       defaultValue: 8181,
     ),
   ],
   actions: [
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'convertNumberToString',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('convertNumberToString'),
       displayName: 'Convert Number To String',
       invoke: _convertNumberToString,
       resultSchema: _stringResult,
@@ -338,9 +338,9 @@ DartPluginManifest createShowRunnerPlugin({
         fields: [_numberValue],
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'convertBooleanToString',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('convertBooleanToString'),
       displayName: 'Convert Boolean To String',
       invoke: _convertBooleanToString,
       resultSchema: _stringResult,
@@ -350,9 +350,9 @@ DartPluginManifest createShowRunnerPlugin({
         fields: [_booleanValue],
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'convertStringToNumber',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('convertStringToNumber'),
       displayName: 'Convert String To Number',
       invoke: _convertStringToNumber,
       resultSchema: _numberConversionResult,
@@ -362,9 +362,9 @@ DartPluginManifest createShowRunnerPlugin({
         fields: [_textValue, _fallbackNumber],
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'convertBooleanToNumber',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('convertBooleanToNumber'),
       displayName: 'Convert Boolean To Number',
       invoke: _convertBooleanToNumber,
       resultSchema: _numberResult,
@@ -374,9 +374,9 @@ DartPluginManifest createShowRunnerPlugin({
         fields: [_booleanValue],
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'convertNumberToBoolean',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('convertNumberToBoolean'),
       displayName: 'Convert Number To Boolean',
       invoke: _convertNumberToBoolean,
       resultSchema: _booleanResult,
@@ -386,9 +386,9 @@ DartPluginManifest createShowRunnerPlugin({
         fields: [_numberValue],
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'convertStringToBoolean',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('convertStringToBoolean'),
       displayName: 'Convert String To Boolean',
       invoke: _convertStringToBoolean,
       resultSchema: _booleanConversionResult,
@@ -398,9 +398,9 @@ DartPluginManifest createShowRunnerPlugin({
         fields: [_textValue, _fallbackBoolean],
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'convertObjectToJsonString',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('convertObjectToJsonString'),
       displayName: 'Convert Object To JSON String',
       invoke: _convertObjectToJsonString,
       resultSchema: _stringResult,
@@ -417,9 +417,9 @@ DartPluginManifest createShowRunnerPlugin({
         ],
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'convertArrayToJsonString',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('convertArrayToJsonString'),
       displayName: 'Convert Array To JSON String',
       invoke: _convertArrayToJsonString,
       resultSchema: _stringResult,
@@ -436,9 +436,9 @@ DartPluginManifest createShowRunnerPlugin({
         ],
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'convertJsonStringToObject',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('convertJsonStringToObject'),
       displayName: 'Convert JSON String To Object',
       invoke: _convertJsonStringToObject,
       resultSchema: _objectConversionResult,
@@ -448,9 +448,9 @@ DartPluginManifest createShowRunnerPlugin({
         fields: [_jsonValue],
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'convertJsonStringToArray',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('convertJsonStringToArray'),
       displayName: 'Convert JSON String To Array',
       invoke: _convertJsonStringToArray,
       resultSchema: _arrayConversionResult,
@@ -460,9 +460,9 @@ DartPluginManifest createShowRunnerPlugin({
         fields: [_jsonValue],
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'addToQueue',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('addToQueue'),
       displayName: 'Add to Queue',
       configSchema: _addToQueueSchema,
       resultSchema: _queueResultSchema,
@@ -473,53 +473,53 @@ DartPluginManifest createShowRunnerPlugin({
         loadAutomation: loadAutomation,
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'completeQueueItem',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('completeQueueItem'),
       displayName: 'Complete Queue Item',
       resultSchema: _completedQueueResultSchema,
       invoke: (config, context) async => {'completed': true},
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'cancelQueueItem',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('cancelQueueItem'),
       displayName: 'Cancel Queue Item',
       configSchema: _queueControlSchema,
       invoke: (config, context) => _cancelQueueItem(config, queueManager),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'clearQueue',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('clearQueue'),
       displayName: 'Clear Queue',
       configSchema: _queueControlSchema,
       invoke: (config, context) => _clearQueue(config, queueManager),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'skip',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('skip'),
       displayName: 'Queue Skip',
       configSchema: _queueControlSchema,
       invoke: (config, context) => _cancelQueueItem(config, queueManager),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'pause',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('pause'),
       displayName: 'Pause Queue',
       configSchema: _pauseQueueSchema,
       invoke: (config, context) => _pauseQueue(config, queueManager),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'profileActivation',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('profileActivation'),
       displayName: 'Profile Activation',
       configSchema: _profileActivationSchema,
       resultSchema: _profileResultSchema,
       invoke: (config, context) =>
           _activateProfile(config, context, activateProfile: activateProfile),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'toggleProfileActivation',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('toggleProfileActivation'),
       displayName: 'Toggle Profile Activation',
       configSchema: const DartDataInputSchema(
         label: '',
@@ -534,9 +534,9 @@ DartPluginManifest createShowRunnerPlugin({
         forceToggle: true,
       ),
     ),
-    DartActionDefinition(
-      pluginId: 'ShowRunner',
-      actionId: 'runAutomation',
+    ActionSpec<Map<String, dynamic>, Object?>(
+      pluginId: PluginId('ShowRunner'),
+      actionId: ActionId('runAutomation'),
       displayName: 'Run Automation',
       configSchema: _runAutomationSchema,
       invoke: (config, context) => _runAutomationAction(
@@ -548,24 +548,24 @@ DartPluginManifest createShowRunnerPlugin({
     ),
   ],
   triggers: [
-    DartTriggerDefinition(
-      pluginId: 'ShowRunner',
-      triggerId: 'autoRun',
+    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+      pluginId: PluginId('ShowRunner'),
+      triggerId: TriggerId('autoRun'),
       displayName: 'Run On Change',
       listen: Stream<RuntimeMap>.empty,
       configSchema: _autoRunSchema,
     ),
-    DartTriggerDefinition(
-      pluginId: 'ShowRunner',
-      triggerId: 'condition',
+    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+      pluginId: PluginId('ShowRunner'),
+      triggerId: TriggerId('condition'),
       displayName: 'Condition',
       listen: Stream<RuntimeMap>.empty,
       configSchema: _conditionTriggerSchema,
     ),
     if (queueManager != null)
-      DartTriggerDefinition(
-        pluginId: 'ShowRunner',
-        triggerId: 'queueItemStarted',
+      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+        pluginId: PluginId('ShowRunner'),
+        triggerId: TriggerId('queueItemStarted'),
         displayName: 'Queue Item Started',
         listen: () => queueManager.queueItemStarted,
         listenForConfig: (config) {

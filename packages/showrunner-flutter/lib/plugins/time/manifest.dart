@@ -104,35 +104,35 @@ const _timerTriggerSchema = DartDataInputSchema(
 
 DartPluginManifest createTimePlugin({DartVariableRuntime? variableRuntime}) =>
     DartPluginManifest(
-      id: 'time',
+      id: PluginId('time'),
       name: 'Time',
       actions: [
-        DartActionDefinition(
-          pluginId: 'time',
-          actionId: 'delay',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('time'),
+          actionId: ActionId('delay'),
           displayName: 'Delay',
           invoke: _delay,
           configSchema: _delaySchema,
         ),
-        DartActionDefinition(
-          pluginId: 'time',
-          actionId: 'toggleTimer',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('time'),
+          actionId: ActionId('toggleTimer'),
           displayName: 'Toggle Timer',
           invoke: (config, context) =>
               _toggleTimer(config, context, variableRuntime),
           configSchema: _toggleTimerSchema,
         ),
-        DartActionDefinition(
-          pluginId: 'time',
-          actionId: 'setTimer',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('time'),
+          actionId: ActionId('setTimer'),
           displayName: 'Set Timer',
           invoke: (config, context) =>
               _setTimer(config, context, variableRuntime),
           configSchema: _timerSchema,
         ),
-        DartActionDefinition(
-          pluginId: 'time',
-          actionId: 'offsetTimer',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('time'),
+          actionId: ActionId('offsetTimer'),
           displayName: 'Offset Timer',
           invoke: (config, context) =>
               _offsetTimer(config, context, variableRuntime),
@@ -140,17 +140,17 @@ DartPluginManifest createTimePlugin({DartVariableRuntime? variableRuntime}) =>
         ),
       ],
       triggers: [
-        DartTriggerDefinition(
-          pluginId: 'time',
-          triggerId: 'repeat',
+        TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+          pluginId: PluginId('time'),
+          triggerId: TriggerId('repeat'),
           displayName: 'Repeat',
           configSchema: _repeatSchema,
           listen: _emptyTrigger,
           listenForConfig: _repeatEvents,
         ),
-        DartTriggerDefinition(
-          pluginId: 'time',
-          triggerId: 'timer',
+        TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+          pluginId: PluginId('time'),
+          triggerId: TriggerId('timer'),
           displayName: 'Timer',
           configSchema: _timerTriggerSchema,
           listen: _emptyTrigger,

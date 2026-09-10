@@ -50,8 +50,8 @@ void main() {
       final plugin = createInputPlugin(platform: platform);
 
       final result = await plugin.actions
-          .firstWhere((action) => action.actionId == 'pressKey')
-          .invoke({'key': 'A', 'duration': 0}, EvaluationContext());
+          .firstWhere((action) => action.actionId.value == 'pressKey')
+          .invokeFromRuntime({'key': 'A', 'duration': 0}, EvaluationContext());
 
       expect(platform.calls, ['key-down:65', 'key-up:65']);
       expect(result, {'pressed': true, 'key': 'A', 'duration': 0});
@@ -63,8 +63,11 @@ void main() {
     final plugin = createInputPlugin(platform: platform);
 
     final result = await plugin.actions
-        .firstWhere((action) => action.actionId == 'mouseButton')
-        .invoke({'button': 'mouse4', 'duration': 0}, EvaluationContext());
+        .firstWhere((action) => action.actionId.value == 'mouseButton')
+        .invokeFromRuntime({
+          'button': 'mouse4',
+          'duration': 0,
+        }, EvaluationContext());
 
     expect(platform.calls, ['mouse-down:mouse4', 'mouse-up:mouse4']);
     expect(result, {'pressed': true, 'button': 'mouse4', 'duration': 0});
@@ -75,8 +78,11 @@ void main() {
     final plugin = createInputPlugin(platform: platform);
 
     final result = await plugin.actions
-        .firstWhere((action) => action.actionId == 'mouseButton')
-        .invoke({'button': 'sideways', 'duration': 0.1}, EvaluationContext());
+        .firstWhere((action) => action.actionId.value == 'mouseButton')
+        .invokeFromRuntime({
+          'button': 'sideways',
+          'duration': 0.1,
+        }, EvaluationContext());
 
     expect(platform.calls, isEmpty);
     expect(result, {'pressed': false, 'button': 'sideways', 'duration': 0.1});
@@ -87,10 +93,10 @@ void main() {
     final plugin = createInputPlugin(platform: platform);
     final token = DartCancellationToken(id: 'input-cancel');
     final action = plugin.actions.firstWhere(
-      (action) => action.actionId == 'pressKey',
+      (action) => action.actionId.value == 'pressKey',
     );
 
-    final execution = action.invoke({
+    final execution = action.invokeFromRuntime({
       'key': 'A',
       'duration': 10,
     }, EvaluationContext(cancellationToken: token));
@@ -118,7 +124,7 @@ void main() {
 
   test('input manifest exposes the mouse action schema', () {
     final mouse = createInputPlugin().actions.firstWhere(
-      (action) => action.actionId == 'mouseButton',
+      (action) => action.actionId.value == 'mouseButton',
     );
 
     expect(mouse.configSchema?.fields.map((field) => field.key), [
@@ -176,12 +182,12 @@ void main() {
       ..register(createInputPlugin(platform: platform))
       ..register(
         DartPluginManifest(
-          id: 'test',
+          id: PluginId('test'),
           name: 'Test',
           actions: [
-            DartActionDefinition(
-              pluginId: 'test',
-              actionId: 'record',
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: PluginId('test'),
+              actionId: ActionId('record'),
               invoke: (config, context) async {
                 executions++;
                 executionCompleted.complete();

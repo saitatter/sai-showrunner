@@ -90,55 +90,55 @@ const _emptySchema = DartDataInputSchema(
 
 DartPluginManifest createModerationPlugin(ModerationService service) =>
     DartPluginManifest(
-      id: 'moderation',
+      id: PluginId('moderation'),
       name: 'Moderation Docker',
       settings: const [
-        DartSettingDefinition(
-          id: 'enabled',
+        SettingSpec(
+          id: SettingId('enabled'),
           displayName: 'Enabled',
           type: DartSettingType.boolean,
         ),
-        DartSettingDefinition(id: 'apiBaseUrl', displayName: 'API URL'),
-        DartSettingDefinition(
-          id: 'apiToken',
+        SettingSpec(id: SettingId('apiBaseUrl'), displayName: 'API URL'),
+        SettingSpec(
+          id: SettingId('apiToken'),
           displayName: 'API Token',
           secret: true,
         ),
-        DartSettingDefinition(
-          id: 'dashboardWsUrl',
+        SettingSpec(
+          id: SettingId('dashboardWsUrl'),
           displayName: 'Dashboard WebSocket URL',
         ),
-        DartSettingDefinition(
-          id: 'forwardYouTube',
+        SettingSpec(
+          id: SettingId('forwardYouTube'),
           displayName: 'Forward YouTube Chat',
           defaultValue: true,
         ),
       ],
       states: const [
-        DartPluginStateDefinition(
-          id: 'health',
+        StateSpec(
+          id: StateId('health'),
           displayName: 'Health',
           initialValue: 'unknown',
         ),
       ],
       actions: [
-        DartActionDefinition(
-          pluginId: 'moderation',
-          actionId: 'moderateChatMessage',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('moderation'),
+          actionId: ActionId('moderateChatMessage'),
           displayName: 'Filter Chat Message',
           configSchema: _moderateChatSchema,
           invoke: (config, context) => service.moderateChatMessage(config),
         ),
-        DartActionDefinition(
-          pluginId: 'moderation',
-          actionId: 'sendTestMessage',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('moderation'),
+          actionId: ActionId('sendTestMessage'),
           displayName: 'Send Test Moderation Event',
           configSchema: _emptySchema,
           invoke: (config, context) async => service.sendTestMessage(),
         ),
-        DartActionDefinition(
-          pluginId: 'moderation',
-          actionId: 'requestOverride',
+        ActionSpec<Map<String, dynamic>, Object?>(
+          pluginId: PluginId('moderation'),
+          actionId: ActionId('requestOverride'),
           displayName: 'Request Moderation Override',
           configSchema: _overrideSchema,
           invoke: (config, context) => service.requestOverride(

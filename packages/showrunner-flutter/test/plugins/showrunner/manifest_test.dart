@@ -27,7 +27,7 @@ void main() {
     addTearDown(registry.close);
 
     final trigger = registry.findTrigger('ShowRunner', 'queueItemStarted')!;
-    final started = trigger.listenForConfig!.call({'queue': 'alerts'}).first;
+    final started = trigger.listenForRuntime({'queue': 'alerts'})!.first;
     final result = await registry.invokeAction('ShowRunner', 'addToQueue', {
       'queue': 'alerts',
       'automation': 'alert-worker',

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/obs/obs.dart';
-import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
@@ -13,7 +12,9 @@ import 'package:showrunner_flutter/plugins/registry/plugin_ui.dart';
 void main() {
   test('keeps Flutter UI contributions outside the plugin manifest', () {
     final registry = DartPluginRegistry()
-      ..register(const DartPluginManifest(id: 'sample', name: 'Sample'));
+      ..register(
+        const DartPluginManifest(id: PluginId('sample'), name: 'Sample'),
+      );
     final contribution = DartFlutterPluginUiContribution(
       builder: (context, dataService, providerEvents, registryFuture) =>
           const SizedBox.shrink(),
@@ -50,10 +51,12 @@ void main() {
     );
 
     final registry = DartPluginRegistry();
-    registry.register(const DartPluginManifest(id: 'sample', name: 'Sample'));
+    registry.register(
+      const DartPluginManifest(id: PluginId('sample'), name: 'Sample'),
+    );
     expect(
       () => registry.register(
-        const DartPluginManifest(id: 'sample', name: 'Duplicate'),
+        const DartPluginManifest(id: PluginId('sample'), name: 'Duplicate'),
       ),
       throwsArgumentError,
     );
@@ -63,7 +66,7 @@ void main() {
     final registry = createDefaultPluginRegistry();
 
     expect(
-      registry.plugins.map((plugin) => plugin.id),
+      registry.plugins.map((plugin) => plugin.id.value),
       containsAll(<String>[
         'obs',
         'youtube',
@@ -169,7 +172,7 @@ void main() {
       registry
           .findPlugin('ShowRunner')!
           .actions
-          .map((action) => action.actionId),
+          .map((action) => action.actionId.value),
       containsAll(<String>[
         'convertNumberToString',
         'convertBooleanToString',
@@ -290,7 +293,9 @@ void main() {
 
   test('reports disabled and missing actions with typed errors', () {
     final registry = DartPluginRegistry()
-      ..register(const DartPluginManifest(id: 'sample', name: 'Sample'));
+      ..register(
+        const DartPluginManifest(id: PluginId('sample'), name: 'Sample'),
+      );
     registry.setPluginEnabled('sample', false);
 
     expect(
@@ -308,19 +313,19 @@ void main() {
     final registry = DartPluginRegistry();
     registry.register(
       DartPluginManifest(
-        id: 'sample',
+        id: PluginId('sample'),
         name: 'Sample',
         settings: const [
-          DartSettingDefinition(
-            id: 'token',
+          SettingSpec(
+            id: SettingId('token'),
             displayName: 'Token',
             secret: true,
           ),
         ],
         triggers: [
-          DartTriggerDefinition(
-            pluginId: 'sample',
-            triggerId: 'event',
+          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+            pluginId: PluginId('sample'),
+            triggerId: TriggerId('event'),
             displayName: 'Event',
             listen: () async* {
               yield {'value': 1};
@@ -342,7 +347,7 @@ void main() {
     var closeCount = 0;
     final registry = DartPluginRegistry()
       ..register(
-        DartPluginManifest(id: 'lifecycle', name: 'Lifecycle'),
+        DartPluginManifest(id: PluginId('lifecycle'), name: 'Lifecycle'),
         onStop: () async => closeCount++,
       );
 
@@ -350,8 +355,9 @@ void main() {
 
     expect(closeCount, 1);
     expect(
-      () =>
-          registry.register(const DartPluginManifest(id: 'late', name: 'Late')),
+      () => registry.register(
+        const DartPluginManifest(id: PluginId('late'), name: 'Late'),
+      ),
       throwsStateError,
     );
   });
@@ -362,12 +368,12 @@ void main() {
       final events = <String>[];
       final registry = DartPluginRegistry()
         ..register(
-          DartPluginManifest(id: 'first', name: 'First'),
+          DartPluginManifest(id: PluginId('first'), name: 'First'),
           onStart: () async => events.add('start:first'),
           onStop: () async => events.add('stop:first'),
         )
         ..register(
-          DartPluginManifest(id: 'second', name: 'Second'),
+          DartPluginManifest(id: PluginId('second'), name: 'Second'),
           onStart: () async => events.add('start:second'),
           onStop: () async => events.add('stop:second'),
         );
@@ -417,7 +423,10 @@ final class _TestPluginModule implements DartPluginModule {
   final List<String> events;
 
   @override
-  final manifest = const DartPluginManifest(id: 'module', name: 'Module');
+  final manifest = const DartPluginManifest(
+    id: PluginId('module'),
+    name: 'Module',
+  );
 
   @override
   Future<void> initialize(DartPluginHostContext host) async {
@@ -443,7 +452,8 @@ final class _StopFailureModule implements DartPluginModule {
   final bool fails;
 
   @override
-  DartPluginManifest get manifest => DartPluginManifest(id: id, name: id);
+  DartPluginManifest get manifest =>
+      DartPluginManifest(id: PluginId(id), name: id);
 
   @override
   Future<void> initialize(DartPluginHostContext host) async {}

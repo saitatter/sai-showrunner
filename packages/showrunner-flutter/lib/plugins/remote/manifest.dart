@@ -105,33 +105,33 @@ DartPluginManifest createRemotePlugin({
   DartPluginEventHub? eventHub,
   RemoteButtonRuntime? runtime,
 }) => DartPluginManifest(
-  id: 'remote',
+  id: PluginId('remote'),
   name: 'Remote',
   settings: const [
-    DartSettingDefinition(
-      id: 'enabled',
+    SettingSpec(
+      id: SettingId('enabled'),
       displayName: 'Enable remote HTTP server',
       defaultValue: false,
     ),
-    DartSettingDefinition(
-      id: 'host',
+    SettingSpec(
+      id: SettingId('host'),
       displayName: 'Bind host',
       defaultValue: '127.0.0.1',
     ),
-    DartSettingDefinition(
-      id: 'port',
+    SettingSpec(
+      id: SettingId('port'),
       displayName: 'Bind port',
       defaultValue: 8390,
     ),
-    DartSettingDefinition(
-      id: 'apiBase',
+    SettingSpec(
+      id: SettingId('apiBase'),
       displayName: 'Remote dashboard API base URL',
       defaultValue: 'https://api.ShowRunner.io',
     ),
   ],
   states: const [
-    DartPluginStateDefinition(
-      id: 'server',
+    StateSpec(
+      id: StateId('server'),
       displayName: 'Server',
       initialValue: 'stopped',
     ),
@@ -139,9 +139,9 @@ DartPluginManifest createRemotePlugin({
   triggers: eventHub == null
       ? const []
       : [
-          DartTriggerDefinition(
-            pluginId: 'remote',
-            triggerId: 'button',
+          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+            pluginId: PluginId('remote'),
+            triggerId: TriggerId('button'),
             displayName: 'Remote Button',
             configSchema: _buttonSchema,
             listen: () => eventHub.stream('remoteButton'),

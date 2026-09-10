@@ -307,11 +307,11 @@ final class DartProfileRuntime {
       }
       final definition = registry.findTrigger(pluginId, triggerId);
       if (definition == null || !registry.isPluginEnabled(pluginId)) continue;
-      final configuredStream = definition.listenForConfig?.call(target.config);
+      final configuredStream = definition.listenForRuntime(target.config);
       if (configuredStream != null) {
         subscriptions.add(
-          configuredStream.listen((payload) {
-            if (definition.matches?.call(target.config, payload) == false) {
+          configuredStream.cast<RuntimeMap>().listen((payload) {
+            if (!definition.matchesRuntime(target.config, payload)) {
               return;
             }
             unawaited(
@@ -339,7 +339,7 @@ final class DartProfileRuntime {
       final definition = registry.findTrigger(pluginId, triggerId);
       if (definition == null) continue;
       subscriptions.add(
-        definition.listen().listen((payload) {
+        definition.listenFromRuntime().cast<RuntimeMap>().listen((payload) {
           unawaited(
             _dispatchTriggerTargets(
               profileId,
@@ -411,7 +411,7 @@ final class DartProfileRuntime {
 
   Future<void> _dispatchTriggerTargets(
     String profileId,
-    DartTriggerDefinition definition,
+    TriggerSpec<dynamic, dynamic> definition,
     List<_ProfileTriggerTarget> targets,
     RuntimeMap payload, {
     EvaluationContext? context,
@@ -419,7 +419,9 @@ final class DartProfileRuntime {
     void Function(String nodeId)? onNodeExit,
   }) async {
     for (final target in targets) {
-      if (definition.matches?.call(target.config, payload) == false) continue;
+      if (!definition.matchesRuntime(target.config, payload)) {
+        continue;
+      }
       await _runTriggerTarget(
         profileId,
         target,

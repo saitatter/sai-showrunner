@@ -5,25 +5,25 @@ import 'package:showrunner_flutter/runtime/expression.dart';
 
 void main() {
   const plugin = DartPluginManifest(
-    id: 'obs',
+    id: PluginId('obs'),
     name: 'OBS Studio',
     actions: [
-      DartActionDefinition(
-        pluginId: 'obs',
-        actionId: 'browserRefresh',
+      ActionSpec<Map<String, dynamic>, Object?>(
+        pluginId: PluginId('obs'),
+        actionId: ActionId('browserRefresh'),
         displayName: 'Refresh browser source',
         invoke: _noopAction,
       ),
     ],
     triggers: [
-      DartTriggerDefinition(
-        pluginId: 'obs',
-        triggerId: 'sceneChanged',
+      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+        pluginId: PluginId('obs'),
+        triggerId: TriggerId('sceneChanged'),
         displayName: 'Scene changed',
         listen: _noopTrigger,
       ),
     ],
-    settings: [DartSettingDefinition(id: 'host', displayName: 'OBS host')],
+    settings: [SettingSpec(id: SettingId('host'), displayName: 'OBS host')],
   );
 
   test('matches plugin metadata and registered capabilities', () {
@@ -35,7 +35,7 @@ void main() {
   });
 
   test('filters grouped catalog entries without changing their order', () {
-    const twitch = DartPluginManifest(id: 'twitch', name: 'Twitch');
+    const twitch = DartPluginManifest(id: PluginId('twitch'), name: 'Twitch');
     expect(filterPlugins([plugin, twitch], 'twitch'), [twitch]);
     expect(filterPlugins([plugin, twitch], ''), [plugin, twitch]);
   });

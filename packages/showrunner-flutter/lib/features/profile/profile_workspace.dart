@@ -461,7 +461,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         ? null
         : await widget.registryFuture;
     if (!mounted) return;
-    final selected = await showDialog<DartTriggerDefinition>(
+    final selected = await showDialog<TriggerSpec>(
       context: context,
       builder: (context) => _TriggerPickerDialog(registry: registry),
     );
@@ -857,13 +857,13 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
   String? _graphTriggerNodeId;
   String? _error;
 
-  List<DartTriggerDefinition> get _availableTriggers => [
+  List<TriggerSpec> get _availableTriggers => [
     for (final plugin
         in widget.registry?.plugins ?? const <DartPluginManifest>[])
       ...plugin.triggers,
   ];
 
-  DartTriggerDefinition? get _selectedTrigger => _availableTriggers
+  TriggerSpec? get _selectedTrigger => _availableTriggers
       .where(
         (trigger) =>
             '${trigger.pluginId}:${trigger.triggerId}' == _selectedTriggerId,
@@ -959,10 +959,7 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
     Navigator.of(context).pop(result);
   }
 
-  JsonMap _saveAutomation(
-    JsonMap config,
-    DartTriggerDefinition? selectedTrigger,
-  ) {
+  JsonMap _saveAutomation(JsonMap config, TriggerSpec? selectedTrigger) {
     final automation = _automationEditor.toAutomation(_originalAutomation);
     final json = automation.toJson();
     final nodeId = _graphTriggerNodeId;

@@ -41,7 +41,7 @@ void main() {
     final trigger = registry.findTrigger('advss', 'advssEvent')!;
 
     expect(
-      trigger.matches!(
+      trigger.matchesRuntime(
         {'message': 'hello'},
         {
           'vendorName': 'AdvancedSceneSwitcher',
@@ -52,7 +52,7 @@ void main() {
       isTrue,
     );
     expect(
-      trigger.matches!(
+      trigger.matchesRuntime(
         {'message': 'hello'},
         {
           'vendorName': 'other',

@@ -2,21 +2,37 @@ import '../../runtime/expression.dart';
 import '../../schema/data_input.dart';
 import '../contracts/identifiers.dart';
 
-typedef DartPluginAction =
-    Future<Object?> Function(RuntimeMap config, EvaluationContext context);
+export '../contracts/identifiers.dart';
 
-typedef DartPluginTrigger = Stream<RuntimeMap> Function();
-typedef DartPluginConfiguredTrigger =
-    Stream<RuntimeMap> Function(RuntimeMap config);
-typedef DartPluginTriggerMatcher =
-    bool Function(RuntimeMap config, RuntimeMap payload);
+/// Type-safe action handler contract.
+///
+/// [C] and [R] are deliberately explicit even for actions that still use a
+/// map-shaped configuration at the persistence boundary. New plugins can
+/// supply a domain config type and a [PluginConfigCodec] without changing the
+/// registry or graph runtime.
+typedef ActionHandler<C, R> =
+    Future<R> Function(C config, EvaluationContext context);
+
+typedef TriggerListener<E> = Stream<E> Function();
+typedef ConfiguredTriggerListener<C, E> = Stream<E> Function(C config);
+typedef TriggerMatcher<C, E> = bool Function(C config, E payload);
+
+/// Converts a persisted/protocol config at the plugin boundary into the type
+/// used by an [ActionSpec] or [TriggerSpec].
+abstract interface class PluginConfigCodec<C> {
+  const PluginConfigCodec();
+
+  C decode(RuntimeMap value);
+
+  RuntimeMap encode(C value);
+}
 
 typedef DartPluginLifecycleHook = Future<void> Function();
 
 enum DartSettingType { text, number, boolean }
 
-final class DartSettingDefinition {
-  const DartSettingDefinition({
+final class SettingSpec<T> {
+  const SettingSpec({
     required this.id,
     required this.displayName,
     this.secret = false,
@@ -24,25 +40,25 @@ final class DartSettingDefinition {
     this.type,
   });
 
-  final String id;
+  final SettingId id;
   final String displayName;
   final bool secret;
-  final dynamic defaultValue;
+  final T? defaultValue;
   final DartSettingType? type;
 
   DartSettingType get valueType {
     final explicitType = type;
     if (explicitType != null) return explicitType;
-    if (defaultValue is bool) return DartSettingType.boolean;
-    if (defaultValue is num) return DartSettingType.number;
+    if (T == bool || defaultValue is bool) return DartSettingType.boolean;
+    if (T == num || T == int || T == double || defaultValue is num) {
+      return DartSettingType.number;
+    }
     return DartSettingType.text;
   }
-
-  SettingId get key => SettingId(id);
 }
 
-final class DartTriggerDefinition {
-  const DartTriggerDefinition({
+final class TriggerSpec<C, E> {
+  const TriggerSpec({
     required this.pluginId,
     required this.triggerId,
     required this.displayName,
@@ -51,55 +67,82 @@ final class DartTriggerDefinition {
     this.eventSchema,
     this.matches,
     this.listenForConfig,
+    this.configCodec,
   });
 
-  final String pluginId;
-  final String triggerId;
+  final PluginId pluginId;
+  final TriggerId triggerId;
   final String displayName;
-  final DartPluginTrigger listen;
+  final TriggerListener<E> listen;
   final DartDataInputSchema? configSchema;
 
   /// Fields emitted by this trigger at runtime. This is separate from
   /// [configSchema], which describes how the trigger is configured.
   final DartDataInputSchema? eventSchema;
-  final DartPluginTriggerMatcher? matches;
-  final DartPluginConfiguredTrigger? listenForConfig;
+  final TriggerMatcher<C, E>? matches;
+  final ConfiguredTriggerListener<C, E>? listenForConfig;
+  final PluginConfigCodec<C>? configCodec;
 
-  TriggerKey get key =>
-      TriggerKey(plugin: PluginId(pluginId), trigger: TriggerId(triggerId));
+  C decodeConfig(RuntimeMap value) {
+    final codec = configCodec;
+    return codec == null ? value as C : codec.decode(value);
+  }
+
+  Stream<dynamic>? listenForRuntime(RuntimeMap value) {
+    final listener = listenForConfig;
+    return listener == null ? null : listener(decodeConfig(value));
+  }
+
+  Stream<dynamic> listenFromRuntime() => listen();
+
+  bool matchesRuntime(RuntimeMap config, RuntimeMap payload) =>
+      matches?.call(decodeConfig(config), payload as E) ?? true;
+
+  TriggerKey get key => TriggerKey(plugin: pluginId, trigger: triggerId);
 }
 
-final class DartPluginStateDefinition {
-  const DartPluginStateDefinition({
+final class StateSpec<T> {
+  const StateSpec({
     required this.id,
     required this.displayName,
     this.initialValue,
   });
 
-  final String id;
+  final StateId id;
   final String displayName;
-  final dynamic initialValue;
+  final T? initialValue;
 }
 
-final class DartActionDefinition {
-  const DartActionDefinition({
+final class ActionSpec<C, R> {
+  const ActionSpec({
     required this.pluginId,
     required this.actionId,
     required this.invoke,
     this.displayName,
     this.configSchema,
     this.resultSchema,
+    this.configCodec,
   });
 
-  final String pluginId;
-  final String actionId;
+  final PluginId pluginId;
+  final ActionId actionId;
   final String? displayName;
-  final DartPluginAction invoke;
+  final ActionHandler<C, R> invoke;
   final DartDataInputSchema? configSchema;
   final DartDataInputSchema? resultSchema;
+  final PluginConfigCodec<C>? configCodec;
 
-  ActionKey get key =>
-      ActionKey(plugin: PluginId(pluginId), action: ActionId(actionId));
+  C decodeConfig(RuntimeMap value) {
+    final codec = configCodec;
+    return codec == null ? value as C : codec.decode(value);
+  }
+
+  Future<Object?> invokeFromRuntime(
+    RuntimeMap value,
+    EvaluationContext context,
+  ) async => await invoke(decodeConfig(value), context);
+
+  ActionKey get key => ActionKey(plugin: pluginId, action: actionId);
 }
 
 /// Declarative plugin contract. It contains no Flutter or provider runtime.
@@ -108,19 +151,17 @@ final class DartPluginManifest {
     required this.id,
     required this.name,
     this.version = '0.0.0',
-    this.actions = const <DartActionDefinition>[],
-    this.settings = const <DartSettingDefinition>[],
-    this.triggers = const <DartTriggerDefinition>[],
-    this.states = const <DartPluginStateDefinition>[],
+    this.actions = const <ActionSpec<dynamic, dynamic>>[],
+    this.settings = const <SettingSpec<dynamic>>[],
+    this.triggers = const <TriggerSpec<dynamic, dynamic>>[],
+    this.states = const <StateSpec<dynamic>>[],
   });
 
-  final String id;
+  final PluginId id;
   final String name;
   final String version;
-  final List<DartActionDefinition> actions;
-  final List<DartSettingDefinition> settings;
-  final List<DartTriggerDefinition> triggers;
-  final List<DartPluginStateDefinition> states;
-
-  PluginId get pluginKey => PluginId(id);
+  final List<ActionSpec<dynamic, dynamic>> actions;
+  final List<SettingSpec<dynamic>> settings;
+  final List<TriggerSpec<dynamic, dynamic>> triggers;
+  final List<StateSpec<dynamic>> states;
 }
