@@ -14,6 +14,7 @@ import '../schema/automation.dart';
 import 'sai_nodes/showrunner_clipboard_payload.dart';
 import 'graph_node_style.dart';
 import 'models/graph_editor_models.dart';
+import 'search/graph_search_service.dart';
 
 typedef GraphResourceOptionsLoader =
     Future<List<String>> Function(String resourceType);
@@ -105,6 +106,11 @@ class ShowRunnerGraphEditor {
     controller = _createController();
     _controllers[_mainGraphKey] = controller;
     _syncFrameProjection(controller);
+    _searchService = GraphSearchService(
+      controllerProvider: () => controller,
+      titleForNode: nodeTitle,
+      dataForNode: nodeData,
+    );
   }
 
   static const _mainGraphKey = '';
@@ -122,6 +128,7 @@ class ShowRunnerGraphEditor {
   final DartPluginRegistry _registry;
   final GraphResourceOptionsLoader? resourceOptionsLoader;
   final Map<String, NodeEditorController> _controllers = {};
+  late final GraphSearchService _searchService;
   // Editor IDs are transient; this map preserves the persisted node payload.
   final Map<String, JsonMap> _nodeDataByEditorId = {};
   final Map<String, String> _schemaIdByEditorId = {};
@@ -160,9 +167,9 @@ class ShowRunnerGraphEditor {
   final ValueNotifier<bool> previewPlaying = ValueNotifier(false);
   final ValueNotifier<Duration> previewElapsed = ValueNotifier(Duration.zero);
   final ValueNotifier<String?> graphFeedback = ValueNotifier(null);
-  final ValueNotifier<String> searchQuery = ValueNotifier('');
-  final ValueNotifier<int> searchMatchIndex = ValueNotifier(0);
-  final ValueNotifier<bool> canvasSearchOpen = ValueNotifier(false);
+  ValueNotifier<String> get searchQuery => _searchService.query;
+  ValueNotifier<int> get searchMatchIndex => _searchService.matchIndex;
+  ValueNotifier<bool> get canvasSearchOpen => _searchService.isOpen;
   final ValueNotifier<List<String>> recentNodeTypes = ValueNotifier(const []);
   final ValueNotifier<int> nodeRevision = ValueNotifier(0);
   final ValueNotifier<bool> documentDirty = ValueNotifier(false);
@@ -1075,59 +1082,29 @@ class ShowRunnerGraphEditor {
   }
 
   void setSearchQuery(String query) {
-    searchQuery.value = query.trim();
-    searchMatchIndex.value = 0;
+    _searchService.setQuery(query);
   }
 
   void openCanvasSearch() {
-    searchQuery.value = '';
-    canvasSearchOpen.value = true;
-    searchMatchIndex.value = 0;
+    _searchService.open();
   }
 
   void closeCanvasSearch() {
-    canvasSearchOpen.value = false;
+    _searchService.close();
   }
 
   Set<String> searchNodeIds([String? query]) {
-    final normalized = (query ?? searchQuery.value).toLowerCase();
-    if (normalized.isEmpty) return controller.nodes.keys.toSet();
-    return controller.nodes.values
-        .where((node) {
-          final haystack = [
-            nodeTitle(node.id),
-            node.prototype.idName,
-            _nodeDataByEditorId[node.id]?.toString() ?? '',
-          ].join(' ').toLowerCase();
-          return haystack.contains(normalized);
-        })
-        .map((node) => node.id)
-        .toSet();
+    return _searchService.nodeIds(query);
   }
 
   void focusSearchResults() {
-    final matches = searchNodeIds();
-    if (matches.isNotEmpty) {
-      controller.focusNodesById(matches, animate: false);
-    }
+    _searchService.focusResults();
   }
 
-  int searchResultCount() => searchNodeIds().length;
+  int searchResultCount() => _searchService.resultCount;
 
-  String? focusSearchResult({bool forward = true}) {
-    final matches = searchNodeIds().toList();
-    if (matches.isEmpty) {
-      searchMatchIndex.value = 0;
-      return null;
-    }
-    final nextIndex = forward
-        ? (searchMatchIndex.value + 1) % matches.length
-        : (searchMatchIndex.value - 1 + matches.length) % matches.length;
-    searchMatchIndex.value = nextIndex;
-    final nodeId = matches[nextIndex];
-    controller.focusNodesById({nodeId}, animate: false);
-    return nodeId;
-  }
+  String? focusSearchResult({bool forward = true}) =>
+      _searchService.focusResult(forward: forward);
 
   void markSchemaNodeRunning(String schemaId) {
     final editorId = editorNodeIdForSchema(schemaId);
@@ -2598,15 +2575,14 @@ class ShowRunnerGraphEditor {
 
   void autoLayout() {
     final nodes = controller.nodes.values.toList();
+    final positions = <String, Offset>{};
     for (var index = 0; index < nodes.length; index++) {
       final column = index % 4;
       final row = index ~/ 4;
       final node = nodes[index];
-      final target = Offset(column * 280.0, row * 180.0);
-      controller.selectNodesById({node.id});
-      controller.dragSelection(target - node.offset, isWorldDelta: true);
+      positions[node.id] = Offset(column * 280.0, row * 180.0);
     }
-    controller.clearSelection();
+    controller.applyLayout(positions);
   }
 
   void loadAutomation(AutomationData automation) {
@@ -3753,9 +3729,7 @@ class ShowRunnerGraphEditor {
     previewElapsed.dispose();
     graphFeedback.dispose();
     selectedFrameId.dispose();
-    searchQuery.dispose();
-    searchMatchIndex.dispose();
-    canvasSearchOpen.dispose();
+    _searchService.dispose();
     recentNodeTypes.dispose();
     nodeRevision.removeListener(_markDocumentDirtyFromRevision);
     nodeRevision.dispose();

@@ -1655,6 +1655,38 @@ void main() {
     expect(editor.toAutomation(const AutomationData()).dataWires, isEmpty);
   });
 
+  test('auto-layout applies one undoable layout operation', () async {
+    final editor = ShowRunnerGraphEditor();
+    addTearDown(editor.dispose);
+    editor.loadAutomation(
+      const AutomationData(
+        graph: AutomationGraph(
+          nodes: [
+            GraphNode(id: 'one', type: 'action', x: 900, y: 900),
+            GraphNode(id: 'two', type: 'action', x: -400, y: 300),
+            GraphNode(id: 'three', type: 'action', x: 60, y: -180),
+          ],
+          entryNodeId: 'one',
+        ),
+      ),
+    );
+
+    await Future<void>.delayed(Duration.zero);
+    editor.autoLayout();
+    final first = editor.editorNodeIdForSchema('one')!;
+    final second = editor.editorNodeIdForSchema('two')!;
+    final third = editor.editorNodeIdForSchema('three')!;
+    expect(editor.controller.nodes[first]!.offset, Offset.zero);
+    expect(editor.controller.nodes[second]!.offset, const Offset(280, 0));
+    expect(editor.controller.nodes[third]!.offset, const Offset(560, 0));
+
+    await Future<void>.delayed(Duration.zero);
+    editor.controller.history.undo();
+    expect(editor.controller.nodes[first]!.offset, const Offset(900, 900));
+    expect(editor.controller.nodes[second]!.offset, const Offset(-400, 300));
+    expect(editor.controller.nodes[third]!.offset, const Offset(60, -180));
+  });
+
   test('persists selected graph frames in automation metadata', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
