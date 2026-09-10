@@ -668,9 +668,6 @@ class ShowRunnerGraphEditor {
     if (type.startsWith('trigger.')) return 'Trigger';
     if (type.startsWith('variable.')) return 'Variable';
     if (type.startsWith('subgraphcall:')) return 'Subgraph';
-    if (type == 'queue.additem' || type == 'overlay.pushchat') {
-      return type.startsWith('queue') ? 'Queue' : 'Overlay';
-    }
     return null;
   }
 
@@ -728,8 +725,6 @@ class ShowRunnerGraphEditor {
       'break' => Icons.exit_to_app,
       'continue' => Icons.skip_next,
       'return' => Icons.keyboard_return,
-      'queue.additem' => Icons.low_priority,
-      'overlay.pushchat' => Icons.layers_outlined,
       _ => Icons.extension_outlined,
     };
   }
@@ -761,8 +756,6 @@ class ShowRunnerGraphEditor {
       'while' => const Color(0xff4db6ac),
       'break' || 'continue' => const Color(0xffef9a9a),
       'return' => const Color(0xffffab91),
-      'queue.additem' => const Color(0xffffcf5a),
-      'overlay.pushchat' => const Color(0xff34d399),
       _ when type.startsWith('variable.') => const Color(0xff90a4ae),
       _ when type.startsWith('subgraphcall:') => const Color(0xff4dd0e1),
       _ => const Color(0xff7d32d4),
@@ -1046,9 +1039,9 @@ class ShowRunnerGraphEditor {
     final schemaId = _schemaIdByEditorId[editorNodeId] ?? editorNodeId;
     _removeEditorNodeFromFrames(editorNodeId);
     controller.removeNodeById(editorNodeId);
-    // Links that failed to hydrate (for example an old incompatible wire) are
-    // kept for diagnostics. Once their source/target resource is deleted they
-    // must be removed as well, otherwise saving resurrects a dangling wire.
+    // Links that failed to hydrate are kept for diagnostics. Once their
+    // source/target resource is deleted they must be removed as well,
+    // otherwise saving resurrects a dangling wire.
     for (final entry in _invalidDataWiresByGraph.entries) {
       entry.value.removeWhere(
         (wire) => wire.fromNode == schemaId || wire.toNode == schemaId,
@@ -1707,12 +1700,12 @@ class ShowRunnerGraphEditor {
   void _registerPrototypes(NodeEditorController target) {
     target.registerNodePrototype(
       _prototype(
-        idName: 'trigger.chatMessage',
-        title: 'Chat message',
+        idName: 'trigger.twitch.chat',
+        title: 'Chat Message',
         color: const Color(0xff2563eb),
         input: false,
         output: true,
-        hasPayloadOutput: true,
+        dataOutputs: _eventFieldsForTrigger('trigger.twitch.chat'),
       ),
     );
     target.registerNodePrototype(
@@ -2084,16 +2077,9 @@ class ShowRunnerGraphEditor {
   ///
   /// It uses real trigger/action contracts so the initial workspace is a
   /// valid product graph, rather than an editor-only demonstration.
-  void loadSampleGraph() => _loadGraphFixture(developerCompatibility: false);
+  void loadSampleGraph() => _loadGraphFixture();
 
-  /// Loads the deterministic fixture used by graph adapter tests.
-  ///
-  /// This is intentionally not exposed by the graph palette or application
-  /// commands. It exercises the adapter's supported action node variants.
-  void loadDeveloperFixtureGraph() =>
-      _loadGraphFixture(developerCompatibility: true);
-
-  void _loadGraphFixture({required bool developerCompatibility}) {
+  void _loadGraphFixture() {
     final wasSuspended = _suspendDirtyTracking;
     var completed = false;
     _suspendDirtyTracking = true;
@@ -2116,46 +2102,21 @@ class ShowRunnerGraphEditor {
       _schemaIdByLinkSignature.clear();
       _invalidFlowEdgesByGraph.clear();
       _invalidDataWiresByGraph.clear();
-      final NodeDataModel trigger;
-      final NodeDataModel queue;
-      final NodeDataModel overlay;
-      if (developerCompatibility) {
-        // Keep the deterministic compatibility fixture loadable while the
-        // product palette exposes only canonical manifest-backed actions.
-        _ensurePrototype('queue.addItem');
-        _ensurePrototype('overlay.pushChat');
-        trigger = controller.addNode(
-          'trigger.chatMessage',
-          offset: const Offset(-420, -80),
-          snapToGrid: false,
-        );
-        queue = controller.addNode(
-          'queue.addItem',
-          offset: const Offset(-80, -80),
-          snapToGrid: false,
-        );
-        overlay = controller.addNode(
-          'overlay.pushChat',
-          offset: const Offset(260, -80),
-          snapToGrid: false,
-        );
-      } else {
-        trigger =
-            controller.nodes[addNodeType(
-              'trigger.twitch.chat',
-              offset: const Offset(-420, -80),
-            )!]!;
-        queue =
-            controller.nodes[addNodeType(
-              'ShowRunner.addToQueue',
-              offset: const Offset(-80, -80),
-            )!]!;
-        overlay =
-            controller.nodes[addNodeType(
-              'overlays.pushChatMessage',
-              offset: const Offset(260, -80),
-            )!]!;
-      }
+      final trigger =
+          controller.nodes[addNodeType(
+            'trigger.twitch.chat',
+            offset: const Offset(-420, -80),
+          )!]!;
+      final queue =
+          controller.nodes[addNodeType(
+            'ShowRunner.addToQueue',
+            offset: const Offset(-80, -80),
+          )!]!;
+      final overlay =
+          controller.nodes[addNodeType(
+            'overlays.pushChatMessage',
+            offset: const Offset(260, -80),
+          )!]!;
 
       controller.addLink(trigger.id, 'completed', queue.id, 'exec');
       controller.addLink(queue.id, 'completed', overlay.id, 'exec');
@@ -2752,8 +2713,8 @@ class ShowRunnerGraphEditor {
       final subgraph = subgraphId == null ? null : _findSubgraph(subgraphId);
       // Persisted action nodes use the schema type `action` and keep their
       // plugin/action identity in the payload. Rehydrate them with the
-      // canonical editor prototype so old documents never fall back to a
-      // generic node named simply "action".
+      // Rehydrate action documents with their canonical editor prototype so
+      // the canvas always exposes the plugin's actual ports and fields.
       final actionPlugin = node.data['plugin']?.toString().trim();
       final actionId = node.data['action']?.toString().trim();
       final canonicalActionType =
@@ -3205,10 +3166,6 @@ class ShowRunnerGraphEditor {
   }) {
     final editor = target ?? controller;
     if (editor.nodePrototypes.containsKey(nodeType)) return;
-    if (_isCompatibilityNodeType(nodeType)) {
-      _registerCompatibilityPrototype(nodeType, target: editor);
-      return;
-    }
     if (_isCoreConversionNodeType(nodeType)) {
       _registerCoreConversionPrototype(nodeType, target: editor);
       return;
@@ -3261,40 +3218,6 @@ class ShowRunnerGraphEditor {
     }
     return null;
   }
-
-  void _registerCompatibilityPrototype(
-    String nodeType, {
-    required NodeEditorController target,
-  }) {
-    if (nodeType == 'queue.addItem') {
-      target.registerNodePrototype(
-        _prototype(
-          idName: nodeType,
-          title: 'Add to queue (compatibility)',
-          color: const Color(0xffd97706),
-          input: true,
-          output: true,
-          hasPayloadInput: true,
-          fields: [_textField('queueName', 'Queue', 'default')],
-        ),
-      );
-      return;
-    }
-    target.registerNodePrototype(
-      _prototype(
-        idName: nodeType,
-        title: 'Push chat overlay (compatibility)',
-        color: const Color(0xff059669),
-        input: true,
-        output: false,
-        hasPayloadInput: true,
-        fields: [_textField('message', 'Message', 'Chat message')],
-      ),
-    );
-  }
-
-  static bool _isCompatibilityNodeType(String nodeType) =>
-      nodeType == 'queue.addItem' || nodeType == 'overlay.pushChat';
 
   List<DartDataInputSchema> _resultFieldsForAction(String nodeType) {
     final parts = nodeType.split('.');
@@ -3798,63 +3721,6 @@ class ShowRunnerGraphEditor {
     String toNode,
     String toPort,
   ) => '$fromNode:$fromPort->$toNode:$toPort';
-
-  static FieldPrototype _textField(
-    String idName,
-    String label,
-    String defaultData,
-  ) {
-    Widget buildEditor(
-      BuildContext context,
-      Function() removeOverlay,
-      dynamic data,
-      Function(dynamic data, {required FieldEventType eventType}) setData,
-    ) {
-      var currentValue = data?.toString() ?? defaultData;
-      return Padding(
-        padding: const EdgeInsets.all(8),
-        child: SizedBox(
-          width: 220,
-          child: TextFormField(
-            autofocus: true,
-            initialValue: currentValue,
-            style: const TextStyle(fontSize: 13),
-            decoration: InputDecoration(
-              labelText: label,
-              isDense: true,
-              suffixIcon: IconButton(
-                tooltip: 'Save',
-                icon: const Icon(Icons.check),
-                onPressed: () {
-                  setData(currentValue, eventType: FieldEventType.submit);
-                  removeOverlay();
-                },
-              ),
-            ),
-            onChanged: (value) => currentValue = value,
-            onFieldSubmitted: (value) {
-              setData(value, eventType: FieldEventType.submit);
-              removeOverlay();
-            },
-          ),
-        ),
-      );
-    }
-
-    return FieldPrototype(
-      idName: idName,
-      displayName: (_) => label,
-      dataType: String,
-      defaultData: defaultData,
-      visualizerBuilder: (data) => Text(
-        data?.toString() ?? defaultData,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: Color(0xffd5e3e1), fontSize: 11),
-      ),
-      editorBuilder: buildEditor,
-    );
-  }
 }
 
 extension<T> on List<T> {

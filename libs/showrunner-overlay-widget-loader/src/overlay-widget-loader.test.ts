@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { LegacyOverlayProtocolAdapter, OverlayPluginContribution, OverlayWidgetDefinition, WidgetScope, mediaUrl } from "showrunner-overlay-core"
+import { OverlayPluginContribution, OverlayWidgetDefinition, WidgetScope, mediaUrl } from "showrunner-overlay-core"
 import { StateStore, ViewerDataStore, WidgetRegistry } from "./overlay-widget-loader"
 
 const widget = (id: string): OverlayWidgetDefinition => ({
@@ -71,15 +71,6 @@ describe("ViewerDataStore", () => {
 		expect(first).toHaveBeenCalledWith("twitch", "viewer", { twitch: "viewer", points: 3 })
 		expect(second).toHaveBeenCalledTimes(1)
 		stopFirst(); stopSecond(); expect(unobserved).toHaveBeenCalledTimes(1)
-	})
-})
-
-describe("LegacyOverlayProtocolAdapter", () => {
-	it("classifies the legacy Dart bridge without changing its payload", () => {
-		const adapter = new LegacyOverlayProtocolAdapter()
-		const message = { name: "overlays_widgetRPC", requestId: "1", args: ["showAlert"] }
-		expect(adapter.normalize(message)).toEqual({ ...message, kind: "command" })
-		expect(adapter.normalize({ responseId: "1", result: true })).toEqual({ responseId: "1", result: true, kind: "response" })
 	})
 })
 

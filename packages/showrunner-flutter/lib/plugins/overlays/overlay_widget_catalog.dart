@@ -23,14 +23,8 @@ class GeneratedOverlayWidget {
 
   String get key => '$pluginId.$id';
 
-  // Compatibility names for callers that work with overlay resource fields.
-  String get plugin => pluginId;
-  String get widget => id;
-
-  DartDataInputSchema get configSchema => overlayConfigSchema(
-    label: 'Configuration',
-    config: config,
-  );
+  DartDataInputSchema get configSchema =>
+      overlayConfigSchema(label: 'Configuration', config: config);
 
   Map<String, dynamic> defaultConfig() {
     final value = constructDartDataInputDefault(configSchema);
@@ -128,8 +122,7 @@ DartDataInputSchema _schemaFor(String key, Object? raw) {
         : const <String>[],
     required: metadata['required'] == true,
     secret: metadata['secret'] == true,
-    multiline:
-        metadata['multiLine'] == true || metadata['multiline'] == true,
+    multiline: metadata['multiLine'] == true || metadata['multiline'] == true,
     defaultValue: defaultValue,
     resourceType: metadata['resourceType']?.toString(),
     fields: rangeFields,

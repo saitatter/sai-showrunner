@@ -10,7 +10,7 @@ typedef GraphExecutionObserver = void Function(String nodeId);
 
 /// The single execution boundary used by application-owned graph runners.
 ///
-/// The interpreter remains available as a compatibility oracle, while the
+/// The interpreter remains available as a reference oracle, while the
 /// production implementation uses the same flat-program/VM shape as the
 /// reference desktop runtime.
 abstract interface class GraphExecutionEngine {
@@ -24,7 +24,7 @@ abstract interface class GraphExecutionEngine {
   });
 }
 
-/// Reference implementation used by parity tests and during migration.
+/// Reference implementation used by parity tests.
 final class InterpreterExecutionEngine implements GraphExecutionEngine {
   const InterpreterExecutionEngine({this.maxSteps = 10000, this.maxDepth = 64});
 

@@ -6383,9 +6383,7 @@ Color _minimapColor(String idName, GraphNodeExecutionStatus? status) =>
     };
 
 Color _nodeTypeMinimapColor(String idName) => switch (idName) {
-  'trigger.chatMessage' => const Color(0xff60a5fa),
-  'queue.addItem' => const Color(0xfff59e0b),
-  'overlay.pushChat' => const Color(0xff34d399),
+  'trigger.twitch.chat' => const Color(0xff60a5fa),
   _ => const Color(0xff94a3b8),
 };
 

@@ -54,11 +54,11 @@ void main() {
   test('round-trips graph links through the sai_nodes adapter', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadDeveloperFixtureGraph();
+    editor.loadSampleGraph();
     final automation = editor.toAutomation(const AutomationData());
 
-    expect(automation.graph.nodes, hasLength(3));
-    expect(automation.graph.edges, hasLength(2));
+    expect(automation.graph.nodes, hasLength(2));
+    expect(automation.graph.edges, hasLength(1));
     expect(automation.graph.edges, everyElement(isA<GraphEdge>()));
     final nodeIds = automation.graph.nodes.map((node) => node.id).toSet();
     expect(
@@ -80,10 +80,7 @@ void main() {
       automation.graph.edges.map(
         (edge) => '${nodeTypes[edge.from]} -> ${nodeTypes[edge.to]}',
       ),
-      containsAll(<String>[
-        'trigger.chatMessage -> queue.addItem',
-        'queue.addItem -> overlay.pushChat',
-      ]),
+      everyElement('action -> action'),
     );
     expect(validateAutomationGraph(automation), isEmpty);
   });
@@ -91,12 +88,12 @@ void main() {
   test('surfaces rejected link feedback without creating an invalid link', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadDeveloperFixtureGraph();
+    editor.loadSampleGraph();
     final triggerId = editor.controller.nodes.values
-        .firstWhere((node) => node.prototype.idName == 'trigger.chatMessage')
+        .firstWhere((node) => node.prototype.idName == 'trigger.twitch.chat')
         .id;
     final queueId = editor.controller.nodes.values
-        .firstWhere((node) => node.prototype.idName == 'queue.addItem')
+        .firstWhere((node) => node.prototype.idName == 'ShowRunner.addToQueue')
         .id;
 
     final link = editor.controller.addLink(
@@ -108,7 +105,7 @@ void main() {
 
     expect(link, isNull);
     expect(editor.controller.links, hasLength(2));
-    expect(editor.graphFeedback.value, contains('data port'));
+    expect(editor.graphFeedback.value, contains('does not exist'));
   });
 
   test('preserves node configuration data through the graph adapter', () {
@@ -120,10 +117,12 @@ void main() {
           nodes: [
             GraphNode(
               id: 'action-1',
-              type: 'queue.addItem',
+              type: 'action',
               x: 10,
               y: 20,
               data: {
+                'plugin': 'ShowRunner',
+                'action': 'addToQueue',
                 'config': {'queue': 'alerts', 'message': 'hello'},
               },
             ),
@@ -134,6 +133,8 @@ void main() {
     );
     final saved = editor.toAutomation(const AutomationData());
     expect(saved.graph.nodes.single.data, {
+      'plugin': 'ShowRunner',
+      'action': 'addToQueue',
       'config': {'queue': 'alerts', 'message': 'hello'},
     });
   });
@@ -147,10 +148,12 @@ void main() {
           nodes: [
             GraphNode(
               id: 'action-1',
-              type: 'queue.addItem',
+              type: 'action',
               x: 10,
               y: 20,
               data: {
+                'plugin': 'ShowRunner',
+                'action': 'addToQueue',
                 'title': 'Alerts',
                 'editorSize': [320, 180],
               },
@@ -333,9 +336,27 @@ void main() {
       const AutomationData(
         graph: AutomationGraph(
           nodes: [
-            GraphNode(id: 'first', type: 'queue.addItem', x: 0, y: 0),
-            GraphNode(id: 'second', type: 'queue.addItem', x: 100, y: 0),
-            GraphNode(id: 'other', type: 'overlay.pushChat', x: 200, y: 0),
+            GraphNode(
+              id: 'first',
+              type: 'action',
+              x: 0,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
+            GraphNode(
+              id: 'second',
+              type: 'action',
+              x: 100,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
+            GraphNode(
+              id: 'other',
+              type: 'action',
+              x: 200,
+              y: 0,
+              data: {'plugin': 'overlays', 'action': 'pushChatMessage'},
+            ),
           ],
           entryNodeId: 'first',
         ),
@@ -391,7 +412,13 @@ void main() {
         const AutomationData(
           graph: AutomationGraph(
             nodes: [
-              GraphNode(id: 'action-1', type: 'queue.addItem', x: 120, y: 40),
+              GraphNode(
+                id: 'action-1',
+                type: 'action',
+                x: 120,
+                y: 40,
+                data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+              ),
             ],
             entryNodeId: 'action-1',
           ),
@@ -466,13 +493,15 @@ void main() {
       ),
     );
 
-    editor.loadDeveloperFixtureGraph();
+    editor.loadSampleGraph();
 
     final saved = editor.toAutomation(const AutomationData());
-    expect(saved.triggerNodes, isEmpty);
+    expect(saved.triggerNodes, hasLength(1));
+    expect(saved.triggerNodes.single['plugin'], 'twitch');
+    expect(saved.triggerNodes.single['trigger'], 'chat');
     expect(
-      saved.graph.nodes.any((node) => node.type == 'trigger.chatMessage'),
-      isTrue,
+      saved.graph.nodes.any((node) => node.type == 'trigger.twitch.chat'),
+      isFalse,
     );
   });
 
@@ -481,9 +510,11 @@ void main() {
     () {
       final editor = ShowRunnerGraphEditor();
       addTearDown(editor.dispose);
-      editor.loadDeveloperFixtureGraph();
+      editor.loadSampleGraph();
       final queueId = editor.controller.nodes.values
-          .firstWhere((node) => node.prototype.idName == 'queue.addItem')
+          .firstWhere(
+            (node) => node.prototype.idName == 'ShowRunner.addToQueue',
+          )
           .id;
 
       final insertedId = editor.insertActionAfterNode('obs.scene', queueId)!;
@@ -492,10 +523,12 @@ void main() {
           .firstWhere((node) => node.id == insertedId)
           .id;
       final queueSchemaId = saved.graph.nodes
-          .firstWhere((node) => node.type == 'queue.addItem')
+          .firstWhere((node) => _isActionNode(node, 'ShowRunner', 'addToQueue'))
           .id;
       final overlaySchemaId = saved.graph.nodes
-          .firstWhere((node) => node.type == 'overlay.pushChat')
+          .firstWhere(
+            (node) => _isActionNode(node, 'overlays', 'pushChatMessage'),
+          )
           .id;
 
       expect(
@@ -518,9 +551,11 @@ void main() {
     () {
       for (final terminalType in const ['return', 'break', 'continue']) {
         final editor = ShowRunnerGraphEditor();
-        editor.loadDeveloperFixtureGraph();
+        editor.loadSampleGraph();
         final queueId = editor.controller.nodes.values
-            .firstWhere((node) => node.prototype.idName == 'queue.addItem')
+            .firstWhere(
+              (node) => node.prototype.idName == 'ShowRunner.addToQueue',
+            )
             .id;
 
         final insertedId = editor.insertControlFlowAfterNode(
@@ -529,10 +564,14 @@ void main() {
         );
         final saved = editor.toAutomation(const AutomationData());
         final queueSchemaId = saved.graph.nodes
-            .firstWhere((node) => node.type == 'queue.addItem')
+            .firstWhere(
+              (node) => _isActionNode(node, 'ShowRunner', 'addToQueue'),
+            )
             .id;
         final overlaySchemaId = saved.graph.nodes
-            .firstWhere((node) => node.type == 'overlay.pushChat')
+            .firstWhere(
+              (node) => _isActionNode(node, 'overlays', 'pushChatMessage'),
+            )
             .id;
 
         expect(insertedId, isNotNull);
@@ -562,9 +601,9 @@ void main() {
   test('inserts conversion actions as data-only nodes', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadDeveloperFixtureGraph();
+    editor.loadSampleGraph();
     final triggerId = editor.controller.nodes.values
-        .firstWhere((node) => node.prototype.idName == 'trigger.chatMessage')
+        .firstWhere((node) => node.prototype.idName == 'trigger.twitch.chat')
         .id;
 
     final insertedId = editor.insertActionAfterNode(
@@ -579,7 +618,7 @@ void main() {
     // Conversion actions are data-only and are not implicitly wired when
     // inserted, matching the reference editor. The user can connect a
     // compatible string output explicitly afterwards.
-    expect(saved.graph.edges, hasLength(2));
+    expect(saved.graph.edges, hasLength(1));
     expect(saved.dataWires, isEmpty);
   });
 
@@ -588,9 +627,11 @@ void main() {
     () async {
       final editor = ShowRunnerGraphEditor();
       addTearDown(editor.dispose);
-      editor.loadDeveloperFixtureGraph();
+      editor.loadSampleGraph();
       final queueId = editor.controller.nodes.values
-          .firstWhere((node) => node.prototype.idName == 'queue.addItem')
+          .firstWhere(
+            (node) => node.prototype.idName == 'ShowRunner.addToQueue',
+          )
           .id;
       final link = editor.controller.linksAsList.firstWhere(
         (candidate) => candidate.endpoints.sourceNodeId == queueId,
@@ -626,7 +667,7 @@ void main() {
             'target',
             editor.controller.nodes.values
                 .firstWhere(
-                  (node) => node.prototype.idName == 'overlay.pushChat',
+                  (node) => node.prototype.idName == 'overlays.pushChatMessage',
                 )
                 .id,
           ),
@@ -663,7 +704,13 @@ void main() {
                 'title': 'Original scene',
               },
             ),
-            GraphNode(id: 'last', type: 'queue.addItem', x: 300, y: 0),
+            GraphNode(
+              id: 'last',
+              type: 'action',
+              x: 300,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
           ],
           edges: [GraphEdge(id: 'first-last', from: 'first', to: 'last')],
           entryNodeId: 'first',
@@ -768,12 +815,16 @@ void main() {
     () async {
       final editor = ShowRunnerGraphEditor();
       addTearDown(editor.dispose);
-      editor.loadDeveloperFixtureGraph();
+      editor.loadSampleGraph();
       final firstId = editor.controller.nodes.values
-          .firstWhere((node) => node.prototype.idName == 'queue.addItem')
+          .firstWhere(
+            (node) => node.prototype.idName == 'ShowRunner.addToQueue',
+          )
           .id;
       final secondId = editor.controller.nodes.values
-          .firstWhere((node) => node.prototype.idName == 'overlay.pushChat')
+          .firstWhere(
+            (node) => node.prototype.idName == 'overlays.pushChatMessage',
+          )
           .id;
       final originalNodeIds = editor.controller.nodes.keys.toSet();
       editor.controller.selectNodesById({firstId, secondId});
@@ -783,8 +834,8 @@ void main() {
       await editor.pasteSelection(position: const Offset(640, 100));
 
       final saved = editor.toAutomation(const AutomationData());
-      expect(saved.graph.nodes, hasLength(5));
-      expect(saved.graph.edges, hasLength(3));
+      expect(saved.graph.nodes, hasLength(4));
+      expect(saved.graph.edges, hasLength(2));
       final pastedNodeIds = saved.graph.nodes
           .map((node) => node.id)
           .where((id) => !originalNodeIds.contains(id))
@@ -809,8 +860,14 @@ void main() {
         const AutomationData(
           graph: AutomationGraph(
             nodes: [
-              GraphNode(id: 'trigger', type: 'trigger.chatMessage', x: 0, y: 0),
-              GraphNode(id: 'action', type: 'queue.addItem', x: 320, y: 0),
+              GraphNode(id: 'trigger', type: 'trigger.twitch.chat', x: 0, y: 0),
+              GraphNode(
+                id: 'action',
+                type: 'action',
+                x: 320,
+                y: 0,
+                data: {'plugin': 'overlays', 'action': 'pushChatMessage'},
+              ),
             ],
             entryNodeId: 'trigger',
           ),
@@ -818,9 +875,9 @@ void main() {
             DataWire(
               id: 'payload-wire',
               fromNode: 'trigger',
-              fromPort: 'payload',
+              fromPort: 'message',
               toNode: 'action',
-              toPort: 'payload',
+              toPort: 'message',
             ),
           ],
         ),
@@ -852,8 +909,14 @@ void main() {
       const AutomationData(
         graph: AutomationGraph(
           nodes: [
-            GraphNode(id: 'trigger-1', type: 'trigger.chatMessage', x: 0, y: 0),
-            GraphNode(id: 'action-1', type: 'queue.addItem', x: 300, y: 0),
+            GraphNode(id: 'trigger-1', type: 'trigger.twitch.chat', x: 0, y: 0),
+            GraphNode(
+              id: 'action-1',
+              type: 'action',
+              x: 300,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
           ],
           edges: [
             GraphEdge(
@@ -898,7 +961,13 @@ void main() {
       const AutomationData(
         graph: AutomationGraph(
           nodes: [
-            GraphNode(id: 'action-1', type: 'queue.addItem', x: 300, y: 0),
+            GraphNode(
+              id: 'action-1',
+              type: 'action',
+              x: 300,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
           ],
           entryNodeId: 'action-1',
         ),
@@ -950,12 +1019,18 @@ void main() {
           nodes: [
             GraphNode(
               id: 'trigger-1',
-              type: 'trigger.chatMessage',
+              type: 'trigger.twitch.chat',
               x: 0,
               y: 0,
               data: {'stop': true},
             ),
-            GraphNode(id: 'action-1', type: 'queue.addItem', x: 300, y: 0),
+            GraphNode(
+              id: 'action-1',
+              type: 'action',
+              x: 300,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
           ],
           edges: [
             GraphEdge(
@@ -989,8 +1064,20 @@ void main() {
       const AutomationData(
         graph: AutomationGraph(
           nodes: [
-            GraphNode(id: 'left', type: 'queue.addItem', x: 0, y: 0),
-            GraphNode(id: 'right', type: 'overlay.pushChat', x: 300, y: 0),
+            GraphNode(
+              id: 'left',
+              type: 'action',
+              x: 0,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
+            GraphNode(
+              id: 'right',
+              type: 'action',
+              x: 300,
+              y: 0,
+              data: {'plugin': 'overlays', 'action': 'pushChatMessage'},
+            ),
             GraphNode(id: 'far-right', type: 'if', x: 700, y: 200),
           ],
           entryNodeId: 'left',
@@ -1315,7 +1402,7 @@ void main() {
 
       final childId = editor.editorNodeIdForSchema('child-node')!;
       editor.renameNode(childId, 'Welcome action');
-      editor.addNodeType('overlay.pushChat', title: 'Follow-up');
+      editor.addNodeType('overlays.pushChatMessage', title: 'Follow-up');
 
       expect(editor.goBackToParentGraph(), isTrue);
       expect(editor.activeSubgraphId, isNull);
@@ -1358,8 +1445,14 @@ void main() {
       const AutomationData(
         graph: AutomationGraph(
           nodes: [
-            GraphNode(id: 'trigger-1', type: 'trigger.chatMessage', x: 0, y: 0),
-            GraphNode(id: 'action-1', type: 'queue.addItem', x: 100, y: 0),
+            GraphNode(id: 'trigger-1', type: 'trigger.twitch.chat', x: 0, y: 0),
+            GraphNode(
+              id: 'action-1',
+              type: 'action',
+              x: 100,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
           ],
           entryNodeId: 'trigger-1',
         ),
@@ -1393,8 +1486,14 @@ void main() {
             id: 'nested',
             name: 'Nested',
             nodes: [
-              GraphNode(id: 'trigger', type: 'trigger.chatMessage', x: 0, y: 0),
-              GraphNode(id: 'queue', type: 'queue.addItem', x: 120, y: 0),
+              GraphNode(id: 'trigger', type: 'trigger.twitch.chat', x: 0, y: 0),
+              GraphNode(
+                id: 'queue',
+                type: 'action',
+                x: 120,
+                y: 0,
+                data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+              ),
             ],
             edges: [],
             dataWires: [
@@ -1426,7 +1525,13 @@ void main() {
       const AutomationData(
         graph: AutomationGraph(
           nodes: [
-            GraphNode(id: 'action-1', type: 'queue.addItem', x: 100, y: 0),
+            GraphNode(
+              id: 'action-1',
+              type: 'action',
+              x: 100,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
           ],
           entryNodeId: 'action-1',
         ),
@@ -1553,7 +1658,7 @@ void main() {
   test('persists selected graph frames in automation metadata', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadDeveloperFixtureGraph();
+    editor.loadSampleGraph();
     editor.controller.selectNodesById({editor.controller.nodes.keys.first});
     editor.frameSelection(title: 'Entry');
 
@@ -1570,7 +1675,7 @@ void main() {
   test('renames and deletes selected graph frames', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadDeveloperFixtureGraph();
+    editor.loadSampleGraph();
     editor.controller.selectNodesById({editor.controller.nodes.keys.first});
     editor.frameSelection(title: 'Entry');
 
@@ -1591,7 +1696,7 @@ void main() {
     expect(restored.frames.value, isEmpty);
     expect(
       restored.toAutomation(const AutomationData()).graph.nodes,
-      hasLength(3),
+      hasLength(2),
     );
   });
 
@@ -1654,8 +1759,20 @@ void main() {
       const AutomationData(
         graph: AutomationGraph(
           nodes: [
-            GraphNode(id: 'first', type: 'queue.addItem', x: 0, y: 0),
-            GraphNode(id: 'second', type: 'queue.addItem', x: 320, y: 0),
+            GraphNode(
+              id: 'first',
+              type: 'action',
+              x: 0,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
+            GraphNode(
+              id: 'second',
+              type: 'action',
+              x: 320,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
           ],
           entryNodeId: 'first',
         ),
@@ -1691,7 +1808,15 @@ void main() {
     editor.loadAutomation(
       const AutomationData(
         graph: AutomationGraph(
-          nodes: [GraphNode(id: 'node-1', type: 'queue.addItem', x: 0, y: 0)],
+          nodes: [
+            GraphNode(
+              id: 'node-1',
+              type: 'action',
+              x: 0,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
+          ],
           entryNodeId: 'node-1',
         ),
       ),
@@ -1752,8 +1877,10 @@ void main() {
   test('persists renamed nodes and searches node metadata', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
-    editor.loadDeveloperFixtureGraph();
-    final nodeId = editor.controller.nodes.keys.first;
+    editor.loadSampleGraph();
+    final nodeId = editor.controller.nodes.values
+        .firstWhere((node) => !editor.isTriggerNode(node.id))
+        .id;
 
     editor.renameNode(nodeId, 'Entry trigger');
     editor.setSearchQuery('entry');
@@ -1764,7 +1891,7 @@ void main() {
           .toAutomation(const AutomationData())
           .graph
           .nodes
-          .firstWhere((node) => node.id == nodeId)
+          .firstWhere((node) => node.data['title'] == 'Entry trigger')
           .data['title'],
       'Entry trigger',
     );
@@ -1774,3 +1901,8 @@ void main() {
     expect(editor.activeNodeIds.value, isEmpty);
   });
 }
+
+bool _isActionNode(GraphNode node, String plugin, String action) =>
+    node.type == 'action' &&
+    node.data['plugin'] == plugin &&
+    node.data['action'] == action;

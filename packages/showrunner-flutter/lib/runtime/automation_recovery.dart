@@ -11,9 +11,7 @@ const _validNodeTypes = {
   'continue',
   'return',
   'subgraphCall',
-  'trigger.chatMessage',
-  'queue.addItem',
-  'overlay.pushChat',
+  'trigger.twitch.chat',
 };
 const _validVariableTypes = {'string', 'number', 'boolean', 'color'};
 
@@ -162,7 +160,6 @@ Set<String> _flowOutputPorts(GraphNode node) => switch (node.type) {
   },
   'for' || 'forEach' || 'while' => {'body', 'next'},
   'break' || 'continue' || 'return' => const {},
-  'overlay.pushChat' => const {},
   _ => {'completed'},
 };
 
@@ -190,9 +187,6 @@ String? _dataPortType({
   if (node == null) return null;
   if (node.type.startsWith('trigger.')) {
     return output && port == 'payload' ? 'any' : null;
-  }
-  if (node.type == 'queue.addItem' || node.type == 'overlay.pushChat') {
-    return port == 'payload' ? 'any' : null;
   }
   if (node.type == 'action') return 'any';
   return null;

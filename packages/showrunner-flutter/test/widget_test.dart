@@ -89,16 +89,16 @@ void main() {
   });
 
   test('builds a connected sample graph through the adapter', () {
-    final editor = ShowRunnerGraphEditor()..loadDeveloperFixtureGraph();
+    final editor = ShowRunnerGraphEditor()..loadSampleGraph();
 
     expect(editor.controller.nodes, hasLength(3));
     expect(editor.controller.project.projectData.links, hasLength(2));
     expect(
       editor.controller.nodes.values.map((node) => node.prototype.idName),
       containsAll(<String>[
-        'trigger.chatMessage',
-        'queue.addItem',
-        'overlay.pushChat',
+        'trigger.twitch.chat',
+        'ShowRunner.addToQueue',
+        'overlays.pushChatMessage',
       ]),
     );
 

@@ -28,7 +28,7 @@ void main() {
   setUp(() async {
     userDirectory = await Directory.systemTemp.createTemp('graph-workspace-');
     dataService = ShowRunnerDataService(userDirectory);
-    editor = ShowRunnerGraphEditor()..loadDeveloperFixtureGraph();
+    editor = ShowRunnerGraphEditor()..loadSampleGraph();
   });
 
   tearDown(() async {
@@ -275,7 +275,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.byType(GraphCanvasControls), findsOneWidget);
-    expect(find.text('Chat message'), findsNWidgets(2));
+    expect(find.text('Chat Message'), findsOneWidget);
     expect(find.text('Add to queue'), findsNothing);
   });
 
@@ -473,7 +473,15 @@ void main() {
     editor.loadAutomation(
       const AutomationData(
         graph: AutomationGraph(
-          nodes: [GraphNode(id: 'start', type: 'queue.addItem', x: 0, y: 0)],
+          nodes: [
+            GraphNode(
+              id: 'start',
+              type: 'action',
+              x: 0,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
+          ],
           edges: [GraphEdge(id: 'stale', from: 'start', to: 'missing')],
           entryNodeId: 'start',
         ),
@@ -496,7 +504,15 @@ void main() {
     editor.loadAutomation(
       const AutomationData(
         graph: AutomationGraph(
-          nodes: [GraphNode(id: 'start', type: 'queue.addItem', x: 0, y: 0)],
+          nodes: [
+            GraphNode(
+              id: 'start',
+              type: 'action',
+              x: 0,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
+          ],
           edges: [GraphEdge(id: 'stale', from: 'start', to: 'missing')],
           entryNodeId: 'start',
         ),
@@ -535,7 +551,13 @@ void main() {
                 ],
               },
             ),
-            GraphNode(id: 'target', type: 'queue.addItem', x: 180, y: 0),
+            GraphNode(
+              id: 'target',
+              type: 'action',
+              x: 180,
+              y: 0,
+              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+            ),
           ],
           edges: [
             GraphEdge(

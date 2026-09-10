@@ -867,7 +867,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.widgets_outlined),
                 title: Text(option.name),
-                subtitle: Text('${option.plugin}.${option.widget}'),
+                subtitle: Text('${option.pluginId}.${option.id}'),
               ),
             ),
         ],

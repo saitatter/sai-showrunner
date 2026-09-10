@@ -93,45 +93,6 @@ export interface OverlayTransport {
 	onStatus?(listener: (status: OverlayTransportStatus) => void): Unsubscribe
 }
 
-export type OverlayProtocolKind = "response" | "config" | "event" | "command" | "state" | "viewer-data" | "audio" | "unknown"
-
-export interface NormalizedOverlayMessage extends OverlayTransportMessage {
-	kind: OverlayProtocolKind
-}
-
-/**
- * Keeps the legacy Dart message names at the transport boundary. Widgets and
- * the runtime can use the normalized kind without knowing how the old RPC
- * bridge names its messages.
- */
-export class LegacyOverlayProtocolAdapter {
-	normalize(message: OverlayTransportMessage): NormalizedOverlayMessage {
-		if (message.responseId) return { ...message, kind: "response" }
-
-		const kind: OverlayProtocolKind = (() => {
-			switch (message.name) {
-				case "overlays_setConfig": return "config"
-				case "overlays_widget":
-				case "overlays_broadcast": return "event"
-				case "overlays_widgetRPC": return "command"
-				case "overlays_stateUpdate":
-				case "overlays_acquireState":
-				case "overlays_freeState": return "state"
-				case "overlays_onNewViewerData":
-				case "overlays_onViewerDataChanged":
-				case "overlays_onViewerDataRemoved":
-				case "overlays_onNewViewerVariable":
-				case "overlays_onViewerVariableDeleted": return "viewer-data"
-				case "overlays_playAudio":
-				case "overlays_cancelAudio": return "audio"
-				default: return "unknown"
-			}
-		})()
-
-		return { ...message, kind }
-	}
-}
-
 export interface StateAccess {
 	get<T = unknown>(pluginId: string, stateId: string): T | undefined
 	watch<T = unknown>(pluginId: string, stateId: string, handler: (value: T | undefined) => void): Unsubscribe
@@ -284,9 +245,6 @@ export function bindOverlayPlugin(
 
 	return { pluginId: manifest.pluginId, widgets }
 }
-
-/** Compatibility name used by older plugin packages while they are migrated. */
-export const definePluginOverlays = defineOverlayPlugin
 
 export function applyStyles(element: HTMLElement, styles: CSSProperties): void {
 	for (const [property, value] of Object.entries(styles)) {

@@ -309,7 +309,7 @@ final class DartProductionGraphCompiler {
     if (node == null) return;
     _nodePc[nodeId] = _instructions.length;
     switch (node.type) {
-      case 'action' || 'queue.addItem' || 'overlay.pushChat':
+      case 'action':
         _compileAction(node, visited);
       case 'if':
         _compileIf(node, visited);
@@ -336,7 +336,7 @@ final class DartProductionGraphCompiler {
 
   void _compileAction(GraphNode node, Set<String> visited) {
     final index = _actionNodes.length;
-    _actionNodes.add(_compatibilityActionNode(node));
+    _actionNodes.add(node);
     _emit(
       DartGraphInstruction(
         op: DartGraphOpCode.exec,
@@ -1200,25 +1200,6 @@ _buildNodeWireInputs(DartGraphProgram program) {
     ));
   }
   return result;
-}
-
-GraphNode _compatibilityActionNode(GraphNode node) {
-  if (node.type == 'action') return node;
-  final compatibility = switch (node.type) {
-    'queue.addItem' => const {'plugin': 'ShowRunner', 'action': 'addToQueue'},
-    'overlay.pushChat' => const {
-      'plugin': 'overlays',
-      'action': 'pushChatMessage',
-    },
-    _ => const <String, dynamic>{},
-  };
-  return GraphNode(
-    id: node.id,
-    type: 'action',
-    x: node.x,
-    y: node.y,
-    data: {...node.data, ...compatibility},
-  );
 }
 
 RuntimeMap? _normalizeActionResult(Object? result) {

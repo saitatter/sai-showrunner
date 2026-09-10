@@ -105,13 +105,13 @@ void main() {
   );
 
   test('keeps loop execution and data wires equivalent', () async {
-    await _expectParity(MainCompatibilityFixtures.forLoop());
+    await _expectParity(ReferenceExecutionFixtures.forLoop());
     await _expectParity(
-      MainCompatibilityFixtures.whileLoop(),
+      ReferenceExecutionFixtures.whileLoop(),
       context: () => EvaluationContext(locals: {'count': 0}),
     );
-    await _expectParity(MainCompatibilityFixtures.breakLoop());
-    await _expectParity(MainCompatibilityFixtures.continueLoop());
+    await _expectParity(ReferenceExecutionFixtures.breakLoop());
+    await _expectParity(ReferenceExecutionFixtures.continueLoop());
 
     await _expectParity(
       AutomationData(
@@ -655,7 +655,7 @@ AutomationData _singleActionAutomation(
   ),
 );
 
-final class MainCompatibilityFixtures {
+final class ReferenceExecutionFixtures {
   static AutomationData forLoop() => AutomationData(
     graph: AutomationGraph(
       entryNodeId: 'for',

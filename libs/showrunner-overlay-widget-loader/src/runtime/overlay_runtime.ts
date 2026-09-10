@@ -1,5 +1,4 @@
 import {
-	LegacyOverlayProtocolAdapter,
 	OverlayConfig,
 	OverlayTransport,
 	OverlayTransportMessage,
@@ -58,7 +57,6 @@ export class OverlayRuntime {
 	private readonly commandHandlers = new Map<string, (args: unknown) => unknown | Promise<unknown>>()
 	private readonly pending = new Map<string, PendingRPC>()
 	private readonly playingAudio = new Map<string, HTMLAudioElement>()
-	private readonly protocol = new LegacyOverlayProtocolAdapter()
 	private readonly stateStore: StateStore
 	private readonly viewerData: ViewerDataStore
 	private readonly rpcTimeoutMs: number
@@ -150,7 +148,6 @@ export class OverlayRuntime {
 	}
 
 	private async handleMessage(message: OverlayTransportMessage): Promise<void> {
-		message = this.protocol.normalize(message)
 		if (message.responseId) {
 			const call = this.pending.get(message.responseId)
 			if (!call || call.generation !== this.connectionGeneration) return
