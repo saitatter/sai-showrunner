@@ -33,7 +33,7 @@ import 'plugins/variables/runtime.dart';
 import 'services/plugin_event_hub.dart';
 import 'plugins/runtime/provider_event_workers.dart';
 import 'plugins/twitch/account_runtime.dart';
-import 'runtime/graph_runtime.dart';
+import 'runtime/graph_execution_engine.dart';
 import 'runtime/profile_runtime.dart';
 import 'runtime/profile_manager.dart';
 import 'runtime/automation_queue_manager.dart';
@@ -183,6 +183,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   bool _profileDirty = false;
 
   DartActionQueue get _actionQueue => _services.actionQueue;
+  GraphExecutionEngine get _graphExecutionEngine =>
+      _services.graphExecutionEngine;
   DartAutomationQueueManager get _automationQueueManager =>
       _services.queueManager;
   Future<DartPluginRegistry> get _pluginRegistryFuture =>
@@ -847,8 +849,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       throw StateError('Automation smoke could not reload its fixture.');
     }
     final registry = await _pluginRegistryFuture;
-    final result = await const DartGraphRuntime().executeWithRegistry(
-      graph: loaded.graph,
+    final result = await _graphExecutionEngine.executeWithRegistry(
+      automation: loaded,
       context: EvaluationContext(),
       registry: registry,
     );
@@ -921,12 +923,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       if (reopenedEditor.controller.nodes.length != 2) {
         throw StateError('Workflow smoke did not restore both graph nodes.');
       }
-      final result = await const DartGraphRuntime().executeWithRegistry(
-        graph: loaded.graph,
+      final result = await _graphExecutionEngine.executeWithRegistry(
+        automation: loaded,
         context: EvaluationContext(),
         registry: registry,
-        dataWires: loaded.dataWires,
-        subgraphs: loaded.subgraphs,
       );
       if (!result.completed) {
         throw StateError(
@@ -1406,6 +1406,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
     ).save(profile);
     if (!mounted) return;
+    await _profileWorkspaceController.reloadEntries();
+    if (!mounted) return;
     _onProjectCatalogChanged();
     _openDestination(WorkspaceIds.profiles);
     showShowRunnerFeedback(
@@ -1604,14 +1606,12 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       final registry = await _pluginRegistryFuture;
       await _actionQueue.processNext((queued) async {
         final loaded = AutomationData.fromJson(queued.source);
-        return const DartGraphRuntime().executeWithRegistry(
-          graph: loaded.graph,
+        return _graphExecutionEngine.executeWithRegistry(
+          automation: loaded,
           context: EvaluationContext(
             cancellationToken: _actionQueue.runningCancellationToken,
           ),
           registry: registry,
-          dataWires: loaded.dataWires,
-          subgraphs: loaded.subgraphs,
           onNodeEnter: _graphEditor.markSchemaNodeRunning,
           onNodeExit: _graphEditor.markSchemaNodeCompleted,
         );
@@ -1642,14 +1642,12 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       final registry = await _pluginRegistryFuture;
       await _actionQueue.processNext((queued) async {
         final loaded = AutomationData.fromJson(queued.source);
-        return const DartGraphRuntime().executeWithRegistry(
-          graph: loaded.graph,
+        return _graphExecutionEngine.executeWithRegistry(
+          automation: loaded,
           context: EvaluationContext(
             cancellationToken: _actionQueue.runningCancellationToken,
           ),
           registry: registry,
-          dataWires: loaded.dataWires,
-          subgraphs: loaded.subgraphs,
           entryNodeId: schemaNodeId,
           onNodeEnter: _graphEditor.markSchemaNodeRunning,
           onNodeExit: _graphEditor.markSchemaNodeCompleted,

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:async';
 
 import '../../runtime/expression.dart';
+import '../../runtime/graph_execution_engine.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/http_provider_transports.dart';
 import '../obs/actions.dart';
@@ -89,6 +90,7 @@ DartPluginRegistry createDefaultPluginRegistry({
   SoundOutputRegistry? soundOutputs,
   ViewerDataRepository? viewerDataRepository,
   DartAutomationQueueManager? queueManager,
+  GraphExecutionEngine? executionEngine,
   ShowRunnerAutomationRunner? runAutomation,
   ShowRunnerProfileActivation? activateProfile,
 }) {
@@ -98,6 +100,7 @@ DartPluginRegistry createDefaultPluginRegistry({
     soundOutputs: soundOutputs,
     viewerDataRepository: viewerDataRepository,
     queueManager: queueManager,
+    executionEngine: executionEngine,
     runAutomation: runAutomation,
     activateProfile: activateProfile,
   );

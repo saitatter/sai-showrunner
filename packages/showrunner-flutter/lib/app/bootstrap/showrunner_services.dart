@@ -12,7 +12,7 @@ import '../../plugins/runtime/provider_event_workers.dart';
 import '../../plugins/showrunner/manifest.dart';
 import '../../runtime/action_queue.dart';
 import '../../runtime/automation_queue_manager.dart';
-import '../../runtime/graph_runtime.dart';
+import '../../runtime/graph_execution_engine.dart';
 import '../../runtime/profile_manager.dart';
 import '../../runtime/profile_runtime.dart';
 import '../../services/plugin_event_hub.dart';
@@ -29,6 +29,7 @@ final class ShowRunnerServices {
   ShowRunnerServices._({
     required this.dataService,
     required this.actionQueue,
+    required this.graphExecutionEngine,
     required this.queueManager,
     required this.pluginRegistryFuture,
     required this.profileManagerFuture,
@@ -63,6 +64,7 @@ final class ShowRunnerServices {
       dataService: dataService,
       eventHub: eventHub,
     );
+    final graphExecutionEngine = CompiledExecutionEngine();
     final queueRepository = QueueConfigRepository(
       Directory('${dataService.userDirectory.path}/queues'),
     );
@@ -78,12 +80,10 @@ final class ShowRunnerServices {
       },
       execute: (automation, context, _) async {
         final registry = await pluginRegistryFuture;
-        return const DartGraphRuntime().executeWithRegistry(
-          graph: automation.graph,
+        return graphExecutionEngine.executeWithRegistry(
+          automation: automation,
           context: context,
           registry: registry,
-          dataWires: automation.dataWires,
-          subgraphs: automation.subgraphs,
         );
       },
     );
@@ -92,14 +92,13 @@ final class ShowRunnerServices {
       eventHub: eventHub,
       viewerDataRepository: viewerDataRepository,
       queueManager: queueManager,
+      executionEngine: graphExecutionEngine,
       runAutomation: (automation, context) async {
         final registry = await pluginRegistryFuture;
-        return const DartGraphRuntime().executeWithRegistry(
-          graph: automation.graph,
+        return graphExecutionEngine.executeWithRegistry(
+          automation: automation,
           context: context,
           registry: registry,
-          dataWires: automation.dataWires,
-          subgraphs: automation.subgraphs,
         );
       },
       activateProfile: activateProfile,
@@ -109,6 +108,7 @@ final class ShowRunnerServices {
       final runtime = DartProfileRuntime(
         registry: registry,
         queueManager: queueManager,
+        executionEngine: graphExecutionEngine,
       );
       final manager = DartProfileLifecycleManager(
         directory: Directory('${dataService.userDirectory.path}/profiles'),
@@ -124,6 +124,7 @@ final class ShowRunnerServices {
     final services = ShowRunnerServices._(
       dataService: dataService,
       actionQueue: actionQueue,
+      graphExecutionEngine: graphExecutionEngine,
       queueManager: queueManager,
       pluginRegistryFuture: pluginRegistryFuture,
       profileManagerFuture: profileManagerFuture,
@@ -150,6 +151,7 @@ final class ShowRunnerServices {
 
   final ShowRunnerDataService dataService;
   final DartActionQueue actionQueue;
+  final GraphExecutionEngine graphExecutionEngine;
   final DartAutomationQueueManager queueManager;
   final Future<DartPluginRegistry> pluginRegistryFuture;
   final Future<DartProfileLifecycleManager> profileManagerFuture;

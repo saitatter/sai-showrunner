@@ -28,4 +28,5 @@ jobs:
           Push-Location packages/showrunner-flutter
           flutter pub get
           flutter test tool/graph_benchmark_test.dart --reporter expanded
+          flutter test tool/graph_execution_benchmark_test.dart --reporter expanded
           Pop-Location

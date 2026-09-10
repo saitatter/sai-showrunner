@@ -4,6 +4,7 @@ import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
 import '../schema/profile.dart';
 import 'expression.dart';
+import 'graph_execution_engine.dart';
 import 'graph_runtime.dart';
 import 'automation_queue_manager.dart';
 
@@ -17,12 +18,12 @@ typedef _ProfileTriggerTarget = ({
 final class DartProfileRuntime {
   DartProfileRuntime({
     required this.registry,
-    DartGraphRuntime? graphRuntime,
+    GraphExecutionEngine? executionEngine,
     this.queueManager,
-  }) : graphRuntime = graphRuntime ?? const DartGraphRuntime();
+  }) : executionEngine = executionEngine ?? CompiledExecutionEngine();
 
   final DartPluginRegistry registry;
-  final DartGraphRuntime graphRuntime;
+  final GraphExecutionEngine executionEngine;
   final DartAutomationQueueManager? queueManager;
   final Map<String, bool> _activeProfiles = {};
   final Map<String, DartProfileSession> _managedSessions = {};
@@ -435,6 +436,7 @@ final class DartProfileRuntime {
       EvaluationContext(
         locals: Map<String, dynamic>.from(context?.locals ?? const {}),
         contextState: {...registry.stateContext(), ...?context?.contextState},
+        cancellationToken: context?.cancellationToken,
       );
 
   Future<GraphExecutionResult> _runTriggerTarget(
@@ -465,6 +467,7 @@ final class DartProfileRuntime {
           ...payload,
           'event': payload,
         },
+        cancellationToken: context?.cancellationToken,
       ),
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
@@ -507,12 +510,10 @@ final class DartProfileRuntime {
         },
       );
     }
-    return graphRuntime.executeWithRegistry(
-      graph: automation.graph,
+    return executionEngine.executeWithRegistry(
+      automation: automation,
       context: context,
       registry: registry,
-      dataWires: automation.dataWires,
-      subgraphs: automation.subgraphs,
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
     );

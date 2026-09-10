@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
+import '../../runtime/graph_execution_engine.dart';
 import '../../runtime/graph_runtime.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../../schema/automation.dart';
@@ -39,9 +40,13 @@ const _segmentSchema = DartDataInputSchema(
 );
 
 final class DartStreamPlanRuntime extends ChangeNotifier {
-  DartStreamPlanRuntime({this.queueManager});
+  DartStreamPlanRuntime({
+    this.queueManager,
+    GraphExecutionEngine? executionEngine,
+  }) : executionEngine = executionEngine ?? CompiledExecutionEngine();
 
   DartAutomationQueueManager? queueManager;
+  GraphExecutionEngine executionEngine;
   String? activePlanId;
   String? activeSegmentId;
   StreamPlanData? _activePlan;
@@ -434,12 +439,10 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
         outputValues: {'queued': true, 'queueId': queueId, 'itemId': item.id},
       );
     }
-    return const DartGraphRuntime().executeWithRegistry(
-      graph: parsed.graph,
+    return executionEngine.executeWithRegistry(
+      automation: parsed,
       context: executionContext,
       registry: registry,
-      dataWires: parsed.dataWires,
-      subgraphs: parsed.subgraphs,
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
     );
@@ -486,8 +489,10 @@ DartPluginManifest createStreamPlansPlugin({
   DartStreamPlanRuntime? runtime,
   DartPluginRegistry? registry,
   DartAutomationQueueManager? queueManager,
+  GraphExecutionEngine? executionEngine,
 }) {
   final activeRuntime = runtime ?? streamPlanRuntime;
+  if (executionEngine != null) activeRuntime.executionEngine = executionEngine;
   if (queueManager != null) activeRuntime.queueManager = queueManager;
   return DartPluginManifest(
     id: 'stream-plans',

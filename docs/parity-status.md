@@ -45,6 +45,21 @@ Unknown remote widget kinds are shown as an explicit placeholder so a dashboard
 remains inspectable. A new widget kind still needs a dedicated Flutter renderer
 before it can be considered visually equivalent.
 
+## Graph execution boundary
+
+All production graph execution now goes through `GraphExecutionEngine`. The
+application composition uses `CompiledExecutionEngine`, which compiles V2
+automation graphs into a flat 16-opcode program, caches the program by graph
+content, and executes it through the Dart VM. Queues, profiles, stream plans,
+plugin-triggered automation, node runs, and packaged smoke flows share this
+boundary.
+
+`InterpreterExecutionEngine` remains available as the parity oracle. The
+fixture suite compares branch/switch flow, loops, break/continue, data wires,
+result mappings, nested subgraphs, cancellation, failures, and execution
+guards between both engines. Cancellation tokens are propagated through
+actions, yields, and subgraph calls.
+
 ## Contract and UI audit
 
 `docs/parity.json` is generated from the frozen `main` tag and now catalogs
@@ -89,7 +104,9 @@ corepack yarn test:flutter-integration
 Push-Location packages/showrunner-flutter
 flutter analyze
 flutter test
+flutter test test/runtime/graph_execution_engine_test.dart
 flutter test tool/graph_benchmark_test.dart --reporter expanded
+flutter test tool/graph_execution_benchmark_test.dart --reporter expanded
 flutter build windows --release
 Pop-Location
 .\scripts\smoke-flutter-windows.ps1 -Configuration Release

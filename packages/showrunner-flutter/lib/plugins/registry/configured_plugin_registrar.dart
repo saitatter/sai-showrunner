@@ -7,6 +7,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   SoundOutputRegistry? soundOutputs,
   ViewerDataRepository? viewerDataRepository,
   DartAutomationQueueManager? queueManager,
+  GraphExecutionEngine? executionEngine,
   ShowRunnerAutomationRunner? runAutomation,
   ShowRunnerProfileActivation? activateProfile,
   DartVariableRuntime? variableRuntime,
@@ -521,7 +522,11 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   );
   registry.registerUi('input', createInputPluginUi());
   registry.register(
-    createStreamPlansPlugin(registry: registry, queueManager: queueManager),
+    createStreamPlansPlugin(
+      registry: registry,
+      queueManager: queueManager,
+      executionEngine: executionEngine,
+    ),
   );
   registry.registerUi('stream-plans', createStreamPlansPluginUi());
   registry.register(

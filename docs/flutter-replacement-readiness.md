@@ -13,6 +13,10 @@ Flutter desktop build is used as the ShowRunner replacement candidate.
 - `sai_nodes` owns the generic editor operations used by ShowRunner, including
   spatial selection, coordinate transforms, content revisions, atomic layout,
   graph splicing, and frames.
+- Production graph execution uses the same flat-program model as `main`:
+  `GraphExecutionEngine` → cached 16-opcode program → Dart VM. The interpreter
+  remains an explicit parity oracle, with fixtures for control flow, data
+  wires, mappings, subgraphs, cancellation, failures, and guards.
 - ShowRunner keeps the product-specific graph schema, plugin contracts,
   runtime, persistence, shader graph, and overlay resource semantics.
 - Overlay packages use the generated registry and strict TypeScript checks;
@@ -21,6 +25,8 @@ Flutter desktop build is used as the ShowRunner replacement candidate.
   fixtures at 1440x900 with a 1x device scale.
 - The graph benchmark covers 100, 500, 1,000, and 5,000 synthetic nodes and
   records load, selection, drag, layout, serialization, and undo/redo timings.
+- The runtime benchmark records cold compile, cached lookup, execution, loop,
+  and nested-subgraph timings for the production graph engine.
 - Windows Release smoke covers first run, automation, workflow, profile,
   integrations, overlays, and update-state handling.
 
@@ -38,7 +44,9 @@ corepack yarn test:flutter-integration
 Push-Location packages/showrunner-flutter
 flutter analyze
 flutter test
+flutter test test/runtime/graph_execution_engine_test.dart
 flutter test tool/graph_benchmark_test.dart --reporter expanded
+flutter test tool/graph_execution_benchmark_test.dart --reporter expanded
 flutter build windows --release
 Pop-Location
 

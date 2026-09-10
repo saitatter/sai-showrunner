@@ -6,6 +6,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   SoundOutputRegistry? soundOutputs,
   ViewerDataRepository? viewerDataRepository,
   DartAutomationQueueManager? queueManager,
+  GraphExecutionEngine? executionEngine,
   ShowRunnerAutomationRunner? runAutomation,
   ShowRunnerProfileActivation? activateProfile,
 }) {
@@ -128,7 +129,11 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(createInputPlugin());
   registry.registerUi('input', createInputPluginUi());
   registry.register(
-    createStreamPlansPlugin(registry: registry, queueManager: queueManager),
+    createStreamPlansPlugin(
+      registry: registry,
+      queueManager: queueManager,
+      executionEngine: executionEngine,
+    ),
   );
   registry.registerUi('stream-plans', createStreamPlansPluginUi());
   _registerGenericPluginUis(registry);

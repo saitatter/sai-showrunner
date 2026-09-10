@@ -125,6 +125,7 @@ final class DartGraphRuntime {
             ),
             runtimeContext,
           );
+          runtimeContext.cancellationToken?.throwIfCancelled();
           final normalizedResult = _normalizeActionResult(result);
           if (normalizedResult != null) results[node.id] = normalizedResult;
           final resultMapping = node.data['resultMapping'];
@@ -261,6 +262,7 @@ final class DartGraphRuntime {
             onNodeExit: onNodeExit,
             depth: depth + 1,
           );
+          runtimeContext.cancellationToken?.throwIfCancelled();
           results.addAll(nested.nodeResults);
           results[node.id] = Map<String, dynamic>.from(nested.outputValues);
           runtimeContext.contextState.addAll(nested.contextState);
