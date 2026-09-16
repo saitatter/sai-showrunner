@@ -10,13 +10,16 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
     description: "Displays the live Heart Rate state from ShowRunner.",
     icon: "mdi mdi-heart-pulse",
     capabilities: {
-      "states": ["heartRate"],
+      "states": ["heartRate", "connection", "device"],
       "resizable": true,
     },
     defaultSize: {"width": 260, "height": 110},
     config: {
       "showLabel": {"type": "boolean", "default": true},
       "accentColor": {"type": "string", "default": "#f43f5e"},
+      "animate": {"type": "boolean", "default": true},
+      "showBattery": {"type": "boolean", "default": false},
+      "showConnection": {"type": "boolean", "default": true},
     },
   ),
   GeneratedOverlayWidget(
@@ -26,7 +29,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
     description: "Displays a live, bounded heart-rate history.",
     icon: "mdi mdi-chart-line",
     capabilities: {
-      "states": ["heartRate"],
+      "states": ["heartRate", "connection"],
       "resizable": true,
     },
     defaultSize: {"width": 420, "height": 180},
@@ -34,6 +37,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       "showLabel": {"type": "boolean", "default": true},
       "accentColor": {"type": "string", "default": "#f43f5e"},
       "maxBpm": {"type": "number", "default": 200},
+      "showConnection": {"type": "boolean", "default": true},
     },
   ),
   GeneratedOverlayWidget(
@@ -43,7 +47,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
     description: "Displays the current heart-rate training zone.",
     icon: "mdi mdi-heart-pulse",
     capabilities: {
-      "states": ["zone"],
+      "states": ["zone", "connection"],
       "resizable": true,
     },
     defaultSize: {"width": 280, "height": 90},

@@ -46,6 +46,16 @@ void main() {
             .config['maxBpm']['default'],
         200,
       );
+      final heartRate = widgets.firstWhere(
+        (widget) => widget.key == 'heartrate.heartRate',
+      );
+      expect(heartRate.config['animate']['default'], true);
+      expect(heartRate.config['showBattery']['default'], false);
+      expect(heartRate.capabilities['states'], [
+        'heartRate',
+        'connection',
+        'device',
+      ]);
     },
   );
 

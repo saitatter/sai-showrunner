@@ -15,7 +15,9 @@
           },
           "capabilities": {
             "states": [
-              "heartRate"
+              "heartRate",
+              "connection",
+              "device"
             ],
             "resizable": true
           },
@@ -27,6 +29,18 @@
             "accentColor": {
               "type": "string",
               "default": "#f43f5e"
+            },
+            "animate": {
+              "type": "boolean",
+              "default": true
+            },
+            "showBattery": {
+              "type": "boolean",
+              "default": false
+            },
+            "showConnection": {
+              "type": "boolean",
+              "default": true
             }
           }
         },
@@ -41,7 +55,8 @@
           },
           "capabilities": {
             "states": [
-              "heartRate"
+              "heartRate",
+              "connection"
             ],
             "resizable": true
           },
@@ -57,6 +72,10 @@
             "maxBpm": {
               "type": "number",
               "default": 200
+            },
+            "showConnection": {
+              "type": "boolean",
+              "default": true
             }
           }
         },
@@ -71,7 +90,8 @@
           },
           "capabilities": {
             "states": [
-              "zone"
+              "zone",
+              "connection"
             ],
             "resizable": true
           },
