@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/tplink_kasa/contracts.dart';
 import 'package:showrunner_flutter/plugins/tplink_kasa/manifest.dart';
 
 void main() {
@@ -28,6 +29,15 @@ void main() {
             }),
           ),
         );
+
+      expect(
+        registry.findAction('tplink-kasa', 'setLightState')?.decodeConfig({
+          'state': 'toggle',
+          'host': 'kasa.local',
+          'transition': '0.25',
+        }),
+        isA<KasaDeviceConfig>(),
+      );
 
       await registry.invokeAction('tplink-kasa', 'setLightState', {
         'state': 'toggle',

@@ -7,6 +7,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef KasaRequest = Future<RuntimeMap> Function(RuntimeMap request);
 
@@ -141,56 +142,72 @@ DartPluginManifest createKasaPlugin(
     ),
   ],
   actions: [
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<KasaDeviceConfig, RuntimeMap>(
       pluginId: PluginId('tplink-kasa'),
       actionId: ActionId('getDeviceInfo'),
       displayName: 'Get Device Info',
+      configCodec: kasaDeviceConfigCodec,
       invoke: (config, context) =>
-          (transportResolver?.call(config) ?? transport).request(_sysInfo),
+          (transportResolver?.call(config.toRuntime()) ?? transport).request(
+            _sysInfo,
+          ),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<KasaDeviceConfig, RuntimeMap>(
       pluginId: PluginId('tplink-kasa'),
       actionId: ActionId('getLightState'),
       displayName: 'Get Light State',
+      configCodec: kasaDeviceConfigCodec,
       invoke: (config, context) =>
-          (transportResolver?.call(config) ?? transport).request(_sysInfo),
+          (transportResolver?.call(config.toRuntime()) ?? transport).request(
+            _sysInfo,
+          ),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<KasaDeviceConfig, RuntimeMap>(
       pluginId: PluginId('tplink-kasa'),
       actionId: ActionId('setLightState'),
       displayName: 'Set Light State',
       configSchema: _lightSchema,
-      invoke: (config, context) =>
-          _setLightState(transportResolver?.call(config) ?? transport, config),
+      configCodec: kasaDeviceConfigCodec,
+      invoke: (config, context) => _setLightState(
+        transportResolver?.call(config.toRuntime()) ?? transport,
+        config,
+      ),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<KasaDeviceConfig, RuntimeMap>(
       pluginId: PluginId('tplink-kasa'),
       actionId: ActionId('setPlugState'),
       displayName: 'Set Plug State',
       configSchema: _plugSchema,
-      invoke: (config, context) =>
-          _setPlugState(transportResolver?.call(config) ?? transport, config),
+      configCodec: kasaDeviceConfigCodec,
+      invoke: (config, context) => _setPlugState(
+        transportResolver?.call(config.toRuntime()) ?? transport,
+        config,
+      ),
     ),
   ],
 );
 
-Future<Object?> _setLightState(
+Future<RuntimeMap> _setLightState(
   KasaTransport transport,
-  RuntimeMap config,
+  KasaDeviceConfig config,
 ) async {
-  var state = config['state'] ?? 'on';
+  var power = config.power ?? KasaPowerMode.enabled;
   RuntimeMap? current;
-  if (state == 'toggle' || config['color'] == null) {
+  if (power == KasaPowerMode.toggle || config.color == null) {
     current = await transport.request(_sysInfo);
   }
-  if (state == 'toggle') state = !_isOn(current ?? const {});
+  if (power == KasaPowerMode.toggle) {
+    power = _isOn(current ?? const {})
+        ? KasaPowerMode.disabled
+        : KasaPowerMode.enabled;
+  }
   final update = <String, dynamic>{
-    'on_off': state == true || state == 'on' ? 1 : 0,
-    'transition_period': (_number(config['transition'], 0.5) * 1000)
+    'on_off': power == KasaPowerMode.enabled ? 1 : 0,
+    'transition_period': (_number(config.transitionSeconds, 0.5) * 1000)
         .clamp(0, 600000)
         .round(),
   };
-  final color = parseLightColor(config['color']?.toString());
+  final color = parseLightColor(config.color);
   if (color != null) {
     update['brightness'] = color.brightness.clamp(0, 100).round();
     if (color.isKelvin) {
@@ -210,18 +227,18 @@ Future<Object?> _setLightState(
   });
 }
 
-Future<Object?> _setPlugState(
+Future<RuntimeMap> _setPlugState(
   KasaTransport transport,
-  RuntimeMap config,
+  KasaDeviceConfig config,
 ) async {
-  var state = config['state'] ?? 'on';
-  if (state == 'toggle') {
+  var power = config.power ?? KasaPowerMode.enabled;
+  if (power == KasaPowerMode.toggle) {
     final current = await transport.request(_sysInfo);
-    state = !_isOn(current);
+    power = _isOn(current) ? KasaPowerMode.disabled : KasaPowerMode.enabled;
   }
   return transport.request({
     'system': {
-      'set_relay_state': {'state': state == true || state == 'on' ? 1 : 0},
+      'set_relay_state': {'state': power == KasaPowerMode.enabled ? 1 : 0},
     },
   });
 }
