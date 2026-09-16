@@ -5,6 +5,7 @@ import 'dart:io';
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 abstract interface class VoiceModTransport {
   Future<List<RuntimeMap>> getVoices();
@@ -256,27 +257,29 @@ DartPluginManifest createVoiceModPlugin(VoiceModTransport transport) =>
         ),
       ],
       actions: [
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<VoiceModEmptyConfig, List<RuntimeMap>>(
           pluginId: PluginId('voicemod'),
           actionId: ActionId('getVoices'),
           displayName: 'List Voices',
+          configCodec: voiceModEmptyConfigCodec,
           invoke: (config, context) => transport.getVoices(),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<VoiceModSelectVoiceConfig, RuntimeMap>(
           pluginId: PluginId('voicemod'),
           actionId: ActionId('selectVoice'),
           displayName: 'Change Voice',
           configSchema: _selectVoiceSchema,
+          configCodec: voiceModSelectVoiceConfigCodec,
           invoke: (config, context) => _selectVoice(transport, config),
         ),
       ],
     );
 
-Future<Object?> _selectVoice(
+Future<RuntimeMap> _selectVoice(
   VoiceModTransport transport,
-  RuntimeMap config,
+  VoiceModSelectVoiceConfig config,
 ) async {
-  final voice = config['voice']?.toString().trim() ?? '';
+  final voice = config.voice.trim();
   if (voice.isEmpty) return {'selected': false, 'reason': 'Voice is empty'};
   final response = await transport.selectVoice(voice);
   return {'selected': true, 'voice': voice, ...response};

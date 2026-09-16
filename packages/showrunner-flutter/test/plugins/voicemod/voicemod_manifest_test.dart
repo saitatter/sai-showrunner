@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/voicemod/manifest.dart';
+import 'package:showrunner_flutter/plugins/voicemod/contracts.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 
 void main() {
@@ -24,6 +25,13 @@ void main() {
           ),
         ),
       );
+
+    expect(
+      registry.findAction('voicemod', 'selectVoice')?.decodeConfig({
+        'voice': 'robot',
+      }),
+      isA<VoiceModSelectVoiceConfig>(),
+    );
 
     final voices = await registry.invokeAction('voicemod', 'getVoices', {});
     final result = await registry.invokeAction('voicemod', 'selectVoice', {
