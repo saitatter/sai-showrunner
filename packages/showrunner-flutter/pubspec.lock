@@ -571,11 +571,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: ad0152fe0a27d114f35bc9a8bb0226ec91dcb8b2
-      resolved-ref: ad0152fe0a27d114f35bc9a8bb0226ec91dcb8b2
+      ref: "17880b5a8c328fb0cce02e7e80971c20aab1eb49"
+      resolved-ref: "2cd24985698711307026b9575165c494f38bbe46"
       url: "https://github.com/saitatter/sai_nodes.git"
     source: git
-    version: "0.2.2"
+    version: "0.3.0"
   screen_retriever:
     dependency: transitive
     description:
