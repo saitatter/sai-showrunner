@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/plugins/spellcast/manifest.dart';
+import 'package:showrunner_flutter/plugins/spellcast/contracts.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
@@ -15,6 +16,10 @@ void main() {
     expect(trigger.configSchema?.key, 'spell');
     expect(trigger.configSchema?.kind, DartDataInputKind.resource);
     expect(trigger.configSchema?.resourceType, 'SpellHook');
+    expect(
+      trigger.configCodec?.decode({'spell': 'local-spell'}),
+      isA<SpellcastHookConfig>(),
+    );
     expect(
       trigger.matchesRuntime(
         {'spell': 'local-spell'},
@@ -39,8 +44,10 @@ void main() {
     final hub = DartPluginEventHub();
     final plugin = createSpellcastPlugin(eventHub: hub);
     final trigger = plugin.triggers.single;
-    final events = <RuntimeMap>[];
-    final subscription = trigger.listen().cast<RuntimeMap>().listen(events.add);
+    final events = <SpellcastHookEvent>[];
+    final subscription = trigger.listen().listen(
+      (event) => events.add(event as SpellcastHookEvent),
+    );
 
     hub.emit('spellcast', {
       'spellId': 'spell-1',
@@ -49,9 +56,12 @@ void main() {
     });
     await Future<void>.delayed(Duration.zero);
 
-    expect(events, [
-      {'spellId': 'spell-1', 'viewer': 'viewer-1', 'bits': 50},
-    ]);
+    expect(events.single.spell.id, 'spell-1');
+    expect(events.single.payload, {
+      'spellId': 'spell-1',
+      'viewer': 'viewer-1',
+      'bits': 50,
+    });
     await subscription.cancel();
     await hub.dispose();
   });
@@ -69,6 +79,10 @@ void main() {
           'spellId': 'spell-1',
         }, EvaluationContext()),
         {'cast': true, 'spellId': 'spell-1'},
+      );
+      expect(
+        plugin.actions.single.decodeConfig({'spell': 'spell-1'}).spell?.id,
+        'spell-1',
       );
       await Future<void>.delayed(Duration.zero);
       expect(events, [
