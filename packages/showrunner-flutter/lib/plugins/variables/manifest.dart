@@ -1,9 +1,9 @@
 import '../../schema/data_input.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../runtime/expression.dart';
-import '../../schema/viewer_data.dart';
 import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 import 'runtime.dart';
 
 const _variableSchema = DartDataInputSchema(
@@ -145,31 +145,34 @@ DartPluginManifest createVariablesPlugin({
     id: PluginId('variables'),
     name: 'Variables',
     actions: [
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<VariableValueConfig, RuntimeMap>(
         pluginId: PluginId('variables'),
         actionId: ActionId('set'),
         displayName: 'Set Variable',
         configSchema: _variableSchema,
+        configCodec: variableValueConfigCodec,
         invoke: (config, context) =>
             _setVariable(config, context, variableRuntime),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<VariableOffsetConfig, RuntimeMap>(
         pluginId: PluginId('variables'),
         actionId: ActionId('offset'),
         displayName: 'Offset Variable',
         configSchema: _offsetVariableSchema,
+        configCodec: variableOffsetConfigCodec,
         invoke: (config, context) =>
             _offsetVariable(config, context, variableRuntime),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<VariableValueConfig, RuntimeMap>(
         pluginId: PluginId('variables'),
         actionId: ActionId('setVariable'),
         displayName: 'Set Variable',
         configSchema: _variableSchema,
+        configCodec: variableValueConfigCodec,
         invoke: (config, context) =>
             _setVariable(config, context, variableRuntime),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<VariableNameConfig, RuntimeMap>(
         pluginId: PluginId('variables'),
         actionId: ActionId('getVariable'),
         displayName: 'Get Variable',
@@ -185,22 +188,25 @@ DartPluginManifest createVariablesPlugin({
             ),
           ],
         ),
+        configCodec: variableNameConfigCodec,
         invoke: (config, context) =>
             _getVariable(config, context, variableRuntime),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<ViewerVariableValueConfig, RuntimeMap>(
         pluginId: PluginId('variables'),
         actionId: ActionId('setViewerVar'),
         displayName: 'Set Viewer Variable',
         configSchema: _viewerVariableSchema,
+        configCodec: viewerVariableValueConfigCodec,
         invoke: (config, context) =>
             _setViewerVar(config, context, repository, eventHub),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<ViewerVariableOffsetConfig, RuntimeMap>(
         pluginId: PluginId('variables'),
         actionId: ActionId('offsetViewerVar'),
         displayName: 'Offset Viewer Variable',
         configSchema: _viewerOffsetSchema,
+        configCodec: viewerVariableOffsetConfigCodec,
         invoke: (config, context) =>
             _offsetViewerVar(config, context, repository, eventHub),
       ),
@@ -208,13 +214,13 @@ DartPluginManifest createVariablesPlugin({
   );
 }
 
-Future<Object?> _setVariable(
-  RuntimeMap config,
+Future<RuntimeMap> _setVariable(
+  VariableValueConfig config,
   EvaluationContext context,
   DartVariableRuntime? variableRuntime,
 ) async {
-  final variable = config['variable']?.toString() ?? '';
-  final value = config['value'];
+  final variable = config.variable;
+  final value = config.value;
   if (variableRuntime != null) {
     await variableRuntime.reload();
     final definition = variableRuntime.definitionOf(variable);
@@ -231,12 +237,12 @@ Future<Object?> _setVariable(
   return {'variable': variable, 'value': value};
 }
 
-Future<Object?> _getVariable(
-  RuntimeMap config,
+Future<RuntimeMap> _getVariable(
+  VariableNameConfig config,
   EvaluationContext context,
   DartVariableRuntime? variableRuntime,
 ) async {
-  final variable = config['variable']?.toString() ?? '';
+  final variable = config.variable;
   if (variableRuntime != null) {
     await variableRuntime.reload();
     final definition = variableRuntime.definitionOf(variable);
@@ -249,16 +255,16 @@ Future<Object?> _getVariable(
   return {'variable': variable, 'value': value};
 }
 
-Future<Object?> _offsetVariable(
-  RuntimeMap config,
+Future<RuntimeMap> _offsetVariable(
+  VariableOffsetConfig config,
   EvaluationContext context,
   DartVariableRuntime? variableRuntime,
 ) async {
-  final variable = config['variable']?.toString() ?? '';
+  final variable = config.variable;
   if (variableRuntime != null) {
     await variableRuntime.reload();
     final definition = variableRuntime.definitionOf(variable);
-    final offset = config['offset'];
+    final offset = config.offset;
     if (definition == null || offset is! num) {
       return {
         'variable': variable,
@@ -266,29 +272,25 @@ Future<Object?> _offsetVariable(
         'updated': false,
       };
     }
-    final clamp = config['clamp'];
     final updated = await variableRuntime.offsetValue(
       definition.id,
       offset,
-      minimum: clamp is Map && clamp['min'] is num ? clamp['min'] as num : null,
-      maximum: clamp is Map && clamp['max'] is num ? clamp['max'] as num : null,
+      minimum: config.minimum,
+      maximum: config.maximum,
     );
     _setContextVariable(context, definition.id, updated);
     return {'variable': definition.id, 'value': updated, 'updated': true};
   }
   final current = _contextVariable(context, variable);
-  final offset = config['offset'];
+  final offset = config.offset;
   if (variable.isEmpty || current is! num || offset is! num) {
     return {'variable': variable, 'value': current};
   }
   var value = current + offset;
-  final clamp = config['clamp'];
-  if (clamp is Map) {
-    final minimum = clamp['min'];
-    final maximum = clamp['max'];
-    if (minimum is num && value < minimum) value = minimum;
-    if (maximum is num && value > maximum) value = maximum;
-  }
+  final minimum = config.minimum;
+  final maximum = config.maximum;
+  if (minimum != null && value < minimum) value = minimum;
+  if (maximum != null && value > maximum) value = maximum;
   _setContextVariable(context, variable, value);
   return {'variable': variable, 'value': value};
 }
@@ -318,19 +320,19 @@ void _setContextVariable(
   }
 }
 
-Future<Object?> _setViewerVar(
-  RuntimeMap config,
+Future<RuntimeMap> _setViewerVar(
+  ViewerVariableValueConfig config,
   EvaluationContext _,
   ViewerDataRepository repository,
   DartPluginEventHub? eventHub,
 ) async {
-  final variable = _requiredConfigString(config, 'variable');
-  final viewer = ViewerIdentity.fromConfig(config['viewer']);
+  final variable = _requiredConfigString(config.variable, 'variable');
+  final viewer = config.viewer;
   final row = await repository.setViewerValue(
     'twitch',
     viewer,
     variable,
-    config['value'],
+    config.value,
   );
   eventHub?.emit('viewerDataChanged', {
     'provider': row.provider,
@@ -348,22 +350,22 @@ Future<Object?> _setViewerVar(
   };
 }
 
-Future<Object?> _offsetViewerVar(
-  RuntimeMap config,
+Future<RuntimeMap> _offsetViewerVar(
+  ViewerVariableOffsetConfig config,
   EvaluationContext _,
   ViewerDataRepository repository,
   DartPluginEventHub? eventHub,
 ) async {
-  final variable = _requiredConfigString(config, 'variable');
-  final rawOffset = config['offset'];
-  if (rawOffset is! num) {
+  final variable = _requiredConfigString(config.variable, 'variable');
+  final rawOffset = config.offset;
+  if (rawOffset == null) {
     throw ArgumentError.value(
       rawOffset,
       'offset',
       'Viewer variable offsets must be numbers.',
     );
   }
-  final viewer = ViewerIdentity.fromConfig(config['viewer']);
+  final viewer = config.viewer;
   final row = await repository.offsetViewerValue(
     'twitch',
     viewer,
@@ -386,8 +388,8 @@ Future<Object?> _offsetViewerVar(
   };
 }
 
-String _requiredConfigString(RuntimeMap config, String key) {
-  final value = config[key]?.toString().trim() ?? '';
-  if (value.isEmpty) throw ArgumentError.value(config[key], key);
+String _requiredConfigString(String rawValue, String key) {
+  final value = rawValue.trim();
+  if (value.isEmpty) throw ArgumentError.value(rawValue, key);
   return value;
 }

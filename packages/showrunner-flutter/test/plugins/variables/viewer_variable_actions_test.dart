@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/viewer_data_repository.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/variables/contracts.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/schema/viewer_data.dart';
@@ -23,6 +24,31 @@ void main() {
     );
     registry = DartPluginRegistry()
       ..register(createVariablesPlugin(viewerDataRepository: repository));
+  });
+
+  test('decodes variable action configurations into typed contracts', () {
+    final set = registry.findAction('variables', 'setVariable')!;
+    final setConfig = set.decodeConfig({'variable': 'points', 'value': 3});
+    expect(setConfig, isA<VariableValueConfig>());
+    expect((setConfig as VariableValueConfig).value, 3);
+
+    final offset = registry.findAction('variables', 'offset')!;
+    final offsetConfig = offset.decodeConfig({
+      'variable': 'points',
+      'offset': 2,
+      'clamp': {'max': 10},
+    });
+    expect(offsetConfig, isA<VariableOffsetConfig>());
+    expect((offsetConfig as VariableOffsetConfig).maximum, 10);
+
+    final viewer = registry.findAction('variables', 'setViewerVar')!;
+    final viewerConfig = viewer.decodeConfig({
+      'viewer': {'id': '42', 'displayName': 'Ada'},
+      'variable': 'points',
+      'value': 12,
+    });
+    expect(viewerConfig, isA<ViewerVariableValueConfig>());
+    expect((viewerConfig as ViewerVariableValueConfig).viewer.id, '42');
   });
 
   test('invokes viewer actions against the injected repository', () async {
