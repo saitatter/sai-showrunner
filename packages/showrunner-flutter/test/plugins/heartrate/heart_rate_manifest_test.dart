@@ -3,12 +3,45 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:showrunner_flutter/plugins/heartrate/ble/fake_transport.dart';
+import 'package:showrunner_flutter/plugins/heartrate/contracts.dart';
 import 'package:showrunner_flutter/plugins/heartrate/events.dart';
 import 'package:showrunner_flutter/plugins/heartrate/manifest.dart';
 import 'package:showrunner_flutter/plugins/heartrate/services/heart_rate_service.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
+  test(
+    'uses typed action and trigger contracts at the runtime boundary',
+    () async {
+      final hub = DartPluginEventHub();
+      final service = HeartRateService(
+        transport: FakeBleTransport(),
+        eventHub: hub,
+      );
+      addTearDown(() async {
+        await service.close();
+        await hub.dispose();
+      });
+      final manifest = createHeartRatePlugin(service);
+      final action = manifest.actions.firstWhere(
+        (candidate) => candidate.actionId.value == 'startSimulation',
+      );
+      final config = action.decodeConfig({'bpm': '145', 'batteryPercent': 52});
+      expect(config, isA<HeartRateSimulationConfig>());
+      final simulation = config as HeartRateSimulationConfig;
+      expect(simulation.bpm, 145);
+      expect(simulation.batteryPercent, 52);
+
+      final trigger = manifest.triggers.firstWhere(
+        (candidate) => candidate.triggerId.value == 'above',
+      );
+      final threshold = trigger.decodeConfig({'threshold': 160});
+      expect(threshold, isA<HeartRateThresholdConfig>());
+      final typedThreshold = threshold as HeartRateThresholdConfig;
+      expect(typedThreshold.threshold, 160);
+    },
+  );
+
   test('registers semantic heart-rate triggers and lifecycle actions', () {
     final service = HeartRateService(transport: FakeBleTransport());
     addTearDown(service.close);
@@ -70,14 +103,14 @@ void main() {
         final trigger = createHeartRatePlugin(service).triggers.firstWhere(
           (candidate) => candidate.triggerId.value == 'above',
         );
-        final events = <Map<String, dynamic>>[];
+        final events = <HeartRateThresholdEvent>[];
         subscription = trigger
             .listenForRuntime({
               'threshold': 150,
               'hysteresis': 3,
               'cooldownSeconds': 0,
             })!
-            .listen((event) => events.add(Map<String, dynamic>.from(event)));
+            .listen((event) => events.add(event as HeartRateThresholdEvent));
         await Future<void>.delayed(Duration.zero);
 
         final connection = transport.lastConnection!;
@@ -88,7 +121,7 @@ void main() {
         connection.emitHeartRate(151);
         await Future<void>.delayed(Duration.zero);
 
-        expect(events.map((event) => event['bpm']), [151, 151]);
+        expect(events.map((event) => event.bpm), [151, 151]);
       } finally {
         await subscription?.cancel();
         await service.close();
