@@ -7,6 +7,7 @@ import 'package:showrunner_flutter/plugins/random/contracts.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/plugins/time/manifest.dart';
+import 'package:showrunner_flutter/plugins/time/contracts.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
@@ -302,6 +303,26 @@ void main() {
       }),
       {'timerRunning': true},
     );
+  });
+
+  test('time actions and triggers expose typed contracts', () {
+    final plugin = createTimePlugin();
+    final delay = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'delay')
+        .decodeConfig({'duration': 2});
+    expect(delay, isA<TimeDelayConfig>());
+    expect((delay as TimeDelayConfig).duration, 2);
+
+    final toggle = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'toggleTimer')
+        .decodeConfig({'timer': 'countdown', 'on': 'toggle'});
+    expect(toggle, isA<TimeToggleTimerConfig>());
+    expect((toggle as TimeToggleTimerConfig).mode, TimeToggleMode.toggle);
+
+    final trigger = plugin.triggers.firstWhere(
+      (trigger) => trigger.triggerId.value == 'repeat',
+    );
+    expect(trigger.decodeConfig({'interval': 30}), isA<TimeRepeatConfig>());
   });
 
   test(

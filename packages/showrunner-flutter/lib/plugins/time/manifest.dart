@@ -6,6 +6,7 @@ import '../../runtime/cancellation.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
 import '../variables/runtime.dart';
+import 'contracts.dart';
 
 const _delaySchema = DartDataInputSchema(
   label: 'Delay',
@@ -107,82 +108,88 @@ DartPluginManifest createTimePlugin({DartVariableRuntime? variableRuntime}) =>
       id: PluginId('time'),
       name: 'Time',
       actions: [
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TimeDelayConfig, Object?>(
           pluginId: PluginId('time'),
           actionId: ActionId('delay'),
           displayName: 'Delay',
           invoke: _delay,
           configSchema: _delaySchema,
+          configCodec: timeDelayConfigCodec,
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TimeToggleTimerConfig, Object?>(
           pluginId: PluginId('time'),
           actionId: ActionId('toggleTimer'),
           displayName: 'Toggle Timer',
           invoke: (config, context) =>
               _toggleTimer(config, context, variableRuntime),
           configSchema: _toggleTimerSchema,
+          configCodec: timeToggleTimerConfigCodec,
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TimeTimerConfig, Object?>(
           pluginId: PluginId('time'),
           actionId: ActionId('setTimer'),
           displayName: 'Set Timer',
           invoke: (config, context) =>
               _setTimer(config, context, variableRuntime),
           configSchema: _timerSchema,
+          configCodec: timeTimerConfigCodec,
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TimeTimerConfig, Object?>(
           pluginId: PluginId('time'),
           actionId: ActionId('offsetTimer'),
           displayName: 'Offset Timer',
           invoke: (config, context) =>
               _offsetTimer(config, context, variableRuntime),
           configSchema: _timerSchema,
+          configCodec: timeTimerConfigCodec,
         ),
       ],
       triggers: [
-        TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+        TriggerSpec<TimeRepeatConfig, TimeRepeatEvent>(
           pluginId: PluginId('time'),
           triggerId: TriggerId('repeat'),
           displayName: 'Repeat',
           configSchema: _repeatSchema,
-          listen: _emptyTrigger,
+          listen: () => const Stream<TimeRepeatEvent>.empty(),
           listenForConfig: _repeatEvents,
+          configCodec: timeRepeatConfigCodec,
+          eventEncoder: (event) => event.toRuntime(),
         ),
-        TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+        TriggerSpec<TimeTimerTriggerConfig, TimeTimerEvent>(
           pluginId: PluginId('time'),
           triggerId: TriggerId('timer'),
           displayName: 'Timer',
           configSchema: _timerTriggerSchema,
-          listen: _emptyTrigger,
+          listen: () => const Stream<TimeTimerEvent>.empty(),
           listenForConfig: (config) => _timerEvents(config, variableRuntime),
+          configCodec: timeTimerTriggerConfigCodec,
+          eventEncoder: (event) => event.toRuntime(),
         ),
       ],
     );
 
 final _timers = <String, _TimerValue>{};
 
-Stream<RuntimeMap> _emptyTrigger() => const Stream<RuntimeMap>.empty();
-
-Stream<RuntimeMap> _repeatEvents(RuntimeMap config) async* {
-  final delay = _duration(config['delay']);
+Stream<TimeRepeatEvent> _repeatEvents(TimeRepeatConfig config) async* {
+  final delay = _duration(config.delay);
   final interval = _boundedDuration(
-    _duration(config['interval'], fallback: 30),
+    _duration(config.interval, fallback: 30),
     const Duration(milliseconds: 100),
     const Duration(days: 365),
   );
   if (delay > Duration.zero) await Future<void>.delayed(delay);
   while (true) {
-    yield {'timestamp': DateTime.now().toUtc().toIso8601String()};
+    yield TimeRepeatEvent(timestamp: DateTime.now().toUtc().toIso8601String());
     await Future<void>.delayed(interval);
   }
 }
 
-Stream<RuntimeMap> _timerEvents(
-  RuntimeMap config,
+Stream<TimeTimerEvent> _timerEvents(
+  TimeTimerTriggerConfig config,
   DartVariableRuntime? variableRuntime,
 ) async* {
-  final timerName = config['timer']?.toString().trim() ?? '';
-  final offset = _duration(config['offset']);
+  final timerName = config.timer?.trim() ?? '';
+  final offset = _duration(config.offset);
   String? firedGeneration;
   while (true) {
     if (variableRuntime != null) await variableRuntime.reload();
@@ -196,11 +203,11 @@ Stream<RuntimeMap> _timerEvents(
           signature != firedGeneration &&
           remaining <= offset) {
         firedGeneration = signature;
-        yield {
-          'timer': timerName,
-          'offset': offset.inMilliseconds / 1000,
-          'remaining': remaining.inMilliseconds / 1000,
-        };
+        yield TimeTimerEvent(
+          timer: timerName,
+          offset: offset.inMilliseconds / 1000,
+          remaining: remaining.inMilliseconds / 1000,
+        );
       }
       if (!timer.running) {
         await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -220,8 +227,11 @@ Stream<RuntimeMap> _timerEvents(
   }
 }
 
-Future<Object?> _delay(RuntimeMap config, EvaluationContext context) async {
-  final seconds = (config['duration'] as num?)?.toDouble() ?? 1.0;
+Future<Object?> _delay(
+  TimeDelayConfig config,
+  EvaluationContext context,
+) async {
+  final seconds = config.duration.toDouble();
   await cancellableDelay(
     Duration(milliseconds: (seconds * 1000).toInt()),
     context.cancellationToken,
@@ -230,19 +240,19 @@ Future<Object?> _delay(RuntimeMap config, EvaluationContext context) async {
 }
 
 Future<Object?> _toggleTimer(
-  RuntimeMap config,
+  TimeToggleTimerConfig config,
   EvaluationContext context,
   DartVariableRuntime? variableRuntime,
 ) async {
-  final timer = config['timer']?.toString() ?? '';
-  final requested = config['on'] ?? true;
-  final normalized = _toggleValue(requested);
+  final timer = config.timer ?? '';
   if (variableRuntime != null) {
     await variableRuntime.reload();
     final definition = variableRuntime.definitionOf(timer);
     if (definition == null) return {'timerRunning': false};
     final value = _timerValue(definition.currentValue) ?? _TimerValue();
-    final on = normalized == 'toggle' ? value.running : normalized == true;
+    final on = config.mode == TimeToggleMode.toggle
+        ? value.running
+        : config.mode == TimeToggleMode.enabled;
     if (on) {
       value.endAt = DateTime.now().add(value.remaining);
     } else {
@@ -253,7 +263,9 @@ Future<Object?> _toggleTimer(
     return {'timerRunning': on};
   }
   final current = _timers.putIfAbsent(timer, _TimerValue.new);
-  final on = normalized == 'toggle' ? !current.running : normalized == true;
+  final on = config.mode == TimeToggleMode.toggle
+      ? !current.running
+      : config.mode == TimeToggleMode.enabled;
   if (on) {
     current.endAt = DateTime.now().add(current.remaining);
   } else {
@@ -263,21 +275,13 @@ Future<Object?> _toggleTimer(
   return {'timerRunning': on};
 }
 
-dynamic _toggleValue(dynamic value) => value is String
-    ? switch (value.toLowerCase()) {
-        'true' => true,
-        'false' => false,
-        _ => value,
-      }
-    : value;
-
 Future<Object?> _setTimer(
-  RuntimeMap config,
+  TimeTimerConfig config,
   EvaluationContext context,
   DartVariableRuntime? variableRuntime,
 ) async {
-  final timer = config['timer']?.toString() ?? '';
-  final seconds = (config['duration'] as num?)?.toDouble() ?? 0;
+  final timer = config.timer ?? '';
+  final seconds = config.duration.toDouble();
   if (variableRuntime != null) {
     await variableRuntime.reload();
     final definition = variableRuntime.definitionOf(timer);
@@ -301,12 +305,12 @@ Future<Object?> _setTimer(
 }
 
 Future<Object?> _offsetTimer(
-  RuntimeMap config,
+  TimeTimerConfig config,
   EvaluationContext context,
   DartVariableRuntime? variableRuntime,
 ) async {
-  final timer = config['timer']?.toString() ?? '';
-  final seconds = (config['duration'] as num?)?.toDouble() ?? 0;
+  final timer = config.timer ?? '';
+  final seconds = config.duration.toDouble();
   if (variableRuntime != null) {
     await variableRuntime.reload();
     final definition = variableRuntime.definitionOf(timer);
