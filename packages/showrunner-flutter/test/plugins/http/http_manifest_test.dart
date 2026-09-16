@@ -4,9 +4,21 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/http/manifest.dart';
+import 'package:showrunner_flutter/plugins/http/contracts.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 
 void main() {
+  test('HTTP request action decodes a typed request contract', () {
+    final config = createHttpPlugin().actions.single.decodeConfig({
+      'url': 'https://example.test',
+      'method': 'POST',
+      'body': '{}',
+    });
+    expect(config, isA<HttpRequestConfig>());
+    expect((config as HttpRequestConfig).method, 'POST');
+    expect(config.body, '{}');
+  });
+
   test(
     'HTTP endpoint trigger exposes route params, query, and JSON body',
     () async {

@@ -6,6 +6,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 const _endpointPrefix = '/plugins/endpoints';
 const _endpointMethods = ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'];
@@ -259,13 +260,14 @@ DartPluginManifest createHttpPlugin({
   return DartPluginManifest(
     id: PluginId('http'),
     name: 'HTTP',
-    actions: const [
-      ActionSpec<Map<String, dynamic>, Object?>(
+    actions: [
+      ActionSpec<HttpRequestConfig, Object?>(
         pluginId: PluginId('http'),
         actionId: ActionId('request'),
         displayName: 'HTTP Request',
         invoke: _httpRequest,
         configSchema: _requestSchema,
+        configCodec: httpRequestConfigCodec,
       ),
     ],
     triggers: endpointStream == null && endpointService == null
@@ -285,31 +287,31 @@ DartPluginManifest createHttpPlugin({
 }
 
 Future<Object?> _httpRequest(
-  RuntimeMap config,
+  HttpRequestConfig config,
   EvaluationContext context,
 ) async {
-  final urlStr = config['url']?.toString() ?? '';
+  final urlStr = config.url ?? '';
   if (urlStr.isEmpty) {
     throw ArgumentError('HTTP request URL is required.');
   }
   final uri = Uri.parse(urlStr);
-  final query = config['query']?.toString();
+  final query = config.query;
   final requestUri = query == null || query.isEmpty
       ? uri
       : _appendQuery(uri, query);
-  final method = (config['method']?.toString() ?? 'GET').toUpperCase();
+  final method = (config.method ?? 'GET').toUpperCase();
   final client = HttpClient();
   try {
     final request = await client.openUrl(method, requestUri);
-    final contentType = config['contentType']?.toString();
-    final body = config['body']?.toString();
+    final contentType = config.contentType;
+    final body = config.body;
     if (body != null &&
         body.isNotEmpty &&
         contentType != null &&
         contentType.isNotEmpty) {
       request.headers.contentType = ContentType.parse(contentType);
     }
-    final rawHeaders = config['headers']?.toString();
+    final rawHeaders = config.headers;
     if (rawHeaders != null && rawHeaders.isNotEmpty) {
       try {
         final decoded = jsonDecode(rawHeaders);
