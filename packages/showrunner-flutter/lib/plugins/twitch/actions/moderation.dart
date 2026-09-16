@@ -1,34 +1,41 @@
 part of '../actions.dart';
 
-List<ActionSpec<Map<String, dynamic>, Object?>> _twitchModerationActions(
+List<ActionSpec<dynamic, dynamic>> _twitchModerationActions(
   TwitchTransport transport,
   ResourceRepository? viewerGroupRepository,
 ) => [
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<TwitchTimeoutConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('timeout'),
     displayName: 'Timeout Viewer',
     configSchema: _timeoutSchema,
+    configCodec: twitchTimeoutConfigCodec,
     invoke: (config, context) =>
-        _ban(transport, config, context, includeDuration: true),
+        _ban(transport, config, context, duration: config.duration),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<TwitchModerationConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('ban'),
     displayName: 'Ban Viewer',
     configSchema: _moderationSchema,
+    configCodec: twitchModerationConfigCodec,
     invoke: (config, context) => _ban(transport, config, context),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<TwitchModerationConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('unban'),
     displayName: 'Unban Viewer',
     configSchema: _moderationSchema,
+    configCodec: twitchModerationConfigCodec,
     invoke: (config, context) =>
         transport.request('DELETE', '/helix/moderation/bans', {
-          'broadcaster_id': _id(config, context, 'broadcasterId'),
-          'moderator_id': _id(config, context, 'moderatorId'),
-          'user_id': config['viewerId'],
+          'broadcaster_id': _idValue(
+            config.broadcasterId,
+            context,
+            'broadcasterId',
+          ),
+          'moderator_id': _idValue(config.moderatorId, context, 'moderatorId'),
+          'user_id': config.viewerId ?? config.viewer,
         }, {}),
   ),
   ActionSpec<Map<String, dynamic>, Object?>(

@@ -1,45 +1,62 @@
 part of '../actions.dart';
 
-List<ActionSpec<Map<String, dynamic>, Object?>> _twitchAdActions(
+List<ActionSpec<dynamic, dynamic>> _twitchAdActions(
   TwitchTransport transport,
 ) => [
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<TwitchClipConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('createClip'),
     displayName: 'Create Clip',
     configSchema: _clipSchema,
+    configCodec: twitchClipConfigCodec,
     invoke: (config, context) async {
       final response = await transport.request(
         'POST',
         '/helix/clips',
-        {'broadcaster_id': _id(config, context, 'broadcasterId')},
-        {'has_delay': _bool(config['createAfterDelay'], fallback: true)},
+        {
+          'broadcaster_id': _idValue(
+            config.broadcasterId,
+            context,
+            'broadcasterId',
+          ),
+        },
+        {'has_delay': config.createAfterDelay},
       );
       return {'clipId': _clipId(response)};
     },
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<TwitchAdConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('runAd'),
     displayName: 'Run Ad',
     configSchema: _adSchema,
+    configCodec: twitchAdConfigCodec,
     invoke: (config, context) => transport.request(
       'POST',
       '/helix/channels/commercial',
-      {'broadcaster_id': _id(config, context, 'broadcasterId')},
-      {'length': config['duration'] ?? 30},
+      {
+        'broadcaster_id': _idValue(
+          config.broadcasterId,
+          context,
+          'broadcasterId',
+        ),
+      },
+      {'length': config.duration ?? 30},
     ),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<TwitchBroadcasterConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('snoozeAds'),
     displayName: 'Snooze Ads',
     configSchema: _twitchObject('Twitch ad schedule', [_broadcaster]),
-    invoke: (config, context) => transport.request(
-      'POST',
-      '/helix/channels/ads/schedule/snooze',
-      {'broadcaster_id': _id(config, context, 'broadcasterId')},
-      {},
-    ),
+    configCodec: twitchBroadcasterConfigCodec,
+    invoke: (config, context) =>
+        transport.request('POST', '/helix/channels/ads/schedule/snooze', {
+          'broadcaster_id': _idValue(
+            config.broadcasterId,
+            context,
+            'broadcasterId',
+          ),
+        }, {}),
   ),
 ];

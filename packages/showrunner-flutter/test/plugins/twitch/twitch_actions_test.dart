@@ -4,12 +4,41 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/twitch/actions.dart';
+import 'package:showrunner_flutter/plugins/twitch/contracts.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
+  test('decodes core action configurations into typed contracts', () {
+    final plugin = createTwitchPlugin(
+      TwitchTransport((method, path, query, body) async => const {}),
+    );
+
+    final chat = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'chat')
+        .decodeConfig({'message': 'hello'});
+    expect(chat, isA<TwitchChatConfig>());
+    expect((chat as TwitchChatConfig).message, 'hello');
+
+    final prediction = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'createPrediction')
+        .decodeConfig({
+          'title': 'Choose',
+          'duration': 60,
+          'outcomes': ['yes', 'no'],
+        });
+    expect(prediction, isA<TwitchPredictionConfig>());
+    expect((prediction as TwitchPredictionConfig).outcomes, ['yes', 'no']);
+
+    final timeout = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'timeout')
+        .decodeConfig({'viewerId': 'viewer-1', 'duration': 30});
+    expect(timeout, isA<TwitchTimeoutConfig>());
+    expect((timeout as TwitchTimeoutConfig).duration, 30);
+  });
+
   test('builds Twitch Helix actions through an injectable transport', () async {
     final requests = <String>[];
     final transport = TwitchTransport((method, path, query, body) async {

@@ -5,6 +5,7 @@ import '../../schema/resource.dart';
 import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_contract.dart';
 import 'channel_points.dart';
+import 'contracts.dart';
 
 part 'actions/chat.dart';
 part 'actions/moderation.dart';
@@ -602,8 +603,8 @@ DartPluginManifest createTwitchPlugin(
   );
 }
 
-ActionSpec<Map<String, dynamic>, Object?> _twitchAction(
-  List<ActionSpec<Map<String, dynamic>, Object?>> actions,
+ActionSpec<dynamic, dynamic> _twitchAction(
+  List<ActionSpec<dynamic, dynamic>> actions,
   String id,
 ) => actions.firstWhere((action) => action.actionId.value == id);
 
@@ -614,6 +615,9 @@ Stream<RuntimeMap> _twitchEventStream(
 
 String _id(RuntimeMap config, EvaluationContext context, String key) =>
     (config[key] ?? context.contextState[key])?.toString() ?? '';
+
+String _idValue(String? value, EvaluationContext context, String key) =>
+    (value ?? context.contextState[key])?.toString() ?? '';
 
 Future<Object?> _updateViewerGroup(
   ResourceRepository? repository,
@@ -719,19 +723,15 @@ String _required(RuntimeMap config, String key, {String? fallback}) {
 
 Future<RuntimeMap> _ban(
   TwitchTransport transport,
-  RuntimeMap config,
+  TwitchModerationConfig config,
   EvaluationContext context, {
-  bool includeDuration = false,
+  num? duration,
 }) {
-  final body = <String, dynamic>{
-    'user_id': config['viewerId'] ?? config['viewer'],
-  };
-  if (config['reason'] != null) body['reason'] = config['reason'];
-  if (includeDuration && config['duration'] != null) {
-    body['duration'] = config['duration'];
-  }
+  final body = <String, dynamic>{'user_id': config.viewerId ?? config.viewer};
+  if (config.reason != null) body['reason'] = config.reason;
+  if (duration != null) body['duration'] = duration;
   return transport.request('POST', '/helix/moderation/bans', {
-    'broadcaster_id': _id(config, context, 'broadcasterId'),
-    'moderator_id': _id(config, context, 'moderatorId'),
+    'broadcaster_id': _idValue(config.broadcasterId, context, 'broadcasterId'),
+    'moderator_id': _idValue(config.moderatorId, context, 'moderatorId'),
   }, body);
 }
