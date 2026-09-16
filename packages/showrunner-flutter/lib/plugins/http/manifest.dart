@@ -51,9 +51,9 @@ final class DartHttpEndpointService {
     server.listen(_handleRequest);
   }
 
-  Stream<RuntimeMap> register(RuntimeMap config) {
-    final method = (config['method']?.toString() ?? 'POST').toUpperCase();
-    final route = config['route']?.toString().trim() ?? '';
+  Stream<RuntimeMap> register(HttpEndpointConfig config) {
+    final method = config.method.toUpperCase();
+    final route = config.route?.trim() ?? '';
     if (!_endpointMethods.contains(method)) {
       throw ArgumentError.value(method, 'config.method');
     }
@@ -273,13 +273,14 @@ DartPluginManifest createHttpPlugin({
     triggers: endpointStream == null && endpointService == null
         ? const []
         : [
-            TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+            TriggerSpec<HttpEndpointConfig, RuntimeMap>(
               pluginId: PluginId('http'),
               triggerId: TriggerId('endpoint'),
               displayName: 'HTTP Endpoint',
               listen: () => endpointStream ?? const Stream.empty(),
               listenForConfig: endpointService?.register,
               configSchema: _endpointSchema,
+              configCodec: httpEndpointConfigCodec,
               matches: _matchesEndpoint,
             ),
           ],
@@ -358,9 +359,9 @@ Uri _appendQuery(Uri uri, String rawQuery) {
   return Uri.parse('$base$separator$query$fragment');
 }
 
-bool _matchesEndpoint(RuntimeMap config, RuntimeMap payload) {
-  final configuredMethod = config['method']?.toString().toUpperCase();
-  final configuredRoute = _normalizeRoute(config['route']?.toString() ?? '');
+bool _matchesEndpoint(HttpEndpointConfig config, RuntimeMap payload) {
+  final configuredMethod = config.method.toUpperCase();
+  final configuredRoute = _normalizeRoute(config.route ?? '');
   return configuredMethod == payload['method'] &&
       configuredRoute == _normalizeRoute(payload['route']?.toString() ?? '');
 }

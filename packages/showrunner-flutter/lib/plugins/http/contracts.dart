@@ -55,4 +55,27 @@ final httpRequestConfigCodec = HttpConfigCodec(
   (HttpRequestConfig value) => value.toRuntime(),
 );
 
+final class HttpEndpointConfig {
+  const HttpEndpointConfig({this.method = 'POST', this.route});
+
+  factory HttpEndpointConfig.fromRuntime(RuntimeMap value) =>
+      HttpEndpointConfig(
+        method: _string(value['method']) ?? 'POST',
+        route: _string(value['route']),
+      );
+
+  final String method;
+  final String? route;
+
+  RuntimeMap toRuntime() => {
+    'method': method,
+    if (route != null) 'route': route,
+  };
+}
+
+final httpEndpointConfigCodec = HttpConfigCodec(
+  HttpEndpointConfig.fromRuntime,
+  (HttpEndpointConfig value) => value.toRuntime(),
+);
+
 String? _string(Object? value) => value?.toString();

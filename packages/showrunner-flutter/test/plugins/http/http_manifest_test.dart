@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/http/manifest.dart';
 import 'package:showrunner_flutter/plugins/http/contracts.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
+import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
   test('HTTP request action decodes a typed request contract', () {
@@ -26,7 +27,9 @@ void main() {
       await service.start();
       final events = <Map<String, dynamic>>[];
       final subscription = service
-          .register(const {'method': 'POST', 'route': '/hooks/:id'})
+          .register(
+            const HttpEndpointConfig(method: 'POST', route: '/hooks/:id'),
+          )
           .listen(events.add);
       final client = HttpClient();
 
@@ -58,6 +61,16 @@ void main() {
       }
     },
   );
+
+  test('HTTP endpoint trigger decodes a typed route configuration', () {
+    final trigger = createHttpPlugin(
+      eventHub: DartPluginEventHub(),
+    ).triggers.single;
+    expect(
+      trigger.decodeConfig({'method': 'POST', 'route': '/hooks'}),
+      isA<HttpEndpointConfig>(),
+    );
+  });
 
   test('unregistered HTTP endpoint returns not found', () async {
     final service = DartHttpEndpointService(port: 0);
