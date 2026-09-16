@@ -6,6 +6,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 abstract interface class LifxTransport {
   Future<RuntimeMap> getState();
@@ -307,85 +308,103 @@ DartPluginManifest createLifxPlugin(
     ),
   ],
   actions: [
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<LifxLightConfig, RuntimeMap>(
       pluginId: PluginId('lifx'),
       actionId: ActionId('getState'),
       displayName: 'Get Light State',
+      configCodec: lifxLightConfigCodec,
       invoke: (config, context) =>
-          (transportResolver?.call(config) ?? transport).getState(),
+          (transportResolver?.call(config.toRuntime()) ?? transport).getState(),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<LifxLightConfig, RuntimeMap>(
       pluginId: PluginId('lifx'),
       actionId: ActionId('setPower'),
       displayName: 'Set Power',
       configSchema: _lightSchema,
-      invoke: (config, context) =>
-          _setPower(transportResolver?.call(config) ?? transport, config),
+      configCodec: lifxLightConfigCodec,
+      invoke: (config, context) => _setPower(
+        transportResolver?.call(config.toRuntime()) ?? transport,
+        config,
+      ),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<LifxLightConfig, RuntimeMap>(
       pluginId: PluginId('lifx'),
       actionId: ActionId('setColor'),
       displayName: 'Set Color',
       configSchema: _lightSchema,
-      invoke: (config, context) =>
-          _setColor(transportResolver?.call(config) ?? transport, config),
+      configCodec: lifxLightConfigCodec,
+      invoke: (config, context) => _setColor(
+        transportResolver?.call(config.toRuntime()) ?? transport,
+        config,
+      ),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<LifxLightConfig, RuntimeMap>(
       pluginId: PluginId('lifx'),
       actionId: ActionId('setLightState'),
       displayName: 'Set Light State',
       configSchema: _lightSchema,
-      invoke: (config, context) =>
-          _setLightState(transportResolver?.call(config) ?? transport, config),
+      configCodec: lifxLightConfigCodec,
+      invoke: (config, context) => _setLightState(
+        transportResolver?.call(config.toRuntime()) ?? transport,
+        config,
+      ),
     ),
   ],
 );
 
-Future<Object?> _setPower(LifxTransport transport, RuntimeMap config) async {
-  var state = config['state'] ?? 'on';
-  if (state == 'toggle') {
+Future<RuntimeMap> _setPower(
+  LifxTransport transport,
+  LifxLightConfig config,
+) async {
+  var power = config.power ?? LifxPowerMode.enabled;
+  if (power == LifxPowerMode.toggle) {
     final current = await transport.getState();
-    state = current['on'] != true;
+    power = current['on'] == true
+        ? LifxPowerMode.disabled
+        : LifxPowerMode.enabled;
   }
   return transport.setPower(
-    state == true || state == 'on',
-    _transition(config),
+    power == LifxPowerMode.enabled,
+    _transition(config.transitionSeconds),
   );
 }
 
-Future<Object?> _setColor(LifxTransport transport, RuntimeMap config) async {
-  final color = parseLightColor(config['color']?.toString());
+Future<RuntimeMap> _setColor(
+  LifxTransport transport,
+  LifxLightConfig config,
+) async {
+  final color = parseLightColor(config.color);
   if (color == null) throw ArgumentError('A valid LIFX color is required.');
-  return transport.setColor(color, _transition(config));
+  return transport.setColor(color, _transition(config.transitionSeconds));
 }
 
-Future<Object?> _setLightState(
+Future<RuntimeMap> _setLightState(
   LifxTransport transport,
-  RuntimeMap config,
+  LifxLightConfig config,
 ) async {
   final current = await transport.getState();
-  var state = config['state'] ?? 'on';
-  if (state == 'toggle') state = current['on'] != true;
-  final on = state == true || state == 'on';
-  final color = parseLightColor(config['color']?.toString());
+  var power = config.power ?? LifxPowerMode.enabled;
+  if (power == LifxPowerMode.toggle) {
+    power = current['on'] == true
+        ? LifxPowerMode.disabled
+        : LifxPowerMode.enabled;
+  }
+  final on = power == LifxPowerMode.enabled;
+  final color = parseLightColor(config.color);
   if (color != null && on) {
     await transport.setColor(
       color,
-      current['on'] == true ? _transition(config) : 0,
+      current['on'] == true ? _transition(config.transitionSeconds) : 0,
     );
   }
   if (on != (current['on'] == true) || !on) {
-    await transport.setPower(on, _transition(config));
+    await transport.setPower(on, _transition(config.transitionSeconds));
   }
-  return {
-    'updated': true,
-    'on': on,
-    if (color != null) 'color': config['color'],
-  };
+  return {'updated': true, 'on': on, if (color != null) 'color': config.color};
 }
 
-int _transition(RuntimeMap config) =>
-    (_number(config['transition'], 0.5) * 1000).clamp(0, 600000).round();
+int _transition(double? seconds) =>
+    (_number(seconds, 0.5) * 1000).clamp(0, 600000).round();
 
 double _number(Object? value, double fallback) =>
     value is num ? value.toDouble() : double.tryParse('$value') ?? fallback;

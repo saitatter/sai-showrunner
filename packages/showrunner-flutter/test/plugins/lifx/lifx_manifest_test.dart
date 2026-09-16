@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/plugins/lifx/contracts.dart';
 import 'package:showrunner_flutter/plugins/lifx/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 
@@ -32,6 +33,14 @@ void main() {
 
     expect(calls, ['color:4000.0:0', 'power:true:1250']);
     expect(result, {'updated': true, 'on': true, 'color': 'kb(4000, 60)'});
+
+    expect(
+      registry.findAction('lifx', 'setColor')?.decodeConfig({
+        'color': 'hsb(120, 80, 70)',
+        'transition': '0.25',
+      }),
+      isA<LifxLightConfig>(),
+    );
   });
 
   test('encodes and parses LIFX LAN v2 packets', () {
