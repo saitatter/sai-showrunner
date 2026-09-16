@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/plugins/philips_hue/contracts.dart';
 import 'package:showrunner_flutter/plugins/philips_hue/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 
@@ -23,6 +24,15 @@ void main() {
           }),
         ),
       );
+
+    expect(
+      registry.findAction('philips-hue', 'setLightState')?.decodeConfig({
+        'lightId': 'light-1',
+        'state': 'toggle',
+        'transition': '0.5',
+      }),
+      isA<HueActionConfig>(),
+    );
 
     await registry.invokeAction('philips-hue', 'listLights', {});
     await registry.invokeAction('philips-hue', 'listGroups', {});

@@ -6,6 +6,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef HueRequest =
     Future<RuntimeMap> Function(
@@ -194,100 +195,116 @@ DartPluginManifest createPhilipsHuePlugin(
     ),
   ],
   actions: [
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<HueActionConfig, RuntimeMap>(
       pluginId: PluginId('philips-hue'),
       actionId: ActionId('listLights'),
       displayName: 'List Lights',
+      configCodec: hueActionConfigCodec,
       invoke: (config, context) =>
           transport.request('GET', '/resource/light', const {}, null),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<HueActionConfig, RuntimeMap>(
       pluginId: PluginId('philips-hue'),
       actionId: ActionId('listGroups'),
       displayName: 'List Light Groups',
+      configCodec: hueActionConfigCodec,
       invoke: (config, context) =>
           transport.request('GET', '/resource/grouped_light', const {}, null),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<HueActionConfig, RuntimeMap>(
       pluginId: PluginId('philips-hue'),
       actionId: ActionId('listScenes'),
       displayName: 'List Scenes',
+      configCodec: hueActionConfigCodec,
       invoke: (config, context) =>
           transport.request('GET', '/resource/scene', const {}, null),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<HueActionConfig, RuntimeMap>(
       pluginId: PluginId('philips-hue'),
       actionId: ActionId('setLightState'),
       displayName: 'Set Light State',
       configSchema: _deviceSchema,
+      configCodec: hueActionConfigCodec,
       invoke: (config, context) => _setLightState(
-        transportResolver?.call(config) ?? transport,
+        transportResolver?.call(config.toRuntime()) ?? transport,
         config,
         context,
       ),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<HueActionConfig, RuntimeMap>(
       pluginId: PluginId('philips-hue'),
       actionId: ActionId('setPlugState'),
       displayName: 'Set Plug State',
       configSchema: _plugSchema,
-      invoke: (config, context) =>
-          _setPlugState(transportResolver?.call(config) ?? transport, config),
+      configCodec: hueActionConfigCodec,
+      invoke: (config, context) => _setPlugState(
+        transportResolver?.call(config.toRuntime()) ?? transport,
+        config,
+      ),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<HueActionConfig, RuntimeMap>(
       pluginId: PluginId('philips-hue'),
       actionId: ActionId('recallScene'),
       displayName: 'Recall Hue Scene',
       configSchema: _sceneSchema,
-      invoke: (config, context) =>
-          _recallScene(transportResolver?.call(config) ?? transport, config),
+      configCodec: hueActionConfigCodec,
+      invoke: (config, context) => _recallScene(
+        transportResolver?.call(config.toRuntime()) ?? transport,
+        config,
+      ),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<HueActionConfig, RuntimeMap>(
       pluginId: PluginId('philips-hue'),
       actionId: ActionId('scene'),
       displayName: 'Set HUE Scene',
       configSchema: _sceneSchema,
-      invoke: (config, context) =>
-          _recallScene(transportResolver?.call(config) ?? transport, config),
+      configCodec: hueActionConfigCodec,
+      invoke: (config, context) => _recallScene(
+        transportResolver?.call(config.toRuntime()) ?? transport,
+        config,
+      ),
     ),
   ],
 );
 
-Future<Object?> _recallScene(HueTransport transport, RuntimeMap config) =>
-    transport.request(
-      'PUT',
-      '/resource/scene/${_requiredScene(config)}',
-      const {},
-      {
-        'recall': {'action': 'active'},
-      },
-    );
-
-Future<Object?> _setLightState(
+Future<RuntimeMap> _recallScene(
   HueTransport transport,
-  RuntimeMap config,
+  HueActionConfig config,
+) => transport.request(
+  'PUT',
+  '/resource/scene/${_requiredScene(config.sceneId, config.scene)}',
+  const {},
+  {
+    'recall': {'action': 'active'},
+  },
+);
+
+Future<RuntimeMap> _setLightState(
+  HueTransport transport,
+  HueActionConfig config,
   EvaluationContext context,
 ) async {
-  final resourceType = config['resourceType']?.toString() ?? 'light';
-  final lightId = _required(config, 'lightId');
-  var power = config['state'] ?? 'on';
-  if (power == 'toggle') {
+  final resourceType = config.resourceType ?? 'light';
+  final lightId = _required(config.lightId, 'lightId');
+  var power = config.power ?? HuePowerMode.enabled;
+  if (power == HuePowerMode.toggle) {
     final current = await transport.request(
       'GET',
       '/resource/$resourceType/$lightId',
       const {},
       null,
     );
-    power = !_isOn(current);
+    power = _isOn(current) ? HuePowerMode.disabled : HuePowerMode.enabled;
   }
   final body = <String, dynamic>{
-    'on': {'on': power == true || power == 'on'},
+    'on': {'on': power == HuePowerMode.enabled},
     'dynamics': {
-      'duration': ((_number(config['transition'], 0.5)).clamp(0, 600) * 1000)
-          .round(),
+      'duration':
+          ((_number(config.transitionSeconds, 0.5)).clamp(0, 600) * 1000)
+              .round(),
     },
   };
-  final parsedColor = parseLightColor(config['color']?.toString());
+  final parsedColor = parseLightColor(config.color);
   if (parsedColor != null) {
     body['dimming'] = {'brightness': parsedColor.brightness.clamp(0, 100)};
     if (parsedColor.isKelvin) {
@@ -306,32 +323,34 @@ Future<Object?> _setLightState(
   );
 }
 
-Future<Object?> _setPlugState(HueTransport transport, RuntimeMap config) async {
-  var power = config['state'] ?? 'on';
-  final lightId = _required(config, 'lightId');
-  if (power == 'toggle') {
+Future<RuntimeMap> _setPlugState(
+  HueTransport transport,
+  HueActionConfig config,
+) async {
+  var power = config.power ?? HuePowerMode.enabled;
+  final lightId = _required(config.lightId, 'lightId');
+  if (power == HuePowerMode.toggle) {
     final current = await transport.request(
       'GET',
       '/resource/light/$lightId',
       const {},
       null,
     );
-    power = !_isOn(current);
+    power = _isOn(current) ? HuePowerMode.disabled : HuePowerMode.enabled;
   }
   return transport.request('PUT', '/resource/light/$lightId', const {}, {
-    'on': {'on': power == true || power == 'on'},
+    'on': {'on': power == HuePowerMode.enabled},
   });
 }
 
-String _required(RuntimeMap config, String key) {
-  final value = config[key]?.toString().trim() ?? '';
-  if (value.isEmpty) throw ArgumentError('$key is required.');
-  return value;
+String _required(String? value, String key) {
+  final text = value?.trim() ?? '';
+  if (text.isEmpty) throw ArgumentError('$key is required.');
+  return text;
 }
 
-String _requiredScene(RuntimeMap config) {
-  final value = config['sceneId'] ?? config['scene'];
-  final scene = value?.toString().trim() ?? '';
+String _requiredScene(String? sceneId, String? sceneAlias) {
+  final scene = (sceneId ?? sceneAlias)?.trim() ?? '';
   if (scene.isEmpty) throw ArgumentError('scene is required.');
   return scene;
 }
