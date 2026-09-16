@@ -6,6 +6,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef DonorDriveRequest =
     Future<dynamic> Function(String path, RuntimeMap query);
@@ -255,44 +256,48 @@ DartPluginManifest createDonorDrivePlugin(
   triggers: (runtime?.eventHub ?? eventHub) == null
       ? const []
       : [
-          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+          TriggerSpec<DonorDriveDonationTriggerConfig, RuntimeMap>(
             pluginId: PluginId('donordrive'),
             triggerId: TriggerId('donation'),
             displayName: 'DonorDrive Donation',
             configSchema: _donationSchema,
+            configCodec: donorDriveDonationTriggerConfigCodec,
             listen: () => (runtime?.eventHub ?? eventHub)!.stream('donation'),
             matches: _matchesDonation,
           ),
-          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+          TriggerSpec<DonorDriveIdTriggerConfig, RuntimeMap>(
             pluginId: PluginId('donordrive'),
             triggerId: TriggerId('incentive'),
             displayName: 'DonorDrive Incentive',
             configSchema: _incentiveSchema,
+            configCodec: donorDriveIncentiveTriggerConfigCodec,
             listen: () => (runtime?.eventHub ?? eventHub)!.stream('incentive'),
             matches: (config, payload) =>
-                config['incentive']?.toString().trim().isEmpty != false ||
-                config['incentive']?.toString() ==
-                    payload['incentiveId']?.toString(),
+                config.id?.trim().isEmpty != false ||
+                config.id == payload['incentiveId']?.toString(),
           ),
-          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+          TriggerSpec<DonorDriveIdTriggerConfig, RuntimeMap>(
             pluginId: PluginId('donordrive'),
             triggerId: TriggerId('milestone'),
             displayName: 'DonorDrive Milestone',
             configSchema: _milestoneSchema,
+            configCodec: donorDriveMilestoneTriggerConfigCodec,
             listen: () => (runtime?.eventHub ?? eventHub)!.stream('milestone'),
             matches: (config, payload) =>
-                config['milestone']?.toString().trim().isEmpty != false ||
-                config['milestone']?.toString() ==
-                    payload['milestoneId']?.toString(),
+                config.id?.trim().isEmpty != false ||
+                config.id == payload['milestoneId']?.toString(),
           ),
         ],
 );
 
-bool _matchesDonation(RuntimeMap config, RuntimeMap payload) {
-  if (config['incentive'] == true && payload['isIncentive'] != true) {
+bool _matchesDonation(
+  DonorDriveDonationTriggerConfig config,
+  RuntimeMap payload,
+) {
+  if (config.incentive && payload['isIncentive'] != true) {
     return false;
   }
-  final minimum = _number(config['minimumAmount']);
+  final minimum = config.minimumAmount;
   final amount = _number(payload['amount']);
   return minimum == null || (amount != null && amount >= minimum);
 }

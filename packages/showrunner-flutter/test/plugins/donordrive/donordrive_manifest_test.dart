@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/plugins/donordrive/contracts.dart';
 import 'package:showrunner_flutter/plugins/donordrive/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
@@ -93,6 +94,10 @@ void main() {
     final donation = registry.findTrigger('donordrive', 'donation')!;
     final incentive = registry.findTrigger('donordrive', 'incentive')!;
     final milestone = registry.findTrigger('donordrive', 'milestone')!;
+    expect(
+      donation.decodeConfig({'minimumAmount': '25'}),
+      isA<DonorDriveDonationTriggerConfig>(),
+    );
     expect(
       donation.matchesRuntime({'minimumAmount': 25}, {'amount': 50}),
       isTrue,
