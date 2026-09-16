@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/remote/contracts.dart';
 import 'package:showrunner_flutter/plugins/remote/manifest.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
@@ -12,6 +13,10 @@ void main() {
     final registry = DartPluginRegistry()
       ..register(createRemotePlugin(eventHub: eventHub));
     final trigger = registry.findTrigger('remote', 'button')!;
+    expect(
+      trigger.decodeConfig({'name': 'Start'}),
+      isA<RemoteButtonTriggerConfig>(),
+    );
 
     expect(
       trigger.matchesRuntime({'name': 'Start'}, {'name': 'Start'}),

@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../schema/data_input.dart';
+import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef RemoteButtonNameLoader = Future<List<String>> Function();
 typedef RemoteButtonStateReporter = void Function(String state);
@@ -139,14 +141,15 @@ DartPluginManifest createRemotePlugin({
   triggers: eventHub == null
       ? const []
       : [
-          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+          TriggerSpec<RemoteButtonTriggerConfig, RuntimeMap>(
             pluginId: PluginId('remote'),
             triggerId: TriggerId('button'),
             displayName: 'Remote Button',
             configSchema: _buttonSchema,
+            configCodec: remoteButtonTriggerConfigCodec,
             listen: () => eventHub.stream('remoteButton'),
             matches: (config, payload) =>
-                config['name']?.toString() == payload['name']?.toString(),
+                config.name == payload['name']?.toString(),
           ),
         ],
 );
