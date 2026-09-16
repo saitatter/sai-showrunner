@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -178,6 +179,7 @@ class UpdateWorkspace extends StatefulWidget {
     this.installService,
     this.onRestartRequested,
     this.downloadDirectory,
+    this.rollbackDirectory,
   });
 
   final UpdateCheckService? updateService;
@@ -185,6 +187,7 @@ class UpdateWorkspace extends StatefulWidget {
   final UpdateInstallService? installService;
   final Future<bool> Function()? onRestartRequested;
   final Directory? downloadDirectory;
+  final Directory? rollbackDirectory;
 
   @override
   State<UpdateWorkspace> createState() => _UpdateWorkspaceState();
@@ -199,8 +202,22 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
   bool _checking = false;
   bool _downloading = false;
   bool _installing = false;
+  bool _rollbackAvailable = false;
   File? _downloadedArtifact;
   Object? _downloadError;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshRollbackAvailability());
+  }
+
+  Future<void> _refreshRollbackAvailability() async {
+    final directory = widget.rollbackDirectory;
+    if (directory == null) return;
+    final available = await File('${directory.path}/manifest.json').exists();
+    if (mounted) setState(() => _rollbackAvailable = available);
+  }
 
   Future<void> _checkUpdate() async {
     setState(() => _checking = true);
@@ -265,6 +282,11 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
   Future<void> _installDownloadedArtifact() async {
     final artifact = _downloadedArtifact;
     if (artifact == null || _installing || !Platform.isWindows) return;
+    final rollbackDirectory = widget.rollbackDirectory;
+    if (rollbackDirectory == null) {
+      setState(() => _downloadError = 'Rollback storage is unavailable.');
+      return;
+    }
     setState(() {
       _installing = true;
       _downloadError = null;
@@ -275,6 +297,41 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
         artifact,
         executable: executable,
         installDirectory: executable.parent,
+        rollbackDirectory: rollbackDirectory,
+        backupVersion: _updateInfo.currentVersion,
+      );
+      if (!mounted) return;
+      _rollbackAvailable = true;
+      final restarted = await widget.onRestartRequested?.call() ?? true;
+      if (!restarted && mounted) {
+        setState(() {
+          _installing = false;
+          _downloadError = 'Restart canceled.';
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _installing = false;
+          _downloadError = error;
+        });
+      }
+    }
+  }
+
+  Future<void> _rollbackInstalledUpdate() async {
+    final directory = widget.rollbackDirectory;
+    if (directory == null || _installing || !Platform.isWindows) return;
+    setState(() {
+      _installing = true;
+      _downloadError = null;
+    });
+    try {
+      final executable = File(Platform.resolvedExecutable);
+      await (widget.installService ?? const UpdateInstallService()).rollback(
+        executable: executable,
+        installDirectory: executable.parent,
+        rollbackDirectory: directory,
       );
       if (!mounted) return;
       final restarted = await widget.onRestartRequested?.call() ?? true;
@@ -425,6 +482,29 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
                       ),
                     ),
                   ],
+                ],
+                if (Platform.isWindows &&
+                    widget.rollbackDirectory != null &&
+                    _rollbackAvailable) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _installing ? null : _rollbackInstalledUpdate,
+                      icon: _installing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.undo),
+                      label: Text(
+                        _installing
+                            ? 'Preparing rollback...'
+                            : 'Rollback previous version',
+                      ),
+                    ),
+                  ),
                 ],
                 if (_downloadError != null) ...[
                   const SizedBox(height: 8),

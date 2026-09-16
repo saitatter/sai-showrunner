@@ -53,7 +53,11 @@ failure is isolated and that canonical V2 data remains intact after a fresh
 repository reopen.
 
 The updater remains `partial` in `docs/migration/product-surface.json` until a
-signed installed Windows upgrade and rollback are demonstrated.
+signed installed Windows upgrade and rollback are demonstrated. The updater
+now keeps a versioned rollback backup in the user data directory, removes
+stale files during replacement, restores automatically if installation or
+restart fails, and exposes an explicit rollback operation. The remaining
+gap is release-environment proof with a signed installed build.
 
 ## Required checks
 

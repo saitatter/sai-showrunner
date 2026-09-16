@@ -212,6 +212,9 @@ final class WorkspaceRegistry {
       downloadDirectory: Directory(
         '${host.dataService.userDirectory.path}/updates',
       ),
+      rollbackDirectory: Directory(
+        '${host.dataService.userDirectory.path}/updates/rollback',
+      ),
     ),
     WorkspaceIds.settings => SettingsWorkspace(
       preferences: host.interfacePreferences,
