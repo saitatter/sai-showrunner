@@ -808,19 +808,16 @@ Stream<T> _twitchEventStream<T>(
   T Function(RuntimeMap) decode,
 ) => eventHub?.stream(eventId).map(decode) ?? const Stream.empty();
 
-String _id(RuntimeMap config, EvaluationContext context, String key) =>
-    (config[key] ?? context.contextState[key])?.toString() ?? '';
-
 String _idValue(String? value, EvaluationContext context, String key) =>
     (value ?? context.contextState[key])?.toString() ?? '';
 
 Future<Object?> _updateViewerGroup(
   ResourceRepository? repository,
-  RuntimeMap config, {
+  TwitchViewerGroupConfig config, {
   required bool add,
 }) async {
-  final resource = await _loadViewerGroup(repository, config['group']);
-  final viewer = config['viewer']?.toString().trim() ?? '';
+  final resource = await _loadViewerGroup(repository, config.group);
+  final viewer = config.viewer?.trim() ?? '';
   if (viewer.isEmpty) throw ArgumentError('viewer is required.');
   final userIds = {
     ...((resource.config['userIds'] as List?) ?? const []).map(
@@ -848,9 +845,9 @@ Future<Object?> _updateViewerGroup(
 
 Future<Object?> _clearViewerGroup(
   ResourceRepository? repository,
-  RuntimeMap config,
+  TwitchClearViewerGroupConfig config,
 ) async {
-  final resource = await _loadViewerGroup(repository, config['group']);
+  final resource = await _loadViewerGroup(repository, config.group);
   await repository!.save(
     ResourceData(
       id: resource.id,
@@ -882,15 +879,6 @@ Future<ResourceData> _loadViewerGroup(
   return resource;
 }
 
-bool _bool(Object? value, {bool fallback = false}) {
-  if (value is bool) return value;
-  return switch (value?.toString().toLowerCase()) {
-    'true' => true,
-    'false' => false,
-    _ => fallback,
-  };
-}
-
 bool _matchesRedemption(
   TwitchRedemptionTriggerConfig config,
   TwitchRedemptionEvent payload,
@@ -909,9 +897,8 @@ dynamic _clipId(RuntimeMap response) {
   return null;
 }
 
-String _required(RuntimeMap config, String key, {String? fallback}) {
-  final value = config[key] ?? (fallback == null ? null : config[fallback]);
-  final text = value?.toString().trim() ?? '';
+String _requiredValue(String? value, String key) {
+  final text = value?.trim() ?? '';
   if (text.isEmpty) throw ArgumentError('$key is required.');
   return text;
 }

@@ -5,6 +5,181 @@ final class TwitchEmptyConfig {
   const TwitchEmptyConfig();
 }
 
+final class TwitchListChannelPointRewardsConfig {
+  const TwitchListChannelPointRewardsConfig({
+    this.broadcasterId,
+    this.onlyManageable = false,
+  });
+
+  factory TwitchListChannelPointRewardsConfig.fromRuntime(RuntimeMap value) =>
+      TwitchListChannelPointRewardsConfig(
+        broadcasterId: _string(value['broadcasterId']),
+        onlyManageable: _bool(value['onlyManageable'], fallback: false),
+      );
+
+  final String? broadcasterId;
+  final bool onlyManageable;
+
+  RuntimeMap toRuntime() => {
+    if (broadcasterId != null) 'broadcasterId': broadcasterId,
+    'onlyManageable': onlyManageable,
+  };
+}
+
+final class TwitchChannelPointRewardConfig {
+  const TwitchChannelPointRewardConfig({
+    this.broadcasterId,
+    this.rewardId,
+    this.title,
+    this.prompt,
+    this.backgroundColor,
+    this.cost,
+    this.userInputRequired = false,
+    this.skipQueue = false,
+    this.isEnabled = true,
+    this.maxRedemptionsPerStream,
+    this.maxRedemptionsPerUserPerStream,
+    this.cooldown,
+  });
+
+  factory TwitchChannelPointRewardConfig.fromRuntime(RuntimeMap value) {
+    final rawRewardData = value['rewardData'];
+    final rewardData = rawRewardData is Map
+        ? Map<String, dynamic>.from(rawRewardData)
+        : const <String, dynamic>{};
+
+    Object? rewardValue(String key) => rewardData[key] ?? value[key];
+
+    return TwitchChannelPointRewardConfig(
+      broadcasterId: _string(value['broadcasterId']),
+      rewardId: _string(value['rewardId']),
+      title: _string(value['title'] ?? value['name']),
+      prompt: _string(rewardValue('prompt')),
+      backgroundColor: _string(rewardValue('backgroundColor')),
+      cost: _integer(rewardValue('cost')),
+      userInputRequired: _bool(
+        rewardValue('userInputRequired'),
+        fallback: false,
+      ),
+      skipQueue: _bool(rewardValue('skipQueue'), fallback: false),
+      isEnabled: rewardData['isEnabled'] == null && value['isEnabled'] == null
+          ? true
+          : _bool(rewardValue('isEnabled'), fallback: true),
+      maxRedemptionsPerStream: _integer(rewardValue('maxRedemptionsPerStream')),
+      maxRedemptionsPerUserPerStream: _integer(
+        rewardValue('maxRedemptionsPerUserPerStream'),
+      ),
+      cooldown: _integer(rewardValue('cooldown')),
+    );
+  }
+
+  final String? broadcasterId;
+  final String? rewardId;
+  final String? title;
+  final String? prompt;
+  final String? backgroundColor;
+  final int? cost;
+  final bool userInputRequired;
+  final bool skipQueue;
+  final bool isEnabled;
+  final int? maxRedemptionsPerStream;
+  final int? maxRedemptionsPerUserPerStream;
+  final int? cooldown;
+
+  RuntimeMap toRuntime() => {
+    if (broadcasterId != null) 'broadcasterId': broadcasterId,
+    if (rewardId != null) 'rewardId': rewardId,
+    if (title != null) 'title': title,
+    if (prompt != null) 'prompt': prompt,
+    if (backgroundColor != null) 'backgroundColor': backgroundColor,
+    if (cost != null) 'cost': cost,
+    'userInputRequired': userInputRequired,
+    'skipQueue': skipQueue,
+    'isEnabled': isEnabled,
+    if (maxRedemptionsPerStream != null)
+      'maxRedemptionsPerStream': maxRedemptionsPerStream,
+    if (maxRedemptionsPerUserPerStream != null)
+      'maxRedemptionsPerUserPerStream': maxRedemptionsPerUserPerStream,
+    if (cooldown != null) 'cooldown': cooldown,
+  };
+}
+
+final class TwitchRewardIdConfig {
+  const TwitchRewardIdConfig({this.broadcasterId, this.rewardId});
+
+  factory TwitchRewardIdConfig.fromRuntime(RuntimeMap value) =>
+      TwitchRewardIdConfig(
+        broadcasterId: _string(value['broadcasterId']),
+        rewardId: _string(value['rewardId']),
+      );
+
+  final String? broadcasterId;
+  final String? rewardId;
+
+  RuntimeMap toRuntime() => {
+    if (broadcasterId != null) 'broadcasterId': broadcasterId,
+    if (rewardId != null) 'rewardId': rewardId,
+  };
+}
+
+final class TwitchRedemptionUpdateConfig {
+  const TwitchRedemptionUpdateConfig({
+    this.broadcasterId,
+    this.rewardId,
+    this.redemptionId,
+    this.status = 'FULFILLED',
+  });
+
+  factory TwitchRedemptionUpdateConfig.fromRuntime(RuntimeMap value) =>
+      TwitchRedemptionUpdateConfig(
+        broadcasterId: _string(value['broadcasterId']),
+        rewardId: _string(value['rewardId']),
+        redemptionId: _string(value['redemptionId']),
+        status: _string(value['status']) ?? 'FULFILLED',
+      );
+
+  final String? broadcasterId;
+  final String? rewardId;
+  final String? redemptionId;
+  final String status;
+
+  RuntimeMap toRuntime() => {
+    if (broadcasterId != null) 'broadcasterId': broadcasterId,
+    if (rewardId != null) 'rewardId': rewardId,
+    if (redemptionId != null) 'redemptionId': redemptionId,
+    'status': status,
+  };
+}
+
+final class TwitchViewerGroupConfig {
+  const TwitchViewerGroupConfig({this.group, this.viewer});
+
+  factory TwitchViewerGroupConfig.fromRuntime(RuntimeMap value) =>
+      TwitchViewerGroupConfig(
+        group: _string(value['group']),
+        viewer: _string(value['viewer']),
+      );
+
+  final String? group;
+  final String? viewer;
+
+  RuntimeMap toRuntime() => {
+    if (group != null) 'group': group,
+    if (viewer != null) 'viewer': viewer,
+  };
+}
+
+final class TwitchClearViewerGroupConfig {
+  const TwitchClearViewerGroupConfig({this.group});
+
+  factory TwitchClearViewerGroupConfig.fromRuntime(RuntimeMap value) =>
+      TwitchClearViewerGroupConfig(group: _string(value['group']));
+
+  final String? group;
+
+  RuntimeMap toRuntime() => {if (group != null) 'group': group};
+}
+
 final class TwitchBroadcasterConfig {
   const TwitchBroadcasterConfig({this.broadcasterId});
 
@@ -592,6 +767,30 @@ final twitchEmptyConfigCodec = TwitchConfigCodec(
   (value) => const TwitchEmptyConfig(),
   (TwitchEmptyConfig value) => const <String, dynamic>{},
 );
+final twitchListChannelPointRewardsConfigCodec = TwitchConfigCodec(
+  TwitchListChannelPointRewardsConfig.fromRuntime,
+  (TwitchListChannelPointRewardsConfig value) => value.toRuntime(),
+);
+final twitchChannelPointRewardConfigCodec = TwitchConfigCodec(
+  TwitchChannelPointRewardConfig.fromRuntime,
+  (TwitchChannelPointRewardConfig value) => value.toRuntime(),
+);
+final twitchRewardIdConfigCodec = TwitchConfigCodec(
+  TwitchRewardIdConfig.fromRuntime,
+  (TwitchRewardIdConfig value) => value.toRuntime(),
+);
+final twitchRedemptionUpdateConfigCodec = TwitchConfigCodec(
+  TwitchRedemptionUpdateConfig.fromRuntime,
+  (TwitchRedemptionUpdateConfig value) => value.toRuntime(),
+);
+final twitchViewerGroupConfigCodec = TwitchConfigCodec(
+  TwitchViewerGroupConfig.fromRuntime,
+  (TwitchViewerGroupConfig value) => value.toRuntime(),
+);
+final twitchClearViewerGroupConfigCodec = TwitchConfigCodec(
+  TwitchClearViewerGroupConfig.fromRuntime,
+  (TwitchClearViewerGroupConfig value) => value.toRuntime(),
+);
 final twitchRedemptionTriggerConfigCodec = TwitchConfigCodec(
   TwitchRedemptionTriggerConfig.fromRuntime,
   (TwitchRedemptionTriggerConfig value) => value.toRuntime(),
@@ -600,6 +799,9 @@ final twitchRedemptionTriggerConfigCodec = TwitchConfigCodec(
 String? _string(Object? value) => value?.toString();
 
 num? _number(Object? value) => value is num ? value : null;
+
+int? _integer(Object? value) =>
+    value is num ? value.toInt() : int.tryParse('$value');
 
 bool _bool(Object? value, {required bool fallback}) {
   if (value is bool) return value;

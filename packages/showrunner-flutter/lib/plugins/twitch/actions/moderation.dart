@@ -38,27 +38,30 @@ List<ActionSpec<dynamic, dynamic>> _twitchModerationActions(
           'user_id': config.viewerId ?? config.viewer,
         }, {}),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<TwitchViewerGroupConfig, Object?>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('addViewerToGroup'),
     displayName: 'Add Viewer to Group',
     configSchema: _viewerGroupSchema,
+    configCodec: twitchViewerGroupConfigCodec,
     invoke: (config, context) =>
         _updateViewerGroup(viewerGroupRepository, config, add: true),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<TwitchViewerGroupConfig, Object?>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('removeViewerFromGroup'),
     displayName: 'Remove Viewer from Group',
     configSchema: _viewerGroupSchema,
+    configCodec: twitchViewerGroupConfigCodec,
     invoke: (config, context) =>
         _updateViewerGroup(viewerGroupRepository, config, add: false),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<TwitchClearViewerGroupConfig, Object?>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('clearViewerGroup'),
     displayName: 'Clear Viewer Group',
     configSchema: _clearViewerGroupSchema,
+    configCodec: twitchClearViewerGroupConfigCodec,
     invoke: (config, context) =>
         _clearViewerGroup(viewerGroupRepository, config),
   ),

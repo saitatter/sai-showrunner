@@ -37,6 +37,24 @@ void main() {
         .decodeConfig({'viewerId': 'viewer-1', 'duration': 30});
     expect(timeout, isA<TwitchTimeoutConfig>());
     expect((timeout as TwitchTimeoutConfig).duration, 30);
+
+    final reward = plugin.actions
+        .firstWhere(
+          (action) => action.actionId.value == 'createChannelPointReward',
+        )
+        .decodeConfig({
+          'name': 'Hydrate',
+          'rewardData': {'cost': 250, 'prompt': 'Take a sip'},
+        });
+    expect(reward, isA<TwitchChannelPointRewardConfig>());
+    expect((reward as TwitchChannelPointRewardConfig).title, 'Hydrate');
+    expect(reward.cost, 250);
+
+    final group = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'addViewerToGroup')
+        .decodeConfig({'group': 'moderators', 'viewer': 'viewer-1'});
+    expect(group, isA<TwitchViewerGroupConfig>());
+    expect((group as TwitchViewerGroupConfig).group, 'moderators');
   });
 
   test('builds Twitch Helix actions through an injectable transport', () async {
