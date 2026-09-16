@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/wyze/contracts.dart';
 import 'package:showrunner_flutter/plugins/wyze/manifest.dart';
 
 void main() {
@@ -27,6 +28,15 @@ void main() {
           ),
         ),
       );
+
+    expect(
+      registry.findAction('wyze', 'setLightState')?.decodeConfig({
+        'device': 'AA:BB',
+        'model': 'MeshLight',
+        'state': 'toggle',
+      }),
+      isA<WyzeActionConfig>(),
+    );
 
     await registry.invokeAction('wyze', 'setLightState', {
       'device': 'AA:BB',

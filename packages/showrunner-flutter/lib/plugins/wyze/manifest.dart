@@ -6,6 +6,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef WyzeToken = ({String accessToken, String refreshToken});
 
@@ -387,47 +388,55 @@ DartPluginManifest createWyzePlugin(WyzeTransport transport) =>
         ),
       ],
       actions: [
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<WyzeActionConfig, Object?>(
           pluginId: PluginId('wyze'),
           actionId: ActionId('login'),
           displayName: 'Login',
           configSchema: _loginSchema,
+          configCodec: wyzeActionConfigCodec,
           invoke: (config, context) => _login(transport, config),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<WyzeActionConfig, Object?>(
           pluginId: PluginId('wyze'),
           actionId: ActionId('listDevices'),
           displayName: 'List Devices',
+          configCodec: wyzeActionConfigCodec,
           invoke: (config, context) => transport.getDevices(),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<WyzeActionConfig, Object?>(
           pluginId: PluginId('wyze'),
           actionId: ActionId('getDeviceState'),
           displayName: 'Get Device State',
           configSchema: _deviceSchema,
+          configCodec: wyzeActionConfigCodec,
           invoke: (config, context) =>
               transport.getDeviceState(_device(config), _model(config)),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<WyzeActionConfig, Object?>(
           pluginId: PluginId('wyze'),
           actionId: ActionId('setLightState'),
           displayName: 'Set Light State',
           configSchema: _lightSchema,
+          configCodec: wyzeActionConfigCodec,
           invoke: (config, context) => _setLightState(transport, config),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<WyzeActionConfig, Object?>(
           pluginId: PluginId('wyze'),
           actionId: ActionId('setPlugState'),
           displayName: 'Set Plug State',
           configSchema: _plugSchema,
+          configCodec: wyzeActionConfigCodec,
           invoke: (config, context) => _setPlugState(transport, config),
         ),
       ],
     );
 
-Future<Object?> _login(WyzeTransport transport, RuntimeMap config) async {
-  final email = config['email']?.toString().trim() ?? '';
-  final password = config['password']?.toString() ?? '';
+Future<RuntimeMap> _login(
+  WyzeTransport transport,
+  WyzeActionConfig config,
+) async {
+  final email = config.email?.trim() ?? '';
+  final password = config.password ?? '';
   if (email.isEmpty || password.isEmpty) {
     return {
       'authenticated': false,
@@ -438,20 +447,22 @@ Future<Object?> _login(WyzeTransport transport, RuntimeMap config) async {
   return {'authenticated': true};
 }
 
-Future<Object?> _setLightState(
+Future<RuntimeMap> _setLightState(
   WyzeTransport transport,
-  RuntimeMap config,
+  WyzeActionConfig config,
 ) async {
-  var state = config['state'] ?? 'on';
-  if (state == 'toggle') {
+  var power = config.power ?? WyzePowerMode.enabled;
+  if (power == WyzePowerMode.toggle) {
     final current = await transport.getDeviceState(
       _device(config),
       _model(config),
     );
-    state = current['power'] != true;
+    power = current['power'] == true
+        ? WyzePowerMode.disabled
+        : WyzePowerMode.enabled;
   }
-  final properties = <String, dynamic>{'power': state == true || state == 'on'};
-  final color = parseLightColor(config['color']?.toString());
+  final properties = <String, dynamic>{'power': power == WyzePowerMode.enabled};
+  final color = parseLightColor(config.color);
   if (color != null) {
     properties['brightness'] = color.brightness.round().clamp(0, 100);
     if (color.isKelvin) {
@@ -470,32 +481,34 @@ Future<Object?> _setLightState(
 
 Future<Object?> _setPlugState(
   WyzeTransport transport,
-  RuntimeMap config,
+  WyzeActionConfig config,
 ) async {
-  var state = config['state'] ?? 'on';
-  if (state == 'toggle') {
+  var power = config.power ?? WyzePowerMode.enabled;
+  if (power == WyzePowerMode.toggle) {
     final current = await transport.getDeviceState(
       _device(config),
       _model(config),
     );
-    state = current['power'] != true;
+    power = current['power'] == true
+        ? WyzePowerMode.disabled
+        : WyzePowerMode.enabled;
   }
   final response = await transport.setPlugState(
     _device(config),
     _model(config),
-    state == true || state == 'on',
+    power == WyzePowerMode.enabled,
   );
   return {'updated': true, ...response};
 }
 
-String _device(RuntimeMap config) {
-  final value = config['device']?.toString().trim() ?? '';
+String _device(WyzeActionConfig config) {
+  final value = config.device?.trim() ?? '';
   if (value.isEmpty) throw ArgumentError('device is required.');
   return value;
 }
 
-String _model(RuntimeMap config) {
-  final value = config['model']?.toString().trim() ?? '';
+String _model(WyzeActionConfig config) {
+  final value = config.model?.trim() ?? '';
   if (value.isEmpty) throw ArgumentError('model is required.');
   return value;
 }
