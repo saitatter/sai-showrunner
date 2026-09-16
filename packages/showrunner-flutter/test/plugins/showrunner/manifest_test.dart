@@ -1,12 +1,39 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/showrunner/manifest.dart';
+import 'package:showrunner_flutter/plugins/showrunner/contracts.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 
 void main() {
+  test('decodes core ShowRunner actions through typed config contracts', () {
+    final plugin = createShowRunnerPlugin();
+    final addToQueue = plugin.actions.firstWhere(
+      (action) => action.actionId.value == 'addToQueue',
+    );
+    final pause = plugin.actions.firstWhere(
+      (action) => action.actionId.value == 'pause',
+    );
+
+    final addConfig =
+        addToQueue.decodeConfig({
+              'queue': 'alerts',
+              'automation': 'worker',
+              'payload': {'message': 'hello'},
+            })
+            as ShowRunnerAddToQueueConfig;
+    final pauseConfig =
+        pause.decodeConfig({'queue': 'alerts', 'paused': false})
+            as ShowRunnerPauseQueueConfig;
+
+    expect(addConfig.automation, 'worker');
+    expect(addConfig.payload, {'message': 'hello'});
+    expect(pauseConfig.paused, ShowRunnerToggleMode.disabled);
+    expect(pauseConfig.toRuntime(), {'queue': 'alerts', 'paused': 'false'});
+  });
+
   test('queues an automation and emits a filtered start event', () async {
     final queue = DartActionQueue()..setPaused(true);
     final manager = DartAutomationQueueManager(
