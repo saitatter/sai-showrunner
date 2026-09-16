@@ -2,6 +2,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef GoveeRequest =
     Future<RuntimeMap> Function(
@@ -125,18 +126,20 @@ DartPluginManifest createGoveePlugin(GoveeTransport transport) =>
         ),
       ],
       actions: [
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<GoveeDeviceConfig, RuntimeMap>(
           pluginId: PluginId('govee'),
           actionId: ActionId('listDevices'),
           displayName: 'List Devices',
+          configCodec: goveeDeviceConfigCodec,
           invoke: (config, context) =>
               transport.request('GET', '/v1/devices', const {}, null),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<GoveeDeviceConfig, RuntimeMap>(
           pluginId: PluginId('govee'),
           actionId: ActionId('getDeviceState'),
           displayName: 'Get Device State',
           configSchema: _deviceSchema,
+          configCodec: goveeDeviceConfigCodec,
           invoke: (config, context) => transport.request(
             'GET',
             '/v1/devices/state',
@@ -144,67 +147,72 @@ DartPluginManifest createGoveePlugin(GoveeTransport transport) =>
             null,
           ),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<GoveeDeviceConfig, RuntimeMap>(
           pluginId: PluginId('govee'),
           actionId: ActionId('setPower'),
           displayName: 'Set Power',
           configSchema: _powerSchema,
+          configCodec: goveeDeviceConfigCodec,
           invoke: (config, context) => _setPower(transport, config, context),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<GoveeDeviceConfig, RuntimeMap>(
           pluginId: PluginId('govee'),
           actionId: ActionId('setColor'),
           displayName: 'Set Color',
           configSchema: _colorSchema,
+          configCodec: goveeDeviceConfigCodec,
           invoke: (config, context) => _setColor(transport, config, context),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<GoveeDeviceConfig, RuntimeMap>(
           pluginId: PluginId('govee'),
           actionId: ActionId('setBrightness'),
           displayName: 'Set Brightness',
           configSchema: _brightnessSchema,
+          configCodec: goveeDeviceConfigCodec,
           invoke: (config, context) =>
               transport.request('PUT', '/v1/devices/control', const {}, {
                 ..._deviceBody(config, context),
                 'cmd': {
                   'name': 'brightness',
-                  'value': _brightness(config['brightness']),
+                  'value': _brightness(config.brightness),
                 },
               }),
         ),
       ],
     );
 
-Future<Object?> _setPower(
+Future<RuntimeMap> _setPower(
   GoveeTransport transport,
-  RuntimeMap config,
+  GoveeDeviceConfig config,
   EvaluationContext context,
 ) async {
-  var state = config['state'] ?? 'on';
-  if (state == 'toggle') {
+  var power = config.power ?? GoveePowerMode.enabled;
+  if (power == GoveePowerMode.toggle) {
     final response = await transport.request(
       'GET',
       '/v1/devices/state',
       _deviceQuery(config, context),
       null,
     );
-    state = !_powerState(response);
+    power = _powerState(response)
+        ? GoveePowerMode.disabled
+        : GoveePowerMode.enabled;
   }
   return transport.request('PUT', '/v1/devices/control', const {}, {
     ..._deviceBody(config, context),
     'cmd': {
       'name': 'turn',
-      'value': state == true || state == 'on' ? 'on' : 'off',
+      'value': power == GoveePowerMode.enabled ? 'on' : 'off',
     },
   });
 }
 
-Future<Object?> _setColor(
+Future<RuntimeMap> _setColor(
   GoveeTransport transport,
-  RuntimeMap config,
+  GoveeDeviceConfig config,
   EvaluationContext context,
 ) async {
-  final parsed = parseLightColor(config['color']?.toString());
+  final parsed = parseLightColor(config.color);
   if (parsed == null) {
     throw ArgumentError('A valid hsb(...) or kb(...) color is required.');
   }
@@ -226,18 +234,19 @@ Future<Object?> _setColor(
   });
 }
 
-RuntimeMap _deviceQuery(RuntimeMap config, EvaluationContext context) => {
-  'device': _deviceValue(config, context, 'device'),
-  'model': _deviceValue(config, context, 'model'),
+RuntimeMap _deviceQuery(GoveeDeviceConfig config, EvaluationContext context) =>
+    {
+      'device': _deviceValue(config.device, context, 'device'),
+      'model': _deviceValue(config.model, context, 'model'),
+    };
+
+RuntimeMap _deviceBody(GoveeDeviceConfig config, EvaluationContext context) => {
+  'device': _deviceValue(config.device, context, 'device'),
+  'model': _deviceValue(config.model, context, 'model'),
 };
 
-RuntimeMap _deviceBody(RuntimeMap config, EvaluationContext context) => {
-  'device': _deviceValue(config, context, 'device'),
-  'model': _deviceValue(config, context, 'model'),
-};
-
-String _deviceValue(RuntimeMap config, EvaluationContext context, String key) =>
-    (config[key] ?? context.contextState[key])?.toString().trim() ?? '';
+String _deviceValue(String? value, EvaluationContext context, String key) =>
+    (value ?? context.contextState[key])?.toString().trim() ?? '';
 
 int _brightness(Object? value) =>
     ((value is num ? value : double.tryParse('$value') ?? 100).clamp(

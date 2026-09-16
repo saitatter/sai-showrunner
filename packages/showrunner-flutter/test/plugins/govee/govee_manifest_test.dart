@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/plugins/govee/contracts.dart';
 import 'package:showrunner_flutter/plugins/govee/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 
@@ -25,6 +26,15 @@ void main() {
             }),
           ),
         );
+
+      expect(
+        registry.findAction('govee', 'setColor')?.decodeConfig({
+          'device': 'AA:BB',
+          'model': 'H6001',
+          'color': 'hsb(0, 100, 100)',
+        }),
+        isA<GoveeDeviceConfig>(),
+      );
 
       await registry.invokeAction('govee', 'listDevices', {});
       await registry.invokeAction('govee', 'getDeviceState', {
