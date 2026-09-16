@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
+import 'package:showrunner_flutter/plugins/iot/contracts.dart';
 import 'package:showrunner_flutter/plugins/iot/manifest.dart';
 
 void main() {
@@ -22,5 +23,6 @@ void main() {
     expect(light.configSchema?.fields.first.resourceType, 'Light');
     expect(plug.configSchema?.fields.first.kind, DartDataInputKind.resource);
     expect(plug.configSchema?.fields.first.resourceType, 'Plug');
+    expect(light.decodeConfig({'light': 'light-1'}), isA<IotActionConfig>());
   });
 }

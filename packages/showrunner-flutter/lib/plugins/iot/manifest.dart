@@ -1,6 +1,7 @@
 import '../../runtime/expression.dart';
 import '../../schema/data_input.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef IotResourceActionResolver =
     Future<Object?> Function(
@@ -111,33 +112,37 @@ DartPluginManifest createIotPlugin({IotResourceActionResolver? resolver}) =>
       id: PluginId('iot'),
       name: 'IoT & Smart Home',
       actions: [
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<IotActionConfig, Object?>(
           pluginId: PluginId('iot'),
           actionId: ActionId('setLightColor'),
           displayName: 'Set Light Color',
           configSchema: _setLightColorSchema,
+          configCodec: iotActionConfigCodec,
           invoke: (config, context) =>
               _setLightColor(resolver, config, context),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<IotActionConfig, Object?>(
           pluginId: PluginId('iot'),
           actionId: ActionId('toggleLight'),
           displayName: 'Toggle Light',
           configSchema: _toggleLightSchema,
+          configCodec: iotActionConfigCodec,
           invoke: (config, context) => _toggleLight(resolver, config, context),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<IotActionConfig, Object?>(
           pluginId: PluginId('iot'),
           actionId: ActionId('light'),
           displayName: 'Change Light',
           configSchema: _lightSchema,
+          configCodec: iotActionConfigCodec,
           invoke: (config, context) => _light(resolver, config, context),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<IotActionConfig, Object?>(
           pluginId: PluginId('iot'),
           actionId: ActionId('plug'),
           displayName: 'Switch Plug',
           configSchema: _plugSchema,
+          configCodec: iotActionConfigCodec,
           invoke: (config, context) => _plug(resolver, config, context),
         ),
       ],
@@ -145,14 +150,14 @@ DartPluginManifest createIotPlugin({IotResourceActionResolver? resolver}) =>
 
 Future<Object?> _setLightColor(
   IotResourceActionResolver? resolver,
-  RuntimeMap config,
+  IotActionConfig config,
   EvaluationContext context,
 ) async {
-  final lightId = _resourceId(config['lightId']);
-  final color = config['color']?.toString() ?? '#ffffff';
+  final lightId = _resourceId(config.lightId);
+  final color = config.color?.toString() ?? '#ffffff';
   if (lightId.isEmpty) throw ArgumentError('lightId is required.');
   return _resolve(resolver, 'Light', lightId, {
-    ...config,
+    ...config.toRuntime(),
     'lightId': lightId,
     'color': color,
   }, context);
@@ -160,14 +165,14 @@ Future<Object?> _setLightColor(
 
 Future<Object?> _toggleLight(
   IotResourceActionResolver? resolver,
-  RuntimeMap config,
+  IotActionConfig config,
   EvaluationContext context,
 ) async {
-  final lightId = _resourceId(config['lightId']);
-  final state = config['state'] ?? true;
+  final lightId = _resourceId(config.lightId);
+  final state = config.state ?? true;
   if (lightId.isEmpty) throw ArgumentError('lightId is required.');
   return _resolve(resolver, 'Light', lightId, {
-    ...config,
+    ...config.toRuntime(),
     'lightId': lightId,
     'state': state,
   }, context);
@@ -175,30 +180,30 @@ Future<Object?> _toggleLight(
 
 Future<Object?> _light(
   IotResourceActionResolver? resolver,
-  RuntimeMap config,
+  IotActionConfig config,
   EvaluationContext context,
 ) async {
-  final lightId = _resourceId(config['light'] ?? config['lightId']);
+  final lightId = _resourceId(config.light ?? config.lightId);
   if (lightId.isEmpty) throw ArgumentError('light is required.');
   return _resolve(resolver, 'Light', lightId, {
-    ...config,
+    ...config.toRuntime(),
     'lightId': lightId,
-    'on': config['on'] ?? true,
-    'color': config['lightColor'] ?? config['color'],
+    'on': config.on ?? true,
+    'color': config.lightColor ?? config.color,
   }, context);
 }
 
 Future<Object?> _plug(
   IotResourceActionResolver? resolver,
-  RuntimeMap config,
+  IotActionConfig config,
   EvaluationContext context,
 ) async {
-  final plugId = _resourceId(config['plug'] ?? config['plugId']);
+  final plugId = _resourceId(config.plug ?? config.plugId);
   if (plugId.isEmpty) throw ArgumentError('plug is required.');
   return _resolve(resolver, 'Plug', plugId, {
-    ...config,
+    ...config.toRuntime(),
     'plugId': plugId,
-    'on': config['switch'] ?? config['on'] ?? true,
+    'on': config.switchState ?? config.on ?? true,
   }, context);
 }
 
