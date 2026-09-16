@@ -18,6 +18,8 @@ void main() {
           'overlays.shaderLayer',
           'random.wheel',
           'heartrate.heartRate',
+          'heartrate.heartRateGraph',
+          'heartrate.heartRateZone',
         ]),
       );
       expect(
@@ -37,6 +39,12 @@ void main() {
             .firstWhere((widget) => widget.key == 'heartrate.heartRate')
             .config['showLabel']['default'],
         true,
+      );
+      expect(
+        widgets
+            .firstWhere((widget) => widget.key == 'heartrate.heartRateGraph')
+            .config['maxBpm']['default'],
+        200,
       );
     },
   );

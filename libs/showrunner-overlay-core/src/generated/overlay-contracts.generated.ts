@@ -3,6 +3,8 @@
 /** Type-level contracts generated from plugin package manifests. */
 export interface GeneratedOverlayWidgetConfigMap {
 	"heartrate.heartRate": { "showLabel"?: boolean; "accentColor"?: string }
+	"heartrate.heartRateGraph": { "showLabel"?: boolean; "accentColor"?: string; "maxBpm"?: number }
+	"heartrate.heartRateZone": { "showLabel"?: boolean; "accentColor"?: string }
 	"overlays.alert": { "media"?: readonly unknown[]; "transition"?: Record<string, unknown>; "textBelowMedia"?: boolean; "title"?: Record<string, unknown>; "subtitle"?: Record<string, unknown>; "duration"?: number }
 	"overlays.bar": { "value"?: number; "target"?: number; "direction"?: "Right" | "Left" | "Up" | "Down"; "outerRadius"?: Record<string, unknown>; "backgroundStyle"?: Record<string, unknown>; "outline"?: Record<string, unknown>; "fillStyle"?: Record<string, unknown>; "fillLine"?: Record<string, unknown> }
 	"overlays.chatFeed": { "fontFamily"?: string; "fontSize"?: number; "backgroundColor"?: string; "backgroundOpacity"?: number; "fadeTime"?: number; "maxMessages"?: number; "orientation"?: "horizontal" | "vertical"; "twitchColor"?: string; "youtubeColor"?: string; "showBadges"?: boolean }

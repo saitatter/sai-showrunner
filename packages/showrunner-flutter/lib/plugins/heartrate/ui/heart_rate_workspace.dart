@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../design_system/tokens/colors.dart';
 import '../ble/transport.dart';
 import '../services/heart_rate_service.dart';
+import '../services/heart_rate_zones.dart';
 
 class HeartRateWorkspace extends StatefulWidget {
   const HeartRateWorkspace({super.key, required this.service});
@@ -19,6 +20,7 @@ class _HeartRateWorkspaceState extends State<HeartRateWorkspace> {
   List<BleScanResult> _scanResults = const [];
   bool _scanning = false;
   Object? _error;
+  final _history = <int>[];
 
   HeartRateService get service => widget.service;
 
@@ -107,10 +109,24 @@ class _HeartRateWorkspaceState extends State<HeartRateWorkspace> {
             : ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(service.device!.name),
-                subtitle: Text(service.device!.id),
-                trailing: OutlinedButton(
-                  onPressed: service.disconnect,
-                  child: const Text('Disconnect'),
+                subtitle: Text(
+                  '${service.device!.id}\n'
+                  'RSSI ${service.device!.rssi ?? '—'} dBm'
+                  '${service.batteryPercent == null ? '' : ' · Battery ${service.batteryPercent}%'}',
+                ),
+                isThreeLine: true,
+                trailing: Wrap(
+                  spacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: service.disconnect,
+                      child: const Text('Disconnect'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () => unawaited(_forgetDevice()),
+                      child: const Text('Forget'),
+                    ),
+                  ],
                 ),
               ),
       ),
@@ -119,31 +135,80 @@ class _HeartRateWorkspaceState extends State<HeartRateWorkspace> {
         context,
         title: 'Live heart rate',
         icon: Icons.favorite_outline,
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.favorite, color: Color(0xfff43f5e), size: 34),
-            const SizedBox(width: 12),
-            Text(
-              service.stale || service.bpm == null ? '--' : '${service.bpm}',
-              style: Theme.of(context).textTheme.displaySmall,
+            Row(
+              children: [
+                const Icon(Icons.favorite, color: Color(0xfff43f5e), size: 34),
+                const SizedBox(width: 12),
+                Text(
+                  service.stale || service.bpm == null
+                      ? '--'
+                      : '${service.bpm}',
+                  style: Theme.of(context).textTheme.displaySmall,
+                ),
+                const SizedBox(width: 8),
+                const Text('BPM'),
+                const Spacer(),
+                _Stat(
+                  label: 'Min',
+                  value: service.stats.minBpm?.toString() ?? '--',
+                ),
+                _Stat(
+                  label: 'Avg',
+                  value: service.stats.averageBpm?.toStringAsFixed(0) ?? '--',
+                ),
+                _Stat(
+                  label: 'Max',
+                  value: service.stats.maxBpm?.toString() ?? '--',
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            const Text('BPM'),
-            const Spacer(),
-            _Stat(
-              label: 'Min',
-              value: service.stats.minBpm?.toString() ?? '--',
-            ),
-            _Stat(
-              label: 'Avg',
-              value: service.stats.averageBpm?.toStringAsFixed(0) ?? '--',
-            ),
-            _Stat(
-              label: 'Max',
-              value: service.stats.maxBpm?.toString() ?? '--',
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  service.zoneState['zone']?.toString() ?? 'No zone',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Spacer(),
+                OutlinedButton.icon(
+                  onPressed: service.stats.sampleCount == 0
+                      ? null
+                      : service.resetStatistics,
+                  icon: const Icon(Icons.restart_alt),
+                  label: const Text('Reset statistics'),
+                ),
+              ],
             ),
           ],
         ),
+      ),
+      const SizedBox(height: 12),
+      _sectionCard(
+        context,
+        title: 'Heart-rate history',
+        icon: Icons.show_chart,
+        child: SizedBox(
+          height: 140,
+          width: double.infinity,
+          child: _history.isEmpty
+              ? const Center(child: Text('Waiting for heart-rate data.'))
+              : CustomPaint(
+                  painter: _HeartRateChartPainter(
+                    values: List<int>.from(_history),
+                    stale: service.stale,
+                  ),
+                ),
+        ),
+      ),
+      const SizedBox(height: 12),
+      _sectionCard(
+        context,
+        title: 'Zones',
+        icon: Icons.layers_outlined,
+        child: _ZonesEditor(service: service),
       ),
       if (service.transport is FakeBleTransportLike) ...[
         const SizedBox(height: 12),
@@ -231,6 +296,14 @@ class _HeartRateWorkspaceState extends State<HeartRateWorkspace> {
     }
   }
 
+  Future<void> _forgetDevice() async {
+    try {
+      await service.forgetPreferredDevice();
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    }
+  }
+
   Widget _sectionCard(
     BuildContext context, {
     required String title,
@@ -258,6 +331,11 @@ class _HeartRateWorkspaceState extends State<HeartRateWorkspace> {
   );
 
   void _onChanged() {
+    final bpm = service.bpm;
+    if (bpm != null) {
+      _history.add(bpm);
+      if (_history.length > 60) _history.removeAt(0);
+    }
     if (mounted) setState(() {});
   }
 }
@@ -309,4 +387,223 @@ class _ErrorCard extends StatelessWidget {
       subtitle: Text('$error'),
     ),
   );
+}
+
+class _HeartRateChartPainter extends CustomPainter {
+  const _HeartRateChartPainter({required this.values, required this.stale});
+
+  final List<int> values;
+  final bool stale;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = ShowRunnerColors.surfaceD
+      ..strokeWidth = 1;
+    final linePaint = Paint()
+      ..color = stale ? ShowRunnerColors.textSecondary : const Color(0xfff43f5e)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    for (var row = 1; row < 4; row++) {
+      final y = size.height * row / 4;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+    if (values.length < 2) return;
+    final max = values.reduce((a, b) => a > b ? a : b).clamp(1, 240);
+    final min = values.reduce((a, b) => a < b ? a : b).clamp(0, max - 1);
+    final range = (max - min).toDouble();
+    final path = Path();
+    for (var index = 0; index < values.length; index++) {
+      final x = size.width * index / (values.length - 1);
+      final normalized = (values[index] - min) / range;
+      final y = size.height * (1 - normalized.clamp(0, 1));
+      if (index == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(path, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(_HeartRateChartPainter oldDelegate) =>
+      oldDelegate.values != values || oldDelegate.stale != stale;
+}
+
+class _ZonesEditor extends StatefulWidget {
+  const _ZonesEditor({required this.service});
+
+  final HeartRateService service;
+
+  @override
+  State<_ZonesEditor> createState() => _ZonesEditorState();
+}
+
+class _ZonesEditorState extends State<_ZonesEditor> {
+  late List<_ZoneDraft> _drafts;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _drafts = _draftsFrom(widget.service.zones);
+  }
+
+  @override
+  void dispose() {
+    for (final draft in _drafts) {
+      draft.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var index = 0; index < _drafts.length; index++)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _drafts[index].name,
+                  decoration: const InputDecoration(labelText: 'Name'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 90,
+                child: TextField(
+                  controller: _drafts[index].min,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Min'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 90,
+                child: TextField(
+                  controller: _drafts[index].max,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Max'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _drafts[index].color,
+                  decoration: const InputDecoration(labelText: 'Color'),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Delete zone',
+                onPressed: _drafts.length <= 1
+                    ? null
+                    : () => setState(() {
+                        _drafts.removeAt(index).dispose();
+                      }),
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ],
+          ),
+        ),
+      if (_error != null)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            '$_error',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        ),
+      const SizedBox(height: 4),
+      Row(
+        children: [
+          OutlinedButton.icon(
+            onPressed: () => setState(() {
+              _drafts.add(
+                _ZoneDraft(
+                  HeartRateZoneConfig(
+                    id: 'zone-${_drafts.length + 1}',
+                    name: 'Zone ${_drafts.length + 1}',
+                    minBpm: (_drafts.last._maxValue ?? 0) + 1,
+                    color: '#9146ff',
+                  ),
+                ),
+              );
+            }),
+            icon: const Icon(Icons.add),
+            label: const Text('Add zone'),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: () => setState(() {
+              for (final draft in _drafts) {
+                draft.dispose();
+              }
+              _drafts = _draftsFrom(defaultHeartRateZones);
+              _error = null;
+            }),
+            child: const Text('Reset defaults'),
+          ),
+          const Spacer(),
+          FilledButton(
+            onPressed: () => unawaited(_save()),
+            child: const Text('Save zones'),
+          ),
+        ],
+      ),
+    ],
+  );
+
+  Future<void> _save() async {
+    try {
+      final zones = [
+        for (var index = 0; index < _drafts.length; index++)
+          _drafts[index].toConfig(index),
+      ];
+      await widget.service.saveZones(zones);
+      if (mounted) setState(() => _error = null);
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    }
+  }
+
+  List<_ZoneDraft> _draftsFrom(List<HeartRateZoneConfig> zones) => [
+    for (final zone in zones) _ZoneDraft(zone),
+  ];
+}
+
+class _ZoneDraft {
+  _ZoneDraft(HeartRateZoneConfig zone)
+    : id = zone.id,
+      name = TextEditingController(text: zone.name),
+      min = TextEditingController(text: '${zone.minBpm}'),
+      max = TextEditingController(text: zone.maxBpm?.toString() ?? ''),
+      color = TextEditingController(text: zone.color);
+
+  final String id;
+  final TextEditingController name;
+  final TextEditingController min;
+  final TextEditingController max;
+  final TextEditingController color;
+
+  int? get _maxValue => int.tryParse(max.text.trim());
+
+  HeartRateZoneConfig toConfig(int index) => HeartRateZoneConfig(
+    id: id.isEmpty ? 'zone-${index + 1}' : id,
+    name: name.text.trim(),
+    minBpm: int.parse(min.text.trim()),
+    maxBpm: _maxValue,
+    color: color.text.trim(),
+  );
+
+  void dispose() {
+    name.dispose();
+    min.dispose();
+    max.dispose();
+    color.dispose();
+  }
 }

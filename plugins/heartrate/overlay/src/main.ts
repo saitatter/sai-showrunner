@@ -1,7 +1,7 @@
 import { defineOverlayPlugin } from "showrunner-overlay-core"
-import { heartRateWidget } from "./widgets"
+import { heartRateGraphWidget, heartRateWidget, heartRateZoneWidget } from "./widgets"
 
 export default defineOverlayPlugin({
 	pluginId: "heartrate",
-	widgets: [heartRateWidget],
+	widgets: [heartRateWidget, heartRateZoneWidget, heartRateGraphWidget],
 })

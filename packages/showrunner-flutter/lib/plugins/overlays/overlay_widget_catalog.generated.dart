@@ -20,6 +20,39 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
     },
   ),
   GeneratedOverlayWidget(
+    pluginId: "heartrate",
+    id: "heartRateGraph",
+    name: "Heart Rate Graph",
+    description: "Displays a live, bounded heart-rate history.",
+    icon: "mdi mdi-chart-line",
+    capabilities: {
+      "states": ["heartRate"],
+      "resizable": true,
+    },
+    defaultSize: {"width": 420, "height": 180},
+    config: {
+      "showLabel": {"type": "boolean", "default": true},
+      "accentColor": {"type": "string", "default": "#f43f5e"},
+      "maxBpm": {"type": "number", "default": 200},
+    },
+  ),
+  GeneratedOverlayWidget(
+    pluginId: "heartrate",
+    id: "heartRateZone",
+    name: "Heart Rate Zone",
+    description: "Displays the current heart-rate training zone.",
+    icon: "mdi mdi-heart-pulse",
+    capabilities: {
+      "states": ["zone"],
+      "resizable": true,
+    },
+    defaultSize: {"width": 280, "height": 90},
+    config: {
+      "showLabel": {"type": "boolean", "default": true},
+      "accentColor": {"type": "string", "default": "#f43f5e"},
+    },
+  ),
+  GeneratedOverlayWidget(
     pluginId: "overlays",
     id: "alert",
     name: "Alert",

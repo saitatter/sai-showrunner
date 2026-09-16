@@ -5,7 +5,7 @@ Bluetooth SIG Heart Rate Service devices such as the COOSPO H808S.
 
 ## Current milestone
 
-Phases 0-6 are implemented:
+Phases 0-10 are implemented:
 
 - typed Bluetooth transport boundary;
 - deterministic HRS measurement parser, including 16-bit BPM, sensor contact,
@@ -22,6 +22,12 @@ Phases 0-6 are implemented:
 - Heart Rate integration page in Flutter;
 - Heart Rate state exposed through the existing plugin registry;
 - Heart Rate Browser Source widget using the existing ShowRunner overlay bridge.
+- Heart Rate, Heart Rate Zone, and Heart Rate Graph overlay widgets generated
+  from the shared overlay manifest.
+- production workspace UI with connected-device controls, battery/RSSI status,
+  live BPM, bounded history chart, statistics reset, and editable zones;
+- Flutter widget coverage for the monitoring workspace and generated overlay
+  catalog coverage for all three Heart Rate widgets.
 
 The configured desktop application uses the native Bluetooth transport. The
 default test registry keeps the deterministic fake transport so tests do not

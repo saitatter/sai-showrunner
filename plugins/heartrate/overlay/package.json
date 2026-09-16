@@ -39,6 +39,62 @@
               "default": "#f43f5e"
             }
           }
+        },
+        {
+          "id": "heartRateZone",
+          "name": "Heart Rate Zone",
+          "description": "Displays the current heart-rate training zone.",
+          "icon": "mdi mdi-heart-pulse",
+          "defaultSize": {
+            "width": 280,
+            "height": 90
+          },
+          "capabilities": {
+            "states": [
+              "zone"
+            ],
+            "resizable": true
+          },
+          "config": {
+            "showLabel": {
+              "type": "boolean",
+              "default": true
+            },
+            "accentColor": {
+              "type": "string",
+              "default": "#f43f5e"
+            }
+          }
+        },
+        {
+          "id": "heartRateGraph",
+          "name": "Heart Rate Graph",
+          "description": "Displays a live, bounded heart-rate history.",
+          "icon": "mdi mdi-chart-line",
+          "defaultSize": {
+            "width": 420,
+            "height": 180
+          },
+          "capabilities": {
+            "states": [
+              "heartRate"
+            ],
+            "resizable": true
+          },
+          "config": {
+            "showLabel": {
+              "type": "boolean",
+              "default": true
+            },
+            "accentColor": {
+              "type": "string",
+              "default": "#f43f5e"
+            },
+            "maxBpm": {
+              "type": "number",
+              "default": 200
+            }
+          }
         }
       ]
     }
