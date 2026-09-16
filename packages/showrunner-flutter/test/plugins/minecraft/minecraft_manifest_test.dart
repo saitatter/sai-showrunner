@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/minecraft/manifest.dart';
+import 'package:showrunner_flutter/plugins/minecraft/contracts.dart';
 import 'package:showrunner_flutter/plugins/minecraft/rcon.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 
@@ -33,6 +34,14 @@ void main() {
             }),
           ),
         );
+
+      expect(
+        registry.findAction('minecraft', 'mineCmd')?.decodeConfig({
+          'server': 'server-1',
+          'command': 'list',
+        }),
+        isA<MinecraftCommandConfig>(),
+      );
 
       final result = await registry.invokeAction('minecraft', 'mineCmd', {
         'server': {
