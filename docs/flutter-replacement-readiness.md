@@ -47,10 +47,10 @@ the original three smoke files. It covers:
 - resource create/read/update/delete;
 - strict schema failure handling without modifying an existing document.
 
-Legacy-shaped documents are rejected by design: the Flutter product no longer
-contains legacy/shim compatibility code. The migration test verifies that this
-failure is isolated and that canonical V2 data remains intact after a fresh
-repository reopen.
+Unsupported document shapes are rejected by design: the Flutter product has a
+single strict V2 persistence contract. The schema integration test verifies
+that this failure is isolated and that canonical V2 data remains intact after
+a fresh repository reopen.
 
 The updater remains `partial` in `docs/migration/product-surface.json` until a
 signed installed Windows upgrade and rollback are demonstrated. The updater

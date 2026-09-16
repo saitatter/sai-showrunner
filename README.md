@@ -45,6 +45,8 @@ Suggested demo assets:
 - 🎬 Organize broadcasts with profiles and segmented Stream Plans.
 - 🎨 Create browser overlays for OBS, including shader-driven effects made in
   the visual Shader Graph editor powered by [SAI Nodes](https://github.com/saitatter/sai_nodes).
+- ❤️ Connect Bluetooth heart-rate sensors, use live zones and stats, and drive
+  heart-rate automations and overlays.
 - 📊 Manage connection health, live state, diagnostics, updates, and resources
   from the same workspace.
 
