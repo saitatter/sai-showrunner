@@ -7,6 +7,7 @@ import 'package:showrunner_flutter/plugins/heartrate/contracts.dart';
 import 'package:showrunner_flutter/plugins/heartrate/events.dart';
 import 'package:showrunner_flutter/plugins/heartrate/manifest.dart';
 import 'package:showrunner_flutter/plugins/heartrate/services/heart_rate_service.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_contract.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
@@ -100,17 +101,21 @@ void main() {
       try {
         await service.startSimulation();
 
-        final trigger = createHeartRatePlugin(service).triggers.firstWhere(
-          (candidate) => candidate.triggerId.value == 'above',
-        );
+        final trigger =
+            createHeartRatePlugin(service).triggers.firstWhere(
+                  (candidate) => candidate.triggerId.value == 'above',
+                )
+                as TriggerSpec<
+                  HeartRateThresholdConfig,
+                  HeartRateThresholdEvent
+                >;
         final events = <HeartRateThresholdEvent>[];
-        subscription = trigger
-            .listenForRuntime({
-              'threshold': 150,
-              'hysteresis': 3,
-              'cooldownSeconds': 0,
-            })!
-            .listen((event) => events.add(event as HeartRateThresholdEvent));
+        final config = trigger.decodeConfig({
+          'threshold': 150,
+          'hysteresis': 3,
+          'cooldownSeconds': 0,
+        });
+        subscription = trigger.listenForConfig!.call(config).listen(events.add);
         await Future<void>.delayed(Duration.zero);
 
         final connection = transport.lastConnection!;

@@ -61,6 +61,11 @@ final class HeartRateDeviceConnectedEvent {
 
   final String deviceName;
   final int? battery;
+
+  RuntimeMap toRuntime() => {
+    'deviceName': deviceName,
+    if (battery != null) 'battery': battery,
+  };
 }
 
 final class HeartRateDeviceDisconnectedEvent {
@@ -77,6 +82,8 @@ final class HeartRateDeviceDisconnectedEvent {
 
   final String deviceName;
   final String reason;
+
+  RuntimeMap toRuntime() => {'deviceName': deviceName, 'reason': reason};
 }
 
 final class HeartRateZoneChangedEvent {
@@ -99,6 +106,13 @@ final class HeartRateZoneChangedEvent {
   final String? previousZone;
   final String? zone;
   final int? zoneIndex;
+
+  RuntimeMap toRuntime() => {
+    'bpm': bpm,
+    if (previousZone != null) 'previousZone': previousZone,
+    if (zone != null) 'zone': zone,
+    if (zoneIndex != null) 'zoneIndex': zoneIndex,
+  };
 }
 
 final class HeartRateThresholdEvent {
@@ -112,6 +126,8 @@ final class HeartRateThresholdEvent {
 
   final num bpm;
   final num threshold;
+
+  RuntimeMap toRuntime() => {'bpm': bpm, 'threshold': threshold};
 }
 
 final class HeartRateEmptyConfigCodec

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/plugins/twitch/actions.dart';
+import 'package:showrunner_flutter/plugins/twitch/contracts.dart';
 import 'package:showrunner_flutter/plugins/twitch/event_worker.dart';
 import 'package:showrunner_flutter/plugins/runtime/provider_worker_status.dart';
 
@@ -18,9 +19,18 @@ void main() {
       (item) => item.triggerId.value == 'chat',
     );
     final eventFuture = trigger.listen().first;
+    final runtimeEventFuture = trigger.listenFromRuntime().first;
     hub.emit('chat', {'viewerId': 'viewer-1', 'message': 'hello'});
 
-    expect(await eventFuture, {'viewerId': 'viewer-1', 'message': 'hello'});
+    final event = await eventFuture;
+    expect(event, isA<TwitchChatMessageEvent>());
+    expect((event as TwitchChatMessageEvent).viewerId, 'viewer-1');
+    expect(event.message, 'hello');
+
+    expect(await runtimeEventFuture, {
+      'viewerId': 'viewer-1',
+      'message': 'hello',
+    });
     await hub.dispose();
   });
 

@@ -90,6 +90,17 @@ class YouTubeChatEvent {
   final bool isModerator;
   final bool isMember;
   final bool isOwner;
+
+  RuntimeMap toRuntime() => {
+    'viewerId': viewerId,
+    'viewerName': viewerName,
+    'message': message,
+    'messageId': messageId,
+    'avatarUrl': avatarUrl,
+    'isModerator': isModerator,
+    'isMember': isMember,
+    'isOwner': isOwner,
+  };
 }
 
 final class YouTubeChatMessageEvent extends YouTubeChatEvent {
@@ -148,6 +159,13 @@ final class YouTubePaidEvent extends YouTubeChatEvent {
 
   final num? amountMicros;
   final String? currency;
+
+  @override
+  RuntimeMap toRuntime() => {
+    ...super.toRuntime(),
+    if (amountMicros != null) 'amountMicros': amountMicros,
+    if (currency != null) 'currency': currency,
+  };
 }
 
 final class YouTubeMembershipEvent extends YouTubeChatEvent {
@@ -185,6 +203,14 @@ final class YouTubeMembershipEvent extends YouTubeChatEvent {
   final String? eventType;
   final String? memberLevelName;
   final int? memberMonth;
+
+  @override
+  RuntimeMap toRuntime() => {
+    ...super.toRuntime(),
+    if (eventType != null) 'eventType': eventType,
+    if (memberLevelName != null) 'memberLevelName': memberLevelName,
+    if (memberMonth != null) 'memberMonth': memberMonth,
+  };
 }
 
 final class YouTubeSendChatMessageConfigCodec

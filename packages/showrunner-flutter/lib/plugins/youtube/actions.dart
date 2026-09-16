@@ -328,6 +328,7 @@ DartPluginManifest createYouTubePlugin(
         YouTubeChatMessageEvent.fromRuntime,
       ),
       eventSchema: _chatEventSchema,
+      eventEncoder: (event) => event.toRuntime(),
     ),
     TriggerSpec<YouTubeEmptyConfig, YouTubePaidEvent>(
       pluginId: PluginId('youtube'),
@@ -339,6 +340,7 @@ DartPluginManifest createYouTubePlugin(
         YouTubePaidEvent.fromRuntime,
       ),
       eventSchema: _paidEventSchema,
+      eventEncoder: (event) => event.toRuntime(),
     ),
     TriggerSpec<YouTubeEmptyConfig, YouTubePaidEvent>(
       pluginId: PluginId('youtube'),
@@ -350,6 +352,7 @@ DartPluginManifest createYouTubePlugin(
         YouTubePaidEvent.fromRuntime,
       ),
       eventSchema: _paidEventSchema,
+      eventEncoder: (event) => event.toRuntime(),
     ),
     TriggerSpec<YouTubeEmptyConfig, YouTubeMembershipEvent>(
       pluginId: PluginId('youtube'),
@@ -361,6 +364,7 @@ DartPluginManifest createYouTubePlugin(
         YouTubeMembershipEvent.fromRuntime,
       ),
       eventSchema: _membershipEventSchema,
+      eventEncoder: (event) => event.toRuntime(),
     ),
   ],
 );

@@ -65,6 +65,8 @@ final class TriggerSpec<C, E> {
     required this.listen,
     this.configSchema,
     this.eventSchema,
+    this.eventDecoder,
+    this.eventEncoder,
     this.matches,
     this.listenForConfig,
     this.configCodec,
@@ -79,6 +81,13 @@ final class TriggerSpec<C, E> {
   /// Fields emitted by this trigger at runtime. This is separate from
   /// [configSchema], which describes how the trigger is configured.
   final DartDataInputSchema? eventSchema;
+
+  /// Decodes raw event payloads when a typed matcher needs to inspect them.
+  final E Function(RuntimeMap)? eventDecoder;
+
+  /// Converts a typed event back to the runtime map consumed by graph/profile
+  /// execution. This keeps typed plugin contracts at the plugin boundary.
+  final RuntimeMap Function(E event)? eventEncoder;
   final TriggerMatcher<C, E>? matches;
   final ConfiguredTriggerListener<C, E>? listenForConfig;
   final PluginConfigCodec<C>? configCodec;
@@ -88,15 +97,24 @@ final class TriggerSpec<C, E> {
     return codec == null ? value as C : codec.decode(value);
   }
 
-  Stream<dynamic>? listenForRuntime(RuntimeMap value) {
+  Stream<RuntimeMap>? listenForRuntime(RuntimeMap value) {
     final listener = listenForConfig;
-    return listener == null ? null : listener(decodeConfig(value));
+    return listener == null
+        ? null
+        : listener(decodeConfig(value)).map(_encodeEvent);
   }
 
-  Stream<dynamic> listenFromRuntime() => listen();
+  Stream<RuntimeMap> listenFromRuntime() => listen().map(_encodeEvent);
+
+  RuntimeMap _encodeEvent(E event) =>
+      eventEncoder?.call(event) ?? event as RuntimeMap;
 
   bool matchesRuntime(RuntimeMap config, RuntimeMap payload) =>
-      matches?.call(decodeConfig(config), payload as E) ?? true;
+      matches?.call(
+        decodeConfig(config),
+        eventDecoder?.call(payload) ?? payload as E,
+      ) ??
+      true;
 
   TriggerKey get key => TriggerKey(plugin: pluginId, trigger: triggerId);
 }

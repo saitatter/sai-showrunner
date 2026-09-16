@@ -1,6 +1,10 @@
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
 
+final class TwitchEmptyConfig {
+  const TwitchEmptyConfig();
+}
+
 final class TwitchBroadcasterConfig {
   const TwitchBroadcasterConfig({this.broadcasterId});
 
@@ -312,6 +316,210 @@ final class TwitchTimeoutConfig extends TwitchModerationConfig {
   };
 }
 
+final class TwitchRedemptionTriggerConfig {
+  const TwitchRedemptionTriggerConfig({this.rewardId});
+
+  factory TwitchRedemptionTriggerConfig.fromRuntime(RuntimeMap value) =>
+      TwitchRedemptionTriggerConfig(rewardId: _string(value['rewardId']));
+
+  final String? rewardId;
+
+  RuntimeMap toRuntime() => {if (rewardId != null) 'rewardId': rewardId};
+}
+
+class TwitchViewerEvent {
+  const TwitchViewerEvent({required this.viewerId, this.viewerName});
+
+  factory TwitchViewerEvent.fromRuntime(RuntimeMap value) => TwitchViewerEvent(
+    viewerId: _string(value['viewerId']) ?? '',
+    viewerName: _string(value['viewerName']),
+  );
+
+  final String viewerId;
+  final String? viewerName;
+}
+
+final class TwitchChatMessageEvent extends TwitchViewerEvent {
+  const TwitchChatMessageEvent({
+    required super.viewerId,
+    super.viewerName,
+    this.platform,
+    this.message,
+    this.messageId,
+    this.badges,
+  });
+
+  factory TwitchChatMessageEvent.fromRuntime(RuntimeMap value) =>
+      TwitchChatMessageEvent(
+        viewerId: _string(value['viewerId']) ?? '',
+        viewerName: _string(value['viewerName']),
+        platform: _string(value['platform']),
+        message: _string(value['message']),
+        messageId: _string(value['messageId']),
+        badges: _string(value['badges']),
+      );
+
+  final String? platform;
+  final String? message;
+  final String? messageId;
+  final String? badges;
+}
+
+final class TwitchBitsEvent extends TwitchViewerEvent {
+  const TwitchBitsEvent({
+    required super.viewerId,
+    super.viewerName,
+    this.bits,
+    this.message,
+  });
+
+  factory TwitchBitsEvent.fromRuntime(RuntimeMap value) => TwitchBitsEvent(
+    viewerId: _string(value['viewerId']) ?? '',
+    viewerName: _string(value['viewerName']),
+    bits: _number(value['bits']),
+    message: _string(value['message']),
+  );
+
+  final num? bits;
+  final String? message;
+}
+
+final class TwitchSubscriptionEvent extends TwitchViewerEvent {
+  const TwitchSubscriptionEvent({
+    required super.viewerId,
+    super.viewerName,
+    this.tier,
+    this.totalMonths,
+    this.streakMonths,
+    this.message,
+  });
+
+  factory TwitchSubscriptionEvent.fromRuntime(RuntimeMap value) =>
+      TwitchSubscriptionEvent(
+        viewerId: _string(value['viewerId']) ?? '',
+        viewerName: _string(value['viewerName']),
+        tier: _number(value['tier']),
+        totalMonths: _number(value['totalMonths']),
+        streakMonths: _number(value['streakMonths']),
+        message: _string(value['message']),
+      );
+
+  final num? tier;
+  final num? totalMonths;
+  final num? streakMonths;
+  final String? message;
+}
+
+final class TwitchGiftedSubscriptionEvent {
+  const TwitchGiftedSubscriptionEvent({
+    required this.gifterId,
+    this.gifterName,
+    this.tier,
+    this.subs,
+  });
+
+  factory TwitchGiftedSubscriptionEvent.fromRuntime(RuntimeMap value) =>
+      TwitchGiftedSubscriptionEvent(
+        gifterId: _string(value['gifterId']) ?? '',
+        gifterName: _string(value['gifterName']),
+        tier: _number(value['tier']),
+        subs: _number(value['subs']),
+      );
+
+  final String gifterId;
+  final String? gifterName;
+  final num? tier;
+  final num? subs;
+}
+
+final class TwitchRedemptionEvent extends TwitchViewerEvent {
+  const TwitchRedemptionEvent({
+    required super.viewerId,
+    super.viewerName,
+    this.rewardId,
+    this.rewardName,
+    this.userInput,
+    this.redemptionId,
+  });
+
+  factory TwitchRedemptionEvent.fromRuntime(RuntimeMap value) =>
+      TwitchRedemptionEvent(
+        viewerId: _string(value['viewerId']) ?? '',
+        viewerName: _string(value['viewerName']),
+        rewardId: _string(
+          value['rewardId'] ??
+              (value['reward'] is Map ? (value['reward'] as Map)['id'] : null),
+        ),
+        rewardName: _string(value['rewardName']),
+        userInput: _string(value['userInput']),
+        redemptionId: _string(value['redemptionId']),
+      );
+
+  final String? rewardId;
+  final String? rewardName;
+  final String? userInput;
+  final String? redemptionId;
+}
+
+final class TwitchPredictionEvent {
+  const TwitchPredictionEvent({this.predictionId, this.title, this.status});
+
+  factory TwitchPredictionEvent.fromRuntime(RuntimeMap value) =>
+      TwitchPredictionEvent(
+        predictionId: _string(value['predictionId']),
+        title: _string(value['title']),
+        status: _string(value['status']),
+      );
+
+  final String? predictionId;
+  final String? title;
+  final String? status;
+}
+
+final class TwitchPollEvent {
+  const TwitchPollEvent({this.pollId, this.title, this.status});
+
+  factory TwitchPollEvent.fromRuntime(RuntimeMap value) => TwitchPollEvent(
+    pollId: _string(value['pollId']),
+    title: _string(value['title']),
+    status: _string(value['status']),
+  );
+
+  final String? pollId;
+  final String? title;
+  final String? status;
+}
+
+final class TwitchRaidEvent {
+  const TwitchRaidEvent({
+    this.viewerId,
+    this.viewerName,
+    this.targetBroadcasterId,
+    this.viewers,
+  });
+
+  factory TwitchRaidEvent.fromRuntime(RuntimeMap value) => TwitchRaidEvent(
+    viewerId: _string(value['viewerId']),
+    viewerName: _string(value['viewerName']),
+    targetBroadcasterId: _string(value['targetBroadcasterId']),
+    viewers: _number(value['viewers']),
+  );
+
+  final String? viewerId;
+  final String? viewerName;
+  final String? targetBroadcasterId;
+  final num? viewers;
+}
+
+final class TwitchEventTypeEvent {
+  const TwitchEventTypeEvent({this.eventType});
+
+  factory TwitchEventTypeEvent.fromRuntime(RuntimeMap value) =>
+      TwitchEventTypeEvent(eventType: _string(value['eventType']));
+
+  final String? eventType;
+}
+
 typedef TwitchConfigDecoder<C> = C Function(RuntimeMap value);
 typedef TwitchConfigEncoder<C> = RuntimeMap Function(C value);
 
@@ -379,6 +587,14 @@ final twitchModerationConfigCodec = TwitchConfigCodec(
 final twitchTimeoutConfigCodec = TwitchConfigCodec(
   TwitchTimeoutConfig.fromRuntime,
   (TwitchTimeoutConfig value) => value.toRuntime(),
+);
+final twitchEmptyConfigCodec = TwitchConfigCodec(
+  (value) => const TwitchEmptyConfig(),
+  (TwitchEmptyConfig value) => const <String, dynamic>{},
+);
+final twitchRedemptionTriggerConfigCodec = TwitchConfigCodec(
+  TwitchRedemptionTriggerConfig.fromRuntime,
+  (TwitchRedemptionTriggerConfig value) => value.toRuntime(),
 );
 
 String? _string(Object? value) => value?.toString();

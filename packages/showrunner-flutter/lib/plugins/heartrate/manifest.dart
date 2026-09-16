@@ -177,6 +177,7 @@ DartPluginManifest createHeartRatePlugin(
               HeartRateEventIds.deviceConnected,
               HeartRateDeviceConnectedEvent.fromRuntime,
             ),
+            eventEncoder: (event) => event.toRuntime(),
             eventSchema: _deviceConnectedEventSchema,
           ),
           TriggerSpec<HeartRateEmptyConfig, HeartRateDeviceDisconnectedEvent>(
@@ -188,6 +189,7 @@ DartPluginManifest createHeartRatePlugin(
               HeartRateEventIds.deviceDisconnected,
               HeartRateDeviceDisconnectedEvent.fromRuntime,
             ),
+            eventEncoder: (event) => event.toRuntime(),
             eventSchema: _deviceDisconnectedEventSchema,
           ),
           TriggerSpec<HeartRateEmptyConfig, HeartRateZoneChangedEvent>(
@@ -199,6 +201,7 @@ DartPluginManifest createHeartRatePlugin(
               HeartRateEventIds.zoneChanged,
               HeartRateZoneChangedEvent.fromRuntime,
             ),
+            eventEncoder: (event) => event.toRuntime(),
             eventSchema: _zoneChangedEventSchema,
           ),
           TriggerSpec<HeartRateThresholdConfig, HeartRateThresholdEvent>(
@@ -211,6 +214,7 @@ DartPluginManifest createHeartRatePlugin(
                 _thresholdEvents(service.eventHub!, config, above: true),
             eventSchema: _thresholdEventSchema,
             configCodec: heartRateThresholdConfigCodec,
+            eventEncoder: (event) => event.toRuntime(),
           ),
           TriggerSpec<HeartRateThresholdConfig, HeartRateThresholdEvent>(
             pluginId: PluginId('heartrate'),
@@ -222,6 +226,7 @@ DartPluginManifest createHeartRatePlugin(
                 _thresholdEvents(service.eventHub!, config, above: false),
             eventSchema: _thresholdEventSchema,
             configCodec: heartRateThresholdConfigCodec,
+            eventEncoder: (event) => event.toRuntime(),
           ),
         ],
   states: const [

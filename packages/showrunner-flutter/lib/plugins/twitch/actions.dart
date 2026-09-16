@@ -537,28 +537,10 @@ DartPluginManifest createTwitchPlugin(
       _twitchAction(moderationActions, 'clearViewerGroup'),
     ],
     triggers: [
-      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-        pluginId: PluginId('twitch'),
-        triggerId: TriggerId('chat'),
-        displayName: 'Chat Message',
-        listen: () => _twitchEventStream(eventHub, 'chat'),
-        eventSchema: _chatEventSchema,
-      ),
-      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-        pluginId: PluginId('twitch'),
-        triggerId: TriggerId('ban'),
-        displayName: 'Viewer Banned',
-        listen: () => _twitchEventStream(eventHub, 'ban'),
-        eventSchema: _viewerEventSchema,
-      ),
-      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-        pluginId: PluginId('twitch'),
-        triggerId: TriggerId('timeout'),
-        displayName: 'Viewer Timed Out',
-        listen: () => _twitchEventStream(eventHub, 'timeout'),
-        eventSchema: _viewerEventSchema,
-      ),
       for (final eventId in const [
+        'chat',
+        'ban',
+        'timeout',
         'adStarted',
         'adEnded',
         'adSchedule',
@@ -586,32 +568,245 @@ DartPluginManifest createTwitchPlugin(
         'beforeRaid',
         'walkon',
       ])
-        TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-          pluginId: PluginId('twitch'),
-          triggerId: TriggerId(eventId),
-          displayName: eventId,
-          listen: () => _twitchEventStream(eventHub, eventId),
-          configSchema: eventId == 'redemption'
-              ? _redemptionTriggerSchema
-              : null,
-          eventSchema: eventId == 'redemption'
-              ? _redemptionEventSchema
-              : (_twitchEventSchemas[eventId] ?? _eventTypeSchema),
-          matches: eventId == 'redemption' ? _matchesRedemption : null,
-        ),
+        _twitchTrigger(eventId, eventHub),
     ],
   );
 }
+
+TriggerSpec<dynamic, dynamic> _twitchTrigger(
+  String eventId,
+  DartPluginEventHub? eventHub,
+) {
+  switch (eventId) {
+    case 'chat':
+      return _emptyTwitchTrigger(
+        eventId,
+        'Chat Message',
+        eventHub,
+        _chatEventSchema,
+        TwitchChatMessageEvent.fromRuntime,
+      );
+    case 'firstTimeChat':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _chatEventSchema,
+        TwitchChatMessageEvent.fromRuntime,
+      );
+    case 'ban':
+      return _emptyTwitchTrigger(
+        eventId,
+        'Viewer Banned',
+        eventHub,
+        _viewerEventSchema,
+        TwitchViewerEvent.fromRuntime,
+      );
+    case 'timeout':
+      return _emptyTwitchTrigger(
+        eventId,
+        'Viewer Timed Out',
+        eventHub,
+        _viewerEventSchema,
+        TwitchViewerEvent.fromRuntime,
+      );
+    case 'bits':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _bitsEventSchema,
+        TwitchBitsEvent.fromRuntime,
+      );
+    case 'subscription':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _subscriptionEventSchema,
+        TwitchSubscriptionEvent.fromRuntime,
+      );
+    case 'giftedSub':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _giftedSubscriptionEventSchema,
+        TwitchGiftedSubscriptionEvent.fromRuntime,
+      );
+    case 'follow':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _viewerEventSchema,
+        TwitchViewerEvent.fromRuntime,
+      );
+    case 'redemption':
+      return TriggerSpec<TwitchRedemptionTriggerConfig, TwitchRedemptionEvent>(
+        pluginId: PluginId('twitch'),
+        triggerId: TriggerId(eventId),
+        displayName: eventId,
+        listen: () => _twitchEventStream(
+          eventHub,
+          eventId,
+          TwitchRedemptionEvent.fromRuntime,
+        ),
+        configSchema: _redemptionTriggerSchema,
+        eventSchema: _redemptionEventSchema,
+        eventDecoder: TwitchRedemptionEvent.fromRuntime,
+        eventEncoder: (event) => _encodeTwitchEvent(event),
+        configCodec: twitchRedemptionTriggerConfigCodec,
+        matches: _matchesRedemption,
+      );
+    case 'predictionStarted':
+    case 'predictionLocked':
+    case 'predictionSettled':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _predictionEventSchema,
+        TwitchPredictionEvent.fromRuntime,
+      );
+    case 'pollStarted':
+    case 'pollEnded':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _pollEventSchema,
+        TwitchPollEvent.fromRuntime,
+      );
+    case 'raid':
+    case 'raidOut':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _raidEventSchema,
+        TwitchRaidEvent.fromRuntime,
+      );
+    case 'raidStarted':
+    case 'raidCanceled':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _eventTypeSchema,
+        TwitchEventTypeEvent.fromRuntime,
+      );
+    case 'shoutoutSent':
+    case 'shoutoutReceived':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _viewerEventSchema,
+        TwitchViewerEvent.fromRuntime,
+      );
+    default:
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _twitchEventSchemas[eventId] ?? _eventTypeSchema,
+        TwitchEventTypeEvent.fromRuntime,
+      );
+  }
+}
+
+TriggerSpec<TwitchEmptyConfig, T> _emptyTwitchTrigger<T>(
+  String eventId,
+  String displayName,
+  DartPluginEventHub? eventHub,
+  DartDataInputSchema schema,
+  T Function(RuntimeMap) decode,
+) => TriggerSpec<TwitchEmptyConfig, T>(
+  pluginId: PluginId('twitch'),
+  triggerId: TriggerId(eventId),
+  displayName: displayName,
+  listen: () => _twitchEventStream(eventHub, eventId, decode),
+  eventSchema: schema,
+  eventDecoder: decode,
+  eventEncoder: (event) => _encodeTwitchEvent(event),
+  configCodec: twitchEmptyConfigCodec,
+);
+
+RuntimeMap _encodeTwitchEvent(Object? event) => switch (event) {
+  TwitchChatMessageEvent value => {
+    'viewerId': value.viewerId,
+    if (value.viewerName != null) 'viewerName': value.viewerName,
+    if (value.platform != null) 'platform': value.platform,
+    if (value.message != null) 'message': value.message,
+    if (value.messageId != null) 'messageId': value.messageId,
+    if (value.badges != null) 'badges': value.badges,
+  },
+  TwitchBitsEvent value => {
+    'viewerId': value.viewerId,
+    if (value.viewerName != null) 'viewerName': value.viewerName,
+    if (value.bits != null) 'bits': value.bits,
+    if (value.message != null) 'message': value.message,
+  },
+  TwitchSubscriptionEvent value => {
+    'viewerId': value.viewerId,
+    if (value.viewerName != null) 'viewerName': value.viewerName,
+    if (value.tier != null) 'tier': value.tier,
+    if (value.totalMonths != null) 'totalMonths': value.totalMonths,
+    if (value.streakMonths != null) 'streakMonths': value.streakMonths,
+    if (value.message != null) 'message': value.message,
+  },
+  TwitchGiftedSubscriptionEvent value => {
+    'gifterId': value.gifterId,
+    if (value.gifterName != null) 'gifterName': value.gifterName,
+    if (value.tier != null) 'tier': value.tier,
+    if (value.subs != null) 'subs': value.subs,
+  },
+  TwitchRedemptionEvent value => {
+    'viewerId': value.viewerId,
+    if (value.viewerName != null) 'viewerName': value.viewerName,
+    if (value.rewardId != null) 'rewardId': value.rewardId,
+    if (value.rewardName != null) 'rewardName': value.rewardName,
+    if (value.userInput != null) 'userInput': value.userInput,
+    if (value.redemptionId != null) 'redemptionId': value.redemptionId,
+  },
+  TwitchViewerEvent value => {
+    'viewerId': value.viewerId,
+    if (value.viewerName != null) 'viewerName': value.viewerName,
+  },
+  TwitchPredictionEvent value => {
+    if (value.predictionId != null) 'predictionId': value.predictionId,
+    if (value.title != null) 'title': value.title,
+    if (value.status != null) 'status': value.status,
+  },
+  TwitchPollEvent value => {
+    if (value.pollId != null) 'pollId': value.pollId,
+    if (value.title != null) 'title': value.title,
+    if (value.status != null) 'status': value.status,
+  },
+  TwitchRaidEvent value => {
+    if (value.viewerId != null) 'viewerId': value.viewerId,
+    if (value.viewerName != null) 'viewerName': value.viewerName,
+    if (value.targetBroadcasterId != null)
+      'targetBroadcasterId': value.targetBroadcasterId,
+    if (value.viewers != null) 'viewers': value.viewers,
+  },
+  TwitchEventTypeEvent value => {
+    if (value.eventType != null) 'eventType': value.eventType,
+  },
+  _ => throw StateError('Unsupported Twitch event type: ${event.runtimeType}'),
+};
 
 ActionSpec<dynamic, dynamic> _twitchAction(
   List<ActionSpec<dynamic, dynamic>> actions,
   String id,
 ) => actions.firstWhere((action) => action.actionId.value == id);
 
-Stream<RuntimeMap> _twitchEventStream(
+Stream<T> _twitchEventStream<T>(
   DartPluginEventHub? eventHub,
   String eventId,
-) => eventHub?.stream(eventId) ?? const Stream<RuntimeMap>.empty();
+  T Function(RuntimeMap) decode,
+) => eventHub?.stream(eventId).map(decode) ?? const Stream.empty();
 
 String _id(RuntimeMap config, EvaluationContext context, String key) =>
     (config[key] ?? context.contextState[key])?.toString() ?? '';
@@ -696,13 +891,13 @@ bool _bool(Object? value, {bool fallback = false}) {
   };
 }
 
-bool _matchesRedemption(RuntimeMap config, RuntimeMap payload) {
-  final rewardId = config['rewardId']?.toString().trim() ?? '';
+bool _matchesRedemption(
+  TwitchRedemptionTriggerConfig config,
+  TwitchRedemptionEvent payload,
+) {
+  final rewardId = config.rewardId?.trim() ?? '';
   if (rewardId.isEmpty) return true;
-  final payloadReward =
-      payload['rewardId'] ??
-      (payload['reward'] is Map ? (payload['reward'] as Map)['id'] : null);
-  return rewardId == payloadReward?.toString().trim();
+  return rewardId == payload.rewardId?.trim();
 }
 
 dynamic _clipId(RuntimeMap response) {
