@@ -1,10 +1,10 @@
 part of '../actions.dart';
 
-List<ActionSpec<Map<String, dynamic>, Object?>> _obsSceneActions(
+List<ActionSpec<dynamic, dynamic>> _obsSceneActions(
   ObsTransport transport,
   List<String> previousScenes,
 ) => [
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsSceneConfig, Object?>(
     pluginId: PluginId('obs'),
     actionId: ActionId('scene'),
     displayName: 'Change Scene',
@@ -20,8 +20,9 @@ List<ActionSpec<Map<String, dynamic>, Object?>> _obsSceneActions(
         ),
       ],
     ),
+    configCodec: obsSceneConfigCodec,
     invoke: (config, context) async {
-      final scene = config['scene']?.toString();
+      final scene = config.scene;
       if (scene == null || scene.isEmpty) return null;
       final current = await transport.call('GetCurrentProgramScene', {});
       final currentScene = current['currentProgramSceneName']?.toString();
@@ -34,11 +35,12 @@ List<ActionSpec<Map<String, dynamic>, Object?>> _obsSceneActions(
       return null;
     },
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsEmptyConfig, Object?>(
     pluginId: PluginId('obs'),
     actionId: ActionId('prevScene'),
     displayName: 'Previous Scene',
     configSchema: _emptyConfigSchema,
+    configCodec: obsEmptyConfigCodec,
     invoke: (config, context) async {
       if (previousScenes.isEmpty) return null;
       final scene = previousScenes.removeLast();

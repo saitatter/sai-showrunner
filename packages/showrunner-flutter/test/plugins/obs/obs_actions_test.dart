@@ -108,6 +108,18 @@ void main() {
         .decodeConfig({'directory': 'captures', 'width': 1920});
     expect(screenshot, isA<ObsScreenshotConfig>());
     expect((screenshot as ObsScreenshotConfig).width, 1920);
+
+    final transform = actions
+        .firstWhere((action) => action.actionId.value == 'transform')
+        .decodeConfig({'scene': 'Main', 'source': '7', 'transform': {}});
+    expect(transform, isA<ObsTransformConfig>());
+    expect((transform as ObsTransformConfig).source, 7);
+
+    final media = actions
+        .firstWhere((action) => action.actionId.value == 'mediaAction')
+        .decodeConfig({'source': 'Video', 'action': 'Restart'});
+    expect(media, isA<ObsMediaActionConfig>());
+    expect((media as ObsMediaActionConfig).action, ObsMediaAction.restart);
   });
 
   test('persists OBS resources in the plugin directory', () async {

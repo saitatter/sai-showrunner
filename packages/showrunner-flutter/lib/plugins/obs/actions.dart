@@ -460,14 +460,13 @@ ActionSpec<dynamic, dynamic> _obsAction(
   String id,
 ) => actions.firstWhere((action) => action.actionId.value == id);
 
-String _mediaAction(dynamic action) => switch (action) {
-  'Play' => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY',
-  'Pause' => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE',
-  'Restart' => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART',
-  'Stop' => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP',
-  'Next' => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NEXT',
-  'Previous' => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PREVIOUS',
-  _ => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY',
+String _mediaAction(ObsMediaAction action) => switch (action) {
+  ObsMediaAction.play => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY',
+  ObsMediaAction.pause => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE',
+  ObsMediaAction.restart => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART',
+  ObsMediaAction.stop => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP',
+  ObsMediaAction.next => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_NEXT',
+  ObsMediaAction.previous => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PREVIOUS',
 };
 
 double _sliderToDb(dynamic value) {
@@ -483,14 +482,6 @@ double _sliderToDb(dynamic value) {
           math.pow((range + offset) / offset, -slider).toDouble() +
       offset;
 }
-
-dynamic _toggleValue(dynamic value) => value is String
-    ? switch (value.toLowerCase()) {
-        'true' => true,
-        'false' => false,
-        _ => value,
-      }
-    : value;
 
 Future<RuntimeMap> _toggle(
   ObsTransport transport,
