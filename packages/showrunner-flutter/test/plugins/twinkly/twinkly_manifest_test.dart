@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/twinkly/contracts.dart';
 import 'package:showrunner_flutter/plugins/twinkly/manifest.dart';
 
 void main() {
@@ -16,6 +17,13 @@ void main() {
       );
 
     final config = {'ip': '192.168.1.50'};
+    expect(
+      registry.findAction('twinkly', 'setColor')?.decodeConfig({
+        'ip': '192.168.1.50',
+        'color': 'hsb(120, 50, 80)',
+      }),
+      isA<TwinklyActionConfig>(),
+    );
     await registry.invokeAction('twinkly', 'getInfo', config);
     await registry.invokeAction('twinkly', 'getMode', config);
     await registry.invokeAction('twinkly', 'getColor', config);

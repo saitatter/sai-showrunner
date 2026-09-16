@@ -6,6 +6,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef TwinklyRequest =
     Future<RuntimeMap> Function(
@@ -175,11 +176,12 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
         ),
       ],
       actions: [
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TwinklyActionConfig, RuntimeMap>(
           pluginId: PluginId('twinkly'),
           actionId: ActionId('getInfo'),
           displayName: 'Get Device Info',
           configSchema: _deviceSchema,
+          configCodec: twinklyActionConfigCodec,
           invoke: (config, context) => transport.request(
             _ip(config, context),
             'GET',
@@ -188,11 +190,12 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
             null,
           ),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TwinklyActionConfig, RuntimeMap>(
           pluginId: PluginId('twinkly'),
           actionId: ActionId('getMode'),
           displayName: 'Get LED Mode',
           configSchema: _deviceSchema,
+          configCodec: twinklyActionConfigCodec,
           invoke: (config, context) => transport.request(
             _ip(config, context),
             'GET',
@@ -201,11 +204,12 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
             null,
           ),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TwinklyActionConfig, RuntimeMap>(
           pluginId: PluginId('twinkly'),
           actionId: ActionId('getColor'),
           displayName: 'Get LED Color',
           configSchema: _deviceSchema,
+          configCodec: twinklyActionConfigCodec,
           invoke: (config, context) => transport.request(
             _ip(config, context),
             'GET',
@@ -214,18 +218,20 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
             null,
           ),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TwinklyActionConfig, RuntimeMap>(
           pluginId: PluginId('twinkly'),
           actionId: ActionId('setColor'),
           displayName: 'Set LED Color',
           configSchema: _colorSchema,
+          configCodec: twinklyActionConfigCodec,
           invoke: (config, context) => _setColor(transport, config, context),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TwinklyActionConfig, RuntimeMap>(
           pluginId: PluginId('twinkly'),
           actionId: ActionId('turnOff'),
           displayName: 'Turn LEDs Off',
           configSchema: _deviceSchema,
+          configCodec: twinklyActionConfigCodec,
           invoke: (config, context) => transport.request(
             _ip(config, context),
             'POST',
@@ -234,11 +240,12 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
             {'mode': 'off', 'effect_id': 0},
           ),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TwinklyActionConfig, RuntimeMap>(
           pluginId: PluginId('twinkly'),
           actionId: ActionId('listMovies'),
           displayName: 'List Movies',
           configSchema: _deviceSchema,
+          configCodec: twinklyActionConfigCodec,
           invoke: (config, context) => transport.request(
             _ip(config, context),
             'GET',
@@ -247,29 +254,31 @@ DartPluginManifest createTwinklyPlugin(TwinklyTransport transport) =>
             null,
           ),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TwinklyActionConfig, RuntimeMap>(
           pluginId: PluginId('twinkly'),
           actionId: ActionId('setMovie'),
           displayName: 'Set Movie',
           configSchema: _movieSchema,
+          configCodec: twinklyActionConfigCodec,
           invoke: (config, context) => _setMovie(transport, config, context),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<TwinklyActionConfig, RuntimeMap>(
           pluginId: PluginId('twinkly'),
           actionId: ActionId('movie'),
           displayName: 'Twinkly Movie',
           configSchema: _movieSchema,
+          configCodec: twinklyActionConfigCodec,
           invoke: (config, context) => _setMovie(transport, config, context),
         ),
       ],
     );
 
-Future<Object?> _setColor(
+Future<RuntimeMap> _setColor(
   TwinklyTransport transport,
-  RuntimeMap config,
+  TwinklyActionConfig config,
   EvaluationContext context,
 ) async {
-  final color = parseLightColor(config['color']?.toString());
+  final color = parseLightColor(config.color);
   if (color == null || color.isKelvin) {
     throw ArgumentError('Twinkly requires an hsb(...) color.');
   }
@@ -285,14 +294,14 @@ Future<Object?> _setColor(
   });
 }
 
-Future<Object?> _setMovie(
+Future<RuntimeMap> _setMovie(
   TwinklyTransport transport,
-  RuntimeMap config,
+  TwinklyActionConfig config,
   EvaluationContext context,
 ) async {
   final ip = _ip(config, context);
   await transport.request(ip, 'POST', '/movies/current', const {}, {
-    'id': config['movieId'] ?? config['movie'],
+    'id': config.movieId ?? config.movie,
   });
   return transport.request(ip, 'POST', '/led/mode', const {}, {
     'mode': 'movie',
@@ -300,9 +309,8 @@ Future<Object?> _setMovie(
   });
 }
 
-String _ip(RuntimeMap config, EvaluationContext context) {
-  final ip =
-      (config['ip'] ?? context.contextState['ip'])?.toString().trim() ?? '';
+String _ip(TwinklyActionConfig config, EvaluationContext context) {
+  final ip = (config.ip ?? context.contextState['ip'])?.toString().trim() ?? '';
   if (ip.isEmpty) throw ArgumentError('ip is required.');
   return ip;
 }
