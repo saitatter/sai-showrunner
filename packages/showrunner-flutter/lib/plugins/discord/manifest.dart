@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef DiscordRequest =
     Future<RuntimeMap> Function(String url, RuntimeMap body);
@@ -161,11 +162,12 @@ DartPluginManifest createDiscordPlugin({
   id: PluginId('discord'),
   name: 'Discord',
   actions: [
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<DiscordMessageConfig, RuntimeMap>(
       pluginId: PluginId('discord'),
       actionId: ActionId('discordMessage'),
       displayName: 'Discord Message',
       configSchema: _messageSchema,
+      configCodec: discordMessageConfigCodec,
       invoke: (config, context) => _sendDiscordMessage(
         transport ?? DiscordTransport(DiscordHttpTransport().request),
         config,
@@ -175,19 +177,19 @@ DartPluginManifest createDiscordPlugin({
   ],
 );
 
-Future<Object?> _sendDiscordMessage(
+Future<RuntimeMap> _sendDiscordMessage(
   DiscordTransport transport,
-  RuntimeMap config, {
+  DiscordMessageConfig config, {
   DiscordWebhookResolver? webhookResolver,
 }) async {
-  final message = config['message']?.toString() ?? '';
-  final webhookReference = config['webhook'];
+  final message = config.message ?? '';
+  final webhookReference = config.webhook;
   final webhook = webhookReference is String && webhookResolver != null
       ? await webhookResolver(webhookReference)
       : webhookReference;
   final url = webhook is Map
       ? webhook['webhookUrl']?.toString().trim()
-      : config['webhookUrl']?.toString().trim();
+      : config.webhookUrl?.trim();
   if (url == null || url.isEmpty) {
     return {'sent': false, 'reason': 'Webhook unconfigured'};
   }
@@ -196,16 +198,11 @@ Future<Object?> _sendDiscordMessage(
   }
   final body = <String, dynamic>{
     'content': message,
-    if (config['username'] != null) 'username': config['username'],
-    if (config['avatarUrl'] != null) 'avatar_url': config['avatarUrl'],
-    if (config['tts'] != null) 'tts': config['tts'] == true,
+    if (config.username != null) 'username': config.username,
+    if (config.avatarUrl != null) 'avatar_url': config.avatarUrl,
+    if (config.tts != null) 'tts': config.tts == true,
   };
-  final files = config['files'] is List
-      ? (config['files'] as List)
-            .map((file) => file.toString().trim())
-            .where((file) => file.isNotEmpty)
-            .toList()
-      : <String>[];
+  final files = config.files ?? const <String>[];
   final response = files.isEmpty
       ? await transport.request(url, body)
       : transport.requestWithFiles == null

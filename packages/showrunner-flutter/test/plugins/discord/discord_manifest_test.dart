@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/plugins/discord/contracts.dart';
 import 'package:showrunner_flutter/plugins/discord/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
@@ -19,6 +20,15 @@ void main() {
           }),
         ),
       );
+
+    expect(
+      registry.findAction('discord', 'discordMessage')?.decodeConfig({
+        'webhook': 'webhook-1',
+        'message': 'Hello',
+        'files': ['one.txt'],
+      }),
+      isA<DiscordMessageConfig>(),
+    );
 
     final result = await registry.invokeAction('discord', 'discordMessage', {
       'webhook': {'webhookUrl': 'https://discord.test/hooks/1'},
