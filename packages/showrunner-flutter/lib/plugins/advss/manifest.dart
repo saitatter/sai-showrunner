@@ -1,7 +1,9 @@
 import '../../schema/data_input.dart';
+import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../obs/actions.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 const _vendorName = 'AdvancedSceneSwitcher';
 
@@ -41,33 +43,38 @@ DartPluginManifest createAdvssPlugin(
     SettingSpec(id: SettingId('obsConnection'), displayName: 'OBS Connection'),
   ],
   actions: [
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<AdvssMessageConfig, RuntimeMap>(
       pluginId: PluginId('advss'),
       actionId: ActionId('AdvSSMessage'),
       displayName: 'Advanced Scene Switcher Message',
       configSchema: _messageSchema,
+      configCodec: advssMessageConfigCodec,
       invoke: (config, context) => transport.call('CallVendorRequest', {
         'vendorName': _vendorName,
         'requestType': 'AdvancedSceneSwitcherMessage',
-        'requestData': {'message': config['message']?.toString() ?? ''},
+        'requestData': {'message': config.message},
       }),
     ),
   ],
   triggers: eventHub == null
       ? const []
       : [
-          TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+          TriggerSpec<AdvssEventConfig, AdvssEvent>(
             pluginId: PluginId('advss'),
             triggerId: TriggerId('advssEvent'),
             displayName: 'Advanced Scene Switcher Event',
             configSchema: _eventSchema,
-            listen: () => eventHub.stream('obsVendorEvent'),
+            listen: () => eventHub
+                .stream('obsVendorEvent')
+                .map<AdvssEvent>((event) => AdvssEvent.fromRuntime(event)),
+            eventDecoder: AdvssEvent.fromRuntime,
+            eventEncoder: (event) => event.toRuntime(),
             matches: (config, payload) =>
-                payload['vendorName'] == _vendorName &&
-                payload['eventType'] == 'AdvancedSceneSwitcherEvent' &&
-                (config['message']?.toString().trim().isEmpty != false ||
-                    config['message']?.toString() ==
-                        payload['message']?.toString()),
+                payload.vendorName == _vendorName &&
+                payload.eventType == 'AdvancedSceneSwitcherEvent' &&
+                (config.message?.trim().isEmpty != false ||
+                    config.message == payload.message),
+            configCodec: advssEventConfigCodec,
           ),
         ],
 );

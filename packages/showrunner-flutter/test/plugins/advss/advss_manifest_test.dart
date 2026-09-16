@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/advss/manifest.dart';
+import 'package:showrunner_flutter/plugins/advss/contracts.dart';
 import 'package:showrunner_flutter/plugins/obs/actions.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
@@ -39,6 +40,17 @@ void main() {
         ),
       );
     final trigger = registry.findTrigger('advss', 'advssEvent')!;
+
+    expect(
+      registry.findAction('advss', 'AdvSSMessage')?.decodeConfig({
+        'message': 'hello',
+      }),
+      isA<AdvssMessageConfig>(),
+    );
+    expect(
+      trigger.configCodec?.decode({'message': 'hello'}),
+      isA<AdvssEventConfig>(),
+    );
 
     expect(
       trigger.matchesRuntime(
