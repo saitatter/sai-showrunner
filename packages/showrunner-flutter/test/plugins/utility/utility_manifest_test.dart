@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/http/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
+import 'package:showrunner_flutter/plugins/overlays/contracts.dart';
 import 'package:showrunner_flutter/plugins/random/manifest.dart';
 import 'package:showrunner_flutter/plugins/random/contracts.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
@@ -10,6 +11,30 @@ import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
+  test('decodes overlay action configurations into typed contracts', () {
+    final actions = createOverlaysPlugin().actions;
+    final chat = actions
+        .firstWhere((action) => action.actionId.value == 'pushChatMessage')
+        .decodeConfig({
+          'targetWidget': {'overlayId': 'main', 'widgetId': 'chat'},
+          'message': 'hello',
+        });
+    expect(chat, isA<OverlayChatMessageConfig>());
+    expect((chat as OverlayChatMessageConfig).targetWidget?.widgetId, 'chat');
+
+    final visibility = actions
+        .firstWhere((action) => action.actionId.value == 'widgetVisibility')
+        .decodeConfig({
+          'widget': {'overlayId': 'main', 'widgetId': 'chat'},
+          'enabled': 'toggle',
+        });
+    expect(visibility, isA<OverlayVisibilityConfig>());
+    expect(
+      (visibility as OverlayVisibilityConfig).mode,
+      OverlayVisibilityMode.toggle,
+    );
+  });
+
   test('utility actions expose structured configuration schemas', () {
     final plugins = [
       createHttpPlugin(),

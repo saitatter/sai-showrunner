@@ -6,6 +6,7 @@ import '../../runtime/expression.dart';
 import '../../schema/resource.dart';
 import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef OverlayResourceLoader =
     Future<ResourceData?> Function(String overlayId);
@@ -364,18 +365,20 @@ DartPluginManifest createOverlaysPlugin({
     id: PluginId('overlays'),
     name: 'Overlays',
     actions: [
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<OverlayTriggerWidgetConfig, Object?>(
         pluginId: PluginId('overlays'),
         actionId: ActionId('triggerWidget'),
         displayName: 'Trigger Overlay Widget',
         configSchema: _triggerWidgetSchema,
+        configCodec: overlayTriggerWidgetConfigCodec,
         invoke: (config, context) => _triggerWidget(hub, config),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<OverlayAlertConfig, Object?>(
         pluginId: PluginId('overlays'),
         actionId: ActionId('alert'),
         displayName: 'Show Alert',
         configSchema: _alertSchema,
+        configCodec: overlayAlertConfigCodec,
         invoke: (config, context) => _showAlert(
           hub,
           config,
@@ -383,46 +386,52 @@ DartPluginManifest createOverlaysPlugin({
           overlayStore: overlayStore,
         ),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<OverlayChatMessageConfig, Object?>(
         pluginId: PluginId('overlays'),
         actionId: ActionId('pushChatMessage'),
         displayName: 'Push Chat Message',
         configSchema: _chatMessageSchema,
+        configCodec: overlayChatMessageConfigCodec,
         invoke: (config, context) => _pushChatMessage(hub, config),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<OverlayPaidAlertConfig, Object?>(
         pluginId: PluginId('overlays'),
         actionId: ActionId('pushPaidAlert'),
         displayName: 'Push Paid Alert',
         configSchema: _paidAlertSchema,
+        configCodec: overlayPaidAlertConfigCodec,
         invoke: (config, context) => _pushPaidAlert(hub, config),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<OverlaySceneConfig, Object?>(
         pluginId: PluginId('overlays'),
         actionId: ActionId('beginSceneOverlay'),
         displayName: 'Begin Scene Overlay',
         configSchema: _beginSceneSchema,
+        configCodec: overlaySceneConfigCodec,
         invoke: (config, context) => _sceneEvent(hub, 'scene.begin', config),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<OverlaySceneConfig, Object?>(
         pluginId: PluginId('overlays'),
         actionId: ActionId('endSceneOverlay'),
         displayName: 'End Scene Overlay',
         configSchema: _endSceneSchema,
+        configCodec: overlaySceneConfigCodec,
         invoke: (config, context) => _sceneEvent(hub, 'scene.end', config),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<OverlayEmoteConfig, Object?>(
         pluginId: PluginId('overlays'),
         actionId: ActionId('spawnEmotes'),
         displayName: 'Bounce Emotes',
         configSchema: _emoteSchema,
+        configCodec: overlayEmoteConfigCodec,
         invoke: (config, context) => _spawnEmotes(hub, config),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<OverlayVisibilityConfig, Object?>(
         pluginId: PluginId('overlays'),
         actionId: ActionId('widgetVisibility'),
         displayName: 'Widget Visibility',
         configSchema: _visibilitySchema,
+        configCodec: overlayVisibilityConfigCodec,
         invoke: (config, context) =>
             _setWidgetVisibility(hub, config, overlayStore: overlayStore),
       ),
@@ -432,61 +441,59 @@ DartPluginManifest createOverlaysPlugin({
 
 Future<Object?> _triggerWidget(
   DartPluginEventHub eventHub,
-  RuntimeMap config,
+  OverlayTriggerWidgetConfig config,
 ) async {
-  final widgetId = config['widgetId']?.toString().trim() ?? '';
+  final widgetId = config.widgetId?.trim() ?? '';
   if (widgetId.isEmpty) return {'triggered': false, 'widgetId': widgetId};
   eventHub.emit(OverlayEventIds.widget, {
     'widgetId': widgetId,
-    'overlayId': config['overlayId'],
-    'payload': config['payload'],
+    'overlayId': config.overlayId,
+    'payload': config.payload,
   });
   return {'triggered': true, 'widgetId': widgetId};
 }
 
 Future<Object?> _showAlert(
   DartPluginEventHub eventHub,
-  RuntimeMap config, {
+  OverlayAlertConfig config, {
   required EvaluationContext context,
   required OverlayResourceStore? overlayStore,
 }) async {
-  final target = _target(config['alert']);
+  final target = config.alert;
   if (target == null) return {'triggered': false};
   final selection = await _alertMediaSelection(target, overlayStore);
-  if (selection == null) return {'triggered': false, ...target};
+  if (selection == null) {
+    return {'triggered': false, ...target.toRuntime()};
+  }
   context.cancellationToken?.throwIfCancelled();
   eventHub.emit(OverlayEventIds.widgetRpc, {
-    ...target,
+    ...target.toRuntime(),
     'rpcId': 'showAlert',
-    'args': [
-      config['title']?.toString() ?? '',
-      config['subtitle']?.toString() ?? '',
-      selection.index,
-    ],
+    'args': [config.title ?? '', config.subtitle ?? '', selection.index],
   });
   await cancellableDelay(
     Duration(milliseconds: (selection.duration * 1000).round()),
     context.cancellationToken,
   );
-  return {'triggered': true, ...target};
+  return {'triggered': true, ...target.toRuntime()};
 }
 
 Future<Object?> _pushChatMessage(
   DartPluginEventHub eventHub,
-  RuntimeMap config,
+  OverlayChatMessageConfig config,
 ) async {
-  final target = _target(config['targetWidget']);
+  final target = config.targetWidget;
   eventHub.emit(OverlayEventIds.broadcast, {
     'broadcastId': 'showrunner_chat_message',
     'payload': {
-      'id': _eventId(config['messageId'], 'showrunner-chat'),
-      'targetOverlayId': target?['overlayId'] ?? '',
-      'targetWidgetId': target?['widgetId'] ?? '',
-      'platform': _fallbackText(config['platform'], 'unknown'),
-      'displayName': _fallbackText(config['viewerName'], 'unknown'),
-      'username': _fallbackText(config['viewerName'], 'unknown'),
-      'message': config['message']?.toString() ?? '',
-      'badges': config['badges']?.toString() ?? '',
+      'id': _eventId(config.messageId, 'showrunner-chat'),
+      'targetOverlayId': target?.overlayId ?? '',
+      'targetWidgetId': target?.widgetId ?? '',
+      'platform': _fallbackText(config.platform, 'unknown'),
+      'displayName': _fallbackText(config.viewerName, 'unknown'),
+      'username': _fallbackText(config.viewerName, 'unknown'),
+      'message': config.message ?? '',
+      'badges': config.badges ?? '',
     },
   });
   return {'sent': true};
@@ -494,21 +501,21 @@ Future<Object?> _pushChatMessage(
 
 Future<Object?> _pushPaidAlert(
   DartPluginEventHub eventHub,
-  RuntimeMap config,
+  OverlayPaidAlertConfig config,
 ) async {
-  final target = _target(config['targetWidget']);
+  final target = config.targetWidget;
   eventHub.emit(OverlayEventIds.broadcast, {
     'broadcastId': 'showrunner_paid_alert',
     'payload': {
-      'id': _eventId(config['eventId'], 'showrunner-paid'),
-      'targetOverlayId': target?['overlayId'] ?? '',
-      'targetWidgetId': target?['widgetId'] ?? '',
-      'platform': _fallbackText(config['platform'], 'unknown'),
-      'displayName': _fallbackText(config['viewerName'], 'unknown'),
-      'amount': config['amount']?.toString() ?? '',
-      'currency': _fallbackText(config['currency'], ''),
-      'title': _fallbackText(config['title'], 'New Support'),
-      'message': config['message']?.toString() ?? '',
+      'id': _eventId(config.eventId, 'showrunner-paid'),
+      'targetOverlayId': target?.overlayId ?? '',
+      'targetWidgetId': target?.widgetId ?? '',
+      'platform': _fallbackText(config.platform, 'unknown'),
+      'displayName': _fallbackText(config.viewerName, 'unknown'),
+      'amount': config.amount ?? '',
+      'currency': _fallbackText(config.currency, ''),
+      'title': _fallbackText(config.title, 'New Support'),
+      'message': config.message ?? '',
     },
   });
   return {'sent': true};
@@ -517,19 +524,19 @@ Future<Object?> _pushPaidAlert(
 Future<Object?> _sceneEvent(
   DartPluginEventHub eventHub,
   String type,
-  RuntimeMap config,
+  OverlaySceneConfig config,
 ) async {
-  final target = _target(config['targetWidget']);
+  final target = config.targetWidget;
   eventHub.emit(OverlayEventIds.broadcast, {
     'broadcastId': 'showrunner_scene_event',
     'payload': {
       'type': type,
-      'targetOverlayId': target?['overlayId'] ?? '',
-      'targetWidgetId': target?['widgetId'] ?? '',
-      'sceneKey': _fallbackText(config['sceneKey'], 'main'),
-      'title': config['title']?.toString() ?? '',
-      'subtitle': config['subtitle']?.toString() ?? '',
-      'accentColor': _fallbackText(config['accentColor'], '#9146ff'),
+      'targetOverlayId': target?.overlayId ?? '',
+      'targetWidgetId': target?.widgetId ?? '',
+      'sceneKey': _fallbackText(config.sceneKey, 'main'),
+      'title': config.title ?? '',
+      'subtitle': config.subtitle ?? '',
+      'accentColor': _fallbackText(config.accentColor, '#9146ff'),
     },
   });
   return {'sent': true, 'type': type};
@@ -537,30 +544,30 @@ Future<Object?> _sceneEvent(
 
 Future<Object?> _spawnEmotes(
   DartPluginEventHub eventHub,
-  RuntimeMap config,
+  OverlayEmoteConfig config,
 ) async {
-  final target = _target(config['bouncer']);
+  final target = config.bouncer;
   if (target == null) return {'triggered': false};
   eventHub.emit(OverlayEventIds.widgetRpc, {
-    ...target,
+    ...target.toRuntime(),
     'rpcId': 'spawnEmotes',
-    'args': [config['message']?.toString() ?? ''],
+    'args': [config.message ?? ''],
   });
-  return {'triggered': true, ...target};
+  return {'triggered': true, ...target.toRuntime()};
 }
 
 Future<Object?> _setWidgetVisibility(
   DartPluginEventHub eventHub,
-  RuntimeMap config, {
+  OverlayVisibilityConfig config, {
   required OverlayResourceStore? overlayStore,
 }) async {
   if (overlayStore == null) {
     throw StateError('Overlay resource storage is not configured.');
   }
-  final target = _target(config['widget']);
+  final target = config.widget;
   if (target == null) return {'widgetVisible': false};
-  final overlayId = target['overlayId']!;
-  final widgetId = target['widgetId']!;
+  final overlayId = target.overlayId!;
+  final widgetId = target.widgetId!;
   final resource = await overlayStore.load(overlayId);
   if (resource == null) return {'widgetVisible': false};
   final widgets = _maps(resource.config['widgets']);
@@ -569,10 +576,9 @@ Future<Object?> _setWidgetVisibility(
   );
   if (index < 0) return {'widgetVisible': false};
   final current = widgets[index]['visible'] == true;
-  final requested = config['enabled'];
-  final visible = requested?.toString() == 'toggle'
+  final visible = config.mode == OverlayVisibilityMode.toggle
       ? !current
-      : requested == true || requested?.toString() == 'true';
+      : config.mode == OverlayVisibilityMode.enabled;
   widgets[index] = {...widgets[index], 'visible': visible};
   await overlayStore.save(
     ResourceData(
@@ -590,15 +596,15 @@ Future<Object?> _setWidgetVisibility(
 }
 
 Future<({int index, double duration})?> _alertMediaSelection(
-  Map<String, String> target,
+  OverlayTarget target,
   OverlayResourceStore? overlayStore,
 ) async {
   if (overlayStore == null) return (index: 0, duration: 0.0);
-  final resource = await overlayStore.load(target['overlayId']!);
+  final resource = await overlayStore.load(target.overlayId!);
   if (resource == null) return null;
   final widget = _maps(
     resource.config['widgets'],
-  ).where((item) => item['id']?.toString() == target['widgetId']).firstOrNull;
+  ).where((item) => item['id']?.toString() == target.widgetId).firstOrNull;
   final widgetConfig = widget?['config'];
   final media = widgetConfig is Map ? _maps(widgetConfig['media']) : const [];
   if (media.isEmpty) return null;
@@ -623,14 +629,6 @@ Future<({int index, double duration})?> _alertMediaSelection(
 
 double _mediaDuration(RuntimeMap media) =>
     _number(media['duration'], 0).clamp(0, double.infinity).toDouble();
-
-Map<String, String>? _target(Object? value) {
-  if (value is! Map) return null;
-  final widgetId = value['widgetId']?.toString().trim() ?? '';
-  final overlayId = value['overlayId']?.toString().trim() ?? '';
-  if (widgetId.isEmpty || overlayId.isEmpty) return null;
-  return {'widgetId': widgetId, 'overlayId': overlayId};
-}
 
 String _fallbackText(Object? value, String fallback) {
   final text = value?.toString().trim();
