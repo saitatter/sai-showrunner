@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/aitum/manifest.dart';
+import 'package:showrunner_flutter/plugins/aitum/contracts.dart';
 import 'package:showrunner_flutter/plugins/obs/actions.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 
@@ -20,6 +21,13 @@ void main() {
           }),
         ),
       );
+
+    expect(
+      registry.findAction('aitum', 'verticalScene')?.decodeConfig({
+        'scene': 'Portrait',
+      }),
+      isA<AitumSceneConfig>(),
+    );
 
     await registry.invokeAction('aitum', 'verticalScene', {
       'scene': 'Portrait',
