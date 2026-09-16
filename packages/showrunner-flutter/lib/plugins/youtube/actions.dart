@@ -2,6 +2,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
 import '../../services/plugin_event_hub.dart';
+import 'contracts.dart';
 
 typedef YouTubeRequest =
     Future<RuntimeMap> Function(
@@ -245,11 +246,12 @@ DartPluginManifest createYouTubePlugin(
     SettingSpec(id: SettingId('liveChatId'), displayName: 'Live Chat ID'),
   ],
   actions: [
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<YouTubeSendChatMessageConfig, RuntimeMap>(
       pluginId: PluginId('youtube'),
       actionId: ActionId('sendChatMessage'),
       displayName: 'Send Chat Message',
       configSchema: _chatSchema,
+      configCodec: youtubeSendChatMessageConfigCodec,
       invoke: (config, context) => transport.request(
         'POST',
         '/youtube/v3/liveChat/messages',
@@ -257,32 +259,34 @@ DartPluginManifest createYouTubePlugin(
         {
           'snippet': {
             'liveChatId':
-                config['liveChatId'] ?? context.contextState['liveChatId'],
+                config.liveChatId ?? context.contextState['liveChatId'],
             'type': 'textMessageEvent',
-            'textMessageDetails': {'messageText': config['message']},
+            'textMessageDetails': {'messageText': config.message},
           },
         },
       ),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<YouTubeDeleteMessageConfig, RuntimeMap>(
       pluginId: PluginId('youtube'),
       actionId: ActionId('deleteMessage'),
       displayName: 'Delete Chat Message',
       configSchema: _deleteMessageSchema,
+      configCodec: youtubeDeleteMessageConfigCodec,
       invoke: (config, context) => transport.request(
         'DELETE',
         '/youtube/v3/liveChat/messages',
-        {'id': config['messageId']},
+        {'id': config.messageId},
         null,
       ),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<YouTubeBanUserConfig, RuntimeMap>(
       pluginId: PluginId('youtube'),
       actionId: ActionId('banUser'),
       displayName: 'Ban User from Chat',
       configSchema: _banSchema,
+      configCodec: youtubeBanUserConfigCodec,
       invoke: (config, context) {
-        final duration = (config['banDurationSeconds'] as num?)?.toInt() ?? 0;
+        final duration = config.durationSeconds;
         return transport.request(
           'POST',
           '/youtube/v3/liveChat/bans',
@@ -290,61 +294,79 @@ DartPluginManifest createYouTubePlugin(
           {
             'snippet': {
               'liveChatId':
-                  config['liveChatId'] ?? context.contextState['liveChatId'],
+                  config.liveChatId ?? context.contextState['liveChatId'],
               'type': duration > 0 ? 'temporary' : 'permanent',
-              'bannedUserDetails': {'channelId': config['channelId']},
+              'bannedUserDetails': {'channelId': config.channelId},
               if (duration > 0) 'banDurationSeconds': duration,
             },
           },
         );
       },
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<YouTubeRemoveBanConfig, RuntimeMap>(
       pluginId: PluginId('youtube'),
       actionId: ActionId('removeBan'),
       displayName: 'Unban User from Chat',
       configSchema: _removeBanSchema,
+      configCodec: youtubeRemoveBanConfigCodec,
       invoke: (config, context) => transport.request(
         'DELETE',
         '/youtube/v3/liveChat/bans',
-        {'id': config['banId']},
+        {'id': config.banId},
         null,
       ),
     ),
   ],
   triggers: [
-    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+    TriggerSpec<YouTubeEmptyConfig, YouTubeChatMessageEvent>(
       pluginId: PluginId('youtube'),
       triggerId: TriggerId('chatMessage'),
       displayName: 'Chat Message',
-      listen: () => _youtubeEventStream(eventHub, 'chatMessage'),
+      listen: () => _youtubeEventStream(
+        eventHub,
+        'chatMessage',
+        YouTubeChatMessageEvent.fromRuntime,
+      ),
       eventSchema: _chatEventSchema,
     ),
-    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+    TriggerSpec<YouTubeEmptyConfig, YouTubePaidEvent>(
       pluginId: PluginId('youtube'),
       triggerId: TriggerId('superChat'),
       displayName: 'Super Chat',
-      listen: () => _youtubeEventStream(eventHub, 'superChat'),
+      listen: () => _youtubeEventStream(
+        eventHub,
+        'superChat',
+        YouTubePaidEvent.fromRuntime,
+      ),
       eventSchema: _paidEventSchema,
     ),
-    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+    TriggerSpec<YouTubeEmptyConfig, YouTubePaidEvent>(
       pluginId: PluginId('youtube'),
       triggerId: TriggerId('superSticker'),
       displayName: 'Super Sticker',
-      listen: () => _youtubeEventStream(eventHub, 'superSticker'),
+      listen: () => _youtubeEventStream(
+        eventHub,
+        'superSticker',
+        YouTubePaidEvent.fromRuntime,
+      ),
       eventSchema: _paidEventSchema,
     ),
-    TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+    TriggerSpec<YouTubeEmptyConfig, YouTubeMembershipEvent>(
       pluginId: PluginId('youtube'),
       triggerId: TriggerId('membership'),
       displayName: 'Membership',
-      listen: () => _youtubeEventStream(eventHub, 'membership'),
+      listen: () => _youtubeEventStream(
+        eventHub,
+        'membership',
+        YouTubeMembershipEvent.fromRuntime,
+      ),
       eventSchema: _membershipEventSchema,
     ),
   ],
 );
 
-Stream<RuntimeMap> _youtubeEventStream(
+Stream<T> _youtubeEventStream<T>(
   DartPluginEventHub? eventHub,
   String eventId,
-) => eventHub?.stream(eventId) ?? const Stream<RuntimeMap>.empty();
+  T Function(RuntimeMap) decode,
+) => eventHub?.stream(eventId).map(decode) ?? const Stream.empty();

@@ -1,10 +1,52 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/youtube/actions.dart';
+import 'package:showrunner_flutter/plugins/youtube/contracts.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
+  test('decodes action and event payloads into typed contracts', () async {
+    final eventHub = DartPluginEventHub();
+    final plugin = createYouTubePlugin(
+      YouTubeTransport((method, path, query, body) async => const {}),
+      eventHub: eventHub,
+    );
+
+    final message = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'sendChatMessage')
+        .decodeConfig({'message': 'hello'});
+    expect(message, isA<YouTubeSendChatMessageConfig>());
+    expect((message as YouTubeSendChatMessageConfig).message, 'hello');
+
+    final ban = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'banUser')
+        .decodeConfig({'channelId': 'channel-1', 'banDurationSeconds': 30});
+    expect(ban, isA<YouTubeBanUserConfig>());
+    expect((ban as YouTubeBanUserConfig).durationSeconds, 30);
+
+    final trigger = plugin.triggers.firstWhere(
+      (item) => item.triggerId.value == 'chatMessage',
+    );
+    final event = trigger.listen();
+    final expectation = expectLater(
+      event,
+      emits(isA<YouTubeChatMessageEvent>()),
+    );
+    eventHub.emit('chatMessage', {
+      'viewerId': 'viewer-1',
+      'viewerName': 'Ada',
+      'message': 'hello',
+      'messageId': 'message-1',
+      'isModerator': false,
+      'isMember': true,
+      'isOwner': false,
+    });
+    await expectation;
+    await eventHub.dispose();
+  });
+
   test(
     'builds authorized YouTube API actions through an injectable transport',
     () async {
