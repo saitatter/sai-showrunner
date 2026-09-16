@@ -10,6 +10,7 @@ import '../../runtime/automation_queue_manager.dart';
 import '../../schema/automation.dart';
 import '../../schema/stream_plan.dart';
 import '../registry/plugin_registry.dart';
+import 'contracts.dart';
 
 final streamPlanRuntime = DartStreamPlanRuntime();
 
@@ -498,11 +499,12 @@ DartPluginManifest createStreamPlansPlugin({
     id: PluginId('stream-plans'),
     name: 'Stream Plans',
     actions: [
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<StreamPlanNavigationConfig, RuntimeMap>(
         pluginId: PluginId('stream-plans'),
         actionId: ActionId('nextSegment'),
         displayName: 'Next Segment',
         configSchema: _segmentSchema,
+        configCodec: streamPlanNavigationConfigCodec,
         invoke: (config, context) => _nextSegment(
           config,
           context,
@@ -510,11 +512,12 @@ DartPluginManifest createStreamPlansPlugin({
           registry: registry,
         ),
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<StreamPlanNavigationConfig, RuntimeMap>(
         pluginId: PluginId('stream-plans'),
         actionId: ActionId('prevSegment'),
         displayName: 'Previous Segment',
         configSchema: _segmentSchema,
+        configCodec: streamPlanNavigationConfigCodec,
         invoke: (config, context) => _previousSegment(
           config,
           context,
@@ -526,14 +529,14 @@ DartPluginManifest createStreamPlansPlugin({
   );
 }
 
-Future<Object?> _nextSegment(
-  RuntimeMap config,
+Future<RuntimeMap> _nextSegment(
+  StreamPlanNavigationConfig config,
   EvaluationContext context, {
   required DartStreamPlanRuntime runtime,
   DartPluginRegistry? registry,
 }) async {
-  final planId = config['planId']?.toString() ?? runtime.activePlanId;
-  final segments = config['segments'];
+  final planId = config.planId ?? runtime.activePlanId;
+  final segments = config.segments;
   final segmentId =
       registry != null && planId != null && planId == runtime.activePlanId
       ? await runtime.transitionToNextSegment(
@@ -549,14 +552,14 @@ Future<Object?> _nextSegment(
   return {'planId': planId, 'segmentId': segmentId, 'action': 'nextSegment'};
 }
 
-Future<Object?> _previousSegment(
-  RuntimeMap config,
+Future<RuntimeMap> _previousSegment(
+  StreamPlanNavigationConfig config,
   EvaluationContext context, {
   required DartStreamPlanRuntime runtime,
   DartPluginRegistry? registry,
 }) async {
-  final planId = config['planId']?.toString() ?? runtime.activePlanId;
-  final segments = config['segments'];
+  final planId = config.planId ?? runtime.activePlanId;
+  final segments = config.segments;
   final segmentId =
       registry != null && planId != null && planId == runtime.activePlanId
       ? await runtime.transitionToPreviousSegment(
@@ -574,11 +577,11 @@ Future<Object?> _previousSegment(
 
 String? _move(
   DartStreamPlanRuntime runtime,
-  RuntimeMap config, {
+  StreamPlanNavigationConfig config, {
   required bool forward,
 }) {
-  final segments = config['segments'];
-  if (segments is! List) return config['segmentId']?.toString();
+  final segments = config.segments;
+  if (segments == null) return config.segmentId;
   final plan = StreamPlanData.fromConfig({'segments': segments});
   return forward ? runtime.next(plan) : runtime.previous(plan);
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/stream_plans/manifest.dart';
+import 'package:showrunner_flutter/plugins/stream_plans/contracts.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
@@ -59,6 +60,10 @@ void main() {
 
     expect(registry.findAction('stream-plans', 'nextSegment'), isNotNull);
     expect(registry.findAction('stream-plans', 'prevSegment'), isNotNull);
+    expect(
+      registry.findAction('stream-plans', 'nextSegment')?.decodeConfig({}),
+      isA<StreamPlanNavigationConfig>(),
+    );
     streamPlanRuntime.activate('plan-1', segmentId: 'one');
     const segments = [
       {'id': 'one', 'name': 'One'},
