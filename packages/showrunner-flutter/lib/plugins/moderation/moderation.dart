@@ -4,9 +4,109 @@
 /// this directory is the target home for shared moderation contracts.
 library;
 
+import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
 import '../../schema/data_input.dart';
 import 'runtime.dart';
+
+final class ModerationChatConfig {
+  const ModerationChatConfig({
+    this.platform,
+    this.messageId,
+    this.viewerId,
+    this.viewerName,
+    this.message,
+    this.badges,
+    this.isModerator,
+    this.isMember,
+    this.isOwner,
+  });
+
+  factory ModerationChatConfig.fromRuntime(RuntimeMap value) =>
+      ModerationChatConfig(
+        platform: _string(value['platform']),
+        messageId: _string(value['messageId']),
+        viewerId: _string(value['viewerId']),
+        viewerName: _string(value['viewerName']),
+        message: _string(value['message']),
+        badges: _string(value['badges']),
+        isModerator: _bool(value['isModerator']),
+        isMember: _bool(value['isMember']),
+        isOwner: _bool(value['isOwner']),
+      );
+
+  final String? platform;
+  final String? messageId;
+  final String? viewerId;
+  final String? viewerName;
+  final String? message;
+  final String? badges;
+  final bool? isModerator;
+  final bool? isMember;
+  final bool? isOwner;
+
+  RuntimeMap toRuntime() => {
+    if (platform != null) 'platform': platform,
+    if (messageId != null) 'messageId': messageId,
+    if (viewerId != null) 'viewerId': viewerId,
+    if (viewerName != null) 'viewerName': viewerName,
+    if (message != null) 'message': message,
+    if (badges != null) 'badges': badges,
+    if (isModerator != null) 'isModerator': isModerator,
+    if (isMember != null) 'isMember': isMember,
+    if (isOwner != null) 'isOwner': isOwner,
+  };
+}
+
+final class ModerationOverrideConfig {
+  const ModerationOverrideConfig({this.messageId, this.action = 'approve'});
+
+  factory ModerationOverrideConfig.fromRuntime(RuntimeMap value) =>
+      ModerationOverrideConfig(
+        messageId: _string(value['messageId']),
+        action: _string(value['action']) ?? 'approve',
+      );
+
+  final String? messageId;
+  final String action;
+}
+
+final class ModerationEmptyConfig {
+  const ModerationEmptyConfig();
+}
+
+final class ModerationConfigCodec<C> implements PluginConfigCodec<C> {
+  const ModerationConfigCodec(this._decoder, this._encoder);
+
+  final C Function(RuntimeMap) _decoder;
+  final RuntimeMap Function(C value) _encoder;
+
+  @override
+  C decode(RuntimeMap value) => _decoder(value);
+
+  @override
+  RuntimeMap encode(C value) => _encoder(value);
+}
+
+final moderationChatConfigCodec = ModerationConfigCodec(
+  ModerationChatConfig.fromRuntime,
+  (ModerationChatConfig value) => value.toRuntime(),
+);
+final moderationOverrideConfigCodec = ModerationConfigCodec(
+  ModerationOverrideConfig.fromRuntime,
+  (ModerationOverrideConfig value) => {
+    if (value.messageId != null) 'messageId': value.messageId,
+    'action': value.action,
+  },
+);
+final moderationEmptyConfigCodec = ModerationConfigCodec(
+  (value) => const ModerationEmptyConfig(),
+  (ModerationEmptyConfig value) => const <String, dynamic>{},
+);
+
+String? _string(Object? value) => value?.toString();
+
+bool? _bool(Object? value) => value is bool ? value : null;
 
 const _moderateChatSchema = DartDataInputSchema(
   label: 'Moderation chat message',
@@ -122,28 +222,32 @@ DartPluginManifest createModerationPlugin(ModerationService service) =>
         ),
       ],
       actions: [
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<ModerationChatConfig, RuntimeMap>(
           pluginId: PluginId('moderation'),
           actionId: ActionId('moderateChatMessage'),
           displayName: 'Filter Chat Message',
           configSchema: _moderateChatSchema,
-          invoke: (config, context) => service.moderateChatMessage(config),
+          configCodec: moderationChatConfigCodec,
+          invoke: (config, context) =>
+              service.moderateChatMessage(config.toRuntime()),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<ModerationEmptyConfig, Object?>(
           pluginId: PluginId('moderation'),
           actionId: ActionId('sendTestMessage'),
           displayName: 'Send Test Moderation Event',
           configSchema: _emptySchema,
+          configCodec: moderationEmptyConfigCodec,
           invoke: (config, context) async => service.sendTestMessage(),
         ),
-        ActionSpec<Map<String, dynamic>, Object?>(
+        ActionSpec<ModerationOverrideConfig, RuntimeMap>(
           pluginId: PluginId('moderation'),
           actionId: ActionId('requestOverride'),
           displayName: 'Request Moderation Override',
           configSchema: _overrideSchema,
+          configCodec: moderationOverrideConfigCodec,
           invoke: (config, context) => service.requestOverride(
-            messageId: config['messageId']?.toString() ?? '',
-            action: config['action']?.toString() ?? 'approve',
+            messageId: config.messageId ?? '',
+            action: config.action,
           ),
         ),
       ],

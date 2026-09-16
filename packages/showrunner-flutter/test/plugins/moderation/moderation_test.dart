@@ -1,11 +1,34 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/plugins/moderation/moderation.dart';
 import 'package:showrunner_flutter/plugins/moderation/runtime.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
+  test('decodes moderation actions into typed configurations', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'showrunner-moderation-contract-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final plugin = createModerationPlugin(
+      ModerationService(dataService: ShowRunnerDataService(directory)),
+    );
+
+    final chat = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'moderateChatMessage')
+        .decodeConfig({'message': 'hello', 'isModerator': true});
+    expect(chat, isA<ModerationChatConfig>());
+    expect((chat as ModerationChatConfig).message, 'hello');
+
+    final override = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'requestOverride')
+        .decodeConfig({'messageId': 'message-1'});
+    expect(override, isA<ModerationOverrideConfig>());
+    expect((override as ModerationOverrideConfig).action, 'approve');
+  });
+
   test('moderation test events persist processed message count', () async {
     final directory = await Directory.systemTemp.createTemp(
       'showrunner-moderation-',
