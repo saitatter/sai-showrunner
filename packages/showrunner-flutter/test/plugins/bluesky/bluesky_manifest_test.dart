@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/plugins/bluesky/contracts.dart';
 import 'package:showrunner_flutter/plugins/bluesky/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 
@@ -23,6 +24,15 @@ void main() {
             }),
           ),
         );
+
+      expect(
+        registry.findAction('bluesky', 'post')?.decodeConfig({
+          'identifier': 'creator.test',
+          'appPassword': 'app-password',
+          'text': 'Hello',
+        }),
+        isA<BlueskyPostConfig>(),
+      );
 
       final result = await registry.invokeAction('bluesky', 'post', {
         'identifier': 'creator.test',

@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef BlueskyPost =
     Future<RuntimeMap> Function(
@@ -165,11 +166,12 @@ DartPluginManifest createBlueskyPlugin(
     ),
   ],
   actions: [
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<BlueskyPostConfig, RuntimeMap>(
       pluginId: PluginId('bluesky'),
       actionId: ActionId('post'),
       displayName: 'BlueSky Post',
       configSchema: _postSchema,
+      configCodec: blueskyPostConfigCodec,
       invoke: (config, context) => _post(
         transport,
         config,
@@ -181,18 +183,18 @@ DartPluginManifest createBlueskyPlugin(
   ],
 );
 
-Future<Object?> _post(
+Future<RuntimeMap> _post(
   BlueskyTransport transport,
-  RuntimeMap config, {
+  BlueskyPostConfig config, {
   String? defaultIdentifier,
   String? defaultPassword,
   BlueskyAccountResolver? accountResolver,
 }) async {
-  final text = config['text']?.toString() ?? '';
+  final text = config.text ?? '';
   if (text.trim().isEmpty) {
     return {'posted': false, 'text': text, 'reason': 'Post is empty'};
   }
-  final accountReference = config['account'];
+  final accountReference = config.account;
   final account = accountReference is String && accountResolver != null
       ? await accountResolver(accountReference)
       : accountReference;
@@ -215,12 +217,12 @@ Future<Object?> _post(
     };
   }
   final identifier = _firstText([
-    config['identifier'],
+    config.identifier,
     accountValues['identifier'],
     defaultIdentifier,
   ]);
   final password = _firstText([
-    config['appPassword'],
+    config.appPassword,
     accountValues['appPassword'],
     defaultPassword,
   ]);
