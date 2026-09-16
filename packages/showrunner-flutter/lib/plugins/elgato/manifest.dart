@@ -5,6 +5,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 typedef ElgatoRequest =
     Future<RuntimeMap> Function(String method, String path, dynamic body);
@@ -117,26 +118,29 @@ DartPluginManifest createElgatoPlugin(
     ),
   ],
   actions: [
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<ElgatoEmptyConfig, RuntimeMap>(
       pluginId: PluginId('elgato'),
       actionId: ActionId('getInfo'),
       displayName: 'Get Accessory Info',
+      configCodec: elgatoEmptyConfigCodec,
       invoke: (config, context) =>
           transport.request('GET', '/accessory-info', null),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<ElgatoEmptyConfig, RuntimeMap>(
       pluginId: PluginId('elgato'),
       actionId: ActionId('getLights'),
       displayName: 'Get Light State',
+      configCodec: elgatoEmptyConfigCodec,
       invoke: (config, context) => transport.request('GET', '/lights', null),
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<ElgatoLightStateConfig, RuntimeMap>(
       pluginId: PluginId('elgato'),
       actionId: ActionId('setLightState'),
       displayName: 'Set Light State',
       configSchema: _lightSchema,
+      configCodec: elgatoLightStateConfigCodec,
       invoke: (config, context) => _setLightState(
-        transportResolver?.call(config) ?? transport,
+        transportResolver?.call(config.toRuntime()) ?? transport,
         config,
         supportsRgb: supportsRgb,
         defaultNumberOfLights: numberOfLights,
@@ -145,24 +149,24 @@ DartPluginManifest createElgatoPlugin(
   ],
 );
 
-Future<Object?> _setLightState(
+Future<RuntimeMap> _setLightState(
   ElgatoTransport transport,
-  RuntimeMap config, {
+  ElgatoLightStateConfig config, {
   required bool supportsRgb,
   required int defaultNumberOfLights,
 }) async {
   final current = await transport.request('GET', '/lights', null);
   final currentLight = _firstLight(current);
-  var power = config['state'] ?? 'on';
-  if (power == 'toggle') power = currentLight?['on'] != true;
-  final color =
-      parseLightColor(config['color']?.toString()) ??
-      _colorFromLight(currentLight);
+  final currentIsOn = currentLight != null && currentLight['on'] == true;
+  final power = config.power == ElgatoPowerMode.toggle
+      ? !currentIsOn
+      : config.power == ElgatoPowerMode.enabled;
+  final color = parseLightColor(config.color) ?? _colorFromLight(currentLight);
   if (color == null) {
     throw ArgumentError('Elgato did not return a usable light color.');
   }
   final light = <String, dynamic>{
-    'on': power == true || power == 'on',
+    'on': power,
     'brightness': color.brightness.clamp(0, 100).round(),
   };
   if (color.isKelvin) {
@@ -177,7 +181,7 @@ Future<Object?> _setLightState(
     light['hue'] = color.hue!.clamp(0, 360).round();
     light['saturation'] = color.saturation!.clamp(0, 100).round();
   }
-  final count = _positiveInt(config['numberOfLights'], defaultNumberOfLights);
+  final count = config.numberOfLights ?? defaultNumberOfLights;
   final response = await transport.request('PUT', '/lights', {
     'numberOfLights': count,
     'lights': List.generate(count, (_) => Map<String, dynamic>.from(light)),
@@ -217,11 +221,6 @@ LightColorValue? _colorFromLight(Map<String, dynamic>? light) {
 
 double _number(Object? value, double fallback) =>
     value is num ? value.toDouble() : double.tryParse('$value') ?? fallback;
-
-int _positiveInt(Object? value, int fallback) {
-  final number = value is num ? value.toInt() : int.tryParse('$value');
-  return number != null && number > 0 ? number : fallback.clamp(1, 64).toInt();
-}
 
 int elgatoToKelvin(double value) => ((-4100 * value + 1993300) / 201).round();
 

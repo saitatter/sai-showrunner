@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/elgato/manifest.dart';
+import 'package:showrunner_flutter/plugins/elgato/contracts.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 
 void main() {
@@ -22,6 +23,15 @@ void main() {
           numberOfLights: 1,
         ),
       );
+
+    expect(
+      registry.findAction('elgato', 'setLightState')?.decodeConfig({
+        'state': 'toggle',
+        'color': 'kelvin(4000, 60)',
+        'numberOfLights': '2',
+      }),
+      isA<ElgatoLightStateConfig>(),
+    );
 
     final result = await registry.invokeAction('elgato', 'setLightState', {
       'state': 'toggle',
