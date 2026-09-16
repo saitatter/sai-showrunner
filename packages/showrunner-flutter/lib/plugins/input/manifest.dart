@@ -4,6 +4,7 @@ import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';
 import 'keyboard.dart';
 import 'native_input.dart';
+import 'contracts.dart';
 
 const inputMouseButtons = <String>[
   'left',
@@ -74,30 +75,35 @@ DartPluginManifest createInputPlugin({InputPlatform? platform}) {
     id: PluginId('input'),
     name: 'Input',
     actions: [
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<InputPressKeyConfig, Object?>(
         pluginId: PluginId('input'),
         actionId: ActionId('pressKey'),
         displayName: 'Simulate Keyboard',
         configSchema: _pressKeyConfigSchema,
         invoke: (config, context) => _pressKey(inputPlatform, config, context),
+        configCodec: inputPressKeyConfigCodec,
       ),
-      ActionSpec<Map<String, dynamic>, Object?>(
+      ActionSpec<InputMouseButtonConfig, Object?>(
         pluginId: PluginId('input'),
         actionId: ActionId('mouseButton'),
         displayName: 'Simulate Mouse',
         configSchema: _mouseButtonConfigSchema,
         invoke: (config, context) =>
             _mouseButton(inputPlatform, config, context),
+        configCodec: inputMouseButtonConfigCodec,
       ),
     ],
     triggers: [
-      TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+      TriggerSpec<InputKeyboardShortcutConfig, InputKeyboardShortcutEvent>(
         pluginId: PluginId('input'),
         triggerId: TriggerId('keyboardShortcut'),
         displayName: 'Keyboard Shortcut',
         configSchema: _keyboardShortcutConfigSchema,
         listen: () => _listenKeyboardShortcuts(inputPlatform),
-        matches: matchesKeyboardShortcut,
+        matches: _matchesKeyboardShortcut,
+        configCodec: inputKeyboardShortcutConfigCodec,
+        eventDecoder: InputKeyboardShortcutEvent.fromRuntime,
+        eventEncoder: (event) => event.toRuntime(),
       ),
     ],
   );
@@ -105,13 +111,11 @@ DartPluginManifest createInputPlugin({InputPlatform? platform}) {
 
 Future<Object?> _pressKey(
   InputPlatform platform,
-  RuntimeMap config,
+  InputPressKeyConfig config,
   EvaluationContext context,
 ) async {
-  final key = config['key']?.toString().trim() ?? '';
-  final duration = config['duration'] is num
-      ? (config['duration'] as num).toDouble()
-      : 0.1;
+  final key = config.key?.trim() ?? '';
+  final duration = config.duration.toDouble();
   final virtualKeyCode = virtualKeyCodeForKeyboardKey(key);
   if (virtualKeyCode == null) {
     return {'pressed': false, 'key': key, 'duration': duration};
@@ -131,7 +135,9 @@ Future<Object?> _pressKey(
   return {'pressed': true, 'key': key, 'duration': duration};
 }
 
-Stream<RuntimeMap> _listenKeyboardShortcuts(InputPlatform platform) async* {
+Stream<InputKeyboardShortcutEvent> _listenKeyboardShortcuts(
+  InputPlatform platform,
+) async* {
   final pressedKeys = <String>{};
   await for (final event in platform.events) {
     final key = keyboardKeyNameForVirtualKey(event.virtualKeyCode);
@@ -139,30 +145,27 @@ Stream<RuntimeMap> _listenKeyboardShortcuts(InputPlatform platform) async* {
     final normalizedKey = normalizeKeyboardKey(key);
     if (event.pressed) {
       if (!pressedKeys.add(normalizedKey)) continue;
-      yield {
-        'key': normalizedKey,
-        'vkCode': event.virtualKeyCode,
-        'pressedKeys': List<String>.unmodifiable(pressedKeys),
-      };
+      yield InputKeyboardShortcutEvent(
+        key: normalizedKey,
+        vkCode: event.virtualKeyCode,
+        pressedKeys: List<String>.unmodifiable(pressedKeys),
+      );
     } else {
       pressedKeys.remove(normalizedKey);
     }
   }
 }
 
-bool matchesKeyboardShortcut(RuntimeMap config, RuntimeMap payload) {
-  final combo = config['combo'];
-  final pressedKeys = payload['pressedKeys'];
-  final eventKey = payload['key'];
-  if (combo is! List || pressedKeys is! List || eventKey is! String) {
+bool _matchesKeyboardShortcut(
+  InputKeyboardShortcutConfig config,
+  InputKeyboardShortcutEvent payload,
+) {
+  final eventKey = payload.key;
+  if (eventKey == null) {
     return false;
   }
-  final normalizedCombo = combo
-      .whereType<String>()
-      .map(normalizeKeyboardKey)
-      .toSet();
-  final normalizedPressedKeys = pressedKeys
-      .whereType<String>()
+  final normalizedCombo = config.combo.map(normalizeKeyboardKey).toSet();
+  final normalizedPressedKeys = payload.pressedKeys
       .map(normalizeKeyboardKey)
       .toSet();
   return normalizedCombo.isNotEmpty &&
@@ -170,15 +173,19 @@ bool matchesKeyboardShortcut(RuntimeMap config, RuntimeMap payload) {
       normalizedCombo.every(normalizedPressedKeys.contains);
 }
 
+bool matchesKeyboardShortcut(RuntimeMap config, RuntimeMap payload) =>
+    _matchesKeyboardShortcut(
+      InputKeyboardShortcutConfig.fromRuntime(config),
+      InputKeyboardShortcutEvent.fromRuntime(payload),
+    );
+
 Future<Object?> _mouseButton(
   InputPlatform platform,
-  RuntimeMap config,
+  InputMouseButtonConfig config,
   EvaluationContext context,
 ) async {
-  final button = config['button']?.toString().trim().toLowerCase() ?? '';
-  final duration = config['duration'] is num
-      ? (config['duration'] as num).toDouble()
-      : 0.1;
+  final button = config.button.trim().toLowerCase();
+  final duration = config.duration.toDouble();
   if (!inputMouseButtons.contains(button)) {
     return {'pressed': false, 'button': button, 'duration': duration};
   }

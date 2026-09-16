@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/plugins/input/keyboard.dart';
+import 'package:showrunner_flutter/plugins/input/contracts.dart';
 import 'package:showrunner_flutter/plugins/input/manifest.dart';
 import 'package:showrunner_flutter/plugins/input/native_input.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
@@ -14,6 +15,24 @@ import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
 
 void main() {
+  test('decodes input actions and shortcuts into typed contracts', () {
+    final plugin = createInputPlugin();
+    final key = plugin.actions
+        .firstWhere((action) => action.actionId.value == 'pressKey')
+        .decodeConfig({'key': 'A', 'duration': 0.2});
+    expect(key, isA<InputPressKeyConfig>());
+    expect((key as InputPressKeyConfig).duration, 0.2);
+
+    final shortcut = plugin.triggers.single.decodeConfig({
+      'combo': ['RightControl', 'A'],
+    });
+    expect(shortcut, isA<InputKeyboardShortcutConfig>());
+    expect((shortcut as InputKeyboardShortcutConfig).combo, [
+      'LeftControl',
+      'A',
+    ]);
+  });
+
   test('parses native keyboard events and ignores malformed payloads', () {
     expect(
       InputKeyEvent.tryParse({'type': 'key-pressed', 'vkCode': 65}),
