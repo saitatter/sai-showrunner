@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import 'transform.dart';
+import 'contracts.dart';
 import '../registry/plugin_contract.dart';
 
 part 'actions/scenes.dart';
@@ -454,8 +455,8 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
   );
 }
 
-ActionSpec<Map<String, dynamic>, Object?> _obsAction(
-  List<ActionSpec<Map<String, dynamic>, Object?>> actions,
+ActionSpec<dynamic, dynamic> _obsAction(
+  List<ActionSpec<dynamic, dynamic>> actions,
   String id,
 ) => actions.firstWhere((action) => action.actionId.value == id);
 
@@ -491,16 +492,16 @@ dynamic _toggleValue(dynamic value) => value is String
       }
     : value;
 
-Future<Object?> _toggle(
+Future<RuntimeMap> _toggle(
   ObsTransport transport,
-  dynamic value,
+  ObsToggleMode value,
   String toggle,
   String start,
   String stop,
 ) {
-  final request = value == 'toggle'
+  final request = value == ObsToggleMode.toggle
       ? toggle
-      : value == true
+      : value == ObsToggleMode.enabled
       ? start
       : stop;
   return transport.call(request, {});

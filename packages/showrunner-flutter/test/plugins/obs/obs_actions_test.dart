@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/plugins/obs/actions.dart';
+import 'package:showrunner_flutter/plugins/obs/contracts.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/provider_settings_validator.dart';
@@ -83,6 +84,30 @@ void main() {
     });
 
     expect(requests, ['StopRecord', 'SetStudioModeEnabled']);
+  });
+
+  test('decodes lifecycle action configurations into typed contracts', () {
+    final actions = createObsPlugin(
+      CallbackObsTransport((request, data) async => const {}),
+    ).actions;
+
+    final stream = actions
+        .firstWhere((action) => action.actionId.value == 'streamStartStop')
+        .decodeConfig({'streaming': 'toggle'});
+    expect(stream, isA<ObsToggleConfig>());
+    expect((stream as ObsToggleConfig).mode, ObsToggleMode.toggle);
+
+    final studio = actions
+        .firstWhere((action) => action.actionId.value == 'toggleStudioMode')
+        .decodeConfig({'studioMode': 'toggle', 'studioModeEnabled': true});
+    expect(studio, isA<ObsStudioModeConfig>());
+    expect((studio as ObsStudioModeConfig).studioModeEnabled, isTrue);
+
+    final screenshot = actions
+        .firstWhere((action) => action.actionId.value == 'screenshot')
+        .decodeConfig({'directory': 'captures', 'width': 1920});
+    expect(screenshot, isA<ObsScreenshotConfig>());
+    expect((screenshot as ObsScreenshotConfig).width, 1920);
   });
 
   test('persists OBS resources in the plugin directory', () async {

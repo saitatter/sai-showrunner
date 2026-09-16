@@ -1,9 +1,9 @@
 part of '../actions.dart';
 
-List<ActionSpec<Map<String, dynamic>, Object?>> _obsStreamingActions(
+List<ActionSpec<dynamic, dynamic>> _obsStreamingActions(
   ObsTransport transport,
 ) => [
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsHotkeyConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('hotkey'),
     displayName: 'Hotkey',
@@ -18,55 +18,62 @@ List<ActionSpec<Map<String, dynamic>, Object?>> _obsStreamingActions(
         ),
       ],
     ),
+    configCodec: obsHotkeyConfigCodec,
     invoke: (config, context) =>
-        transport.call('TriggerHotkeyByName', {'hotkeyName': config['hotkey']}),
+        transport.call('TriggerHotkeyByName', {'hotkeyName': config.hotkey}),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsToggleConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('streamStartStop'),
     displayName: 'Stream Start/Stop',
     configSchema: _streamConfigSchema,
+    configCodec: obsToggleConfigCodec('streaming'),
     invoke: (config, context) async => _toggle(
       transport,
-      _toggleValue(config['streaming']),
+      config.mode,
       'ToggleStream',
       'StartStream',
       'StopStream',
     ),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsToggleConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('virtualCamStartStop'),
     displayName: 'Virtual Cam Start/Stop',
     configSchema: _virtualCamConfigSchema,
+    configCodec: obsToggleConfigCodec('virtualCam'),
     invoke: (config, context) async => _toggle(
       transport,
-      _toggleValue(config['virtualCam']),
+      config.mode,
       'ToggleVirtualCam',
       'StartVirtualCam',
       'StopVirtualCam',
     ),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsStudioModeConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('toggleStudioMode'),
     displayName: 'Toggle Studio Mode',
     configSchema: _studioModeConfigSchema,
+    configCodec: obsStudioModeConfigCodec,
     invoke: (config, context) async {
-      var enabled = _toggleValue(config['studioMode']);
-      if (enabled == 'toggle') {
-        enabled = !(config['studioModeEnabled'] == true);
+      var enabled = config.mode;
+      if (enabled == ObsToggleMode.toggle) {
+        enabled = config.studioModeEnabled == true
+            ? ObsToggleMode.disabled
+            : ObsToggleMode.enabled;
       }
       return transport.call('SetStudioModeEnabled', {
-        'studioModeEnabled': enabled == true,
+        'studioModeEnabled': enabled == ObsToggleMode.enabled,
       });
     },
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsEmptyConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('triggerStudioModeTransition'),
     displayName: 'Trigger Studio Mode Transition',
     configSchema: _emptyConfigSchema,
+    configCodec: obsEmptyConfigCodec,
     invoke: (config, context) =>
         transport.call('TriggerStudioModeTransition', {}),
   ),

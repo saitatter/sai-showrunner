@@ -1,66 +1,71 @@
 part of '../actions.dart';
 
-List<ActionSpec<Map<String, dynamic>, Object?>> _obsRecordingActions(
+List<ActionSpec<dynamic, dynamic>> _obsRecordingActions(
   ObsTransport transport,
 ) => [
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsToggleConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('recordingStartStop'),
     displayName: 'Recording Start/Stop',
     configSchema: _recordingConfigSchema,
+    configCodec: obsToggleConfigCodec('recording'),
     invoke: (config, context) async => _toggle(
       transport,
-      _toggleValue(config['recording']),
+      config.mode,
       'ToggleRecord',
       'StartRecord',
       'StopRecord',
     ),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsToggleConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('replayBufferStartStop'),
     displayName: 'Replay Buffer Start/Stop',
     configSchema: _replayBufferConfigSchema,
+    configCodec: obsToggleConfigCodec('replayBuffer'),
     invoke: (config, context) async => _toggle(
       transport,
-      _toggleValue(config['replayBuffer']),
+      config.mode,
       'ToggleReplayBuffer',
       'StartReplayBuffer',
       'StopReplayBuffer',
     ),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsEmptyConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('replaySave'),
     displayName: 'Save Replay Buffer',
     configSchema: _emptyConfigSchema,
+    configCodec: obsEmptyConfigCodec,
     invoke: (config, context) async {
       await transport.call('SaveReplayBuffer', {});
       final response = await transport.call('GetLastReplayBufferReplay', {});
       return {'replayFile': response['savedReplayPath']};
     },
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsChapterMarkerConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('chapterMarker'),
     displayName: 'Chapter Marker',
     configSchema: _chapterConfigSchema,
+    configCodec: obsChapterMarkerConfigCodec,
     invoke: (config, context) => transport.call('CreateRecordChapter', {
-      'chapterName': config['chapterName'],
+      'chapterName': config.chapterName,
     }),
   ),
-  ActionSpec<Map<String, dynamic>, Object?>(
+  ActionSpec<ObsScreenshotConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('screenshot'),
     displayName: 'Screenshot Source',
     configSchema: _screenshotConfigSchema,
+    configCodec: obsScreenshotConfigCodec,
     invoke: (config, context) async {
-      final directory = config['directory']?.toString().trim() ?? '';
+      final directory = config.directory?.trim() ?? '';
       if (directory.isEmpty) {
         throw ArgumentError('Screenshot directory is required.');
       }
       await Directory(directory).create(recursive: true);
-      var filename = config['filename']?.toString().trim() ?? '';
+      var filename = config.filename?.trim() ?? '';
       if (filename.isEmpty) {
         filename = 'screenshot-${DateTime.now().millisecondsSinceEpoch}.png';
       }
@@ -69,13 +74,13 @@ List<ActionSpec<Map<String, dynamic>, Object?>> _obsRecordingActions(
       }
       final filePath = '$directory${Platform.pathSeparator}$filename';
       final request = <String, dynamic>{
-        'sourceName': config['sourceName'],
+        'sourceName': config.sourceName,
         'imageFormat': 'png',
         'imageFilePath': filePath,
       };
-      if (config['width'] is num) request['imageWidth'] = config['width'];
-      if (config['height'] is num) {
-        request['imageHeight'] = config['height'];
+      if (config.width != null) request['imageWidth'] = config.width;
+      if (config.height != null) {
+        request['imageHeight'] = config.height;
       }
       await transport.call('SaveSourceScreenshot', request);
       return {'screenshot': filePath};
