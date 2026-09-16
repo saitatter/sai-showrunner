@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../runtime/expression.dart';
 import '../../schema/data_input.dart';
 import '../registry/plugin_contract.dart';
+import 'contracts.dart';
 
 const _powerShellConfigSchema = DartDataInputSchema(
   label: '',
@@ -55,39 +56,42 @@ const _launchConfigSchema = DartDataInputSchema(
   ],
 );
 
-DartPluginManifest createOsPlugin() => const DartPluginManifest(
+DartPluginManifest createOsPlugin() => DartPluginManifest(
   id: PluginId('os'),
   name: 'Operating System',
   actions: [
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<OsPowerShellConfig, Object?>(
       pluginId: PluginId('os'),
       actionId: ActionId('powershell'),
       displayName: 'PowerShell Command',
       invoke: _runPowershell,
       configSchema: _powerShellConfigSchema,
+      configCodec: osPowerShellConfigCodec,
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<OsLaunchProcessConfig, Object?>(
       pluginId: PluginId('os'),
       actionId: ActionId('launchProcess'),
       displayName: 'Launch Process',
       invoke: _launchProcess,
       configSchema: _launchConfigSchema,
+      configCodec: osLaunchProcessConfigCodec,
     ),
-    ActionSpec<Map<String, dynamic>, Object?>(
+    ActionSpec<OsLaunchProcessConfig, Object?>(
       pluginId: PluginId('os'),
       actionId: ActionId('launch'),
       displayName: 'Launch App',
       invoke: _launchProcess,
       configSchema: _launchConfigSchema,
+      configCodec: osLaunchProcessConfigCodec,
     ),
   ],
 );
 
 Future<Object?> _runPowershell(
-  RuntimeMap config,
+  OsPowerShellConfig config,
   EvaluationContext context,
 ) async {
-  final command = config['command']?.toString() ?? '';
+  final command = config.command ?? '';
   if (command.isEmpty) return {'executed': false};
   if (!Platform.isWindows) {
     return {'executed': false, 'reason': 'Windows required'};
@@ -114,24 +118,18 @@ Future<Object?> _runPowershell(
 }
 
 Future<Object?> _launchProcess(
-  RuntimeMap config,
+  OsLaunchProcessConfig config,
   EvaluationContext context,
 ) async {
   context.cancellationToken?.throwIfCancelled();
-  final path = (config['path'] ?? config['application'])?.toString() ?? '';
+  final path = config.path ?? config.application ?? '';
   if (path.isEmpty) return {'launched': false};
-  final ignoreIfRunning = switch (config['ignoreIfRunning']) {
-    false => false,
-    String value when value.trim().toLowerCase() == 'false' => false,
-    _ => true,
-  };
+  final ignoreIfRunning = config.ignoreIfRunning;
   if (ignoreIfRunning && await isProcessRunning(_fileName(path))) {
     return {'launched': false, 'reason': 'already-running'};
   }
-  final args = config['args'] is List
-      ? (config['args'] as List).map((item) => item.toString()).toList()
-      : const <String>[];
-  final configuredDirectory = config['dir']?.toString().trim() ?? '';
+  final args = config.args;
+  final configuredDirectory = config.dir?.trim() ?? '';
   final workingDirectory = configuredDirectory.isEmpty
       ? File(path).absolute.parent.path
       : configuredDirectory;
