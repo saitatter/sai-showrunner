@@ -896,10 +896,32 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-            IconButton(
+            PopupMenuButton<GeneratedOverlayWidget>(
               tooltip: 'Add widget',
-              onPressed: _addWidget,
-              icon: const Icon(Icons.add),
+              position: PopupMenuPosition.under,
+              offset: const Offset(0, 4),
+              onSelected: _addWidget,
+              itemBuilder: (context) => [
+                for (final option in _overlayWidgetCatalog)
+                  PopupMenuItem<GeneratedOverlayWidget>(
+                    value: option,
+                    child: SizedBox(
+                      width: 250,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.widgets_outlined, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              option.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -1104,30 +1126,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     child: Text(label),
   );
 
-  Future<void> _addWidget() async {
-    final catalog = await GeneratedOverlayWidgetCatalog.load();
-    if (!mounted) return;
-    final definition = await showDialog<GeneratedOverlayWidget>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Add overlay widget'),
-        children: [
-          for (final option in catalog)
-            SimpleDialogOption(
-              onPressed: () => Navigator.of(context).pop(option),
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.widgets_outlined),
-                title: Text(option.name),
-                subtitle: Text('${option.pluginId}.${option.id}'),
-              ),
-            ),
-        ],
-      ),
-    );
-    if (!mounted || definition == null) return;
+  void _addWidget(GeneratedOverlayWidget definition) {
     setState(() {
-      _overlayWidgetCatalog = catalog;
       _widgets.add(definition.createWidget());
       _selectedWidgetIndex = _widgets.length - 1;
     });
