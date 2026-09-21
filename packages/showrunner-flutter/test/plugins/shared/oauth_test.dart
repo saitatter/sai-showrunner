@@ -135,5 +135,12 @@ void main() {
       isTrue,
     );
     expect(validateProviderSettings('youtube', {}).isValid, isFalse);
+    expect(
+      validateProviderSettings('youtube', {
+        'clientId': 'desktop-client',
+        'accessToken': 'token',
+      }).isValid,
+      isTrue,
+    );
   });
 }

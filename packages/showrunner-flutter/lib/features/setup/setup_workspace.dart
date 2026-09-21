@@ -444,24 +444,35 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
                 ),
               ),
             ] else if (_pluginId == 'youtube') ...[
-              TextField(
-                controller: _clientIdController,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'OAuth client ID',
-                  border: OutlineInputBorder(),
+              if (youtubeBundledClientId.isEmpty)
+                TextField(
+                  controller: _clientIdController,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'OAuth client ID',
+                    border: OutlineInputBorder(),
+                  ),
+                )
+              else
+                const ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.verified_outlined),
+                  title: Text('ShowRunner YouTube OAuth client'),
+                  subtitle: Text(
+                    'This build includes the OAuth client. Connect in your browser.',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _clientSecretController,
-                onChanged: (_) => setState(() {}),
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'OAuth client secret',
-                  border: OutlineInputBorder(),
+              if (youtubeBundledClientId.isEmpty) const SizedBox(height: 12),
+              if (youtubeBundledClientSecret.isEmpty)
+                TextField(
+                  controller: _clientSecretController,
+                  onChanged: (_) => setState(() {}),
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'OAuth client secret (optional with PKCE)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
               const SizedBox(height: 12),
               Row(
                 children: [

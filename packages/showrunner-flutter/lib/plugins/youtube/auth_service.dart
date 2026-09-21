@@ -13,6 +13,12 @@ const youtubeOAuthScopes = <String>[
 const youtubeAuthorizationEndpoint =
     'https://accounts.google.com/o/oauth2/v2/auth';
 const youtubeTokenEndpoint = 'https://oauth2.googleapis.com/token';
+const youtubeBundledClientId = String.fromEnvironment(
+  'SHOWRUNNER_YOUTUBE_CLIENT_ID',
+);
+const youtubeBundledClientSecret = String.fromEnvironment(
+  'SHOWRUNNER_YOUTUBE_CLIENT_SECRET',
+);
 
 final class YouTubeProfile {
   const YouTubeProfile({required this.channelId, required this.title});
@@ -50,8 +56,15 @@ final class YouTubeAuthService {
 
   Future<JsonMap> connect() async {
     final settings = await dataService.loadPluginSettings('youtube');
-    final clientId = settings['clientId']?.toString().trim() ?? '';
-    final clientSecret = settings['clientSecret']?.toString().trim() ?? '';
+    final configuredClientId = settings['clientId']?.toString().trim() ?? '';
+    final clientId = configuredClientId.isEmpty
+        ? youtubeBundledClientId
+        : configuredClientId;
+    final configuredClientSecret =
+        settings['clientSecret']?.toString().trim() ?? '';
+    final clientSecret = configuredClientSecret.isEmpty
+        ? youtubeBundledClientSecret
+        : configuredClientSecret;
     if (clientId.isEmpty) {
       throw StateError(
         'A Google OAuth desktop client ID is required before connecting YouTube.',
@@ -77,16 +90,20 @@ final class YouTubeAuthService {
       clientSecret: clientSecret.isEmpty ? null : clientSecret,
       callbackPath: '/oauth/youtube/callback',
     );
-    final profile = await (loadProfile ?? _loadYouTubeProfile)(
-      token.accessToken,
-    );
-    final next = <String, dynamic>{
+    var next = <String, dynamic>{
       ...settings,
       'clientId': clientId,
       'accessToken': token.accessToken,
       if (token.refreshToken != null) 'refreshToken': token.refreshToken,
       if (token.expiresAt != null)
         'expiresAt': token.expiresAt!.toIso8601String(),
+    };
+    await dataService.savePluginSettings('youtube', next);
+    final profile = await (loadProfile ?? _loadYouTubeProfile)(
+      token.accessToken,
+    );
+    next = {
+      ...next,
       'channelId': profile.channelId,
       'channelName': profile.title,
     };
