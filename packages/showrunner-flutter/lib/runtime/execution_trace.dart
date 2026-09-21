@@ -625,6 +625,11 @@ final class ExecutionTraceService {
     for (final run in _runs.values) run.snapshot(),
   ];
 
+  List<ExecutionTraceRunSnapshot> snapshotsFor(ExecutionTraceSource source) =>
+      snapshots
+          .where((snapshot) => snapshot.info.source.matches(source))
+          .toList(growable: false);
+
   ExecutionTraceRunSnapshot? snapshotFor(String executionId) =>
       _runs[executionId]?.snapshot();
 

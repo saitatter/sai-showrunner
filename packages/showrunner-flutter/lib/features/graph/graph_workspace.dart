@@ -18,6 +18,7 @@ import '../../schema/automation.dart';
 import '../../services/showrunner_data_service.dart';
 import 'graph_canvas_controls.dart';
 import 'graph_canvas_search.dart';
+import 'graph_execution_panel.dart';
 
 part 'graph_node_configuration_dialogs.dart';
 part 'graph_minimap.dart';
@@ -261,6 +262,7 @@ class GraphWorkspace extends StatelessWidget {
           ),
         ),
       ),
+      GraphExecutionPanel(editor: editor),
     ],
   );
 

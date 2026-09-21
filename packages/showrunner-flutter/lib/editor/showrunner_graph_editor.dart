@@ -368,29 +368,71 @@ class ShowRunnerGraphEditor {
     unawaited(_traceSubscription?.cancel());
     _traceService = service;
     _traceSource = source;
+    _pinnedExecutionId = null;
     _traceActiveCounts.clear();
     _traceRunNodes.clear();
     clearExecutionStates();
-    for (final snapshot in service.snapshots.where(
-      (snapshot) => snapshot.info.source.matches(source),
-    )) {
-      for (final node in snapshot.nodes.values) {
-        if (node.node.scope is! MainGraphScope) continue;
-        if (node.status == ExecutionTraceNodeStatus.running) {
-          _applyTraceStarted(node.node.nodeId, snapshot.info.executionId);
-        } else {
-          _applyTraceFinished(
-            node.node.nodeId,
-            snapshot.info.executionId,
-            success: node.status == ExecutionTraceNodeStatus.success,
-            startedAt: node.startedAt,
-            duration: node.duration,
-            error: node.error?.message,
-          );
-        }
-      }
+    for (final snapshot in service.snapshotsFor(source)) {
+      _hydrateTraceSnapshot(snapshot);
     }
     _traceSubscription = service.events.listen(_handleTraceEvent);
+  }
+
+  ExecutionTraceService? get executionTraceService => _traceService;
+  ExecutionTraceSource? get executionTraceSource => _traceSource;
+  String? get pinnedExecutionId => _pinnedExecutionId;
+
+  String? _pinnedExecutionId;
+
+  /// Pins a retained run to the canvas. Passing null restores the aggregate
+  /// live view, where all matching executions contribute to node state.
+  void pinExecution(String? executionId) {
+    final service = _traceService;
+    final source = _traceSource;
+    if (service == null || source == null) return;
+    if (executionId != null) {
+      final snapshot = service.snapshotFor(executionId);
+      if (snapshot == null || !snapshot.info.source.matches(source)) return;
+    }
+    _pinnedExecutionId = executionId;
+    _traceActiveCounts.clear();
+    _traceRunNodes.clear();
+    clearExecutionStates();
+    if (executionId != null) {
+      final snapshot = service.snapshotFor(executionId);
+      if (snapshot != null) _hydrateTraceSnapshot(snapshot);
+    } else {
+      for (final snapshot in service.snapshotsFor(source)) {
+        _hydrateTraceSnapshot(snapshot);
+      }
+    }
+  }
+
+  bool _traceSnapshotMatches(ExecutionTraceRunSnapshot snapshot) {
+    final source = _traceSource;
+    return source != null &&
+        snapshot.info.source.matches(source) &&
+        (_pinnedExecutionId == null ||
+            snapshot.info.executionId == _pinnedExecutionId);
+  }
+
+  void _hydrateTraceSnapshot(ExecutionTraceRunSnapshot snapshot) {
+    if (!_traceSnapshotMatches(snapshot)) return;
+    for (final node in snapshot.nodes.values) {
+      if (node.node.scope is! MainGraphScope) continue;
+      if (node.status == ExecutionTraceNodeStatus.running) {
+        _applyTraceStarted(node.node.nodeId, snapshot.info.executionId);
+      } else {
+        _applyTraceFinished(
+          node.node.nodeId,
+          snapshot.info.executionId,
+          success: node.status == ExecutionTraceNodeStatus.success,
+          startedAt: node.startedAt,
+          duration: node.duration,
+          error: node.error?.message,
+        );
+      }
+    }
   }
 
   void _handleTraceEvent(ExecutionTraceEvent event) {
@@ -398,7 +440,7 @@ class ShowRunnerGraphEditor {
     final source = _traceSource;
     if (service == null || source == null) return;
     final snapshot = service.snapshotFor(event.executionId);
-    if (snapshot == null || !snapshot.info.source.matches(source)) return;
+    if (snapshot == null || !_traceSnapshotMatches(snapshot)) return;
     switch (event) {
       case ExecutionNodeStartedEvent(:final node):
         if (node.scope is MainGraphScope) {
@@ -429,8 +471,8 @@ class ShowRunnerGraphEditor {
               in _traceRunNodes[event.executionId] ?? const {}) {
             _decrementTraceNode(editorId);
           }
-          _traceRunNodes.remove(event.executionId);
         }
+        _traceRunNodes.remove(event.executionId);
       case ExecutionRunStartedEvent():
       case ExecutionNodeResultEvent():
       case ExecutionEdgeTraversedEvent():
