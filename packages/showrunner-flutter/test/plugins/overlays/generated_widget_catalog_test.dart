@@ -94,14 +94,59 @@ void main() {
     );
 
     expect(bar.defaultConfig()['direction'], 'Right');
+    expect(
+      bar.configSchema.fields
+          .firstWhere((field) => field.key == 'outerRadius')
+          .fields
+          .map((field) => field.key),
+      containsAll(<String>['topLeft', 'topRight', 'bottomLeft', 'bottomRight']),
+    );
     expect(alert.defaultConfig()['textBelowMedia'], true);
     expect(leaderboard.defaultConfig()['sortOrder'], -1);
+    final leaderboardVariables = leaderboard.configSchema.fields
+        .firstWhere((field) => field.key == 'variables');
+    expect(
+      leaderboardVariables.itemSchema?.fields.map((field) => field.key),
+      containsAll(<String>['variable', 'font', 'textAlign', 'background', 'block']),
+    );
     expect((bouncer.defaultConfig()['lifeTime'] as Map)['min'], 7);
+    expect(
+      bouncer.configSchema.fields
+          .firstWhere((field) => field.key == 'spamPrevention')
+          .fields
+          .map((field) => field.key),
+      containsAll(<String>['emoteRatio', 'emoteCap', 'emoteCapPerMessage']),
+    );
+    expect(
+      bouncer.configSchema.fields
+          .firstWhere((field) => field.key == 'launchers')
+          .itemSchema
+          ?.fields
+          .map((field) => field.key),
+      containsAll(<String>['x', 'y', 'angle', 'spread', 'velocity']),
+    );
     expect(bouncer.defaultSize['height'], 'canvas');
     expect(wheel.defaultSize['width'], 500);
     expect(
       wheel.configSchema.fields.map((field) => field.key),
       contains('slices'),
+    );
+
+    final label = widgets.firstWhere(
+      (definition) => definition.key == 'overlays.label',
+    );
+    final labelConfig = label.defaultConfig();
+    expect(labelConfig['message'], 'Label');
+    expect((labelConfig['font'] as Map)['fontFamily'], 'Impact');
+    expect((labelConfig['font'] as Map)['stroke'], {
+      'width': 4,
+      'color': '#000000',
+    });
+    expect(labelConfig['textAlign'], {'textAlign': 'left'});
+    expect((labelConfig['block'] as Map)['verticalAlign'], 'top');
+    expect(
+      label.configSchema.fields.map((field) => field.key),
+      containsAll(<String>['message', 'font', 'textAlign', 'block']),
     );
   });
 }

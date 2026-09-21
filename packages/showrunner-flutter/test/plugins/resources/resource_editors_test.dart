@@ -736,6 +736,21 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
     expect(find.text('Plugin'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('overlay-plugin-readonly')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('overlay-plugin-readonly')),
+        matching: find.byType(TextField),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('overlay-widget-readonly')),
+      findsOneWidget,
+    );
     expect(find.text('Shader Preset'), findsOneWidget);
     expect(find.text('Shader Graph (JSON)'), findsOneWidget);
     await tester.tap(find.text('Save'));
@@ -812,6 +827,7 @@ void main() {
     expect(widgetSearch, findsOneWidget);
     await tester.enterText(widgetSearch, 'chat');
     await tester.pump();
+    expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget);
     await tester.tap(find.text('Chat Feed'));
     await tester.pumpAndSettle();
 

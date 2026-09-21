@@ -207,19 +207,217 @@
               ]
             },
             "outerRadius": {
-              "type": "object"
+              "type": "object",
+              "name": "Outer Corners",
+              "default": {},
+              "fields": {
+                "topLeft": {
+                  "type": "number",
+                  "name": "Top Left",
+                  "default": 0
+                },
+                "topRight": {
+                  "type": "number",
+                  "name": "Top Right",
+                  "default": 0
+                },
+                "bottomLeft": {
+                  "type": "number",
+                  "name": "Bottom Left",
+                  "default": 0
+                },
+                "bottomRight": {
+                  "type": "number",
+                  "name": "Bottom Right",
+                  "default": 0
+                }
+              }
             },
             "backgroundStyle": {
-              "type": "object"
+              "type": "object",
+              "name": "Background Style",
+              "default": {
+                "color": "#222222",
+                "elements": []
+              },
+              "fields": {
+                "color": {
+                  "type": "color",
+                  "name": "Color",
+                  "default": "#222222"
+                },
+                "elements": {
+                  "type": "array",
+                  "name": "Layers",
+                  "itemSchema": {
+                    "type": "object",
+                    "fields": {
+                      "image": {
+                        "type": "string",
+                        "name": "Image"
+                      },
+                      "gradient": {
+                        "type": "object",
+                        "name": "Gradient",
+                        "fields": {
+                          "gradientType": {
+                            "type": "enum",
+                            "name": "Type",
+                            "default": "linear",
+                            "enum": [
+                              "linear",
+                              "radial"
+                            ]
+                          },
+                          "angle": {
+                            "type": "number",
+                            "name": "Angle",
+                            "default": 0
+                          },
+                          "stops": {
+                            "type": "array",
+                            "name": "Stops",
+                            "itemSchema": {
+                              "type": "object",
+                              "fields": {
+                                "color": {
+                                  "type": "color",
+                                  "name": "Color",
+                                  "default": "#FFFFFF"
+                                },
+                                "position": {
+                                  "type": "number",
+                                  "name": "Position",
+                                  "default": 0
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             },
             "outline": {
-              "type": "object"
+              "type": "object",
+              "name": "Outline",
+              "fields": {
+                "color": {
+                  "type": "color",
+                  "name": "Color",
+                  "default": "#000000"
+                },
+                "style": {
+                  "type": "enum",
+                  "name": "Style",
+                  "default": "solid",
+                  "enum": [
+                    "solid",
+                    "dotted",
+                    "dashed"
+                  ]
+                },
+                "width": {
+                  "type": "number",
+                  "name": "Width",
+                  "default": 10
+                }
+              }
             },
             "fillStyle": {
-              "type": "object"
+              "type": "object",
+              "name": "Fill Style",
+              "default": {
+                "color": "#42D392",
+                "elements": []
+              },
+              "fields": {
+                "color": {
+                  "type": "color",
+                  "name": "Color",
+                  "default": "#42D392"
+                },
+                "elements": {
+                  "type": "array",
+                  "name": "Layers",
+                  "itemSchema": {
+                    "type": "object",
+                    "fields": {
+                      "image": {
+                        "type": "string",
+                        "name": "Image"
+                      },
+                      "gradient": {
+                        "type": "object",
+                        "name": "Gradient",
+                        "fields": {
+                          "gradientType": {
+                            "type": "enum",
+                            "name": "Type",
+                            "default": "linear",
+                            "enum": [
+                              "linear",
+                              "radial"
+                            ]
+                          },
+                          "angle": {
+                            "type": "number",
+                            "name": "Angle",
+                            "default": 0
+                          },
+                          "stops": {
+                            "type": "array",
+                            "name": "Stops",
+                            "itemSchema": {
+                              "type": "object",
+                              "fields": {
+                                "color": {
+                                  "type": "color",
+                                  "name": "Color",
+                                  "default": "#FFFFFF"
+                                },
+                                "position": {
+                                  "type": "number",
+                                  "name": "Position",
+                                  "default": 0
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             },
             "fillLine": {
-              "type": "object"
+              "type": "object",
+              "name": "Fill Line",
+              "fields": {
+                "color": {
+                  "type": "color",
+                  "name": "Color",
+                  "default": "#000000"
+                },
+                "style": {
+                  "type": "enum",
+                  "name": "Style",
+                  "default": "solid",
+                  "enum": [
+                    "solid",
+                    "dotted",
+                    "dashed"
+                  ]
+                },
+                "width": {
+                  "type": "number",
+                  "name": "Width",
+                  "default": 10
+                }
+              }
             }
           }
         },
@@ -401,10 +599,60 @@
               "template": true
             },
             "spamPrevention": {
-              "type": "object"
+              "type": "object",
+              "name": "Spam Prevention",
+              "fields": {
+                "emoteRatio": {
+                  "type": "number",
+                  "name": "Emote Ratio",
+                  "default": 1
+                },
+                "emoteCap": {
+                  "type": "number",
+                  "name": "Total Emote Cap"
+                },
+                "emoteCapPerMessage": {
+                  "type": "number",
+                  "name": "Max Emotes per Chat Message"
+                }
+              }
             },
             "launchers": {
-              "type": "array"
+              "type": "array",
+              "name": "Launchers",
+              "itemSchema": {
+                "type": "object",
+                "fields": {
+                  "x": {
+                    "type": "number",
+                    "name": "X Position",
+                    "default": 0
+                  },
+                  "y": {
+                    "type": "number",
+                    "name": "Y Position",
+                    "default": 0
+                  },
+                  "angle": {
+                    "type": "number",
+                    "name": "Angle",
+                    "default": 0
+                  },
+                  "spread": {
+                    "type": "number",
+                    "name": "Angle Spread",
+                    "default": 20
+                  },
+                  "velocity": {
+                    "type": "range",
+                    "name": "Velocity Range",
+                    "default": {
+                      "min": 0,
+                      "max": 0.4
+                    }
+                  }
+                }
+              }
             }
           }
         },
@@ -425,13 +673,199 @@
               "multiLine": true
             },
             "font": {
-              "type": "object"
+              "type": "object",
+              "name": "Font",
+              "default": {
+                "fontSize": 65,
+                "fontColor": "#FFFFFF",
+                "fontFamily": "Impact",
+                "fontWeight": 300,
+                "stroke": {
+                  "width": 4,
+                  "color": "#000000"
+                }
+              },
+              "fields": {
+                "fontFamily": {
+                  "type": "string",
+                  "name": "Font Family",
+                  "default": "Impact"
+                },
+                "fontSize": {
+                  "type": "number",
+                  "name": "Size",
+                  "default": 65
+                },
+                "fontColor": {
+                  "type": "color",
+                  "name": "Font Color",
+                  "default": "#FFFFFF"
+                },
+                "stroke": {
+                  "type": "object",
+                  "name": "Stroke",
+                  "default": {
+                    "width": 4,
+                    "color": "#000000"
+                  },
+                  "fields": {
+                    "width": {
+                      "type": "number",
+                      "name": "Width",
+                      "default": 4
+                    },
+                    "color": {
+                      "type": "color",
+                      "name": "Stroke Color",
+                      "default": "#000000"
+                    }
+                  }
+                },
+                "shadow": {
+                  "type": "object",
+                  "name": "Shadow",
+                  "fields": {
+                    "blur": {
+                      "type": "number",
+                      "name": "Blur",
+                      "default": 4
+                    },
+                    "color": {
+                      "type": "color",
+                      "name": "Shadow Color",
+                      "default": "#FFFFFF"
+                    },
+                    "offsetX": {
+                      "type": "number",
+                      "name": "Offset X",
+                      "default": 0
+                    },
+                    "offsetY": {
+                      "type": "number",
+                      "name": "Offset Y",
+                      "default": 0
+                    }
+                  }
+                }
+              }
             },
             "textAlign": {
-              "type": "object"
+              "type": "object",
+              "name": "Text Align",
+              "default": {
+                "textAlign": "left"
+              },
+              "fields": {
+                "textAlign": {
+                  "type": "enum",
+                  "name": "Alignment",
+                  "default": "left",
+                  "enum": [
+                    "left",
+                    "center",
+                    "right",
+                    "justify"
+                  ]
+                }
+              }
             },
             "block": {
-              "type": "object"
+              "type": "object",
+              "name": "Block",
+              "default": {
+                "margin": {
+                  "top": 0,
+                  "bottom": 0,
+                  "left": 0,
+                  "right": 0
+                },
+                "padding": {
+                  "top": 0,
+                  "bottom": 0,
+                  "left": 0,
+                  "right": 0
+                },
+                "horizontalAlign": "left",
+                "verticalAlign": "top"
+              },
+              "fields": {
+                "margin": {
+                  "type": "object",
+                  "name": "Margin",
+                  "default": {
+                    "top": 0,
+                    "bottom": 0,
+                    "left": 0,
+                    "right": 0
+                  },
+                  "fields": {
+                    "top": {
+                      "type": "number",
+                      "default": 0
+                    },
+                    "bottom": {
+                      "type": "number",
+                      "default": 0
+                    },
+                    "left": {
+                      "type": "number",
+                      "default": 0
+                    },
+                    "right": {
+                      "type": "number",
+                      "default": 0
+                    }
+                  }
+                },
+                "padding": {
+                  "type": "object",
+                  "name": "Padding",
+                  "default": {
+                    "top": 0,
+                    "bottom": 0,
+                    "left": 0,
+                    "right": 0
+                  },
+                  "fields": {
+                    "top": {
+                      "type": "number",
+                      "default": 0
+                    },
+                    "bottom": {
+                      "type": "number",
+                      "default": 0
+                    },
+                    "left": {
+                      "type": "number",
+                      "default": 0
+                    },
+                    "right": {
+                      "type": "number",
+                      "default": 0
+                    }
+                  }
+                },
+                "horizontalAlign": {
+                  "type": "enum",
+                  "name": "Horizontal Align",
+                  "default": "left",
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ]
+                },
+                "verticalAlign": {
+                  "type": "enum",
+                  "name": "Vertical Align",
+                  "default": "top",
+                  "enum": [
+                    "top",
+                    "center",
+                    "bottom"
+                  ]
+                }
+              }
             }
           }
         },
@@ -459,19 +893,369 @@
               "max": 50
             },
             "variables": {
-              "type": "array"
+              "type": "array",
+              "name": "Display Variables",
+              "itemSchema": {
+                "type": "object",
+                "fields": {
+                  "variable": {
+                    "type": "viewerVariable",
+                    "name": "Variable"
+                  },
+                  "font": {
+                    "type": "object",
+                    "name": "Font",
+                    "fields": {
+                      "fontFamily": {
+                        "type": "string",
+                        "name": "Font Family",
+                        "default": "Impact"
+                      },
+                      "fontSize": {
+                        "type": "number",
+                        "name": "Size",
+                        "default": 65
+                      },
+                      "fontColor": {
+                        "type": "color",
+                        "name": "Font Color",
+                        "default": "#FFFFFF"
+                      },
+                      "fontWeight": {
+                        "type": "number",
+                        "name": "Weight",
+                        "default": 300
+                      },
+                      "stroke": {
+                        "type": "object",
+                        "name": "Stroke",
+                        "default": {
+                          "width": 4,
+                          "color": "#000000"
+                        },
+                        "fields": {
+                          "width": {
+                            "type": "number",
+                            "name": "Width",
+                            "default": 4
+                          },
+                          "color": {
+                            "type": "color",
+                            "name": "Stroke Color",
+                            "default": "#000000"
+                          }
+                        }
+                      },
+                      "shadow": {
+                        "type": "object",
+                        "name": "Shadow",
+                        "fields": {
+                          "blur": {
+                            "type": "number",
+                            "name": "Blur",
+                            "default": 4
+                          },
+                          "color": {
+                            "type": "color",
+                            "name": "Shadow Color",
+                            "default": "#FFFFFF"
+                          },
+                          "offsetX": {
+                            "type": "number",
+                            "name": "Offset X",
+                            "default": 0
+                          },
+                          "offsetY": {
+                            "type": "number",
+                            "name": "Offset Y",
+                            "default": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "textAlign": {
+                    "type": "object",
+                    "name": "Align",
+                    "default": {
+                      "textAlign": "left"
+                    },
+                    "fields": {
+                      "textAlign": {
+                        "type": "enum",
+                        "name": "Alignment",
+                        "default": "left",
+                        "enum": [
+                          "left",
+                          "center",
+                          "right",
+                          "justify"
+                        ]
+                      }
+                    }
+                  },
+                  "background": {
+                    "type": "object",
+                    "name": "Background",
+                    "default": {
+                      "elements": []
+                    },
+                    "fields": {
+                      "color": {
+                        "type": "color",
+                        "name": "Color"
+                      },
+                      "elements": {
+                        "type": "array",
+                        "name": "Layers",
+                        "itemSchema": {
+                          "type": "object",
+                          "fields": {
+                            "image": {
+                              "type": "string",
+                              "name": "Image"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "block": {
+                    "type": "object",
+                    "name": "Block",
+                    "default": {
+                      "padding": {
+                        "top": 0,
+                        "bottom": 0,
+                        "left": 0,
+                        "right": 0
+                      },
+                      "verticalAlign": "top"
+                    },
+                    "fields": {
+                      "padding": {
+                        "type": "object",
+                        "name": "Padding",
+                        "default": {
+                          "top": 0,
+                          "bottom": 0,
+                          "left": 0,
+                          "right": 0
+                        },
+                        "fields": {
+                          "top": {
+                            "type": "number",
+                            "default": 0
+                          },
+                          "bottom": {
+                            "type": "number",
+                            "default": 0
+                          },
+                          "left": {
+                            "type": "number",
+                            "default": 0
+                          },
+                          "right": {
+                            "type": "number",
+                            "default": 0
+                          }
+                        }
+                      },
+                      "verticalAlign": {
+                        "type": "enum",
+                        "name": "Vertical Align",
+                        "default": "top",
+                        "enum": [
+                          "top",
+                          "center",
+                          "bottom"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
             },
             "nameFont": {
-              "type": "object"
+              "type": "object",
+              "name": "Name Font",
+              "default": {
+                "fontSize": 65,
+                "fontColor": "#FFFFFF",
+                "fontFamily": "Impact",
+                "fontWeight": 300,
+                "stroke": {
+                  "width": 4,
+                  "color": "#000000"
+                }
+              },
+              "fields": {
+                "fontFamily": {
+                  "type": "string",
+                  "name": "Font Family",
+                  "default": "Impact"
+                },
+                "fontSize": {
+                  "type": "number",
+                  "name": "Size",
+                  "default": 65
+                },
+                "fontColor": {
+                  "type": "color",
+                  "name": "Font Color",
+                  "default": "#FFFFFF"
+                },
+                "fontWeight": {
+                  "type": "number",
+                  "name": "Weight",
+                  "default": 300
+                },
+                "stroke": {
+                  "type": "object",
+                  "name": "Stroke",
+                  "default": {
+                    "width": 4,
+                    "color": "#000000"
+                  },
+                  "fields": {
+                    "width": {
+                      "type": "number",
+                      "name": "Width",
+                      "default": 4
+                    },
+                    "color": {
+                      "type": "color",
+                      "name": "Stroke Color",
+                      "default": "#000000"
+                    }
+                  }
+                },
+                "shadow": {
+                  "type": "object",
+                  "name": "Shadow",
+                  "fields": {
+                    "blur": {
+                      "type": "number",
+                      "name": "Blur",
+                      "default": 4
+                    },
+                    "color": {
+                      "type": "color",
+                      "name": "Shadow Color",
+                      "default": "#FFFFFF"
+                    },
+                    "offsetX": {
+                      "type": "number",
+                      "name": "Offset X",
+                      "default": 0
+                    },
+                    "offsetY": {
+                      "type": "number",
+                      "name": "Offset Y",
+                      "default": 0
+                    }
+                  }
+                }
+              }
             },
             "nameTextAlign": {
-              "type": "object"
+              "type": "object",
+              "name": "Name Align",
+              "default": {
+                "textAlign": "left"
+              },
+              "fields": {
+                "textAlign": {
+                  "type": "enum",
+                  "name": "Alignment",
+                  "default": "left",
+                  "enum": [
+                    "left",
+                    "center",
+                    "right",
+                    "justify"
+                  ]
+                }
+              }
             },
             "nameBackground": {
-              "type": "object"
+              "type": "object",
+              "name": "Name Background",
+              "default": {
+                "elements": []
+              },
+              "fields": {
+                "color": {
+                  "type": "color",
+                  "name": "Color"
+                },
+                "elements": {
+                  "type": "array",
+                  "name": "Layers",
+                  "itemSchema": {
+                    "type": "object",
+                    "fields": {
+                      "image": {
+                        "type": "string",
+                        "name": "Image"
+                      }
+                    }
+                  }
+                }
+              }
             },
             "nameBlock": {
-              "type": "object"
+              "type": "object",
+              "name": "Name Block",
+              "default": {
+                "padding": {
+                  "top": 0,
+                  "bottom": 0,
+                  "left": 0,
+                  "right": 0
+                },
+                "verticalAlign": "top"
+              },
+              "fields": {
+                "padding": {
+                  "type": "object",
+                  "name": "Padding",
+                  "default": {
+                    "top": 0,
+                    "bottom": 0,
+                    "left": 0,
+                    "right": 0
+                  },
+                  "fields": {
+                    "top": {
+                      "type": "number",
+                      "default": 0
+                    },
+                    "bottom": {
+                      "type": "number",
+                      "default": 0
+                    },
+                    "left": {
+                      "type": "number",
+                      "default": 0
+                    },
+                    "right": {
+                      "type": "number",
+                      "default": 0
+                    }
+                  }
+                },
+                "verticalAlign": {
+                  "type": "enum",
+                  "name": "Vertical Align",
+                  "default": "top",
+                  "enum": [
+                    "top",
+                    "center",
+                    "bottom"
+                  ]
+                }
+              }
             }
           }
         },

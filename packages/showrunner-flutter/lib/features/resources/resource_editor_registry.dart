@@ -18,6 +18,7 @@ import '../../plugins/sound/ui/tts_voice_provider_picker.dart';
 import '../../plugins/overlays/shader_graph/shader_graph_editor.dart';
 import '../../plugins/overlays/shader_graph/shader_graph_model.dart';
 import '../../plugins/overlays/generated_widget_catalog.dart';
+import '../../plugins/overlays/overlay_widget_icons.dart';
 import '../../plugins/dashboards/ui/dashboard_widget_config.dart';
 
 List<JsonMap> _maps(Object? value) => value is List
@@ -1264,7 +1265,7 @@ class _OverlayWidgetMenuState extends State<_OverlayWidgetMenu> {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.widgets_outlined, size: 18),
+                                overlayWidgetIconWidget(definition),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
@@ -1574,6 +1575,12 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
     final config = widgetConfig['config'] is Map
         ? Map<String, dynamic>.from(widgetConfig['config'] as Map)
         : const <String, dynamic>{};
+    final definition = catalog.cast<GeneratedOverlayWidget?>().firstWhere(
+      (candidate) =>
+          candidate?.pluginId == widgetConfig['plugin']?.toString() &&
+          candidate?.id == widgetConfig['widget']?.toString(),
+      orElse: () => null,
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -1582,9 +1589,15 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
           children: [
             Row(
               children: [
+                if (definition != null) ...[
+                  overlayWidgetIconWidget(definition, size: 20),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
                   child: Text(
-                    'Widget ${index + 1}',
+                    definition == null
+                        ? 'Widget ${index + 1}'
+                        : '${definition.name} · Widget ${index + 1}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -1610,15 +1623,15 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _textField('Name', '${widgetConfig['name'] ?? ''}', 'name'),
-                _textField(
+                _readOnlyField(
+                  key: const ValueKey('overlay-plugin-readonly'),
                   'Plugin',
                   '${widgetConfig['plugin'] ?? ''}',
-                  'plugin',
                 ),
-                _textField(
+                _readOnlyField(
+                  key: const ValueKey('overlay-widget-readonly'),
                   'Widget',
                   '${widgetConfig['widget'] ?? ''}',
-                  'widget',
                 ),
                 _numberField(
                   'X',
@@ -1702,6 +1715,20 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
       onChanged: (next) => onChanged(key, next),
     ),
   );
+
+  Widget _readOnlyField(String label, String value, {required Key key}) =>
+      SizedBox(
+        width: 180,
+        child: InputDecorator(
+          key: key,
+          decoration: InputDecoration(labelText: label),
+          child: Text(
+            value.isEmpty ? 'Unknown' : value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      );
 
   Widget _numberField(String label, Object? value, ValueChanged<num> onValue) =>
       SizedBox(
@@ -1962,14 +1989,45 @@ class _OverlayWidgetConfigEditor extends StatelessWidget {
         },
       );
     }
+    final normalizedConfig = _mergeOverlayWidgetDefaults(
+      definition.configSchema,
+      config,
+    );
     return DartDataInput(
       schema: definition.configSchema,
-      value: config,
+      value: normalizedConfig,
       onChanged: (value) {
         if (value is Map) onChanged(Map<String, dynamic>.from(value));
       },
     );
   }
+}
+
+JsonMap _mergeOverlayWidgetDefaults(DartDataInputSchema schema, Object? value) {
+  if (schema.kind != DartDataInputKind.object) {
+    return value is Map
+        ? Map<String, dynamic>.from(value)
+        : <String, dynamic>{};
+  }
+
+  final current = value is Map
+      ? Map<String, dynamic>.from(value)
+      : <String, dynamic>{};
+  final defaults = constructDartDataInputDefault(schema);
+  if (defaults is Map) {
+    for (final entry in defaults.entries) {
+      current.putIfAbsent(entry.key.toString(), () => entry.value);
+    }
+  }
+  for (final field in schema.fields) {
+    final key = field.key ?? field.label;
+    if (!current.containsKey(key)) continue;
+    final fieldValue = current[key];
+    if (field.kind == DartDataInputKind.object) {
+      current[key] = _mergeOverlayWidgetDefaults(field, fieldValue);
+    }
+  }
+  return current;
 }
 
 class _StreamPlanSegmentCard extends StatefulWidget {
