@@ -177,6 +177,12 @@
       "media_scan_benchmark.dart",
       "desktop_drop",
       "package:sqlite3"
+    ],
+    "forbiddenFlutterPathSegments": [
+      "legacy",
+      "migration",
+      "shim",
+      "compat"
     ]
   }
 }

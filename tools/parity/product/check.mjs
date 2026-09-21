@@ -86,6 +86,25 @@ for (const marker of manifest.discovery.forbiddenFlutterMarkers) {
   }
 }
 
+const forbiddenPathSegments = new Set(
+  (manifest.discovery.forbiddenFlutterPathSegments ?? []).map((segment) =>
+    segment.toLowerCase(),
+  ),
+);
+function checkPathSegments(directory) {
+  if (!existsSync(directory)) return;
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (forbiddenPathSegments.has(entry.name.toLowerCase())) {
+      errors.push(
+        `forbidden Flutter product-surface path segment found: ${path}`,
+      );
+    }
+    if (entry.isDirectory()) checkPathSegments(path);
+  }
+}
+checkPathSegments(join(packageRoot, 'lib'));
+
 if (errors.length > 0) {
   process.stderr.write(`Product parity failed:\n${errors.map((error) => `- ${error}`).join('\n')}\n`);
   process.exitCode = 1;
