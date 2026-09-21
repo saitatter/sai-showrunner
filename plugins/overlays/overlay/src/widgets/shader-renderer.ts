@@ -49,7 +49,11 @@ export class ShaderRenderer {
 		this.resizeObserver = new ResizeObserver(() => this.resize())
 		this.resizeObserver.observe(options.canvas)
 
-		this.compileShader(options.fragmentSource)
+		const initialShaderError = this.compileShader(options.fragmentSource)
+		if (initialShaderError) {
+			this.dispose()
+			throw new Error(initialShaderError)
+		}
 		this.render()
 	}
 
