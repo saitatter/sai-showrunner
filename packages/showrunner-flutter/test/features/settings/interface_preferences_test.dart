@@ -62,6 +62,7 @@ void main() {
 
       expect(preferences.compactProjectSidebar, isFalse);
       expect(preferences.hideNativeIntegrationShortcuts, isTrue);
+      expect(preferences.collapseIntegrationCategoriesByDefault, isFalse);
       expect(preferences.windowCloseBehavior, WindowCloseBehavior.ask);
       expect(
         preferences.projectSidebarWidth,

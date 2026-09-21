@@ -62,6 +62,19 @@ void main() {
       await _capture(tester, entry.$2);
     }
 
+    // Keep the remaining tool entries in the viewport after capturing the
+    // expanded integrations state above.
+    for (final category in const [
+      'Streaming & Chat',
+      'Production & Overlays',
+      'Devices & Lights',
+      'Data & Utility',
+    ]) {
+      await _scrollProjectPanelTo(tester, category);
+      await tester.tap(find.text(category).first);
+    }
+    await _pumpApplication(tester);
+    await _scrollProjectPanelTo(tester, 'Tools');
     await tester.tap(find.text('Tools').first);
     await _pumpApplication(tester);
     for (final entry in const [
@@ -69,6 +82,7 @@ void main() {
       ('Logs', 'logs.png'),
       ('About', 'about.png'),
     ]) {
+      await _scrollProjectPanelTo(tester, entry.$1);
       await tester.tap(find.text(entry.$1).last);
       await _pumpApplication(tester);
       await _capture(tester, entry.$2);
@@ -101,4 +115,24 @@ Future<void> _capture(WidgetTester tester, String fileName) async {
 Future<void> _pumpApplication(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 250));
   await tester.pump(const Duration(milliseconds: 250));
+}
+
+Future<void> _scrollProjectPanelTo(WidgetTester tester, String label) async {
+  final target = find.text(label);
+  final panel = find.byKey(
+    const ValueKey('showrunner-project-panel-scroll'),
+  );
+  bool isVisible() {
+    if (!tester.any(target)) return false;
+    final rect = tester.getRect(target.first);
+    return rect.top >= 0 && rect.bottom <= 900;
+  }
+
+  for (var attempt = 0; attempt < 8 && !isVisible(); attempt++) {
+    await tester.drag(panel, const Offset(0, -500));
+    await tester.pump();
+  }
+  if (!isVisible()) {
+    throw StateError('Project panel item "$label" did not become visible.');
+  }
 }

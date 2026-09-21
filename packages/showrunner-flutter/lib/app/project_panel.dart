@@ -113,6 +113,7 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
     return Material(
       color: ShowRunnerColors.surfaceB,
       child: ListView(
+        key: const ValueKey('showrunner-project-panel-scroll'),
         padding: EdgeInsets.symmetric(vertical: compact ? 6 : 8),
         children: [
           _ProjectItemRow(

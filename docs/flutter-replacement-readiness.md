@@ -87,7 +87,7 @@ reference exposes the legacy dashboard surface (including its Media shortcut),
 while Flutter exposes the replacement provider cards, create controls, and the
 intentional removal of the persistent Media Library. The latest comparison
 measured 72.61% differing pixels. The other controlled pairs currently measure
-53.48% for Settings, 73.59% for Updates, and 77.93% for the Integrations
+53.48% for Settings, 73.59% for Updates, and 78.84% for the Integrations
 surface. These numbers are evidence and a work queue, not a claim of pixel
 parity. The Integrations pair is captured with the same Updates workspace
 active and the Integrations group expanded; the capture generator enforces
