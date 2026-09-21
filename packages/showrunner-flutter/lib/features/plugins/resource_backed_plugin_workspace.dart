@@ -20,9 +20,9 @@ final class ResourceBackedPluginWorkspace extends StatelessWidget {
     required this.providerEvents,
   });
 
-  final String pluginId;
-  final String? resourceType;
-  final Set<String>? resourceTypes;
+  final PluginId pluginId;
+  final ResourceTypeId? resourceType;
+  final Set<ResourceTypeId>? resourceTypes;
   final ShowRunnerDataService dataService;
   final Future<DartPluginRegistry> registryFuture;
   final ProviderEventRuntime providerEvents;
@@ -45,15 +45,15 @@ final class ResourceBackedPluginWorkspace extends StatelessWidget {
                 dataService: dataService,
                 registryFuture: registryFuture,
                 providerEvents: providerEvents,
-                selectedPluginId: pluginId,
+                selectedPluginId: pluginId.value,
                 forceGenericDetails: true,
               ),
               ResourcesWorkspace(
                 dataService: dataService,
                 editorRegistry: createDefaultResourceEditorRegistry(),
                 registryFuture: registryFuture,
-                resourceType: resourceType,
-                resourceTypes: resourceTypes,
+                resourceType: resourceType?.value,
+                resourceTypes: resourceTypes?.map((type) => type.value).toSet(),
               ),
             ],
           ),
