@@ -26,7 +26,6 @@ export 'app/workspace_document_manager.dart';
 export 'app/workspace_registry.dart';
 export 'runtime/expression.dart';
 export 'runtime/graph_runtime.dart';
-export 'runtime/graph_compiler.dart';
 export 'runtime/graph_execution_engine.dart';
 export 'runtime/production_graph_vm.dart';
 export 'runtime/automation_recovery.dart';
