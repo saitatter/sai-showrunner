@@ -18,7 +18,7 @@ $certificate = $null
 
 try {
   New-Item -ItemType Directory -Force -Path $testBundle | Out-Null
-  Copy-Item -LiteralPath (Join-Path $BundlePath 'showrunner_flutter.exe') -Destination $testBundle
+  Copy-Item -Path (Join-Path $BundlePath '*') -Destination $testBundle -Recurse -Force
 
   $certificate = New-SelfSignedCertificate `
     -Subject 'CN=ShowRunner local signing test' `
@@ -33,11 +33,28 @@ try {
     -CertificatePassword $passwordText
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-  $signature = Get-AuthenticodeSignature -LiteralPath (Join-Path $testBundle 'showrunner_flutter.exe')
-  if ($signature.Status -eq 'NotSigned') {
-    throw 'The self-signed Windows signing proof did not produce an Authenticode signature.'
+  $targets = @(
+    Get-ChildItem -LiteralPath $testBundle -Recurse -File |
+      Where-Object { $_.Extension -in @('.exe', '.dll') }
+  )
+  $unsigned = @(
+    $targets |
+      Where-Object {
+        (Get-AuthenticodeSignature -LiteralPath $_.FullName).Status -eq 'NotSigned'
+      }
+  )
+  if ($unsigned.Count -gt 0) {
+    throw "The self-signed Windows proof left unsigned files: $($unsigned.FullName -join ', ')"
   }
-  Write-Host "Windows signing proof passed with status $($signature.Status)."
+  Write-Host "Windows signing proof passed for $($targets.Count) bundle files."
+
+  Push-Location (Join-Path $PSScriptRoot '..\packages\showrunner-flutter')
+  try {
+    dart run tool/update_smoke.dart "--bundle=$testBundle" '--require-signature'
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  } finally {
+    Pop-Location
+  }
 } finally {
   if ($certificate) {
     Remove-Item -LiteralPath "Cert:\CurrentUser\My\$($certificate.Thumbprint)" -Force -ErrorAction SilentlyContinue

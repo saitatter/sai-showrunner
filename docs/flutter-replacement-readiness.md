@@ -33,6 +33,9 @@ Flutter desktop build is used as the ShowRunner replacement candidate.
   and nested-subgraph timings for the production graph engine.
 - Windows Release smoke covers first run, automation, workflow, profile,
   integrations, overlays, and update-state handling.
+- The Windows CI signing proof signs every executable and DLL in a temporary
+  bundle, then verifies updater install and rollback with signature checks after
+  both replacement and restoration.
 
 ## Integration coverage
 
@@ -136,8 +139,10 @@ not a claim of complete production cutover.
 The unsigned local bundle path is covered separately by
 `tool/update_smoke.dart`: it executes the real installer script against a
 temporary Windows bundle, verifies replacement and rollback contents, and
-cleans up the launched test process. It does not replace the signed installed
-release check.
+cleans up the launched test process. CI also exercises the same path with a
+self-signed copy of every executable and DLL, including signature checks after
+upgrade and rollback. Neither local proof replaces the trusted signed
+installed release check.
 
 When the protected Windows signing secrets are available, a release-proof
 bundle can be produced with:
