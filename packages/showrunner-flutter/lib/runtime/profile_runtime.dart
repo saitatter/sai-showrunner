@@ -308,7 +308,10 @@ final class DartProfileRuntime {
       final definition = registry.trigger(
         TriggerKey(plugin: PluginId(pluginId), trigger: TriggerId(triggerId)),
       );
-      if (definition == null || !registry.isPluginEnabled(pluginId)) continue;
+      if (definition == null ||
+          !registry.isPluginEnabledId(PluginId(pluginId))) {
+        continue;
+      }
       final configuredStream = definition.listenForRuntime(target.config);
       if (configuredStream != null) {
         subscriptions.add(

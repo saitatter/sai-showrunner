@@ -34,7 +34,7 @@ void main() {
     );
   });
 
-  test('keeps plugin contract keys typed and collision-safe', () {
+  test('keeps plugin contract keys typed and collision-safe', () async {
     const obs = PluginId('obs');
     const action = ActionId('scene');
     expect(
@@ -82,6 +82,13 @@ void main() {
       isNotNull,
     );
     expect(
+      await registry.invokeActionKey(
+        const ActionKey(plugin: PluginId('sample'), action: ActionId('run')),
+        const {},
+      ),
+      'ok',
+    );
+    expect(
       registry.trigger(
         const TriggerKey(
           plugin: PluginId('sample'),
@@ -124,46 +131,51 @@ void main() {
     expect(resource.createDefaultConfig('Demo'), {'name': 'Demo'});
   });
 
-  test('rejects resource ownership mismatches and duplicate resource types', () {
-    ResourceSpec resource({required PluginId owner, String type = 'Shared'}) =>
-        ResourceSpec(
-          ownerId: owner,
-          resourceTypeId: ResourceTypeId(type),
-          displayName: type,
-          storageDirectory: type.toLowerCase(),
-      defaultConfigFactory: (name) => {'name': name},
-        );
-
-    expect(
-      () => DartPluginRegistry().register(
-        DartPluginManifest(
-          id: const PluginId('sample'),
-          name: 'Sample',
-          resources: [resource(owner: const PluginId('other'))],
-        ),
-      ),
-      throwsArgumentError,
-    );
-
-    final registry = DartPluginRegistry()
-      ..register(
-        DartPluginManifest(
-          id: const PluginId('first'),
-          name: 'First',
-          resources: [resource(owner: const PluginId('first'))],
-        ),
+  test(
+    'rejects resource ownership mismatches and duplicate resource types',
+    () {
+      ResourceSpec resource({
+        required PluginId owner,
+        String type = 'Shared',
+      }) => ResourceSpec(
+        ownerId: owner,
+        resourceTypeId: ResourceTypeId(type),
+        displayName: type,
+        storageDirectory: type.toLowerCase(),
+        defaultConfigFactory: (name) => {'name': name},
       );
-    expect(
-      () => registry.register(
-        DartPluginManifest(
-          id: const PluginId('second'),
-          name: 'Second',
-          resources: [resource(owner: const PluginId('second'))],
+
+      expect(
+        () => DartPluginRegistry().register(
+          DartPluginManifest(
+            id: const PluginId('sample'),
+            name: 'Sample',
+            resources: [resource(owner: const PluginId('other'))],
+          ),
         ),
-      ),
-      throwsArgumentError,
-    );
-  });
+        throwsArgumentError,
+      );
+
+      final registry = DartPluginRegistry()
+        ..register(
+          DartPluginManifest(
+            id: const PluginId('first'),
+            name: 'First',
+            resources: [resource(owner: const PluginId('first'))],
+          ),
+        );
+      expect(
+        () => registry.register(
+          DartPluginManifest(
+            id: const PluginId('second'),
+            name: 'Second',
+            resources: [resource(owner: const PluginId('second'))],
+          ),
+        ),
+        throwsArgumentError,
+      );
+    },
+  );
 
   test('does not partially register an invalid manifest', () {
     final registry = DartPluginRegistry();
@@ -284,7 +296,10 @@ void main() {
         'WyzeAccount',
       ]),
     );
-    expect(registry.findResource('Overlay')?.ownerId, const PluginId('overlays'));
+    expect(
+      registry.findResource('Overlay')?.ownerId,
+      const PluginId('overlays'),
+    );
     expect(
       registry.findResource('StreamPlan')?.createDefaultConfig('Plan'),
       containsPair('name', 'Plan'),

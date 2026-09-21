@@ -223,15 +223,23 @@ final class DartPluginRegistry extends ChangeNotifier {
   }
 
   bool isPluginEnabled(String pluginId) =>
-      !_disabledPluginIds.contains(PluginId(pluginId));
+      isPluginEnabledId(PluginId(pluginId));
+
+  /// Typed registry boundary for runtime and plugin code.
+  bool isPluginEnabledId(PluginId pluginId) =>
+      !_disabledPluginIds.contains(pluginId);
 
   void setPluginEnabled(String pluginId, bool enabled) {
-    final wasEnabled = isPluginEnabled(pluginId);
-    final typedPluginId = PluginId(pluginId);
+    setPluginEnabledId(PluginId(pluginId), enabled);
+  }
+
+  /// Typed registry boundary for runtime and plugin code.
+  void setPluginEnabledId(PluginId pluginId, bool enabled) {
+    final wasEnabled = isPluginEnabledId(pluginId);
     if (enabled) {
-      _disabledPluginIds.remove(typedPluginId);
+      _disabledPluginIds.remove(pluginId);
     } else {
-      _disabledPluginIds.add(typedPluginId);
+      _disabledPluginIds.add(pluginId);
     }
     if (wasEnabled != enabled) notifyListeners();
   }
@@ -250,9 +258,14 @@ final class DartPluginRegistry extends ChangeNotifier {
       );
 
   Future<bool> checkHealth(String pluginId) async {
-    final module = moduleForRuntime(pluginId);
-    if (module == null) return false;
-    return (await module.checkHealth()).isHealthy;
+    return checkHealthId(PluginId(pluginId));
+  }
+
+  /// Typed registry boundary for runtime and plugin code.
+  Future<bool> checkHealthId(PluginId pluginId) async {
+    final pluginModule = module(pluginId);
+    if (pluginModule == null) return false;
+    return (await pluginModule.checkHealth()).isHealthy;
   }
 
   /// Explicit string boundary used by health/status surfaces.
@@ -294,14 +307,16 @@ final class DartPluginRegistry extends ChangeNotifier {
   ) {
     context.cancellationToken?.throwIfCancelled();
     final plugin = node.data['plugin'];
-    final action = node.data['action'];
-    final definition = plugin is String && action is String
-        ? actionForRuntime(plugin, action)
+    final actionId = node.data['action'];
+    final definition = plugin is String && actionId is String
+        ? action(
+            ActionKey(plugin: PluginId(plugin), action: ActionId(actionId)),
+          )
         : null;
-    if (plugin is String && !isPluginEnabled(plugin)) {
+    if (plugin is String && !isPluginEnabledId(PluginId(plugin))) {
       throw PluginConfigurationError(
         pluginId: PluginId(plugin),
-        operationId: action is String ? action : null,
+        operationId: actionId is String ? actionId : null,
         technicalMessage: 'Plugin is disabled: $plugin',
         userMessage: 'Enable the $plugin integration before running it.',
       );
@@ -309,8 +324,8 @@ final class DartPluginRegistry extends ChangeNotifier {
     if (definition == null) {
       throw ActionExecutionError(
         pluginId: plugin is String ? PluginId(plugin) : null,
-        operationId: action is String ? action : null,
-        technicalMessage: 'Unknown Dart action: $plugin:$action',
+        operationId: actionId is String ? actionId : null,
+        technicalMessage: 'Unknown Dart action: $plugin:$actionId',
         userMessage: 'This automation action is no longer available.',
       );
     }
@@ -323,21 +338,38 @@ final class DartPluginRegistry extends ChangeNotifier {
     RuntimeMap config, {
     EvaluationContext? context,
   }) {
+    return invokeActionKey(
+      ActionKey(plugin: PluginId(pluginId), action: ActionId(actionId)),
+      config,
+      context: context,
+    );
+  }
+
+  /// Executes a contract addressed by its typed key.
+  ///
+  /// Graph/persistence data should enter through [invokeAction], while
+  /// runtime/plugin code should use this method so IDs cannot be swapped or
+  /// accidentally treated as unrelated strings.
+  Future<Object?> invokeActionKey(
+    ActionKey key,
+    RuntimeMap config, {
+    EvaluationContext? context,
+  }) {
     context?.cancellationToken?.throwIfCancelled();
-    if (!isPluginEnabled(pluginId)) {
+    if (!isPluginEnabledId(key.plugin)) {
       throw PluginConfigurationError(
-        pluginId: PluginId(pluginId),
-        operationId: actionId,
-        technicalMessage: 'Plugin is disabled: $pluginId',
-        userMessage: 'Enable the $pluginId integration before running it.',
+        pluginId: key.plugin,
+        operationId: key.action.value,
+        technicalMessage: 'Plugin is disabled: ${key.plugin}',
+        userMessage: 'Enable the ${key.plugin} integration before running it.',
       );
     }
-    final definition = actionForRuntime(pluginId, actionId);
+    final definition = action(key);
     if (definition == null) {
       throw ActionExecutionError(
-        pluginId: PluginId(pluginId),
-        operationId: actionId,
-        technicalMessage: 'Unknown Dart action: $pluginId:$actionId',
+        pluginId: key.plugin,
+        operationId: key.action.value,
+        technicalMessage: 'Unknown Dart action: $key',
         userMessage: 'This automation action is no longer available.',
       );
     }
