@@ -90,7 +90,7 @@ reference exposes the legacy dashboard surface (including its Media shortcut),
 while Flutter exposes the replacement provider cards, create controls, and the
 intentional removal of the persistent Media Library. The latest comparison
 measured 72.61% differing pixels. The other controlled pairs currently measure
-53.48% for Settings, 73.59% for Updates, 78.84% for Integrations, and 66.59%
+53.48% for Settings, 73.59% for Updates, 78.84% for Integrations, and 68.49%
 for the loaded graph. These numbers are evidence and a work queue, not a claim
 of pixel parity. The graph pair now uses the same `Super Chat -> Add to Queue`
 starter shape as the frozen reference, including the automation-flow title,
