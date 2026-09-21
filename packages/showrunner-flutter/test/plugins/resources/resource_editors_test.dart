@@ -1,8 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:showrunner_flutter/features/resources/media_picker.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
@@ -669,7 +666,7 @@ void main() {
     });
   });
 
-  testWidgets('overlay editor exposes typed widget and media controls', (
+  testWidgets('overlay editor exposes the canonical visual widget editor', (
     tester,
   ) async {
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
@@ -679,25 +676,31 @@ void main() {
       const ResourceData(
         id: 'overlay-1',
         config: {
-          'name': 'Media overlay',
+          'name': 'Chat overlay',
+          'size': {'width': 1920, 'height': 1080},
           'widgets': [
-            {'type': 'image', 'media': 'existing.png'},
+            {
+              'id': 'chat-1',
+              'plugin': 'overlays',
+              'widget': 'chatFeed',
+              'name': 'Chat Feed',
+              'position': {'x': 24, 'y': 24},
+              'size': {'width': 900, 'height': 180},
+              'config': {'maxMessages': 8},
+              'visible': true,
+              'locked': false,
+            },
           ],
         },
       ),
       (_) async {},
     );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MediaPickerScope(directory: Directory('unused'), child: editor),
-        ),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
     expect(find.text('Edit overlay'), findsOneWidget);
-    expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(3));
-    expect(find.byTooltip('Select media'), findsOneWidget);
+    expect(find.text('Chat Feed'), findsAtLeastNWidgets(1));
+    expect(find.text('Font Family'), findsOneWidget);
+    expect(find.text('X'), findsOneWidget);
   });
 
   testWidgets('overlay editor preserves canonical widget resources', (
@@ -758,8 +761,7 @@ void main() {
         id: 'overlay-canonicalize',
         config: {
           'name': 'Stored dimensions',
-          'width': 1280,
-          'height': 720,
+          'size': {'width': 1280, 'height': 720},
           'preview': {'source': 'obs', 'offsetX': -10, 'offsetY': 20},
           'widgets': [],
         },
@@ -792,7 +794,11 @@ void main() {
       tester.element(find.byType(Scaffold)),
       const ResourceData(
         id: 'overlay-catalog',
-        config: {'name': 'Catalog overlay', 'widgets': []},
+        config: {
+          'name': 'Catalog overlay',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [],
+        },
       ),
       (resource) async => saved = resource,
     );
@@ -965,7 +971,11 @@ void main() {
   test('serializes overlay and variable resources', () {
     const resource = ResourceData(
       id: 'overlay-1',
-      config: {'name': 'Alert Overlay', 'width': 1920, 'height': 1080},
+      config: {
+        'name': 'Alert Overlay',
+        'size': {'width': 1920, 'height': 1080},
+        'widgets': <Map<String, dynamic>>[],
+      },
       state: {'active': true},
     );
     final restored = ResourceData.fromJson(resource.toJson());

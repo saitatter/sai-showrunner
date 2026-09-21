@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../editor/showrunner_graph_editor.dart';
@@ -11,7 +12,6 @@ import '../../schema/automation.dart';
 import '../../schema/resource.dart';
 import '../../schema/stream_plan.dart';
 import '../../persistence/secret_settings_store.dart';
-import 'media_picker.dart';
 import 'color_field.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../plugins/sound/ui/tts_voice_provider_picker.dart';
@@ -45,7 +45,6 @@ String _widgetTitle(JsonMap widget) {
   }
   return widget['title']?.toString() ??
       widget['widget']?.toString() ??
-      widget['type']?.toString() ??
       'Widget';
 }
 
@@ -647,6 +646,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
   late bool _previewFromObs;
   List<GeneratedOverlayWidget> _overlayWidgetCatalog =
       GeneratedOverlayWidgetCatalog.widgets;
+  int? _selectedWidgetIndex;
 
   @override
   void initState() {
@@ -668,6 +668,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
     _widgets = overlay.widgets
         .map((widget) => <String, dynamic>{...widget})
         .toList();
+    if (_widgets.isNotEmpty) _selectedWidgetIndex = 0;
     GeneratedOverlayWidgetCatalog.load().then((widgets) {
       if (!mounted) return;
       setState(() => _overlayWidgetCatalog = widgets);
@@ -686,155 +687,378 @@ class _OverlayEditorState extends State<_OverlayEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
-    title: 'Edit overlay',
-    fields: [
-      TextField(
-        controller: _name,
-        decoration: const InputDecoration(labelText: 'Name'),
-      ),
-      TextField(
-        controller: _width,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(labelText: 'Width'),
-      ),
-      TextField(
-        controller: _height,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(labelText: 'Height'),
-      ),
-      const SizedBox(height: 8),
-      const Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          'Canvas presets',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+  Widget build(BuildContext context) {
+    final media = MediaQuery.sizeOf(context);
+    final dialogWidth = math.min(media.width - 48, 1500.0);
+    final dialogHeight = math.min(media.height - 48, 900.0);
+    final canvasWidth = int.tryParse(_width.text) ?? 1920;
+    final canvasHeight = int.tryParse(_height.text) ?? 1080;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(24),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: dialogWidth,
+        height: dialogHeight,
+        child: Column(
+          children: [
+            _overlayEditorToolbar(context),
+            const Divider(height: 1),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _OverlayCanvas(
+                      width: canvasWidth,
+                      height: canvasHeight,
+                      widgets: _widgets,
+                      selectedIndex: _selectedWidgetIndex,
+                      catalog: _overlayWidgetCatalog,
+                      onSelect: (index) =>
+                          setState(() => _selectedWidgetIndex = index),
+                      onMove: (index, delta) => _moveWidgetOnCanvas(
+                        index,
+                        delta,
+                        canvasWidth,
+                        canvasHeight,
+                      ),
+                    ),
+                  ),
+                  const VerticalDivider(width: 1),
+                  SizedBox(
+                    width: math.min(390, dialogWidth * .34),
+                    child: Column(
+                      children: [
+                        Expanded(flex: 3, child: _overlayInspector(context)),
+                        const Divider(height: 1),
+                        Expanded(flex: 2, child: _overlayWidgetList(context)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _previewEnabled
+                          ? 'Preview enabled'
+                          : 'No live preview configured',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () async {
+                      await _saveOverlay();
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
-      Wrap(
+    );
+  }
+
+  Widget _overlayEditorToolbar(BuildContext context) => Material(
+    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      child: Wrap(
         spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
+          const Icon(Icons.layers_outlined),
+          const Text(
+            'Edit overlay',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          SizedBox(
+            width: 180,
+            child: TextField(
+              controller: _name,
+              decoration: const InputDecoration(
+                labelText: 'Overlay name',
+                isDense: true,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 86,
+            child: TextField(
+              controller: _width,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Width',
+                suffixText: 'px',
+                isDense: true,
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+          SizedBox(
+            width: 86,
+            child: TextField(
+              controller: _height,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Height',
+                suffixText: 'px',
+                isDense: true,
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
           _sizePreset('1080p', 1920, 1080),
           _sizePreset('1440p', 2560, 1440),
           _sizePreset('4K', 3840, 2160),
           _sizePreset('Vertical', 1080, 1920),
+          IconButton(
+            tooltip: 'Preview settings',
+            onPressed: () => _showPreviewSettings(context),
+            icon: const Icon(Icons.image_outlined),
+          ),
         ],
       ),
-      ExpansionTile(
-        title: const Text('Preview'),
-        initiallyExpanded: _previewEnabled,
-        children: [
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Enable preview'),
-            value: _previewEnabled,
-            onChanged: (value) => setState(() => _previewEnabled = value),
-          ),
-          if (_previewEnabled) ...[
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Preview OBS output'),
-              value: _previewFromObs,
-              onChanged: (value) => setState(() => _previewFromObs = value),
-            ),
-            if (!_previewFromObs)
-              TextField(
-                controller: _previewSource,
-                decoration: const InputDecoration(
-                  labelText: 'Preview image',
-                  hintText: 'Optional PNG/JPG/BMP/WebP path',
-                ),
+    ),
+  );
+
+  Widget _overlayInspector(BuildContext context) {
+    final index = _selectedWidgetIndex;
+    if (index == null || index < 0 || index >= _widgets.length) {
+      return const Center(child: Text('Select a widget to edit it.'));
+    }
+    final selected = _widgets[index];
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: _OverlayWidgetCard(
+        index: index,
+        widgetConfig: selected,
+        onChanged: (key, value) => setState(() => selected[key] = value),
+        onDelete: () => _deleteWidget(index),
+        onMoveUp: index == 0 ? null : () => _moveWidget(index, -1),
+        onMoveDown: index == _widgets.length - 1
+            ? null
+            : () => _moveWidget(index, 1),
+        catalog: _overlayWidgetCatalog,
+      ),
+    );
+  }
+
+  Widget _overlayWidgetList(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Widgets',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _previewOffsetX,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      signed: true,
-                    ),
-                    decoration: const InputDecoration(labelText: 'Offset X'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _previewOffsetY,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      signed: true,
-                    ),
-                    decoration: const InputDecoration(labelText: 'Offset Y'),
-                  ),
-                ),
-              ],
+            ),
+            IconButton(
+              tooltip: 'Add widget',
+              onPressed: _addWidget,
+              icon: const Icon(Icons.add),
             ),
           ],
-        ],
-      ),
-      Row(
-        children: [
-          const Expanded(
-            child: Text(
-              'Widgets',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Add widget',
-            onPressed: _addWidget,
-            icon: const Icon(Icons.add_box_outlined),
-          ),
-        ],
-      ),
-      if (_widgets.isEmpty)
-        const Text('No widgets defined.')
-      else
-        for (var index = 0; index < _widgets.length; index++)
-          KeyedSubtree(
-            key: ValueKey(_widgets[index]['id'] ?? index),
-            child: _OverlayWidgetCard(
-              index: index,
-              widgetConfig: _widgets[index],
-              onChanged: (key, value) =>
-                  setState(() => _widgets[index][key] = value),
-              onDelete: () => setState(() => _widgets.removeAt(index)),
-              onMoveUp: index == 0 ? null : () => _moveWidget(index, -1),
-              onMoveDown: index == _widgets.length - 1
-                  ? null
-                  : () => _moveWidget(index, 1),
-              catalog: _overlayWidgetCatalog,
-            ),
-          ),
-    ],
-    onSave: () {
-      final config = <String, dynamic>{
-        ...widget.resource.config,
-        'name': _name.text.trim(),
-        'size': {
-          'width': int.tryParse(_width.text) ?? 1920,
-          'height': int.tryParse(_height.text) ?? 1080,
-        },
-        'widgets': _widgets,
-      };
-      config.remove('width');
-      config.remove('height');
-      if (_previewEnabled) {
-        config['preview'] = {
-          'offsetX': num.tryParse(_previewOffsetX.text) ?? 0,
-          'offsetY': num.tryParse(_previewOffsetY.text) ?? 0,
-          if (_previewFromObs)
-            'source': 'obs'
-          else if (_previewSource.text.trim().isNotEmpty)
-            'source': _previewSource.text.trim(),
-        };
-      } else {
-        config.remove('preview');
-      }
-      return widget.onSave(
-        ResourceData(id: widget.resource.id, config: config),
-      );
-    },
+        ),
+        Expanded(
+          child: _widgets.isEmpty
+              ? const Center(child: Text('No widgets defined.'))
+              : ListView.builder(
+                  itemCount: _widgets.length,
+                  itemBuilder: (context, index) {
+                    final item = _widgets[index];
+                    final selected = index == _selectedWidgetIndex;
+                    return ListTile(
+                      dense: true,
+                      selected: selected,
+                      selectedTileColor: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: .14),
+                      onTap: () => setState(() => _selectedWidgetIndex = index),
+                      leading: Icon(
+                        item['locked'] == true
+                            ? Icons.lock_outline
+                            : Icons.widgets_outlined,
+                      ),
+                      title: Text(_widgetTitle(item)),
+                      subtitle: Text(
+                        item['plugin'] != null
+                            ? '${item['plugin']}.${item['widget']}'
+                            : '${item['type'] ?? 'widget'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Icon(
+                        item['visible'] == false
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 18,
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    ),
   );
+
+  Future<void> _showPreviewSettings(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Preview settings'),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Enable preview'),
+                  value: _previewEnabled,
+                  onChanged: (value) {
+                    setState(() => _previewEnabled = value);
+                    setDialogState(() {});
+                  },
+                ),
+                if (_previewEnabled) ...[
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Preview OBS output'),
+                    value: _previewFromObs,
+                    onChanged: (value) {
+                      setState(() => _previewFromObs = value);
+                      setDialogState(() {});
+                    },
+                  ),
+                  if (!_previewFromObs)
+                    TextField(
+                      controller: _previewSource,
+                      decoration: const InputDecoration(
+                        labelText: 'Preview image',
+                        hintText: 'Optional PNG/JPG/BMP/WebP path',
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _previewOffsetX,
+                          decoration: const InputDecoration(
+                            labelText: 'Offset X',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _previewOffsetY,
+                          decoration: const InputDecoration(
+                            labelText: 'Offset Y',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveOverlay() {
+    final config = <String, dynamic>{
+      ...widget.resource.config,
+      'name': _name.text.trim(),
+      'size': {
+        'width': int.tryParse(_width.text) ?? 1920,
+        'height': int.tryParse(_height.text) ?? 1080,
+      },
+      'widgets': _widgets,
+    };
+    config.remove('width');
+    config.remove('height');
+    if (_previewEnabled) {
+      config['preview'] = {
+        'offsetX': num.tryParse(_previewOffsetX.text) ?? 0,
+        'offsetY': num.tryParse(_previewOffsetY.text) ?? 0,
+        if (_previewFromObs)
+          'source': 'obs'
+        else if (_previewSource.text.trim().isNotEmpty)
+          'source': _previewSource.text.trim(),
+      };
+    } else {
+      config.remove('preview');
+    }
+    return widget.onSave(ResourceData(id: widget.resource.id, config: config));
+  }
+
+  void _moveWidgetOnCanvas(
+    int index,
+    Offset delta,
+    int canvasWidth,
+    int canvasHeight,
+  ) {
+    if (index < 0 || index >= _widgets.length) return;
+    final item = _widgets[index];
+    if (item['locked'] == true) return;
+    final position = item['position'] is Map
+        ? Map<String, dynamic>.from(item['position'] as Map)
+        : <String, dynamic>{};
+    final size = item['size'] is Map
+        ? Map<String, dynamic>.from(item['size'] as Map)
+        : <String, dynamic>{};
+    final width = (size['width'] as num?)?.toDouble() ?? 320;
+    final height = (size['height'] as num?)?.toDouble() ?? 80;
+    final x = ((position['x'] as num?)?.toDouble() ?? 0) + delta.dx;
+    final y = ((position['y'] as num?)?.toDouble() ?? 0) + delta.dy;
+    setState(() {
+      item['position'] = {
+        'x': x.clamp(0, math.max(0, canvasWidth - width)),
+        'y': y.clamp(0, math.max(0, canvasHeight - height)),
+      };
+    });
+  }
+
+  void _deleteWidget(int index) {
+    if (index < 0 || index >= _widgets.length) return;
+    setState(() {
+      _widgets.removeAt(index);
+      if (_widgets.isEmpty) {
+        _selectedWidgetIndex = null;
+      } else {
+        _selectedWidgetIndex = math.min(index, _widgets.length - 1);
+      }
+    });
+  }
 
   Widget _sizePreset(String label, int width, int height) => OutlinedButton(
     onPressed: () => setState(() {
@@ -869,6 +1093,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
     setState(() {
       _overlayWidgetCatalog = catalog;
       _widgets.add(definition.createWidget());
+      _selectedWidgetIndex = _widgets.length - 1;
     });
   }
 
@@ -880,6 +1105,233 @@ class _OverlayEditorState extends State<_OverlayEditor> {
       _widgets.insert(target, widget);
     });
   }
+}
+
+class _OverlayCanvas extends StatelessWidget {
+  const _OverlayCanvas({
+    required this.width,
+    required this.height,
+    required this.widgets,
+    required this.selectedIndex,
+    required this.catalog,
+    required this.onSelect,
+    required this.onMove,
+  });
+
+  final int width;
+  final int height;
+  final List<JsonMap> widgets;
+  final int? selectedIndex;
+  final List<GeneratedOverlayWidget> catalog;
+  final ValueChanged<int> onSelect;
+  final void Function(int index, Offset delta) onMove;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final availableWidth = math.max(80.0, constraints.maxWidth - 36);
+      final availableHeight = math.max(80.0, constraints.maxHeight - 36);
+      final scale = math.min(
+        availableWidth / math.max(1, width),
+        availableHeight / math.max(1, height),
+      );
+      final stageWidth = width * scale;
+      final stageHeight = height * scale;
+      return ColoredBox(
+        color: Theme.of(context).colorScheme.surface,
+        child: Stack(
+          children: [
+            Center(
+              child: Container(
+                width: stageWidth,
+                height: stageHeight,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 1.5,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 14),
+                  ],
+                ),
+                child: CustomPaint(
+                  painter: _OverlayGridPainter(
+                    scale: scale,
+                    gridColor: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      for (var index = 0; index < widgets.length; index++)
+                        _buildCanvasWidget(
+                          context,
+                          widgets[index],
+                          index,
+                          scale,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 12,
+              top: 12,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  child: Text('$width × $height'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+
+  Widget _buildCanvasWidget(
+    BuildContext context,
+    JsonMap widgetConfig,
+    int index,
+    double scale,
+  ) {
+    final position = widgetConfig['position'] is Map
+        ? Map<String, dynamic>.from(widgetConfig['position'] as Map)
+        : const <String, dynamic>{};
+    final size = widgetConfig['size'] is Map
+        ? Map<String, dynamic>.from(widgetConfig['size'] as Map)
+        : const <String, dynamic>{};
+    final x = (position['x'] as num?)?.toDouble() ?? 0;
+    final y = (position['y'] as num?)?.toDouble() ?? 0;
+    final widgetWidth = (size['width'] as num?)?.toDouble() ?? 320;
+    final widgetHeight = (size['height'] as num?)?.toDouble() ?? 80;
+    final selected = index == selectedIndex;
+    final hidden = widgetConfig['visible'] == false;
+    final locked = widgetConfig['locked'] == true;
+    final kind = widgetConfig['widget']?.toString() ?? 'widget';
+    final definition = catalog.cast<GeneratedOverlayWidget?>().firstWhere(
+      (candidate) =>
+          candidate?.pluginId == widgetConfig['plugin']?.toString() &&
+          candidate?.id == widgetConfig['widget']?.toString(),
+      orElse: () => null,
+    );
+    final label = _widgetTitle(widgetConfig);
+    final config = widgetConfig['config'];
+    final message = config is Map ? config['message']?.toString() : null;
+
+    return Positioned(
+      left: x * scale,
+      top: y * scale,
+      width: math.max(12, widgetWidth * scale),
+      height: math.max(12, widgetHeight * scale),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onSelect(index),
+        onPanStart: (_) => onSelect(index),
+        onPanUpdate: locked || hidden
+            ? null
+            : (details) => onMove(index, details.delta / scale),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 90),
+          padding: EdgeInsets.all(math.max(3, 6 * scale)),
+          decoration: BoxDecoration(
+            color: _overlayWidgetColor(kind, hidden),
+            border: Border.all(
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outline,
+              width: selected ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Opacity(
+            opacity: hidden ? .35 : 1,
+            child: FittedBox(
+              alignment: Alignment.topLeft,
+              fit: BoxFit.scaleDown,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: math.max(12, widgetWidth * scale - 12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      locked ? Icons.lock_outline : Icons.widgets_outlined,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 5),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          definition?.name ?? label,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        if (message?.trim().isNotEmpty == true)
+                          Text(
+                            message!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _overlayWidgetColor(String kind, bool hidden) {
+    if (hidden) return Colors.grey.withValues(alpha: .12);
+    if (kind.contains('shader')) return const Color(0xff3f2d61);
+    if (kind.contains('chat')) return const Color(0xff243d52);
+    if (kind.contains('alert') || kind.contains('paid')) {
+      return const Color(0xff523228);
+    }
+    if (kind.contains('scene') || kind.contains('banner')) {
+      return const Color(0xff27493e);
+    }
+    return const Color(0xff28303a);
+  }
+}
+
+class _OverlayGridPainter extends CustomPainter {
+  const _OverlayGridPainter({required this.scale, required this.gridColor});
+
+  final double scale;
+  final Color gridColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = gridColor.withValues(alpha: .3)
+      ..strokeWidth = 1;
+    final step = math.max(12, 50 * scale);
+    for (var x = 0.0; x <= size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var y = 0.0; y <= size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _OverlayGridPainter oldDelegate) =>
+      oldDelegate.scale != scale || oldDelegate.gridColor != gridColor;
 }
 
 class _OverlayWidgetCard extends StatelessWidget {
@@ -902,191 +1354,14 @@ class _OverlayWidgetCard extends StatelessWidget {
   final List<GeneratedOverlayWidget> catalog;
 
   @override
-  Widget build(BuildContext context) {
-    if (widgetConfig.containsKey('plugin') ||
-        widgetConfig.containsKey('widget')) {
-      return _CanonicalOverlayWidgetCard(
-        index: index,
-        widgetConfig: widgetConfig,
-        onChanged: onChanged,
-        onDelete: onDelete,
-        onMoveUp: onMoveUp,
-        onMoveDown: onMoveDown,
-        catalog: catalog,
-      );
-    }
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Widget ${index + 1}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Delete widget',
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              children: [
-                _enumField('type', '${widgetConfig['type'] ?? 'text'}', const [
-                  'text',
-                  'image',
-                  'video',
-                  'audio',
-                  'media',
-                ], onChanged),
-                _field('text', '${widgetConfig['text'] ?? ''}', onChanged),
-                _mediaField(context),
-                _field(
-                  'x',
-                  '${widgetConfig['x'] ?? 0}',
-                  onChanged,
-                  numeric: true,
-                ),
-                _field(
-                  'y',
-                  '${widgetConfig['y'] ?? 0}',
-                  onChanged,
-                  numeric: true,
-                ),
-                _field(
-                  'width',
-                  '${widgetConfig['width'] ?? 320}',
-                  onChanged,
-                  numeric: true,
-                ),
-                _field(
-                  'height',
-                  '${widgetConfig['height'] ?? 80}',
-                  onChanged,
-                  numeric: true,
-                ),
-                _field(
-                  'opacity',
-                  '${widgetConfig['opacity'] ?? 1}',
-                  onChanged,
-                  numeric: true,
-                ),
-                _field(
-                  'fontSize',
-                  '${widgetConfig['fontSize'] ?? 16}',
-                  onChanged,
-                  numeric: true,
-                ),
-                ColorValueField(
-                  label: 'color',
-                  initialValue: '${widgetConfig['color'] ?? '#ffffff'}',
-                  onChanged: (value) => onChanged('color', value),
-                ),
-                ColorValueField(
-                  label: 'backgroundColor',
-                  initialValue:
-                      '${widgetConfig['backgroundColor'] ?? 'transparent'}',
-                  onChanged: (value) => onChanged('backgroundColor', value),
-                ),
-                _enumField(
-                  'fontWeight',
-                  '${widgetConfig['fontWeight'] ?? 'normal'}',
-                  const ['normal', 'bold'],
-                  onChanged,
-                ),
-                _enumField(
-                  'textAlign',
-                  '${widgetConfig['textAlign'] ?? 'left'}',
-                  const ['left', 'center', 'right'],
-                  onChanged,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _enumField(
-    String key,
-    String value,
-    List<String> options,
-    void Function(String key, dynamic value) onChanged,
-  ) => SizedBox(
-    width: 120,
-    child: DropdownButtonFormField<String>(
-      initialValue: options.contains(value) ? value : options.first,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: key),
-      items: [
-        for (final option in options)
-          DropdownMenuItem(value: option, child: Text(option)),
-      ],
-      onChanged: (next) {
-        if (next != null) onChanged(key, next);
-      },
-    ),
-  );
-
-  Widget _mediaField(BuildContext context) {
-    final mediaDirectory = MediaPickerScope.maybeOf(context);
-    final mediaType = '${widgetConfig['type'] ?? ''}'.toLowerCase();
-    final allowsAudio = mediaType == 'audio' || mediaType == 'sound';
-    final allowsVideo = mediaType == 'video';
-    final allowsImages = mediaType == 'image' || mediaType == 'media';
-    if (mediaDirectory == null ||
-        !(allowsAudio || allowsVideo || allowsImages)) {
-      return const SizedBox.shrink();
-    }
-    return SizedBox(
-      width: 260,
-      child: TextFormField(
-        initialValue: '${widgetConfig['media'] ?? ''}',
-        decoration: InputDecoration(
-          labelText: 'media',
-          suffixIcon: IconButton(
-            tooltip: 'Select media',
-            icon: const Icon(Icons.folder_open_outlined),
-            onPressed: () async {
-              final selected = await showMediaPicker(
-                context,
-                rootDirectory: mediaDirectory,
-                allowAudio: allowsAudio,
-                allowImages: allowsImages,
-                allowVideo: allowsVideo,
-              );
-              if (selected != null) onChanged('media', selected);
-            },
-          ),
-        ),
-        onChanged: (value) => onChanged('media', value),
-      ),
-    );
-  }
-
-  Widget _field(
-    String key,
-    String value,
-    void Function(String key, dynamic value) onChanged, {
-    bool numeric = false,
-  }) => SizedBox(
-    width: key == 'text' ? 260 : 120,
-    child: TextFormField(
-      initialValue: value,
-      keyboardType: numeric ? TextInputType.number : TextInputType.text,
-      decoration: InputDecoration(labelText: key),
-      onChanged: (next) =>
-          onChanged(key, numeric ? num.tryParse(next) ?? 0 : next),
-    ),
+  Widget build(BuildContext context) => _CanonicalOverlayWidgetCard(
+    index: index,
+    widgetConfig: widgetConfig,
+    onChanged: onChanged,
+    onDelete: onDelete,
+    onMoveUp: onMoveUp,
+    onMoveDown: onMoveDown,
+    catalog: catalog,
   );
 }
 

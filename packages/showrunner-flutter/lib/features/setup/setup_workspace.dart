@@ -669,14 +669,22 @@ class _StepIndicator extends StatelessWidget {
           backgroundColor: index <= current
               ? Theme.of(context).colorScheme.primary
               : Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: Text('${index + 1}'),
+          foregroundColor: index <= current
+              ? Theme.of(context).colorScheme.onPrimary
+              : Theme.of(context).colorScheme.onSurface,
+          child: Text(
+            '${index + 1}',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
         if (index < 3)
           Expanded(
             child: Divider(
+              thickness: 2,
+              height: 2,
               color: index < current
                   ? Theme.of(context).colorScheme.primary
-                  : null,
+                  : Theme.of(context).colorScheme.outlineVariant,
             ),
           ),
       ],

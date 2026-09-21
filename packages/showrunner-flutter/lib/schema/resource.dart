@@ -66,23 +66,26 @@ class OverlayResource {
 
   factory OverlayResource.fromResource(ResourceData resource) {
     final config = resource.config;
-    final size = config['size'] is Map
-        ? Map<String, dynamic>.from(config['size'] as Map)
-        : const <String, dynamic>{};
-    final widgetsList =
-        (config['widgets'] as List<dynamic>?)?.whereType<JsonMap>().toList() ??
-        const [];
+    final rawSize = config['size'];
+    if (rawSize is! Map) {
+      throw const FormatException('Overlay config must contain a size object.');
+    }
+    final size = Map<String, dynamic>.from(rawSize);
+    final rawWidgets = config['widgets'];
+    if (rawWidgets is! List) {
+      throw const FormatException(
+        'Overlay config must contain a widgets list.',
+      );
+    }
+    final widgetsList = rawWidgets
+        .whereType<Map>()
+        .map((widget) => Map<String, dynamic>.from(widget))
+        .toList();
     return OverlayResource(
       id: resource.id,
       name: resource.name,
-      width:
-          (config['width'] as num?)?.toInt() ??
-          (size['width'] as num?)?.toInt() ??
-          1920,
-      height:
-          (config['height'] as num?)?.toInt() ??
-          (size['height'] as num?)?.toInt() ??
-          1080,
+      width: (size['width'] as num?)?.toInt() ?? 1920,
+      height: (size['height'] as num?)?.toInt() ?? 1080,
       widgets: widgetsList,
     );
   }

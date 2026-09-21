@@ -34,8 +34,7 @@ void main() {
         id: 'overlay-1',
         config: {
           'name': 'Test Overlay',
-          'width': 1280,
-          'height': 720,
+          'size': {'width': 1280, 'height': 720},
           'widgets': [],
         },
       ),

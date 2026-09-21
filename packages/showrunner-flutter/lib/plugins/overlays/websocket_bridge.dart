@@ -585,23 +585,18 @@ final class _OverlayPeer {
 JsonMap _remoteConfig(ResourceData resource) {
   final config = resource.config;
   final rawSize = config['size'];
-  final size = rawSize is Map
-      ? Map<String, dynamic>.from(rawSize)
-      : <String, dynamic>{};
-  final width =
-      (size['width'] as num?)?.toInt() ??
-      (config['width'] as num?)?.toInt() ??
-      1920;
-  final height =
-      (size['height'] as num?)?.toInt() ??
-      (config['height'] as num?)?.toInt() ??
-      1080;
-  final widgets = config['widgets'] is List
-      ? (config['widgets'] as List)
-            .whereType<Map>()
-            .map((widget) => _remoteWidget(Map<String, dynamic>.from(widget)))
-            .toList()
-      : <JsonMap>[];
+  if (rawSize is! Map || config['widgets'] is! List) {
+    throw const FormatException(
+      'Overlay config must contain size and widgets fields.',
+    );
+  }
+  final size = Map<String, dynamic>.from(rawSize);
+  final width = (size['width'] as num?)?.toInt() ?? 1920;
+  final height = (size['height'] as num?)?.toInt() ?? 1080;
+  final widgets = (config['widgets'] as List)
+      .whereType<Map>()
+      .map((widget) => _remoteWidget(Map<String, dynamic>.from(widget)))
+      .toList();
   return {
     'name': resource.name,
     'schemaVersion': 1,
