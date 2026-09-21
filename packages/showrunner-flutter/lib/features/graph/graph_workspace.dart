@@ -5797,7 +5797,7 @@ class _ControlNodeConfigDialogState extends State<_ControlNodeConfigDialog> {
   }
 }
 
-ActionSpec? _actionDefinition(
+DartActionContract? _actionDefinition(
   ShowRunnerGraphEditor editor,
   DartPluginRegistry registry,
   NodeDataModel node,
@@ -5813,7 +5813,7 @@ ActionSpec? _actionDefinition(
   return registry.findAction(parts.first, parts.last);
 }
 
-TriggerSpec? _triggerDefinition(
+DartTriggerContract? _triggerDefinition(
   ShowRunnerGraphEditor editor,
   DartPluginRegistry registry,
   NodeDataModel node,
@@ -5830,7 +5830,7 @@ TriggerSpec? _triggerDefinition(
 }
 
 DartDataInputSchema? _triggerConfigurationSchema(
-  TriggerSpec? definition,
+  DartTriggerContract? definition,
   JsonMap config,
 ) {
   final declared = definition?.configSchema;

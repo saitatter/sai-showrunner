@@ -1,8 +1,6 @@
 part of '../actions.dart';
 
-List<ActionSpec<dynamic, dynamic>> _twitchAdActions(
-  TwitchTransport transport,
-) => [
+List<DartActionContract> _twitchAdActions(TwitchTransport transport) => [
   ActionSpec<TwitchClipConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('createClip'),

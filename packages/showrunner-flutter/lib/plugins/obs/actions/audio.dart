@@ -1,6 +1,6 @@
 part of '../actions.dart';
 
-List<ActionSpec<dynamic, dynamic>> _obsAudioActions(ObsTransport transport) => [
+List<DartActionContract> _obsAudioActions(ObsTransport transport) => [
   ActionSpec<ObsMuteConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('mute'),

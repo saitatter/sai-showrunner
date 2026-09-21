@@ -29,10 +29,18 @@ void main() {
     final trigger = plugin.triggers.firstWhere(
       (item) => item.triggerId.value == 'chatMessage',
     );
-    final event = trigger.listen();
     final expectation = expectLater(
-      event,
-      emits(isA<YouTubeChatMessageEvent>()),
+      trigger.listenFromRuntime(),
+      emits({
+        'viewerId': 'viewer-1',
+        'viewerName': 'Ada',
+        'message': 'hello',
+        'messageId': 'message-1',
+        'avatarUrl': '',
+        'isModerator': false,
+        'isMember': true,
+        'isOwner': false,
+      }),
     );
     eventHub.emit('chatMessage', {
       'viewerId': 'viewer-1',

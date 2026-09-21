@@ -1,8 +1,6 @@
 part of '../actions.dart';
 
-List<ActionSpec<dynamic, dynamic>> _twitchStreamActions(
-  TwitchTransport transport,
-) => [
+List<DartActionContract> _twitchStreamActions(TwitchTransport transport) => [
   ActionSpec<TwitchStreamMarkerConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('streamMarker'),

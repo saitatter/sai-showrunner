@@ -47,10 +47,7 @@ void main() {
       }),
       isA<AdvssMessageConfig>(),
     );
-    expect(
-      trigger.configCodec?.decode({'message': 'hello'}),
-      isA<AdvssEventConfig>(),
-    );
+    expect(trigger.decodeConfig({'message': 'hello'}), isA<AdvssEventConfig>());
 
     expect(
       trigger.matchesRuntime(

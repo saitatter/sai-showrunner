@@ -1,8 +1,6 @@
 part of '../actions.dart';
 
-List<ActionSpec<dynamic, dynamic>> _twitchRewardActions(
-  TwitchTransport transport,
-) => [
+List<DartActionContract> _twitchRewardActions(TwitchTransport transport) => [
   ActionSpec<TwitchListChannelPointRewardsConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('listChannelPointRewards'),

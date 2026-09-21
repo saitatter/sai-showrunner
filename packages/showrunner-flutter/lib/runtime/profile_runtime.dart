@@ -411,7 +411,7 @@ final class DartProfileRuntime {
 
   Future<void> _dispatchTriggerTargets(
     String profileId,
-    TriggerSpec<dynamic, dynamic> definition,
+    DartTriggerContract definition,
     List<_ProfileTriggerTarget> targets,
     RuntimeMap payload, {
     EvaluationContext? context,

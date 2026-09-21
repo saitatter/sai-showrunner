@@ -1,8 +1,6 @@
 part of '../actions.dart';
 
-List<ActionSpec<dynamic, dynamic>> _obsSourceActions(
-  ObsTransport transport,
-) => [
+List<DartActionContract> _obsSourceActions(ObsTransport transport) => [
   ActionSpec<ObsSourceVisibilityConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('source'),

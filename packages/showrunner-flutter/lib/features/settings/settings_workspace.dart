@@ -404,7 +404,7 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
   Widget _buildPluginSetting(
     BuildContext context,
     DartPluginManifest plugin,
-    SettingSpec setting,
+    DartSettingContract setting,
   ) {
     final values = _pluginValues[plugin.id.value] ?? const <String, dynamic>{};
     final value = values[setting.id.value] ?? setting.defaultValue;

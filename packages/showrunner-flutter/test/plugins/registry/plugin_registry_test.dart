@@ -345,7 +345,7 @@ void main() {
     expect(registry.findPlugin('sample')?.settings.single.secret, isTrue);
     expect(await registry.checkHealth('sample'), isTrue);
     expect(await registry.checkHealth('missing'), isFalse);
-    expect(await trigger!.listen().first, {'value': 1});
+    expect(await trigger!.listenFromRuntime().first, {'value': 1});
   });
 
   test('closes registered plugin runtimes', () async {

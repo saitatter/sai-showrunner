@@ -1,8 +1,6 @@
 part of '../actions.dart';
 
-List<ActionSpec<dynamic, dynamic>> _obsRecordingActions(
-  ObsTransport transport,
-) => [
+List<DartActionContract> _obsRecordingActions(ObsTransport transport) => [
   ActionSpec<ObsToggleConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('recordingStartStop'),

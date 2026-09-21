@@ -17,7 +17,7 @@ void main() {
     expect(trigger.configSchema?.kind, DartDataInputKind.resource);
     expect(trigger.configSchema?.resourceType, 'SpellHook');
     expect(
-      trigger.configCodec?.decode({'spell': 'local-spell'}),
+      trigger.decodeConfig({'spell': 'local-spell'}),
       isA<SpellcastHookConfig>(),
     );
     expect(
@@ -44,10 +44,8 @@ void main() {
     final hub = DartPluginEventHub();
     final plugin = createSpellcastPlugin(eventHub: hub);
     final trigger = plugin.triggers.single;
-    final events = <SpellcastHookEvent>[];
-    final subscription = trigger.listen().listen(
-      (event) => events.add(event as SpellcastHookEvent),
-    );
+    final events = <RuntimeMap>[];
+    final subscription = trigger.listenFromRuntime().listen(events.add);
 
     hub.emit('spellcast', {
       'spellId': 'spell-1',
@@ -56,8 +54,8 @@ void main() {
     });
     await Future<void>.delayed(Duration.zero);
 
-    expect(events.single.spell.id, 'spell-1');
-    expect(events.single.payload, {
+    expect(events.single['spellId'], 'spell-1');
+    expect(events.single, {
       'spellId': 'spell-1',
       'viewer': 'viewer-1',
       'bits': 50,
@@ -80,10 +78,9 @@ void main() {
         }, EvaluationContext()),
         {'cast': true, 'spellId': 'spell-1'},
       );
-      expect(
-        plugin.actions.single.decodeConfig({'spell': 'spell-1'}).spell?.id,
-        'spell-1',
-      );
+      final decoded = plugin.actions.single.decodeConfig({'spell': 'spell-1'});
+      expect(decoded, isA<SpellcastCastConfig>());
+      expect((decoded as SpellcastCastConfig).spell?.id, 'spell-1');
       await Future<void>.delayed(Duration.zero);
       expect(events, [
         {'spellId': 'spell-1'},

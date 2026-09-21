@@ -573,7 +573,7 @@ DartPluginManifest createTwitchPlugin(
   );
 }
 
-TriggerSpec<dynamic, dynamic> _twitchTrigger(
+DartTriggerContract _twitchTrigger(
   String eventId,
   DartPluginEventHub? eventHub,
 ) {
@@ -797,10 +797,8 @@ RuntimeMap _encodeTwitchEvent(Object? event) => switch (event) {
   _ => throw StateError('Unsupported Twitch event type: ${event.runtimeType}'),
 };
 
-ActionSpec<dynamic, dynamic> _twitchAction(
-  List<ActionSpec<dynamic, dynamic>> actions,
-  String id,
-) => actions.firstWhere((action) => action.actionId.value == id);
+DartActionContract _twitchAction(List<DartActionContract> actions, String id) =>
+    actions.firstWhere((action) => action.actionId.value == id);
 
 Stream<T> _twitchEventStream<T>(
   DartPluginEventHub? eventHub,

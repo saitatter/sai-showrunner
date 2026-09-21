@@ -3,7 +3,6 @@ import 'package:showrunner_flutter/plugins/http/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/contracts.dart';
 import 'package:showrunner_flutter/plugins/random/manifest.dart';
-import 'package:showrunner_flutter/plugins/random/contracts.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/plugins/time/manifest.dart';
@@ -117,7 +116,6 @@ void main() {
       });
 
       final trigger = registry.findTrigger('random', 'wheelLanded')!;
-      final incoming = trigger.listen().first;
       final projected = trigger.listenFromRuntime().first;
       eventHub.emit(OverlayEventIds.widgetRpc, {
         'overlayId': 'main',
@@ -125,10 +123,6 @@ void main() {
         'rpcId': 'wheelLanded',
         'args': ['Prize'],
       });
-      final typedEvent = await incoming;
-      expect(typedEvent, isA<RandomWheelLandedEvent>());
-      expect(typedEvent.wheel.overlayId, 'main');
-      expect(typedEvent.item, 'Prize');
       expect(await projected, {
         'wheel': {'overlayId': 'main', 'widgetId': 'wheel'},
         'item': 'Prize',

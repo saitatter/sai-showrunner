@@ -1,8 +1,6 @@
 part of '../actions.dart';
 
-List<ActionSpec<dynamic, dynamic>> _obsStreamingActions(
-  ObsTransport transport,
-) => [
+List<DartActionContract> _obsStreamingActions(ObsTransport transport) => [
   ActionSpec<ObsHotkeyConfig, RuntimeMap>(
     pluginId: PluginId('obs'),
     actionId: ActionId('hotkey'),

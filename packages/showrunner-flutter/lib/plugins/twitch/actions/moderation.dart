@@ -1,6 +1,6 @@
 part of '../actions.dart';
 
-List<ActionSpec<dynamic, dynamic>> _twitchModerationActions(
+List<DartActionContract> _twitchModerationActions(
   TwitchTransport transport,
   ResourceRepository? viewerGroupRepository,
 ) => [

@@ -51,7 +51,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
   String _detailsFilter = '';
 
   final _fields = <String, List<String>>{};
-  final _definitions = <String, SettingSpec>{};
+  final _definitions = <String, DartSettingContract>{};
 
   @override
   void initState() {
@@ -841,7 +841,7 @@ String _schemaTypeName(DartDataInputSchema schema) {
 
 String _encodeSettingValue(Object? value) => value?.toString() ?? '';
 
-dynamic _decodeSettingValue(SettingSpec definition, String rawValue) {
+dynamic _decodeSettingValue(DartSettingContract definition, String rawValue) {
   if (definition.valueType == DartSettingType.boolean) {
     return _decodeBoolean(rawValue) ?? definition.defaultValue ?? false;
   }

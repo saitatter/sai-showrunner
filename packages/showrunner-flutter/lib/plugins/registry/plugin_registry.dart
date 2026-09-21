@@ -12,8 +12,8 @@ export 'plugin_contract.dart';
 
 final class DartPluginRegistry extends ChangeNotifier {
   final Map<PluginId, DartPluginModule> _modules = {};
-  final Map<ActionKey, ActionSpec<dynamic, dynamic>> _actions = {};
-  final Map<TriggerKey, TriggerSpec<dynamic, dynamic>> _triggers = {};
+  final Map<ActionKey, DartActionContract> _actions = {};
+  final Map<TriggerKey, DartTriggerContract> _triggers = {};
   final Map<PluginId, DartPluginUiContribution> _uiContributions = {};
   final Set<PluginId> _disabledPluginIds = {};
   final Map<PluginId, Map<StateId, dynamic>> _stateValues = {};
@@ -101,7 +101,7 @@ final class DartPluginRegistry extends ChangeNotifier {
 
   Iterable<DartPluginModule> get modules => _modules.values;
 
-  ActionSpec<dynamic, dynamic>? findAction(String pluginId, String actionId) =>
+  DartActionContract? findAction(String pluginId, String actionId) =>
       _actions[ActionKey(
         plugin: PluginId(pluginId),
         action: ActionId(actionId),
@@ -172,10 +172,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     if (wasEnabled != enabled) notifyListeners();
   }
 
-  TriggerSpec<dynamic, dynamic>? findTrigger(
-    String pluginId,
-    String triggerId,
-  ) {
+  DartTriggerContract? findTrigger(String pluginId, String triggerId) {
     return _triggers[TriggerKey(
       plugin: PluginId(pluginId),
       trigger: TriggerId(triggerId),

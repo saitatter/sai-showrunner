@@ -455,10 +455,8 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
   );
 }
 
-ActionSpec<dynamic, dynamic> _obsAction(
-  List<ActionSpec<dynamic, dynamic>> actions,
-  String id,
-) => actions.firstWhere((action) => action.actionId.value == id);
+DartActionContract _obsAction(List<DartActionContract> actions, String id) =>
+    actions.firstWhere((action) => action.actionId.value == id);
 
 String _mediaAction(ObsMediaAction action) => switch (action) {
   ObsMediaAction.play => 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY',

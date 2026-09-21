@@ -1,6 +1,6 @@
 part of '../actions.dart';
 
-List<ActionSpec<dynamic, dynamic>> _obsSceneActions(
+List<DartActionContract> _obsSceneActions(
   ObsTransport transport,
   List<String> previousScenes,
 ) => [

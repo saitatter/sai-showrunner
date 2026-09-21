@@ -857,13 +857,13 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
   String? _graphTriggerNodeId;
   String? _error;
 
-  List<TriggerSpec> get _availableTriggers => [
+  List<DartTriggerContract> get _availableTriggers => [
     for (final plugin
         in widget.registry?.plugins ?? const <DartPluginManifest>[])
       ...plugin.triggers,
   ];
 
-  TriggerSpec? get _selectedTrigger => _availableTriggers
+  DartTriggerContract? get _selectedTrigger => _availableTriggers
       .where(
         (trigger) =>
             '${trigger.pluginId}:${trigger.triggerId}' == _selectedTriggerId,
@@ -959,7 +959,10 @@ class _TriggerEditDialogState extends State<_TriggerEditDialog> {
     Navigator.of(context).pop(result);
   }
 
-  JsonMap _saveAutomation(JsonMap config, TriggerSpec? selectedTrigger) {
+  JsonMap _saveAutomation(
+    JsonMap config,
+    DartTriggerContract? selectedTrigger,
+  ) {
     final automation = _automationEditor.toAutomation(_originalAutomation);
     final json = automation.toJson();
     final nodeId = _graphTriggerNodeId;

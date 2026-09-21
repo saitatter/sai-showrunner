@@ -1,8 +1,6 @@
 part of '../actions.dart';
 
-List<ActionSpec<dynamic, dynamic>> _twitchChatActions(
-  TwitchTransport transport,
-) => [
+List<DartActionContract> _twitchChatActions(TwitchTransport transport) => [
   ActionSpec<TwitchChatConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('chat'),
