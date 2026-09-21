@@ -103,8 +103,31 @@ function checkPathSegments(directory) {
     if (entry.isDirectory()) checkPathSegments(path);
   }
 }
+const forbiddenFileExtensions = new Set(
+  (manifest.discovery.forbiddenFlutterFileExtensions ?? []).map((extension) =>
+    extension.toLowerCase().replace(/^\./, ''),
+  ),
+);
+function checkForbiddenFileExtensions(directory) {
+  if (!existsSync(directory)) return;
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      checkForbiddenFileExtensions(path);
+      continue;
+    }
+    const extension = entry.name.includes('.')
+      ? entry.name.slice(entry.name.lastIndexOf('.') + 1).toLowerCase()
+      : '';
+    if (forbiddenFileExtensions.has(extension)) {
+      errors.push(`forbidden Flutter source file found: ${path}`);
+    }
+  }
+}
 for (const directory of ['lib', 'test', 'integration_test', 'tool', 'windows']) {
-  checkPathSegments(join(packageRoot, directory));
+  const directoryPath = join(packageRoot, directory);
+  checkPathSegments(directoryPath);
+  checkForbiddenFileExtensions(directoryPath);
 }
 
 if (errors.length > 0) {

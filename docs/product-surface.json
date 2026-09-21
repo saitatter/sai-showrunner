@@ -183,6 +183,11 @@
       "migration",
       "shim",
       "compat"
+    ],
+    "forbiddenFlutterFileExtensions": [
+      "vue",
+      "ts",
+      "tsx"
     ]
   }
 }
