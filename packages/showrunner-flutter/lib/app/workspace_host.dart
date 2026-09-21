@@ -162,6 +162,15 @@ final class WorkspaceRegistry {
       return OverlayEditorPage(
         resource: resource,
         onSave: host.onSaveOverlay!,
+        templateSuggestions: [
+          for (final definition
+              in host.variableRuntime?.definitions ??
+                  const <DartVariableDefinition>[]) ...[
+            definition.id,
+            if (definition.name?.trim().isNotEmpty == true)
+              definition.name!.trim(),
+          ],
+        ],
         onDirtyChanged: (dirty) =>
             host.onOverlayDirtyChanged?.call(resource.id, dirty),
       );

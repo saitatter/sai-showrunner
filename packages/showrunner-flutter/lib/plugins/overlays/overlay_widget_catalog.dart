@@ -124,6 +124,7 @@ DartDataInputSchema _schemaFor(String key, Object? raw) {
     required: metadata['required'] == true,
     secret: metadata['secret'] == true,
     multiline: metadata['multiLine'] == true || metadata['multiline'] == true,
+    template: metadata['template'] == true,
     defaultValue: defaultValue,
     resourceType: metadata['resourceType'] == null
         ? null

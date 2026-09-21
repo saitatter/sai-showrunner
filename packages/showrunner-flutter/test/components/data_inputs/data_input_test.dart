@@ -228,4 +228,34 @@ void main() {
     await tester.tap(find.byIcon(Icons.format_align_center));
     expect((value as Map)['textAlign'], {'textAlign': 'center'});
   });
+
+  testWidgets('inserts a template variable from the editor picker', (
+    tester,
+  ) async {
+    dynamic value;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DartDataInput(
+            schema: const DartDataInputSchema(
+              label: 'Text',
+              kind: DartDataInputKind.multilineText,
+              template: true,
+            ),
+            value: 'Hello ',
+            templateSuggestions: const ['viewerName', 'message'],
+            onChanged: (next) => value = next,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Insert variable'));
+    await tester.pumpAndSettle();
+    expect(find.text('Insert variable'), findsOneWidget);
+    await tester.tap(find.text('viewerName').last);
+    await tester.pumpAndSettle();
+
+    expect(value, 'Hello {{ viewerName }}');
+  });
 }

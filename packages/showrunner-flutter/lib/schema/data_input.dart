@@ -30,6 +30,7 @@ final class DartDataInputSchema {
     this.required = false,
     this.secret = false,
     this.multiline = false,
+    this.template = false,
     this.defaultValue,
     this.resourceType,
     this.fields = const <DartDataInputSchema>[],
@@ -49,6 +50,12 @@ final class DartDataInputSchema {
   final bool required;
   final bool secret;
   final bool multiline;
+
+  /// Allows the editor to insert runtime values using `{{ value }}` syntax.
+  ///
+  /// This is metadata only. The Flutter editor decides how to present the
+  /// insertion affordance, while plugin manifests remain platform-neutral.
+  final bool template;
 
   /// A schema default is metadata, not an untyped runtime callback value.
   ///

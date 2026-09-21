@@ -701,6 +701,56 @@ void main() {
     expect(find.text('Chat Feed'), findsAtLeastNWidgets(1));
     expect(find.text('Font Family'), findsOneWidget);
     expect(find.text('X'), findsOneWidget);
+    expect(find.text('Transform'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('overlay-resize-0-bottomRight')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('overlay canvas resizes the selected widget directly', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-resize',
+        config: {
+          'name': 'Resize overlay',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [
+            {
+              'id': 'label-1',
+              'plugin': 'overlays',
+              'widget': 'label',
+              'name': 'Label',
+              'position': {'x': 24, 'y': 24},
+              'size': {'width': 300, 'height': 200},
+              'config': {'message': 'Hello'},
+              'visible': true,
+              'locked': false,
+            },
+          ],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    await tester.drag(
+      find.byKey(const ValueKey('overlay-resize-0-bottomRight')),
+      const Offset(30, 20),
+    );
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final widget = (saved!.config['widgets'] as List).single as Map;
+    expect(widget['size'], isNot({'width': 300, 'height': 200}));
+    expect((widget['size'] as Map)['width'], greaterThan(300));
+    expect((widget['size'] as Map)['height'], greaterThan(200));
   });
 
   testWidgets('overlay editor preserves canonical widget resources', (

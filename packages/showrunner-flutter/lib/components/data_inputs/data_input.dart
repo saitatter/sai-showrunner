@@ -20,11 +20,13 @@ class DartDataInput extends StatefulWidget {
     required this.schema,
     required this.value,
     required this.onChanged,
+    this.templateSuggestions = const <String>[],
   });
 
   final DartDataInputSchema schema;
   final dynamic value;
   final ValueChanged<dynamic> onChanged;
+  final List<String> templateSuggestions;
 
   @override
   State<DartDataInput> createState() => _DartDataInputState();
@@ -51,6 +53,18 @@ class _DartDataInputState extends State<DartDataInput> {
       return OverlayStyleInput(
         schema: widget.schema,
         value: widget.value,
+        onChanged: widget.onChanged,
+      );
+    }
+
+    if (widget.schema.template &&
+        (widget.schema.kind == DartDataInputKind.text ||
+            widget.schema.kind == DartDataInputKind.multilineText ||
+            widget.schema.kind == DartDataInputKind.number)) {
+      return _TemplateDataInput(
+        schema: widget.schema,
+        value: widget.value,
+        suggestions: widget.templateSuggestions,
         onChanged: widget.onChanged,
       );
     }
@@ -111,11 +125,13 @@ class _DartDataInputState extends State<DartDataInput> {
       DartDataInputKind.array => _ArrayInput(
         schema: widget.schema,
         value: widget.value,
+        templateSuggestions: widget.templateSuggestions,
         onChanged: widget.onChanged,
       ),
       DartDataInputKind.object => _ObjectInput(
         schema: widget.schema,
         value: widget.value,
+        templateSuggestions: widget.templateSuggestions,
         onChanged: widget.onChanged,
       ),
       DartDataInputKind.resource =>
@@ -177,11 +193,13 @@ class _ObjectInput extends StatelessWidget {
   const _ObjectInput({
     required this.schema,
     required this.value,
+    required this.templateSuggestions,
     required this.onChanged,
   });
 
   final DartDataInputSchema schema;
   final dynamic value;
+  final List<String> templateSuggestions;
   final ValueChanged<dynamic> onChanged;
 
   @override
@@ -207,6 +225,7 @@ class _ObjectInput extends StatelessWidget {
             child: DartDataInput(
               schema: field,
               value: values[field.key ?? field.label],
+              templateSuggestions: templateSuggestions,
               onChanged: (next) =>
                   onChanged({...values, field.key ?? field.label: next}),
             ),
@@ -265,11 +284,13 @@ class _ArrayInput extends StatelessWidget {
   const _ArrayInput({
     required this.schema,
     required this.value,
+    required this.templateSuggestions,
     required this.onChanged,
   });
 
   final DartDataInputSchema schema;
   final dynamic value;
+  final List<String> templateSuggestions;
   final ValueChanged<dynamic> onChanged;
 
   @override
@@ -326,6 +347,7 @@ class _ArrayInput extends StatelessWidget {
                         key: ValueKey('${schema.label}-$index'),
                         schema: schema.itemSchema!,
                         value: items[index],
+                        templateSuggestions: templateSuggestions,
                         onChanged: (next) {
                           final updated = [...items];
                           updated[index] = next;
@@ -351,6 +373,173 @@ class _ArrayInput extends StatelessWidget {
               ),
             ],
           ),
+      ],
+    );
+  }
+}
+
+class _TemplateDataInput extends StatefulWidget {
+  const _TemplateDataInput({
+    required this.schema,
+    required this.value,
+    required this.suggestions,
+    required this.onChanged,
+  });
+
+  final DartDataInputSchema schema;
+  final dynamic value;
+  final List<String> suggestions;
+  final ValueChanged<dynamic> onChanged;
+
+  @override
+  State<_TemplateDataInput> createState() => _TemplateDataInputState();
+}
+
+class _TemplateDataInputState extends State<_TemplateDataInput> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _displayValue(widget.value));
+  }
+
+  @override
+  void didUpdateWidget(covariant _TemplateDataInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = _displayValue(widget.value);
+    if (next != _controller.text) {
+      _controller.text = next;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: _controller,
+    maxLines:
+        widget.schema.multiline ||
+            widget.schema.kind == DartDataInputKind.multilineText
+        ? 4
+        : 1,
+    decoration: InputDecoration(
+      labelText: widget.schema.label,
+      alignLabelWithHint:
+          widget.schema.multiline ||
+          widget.schema.kind == DartDataInputKind.multilineText,
+      suffixIcon: IconButton(
+        tooltip: 'Insert variable',
+        onPressed: _showSuggestions,
+        icon: const Icon(Icons.data_object),
+      ),
+    ),
+    onChanged: (text) => widget.onChanged(_valueFor(text)),
+  );
+
+  dynamic _valueFor(String text) {
+    if (widget.schema.kind == DartDataInputKind.number &&
+        !text.contains('{{')) {
+      return num.tryParse(text.trim()) ?? 0;
+    }
+    return text;
+  }
+
+  Future<void> _showSuggestions() async {
+    final suggestion = await showDialog<String>(
+      context: context,
+      builder: (context) =>
+          _TemplateSuggestionDialog(suggestions: widget.suggestions),
+    );
+    if (!mounted || suggestion == null) return;
+    final selection = _controller.selection;
+    final start = selection.isValid ? selection.start : _controller.text.length;
+    final end = selection.isValid ? selection.end : start;
+    final insertion = '{{ $suggestion }}';
+    final value = _controller.text.replaceRange(start, end, insertion);
+    _controller.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: start + insertion.length),
+    );
+    widget.onChanged(_valueFor(value));
+  }
+}
+
+class _TemplateSuggestionDialog extends StatefulWidget {
+  const _TemplateSuggestionDialog({required this.suggestions});
+
+  final List<String> suggestions;
+
+  @override
+  State<_TemplateSuggestionDialog> createState() =>
+      _TemplateSuggestionDialogState();
+}
+
+class _TemplateSuggestionDialogState extends State<_TemplateSuggestionDialog> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _search.text.trim().toLowerCase();
+    final suggestions = widget.suggestions
+        .where((value) => value.toLowerCase().contains(query))
+        .toList(growable: false);
+    return AlertDialog(
+      title: const Text('Insert variable'),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _search,
+              autofocus: true,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Search variables and state',
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child: suggestions.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('No matching variables.'),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: suggestions.length,
+                      itemBuilder: (context, index) {
+                        final value = suggestions[index];
+                        return ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.data_object),
+                          title: Text(value),
+                          subtitle: Text('{{ $value }}'),
+                          onTap: () => Navigator.pop(context, value),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
       ],
     );
   }

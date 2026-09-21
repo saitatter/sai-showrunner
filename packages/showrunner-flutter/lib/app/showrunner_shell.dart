@@ -545,7 +545,20 @@ class _WorkspaceTab extends StatelessWidget {
               children: [
                 Icon(descriptor.icon, size: 17),
                 const SizedBox(width: 8),
-                Text('${descriptor.title}${dirty ? ' •' : ''}'),
+                Text(descriptor.title),
+                if (dirty) ...[
+                  const SizedBox(width: 7),
+                  Semantics(
+                    label: 'Unsaved changes',
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const SizedBox(width: 8, height: 8),
+                    ),
+                  ),
+                ],
                 if (canClose)
                   SrIconButton(
                     tooltip: 'Close ${descriptor.title} tab',
