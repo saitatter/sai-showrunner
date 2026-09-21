@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const manifestPath = join(root, 'docs', 'migration', 'product-surface.json');
+const manifestPath = join(root, 'docs', 'product-surface.json');
 const packageRoot = join(root, 'packages', 'showrunner-flutter');
 const featureRoot = join(packageRoot, 'lib', 'features');
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));

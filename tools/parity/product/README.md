@@ -2,7 +2,7 @@
 
 `docs/product-parity.md` is the human-readable inventory for product surfaces
 that are broader than plugin contract extraction. The machine-readable source
-is `docs/migration/product-surface.json`.
+is `docs/product-surface.json`.
 
 This directory is reserved for deterministic checks that can validate the
 inventory without coupling the Flutter package to the TypeScript renderer.

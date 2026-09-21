@@ -6,7 +6,7 @@ This inventory compares the Flutter replacement candidate with the frozen
 The generated contract report is `docs/parity.json`, based on
 `parity-reference/main-2026-09-05`. It currently reports 25 `improved` and 7
 `equivalent` plugin entries, with no missing contract IDs.
-The broader product-surface manifest is `docs/migration/product-surface.json`
+The broader product-surface manifest is `docs/product-surface.json`
 and is checked by `corepack yarn parity:product`.
 
 Status values:

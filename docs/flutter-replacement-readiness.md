@@ -62,7 +62,7 @@ single strict V2 persistence contract. The schema integration test verifies
 that this failure is isolated and that canonical V2 data remains intact after
 a fresh repository reopen.
 
-The updater remains `partial` in `docs/migration/product-surface.json` until a
+The updater remains `partial` in `docs/product-surface.json` until a
 signed installed Windows upgrade and rollback are demonstrated. The updater
 now keeps a versioned rollback backup in the user data directory, removes
 stale files during replacement, restores automatically if installation or
