@@ -60,14 +60,15 @@ final class ProjectPanelController extends ChangeNotifier {
   ProjectPanelController({
     required ShowRunnerProjectCatalogService? catalogService,
     required this.catalogRevision,
-    required bool expandIntegrationCategories,
   }) : _catalogService = catalogService,
        _expanded = {
          'automations': false,
          'profiles': false,
          'stream-plans': false,
          'overlays': false,
-         'integrations': expandIntegrationCategories,
+         // Keep the top-level catalog closed on a clean start. The preference
+         // with a similar name belongs to the category rows inside it.
+         'integrations': false,
          'audio': false,
          'dashboards': false,
          'tools': false,

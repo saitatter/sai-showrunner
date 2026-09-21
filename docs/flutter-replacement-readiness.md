@@ -59,6 +59,16 @@ stale files during replacement, restores automatically if installation or
 restart fails, and exposes an explicit rollback operation. The remaining
 gap is release-environment proof with a signed installed build.
 
+## Current visual evidence
+
+The frozen `main` empty-app capture and the Flutter empty/loaded-graph captures
+are checked in under `test/reference/`. They use the same 1440x900 capture
+size. The current empty-app comparison is intentionally still red: the
+reference includes the legacy dashboard surface while Flutter includes the
+replacement shell's provider status cards and persistent create controls.
+The latest comparison measured 71.17% differing pixels, so the visual catalog
+is evidence and a work queue, not a claim of pixel parity.
+
 ## Required checks
 
 ```powershell

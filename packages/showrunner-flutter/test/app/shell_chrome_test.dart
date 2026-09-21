@@ -29,7 +29,10 @@ void main() {
   ) async {
     final preferences = FlutterInterfacePreferences(
       dataService: ShowRunnerDataService(Directory.systemTemp),
-      initialValues: {'hideNativeIntegrationShortcuts': false},
+      initialValues: {
+        'hideNativeIntegrationShortcuts': false,
+        'collapseIntegrationCategoriesByDefault': false,
+      },
     );
     addTearDown(preferences.dispose);
     WorkspaceId? selectedWorkspace;
@@ -76,6 +79,9 @@ void main() {
     expect(find.text('Stream Plans'), findsOneWidget);
     expect(find.text('Variables'), findsOneWidget);
     expect(find.text('Viewer Variables'), findsNothing);
+
+    await tester.tap(find.text('Integrations'));
+    await tester.pumpAndSettle();
     expect(find.text('OBS'), findsNWidgets(2));
     expect(find.text('Connections'), findsOneWidget);
     expect(find.text('Twitch'), findsNWidgets(2));
@@ -117,6 +123,7 @@ void main() {
   ) async {
     final preferences = FlutterInterfacePreferences(
       dataService: ShowRunnerDataService(Directory.systemTemp),
+      initialValues: {'collapseIntegrationCategoriesByDefault': false},
     );
     addTearDown(preferences.dispose);
     final registry = DartPluginRegistry()
@@ -142,6 +149,8 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Integrations'));
     await tester.pumpAndSettle();
 
     expect(find.text('OBS'), findsOneWidget);

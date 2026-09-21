@@ -36,7 +36,7 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
     'compactProjectSidebar': false,
     'hideDisabledIntegrations': false,
     'hideNativeIntegrationShortcuts': true,
-    'collapseIntegrationCategoriesByDefault': false,
+    'collapseIntegrationCategoriesByDefault': true,
     'showPluginSwitches': true,
   };
 

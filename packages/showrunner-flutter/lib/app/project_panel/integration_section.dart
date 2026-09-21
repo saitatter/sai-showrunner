@@ -94,6 +94,23 @@ class _IntegrationSectionState extends State<IntegrationSection> {
     },
   );
 
+  void _updateSearch(String value, DartPluginRegistry registry) {
+    final query = value.trim();
+    setState(() {
+      _query = value;
+      if (query.isEmpty) return;
+
+      for (final group in _integrationGroups) {
+        final hasMatch = registry.plugins.any(
+          (plugin) =>
+              group.pluginIds.contains(plugin.id.value) &&
+              pluginMatchesSearch(plugin, query),
+        );
+        if (hasMatch) _expanded[group.title] = true;
+      }
+    });
+  }
+
   Widget _buildContent(BuildContext context, DartPluginRegistry registry) {
     final plugins = registry.plugins.where((plugin) {
       if (widget.preferences.hideDisabledIntegrations &&
@@ -121,7 +138,7 @@ class _IntegrationSectionState extends State<IntegrationSection> {
           padding: const EdgeInsets.fromLTRB(22, 4, 8, 6),
           child: TextField(
             controller: _searchController,
-            onChanged: (value) => setState(() => _query = value),
+            onChanged: (value) => _updateSearch(value, registry),
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Search integrations',

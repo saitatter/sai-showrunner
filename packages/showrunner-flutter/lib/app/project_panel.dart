@@ -64,8 +64,6 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
     _controller = ProjectPanelController(
       catalogService: widget.catalogService,
       catalogRevision: widget.catalogRevision,
-      expandIntegrationCategories:
-          !widget.preferences.collapseIntegrationCategoriesByDefault,
     );
   }
 
