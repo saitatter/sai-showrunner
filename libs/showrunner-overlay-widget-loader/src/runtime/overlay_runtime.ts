@@ -18,12 +18,8 @@ import { StateStore } from "../state/state_store"
 import { ViewerDataStore } from "../viewer_data/viewer_data_store"
 import { WidgetRegistry } from "../registry/widget_registry"
 import { createWidgetBridge } from "../bridge/widget_bridge"
+import { WidgetCommandRegistry, WidgetEventRegistry } from "../bridge/widget_dispatcher"
 import { PendingRPCRegistry } from "../transport/pending_rpc"
-
-interface EventHandler {
-	widgetId: string
-	handler: (event: unknown) => void
-}
 
 interface WidgetInstance {
 	config: OverlayWidgetConfig
@@ -47,8 +43,8 @@ export interface OverlayRuntimeOptions {
 export class OverlayRuntime {
 	private static readonly supportedSchemaVersion = 1
 	private readonly instances = new Map<string, WidgetInstance>()
-	private readonly eventHandlers = new Map<string, Set<EventHandler>>()
-	private readonly commandHandlers = new Map<string, (args: unknown) => unknown | Promise<unknown>>()
+	private readonly events = new WidgetEventRegistry()
+	private readonly commands = new WidgetCommandRegistry()
 	private readonly playingAudio = new Map<string, HTMLAudioElement>()
 	private readonly stateStore: StateStore
 	private readonly viewerData: ViewerDataStore
@@ -165,7 +161,7 @@ export class OverlayRuntime {
 				this.emitMessage(String(args[0]), args[1])
 				return undefined
 			case "overlays_widgetRPC":
-				return this.commandHandlers.get(`${String(args[0])}.${String(args[1])}`)?.(args.slice(2))
+				return this.commands.invoke(`${String(args[0])}.${String(args[1])}`, args.slice(2))
 			case "overlays_broadcast":
 				this.emitMessage(String(args[0]), args.length === 2 ? args[1] : args.slice(1))
 				return undefined
@@ -263,23 +259,10 @@ export class OverlayRuntime {
 				stateStore: this.stateStore,
 				viewerData: this.viewerData,
 				getConfig: () => this.instances.get(config.id)?.config ?? config,
-				onEvent: (type, widgetId, handler, instanceScope) => {
-					let handlers = this.eventHandlers.get(type)
-					if (!handlers) {
-						handlers = new Set()
-						this.eventHandlers.set(type, handlers)
-					}
-					const entry = { widgetId, handler }
-					handlers.add(entry)
-					return instanceScope.add(() => {
-						handlers?.delete(entry)
-						if (handlers?.size === 0) this.eventHandlers.delete(type)
-					})
-				},
-				exposeCommand: (key, handler, instanceScope) => {
-					this.commandHandlers.set(key, handler)
-					return instanceScope.add(() => this.commandHandlers.delete(key))
-				},
+				onEvent: (type, widgetId, handler, instanceScope) =>
+					this.events.register(type, widgetId, handler, instanceScope),
+				exposeCommand: (key, handler, instanceScope) =>
+					this.commands.register(key, handler, instanceScope),
 				callBackend: (name, ...args) => this.callBackend(name, ...args),
 			},
 			config,
@@ -332,18 +315,7 @@ export class OverlayRuntime {
 	}
 
 	private emitMessage(id: string, payload: unknown): void {
-		const target =
-			payload && typeof payload === "object" && !Array.isArray(payload)
-				? (payload as Record<string, unknown>).targetWidgetId?.toString()
-				: undefined
-		for (const entry of this.eventHandlers.get(id) ?? []) {
-			if (target && target !== entry.widgetId) continue
-			try {
-				entry.handler(payload)
-			} catch (error) {
-				console.error(`Overlay event handler failed: ${id}`, error)
-			}
-		}
+		this.events.emit(id, payload)
 	}
 
 	private callBackend<T = unknown>(name: string, ...args: unknown[]): Promise<T> {
