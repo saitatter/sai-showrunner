@@ -257,15 +257,16 @@ async function main() {
 		await waitFor(cdp.send, `Boolean(document.querySelector('.updates-page'))`, "updates")
 		await capture(cdp.send, "updater.png")
 
+		await clickText(cdp.send, "Integrations")
+		await waitFor(cdp.send, `document.body.innerText.includes('Integrations')`, "integrations")
+		await capture(cdp.send, "integrations.png")
+
 		await clickText(cdp.send, "File")
 		await hoverText(cdp.send, "New Automation From Starter")
 		await clickText(cdp.send, "Paid Event -> Add to Alerts Queue")
 		await waitFor(cdp.send, `Boolean(document.querySelector('.node-automation'))`, "automation editor")
 		await capture(cdp.send, "automation-editor-complex.png")
 
-		await clickText(cdp.send, "Integrations")
-		await waitFor(cdp.send, `document.body.innerText.includes('Integrations')`, "integrations")
-		await capture(cdp.send, "integrations.png")
 		await clickText(cdp.send, "Production & Overlays")
 		if (await evaluate(cdp.send, `document.body.innerText.includes('OBS')`)) {
 			await clickText(cdp.send, "OBS")

@@ -46,6 +46,11 @@ variables.png
 viewer-variables.png
 ```
 
+The `integrations.png` reference is the Updates workspace with the
+Integrations navigation group expanded. It is paired with the equivalent
+Flutter capture; the graph editor is compared separately as
+`automation-editor-complex.png`.
+
 The Flutter catalog additionally captures `diagnostics.png`, `logs.png`, and
 `about.png`; the frozen Electron build used for this comparison does not expose
 a `Tools` group, so those three reference screens are not available from it.
