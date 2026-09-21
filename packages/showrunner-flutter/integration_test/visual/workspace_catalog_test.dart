@@ -68,6 +68,12 @@ void main() {
     expect(find.text('Twitch').last, findsOneWidget);
     await _capture(tester, 'twitch-workspace.png');
 
+    await _scrollProjectPanelTo(tester, 'YouTube');
+    await tester.tap(find.text('YouTube').last);
+    await _pumpApplication(tester);
+    expect(find.text('YouTube').last, findsOneWidget);
+    await _capture(tester, 'youtube-workspace.png');
+
     for (final entry in const [
       ('Queues', 'queues.png'),
       ('Variables', 'variables.png'),

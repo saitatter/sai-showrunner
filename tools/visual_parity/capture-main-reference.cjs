@@ -263,6 +263,9 @@ async function main() {
 		await clickText(cdp.send, "Twitch")
 		await waitFor(cdp.send, `document.body.innerText.includes('Twitch')`, "Twitch workspace")
 		await capture(cdp.send, "twitch-workspace.png")
+		await clickText(cdp.send, "YouTube")
+		await waitFor(cdp.send, `document.body.innerText.includes('YouTube')`, "YouTube workspace")
+		await capture(cdp.send, "youtube-workspace.png")
 
 		await clickText(cdp.send, "File")
 		await hoverText(cdp.send, "New Automation From Starter")

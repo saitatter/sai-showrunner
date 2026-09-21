@@ -27,6 +27,11 @@
       "actual": "test/reference/flutter/twitch-workspace.png"
     },
     {
+      "id": "youtube-workspace",
+      "reference": "test/reference/main/youtube-workspace.png",
+      "actual": "test/reference/flutter/youtube-workspace.png"
+    },
+    {
       "id": "queues",
       "reference": "test/reference/main/queues.png",
       "actual": "test/reference/flutter/queues.png"
