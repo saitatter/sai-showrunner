@@ -1,0 +1,82 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:showrunner_flutter/services/showrunner_data_service.dart';
+
+import '../support/showrunner_test_app.dart';
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('captures the parity workspace catalog', (tester) async {
+    final directory = await createShowRunnerFixtureDirectory();
+    addTearDown(() => directory.delete(recursive: true));
+    final view = tester.view;
+    view.physicalSize = const ui.Size(1440, 900);
+    view.devicePixelRatio = 1;
+    addTearDown(view.reset);
+
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: const ValueKey('showrunner-visual-catalog'),
+        child: buildShowRunnerTestApp(
+          dataService: ShowRunnerDataService(directory),
+          showGraphEditor: false,
+        ),
+      ),
+    );
+    await _pumpApplication(tester);
+
+    await _capture(tester, 'app-empty.png');
+
+    await tester.tap(find.text('File').first);
+    await _pumpApplication(tester);
+    await tester.tap(find.text('Settings').last);
+    await _pumpApplication(tester);
+    expect(find.text('Settings').last, findsOneWidget);
+    await _capture(tester, 'settings.png');
+
+    await tester.tap(find.text('Help').first);
+    await _pumpApplication(tester);
+    await tester.tap(find.text('Updates').last);
+    await _pumpApplication(tester);
+    expect(find.text('Updates').last, findsOneWidget);
+    await _capture(tester, 'updater.png');
+
+    await tester.tap(find.text('Integrations').first);
+    await _pumpApplication(tester);
+    expect(find.text('Integrations').last, findsOneWidget);
+    await _capture(tester, 'integrations.png');
+  });
+}
+
+Future<void> _capture(WidgetTester tester, String fileName) async {
+  if (Platform.environment['SHOWRUNNER_VISUAL_CAPTURE'] != '1') return;
+  final outputDirectory = Directory(
+    Platform.environment['SHOWRUNNER_VISUAL_OUTPUT'] ??
+        'test/reference/flutter',
+  );
+  await outputDirectory.create(recursive: true);
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find.byType(RepaintBoundary).first,
+  );
+  final image = await boundary.toImage(pixelRatio: 1);
+  try {
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (bytes == null) throw StateError('Flutter did not produce PNG bytes.');
+    await File(
+      '${outputDirectory.path}/$fileName',
+    ).writeAsBytes(bytes.buffer.asUint8List());
+  } finally {
+    image.dispose();
+  }
+}
+
+Future<void> _pumpApplication(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 250));
+  await tester.pump(const Duration(milliseconds: 250));
+}
