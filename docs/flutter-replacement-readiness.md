@@ -21,6 +21,9 @@ Flutter desktop build is used as the ShowRunner replacement candidate.
   runtime, persistence, shader graph, and overlay resource semantics.
 - Overlay packages use the generated registry and strict TypeScript checks;
   Vue/Pinia is not part of the browser runtime.
+- The WebGL shader widget reports an initial compilation failure through its
+  visible fallback instead of leaving a blank canvas; the renderer suite also
+  covers recompilation, built-in/custom uniforms, and disposal.
 - Overlay backend RPCs have a bounded lifecycle: every request has a timeout,
   pending calls are rejected on transport reset and runtime stop, and late
   responses from an older connection generation are ignored. The lifecycle
