@@ -103,6 +103,7 @@ final class DartGraphProgram {
     required this.outputs,
     required this.loopLimits,
     required this.loopNodeIds,
+    required this.nodeTypes,
   });
 
   final List<DartGraphInstruction> instructions;
@@ -117,6 +118,7 @@ final class DartGraphProgram {
   final List<JsonMap> outputs;
   final Map<String, int> loopLimits;
   final Set<String> loopNodeIds;
+  final Map<String, String> nodeTypes;
 }
 
 typedef DartProgramAction =
@@ -139,6 +141,7 @@ final class DartProductionGraphCompiler {
   final Map<String, int> _slotAliases = {};
   final Map<String, List<GraphEdge>> _edgeMap = {};
   final Map<String, GraphNode> _nodeMap = {};
+  final Map<String, String> _nodeTypes = {};
   final Map<String, int> _subgraphIndexById = {};
   final Set<String> _contextSourceNodeIds = {'trigger'};
   final Map<String, int> _nodePc = {};
@@ -243,6 +246,7 @@ final class DartProductionGraphCompiler {
       outputs: const [],
       loopLimits: Map.unmodifiable(_loopLimits),
       loopNodeIds: Set.unmodifiable(_loopNodeIds),
+      nodeTypes: Map.unmodifiable(_nodeTypes),
     );
   }
 
@@ -253,6 +257,7 @@ final class DartProductionGraphCompiler {
     _slotAliases.clear();
     _edgeMap.clear();
     _nodeMap.clear();
+    _nodeTypes.clear();
     _subgraphIndexById.clear();
     _contextSourceNodeIds
       ..clear()
@@ -273,6 +278,7 @@ final class DartProductionGraphCompiler {
   void _buildMaps(List<GraphNode> nodes, List<GraphEdge> edges) {
     for (final node in nodes) {
       _nodeMap[node.id] = node;
+      _nodeTypes[node.id] = node.type;
     }
     for (final edge in edges) {
       if (!_nodeMap.containsKey(edge.to) &&
@@ -848,6 +854,8 @@ final class DartGraphVm {
   final Map<String, int> _iterationCounters = {};
   final Map<String, RuntimeMap> _nodeResults = {};
   final Map<String, int> _nodeInvocations = {};
+  final Map<String, DateTime> _controlStartedAt = {};
+  final Map<String, int> _loopTraceIterations = {};
   final Map<String, int> _localSlotsByName = {};
   late EvaluationContext _context;
   late Map<String, List<({String toPort, DartGraphWireSource source})>>
@@ -867,6 +875,8 @@ final class DartGraphVm {
     _iterationCounters.clear();
     _nodeResults.clear();
     _nodeInvocations.clear();
+    _controlStartedAt.clear();
+    _loopTraceIterations.clear();
     _didReturn = false;
     _outputValues = {};
     _graphScope = const MainGraphScope();
@@ -896,14 +906,26 @@ final class DartGraphVm {
         _context.cancellationToken?.throwIfCancelled();
         final instruction = program.instructions[_pc];
         final nodeId = instruction.nodeId;
+        final instructionScope = _graphScope;
         if (nodeId != null && nodeId != _activeNodeId) {
           if (_activeNodeId != null) onNodeExit?.call(_activeNodeId!);
           _activeNodeId = nodeId;
           onNodeEnter?.call(nodeId);
         }
+        if (nodeId != null && _isControlStartInstruction(instruction)) {
+          _startControl(nodeId, instructionScope);
+        }
         _publishInstructionEdge(instruction);
         onStep?.call(instruction, _callStack.length);
         final advance = await _step(instruction, action);
+        if (nodeId != null &&
+            const {
+              'break',
+              'continue',
+              'return',
+            }.contains(program.nodeTypes[nodeId])) {
+          _completeControl(nodeId, scope: instructionScope);
+        }
         if (advance) _pc++;
       }
     } finally {
@@ -938,6 +960,32 @@ final class DartGraphVm {
     if (traceSink == null || from == null || to == null || edgeId == null) {
       return;
     }
+    final nodeType = program.nodeTypes[from];
+    if (nodeType != null && nodeType != 'action') {
+      final source = ExecutionNodeRef(nodeId: from, scope: _graphScope);
+      // Loop checks and subgraph calls can publish their first semantic edge
+      // before an eval/call instruction starts the node. Start lazily here so
+      // every control node has a complete lifecycle, including zero-iteration
+      // loops.
+      _startControl(from, _graphScope);
+      final iteration = instruction.edgePort == 'body'
+          ? (_loopTraceIterations[source.key] ?? 0) + 1
+          : null;
+      if (iteration != null) {
+        _loopTraceIterations[source.key] = iteration;
+      }
+      traceSink?.controlPath(
+        source,
+        instruction.edgePort ?? 'out',
+        iteration: iteration,
+      );
+      if (iteration != null) {
+        traceSink?.loopIteration(source, iteration);
+      } else if (instruction.edgePort == 'next' ||
+          !_isSubgraphNodeType(nodeType)) {
+        _completeControl(from, scope: _graphScope);
+      }
+    }
     traceSink?.edgeTraversed(
       ExecutionEdgeRef(
         edgeId: edgeId,
@@ -945,6 +993,52 @@ final class DartGraphVm {
         to: ExecutionNodeRef(nodeId: to, scope: _graphScope),
         port: instruction.edgePort,
       ),
+    );
+  }
+
+  void _startControl(String nodeId, ExecutionGraphScope scope) {
+    if (traceSink == null) return;
+    final nodeType = program.nodeTypes[nodeId];
+    if (nodeType == null || nodeType == 'action') return;
+    final ref = ExecutionNodeRef(nodeId: nodeId, scope: scope);
+    if (_controlStartedAt.containsKey(ref.key)) return;
+    _controlStartedAt[ref.key] = DateTime.now();
+    final invocation = (_nodeInvocations[ref.key] ?? 0) + 1;
+    _nodeInvocations[ref.key] = invocation;
+    traceSink?.nodeStarted(ref, invocation: invocation);
+  }
+
+  bool _isSubgraphNodeType(String type) =>
+      type == 'subgraphCall' || type == 'subgraph' || type == 'call';
+
+  bool _isControlStartInstruction(DartGraphInstruction instruction) {
+    final type = instruction.nodeId == null
+        ? null
+        : program.nodeTypes[instruction.nodeId];
+    if (type == null || type == 'action') return false;
+    return switch (instruction.op) {
+      DartGraphOpCode.eval => true,
+      DartGraphOpCode.call => true,
+      DartGraphOpCode.jump || DartGraphOpCode.ret =>
+        type == 'break' || type == 'continue' || type == 'return',
+      _ => false,
+    };
+  }
+
+  void _completeControl(
+    String nodeId, {
+    required ExecutionGraphScope scope,
+    Duration? duration,
+    int? invocation,
+  }) {
+    if (traceSink == null) return;
+    final ref = ExecutionNodeRef(nodeId: nodeId, scope: scope);
+    final started = _controlStartedAt.remove(ref.key);
+    if (started == null) return;
+    traceSink?.nodeCompleted(
+      ref,
+      invocation: invocation ?? _nodeInvocations[ref.key],
+      duration: duration ?? DateTime.now().difference(started),
     );
   }
 
@@ -1116,6 +1210,26 @@ final class DartGraphVm {
     }
     final subgraph = program.subgraphs[subgraphIndex];
     final callNodeId = instruction.nodeId;
+    final callScope = _graphScope;
+    final callInvocation = callNodeId == null
+        ? null
+        : _nodeInvocations[ExecutionNodeRef(
+            nodeId: callNodeId,
+            scope: callScope,
+          ).key];
+    final callStartedAt = callNodeId == null
+        ? null
+        : _controlStartedAt[ExecutionNodeRef(
+            nodeId: callNodeId,
+            scope: callScope,
+          ).key];
+    if (callNodeId != null) {
+      traceSink?.subgraphEntered(
+        ExecutionNodeRef(nodeId: callNodeId, scope: callScope),
+        subgraph.id,
+        depth: _callStack.length + 1,
+      );
+    }
     _callStack.add(
       _DartGraphCallFrame(
         returnPc: _pc + 1,
@@ -1123,7 +1237,11 @@ final class DartGraphVm {
         callNodeId: callNodeId,
         localSlotsByName: Map<String, int>.from(_localSlotsByName),
         contextLocals: Map<String, dynamic>.from(_context.locals),
-        graphScope: _graphScope,
+        graphScope: callScope,
+        subgraphId: subgraph.id,
+        callDepth: _callStack.length + 1,
+        callInvocation: callInvocation,
+        callStartedAt: callStartedAt,
       ),
     );
     final inputs = instruction.arg1 is Map
@@ -1175,6 +1293,28 @@ final class DartGraphVm {
       _didReturn = true;
       _pc = program.instructions.length;
       return;
+    }
+    if (frame.callNodeId != null && frame.subgraphId != null) {
+      final callNode = ExecutionNodeRef(
+        nodeId: frame.callNodeId!,
+        scope: frame.graphScope,
+      );
+      traceSink?.subgraphExited(
+        callNode,
+        frame.subgraphId!,
+        depth: frame.callDepth,
+        duration: frame.callStartedAt == null
+            ? Duration.zero
+            : DateTime.now().difference(frame.callStartedAt!),
+      );
+      _completeControl(
+        frame.callNodeId!,
+        scope: frame.graphScope,
+        duration: frame.callStartedAt == null
+            ? Duration.zero
+            : DateTime.now().difference(frame.callStartedAt!),
+        invocation: frame.callInvocation,
+      );
     }
     _locals = frame.localSnapshot;
     _localSlotsByName
@@ -1254,6 +1394,10 @@ final class _DartGraphCallFrame {
     required this.localSlotsByName,
     required this.contextLocals,
     required this.graphScope,
+    required this.subgraphId,
+    required this.callDepth,
+    required this.callInvocation,
+    required this.callStartedAt,
   });
 
   final int returnPc;
@@ -1262,6 +1406,10 @@ final class _DartGraphCallFrame {
   final Map<String, int> localSlotsByName;
   final Map<String, dynamic> contextLocals;
   final ExecutionGraphScope graphScope;
+  final String? subgraphId;
+  final int callDepth;
+  final int? callInvocation;
+  final DateTime? callStartedAt;
 }
 
 Map<String, List<({String toPort, DartGraphWireSource source})>>

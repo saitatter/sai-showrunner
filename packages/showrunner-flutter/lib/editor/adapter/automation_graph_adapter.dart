@@ -124,6 +124,14 @@ extension ShowRunnerGraphAdapter on ShowRunnerGraphEditor {
   String? schemaNodeIdForEditor(String editorNodeId) =>
       _schemaIdByEditorId[editorNodeId];
 
+  String? schemaLinkIdForEditorLink(LinkDataModel link) =>
+      _schemaIdByLinkSignature[ShowRunnerGraphEditor._linkSignature(
+        link.endpoints.sourceNodeId,
+        link.endpoints.sourcePortId,
+        link.endpoints.targetNodeId,
+        link.endpoints.targetPortId,
+      )];
+
   /// Returns the persisted subgraph referenced by an editor node, if any.
   ///
   /// Navigation is intentionally kept in the ShowRunner adapter. The generic

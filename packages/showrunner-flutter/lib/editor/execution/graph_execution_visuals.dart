@@ -55,7 +55,13 @@ extension ShowRunnerGraphExecutionVisuals on ShowRunnerGraphEditor {
   }
 
   void clearExecutionStates() {
+    for (final timer in _executionVisualTimers.values) {
+      timer.cancel();
+    }
+    _executionVisualTimers.clear();
+    _executionVisualHolds.clear();
     executionStates.value = const {};
+    executionEdgeIds.value = const {};
     activeNodeIds.value = const {};
     _traceActiveCounts.clear();
     _traceRunNodes.clear();

@@ -1,4 +1,4 @@
-enum GraphNodeExecutionStatus { running, success, error }
+enum GraphNodeExecutionStatus { running, success, error, aborted }
 
 final class GraphNodeExecutionVisual {
   const GraphNodeExecutionVisual({
@@ -6,12 +6,20 @@ final class GraphNodeExecutionVisual {
     required this.startedAt,
     this.duration,
     this.error,
+    this.invocationCount,
+    this.selectedPort,
+    this.lastIteration,
+    this.subgraphId,
   });
 
   final GraphNodeExecutionStatus status;
   final DateTime startedAt;
   final Duration? duration;
   final String? error;
+  final int? invocationCount;
+  final String? selectedPort;
+  final int? lastIteration;
+  final String? subgraphId;
 }
 
 enum GraphAlignmentAxis { vertical, horizontal }

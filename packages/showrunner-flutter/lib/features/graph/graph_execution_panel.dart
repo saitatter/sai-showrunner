@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../editor/showrunner_graph_editor.dart';
@@ -39,6 +41,12 @@ class _GraphExecutionPanelState extends State<GraphExecutionPanel> {
             .where((run) => run.info.status == ExecutionTraceRunStatus.running)
             .length;
         final pinned = widget.editor.pinnedExecutionId;
+        final pinnedRun = pinned == null
+            ? null
+            : runs
+                  .where((run) => run.info.executionId == pinned)
+                  .toList()
+                  .firstOrNull;
 
         return Material(
           color: Theme.of(context).colorScheme.surfaceContainer,
@@ -58,22 +66,33 @@ class _GraphExecutionPanelState extends State<GraphExecutionPanel> {
                       : () => widget.editor.pinExecution(null),
                 ),
                 if (!_collapsed)
-                  SizedBox(
-                    height: 156,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: runs.length,
-                      itemBuilder: (context, index) {
-                        final run = runs[index];
-                        return _ExecutionRunCard(
-                          run: run,
-                          pinned: run.info.executionId == pinned,
-                          onTap: () =>
-                              widget.editor.pinExecution(run.info.executionId),
-                        );
-                      },
-                    ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        height: 156,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: runs.length,
+                          itemBuilder: (context, index) {
+                            final run = runs[index];
+                            return _ExecutionRunCard(
+                              run: run,
+                              pinned: run.info.executionId == pinned,
+                              onTap: () => widget.editor.pinExecution(
+                                run.info.executionId,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      if (pinnedRun != null)
+                        _ExecutionRunInspector(
+                          run: pinnedRun,
+                          editor: widget.editor,
+                        ),
+                    ],
                   ),
               ],
             ),
@@ -216,6 +235,18 @@ class _ExecutionRunCard extends StatelessWidget {
                     _executionStatusLabel(info.status),
                     style: TextStyle(color: color, fontSize: 12),
                   ),
+                  if (info.source.queueId != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      'Queue: ${info.source.queueName ?? info.source.queueId}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
                   const Spacer(),
                   Text(
                     '${duration.inMilliseconds} ms',
@@ -252,6 +283,263 @@ class _ExecutionBadge extends StatelessWidget {
       style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
     ),
   );
+}
+
+class _ExecutionRunInspector extends StatelessWidget {
+  const _ExecutionRunInspector({required this.run, required this.editor});
+
+  final ExecutionTraceRunSnapshot run;
+  final ShowRunnerGraphEditor editor;
+
+  @override
+  Widget build(BuildContext context) {
+    final info = run.info;
+    final nodes = run.nodes.values.toList()
+      ..sort((left, right) {
+        final leftStarted = left.startedAt;
+        final rightStarted = right.startedAt;
+        if (leftStarted == null && rightStarted == null) return 0;
+        if (leftStarted == null) return 1;
+        if (rightStarted == null) return -1;
+        return leftStarted.compareTo(rightStarted);
+      });
+    final color = _executionStatusColor(info.status);
+
+    return Container(
+      height: 186,
+      margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 230,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _executionStatusIcon(info.status),
+                        size: 16,
+                        color: color,
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        _executionStatusLabel(info.status),
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _InspectorMetaLine(label: 'Run', value: info.executionId),
+                  _InspectorMetaLine(
+                    label: 'Source',
+                    value: info.source.toString(),
+                  ),
+                  _InspectorMetaLine(
+                    label: 'Duration',
+                    value:
+                        '${(info.duration ?? DateTime.now().difference(info.startedAt)).inMilliseconds} ms',
+                  ),
+                  if (info.error != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      info.error!.message,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xffff8d8d),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          VerticalDivider(
+            width: 1,
+            thickness: 1,
+            color: Theme.of(context).dividerColor,
+          ),
+          Expanded(
+            child: nodes.isEmpty
+                ? const Center(child: Text('No node activity recorded.'))
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: nodes.length,
+                    itemBuilder: (context, index) => _ExecutionNodeInspectorRow(
+                      snapshot: nodes[index],
+                      editor: editor,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InspectorMetaLine extends StatelessWidget {
+  const _InspectorMetaLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 56,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 11,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 11),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ExecutionNodeInspectorRow extends StatelessWidget {
+  const _ExecutionNodeInspectorRow({
+    required this.snapshot,
+    required this.editor,
+  });
+
+  final ExecutionTraceNodeSnapshot snapshot;
+  final ShowRunnerGraphEditor editor;
+
+  @override
+  Widget build(BuildContext context) {
+    final editorId = snapshot.node.scope is MainGraphScope
+        ? editor.editorNodeIdForSchema(snapshot.node.nodeId)
+        : null;
+    final title = editorId == null
+        ? snapshot.node.nodeId
+        : editor.nodeTitle(editorId);
+    final statusColor = _nodeStatusColor(snapshot.status);
+    final details = <String>[
+      if (snapshot.duration != null) '${snapshot.duration!.inMilliseconds} ms',
+      if (snapshot.invocationCount > 1) '×${snapshot.invocationCount}',
+      if (snapshot.selectedPort != null) '→ ${snapshot.selectedPort}',
+      if (snapshot.lastIteration != null) 'iteration ${snapshot.lastIteration}',
+      if (snapshot.subgraphId != null) 'subgraph ${snapshot.subgraphId}',
+    ];
+    final result = snapshot.resultPreview;
+
+    return InkWell(
+      onTap: editorId == null
+          ? null
+          : () {
+              editor.controller.selectNodesById({editorId});
+              editor.controller.focusNodesById({editorId}, animate: true);
+            },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: Row(
+          children: [
+            Icon(
+              _nodeStatusIcon(snapshot.status),
+              size: 15,
+              color: statusColor,
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              flex: 2,
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 3,
+              child: Text(
+                details.join('  '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+            if (result != null)
+              Expanded(
+                flex: 3,
+                child: Text(
+                  _resultPreview(result),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: Color(0xff9bd4ff),
+                    fontFamily: 'Consolas',
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Color _nodeStatusColor(ExecutionTraceNodeStatus status) => switch (status) {
+  ExecutionTraceNodeStatus.running => const Color(0xffe7bd62),
+  ExecutionTraceNodeStatus.success => const Color(0xff65d6a0),
+  ExecutionTraceNodeStatus.aborted => const Color(0xff9aa4b2),
+  ExecutionTraceNodeStatus.error => const Color(0xffee7777),
+};
+
+IconData _nodeStatusIcon(ExecutionTraceNodeStatus status) => switch (status) {
+  ExecutionTraceNodeStatus.running => Icons.circle,
+  ExecutionTraceNodeStatus.success => Icons.check_circle,
+  ExecutionTraceNodeStatus.aborted => Icons.cancel_outlined,
+  ExecutionTraceNodeStatus.error => Icons.error,
+};
+
+String _resultPreview(Object value) {
+  try {
+    final encoded = value is String ? value : jsonEncode(value);
+    return encoded.length > 120 ? '${encoded.substring(0, 117)}…' : encoded;
+  } on Object {
+    return value.toString();
+  }
+}
+
+extension on List<ExecutionTraceRunSnapshot> {
+  ExecutionTraceRunSnapshot? get firstOrNull => isEmpty ? null : first;
 }
 
 Color _executionStatusColor(ExecutionTraceRunStatus status) => switch (status) {

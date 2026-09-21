@@ -176,8 +176,11 @@ class ShowRunnerGraphEditor {
   );
   final ValueNotifier<Map<String, GraphNodeExecutionVisual>> executionStates =
       ValueNotifier(const {});
+  final ValueNotifier<Set<String>> executionEdgeIds = ValueNotifier(const {});
   final Map<String, int> _traceActiveCounts = {};
   final Map<String, Set<String>> _traceRunNodes = {};
+  final Map<String, Timer> _executionVisualTimers = {};
+  final Map<String, DateTime> _executionVisualHolds = {};
   StreamSubscription<ExecutionTraceEvent>? _traceSubscription;
   ExecutionTraceService? _traceService;
   ExecutionTraceSource? _traceSource;
@@ -418,6 +421,14 @@ class ShowRunnerGraphEditor {
 
   void _hydrateTraceSnapshot(ExecutionTraceRunSnapshot snapshot) {
     if (!_traceSnapshotMatches(snapshot)) return;
+    final traversedEdges = {
+      for (final event
+          in snapshot.events.whereType<ExecutionEdgeTraversedEvent>())
+        if (event.edge.from.scope is MainGraphScope) event.edge.edgeId,
+    };
+    if (traversedEdges.isNotEmpty) {
+      executionEdgeIds.value = {...executionEdgeIds.value, ...traversedEdges};
+    }
     for (final node in snapshot.nodes.values) {
       if (node.node.scope is! MainGraphScope) continue;
       if (node.status == ExecutionTraceNodeStatus.running) {
@@ -465,25 +476,88 @@ class ShowRunnerGraphEditor {
             error: error.message,
           );
         }
-      case ExecutionRunEndedEvent(:final status):
-        if (status == ExecutionTraceRunStatus.aborted) {
-          for (final editorId
-              in _traceRunNodes[event.executionId] ?? const {}) {
-            _decrementTraceNode(editorId);
-          }
+      case ExecutionControlPathEvent(:final node):
+        final traceNode = snapshot.nodes[node.key];
+        if (traceNode != null && traceNode.node.scope is MainGraphScope) {
+          _applyTraceSnapshotNode(traceNode, event.executionId);
+        }
+      case ExecutionSubgraphEnteredEvent(:final callNode):
+        final traceNode = snapshot.nodes[callNode.key];
+        if (traceNode != null && traceNode.node.scope is MainGraphScope) {
+          _applyTraceSnapshotNode(traceNode, event.executionId);
+        }
+      case ExecutionSubgraphExitedEvent(:final callNode):
+        final traceNode = snapshot.nodes[callNode.key];
+        if (traceNode != null && traceNode.node.scope is MainGraphScope) {
+          _applyTraceSnapshotNode(traceNode, event.executionId);
+        }
+      case ExecutionEdgeTraversedEvent(:final edge):
+        if (edge.from.scope is MainGraphScope) {
+          executionEdgeIds.value = {...executionEdgeIds.value, edge.edgeId};
+        }
+      case ExecutionRunEndedEvent():
+        for (final traceNode in snapshot.nodes.values.where(
+          (node) => node.node.scope is MainGraphScope,
+        )) {
+          if (traceNode.status == ExecutionTraceNodeStatus.running) continue;
+          _applyTraceSnapshotNode(traceNode, event.executionId);
         }
         _traceRunNodes.remove(event.executionId);
       case ExecutionRunStartedEvent():
       case ExecutionNodeResultEvent():
-      case ExecutionEdgeTraversedEvent():
       case ExecutionLoopIterationEvent():
         break;
     }
   }
 
+  void _applyTraceSnapshotNode(
+    ExecutionTraceNodeSnapshot traceNode,
+    String executionId,
+  ) {
+    final editorId = editorNodeIdForSchema(traceNode.node.nodeId);
+    if (editorId == null) return;
+    if (traceNode.status == ExecutionTraceNodeStatus.running) {
+      final activeForRun = _traceRunNodes[executionId] ?? const <String>{};
+      if (!activeForRun.contains(editorId)) {
+        _applyTraceStarted(traceNode.node.nodeId, executionId);
+      }
+      final previous = executionStates.value[editorId];
+      executionStates.value = {
+        ...executionStates.value,
+        editorId: GraphNodeExecutionVisual(
+          status: GraphNodeExecutionStatus.running,
+          startedAt:
+              previous?.startedAt ?? traceNode.startedAt ?? DateTime.now(),
+          duration: traceNode.duration,
+          error: traceNode.error?.message,
+          invocationCount: traceNode.invocationCount,
+          selectedPort: traceNode.selectedPort,
+          lastIteration: traceNode.lastIteration,
+          subgraphId: traceNode.subgraphId,
+        ),
+      };
+      return;
+    }
+    _applyTraceFinished(
+      traceNode.node.nodeId,
+      executionId,
+      success: traceNode.status == ExecutionTraceNodeStatus.success,
+      aborted: traceNode.status == ExecutionTraceNodeStatus.aborted,
+      startedAt: traceNode.startedAt,
+      duration: traceNode.duration,
+      error: traceNode.error?.message,
+      invocationCount: traceNode.invocationCount,
+      selectedPort: traceNode.selectedPort,
+      lastIteration: traceNode.lastIteration,
+      subgraphId: traceNode.subgraphId,
+    );
+  }
+
   void _applyTraceStarted(String schemaId, String executionId) {
     final editorId = editorNodeIdForSchema(schemaId);
     if (editorId == null) return;
+    _executionVisualTimers.remove(editorId)?.cancel();
+    _executionVisualHolds.remove(editorId);
     _traceRunNodes.putIfAbsent(executionId, () => <String>{}).add(editorId);
     _traceActiveCounts[editorId] = (_traceActiveCounts[editorId] ?? 0) + 1;
     final next = {...executionStates.value};
@@ -492,19 +566,46 @@ class ShowRunnerGraphEditor {
       startedAt: DateTime.now(),
     );
     executionStates.value = next;
-    activeNodeIds.value = _traceActiveCounts.entries
-        .where((entry) => entry.value > 0)
-        .map((entry) => entry.key)
-        .toSet();
+    _refreshActiveNodeProjection();
+  }
+
+  void _holdExecutionVisual(String editorId) {
+    const minimumVisible = Duration(milliseconds: 280);
+    final until = DateTime.now().add(minimumVisible);
+    _executionVisualHolds[editorId] = until;
+    _executionVisualTimers[editorId]?.cancel();
+    _executionVisualTimers[editorId] = Timer(minimumVisible, () {
+      if (_executionVisualHolds[editorId] != until) return;
+      _executionVisualHolds.remove(editorId);
+      _executionVisualTimers.remove(editorId);
+      _refreshActiveNodeProjection();
+    });
+    _refreshActiveNodeProjection();
+  }
+
+  void _refreshActiveNodeProjection() {
+    final now = DateTime.now();
+    _executionVisualHolds.removeWhere((_, until) => !until.isAfter(now));
+    activeNodeIds.value = {
+      ..._traceActiveCounts.entries
+          .where((entry) => entry.value > 0)
+          .map((entry) => entry.key),
+      ..._executionVisualHolds.keys,
+    };
   }
 
   void _applyTraceFinished(
     String schemaId,
     String executionId, {
     required bool success,
+    bool aborted = false,
     DateTime? startedAt,
     Duration? duration,
     String? error,
+    int? invocationCount,
+    String? selectedPort,
+    int? lastIteration,
+    String? subgraphId,
   }) {
     final editorId = editorNodeIdForSchema(schemaId);
     if (editorId == null) return;
@@ -515,12 +616,19 @@ class ShowRunnerGraphEditor {
     next[editorId] = GraphNodeExecutionVisual(
       status: success
           ? GraphNodeExecutionStatus.success
+          : aborted
+          ? GraphNodeExecutionStatus.aborted
           : GraphNodeExecutionStatus.error,
       startedAt: startedAt ?? DateTime.now(),
       duration: duration,
       error: error,
+      invocationCount: invocationCount,
+      selectedPort: selectedPort,
+      lastIteration: lastIteration,
+      subgraphId: subgraphId,
     );
     executionStates.value = next;
+    _holdExecutionVisual(editorId);
   }
 
   void _decrementTraceNode(String editorId) {
@@ -530,10 +638,7 @@ class ShowRunnerGraphEditor {
     } else {
       _traceActiveCounts[editorId] = count;
     }
-    activeNodeIds.value = _traceActiveCounts.entries
-        .where((entry) => entry.value > 0)
-        .map((entry) => entry.key)
-        .toSet();
+    _refreshActiveNodeProjection();
   }
 
   void dispose() {
@@ -547,6 +652,11 @@ class ShowRunnerGraphEditor {
     subgraphs.dispose();
     activeGraphPath.dispose();
     executionStates.dispose();
+    executionEdgeIds.dispose();
+    for (final timer in _executionVisualTimers.values) {
+      timer.cancel();
+    }
+    _executionVisualTimers.clear();
     alignmentGuides.dispose();
     dropTargetNodeId.dispose();
     dropTargetLinkId.dispose();

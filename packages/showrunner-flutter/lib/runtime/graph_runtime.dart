@@ -107,6 +107,49 @@ final class DartGraphRuntime {
     var didReturn = false;
     var outputValues = <String, dynamic>{};
     final invocations = <String, int>{};
+    final activeControls = <String, _ControlExecutionState>{};
+
+    void beginControl(GraphNode node) {
+      if (traceSink == null) return;
+      if (node.type == 'action') return;
+      final ref = ExecutionNodeRef(nodeId: node.id, scope: graphScope);
+      if (activeControls.containsKey(ref.key)) return;
+      final invocation = (invocations[ref.key] ?? 0) + 1;
+      invocations[ref.key] = invocation;
+      final state = _ControlExecutionState(
+        node: ref,
+        invocation: invocation,
+        startedAt: DateTime.now(),
+      );
+      activeControls[ref.key] = state;
+      traceSink.nodeStarted(ref, invocation: invocation);
+    }
+
+    void markControlPath(GraphNode node, String port, {int? iteration}) {
+      traceSink?.controlPath(
+        ExecutionNodeRef(nodeId: node.id, scope: graphScope),
+        port,
+        iteration: iteration,
+      );
+    }
+
+    void markLoopIteration(GraphNode node, int iteration) {
+      traceSink?.loopIteration(
+        ExecutionNodeRef(nodeId: node.id, scope: graphScope),
+        iteration,
+      );
+    }
+
+    void completeControl(GraphNode node) {
+      final ref = ExecutionNodeRef(nodeId: node.id, scope: graphScope);
+      final state = activeControls.remove(ref.key);
+      if (state == null) return;
+      traceSink?.nodeCompleted(
+        ref,
+        invocation: state.invocation,
+        duration: DateTime.now().difference(state.startedAt),
+      );
+    }
 
     void follow(GraphEdge? edge) {
       if (edge != null) {
@@ -131,6 +174,7 @@ final class DartGraphRuntime {
       if (node == null) break;
       steps++;
       onNodeEnter?.call(node.id);
+      beginControl(node);
       final edges = outgoing[node.id] ?? const <GraphEdge>[];
       switch (node.type) {
         case 'action':
@@ -183,7 +227,10 @@ final class DartGraphRuntime {
           final condition = _truthy(
             evaluateExpression(node.data['condition'], runtimeContext),
           );
-          follow(_next(edges, condition ? 'then' : 'else'));
+          final port = condition ? 'then' : 'else';
+          markControlPath(node, port);
+          completeControl(node);
+          follow(_next(edges, port));
         case 'while':
           final iterations = (loopState[node.id] as int?) ?? 0;
           final condition = _truthy(
@@ -193,9 +240,14 @@ final class DartGraphRuntime {
               (node.data['maxIterations'] as num?)?.toInt() ?? maxSteps;
           if (!condition || iterations >= limit) {
             loopState.remove(node.id);
+            markControlPath(node, 'next');
+            completeControl(node);
             follow(_next(edges, 'next'));
           } else {
             loopState[node.id] = iterations + 1;
+            final iteration = iterations + 1;
+            markLoopIteration(node, iteration);
+            markControlPath(node, 'body', iteration: iteration);
             follow(_next(edges, 'body'));
           }
         case 'for':
@@ -216,11 +268,17 @@ final class DartGraphRuntime {
           if (state == null) loopState[node.id] = loop;
           if (loop['step'] == 0 || loop['current'] >= loop['end']) {
             loopState.remove(node.id);
+            markControlPath(node, 'next');
+            completeControl(node);
             follow(_next(edges, 'next'));
           } else {
+            final iteration = ((loop['iteration'] as int?) ?? 0) + 1;
+            loop['iteration'] = iteration;
             runtimeContext.locals[node.data['variable'] as String? ?? 'index'] =
                 loop['current'];
             loop['current'] = loop['current'] + loop['step'];
+            markLoopIteration(node, iteration);
+            markControlPath(node, 'body', iteration: iteration);
             follow(_next(edges, 'body'));
           }
         case 'forEach':
@@ -234,6 +292,8 @@ final class DartGraphRuntime {
           }
           if (collection is! List || index >= collection.length) {
             loopState.remove(node.id);
+            markControlPath(node, 'next');
+            completeControl(node);
             follow(_next(edges, 'next'));
           } else {
             runtimeContext.locals[node.data['variable'] as String? ?? 'item'] =
@@ -243,6 +303,9 @@ final class DartGraphRuntime {
               runtimeContext.locals[indexVariable] = index;
             }
             loopState[node.id] = {'collection': collection, 'index': index + 1};
+            final iteration = index + 1;
+            markLoopIteration(node, iteration);
+            markControlPath(node, 'body', iteration: iteration);
             follow(_next(edges, 'body'));
           }
         case 'switch':
@@ -262,10 +325,14 @@ final class DartGraphRuntime {
           final port = matching.isNotEmpty
               ? matching['port'] as String?
               : 'default';
-          follow(_next(edges, port ?? 'default'));
+          final selectedPort = port ?? 'default';
+          markControlPath(node, selectedPort);
+          completeControl(node);
+          follow(_next(edges, selectedPort));
         case 'return':
           outputValues = _returnValues(node.data['outputs'], runtimeContext);
           didReturn = true;
+          completeControl(node);
           current = '';
         case 'subgraphCall' || 'subgraph' || 'call':
           final subgraphId = node.data['subgraphId']?.toString();
@@ -279,6 +346,10 @@ final class DartGraphRuntime {
             dataWires,
             runtimeContext,
           );
+          final callRef = ExecutionNodeRef(nodeId: node.id, scope: graphScope);
+          if (subgraphId != null) {
+            traceSink?.subgraphEntered(callRef, subgraphId, depth: depth + 1);
+          }
           final nested = await execute(
             graph: AutomationGraph(
               nodes: subgraph.nodes,
@@ -302,6 +373,18 @@ final class DartGraphRuntime {
             depth: depth + 1,
           );
           runtimeContext.cancellationToken?.throwIfCancelled();
+          final callState = activeControls[callRef.key];
+          if (subgraphId != null) {
+            traceSink?.subgraphExited(
+              callRef,
+              subgraphId,
+              depth: depth + 1,
+              duration: callState == null
+                  ? Duration.zero
+                  : DateTime.now().difference(callState.startedAt),
+            );
+          }
+          completeControl(node);
           results.addAll(nested.nodeResults);
           results[node.id] = Map<String, dynamic>.from(nested.outputValues);
           runtimeContext.contextState.addAll(nested.contextState);
@@ -311,6 +394,7 @@ final class DartGraphRuntime {
                 edges.firstOrNull,
           );
         default:
+          completeControl(node);
           follow(edges.firstOrNull);
       }
       onNodeExit?.call(node.id);
@@ -382,6 +466,18 @@ RuntimeMap _subgraphInputs(
     inputs[name] = parameter['default'];
   }
   return inputs;
+}
+
+final class _ControlExecutionState {
+  const _ControlExecutionState({
+    required this.node,
+    required this.invocation,
+    required this.startedAt,
+  });
+
+  final ExecutionNodeRef node;
+  final int invocation;
+  final DateTime startedAt;
 }
 
 dynamic _evaluateInput(dynamic input, EvaluationContext context) {

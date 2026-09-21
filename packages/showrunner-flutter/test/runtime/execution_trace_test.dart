@@ -195,4 +195,198 @@ void main() {
 
     await service.dispose();
   });
+
+  test(
+    'control-flow trace records the selected branch and control lifecycle',
+    () async {
+      const automation = AutomationData(
+        graph: AutomationGraph(
+          entryNodeId: 'branch',
+          nodes: [
+            GraphNode(
+              id: 'branch',
+              type: 'if',
+              x: 0,
+              y: 0,
+              data: {
+                'condition': {'type': 'literal', 'value': true},
+              },
+            ),
+            GraphNode(id: 'trueAction', type: 'action', x: 120, y: -40),
+            GraphNode(id: 'falseAction', type: 'action', x: 120, y: 40),
+          ],
+          edges: [
+            GraphEdge(
+              id: 'branch-then',
+              from: 'branch',
+              to: 'trueAction',
+              port: 'then',
+            ),
+            GraphEdge(
+              id: 'branch-else',
+              from: 'branch',
+              to: 'falseAction',
+              port: 'else',
+            ),
+          ],
+        ),
+      );
+      final service = ExecutionTraceService();
+      final session = service.start(
+        mode: ExecutionTraceMode.test,
+        source: const ExecutionTraceSource(type: 'automation', id: 'branch'),
+      );
+      final program = DartProductionGraphCompiler().compileAutomation(
+        automation,
+      );
+
+      await DartGraphVm(program, traceSink: session).execute(
+        context: EvaluationContext(),
+        action: (node, config, context) async => null,
+      );
+      session.end(ExecutionTraceRunStatus.completed);
+
+      final snapshot = service.snapshotFor(session.executionId)!;
+      final path = snapshot.events
+          .whereType<ExecutionControlPathEvent>()
+          .single;
+      expect(path.node.nodeId, 'branch');
+      expect(path.port, 'then');
+      expect(
+        snapshot.nodes['main:branch']?.status,
+        ExecutionTraceNodeStatus.success,
+      );
+      expect(snapshot.nodes['main:branch']?.selectedPort, 'then');
+      expect(snapshot.nodes['main:falseAction'], isNull);
+      expect(
+        snapshot.nodes['main:trueAction']?.status,
+        ExecutionTraceNodeStatus.success,
+      );
+
+      await service.dispose();
+    },
+  );
+
+  test('subgraph trace exposes parent call and nested graph scope', () async {
+    const automation = AutomationData(
+      graph: AutomationGraph(
+        entryNodeId: 'call',
+        nodes: [
+          GraphNode(
+            id: 'call',
+            type: 'subgraphCall',
+            x: 0,
+            y: 0,
+            data: {'subgraphId': 'inner'},
+          ),
+        ],
+      ),
+      subgraphs: [
+        SubgraphDefinition(
+          id: 'inner',
+          name: 'Inner',
+          entryNodeId: 'innerAction',
+          nodes: [GraphNode(id: 'innerAction', type: 'action', x: 0, y: 0)],
+          edges: [],
+        ),
+      ],
+    );
+    final service = ExecutionTraceService();
+    final session = service.start(
+      mode: ExecutionTraceMode.test,
+      source: const ExecutionTraceSource(type: 'automation', id: 'subgraph'),
+    );
+    final program = DartProductionGraphCompiler().compileAutomation(automation);
+
+    await DartGraphVm(program, traceSink: session).execute(
+      context: EvaluationContext(),
+      action: (node, config, context) async => {'done': true},
+    );
+    session.end(ExecutionTraceRunStatus.completed);
+
+    final snapshot = service.snapshotFor(session.executionId)!;
+    expect(
+      snapshot.events.whereType<ExecutionSubgraphEnteredEvent>(),
+      hasLength(1),
+    );
+    expect(
+      snapshot.events.whereType<ExecutionSubgraphExitedEvent>(),
+      hasLength(1),
+    );
+    expect(
+      snapshot.nodes['main:call']?.status,
+      ExecutionTraceNodeStatus.success,
+    );
+    expect(
+      snapshot.nodes['inner:innerAction']?.status,
+      ExecutionTraceNodeStatus.success,
+    );
+
+    await service.dispose();
+  });
+
+  test(
+    'production VM traces loop iterations and zero-iteration completion',
+    () async {
+      const automation = AutomationData(
+        graph: AutomationGraph(
+          entryNodeId: 'for',
+          nodes: [
+            GraphNode(
+              id: 'for',
+              type: 'for',
+              x: 0,
+              y: 0,
+              data: {
+                'variable': 'index',
+                'start': {'type': 'literal', 'value': 0},
+                'end': {'type': 'literal', 'value': 3},
+                'step': {'type': 'literal', 'value': 1},
+              },
+            ),
+            GraphNode(id: 'body', type: 'action', x: 120, y: 0),
+            GraphNode(id: 'done', type: 'return', x: 240, y: 0),
+          ],
+          edges: [
+            GraphEdge(id: 'body-edge', from: 'for', to: 'body', port: 'body'),
+            GraphEdge(id: 'repeat', from: 'body', to: 'for'),
+            GraphEdge(id: 'next', from: 'for', to: 'done', port: 'next'),
+          ],
+        ),
+      );
+      final service = ExecutionTraceService();
+      final session = service.start(
+        mode: ExecutionTraceMode.test,
+        source: const ExecutionTraceSource(type: 'automation', id: 'loop'),
+      );
+
+      final program = DartProductionGraphCompiler().compileAutomation(
+        automation,
+      );
+      await DartGraphVm(program, traceSink: session).execute(
+        context: EvaluationContext(),
+        action: (node, config, context) async => null,
+      );
+      session.end(ExecutionTraceRunStatus.completed);
+
+      final snapshot = service.snapshotFor(session.executionId)!;
+      expect(
+        snapshot.events.whereType<ExecutionLoopIterationEvent>().map(
+          (event) => event.iteration,
+        ),
+        [1, 2, 3],
+      );
+      expect(snapshot.nodes['main:for']?.lastIteration, 3);
+      expect(
+        snapshot.nodes['main:for']?.status,
+        ExecutionTraceNodeStatus.success,
+      );
+      expect(
+        snapshot.nodes['main:done']?.status,
+        ExecutionTraceNodeStatus.success,
+      );
+
+      await service.dispose();
+    },
+  );
 }

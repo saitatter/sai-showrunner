@@ -39,22 +39,34 @@ final class ExecutionTraceSource {
     required this.type,
     required this.id,
     this.subId,
+    this.queueId,
+    this.queueName,
+    this.itemId,
   });
 
   final String type;
   final String id;
   final String? subId;
+  final String? queueId;
+  final String? queueName;
+  final String? itemId;
 
   factory ExecutionTraceSource.fromMetadata(Map value) => ExecutionTraceSource(
     type: value['sourceType']?.toString() ?? 'automation',
     id: value['sourceId']?.toString() ?? '',
     subId: value['sourceSubId']?.toString(),
+    queueId: value['queueId']?.toString(),
+    queueName: value['queueName']?.toString(),
+    itemId: value['itemId']?.toString(),
   );
 
   Map<String, Object?> toJson() => {
     'type': type,
     'id': id,
     if (subId != null && subId!.isNotEmpty) 'subId': subId,
+    if (queueId != null && queueId!.isNotEmpty) 'queueId': queueId,
+    if (queueName != null && queueName!.isNotEmpty) 'queueName': queueName,
+    if (itemId != null && itemId!.isNotEmpty) 'itemId': itemId,
   };
 
   bool matches(ExecutionTraceSource other) =>
@@ -357,6 +369,33 @@ final class ExecutionNodeResultEvent extends ExecutionTraceEvent {
   };
 }
 
+final class ExecutionControlPathEvent extends ExecutionTraceEvent {
+  const ExecutionControlPathEvent({
+    required super.executionId,
+    required super.seq,
+    required super.timestamp,
+    required super.mode,
+    required this.node,
+    required this.port,
+    this.iteration,
+  });
+
+  final ExecutionNodeRef node;
+  final String port;
+  final int? iteration;
+
+  @override
+  String get type => 'control.path';
+
+  @override
+  Map<String, Object?> toJson() => {
+    ...super.toJson(),
+    'node': node.toJson(),
+    'port': port,
+    if (iteration != null) 'iteration': iteration,
+  };
+}
+
 final class ExecutionEdgeTraversedEvent extends ExecutionTraceEvent {
   const ExecutionEdgeTraversedEvent({
     required super.executionId,
@@ -399,6 +438,63 @@ final class ExecutionLoopIterationEvent extends ExecutionTraceEvent {
   };
 }
 
+final class ExecutionSubgraphEnteredEvent extends ExecutionTraceEvent {
+  const ExecutionSubgraphEnteredEvent({
+    required super.executionId,
+    required super.seq,
+    required super.timestamp,
+    required super.mode,
+    required this.callNode,
+    required this.subgraphId,
+    required this.depth,
+  });
+
+  final ExecutionNodeRef callNode;
+  final String subgraphId;
+  final int depth;
+
+  @override
+  String get type => 'subgraph.entered';
+
+  @override
+  Map<String, Object?> toJson() => {
+    ...super.toJson(),
+    'callNode': callNode.toJson(),
+    'subgraphId': subgraphId,
+    'depth': depth,
+  };
+}
+
+final class ExecutionSubgraphExitedEvent extends ExecutionTraceEvent {
+  const ExecutionSubgraphExitedEvent({
+    required super.executionId,
+    required super.seq,
+    required super.timestamp,
+    required super.mode,
+    required this.callNode,
+    required this.subgraphId,
+    required this.depth,
+    required this.duration,
+  });
+
+  final ExecutionNodeRef callNode;
+  final String subgraphId;
+  final int depth;
+  final Duration duration;
+
+  @override
+  String get type => 'subgraph.exited';
+
+  @override
+  Map<String, Object?> toJson() => {
+    ...super.toJson(),
+    'callNode': callNode.toJson(),
+    'subgraphId': subgraphId,
+    'depth': depth,
+    'durationMs': duration.inMilliseconds,
+  };
+}
+
 final class ExecutionTraceNodeSnapshot {
   const ExecutionTraceNodeSnapshot({
     required this.node,
@@ -408,6 +504,9 @@ final class ExecutionTraceNodeSnapshot {
     this.duration,
     this.error,
     this.resultPreview,
+    this.selectedPort,
+    this.lastIteration,
+    this.subgraphId,
   });
 
   final ExecutionNodeRef node;
@@ -417,6 +516,9 @@ final class ExecutionTraceNodeSnapshot {
   final Duration? duration;
   final ExecutionTraceError? error;
   final Object? resultPreview;
+  final String? selectedPort;
+  final int? lastIteration;
+  final String? subgraphId;
 }
 
 final class ExecutionTraceRunSnapshot {
@@ -448,8 +550,20 @@ abstract interface class ExecutionTraceSink {
     Duration? duration,
   });
   void nodeResult(ExecutionNodeRef node, Object? result, {int? invocation});
+  void controlPath(ExecutionNodeRef node, String port, {int? iteration});
   void edgeTraversed(ExecutionEdgeRef edge);
   void loopIteration(ExecutionNodeRef node, int iteration);
+  void subgraphEntered(
+    ExecutionNodeRef callNode,
+    String subgraphId, {
+    required int depth,
+  });
+  void subgraphExited(
+    ExecutionNodeRef callNode,
+    String subgraphId, {
+    required int depth,
+    required Duration duration,
+  });
   void end(
     ExecutionTraceRunStatus status, {
     Object? error,
@@ -555,6 +669,22 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
   }
 
   @override
+  void controlPath(ExecutionNodeRef node, String port, {int? iteration}) {
+    if (_ended) return;
+    service._publish(
+      ExecutionControlPathEvent(
+        executionId: executionId,
+        seq: service._nextSequence(executionId),
+        timestamp: DateTime.now(),
+        mode: info.mode,
+        node: node,
+        port: port,
+        iteration: iteration,
+      ),
+    );
+  }
+
+  @override
   void edgeTraversed(ExecutionEdgeRef edge) {
     if (_ended) return;
     service._publish(
@@ -579,6 +709,48 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
         mode: info.mode,
         node: node,
         iteration: iteration,
+      ),
+    );
+  }
+
+  @override
+  void subgraphEntered(
+    ExecutionNodeRef callNode,
+    String subgraphId, {
+    required int depth,
+  }) {
+    if (_ended) return;
+    service._publish(
+      ExecutionSubgraphEnteredEvent(
+        executionId: executionId,
+        seq: service._nextSequence(executionId),
+        timestamp: DateTime.now(),
+        mode: info.mode,
+        callNode: callNode,
+        subgraphId: subgraphId,
+        depth: depth,
+      ),
+    );
+  }
+
+  @override
+  void subgraphExited(
+    ExecutionNodeRef callNode,
+    String subgraphId, {
+    required int depth,
+    required Duration duration,
+  }) {
+    if (_ended) return;
+    service._publish(
+      ExecutionSubgraphExitedEvent(
+        executionId: executionId,
+        seq: service._nextSequence(executionId),
+        timestamp: DateTime.now(),
+        mode: info.mode,
+        callNode: callNode,
+        subgraphId: subgraphId,
+        depth: depth,
+        duration: duration,
       ),
     );
   }
@@ -723,6 +895,28 @@ final class _TraceRunState {
           endedAt: event.timestamp,
           error: error,
         );
+        for (final entry in nodes.entries.toList()) {
+          final previous = entry.value;
+          if (previous.status != ExecutionTraceNodeStatus.running) continue;
+          nodes[entry.key] = _TraceNodeState(
+            node: previous.node,
+            status: status == ExecutionTraceRunStatus.aborted
+                ? ExecutionTraceNodeStatus.aborted
+                : status == ExecutionTraceRunStatus.completed
+                ? ExecutionTraceNodeStatus.success
+                : ExecutionTraceNodeStatus.error,
+            invocationCount: previous.invocationCount,
+            startedAt: previous.startedAt,
+            duration: previous.startedAt == null
+                ? null
+                : event.timestamp.difference(previous.startedAt!),
+            error: error,
+            resultPreview: previous.resultPreview,
+            selectedPort: previous.selectedPort,
+            lastIteration: previous.lastIteration,
+            subgraphId: previous.subgraphId,
+          );
+        }
       case ExecutionNodeStartedEvent(:final node, :final invocation):
         nodes[node.key] = _TraceNodeState(
           node: node,
@@ -744,6 +938,9 @@ final class _TraceRunState {
           duration: duration,
           error: previous?.error,
           resultPreview: previous?.resultPreview,
+          selectedPort: previous?.selectedPort,
+          lastIteration: previous?.lastIteration,
+          subgraphId: previous?.subgraphId,
         );
       case ExecutionNodeFailedEvent(
         :final node,
@@ -760,6 +957,9 @@ final class _TraceRunState {
           duration: duration,
           error: error,
           resultPreview: previous?.resultPreview,
+          selectedPort: previous?.selectedPort,
+          lastIteration: previous?.lastIteration,
+          subgraphId: previous?.subgraphId,
         );
       case ExecutionNodeResultEvent(
         :final node,
@@ -775,9 +975,75 @@ final class _TraceRunState {
           duration: previous?.duration,
           error: previous?.error,
           resultPreview: preview,
+          selectedPort: previous?.selectedPort,
+          lastIteration: previous?.lastIteration,
+          subgraphId: previous?.subgraphId,
+        );
+      case ExecutionControlPathEvent(
+        :final node,
+        :final port,
+        :final iteration,
+      ):
+        final previous = nodes[node.key];
+        nodes[node.key] = _TraceNodeState(
+          node: node,
+          status: previous?.status ?? ExecutionTraceNodeStatus.running,
+          invocationCount: previous?.invocationCount ?? 1,
+          startedAt: previous?.startedAt,
+          duration: previous?.duration,
+          error: previous?.error,
+          resultPreview: previous?.resultPreview,
+          selectedPort: port,
+          lastIteration: iteration ?? previous?.lastIteration,
+          subgraphId: previous?.subgraphId,
+        );
+      case ExecutionLoopIterationEvent(:final node, :final iteration):
+        final previous = nodes[node.key];
+        nodes[node.key] = _TraceNodeState(
+          node: node,
+          status: previous?.status ?? ExecutionTraceNodeStatus.running,
+          invocationCount: previous?.invocationCount ?? 1,
+          startedAt: previous?.startedAt,
+          duration: previous?.duration,
+          error: previous?.error,
+          resultPreview: previous?.resultPreview,
+          selectedPort: previous?.selectedPort,
+          lastIteration: iteration,
+          subgraphId: previous?.subgraphId,
+        );
+      case ExecutionSubgraphEnteredEvent(:final callNode, :final subgraphId):
+        final previous = nodes[callNode.key];
+        nodes[callNode.key] = _TraceNodeState(
+          node: callNode,
+          status: ExecutionTraceNodeStatus.running,
+          invocationCount: previous?.invocationCount ?? 1,
+          startedAt: previous?.startedAt ?? event.timestamp,
+          duration: previous?.duration,
+          error: previous?.error,
+          resultPreview: previous?.resultPreview,
+          selectedPort: previous?.selectedPort,
+          lastIteration: previous?.lastIteration,
+          subgraphId: subgraphId,
+        );
+      case ExecutionSubgraphExitedEvent(
+        :final callNode,
+        :final subgraphId,
+        :final duration,
+      ):
+        final previous = nodes[callNode.key];
+        nodes[callNode.key] = _TraceNodeState(
+          node: callNode,
+          status: ExecutionTraceNodeStatus.success,
+          invocationCount: previous?.invocationCount ?? 1,
+          startedAt: previous?.startedAt,
+          duration: duration,
+          error: previous?.error,
+          resultPreview: previous?.resultPreview,
+          selectedPort: previous?.selectedPort,
+          lastIteration: previous?.lastIteration,
+          subgraphId: subgraphId,
         );
       case ExecutionEdgeTraversedEvent():
-      case ExecutionLoopIterationEvent():
         break;
     }
   }
@@ -800,6 +1066,9 @@ final class _TraceNodeState {
     this.duration,
     this.error,
     this.resultPreview,
+    this.selectedPort,
+    this.lastIteration,
+    this.subgraphId,
   });
 
   final ExecutionNodeRef node;
@@ -809,6 +1078,9 @@ final class _TraceNodeState {
   final Duration? duration;
   final ExecutionTraceError? error;
   final Object? resultPreview;
+  final String? selectedPort;
+  final int? lastIteration;
+  final String? subgraphId;
 
   ExecutionTraceNodeSnapshot snapshot() => ExecutionTraceNodeSnapshot(
     node: node,
@@ -818,6 +1090,9 @@ final class _TraceNodeState {
     duration: duration,
     error: error,
     resultPreview: resultPreview,
+    selectedPort: selectedPort,
+    lastIteration: lastIteration,
+    subgraphId: subgraphId,
   );
 }
 

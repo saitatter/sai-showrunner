@@ -226,6 +226,7 @@ Color _minimapColor(String idName, GraphNodeExecutionStatus? status) =>
       GraphNodeExecutionStatus.running => const Color(0xff38bdf8),
       GraphNodeExecutionStatus.success => const Color(0xff4ade80),
       GraphNodeExecutionStatus.error => const Color(0xfff87171),
+      GraphNodeExecutionStatus.aborted => const Color(0xff9aa4b2),
       null => _nodeTypeMinimapColor(idName),
     };
 

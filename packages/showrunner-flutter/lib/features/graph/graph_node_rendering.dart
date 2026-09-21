@@ -84,9 +84,19 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
         GraphNodeExecutionStatus.success => const Color(0xff4ade80),
         GraphNodeExecutionStatus.error => const Color(0xfff87171),
         GraphNodeExecutionStatus.running => const Color(0xff38bdf8),
+        GraphNodeExecutionStatus.aborted => const Color(0xff9aa4b2),
         null => accent,
       };
-      final pulse = active
+      final reducedMotion =
+          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+      if (reducedMotion && _pulseController.isAnimating) {
+        _pulseController
+          ..stop()
+          ..value = 1;
+      } else if (!reducedMotion && active && !_pulseController.isAnimating) {
+        _pulseController.repeat(reverse: true);
+      }
+      final pulse = active && !reducedMotion
           ? Curves.easeInOut.transform(_pulseController.value)
           : 0.0;
       return Opacity(
@@ -96,7 +106,9 @@ class _GraphNodeHeaderState extends State<_GraphNodeHeader>
             ? 1
             : 0.35,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: reducedMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
           decoration: headerStyle.decoration.copyWith(
             color: active
                 ? Color.lerp(
@@ -332,12 +344,17 @@ class _ExecutionBadge extends StatelessWidget {
       GraphNodeExecutionStatus.success => (
         Icons.check,
         const Color(0xff4ade80),
-        _durationLabel('Completed', execution.duration),
+        _executionTooltip(execution),
       ),
       GraphNodeExecutionStatus.error => (
         Icons.error_outline,
         const Color(0xfff87171),
         execution.error ?? 'Failed',
+      ),
+      GraphNodeExecutionStatus.aborted => (
+        Icons.cancel_outlined,
+        const Color(0xff9aa4b2),
+        'Aborted',
       ),
     };
     return Tooltip(
@@ -345,6 +362,15 @@ class _ExecutionBadge extends StatelessWidget {
       child: Icon(icon, color: color, size: 16),
     );
   }
+}
+
+String _executionTooltip(GraphNodeExecutionVisual execution) {
+  final details = <String>[_durationLabel('Completed', execution.duration)];
+  if (execution.lastIteration != null) {
+    details.add('iteration ${execution.lastIteration}');
+  }
+  if (execution.selectedPort != null) details.add(execution.selectedPort!);
+  return details.join(' • ');
 }
 
 String _durationLabel(String label, Duration? duration) {

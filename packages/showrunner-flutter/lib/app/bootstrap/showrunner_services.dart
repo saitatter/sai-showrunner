@@ -89,7 +89,10 @@ final class ShowRunnerServices {
           automation: automation,
           context: context,
           registry: registry,
-          traceSource: ExecutionTraceSource.fromMetadata(item.source),
+          traceSource: ExecutionTraceSource.fromMetadata({
+            ...item.source,
+            'itemId': item.id,
+          }),
         );
       },
     );

@@ -322,7 +322,20 @@ class _ExecutionLinkOverlayState extends State<_ExecutionLinkOverlay>
   late final AnimationController _animationController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1200),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduced = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (reduced) {
+      _animationController
+        ..stop()
+        ..value = 0;
+    } else if (!_animationController.isAnimating) {
+      _animationController.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -337,6 +350,7 @@ class _ExecutionLinkOverlayState extends State<_ExecutionLinkOverlay>
         widget.editor.controller,
         widget.editor.activeNodeIds,
         widget.editor.executionStates,
+        widget.editor.executionEdgeIds,
         widget.editor.controller.viewportOffsetNotifier,
         widget.editor.controller.viewportZoomNotifier,
         _animationController,
@@ -347,6 +361,8 @@ class _ExecutionLinkOverlayState extends State<_ExecutionLinkOverlay>
             links: widget.editor.controller.linksAsList,
             nodes: widget.editor.controller.nodes,
             executionStates: widget.editor.executionStates.value,
+            executionEdgeIds: widget.editor.executionEdgeIds.value,
+            schemaLinkId: widget.editor.schemaLinkIdForEditorLink,
             progress: _animationController.value,
             viewportOffset: widget.editor.controller.viewportOffset,
             viewportZoom: widget.editor.controller.viewportZoom,
@@ -363,6 +379,8 @@ class _ExecutionLinkPainter extends CustomPainter {
     required this.links,
     required this.nodes,
     required this.executionStates,
+    required this.executionEdgeIds,
+    required this.schemaLinkId,
     required this.progress,
     required this.viewportOffset,
     required this.viewportZoom,
@@ -371,6 +389,8 @@ class _ExecutionLinkPainter extends CustomPainter {
   final List<LinkDataModel> links;
   final Map<String, NodeDataModel> nodes;
   final Map<String, GraphNodeExecutionVisual> executionStates;
+  final Set<String> executionEdgeIds;
+  final String? Function(LinkDataModel link) schemaLinkId;
   final double progress;
   final Offset viewportOffset;
   final double viewportZoom;
@@ -391,13 +411,18 @@ class _ExecutionLinkPainter extends CustomPainter {
       }
       final sourceState = executionStates[source.id]?.status;
       final targetState = executionStates[target.id]?.status;
+      final exactEdgeId = schemaLinkId(link);
+      final hasExactTrace = executionEdgeIds.isNotEmpty;
+      final isTraversed = hasExactTrace
+          ? exactEdgeId != null && executionEdgeIds.contains(exactEdgeId)
+          : sourceState == GraphNodeExecutionStatus.success &&
+                (targetState == GraphNodeExecutionStatus.running ||
+                    targetState == GraphNodeExecutionStatus.success);
       final isActive =
-          sourceState == GraphNodeExecutionStatus.success &&
-          targetState == GraphNodeExecutionStatus.running;
-      final isCompleted =
-          sourceState == GraphNodeExecutionStatus.success &&
-          targetState == GraphNodeExecutionStatus.success;
-      final isFailed = targetState == GraphNodeExecutionStatus.error;
+          isTraversed && targetState == GraphNodeExecutionStatus.running;
+      final isCompleted = isTraversed && !isActive;
+      final isFailed =
+          isTraversed && targetState == GraphNodeExecutionStatus.error;
       if (!isActive && !isCompleted && !isFailed) continue;
 
       final path = _pathFor(
@@ -417,6 +442,17 @@ class _ExecutionLinkPainter extends CustomPainter {
             ..strokeWidth = 8
             ..color = color.withValues(alpha: 0.14)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+        );
+      }
+      if (isCompleted) {
+        _drawDashedPath(
+          canvas,
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3
+            ..color = color.withValues(alpha: 0.9),
+          progress,
         );
       }
       canvas.drawPath(
@@ -466,11 +502,31 @@ class _ExecutionLinkPainter extends CustomPainter {
     return metrics.getTangentForOffset(metrics.length * value)!.position;
   }
 
+  void _drawDashedPath(Canvas canvas, Path path, Paint paint, double progress) {
+    final metrics = path.computeMetrics().toList(growable: false);
+    if (metrics.isEmpty || metrics.first.length <= 0) return;
+    final metric = metrics.first;
+    const dashLength = 10.0;
+    const gapLength = 7.0;
+    final offset = (metric.length * progress) % (dashLength + gapLength);
+    for (
+      double start = -offset;
+      start < metric.length;
+      start += dashLength + gapLength
+    ) {
+      final dashStart = math.max(0, start).toDouble();
+      final dashEnd = math.min(metric.length, start + dashLength).toDouble();
+      if (dashEnd <= dashStart) continue;
+      canvas.drawPath(metric.extractPath(dashStart, dashEnd), paint);
+    }
+  }
+
   @override
   bool shouldRepaint(_ExecutionLinkPainter oldDelegate) =>
       oldDelegate.links != links ||
       oldDelegate.nodes != nodes ||
       oldDelegate.executionStates != executionStates ||
+      oldDelegate.executionEdgeIds != executionEdgeIds ||
       oldDelegate.progress != progress ||
       oldDelegate.viewportOffset != viewportOffset ||
       oldDelegate.viewportZoom != viewportZoom;

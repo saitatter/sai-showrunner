@@ -99,6 +99,9 @@ final class DartAutomationQueueManager {
     final queue = await queueFor(queueKey);
     final source = automation.toJson();
     if (sourceMetadata != null) source.addAll(sourceMetadata);
+    final traceQueueKey = queueKey.isEmpty ? 'default' : queueKey;
+    source['queueId'] = traceQueueKey;
+    source['queueName'] = _queueNames[traceQueueKey] ?? traceQueueKey;
     final name = source['name']?.toString();
     if (name == null || name.trim().isEmpty) {
       source['name'] = 'Queued automation';
