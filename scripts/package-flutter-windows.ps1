@@ -8,7 +8,15 @@ $ErrorActionPreference = 'Stop'
 
 Push-Location (Join-Path $PSScriptRoot '..\packages\showrunner-flutter')
 try {
-  flutter build windows --release --build-name=$Version --build-number=1
+  $dartDefines = @()
+  if (-not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)) {
+    $dartDefines += "--dart-define=SHOWRUNNER_YOUTUBE_CLIENT_ID=$($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)"
+  }
+  if (-not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_SECRET)) {
+    $dartDefines += "--dart-define=SHOWRUNNER_YOUTUBE_CLIENT_SECRET=$($env:SHOWRUNNER_YOUTUBE_CLIENT_SECRET)"
+  }
+
+  flutter build windows --release --build-name=$Version --build-number=1 @dartDefines
   $bundle = Join-Path (Get-Location) 'build\windows\x64\runner\Release'
   if (-not (Test-Path $bundle)) {
     throw "Flutter Windows bundle was not produced at $bundle"
