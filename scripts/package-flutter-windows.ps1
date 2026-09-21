@@ -66,6 +66,10 @@ try {
         -Scenario $scenario
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
+
+    Write-Host "Running local Windows updater install/rollback smoke"
+    dart run tool/update_smoke.dart --bundle="$bundle"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   }
 }
 finally {
