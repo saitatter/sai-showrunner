@@ -17,6 +17,7 @@ Future<Directory> createShowRunnerFixtureDirectory({
       directory,
     ).savePluginSettings('showrunner-flutter', const {'setupCompleted': true});
   }
+  await Directory('${directory.path}/state').create(recursive: true);
   return directory;
 }
 

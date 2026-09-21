@@ -53,7 +53,11 @@ void main() {
       File('${directory.path}/automations/visual-automation.yaml'),
     ).save(
       const AutomationData(
-        extra: {'name': 'Visual Automation'},
+        extra: {
+          'name': 'Paid Event -> Add to Alerts Queue',
+          'plugin': 'youtube',
+          'trigger': 'superChat',
+        },
         graph: AutomationGraph(
           entryNodeId: 'queue',
           nodes: [
@@ -64,26 +68,19 @@ void main() {
               y: 0,
               data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
             ),
-            GraphNode(
-              id: 'overlay',
-              type: 'action',
-              x: 320,
-              y: 0,
-              data: {'plugin': 'overlays', 'action': 'pushChatMessage'},
-            ),
-            GraphNode(
-              id: 'scene',
-              type: 'action',
-              x: 640,
-              y: 0,
-              data: {'plugin': 'obs', 'action': 'scene'},
-            ),
-          ],
-          edges: [
-            GraphEdge(id: 'queue-overlay', from: 'queue', to: 'overlay'),
-            GraphEdge(id: 'overlay-scene', from: 'overlay', to: 'scene'),
           ],
         ),
+        triggerNodes: [
+          {
+            'id': 'super-chat',
+            'plugin': 'youtube',
+            'trigger': 'superChat',
+            'x': -360,
+            'y': 0,
+            'config': <String, dynamic>{},
+            'stop': false,
+          },
+        ],
       ),
     );
     final view = tester.view;
@@ -103,15 +100,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump(const Duration(milliseconds: 250));
     await tester.tap(find.text('Automations').first);
-    await _pumpUntilVisible(tester, find.text('Visual Automation'));
-    await tester.tap(find.text('Visual Automation').first);
+    await _pumpUntilVisible(
+      tester,
+      find.text('Paid Event -> Add to Alerts Queue'),
+    );
+    await tester.tap(find.text('Paid Event -> Add to Alerts Queue').first);
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Graph healthy'), findsOneWidget);
-    expect(find.textContaining('3 nodes'), findsOneWidget);
+    expect(find.textContaining('2 nodes'), findsOneWidget);
     expect(find.text('Add node'), findsOneWidget);
-    expect(find.text('ShowRunner.addToQueue'), findsNothing);
+    expect(find.text('Super Chat'), findsOneWidget);
+    expect(find.text('Add to Queue'), findsOneWidget);
+    if (find.text('Dismiss').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Dismiss').last);
+      await tester.pump(const Duration(milliseconds: 50));
+    }
     await _writeOptionalCapture(tester, fileName: 'app-graph.png');
   });
 }
@@ -121,6 +126,13 @@ Future<void> _writeOptionalCapture(
   String fileName = 'app-empty.png',
 }) async {
   if (Platform.environment['SHOWRUNNER_VISUAL_CAPTURE'] != '1') return;
+  final messenger = find.byType(ScaffoldMessenger);
+  if (messenger.evaluate().isNotEmpty) {
+    tester
+        .state<ScaffoldMessengerState>(messenger.first)
+        .hideCurrentMaterialBanner();
+    await tester.pump(const Duration(milliseconds: 200));
+  }
   final outputDirectory = Directory(
     Platform.environment['SHOWRUNNER_VISUAL_OUTPUT'] ??
         'test/reference/flutter',
