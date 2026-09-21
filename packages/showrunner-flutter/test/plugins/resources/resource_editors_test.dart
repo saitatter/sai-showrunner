@@ -12,12 +12,14 @@ import 'package:showrunner_flutter/schema/stream_plan.dart';
 void main() {
   test('uses typed resource keys and rejects duplicate editors', () {
     final registry = DartResourceEditorRegistry();
-    final definition = DartResourceEditorDefinition(
-      pluginId: 'sample',
-      resourceType: 'Sample',
-      displayName: 'Sample',
-      storageDirectory: 'samples',
-      defaultConfig: (name) => {'name': name},
+    final definition = DartResourceEditorDefinition.fromContract(
+      contract: ResourceSpec(
+        ownerId: const PluginId('sample'),
+        resourceTypeId: const ResourceTypeId('Sample'),
+        displayName: 'Sample',
+        storageDirectory: 'samples',
+        defaultConfigFactory: (name) => {'name': name},
+      ),
       builder: (context, resource, onSave) => const SizedBox.shrink(),
     );
 

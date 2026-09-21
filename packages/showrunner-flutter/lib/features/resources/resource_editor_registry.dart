@@ -140,16 +140,6 @@ typedef DartResourceEditorRuntimeBuilder =
     });
 
 final class DartResourceEditorDefinition implements DartResourceContract {
-  const DartResourceEditorDefinition({
-    required this.pluginId,
-    required this.resourceType,
-    required this.displayName,
-    required this.storageDirectory,
-    required this.defaultConfig,
-    required this.builder,
-    this.runtimeBuilder,
-  });
-
   DartResourceEditorDefinition.fromContract({
     required DartResourceContract contract,
     required this.builder,
