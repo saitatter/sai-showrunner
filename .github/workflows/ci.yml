@@ -119,6 +119,9 @@ jobs:
       - name: Verify overlay runtime has no Vue compatibility layer
         run: yarn overlay:forbid-vue
 
+      - name: Compare the committed visual parity catalog
+        run: yarn visual:compare:catalog
+
       - name: Verify generated overlay registry
         run: |
           yarn overlay:generate
