@@ -324,7 +324,9 @@ class _ObsConnectionDashboardCard extends StatelessWidget {
       iconWidget: const ObsBrandIcon(size: 18),
       title: connection.name,
       child: FutureBuilder<bool>(
-        future: registryFuture.then((registry) => registry.checkHealth('obs')),
+        future: registryFuture.then(
+          (registry) => registry.checkHealthId(const PluginId('obs')),
+        ),
         builder: (context, snapshot) {
           final healthy = snapshot.data == true;
           final checking = snapshot.connectionState == ConnectionState.waiting;
@@ -506,14 +508,20 @@ class _TwitchDashboardCardState extends State<_TwitchDashboardCard> {
     try {
       final settings = await loadTwitchChannelSettings(widget.dataService);
       final registry = await widget.registryFuture;
-      await registry.invokeAction('twitch', 'setStreamInfo', {
-        'broadcasterId': settings['broadcasterId'],
-        if (_titleController.text.trim().isNotEmpty)
-          'title': _titleController.text.trim(),
-        if (_categoryController.text.trim().isNotEmpty)
-          'categoryId': _categoryId ?? _categoryController.text.trim(),
-        if (_tags.isNotEmpty) 'tags': List<String>.from(_tags),
-      });
+      await registry.invokeActionKey(
+        const ActionKey(
+          plugin: PluginId('twitch'),
+          action: ActionId('setStreamInfo'),
+        ),
+        {
+          'broadcasterId': settings['broadcasterId'],
+          if (_titleController.text.trim().isNotEmpty)
+            'title': _titleController.text.trim(),
+          if (_categoryController.text.trim().isNotEmpty)
+            'categoryId': _categoryId ?? _categoryController.text.trim(),
+          if (_tags.isNotEmpty) 'tags': List<String>.from(_tags),
+        },
+      );
       await widget.onRefresh();
     } catch (error) {
       if (mounted) setState(() => _streamInfoError = error);

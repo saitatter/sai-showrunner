@@ -912,7 +912,7 @@ List<_NodePickerEntry> _registeredNodeEntries(
 }) {
   final entries = <_NodePickerEntry>[];
   for (final plugin in registry.plugins.where(
-    (plugin) => registry.isPluginEnabled(plugin.id.value) == enabled,
+    (plugin) => registry.isPluginEnabledId(plugin.id) == enabled,
   )) {
     for (final action in plugin.actions) {
       final conversion = _isConversionEntry(

@@ -155,7 +155,13 @@ class _YouTubeWorkspaceState extends State<YouTubeWorkspace> {
     });
     try {
       final registry = await widget.registryFuture;
-      await registry.invokeAction('youtube', actionId, config);
+      await registry.invokeActionKey(
+        ActionKey(
+          plugin: const PluginId('youtube'),
+          action: ActionId(actionId),
+        ),
+        config,
+      );
     } catch (error) {
       _error = error;
     }

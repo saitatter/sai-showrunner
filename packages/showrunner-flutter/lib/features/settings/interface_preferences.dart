@@ -161,7 +161,7 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
       'disabledPlugins': <String>[],
     });
     for (final plugin in registry.plugins) {
-      registry.setPluginEnabled(plugin.id.value, true);
+      registry.setPluginEnabledId(plugin.id, true);
     }
   }
 

@@ -7,8 +7,9 @@ Future<void> persistPluginEnabled({
   required String pluginId,
   required bool enabled,
 }) async {
-  final previous = registry.isPluginEnabled(pluginId);
-  registry.setPluginEnabled(pluginId, enabled);
+  final typedPluginId = PluginId(pluginId);
+  final previous = registry.isPluginEnabledId(typedPluginId);
+  registry.setPluginEnabledId(typedPluginId, enabled);
   try {
     final settings = await dataService.loadPluginSettings('showrunner-flutter');
     final disabled = <String>{
@@ -25,7 +26,7 @@ Future<void> persistPluginEnabled({
       'disabledPlugins': disabled.toList()..sort(),
     });
   } catch (_) {
-    registry.setPluginEnabled(pluginId, previous);
+    registry.setPluginEnabledId(typedPluginId, previous);
     rethrow;
   }
 }

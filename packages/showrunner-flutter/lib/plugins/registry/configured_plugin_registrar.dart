@@ -547,7 +547,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   final disabled = appSettings['disabledPlugins'];
   if (disabled is List) {
     for (final pluginId in disabled.whereType<String>()) {
-      registry.setPluginEnabled(pluginId, false);
+      registry.setPluginEnabledId(PluginId(pluginId), false);
     }
   }
   await registry.initialize(

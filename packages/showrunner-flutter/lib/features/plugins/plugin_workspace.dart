@@ -398,7 +398,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
               tooltip: 'Check plugin health',
               onPressed: () async {
                 final healthy = await widget.registryFuture.then(
-                  (r) => r.checkHealth(plugin.id.value),
+                  (r) => r.checkHealthId(plugin.id),
                 );
                 if (!context.mounted) return;
                 showShowRunnerFeedback(
@@ -414,7 +414,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
               icon: const Icon(Icons.health_and_safety_outlined),
             ),
             Switch(
-              value: registry.isPluginEnabled(plugin.id.value),
+              value: registry.isPluginEnabledId(plugin.id),
               onChanged: (value) => _setEnabled(plugin.id.value, value),
             ),
           ],

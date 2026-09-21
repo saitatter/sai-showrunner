@@ -42,88 +42,143 @@ IotResourceActionResolver createConfiguredIotResolver({
   switch (provider) {
     case 'govee':
       if (resourceType == 'Plug' || !hasColor) {
-        return registry.invokeAction('govee', 'setPower', {
-          'device': providerId,
-          'model': _requiredDeviceField(device, 'model', resourceId),
-          'state': state,
-        }, context: context);
+        return registry.invokeActionKey(
+          const ActionKey(
+            plugin: PluginId('govee'),
+            action: ActionId('setPower'),
+          ),
+          {
+            'device': providerId,
+            'model': _requiredDeviceField(device, 'model', resourceId),
+            'state': state,
+          },
+          context: context,
+        );
       }
       if (hasPower) {
-        await registry.invokeAction('govee', 'setPower', {
+        await registry.invokeActionKey(
+          const ActionKey(
+            plugin: PluginId('govee'),
+            action: ActionId('setPower'),
+          ),
+          {
+            'device': providerId,
+            'model': _requiredDeviceField(device, 'model', resourceId),
+            'state': state,
+          },
+          context: context,
+        );
+      }
+      return registry.invokeActionKey(
+        const ActionKey(
+          plugin: PluginId('govee'),
+          action: ActionId('setColor'),
+        ),
+        {
           'device': providerId,
           'model': _requiredDeviceField(device, 'model', resourceId),
-          'state': state,
-        }, context: context);
-      }
-      return registry.invokeAction('govee', 'setColor', {
-        'device': providerId,
-        'model': _requiredDeviceField(device, 'model', resourceId),
-        'color': color,
-      }, context: context);
+          'color': color,
+        },
+        context: context,
+      );
     case 'philips-hue':
       if (resourceType == 'Plug') {
-        return registry.invokeAction('philips-hue', 'setPlugState', {
+        return registry.invokeActionKey(
+          const ActionKey(
+            plugin: PluginId('philips-hue'),
+            action: ActionId('setPlugState'),
+          ),
+          {
+            if (device['host']?.toString().trim().isNotEmpty == true)
+              'host': device['host'],
+            if (device['hubKey']?.toString().trim().isNotEmpty == true)
+              'hubKey': device['hubKey'],
+            'lightId': providerId,
+            'state': toggleAwareState,
+          },
+          context: context,
+        );
+      }
+      final hueResourceType = device['resourceType']?.toString().trim();
+      return registry.invokeActionKey(
+        const ActionKey(
+          plugin: PluginId('philips-hue'),
+          action: ActionId('setLightState'),
+        ),
+        {
           if (device['host']?.toString().trim().isNotEmpty == true)
             'host': device['host'],
           if (device['hubKey']?.toString().trim().isNotEmpty == true)
             'hubKey': device['hubKey'],
           'lightId': providerId,
+          'resourceType': hueResourceType?.isNotEmpty == true
+              ? hueResourceType
+              : device['hueType']?.toString().trim().toLowerCase() == 'group'
+              ? 'grouped_light'
+              : 'light',
           'state': toggleAwareState,
-        }, context: context);
-      }
-      final hueResourceType = device['resourceType']?.toString().trim();
-      return registry.invokeAction('philips-hue', 'setLightState', {
-        if (device['host']?.toString().trim().isNotEmpty == true)
-          'host': device['host'],
-        if (device['hubKey']?.toString().trim().isNotEmpty == true)
-          'hubKey': device['hubKey'],
-        'lightId': providerId,
-        'resourceType': hueResourceType?.isNotEmpty == true
-            ? hueResourceType
-            : device['hueType']?.toString().trim().toLowerCase() == 'group'
-            ? 'grouped_light'
-            : 'light',
-        'state': toggleAwareState,
-        'color': color,
-        'transition': transition,
-      }, context: context);
+          'color': color,
+          'transition': transition,
+        },
+        context: context,
+      );
     case 'twinkly':
       if (resourceType != 'Light') {
         throw UnsupportedError('Twinkly plug resources are not supported.');
       }
       final ip = _deviceHost(device, resourceId);
       if (hasPower && !state) {
-        return registry.invokeAction('twinkly', 'turnOff', {
-          'ip': ip,
-        }, context: context);
+        return registry.invokeActionKey(
+          const ActionKey(
+            plugin: PluginId('twinkly'),
+            action: ActionId('turnOff'),
+          ),
+          {'ip': ip},
+          context: context,
+        );
       }
       if (!hasColor) {
         throw UnsupportedError(
           'Twinkly can only turn on through a color or movie.',
         );
       }
-      return registry.invokeAction('twinkly', 'setColor', {
-        'ip': ip,
-        'color': color,
-      }, context: context);
+      return registry.invokeActionKey(
+        const ActionKey(
+          plugin: PluginId('twinkly'),
+          action: ActionId('setColor'),
+        ),
+        {'ip': ip, 'color': color},
+        context: context,
+      );
     case 'elgato':
       if (resourceType != 'Light') {
         throw UnsupportedError('Elgato plug resources are not supported.');
       }
-      return registry.invokeAction('elgato', 'setLightState', {
-        'host': _deviceHost(device, resourceId),
-        'port': _positiveDeviceInt(device['port'], 9123),
-        'state': state,
-        'color': color,
-        'numberOfLights': _positiveDeviceInt(device['numberOfLights'], 1),
-      }, context: context);
+      return registry.invokeActionKey(
+        const ActionKey(
+          plugin: PluginId('elgato'),
+          action: ActionId('setLightState'),
+        ),
+        {
+          'host': _deviceHost(device, resourceId),
+          'port': _positiveDeviceInt(device['port'], 9123),
+          'state': state,
+          'color': color,
+          'numberOfLights': _positiveDeviceInt(device['numberOfLights'], 1),
+        },
+        context: context,
+      );
     // The plugin ID is `tplink-kasa`, while resources created by the
     // reference Electron plugin persist the shorter provider value `kasa`.
     case 'kasa':
     case 'tplink-kasa':
-      return registry.invokeAction(
-        'tplink-kasa',
-        resourceType == 'Plug' ? 'setPlugState' : 'setLightState',
+      return registry.invokeActionKey(
+        ActionKey(
+          plugin: const PluginId('tplink-kasa'),
+          action: ActionId(
+            resourceType == 'Plug' ? 'setPlugState' : 'setLightState',
+          ),
+        ),
         {
           'host': _deviceHost(device, resourceId),
           'port': _positiveDeviceInt(device['port'], 9999),
@@ -140,28 +195,46 @@ IotResourceActionResolver createConfiguredIotResolver({
         throw UnsupportedError('LIFX plug resources are not supported.');
       }
       if (hasPower && !hasColor) {
-        return registry.invokeAction('lifx', 'setPower', {
+        return registry.invokeActionKey(
+          const ActionKey(
+            plugin: PluginId('lifx'),
+            action: ActionId('setPower'),
+          ),
+          {
+            'host': _deviceHost(device, resourceId),
+            'port': _positiveDeviceInt(device['port'], 56700),
+            if (device['target']?.toString().trim().isNotEmpty == true)
+              'target': device['target'],
+            'state': state,
+            'transition': transition,
+          },
+          context: context,
+        );
+      }
+      return registry.invokeActionKey(
+        const ActionKey(
+          plugin: PluginId('lifx'),
+          action: ActionId('setLightState'),
+        ),
+        {
           'host': _deviceHost(device, resourceId),
           'port': _positiveDeviceInt(device['port'], 56700),
           if (device['target']?.toString().trim().isNotEmpty == true)
             'target': device['target'],
           'state': state,
+          'color': color,
           'transition': transition,
-        }, context: context);
-      }
-      return registry.invokeAction('lifx', 'setLightState', {
-        'host': _deviceHost(device, resourceId),
-        'port': _positiveDeviceInt(device['port'], 56700),
-        if (device['target']?.toString().trim().isNotEmpty == true)
-          'target': device['target'],
-        'state': state,
-        'color': color,
-        'transition': transition,
-      }, context: context);
+        },
+        context: context,
+      );
     case 'wyze':
-      return registry.invokeAction(
-        'wyze',
-        resourceType == 'Plug' ? 'setPlugState' : 'setLightState',
+      return registry.invokeActionKey(
+        ActionKey(
+          plugin: const PluginId('wyze'),
+          action: ActionId(
+            resourceType == 'Plug' ? 'setPlugState' : 'setLightState',
+          ),
+        ),
         {
           'device': providerId,
           'model': _requiredDeviceField(device, 'model', resourceId),

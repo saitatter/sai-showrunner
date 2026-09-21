@@ -450,7 +450,7 @@ class _ObsWorkspaceState extends State<ObsWorkspace> {
     });
     try {
       _healthy = await widget.registryFuture.then((registry) {
-        return registry.checkHealth('obs');
+        return registry.checkHealthId(const PluginId('obs'));
       });
     } catch (error) {
       _healthy = false;
@@ -567,7 +567,10 @@ class _ObsWorkspaceState extends State<ObsWorkspace> {
     });
     try {
       final registry = await widget.registryFuture;
-      result = await registry.invokeAction('obs', actionId, config);
+      result = await registry.invokeActionKey(
+        ActionKey(plugin: const PluginId('obs'), action: ActionId(actionId)),
+        config,
+      );
       _healthy = true;
     } catch (error) {
       _error = error;

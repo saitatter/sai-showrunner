@@ -1016,11 +1016,17 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   Future<void> _runOverlaySmoke() async {
     final registry = await _pluginRegistryFuture;
     final event = _eventHub.stream(OverlayEventIds.widget).first;
-    final result = await registry.invokeAction('overlays', 'triggerWidget', {
-      'widgetId': 'smoke-widget',
-      'overlayId': 'smoke-overlay',
-      'payload': {'source': 'packaged-smoke'},
-    });
+    final result = await registry.invokeActionKey(
+      const ActionKey(
+        plugin: PluginId('overlays'),
+        action: ActionId('triggerWidget'),
+      ),
+      {
+        'widgetId': 'smoke-widget',
+        'overlayId': 'smoke-overlay',
+        'payload': {'source': 'packaged-smoke'},
+      },
+    );
     final payload = await event.timeout(const Duration(seconds: 1));
     if (result is! Map ||
         result['triggered'] != true ||

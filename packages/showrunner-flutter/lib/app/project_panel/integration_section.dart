@@ -114,7 +114,7 @@ class _IntegrationSectionState extends State<IntegrationSection> {
   Widget _buildContent(BuildContext context, DartPluginRegistry registry) {
     final plugins = registry.plugins.where((plugin) {
       if (widget.preferences.hideDisabledIntegrations &&
-          !registry.isPluginEnabled(plugin.id.value)) {
+          !registry.isPluginEnabledId(plugin.id)) {
         return false;
       }
       return pluginMatchesSearch(plugin, _query);
@@ -505,7 +505,7 @@ class _IntegrationPluginRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = registry.isPluginEnabled(plugin.id.value);
+    final enabled = registry.isPluginEnabledId(plugin.id);
     return Material(
       color: selected
           ? ShowRunnerColors.highlight

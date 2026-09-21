@@ -203,35 +203,46 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
     final context = EvaluationContext();
     switch ('${slot.resourceType}:$method') {
       case 'Light:setLightState':
-        return registry.invokeAction('iot', 'light', {
-          'light': resourceId,
-          'on': argument(1) ?? true,
-          'lightColor': argument(0),
-          'transition': argument(2) ?? 0.5,
-        }, context: context);
+        return registry.invokeActionKey(
+          const ActionKey(plugin: PluginId('iot'), action: ActionId('light')),
+          {
+            'light': resourceId,
+            'on': argument(1) ?? true,
+            'lightColor': argument(0),
+            'transition': argument(2) ?? 0.5,
+          },
+          context: context,
+        );
       case 'Plug:setPlugState':
-        return registry.invokeAction('iot', 'plug', {
-          'plug': resourceId,
-          'switch': argument(0) ?? true,
-        }, context: context);
+        return registry.invokeActionKey(
+          const ActionKey(plugin: PluginId('iot'), action: ActionId('plug')),
+          {'plug': resourceId, 'switch': argument(0) ?? true},
+          context: context,
+        );
       case 'SoundOutput:playFile':
         if (argument(1)?.toString().trim().isEmpty != false) {
           throw StateError('Remote sound request did not include a file path.');
         }
-        return registry.invokeAction('sound', 'sound', {
-          'output': resourceId,
-          '_playId': argument(0),
-          'sound': argument(1),
-          'startTime': argument(2) ?? 0,
-          'endTime': argument(3),
-          'volume': argument(4) ?? 100,
-        }, context: context);
+        return registry.invokeActionKey(
+          const ActionKey(plugin: PluginId('sound'), action: ActionId('sound')),
+          {
+            'output': resourceId,
+            '_playId': argument(0),
+            'sound': argument(1),
+            'startTime': argument(2) ?? 0,
+            'endTime': argument(3),
+            'volume': argument(4) ?? 100,
+          },
+          context: context,
+        );
       case 'SoundOutput:abortPlay':
         final playId = argument(0)?.toString().trim() ?? '';
         if (playId.isEmpty) return {'aborted': false};
-        return registry.invokeAction('sound', 'sound', {
-          '_abortPlay': playId,
-        }, context: context);
+        return registry.invokeActionKey(
+          const ActionKey(plugin: PluginId('sound'), action: ActionId('sound')),
+          {'_abortPlay': playId},
+          context: context,
+        );
       default:
         throw UnsupportedError(
           'Flutter has no local remote-resource handler for ${slot.resourceType}.$method.',

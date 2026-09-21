@@ -138,11 +138,14 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
     try {
       final registry = await widget.registryFuture;
       final settings = await loadTwitchChannelSettings(widget.dataService);
-      await registry.invokeAction('twitch', actionId, {
-        ...config,
-        'broadcasterId': settings['broadcasterId'],
-        'moderatorId': settings['moderatorId'],
-      });
+      await registry.invokeActionKey(
+        ActionKey(plugin: const PluginId('twitch'), action: ActionId(actionId)),
+        {
+          ...config,
+          'broadcasterId': settings['broadcasterId'],
+          'moderatorId': settings['moderatorId'],
+        },
+      );
     } catch (error) {
       _error = error;
     }
@@ -282,7 +285,7 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
         const SizedBox(height: 16),
         FutureBuilder<bool>(
           future: widget.registryFuture.then(
-            (registry) => registry.checkHealth('twitch'),
+            (registry) => registry.checkHealthId(const PluginId('twitch')),
           ),
           builder: (context, snapshot) {
             final state = widget.providerEvents.twitchState;
