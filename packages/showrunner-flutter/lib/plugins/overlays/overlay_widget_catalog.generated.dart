@@ -92,6 +92,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "outerRadius": {
         "type": "object",
+        "editor": "widgetBorderRadius",
         "name": "Outer Corners",
         "default": {},
         "fields": {
@@ -107,6 +108,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "backgroundStyle": {
         "type": "object",
+        "editor": "widgetBackgroundStyle",
         "name": "Background Style",
         "default": {"color": "#222222", "elements": []},
         "fields": {
@@ -157,6 +159,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "outline": {
         "type": "object",
+        "editor": "widgetOutlineStyle",
         "name": "Outline",
         "fields": {
           "color": {"type": "color", "name": "Color", "default": "#000000"},
@@ -171,6 +174,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "fillStyle": {
         "type": "object",
+        "editor": "widgetBackgroundStyle",
         "name": "Fill Style",
         "default": {"color": "#42D392", "elements": []},
         "fields": {
@@ -221,6 +225,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "fillLine": {
         "type": "object",
+        "editor": "widgetOutlineStyle",
         "name": "Fill Line",
         "fields": {
           "color": {"type": "color", "name": "Color", "default": "#000000"},
@@ -336,6 +341,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "font": {
         "type": "object",
+        "editor": "overlayTextStyle",
         "name": "Font",
         "default": {
           "fontSize": 65,
@@ -387,6 +393,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "textAlign": {
         "type": "object",
+        "editor": "overlayTextAlignment",
         "name": "Text Align",
         "default": {"textAlign": "left"},
         "fields": {
@@ -400,6 +407,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "block": {
         "type": "object",
+        "editor": "overlayBlockStyle",
         "name": "Block",
         "default": {
           "margin": {"top": 0, "bottom": 0, "left": 0, "right": 0},
@@ -466,6 +474,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
             "variable": {"type": "viewerVariable", "name": "Variable"},
             "font": {
               "type": "object",
+              "editor": "overlayTextStyle",
               "name": "Font",
               "fields": {
                 "fontFamily": {
@@ -523,6 +532,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
             },
             "textAlign": {
               "type": "object",
+              "editor": "overlayTextAlignment",
               "name": "Align",
               "default": {"textAlign": "left"},
               "fields": {
@@ -536,6 +546,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
             },
             "background": {
               "type": "object",
+              "editor": "widgetBackgroundStyle",
               "name": "Background",
               "default": {"elements": []},
               "fields": {
@@ -554,6 +565,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
             },
             "block": {
               "type": "object",
+              "editor": "overlayBlockStyle",
               "name": "Block",
               "default": {
                 "padding": {"top": 0, "bottom": 0, "left": 0, "right": 0},
@@ -584,6 +596,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "nameFont": {
         "type": "object",
+        "editor": "overlayTextStyle",
         "name": "Name Font",
         "default": {
           "fontSize": 65,
@@ -636,6 +649,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "nameTextAlign": {
         "type": "object",
+        "editor": "overlayTextAlignment",
         "name": "Name Align",
         "default": {"textAlign": "left"},
         "fields": {
@@ -649,6 +663,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "nameBackground": {
         "type": "object",
+        "editor": "widgetBackgroundStyle",
         "name": "Name Background",
         "default": {"elements": []},
         "fields": {
@@ -667,6 +682,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "nameBlock": {
         "type": "object",
+        "editor": "overlayBlockStyle",
         "name": "Name Block",
         "default": {
           "padding": {"top": 0, "bottom": 0, "left": 0, "right": 0},

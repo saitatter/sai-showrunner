@@ -12,6 +12,7 @@ import '../../plugins/iot/ui/light_color_input.dart';
 import '../../plugins/input/ui/key_combo_input.dart';
 import '../../plugins/input/ui/keyboard_key_input.dart';
 import '../../plugins/obs/ui/obs_transform_input.dart';
+import 'overlay_style_inputs.dart';
 
 class DartDataInput extends StatefulWidget {
   const DartDataInput({
@@ -45,121 +46,131 @@ class _DartDataInputState extends State<DartDataInput> {
   }
 
   @override
-  Widget build(BuildContext context) => switch (widget.schema.kind) {
-    DartDataInputKind.boolean => SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(widget.schema.label),
-      value: widget.value == true,
-      onChanged: widget.onChanged,
-    ),
-    DartDataInputKind.enumeration => DropdownButtonFormField<String>(
-      initialValue: widget.schema.options.contains(widget.value?.toString())
-          ? widget.value.toString()
-          : null,
-      decoration: InputDecoration(labelText: widget.schema.label),
-      items: [
-        for (final option in widget.schema.options)
-          DropdownMenuItem(value: option, child: Text(option)),
-      ],
-      onChanged: widget.onChanged,
-    ),
-    DartDataInputKind.color => ColorValueField(
-      label: widget.schema.label,
-      initialValue: _displayValue(widget.value),
-      onChanged: widget.onChanged,
-    ),
-    DartDataInputKind.duration => DurationValueField(
-      label: widget.schema.label,
-      initialSeconds: _numberValue(widget.value).round(),
-      onChanged: widget.onChanged,
-    ),
-    DartDataInputKind.lightColor => LightColorInput(
-      label: widget.schema.label,
-      value: widget.value?.toString(),
-      onChanged: widget.onChanged,
-    ),
-    DartDataInputKind.obsTransform => ObsTransformInput(
-      label: widget.schema.label,
-      value: widget.value is Map
-          ? Map<String, dynamic>.from(widget.value as Map)
-          : null,
-      onChanged: widget.onChanged,
-    ),
-    DartDataInputKind.keyboardKey => KeyboardKeyInput(
-      label: widget.schema.label,
-      value: widget.value?.toString(),
-      requiredValue: widget.schema.required,
-      onChanged: widget.onChanged,
-    ),
-    DartDataInputKind.keyCombo => KeyComboInput(
-      label: widget.schema.label,
-      value: widget.value is List
-          ? (widget.value as List).map((item) => item.toString()).toList()
-          : null,
-      onChanged: widget.onChanged,
-    ),
-    DartDataInputKind.array => _ArrayInput(
-      schema: widget.schema,
-      value: widget.value,
-      onChanged: widget.onChanged,
-    ),
-    DartDataInputKind.object => _ObjectInput(
-      schema: widget.schema,
-      value: widget.value,
-      onChanged: widget.onChanged,
-    ),
-    DartDataInputKind.resource =>
-      widget.schema.options.isEmpty
-          ? TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                labelText: widget.schema.label,
-                hintText: widget.schema.resourceType == null
-                    ? 'Resource ID'
-                    : '${widget.schema.resourceType!.value} ID',
-              ),
-              onChanged: (text) => widget.onChanged(text.trim()),
-            )
-          : DropdownButtonFormField<String>(
-              initialValue:
-                  widget.schema.options.contains(widget.value?.toString())
-                  ? widget.value.toString()
-                  : null,
-              decoration: InputDecoration(labelText: widget.schema.label),
-              items: [
-                for (final option in widget.schema.options)
-                  DropdownMenuItem(value: option, child: Text(option)),
-                if (widget.value?.toString().trim().isNotEmpty == true &&
-                    !widget.schema.options.contains(widget.value.toString()))
-                  DropdownMenuItem(
-                    value: widget.value.toString(),
-                    child: Text('${widget.value} (stored value)'),
-                  ),
-              ],
-              onChanged: widget.onChanged,
-            ),
-    _ => TextField(
-      controller: _controller,
-      obscureText: widget.schema.secret,
-      maxLines:
-          widget.schema.multiline ||
-              widget.schema.kind == DartDataInputKind.multilineText ||
-              widget.schema.kind == DartDataInputKind.object
-          ? 4
-          : 1,
-      keyboardType: widget.schema.kind == DartDataInputKind.number
-          ? TextInputType.number
-          : TextInputType.text,
-      decoration: InputDecoration(
-        labelText: widget.schema.label,
-        suffixIcon: widget.schema.kind == DartDataInputKind.filePath
-            ? const Icon(Icons.folder_open_outlined)
-            : null,
+  Widget build(BuildContext context) {
+    if (widget.schema.editor != null) {
+      return OverlayStyleInput(
+        schema: widget.schema,
+        value: widget.value,
+        onChanged: widget.onChanged,
+      );
+    }
+
+    return switch (widget.schema.kind) {
+      DartDataInputKind.boolean => SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(widget.schema.label),
+        value: widget.value == true,
+        onChanged: widget.onChanged,
       ),
-      onChanged: (text) =>
-          widget.onChanged(_parseValue(widget.schema.kind, text)),
-    ),
-  };
+      DartDataInputKind.enumeration => DropdownButtonFormField<String>(
+        initialValue: widget.schema.options.contains(widget.value?.toString())
+            ? widget.value.toString()
+            : null,
+        decoration: InputDecoration(labelText: widget.schema.label),
+        items: [
+          for (final option in widget.schema.options)
+            DropdownMenuItem(value: option, child: Text(option)),
+        ],
+        onChanged: widget.onChanged,
+      ),
+      DartDataInputKind.color => ColorValueField(
+        label: widget.schema.label,
+        initialValue: _displayValue(widget.value),
+        onChanged: widget.onChanged,
+      ),
+      DartDataInputKind.duration => DurationValueField(
+        label: widget.schema.label,
+        initialSeconds: _numberValue(widget.value).round(),
+        onChanged: widget.onChanged,
+      ),
+      DartDataInputKind.lightColor => LightColorInput(
+        label: widget.schema.label,
+        value: widget.value?.toString(),
+        onChanged: widget.onChanged,
+      ),
+      DartDataInputKind.obsTransform => ObsTransformInput(
+        label: widget.schema.label,
+        value: widget.value is Map
+            ? Map<String, dynamic>.from(widget.value as Map)
+            : null,
+        onChanged: widget.onChanged,
+      ),
+      DartDataInputKind.keyboardKey => KeyboardKeyInput(
+        label: widget.schema.label,
+        value: widget.value?.toString(),
+        requiredValue: widget.schema.required,
+        onChanged: widget.onChanged,
+      ),
+      DartDataInputKind.keyCombo => KeyComboInput(
+        label: widget.schema.label,
+        value: widget.value is List
+            ? (widget.value as List).map((item) => item.toString()).toList()
+            : null,
+        onChanged: widget.onChanged,
+      ),
+      DartDataInputKind.array => _ArrayInput(
+        schema: widget.schema,
+        value: widget.value,
+        onChanged: widget.onChanged,
+      ),
+      DartDataInputKind.object => _ObjectInput(
+        schema: widget.schema,
+        value: widget.value,
+        onChanged: widget.onChanged,
+      ),
+      DartDataInputKind.resource =>
+        widget.schema.options.isEmpty
+            ? TextField(
+                controller: _controller,
+                decoration: InputDecoration(
+                  labelText: widget.schema.label,
+                  hintText: widget.schema.resourceType == null
+                      ? 'Resource ID'
+                      : '${widget.schema.resourceType!.value} ID',
+                ),
+                onChanged: (text) => widget.onChanged(text.trim()),
+              )
+            : DropdownButtonFormField<String>(
+                initialValue:
+                    widget.schema.options.contains(widget.value?.toString())
+                    ? widget.value.toString()
+                    : null,
+                decoration: InputDecoration(labelText: widget.schema.label),
+                items: [
+                  for (final option in widget.schema.options)
+                    DropdownMenuItem(value: option, child: Text(option)),
+                  if (widget.value?.toString().trim().isNotEmpty == true &&
+                      !widget.schema.options.contains(widget.value.toString()))
+                    DropdownMenuItem(
+                      value: widget.value.toString(),
+                      child: Text('${widget.value} (stored value)'),
+                    ),
+                ],
+                onChanged: widget.onChanged,
+              ),
+      _ => TextField(
+        controller: _controller,
+        obscureText: widget.schema.secret,
+        maxLines:
+            widget.schema.multiline ||
+                widget.schema.kind == DartDataInputKind.multilineText ||
+                widget.schema.kind == DartDataInputKind.object
+            ? 4
+            : 1,
+        keyboardType: widget.schema.kind == DartDataInputKind.number
+            ? TextInputType.number
+            : TextInputType.text,
+        decoration: InputDecoration(
+          labelText: widget.schema.label,
+          suffixIcon: widget.schema.kind == DartDataInputKind.filePath
+              ? const Icon(Icons.folder_open_outlined)
+              : null,
+        ),
+        onChanged: (text) =>
+            widget.onChanged(_parseValue(widget.schema.kind, text)),
+      ),
+    };
+  }
 }
 
 class _ObjectInput extends StatelessWidget {

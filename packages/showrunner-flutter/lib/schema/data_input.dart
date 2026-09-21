@@ -35,6 +35,11 @@ final class DartDataInputSchema {
     this.fields = const <DartDataInputSchema>[],
     this.itemKind = DartDataInputKind.text,
     this.itemSchema,
+    this.editor,
+    this.allowMargin,
+    this.allowPadding,
+    this.allowHorizontalAlign,
+    this.allowVerticalAlign,
   });
 
   final String label;
@@ -56,11 +61,30 @@ final class DartDataInputSchema {
   final List<DartDataInputSchema> fields;
   final DartDataInputKind itemKind;
   final DartDataInputSchema? itemSchema;
+
+  /// Optional renderer supplied by a product surface that needs a compact,
+  /// structured editor instead of the generic object renderer.
+  ///
+  /// This stays metadata-only so the schema package remains Flutter-free.
+  final String? editor;
+  final bool? allowMargin;
+  final bool? allowPadding;
+  final bool? allowHorizontalAlign;
+  final bool? allowVerticalAlign;
 }
 
 Object? constructDartDataInputDefault(DartDataInputSchema schema) {
   if (schema.defaultValue != null) {
-    return _cloneDataInputValue(schema.defaultValue);
+    final defaultValue = _cloneDataInputValue(schema.defaultValue);
+    if (defaultValue is Map &&
+        defaultValue.isEmpty &&
+        schema.fields.isNotEmpty) {
+      for (final field in schema.fields) {
+        final value = constructDartDataInputDefault(field);
+        if (value != null) defaultValue[field.key ?? field.label] = value;
+      }
+    }
+    return defaultValue;
   }
   switch (schema.kind) {
     case DartDataInputKind.object:

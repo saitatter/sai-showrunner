@@ -103,11 +103,18 @@ void main() {
     );
     expect(alert.defaultConfig()['textBelowMedia'], true);
     expect(leaderboard.defaultConfig()['sortOrder'], -1);
-    final leaderboardVariables = leaderboard.configSchema.fields
-        .firstWhere((field) => field.key == 'variables');
+    final leaderboardVariables = leaderboard.configSchema.fields.firstWhere(
+      (field) => field.key == 'variables',
+    );
     expect(
       leaderboardVariables.itemSchema?.fields.map((field) => field.key),
-      containsAll(<String>['variable', 'font', 'textAlign', 'background', 'block']),
+      containsAll(<String>[
+        'variable',
+        'font',
+        'textAlign',
+        'background',
+        'block',
+      ]),
     );
     expect((bouncer.defaultConfig()['lifeTime'] as Map)['min'], 7);
     expect(
@@ -147,6 +154,30 @@ void main() {
     expect(
       label.configSchema.fields.map((field) => field.key),
       containsAll(<String>['message', 'font', 'textAlign', 'block']),
+    );
+    expect(
+      label.configSchema.fields
+          .firstWhere((field) => field.key == 'font')
+          .editor,
+      'overlayTextStyle',
+    );
+    expect(
+      label.configSchema.fields
+          .firstWhere((field) => field.key == 'textAlign')
+          .editor,
+      'overlayTextAlignment',
+    );
+    expect(
+      label.configSchema.fields
+          .firstWhere((field) => field.key == 'block')
+          .editor,
+      'overlayBlockStyle',
+    );
+    expect(
+      bar.configSchema.fields
+          .firstWhere((field) => field.key == 'outerRadius')
+          .editor,
+      'widgetBorderRadius',
     );
   });
 }

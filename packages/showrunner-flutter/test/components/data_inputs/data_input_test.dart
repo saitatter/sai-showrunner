@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
+import 'package:showrunner_flutter/plugins/overlays/generated_widget_catalog.dart';
 import 'package:showrunner_flutter/schema/identifiers.dart';
 
 void main() {
@@ -191,5 +192,40 @@ void main() {
     expect(value, [
       {'x': 42, 'angle': 20},
     ]);
+  });
+
+  testWidgets('uses the structured overlay inspector layout', (tester) async {
+    final widgets = await GeneratedOverlayWidgetCatalog.load();
+    final label = widgets.firstWhere(
+      (definition) => definition.key == 'overlays.label',
+    );
+    dynamic value;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: DartDataInput(
+              schema: label.configSchema,
+              value: label.defaultConfig(),
+              onChanged: (next) => value = next,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Font'), findsOneWidget);
+    expect(find.text('Font Family'), findsOneWidget);
+    expect(find.text('Size'), findsOneWidget);
+    expect(find.text('Font Color'), findsOneWidget);
+    expect(find.text('Stroke'), findsOneWidget);
+    expect(find.text('Text Align'), findsOneWidget);
+    expect(find.text('Block'), findsOneWidget);
+    expect(find.text('Margin'), findsOneWidget);
+    expect(find.text('Padding'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.format_align_center));
+    expect((value as Map)['textAlign'], {'textAlign': 'center'});
   });
 }

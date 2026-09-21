@@ -131,8 +131,15 @@ DartDataInputSchema _schemaFor(String key, Object? raw) {
     fields: rangeFields,
     itemKind: _itemKind(metadata['itemType']),
     itemSchema: itemSchema,
+    editor: metadata['editor']?.toString(),
+    allowMargin: _optionalBool(metadata['allowMargin']),
+    allowPadding: _optionalBool(metadata['allowPadding']),
+    allowHorizontalAlign: _optionalBool(metadata['allowHorizontalAlign']),
+    allowVerticalAlign: _optionalBool(metadata['allowVerticalAlign']),
   );
 }
+
+bool? _optionalBool(Object? value) => value is bool ? value : null;
 
 DartDataInputKind _itemKind(Object? value) {
   final type = '$value'.toLowerCase();

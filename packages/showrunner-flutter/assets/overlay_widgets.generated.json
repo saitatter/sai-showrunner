@@ -208,6 +208,7 @@
             },
             "outerRadius": {
               "type": "object",
+              "editor": "widgetBorderRadius",
               "name": "Outer Corners",
               "default": {},
               "fields": {
@@ -235,6 +236,7 @@
             },
             "backgroundStyle": {
               "type": "object",
+              "editor": "widgetBackgroundStyle",
               "name": "Background Style",
               "default": {
                 "color": "#222222",
@@ -302,6 +304,7 @@
             },
             "outline": {
               "type": "object",
+              "editor": "widgetOutlineStyle",
               "name": "Outline",
               "fields": {
                 "color": {
@@ -328,6 +331,7 @@
             },
             "fillStyle": {
               "type": "object",
+              "editor": "widgetBackgroundStyle",
               "name": "Fill Style",
               "default": {
                 "color": "#42D392",
@@ -395,6 +399,7 @@
             },
             "fillLine": {
               "type": "object",
+              "editor": "widgetOutlineStyle",
               "name": "Fill Line",
               "fields": {
                 "color": {
@@ -674,6 +679,7 @@
             },
             "font": {
               "type": "object",
+              "editor": "overlayTextStyle",
               "name": "Font",
               "default": {
                 "fontSize": 65,
@@ -751,6 +757,7 @@
             },
             "textAlign": {
               "type": "object",
+              "editor": "overlayTextAlignment",
               "name": "Text Align",
               "default": {
                 "textAlign": "left"
@@ -771,6 +778,7 @@
             },
             "block": {
               "type": "object",
+              "editor": "overlayBlockStyle",
               "name": "Block",
               "default": {
                 "margin": {
@@ -904,6 +912,7 @@
                   },
                   "font": {
                     "type": "object",
+                    "editor": "overlayTextStyle",
                     "name": "Font",
                     "fields": {
                       "fontFamily": {
@@ -976,6 +985,7 @@
                   },
                   "textAlign": {
                     "type": "object",
+                    "editor": "overlayTextAlignment",
                     "name": "Align",
                     "default": {
                       "textAlign": "left"
@@ -996,6 +1006,7 @@
                   },
                   "background": {
                     "type": "object",
+                    "editor": "widgetBackgroundStyle",
                     "name": "Background",
                     "default": {
                       "elements": []
@@ -1022,6 +1033,7 @@
                   },
                   "block": {
                     "type": "object",
+                    "editor": "overlayBlockStyle",
                     "name": "Block",
                     "default": {
                       "padding": {
@@ -1078,6 +1090,7 @@
             },
             "nameFont": {
               "type": "object",
+              "editor": "overlayTextStyle",
               "name": "Name Font",
               "default": {
                 "fontSize": 65,
@@ -1160,6 +1173,7 @@
             },
             "nameTextAlign": {
               "type": "object",
+              "editor": "overlayTextAlignment",
               "name": "Name Align",
               "default": {
                 "textAlign": "left"
@@ -1180,6 +1194,7 @@
             },
             "nameBackground": {
               "type": "object",
+              "editor": "widgetBackgroundStyle",
               "name": "Name Background",
               "default": {
                 "elements": []
@@ -1206,6 +1221,7 @@
             },
             "nameBlock": {
               "type": "object",
+              "editor": "overlayBlockStyle",
               "name": "Name Block",
               "default": {
                 "padding": {
