@@ -48,6 +48,8 @@ the original three smoke files. It covers:
   trigger, and disconnect handling;
 - resource create/read/update/delete;
 - strict schema failure handling without modifying an existing document.
+- deterministic 1440x900 captures for the shell, Settings, Updates,
+  Integrations, and graph workspace catalog.
 
 Unsupported document shapes are rejected by design: the Flutter product has a
 single strict V2 persistence contract. The schema integration test verifies
