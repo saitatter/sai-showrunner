@@ -339,7 +339,7 @@ class _ExecutionBadge extends StatelessWidget {
       GraphNodeExecutionStatus.running => (
         Icons.sync,
         const Color(0xff38bdf8),
-        'Running',
+        _executionTooltip(execution),
       ),
       GraphNodeExecutionStatus.success => (
         Icons.check,
@@ -357,15 +357,59 @@ class _ExecutionBadge extends StatelessWidget {
         'Aborted',
       ),
     };
-    return Tooltip(
-      message: tooltip,
-      child: Icon(icon, color: color, size: 16),
+    final runningDuration = execution.status == GraphNodeExecutionStatus.running
+        ? DateTime.now().difference(execution.startedAt)
+        : execution.duration;
+    final label = execution.status == GraphNodeExecutionStatus.running
+        ? _durationLabel('Running', runningDuration)
+        : execution.status == GraphNodeExecutionStatus.success &&
+              execution.duration != null
+        ? _durationLabel('Done', execution.duration)
+        : null;
+    final count = execution.activeCount != null && execution.activeCount! > 1
+        ? '×${execution.activeCount}'
+        : null;
+    return Semantics(
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 16),
+            if (count != null || label != null) ...[
+              const SizedBox(width: 3),
+              Text(
+                [?count, ?label].join(' '),
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
 
 String _executionTooltip(GraphNodeExecutionVisual execution) {
-  final details = <String>[_durationLabel('Completed', execution.duration)];
+  final duration = execution.status == GraphNodeExecutionStatus.running
+      ? DateTime.now().difference(execution.startedAt)
+      : execution.duration;
+  final details = <String>[
+    _durationLabel(
+      execution.status == GraphNodeExecutionStatus.running
+          ? 'Running'
+          : 'Completed',
+      duration,
+    ),
+  ];
+  if (execution.activeCount != null && execution.activeCount! > 1) {
+    details.add('${execution.activeCount} concurrent runs');
+  }
   if (execution.lastIteration != null) {
     details.add('iteration ${execution.lastIteration}');
   }

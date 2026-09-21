@@ -55,6 +55,26 @@ void main() {
     expect(result.value, isA<Map>());
   });
 
+  test('closes active nodes as aborted when a run ends', () async {
+    final service = ExecutionTraceService();
+    final session = service.start(
+      mode: ExecutionTraceMode.live,
+      source: const ExecutionTraceSource(type: 'automation', id: 'abort'),
+    );
+    const node = ExecutionNodeRef(nodeId: 'wait');
+    session.nodeStarted(node);
+    session.end(ExecutionTraceRunStatus.aborted);
+
+    final snapshot = service.snapshotFor(session.executionId)!;
+    expect(snapshot.info.status, ExecutionTraceRunStatus.aborted);
+    expect(
+      snapshot.nodes['main:wait']?.status,
+      ExecutionTraceNodeStatus.aborted,
+    );
+
+    await service.dispose();
+  });
+
   test(
     'production VM emits action trace events without changing results',
     () async {

@@ -6,6 +6,7 @@ final class GraphNodeExecutionVisual {
     required this.startedAt,
     this.duration,
     this.error,
+    this.activeCount,
     this.invocationCount,
     this.selectedPort,
     this.lastIteration,
@@ -16,6 +17,7 @@ final class GraphNodeExecutionVisual {
   final DateTime startedAt;
   final Duration? duration;
   final String? error;
+  final int? activeCount;
   final int? invocationCount;
   final String? selectedPort;
   final int? lastIteration;

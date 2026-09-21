@@ -530,6 +530,7 @@ class ShowRunnerGraphEditor {
               previous?.startedAt ?? traceNode.startedAt ?? DateTime.now(),
           duration: traceNode.duration,
           error: traceNode.error?.message,
+          activeCount: _traceActiveCounts[editorId] ?? 1,
           invocationCount: traceNode.invocationCount,
           selectedPort: traceNode.selectedPort,
           lastIteration: traceNode.lastIteration,
@@ -564,6 +565,7 @@ class ShowRunnerGraphEditor {
     next[editorId] = GraphNodeExecutionVisual(
       status: GraphNodeExecutionStatus.running,
       startedAt: DateTime.now(),
+      activeCount: (_traceActiveCounts[editorId] ?? 0),
     );
     executionStates.value = next;
     _refreshActiveNodeProjection();
@@ -611,7 +613,27 @@ class ShowRunnerGraphEditor {
     if (editorId == null) return;
     _decrementTraceNode(editorId);
     _traceRunNodes[executionId]?.remove(editorId);
-    if ((_traceActiveCounts[editorId] ?? 0) > 0) return;
+    final remaining = _traceActiveCounts[editorId] ?? 0;
+    if (remaining > 0) {
+      final previous = executionStates.value[editorId];
+      if (previous != null) {
+        executionStates.value = {
+          ...executionStates.value,
+          editorId: GraphNodeExecutionVisual(
+            status: previous.status,
+            startedAt: previous.startedAt,
+            duration: previous.duration,
+            error: previous.error,
+            activeCount: remaining,
+            invocationCount: previous.invocationCount,
+            selectedPort: previous.selectedPort,
+            lastIteration: previous.lastIteration,
+            subgraphId: previous.subgraphId,
+          ),
+        };
+      }
+      return;
+    }
     final next = {...executionStates.value};
     next[editorId] = GraphNodeExecutionVisual(
       status: success
@@ -622,6 +644,7 @@ class ShowRunnerGraphEditor {
       startedAt: startedAt ?? DateTime.now(),
       duration: duration,
       error: error,
+      activeCount: 0,
       invocationCount: invocationCount,
       selectedPort: selectedPort,
       lastIteration: lastIteration,
