@@ -46,9 +46,9 @@ Set<String> secretResourceFieldIdsFor(String resourceType) =>
 
 /// Reads and writes the per-plugin secret files used by the desktop app.
 ///
-/// Electron's Windows safeStorage implementation is backed by DPAPI. Keeping
-/// the cipher at this boundary lets tests use an in-memory cipher while the
-/// packaged Windows app can read the existing `user/secrets/*.yaml` files.
+/// Windows secure storage is backed by DPAPI. Keeping the cipher at this
+/// boundary lets tests use an in-memory cipher while the packaged Windows app
+/// can read the existing `user/secrets/*.yaml` files.
 final class SecretSettingsStore {
   SecretSettingsStore({required this.directory, this.encrypt, this.decrypt});
 
