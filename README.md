@@ -95,8 +95,9 @@ ShowRunner itself.
   Browser Sources. The desktop app manages their resources, configuration, and
   events; the browser package renders them.
 
-The original Electron/Vue implementation is kept only as a frozen product
-reference for parity checks. It is not part of the current desktop runtime.
+Visual regression checks use frozen product references so the Flutter desktop
+experience can be compared against established behavior. They are not part of
+the current desktop runtime.
 
 ## 📦 Download
 
