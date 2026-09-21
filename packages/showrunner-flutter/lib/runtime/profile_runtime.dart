@@ -9,8 +9,8 @@ import 'graph_runtime.dart';
 import 'automation_queue_manager.dart';
 
 typedef _ProfileTriggerTarget = ({
-  String? pluginId,
-  String? triggerId,
+  PluginId pluginId,
+  TriggerId triggerId,
   JsonMap config,
   JsonMap entry,
 });
@@ -197,11 +197,14 @@ final class DartProfileRuntime {
     JsonMap? triggerEntry,
   }) async {
     if (!isActive(profileId)) return null;
+    final typedPluginId = PluginId(pluginId);
+    final typedTriggerId = TriggerId(triggerId);
     for (final target in _triggerTargets(profile)) {
       if (triggerEntry != null && !identical(target.entry, triggerEntry)) {
         continue;
       }
-      if (target.pluginId != pluginId || target.triggerId != triggerId) {
+      if (target.pluginId != typedPluginId ||
+          target.triggerId != typedTriggerId) {
         continue;
       }
       return _runTriggerTarget(
@@ -229,16 +232,16 @@ final class DartProfileRuntime {
     for (final target in _triggerTargets(profile)) {
       final pluginId = target.pluginId;
       final triggerId = target.triggerId;
-      if (pluginId is! String || triggerId is! String) continue;
-      if (pluginId == 'ShowRunner' && triggerId == 'autoRun') {
+      if (pluginId == const PluginId('ShowRunner') &&
+          triggerId == const TriggerId('autoRun')) {
         void listener() {
           if (!isActive(profileId)) return;
           unawaited(
             handleTrigger(
               profileId,
               profile,
-              pluginId,
-              triggerId,
+              pluginId.value,
+              triggerId.value,
               {'triggerId': target.entry['id'], 'profileId': profileId},
               context: context,
               onNodeEnter: onNodeEnter,
@@ -253,7 +256,8 @@ final class DartProfileRuntime {
         if (isActive(profileId)) listener();
         continue;
       }
-      if (pluginId == 'ShowRunner' && triggerId == 'condition') {
+      if (pluginId == const PluginId('ShowRunner') &&
+          triggerId == const TriggerId('condition')) {
         final condition = target.config['condition'];
         var lastValue = target.config['runImmediately'] == true ? false : null;
         bool evaluate() => evaluateBooleanCondition(
@@ -269,8 +273,8 @@ final class DartProfileRuntime {
             handleTrigger(
               profileId,
               profile,
-              pluginId,
-              triggerId,
+              pluginId.value,
+              triggerId.value,
               {'triggerId': target.entry['id'], 'profileId': profileId},
               context: context,
               onNodeEnter: onNodeEnter,
@@ -288,8 +292,8 @@ final class DartProfileRuntime {
               handleTrigger(
                 profileId,
                 profile,
-                pluginId,
-                triggerId,
+                pluginId.value,
+                triggerId.value,
                 {'triggerId': target.entry['id'], 'profileId': profileId},
                 context: context,
                 onNodeEnter: onNodeEnter,
@@ -306,10 +310,9 @@ final class DartProfileRuntime {
         continue;
       }
       final definition = registry.trigger(
-        TriggerKey(plugin: PluginId(pluginId), trigger: TriggerId(triggerId)),
+        TriggerKey(plugin: pluginId, trigger: triggerId),
       );
-      if (definition == null ||
-          !registry.isPluginEnabledId(PluginId(pluginId))) {
+      if (definition == null || !registry.isPluginEnabledId(pluginId)) {
         continue;
       }
       final configuredStream = definition.listenForRuntime(target.config);
@@ -333,16 +336,16 @@ final class DartProfileRuntime {
         );
       } else {
         sharedTargets
-            .putIfAbsent('$pluginId\u0000$triggerId', () => [])
+            .putIfAbsent('${pluginId.value}\u0000${triggerId.value}', () => [])
             .add(target);
       }
     }
     for (final targets in sharedTargets.values) {
       final first = targets.first;
-      final pluginId = first.pluginId!;
-      final triggerId = first.triggerId!;
+      final pluginId = first.pluginId;
+      final triggerId = first.triggerId;
       final definition = registry.trigger(
-        TriggerKey(plugin: PluginId(pluginId), trigger: TriggerId(triggerId)),
+        TriggerKey(plugin: pluginId, trigger: triggerId),
       );
       if (definition == null) continue;
       subscriptions.add(
@@ -375,15 +378,17 @@ final class DartProfileRuntime {
       );
       if (automation.triggerNodes.isNotEmpty) {
         for (final node in automation.triggerNodes) {
-          final pluginId = node['plugin'] as String?;
-          final triggerId = node['trigger'] as String?;
+          final rawPluginId = node['plugin'] as String?;
+          final rawTriggerId = node['trigger'] as String?;
           final nodeId = node['id']?.toString();
-          if (pluginId == null ||
-              triggerId == null ||
+          if (rawPluginId == null ||
+              rawTriggerId == null ||
               nodeId == null ||
               nodeId.isEmpty) {
             continue;
           }
+          final pluginId = PluginId(rawPluginId);
+          final triggerId = TriggerId(rawTriggerId);
           yield (
             pluginId: pluginId,
             triggerId: triggerId,
@@ -391,8 +396,8 @@ final class DartProfileRuntime {
             entry: {
               ...trigger,
               'id': nodeId,
-              'plugin': pluginId,
-              'trigger': triggerId,
+              'plugin': pluginId.value,
+              'trigger': triggerId.value,
               'config': _triggerConfig(node['config']),
               'stop': node['stop'] ?? trigger['stop'],
             },
@@ -400,9 +405,11 @@ final class DartProfileRuntime {
         }
         continue;
       }
-      final pluginId = trigger['plugin'] as String?;
-      final triggerId = trigger['trigger'] as String?;
-      if (pluginId != null && triggerId != null) {
+      final rawPluginId = trigger['plugin'] as String?;
+      final rawTriggerId = trigger['trigger'] as String?;
+      if (rawPluginId != null && rawTriggerId != null) {
+        final pluginId = PluginId(rawPluginId);
+        final triggerId = TriggerId(rawTriggerId);
         yield (
           pluginId: pluginId,
           triggerId: triggerId,
