@@ -42,14 +42,21 @@ final class DartDataInputSchema {
   final bool required;
   final bool secret;
   final bool multiline;
-  final dynamic defaultValue;
+
+  /// A schema default is metadata, not an untyped runtime callback value.
+  ///
+  /// The value can still be a JSON-shaped map/list because schemas describe
+  /// nested inputs, but keeping the public contract as [Object?] prevents
+  /// `dynamic` from leaking through plugin manifests. Decoding into the
+  /// runtime map remains an explicit boundary in the construction helpers.
+  final Object? defaultValue;
   final String? resourceType;
   final List<DartDataInputSchema> fields;
   final DartDataInputKind itemKind;
   final DartDataInputSchema? itemSchema;
 }
 
-dynamic constructDartDataInputDefault(DartDataInputSchema schema) {
+Object? constructDartDataInputDefault(DartDataInputSchema schema) {
   if (schema.defaultValue != null) {
     return _cloneDataInputValue(schema.defaultValue);
   }
@@ -87,7 +94,7 @@ dynamic constructDartDataInputDefault(DartDataInputSchema schema) {
   }
 }
 
-dynamic _cloneDataInputValue(dynamic value) {
+Object? _cloneDataInputValue(Object? value) {
   if (value is Map) {
     return {
       for (final entry in value.entries)
