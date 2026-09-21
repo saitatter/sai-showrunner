@@ -34,6 +34,7 @@ import 'services/plugin_event_hub.dart';
 import 'plugins/runtime/provider_event_workers.dart';
 import 'plugins/twitch/account_runtime.dart';
 import 'runtime/graph_execution_engine.dart';
+import 'runtime/execution_trace.dart';
 import 'runtime/profile_runtime.dart';
 import 'runtime/profile_manager.dart';
 import 'runtime/automation_queue_manager.dart';
@@ -1121,6 +1122,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   void _loadAutomationSession(AutomationDocumentSession session) {
     _graphEditor.loadAutomation(session.data);
     _graphEditor.restoreDocumentDirty(session.dirty);
+    _graphEditor.bindExecutionTrace(
+      _services.executionTrace,
+      ExecutionTraceSource(type: 'automation', id: session.fileName),
+    );
   }
 
   void _reorderAutomationDocument(int oldPosition, int newPosition) {
@@ -1385,7 +1390,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     final automation = _captureActiveAutomation();
     if (automation == null) return;
     _graphEditor.clearExecutionStates();
-    final item = _actionQueue.enqueue(automation.toJson(), <String, dynamic>{});
+    final source = automation.toJson()
+      ..['sourceType'] = 'automation'
+      ..['sourceId'] = _activeAutomationFile ?? 'active';
+    final item = _actionQueue.enqueue(source, <String, dynamic>{});
     try {
       final registry = await _pluginRegistryFuture;
       await _actionQueue.processNext((queued) async {
@@ -1396,8 +1404,6 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
             cancellationToken: _actionQueue.runningCancellationToken,
           ),
           registry: registry,
-          onNodeEnter: _graphEditor.markSchemaNodeRunning,
-          onNodeExit: _graphEditor.markSchemaNodeCompleted,
         );
       });
       if (!mounted) return;
@@ -1421,7 +1427,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     final automation = _captureActiveAutomation();
     if (automation == null) return;
     _graphEditor.clearExecutionStates();
-    final item = _actionQueue.enqueue(automation.toJson(), <String, dynamic>{});
+    final source = automation.toJson()
+      ..['sourceType'] = 'automation'
+      ..['sourceId'] = _activeAutomationFile ?? 'active';
+    final item = _actionQueue.enqueue(source, <String, dynamic>{});
     try {
       final registry = await _pluginRegistryFuture;
       await _actionQueue.processNext((queued) async {
@@ -1433,8 +1442,6 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
           ),
           registry: registry,
           entryNodeId: schemaNodeId,
-          onNodeEnter: _graphEditor.markSchemaNodeRunning,
-          onNodeExit: _graphEditor.markSchemaNodeCompleted,
         );
       });
       if (!mounted) return;

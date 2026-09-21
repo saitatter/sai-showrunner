@@ -1,6 +1,7 @@
 import '../schema/automation.dart';
 import '../plugins/registry/plugin_registry.dart';
 import 'expression.dart';
+import 'execution_trace.dart';
 
 typedef GraphAction =
     Future<Object?> Function(
@@ -49,6 +50,7 @@ final class DartGraphRuntime {
     String? entryNodeId,
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
+    ExecutionTraceSink? traceSink,
   }) {
     return execute(
       graph: graph,
@@ -62,6 +64,7 @@ final class DartGraphRuntime {
       entryNodeId: entryNodeId,
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
+      traceSink: traceSink,
       action: (node, config, runtimeContext) =>
           registry.invoke(node, runtimeContext, config),
     );
@@ -78,6 +81,8 @@ final class DartGraphRuntime {
     String? entryNodeId,
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
+    ExecutionTraceSink? traceSink,
+    ExecutionGraphScope graphScope = const MainGraphScope(),
     int depth = 0,
   }) async {
     context.cancellationToken?.throwIfCancelled();
@@ -101,6 +106,7 @@ final class DartGraphRuntime {
     var steps = 0;
     var didReturn = false;
     var outputValues = <String, dynamic>{};
+    final invocations = <String, int>{};
 
     if (current == 'trigger' && !nodes.containsKey(current)) {
       current = outgoing[current]?.firstOrNull?.to ?? '';
@@ -114,11 +120,34 @@ final class DartGraphRuntime {
       final edges = outgoing[node.id] ?? const <GraphEdge>[];
       switch (node.type) {
         case 'action':
-          final result = await action(
-            node,
-            _config(node, dataWires, runtimeContext),
-            runtimeContext,
-          );
+          final nodeRef = ExecutionNodeRef(nodeId: node.id, scope: graphScope);
+          final invocation = (invocations[nodeRef.key] ?? 0) + 1;
+          invocations[nodeRef.key] = invocation;
+          final stopwatch = Stopwatch()..start();
+          traceSink?.nodeStarted(nodeRef, invocation: invocation);
+          late final Object? result;
+          try {
+            result = await action(
+              node,
+              _config(node, dataWires, runtimeContext),
+              runtimeContext,
+            );
+            traceSink?.nodeResult(nodeRef, result, invocation: invocation);
+            traceSink?.nodeCompleted(
+              nodeRef,
+              invocation: invocation,
+              duration: stopwatch.elapsed,
+            );
+          } catch (error, stackTrace) {
+            traceSink?.nodeFailed(
+              nodeRef,
+              error,
+              stackTrace: stackTrace,
+              invocation: invocation,
+              duration: stopwatch.elapsed,
+            );
+            rethrow;
+          }
           runtimeContext.cancellationToken?.throwIfCancelled();
           final normalizedResult = _normalizeActionResult(result);
           if (normalizedResult != null) results[node.id] = normalizedResult;
@@ -254,6 +283,8 @@ final class DartGraphRuntime {
             ),
             onNodeEnter: onNodeEnter,
             onNodeExit: onNodeExit,
+            traceSink: traceSink,
+            graphScope: SubgraphScope(subgraph.id),
             depth: depth + 1,
           );
           runtimeContext.cancellationToken?.throwIfCancelled();

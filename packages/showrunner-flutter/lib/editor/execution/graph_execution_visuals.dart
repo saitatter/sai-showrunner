@@ -57,6 +57,8 @@ extension ShowRunnerGraphExecutionVisuals on ShowRunnerGraphEditor {
   void clearExecutionStates() {
     executionStates.value = const {};
     activeNodeIds.value = const {};
+    _traceActiveCounts.clear();
+    _traceRunNodes.clear();
   }
 
   List<NodeDataModel> get _previewNodes =>

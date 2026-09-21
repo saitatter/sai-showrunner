@@ -7,6 +7,7 @@ import 'expression.dart';
 import 'graph_execution_engine.dart';
 import 'graph_runtime.dart';
 import 'automation_queue_manager.dart';
+import 'execution_trace.dart';
 
 typedef _ProfileTriggerTarget = ({
   PluginId pluginId,
@@ -532,6 +533,9 @@ final class DartProfileRuntime {
       registry: registry,
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
+      traceSource: sourceMetadata == null
+          ? null
+          : ExecutionTraceSource.fromMetadata(sourceMetadata),
     );
   }
 }

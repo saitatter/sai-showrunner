@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import '../components/data_inputs/data_input.dart';
 import '../runtime/automation_recovery.dart';
+import '../runtime/execution_trace.dart';
 import '../plugins/registry/plugin_bootstrap.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../schema/automation.dart';
@@ -175,6 +176,11 @@ class ShowRunnerGraphEditor {
   );
   final ValueNotifier<Map<String, GraphNodeExecutionVisual>> executionStates =
       ValueNotifier(const {});
+  final Map<String, int> _traceActiveCounts = {};
+  final Map<String, Set<String>> _traceRunNodes = {};
+  StreamSubscription<ExecutionTraceEvent>? _traceSubscription;
+  ExecutionTraceService? _traceService;
+  ExecutionTraceSource? _traceSource;
   final ValueNotifier<List<GraphAlignmentGuide>> alignmentGuides =
       ValueNotifier(const []);
   final ValueNotifier<String?> dropTargetNodeId = ValueNotifier(null);
@@ -352,7 +358,145 @@ class ShowRunnerGraphEditor {
     return created;
   }
 
+  /// Connects the visible editor to the bounded runtime trace for its
+  /// currently active automation. The editor is only a subscriber: trace
+  /// events never control or delay graph execution.
+  void bindExecutionTrace(
+    ExecutionTraceService service,
+    ExecutionTraceSource source,
+  ) {
+    unawaited(_traceSubscription?.cancel());
+    _traceService = service;
+    _traceSource = source;
+    _traceActiveCounts.clear();
+    _traceRunNodes.clear();
+    clearExecutionStates();
+    for (final snapshot in service.snapshots.where(
+      (snapshot) => snapshot.info.source.matches(source),
+    )) {
+      for (final node in snapshot.nodes.values) {
+        if (node.node.scope is! MainGraphScope) continue;
+        if (node.status == ExecutionTraceNodeStatus.running) {
+          _applyTraceStarted(node.node.nodeId, snapshot.info.executionId);
+        } else {
+          _applyTraceFinished(
+            node.node.nodeId,
+            snapshot.info.executionId,
+            success: node.status == ExecutionTraceNodeStatus.success,
+            startedAt: node.startedAt,
+            duration: node.duration,
+            error: node.error?.message,
+          );
+        }
+      }
+    }
+    _traceSubscription = service.events.listen(_handleTraceEvent);
+  }
+
+  void _handleTraceEvent(ExecutionTraceEvent event) {
+    final service = _traceService;
+    final source = _traceSource;
+    if (service == null || source == null) return;
+    final snapshot = service.snapshotFor(event.executionId);
+    if (snapshot == null || !snapshot.info.source.matches(source)) return;
+    switch (event) {
+      case ExecutionNodeStartedEvent(:final node):
+        if (node.scope is MainGraphScope) {
+          _applyTraceStarted(node.nodeId, event.executionId);
+        }
+      case ExecutionNodeCompletedEvent(:final node, :final duration):
+        if (node.scope is MainGraphScope) {
+          _applyTraceFinished(
+            node.nodeId,
+            event.executionId,
+            success: true,
+            duration: duration,
+          );
+        }
+      case ExecutionNodeFailedEvent(:final node, :final duration, :final error):
+        if (node.scope is MainGraphScope) {
+          _applyTraceFinished(
+            node.nodeId,
+            event.executionId,
+            success: false,
+            duration: duration,
+            error: error.message,
+          );
+        }
+      case ExecutionRunEndedEvent(:final status):
+        if (status == ExecutionTraceRunStatus.aborted) {
+          for (final editorId
+              in _traceRunNodes[event.executionId] ?? const {}) {
+            _decrementTraceNode(editorId);
+          }
+          _traceRunNodes.remove(event.executionId);
+        }
+      case ExecutionRunStartedEvent():
+      case ExecutionNodeResultEvent():
+      case ExecutionEdgeTraversedEvent():
+      case ExecutionLoopIterationEvent():
+        break;
+    }
+  }
+
+  void _applyTraceStarted(String schemaId, String executionId) {
+    final editorId = editorNodeIdForSchema(schemaId);
+    if (editorId == null) return;
+    _traceRunNodes.putIfAbsent(executionId, () => <String>{}).add(editorId);
+    _traceActiveCounts[editorId] = (_traceActiveCounts[editorId] ?? 0) + 1;
+    final next = {...executionStates.value};
+    next[editorId] = GraphNodeExecutionVisual(
+      status: GraphNodeExecutionStatus.running,
+      startedAt: DateTime.now(),
+    );
+    executionStates.value = next;
+    activeNodeIds.value = _traceActiveCounts.entries
+        .where((entry) => entry.value > 0)
+        .map((entry) => entry.key)
+        .toSet();
+  }
+
+  void _applyTraceFinished(
+    String schemaId,
+    String executionId, {
+    required bool success,
+    DateTime? startedAt,
+    Duration? duration,
+    String? error,
+  }) {
+    final editorId = editorNodeIdForSchema(schemaId);
+    if (editorId == null) return;
+    _decrementTraceNode(editorId);
+    _traceRunNodes[executionId]?.remove(editorId);
+    if ((_traceActiveCounts[editorId] ?? 0) > 0) return;
+    final next = {...executionStates.value};
+    next[editorId] = GraphNodeExecutionVisual(
+      status: success
+          ? GraphNodeExecutionStatus.success
+          : GraphNodeExecutionStatus.error,
+      startedAt: startedAt ?? DateTime.now(),
+      duration: duration,
+      error: error,
+    );
+    executionStates.value = next;
+  }
+
+  void _decrementTraceNode(String editorId) {
+    final count = (_traceActiveCounts[editorId] ?? 0) - 1;
+    if (count <= 0) {
+      _traceActiveCounts.remove(editorId);
+    } else {
+      _traceActiveCounts[editorId] = count;
+    }
+    activeNodeIds.value = _traceActiveCounts.entries
+        .where((entry) => entry.value > 0)
+        .map((entry) => entry.key)
+        .toSet();
+  }
+
   void dispose() {
+    unawaited(_traceSubscription?.cancel());
+    _traceSubscription = null;
     for (final subscription in _fieldEvents.values) {
       subscription.cancel();
     }

@@ -13,6 +13,7 @@ import '../../plugins/showrunner/manifest.dart';
 import '../../runtime/action_queue.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../../runtime/graph_execution_engine.dart';
+import '../../runtime/execution_trace.dart';
 import '../../runtime/profile_manager.dart';
 import '../../runtime/profile_runtime.dart';
 import '../../services/plugin_event_hub.dart';
@@ -30,6 +31,7 @@ final class ShowRunnerServices {
     required this.dataService,
     required this.actionQueue,
     required this.graphExecutionEngine,
+    required this.executionTrace,
     required this.queueManager,
     required this.pluginRegistryFuture,
     required this.profileManagerFuture,
@@ -64,7 +66,10 @@ final class ShowRunnerServices {
       dataService: dataService,
       eventHub: eventHub,
     );
-    final graphExecutionEngine = CompiledExecutionEngine();
+    final executionTrace = ExecutionTraceService();
+    final graphExecutionEngine = CompiledExecutionEngine(
+      traceService: executionTrace,
+    );
     final queueRepository = QueueConfigRepository(
       Directory('${dataService.userDirectory.path}/queues'),
     );
@@ -78,12 +83,13 @@ final class ShowRunnerServices {
         if (!await file.exists()) return null;
         return queueRepository.load(file);
       },
-      execute: (automation, context, _) async {
+      execute: (automation, context, item) async {
         final registry = await pluginRegistryFuture;
         return graphExecutionEngine.executeWithRegistry(
           automation: automation,
           context: context,
           registry: registry,
+          traceSource: ExecutionTraceSource.fromMetadata(item.source),
         );
       },
     );
@@ -125,6 +131,7 @@ final class ShowRunnerServices {
       dataService: dataService,
       actionQueue: actionQueue,
       graphExecutionEngine: graphExecutionEngine,
+      executionTrace: executionTrace,
       queueManager: queueManager,
       pluginRegistryFuture: pluginRegistryFuture,
       profileManagerFuture: profileManagerFuture,
@@ -141,6 +148,7 @@ final class ShowRunnerServices {
         providerEvents.stop,
         viewerDataSynchronizer.stop,
         queueManager.dispose,
+        executionTrace.dispose,
         () async => (await profileManagerFuture).dispose(),
         () async => (await pluginRegistryFuture).close(),
         eventHub.dispose,
@@ -152,6 +160,7 @@ final class ShowRunnerServices {
   final ShowRunnerDataService dataService;
   final DartActionQueue actionQueue;
   final GraphExecutionEngine graphExecutionEngine;
+  final ExecutionTraceService executionTrace;
   final DartAutomationQueueManager queueManager;
   final Future<DartPluginRegistry> pluginRegistryFuture;
   final Future<DartProfileLifecycleManager> profileManagerFuture;

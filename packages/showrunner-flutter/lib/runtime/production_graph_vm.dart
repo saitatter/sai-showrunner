@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../schema/automation.dart';
 import 'expression.dart';
+import 'execution_trace.dart';
 import 'graph_runtime.dart';
 
 /// The instruction set used by the production graph execution path.
@@ -798,6 +799,7 @@ final class DartGraphVm {
     this.onStep,
     this.onNodeEnter,
     this.onNodeExit,
+    this.traceSink,
   });
 
   final DartGraphProgram program;
@@ -806,6 +808,7 @@ final class DartGraphVm {
   final DartProgramStep? onStep;
   final void Function(String nodeId)? onNodeEnter;
   final void Function(String nodeId)? onNodeExit;
+  final ExecutionTraceSink? traceSink;
 
   int _pc = 0;
   List<dynamic> _locals = [];
@@ -813,6 +816,7 @@ final class DartGraphVm {
   final List<_DartGraphCallFrame> _callStack = [];
   final Map<String, int> _iterationCounters = {};
   final Map<String, RuntimeMap> _nodeResults = {};
+  final Map<String, int> _nodeInvocations = {};
   final Map<String, int> _localSlotsByName = {};
   late EvaluationContext _context;
   late Map<String, List<({String toPort, DartGraphWireSource source})>>
@@ -820,6 +824,7 @@ final class DartGraphVm {
   bool _didReturn = false;
   Map<String, dynamic> _outputValues = {};
   String? _activeNodeId;
+  ExecutionGraphScope _graphScope = const MainGraphScope();
 
   Future<GraphExecutionResult> execute({
     required EvaluationContext context,
@@ -830,8 +835,10 @@ final class DartGraphVm {
     _callStack.clear();
     _iterationCounters.clear();
     _nodeResults.clear();
+    _nodeInvocations.clear();
     _didReturn = false;
     _outputValues = {};
+    _graphScope = const MainGraphScope();
     _executedInstructionCount = 0;
     _pc = 0;
     _localSlotsByName
@@ -996,9 +1003,32 @@ final class DartGraphVm {
     final nodeIndex = instruction.arg0 ?? -1;
     if (nodeIndex < 0 || nodeIndex >= program.actionNodes.length) return;
     final node = program.actionNodes[nodeIndex];
+    final nodeRef = ExecutionNodeRef(nodeId: node.id, scope: _graphScope);
+    final invocation = (_nodeInvocations[nodeRef.key] ?? 0) + 1;
+    _nodeInvocations[nodeRef.key] = invocation;
+    final stopwatch = Stopwatch()..start();
+    traceSink?.nodeStarted(nodeRef, invocation: invocation);
     _syncLocalsToContext();
     _context.cancellationToken?.throwIfCancelled();
-    final result = await action(node, _resolveActionConfig(node), _context);
+    late final Object? result;
+    try {
+      result = await action(node, _resolveActionConfig(node), _context);
+      traceSink?.nodeResult(nodeRef, result, invocation: invocation);
+      traceSink?.nodeCompleted(
+        nodeRef,
+        invocation: invocation,
+        duration: stopwatch.elapsed,
+      );
+    } catch (error, stackTrace) {
+      traceSink?.nodeFailed(
+        nodeRef,
+        error,
+        stackTrace: stackTrace,
+        invocation: invocation,
+        duration: stopwatch.elapsed,
+      );
+      rethrow;
+    }
     _context.cancellationToken?.throwIfCancelled();
     final normalized = _normalizeActionResult(result);
     if (normalized != null) _nodeResults[node.id] = normalized;
@@ -1044,6 +1074,7 @@ final class DartGraphVm {
         callNodeId: callNodeId,
         localSlotsByName: Map<String, int>.from(_localSlotsByName),
         contextLocals: Map<String, dynamic>.from(_context.locals),
+        graphScope: _graphScope,
       ),
     );
     final inputs = instruction.arg1 is Map
@@ -1070,6 +1101,7 @@ final class DartGraphVm {
       nodeResults: _nodeResults,
       cancellationToken: _context.cancellationToken,
     );
+    _graphScope = SubgraphScope(subgraph.id);
     for (var index = 0; index < subgraph.paramNames.length; index++) {
       final name = subgraph.paramNames[index];
       if (name.isEmpty) continue;
@@ -1099,6 +1131,7 @@ final class DartGraphVm {
     _localSlotsByName
       ..clear()
       ..addAll(frame.localSlotsByName);
+    _graphScope = frame.graphScope;
     _context = EvaluationContext(
       locals: frame.contextLocals,
       contextState: _context.contextState,
@@ -1171,6 +1204,7 @@ final class _DartGraphCallFrame {
     required this.callNodeId,
     required this.localSlotsByName,
     required this.contextLocals,
+    required this.graphScope,
   });
 
   final int returnPc;
@@ -1178,6 +1212,7 @@ final class _DartGraphCallFrame {
   final String? callNodeId;
   final Map<String, int> localSlotsByName;
   final Map<String, dynamic> contextLocals;
+  final ExecutionGraphScope graphScope;
 }
 
 Map<String, List<({String toPort, DartGraphWireSource source})>>
