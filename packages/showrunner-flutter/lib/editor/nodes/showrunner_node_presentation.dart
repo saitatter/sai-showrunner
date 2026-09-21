@@ -112,7 +112,7 @@ extension ShowRunnerGraphEditorNodePresentation on ShowRunnerGraphEditor {
       lines.add((entry.key.toString(), _summarizeGraphValue(entry.value)));
     }
     if (config.length > lines.length) {
-      lines.add(('â€¦', '+${config.length - lines.length} more'));
+      lines.add(('…', '+${config.length - lines.length} more'));
     }
     return lines;
   }
