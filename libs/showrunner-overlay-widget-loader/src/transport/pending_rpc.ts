@@ -50,7 +50,7 @@ export class PendingRPCRegistry {
 		})
 	}
 
-	/** Handles any response ID, including late responses from old generations. */
+	/** Handles every response ID, including late responses from old generations. */
 	handleResponse(message: OverlayTransportMessage): void {
 		const responseId = message.responseId
 		if (!responseId) return

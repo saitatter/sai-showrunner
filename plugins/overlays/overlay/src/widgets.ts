@@ -20,27 +20,162 @@ import {
 	getOutlineCSS,
 	resolveShaderUniformBindings,
 	type ShaderUniformBindingMap,
+	type ShaderUniformValue,
+	type WidgetBackgroundStyle,
+	type WidgetBorderRadius,
+	type WidgetBorderStyle,
+	type WidgetOutlineStyle,
 } from "showrunner-plugin-overlays-shared"
 import { ShaderRenderer } from "./widgets/shader-renderer"
 
-type AnyConfig = Record<string, any>
+type OverlayConfigObject = Record<string, unknown>
 
-abstract class DomWidget implements OverlayWidget<AnyConfig> {
+interface LabelConfig extends OverlayConfigObject {
+	message?: string
+	font?: OverlayTextStyle
+	textAlign?: OverlayTextAlignment
+	block?: OverlayBlockStyle
+}
+
+interface BarConfig extends OverlayConfigObject {
+	value?: number
+	target?: number
+	direction?: "Right" | "Left" | "Up" | "Down"
+	outerRadius?: WidgetBorderRadius
+	backgroundStyle?: WidgetBackgroundStyle
+	outline?: Partial<WidgetOutlineStyle>
+	fillStyle?: WidgetBackgroundStyle
+	fillLine?: WidgetOutlineStyle
+}
+
+interface ChatFeedConfig extends OverlayConfigObject {
+	fontFamily?: string
+	fontSize?: number
+	backgroundColor?: string
+	backgroundOpacity?: number
+	fadeTime?: number
+	maxMessages?: number
+	orientation?: "horizontal" | "vertical"
+	twitchColor?: string
+	youtubeColor?: string
+	showBadges?: boolean
+}
+
+interface PaidAlertConfig extends OverlayConfigObject {
+	fontFamily?: string
+	accentColor?: string
+	backgroundColor?: string
+	backgroundOpacity?: number
+	duration?: number
+	previewTitle?: string
+	previewViewer?: string
+	previewMessage?: string
+	previewAmount?: string
+	previewCurrency?: string
+}
+
+interface SceneBannerConfig extends OverlayConfigObject {
+	fontFamily?: string
+	accentColor?: string
+	backgroundColor?: string
+	backgroundOpacity?: number
+	duration?: number
+	previewTitle?: string
+	previewSubtitle?: string
+}
+
+type ShaderPreset = "aurora" | "grid" | "plasma" | "nebula" | "scanlines" | "vortex" | "custom"
+
+interface ShaderLayerConfig extends OverlayConfigObject {
+	preset?: ShaderPreset
+	customFragmentShader?: string
+	accentColor?: string
+	secondaryColor?: string
+	intensity?: number
+	speed?: number
+	opacity?: number
+	blendMode?: string
+	text?: string
+	shaderUniforms?: Record<string, ShaderUniformValue>
+	shaderUniformBindings?: ShaderUniformBindingMap
+}
+
+interface AlertMediaConfig extends OverlayConfigObject {
+	media?: string
+	duration?: number
+}
+
+interface AlertConfig extends OverlayConfigObject {
+	media?: readonly AlertMediaConfig[]
+	duration?: number
+}
+
+interface EmoteRangeConfig extends OverlayConfigObject {
+	min?: number
+	max?: number
+}
+
+interface EmoteSpamPreventionConfig extends OverlayConfigObject {
+	emoteRatio?: number
+	emoteCapPerMessage?: number
+	emoteCap?: number
+}
+
+interface EmoteLauncherConfig extends OverlayConfigObject {
+	x?: number
+	y?: number
+	angle?: number
+	spread?: number
+	velocity?: number | EmoteRangeConfig
+}
+
+interface EmoteBouncerConfig extends OverlayConfigObject {
+	lifeTime?: number | EmoteRangeConfig
+	emoteSize?: number | EmoteRangeConfig
+	velocityMax?: number
+	shakeTime?: number
+	shakeStrength?: number
+	gravityXScale?: number
+	gravityYScale?: number
+	spamPrevention?: EmoteSpamPreventionConfig
+	launchers?: readonly EmoteLauncherConfig[]
+}
+
+interface LeaderboardVariableConfig extends OverlayConfigObject {
+	variable?: string
+	font?: OverlayTextStyle
+	block?: OverlayBlockStyle
+	textAlign?: OverlayTextAlignment
+	background?: WidgetBackgroundStyle
+}
+
+interface LeaderboardConfig extends OverlayConfigObject {
+	sortBy?: string
+	sortOrder?: number
+	count?: number
+	variables?: readonly LeaderboardVariableConfig[]
+	nameFont?: OverlayTextStyle
+	nameTextAlign?: OverlayTextAlignment
+	nameBackground?: WidgetBackgroundStyle
+	nameBlock?: OverlayBlockStyle
+}
+
+abstract class DomWidget<Config extends OverlayConfigObject = OverlayConfigObject> implements OverlayWidget<Config> {
 	protected container!: HTMLElement
-	protected config: AnyConfig = {}
+	protected config = {} as Config
 	protected context!: WidgetContext
 
-	mount(container: HTMLElement, config: AnyConfig, context: WidgetContext): void {
+	mount(container: HTMLElement, config: Config, context: WidgetContext): void {
 		this.container = container
-		this.config = config ?? {}
+		this.config = config ?? ({} as Config)
 		this.context = context
 		this.container.classList.add("showrunner-widget-root")
 		this.onMount()
 		this.render()
 	}
 
-	update(config: AnyConfig): void {
-		this.config = config ?? {}
+	update(config: Config): void {
+		this.config = config ?? ({} as Config)
 		this.render()
 	}
 
@@ -67,8 +202,8 @@ abstract class DomWidget implements OverlayWidget<AnyConfig> {
 	}
 }
 
-function configWithDefaults(config: AnyConfig, defaults: AnyConfig): AnyConfig {
-	return { ...defaults, ...(config ?? {}) }
+function configWithDefaults<T extends OverlayConfigObject, D extends OverlayConfigObject>(config: T, defaults: D): T & D {
+	return { ...defaults, ...(config ?? {}) } as T & D
 }
 
 function positiveNumber(value: unknown, fallback: number): number {
@@ -76,11 +211,11 @@ function positiveNumber(value: unknown, fallback: number): number {
 	return Number.isFinite(number) && number > 0 ? number : fallback
 }
 
-function widgetFactory(id: string, create: OverlayWidgetFactory["create"]): OverlayWidgetFactory {
-	return { id, create }
+function widgetFactory<Config extends OverlayConfigObject>(id: string, create: () => OverlayWidget<Config>): OverlayWidgetFactory {
+	return { id, create: () => create() as unknown as OverlayWidget<OverlayConfigObject> }
 }
 
-class LabelWidget extends DomWidget {
+class LabelWidget extends DomWidget<LabelConfig> {
 	protected render(): void {
 		clearElement(this.container)
 		const config = configWithDefaults(this.config, {
@@ -101,7 +236,7 @@ class LabelWidget extends DomWidget {
 
 export const labelWidget = widgetFactory("label", () => new LabelWidget())
 
-class BarWidget extends DomWidget {
+class BarWidget extends DomWidget<BarConfig> {
 	protected render(): void {
 		clearElement(this.container)
 		const config = configWithDefaults(this.config, {
@@ -110,6 +245,7 @@ class BarWidget extends DomWidget {
 			direction: "Right",
 			outerRadius: {},
 			backgroundStyle: { color: "#222", elements: [] },
+			outline: {},
 			fillStyle: { color: "#42d392", elements: [] },
 		})
 		const outer = createElement("div", "outer-bar")
@@ -127,7 +263,7 @@ class BarWidget extends DomWidget {
 			...(vertical ? { height: `${ratio}%`, width: "100%" } : { width: `${ratio}%`, height: "100%" }),
 			...getBackgroundCSS(config.fillStyle, (file) => this.context.mediaUrl(file)),
 		})
-		const border: AnyConfig = {}
+		const border: Partial<WidgetBorderStyle> = {}
 		if (vertical) border[reverse ? "top" : "bottom"] = config.fillLine
 		else border[reverse ? "left" : "right"] = config.fillLine
 		applyStyles(inner, getBorderCSS(border))
@@ -140,7 +276,7 @@ export const barWidget = widgetFactory("bar", () => new BarWidget())
 
 type ChatMessage = OverlayEventMap["showrunner_chat_message"]
 
-class ChatFeedWidget extends DomWidget {
+class ChatFeedWidget extends DomWidget<ChatFeedConfig> {
 	private messages: Required<ChatMessage>[] = []
 	private readonly timers = new Set<number>()
 
@@ -230,7 +366,7 @@ export const chatFeedWidget = widgetFactory("chatFeed", () => new ChatFeedWidget
 type PaidAlertEvent = OverlayEventMap["showrunner_paid_alert"]
 type SceneEvent = OverlayEventMap["showrunner_scene_event"]
 
-class PaidAlertWidget extends DomWidget {
+class PaidAlertWidget extends DomWidget<PaidAlertConfig> {
 	private active?: PaidAlertEvent
 	private timer?: number
 
@@ -268,7 +404,7 @@ class PaidAlertWidget extends DomWidget {
 
 export const paidAlertWidget = widgetFactory("paidAlert", () => new PaidAlertWidget())
 
-class SceneBannerWidget extends DomWidget {
+class SceneBannerWidget extends DomWidget<SceneBannerConfig> {
 	private active?: SceneEvent
 	private timer?: number
 
@@ -325,7 +461,7 @@ uniform vec2 u_resolution; uniform float u_time; uniform vec3 u_accent; uniform 
 void main() { vec2 uv = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y); float radius = length(uv); float angle = atan(uv.y, uv.x); float swirl = sin(angle * 5.0 + radius * 11.0 - u_time * u_speed * 1.4); float ring = smoothstep(0.45, 0.02, abs(swirl * 0.08 + radius - 0.52)); vec3 color = mix(u_secondary, u_accent, swirl * 0.5 + 0.5); gl_FragColor = vec4(color, ring * (1.0 - smoothstep(0.2, 1.05, radius)) * u_intensity); }`,
 }
 
-class ShaderLayerWidget extends DomWidget {
+class ShaderLayerWidget extends DomWidget<ShaderLayerConfig> {
 	private canvas?: HTMLCanvasElement
 	private renderer?: ShaderRenderer
 	private error = ""
@@ -347,7 +483,7 @@ class ShaderLayerWidget extends DomWidget {
 
 	protected render(): void {
 		this.renderer?.dispose(); this.renderer = undefined
-		const config = configWithDefaults(this.config, { preset: "aurora", customFragmentShader: "", accentColor: "#9146ff", secondaryColor: "#00d1ff", intensity: 0.8, speed: 1, opacity: 1, blendMode: "normal", text: "" })
+		const config = configWithDefaults(this.config, { preset: "aurora", customFragmentShader: "", accentColor: "#9146ff", secondaryColor: "#00d1ff", intensity: 0.8, speed: 1, opacity: 1, blendMode: "normal", text: "", shaderUniforms: {} as Record<string, ShaderUniformValue>, shaderUniformBindings: {} as ShaderUniformBindingMap })
 		this.syncBindingStates(config.shaderUniformBindings ?? {})
 		const root = createElement("div", "shader-layer"); applyStyles(root, { opacity: config.opacity, mixBlendMode: config.blendMode })
 		this.canvas = createElement("canvas", "shader-layer__canvas")
@@ -360,9 +496,10 @@ class ShaderLayerWidget extends DomWidget {
 		} catch (error) { this.error = error instanceof Error ? error.message : String(error); const fallback = createElement("div", "shader-layer__fallback"); fallback.textContent = `Shader unavailable: ${this.error}`; root.append(fallback) }
 	}
 
-	private shaderSource(config: AnyConfig): string {
-		if (config.preset === "custom" && String(config.customFragmentShader || "").trim()) return config.customFragmentShader
-		return shaderPresets[config.preset] ?? shaderPresets.aurora
+	private shaderSource(config: ShaderLayerConfig): string {
+		const customFragmentShader = config.customFragmentShader
+		if (config.preset === "custom" && customFragmentShader && customFragmentShader.trim()) return customFragmentShader
+		return shaderPresets[config.preset ?? "aurora"] ?? shaderPresets.aurora
 	}
 
 	private syncBindingStates(bindings: ShaderUniformBindingMap): void {
@@ -401,7 +538,7 @@ function hexToVec3(hex: string, fallback: [number, number, number]): [number, nu
 
 export const shaderLayerWidget = widgetFactory("shaderLayer", () => new ShaderLayerWidget())
 
-class AlertWidget extends DomWidget {
+class AlertWidget extends DomWidget<AlertConfig> {
 	private title = "Title"; private message = "Message"; private media?: string; private timer?: number
 
 	protected onMount(): void {
@@ -451,7 +588,7 @@ interface BouncingEmote {
 	expiresAt: number
 }
 
-class EmoteBouncerWidget extends DomWidget {
+class EmoteBouncerWidget extends DomWidget<EmoteBouncerConfig> {
 	private root?: HTMLElement
 	private readonly emotes = new Map<string, BouncingEmote>()
 	private counter = 0
@@ -641,7 +778,7 @@ function positiveRange(value: unknown, fallback: number): number {
 
 export const emoteBouncerWidget = widgetFactory("emote-bounce", () => new EmoteBouncerWidget())
 
-class LeaderboardWidget extends DomWidget {
+class LeaderboardWidget extends DomWidget<LeaderboardConfig> {
 	private rows: ViewerDataRow[] = []
 	protected onMount(): void {
 		const reload = async () => { this.rows = await this.context.viewerData.query(0, Number(this.config.count) || 10, this.config.sortBy, Number(this.config.sortOrder) || -1); this.render() }
@@ -650,11 +787,11 @@ class LeaderboardWidget extends DomWidget {
 	}
 
 	protected render(): void {
-		const config = configWithDefaults(this.config, { variables: [], sortBy: "", sortOrder: -1, count: 10, nameFont: OverlayTextStyle.factoryCreate(), nameTextAlign: OverlayTextAlignment.factoryCreate(), nameBackground: { elements: [] }, nameBlock: OverlayBlockStyle.factoryCreate() })
+		const config = configWithDefaults(this.config, { variables: [] as readonly LeaderboardVariableConfig[], sortBy: "", sortOrder: -1, count: 10, nameFont: OverlayTextStyle.factoryCreate(), nameTextAlign: OverlayTextAlignment.factoryCreate(), nameBackground: { elements: [] }, nameBlock: OverlayBlockStyle.factoryCreate() })
 		const table = createElement("table", "leaderboard")
 		for (const row of this.rows.slice(0, Math.max(1, Number(config.count) || 10))) {
 			const tr = createElement("tr"); const name = createElement("td"); name.textContent = String(row["twitch_name"] ?? row.name ?? row.twitch ?? ""); applyStyles(name, { ...OverlayTextStyle.toCSSProperties(config.nameFont), ...OverlayBlockStyle.toCSSPadding(config.nameBlock), ...OverlayTextAlignment.toCSSProperties(config.nameTextAlign), ...getBackgroundCSS(config.nameBackground, (file) => this.context.mediaUrl(file)) }); tr.append(name)
-			for (const variable of config.variables ?? []) { const td = createElement("td"); td.textContent = String(row[variable.variable] ?? ""); applyStyles(td, { ...OverlayTextStyle.toCSSProperties(variable.font), ...OverlayBlockStyle.toCSSPadding(variable.block), ...OverlayTextAlignment.toCSSProperties(variable.textAlign), ...getBackgroundCSS(variable.background, (file) => this.context.mediaUrl(file)) }); tr.append(td) }
+			for (const variable of config.variables ?? []) { const td = createElement("td"); td.textContent = String(row[variable.variable ?? ""] ?? ""); applyStyles(td, { ...OverlayTextStyle.toCSSProperties(variable.font), ...OverlayBlockStyle.toCSSPadding(variable.block), ...OverlayTextAlignment.toCSSProperties(variable.textAlign), ...getBackgroundCSS(variable.background, (file) => this.context.mediaUrl(file)) }); tr.append(td) }
 			table.append(tr)
 		}
 		const root = createElement("div", "table-container"); root.append(table); clearElement(this.container); this.container.append(root)

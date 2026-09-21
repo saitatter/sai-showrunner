@@ -9,7 +9,7 @@ import {
 } from "showrunner-overlay-core"
 import { OverlayBlockStyle, OverlayTextAlignment, OverlayTextStyle } from "showrunner-plugin-overlays-shared"
 
-type AnyConfig = Record<string, unknown>
+type OverlayConfigObject = Record<string, unknown>
 
 const defaultStyle = [
 	{
@@ -37,31 +37,31 @@ function loopIndex(value: number, length: number): number {
 	return index < 0 ? length + index : index
 }
 
-function asConfig(value: unknown): AnyConfig {
+function asConfig(value: unknown): OverlayConfigObject {
 	return value !== null && typeof value === "object" && !Array.isArray(value)
-		? value as AnyConfig
+		? value as OverlayConfigObject
 		: {}
 }
 
-function wheelItems(config: AnyConfig): AnyConfig[] {
+function wheelItems(config: OverlayConfigObject): OverlayConfigObject[] {
 	return Array.isArray(config.items) && config.items.length ? config.items.map(asConfig) : [{ text: "" }]
 }
 
-function wheelStyles(config: AnyConfig): AnyConfig[] {
+function wheelStyles(config: OverlayConfigObject): OverlayConfigObject[] {
 	return Array.isArray(config.style) && config.style.length ? config.style.map(asConfig) : defaultStyle
 }
 
-class WheelWidget implements OverlayWidget<AnyConfig> {
+class WheelWidget implements OverlayWidget<OverlayConfigObject> {
 	private container!: HTMLElement
 	private context!: WidgetContext
-	private config: AnyConfig = {}
+	private config: OverlayConfigObject = {}
 	private angle = 0
 	private angularVelocity = 0
 	private frame?: number
 	private lastTimestamp?: number
 	private lastSlot = 0
 
-	mount(container: HTMLElement, config: AnyConfig, context: WidgetContext): void {
+	mount(container: HTMLElement, config: OverlayConfigObject, context: WidgetContext): void {
 		this.container = container
 		this.config = config ?? {}
 		this.context = context
@@ -72,7 +72,7 @@ class WheelWidget implements OverlayWidget<AnyConfig> {
 		this.render()
 	}
 
-	update(config: AnyConfig): void {
+	update(config: OverlayConfigObject): void {
 		this.config = config ?? {}
 		this.render()
 	}
