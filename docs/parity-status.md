@@ -64,7 +64,7 @@ actions, yields, and subgraph calls.
 
 `docs/parity.json` is generated from the frozen `main` tag and now catalogs
 renderer source files as well as action, trigger, setting, state, and resource
-IDs. The current report has 26 `improved` and 6 `equivalent` plugin entries,
+IDs. The current report has 25 `improved` and 7 `equivalent` plugin entries,
 with no missing contract IDs. Every plugin now has an explicit Flutter
 workspace contribution. The UI status confirms that the integration is
 reachable through the Flutter boundary; it does not claim pixel-perfect
@@ -81,9 +81,12 @@ waits for the current process to close, backs up the current bundle in user
 data, removes stale files, and starts the new executable. It restores the
 backup on failure and supports an explicit rollback operation. The real
 installer script also has an unsigned local Windows bundle smoke test that
-verifies replacement and rollback contents. A signed production
-installation/rollback test still requires the installed Windows release
-environment and is not claimed by the package smoke suite.
+verifies replacement and rollback contents. When protected Windows signing
+secrets are configured, the release workflow additionally verifies signatures
+before installation, after the upgrade, and after rollback. Without those
+secrets, the workflow intentionally publishes the documented unsigned archive;
+a trusted production certificate and installed Windows release environment are
+still required for final release sign-off.
 
 The automated smoke suite validates startup, first run, graph/workflow use,
 profiles, integrations, overlays, and update-state handling. It does not prove
