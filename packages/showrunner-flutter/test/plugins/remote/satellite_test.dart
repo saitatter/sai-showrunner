@@ -249,6 +249,61 @@ void main() {
     connection.dispose();
     signaling.dispose();
   });
+
+  test('survives repeated satellite connection and RPC cycles', () async {
+    final directory = await createTemporaryDirectory('satellite-soak-');
+    addTearDown(() => directory.delete(recursive: true));
+    final dataService = ShowRunnerDataService(directory);
+    await dataService.savePluginSettings('twitch', {'accessToken': 'token'});
+    final socket = _FakeCloudPubSubSocket();
+    final signaling = SatelliteSignalingController(
+      dataService: dataService,
+      negotiator: (_) async => 'wss://cloud.example.test/client',
+      socketFactory: (_) async => socket,
+    );
+    await signaling.start();
+
+    const config = SatelliteConnectionConfig(
+      satelliteService: 'twitch',
+      satelliteId: 'satellite-1',
+      showRunnerService: 'twitch',
+      showRunnerId: 'owner-1',
+      dashboardId: 'dash-1',
+    );
+    for (var cycle = 0; cycle < 25; cycle++) {
+      late final _FakePeerConnection peer;
+      final connection = RemoteSatelliteConnection(
+        id: 'soak-$cycle',
+        config: config,
+        signaling: signaling,
+        peerFactory: (_) async {
+          peer = _FakePeerConnection();
+          return peer;
+        },
+      );
+
+      await connection.start();
+      peer.emitPeerState(SatellitePeerState.connected);
+      peer.channel.emitState(SatelliteChannelState.open);
+      expect(connection.state, SatelliteConnectionState.connected);
+
+      final rpc = connection.callRpc('dashboard_widgetRPC', [cycle]);
+      await Future<void>.delayed(Duration.zero);
+      final request = jsonDecode(peer.channel.sent.single) as Map;
+      peer.channel.emitMessage(
+        jsonEncode({'responseId': request['requestId'], 'result': cycle}),
+      );
+      expect(await rpc, cycle);
+
+      await connection.disconnect();
+      connection.dispose();
+      expect(connection.state, SatelliteConnectionState.disconnected);
+    }
+
+    expect(socket.sent, hasLength(25));
+    await signaling.stop();
+    signaling.dispose();
+  });
 }
 
 Future<Directory> createTemporaryDirectory(String prefix) async =>

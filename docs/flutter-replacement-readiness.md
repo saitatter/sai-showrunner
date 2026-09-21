@@ -34,6 +34,8 @@ Flutter desktop build is used as the ShowRunner replacement candidate.
   records load, selection, drag, layout, serialization, and undo/redo timings.
 - The runtime benchmark records cold compile, cached lookup, execution, loop,
   and nested-subgraph timings for the production graph engine.
+- The Remote/Satellite test suite covers repeated local connection, data
+  channel, RPC, and disconnect cycles in addition to single-session behavior.
 - Windows Release smoke covers first run, automation, workflow, profile,
   integrations, overlays, and update-state handling.
 - The Windows CI signing proof signs every executable and DLL in a temporary
@@ -135,7 +137,8 @@ contracts:
 
 - upgrade and rollback from a signed installed Windows build;
 - pixel/image comparison of the full reference screenshot catalog;
-- long-running Remote/Satellite and plugin lifecycle soak tests;
+- long-running live Remote/Satellite and plugin lifecycle soak tests; the
+  deterministic local lifecycle cycles are covered by the test gate above.
 - live OBS rendering comparison for browser overlays and compiled shaders.
 
 Until those checks are captured in their target environments, the Flutter
