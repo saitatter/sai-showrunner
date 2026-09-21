@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../design_system/tokens/tokens.dart';
+import 'app_feedback.dart';
 
 const showRunnerWindowSize = Size(1440, 900);
 const showRunnerMinimumWindowSize = Size(1100, 700);
@@ -116,11 +117,13 @@ Widget showRunnerAppFrame(BuildContext context, Widget? child) {
   return Semantics(
     container: true,
     label: 'ShowRunner desktop application',
-    child: FocusTraversalGroup(
-      policy: OrderedTraversalPolicy(),
-      child: FocusScope(
-        autofocus: true,
-        child: child ?? const SizedBox.shrink(),
+    child: ShowRunnerToastHost(
+      child: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: FocusScope(
+          autofocus: true,
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
     ),
   );
