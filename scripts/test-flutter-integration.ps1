@@ -11,7 +11,8 @@ try {
     'integration_test/plugins/heart_rate_lifecycle_test.dart',
     'integration_test/resources/resource_crud_test.dart',
     'integration_test/schema/strict_schema_restart_test.dart',
-    'integration_test/visual/app_surface_test.dart'
+    'integration_test/visual/app_surface_test.dart',
+    'integration_test/visual/workspace_catalog_test.dart'
   )
   foreach ($test in $tests) {
     flutter test $test -d windows
