@@ -1,0 +1,86 @@
+name: Signed Windows release proof
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version label for the proof package
+        required: true
+        default: 2.0.0-proof
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  signed-windows-proof:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Enable Corepack
+        shell: pwsh
+        run: corepack enable
+
+      - name: Install browser overlay dependencies
+        shell: pwsh
+        run: yarn install --immutable
+        env:
+          YARN_ENABLE_SCRIPTS: false
+
+      - name: Build browser overlay runtime
+        shell: pwsh
+        run: yarn overlay:build
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Build, sign, and smoke-test Windows package
+        shell: pwsh
+        run: |
+          $hasSigningCertificate = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64)
+          $hasSigningPassword = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD)
+          if (-not $hasSigningCertificate -or -not $hasSigningPassword) {
+            throw 'Windows signing secrets are required for the release proof.'
+          }
+          $hasYouTubeClient = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)
+          if (-not $hasYouTubeClient) {
+            throw 'A bundled YouTube OAuth client ID is required for the release proof.'
+          }
+          & .\scripts\package-flutter-windows.ps1 `
+            -Version '${{ inputs.version }}' `
+            -RequireBundledYouTubeClient `
+            -SignWindowsBundle `
+            -RequireWindowsSignature
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        env:
+          SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
+          SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
+          SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+          SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+          SHOWRUNNER_WINDOWS_TIMESTAMP_URL: ${{ vars.SHOWRUNNER_WINDOWS_TIMESTAMP_URL }}
+
+      - name: Upload signed proof archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: showrunner-windows-signed-proof-${{ inputs.version }}
+          path: release/ShowRunner-Flutter-windows-${{ inputs.version }}.zip
+          if-no-files-found: error
+          retention-days: 14

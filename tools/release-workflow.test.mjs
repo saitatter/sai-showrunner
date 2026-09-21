@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest"
 
 const repositoryRoot = resolve(import.meta.dirname, "..")
 const workflowPath = resolve(repositoryRoot, ".github/workflows/release.yml")
+const proofWorkflowPath = resolve(repositoryRoot, ".github/workflows/release-proof.yml")
 
 describe("Windows release workflow", () => {
 	it("refuses to package or publish an unsigned Windows build", async () => {
@@ -27,5 +28,17 @@ describe("Windows release workflow", () => {
 		expect(workflow).toContain("Protected Windows signing secrets detected; running signed package and updater proof.")
 		expect(uploadStep).toBeGreaterThan(packageStep)
 		expect(workflow.slice(packageStep, uploadStep)).toContain("package-flutter-windows.ps1")
+	})
+
+	it("provides a manual proof workflow on trusted main without publishing", async () => {
+		const workflow = await readFile(proofWorkflowPath, "utf8")
+
+		expect(workflow).toContain("workflow_dispatch:")
+		expect(workflow).toContain("ref: main")
+		expect(workflow).toContain("-SignWindowsBundle")
+		expect(workflow).toContain("-RequireWindowsSignature")
+		expect(workflow).toContain("package-flutter-windows.ps1")
+		expect(workflow).toContain("actions/upload-artifact@v4")
+		expect(workflow).not.toContain("gh release upload")
 	})
 })
