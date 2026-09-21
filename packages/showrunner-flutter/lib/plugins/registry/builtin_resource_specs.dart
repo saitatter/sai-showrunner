@@ -269,40 +269,36 @@ final _wyzeAccountResource = ResourceSpec(
 
 /// Resource metadata shared by the Flutter-free plugin manifests.
 List<DartResourceContract> builtInResourceSpecsFor(PluginId pluginId) =>
-    List.unmodifiable(
-      switch (pluginId.value) {
-        'overlays' => [_overlayResource],
-        'stream-plans' => [_streamPlanResource],
-        'variables' => [_variableResource],
-        'obs' => [_obsConnectionResource],
-        'minecraft' => [_rconConnectionResource],
-        'sound' => [
-            _ttsVoiceResource,
-            _audioSplitterResource,
-            _soundOutputResource,
-            _ttsVoiceProviderResource,
-          ],
-        'twitch' => [
-            _twitchViewerGroupResource,
-            _twitchAccountResource,
-            _channelPointRewardResource,
-          ],
-        'discord' => [_discordWebhookResource],
-        'bluesky' => [_blueskyAccountResource],
-        'dashboards' => [_dashboardResource],
-        'spellcast' => [_spellHookResource],
-        'iot' => [_lightResource, _plugResource],
-        'input' => [_gamepadResource],
-        'wyze' => [_wyzeAccountResource],
-        _ => const <DartResourceContract>[],
-      },
-    );
+    List.unmodifiable(switch (pluginId.value) {
+      'overlays' => [_overlayResource],
+      'stream-plans' => [_streamPlanResource],
+      'variables' => [_variableResource],
+      'obs' => [_obsConnectionResource],
+      'minecraft' => [_rconConnectionResource],
+      'sound' => [
+        _ttsVoiceResource,
+        _audioSplitterResource,
+        _soundOutputResource,
+        _ttsVoiceProviderResource,
+      ],
+      'twitch' => [
+        _twitchViewerGroupResource,
+        _twitchAccountResource,
+        _channelPointRewardResource,
+      ],
+      'discord' => [_discordWebhookResource],
+      'bluesky' => [_blueskyAccountResource],
+      'dashboards' => [_dashboardResource],
+      'spellcast' => [_spellHookResource],
+      'iot' => [_lightResource, _plugResource],
+      'input' => [_gamepadResource],
+      'wyze' => [_wyzeAccountResource],
+      _ => const <DartResourceContract>[],
+    });
 
 DartResourceContract builtInResourceSpec(String resourceType) =>
     builtInResourceSpecsFor(const PluginId('overlays'))
-        .followedBy(
-          builtInResourceSpecsFor(const PluginId('stream-plans')),
-        )
+        .followedBy(builtInResourceSpecsFor(const PluginId('stream-plans')))
         .followedBy(builtInResourceSpecsFor(const PluginId('variables')))
         .followedBy(builtInResourceSpecsFor(const PluginId('obs')))
         .followedBy(builtInResourceSpecsFor(const PluginId('minecraft')))

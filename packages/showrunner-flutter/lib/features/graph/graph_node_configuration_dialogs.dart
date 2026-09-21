@@ -651,7 +651,7 @@ Future<DartDataInputSchema> _hydrateResourceInputSchema(
       options.isEmpty &&
       schema.resourceType != null &&
       loader != null) {
-    options = await loader(schema.resourceType!);
+    options = await loader(schema.resourceType!.value);
   }
   return DartDataInputSchema(
     label: schema.label,

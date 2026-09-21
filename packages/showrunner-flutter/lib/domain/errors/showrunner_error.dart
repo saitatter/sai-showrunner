@@ -1,4 +1,4 @@
-import '../../plugins/contracts/identifiers.dart';
+import '../../schema/identifiers.dart';
 
 /// A stable error contract shared by the application, runtime and plugins.
 ///

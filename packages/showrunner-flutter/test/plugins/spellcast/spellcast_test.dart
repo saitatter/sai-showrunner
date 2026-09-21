@@ -15,7 +15,7 @@ void main() {
     expect(trigger.triggerId.value, 'spellHook');
     expect(trigger.configSchema?.key, 'spell');
     expect(trigger.configSchema?.kind, DartDataInputKind.resource);
-    expect(trigger.configSchema?.resourceType, 'SpellHook');
+    expect(trigger.configSchema?.resourceType?.value, 'SpellHook');
     expect(
       trigger.decodeConfig({'spell': 'local-spell'}),
       isA<SpellcastHookConfig>(),

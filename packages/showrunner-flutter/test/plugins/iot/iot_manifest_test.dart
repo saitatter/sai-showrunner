@@ -20,9 +20,9 @@ void main() {
     );
 
     expect(light.configSchema?.fields.first.kind, DartDataInputKind.resource);
-    expect(light.configSchema?.fields.first.resourceType, 'Light');
+    expect(light.configSchema?.fields.first.resourceType?.value, 'Light');
     expect(plug.configSchema?.fields.first.kind, DartDataInputKind.resource);
-    expect(plug.configSchema?.fields.first.resourceType, 'Plug');
+    expect(plug.configSchema?.fields.first.resourceType?.value, 'Plug');
     expect(light.decodeConfig({'light': 'light-1'}), isA<IotActionConfig>());
   });
 }

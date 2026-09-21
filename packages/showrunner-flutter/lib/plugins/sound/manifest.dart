@@ -17,7 +17,7 @@ const _soundSchema = DartDataInputSchema(
       label: 'Output',
       key: 'output',
       kind: DartDataInputKind.resource,
-      resourceType: 'SoundOutput',
+      resourceType: ResourceTypeId('SoundOutput'),
     ),
     DartDataInputSchema(
       label: 'Sound file',
@@ -61,13 +61,13 @@ const _speakTtsSchema = DartDataInputSchema(
       label: 'Output',
       key: 'output',
       kind: DartDataInputKind.resource,
-      resourceType: 'SoundOutput',
+      resourceType: ResourceTypeId('SoundOutput'),
     ),
     DartDataInputSchema(
       label: 'Voice',
       key: 'voice',
       kind: DartDataInputKind.resource,
-      resourceType: 'TTSVoice',
+      resourceType: ResourceTypeId('TTSVoice'),
       required: true,
     ),
     DartDataInputSchema(

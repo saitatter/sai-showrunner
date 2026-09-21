@@ -1,8 +1,10 @@
-/// Stable identifiers used directly by plugin contracts.
+/// Stable identifiers shared by persistence, schema, and plugin contracts.
 ///
-/// Persisted and protocol-facing code can use [value] at its boundary, while
-/// manifests, registries, and runtime contracts keep IDs strongly typed so an
-/// action or trigger cannot accidentally be addressed by an unrelated string.
+/// String values are decoded at persistence/protocol boundaries. Internal
+/// contracts use these types so unrelated identifiers cannot be mixed by
+/// accident.
+library;
+
 sealed class _ContractId {
   const _ContractId(this.value);
 

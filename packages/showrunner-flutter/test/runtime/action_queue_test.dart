@@ -6,7 +6,7 @@ import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/cancellation.dart';
 import 'package:showrunner_flutter/persistence/queue_repository.dart';
 import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
-import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
+import 'package:showrunner_flutter/schema/identifiers.dart';
 
 void main() {
   test('processes, pauses, replays, and bounds Dart queue history', () async {

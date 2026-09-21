@@ -1,8 +1,8 @@
 import '../../runtime/expression.dart';
 import '../../schema/data_input.dart';
-import '../contracts/identifiers.dart';
+import '../../schema/identifiers.dart';
 
-export '../contracts/identifiers.dart';
+export '../../schema/identifiers.dart';
 
 /// Type-safe action handler contract.
 ///

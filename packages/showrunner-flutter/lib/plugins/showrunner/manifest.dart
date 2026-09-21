@@ -146,20 +146,20 @@ const _queueReference = DartDataInputSchema(
   kind: DartDataInputKind.resource,
   key: 'queue',
   required: true,
-  resourceType: 'ActionQueue',
+  resourceType: ResourceTypeId('ActionQueue'),
 );
 const _optionalQueueReference = DartDataInputSchema(
   label: 'Queue',
   kind: DartDataInputKind.resource,
   key: 'queue',
-  resourceType: 'ActionQueue',
+  resourceType: ResourceTypeId('ActionQueue'),
 );
 const _automationReference = DartDataInputSchema(
   label: 'Worker Automation',
   kind: DartDataInputKind.resource,
   key: 'automation',
   required: true,
-  resourceType: 'Automation',
+  resourceType: ResourceTypeId('Automation'),
 );
 const _addToQueueSchema = DartDataInputSchema(
   label: '',
@@ -258,7 +258,7 @@ const _profileReference = DartDataInputSchema(
   kind: DartDataInputKind.resource,
   key: 'profile',
   required: true,
-  resourceType: 'Profile',
+  resourceType: ResourceTypeId('Profile'),
 );
 const _profileActivationSchema = DartDataInputSchema(
   label: '',

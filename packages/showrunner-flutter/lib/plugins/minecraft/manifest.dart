@@ -15,7 +15,7 @@ const _commandSchema = DartDataInputSchema(
       label: 'Server',
       key: 'server',
       kind: DartDataInputKind.resource,
-      resourceType: 'RCONConnection',
+      resourceType: ResourceTypeId('RCONConnection'),
       required: true,
     ),
     DartDataInputSchema(

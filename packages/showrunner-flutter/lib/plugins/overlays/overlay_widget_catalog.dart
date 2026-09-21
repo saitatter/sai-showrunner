@@ -1,4 +1,5 @@
 import '../../schema/data_input.dart';
+import '../../schema/identifiers.dart';
 
 class GeneratedOverlayWidget {
   const GeneratedOverlayWidget({
@@ -124,7 +125,9 @@ DartDataInputSchema _schemaFor(String key, Object? raw) {
     secret: metadata['secret'] == true,
     multiline: metadata['multiLine'] == true || metadata['multiline'] == true,
     defaultValue: defaultValue,
-    resourceType: metadata['resourceType']?.toString(),
+    resourceType: metadata['resourceType'] == null
+        ? null
+        : ResourceTypeId(metadata['resourceType'].toString()),
     fields: rangeFields,
     itemKind: _itemKind(metadata['itemType']),
     itemSchema: itemSchema,

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
-import 'package:showrunner_flutter/plugins/contracts/identifiers.dart';
+import 'package:showrunner_flutter/schema/identifiers.dart';
 
 void main() {
   test('serializes stable error metadata without losing the cause', () {

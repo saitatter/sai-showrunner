@@ -1,6 +1,8 @@
 /// Flutter-free data input contracts used by plugin manifests and schemas.
 library;
 
+import 'identifiers.dart';
+
 enum DartDataInputKind {
   text,
   multilineText,
@@ -50,7 +52,7 @@ final class DartDataInputSchema {
   /// `dynamic` from leaking through plugin manifests. Decoding into the
   /// runtime map remains an explicit boundary in the construction helpers.
   final Object? defaultValue;
-  final String? resourceType;
+  final ResourceTypeId? resourceType;
   final List<DartDataInputSchema> fields;
   final DartDataInputKind itemKind;
   final DartDataInputSchema? itemSchema;

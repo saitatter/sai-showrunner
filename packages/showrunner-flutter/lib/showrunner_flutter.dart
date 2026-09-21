@@ -10,6 +10,7 @@ export 'editor/models/graph_editor_models.dart';
 export 'editor/sai_nodes/showrunner_clipboard_payload.dart';
 export 'schema/automation.dart';
 export 'schema/data_input.dart';
+export 'schema/identifiers.dart';
 export 'schema/profile.dart';
 export 'schema/queue.dart';
 export 'schema/viewer_data.dart';

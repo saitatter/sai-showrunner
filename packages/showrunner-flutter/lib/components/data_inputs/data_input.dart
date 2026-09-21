@@ -116,7 +116,7 @@ class _DartDataInputState extends State<DartDataInput> {
                 labelText: widget.schema.label,
                 hintText: widget.schema.resourceType == null
                     ? 'Resource ID'
-                    : '${widget.schema.resourceType} ID',
+                    : '${widget.schema.resourceType!.value} ID',
               ),
               onChanged: (text) => widget.onChanged(text.trim()),
             )

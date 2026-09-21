@@ -826,7 +826,7 @@ String _schemaSummary(DartDataInputSchema? schema) {
 
 String _schemaTypeName(DartDataInputSchema schema) {
   if (schema.kind == DartDataInputKind.resource &&
-      schema.resourceType?.isNotEmpty == true) {
+      schema.resourceType?.value.isNotEmpty == true) {
     return 'resource<${schema.resourceType}>';
   }
   return switch (schema.kind) {

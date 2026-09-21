@@ -138,7 +138,7 @@ const _messageSchema = DartDataInputSchema(
       label: 'Webhook',
       key: 'webhook',
       kind: DartDataInputKind.resource,
-      resourceType: 'DiscordWebhook',
+      resourceType: ResourceTypeId('DiscordWebhook'),
       required: true,
     ),
     DartDataInputSchema(

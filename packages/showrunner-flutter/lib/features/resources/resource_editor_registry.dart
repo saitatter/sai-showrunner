@@ -572,56 +572,56 @@ DartResourceEditorDefinition _pluginDefinition({
   }
   return DartResourceEditorDefinition.fromContract(
     contract: contract,
-  builder: (context, resource, onSave) => switch (resourceType) {
-    'OBSConnection' => _ConnectionEditor(
-      title: 'Edit OBS connection',
-      resource: resource,
-      onSave: onSave,
-      supportsLocal: true,
-    ),
-    'RCONConnection' => _ConnectionEditor(
-      title: 'Edit RCON connection',
-      resource: resource,
-      onSave: onSave,
-    ),
-    'TTSVoice' => _TtsVoiceEditor(resource: resource, onSave: onSave),
-    'AudioSplitterOutput' => _AudioSplitterEditor(
-      resource: resource,
-      onSave: onSave,
-    ),
-    'CustomTwitchViewerGroup' => _ViewerGroupEditor(
-      resource: resource,
-      onSave: onSave,
-    ),
-    'Dashboard' => _DashboardEditor(resource: resource, onSave: onSave),
-    'SpellHook' => _SpellcastEditor(resource: resource, onSave: onSave),
-    'ChannelPointReward' => _ChannelPointRewardEditor(
-      resource: resource,
-      onSave: onSave,
-    ),
-    'Light' => _MapResourceEditor(
-      title: 'Edit smart light',
-      resource: resource,
-      fields: fields,
-      secretFields: secretResourceFieldIdsFor(resourceType),
-      onSave: onSave,
-    ),
-    'Plug' => _MapResourceEditor(
-      title: 'Edit smart plug',
-      resource: resource,
-      fields: fields,
-      secretFields: secretResourceFieldIdsFor(resourceType),
-      onSave: onSave,
-    ),
-    _ => _MapResourceEditor(
-      title: 'Edit $displayName',
-      resource: resource,
-      fields: fields,
-      secretFields: secretResourceFieldIdsFor(resourceType),
-      onSave: onSave,
-    ),
-  },
-  runtimeBuilder: runtimeBuilder,
+    builder: (context, resource, onSave) => switch (resourceType) {
+      'OBSConnection' => _ConnectionEditor(
+        title: 'Edit OBS connection',
+        resource: resource,
+        onSave: onSave,
+        supportsLocal: true,
+      ),
+      'RCONConnection' => _ConnectionEditor(
+        title: 'Edit RCON connection',
+        resource: resource,
+        onSave: onSave,
+      ),
+      'TTSVoice' => _TtsVoiceEditor(resource: resource, onSave: onSave),
+      'AudioSplitterOutput' => _AudioSplitterEditor(
+        resource: resource,
+        onSave: onSave,
+      ),
+      'CustomTwitchViewerGroup' => _ViewerGroupEditor(
+        resource: resource,
+        onSave: onSave,
+      ),
+      'Dashboard' => _DashboardEditor(resource: resource, onSave: onSave),
+      'SpellHook' => _SpellcastEditor(resource: resource, onSave: onSave),
+      'ChannelPointReward' => _ChannelPointRewardEditor(
+        resource: resource,
+        onSave: onSave,
+      ),
+      'Light' => _MapResourceEditor(
+        title: 'Edit smart light',
+        resource: resource,
+        fields: fields,
+        secretFields: secretResourceFieldIdsFor(resourceType),
+        onSave: onSave,
+      ),
+      'Plug' => _MapResourceEditor(
+        title: 'Edit smart plug',
+        resource: resource,
+        fields: fields,
+        secretFields: secretResourceFieldIdsFor(resourceType),
+        onSave: onSave,
+      ),
+      _ => _MapResourceEditor(
+        title: 'Edit $displayName',
+        resource: resource,
+        fields: fields,
+        secretFields: secretResourceFieldIdsFor(resourceType),
+        onSave: onSave,
+      ),
+    },
+    runtimeBuilder: runtimeBuilder,
   );
 }
 

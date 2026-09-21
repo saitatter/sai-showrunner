@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
+import 'package:showrunner_flutter/schema/identifiers.dart';
 
 void main() {
   testWidgets('parses scalar data input values', (tester) async {
@@ -74,7 +75,7 @@ void main() {
             schema: const DartDataInputSchema(
               label: 'Account',
               kind: DartDataInputKind.resource,
-              resourceType: 'BlueSkyAccount',
+              resourceType: ResourceTypeId('BlueSkyAccount'),
             ),
             value: 'account-1',
             onChanged: (next) => value = next,

@@ -20,7 +20,7 @@ DartPluginManifest createSpellcastPlugin({DartPluginEventHub? eventHub}) {
           label: 'Spell resource',
           kind: DartDataInputKind.resource,
           key: 'spell',
-          resourceType: 'SpellHook',
+          resourceType: ResourceTypeId('SpellHook'),
           required: true,
         ),
         configCodec: spellcastCastConfigCodec,
@@ -36,7 +36,7 @@ DartPluginManifest createSpellcastPlugin({DartPluginEventHub? eventHub}) {
           label: 'Spell resource',
           kind: DartDataInputKind.resource,
           key: 'spell',
-          resourceType: 'SpellHook',
+          resourceType: ResourceTypeId('SpellHook'),
           required: true,
         ),
         listen: () => hub

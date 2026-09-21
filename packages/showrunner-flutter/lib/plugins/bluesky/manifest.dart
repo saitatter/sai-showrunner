@@ -123,7 +123,7 @@ const _postSchema = DartDataInputSchema(
       label: 'Account',
       key: 'account',
       kind: DartDataInputKind.resource,
-      resourceType: 'BlueSkyAccount',
+      resourceType: ResourceTypeId('BlueSkyAccount'),
     ),
     DartDataInputSchema(
       label: 'Identifier',
