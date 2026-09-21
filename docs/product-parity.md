@@ -45,12 +45,14 @@ Status values:
 
 ## Current closure order
 
-1. Capture the frozen `main` screens and run the new controlled PNG comparison
-   for every parity-critical workspace.
-2. Expand document/runtime end-to-end coverage with close-flow and
-   failure-injection scenarios around the existing fixtures.
-3. Harden graph-editor stress behavior and close the remaining packaged
-   updater proof.
+1. Close the remaining visual differences intentionally: either align a
+   screen to the frozen reference or record the product decision behind an
+   intentional Flutter improvement/removal.
+2. Capture the environment-dependent release evidence: a trusted signed
+   Windows install upgrade/rollback, long-running Remote/plugin soak, and
+   live OBS comparisons for browser overlays and compiled shaders.
 
-The `partial` entries are the remaining product-proof or infrastructure work.
-They are not missing plugin contracts.
+The graph stress benchmarks, runtime parity fixtures, document/runtime
+end-to-end coverage, and automated updater replacement/rollback proof are now
+checked in. The `partial` entry is therefore release/visual proof work, not a
+missing plugin contract or unimplemented graph pipeline.
