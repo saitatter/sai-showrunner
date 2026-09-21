@@ -1,7 +1,7 @@
 # Heart Rate integration
 
-Heart Rate is being added as a native Flutter/Dart ShowRunner integration for
-Bluetooth SIG Heart Rate Service devices such as the COOSPO H808S.
+Heart Rate is a native Flutter/Dart ShowRunner integration for Bluetooth SIG
+Heart Rate Service devices such as the COOSPO H808S.
 
 ## Current milestone
 
@@ -41,7 +41,8 @@ reads, disconnect handling, and adapter-state diagnostics all flow through
 
 The Windows release archive has been verified to include the native BLE DLL,
 the Flutter executable, and the OBS overlay bundle. Physical H808S pairing and
-streaming still require a Bluetooth-enabled Windows machine with the sensor.
+streaming still require a Bluetooth-enabled Windows machine with the sensor;
+that hardware check is the remaining release-environment verification.
 
 ## Product boundary
 

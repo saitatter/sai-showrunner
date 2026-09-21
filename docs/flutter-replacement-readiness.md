@@ -44,6 +44,8 @@ the original three smoke files. It covers:
 - compiled graph execution, nested subgraphs, queue execution, and profile
   triggers;
 - plugin disable/re-enable, provider failure handling, and Twitch reconnect;
+- Heart Rate plugin lifecycle, simulation action, published state, threshold
+  trigger, and disconnect handling;
 - resource create/read/update/delete;
 - strict schema failure handling without modifying an existing document.
 
