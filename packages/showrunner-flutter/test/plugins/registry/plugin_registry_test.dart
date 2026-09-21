@@ -165,6 +165,37 @@ void main() {
     );
   });
 
+  test('does not partially register an invalid manifest', () {
+    final registry = DartPluginRegistry();
+    final action = ActionSpec<RuntimeMap, String>(
+      pluginId: const PluginId('broken'),
+      actionId: const ActionId('run'),
+      invoke: (config, context) async => 'ok',
+    );
+
+    expect(
+      () => registry.register(
+        DartPluginManifest(
+          id: const PluginId('broken'),
+          name: 'Broken',
+          actions: [action, action],
+        ),
+      ),
+      throwsArgumentError,
+    );
+    expect(registry.findPlugin('broken'), isNull);
+    expect(registry.findAction('broken', 'run'), isNull);
+
+    registry.register(
+      DartPluginManifest(
+        id: const PluginId('broken'),
+        name: 'Recovered',
+        actions: [action],
+      ),
+    );
+    expect(registry.findAction('broken', 'run'), same(action));
+  });
+
   test('bootstraps provider manifests into the Dart registry', () {
     final registry = createDefaultPluginRegistry();
 

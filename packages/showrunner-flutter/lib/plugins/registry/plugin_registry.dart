@@ -47,36 +47,50 @@ final class DartPluginRegistry extends ChangeNotifier {
     if (_modules.containsKey(plugin.id)) {
       throw ArgumentError('Plugin is registered more than once: ${plugin.id}');
     }
-    _modules[plugin.id] = module;
-    _stateValues[plugin.id] = {
-      for (final state in plugin.states) state.id: state.initialValue,
-    };
+
+    // Validate the complete manifest before mutating any registry map. A
+    // malformed plugin must not leave behind a half-registered module or the
+    // first few contracts from a list that failed later in validation.
+    final stateValues = <StateId, dynamic>{};
+    for (final state in plugin.states) {
+      if (stateValues.containsKey(state.id)) {
+        throw ArgumentError('State is registered more than once: ${state.id}');
+      }
+      stateValues[state.id] = state.initialValue;
+    }
+
+    final actions = <ActionKey, DartActionContract>{};
     for (final action in plugin.actions) {
       if (action.pluginId != plugin.id) {
         throw ArgumentError(
           'Action ${action.actionId} belongs to ${action.pluginId}, not ${plugin.id}.',
         );
       }
-      if (_actions.containsKey(action.key)) {
+      if (_actions.containsKey(action.key) || actions.containsKey(action.key)) {
         throw ArgumentError(
           'Action is registered more than once: ${action.key}',
         );
       }
-      _actions[action.key] = action;
+      actions[action.key] = action;
     }
+
+    final triggers = <TriggerKey, DartTriggerContract>{};
     for (final trigger in plugin.triggers) {
       if (trigger.pluginId != plugin.id) {
         throw ArgumentError(
           'Trigger ${trigger.triggerId} belongs to ${trigger.pluginId}, not ${plugin.id}.',
         );
       }
-      if (_triggers.containsKey(trigger.key)) {
+      if (_triggers.containsKey(trigger.key) ||
+          triggers.containsKey(trigger.key)) {
         throw ArgumentError(
           'Trigger is registered more than once: ${trigger.key}',
         );
       }
-      _triggers[trigger.key] = trigger;
+      triggers[trigger.key] = trigger;
     }
+
+    final resources = <ResourceTypeId, DartResourceContract>{};
     for (final resource in plugin.resources) {
       if (resource.ownerId != plugin.id) {
         throw ArgumentError(
@@ -90,13 +104,20 @@ final class DartPluginRegistry extends ChangeNotifier {
           'resource.resourceTypeId',
         );
       }
-      if (_resources.containsKey(resource.resourceTypeId)) {
+      if (_resources.containsKey(resource.resourceTypeId) ||
+          resources.containsKey(resource.resourceTypeId)) {
         throw ArgumentError(
           'Resource is registered more than once: ${resource.resourceTypeId}',
         );
       }
-      _resources[resource.resourceTypeId] = resource;
+      resources[resource.resourceTypeId] = resource;
     }
+
+    _modules[plugin.id] = module;
+    _stateValues[plugin.id] = stateValues;
+    _actions.addAll(actions);
+    _triggers.addAll(triggers);
+    _resources.addAll(resources);
   }
 
   /// Registers Flutter UI separately from the declarative plugin contract.
