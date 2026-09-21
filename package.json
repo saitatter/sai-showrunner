@@ -1,6 +1,6 @@
 {
   "name": "showrunner",
-  "version": "1.0.0-beta1",
+  "version": "2.0.0",
   "description": "Flutter desktop broadcaster automation app with an OBS browser overlay runtime.",
   "private": true,
   "type": "module",
