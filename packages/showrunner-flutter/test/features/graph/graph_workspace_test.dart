@@ -253,7 +253,8 @@ void main() {
     );
 
     expect(find.text('First automation'), findsOneWidget);
-    expect(find.text('Second automation'), findsOneWidget);
+    expect(find.text('Second automation'), findsNWidgets(2));
+    expect(find.text('AUTOMATION FLOW'), findsOneWidget);
     await tester.tap(find.text('First automation'));
     expect(selected, 'first.yaml');
   });
