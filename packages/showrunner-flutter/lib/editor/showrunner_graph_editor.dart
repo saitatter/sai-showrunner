@@ -191,7 +191,6 @@ class ShowRunnerGraphEditor {
   ValueNotifier<String> get searchQuery => _searchService.query;
   ValueNotifier<int> get searchMatchIndex => _searchService.matchIndex;
   ValueNotifier<bool> get canvasSearchOpen => _searchService.isOpen;
-  final ValueNotifier<List<String>> recentNodeTypes = ValueNotifier(const []);
   final ValueNotifier<int> nodeRevision = ValueNotifier(0);
   final ValueNotifier<bool> documentDirty = ValueNotifier(false);
   final Map<String, String> _nodeTitles = {};
@@ -374,7 +373,6 @@ class ShowRunnerGraphEditor {
     graphFeedback.dispose();
     selectedFrameId.dispose();
     _searchService.dispose();
-    recentNodeTypes.dispose();
     nodeRevision.removeListener(_markDocumentDirtyFromRevision);
     nodeRevision.dispose();
     documentDirty.dispose();

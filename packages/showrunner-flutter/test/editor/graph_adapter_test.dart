@@ -372,7 +372,7 @@ void main() {
     expect(editor.focusSearchResult(forward: false), secondEditorId);
   });
 
-  test('tracks recent node types and accepts dynamic triggers', () {
+  test('accepts dynamic triggers without duplicating picker state', () {
     final editor = ShowRunnerGraphEditor();
     addTearDown(editor.dispose);
 
@@ -380,7 +380,6 @@ void main() {
     editor.addNodeType('obs.scene', title: 'Change Scene');
     editor.addNodeType('trigger.twitch.chat', title: 'Chat Message');
 
-    expect(editor.recentNodeTypes.value, ['trigger.twitch.chat', 'obs.scene']);
     expect(editor.currentGraphIssues(), isEmpty);
     final trigger = editor.controller.nodes.values.firstWhere(
       (node) => node.prototype.idName == 'trigger.twitch.chat',

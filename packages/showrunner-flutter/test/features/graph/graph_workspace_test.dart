@@ -576,7 +576,7 @@ void main() {
     expect(editor.controller.linksAsList.single.label, 'case: subscriber');
   });
 
-  testWidgets('shows recent dynamic nodes with their display labels', (
+  testWidgets('keeps dynamic nodes searchable without a recent section', (
     tester,
   ) async {
     final registry = DartPluginRegistry()
@@ -601,10 +601,17 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Recently used'), findsOneWidget);
-    // Recently used nodes are intentionally kept in the picker/context menu;
-    // the compact toolbar no longer duplicates them above the canvas.
-    expect(find.text('Chat message received'), findsOneWidget);
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.labelText == 'Search node types',
+      ),
+      'Chat message received',
+    );
+    await tester.pump();
+    expect(find.text('Recently used'), findsNothing);
+    expect(find.text('Chat message received'), findsNWidgets(2));
   });
 
   testWidgets('filters conversion actions under the Data category', (

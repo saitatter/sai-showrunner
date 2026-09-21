@@ -836,10 +836,6 @@ extension ShowRunnerGraphAdapter on ShowRunnerGraphEditor {
     String nodeType, {
     String? title,
   }) {
-    recentNodeTypes.value = [
-      nodeType,
-      ...recentNodeTypes.value.where((type) => type != nodeType),
-    ].take(8).toList();
     final parts = nodeType.split('.');
     _schemaIdByEditorId[node.id] = node.id;
     if (parts.length >= 3 && parts.first == 'trigger') {

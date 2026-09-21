@@ -492,10 +492,8 @@ class _GraphNodePalette extends StatelessWidget {
           onPressed: () async {
             final type = await showDialog<({String type, String title})>(
               context: context,
-              builder: (context) => _NodePickerDialog(
-                registryFuture: registryFuture,
-                recentNodeTypes: editor.recentNodeTypes.value,
-              ),
+              builder: (context) =>
+                  _NodePickerDialog(registryFuture: registryFuture),
             );
             if (type != null && context.mounted) {
               await _addAndConfigureNode(
@@ -739,29 +737,6 @@ List<ContextMenuEntry> _showrunnerEditorContextMenu({
   DartPluginRegistry? registry,
 }) {
   final entries = <ContextMenuEntry>[...defaults, const MenuDivider()];
-  if (editor.recentNodeTypes.value.isNotEmpty) {
-    entries.add(
-      MenuItem<dynamic>.submenu(
-        label: const Text('Recently used'),
-        icon: const Icon(Icons.history),
-        items: [
-          for (final type in editor.recentNodeTypes.value)
-            MenuItem<dynamic>(
-              label: Text(_nodeLabelForType(type, registry)),
-              icon: Icon(_nodeIconForType(type, registry)),
-              onSelected: (_) => _addAndConfigureNode(
-                context,
-                editor,
-                type,
-                position: position,
-                title: _nodeLabelForType(type, registry),
-                registryFuture: registryFuture,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
   if (registry != null) {
     final enabledNodes = _registeredNodeEntries(registry, enabled: true);
     final triggers = enabledNodes.where((node) => node.category == 'Triggers');
@@ -978,39 +953,12 @@ List<_NodePickerEntry> _registeredNodeEntries(
 List<_NodePickerEntry> _nodePickerEntries(
   DartPluginRegistry? registry, {
   required bool enabled,
-  Iterable<String> recentNodeTypes = const [],
 }) {
   final entries = <_NodePickerEntry>[
     if (enabled) ..._GraphNodePalette._nodes,
     if (registry != null) ..._registeredNodeEntries(registry, enabled: enabled),
   ];
-  final recentTypes = recentNodeTypes.toSet();
-  if (recentTypes.isEmpty) return entries;
-
-  final entriesByType = <String, _NodePickerEntry>{
-    for (final entry in entries) entry.type: entry,
-  };
-  final recentEntries = <_NodePickerEntry>[];
-  for (final type in recentNodeTypes) {
-    final entry = entriesByType[type];
-    if (entry == null) continue;
-    recentEntries.add(
-      _NodePickerEntry(
-        type: entry.type,
-        label: entry.label,
-        icon: entry.icon,
-        category: entry.category,
-        group: 'Recently used',
-        pluginId: entry.pluginId,
-        pluginName: entry.pluginName,
-        enabled: entry.enabled,
-      ),
-    );
-  }
-  return [
-    ...recentEntries,
-    ...entries.where((entry) => !recentTypes.contains(entry.type)),
-  ];
+  return entries;
 }
 
 List<ContextMenuEntry> _groupedNodeMenuEntries(
@@ -1155,7 +1103,7 @@ String _nodeLabelForType(String type, [DartPluginRegistry? registry]) =>
     _registeredNodeLabel(type, registry) ??
     type;
 
-IconData _nodeIconForType(String type, [DartPluginRegistry? registry]) =>
+IconData _nodeIconForType(String type) =>
     _GraphNodePalette._nodes
         .where((node) => node.type == type)
         .map((node) => node.icon)
@@ -1201,14 +1149,12 @@ final class _NodePickerEntry {
 class _NodePickerDialog extends StatefulWidget {
   const _NodePickerDialog({
     required this.registryFuture,
-    this.recentNodeTypes = const [],
     this.actionsOnly = false,
     this.triggersOnly = false,
     this.controlFlowOnly = false,
   });
 
   final Future<DartPluginRegistry> registryFuture;
-  final List<String> recentNodeTypes;
   final bool actionsOnly;
   final bool triggersOnly;
   final bool controlFlowOnly;
@@ -1736,7 +1682,6 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
                 final entries = _nodePickerEntries(
                   snapshot.data,
                   enabled: true,
-                  recentNodeTypes: widget.recentNodeTypes,
                 );
                 final query = _query.toLowerCase().trim();
                 bool matches(_NodePickerEntry node) {
@@ -1760,7 +1705,6 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
                 final disabledMatches = _nodePickerEntries(
                   snapshot.data,
                   enabled: false,
-                  recentNodeTypes: widget.recentNodeTypes,
                 ).where(matches).toList();
                 if (visibleMatches.isEmpty) {
                   if (disabledMatches.isNotEmpty) {
@@ -1799,9 +1743,7 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
                         ExpansionTile(
                           key: ValueKey('$_category:$query:${group.key}'),
                           initiallyExpanded:
-                              query.isNotEmpty ||
-                              _category != 'All' ||
-                              group.key.split('\u0000').last == 'Recently used',
+                              query.isNotEmpty || _category != 'All',
                           title: Text(group.key.split('\u0000').last),
                           subtitle: Text(group.key.split('\u0000').first),
                           children: [
@@ -2471,32 +2413,6 @@ List<NodeEditorMenuEntry> _canvasNodeEditorContextMenu({
     ),
   ];
 
-  if (editor.recentNodeTypes.value.isNotEmpty) {
-    entries.add(
-      NodeEditorMenuSection(
-        label: 'Recently Used',
-        icon: Icons.history,
-        entries: [
-          for (final type in editor.recentNodeTypes.value)
-            NodeEditorMenuAction(
-              label: _nodeLabelForType(type, registry),
-              icon: _nodeIconForType(type, registry),
-              onSelected: () => unawaited(
-                _addAndConfigureNode(
-                  context,
-                  editor,
-                  type,
-                  position: position,
-                  title: _nodeLabelForType(type, registry),
-                  registryFuture: registryFuture,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   if (registry != null) {
     final available = _registeredNodeEntries(registry, enabled: true);
     final triggers = available.where((entry) => entry.category == 'Triggers');
@@ -2615,11 +2531,8 @@ Future<void> _replaceTriggerNode(
 }) async {
   final selected = await showDialog<({String type, String title})>(
     context: context,
-    builder: (context) => _NodePickerDialog(
-      registryFuture: registryFuture,
-      recentNodeTypes: editor.recentNodeTypes.value,
-      triggersOnly: true,
-    ),
+    builder: (context) =>
+        _NodePickerDialog(registryFuture: registryFuture, triggersOnly: true),
   );
   if (selected == null || !context.mounted) return;
   final replacementId = editor.replaceTriggerNode(
@@ -2643,11 +2556,8 @@ Future<void> _insertActionAfterNode(
 }) async {
   final selected = await showDialog<({String type, String title})>(
     context: context,
-    builder: (context) => _NodePickerDialog(
-      registryFuture: registryFuture,
-      recentNodeTypes: editor.recentNodeTypes.value,
-      actionsOnly: true,
-    ),
+    builder: (context) =>
+        _NodePickerDialog(registryFuture: registryFuture, actionsOnly: true),
   );
   if (selected == null || !context.mounted) return;
   final insertedId = editor.insertActionAfterNode(selected.type, node.id);
@@ -2669,7 +2579,6 @@ Future<void> _insertControlFlowAfterNode(
     context: context,
     builder: (context) => _NodePickerDialog(
       registryFuture: registryFuture,
-      recentNodeTypes: editor.recentNodeTypes.value,
       controlFlowOnly: true,
     ),
   );
@@ -2691,10 +2600,7 @@ Future<void> _addNodeAtScreenPosition(
 }) async {
   final selected = await showDialog<({String type, String title})>(
     context: context,
-    builder: (context) => _NodePickerDialog(
-      registryFuture: registryFuture,
-      recentNodeTypes: editor.recentNodeTypes.value,
-    ),
+    builder: (context) => _NodePickerDialog(registryFuture: registryFuture),
   );
   if (selected == null || !context.mounted) return;
   final insertedId = editor.addNodeTypeAtScreenPosition(
