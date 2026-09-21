@@ -112,7 +112,7 @@ final class TwitchAccountAuthService {
     authorizationEndpoint: 'https://id.twitch.tv/oauth2/authorize',
     clientId: clientId,
     scopes: scopes,
-    openAuthorizationUrl: openAuthorizationUrl ?? _openAuthorizationUrl,
+    openAuthorizationUrl: openAuthorizationUrl ?? openOAuthUrlInBrowser,
   );
 }
 
@@ -179,18 +179,6 @@ Future<JsonMap> _loadTwitchIdentity(String accessToken, String clientId) async {
   } finally {
     client.close(force: true);
   }
-}
-
-Future<void> _openAuthorizationUrl(Uri url) async {
-  if (!Platform.isWindows) {
-    throw UnsupportedError(
-      'Twitch account authorization is supported on Windows only.',
-    );
-  }
-  // Passing the URL through `cmd /c start` lets `&` be interpreted as a
-  // command separator, which silently drops query parameters such as
-  // Twitch's response_type. Explorer receives the URI as one argument.
-  await Process.start('explorer.exe', [url.toString()]);
 }
 
 /// Resolves the account resources used by the reference Twitch plugin.

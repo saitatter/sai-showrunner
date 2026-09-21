@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../design_system/brand_icons.dart';
 import '../../schema/resource.dart';
 import '../../plugins/twitch/account_runtime.dart';
+import '../../plugins/youtube/auth_service.dart';
 import '../../services/showrunner_data_service.dart';
 import 'obs_setup_persistence.dart';
 
@@ -46,6 +47,8 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
   bool _twitchAccountsReady = false;
   String? _twitchAccountBusy;
   Object? _twitchAccountError;
+  bool _youtubeAuthBusy = false;
+  Object? _youtubeAuthError;
 
   String get _pluginId => _steps[_stepIndex];
   bool get _isDone => _pluginId == 'done';
@@ -121,11 +124,18 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
           port <= 65535;
     }
     if (_pluginId == 'twitch') return _twitchAccountsReady;
+    if (_pluginId == 'youtube') return _youtubeReady;
     final settings = _settings[_pluginId] ?? const <String, dynamic>{};
     return (_clientIdController.text.trim().isNotEmpty &&
             _clientSecretController.text.trim().isNotEmpty) ||
         settings['accessToken']?.toString().isNotEmpty == true ||
         settings['refreshToken']?.toString().isNotEmpty == true;
+  }
+
+  bool get _youtubeReady {
+    final settings = _settings['youtube'] ?? const <String, dynamic>{};
+    return settings['accessToken']?.toString().trim().isNotEmpty == true ||
+        settings['refreshToken']?.toString().trim().isNotEmpty == true;
   }
 
   void _reloadTwitchAccounts() {
@@ -168,6 +178,27 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
       if (mounted) setState(() => _twitchAccountError = error);
     } finally {
       if (mounted) setState(() => _twitchAccountBusy = null);
+    }
+  }
+
+  Future<void> _connectYouTube() async {
+    setState(() {
+      _youtubeAuthBusy = true;
+      _youtubeAuthError = null;
+    });
+    try {
+      final current = <String, dynamic>{...?_settings['youtube']};
+      current['clientId'] = _clientIdController.text.trim();
+      current['clientSecret'] = _clientSecretController.text;
+      await widget.dataService.savePluginSettings('youtube', current);
+      final connected = await YouTubeAuthService(
+        dataService: widget.dataService,
+      ).connect();
+      _settings['youtube'] = connected;
+    } catch (error) {
+      if (mounted) setState(() => _youtubeAuthError = error);
+    } finally {
+      if (mounted) setState(() => _youtubeAuthBusy = false);
     }
   }
 
@@ -304,7 +335,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
         ? 'ShowRunner connects through the OBS WebSocket server.'
         : _pluginId == 'twitch'
         ? 'Configure Twitch and sign in to the channel and bot accounts.'
-        : 'Save OAuth client credentials, then finish authorization in Plugins.';
+        : 'Connect a YouTube channel in your browser to enable live chat, Super Chat, and memberships.';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -412,9 +443,10 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
                   'The sign-in buttons open Twitch in your browser.',
                 ),
               ),
-            ] else ...[
+            ] else if (_pluginId == 'youtube') ...[
               TextField(
                 controller: _clientIdController,
+                onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(
                   labelText: 'OAuth client ID',
                   border: OutlineInputBorder(),
@@ -423,6 +455,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
               const SizedBox(height: 12),
               TextField(
                 controller: _clientSecretController,
+                onChanged: (_) => setState(() {}),
                 obscureText: true,
                 decoration: const InputDecoration(
                   labelText: 'OAuth client secret',
@@ -430,23 +463,51 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
                 ),
               ),
               const SizedBox(height: 12),
+              Row(
+                children: [
+                  FilledButton.icon(
+                    onPressed: _youtubeAuthBusy ? null : _connectYouTube,
+                    icon: _youtubeAuthBusy
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.login),
+                    label: const Text('Connect YouTube'),
+                  ),
+                  const SizedBox(width: 12),
+                  if (_youtubeReady)
+                    const Text(
+                      'Connected',
+                      style: TextStyle(color: Colors.green),
+                    ),
+                ],
+              ),
+              if (_youtubeAuthError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'YouTube sign-in error: $_youtubeAuthError',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 12),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
-                  _ready ? Icons.check_circle : Icons.info_outline,
-                  color: _ready ? Colors.green : null,
+                  _youtubeReady ? Icons.check_circle : Icons.info_outline,
+                  color: _youtubeReady ? Colors.green : null,
                 ),
                 title: Text(
-                  _ready
-                      ? 'Credentials are present'
+                  _youtubeReady
+                      ? 'YouTube channel is connected'
                       : 'Authorization is still required',
                 ),
                 subtitle: Text(
-                  'Use the Plugins tab to run the browser authorization flow.',
-                ),
-                trailing: OutlinedButton(
-                  onPressed: () => widget.onOpenPlugin(_pluginId),
-                  child: const Text('Open Plugins'),
+                  _youtubeReady
+                      ? (_settings['youtube']?['channelName']?.toString() ??
+                            'Browser authorization completed.')
+                      : 'The Connect YouTube button opens Google in your browser.',
                 ),
               ),
             ],

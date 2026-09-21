@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../runtime/expression.dart';
 import '../../../services/showrunner_data_service.dart';
+import '../auth_service.dart';
 import '../../registry/plugin_registry.dart';
 import '../../runtime/provider_event_workers.dart';
 
@@ -30,6 +31,7 @@ class _YouTubeWorkspaceState extends State<YouTubeWorkspace> {
   late final TextEditingController _channelIdController;
   bool _loading = true;
   bool _busy = false;
+  bool _authBusy = false;
   Object? _error;
   Map<String, dynamic> _settings = const {};
   StreamSubscription<RuntimeMap>? _messageSubscription;
@@ -95,6 +97,21 @@ class _YouTubeWorkspaceState extends State<YouTubeWorkspace> {
       _error = error;
     }
     if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _connect() async {
+    setState(() {
+      _authBusy = true;
+      _error = null;
+    });
+    try {
+      _settings = await YouTubeAuthService(
+        dataService: widget.dataService,
+      ).connect();
+    } catch (error) {
+      _error = error;
+    }
+    if (mounted) setState(() => _authBusy = false);
   }
 
   Future<void> _stop() async {
@@ -173,6 +190,32 @@ class _YouTubeWorkspaceState extends State<YouTubeWorkspace> {
             const SizedBox(height: 8),
             const Text('Dart-owned live chat ingest control.'),
             const SizedBox(height: 24),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.account_circle_outlined),
+                title: const Text('YouTube account'),
+                subtitle: Text(
+                  _settings['channelName']?.toString() ??
+                      'Connect in your browser to authorize YouTube.',
+                ),
+                trailing: FilledButton.icon(
+                  onPressed: _busy || _authBusy ? null : _connect,
+                  icon: _authBusy
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.login),
+                  label: Text(
+                    _settings['accessToken']?.toString().isNotEmpty == true
+                        ? 'Reconnect'
+                        : 'Connect',
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _liveChatIdController,
               decoration: const InputDecoration(

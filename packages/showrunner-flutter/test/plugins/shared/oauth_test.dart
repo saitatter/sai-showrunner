@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/services/oauth_token.dart';
@@ -49,6 +50,31 @@ void main() {
     expect(
       request.authorizationUrl.queryParameters['scope'],
       'chat.read chat.write',
+    );
+  });
+
+  test('adds a PKCE challenge and keeps the verifier out of the URL', () {
+    final verifier = createOAuthCodeVerifier(Random(7));
+    final request = const OAuthAuthorizationClient().buildRequest(
+      authorizationEndpoint: 'https://accounts.example.test/authorize',
+      clientId: 'client-id',
+      redirectUri: 'http://127.0.0.1:4455/oauth/callback',
+      state: 'state-1',
+      scopes: ['youtube.readonly'],
+      codeVerifier: verifier,
+    );
+
+    expect(
+      request.authorizationUrl.queryParameters['code_challenge'],
+      createOAuthCodeChallenge(verifier),
+    );
+    expect(
+      request.authorizationUrl.queryParameters['code_challenge_method'],
+      'S256',
+    );
+    expect(
+      request.authorizationUrl.queryParameters.containsKey('code_verifier'),
+      isFalse,
     );
   });
 

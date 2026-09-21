@@ -228,9 +228,12 @@ OAuthTokenManager? _createTokenManager({
   final clientSecret = settings['clientSecret'] as String?;
   final canUsePublicTwitchToken =
       pluginId == 'twitch' && accessToken?.isNotEmpty == true;
+  final canUsePublicYouTubeClient = pluginId == 'youtube';
   if ((accessToken?.isNotEmpty != true && refreshToken?.isNotEmpty != true) ||
       clientId?.isNotEmpty != true ||
-      (clientSecret?.isNotEmpty != true && !canUsePublicTwitchToken)) {
+      (clientSecret?.isNotEmpty != true &&
+          !canUsePublicTwitchToken &&
+          !canUsePublicYouTubeClient)) {
     return null;
   }
   final rawExpiry = settings['expiresAt'];
@@ -249,7 +252,7 @@ OAuthTokenManager? _createTokenManager({
       final next = await const OAuthTokenClient().refresh(
         tokenEndpoint: endpoint,
         clientId: clientId!,
-        clientSecret: clientSecret!,
+        clientSecret: clientSecret,
         refreshToken: token,
       );
       await dataService.savePluginSettings(pluginId, {

@@ -28,9 +28,6 @@ ProviderSettingsValidation validateProviderSettings(
       if (!_has(settings, 'clientId')) {
         errors.add('Client ID is required.');
       }
-      if (!_has(settings, 'clientSecret')) {
-        errors.add('Client secret is required.');
-      }
       if (!_has(settings, 'accessToken') && !_has(settings, 'refreshToken')) {
         errors.add('Access token or refresh token is required.');
       }

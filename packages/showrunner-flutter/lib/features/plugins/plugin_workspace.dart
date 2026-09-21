@@ -152,12 +152,14 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     try {
       final clientId = _controllers['$pluginId:clientId']!.text.trim();
       final clientSecret = _controllers['$pluginId:clientSecret']!.text.trim();
-      if (clientId.isEmpty || clientSecret.isEmpty) {
+      final isYouTube = pluginId == 'youtube';
+      if (clientId.isEmpty || (!isYouTube && clientSecret.isEmpty)) {
         throw ArgumentError(
-          'Client ID and client secret are required before authorization.',
+          isYouTube
+              ? 'Client ID is required before YouTube authorization.'
+              : 'Client ID and client secret are required before authorization.',
         );
       }
-      final isYouTube = pluginId == 'youtube';
       final authorizationEndpoint = isYouTube
           ? 'https://accounts.google.com/o/oauth2/v2/auth'
           : 'https://id.twitch.tv/oauth2/authorize';
@@ -173,19 +175,22 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
       final token = await OAuthAuthorizationFlow().authorize(
         requestBuilder: (redirectUri) {
           final state = createOAuthState();
+          final verifier = isYouTube ? createOAuthCodeVerifier() : null;
           return const OAuthAuthorizationClient().buildRequest(
             authorizationEndpoint: authorizationEndpoint,
             clientId: clientId,
             redirectUri: redirectUri.toString(),
             state: state,
             scopes: scopes,
+            codeVerifier: verifier,
           );
         },
-        openAuthorizationUrl: _openAuthorizationUrl,
+        openAuthorizationUrl: openOAuthUrlInBrowser,
         tokenClient: const OAuthTokenClient(),
         tokenEndpoint: tokenEndpoint,
         clientId: clientId,
-        clientSecret: clientSecret,
+        clientSecret: isYouTube && clientSecret.isEmpty ? null : clientSecret,
+        callbackPath: isYouTube ? '/oauth/youtube/callback' : '/oauth/callback',
       );
       final values = <String, dynamic>{
         ..._settings[pluginId] ?? <String, dynamic>{},
@@ -235,15 +240,6 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
       _error = error;
     }
     if (mounted) setState(() => _huePairing = false);
-  }
-
-  Future<void> _openAuthorizationUrl(Uri url) async {
-    if (!Platform.isWindows) {
-      throw UnsupportedError(
-        'OAuth browser launch is currently supported on Windows only.',
-      );
-    }
-    await Process.start('cmd.exe', ['/c', 'start', '', url.toString()]);
   }
 
   @override

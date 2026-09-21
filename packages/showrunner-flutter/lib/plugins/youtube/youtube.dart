@@ -4,5 +4,6 @@
 library;
 
 export 'actions.dart';
+export 'auth_service.dart';
 export 'event_worker.dart';
 export '../runtime/provider_event_workers.dart' show YouTubeLiveChatWorker;

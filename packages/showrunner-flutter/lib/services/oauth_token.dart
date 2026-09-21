@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:crypto/crypto.dart';
+
 final class OAuthTokenSet {
   const OAuthTokenSet({
     required this.accessToken,
@@ -23,10 +25,12 @@ final class OAuthAuthorizationRequest {
   const OAuthAuthorizationRequest({
     required this.authorizationUrl,
     required this.state,
+    this.codeVerifier,
   });
 
   final Uri authorizationUrl;
   final String state;
+  final String? codeVerifier;
 }
 
 final class OAuthAuthorizationClient {
@@ -38,9 +42,11 @@ final class OAuthAuthorizationClient {
     required String redirectUri,
     required String state,
     required List<String> scopes,
+    String? codeVerifier,
   }) {
     return OAuthAuthorizationRequest(
       state: state,
+      codeVerifier: codeVerifier,
       authorizationUrl: Uri.parse(authorizationEndpoint).replace(
         queryParameters: {
           'client_id': clientId,
@@ -50,6 +56,10 @@ final class OAuthAuthorizationClient {
           'state': state,
           'access_type': 'offline',
           'prompt': 'consent',
+          if (codeVerifier != null) ...{
+            'code_challenge': createOAuthCodeChallenge(codeVerifier),
+            'code_challenge_method': 'S256',
+          },
         },
       ),
     );
@@ -61,6 +71,16 @@ String createOAuthState([Random? random]) {
   final bytes = List<int>.generate(32, (_) => source.nextInt(256));
   return base64UrlEncode(bytes).replaceAll('=', '');
 }
+
+String createOAuthCodeVerifier([Random? random]) {
+  final source = random ?? Random.secure();
+  final bytes = List<int>.generate(64, (_) => source.nextInt(256));
+  return base64UrlEncode(bytes).replaceAll('=', '');
+}
+
+String createOAuthCodeChallenge(String verifier) => base64UrlEncode(
+  sha256.convert(utf8.encode(verifier)).bytes,
+).replaceAll('=', '');
 
 final class OAuthCallbackResult {
   const OAuthCallbackResult({required this.code, required this.state});
@@ -80,7 +100,8 @@ final class OAuthAuthorizationFlow {
     required OAuthTokenClient tokenClient,
     required String tokenEndpoint,
     required String clientId,
-    required String clientSecret,
+    String? clientSecret,
+    String callbackPath = '/oauth/callback',
     Duration timeout = const Duration(minutes: 5),
   }) async {
     final server = await httpServerFactory();
@@ -88,11 +109,16 @@ final class OAuthAuthorizationFlow {
       scheme: 'http',
       host: InternetAddress.loopbackIPv4.host,
       port: server.port,
-      path: '/oauth/callback',
+      path: callbackPath,
     );
     final request = requestBuilder(redirectUri);
     try {
-      final callback = _readCallback(server, request.state, timeout);
+      final callback = _readCallback(
+        server,
+        request.state,
+        callbackPath,
+        timeout,
+      );
       await openAuthorizationUrl(request.authorizationUrl);
       final result = await callback;
       return tokenClient.exchangeCode(
@@ -101,6 +127,7 @@ final class OAuthAuthorizationFlow {
         clientSecret: clientSecret,
         code: result.code,
         redirectUri: redirectUri.toString(),
+        codeVerifier: request.codeVerifier,
       );
     } finally {
       await server.close(force: true);
@@ -110,10 +137,16 @@ final class OAuthAuthorizationFlow {
   Future<OAuthCallbackResult> _readCallback(
     HttpServer server,
     String expectedState,
+    String callbackPath,
     Duration timeout,
   ) async {
     try {
       await for (final request in server.timeout(timeout)) {
+        if (request.uri.path != callbackPath) {
+          request.response.statusCode = HttpStatus.notFound;
+          await request.response.close();
+          continue;
+        }
         final query = request.uri.queryParameters;
         final response = request.response;
         response.headers.contentType = ContentType.html;
@@ -285,7 +318,7 @@ final class OAuthTokenClient {
   Future<OAuthTokenSet> refresh({
     required String tokenEndpoint,
     required String clientId,
-    required String clientSecret,
+    String? clientSecret,
     required String refreshToken,
   }) async {
     late String body;
@@ -302,9 +335,10 @@ final class OAuthTokenClient {
         Uri(
           queryParameters: {
             'client_id': clientId,
-            'client_secret': clientSecret,
             'refresh_token': refreshToken,
             'grant_type': 'refresh_token',
+            if (clientSecret != null && clientSecret.isNotEmpty)
+              'client_secret': clientSecret,
           },
         ).query,
       );
@@ -332,9 +366,10 @@ final class OAuthTokenClient {
   Future<OAuthTokenSet> exchangeCode({
     required String tokenEndpoint,
     required String clientId,
-    required String clientSecret,
+    String? clientSecret,
     required String code,
     required String redirectUri,
+    String? codeVerifier,
   }) async {
     late String body;
     late int statusCode;
@@ -351,10 +386,13 @@ final class OAuthTokenClient {
           Uri(
             queryParameters: {
               'client_id': clientId,
-              'client_secret': clientSecret,
               'code': code,
               'redirect_uri': redirectUri,
               'grant_type': 'authorization_code',
+              if (clientSecret != null && clientSecret.isNotEmpty)
+                'client_secret': clientSecret,
+              if (codeVerifier != null && codeVerifier.isNotEmpty)
+                'code_verifier': codeVerifier,
             },
           ).query,
         );
@@ -400,6 +438,17 @@ final class OAuthTokenManager {
 }
 
 HttpClient _defaultHttpClient() => HttpClient();
+
+Future<void> openOAuthUrlInBrowser(Uri url) async {
+  if (!Platform.isWindows) {
+    throw UnsupportedError(
+      'OAuth browser launch is currently supported on Windows only.',
+    );
+  }
+  // Keep the URL as one Explorer argument. `cmd /c start` treats ampersands
+  // in OAuth query strings as command separators and can drop parameters.
+  await Process.start('explorer.exe', [url.toString()]);
+}
 
 Future<HttpServer> _bindLoopback() =>
     HttpServer.bind(InternetAddress.loopbackIPv4, 0);
