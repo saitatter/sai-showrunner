@@ -1194,13 +1194,13 @@
           "expected": [
             "Overlay"
           ],
-          "actual": [],
-          "missing": [],
-          "extra": [],
-          "relocated": [
+          "actual": [
             "Overlay"
           ],
-          "status": "improved"
+          "missing": [],
+          "extra": [],
+          "relocated": [],
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -1417,7 +1417,7 @@
     },
     {
       "id": "ShowRunner",
-      "status": "improved",
+      "status": "equivalent",
       "categories": {
         "settings": {
           "expected": [
@@ -1505,17 +1505,11 @@
         },
         "resources": {
           "expected": [],
-          "actual": [
-            "Overlay",
-            "Variable"
-          ],
+          "actual": [],
           "missing": [],
-          "extra": [
-            "Overlay",
-            "Variable"
-          ],
+          "extra": [],
           "relocated": [],
-          "status": "improved"
+          "status": "equivalent"
         }
       },
       "ui": {
@@ -2239,11 +2233,15 @@
         },
         "resources": {
           "expected": [],
-          "actual": [],
+          "actual": [
+            "Variable"
+          ],
           "missing": [],
-          "extra": [],
+          "extra": [
+            "Variable"
+          ],
           "relocated": [],
-          "status": "equivalent"
+          "status": "improved"
         }
       },
       "ui": {
