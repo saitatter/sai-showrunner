@@ -15,6 +15,7 @@ try {
   }
 
   $dartDefines = @()
+  $dartDefines += "--dart-define=SHOWRUNNER_VERSION=$Version"
   if (-not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)) {
     $dartDefines += "--dart-define=SHOWRUNNER_YOUTUBE_CLIENT_ID=$($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)"
   }

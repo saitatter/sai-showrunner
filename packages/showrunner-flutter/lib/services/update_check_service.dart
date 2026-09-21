@@ -7,7 +7,13 @@ import '../schema/update.dart';
 
 typedef UpdateReleaseFetcher = Future<JsonMap> Function();
 
-const showRunnerFlutterVersion = '2.0.0';
+/// The packaged build supplies the semantic-release version at compile time.
+/// Keep a useful development fallback so local `flutter run` builds still
+/// present a stable version to the updater UI.
+const showRunnerFlutterVersion = String.fromEnvironment(
+  'SHOWRUNNER_VERSION',
+  defaultValue: '2.0.0',
+);
 
 final class UpdateCheckService {
   const UpdateCheckService({
