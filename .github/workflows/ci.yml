@@ -49,6 +49,16 @@ jobs:
         env:
           YARN_ENABLE_SCRIPTS: false
 
+      - name: Verify generated overlay registry
+        shell: pwsh
+        run: |
+          yarn overlay:generate
+          git diff --exit-code -- `
+            packages/showrunner-obs-overlay/src/generated `
+            packages/showrunner-flutter/assets/overlay_widgets.generated.json `
+            packages/showrunner-flutter/lib/plugins/overlays/overlay_widget_catalog.generated.dart `
+            libs/showrunner-overlay-core/src/generated
+
       - name: Analyze, test, and build Flutter desktop app
         shell: pwsh
         run: |
