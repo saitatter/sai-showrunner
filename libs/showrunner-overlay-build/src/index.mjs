@@ -92,11 +92,19 @@ function manifestFor(plugins) {
 }
 
 function flutterCatalogFor(manifest) {
+	const dartLiteral = (value, indentation = 4) => {
+		const json = JSON.stringify(value, null, 2)
+		const prefix = " ".repeat(indentation)
+		return json
+			.split("\n")
+			.map((line, index) => index === 0 ? line : `${prefix}${line}`)
+			.join("\n")
+	}
 	const widgets = manifest.plugins.flatMap((plugin) => plugin.widgets.map((widget) => {
 		const optional = [
 			widget.description === undefined ? "" : `description: ${JSON.stringify(widget.description)},`,
 			widget.icon === undefined ? "" : `icon: ${JSON.stringify(widget.icon)},`,
-			widget.capabilities === undefined ? "" : `capabilities: ${JSON.stringify(widget.capabilities)},`,
+			widget.capabilities === undefined ? "" : `capabilities: ${dartLiteral(widget.capabilities)},`,
 		].filter(Boolean)
 		return [
 			"  GeneratedOverlayWidget(",
@@ -104,8 +112,8 @@ function flutterCatalogFor(manifest) {
 			`    id: ${JSON.stringify(widget.id)},`,
 			`    name: ${JSON.stringify(widget.name)},`,
 			...optional.map((line) => `    ${line}`),
-			`    defaultSize: ${JSON.stringify(widget.defaultSize)},`,
-			`    config: ${JSON.stringify(widget.config ?? {})},`,
+			`    defaultSize: ${dartLiteral(widget.defaultSize)},`,
+			`    config: ${dartLiteral(widget.config ?? {})},`,
 			"  ),",
 		].join("\n")
 	}))
