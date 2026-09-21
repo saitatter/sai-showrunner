@@ -25,15 +25,6 @@ updates:
           - "vite"
           - "@vitejs/*"
           - "vite-plugin-*"
-      vue:
-        patterns:
-          - "vue"
-          - "@vue/*"
-          - "@vueuse/*"
-          - "vue-tsc"
-          - "pinia"
-          - "primevue"
-          - "primeflex"
       semantic-release:
         patterns:
           - "semantic-release"
