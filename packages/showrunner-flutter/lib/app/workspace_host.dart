@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../editor/showrunner_graph_editor.dart';
+import 'commands/app_command.dart';
 import '../features/automation/automation_catalog_workspace.dart';
 import '../features/dashboard/main_dashboard_workspace.dart';
 import '../features/diagnostics/diagnostics_workspace.dart';
@@ -53,6 +54,7 @@ final class WorkspaceHostContext {
     required this.onDeleteAutomation,
     required this.interfacePreferences,
     required this.onOpenWorkspace,
+    this.commands,
     this.queueManager,
     this.streamPlanRuntime,
     this.variableRuntime,
@@ -102,6 +104,7 @@ final class WorkspaceHostContext {
   final Future<void> Function(String fileName) onDeleteAutomation;
   final FlutterInterfacePreferences interfacePreferences;
   final ValueChanged<WorkspaceId> onOpenWorkspace;
+  final AppCommandRegistry? commands;
   final AutomationDocumentManager? automationDocuments;
   final ValueChanged<String>? onAutomationSelected;
   final FutureOr<void> Function(String fileName)? onAutomationClosed;
@@ -163,6 +166,8 @@ final class WorkspaceRegistry {
       registryFuture: host.pluginRegistryFuture,
       providerEvents: host.providerEvents,
       selectedPluginId: host.selectedPluginId,
+      commands: host.commands,
+      onOpenWorkspace: host.onOpenWorkspace,
     ),
     WorkspaceIds.diagnostics => DiagnosticsWorkspace(
       healthFuture: host.healthFuture,

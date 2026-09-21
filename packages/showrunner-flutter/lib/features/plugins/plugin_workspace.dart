@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 
 import '../../services/oauth_token.dart';
 import '../../app/app_feedback.dart';
+import '../../app/commands/app_command.dart';
+import '../../app/workspace_registry.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/registry/flutter_plugin_ui_contract.dart';
 import '../../plugins/philips_hue/discovery.dart';
@@ -26,6 +28,8 @@ class PluginWorkspace extends StatefulWidget {
     required this.providerEvents,
     this.selectedPluginId,
     this.forceGenericDetails = false,
+    this.commands,
+    this.onOpenWorkspace,
   });
 
   final ShowRunnerDataService dataService;
@@ -33,6 +37,8 @@ class PluginWorkspace extends StatefulWidget {
   final ProviderEventRuntime providerEvents;
   final String? selectedPluginId;
   final bool forceGenericDetails;
+  final AppCommandRegistry? commands;
+  final ValueChanged<WorkspaceId>? onOpenWorkspace;
 
   @override
   State<PluginWorkspace> createState() => _PluginWorkspaceState();
@@ -285,6 +291,8 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
                   dataService: widget.dataService,
                   providerEvents: widget.providerEvents,
                   registryFuture: widget.registryFuture,
+                  commands: widget.commands,
+                  onOpenWorkspace: widget.onOpenWorkspace,
                 ),
               );
             }

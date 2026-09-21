@@ -179,6 +179,7 @@ class ShowRunnerShell extends StatelessWidget {
       onDeleteAutomation: onDeleteAutomation,
       interfacePreferences: interfacePreferences,
       onOpenWorkspace: onDestinationSelected,
+      commands: commands,
       automationDocuments: automationDocuments,
       onAutomationSelected: onAutomationSelected,
       onAutomationClosed: onAutomationClosed,
