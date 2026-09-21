@@ -29,6 +29,13 @@ try {
     throw "Flutter Windows bundle was not produced at $bundle"
   }
 
+  $bundleExecutable = Get-Item -LiteralPath (Join-Path $bundle 'showrunner_flutter.exe')
+  $actualVersion = ($bundleExecutable.VersionInfo.ProductVersion -split '\+')[0]
+  $expectedVersion = $Version.TrimStart('v')
+  if ($actualVersion -ne $expectedVersion) {
+    throw "Flutter executable version $actualVersion does not match release version $expectedVersion."
+  }
+
   $requiredBundlePaths = @(
     'showrunner_flutter.exe',
     'flutter_windows.dll',
