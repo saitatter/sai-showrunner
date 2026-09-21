@@ -68,8 +68,10 @@ gap is release-environment proof with a signed installed build.
 
 The frozen `main` captures and the Flutter catalog are checked in under
 `test/reference/`. Both catalogs now cover the empty dashboard, Settings,
-Updates, Integrations, and a complex automation editor at the same 1440x900
-capture size. The main reference can be regenerated with
+Updates, Integrations, Queues, Variables, Viewer Variables, and a complex
+automation editor at the same 1440x900 capture size. Flutter also captures
+Diagnostics, Logs, and About; the frozen Electron build does not expose its
+Tools group. The main reference can be regenerated with
 `corepack yarn visual:main` and the Flutter catalog with
 `corepack yarn visual:flutter` when the local frozen Electron build is
 available.

@@ -51,6 +51,28 @@ void main() {
     await _pumpApplication(tester);
     expect(find.text('Integrations').last, findsOneWidget);
     await _capture(tester, 'integrations.png');
+
+    for (final entry in const [
+      ('Queues', 'queues.png'),
+      ('Variables', 'variables.png'),
+      ('Viewer Variables', 'viewer-variables.png'),
+    ]) {
+      await tester.tap(find.text(entry.$1).first);
+      await _pumpApplication(tester);
+      await _capture(tester, entry.$2);
+    }
+
+    await tester.tap(find.text('Tools').first);
+    await _pumpApplication(tester);
+    for (final entry in const [
+      ('Diagnostics', 'diagnostics.png'),
+      ('Logs', 'logs.png'),
+      ('About', 'about.png'),
+    ]) {
+      await tester.tap(find.text(entry.$1).last);
+      await _pumpApplication(tester);
+      await _capture(tester, entry.$2);
+    }
   });
 }
 

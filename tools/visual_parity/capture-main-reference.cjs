@@ -231,6 +231,28 @@ async function main() {
 		} else {
 			console.log("Skipped OBS capture: the frozen reference build does not expose an OBS catalog entry")
 		}
+
+		for (const [label, fileName] of [
+			["Queues", "queues.png"],
+			["Variables", "variables.png"],
+			["Viewer Variables", "viewer-variables.png"],
+		]) {
+			await clickText(cdp.send, label)
+			await capture(cdp.send, fileName)
+		}
+		if (await evaluate(cdp.send, `document.body.innerText.includes('Tools')`)) {
+			await clickText(cdp.send, "Tools")
+			for (const [label, fileName] of [
+				["Diagnostics", "diagnostics.png"],
+				["Logs", "logs.png"],
+				["About", "about.png"],
+			]) {
+				await clickText(cdp.send, label)
+				await capture(cdp.send, fileName)
+			}
+		} else {
+			console.log("Skipped Tools captures: the frozen reference build does not expose a Tools group")
+		}
 	} finally {
 		cdp?.socket?.close()
 		if (!child.killed) child.kill()
