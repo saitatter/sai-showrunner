@@ -654,6 +654,9 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       GeneratedOverlayWidgetCatalog.widgets;
   int? _selectedWidgetIndex;
   bool _dirty = false;
+  final _widgetMenuLink = LayerLink();
+  final _widgetMenuAnchorKey = GlobalKey();
+  OverlayEntry? _widgetMenuEntry;
 
   @override
   void initState() {
@@ -684,6 +687,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
 
   @override
   void dispose() {
+    _closeWidgetMenu();
     _name.dispose();
     _width.dispose();
     _height.dispose();
@@ -896,32 +900,14 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-            PopupMenuButton<GeneratedOverlayWidget>(
-              tooltip: 'Add widget',
-              position: PopupMenuPosition.under,
-              offset: const Offset(0, 4),
-              onSelected: _addWidget,
-              itemBuilder: (context) => [
-                for (final option in _overlayWidgetCatalog)
-                  PopupMenuItem<GeneratedOverlayWidget>(
-                    value: option,
-                    child: SizedBox(
-                      width: 250,
-                      child: Row(
-                        children: [
-                          const Icon(Icons.widgets_outlined, size: 18),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              option.name,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
+            CompositedTransformTarget(
+              key: _widgetMenuAnchorKey,
+              link: _widgetMenuLink,
+              child: IconButton(
+                tooltip: 'Add widget',
+                onPressed: _toggleWidgetMenu,
+                icon: const Icon(Icons.add),
+              ),
             ),
           ],
         ),
@@ -1115,6 +1101,61 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _markDirty();
   }
 
+  void _toggleWidgetMenu() {
+    if (_widgetMenuEntry != null) {
+      _closeWidgetMenu();
+      return;
+    }
+    final renderBox =
+        _widgetMenuAnchorKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final anchorOffset = renderBox.localToGlobal(Offset.zero);
+    final availableHeight =
+        MediaQuery.sizeOf(context).height -
+        anchorOffset.dy -
+        renderBox.size.height -
+        8;
+    final menuHeight = math.min(420.0, math.max(108.0, availableHeight));
+    final overlay = Overlay.of(context, rootOverlay: true);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _closeWidgetMenu,
+              child: const SizedBox.expand(),
+            ),
+          ),
+          CompositedTransformFollower(
+            link: _widgetMenuLink,
+            showWhenUnlinked: false,
+            targetAnchor: Alignment.bottomRight,
+            followerAnchor: Alignment.topRight,
+            offset: const Offset(0, 4),
+            child: _OverlayWidgetMenu(
+              catalog: _overlayWidgetCatalog,
+              height: menuHeight,
+              onSelected: (definition) {
+                _addWidget(definition);
+                _closeWidgetMenu();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+    _widgetMenuEntry = entry;
+    overlay.insert(entry);
+  }
+
+  void _closeWidgetMenu() {
+    final entry = _widgetMenuEntry;
+    _widgetMenuEntry = null;
+    entry?.remove();
+  }
+
   Widget _sizePreset(String label, int width, int height) => OutlinedButton(
     onPressed: () {
       _markDirty();
@@ -1142,6 +1183,106 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       _widgets.insert(target, widget);
     });
     _markDirty();
+  }
+}
+
+class _OverlayWidgetMenu extends StatefulWidget {
+  const _OverlayWidgetMenu({
+    required this.catalog,
+    required this.height,
+    required this.onSelected,
+  });
+
+  final List<GeneratedOverlayWidget> catalog;
+  final double height;
+  final ValueChanged<GeneratedOverlayWidget> onSelected;
+
+  @override
+  State<_OverlayWidgetMenu> createState() => _OverlayWidgetMenuState();
+}
+
+class _OverlayWidgetMenuState extends State<_OverlayWidgetMenu> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _search.text.trim().toLowerCase();
+    final filtered = widget.catalog
+        .where(
+          (definition) =>
+              query.isEmpty ||
+              definition.name.toLowerCase().contains(query) ||
+              definition.id.toLowerCase().contains(query) ||
+              definition.pluginId.toLowerCase().contains(query),
+        )
+        .toList(growable: false);
+    return Material(
+      elevation: 8,
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      borderRadius: BorderRadius.circular(8),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: 300,
+        height: widget.height,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: TextField(
+                key: const ValueKey('overlay-widget-search'),
+                controller: _search,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  hintText: 'Search widgets',
+                  isDense: true,
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: filtered.isEmpty
+                  ? const Center(child: Text('No widgets found'))
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final definition = filtered[index];
+                        return InkWell(
+                          onTap: () => widget.onSelected(definition),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 9,
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.widgets_outlined, size: 18),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    definition.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

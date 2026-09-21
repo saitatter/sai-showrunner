@@ -806,7 +806,12 @@ void main() {
 
     await tester.tap(find.byTooltip('Add widget'));
     await tester.pumpAndSettle();
-    expect(find.text('Wheel'), findsOneWidget);
+    final widgetSearch = find.byKey(
+      const ValueKey<String>('overlay-widget-search'),
+    );
+    expect(widgetSearch, findsOneWidget);
+    await tester.enterText(widgetSearch, 'chat');
+    await tester.pump();
     await tester.tap(find.text('Chat Feed'));
     await tester.pumpAndSettle();
 
