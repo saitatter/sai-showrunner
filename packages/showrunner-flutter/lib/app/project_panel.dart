@@ -122,19 +122,19 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             compact: compact,
             onTap: () => callbacks.onDestinationSelected(WorkspaceIds.home),
           ),
+          ProfileSection(
+            future: future,
+            compact: compact,
+            expanded: _controller.isExpanded('profiles'),
+            onToggle: toggle,
+            callbacks: callbacks,
+          ),
           AutomationSection(
             future: future,
             compact: compact,
             expanded: _controller.isExpanded('automations'),
             onToggle: toggle,
             activeFile: widget.activeAutomationFile,
-            callbacks: callbacks,
-          ),
-          ProfileSection(
-            future: future,
-            compact: compact,
-            expanded: _controller.isExpanded('profiles'),
-            onToggle: toggle,
             callbacks: callbacks,
           ),
           ResourceSection(
@@ -171,6 +171,14 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             compact: compact,
             onTap: () =>
                 callbacks.onDestinationSelected(WorkspaceIds.variables),
+          ),
+          _ProjectItemRow(
+            title: 'Viewer Variables',
+            icon: Icons.person_search_outlined,
+            selected: widget.selectedWorkspace == WorkspaceIds.viewerVariables,
+            compact: compact,
+            onTap: () =>
+                callbacks.onDestinationSelected(WorkspaceIds.viewerVariables),
           ),
           _ProjectItemRow(
             title: 'SpellCast',

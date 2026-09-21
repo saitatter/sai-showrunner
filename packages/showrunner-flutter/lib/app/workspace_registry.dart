@@ -16,6 +16,7 @@ abstract final class WorkspaceIds {
   static const settings = WorkspaceId('workspace.settings');
   static const setup = WorkspaceId('workspace.setup');
   static const variables = WorkspaceId('workspace.variables');
+  static const viewerVariables = WorkspaceId('workspace.viewerVariables');
   static const remote = WorkspaceId('workspace.remote');
   static const home = WorkspaceId('workspace.home');
   static const updates = WorkspaceId('workspace.updates');
@@ -33,6 +34,7 @@ abstract final class WorkspaceIds {
     settings,
     setup,
     variables,
+    viewerVariables,
     remote,
     home,
     updates,
@@ -107,6 +109,11 @@ const workspaceDescriptors = <WorkspaceDescriptor>[
     id: WorkspaceIds.variables,
     title: 'Variables',
     icon: Icons.data_object,
+  ),
+  WorkspaceDescriptor(
+    id: WorkspaceIds.viewerVariables,
+    title: 'Viewer Variables',
+    icon: Icons.person_search_outlined,
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.remote,

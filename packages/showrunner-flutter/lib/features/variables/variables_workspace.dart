@@ -14,17 +14,21 @@ import '../../schema/viewer_data.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
 
+enum VariablesWorkspaceSection { variables, viewerVariables }
+
 class VariablesWorkspace extends StatefulWidget {
   const VariablesWorkspace({
     super.key,
     required this.dataService,
     this.eventHub,
     this.variableRuntime,
+    this.initialSection = VariablesWorkspaceSection.variables,
   });
 
   final ShowRunnerDataService dataService;
   final DartPluginEventHub? eventHub;
   final DartVariableRuntime? variableRuntime;
+  final VariablesWorkspaceSection initialSection;
 
   @override
   State<VariablesWorkspace> createState() => _VariablesWorkspaceState();
@@ -175,6 +179,26 @@ class _VariablesWorkspaceState extends State<VariablesWorkspace> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
+    if (widget.initialSection == VariablesWorkspaceSection.viewerVariables) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            'Viewer Variables',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Define and inspect per-viewer values used by Twitch automation.',
+          ),
+          const SizedBox(height: 16),
+          ViewerDataWorkspacePanel(
+            repository: _viewerDataRepository,
+            eventHub: widget.eventHub,
+          ),
+        ],
+      );
+    }
     final variables = _filteredVariables;
     return ListView(
       padding: const EdgeInsets.all(24),

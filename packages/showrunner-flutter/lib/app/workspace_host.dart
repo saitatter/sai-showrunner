@@ -233,6 +233,12 @@ final class WorkspaceRegistry {
       eventHub: host.providerEvents.eventHub,
       variableRuntime: host.variableRuntime,
     ),
+    WorkspaceIds.viewerVariables => VariablesWorkspace(
+      dataService: host.dataService,
+      eventHub: host.providerEvents.eventHub,
+      variableRuntime: host.variableRuntime,
+      initialSection: VariablesWorkspaceSection.viewerVariables,
+    ),
     WorkspaceIds.remote => RemoteWorkspace(
       dataService: host.dataService,
       registryFuture: host.pluginRegistryFuture,

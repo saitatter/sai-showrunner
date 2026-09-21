@@ -78,7 +78,9 @@ void main() {
     expect(find.text('Integrations'), findsOneWidget);
     expect(find.text('Stream Plans'), findsOneWidget);
     expect(find.text('Variables'), findsOneWidget);
-    expect(find.text('Viewer Variables'), findsNothing);
+    expect(find.text('Viewer Variables'), findsOneWidget);
+    await tester.tap(find.text('Viewer Variables'));
+    expect(selectedWorkspace, WorkspaceIds.viewerVariables);
 
     await tester.tap(find.text('Integrations'));
     await tester.pumpAndSettle();
