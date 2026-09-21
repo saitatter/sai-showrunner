@@ -1,0 +1,45 @@
+{
+  "captureSize": { "width": 1440, "height": 900, "deviceScaleFactor": 1 },
+  "pairs": [
+    {
+      "id": "app-empty",
+      "reference": "test/reference/main/app-empty.png",
+      "actual": "test/reference/flutter/app-empty.png"
+    },
+    {
+      "id": "settings",
+      "reference": "test/reference/main/settings.png",
+      "actual": "test/reference/flutter/settings.png"
+    },
+    {
+      "id": "updater",
+      "reference": "test/reference/main/updater.png",
+      "actual": "test/reference/flutter/updater.png"
+    },
+    {
+      "id": "integrations",
+      "reference": "test/reference/main/integrations.png",
+      "actual": "test/reference/flutter/integrations.png"
+    },
+    {
+      "id": "queues",
+      "reference": "test/reference/main/queues.png",
+      "actual": "test/reference/flutter/queues.png"
+    },
+    {
+      "id": "variables",
+      "reference": "test/reference/main/variables.png",
+      "actual": "test/reference/flutter/variables.png"
+    },
+    {
+      "id": "viewer-variables",
+      "reference": "test/reference/main/viewer-variables.png",
+      "actual": "test/reference/flutter/viewer-variables.png"
+    },
+    {
+      "id": "automation-editor",
+      "reference": "test/reference/main/automation-editor-complex.png",
+      "actual": "test/reference/flutter/app-graph.png"
+    }
+  ]
+}

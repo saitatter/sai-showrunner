@@ -75,7 +75,11 @@ Diagnostics, Logs, and About; the frozen Electron build does not expose its
 Tools group. The main reference can be regenerated with
 `corepack yarn visual:main` and the Flutter catalog with
 `corepack yarn visual:flutter` when the local frozen Electron build is
-available.
+available. Once both catalogs exist, `corepack yarn visual:compare:catalog`
+generates one report and diff image per screen under `.tmp/visual/catalog`.
+It reports differences by default without hiding them behind a binary pass;
+use `--fail-above=<percent>` when a screen-specific gate is intentionally
+ready to be enforced.
 
 The controlled empty-app comparison is intentionally still red: the clean
 reference exposes the legacy dashboard surface (including its Media shortcut),
