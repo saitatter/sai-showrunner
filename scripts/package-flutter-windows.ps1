@@ -1,13 +1,19 @@
 param(
   [string]$Version = '2.0.0',
   [string]$OutputDirectory = 'release',
-  [switch]$SkipSmoke
+  [switch]$SkipSmoke,
+  [switch]$RequireBundledYouTubeClient
 )
 
 $ErrorActionPreference = 'Stop'
 
 Push-Location (Join-Path $PSScriptRoot '..\packages\showrunner-flutter')
 try {
+  if ($RequireBundledYouTubeClient -and
+      [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)) {
+    throw 'A bundled YouTube OAuth client ID is required for a release build.'
+  }
+
   $dartDefines = @()
   if (-not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)) {
     $dartDefines += "--dart-define=SHOWRUNNER_YOUTUBE_CLIENT_ID=$($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)"

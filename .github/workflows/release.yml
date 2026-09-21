@@ -93,7 +93,7 @@ jobs:
 
       - name: Build and smoke-test Windows package
         shell: pwsh
-        run: .\scripts\package-flutter-windows.ps1 -Version '${{ needs.release.outputs.version }}'
+        run: .\scripts\package-flutter-windows.ps1 -Version '${{ needs.release.outputs.version }}' -RequireBundledYouTubeClient
         env:
           SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
