@@ -108,8 +108,22 @@ final class DartGraphRuntime {
     var outputValues = <String, dynamic>{};
     final invocations = <String, int>{};
 
+    void follow(GraphEdge? edge) {
+      if (edge != null) {
+        traceSink?.edgeTraversed(
+          ExecutionEdgeRef(
+            edgeId: edge.id,
+            from: ExecutionNodeRef(nodeId: edge.from, scope: graphScope),
+            to: ExecutionNodeRef(nodeId: edge.to, scope: graphScope),
+            port: edge.port,
+          ),
+        );
+      }
+      current = edge?.to ?? '';
+    }
+
     if (current == 'trigger' && !nodes.containsKey(current)) {
-      current = outgoing[current]?.firstOrNull?.to ?? '';
+      follow(outgoing[current]?.firstOrNull);
     }
     while (current.isNotEmpty && steps < maxSteps) {
       runtimeContext.cancellationToken?.throwIfCancelled();
@@ -160,16 +174,16 @@ final class DartGraphRuntime {
               );
             }
           }
-          current =
-              _next(edges, 'completed')?.to ??
-              _next(edges, 'out')?.to ??
-              edges.firstOrNull?.to ??
-              '';
+          follow(
+            _next(edges, 'completed') ??
+                _next(edges, 'out') ??
+                edges.firstOrNull,
+          );
         case 'if':
           final condition = _truthy(
             evaluateExpression(node.data['condition'], runtimeContext),
           );
-          current = _next(edges, condition ? 'then' : 'else')?.to ?? '';
+          follow(_next(edges, condition ? 'then' : 'else'));
         case 'while':
           final iterations = (loopState[node.id] as int?) ?? 0;
           final condition = _truthy(
@@ -179,10 +193,10 @@ final class DartGraphRuntime {
               (node.data['maxIterations'] as num?)?.toInt() ?? maxSteps;
           if (!condition || iterations >= limit) {
             loopState.remove(node.id);
-            current = _next(edges, 'next')?.to ?? '';
+            follow(_next(edges, 'next'));
           } else {
             loopState[node.id] = iterations + 1;
-            current = _next(edges, 'body')?.to ?? '';
+            follow(_next(edges, 'body'));
           }
         case 'for':
           final state = loopState[node.id] as RuntimeMap?;
@@ -202,12 +216,12 @@ final class DartGraphRuntime {
           if (state == null) loopState[node.id] = loop;
           if (loop['step'] == 0 || loop['current'] >= loop['end']) {
             loopState.remove(node.id);
-            current = _next(edges, 'next')?.to ?? '';
+            follow(_next(edges, 'next'));
           } else {
             runtimeContext.locals[node.data['variable'] as String? ?? 'index'] =
                 loop['current'];
             loop['current'] = loop['current'] + loop['step'];
-            current = _next(edges, 'body')?.to ?? '';
+            follow(_next(edges, 'body'));
           }
         case 'forEach':
           final state = loopState[node.id] as RuntimeMap?;
@@ -220,7 +234,7 @@ final class DartGraphRuntime {
           }
           if (collection is! List || index >= collection.length) {
             loopState.remove(node.id);
-            current = _next(edges, 'next')?.to ?? '';
+            follow(_next(edges, 'next'));
           } else {
             runtimeContext.locals[node.data['variable'] as String? ?? 'item'] =
                 collection[index];
@@ -229,7 +243,7 @@ final class DartGraphRuntime {
               runtimeContext.locals[indexVariable] = index;
             }
             loopState[node.id] = {'collection': collection, 'index': index + 1};
-            current = _next(edges, 'body')?.to ?? '';
+            follow(_next(edges, 'body'));
           }
         case 'switch':
           final value = evaluateExpression(
@@ -248,7 +262,7 @@ final class DartGraphRuntime {
           final port = matching.isNotEmpty
               ? matching['port'] as String?
               : 'default';
-          current = _next(edges, port ?? 'default')?.to ?? '';
+          follow(_next(edges, port ?? 'default'));
         case 'return':
           outputValues = _returnValues(node.data['outputs'], runtimeContext);
           didReturn = true;
@@ -291,13 +305,13 @@ final class DartGraphRuntime {
           results.addAll(nested.nodeResults);
           results[node.id] = Map<String, dynamic>.from(nested.outputValues);
           runtimeContext.contextState.addAll(nested.contextState);
-          current =
-              _next(edges, 'completed')?.to ??
-              _next(edges, 'out')?.to ??
-              edges.firstOrNull?.to ??
-              '';
+          follow(
+            _next(edges, 'completed') ??
+                _next(edges, 'out') ??
+                edges.firstOrNull,
+          );
         default:
-          current = edges.firstOrNull?.to ?? '';
+          follow(edges.firstOrNull);
       }
       onNodeExit?.call(node.id);
     }

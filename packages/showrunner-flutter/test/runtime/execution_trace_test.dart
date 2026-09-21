@@ -148,4 +148,51 @@ void main() {
 
     await service.dispose();
   });
+
+  test('production VM emits exact flow edges with their ports', () async {
+    const automation = AutomationData(
+      graph: AutomationGraph(
+        entryNodeId: 'trigger',
+        nodes: [
+          GraphNode(id: 'first', type: 'action', x: 0, y: 0),
+          GraphNode(id: 'second', type: 'action', x: 120, y: 0),
+        ],
+        edges: [
+          GraphEdge(id: 'trigger-first', from: 'trigger', to: 'first'),
+          GraphEdge(
+            id: 'first-second',
+            from: 'first',
+            to: 'second',
+            port: 'completed',
+          ),
+        ],
+      ),
+    );
+    final program = DartProductionGraphCompiler().compileAutomation(automation);
+    final service = ExecutionTraceService();
+    final session = service.start(
+      mode: ExecutionTraceMode.test,
+      source: const ExecutionTraceSource(type: 'automation', id: 'edges'),
+    );
+
+    await DartGraphVm(program, traceSink: session).execute(
+      context: EvaluationContext(),
+      action: (node, config, context) async => null,
+    );
+    session.end(ExecutionTraceRunStatus.completed);
+
+    final edges = service
+        .snapshotFor(session.executionId)!
+        .events
+        .whereType<ExecutionEdgeTraversedEvent>()
+        .toList();
+    expect(edges, hasLength(2));
+    expect(edges[0].edge.edgeId, 'trigger-first');
+    expect(edges[0].edge.from.nodeId, 'trigger');
+    expect(edges[0].edge.to.nodeId, 'first');
+    expect(edges[1].edge.edgeId, 'first-second');
+    expect(edges[1].edge.port, 'completed');
+
+    await service.dispose();
+  });
 }

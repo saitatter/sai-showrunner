@@ -35,6 +35,10 @@ final class DartGraphInstruction {
     this.arg0,
     this.arg1,
     this.arg2,
+    this.edgeId,
+    this.edgeFromNodeId,
+    this.edgeToNodeId,
+    this.edgePort,
   });
 
   final DartGraphOpCode op;
@@ -42,6 +46,10 @@ final class DartGraphInstruction {
   final int? arg0;
   final Object? arg1;
   final Object? arg2;
+  final String? edgeId;
+  final String? edgeFromNodeId;
+  final String? edgeToNodeId;
+  final String? edgePort;
 }
 
 final class DartGraphIterNextArgs {
@@ -278,8 +286,8 @@ final class DartProductionGraphCompiler {
   void _compileFromEntry(String entryNodeId) {
     final visited = <String>{};
     if (_contextSourceNodeIds.contains(entryNodeId)) {
-      for (final target in _getEdgeTargets(entryNodeId, null)) {
-        _compileNode(target, visited);
+      for (final edge in _getEdges(entryNodeId, null)) {
+        _compileEdge(edge, visited);
       }
     } else {
       _compileNode(entryNodeId, visited);
@@ -345,8 +353,8 @@ final class DartProductionGraphCompiler {
         arg0: index,
       ),
     );
-    final next = _getDefaultEdgeTarget(node.id);
-    if (next != null) _compileNode(next, visited);
+    final next = _getDefaultEdge(node.id);
+    if (next != null) _compileEdge(next, visited);
   }
 
   void _compileIf(GraphNode node, Set<String> visited) {
@@ -360,15 +368,15 @@ final class DartProductionGraphCompiler {
       ),
     );
     _emitJumpToLabel(DartGraphOpCode.jumpIfNot, elseLabel, node.id);
-    final thenTarget = _getEdgeTarget(node.id, 'then');
-    if (thenTarget != null) _compileNode(thenTarget, visited);
+    final thenTarget = _getEdge(node.id, 'then');
+    if (thenTarget != null) _compileEdge(thenTarget, visited);
     _emitJumpToLabel(DartGraphOpCode.jump, endLabel, node.id);
     _placeLabel(elseLabel);
-    final elseTarget = _getEdgeTarget(node.id, 'else');
-    if (elseTarget != null) _compileNode(elseTarget, visited);
+    final elseTarget = _getEdge(node.id, 'else');
+    if (elseTarget != null) _compileEdge(elseTarget, visited);
     _placeLabel(endLabel);
-    final next = _getEdgeTarget(node.id, 'next');
-    if (next != null) _compileNode(next, visited);
+    final next = _getEdge(node.id, 'next');
+    if (next != null) _compileEdge(next, visited);
   }
 
   void _compileSwitch(GraphNode node, Set<String> visited) {
@@ -407,17 +415,17 @@ final class DartProductionGraphCompiler {
           ),
         );
         _emitJumpToLabel(DartGraphOpCode.jumpIfNot, skipLabel, node.id);
-        final target = _getEdgeTarget(node.id, item['port']?.toString());
-        if (target != null) _compileNode(target, visited);
+        final target = _getEdge(node.id, item['port']?.toString());
+        if (target != null) _compileEdge(target, visited);
         _emitJumpToLabel(DartGraphOpCode.jump, endLabel, node.id);
         _placeLabel(skipLabel);
       }
     }
-    final defaultTarget = _getEdgeTarget(node.id, 'default');
-    if (defaultTarget != null) _compileNode(defaultTarget, visited);
+    final defaultTarget = _getEdge(node.id, 'default');
+    if (defaultTarget != null) _compileEdge(defaultTarget, visited);
     _placeLabel(endLabel);
-    final next = _getEdgeTarget(node.id, 'next');
-    if (next != null) _compileNode(next, visited);
+    final next = _getEdge(node.id, 'next');
+    if (next != null) _compileEdge(next, visited);
   }
 
   void _compileFor(GraphNode node, Set<String> visited) {
@@ -473,8 +481,8 @@ final class DartProductionGraphCompiler {
     _loopExitStack.add(exitLabel);
     _loopHeaderStack.add(headerLabel);
     _loopContinueStack.add(continueLabel);
-    final body = _getEdgeTarget(node.id, 'body');
-    if (body != null) _compileNode(body, visited);
+    final body = _getEdge(node.id, 'body');
+    if (body != null) _compileEdge(body, visited);
     _placeLabel(continueLabel);
     _emit(
       DartGraphInstruction(op: DartGraphOpCode.yieldControl, nodeId: node.id),
@@ -493,8 +501,8 @@ final class DartProductionGraphCompiler {
     _loopExitStack.removeLast();
     _loopContinueStack.removeLast();
     _loopRepeatLabels.remove(node.id);
-    final next = _getEdgeTarget(node.id, 'next');
-    if (next != null) _compileNode(next, visited);
+    final next = _getEdge(node.id, 'next');
+    if (next != null) _compileEdge(next, visited);
   }
 
   void _compileForEach(GraphNode node, Set<String> visited) {
@@ -558,8 +566,8 @@ final class DartProductionGraphCompiler {
     _loopExitStack.add(exitLabel);
     _loopHeaderStack.add(headerLabel);
     _loopContinueStack.add(continueLabel);
-    final body = _getEdgeTarget(node.id, 'body');
-    if (body != null) _compileNode(body, visited);
+    final body = _getEdge(node.id, 'body');
+    if (body != null) _compileEdge(body, visited);
     _placeLabel(continueLabel);
     _emit(
       DartGraphInstruction(op: DartGraphOpCode.yieldControl, nodeId: node.id),
@@ -578,8 +586,8 @@ final class DartProductionGraphCompiler {
     _loopExitStack.removeLast();
     _loopContinueStack.removeLast();
     _loopRepeatLabels.remove(node.id);
-    final next = _getEdgeTarget(node.id, 'next');
-    if (next != null) _compileNode(next, visited);
+    final next = _getEdge(node.id, 'next');
+    if (next != null) _compileEdge(next, visited);
   }
 
   void _compileWhile(GraphNode node, Set<String> visited) {
@@ -602,8 +610,8 @@ final class DartProductionGraphCompiler {
     _loopExitStack.add(exitLabel);
     _loopHeaderStack.add(headerLabel);
     _loopContinueStack.add(headerLabel);
-    final body = _getEdgeTarget(node.id, 'body');
-    if (body != null) _compileNode(body, visited);
+    final body = _getEdge(node.id, 'body');
+    if (body != null) _compileEdge(body, visited);
     _emit(
       DartGraphInstruction(op: DartGraphOpCode.yieldControl, nodeId: node.id),
     );
@@ -612,8 +620,8 @@ final class DartProductionGraphCompiler {
     _loopHeaderStack.removeLast();
     _loopExitStack.removeLast();
     _loopContinueStack.removeLast();
-    final next = _getEdgeTarget(node.id, 'next');
-    if (next != null) _compileNode(next, visited);
+    final next = _getEdge(node.id, 'next');
+    if (next != null) _compileEdge(next, visited);
   }
 
   void _compileBreak(GraphNode node) {
@@ -648,13 +656,13 @@ final class DartProductionGraphCompiler {
         arg1: node.data['inputs'],
       ),
     );
-    final next = _getDefaultEdgeTarget(node.id);
-    if (next != null) _compileNode(next, visited);
+    final next = _getDefaultEdge(node.id);
+    if (next != null) _compileEdge(next, visited);
   }
 
   void _compileDefault(GraphNode node, Set<String> visited) {
-    final next = _getDefaultEdgeTarget(node.id);
-    if (next != null) _compileNode(next, visited);
+    final next = _getDefaultEdge(node.id);
+    if (next != null) _compileEdge(next, visited);
   }
 
   DartCompiledSubgraphV2 _compileSubgraph(SubgraphDefinition subgraph) {
@@ -742,21 +750,40 @@ final class DartProductionGraphCompiler {
     _slotAliases[name] = slot;
   }
 
-  String? _getEdgeTarget(String nodeId, String? port) =>
-      _getEdgeTargets(nodeId, port).firstOrNull;
-
-  List<String> _getEdgeTargets(String nodeId, String? port) =>
+  GraphEdge? _getEdge(String nodeId, String? port) =>
       (_edgeMap[nodeId] ?? const <GraphEdge>[])
           .where((edge) => edge.port == port)
-          .map((edge) => edge.to)
+          .firstOrNull;
+
+  List<GraphEdge> _getEdges(String nodeId, String? port) =>
+      (_edgeMap[nodeId] ?? const <GraphEdge>[])
+          .where((edge) => edge.port == port)
           .toList();
 
-  String? _getDefaultEdgeTarget(String nodeId) {
-    final direct = _getEdgeTarget(nodeId, null);
+  GraphEdge? _getDefaultEdge(String nodeId) {
+    final direct = _getEdge(nodeId, null);
     if (direct != null) return direct;
-    return _getEdgeTarget(nodeId, 'completed') ??
-        _getEdgeTarget(nodeId, 'out') ??
-        (_edgeMap[nodeId] ?? const <GraphEdge>[]).firstOrNull?.to;
+    return _getEdge(nodeId, 'completed') ??
+        _getEdge(nodeId, 'out') ??
+        (_edgeMap[nodeId] ?? const <GraphEdge>[]).firstOrNull;
+  }
+
+  void _compileEdge(GraphEdge edge, Set<String> visited) {
+    final firstInstruction = _instructions.length;
+    _compileNode(edge.to, visited);
+    if (_instructions.length <= firstInstruction) return;
+    final old = _instructions[firstInstruction];
+    _instructions[firstInstruction] = DartGraphInstruction(
+      op: old.op,
+      nodeId: old.nodeId,
+      arg0: old.arg0,
+      arg1: old.arg1,
+      arg2: old.arg2,
+      edgeId: edge.id,
+      edgeFromNodeId: edge.from,
+      edgeToNodeId: edge.to,
+      edgePort: edge.port,
+    );
   }
 
   void _emit(DartGraphInstruction instruction) =>
@@ -786,6 +813,10 @@ final class DartProductionGraphCompiler {
         arg0: isExitJump ? old.arg0 : target,
         arg1: old.arg1,
         arg2: isExitJump ? target : old.arg2,
+        edgeId: old.edgeId,
+        edgeFromNodeId: old.edgeFromNodeId,
+        edgeToNodeId: old.edgeToNodeId,
+        edgePort: old.edgePort,
       );
     }
   }
@@ -870,6 +901,7 @@ final class DartGraphVm {
           _activeNodeId = nodeId;
           onNodeEnter?.call(nodeId);
         }
+        _publishInstructionEdge(instruction);
         onStep?.call(instruction, _callStack.length);
         final advance = await _step(instruction, action);
         if (advance) _pc++;
@@ -898,6 +930,23 @@ final class DartGraphVm {
   }
 
   int _executedInstructionCount = 0;
+
+  void _publishInstructionEdge(DartGraphInstruction instruction) {
+    final from = instruction.edgeFromNodeId;
+    final to = instruction.edgeToNodeId;
+    final edgeId = instruction.edgeId;
+    if (traceSink == null || from == null || to == null || edgeId == null) {
+      return;
+    }
+    traceSink?.edgeTraversed(
+      ExecutionEdgeRef(
+        edgeId: edgeId,
+        from: ExecutionNodeRef(nodeId: from, scope: _graphScope),
+        to: ExecutionNodeRef(nodeId: to, scope: _graphScope),
+        port: instruction.edgePort,
+      ),
+    );
+  }
 
   Future<bool> _step(
     DartGraphInstruction instruction,
