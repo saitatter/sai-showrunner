@@ -64,7 +64,7 @@ jobs:
         run: |
           Push-Location packages/showrunner-flutter
           flutter pub get
-          dart format --output=none --set-exit-if-changed lib test tool
+          dart format --output=none --set-exit-if-changed lib test tool integration_test
           flutter analyze
           flutter test
           flutter build windows --debug
