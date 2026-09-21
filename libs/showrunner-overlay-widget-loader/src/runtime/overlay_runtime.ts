@@ -9,7 +9,6 @@ import {
 	ViewerDataAccess,
 	ViewerDataRow,
 	ViewerVariable,
-	WidgetBridge,
 	WidgetContext,
 	WidgetScope,
 	mediaUrl,
@@ -18,6 +17,7 @@ import {
 import { StateStore } from "../state/state_store"
 import { ViewerDataStore } from "../viewer_data/viewer_data_store"
 import { WidgetRegistry } from "../registry/widget_registry"
+import { createWidgetBridge } from "../bridge/widget_bridge"
 
 interface EventHandler {
 	widgetId: string
@@ -269,7 +269,35 @@ export class OverlayRuntime {
 		this.position(container, config)
 		this.options.root.appendChild(container)
 		const scope = new WidgetScope()
-		const bridge = this.createBridge(config, scope)
+		const bridge = createWidgetBridge(
+			{
+				overlayId: this.options.overlayId,
+				host: this.options.host,
+				stateStore: this.stateStore,
+				viewerData: this.viewerData,
+				getConfig: () => this.instances.get(config.id)?.config ?? config,
+				onEvent: (type, widgetId, handler, instanceScope) => {
+					let handlers = this.eventHandlers.get(type)
+					if (!handlers) {
+						handlers = new Set()
+						this.eventHandlers.set(type, handlers)
+					}
+					const entry = { widgetId, handler }
+					handlers.add(entry)
+					return instanceScope.add(() => {
+						handlers?.delete(entry)
+						if (handlers?.size === 0) this.eventHandlers.delete(type)
+					})
+				},
+				exposeCommand: (key, handler, instanceScope) => {
+					this.commandHandlers.set(key, handler)
+					return instanceScope.add(() => this.commandHandlers.delete(key))
+				},
+				callBackend: (name, ...args) => this.callBackend(name, ...args),
+			},
+			config,
+			scope,
+		)
 		const state: StateAccess = {
 			get: (pluginId, stateId) => this.stateStore.get(pluginId, stateId),
 			watch: (pluginId, stateId, handler) => scope.add(this.stateStore.watch(pluginId, stateId, handler)),
@@ -314,48 +342,6 @@ export class OverlayRuntime {
 	private position(container: HTMLElement, config: OverlayWidgetConfig): void {
 		container.style.cssText = `position:absolute;left:${config.position.x}px;top:${config.position.y}px;width:${config.size.width}px;height:${config.size.height}px;`
 		container.style.display = config.visible ? "block" : "none"
-	}
-
-	private createBridge(config: OverlayWidgetConfig, scope: WidgetScope): WidgetBridge {
-		return {
-			overlayId: this.options.overlayId,
-			widgetId: config.id,
-			getConfig: () => this.instances.get(config.id)?.config ?? config,
-			onEvent: (type, handler) => {
-				const key = String(type)
-				let handlers = this.eventHandlers.get(key)
-				if (!handlers) {
-					handlers = new Set()
-					this.eventHandlers.set(key, handlers)
-				}
-				const entry = { widgetId: config.id, handler: handler as (event: unknown) => void }
-				handlers.add(entry)
-				return scope.add(() => {
-					handlers?.delete(entry)
-					if (handlers?.size === 0) this.eventHandlers.delete(key)
-				})
-			},
-			exposeCommand: (command, handler) => {
-				const key = `${config.id}.${String(command)}`
-				this.commandHandlers.set(key, handler as (args: unknown) => unknown | Promise<unknown>)
-				return scope.add(() => this.commandHandlers.delete(key))
-			},
-			watchState: (pluginId, stateId, handler) => scope.add(this.stateStore.watch(pluginId, stateId, handler)),
-			getState: (pluginId, stateId) => this.stateStore.get(pluginId, stateId),
-			acquireState: (pluginId, stateId) => {
-				this.stateStore.acquire(pluginId, stateId)
-				scope.add(() => this.stateStore.release(pluginId, stateId))
-			},
-			releaseState: (pluginId, stateId) => this.stateStore.release(pluginId, stateId),
-			callRPC: (id, ...args) => this.callBackend("overlays_widgetRPC", id, config.id, ...args),
-			observeViewerData: (observer) => scope.add(this.viewerData.observe(observer)),
-			queryViewerData: (start, end, sortBy, sortOrder) => this.viewerData.query(start, end, sortBy, sortOrder),
-			getViewerVariables: () => this.viewerData.getVariables(),
-			playSound: (file) => {
-				const audio = playMedia(this.options.host ?? window.location.host, file)
-				if (audio) scope.add(() => audio.pause())
-			},
-		}
 	}
 
 	private emitMessage(id: string, payload: unknown): void {
