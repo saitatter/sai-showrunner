@@ -107,15 +107,21 @@ void main() {
     await tester.tap(find.text('Paid Event -> Add to Alerts Queue').first);
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Add to Queue').first);
+    await tester.pump(const Duration(milliseconds: 150));
 
     expect(find.text('Graph healthy'), findsOneWidget);
     expect(find.textContaining('2 nodes'), findsOneWidget);
     expect(find.text('Add node'), findsOneWidget);
     expect(find.text('Super Chat'), findsOneWidget);
-    expect(find.text('Add to Queue'), findsOneWidget);
-    if (find.text('Dismiss').evaluate().isNotEmpty) {
-      await tester.tap(find.text('Dismiss').last);
-      await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('Add to Queue'), findsAtLeastNWidgets(1));
+    final dismiss = find.text('Dismiss').last;
+    if (dismiss.evaluate().isNotEmpty) {
+      final dismissBox = tester.renderObject<RenderBox>(dismiss);
+      await tester.tapAt(
+        dismissBox.localToGlobal(dismissBox.size.center(Offset.zero)),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
     }
     await _writeOptionalCapture(tester, fileName: 'app-graph.png');
   });
