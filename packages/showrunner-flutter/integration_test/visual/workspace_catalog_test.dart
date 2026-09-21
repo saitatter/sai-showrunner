@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
+import 'package:showrunner_flutter/services/update_check_service.dart';
 
 import '../support/showrunner_test_app.dart';
 
@@ -26,6 +27,11 @@ void main() {
         child: buildShowRunnerTestApp(
           dataService: ShowRunnerDataService(directory),
           showGraphEditor: false,
+          updateService: UpdateCheckService(
+            currentVersion: '2.0.0',
+            fetcher: () async =>
+                throw const HttpException('No published versions on GitHub'),
+          ),
         ),
       ),
     );
@@ -45,6 +51,10 @@ void main() {
     await tester.tap(find.text('Updates').last);
     await _pumpApplication(tester);
     expect(find.text('Updates').last, findsOneWidget);
+    await tester.tap(find.text('Check for Updates'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('No published versions on GitHub'), findsOneWidget);
     await _capture(tester, 'updater.png');
 
     await tester.tap(find.text('Integrations').first);
@@ -119,9 +129,7 @@ Future<void> _pumpApplication(WidgetTester tester) async {
 
 Future<void> _scrollProjectPanelTo(WidgetTester tester, String label) async {
   final target = find.text(label);
-  final panel = find.byKey(
-    const ValueKey('showrunner-project-panel-scroll'),
-  );
+  final panel = find.byKey(const ValueKey('showrunner-project-panel-scroll'));
   bool isVisible() {
     if (!tester.any(target)) return false;
     final rect = tester.getRect(target.first);
