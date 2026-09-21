@@ -80,7 +80,9 @@ void main() {
     });
 
     expect(requestBody?['deliveryMode'], 'decisionOnly');
-    expect(requestBody?['actor']['badges'], ['moderator', 'vip']);
+    final actor = requestBody?['actor'];
+    expect(actor, isA<RuntimeMap>());
+    expect((actor as RuntimeMap)['badges'], ['moderator', 'vip']);
     expect(result['verdict'], 'allow');
     expect(result['approved'], true);
     expect(result['blocked'], false);

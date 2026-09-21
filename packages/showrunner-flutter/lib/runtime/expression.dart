@@ -1,6 +1,9 @@
 import 'cancellation.dart';
 
-typedef RuntimeMap = Map<String, dynamic>;
+/// JSON-like map used only at persistence, protocol, and graph-runtime
+/// boundaries. Internal plugin contracts should decode this into a typed
+/// config/event model before doing domain work.
+typedef RuntimeMap = Map<String, Object?>;
 
 final _runtimeTemplatePattern = RegExp(r'\{\{\s*([^}]+?)\s*\}\}');
 
