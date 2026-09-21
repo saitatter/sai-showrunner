@@ -93,10 +93,30 @@ jobs:
 
       - name: Build and smoke-test Windows package
         shell: pwsh
-        run: .\scripts\package-flutter-windows.ps1 -Version '${{ needs.release.outputs.version }}' -RequireBundledYouTubeClient
+        run: |
+          $packageArgs = @(
+            '-Version', '${{ needs.release.outputs.version }}',
+            '-RequireBundledYouTubeClient'
+          )
+          $hasSigningCertificate = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64)
+          $hasSigningPassword = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD)
+          if ($hasSigningCertificate -xor $hasSigningPassword) {
+            throw 'Windows signing requires both certificate and password secrets.'
+          }
+          if ($hasSigningCertificate) {
+            $packageArgs += @('-SignWindowsBundle', '-RequireWindowsSignature')
+            Write-Host 'Protected Windows signing secrets detected; running signed package and updater proof.'
+          } else {
+            Write-Host 'No Windows signing certificate configured; producing the documented unsigned archive.'
+          }
+          & .\scripts\package-flutter-windows.ps1 @packageArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         env:
           SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
+          SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+          SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+          SHOWRUNNER_WINDOWS_TIMESTAMP_URL: ${{ vars.SHOWRUNNER_WINDOWS_TIMESTAMP_URL }}
 
       - name: Upload Windows package
         shell: pwsh

@@ -26,7 +26,10 @@ Only the Flutter Windows archive is published for now:
 The default archive remains unsigned until the protected Windows signing
 certificate secrets are configured. The package script supports an explicit
 `-SignWindowsBundle -RequireWindowsSignature` release-proof mode; it signs and
-verifies the executable/DLL payload without committing certificate material.
+verifies the executable/DLL payload, then verifies those signatures again after
+the updater install and rollback smoke without committing certificate material.
+The release workflow automatically enables that mode when both protected
+certificate secrets are present.
 There is still no installer or updater metadata asset. Do not add Linux,
 macOS, installer, or automatic replacement assets until those packages and
 their smoke tests exist in CI.

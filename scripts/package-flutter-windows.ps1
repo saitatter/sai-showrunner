@@ -99,7 +99,11 @@ try {
     }
 
     Write-Host "Running local Windows updater install/rollback smoke"
-    dart run tool/update_smoke.dart --bundle="$bundle"
+    $updateSmokeArgs = @("--bundle=$bundle")
+    if ($SignWindowsBundle -or $RequireWindowsSignature) {
+      $updateSmokeArgs += '--require-signature'
+    }
+    dart run tool/update_smoke.dart @updateSmokeArgs
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   }
 }

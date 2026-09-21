@@ -12,6 +12,7 @@ Future<void> main(List<String> arguments) async {
   if (bundlePath == null) {
     throw ArgumentError('Pass --bundle=<Flutter Windows bundle directory>.');
   }
+  final requireSignature = arguments.contains('--require-signature');
   final sourceBundle = Directory(bundlePath);
   if (!await sourceBundle.exists() ||
       !await File('${sourceBundle.path}/showrunner_flutter.exe').exists()) {
@@ -20,6 +21,9 @@ Future<void> main(List<String> arguments) async {
       'bundle',
       'The bundle must contain showrunner_flutter.exe.',
     );
+  }
+  if (requireSignature) {
+    await _assertWindowsSignatures(sourceBundle, 'source bundle');
   }
 
   final root = await Directory.systemTemp.createTemp(
@@ -62,6 +66,9 @@ Future<void> main(List<String> arguments) async {
       await File('${install.path}/update-marker.txt').readAsString() == 'new',
       'Install did not replace the bundle contents.',
     );
+    if (requireSignature) {
+      await _assertWindowsSignatures(install, 'installed bundle');
+    }
     _assert(
       await File('${rollback.path}/update-marker.txt').readAsString() == 'old',
       'Install did not preserve the rollback bundle.',
@@ -84,6 +91,9 @@ Future<void> main(List<String> arguments) async {
       await File('${install.path}/update-marker.txt').readAsString() == 'old',
       'Rollback did not restore the previous bundle.',
     );
+    if (requireSignature) {
+      await _assertWindowsSignatures(install, 'rolled-back bundle');
+    }
 
     stdout.writeln(
       jsonEncode({
@@ -94,6 +104,47 @@ Future<void> main(List<String> arguments) async {
     );
   } finally {
     await root.delete(recursive: true);
+  }
+}
+
+Future<void> _assertWindowsSignatures(
+  Directory bundle,
+  String description,
+) async {
+  final result = await Process.run(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-Command',
+      r'''
+$root = [IO.Path]::GetFullPath($env:SHOWRUNNER_SIGNATURE_ROOT)
+$targets = Get-ChildItem -LiteralPath $root -Recurse -File |
+  Where-Object { $_.Extension -in @('.exe', '.dll') }
+if ($targets.Count -eq 0) {
+  throw "No executable signing targets were found in $root"
+}
+$unsigned = @(
+  $targets |
+    Where-Object { (Get-AuthenticodeSignature -LiteralPath $_.FullName).Status -eq 'NotSigned' }
+)
+if ($unsigned.Count -gt 0) {
+  throw "Unsigned files: $($unsigned.FullName -join ', ')"
+}
+''',
+    ],
+    environment: {
+      ...Platform.environment,
+      'SHOWRUNNER_SIGNATURE_ROOT': bundle.absolute.path,
+    },
+  );
+  if (result.exitCode != 0) {
+    throw StateError(
+      'The $description is not fully Authenticode-signed. '
+      '${result.stdout}\n${result.stderr}',
+    );
   }
 }
 

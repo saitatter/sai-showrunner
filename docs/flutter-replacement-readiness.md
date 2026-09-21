@@ -110,6 +110,7 @@ flutter test tool/graph_benchmark_test.dart --reporter expanded
 flutter test tool/graph_execution_benchmark_test.dart --reporter expanded
 flutter build windows --release
 dart run tool/update_smoke.dart --bundle=build/windows/x64/runner/Release
+# For a protected release bundle, also pass --require-signature.
 Pop-Location
 
 .\scripts\smoke-flutter-windows.ps1 -Configuration Release
@@ -147,3 +148,10 @@ $env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD = '<pfx-password>'
 The signing helper removes the temporary PFX after signing and verifies that
 every executable and DLL in the bundle has an Authenticode signature. No
 certificate or password is stored in the repository.
+
+The release workflow automatically enters this signed proof path when both
+`SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64` and
+`SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD` are configured as protected
+secrets. In that path, the update smoke test verifies signatures before
+installation, after upgrade, and after rollback. Without those secrets the
+workflow intentionally publishes the documented unsigned archive.
