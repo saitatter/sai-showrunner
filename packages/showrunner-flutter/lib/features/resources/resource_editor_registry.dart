@@ -49,9 +49,11 @@ String _widgetTitle(JsonMap widget) {
       'Widget';
 }
 
-String _definitionPluginId(JsonMap widget) => widget['plugin']?.toString() ?? '';
+String _definitionPluginId(JsonMap widget) =>
+    widget['plugin']?.toString() ?? '';
 
-String _definitionWidgetId(JsonMap widget) => widget['widget']?.toString() ?? '';
+String _definitionWidgetId(JsonMap widget) =>
+    widget['widget']?.toString() ?? '';
 
 int _dashboardIdCounter = 0;
 int _audioSplitIdCounter = 0;
@@ -1522,6 +1524,10 @@ class _OverlayCanvas extends StatelessWidget {
     final label = _widgetTitle(widgetConfig);
     final config = widgetConfig['config'];
     final message = config is Map ? config['message']?.toString() : null;
+    final isLabel = widgetId == 'label';
+    final displayTitle = isLabel && message?.trim().isNotEmpty == true
+        ? message!
+        : definition?.name ?? label;
 
     return Positioned(
       left: x * scale,
@@ -1569,16 +1575,17 @@ class _OverlayCanvas extends StatelessWidget {
                         ),
                         const SizedBox(width: 5),
                         Column(
+                          key: ValueKey('overlay-canvas-widget-$index'),
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              definition?.name ?? label,
+                              displayTitle,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            if (message?.trim().isNotEmpty == true)
+                            if (!isLabel && message?.trim().isNotEmpty == true)
                               Text(
                                 message!,
                                 maxLines: 1,
@@ -1798,26 +1805,6 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
               child: Column(
                 children: [
                   _textField('Name', '${widgetConfig['name'] ?? ''}', 'name'),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _readOnlyField(
-                          key: const ValueKey('overlay-plugin-readonly'),
-                          'Plugin',
-                          resolvedPlugin,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _readOnlyField(
-                          key: const ValueKey('overlay-widget-readonly'),
-                          'Widget',
-                          resolvedWidget,
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
@@ -1955,20 +1942,6 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
       onChanged: (next) => onChanged(key, next),
     ),
   );
-
-  Widget _readOnlyField(String label, String value, {required Key key}) =>
-      SizedBox(
-        width: 180,
-        child: InputDecorator(
-          key: key,
-          decoration: InputDecoration(labelText: label),
-          child: Text(
-            value.isEmpty ? 'Unknown' : value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      );
 
   Widget _numberField(String label, Object? value, ValueChanged<num> onValue) =>
       SizedBox(
@@ -2238,6 +2211,7 @@ class _OverlayWidgetConfigEditor extends StatelessWidget {
       config,
     );
     return DartDataInput(
+      key: ValueKey('$plugin.$widget'),
       schema: definition.configSchema,
       value: normalizedConfig,
       templateSuggestions: {

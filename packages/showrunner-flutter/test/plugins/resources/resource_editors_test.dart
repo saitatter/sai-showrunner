@@ -753,6 +753,60 @@ void main() {
     expect((widget['size'] as Map)['height'], greaterThan(200));
   });
 
+  testWidgets('overlay label text updates the canvas and persists', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-label-text',
+        config: {
+          'name': 'Label overlay',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [
+            {
+              'id': 'label-1',
+              'plugin': 'overlays',
+              'widget': 'label',
+              'name': 'Title',
+              'position': {'x': 24, 'y': 24},
+              'size': {'width': 300, 'height': 200},
+              'config': {'message': 'Before'},
+              'visible': true,
+              'locked': false,
+            },
+          ],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    final messageField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField && widget.decoration?.labelText == 'Message',
+    );
+    expect(messageField, findsOneWidget);
+    await tester.enterText(messageField, 'After');
+    await tester.pump();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('overlay-canvas-widget-0')),
+        matching: find.text('After'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final widget = (saved!.config['widgets'] as List).single as Map;
+    expect((widget['config'] as Map)['message'], 'After');
+  });
+
   testWidgets('overlay editor preserves canonical widget resources', (
     tester,
   ) async {
@@ -785,22 +839,10 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
-    expect(find.text('Plugin'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('overlay-plugin-readonly')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('overlay-plugin-readonly')),
-        matching: find.byType(TextField),
-      ),
-      findsNothing,
-    );
-    expect(
-      find.byKey(const ValueKey('overlay-widget-readonly')),
-      findsOneWidget,
-    );
+    expect(find.text('Plugin'), findsNothing);
+    expect(find.text('Widget'), findsOneWidget);
+    expect(find.byKey(const ValueKey('overlay-plugin-readonly')), findsNothing);
+    expect(find.byKey(const ValueKey('overlay-widget-readonly')), findsNothing);
     expect(find.text('Shader Preset'), findsOneWidget);
     expect(find.text('Shader Graph (JSON)'), findsOneWidget);
     await tester.tap(find.text('Save'));

@@ -48,6 +48,18 @@ class _DartDataInputState extends State<DartDataInput> {
   }
 
   @override
+  void didUpdateWidget(covariant DartDataInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = _displayValue(widget.value);
+    if (next != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: next,
+        selection: TextSelection.collapsed(offset: next.length),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (widget.schema.editor != null) {
       return OverlayStyleInput(
@@ -223,6 +235,7 @@ class _ObjectInput extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: DartDataInput(
+              key: ValueKey(field.key ?? field.label),
               schema: field,
               value: values[field.key ?? field.label],
               templateSuggestions: templateSuggestions,
