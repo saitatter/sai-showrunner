@@ -200,6 +200,55 @@ void main() {
       signaling.dispose();
     },
   );
+
+  test('rejects a pending RPC when the control channel closes', () async {
+    final directory = await createTemporaryDirectory('satellite-rpc-close-');
+    addTearDown(() => directory.delete(recursive: true));
+    final dataService = ShowRunnerDataService(directory);
+    await dataService.savePluginSettings('twitch', {'accessToken': 'token'});
+    final socket = _FakeCloudPubSubSocket();
+    final signaling = SatelliteSignalingController(
+      dataService: dataService,
+      negotiator: (_) async => 'wss://cloud.example.test/client',
+      socketFactory: (_) async => socket,
+    );
+    await signaling.start();
+    final peer = _FakePeerConnection();
+    final connection = RemoteSatelliteConnection(
+      id: 'connection-rpc-close',
+      config: const SatelliteConnectionConfig(
+        satelliteService: 'twitch',
+        satelliteId: 'satellite-1',
+        showRunnerService: 'twitch',
+        showRunnerId: 'owner-1',
+        dashboardId: 'dash-1',
+      ),
+      signaling: signaling,
+      peerFactory: (_) async => peer,
+    );
+
+    await connection.start();
+    peer.emitPeerState(SatellitePeerState.connected);
+    peer.channel.emitState(SatelliteChannelState.open);
+    final pending = connection.callRpc('dashboard_widgetRPC');
+    await Future<void>.delayed(Duration.zero);
+
+    peer.channel.emitState(SatelliteChannelState.closed);
+
+    await expectLater(
+      pending,
+      throwsA(
+        predicate<Object>(
+          (error) =>
+              error is StateError &&
+              error.message == 'Remote dashboard control channel closed.',
+        ),
+      ),
+    );
+    await connection.disconnect();
+    connection.dispose();
+    signaling.dispose();
+  });
 }
 
 Future<Directory> createTemporaryDirectory(String prefix) async =>

@@ -93,6 +93,60 @@ void main() {
     await worker.stop();
     expect(worker.state, ProviderWorkerState.stopped);
   });
+
+  test(
+    'Twitch provider remains stable through repeated reconnect cycles',
+    () async {
+      final hub = DartPluginEventHub();
+      addTearDown(hub.dispose);
+      final sockets = <_FakeEventSubSocket>[];
+      late final TwitchEventSubWorker worker;
+      worker = TwitchEventSubWorker(
+        accessToken: 'token',
+        clientId: 'client',
+        broadcasterId: 'broadcaster',
+        request: (method, path, query, body) async => <String, dynamic>{},
+        eventHub: hub,
+        subscriptions: const [],
+        reconnectDelay: const Duration(milliseconds: 1),
+        maxReconnectAttempts: 2,
+        socketFactory: (_) async {
+          final socket = _FakeEventSubSocket();
+          sockets.add(socket);
+          scheduleMicrotask(
+            () => socket.add(
+              jsonEncode({
+                'payload': {
+                  'session': {'id': 'soak-session-${sockets.length}'},
+                },
+              }),
+            ),
+          );
+          return socket;
+        },
+      );
+
+      await worker.start();
+      for (var cycle = 0; cycle < 12; cycle++) {
+        final socketCountBeforeDisconnect = sockets.length;
+        await sockets.last.disconnect();
+        for (var attempt = 0; attempt < 40; attempt++) {
+          if (sockets.length > socketCountBeforeDisconnect &&
+              worker.isRunning) {
+            break;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 2));
+        }
+        expect(sockets.length, socketCountBeforeDisconnect + 1);
+        expect(worker.state, ProviderWorkerState.running);
+        expect(worker.reconnectAttempts, greaterThanOrEqualTo(1));
+      }
+
+      await worker.stop();
+      expect(worker.state, ProviderWorkerState.stopped);
+      expect(sockets, hasLength(13));
+    },
+  );
 }
 
 final class _FakeEventSubSocket implements EventSubSocket {

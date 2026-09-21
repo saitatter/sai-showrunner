@@ -115,10 +115,10 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
     final requestId = '$id-${_requestNumber++}';
     final completer = Completer<dynamic>();
     _pendingCalls[requestId] = completer;
-    await channel.sendText(
-      jsonEncode({'requestId': requestId, 'name': name, 'args': args}),
-    );
     try {
+      await channel.sendText(
+        jsonEncode({'requestId': requestId, 'name': name, 'args': args}),
+      );
       return await completer.future.timeout(const Duration(seconds: 20));
     } finally {
       _pendingCalls.remove(requestId);
@@ -156,12 +156,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
     if (_closed) return;
     _closed = true;
     _state = SatelliteConnectionState.disconnected;
-    for (final completer in _pendingCalls.values) {
-      if (!completer.isCompleted) {
-        completer.completeError(StateError('Remote dashboard disconnected.'));
-      }
-    }
-    _pendingCalls.clear();
+    _rejectPendingCalls('Remote dashboard disconnected.');
     await _control?.close();
     await _peer?.close();
     await _peer?.dispose();
@@ -176,6 +171,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
         state == SatellitePeerState.disconnected ||
         state == SatellitePeerState.closed) {
       _state = SatelliteConnectionState.disconnected;
+      _rejectPendingCalls('Remote dashboard disconnected.');
     } else if (_peerConnected &&
         _control?.state == SatelliteChannelState.open) {
       _state = SatelliteConnectionState.connected;
@@ -198,6 +194,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
         _state = SatelliteConnectionState.connected;
       } else if (state == SatelliteChannelState.closed) {
         _state = SatelliteConnectionState.disconnected;
+        _rejectPendingCalls('Remote dashboard control channel closed.');
       }
       notifyListeners();
     };
@@ -312,12 +309,21 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   void dispose() {
     if (!_closed) {
       _closed = true;
+      _rejectPendingCalls('Remote dashboard disposed.');
       unawaited(_control?.close());
       unawaited(_peer?.close());
       unawaited(_peer?.dispose());
     }
     unawaited(_broadcasts.close());
     super.dispose();
+  }
+
+  void _rejectPendingCalls(String message) {
+    final pending = List<Completer<dynamic>>.of(_pendingCalls.values);
+    _pendingCalls.clear();
+    for (final completer in pending) {
+      if (!completer.isCompleted) completer.completeError(StateError(message));
+    }
   }
 }
 
