@@ -22,6 +22,11 @@
       "actual": "test/reference/flutter/integrations.png"
     },
     {
+      "id": "twitch-workspace",
+      "reference": "test/reference/main/twitch-workspace.png",
+      "actual": "test/reference/flutter/twitch-workspace.png"
+    },
+    {
       "id": "queues",
       "reference": "test/reference/main/queues.png",
       "actual": "test/reference/flutter/queues.png"

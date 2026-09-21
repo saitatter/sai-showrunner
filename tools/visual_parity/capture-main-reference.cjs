@@ -260,6 +260,9 @@ async function main() {
 		await clickText(cdp.send, "Integrations")
 		await waitFor(cdp.send, `document.body.innerText.includes('Integrations')`, "integrations")
 		await capture(cdp.send, "integrations.png")
+		await clickText(cdp.send, "Twitch")
+		await waitFor(cdp.send, `document.body.innerText.includes('Twitch')`, "Twitch workspace")
+		await capture(cdp.send, "twitch-workspace.png")
 
 		await clickText(cdp.send, "File")
 		await hoverText(cdp.send, "New Automation From Starter")

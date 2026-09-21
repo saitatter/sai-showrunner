@@ -62,6 +62,12 @@ void main() {
     expect(find.text('Integrations').last, findsOneWidget);
     await _capture(tester, 'integrations.png');
 
+    await _scrollProjectPanelTo(tester, 'Twitch');
+    await tester.tap(find.text('Twitch').last);
+    await _pumpApplication(tester);
+    expect(find.text('Twitch').last, findsOneWidget);
+    await _capture(tester, 'twitch-workspace.png');
+
     for (final entry in const [
       ('Queues', 'queues.png'),
       ('Variables', 'variables.png'),
