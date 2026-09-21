@@ -86,7 +86,7 @@ use `--fail-above=<percent>` when a screen-specific gate is intentionally
 ready to be enforced.
 
 The controlled empty-app comparison is intentionally still red: the clean
-reference exposes the legacy dashboard surface (including its Media shortcut),
+reference exposes the frozen dashboard surface (including its Media shortcut),
 while Flutter exposes the replacement provider cards, create controls, and the
 intentional removal of the persistent Media Library. The latest comparison
 measured 72.61% differing pixels. The other controlled pairs currently measure
