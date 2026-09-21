@@ -85,6 +85,10 @@ jobs:
         shell: pwsh
         run: .\scripts\smoke-flutter-windows.ps1 -Configuration Debug
 
+      - name: Verify Windows signing proof path
+        shell: pwsh
+        run: .\scripts\test-sign-flutter-windows.ps1 -BundlePath .\packages\showrunner-flutter\build\windows\x64\runner\Release
+
       - name: Smoke Flutter Windows release startup
         shell: pwsh
         run: .\scripts\smoke-flutter-windows.ps1 -Configuration Release
