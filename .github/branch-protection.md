@@ -23,6 +23,10 @@ Only the Flutter Windows archive is published for now:
 
 - `ShowRunner-Flutter-windows-<version>.zip`
 
-The archive is currently unsigned and there is no installer or updater metadata
-asset. Do not add Linux, macOS, installer, or automatic replacement assets until
-those packages and their smoke tests exist in CI.
+The default archive remains unsigned until the protected Windows signing
+certificate secrets are configured. The package script supports an explicit
+`-SignWindowsBundle -RequireWindowsSignature` release-proof mode; it signs and
+verifies the executable/DLL payload without committing certificate material.
+There is still no installer or updater metadata asset. Do not add Linux,
+macOS, installer, or automatic replacement assets until those packages and
+their smoke tests exist in CI.

@@ -134,3 +134,16 @@ The unsigned local bundle path is covered separately by
 temporary Windows bundle, verifies replacement and rollback contents, and
 cleans up the launched test process. It does not replace the signed installed
 release check.
+
+When the protected Windows signing secrets are available, a release-proof
+bundle can be produced with:
+
+```powershell
+$env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64 = '<base64-pfx>'
+$env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD = '<pfx-password>'
+.\scripts\package-flutter-windows.ps1 -Version <version> -SignWindowsBundle -RequireWindowsSignature
+```
+
+The signing helper removes the temporary PFX after signing and verifies that
+every executable and DLL in the bundle has an Authenticode signature. No
+certificate or password is stored in the repository.

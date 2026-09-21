@@ -2,7 +2,9 @@ param(
   [string]$Version = '2.0.0',
   [string]$OutputDirectory = 'release',
   [switch]$SkipSmoke,
-  [switch]$RequireBundledYouTubeClient
+  [switch]$RequireBundledYouTubeClient,
+  [switch]$SignWindowsBundle,
+  [switch]$RequireWindowsSignature
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,6 +36,13 @@ try {
   $expectedVersion = $Version.TrimStart('v')
   if ($actualVersion -ne $expectedVersion) {
     throw "Flutter executable version $actualVersion does not match release version $expectedVersion."
+  }
+
+  if ($SignWindowsBundle -or $RequireWindowsSignature) {
+    & (Join-Path $PSScriptRoot 'sign-flutter-windows.ps1') `
+      -BundlePath $bundle `
+      -RequireSignature:($SignWindowsBundle -or $RequireWindowsSignature)
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   }
 
   $requiredBundlePaths = @(
