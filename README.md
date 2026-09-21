@@ -67,7 +67,7 @@ targets these additional workflows:
 - **Automation queues** — controlled sequencing for alerts, sounds, scenes, and
   other actions.
 - **Local media assets** — sound, image, and video selection for overlays and
-  playback without a separate media-management application.
+  playback without a separate persistent media catalog.
 - **Production dashboards** — connection health, stream plans, queue state, and
   live-service status in one view.
 - **Remote and Satellite control** — trigger and monitor ShowRunner through its
@@ -103,8 +103,9 @@ the current desktop runtime.
 
 Windows releases are available on the
 [GitHub Releases page](https://github.com/saitatter/sai-showrunner/releases).
-The current release target is Windows and downloaded builds may show a
-SmartScreen warning while signing is not yet configured.
+The current release target is Windows. Official packages are signed by the
+protected release workflow; locally built archives are development artifacts
+and may still show a SmartScreen warning.
 
 ## 🛠️ Run locally
 
