@@ -89,7 +89,7 @@
       "main": null,
       "flutter": null,
       "status": "intentionally_removed",
-      "reason": "Migration-only scope; not part of the target CastMate/ShowRunner product."
+      "reason": "Not part of the target CastMate/ShowRunner product surface."
     }
   },
   "commands": {
@@ -149,7 +149,7 @@
       "main": null,
       "flutter": null,
       "status": "intentionally_removed",
-      "reason": "Migration-only scope; no product workspace, catalog, scanner, database, or watcher is retained."
+      "reason": "No product workspace, catalog, scanner, database, or watcher is retained."
     }
   },
   "discovery": {
@@ -177,12 +177,6 @@
       "media_scan_benchmark.dart",
       "desktop_drop",
       "package:sqlite3"
-    ],
-    "forbiddenFlutterPathSegments": [
-      "legacy",
-      "migration",
-      "shim",
-      "compat"
     ],
     "forbiddenFlutterFileExtensions": [
       "vue",

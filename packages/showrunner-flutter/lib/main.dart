@@ -179,6 +179,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   int _projectCatalogRevision = 0;
   String? _selectedResourceType;
   String? _selectedResourceId;
+  final _openOverlayResources = <String, ResourceData>{};
+  final _overlayDirty = <String, bool>{};
 
   AutomationDocumentSession? get _activeAutomationSession =>
       _automationDocuments.active;
@@ -380,6 +382,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       selectedResourceId: _selectedResourceId,
       onResourceSelected: _openResourceType,
       onOpenResource: _openResource,
+      overlayResources: _openOverlayResources,
+      overlayDirty: _overlayDirty,
+      onSaveOverlay: _saveOverlayResource,
+      onOverlayDirtyChanged: _setOverlayDirty,
       onProfileEntriesChanged: _onProjectCatalogChanged,
       onRenameProfile: _renameProfileEntry,
       onDeleteProfile: _deleteProfileEntry,
@@ -447,12 +453,43 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   }
 
   void _openResource(ResourceData resource, String resourceType) {
+    if (resourceType == 'Overlay') {
+      final workspace = WorkspaceIds.overlay(resource.id);
+      setState(() {
+        _openOverlayResources[resource.id] = resource;
+        _overlayDirty.putIfAbsent(resource.id, () => false);
+        _selectedResourceType = null;
+        _selectedResourceId = null;
+        _workspaceDocuments.open(workspace);
+        _workspaceDocuments.select(workspace);
+      });
+      unawaited(_persistNavigation());
+      return;
+    }
     setState(() {
       _selectedResourceType = resourceType;
       _selectedResourceId = resource.id;
       _workspaceDocuments.open(WorkspaceIds.resources);
       _workspaceDocuments.select(WorkspaceIds.resources);
     });
+    unawaited(_persistNavigation());
+  }
+
+  void _setOverlayDirty(String resourceId, bool dirty) {
+    if (!mounted) return;
+    setState(() => _overlayDirty[resourceId] = dirty);
+  }
+
+  Future<void> _saveOverlayResource(ResourceData resource) async {
+    await ResourceRepository(
+      Directory('${widget.dataService.userDirectory.path}/overlays'),
+      resourceType: 'Overlay',
+      secretSettings: widget.dataService.secretSettingsStore,
+    ).save(resource);
+    _openOverlayResources[resource.id] = resource;
+    _overlayDirty[resource.id] = false;
+    if (!mounted) return;
+    setState(() => _projectCatalogRevision++);
     unawaited(_persistNavigation());
   }
 
@@ -480,7 +517,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
 
   static WorkspaceId? _workspaceIdFromSettings(String value) {
     final id = WorkspaceId(value);
-    return WorkspaceIds.all.contains(id) ? id : null;
+    return WorkspaceIds.all.contains(id) || WorkspaceIds.isOverlay(id)
+        ? id
+        : null;
   }
 
   static bool _isSafeAutomationFileName(String fileName) =>
@@ -848,6 +887,11 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       return;
     }
     if (!_workspaceDocuments.close(workspace)) return;
+    final overlayId = WorkspaceIds.overlayResourceId(workspace);
+    if (overlayId != null) {
+      _openOverlayResources.remove(overlayId);
+      _overlayDirty.remove(overlayId);
+    }
     setState(() {});
     unawaited(_persistNavigation());
   }

@@ -10,7 +10,7 @@ extension _ShowRunnerPageNavigation on _ShowRunnerPageState {
         'openWorkspaceTabs',
       );
       final restoredTabs = settings['openWorkspaceTabs'];
-      final tabs = restoredTabs is List
+      var tabs = restoredTabs is List
           ? _ShowRunnerPageState._workspaceIdsFromSettings(restoredTabs)
           : hasRestoredWorkspaceTabs
           ? <WorkspaceId>[]
@@ -26,6 +26,16 @@ extension _ShowRunnerPageNavigation on _ShowRunnerPageState {
       if (widget.showGraphEditor) {
         await _restoreAutomationDocuments(settings);
       }
+      await _restoreOverlayDocuments(tabs);
+      tabs = tabs
+          .where(
+            (tab) =>
+                !WorkspaceIds.isOverlay(tab) ||
+                _openOverlayResources.containsKey(
+                  WorkspaceIds.overlayResourceId(tab),
+                ),
+          )
+          .toList(growable: false);
       if (!mounted) return;
       _updatePageState(() {
         _workspaceDocuments.restore(openWorkspaces: tabs, selected: selected);
@@ -39,6 +49,20 @@ extension _ShowRunnerPageNavigation on _ShowRunnerPageState {
       });
     } catch (_) {
       if (mounted) _updatePageState(() => _restoredNavigation = true);
+    }
+  }
+
+  Future<void> _restoreOverlayDocuments(Iterable<WorkspaceId> tabs) async {
+    final repository = ResourceRepository(
+      Directory('${widget.dataService.userDirectory.path}/overlays'),
+      resourceType: 'Overlay',
+      secretSettings: widget.dataService.secretSettingsStore,
+    );
+    for (final tab in tabs.where(WorkspaceIds.isOverlay)) {
+      final resourceId = WorkspaceIds.overlayResourceId(tab);
+      if (resourceId == null) continue;
+      final resource = await repository.load(resourceId);
+      if (resource != null) _openOverlayResources[resource.id] = resource;
     }
   }
 

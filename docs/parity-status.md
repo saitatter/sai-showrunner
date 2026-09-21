@@ -91,9 +91,8 @@ The automated smoke suite validates startup, first run, graph/workflow use,
 profiles, integrations, overlays, update-state handling, and repeated local
 Remote/Satellite lifecycle cycles. It does not prove pixel-perfect rendering
 or replace the manual checks in
-`docs/beta-regression-checklist.md`. The complete replacement gate and its
-remaining environment-dependent proof are tracked in
-`docs/flutter-replacement-readiness.md`.
+`docs/beta-regression-checklist.md`. The remaining environment-dependent proof
+is tracked with the release and visual validation workflows.
 
 ## Evidence
 

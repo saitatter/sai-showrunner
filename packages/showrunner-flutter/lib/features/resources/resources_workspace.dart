@@ -32,6 +32,7 @@ class ResourcesWorkspace extends StatefulWidget {
     this.revision = 0,
     this.variableRuntime,
     this.onCreate,
+    this.onOpenResource,
   });
 
   final ShowRunnerDataService dataService;
@@ -44,6 +45,8 @@ class ResourcesWorkspace extends StatefulWidget {
   final int revision;
   final DartVariableRuntime? variableRuntime;
   final FutureOr<void> Function(String resourceType)? onCreate;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onOpenResource;
 
   @override
   State<ResourcesWorkspace> createState() => _ResourcesWorkspaceState();
@@ -260,6 +263,11 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     ResourceData resource,
     String resourceType,
   ) async {
+    if (resourceType == 'Overlay' && widget.onOpenResource != null) {
+      await widget.onOpenResource!.call(resource, resourceType);
+      return;
+    }
+    if (resourceType == 'Overlay') return;
     final editor = editorRegistry.find(resourceType);
     if (editor == null) return;
     final directory = Directory(

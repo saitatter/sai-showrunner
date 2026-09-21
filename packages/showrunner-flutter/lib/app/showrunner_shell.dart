@@ -80,6 +80,10 @@ class ShowRunnerShell extends StatelessWidget {
     this.onRenameResource,
     this.onDeleteResource,
     this.onCreateResource,
+    this.overlayResources = const <String, ResourceData>{},
+    this.overlayDirty = const <String, bool>{},
+    this.onSaveOverlay,
+    this.onOverlayDirtyChanged,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -145,6 +149,10 @@ class ShowRunnerShell extends StatelessWidget {
   final FutureOr<void> Function(ResourceData resource, String resourceType)?
   onDeleteResource;
   final FutureOr<void> Function(String resourceType)? onCreateResource;
+  final Map<String, ResourceData> overlayResources;
+  final Map<String, bool> overlayDirty;
+  final Future<void> Function(ResourceData resource)? onSaveOverlay;
+  final void Function(String resourceId, bool dirty)? onOverlayDirtyChanged;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -199,6 +207,9 @@ class ShowRunnerShell extends StatelessWidget {
       onRenameResource: onRenameResource,
       onDeleteResource: onDeleteResource,
       onCreateResource: onCreateResource,
+      overlayResources: overlayResources,
+      onSaveOverlay: onSaveOverlay,
+      onOverlayDirtyChanged: onOverlayDirtyChanged,
       selectedPluginId: selectedPluginId,
       onPluginSelected: onPluginSelected,
       updateService: updateService,
@@ -270,6 +281,8 @@ class ShowRunnerShell extends StatelessWidget {
                         activeAutomationDirty: activeAutomationDirty,
                         hasActiveAutomation: activeAutomationFile != null,
                         activeProfileDirty: profileDirty,
+                        overlayResources: overlayResources,
+                        overlayDirty: overlayDirty,
                         onSelected: onTabSelected ?? (_) {},
                         onClosed: onTabClosed ?? (_) {},
                         onReordered: onTabReordered ?? (_, _) {},
@@ -407,6 +420,8 @@ class _WorkspaceTabBar extends StatelessWidget {
     required this.activeAutomationDirty,
     required this.hasActiveAutomation,
     required this.activeProfileDirty,
+    required this.overlayResources,
+    required this.overlayDirty,
     required this.onSelected,
     required this.onClosed,
     required this.onReordered,
@@ -417,6 +432,8 @@ class _WorkspaceTabBar extends StatelessWidget {
   final bool activeAutomationDirty;
   final bool hasActiveAutomation;
   final bool activeProfileDirty;
+  final Map<String, ResourceData> overlayResources;
+  final Map<String, bool> overlayDirty;
   final ValueChanged<WorkspaceId> onSelected;
   final FutureOr<void> Function(WorkspaceId) onClosed;
   final void Function(int oldPosition, int newPosition) onReordered;
@@ -445,17 +462,27 @@ class _WorkspaceTabBar extends StatelessWidget {
             onReorderItem: onReordered,
             itemBuilder: (context, position) {
               final tab = tabs[position];
+              final overlayId = WorkspaceIds.overlayResourceId(tab);
+              final descriptor = overlayId == null
+                  ? workspaceDescriptorFor(tab)
+                  : WorkspaceDescriptor(
+                      id: tab,
+                      title: overlayResources[overlayId]?.name ?? 'Overlay',
+                      icon: Icons.layers_outlined,
+                    );
               return ReorderableDragStartListener(
                 key: ValueKey('workspace-tab-$tab'),
                 index: position,
                 child: _WorkspaceTab(
                   workspace: tab,
+                  descriptor: descriptor,
                   selected: tab == selectedWorkspace,
                   dirty:
                       (tab == WorkspaceIds.graph &&
                           hasActiveAutomation &&
                           activeAutomationDirty) ||
-                      (tab == WorkspaceIds.profiles && activeProfileDirty),
+                      (tab == WorkspaceIds.profiles && activeProfileDirty) ||
+                      (overlayId != null && (overlayDirty[overlayId] ?? false)),
                   canClose: tabs.length > 1,
                   onSelected: onSelected,
                   onClosed: onClosed,
@@ -472,6 +499,7 @@ class _WorkspaceTabBar extends StatelessWidget {
 class _WorkspaceTab extends StatelessWidget {
   const _WorkspaceTab({
     required this.workspace,
+    required this.descriptor,
     required this.selected,
     required this.dirty,
     required this.canClose,
@@ -480,6 +508,7 @@ class _WorkspaceTab extends StatelessWidget {
   });
 
   final WorkspaceId workspace;
+  final WorkspaceDescriptor descriptor;
   final bool selected;
   final bool dirty;
   final bool canClose;
@@ -514,15 +543,12 @@ class _WorkspaceTab extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(workspaceDescriptorFor(workspace).icon, size: 17),
+                Icon(descriptor.icon, size: 17),
                 const SizedBox(width: 8),
-                Text(
-                  '${workspaceDescriptorFor(workspace).title}${dirty ? ' •' : ''}',
-                ),
+                Text('${descriptor.title}${dirty ? ' •' : ''}'),
                 if (canClose)
                   SrIconButton(
-                    tooltip:
-                        'Close ${workspaceDescriptorFor(workspace).title} tab',
+                    tooltip: 'Close ${descriptor.title} tab',
                     icon: const Icon(Icons.close, size: 16),
                     visualDensity: VisualDensity.compact,
                     onPressed: () => onClosed(workspace),

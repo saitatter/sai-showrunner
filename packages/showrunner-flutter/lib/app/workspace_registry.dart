@@ -21,6 +21,16 @@ abstract final class WorkspaceIds {
   static const home = WorkspaceId('workspace.home');
   static const updates = WorkspaceId('workspace.updates');
 
+  static const overlayPrefix = 'workspace.overlay.';
+
+  static WorkspaceId overlay(String resourceId) =>
+      WorkspaceId('$overlayPrefix$resourceId');
+
+  static bool isOverlay(WorkspaceId id) => id.value.startsWith(overlayPrefix);
+
+  static String? overlayResourceId(WorkspaceId id) =>
+      isOverlay(id) ? id.value.substring(overlayPrefix.length) : null;
+
   static const all = <WorkspaceId>[
     graph,
     plugins,

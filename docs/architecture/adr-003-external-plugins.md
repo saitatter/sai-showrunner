@@ -11,8 +11,7 @@ first-party integrations as built-in Dart modules with typed manifests,
 settings, resources, actions, triggers and health boundaries.
 
 Loading arbitrary third-party code inside the desktop process would create a
-new crash, security and version-compatibility boundary before first-party
-replacement parity is closed.
+new crash and security boundary before first-party product parity is closed.
 
 ## Decision
 

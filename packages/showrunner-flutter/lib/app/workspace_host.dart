@@ -77,6 +77,9 @@ final class WorkspaceHostContext {
     this.onRenameResource,
     this.onDeleteResource,
     this.onCreateResource,
+    this.overlayResources = const <String, ResourceData>{},
+    this.onSaveOverlay,
+    this.onOverlayDirtyChanged,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -131,6 +134,9 @@ final class WorkspaceHostContext {
   final FutureOr<void> Function(ResourceData resource, String resourceType)?
   onDeleteResource;
   final FutureOr<void> Function(String resourceType)? onCreateResource;
+  final Map<String, ResourceData> overlayResources;
+  final Future<void> Function(ResourceData resource)? onSaveOverlay;
+  final void Function(String resourceId, bool dirty)? onOverlayDirtyChanged;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -146,116 +152,133 @@ final class WorkspaceRegistry {
     BuildContext context,
     WorkspaceId id,
     WorkspaceHostContext host,
-  ) => switch (id) {
-    WorkspaceIds.graph =>
-      host.showGraphEditor
-          ? GraphWorkspace(
-              editor: host.graphEditor,
-              healthFuture: host.healthFuture,
-              dataService: host.dataService,
-              registryFuture: host.pluginRegistryFuture,
-              onRunNode: host.onRunNode,
-              automationDocuments: host.automationDocuments,
-              onAutomationSelected: host.onAutomationSelected,
-              onAutomationClosed: host.onAutomationClosed,
-              onAutomationReordered: host.onAutomationReordered,
-            )
-          : const LogsWorkspace(),
-    WorkspaceIds.plugins => PluginWorkspace(
-      dataService: host.dataService,
-      registryFuture: host.pluginRegistryFuture,
-      providerEvents: host.providerEvents,
-      selectedPluginId: host.selectedPluginId,
-      commands: host.commands,
-      onOpenWorkspace: host.onOpenWorkspace,
-    ),
-    WorkspaceIds.diagnostics => DiagnosticsWorkspace(
-      healthFuture: host.healthFuture,
-      queue: host.actionQueue,
-      providerEvents: host.providerEvents,
-      registryFuture: host.pluginRegistryFuture,
-    ),
-    WorkspaceIds.automations => AutomationCatalogWorkspace(
-      dataService: host.dataService,
-      onOpen: host.onOpenAutomation,
-      onRepair: host.onRepairAutomation,
-      onCreate: host.onCreateAutomation,
-      onDelete: host.onDeleteAutomation,
-    ),
-    WorkspaceIds.profiles => ProfileWorkspace(
-      dataService: host.dataService,
-      providerEvents: host.providerEvents,
-      registryFuture: host.pluginRegistryFuture,
-      runtimeFuture: host.profileRuntimeFuture,
-      controller: host.profileController,
-      onDirtyChanged: host.onProfileDirtyChanged,
-      onEntriesChanged: host.onProfileEntriesChanged,
-      onCreate: host.onCreateProfile,
-    ),
-    WorkspaceIds.queues => QueueWorkspace(
-      dataService: host.dataService,
-      queue: host.actionQueue,
-      queueManager: host.queueManager,
-    ),
-    WorkspaceIds.resources => ResourcesWorkspace(
-      dataService: host.dataService,
-      editorRegistry: createDefaultResourceEditorRegistry(),
-      registryFuture: host.pluginRegistryFuture,
-      streamPlanRuntime: host.streamPlanRuntime,
-      variableRuntime: host.variableRuntime,
-      resourceType: host.selectedResourceType,
-      resourceId: host.selectedResourceId,
-      revision: host.projectCatalogRevision,
-      onCreate: host.onCreateResource,
-    ),
-    WorkspaceIds.logs => const LogsWorkspace(),
-    WorkspaceIds.about => const AboutWorkspace(),
-    WorkspaceIds.updates => UpdateWorkspace(
-      updateService: host.updateService,
-      installService: host.installService,
-      onRestartRequested: host.onRestartRequested,
-      downloadDirectory: Directory(
-        '${host.dataService.userDirectory.path}/updates',
+  ) {
+    final overlayId = WorkspaceIds.overlayResourceId(id);
+    if (overlayId != null) {
+      final resource = host.overlayResources[overlayId];
+      if (resource == null || host.onSaveOverlay == null) {
+        return const LogsWorkspace();
+      }
+      return OverlayEditorPage(
+        resource: resource,
+        onSave: host.onSaveOverlay!,
+        onDirtyChanged: (dirty) =>
+            host.onOverlayDirtyChanged?.call(resource.id, dirty),
+      );
+    }
+
+    return switch (id) {
+      WorkspaceIds.graph =>
+        host.showGraphEditor
+            ? GraphWorkspace(
+                editor: host.graphEditor,
+                healthFuture: host.healthFuture,
+                dataService: host.dataService,
+                registryFuture: host.pluginRegistryFuture,
+                onRunNode: host.onRunNode,
+                automationDocuments: host.automationDocuments,
+                onAutomationSelected: host.onAutomationSelected,
+                onAutomationClosed: host.onAutomationClosed,
+                onAutomationReordered: host.onAutomationReordered,
+              )
+            : const LogsWorkspace(),
+      WorkspaceIds.plugins => PluginWorkspace(
+        dataService: host.dataService,
+        registryFuture: host.pluginRegistryFuture,
+        providerEvents: host.providerEvents,
+        selectedPluginId: host.selectedPluginId,
+        commands: host.commands,
+        onOpenWorkspace: host.onOpenWorkspace,
       ),
-      rollbackDirectory: Directory(
-        '${host.dataService.userDirectory.path}/updates/rollback',
+      WorkspaceIds.diagnostics => DiagnosticsWorkspace(
+        healthFuture: host.healthFuture,
+        queue: host.actionQueue,
+        providerEvents: host.providerEvents,
+        registryFuture: host.pluginRegistryFuture,
       ),
-    ),
-    WorkspaceIds.settings => SettingsWorkspace(
-      preferences: host.interfacePreferences,
-      registryFuture: host.pluginRegistryFuture,
-      dataService: host.dataService,
-    ),
-    WorkspaceIds.setup => SetupWorkspace(
-      dataService: host.dataService,
-      onOpenPlugin: (pluginId) {
-        host.onPluginSelected?.call(pluginId);
-        host.onOpenWorkspace(WorkspaceIds.plugins);
-      },
-    ),
-    WorkspaceIds.variables => VariablesWorkspace(
-      dataService: host.dataService,
-      eventHub: host.providerEvents.eventHub,
-      variableRuntime: host.variableRuntime,
-    ),
-    WorkspaceIds.viewerVariables => VariablesWorkspace(
-      dataService: host.dataService,
-      eventHub: host.providerEvents.eventHub,
-      variableRuntime: host.variableRuntime,
-      initialSection: VariablesWorkspaceSection.viewerVariables,
-    ),
-    WorkspaceIds.remote => RemoteWorkspace(
-      dataService: host.dataService,
-      registryFuture: host.pluginRegistryFuture,
-    ),
-    WorkspaceIds.home => MainDashboardWorkspace(
-      dataService: host.dataService,
-      actionQueue: host.actionQueue,
-      providerEvents: host.providerEvents,
-      registryFuture: host.pluginRegistryFuture,
-      streamPlanRuntime: host.streamPlanRuntime,
-      onOpenWorkspace: host.onOpenWorkspace,
-    ),
-    _ => const LogsWorkspace(),
-  };
+      WorkspaceIds.automations => AutomationCatalogWorkspace(
+        dataService: host.dataService,
+        onOpen: host.onOpenAutomation,
+        onRepair: host.onRepairAutomation,
+        onCreate: host.onCreateAutomation,
+        onDelete: host.onDeleteAutomation,
+      ),
+      WorkspaceIds.profiles => ProfileWorkspace(
+        dataService: host.dataService,
+        providerEvents: host.providerEvents,
+        registryFuture: host.pluginRegistryFuture,
+        runtimeFuture: host.profileRuntimeFuture,
+        controller: host.profileController,
+        onDirtyChanged: host.onProfileDirtyChanged,
+        onEntriesChanged: host.onProfileEntriesChanged,
+        onCreate: host.onCreateProfile,
+      ),
+      WorkspaceIds.queues => QueueWorkspace(
+        dataService: host.dataService,
+        queue: host.actionQueue,
+        queueManager: host.queueManager,
+      ),
+      WorkspaceIds.resources => ResourcesWorkspace(
+        dataService: host.dataService,
+        editorRegistry: createDefaultResourceEditorRegistry(),
+        registryFuture: host.pluginRegistryFuture,
+        streamPlanRuntime: host.streamPlanRuntime,
+        variableRuntime: host.variableRuntime,
+        resourceType: host.selectedResourceType,
+        resourceId: host.selectedResourceId,
+        revision: host.projectCatalogRevision,
+        onCreate: host.onCreateResource,
+        onOpenResource: host.onOpenResource,
+      ),
+      WorkspaceIds.logs => const LogsWorkspace(),
+      WorkspaceIds.about => const AboutWorkspace(),
+      WorkspaceIds.updates => UpdateWorkspace(
+        updateService: host.updateService,
+        installService: host.installService,
+        onRestartRequested: host.onRestartRequested,
+        downloadDirectory: Directory(
+          '${host.dataService.userDirectory.path}/updates',
+        ),
+        rollbackDirectory: Directory(
+          '${host.dataService.userDirectory.path}/updates/rollback',
+        ),
+      ),
+      WorkspaceIds.settings => SettingsWorkspace(
+        preferences: host.interfacePreferences,
+        registryFuture: host.pluginRegistryFuture,
+        dataService: host.dataService,
+      ),
+      WorkspaceIds.setup => SetupWorkspace(
+        dataService: host.dataService,
+        onOpenPlugin: (pluginId) {
+          host.onPluginSelected?.call(pluginId);
+          host.onOpenWorkspace(WorkspaceIds.plugins);
+        },
+      ),
+      WorkspaceIds.variables => VariablesWorkspace(
+        dataService: host.dataService,
+        eventHub: host.providerEvents.eventHub,
+        variableRuntime: host.variableRuntime,
+      ),
+      WorkspaceIds.viewerVariables => VariablesWorkspace(
+        dataService: host.dataService,
+        eventHub: host.providerEvents.eventHub,
+        variableRuntime: host.variableRuntime,
+        initialSection: VariablesWorkspaceSection.viewerVariables,
+      ),
+      WorkspaceIds.remote => RemoteWorkspace(
+        dataService: host.dataService,
+        registryFuture: host.pluginRegistryFuture,
+      ),
+      WorkspaceIds.home => MainDashboardWorkspace(
+        dataService: host.dataService,
+        actionQueue: host.actionQueue,
+        providerEvents: host.providerEvents,
+        registryFuture: host.pluginRegistryFuture,
+        streamPlanRuntime: host.streamPlanRuntime,
+        onOpenWorkspace: host.onOpenWorkspace,
+      ),
+      _ => const LogsWorkspace(),
+    };
+  }
 }

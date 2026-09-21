@@ -205,7 +205,7 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
     DartResourceEditorDefinition.fromContract(
       contract: builtInResourceSpec('Overlay'),
       builder: (context, resource, onSave) =>
-          _OverlayEditor(resource: resource, onSave: onSave),
+          OverlayEditorPage(resource: resource, onSave: onSave),
     ),
   );
   registry.register(
@@ -624,17 +624,23 @@ DartResourceEditorDefinition _pluginDefinition({
   );
 }
 
-class _OverlayEditor extends StatefulWidget {
-  const _OverlayEditor({required this.resource, required this.onSave});
+class OverlayEditorPage extends StatefulWidget {
+  const OverlayEditorPage({
+    super.key,
+    required this.resource,
+    required this.onSave,
+    this.onDirtyChanged,
+  });
 
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
+  final ValueChanged<bool>? onDirtyChanged;
 
   @override
-  State<_OverlayEditor> createState() => _OverlayEditorState();
+  State<OverlayEditorPage> createState() => _OverlayEditorState();
 }
 
-class _OverlayEditorState extends State<_OverlayEditor> {
+class _OverlayEditorState extends State<OverlayEditorPage> {
   late final TextEditingController _name;
   late final TextEditingController _width;
   late final TextEditingController _height;
@@ -647,6 +653,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
   List<GeneratedOverlayWidget> _overlayWidgetCatalog =
       GeneratedOverlayWidgetCatalog.widgets;
   int? _selectedWidgetIndex;
+  bool _dirty = false;
 
   @override
   void initState() {
@@ -688,88 +695,96 @@ class _OverlayEditorState extends State<_OverlayEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.sizeOf(context);
-    final dialogWidth = math.min(media.width - 48, 1500.0);
-    final dialogHeight = math.min(media.height - 48, 900.0);
     final canvasWidth = int.tryParse(_width.text) ?? 1920;
     final canvasHeight = int.tryParse(_height.text) ?? 1080;
 
-    return Dialog(
-      insetPadding: const EdgeInsets.all(24),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: dialogWidth,
-        height: dialogHeight,
-        child: Column(
-          children: [
-            _overlayEditorToolbar(context),
-            const Divider(height: 1),
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _OverlayCanvas(
-                      width: canvasWidth,
-                      height: canvasHeight,
-                      widgets: _widgets,
-                      selectedIndex: _selectedWidgetIndex,
-                      catalog: _overlayWidgetCatalog,
-                      onSelect: (index) =>
-                          setState(() => _selectedWidgetIndex = index),
-                      onMove: (index, delta) => _moveWidgetOnCanvas(
-                        index,
-                        delta,
-                        canvasWidth,
-                        canvasHeight,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inspectorWidth = math.min(
+          390.0,
+          math.max(280.0, constraints.maxWidth * .34),
+        );
+        return Material(
+          color: Theme.of(context).colorScheme.surface,
+          child: Column(
+            children: [
+              _overlayEditorToolbar(context),
+              const Divider(height: 1),
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _OverlayCanvas(
+                        width: canvasWidth,
+                        height: canvasHeight,
+                        widgets: _widgets,
+                        selectedIndex: _selectedWidgetIndex,
+                        catalog: _overlayWidgetCatalog,
+                        onSelect: (index) =>
+                            setState(() => _selectedWidgetIndex = index),
+                        onMove: (index, delta) => _moveWidgetOnCanvas(
+                          index,
+                          delta,
+                          canvasWidth,
+                          canvasHeight,
+                        ),
                       ),
                     ),
-                  ),
-                  const VerticalDivider(width: 1),
-                  SizedBox(
-                    width: math.min(390, dialogWidth * .34),
-                    child: Column(
-                      children: [
-                        Expanded(flex: 3, child: _overlayInspector(context)),
-                        const Divider(height: 1),
-                        Expanded(flex: 2, child: _overlayWidgetList(context)),
-                      ],
+                    const VerticalDivider(width: 1),
+                    SizedBox(
+                      width: inspectorWidth,
+                      child: Column(
+                        children: [
+                          Expanded(flex: 3, child: _overlayInspector(context)),
+                          const Divider(height: 1),
+                          Expanded(flex: 2, child: _overlayWidgetList(context)),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _previewEnabled
-                          ? 'Preview enabled'
-                          : 'No live preview configured',
-                      style: Theme.of(context).textTheme.bodySmall,
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _previewEnabled
+                            ? 'Preview enabled'
+                            : 'No live preview configured',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: () async {
-                      await _saveOverlay();
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    child: const Text('Save'),
-                  ),
-                ],
+                    FilledButton(
+                      onPressed: () async {
+                        await _saveOverlay();
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
+  }
+
+  void _markDirty() {
+    if (!_dirty) {
+      _dirty = true;
+      widget.onDirtyChanged?.call(true);
+    }
+  }
+
+  void _clearDirty() {
+    if (_dirty) {
+      _dirty = false;
+      widget.onDirtyChanged?.call(false);
+    }
   }
 
   Widget _overlayEditorToolbar(BuildContext context) => Material(
@@ -794,6 +809,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
                 labelText: 'Overlay name',
                 isDense: true,
               ),
+              onChanged: (_) => _markDirty(),
             ),
           ),
           SizedBox(
@@ -806,7 +822,10 @@ class _OverlayEditorState extends State<_OverlayEditor> {
                 suffixText: 'px',
                 isDense: true,
               ),
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) {
+                _markDirty();
+                setState(() {});
+              },
             ),
           ),
           SizedBox(
@@ -819,7 +838,10 @@ class _OverlayEditorState extends State<_OverlayEditor> {
                 suffixText: 'px',
                 isDense: true,
               ),
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) {
+                _markDirty();
+                setState(() {});
+              },
             ),
           ),
           _sizePreset('1080p', 1920, 1080),
@@ -847,7 +869,10 @@ class _OverlayEditorState extends State<_OverlayEditor> {
       child: _OverlayWidgetCard(
         index: index,
         widgetConfig: selected,
-        onChanged: (key, value) => setState(() => selected[key] = value),
+        onChanged: (key, value) {
+          _markDirty();
+          setState(() => selected[key] = value);
+        },
         onDelete: () => _deleteWidget(index),
         onMoveUp: index == 0 ? null : () => _moveWidget(index, -1),
         onMoveDown: index == _widgets.length - 1
@@ -936,6 +961,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
                   title: const Text('Enable preview'),
                   value: _previewEnabled,
                   onChanged: (value) {
+                    _markDirty();
                     setState(() => _previewEnabled = value);
                     setDialogState(() {});
                   },
@@ -946,6 +972,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
                     title: const Text('Preview OBS output'),
                     value: _previewFromObs,
                     onChanged: (value) {
+                      _markDirty();
                       setState(() => _previewFromObs = value);
                       setDialogState(() {});
                     },
@@ -957,6 +984,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
                         labelText: 'Preview image',
                         hintText: 'Optional PNG/JPG/BMP/WebP path',
                       ),
+                      onChanged: (_) => _markDirty(),
                     ),
                   Row(
                     children: [
@@ -966,6 +994,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
                           decoration: const InputDecoration(
                             labelText: 'Offset X',
                           ),
+                          onChanged: (_) => _markDirty(),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -975,6 +1004,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
                           decoration: const InputDecoration(
                             labelText: 'Offset Y',
                           ),
+                          onChanged: (_) => _markDirty(),
                         ),
                       ),
                     ],
@@ -994,7 +1024,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
     );
   }
 
-  Future<void> _saveOverlay() {
+  Future<void> _saveOverlay() async {
     final config = <String, dynamic>{
       ...widget.resource.config,
       'name': _name.text.trim(),
@@ -1018,7 +1048,8 @@ class _OverlayEditorState extends State<_OverlayEditor> {
     } else {
       config.remove('preview');
     }
-    return widget.onSave(ResourceData(id: widget.resource.id, config: config));
+    await widget.onSave(ResourceData(id: widget.resource.id, config: config));
+    _clearDirty();
   }
 
   void _moveWidgetOnCanvas(
@@ -1046,6 +1077,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
         'y': y.clamp(0, math.max(0, canvasHeight - height)),
       };
     });
+    _markDirty();
   }
 
   void _deleteWidget(int index) {
@@ -1058,13 +1090,17 @@ class _OverlayEditorState extends State<_OverlayEditor> {
         _selectedWidgetIndex = math.min(index, _widgets.length - 1);
       }
     });
+    _markDirty();
   }
 
   Widget _sizePreset(String label, int width, int height) => OutlinedButton(
-    onPressed: () => setState(() {
-      _width.text = '$width';
-      _height.text = '$height';
-    }),
+    onPressed: () {
+      _markDirty();
+      setState(() {
+        _width.text = '$width';
+        _height.text = '$height';
+      });
+    },
     child: Text(label),
   );
 
@@ -1095,6 +1131,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
       _widgets.add(definition.createWidget());
       _selectedWidgetIndex = _widgets.length - 1;
     });
+    _markDirty();
   }
 
   void _moveWidget(int index, int delta) {
@@ -1104,6 +1141,7 @@ class _OverlayEditorState extends State<_OverlayEditor> {
       final widget = _widgets.removeAt(index);
       _widgets.insert(target, widget);
     });
+    _markDirty();
   }
 }
 

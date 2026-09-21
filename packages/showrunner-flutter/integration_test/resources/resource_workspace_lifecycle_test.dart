@@ -6,12 +6,13 @@ import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
 import 'package:showrunner_flutter/features/resources/resources_workspace.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('creates, edits, and deletes an overlay from Resources', (
+  testWidgets('creates, opens, and deletes an overlay from Resources', (
     tester,
   ) async {
     final root = await Directory.systemTemp.createTemp(
@@ -19,6 +20,7 @@ void main() {
     );
     addTearDown(() => root.delete(recursive: true));
     final dataService = ShowRunnerDataService(root);
+    ResourceData? opened;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -27,6 +29,7 @@ void main() {
             dataService: dataService,
             editorRegistry: createDefaultResourceEditorRegistry(),
             resourceType: 'Overlay',
+            onOpenResource: (resource, _) async => opened = resource,
           ),
         ),
       ),
@@ -50,14 +53,7 @@ void main() {
 
     await tester.tap(overlayTitle);
     await _pumpApplication(tester);
-    expect(find.text('Edit overlay'), findsOneWidget);
-    final nameField = find.byWidgetPredicate(
-      (widget) => widget is TextField && widget.decoration?.labelText == 'Name',
-    );
-    await tester.enterText(nameField, 'Renamed integration overlay');
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await _pumpApplication(tester);
-    expect(find.text('Renamed integration overlay'), findsOneWidget);
+    expect(opened?.name, 'Integration overlay');
 
     await tester.tap(find.byTooltip('Delete resource'));
     await _pumpApplication(tester);
