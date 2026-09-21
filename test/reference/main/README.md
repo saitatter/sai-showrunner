@@ -33,6 +33,28 @@ Flutter captures belong in the matching `test/reference/flutter/` directory.
 Use `tools/visual_parity/compare.mjs` for each pair and retain the JSON report
 and diff artifact outside the committed fixture set.
 
+The currently captured frozen-reference screens are:
+
+```text
+app-empty.png
+settings.png
+updater.png
+automation-editor-complex.png
+integrations.png
+```
+
+Regenerate the available reference screens from the local frozen Electron build
+with:
+
+```powershell
+node tools/visual_parity/capture-main-reference.cjs
+```
+
+The command expects the frozen build at `.tmp/main-reference`; it uses an
+isolated temporary user directory and a 1440x900, 1x DevTools viewport. Some
+plugin screens are only captured when that reference build exposes the plugin
+in its catalog.
+
 The deterministic Flutter harness can produce its empty-shell capture with:
 
 ```powershell
