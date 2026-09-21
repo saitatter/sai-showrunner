@@ -3,12 +3,11 @@ import '../../registry/plugin_ui.dart';
 
 DartPluginUiContribution createDiscordPluginUi() =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          ResourceBackedPluginWorkspace(
-            pluginId: 'discord',
-            resourceType: 'DiscordWebhook',
-            dataService: dataService,
-            registryFuture: registryFuture,
-            providerEvents: providerEvents,
-          ),
+      builder: (context, host) => ResourceBackedPluginWorkspace(
+        pluginId: 'discord',
+        resourceType: 'DiscordWebhook',
+        dataService: host.dataService,
+        registryFuture: host.registryFuture,
+        providerEvents: host.providerEvents,
+      ),
     );

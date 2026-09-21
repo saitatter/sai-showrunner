@@ -5,10 +5,9 @@ import '../runtime.dart';
 DartPluginUiContribution createVariablesPluginUi({
   DartVariableRuntime? variableRuntime,
 }) => DartFlutterPluginUiContribution(
-  builder: (context, dataService, providerEvents, registryFuture) =>
-      VariablesWorkspace(
-        dataService: dataService,
-        eventHub: providerEvents.eventHub,
-        variableRuntime: variableRuntime,
-      ),
+  builder: (context, host) => VariablesWorkspace(
+    dataService: host.dataService,
+    eventHub: host.providerEvents.eventHub,
+    variableRuntime: variableRuntime,
+  ),
 );

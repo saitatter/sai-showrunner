@@ -3,9 +3,8 @@ import '../../registry/plugin_ui.dart';
 
 DartPluginUiContribution createRemotePluginUi() =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          RemoteWorkspace(
-            dataService: dataService,
-            registryFuture: registryFuture,
-          ),
+      builder: (context, host) => RemoteWorkspace(
+        dataService: host.dataService,
+        registryFuture: host.registryFuture,
+      ),
     );

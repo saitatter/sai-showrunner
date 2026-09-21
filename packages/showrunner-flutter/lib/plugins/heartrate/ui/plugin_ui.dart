@@ -4,6 +4,5 @@ import 'heart_rate_workspace.dart';
 
 DartPluginUiContribution createHeartRatePluginUi(HeartRateService service) =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          HeartRateWorkspace(service: service),
+      builder: (context, host) => HeartRateWorkspace(service: service),
     );

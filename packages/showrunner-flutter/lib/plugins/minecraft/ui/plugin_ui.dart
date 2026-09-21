@@ -3,12 +3,11 @@ import '../../registry/plugin_ui.dart';
 
 DartPluginUiContribution createMinecraftPluginUi() =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          ResourceBackedPluginWorkspace(
-            pluginId: 'minecraft',
-            resourceType: 'RCONConnection',
-            dataService: dataService,
-            registryFuture: registryFuture,
-            providerEvents: providerEvents,
-          ),
+      builder: (context, host) => ResourceBackedPluginWorkspace(
+        pluginId: 'minecraft',
+        resourceType: 'RCONConnection',
+        dataService: host.dataService,
+        registryFuture: host.registryFuture,
+        providerEvents: host.providerEvents,
+      ),
     );

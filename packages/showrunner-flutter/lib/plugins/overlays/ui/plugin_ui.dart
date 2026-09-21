@@ -4,11 +4,10 @@ import '../../registry/plugin_ui.dart';
 
 DartPluginUiContribution createOverlaysPluginUi() =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          ResourcesWorkspace(
-            dataService: dataService,
-            editorRegistry: createDefaultResourceEditorRegistry(),
-            registryFuture: registryFuture,
-            resourceType: 'Overlay',
-          ),
+      builder: (context, host) => ResourcesWorkspace(
+        dataService: host.dataService,
+        editorRegistry: createDefaultResourceEditorRegistry(),
+        registryFuture: host.registryFuture,
+        resourceType: 'Overlay',
+      ),
     );

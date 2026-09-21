@@ -3,6 +3,6 @@ import 'bluesky_workspace.dart';
 
 DartPluginUiContribution createBlueskyPluginUi() =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          BlueskyWorkspace(dataService: dataService),
+      builder: (context, host) =>
+          BlueskyWorkspace(dataService: host.dataService),
     );

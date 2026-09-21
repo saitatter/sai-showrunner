@@ -17,8 +17,7 @@ void main() {
         const DartPluginManifest(id: PluginId('sample'), name: 'Sample'),
       );
     final contribution = DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          const SizedBox.shrink(),
+      builder: (context, host) => const SizedBox.shrink(),
     );
 
     registry.registerUi('sample', contribution);

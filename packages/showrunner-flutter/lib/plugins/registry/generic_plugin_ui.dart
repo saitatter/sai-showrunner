@@ -8,11 +8,10 @@ import 'plugin_ui.dart';
 /// without duplicating an otherwise identical settings/actions/triggers page.
 DartPluginUiContribution createGenericPluginUi(String pluginId) =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          PluginWorkspace(
-            dataService: dataService,
-            registryFuture: registryFuture,
-            providerEvents: providerEvents,
-            selectedPluginId: pluginId,
-          ),
+      builder: (context, host) => PluginWorkspace(
+        dataService: host.dataService,
+        registryFuture: host.registryFuture,
+        providerEvents: host.providerEvents,
+        selectedPluginId: pluginId,
+      ),
     );

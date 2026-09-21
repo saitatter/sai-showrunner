@@ -3,10 +3,9 @@ import 'youtube_workspace.dart';
 
 DartPluginUiContribution createYouTubePluginUi() =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          YouTubeWorkspace(
-            dataService: dataService,
-            providerEvents: providerEvents,
-            registryFuture: registryFuture,
-          ),
+      builder: (context, host) => YouTubeWorkspace(
+        dataService: host.dataService,
+        providerEvents: host.providerEvents,
+        registryFuture: host.registryFuture,
+      ),
     );

@@ -4,10 +4,9 @@ import 'spellcast_workspace.dart';
 
 DartPluginUiContribution createSpellcastPluginUi(DartPluginEventHub eventHub) =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          SpellcastWorkspace(
-            dataService: dataService,
-            eventHub: eventHub,
-            providerEvents: providerEvents,
-          ),
+      builder: (context, host) => SpellcastWorkspace(
+        dataService: host.dataService,
+        eventHub: eventHub,
+        providerEvents: host.providerEvents,
+      ),
     );

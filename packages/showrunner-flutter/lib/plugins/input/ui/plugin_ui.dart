@@ -3,12 +3,11 @@ import '../../registry/plugin_ui.dart';
 
 DartPluginUiContribution createInputPluginUi() =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          ResourceBackedPluginWorkspace(
-            pluginId: 'input',
-            resourceType: 'Gamepad',
-            dataService: dataService,
-            registryFuture: registryFuture,
-            providerEvents: providerEvents,
-          ),
+      builder: (context, host) => ResourceBackedPluginWorkspace(
+        pluginId: 'input',
+        resourceType: 'Gamepad',
+        dataService: host.dataService,
+        registryFuture: host.registryFuture,
+        providerEvents: host.providerEvents,
+      ),
     );

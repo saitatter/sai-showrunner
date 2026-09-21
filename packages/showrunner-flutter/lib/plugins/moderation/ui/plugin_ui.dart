@@ -4,6 +4,5 @@ import 'moderation_workspace.dart';
 
 DartPluginUiContribution createModerationPluginUi(ModerationService service) =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          ModerationWorkspace(service: service),
+      builder: (context, host) => ModerationWorkspace(service: service),
     );

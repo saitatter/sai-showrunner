@@ -3,17 +3,16 @@ import '../../registry/plugin_ui.dart';
 
 DartPluginUiContribution createSoundPluginUi() =>
     DartFlutterPluginUiContribution(
-      builder: (context, dataService, providerEvents, registryFuture) =>
-          ResourceBackedPluginWorkspace(
-            pluginId: 'sound',
-            resourceTypes: const {
-              'TTSVoice',
-              'TTSVoiceProvider',
-              'SoundOutput',
-              'AudioSplitterOutput',
-            },
-            dataService: dataService,
-            registryFuture: registryFuture,
-            providerEvents: providerEvents,
-          ),
+      builder: (context, host) => ResourceBackedPluginWorkspace(
+        pluginId: 'sound',
+        resourceTypes: const {
+          'TTSVoice',
+          'TTSVoiceProvider',
+          'SoundOutput',
+          'AudioSplitterOutput',
+        },
+        dataService: host.dataService,
+        registryFuture: host.registryFuture,
+        providerEvents: host.providerEvents,
+      ),
     );
