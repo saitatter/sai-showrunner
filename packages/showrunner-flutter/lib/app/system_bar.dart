@@ -7,7 +7,7 @@ import 'package:window_manager/window_manager.dart';
 import '../design_system/tokens/tokens.dart';
 import 'commands/app_command.dart';
 
-/// The application chrome equivalent of the reference PrimeVue menubar.
+/// The application chrome equivalent of the reference desktop menubar.
 ///
 /// Keeping this outside the shell makes the title bar independent from the
 /// workspace contents and gives menus, shortcuts and window controls one

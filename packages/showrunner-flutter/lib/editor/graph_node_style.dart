@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sai_nodes/sai_nodes.dart';
 
-/// Colors and geometry from main's NodeAutomationNodeCard.vue.
+/// Colors and geometry from the reference automation node card.
 NodeStyle graphNodeStyle(
   NodeState state,
   Color accent, {
