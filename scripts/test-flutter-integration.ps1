@@ -6,6 +6,7 @@ try {
     'integration_test/application/document_lifecycle_test.dart',
     'integration_test/application/creation_lifecycle_test.dart',
     'integration_test/application/document_edit_save_close_test.dart',
+    'integration_test/application/first_run_setup_test.dart',
     'integration_test/runtime/runtime_workflows_test.dart',
     'integration_test/plugins/provider_lifecycle_test.dart',
     'integration_test/plugins/heart_rate_lifecycle_test.dart',
