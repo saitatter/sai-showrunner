@@ -81,12 +81,11 @@ waits for the current process to close, backs up the current bundle in user
 data, removes stale files, and starts the new executable. It restores the
 backup on failure and supports an explicit rollback operation. The real
 installer script also has an unsigned local Windows bundle smoke test that
-verifies replacement and rollback contents. When protected Windows signing
-secrets are configured, the release workflow additionally verifies signatures
-before installation, after the upgrade, and after rollback. Without those
-secrets, the workflow intentionally publishes the documented unsigned archive;
-a trusted production certificate and installed Windows release environment are
-still required for final release sign-off.
+verifies replacement and rollback contents. The release workflow requires
+protected Windows signing secrets and verifies signatures before installation,
+after the upgrade, and after rollback. A trusted production certificate and
+installed Windows release environment are still required for final release
+sign-off.
 
 The automated smoke suite validates startup, first run, graph/workflow use,
 profiles, integrations, overlays, and update-state handling. It does not prove

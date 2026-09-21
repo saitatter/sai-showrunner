@@ -83,7 +83,7 @@
       "main": "Update page and release metadata",
       "flutter": "UpdateWorkspace",
       "status": "partial",
-      "reason": "Feature implementation and local updater proof are complete; the release workflow has a protected signed-proof path, but trusted installed upgrade and rollback evidence still requires configured Windows signing secrets and a release environment."
+      "reason": "Feature implementation and local updater proof are complete; releases now refuse unsigned Windows packages, but trusted installed upgrade and rollback evidence still requires configured signing secrets and a release environment."
     },
     "persistent-media-library": {
       "main": null,

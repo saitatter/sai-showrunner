@@ -96,19 +96,16 @@ jobs:
         run: |
           $packageArgs = @(
             '-Version', '${{ needs.release.outputs.version }}',
-            '-RequireBundledYouTubeClient'
+            '-RequireBundledYouTubeClient',
+            '-SignWindowsBundle',
+            '-RequireWindowsSignature'
           )
           $hasSigningCertificate = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64)
           $hasSigningPassword = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD)
-          if ($hasSigningCertificate -xor $hasSigningPassword) {
-            throw 'Windows signing requires both certificate and password secrets.'
+          if (-not $hasSigningCertificate -or -not $hasSigningPassword) {
+            throw 'Windows signing secrets are required for a release package.'
           }
-          if ($hasSigningCertificate) {
-            $packageArgs += @('-SignWindowsBundle', '-RequireWindowsSignature')
-            Write-Host 'Protected Windows signing secrets detected; running signed package and updater proof.'
-          } else {
-            Write-Host 'No Windows signing certificate configured; producing the documented unsigned archive.'
-          }
+          Write-Host 'Protected Windows signing secrets detected; running signed package and updater proof.'
           & .\scripts\package-flutter-windows.ps1 @packageArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         env:

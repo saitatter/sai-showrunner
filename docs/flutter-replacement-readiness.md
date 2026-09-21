@@ -159,9 +159,8 @@ The signing helper removes the temporary PFX after signing and verifies that
 every executable and DLL in the bundle has an Authenticode signature. No
 certificate or password is stored in the repository.
 
-The release workflow automatically enters this signed proof path when both
+The release workflow requires both
 `SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64` and
-`SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD` are configured as protected
-secrets. In that path, the update smoke test verifies signatures before
-installation, after upgrade, and after rollback. Without those secrets the
-workflow intentionally publishes the documented unsigned archive.
+`SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD` as protected secrets. It
+refuses to publish an unsigned Windows archive. The update smoke test then
+verifies signatures before installation, after upgrade, and after rollback.
