@@ -162,7 +162,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
             const SizedBox(height: 8),
             if (focusedType == null && widget.resourceTypes == null)
               const Text(
-                'Manage overlays, variables, media items, and persisted smart-device routing.',
+                'Manage overlays, variables, stream plans, and persisted smart-device routing.',
               ),
             if (focusedType == 'Overlay' ||
                 (focusedType == null &&
@@ -189,7 +189,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
                     subtitle: Text(
                       '${overlay.width}x${overlay.height} · ${overlay.widgets.length} widgets',
                     ),
-                    trailing: _editorLabel('Overlay'),
+                    trailing: _deleteButton(context, resource, 'Overlay'),
                   );
                 }),
             ],
@@ -218,7 +218,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
                     subtitle: Text(
                       'Type: ${variable.type} · Default: ${variable.defaultValue ?? 'null'} · Current: ${variable.currentValue ?? 'null'}',
                     ),
-                    trailing: _editorLabel('Variable'),
+                    trailing: _deleteButton(context, resource, 'Variable'),
                   );
                 }),
             ],
@@ -238,6 +238,22 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
             child: const Icon(Icons.edit_outlined),
           );
   }
+
+  Widget _deleteButton(
+    BuildContext context,
+    ResourceData resource,
+    String resourceType,
+  ) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      _editorLabel(resourceType) ?? const SizedBox.shrink(),
+      IconButton(
+        tooltip: 'Delete resource',
+        onPressed: () => _delete(context, resource, resourceType),
+        icon: const Icon(Icons.delete_outline),
+      ),
+    ],
+  );
 
   Future<void> _edit(
     BuildContext context,

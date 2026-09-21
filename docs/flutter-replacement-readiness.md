@@ -47,7 +47,8 @@ the original three smoke files. It covers:
 - authenticated Remote dashboard discovery through a local API boundary;
 - Heart Rate plugin lifecycle, simulation action, published state, threshold
   trigger, and disconnect handling;
-- resource create/read/update/delete;
+- resource create/read/update/delete, including the Resources UI Overlay
+  create/edit/delete flow;
 - strict schema failure handling without modifying an existing document.
 - deterministic 1440x900 captures for the shell, Settings, Updates,
   Integrations, and graph workspace catalog.
