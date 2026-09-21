@@ -18,6 +18,7 @@ import { StateStore } from "../state/state_store"
 import { ViewerDataStore } from "../viewer_data/viewer_data_store"
 import { WidgetRegistry } from "../registry/widget_registry"
 import { createWidgetBridge } from "../bridge/widget_bridge"
+import { PendingRPCRegistry } from "../transport/pending_rpc"
 
 interface EventHandler {
 	widgetId: string
@@ -29,13 +30,6 @@ interface WidgetInstance {
 	container: HTMLElement
 	widget: OverlayWidget
 	scope: WidgetScope
-}
-
-interface PendingRPC {
-	resolve: (value: unknown) => void
-	reject: (reason: unknown) => void
-	timeout: ReturnType<typeof setTimeout>
-	generation: number
 }
 
 export interface OverlayRuntimeOptions {
@@ -55,22 +49,22 @@ export class OverlayRuntime {
 	private readonly instances = new Map<string, WidgetInstance>()
 	private readonly eventHandlers = new Map<string, Set<EventHandler>>()
 	private readonly commandHandlers = new Map<string, (args: unknown) => unknown | Promise<unknown>>()
-	private readonly pending = new Map<string, PendingRPC>()
 	private readonly playingAudio = new Map<string, HTMLAudioElement>()
 	private readonly stateStore: StateStore
 	private readonly viewerData: ViewerDataStore
-	private readonly rpcTimeoutMs: number
+	private readonly pendingRPC: PendingRPCRegistry
 	private config: OverlayConfig = { name: "UNLOADED OVERLAY", size: { width: 0, height: 0 }, widgets: [] }
 	private unsubscribeTransport?: Unsubscribe
 	private unsubscribeTransportStatus?: Unsubscribe
-	private nextRequest = 0
 	private hasConnected = false
 	private hasDisconnected = false
-	private connectionGeneration = 0
 	private readonly status?: HTMLElement
 
 	constructor(private readonly options: OverlayRuntimeOptions) {
-		this.rpcTimeoutMs = Math.max(1, options.rpcTimeoutMs ?? 10_000)
+		this.pendingRPC = new PendingRPCRegistry(
+			(message) => this.options.transport.send(message),
+			Math.max(1, options.rpcTimeoutMs ?? 10_000),
+		)
 		this.stateStore = new StateStore(
 			(pluginId, stateId) => void this.callBackend("overlays_acquireState", pluginId, stateId),
 			(pluginId, stateId) => void this.callBackend("overlays_freeState", pluginId, stateId),
@@ -107,12 +101,11 @@ export class OverlayRuntime {
 		this.unsubscribeTransportStatus = undefined
 		this.hasConnected = false
 		this.hasDisconnected = false
-		this.connectionGeneration++
 		for (const id of [...this.instances.keys()]) this.removeInstance(id)
 		this.stateStore.clear()
 		for (const audio of this.playingAudio.values()) audio.pause()
 		this.playingAudio.clear()
-		this.rejectPending(new Error("Overlay runtime stopped."))
+		this.pendingRPC.reset(new Error("Overlay runtime stopped."))
 		await this.options.transport.close()
 		this.setStatus("idle")
 	}
@@ -131,8 +124,7 @@ export class OverlayRuntime {
 		this.setStatus(status)
 		if (status !== "connected") {
 			if (this.hasConnected || this.hasDisconnected) {
-				this.connectionGeneration++
-				this.rejectPending(new Error(`Overlay transport ${status}.`))
+				this.pendingRPC.reset(new Error(`Overlay transport ${status}.`))
 				this.hasDisconnected = true
 			}
 			this.hasConnected = false
@@ -149,12 +141,7 @@ export class OverlayRuntime {
 
 	private async handleMessage(message: OverlayTransportMessage): Promise<void> {
 		if (message.responseId) {
-			const call = this.pending.get(message.responseId)
-			if (!call || call.generation !== this.connectionGeneration) return
-			this.pending.delete(message.responseId)
-			clearTimeout(call.timeout)
-			if (message.failed) call.reject(message.failed)
-			else call.resolve(message.result)
+			this.pendingRPC.handleResponse(message)
 			return
 		}
 		if (!message.name || !message.requestId) return
@@ -360,36 +347,6 @@ export class OverlayRuntime {
 	}
 
 	private callBackend<T = unknown>(name: string, ...args: unknown[]): Promise<T> {
-		const requestId = `overlay-${Date.now()}-${this.nextRequest++}`
-		return new Promise<T>((resolve, reject) => {
-			const generation = this.connectionGeneration
-			const timeout = setTimeout(() => {
-				const call = this.pending.get(requestId)
-				if (!call || call.generation !== generation) return
-				this.pending.delete(requestId)
-				reject(new Error(`Overlay RPC timed out: ${name}.`))
-			}, this.rpcTimeoutMs)
-			this.pending.set(requestId, {
-				resolve: resolve as (value: unknown) => void,
-				reject,
-				timeout,
-				generation,
-			})
-			try {
-				this.options.transport.send({ requestId, name, args })
-			} catch (error) {
-				this.pending.delete(requestId)
-				clearTimeout(timeout)
-				reject(error)
-			}
-		})
-	}
-
-	private rejectPending(reason: Error): void {
-		for (const pending of this.pending.values()) {
-			clearTimeout(pending.timeout)
-			pending.reject(reason)
-		}
-		this.pending.clear()
+		return this.pendingRPC.call<T>(name, ...args)
 	}
 }
