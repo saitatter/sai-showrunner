@@ -9,6 +9,7 @@ import '../../runtime/graph_runtime.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../../schema/automation.dart';
 import '../../schema/stream_plan.dart';
+import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_registry.dart';
 import 'contracts.dart';
 
@@ -498,6 +499,7 @@ DartPluginManifest createStreamPlansPlugin({
   return DartPluginManifest(
     id: PluginId('stream-plans'),
     name: 'Stream Plans',
+    resources: builtInResourceSpecsFor(const PluginId('stream-plans')),
     actions: [
       ActionSpec<StreamPlanNavigationConfig, RuntimeMap>(
         pluginId: PluginId('stream-plans'),

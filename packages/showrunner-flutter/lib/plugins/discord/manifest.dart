@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
+import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 
@@ -161,6 +162,7 @@ DartPluginManifest createDiscordPlugin({
 }) => DartPluginManifest(
   id: PluginId('discord'),
   name: 'Discord',
+  resources: builtInResourceSpecsFor(const PluginId('discord')),
   actions: [
     ActionSpec<DiscordMessageConfig, RuntimeMap>(
       pluginId: PluginId('discord'),

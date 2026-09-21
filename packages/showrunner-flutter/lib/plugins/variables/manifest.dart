@@ -2,6 +2,7 @@ import '../../schema/data_input.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
+import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 import 'runtime.dart';
@@ -144,6 +145,7 @@ DartPluginManifest createVariablesPlugin({
   return DartPluginManifest(
     id: PluginId('variables'),
     name: 'Variables',
+    resources: builtInResourceSpecsFor(const PluginId('variables')),
     actions: [
       ActionSpec<VariableValueConfig, RuntimeMap>(
         pluginId: PluginId('variables'),

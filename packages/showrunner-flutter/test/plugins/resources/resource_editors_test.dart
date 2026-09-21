@@ -30,7 +30,7 @@ void main() {
   test('resolves plugin resource editor types', () {
     final registry = createDefaultResourceEditorRegistry();
 
-    expect(registry.find('Overlay')?.pluginId, 'showrunner');
+    expect(registry.find('Overlay')?.pluginId, 'overlays');
     expect(registry.find('Variable')?.displayName, 'Variable');
     expect(registry.find('OBSConnection')?.pluginId, 'obs');
     expect(registry.find('RCONConnection')?.pluginId, 'minecraft');

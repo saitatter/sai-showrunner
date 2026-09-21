@@ -1,5 +1,6 @@
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
+import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 import 'rcon.dart';
@@ -38,6 +39,7 @@ DartPluginManifest createMinecraftPlugin({
   return DartPluginManifest(
     id: PluginId('minecraft'),
     name: 'Minecraft',
+    resources: builtInResourceSpecsFor(const PluginId('minecraft')),
     actions: [
       ActionSpec<MinecraftCommandConfig, RuntimeMap>(
         pluginId: PluginId('minecraft'),

@@ -1,6 +1,7 @@
 import '../../schema/data_input.dart';
 import '../../runtime/cancellation.dart';
 import '../../runtime/expression.dart';
+import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_contract.dart';
 import 'keyboard.dart';
 import 'native_input.dart';
@@ -74,6 +75,7 @@ DartPluginManifest createInputPlugin({InputPlatform? platform}) {
   return DartPluginManifest(
     id: PluginId('input'),
     name: 'Input',
+    resources: builtInResourceSpecsFor(const PluginId('input')),
     actions: [
       ActionSpec<InputPressKeyConfig, Object?>(
         pluginId: PluginId('input'),

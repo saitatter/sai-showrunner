@@ -98,6 +98,73 @@ void main() {
     );
   });
 
+  test('indexes typed resource contracts and validates their owner', () {
+    final registry = DartPluginRegistry();
+    final resource = ResourceSpec(
+      ownerId: const PluginId('sample'),
+      resourceTypeId: const ResourceTypeId('SampleResource'),
+      displayName: 'Sample resource',
+      storageDirectory: 'samples',
+      defaultConfigFactory: (name) => {'name': name},
+    );
+
+    registry.register(
+      DartPluginManifest(
+        id: const PluginId('sample'),
+        name: 'Sample',
+        resources: [resource],
+      ),
+    );
+
+    expect(
+      registry.resource(const ResourceTypeId('SampleResource')),
+      same(resource),
+    );
+    expect(registry.findResource('SampleResource'), same(resource));
+    expect(resource.createDefaultConfig('Demo'), {'name': 'Demo'});
+  });
+
+  test('rejects resource ownership mismatches and duplicate resource types', () {
+    ResourceSpec resource({required PluginId owner, String type = 'Shared'}) =>
+        ResourceSpec(
+          ownerId: owner,
+          resourceTypeId: ResourceTypeId(type),
+          displayName: type,
+          storageDirectory: type.toLowerCase(),
+      defaultConfigFactory: (name) => {'name': name},
+        );
+
+    expect(
+      () => DartPluginRegistry().register(
+        DartPluginManifest(
+          id: const PluginId('sample'),
+          name: 'Sample',
+          resources: [resource(owner: const PluginId('other'))],
+        ),
+      ),
+      throwsArgumentError,
+    );
+
+    final registry = DartPluginRegistry()
+      ..register(
+        DartPluginManifest(
+          id: const PluginId('first'),
+          name: 'First',
+          resources: [resource(owner: const PluginId('first'))],
+        ),
+      );
+    expect(
+      () => registry.register(
+        DartPluginManifest(
+          id: const PluginId('second'),
+          name: 'Second',
+          resources: [resource(owner: const PluginId('second'))],
+        ),
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('bootstraps provider manifests into the Dart registry', () {
     final registry = createDefaultPluginRegistry();
 
@@ -159,6 +226,38 @@ void main() {
     expect(registry.findAction('lifx', 'setLightState'), isNotNull);
     expect(registry.findAction('wyze', 'setLightState'), isNotNull);
     expect(registry.findPlugin('dashboards'), isNotNull);
+    expect(
+      registry.plugins
+          .expand((plugin) => plugin.resources)
+          .map((resource) => resource.resourceTypeId.value),
+      containsAll(<String>[
+        'Overlay',
+        'StreamPlan',
+        'Variable',
+        'OBSConnection',
+        'RCONConnection',
+        'TTSVoice',
+        'AudioSplitterOutput',
+        'SoundOutput',
+        'TTSVoiceProvider',
+        'CustomTwitchViewerGroup',
+        'TwitchAccount',
+        'ChannelPointReward',
+        'DiscordWebhook',
+        'BlueSkyAccount',
+        'Dashboard',
+        'SpellHook',
+        'Light',
+        'Plug',
+        'Gamepad',
+        'WyzeAccount',
+      ]),
+    );
+    expect(registry.findResource('Overlay')?.ownerId, const PluginId('overlays'));
+    expect(
+      registry.findResource('StreamPlan')?.createDefaultConfig('Plan'),
+      containsPair('name', 'Plan'),
+    );
     expect(registry.uiFor('discord'), isNotNull);
     expect(registry.uiFor('input'), isNotNull);
     expect(registry.uiFor('iot'), isNotNull);

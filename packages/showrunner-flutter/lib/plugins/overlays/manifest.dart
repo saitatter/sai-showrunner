@@ -5,6 +5,7 @@ import '../../runtime/cancellation.dart';
 import '../../runtime/expression.dart';
 import '../../schema/resource.dart';
 import '../../services/plugin_event_hub.dart';
+import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 
@@ -364,6 +365,7 @@ DartPluginManifest createOverlaysPlugin({
   return DartPluginManifest(
     id: PluginId('overlays'),
     name: 'Overlays',
+    resources: builtInResourceSpecsFor(const PluginId('overlays')),
     actions: [
       ActionSpec<OverlayTriggerWidgetConfig, Object?>(
         pluginId: PluginId('overlays'),

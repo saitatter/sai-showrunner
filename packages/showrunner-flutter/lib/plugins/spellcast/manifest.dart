@@ -1,6 +1,7 @@
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
+import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 
@@ -9,6 +10,7 @@ DartPluginManifest createSpellcastPlugin({DartPluginEventHub? eventHub}) {
   return DartPluginManifest(
     id: PluginId('spellcast'),
     name: 'Spellcast',
+    resources: builtInResourceSpecsFor(const PluginId('spellcast')),
     actions: [
       ActionSpec<SpellcastCastConfig, RuntimeMap>(
         pluginId: PluginId('spellcast'),

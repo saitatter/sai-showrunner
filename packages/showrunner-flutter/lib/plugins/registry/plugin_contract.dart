@@ -183,6 +183,43 @@ final class StateSpec<T> implements DartStateContract {
   final T? initialValue;
 }
 
+/// Declarative metadata for a persisted resource owned by a plugin.
+///
+/// Resource editors are Flutter contributions and stay outside this contract.
+/// The contract only describes the persistence identity and the shape used to
+/// create a new resource. [ownerId] is typed so a resource cannot silently be
+/// attributed to a different plugin at registry time.
+abstract interface class DartResourceContract {
+  PluginId get ownerId;
+  ResourceTypeId get resourceTypeId;
+  String get displayName;
+  String get storageDirectory;
+  RuntimeMap createDefaultConfig(String name);
+}
+
+final class ResourceSpec implements DartResourceContract {
+  const ResourceSpec({
+    required this.ownerId,
+    required this.resourceTypeId,
+    required this.displayName,
+    required this.storageDirectory,
+    required this.defaultConfigFactory,
+  });
+
+  @override
+  final PluginId ownerId;
+  @override
+  final ResourceTypeId resourceTypeId;
+  @override
+  final String displayName;
+  @override
+  final String storageDirectory;
+  final RuntimeMap Function(String name) defaultConfigFactory;
+
+  @override
+  RuntimeMap createDefaultConfig(String name) => defaultConfigFactory(name);
+}
+
 /// Non-generic view used by the heterogeneous action registry. [ActionSpec]
 /// remains typed for plugin implementations and configuration codecs.
 abstract interface class DartActionContract {
@@ -250,6 +287,7 @@ final class DartPluginManifest {
     this.settings = const <DartSettingContract>[],
     this.triggers = const <DartTriggerContract>[],
     this.states = const <DartStateContract>[],
+    this.resources = const <DartResourceContract>[],
   });
 
   final PluginId id;
@@ -259,4 +297,5 @@ final class DartPluginManifest {
   final List<DartSettingContract> settings;
   final List<DartTriggerContract> triggers;
   final List<DartStateContract> states;
+  final List<DartResourceContract> resources;
 }

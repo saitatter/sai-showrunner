@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
+import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 
@@ -357,6 +358,7 @@ DartPluginManifest createWyzePlugin(WyzeTransport transport) =>
     DartPluginManifest(
       id: PluginId('wyze'),
       name: 'Wyze',
+      resources: builtInResourceSpecsFor(const PluginId('wyze')),
       settings: const [
         SettingSpec(
           id: SettingId('keyId'),

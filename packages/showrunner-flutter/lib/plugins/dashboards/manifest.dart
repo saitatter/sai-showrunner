@@ -1,9 +1,10 @@
 import '../registry/plugin_contract.dart';
+import '../registry/builtin_resource_specs.dart';
 
-const dashboardPlugin = DartPluginManifest(
+final dashboardPlugin = DartPluginManifest(
   id: PluginId('dashboards'),
   name: 'Dashboards',
+  resources: builtInResourceSpecsFor(const PluginId('dashboards')),
 );
 
-DartPluginManifest createDashboardPlugin() =>
-    DartPluginManifest(id: PluginId('dashboards'), name: 'Dashboards');
+DartPluginManifest createDashboardPlugin() => dashboardPlugin;

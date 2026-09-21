@@ -14,6 +14,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   final Map<PluginId, DartPluginModule> _modules = {};
   final Map<ActionKey, DartActionContract> _actions = {};
   final Map<TriggerKey, DartTriggerContract> _triggers = {};
+  final Map<ResourceTypeId, DartResourceContract> _resources = {};
   final Map<PluginId, DartPluginUiContribution> _uiContributions = {};
   final Set<PluginId> _disabledPluginIds = {};
   final Map<PluginId, Map<StateId, dynamic>> _stateValues = {};
@@ -76,6 +77,26 @@ final class DartPluginRegistry extends ChangeNotifier {
       }
       _triggers[trigger.key] = trigger;
     }
+    for (final resource in plugin.resources) {
+      if (resource.ownerId != plugin.id) {
+        throw ArgumentError(
+          'Resource ${resource.resourceTypeId} belongs to '
+          '${resource.ownerId}, not ${plugin.id}.',
+        );
+      }
+      if (resource.resourceTypeId.value.isEmpty) {
+        throw ArgumentError.value(
+          resource.resourceTypeId,
+          'resource.resourceTypeId',
+        );
+      }
+      if (_resources.containsKey(resource.resourceTypeId)) {
+        throw ArgumentError(
+          'Resource is registered more than once: ${resource.resourceTypeId}',
+        );
+      }
+      _resources[resource.resourceTypeId] = resource;
+    }
   }
 
   /// Registers Flutter UI separately from the declarative plugin contract.
@@ -121,6 +142,14 @@ final class DartPluginRegistry extends ChangeNotifier {
 
   DartPluginManifest? manifest(PluginId pluginId) =>
       _modules[pluginId]?.manifest;
+
+  /// Looks up a persisted resource contract by its typed resource ID.
+  DartResourceContract? resource(ResourceTypeId resourceType) =>
+      _resources[resourceType];
+
+  /// String boundary for persisted resource data and UI routing.
+  DartResourceContract? findResource(String resourceType) =>
+      resource(ResourceTypeId(resourceType));
 
   DartPluginModule? findModule(String pluginId) => module(PluginId(pluginId));
 

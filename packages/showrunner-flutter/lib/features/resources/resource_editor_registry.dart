@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../editor/showrunner_graph_editor.dart';
 import '../graph/graph_workspace.dart';
 import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/registry/builtin_resource_specs.dart';
+import '../../runtime/expression.dart';
 import '../../plugins/obs/transport.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
@@ -137,7 +139,7 @@ typedef DartResourceEditorRuntimeBuilder =
       required GraphResourceOptionsLoader resourceOptionsLoader,
     });
 
-final class DartResourceEditorDefinition {
+final class DartResourceEditorDefinition implements DartResourceContract {
   const DartResourceEditorDefinition({
     required this.pluginId,
     required this.resourceType,
@@ -148,15 +150,36 @@ final class DartResourceEditorDefinition {
     this.runtimeBuilder,
   });
 
+  DartResourceEditorDefinition.fromContract({
+    required DartResourceContract contract,
+    required this.builder,
+    this.runtimeBuilder,
+  }) : pluginId = contract.ownerId.value,
+       resourceType = contract.resourceTypeId.value,
+       displayName = contract.displayName,
+       storageDirectory = contract.storageDirectory,
+       defaultConfig = contract.createDefaultConfig;
+
   final String pluginId;
   final String resourceType;
+  @override
   final String displayName;
+  @override
   final String storageDirectory;
   final JsonMap Function(String name) defaultConfig;
   final DartResourceEditorBuilder builder;
   final DartResourceEditorRuntimeBuilder? runtimeBuilder;
 
-  ResourceTypeId get key => ResourceTypeId(resourceType);
+  @override
+  PluginId get ownerId => PluginId(pluginId);
+
+  @override
+  ResourceTypeId get resourceTypeId => ResourceTypeId(resourceType);
+
+  @override
+  RuntimeMap createDefaultConfig(String name) => defaultConfig(name);
+
+  ResourceTypeId get key => resourceTypeId;
 }
 
 final class DartResourceEditorRegistry {
@@ -190,32 +213,15 @@ final class DartResourceEditorRegistry {
 DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
   final registry = DartResourceEditorRegistry();
   registry.register(
-    DartResourceEditorDefinition(
-      pluginId: 'showrunner',
-      resourceType: 'Overlay',
-      displayName: 'Overlay',
-      storageDirectory: 'overlays',
-      defaultConfig: (name) => {
-        'name': name,
-        'size': {'width': 1920, 'height': 1080},
-        'widgets': [],
-      },
+    DartResourceEditorDefinition.fromContract(
+      contract: builtInResourceSpec('Overlay'),
       builder: (context, resource, onSave) =>
           _OverlayEditor(resource: resource, onSave: onSave),
     ),
   );
   registry.register(
-    DartResourceEditorDefinition(
-      pluginId: 'stream-plans',
-      resourceType: 'StreamPlan',
-      displayName: 'Stream Plan',
-      storageDirectory: 'stream-plans',
-      defaultConfig: (name) => {
-        'name': name,
-        'activationAutomation': emptyInlineAutomation(),
-        'deactivationAutomation': emptyInlineAutomation(),
-        'segments': [],
-      },
+    DartResourceEditorDefinition.fromContract(
+      contract: builtInResourceSpec('StreamPlan'),
       builder: (context, resource, onSave) =>
           _StreamPlanEditor(resource: resource, onSave: onSave),
       runtimeBuilder:
@@ -234,17 +240,8 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
     ),
   );
   registry.register(
-    DartResourceEditorDefinition(
-      pluginId: 'showrunner',
-      resourceType: 'Variable',
-      displayName: 'Variable',
-      storageDirectory: 'variables',
-      defaultConfig: (name) => {
-        'name': name,
-        'type': 'string',
-        'defaultValue': '',
-        'persistent': true,
-      },
+    DartResourceEditorDefinition.fromContract(
+      contract: builtInResourceSpec('Variable'),
       builder: (context, resource, onSave) =>
           _VariableEditor(resource: resource, onSave: onSave),
     ),
@@ -574,12 +571,17 @@ DartResourceEditorDefinition _pluginDefinition({
   required JsonMap Function(String name) defaultConfig,
   required List<String> fields,
   DartResourceEditorRuntimeBuilder? runtimeBuilder,
-}) => DartResourceEditorDefinition(
-  pluginId: pluginId,
-  resourceType: resourceType,
-  displayName: displayName,
-  storageDirectory: storageDirectory,
-  defaultConfig: defaultConfig,
+}) {
+  final contract = builtInResourceSpec(resourceType);
+  if (contract.ownerId.value != pluginId ||
+      contract.displayName != displayName ||
+      contract.storageDirectory != storageDirectory ||
+      jsonEncode(contract.createDefaultConfig('probe')) !=
+          jsonEncode(defaultConfig('probe'))) {
+    throw StateError('Resource editor metadata drifted for $resourceType.');
+  }
+  return DartResourceEditorDefinition.fromContract(
+    contract: contract,
   builder: (context, resource, onSave) => switch (resourceType) {
     'OBSConnection' => _ConnectionEditor(
       title: 'Edit OBS connection',
@@ -630,7 +632,8 @@ DartResourceEditorDefinition _pluginDefinition({
     ),
   },
   runtimeBuilder: runtimeBuilder,
-);
+  );
+}
 
 class _OverlayEditor extends StatefulWidget {
   const _OverlayEditor({required this.resource, required this.onSave});
