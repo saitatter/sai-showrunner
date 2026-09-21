@@ -5,13 +5,17 @@ import 'package:showrunner_flutter/app/app_foundations.dart';
 import 'package:showrunner_flutter/main.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
-Future<Directory> createShowRunnerFixtureDirectory() async {
+Future<Directory> createShowRunnerFixtureDirectory({
+  bool setupCompleted = true,
+}) async {
   final directory = await Directory.systemTemp.createTemp(
     'showrunner-integration-',
   );
-  await ShowRunnerDataService(
-    directory,
-  ).savePluginSettings('showrunner-flutter', const {'setupCompleted': true});
+  if (setupCompleted) {
+    await ShowRunnerDataService(
+      directory,
+    ).savePluginSettings('showrunner-flutter', const {'setupCompleted': true});
+  }
   return directory;
 }
 
