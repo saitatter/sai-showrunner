@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/obs/obs.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_health.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_host_context.dart';
@@ -52,7 +53,42 @@ void main() {
 
     final registry = DartPluginRegistry();
     registry.register(
-      const DartPluginManifest(id: PluginId('sample'), name: 'Sample'),
+      DartPluginManifest(
+        id: const PluginId('sample'),
+        name: 'Sample',
+        actions: [
+          ActionSpec<RuntimeMap, String>(
+            pluginId: const PluginId('sample'),
+            actionId: const ActionId('run'),
+            invoke: (config, context) async => 'ok',
+          ),
+        ],
+        triggers: [
+          TriggerSpec<RuntimeMap, RuntimeMap>(
+            pluginId: const PluginId('sample'),
+            triggerId: const TriggerId('event'),
+            displayName: 'Event',
+            listen: () async* {
+              yield {'value': 1};
+            },
+          ),
+        ],
+      ),
+    );
+    expect(
+      registry.action(
+        const ActionKey(plugin: PluginId('sample'), action: ActionId('run')),
+      ),
+      isNotNull,
+    );
+    expect(
+      registry.trigger(
+        const TriggerKey(
+          plugin: PluginId('sample'),
+          trigger: TriggerId('event'),
+        ),
+      ),
+      isNotNull,
     );
     expect(
       () => registry.register(

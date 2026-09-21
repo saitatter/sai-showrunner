@@ -1167,11 +1167,11 @@ String? _registeredNodeLabel(String type, DartPluginRegistry? registry) {
   final parts = type.split('.');
   if (parts.length >= 3 && parts.first == 'trigger') {
     return registry
-        .findTrigger(parts[1], parts.sublist(2).join('.'))
+        .triggerForRuntime(parts[1], parts.sublist(2).join('.'))
         ?.displayName;
   }
   if (parts.length == 2) {
-    return registry.findAction(parts.first, parts.last)?.displayName;
+    return registry.actionForRuntime(parts.first, parts.last)?.displayName;
   }
   return null;
 }
@@ -5806,11 +5806,11 @@ DartActionContract? _actionDefinition(
   final plugin = nodeData['plugin'];
   final action = nodeData['action'];
   if (plugin is String && action is String) {
-    return registry.findAction(plugin, action);
+    return registry.actionForRuntime(plugin, action);
   }
   final parts = node.prototype.idName.split('.');
   if (parts.length != 2 || parts.first == 'trigger') return null;
-  return registry.findAction(parts.first, parts.last);
+  return registry.actionForRuntime(parts.first, parts.last);
 }
 
 DartTriggerContract? _triggerDefinition(
@@ -5822,11 +5822,11 @@ DartTriggerContract? _triggerDefinition(
   final plugin = data['plugin']?.toString();
   final trigger = data['trigger']?.toString();
   if (plugin != null && trigger != null) {
-    return registry.findTrigger(plugin, trigger);
+    return registry.triggerForRuntime(plugin, trigger);
   }
   final parts = node.prototype.idName.split('.');
   if (parts.length < 3 || parts.first != 'trigger') return null;
-  return registry.findTrigger(parts[1], parts.sublist(2).join('.'));
+  return registry.triggerForRuntime(parts[1], parts.sublist(2).join('.'));
 }
 
 DartDataInputSchema? _triggerConfigurationSchema(
@@ -5882,11 +5882,11 @@ DartDataInputSchema? _configurationSchema(
   final parts = node.prototype.idName.split('.');
   if (parts.length >= 3 && parts.first == 'trigger') {
     return registry
-        .findTrigger(parts[1], parts.sublist(2).join('.'))
+        .triggerForRuntime(parts[1], parts.sublist(2).join('.'))
         ?.configSchema;
   }
   if (parts.length != 2) return null;
-  return registry.findAction(parts.first, parts.last)?.configSchema;
+  return registry.actionForRuntime(parts.first, parts.last)?.configSchema;
 }
 
 Future<DartDataInputSchema> _hydrateResourceInputSchema(

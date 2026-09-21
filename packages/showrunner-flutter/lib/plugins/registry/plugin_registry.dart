@@ -94,23 +94,37 @@ final class DartPluginRegistry extends ChangeNotifier {
   }
 
   DartPluginUiContribution? uiFor(String pluginId) =>
-      _uiContributions[PluginId(pluginId)];
+      uiForId(PluginId(pluginId));
+
+  /// Returns the UI contribution for an already decoded plugin identifier.
+  ///
+  /// Persisted workspace data should use [uiFor] at its string boundary. App
+  /// and plugin code should use this typed form once the identifier has been
+  /// decoded.
+  DartPluginUiContribution? uiForId(PluginId pluginId) =>
+      _uiContributions[pluginId];
 
   Iterable<DartPluginManifest> get plugins =>
       _modules.values.map((module) => module.manifest);
 
   Iterable<DartPluginModule> get modules => _modules.values;
 
+  /// Looks up an action with a strongly typed key.
+  DartActionContract? action(ActionKey key) => _actions[key];
+
+  /// String boundary for persisted graph and protocol data.
   DartActionContract? findAction(String pluginId, String actionId) =>
-      _actions[ActionKey(
-        plugin: PluginId(pluginId),
-        action: ActionId(actionId),
-      )];
+      action(ActionKey(plugin: PluginId(pluginId), action: ActionId(actionId)));
 
   DartPluginManifest? findPlugin(String pluginId) =>
-      _modules[PluginId(pluginId)]?.manifest;
+      manifest(PluginId(pluginId));
 
-  DartPluginModule? findModule(String pluginId) => _modules[PluginId(pluginId)];
+  DartPluginManifest? manifest(PluginId pluginId) =>
+      _modules[pluginId]?.manifest;
+
+  DartPluginModule? findModule(String pluginId) => module(PluginId(pluginId));
+
+  DartPluginModule? module(PluginId pluginId) => _modules[pluginId];
 
   Map<String, dynamic> stateValues(String pluginId) {
     final states = _stateValues[PluginId(pluginId)];
@@ -172,18 +186,28 @@ final class DartPluginRegistry extends ChangeNotifier {
     if (wasEnabled != enabled) notifyListeners();
   }
 
-  DartTriggerContract? findTrigger(String pluginId, String triggerId) {
-    return _triggers[TriggerKey(
-      plugin: PluginId(pluginId),
-      trigger: TriggerId(triggerId),
-    )];
-  }
+  /// Looks up a trigger with a strongly typed key.
+  DartTriggerContract? trigger(TriggerKey key) => _triggers[key];
+
+  /// String boundary for persisted profile and protocol data.
+  DartTriggerContract? findTrigger(String pluginId, String triggerId) =>
+      triggerForRuntime(pluginId, triggerId);
+
+  /// Explicit string boundary used by persisted profile and graph data.
+  DartTriggerContract? triggerForRuntime(String pluginId, String triggerId) =>
+      trigger(
+        TriggerKey(plugin: PluginId(pluginId), trigger: TriggerId(triggerId)),
+      );
 
   Future<bool> checkHealth(String pluginId) async {
-    final module = findModule(pluginId);
+    final module = moduleForRuntime(pluginId);
     if (module == null) return false;
     return (await module.checkHealth()).isHealthy;
   }
+
+  /// Explicit string boundary used by health/status surfaces.
+  DartPluginModule? moduleForRuntime(String pluginId) =>
+      module(PluginId(pluginId));
 
   /// Starts all registered runtime modules in registration order.
   ///
@@ -222,7 +246,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     final plugin = node.data['plugin'];
     final action = node.data['action'];
     final definition = plugin is String && action is String
-        ? findAction(plugin, action)
+        ? actionForRuntime(plugin, action)
         : null;
     if (plugin is String && !isPluginEnabled(plugin)) {
       throw PluginConfigurationError(
@@ -258,7 +282,7 @@ final class DartPluginRegistry extends ChangeNotifier {
         userMessage: 'Enable the $pluginId integration before running it.',
       );
     }
-    final definition = findAction(pluginId, actionId);
+    final definition = actionForRuntime(pluginId, actionId);
     if (definition == null) {
       throw ActionExecutionError(
         pluginId: PluginId(pluginId),
@@ -269,6 +293,10 @@ final class DartPluginRegistry extends ChangeNotifier {
     }
     return definition.invokeFromRuntime(config, context ?? EvaluationContext());
   }
+
+  /// Explicit string boundary used by UI controls and persisted graph data.
+  DartActionContract? actionForRuntime(String pluginId, String actionId) =>
+      action(ActionKey(plugin: PluginId(pluginId), action: ActionId(actionId)));
 
   Future<void> close() => _closeFuture ??= _closeInternal();
 

@@ -75,7 +75,7 @@ extension ShowRunnerGraphEditorNodePresentation on ShowRunnerGraphEditor {
     if (data?['plugin'] != null && data?['action'] != null) {
       final plugin = data!['plugin'].toString();
       final action = data['action'].toString();
-      if (_registry.findAction(plugin, action) == null) return 'Missing';
+      if (_registry.actionForRuntime(plugin, action) == null) return 'Missing';
       if (_isCoreConversionNodeType(node.prototype.idName)) {
         return 'Convert';
       }
@@ -123,7 +123,7 @@ extension ShowRunnerGraphEditorNodePresentation on ShowRunnerGraphEditor {
     final type = node.prototype.idName.toLowerCase();
     final data = _nodeDataByEditorId[editorNodeId];
     if (data?['plugin'] != null && data?['action'] != null) {
-      if (_registry.findAction(
+      if (_registry.actionForRuntime(
             data!['plugin'].toString(),
             data['action'].toString(),
           ) ==
@@ -157,7 +157,7 @@ extension ShowRunnerGraphEditorNodePresentation on ShowRunnerGraphEditor {
     if (data?['plugin'] != null && data?['action'] != null) {
       final plugin = data!['plugin'].toString().toLowerCase();
       final action = data['action'].toString().toLowerCase();
-      if (_registry.findAction(plugin, action) == null) {
+      if (_registry.actionForRuntime(plugin, action) == null) {
         return const Color(0xffef5350);
       }
       if (_isCoreConversionNodeType(node.prototype.idName)) {

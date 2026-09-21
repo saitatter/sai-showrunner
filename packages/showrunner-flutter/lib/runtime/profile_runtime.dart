@@ -305,7 +305,9 @@ final class DartProfileRuntime {
         listenerRemovers.add(() => registry.removeListener(listener));
         continue;
       }
-      final definition = registry.findTrigger(pluginId, triggerId);
+      final definition = registry.trigger(
+        TriggerKey(plugin: PluginId(pluginId), trigger: TriggerId(triggerId)),
+      );
       if (definition == null || !registry.isPluginEnabled(pluginId)) continue;
       final configuredStream = definition.listenForRuntime(target.config);
       if (configuredStream != null) {
@@ -336,7 +338,9 @@ final class DartProfileRuntime {
       final first = targets.first;
       final pluginId = first.pluginId!;
       final triggerId = first.triggerId!;
-      final definition = registry.findTrigger(pluginId, triggerId);
+      final definition = registry.trigger(
+        TriggerKey(plugin: PluginId(pluginId), trigger: TriggerId(triggerId)),
+      );
       if (definition == null) continue;
       subscriptions.add(
         definition.listenFromRuntime().cast<RuntimeMap>().listen((payload) {

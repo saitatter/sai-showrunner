@@ -955,11 +955,11 @@ extension ShowRunnerGraphAdapter on ShowRunnerGraphEditor {
   String? _manifestDisplayName(String nodeType) {
     final parts = nodeType.split('.');
     if (parts.length == 2) {
-      return _registry.findAction(parts.first, parts.last)?.displayName;
+      return _registry.actionForRuntime(parts.first, parts.last)?.displayName;
     }
     if (parts.length >= 3 && parts.first == 'trigger') {
       return _registry
-          .findTrigger(parts[1], parts.sublist(2).join('.'))
+          .triggerForRuntime(parts[1], parts.sublist(2).join('.'))
           ?.displayName;
     }
     return null;
@@ -968,14 +968,18 @@ extension ShowRunnerGraphAdapter on ShowRunnerGraphEditor {
   List<DartDataInputSchema> _resultFieldsForAction(String nodeType) {
     final parts = nodeType.split('.');
     if (parts.length != 2) return const [];
-    final schema = _registry.findAction(parts.first, parts.last)?.resultSchema;
+    final schema = _registry
+        .actionForRuntime(parts.first, parts.last)
+        ?.resultSchema;
     return _objectSchemaFields(schema);
   }
 
   List<DartDataInputSchema> _configFieldsForAction(String nodeType) {
     final parts = nodeType.split('.');
     if (parts.length != 2) return const [];
-    final schema = _registry.findAction(parts.first, parts.last)?.configSchema;
+    final schema = _registry
+        .actionForRuntime(parts.first, parts.last)
+        ?.configSchema;
     return _objectSchemaFields(schema);
   }
 
@@ -983,7 +987,7 @@ extension ShowRunnerGraphAdapter on ShowRunnerGraphEditor {
     final parts = nodeType.split('.');
     if (parts.length < 3 || parts.first != 'trigger') return const [];
     final schema = _registry
-        .findTrigger(parts[1], parts.sublist(2).join('.'))
+        .triggerForRuntime(parts[1], parts.sublist(2).join('.'))
         ?.eventSchema;
     return _objectSchemaFields(schema);
   }
