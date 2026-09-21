@@ -3,6 +3,7 @@ import {
 	OverlayWidgetFactory,
 	OverlayCommandMap,
 	OverlayEventMap,
+	ViewerDataRow,
 	WidgetContext,
 	applyStyles,
 	clearElement,
@@ -505,11 +506,20 @@ class EmoteBouncerWidget extends DomWidget {
 		}
 	}
 
-	private spawnFromMessage(message: any): void {
-		const chunks = Array.isArray(message) ? message : message?.emotes ?? []
+	private spawnFromMessage(message: unknown): void {
+		const messageRecord = asRecord(message)
+		const chunks: unknown[] = Array.isArray(message)
+			? message
+			: Array.isArray(messageRecord?.emotes)
+				? messageRecord.emotes
+				: []
 		const emotes = chunks
-			.map((chunk: any) => chunk?.type === "emote" ? chunk.emote : chunk)
-			.filter((emote: any) => emote?.urls || emote?.url)
+			.map((chunk) => {
+				const record = asRecord(chunk)
+				return record?.type === "emote" ? record.emote : chunk
+			})
+			.map(asRecord)
+			.filter((emote): emote is Record<string, unknown> => Boolean(emote?.urls || emote?.url))
 		const ratio = Math.max(0, Math.ceil(Number(this.config.spamPrevention?.emoteRatio ?? 1)))
 		const capPerMessage = Number(this.config.spamPrevention?.emoteCapPerMessage)
 		let spawned = 0
@@ -521,9 +531,10 @@ class EmoteBouncerWidget extends DomWidget {
 		}
 	}
 
-	private spawnEmote(emote: any): boolean {
-		const imageUrl = emote?.urls?.url4x ?? emote?.urls?.url3x ?? emote?.urls?.url2x ?? emote?.urls?.url1x ?? emote?.url
-		if (!imageUrl) return false
+	private spawnEmote(emote: Record<string, unknown>): boolean {
+		const urls = asRecord(emote.urls)
+		const imageUrl = urls?.url4x ?? urls?.url3x ?? urls?.url2x ?? urls?.url1x ?? emote.url
+		if (typeof imageUrl !== "string" || !imageUrl) return false
 		const size = randomRange(this.config.emoteSize, 80)
 		const aspectRatio = positiveNumber(emote?.aspectRatio, 1)
 		const width = size / aspectRatio
@@ -608,15 +619,22 @@ class EmoteBouncerWidget extends DomWidget {
 	}
 }
 
-function randomRange(value: any, fallback: number): number {
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+	return value !== null && typeof value === "object" && !Array.isArray(value)
+		? value as Record<string, unknown>
+		: undefined
+}
+
+function randomRange(value: unknown, fallback: number): number {
 	if (typeof value === "number" && Number.isFinite(value)) return value
-	const min = Number(value?.min)
-	const max = Number(value?.max ?? min)
+	const range = asRecord(value)
+	const min = Number(range?.min)
+	const max = Number(range?.max ?? min)
 	if (!Number.isFinite(min)) return fallback
 	return min + Math.random() * Math.max(0, (Number.isFinite(max) ? max : min) - min)
 }
 
-function positiveRange(value: any, fallback: number): number {
+function positiveRange(value: unknown, fallback: number): number {
 	return Math.max(0, randomRange(value, fallback))
 }
 
@@ -624,7 +642,7 @@ function positiveRange(value: any, fallback: number): number {
 export const emoteBouncerWidget = widgetFactory("emote-bounce", () => new EmoteBouncerWidget())
 
 class LeaderboardWidget extends DomWidget {
-	private rows: any[] = []
+	private rows: ViewerDataRow[] = []
 	protected onMount(): void {
 		const reload = async () => { this.rows = await this.context.viewerData.query(0, Number(this.config.count) || 10, this.config.sortBy, Number(this.config.sortOrder) || -1); this.render() }
 		void reload()
@@ -635,7 +653,7 @@ class LeaderboardWidget extends DomWidget {
 		const config = configWithDefaults(this.config, { variables: [], sortBy: "", sortOrder: -1, count: 10, nameFont: OverlayTextStyle.factoryCreate(), nameTextAlign: OverlayTextAlignment.factoryCreate(), nameBackground: { elements: [] }, nameBlock: OverlayBlockStyle.factoryCreate() })
 		const table = createElement("table", "leaderboard")
 		for (const row of this.rows.slice(0, Math.max(1, Number(config.count) || 10))) {
-			const tr = createElement("tr"); const name = createElement("td"); name.textContent = row["twitch_name"] ?? row.name ?? row.twitch ?? ""; applyStyles(name, { ...OverlayTextStyle.toCSSProperties(config.nameFont), ...OverlayBlockStyle.toCSSPadding(config.nameBlock), ...OverlayTextAlignment.toCSSProperties(config.nameTextAlign), ...getBackgroundCSS(config.nameBackground, (file) => this.context.mediaUrl(file)) }); tr.append(name)
+			const tr = createElement("tr"); const name = createElement("td"); name.textContent = String(row["twitch_name"] ?? row.name ?? row.twitch ?? ""); applyStyles(name, { ...OverlayTextStyle.toCSSProperties(config.nameFont), ...OverlayBlockStyle.toCSSPadding(config.nameBlock), ...OverlayTextAlignment.toCSSProperties(config.nameTextAlign), ...getBackgroundCSS(config.nameBackground, (file) => this.context.mediaUrl(file)) }); tr.append(name)
 			for (const variable of config.variables ?? []) { const td = createElement("td"); td.textContent = String(row[variable.variable] ?? ""); applyStyles(td, { ...OverlayTextStyle.toCSSProperties(variable.font), ...OverlayBlockStyle.toCSSPadding(variable.block), ...OverlayTextAlignment.toCSSProperties(variable.textAlign), ...getBackgroundCSS(variable.background, (file) => this.context.mediaUrl(file)) }); tr.append(td) }
 			table.append(tr)
 		}

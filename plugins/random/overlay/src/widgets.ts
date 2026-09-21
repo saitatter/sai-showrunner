@@ -9,7 +9,7 @@ import {
 } from "showrunner-overlay-core"
 import { OverlayBlockStyle, OverlayTextAlignment, OverlayTextStyle } from "showrunner-plugin-overlays-shared"
 
-type AnyConfig = Record<string, any>
+type AnyConfig = Record<string, unknown>
 
 const defaultStyle = [
 	{
@@ -37,12 +37,18 @@ function loopIndex(value: number, length: number): number {
 	return index < 0 ? length + index : index
 }
 
+function asConfig(value: unknown): AnyConfig {
+	return value !== null && typeof value === "object" && !Array.isArray(value)
+		? value as AnyConfig
+		: {}
+}
+
 function wheelItems(config: AnyConfig): AnyConfig[] {
-	return Array.isArray(config.items) && config.items.length ? config.items : [{ text: "" }]
+	return Array.isArray(config.items) && config.items.length ? config.items.map(asConfig) : [{ text: "" }]
 }
 
 function wheelStyles(config: AnyConfig): AnyConfig[] {
-	return Array.isArray(config.style) && config.style.length ? config.style : defaultStyle
+	return Array.isArray(config.style) && config.style.length ? config.style.map(asConfig) : defaultStyle
 }
 
 class WheelWidget implements OverlayWidget<AnyConfig> {
@@ -95,7 +101,7 @@ class WheelWidget implements OverlayWidget<AnyConfig> {
 		const delta = Math.max(0, Math.min(0.1, (timestamp - this.lastTimestamp) / 1000))
 		this.lastTimestamp = timestamp
 		this.angle += this.angularVelocity * delta
-		const damping = this.config.damping ?? {}
+		const damping = asConfig(this.config.damping)
 		const base = Number(damping.base ?? 6)
 		const coefficient = Number(damping.coefficient ?? 0.1)
 		const previous = this.angularVelocity
@@ -168,17 +174,29 @@ class WheelWidget implements OverlayWidget<AnyConfig> {
 			const slice = createElement("div", "slice")
 			applyStyles(slice, {
 				transform: `rotate(${index * degrees}deg)`,
-				backgroundColor: item.colorOverride ?? style.color ?? (index % 2 ? "#A70010" : "#BA7D00"),
+				backgroundColor: typeof item.colorOverride === "string"
+					? item.colorOverride
+					: typeof style.color === "string"
+						? style.color
+						: index % 2 ? "#A70010" : "#BA7D00",
 				clipPath: "polygon(50% 50%, 100% 0, 100% 100%)",
 			})
 			const label = createElement("div", "label")
-			applyStyles(label, { ...OverlayBlockStyle.toCSSProperties(item.blockOverride ?? style.block) })
+			applyStyles(label, {
+				...OverlayBlockStyle.toCSSProperties(
+					(item.blockOverride ?? style.block) as OverlayBlockStyle | undefined,
+				),
+			})
 			const text = createElement("div")
 			applyStyles(text, {
 				width: "100%",
 				whiteSpace: "break-spaces",
-				...OverlayTextStyle.toCSSProperties(item.fontOverride ?? style.font),
-				...OverlayTextAlignment.toCSSProperties(item.textAlignOverride ?? style.textAlign),
+				...OverlayTextStyle.toCSSProperties(
+					(item.fontOverride ?? style.font) as OverlayTextStyle | undefined,
+				),
+				...OverlayTextAlignment.toCSSProperties(
+					(item.textAlignOverride ?? style.textAlign) as OverlayTextAlignment | undefined,
+				),
 			})
 			text.textContent = String(item.text ?? "")
 			label.append(text)
