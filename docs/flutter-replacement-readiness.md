@@ -90,6 +90,7 @@ flutter test test/runtime/graph_execution_engine_test.dart
 flutter test tool/graph_benchmark_test.dart --reporter expanded
 flutter test tool/graph_execution_benchmark_test.dart --reporter expanded
 flutter build windows --release
+dart run tool/update_smoke.dart --bundle=build/windows/x64/runner/Release
 Pop-Location
 
 .\scripts\smoke-flutter-windows.ps1 -Configuration Release
@@ -108,3 +109,9 @@ contracts:
 Until those checks are captured in their target environments, the Flutter
 branch is a replacement candidate with explicit release proof still pending,
 not a claim of complete production cutover.
+
+The unsigned local bundle path is covered separately by
+`tool/update_smoke.dart`: it executes the real installer script against a
+temporary Windows bundle, verifies replacement and rollback contents, and
+cleans up the launched test process. It does not replace the signed installed
+release check.

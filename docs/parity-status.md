@@ -79,8 +79,9 @@ open its download URL while reporting available, current, offline, and
 downloaded states. A Windows-only installer helper stages a downloaded ZIP,
 waits for the current process to close, backs up the current bundle in user
 data, removes stale files, and starts the new executable. It restores the
-backup on failure and supports an explicit rollback operation. It is
-unit-tested with an injected launcher; a signed production
+backup on failure and supports an explicit rollback operation. The real
+installer script also has an unsigned local Windows bundle smoke test that
+verifies replacement and rollback contents. A signed production
 installation/rollback test still requires the installed Windows release
 environment and is not claimed by the package smoke suite.
 
