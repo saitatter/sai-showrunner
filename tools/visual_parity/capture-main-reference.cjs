@@ -130,6 +130,49 @@ async function clickText(send, text) {
 	await sleep(400)
 }
 
+async function clickProjectItem(send, text) {
+	const expression = `
+		(() => {
+			const wanted = ${JSON.stringify(text)};
+			const matches = [...document.querySelectorAll('.project-item')]
+				.map((element) => {
+					const label = (element.innerText || element.textContent || '').replace(/\\s+/g, ' ').trim();
+					const style = getComputedStyle(element);
+					return { element, label, visible: style.visibility !== 'hidden' && style.display !== 'none' };
+				})
+				.filter((item) => item.visible && item.label === wanted);
+			const target = matches[0];
+			if (!target) return null;
+			target.element.scrollIntoView({ block: 'center', inline: 'nearest' });
+			const rect = target.element.getBoundingClientRect();
+			return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+		})()
+	`
+	const deadline = Date.now() + 12000
+	let target
+	while (Date.now() < deadline) {
+		target = await evaluate(send, expression)
+		if (target) break
+		await sleep(250)
+	}
+	if (!target) {
+		const body = await evaluate(send, `document.body?.innerText?.slice(0, 2200) || ''`)
+		throw new Error(`Timed out waiting for project item ${text}. Body: ${body}`)
+	}
+	await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: target.x, y: target.y })
+	await send("Input.dispatchMouseEvent", { type: "mousePressed", x: target.x, y: target.y, button: "left", clickCount: 1 })
+	await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: target.x, y: target.y, button: "left", clickCount: 1 })
+	await sleep(400)
+}
+
+async function waitForSelectedTab(send, label) {
+	await waitFor(
+		send,
+		`[...document.querySelectorAll('.docked-tab-head.selected')].some((element) => (element.innerText || '').replace(/\\s+/g, ' ').trim().includes(${JSON.stringify(label)}))`,
+		`${label} tab`,
+	)
+}
+
 async function hoverText(send, text) {
 	const expression = `
 		(() => {
@@ -237,7 +280,8 @@ async function main() {
 			["Variables", "variables.png"],
 			["Viewer Variables", "viewer-variables.png"],
 		]) {
-			await clickText(cdp.send, label)
+			await clickProjectItem(cdp.send, label)
+			await waitForSelectedTab(cdp.send, label)
 			await capture(cdp.send, fileName)
 		}
 		if (await evaluate(cdp.send, `document.body.innerText.includes('Tools')`)) {
