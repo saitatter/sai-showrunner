@@ -63,19 +63,22 @@ gap is release-environment proof with a signed installed build.
 
 ## Current visual evidence
 
-The frozen `main` captures and the Flutter empty/loaded-graph captures are
-checked in under `test/reference/`. The main catalog currently covers the
-empty dashboard, Settings, Updates, Integrations, and a complex automation
-editor at the same 1440x900 capture size. The reference can be regenerated with
-`node tools/visual_parity/capture-main-reference.cjs` when the local frozen
-Electron build is available.
+The frozen `main` captures and the Flutter catalog are checked in under
+`test/reference/`. Both catalogs now cover the empty dashboard, Settings,
+Updates, Integrations, and a complex automation editor at the same 1440x900
+capture size. The main reference can be regenerated with
+`corepack yarn visual:main` and the Flutter catalog with
+`corepack yarn visual:flutter` when the local frozen Electron build is
+available.
 
 The controlled empty-app comparison is intentionally still red: the clean
 reference exposes the legacy dashboard surface (including its Media shortcut),
 while Flutter exposes the replacement provider cards, create controls, and the
 intentional removal of the persistent Media Library. The latest comparison
-measured 72.60% differing pixels. This catalog is evidence and a work queue,
-not a claim of pixel parity.
+measured 72.60% differing pixels. The other controlled pairs currently measure
+53.48% for Settings, 73.59% for Updates, and 78.99% for the Integrations
+surface. These numbers are evidence and a work queue, not a claim of pixel
+parity.
 
 ## Required checks
 
