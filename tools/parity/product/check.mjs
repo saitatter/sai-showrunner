@@ -103,7 +103,9 @@ function checkPathSegments(directory) {
     if (entry.isDirectory()) checkPathSegments(path);
   }
 }
-checkPathSegments(join(packageRoot, 'lib'));
+for (const directory of ['lib', 'test', 'integration_test', 'tool', 'windows']) {
+  checkPathSegments(join(packageRoot, directory));
+}
 
 if (errors.length > 0) {
   process.stderr.write(`Product parity failed:\n${errors.map((error) => `- ${error}`).join('\n')}\n`);
