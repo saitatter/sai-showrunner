@@ -32,7 +32,7 @@ String normalizeViewerVariableType(String type) {
   }
 }
 
-dynamic normalizeViewerVariableValue(String type, dynamic value) {
+Object? normalizeViewerVariableValue(String type, Object? value) {
   if (value == null) return null;
 
   switch (normalizeViewerVariableType(type)) {
@@ -69,12 +69,12 @@ final class ViewerVariableDefinition {
 
   final String name;
   final String type;
-  final dynamic defaultValue;
+  final Object? defaultValue;
   final bool required;
 
   String get normalizedType => normalizeViewerVariableType(type);
 
-  dynamic get constructedDefault {
+  Object? get constructedDefault {
     if (defaultValue != null) {
       return normalizeViewerVariableValue(normalizedType, defaultValue);
     }
@@ -127,7 +127,7 @@ final class ViewerVariableDefinition {
   };
 }
 
-bool _isJsonValue(dynamic value) {
+bool _isJsonValue(Object? value) {
   if (value == null || value is String || value is num || value is bool) {
     return true;
   }
@@ -146,7 +146,7 @@ final class ViewerIdentity {
   final String id;
   final String displayName;
 
-  factory ViewerIdentity.fromConfig(dynamic value) {
+  factory ViewerIdentity.fromConfig(Object? value) {
     if (value is String && value.trim().isNotEmpty) {
       return ViewerIdentity(id: value, displayName: value);
     }

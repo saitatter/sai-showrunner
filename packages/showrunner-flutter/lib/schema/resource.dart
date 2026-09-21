@@ -110,8 +110,8 @@ class VariableResource {
   final String id;
   final String name;
   final String type;
-  final dynamic defaultValue;
-  final dynamic currentValue;
+  final Object? defaultValue;
+  final Object? currentValue;
   final bool persistent;
 
   factory VariableResource.fromResource(ResourceData resource) {

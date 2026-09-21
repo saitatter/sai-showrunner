@@ -17,7 +17,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   final Map<ResourceTypeId, DartResourceContract> _resources = {};
   final Map<PluginId, DartPluginUiContribution> _uiContributions = {};
   final Set<PluginId> _disabledPluginIds = {};
-  final Map<PluginId, Map<StateId, dynamic>> _stateValues = {};
+  final Map<PluginId, Map<StateId, Object?>> _stateValues = {};
   Future<void>? _initializeFuture;
   Future<void>? _startFuture;
   Future<void>? _closeFuture;
@@ -51,7 +51,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     // Validate the complete manifest before mutating any registry map. A
     // malformed plugin must not leave behind a half-registered module or the
     // first few contracts from a list that failed later in validation.
-    final stateValues = <StateId, dynamic>{};
+    final stateValues = <StateId, Object?>{};
     for (final state in plugin.states) {
       if (stateValues.containsKey(state.id)) {
         throw ArgumentError('State is registered more than once: ${state.id}');
@@ -193,7 +193,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     for (final plugin in plugins) plugin.id.value: stateValues(plugin.id.value),
   };
 
-  void updateState(String pluginId, String stateId, dynamic value) {
+  void updateState(String pluginId, String stateId, Object? value) {
     final states = _stateValues[PluginId(pluginId)];
     final typedStateId = StateId(stateId);
     if (states == null || !states.containsKey(typedStateId)) return;
@@ -206,7 +206,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   ///
   /// Variables are user-defined in the persisted project, so their state IDs
   /// cannot be enumerated in a const plugin manifest.
-  void updateDynamicState(String pluginId, String stateId, dynamic value) {
+  void updateDynamicState(String pluginId, String stateId, Object? value) {
     final states = _stateValues[PluginId(pluginId)];
     if (states == null) return;
     final typedStateId = StateId(stateId);
