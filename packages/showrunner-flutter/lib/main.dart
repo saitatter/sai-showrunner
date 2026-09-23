@@ -42,6 +42,7 @@ import 'runtime/automation_recovery.dart';
 import 'schema/automation.dart';
 import 'schema/profile.dart';
 import 'schema/resource.dart';
+import 'schema/stream_plan.dart';
 import 'schema/update.dart';
 import 'runtime/action_queue.dart';
 import 'runtime/expression.dart';
@@ -181,6 +182,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   String? _selectedResourceId;
   final _openOverlayResources = <String, ResourceData>{};
   final _overlayDirty = <String, bool>{};
+  final _openStreamPlanResources = <String, ResourceData>{};
+  final _streamPlanDirty = <String, bool>{};
 
   AutomationDocumentSession? get _activeAutomationSession =>
       _automationDocuments.active;
@@ -386,6 +389,10 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       overlayDirty: _overlayDirty,
       onSaveOverlay: _saveOverlayResource,
       onOverlayDirtyChanged: _setOverlayDirty,
+      streamPlanResources: _openStreamPlanResources,
+      streamPlanDirty: _streamPlanDirty,
+      onSaveStreamPlan: _saveStreamPlanResource,
+      onStreamPlanDocumentChanged: _syncStreamPlanDocument,
       onProfileEntriesChanged: _onProjectCatalogChanged,
       onRenameProfile: _renameProfileEntry,
       onDeleteProfile: _deleteProfileEntry,
@@ -466,6 +473,19 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       unawaited(_persistNavigation());
       return;
     }
+    if (resourceType == 'StreamPlan') {
+      final workspace = WorkspaceIds.streamPlan(resource.id);
+      setState(() {
+        _openStreamPlanResources[resource.id] = resource;
+        _streamPlanDirty.putIfAbsent(resource.id, () => false);
+        _selectedResourceType = null;
+        _selectedResourceId = null;
+        _workspaceDocuments.open(workspace);
+        _workspaceDocuments.select(workspace);
+      });
+      unawaited(_persistNavigation());
+      return;
+    }
     setState(() {
       _selectedResourceType = resourceType;
       _selectedResourceId = resource.id;
@@ -493,6 +513,43 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     unawaited(_persistNavigation());
   }
 
+  void _syncStreamPlanDocument(ResourceData resource, bool dirty) {
+    final previous = _openStreamPlanResources[resource.id];
+    final nameChanged = previous?.name != resource.name;
+    final dirtyChanged = _streamPlanDirty[resource.id] != dirty;
+    _openStreamPlanResources[resource.id] = resource;
+    _streamPlanDirty[resource.id] = dirty;
+    if (mounted && (nameChanged || dirtyChanged)) setState(() {});
+  }
+
+  Future<void> _saveStreamPlanResource(ResourceData resource) async {
+    final definition = createDefaultResourceEditorRegistry().find('StreamPlan');
+    if (definition == null) throw StateError('Stream Plan editor is missing.');
+    await ResourceRepository(
+      Directory(
+        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
+      ),
+      resourceType: 'StreamPlan',
+      secretSettings: widget.dataService.secretSettingsStore,
+    ).save(resource);
+    _openStreamPlanResources[resource.id] = resource;
+    _streamPlanDirty[resource.id] = false;
+    if (streamPlanRuntime.activePlanId == resource.id) {
+      await streamPlanRuntime.updateActivePlan(
+        resource.id,
+        StreamPlanData.fromConfig(resource.config),
+      );
+    }
+    if (!mounted) return;
+    setState(() => _projectCatalogRevision++);
+    showShowRunnerFeedback(
+      context,
+      'Saved ${resource.name}',
+      severity: ShowRunnerFeedbackSeverity.success,
+    );
+    unawaited(_persistNavigation());
+  }
+
   void _selectTab(WorkspaceId workspace) {
     if (!_workspaceDocuments.select(workspace)) return;
     setState(() {});
@@ -517,7 +574,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
 
   static WorkspaceId? _workspaceIdFromSettings(String value) {
     final id = WorkspaceId(value);
-    return WorkspaceIds.all.contains(id) || WorkspaceIds.isOverlay(id)
+    return WorkspaceIds.all.contains(id) ||
+            WorkspaceIds.isOverlay(id) ||
+            WorkspaceIds.isStreamPlan(id)
         ? id
         : null;
   }
@@ -886,11 +945,19 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         !await _profileWorkspaceController.confirmClose()) {
       return;
     }
+    final streamPlanId = WorkspaceIds.streamPlanResourceId(workspace);
+    if (streamPlanId != null && !await _confirmStreamPlanClose(streamPlanId)) {
+      return;
+    }
     if (!_workspaceDocuments.close(workspace)) return;
     final overlayId = WorkspaceIds.overlayResourceId(workspace);
     if (overlayId != null) {
       _openOverlayResources.remove(overlayId);
       _overlayDirty.remove(overlayId);
+    }
+    if (streamPlanId != null) {
+      _openStreamPlanResources.remove(streamPlanId);
+      _streamPlanDirty.remove(streamPlanId);
     }
     setState(() {});
     unawaited(_persistNavigation());
@@ -910,7 +977,22 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         !await _profileWorkspaceController.confirmClose()) {
       return;
     }
+    final otherStreamPlanIds = _workspaceDocuments.openWorkspaces
+        .where((workspace) => workspace != selected)
+        .map(WorkspaceIds.streamPlanResourceId)
+        .whereType<String>()
+        .where((id) => _streamPlanDirty[id] == true)
+        .toList();
+    for (final id in otherStreamPlanIds) {
+      if (!await _confirmStreamPlanClose(id)) return;
+    }
     if (!_workspaceDocuments.closeOthers()) return;
+    _openStreamPlanResources.removeWhere(
+      (id, _) => selected != WorkspaceIds.streamPlan(id),
+    );
+    _streamPlanDirty.removeWhere(
+      (id, _) => selected != WorkspaceIds.streamPlan(id),
+    );
     setState(() {});
     unawaited(_persistNavigation());
   }
@@ -931,16 +1013,25 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
 
   Future<bool> _confirmAllAutomationClose() async {
     _captureActiveAutomation();
-    final dirty = _automationDocuments.documents
+    final dirtyAutomations = _automationDocuments.documents
         .where((document) => document.dirty)
         .toList();
-    if (dirty.isEmpty) return true;
+    final dirtyStreamPlans = _streamPlanDirty.entries
+        .where((entry) => entry.value)
+        .map((entry) => _openStreamPlanResources[entry.key])
+        .whereType<ResourceData>()
+        .toList();
+    if (dirtyAutomations.isEmpty && dirtyStreamPlans.isEmpty) return true;
+    final dirtyNames = [
+      ...dirtyAutomations.map((document) => document.fileName),
+      ...dirtyStreamPlans.map((resource) => resource.name),
+    ];
     final decision = await showDialog<_CloseDecision>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Unsaved changes'),
         content: Text(
-          'Save changes to ${dirty.map((document) => document.fileName).join(', ')} before exiting?',
+          'Save changes to ${dirtyNames.join(', ')} before exiting?',
         ),
         actions: [
           TextButton(
@@ -962,9 +1053,45 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       return false;
     }
     if (decision == _CloseDecision.save) {
-      for (final session in dirty) {
+      for (final session in dirtyAutomations) {
         if (!await _saveAutomationSession(session)) return false;
       }
+      for (final resource in dirtyStreamPlans) {
+        if (!await _trySaveStreamPlanResource(resource)) return false;
+      }
+    }
+    return true;
+  }
+
+  Future<bool> _confirmStreamPlanClose(String resourceId) async {
+    final resource = _openStreamPlanResources[resourceId];
+    if (resource == null || _streamPlanDirty[resourceId] != true) return true;
+    final decision = await showDialog<_CloseDecision>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsaved changes'),
+        content: Text('Save changes to ${resource.name} before closing?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(_CloseDecision.discard),
+            child: const Text("Don't Save"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
+      return false;
+    }
+    if (decision == _CloseDecision.save) {
+      return _trySaveStreamPlanResource(resource);
     }
     return true;
   }
@@ -1124,7 +1251,31 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     for (final session in _automationDocuments.documents) {
       if (session.dirty && !await _saveAutomationSession(session)) return;
     }
+    for (final entry in _streamPlanDirty.entries.toList()) {
+      final resource = _openStreamPlanResources[entry.key];
+      if (entry.value &&
+          resource != null &&
+          !await _trySaveStreamPlanResource(resource)) {
+        return;
+      }
+    }
     if (mounted) setState(() {});
+  }
+
+  Future<bool> _trySaveStreamPlanResource(ResourceData resource) async {
+    try {
+      await _saveStreamPlanResource(resource);
+      return true;
+    } catch (error) {
+      if (mounted) {
+        showShowRunnerFeedback(
+          context,
+          'Unable to save stream plan: $error',
+          severity: ShowRunnerFeedbackSeverity.error,
+        );
+      }
+      return false;
+    }
   }
 
   Future<void> _openAutomation(

@@ -27,13 +27,18 @@ extension _ShowRunnerPageNavigation on _ShowRunnerPageState {
         await _restoreAutomationDocuments(settings);
       }
       await _restoreOverlayDocuments(tabs);
+      await _restoreStreamPlanDocuments(tabs);
       tabs = tabs
           .where(
             (tab) =>
-                !WorkspaceIds.isOverlay(tab) ||
-                _openOverlayResources.containsKey(
-                  WorkspaceIds.overlayResourceId(tab),
-                ),
+                (!WorkspaceIds.isOverlay(tab) ||
+                    _openOverlayResources.containsKey(
+                      WorkspaceIds.overlayResourceId(tab),
+                    )) &&
+                (!WorkspaceIds.isStreamPlan(tab) ||
+                    _openStreamPlanResources.containsKey(
+                      WorkspaceIds.streamPlanResourceId(tab),
+                    )),
           )
           .toList(growable: false);
       if (!mounted) return;
@@ -63,6 +68,27 @@ extension _ShowRunnerPageNavigation on _ShowRunnerPageState {
       if (resourceId == null) continue;
       final resource = await repository.load(resourceId);
       if (resource != null) _openOverlayResources[resource.id] = resource;
+    }
+  }
+
+  Future<void> _restoreStreamPlanDocuments(Iterable<WorkspaceId> tabs) async {
+    final definition = createDefaultResourceEditorRegistry().find('StreamPlan');
+    if (definition == null) return;
+    final repository = ResourceRepository(
+      Directory(
+        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
+      ),
+      resourceType: 'StreamPlan',
+      secretSettings: widget.dataService.secretSettingsStore,
+    );
+    for (final tab in tabs.where(WorkspaceIds.isStreamPlan)) {
+      final resourceId = WorkspaceIds.streamPlanResourceId(tab);
+      if (resourceId == null ||
+          !_ShowRunnerPageState._isSafeResourceId(resourceId)) {
+        continue;
+      }
+      final resource = await repository.load(resourceId);
+      if (resource != null) _openStreamPlanResources[resource.id] = resource;
     }
   }
 

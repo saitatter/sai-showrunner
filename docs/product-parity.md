@@ -28,7 +28,7 @@ Status values:
 | Automation editor | `NodeAutomationEdit.vue` and graph helpers | Flutter graph editor, runtime, debugger, data wires, subgraphs | improved | Stress benchmark and full-screen visual comparison |
 | Timeline editor | README claims a Timeline mode; no Timeline editor source exists in the renderer | No separate Timeline surface | intentionally_removed | Resolved in `docs/architecture/adr-002-timeline.md` |
 | Profiles | `ProfileEditor.vue`, `TriggerEdit.vue` | Profile workspace and profile runtime | equivalent | Align profile-editor visual/layout details; end-to-end lifecycle suite |
-| Stream plans | stream-plan editor and resources | Stream Plan resource/editor/runtime surfaces | improved | Replace modal edit with the reference document workspace; lifecycle suite |
+| Stream plans | stream-plan editor and resources | Inline Stream Plan document tabs, resource repository and runtime | improved | App-restart session restore proof and remaining visual alignment |
 | Integrations | plugin details/settings pages | Typed Dart plugin registry, workspaces, health and settings | improved | Full-screen visual comparison |
 | Resources | resource store and resource editors | Resource repositories, typed editors, resource workspaces | improved | Full-screen visual comparison |
 | Overlays | Vue browser-source overlay and editor | Flutter resource configuration, Shader Graph editor/compiler, plus browser overlay package | improved | Overlay visual/protocol comparison in OBS |
@@ -76,7 +76,7 @@ threshold measured these raw pixel differences:
 | Viewer Variables | 80.54% |
 | Automation editor | 68.90% |
 | Profile editor | 69.73% |
-| Stream Plan editor | 98.00% |
+| Stream Plan editor | 70.30% |
 | Overlay editor | 77.38% |
 
 The frozen Electron reference's `FlexScroller` leaves `.scroller-outer` at zero
@@ -85,10 +85,11 @@ document contents. The reference capture harness sets that element to the
 document pane's available height after opening those documents; this is a
 capture-only layout correction, not a source change to the frozen reference.
 
-The Stream Plan comparison remains the largest visible workflow gap: Flutter
-currently opens its editor in a modal while the reference edits the selected
-plan in the document workspace. The 98.00% raw difference is not a passing
-parity result and warrants aligning the editing surface.
+The Stream Plan editor now opens as a named workspace document rather than a
+modal. Editing updates the tab title and dirty marker, Save persists the plan
+and refreshes the active runtime, and Save All/close/exit use that same
+document state. The updated 70.30% raw screenshot difference is still not a
+passing parity result; detailed layout alignment remains open.
 
 These figures come from the checked-in PNGs, not from an assertion that the
 screens are visually equivalent. The current CI step checks that the pairs can

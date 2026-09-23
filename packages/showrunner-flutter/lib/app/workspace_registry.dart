@@ -22,6 +22,7 @@ abstract final class WorkspaceIds {
   static const updates = WorkspaceId('workspace.updates');
 
   static const overlayPrefix = 'workspace.overlay.';
+  static const streamPlanPrefix = 'workspace.streamPlan.';
 
   static WorkspaceId overlay(String resourceId) =>
       WorkspaceId('$overlayPrefix$resourceId');
@@ -30,6 +31,15 @@ abstract final class WorkspaceIds {
 
   static String? overlayResourceId(WorkspaceId id) =>
       isOverlay(id) ? id.value.substring(overlayPrefix.length) : null;
+
+  static WorkspaceId streamPlan(String resourceId) =>
+      WorkspaceId('$streamPlanPrefix$resourceId');
+
+  static bool isStreamPlan(WorkspaceId id) =>
+      id.value.startsWith(streamPlanPrefix);
+
+  static String? streamPlanResourceId(WorkspaceId id) =>
+      isStreamPlan(id) ? id.value.substring(streamPlanPrefix.length) : null;
 
   static const all = <WorkspaceId>[
     graph,

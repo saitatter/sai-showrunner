@@ -14,6 +14,7 @@ import '../features/profile/profile_workspace.dart';
 import '../features/queue/queue_workspace.dart';
 import '../features/remote/remote_workspace.dart';
 import '../features/resources/resource_editor_registry.dart';
+import '../features/resources/resource_options.dart';
 import '../features/resources/resources_workspace.dart';
 import '../features/settings/interface_preferences.dart';
 import '../features/settings/settings_workspace.dart';
@@ -80,6 +81,9 @@ final class WorkspaceHostContext {
     this.overlayResources = const <String, ResourceData>{},
     this.onSaveOverlay,
     this.onOverlayDirtyChanged,
+    this.streamPlanResources = const <String, ResourceData>{},
+    this.onSaveStreamPlan,
+    this.onStreamPlanDocumentChanged,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -137,6 +141,10 @@ final class WorkspaceHostContext {
   final Map<String, ResourceData> overlayResources;
   final Future<void> Function(ResourceData resource)? onSaveOverlay;
   final void Function(String resourceId, bool dirty)? onOverlayDirtyChanged;
+  final Map<String, ResourceData> streamPlanResources;
+  final Future<void> Function(ResourceData resource)? onSaveStreamPlan;
+  final void Function(ResourceData resource, bool dirty)?
+  onStreamPlanDocumentChanged;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -173,6 +181,23 @@ final class WorkspaceRegistry {
         ],
         onDirtyChanged: (dirty) =>
             host.onOverlayDirtyChanged?.call(resource.id, dirty),
+      );
+    }
+
+    final streamPlanId = WorkspaceIds.streamPlanResourceId(id);
+    if (streamPlanId != null) {
+      final resource = host.streamPlanResources[streamPlanId];
+      if (resource == null || host.onSaveStreamPlan == null) {
+        return const LogsWorkspace();
+      }
+      return StreamPlanEditorPage(
+        resource: resource,
+        onSave: host.onSaveStreamPlan!,
+        registryFuture: host.pluginRegistryFuture,
+        resourceOptionsLoader: (resourceType) =>
+            loadResourceOptions(host.dataService, resourceType),
+        documentMode: true,
+        onDocumentChanged: host.onStreamPlanDocumentChanged,
       );
     }
 

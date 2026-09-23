@@ -1383,6 +1383,52 @@ void main() {
     expect((saved!.config['segments'] as List).single['name'], 'New segment');
   });
 
+  testWidgets('stream plan document reports dirty state and saves inline', (
+    tester,
+  ) async {
+    ResourceData? snapshot;
+    ResourceData? saved;
+    bool? dirty;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 800,
+            child: StreamPlanEditorPage(
+              resource: const ResourceData(
+                id: 'plan-document',
+                config: {'name': 'Friday show', 'segments': []},
+              ),
+              documentMode: true,
+              onSave: (resource) async => saved = resource,
+              onDocumentChanged: (resource, isDirty) {
+                snapshot = resource;
+                dirty = isDirty;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.text('Friday show'), findsAtLeastNWidgets(1));
+    final nameField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField && widget.controller?.text == 'Friday show',
+    );
+    await tester.enterText(nameField, 'Saturday show');
+    await tester.pump();
+    expect(dirty, isTrue);
+    expect(snapshot?.name, 'Saturday show');
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(saved?.name, 'Saturday show');
+    expect(dirty, isFalse);
+  });
+
   testWidgets('stream plan segment editor persists Twitch tags', (
     tester,
   ) async {

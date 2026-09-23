@@ -263,7 +263,8 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     ResourceData resource,
     String resourceType,
   ) async {
-    if (resourceType == 'Overlay' && widget.onOpenResource != null) {
+    if ((resourceType == 'Overlay' || resourceType == 'StreamPlan') &&
+        widget.onOpenResource != null) {
       await widget.onOpenResource!.call(resource, resourceType);
       return;
     }

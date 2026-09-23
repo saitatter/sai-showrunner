@@ -18,4 +18,11 @@ void main() {
       WorkspaceIds.logs,
     );
   });
+
+  test('uses stable per-resource IDs for stream plan documents', () {
+    const id = 'show-plan-1';
+    final workspace = WorkspaceIds.streamPlan(id);
+    expect(WorkspaceIds.isStreamPlan(workspace), isTrue);
+    expect(WorkspaceIds.streamPlanResourceId(workspace), id);
+  });
 }

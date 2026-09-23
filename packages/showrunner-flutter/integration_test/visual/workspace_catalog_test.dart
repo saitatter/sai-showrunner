@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 import 'package:showrunner_flutter/services/update_check_service.dart';
+import 'package:showrunner_flutter/persistence/resource_repository.dart';
 
 import '../support/showrunner_test_app.dart';
 
@@ -119,9 +120,39 @@ void main() {
     await _openCatalogResource(tester, 'Stream Plans', 'Parity Stream Plan');
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Segments'), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
     await _capture(tester, 'stream-plan-editor.png');
-    await tester.tap(find.widgetWithText(TextButton, 'Cancel').last);
+
+    final planNameField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.controller?.text == 'Parity Stream Plan',
+    );
+    expect(planNameField, findsOneWidget);
+    await tester.enterText(planNameField, 'Updated Parity Plan');
     await _pumpApplication(tester);
+    expect(find.text('Updated Parity Plan'), findsAtLeastNWidgets(1));
+    await tester.tap(
+      find.ancestor(
+        of: find.byTooltip('Close Updated Parity Plan tab'),
+        matching: find.byType(IconButton),
+      ),
+    );
+    await _pumpApplication(tester);
+    expect(
+      find.text('Save changes to Updated Parity Plan before closing?'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await _pumpApplication(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await _pumpApplication(tester);
+    final savedPlan = await ResourceRepository(
+      Directory('${directory.path}/stream-plans'),
+      resourceType: 'StreamPlan',
+    ).load('parity-plan');
+    expect(savedPlan?.name, 'Updated Parity Plan');
 
     await _openCatalogResource(tester, 'Overlays', 'Parity Overlay');
     expect(find.text('Stream Title'), findsAtLeastNWidgets(1));

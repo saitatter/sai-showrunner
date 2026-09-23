@@ -84,6 +84,10 @@ class ShowRunnerShell extends StatelessWidget {
     this.overlayDirty = const <String, bool>{},
     this.onSaveOverlay,
     this.onOverlayDirtyChanged,
+    this.streamPlanResources = const <String, ResourceData>{},
+    this.streamPlanDirty = const <String, bool>{},
+    this.onSaveStreamPlan,
+    this.onStreamPlanDocumentChanged,
     this.selectedPluginId,
     this.onPluginSelected,
     this.updateService,
@@ -153,6 +157,11 @@ class ShowRunnerShell extends StatelessWidget {
   final Map<String, bool> overlayDirty;
   final Future<void> Function(ResourceData resource)? onSaveOverlay;
   final void Function(String resourceId, bool dirty)? onOverlayDirtyChanged;
+  final Map<String, ResourceData> streamPlanResources;
+  final Map<String, bool> streamPlanDirty;
+  final Future<void> Function(ResourceData resource)? onSaveStreamPlan;
+  final void Function(ResourceData resource, bool dirty)?
+  onStreamPlanDocumentChanged;
   final String? selectedPluginId;
   final ValueChanged<String>? onPluginSelected;
   final UpdateCheckService? updateService;
@@ -210,6 +219,9 @@ class ShowRunnerShell extends StatelessWidget {
       overlayResources: overlayResources,
       onSaveOverlay: onSaveOverlay,
       onOverlayDirtyChanged: onOverlayDirtyChanged,
+      streamPlanResources: streamPlanResources,
+      onSaveStreamPlan: onSaveStreamPlan,
+      onStreamPlanDocumentChanged: onStreamPlanDocumentChanged,
       selectedPluginId: selectedPluginId,
       onPluginSelected: onPluginSelected,
       updateService: updateService,
@@ -283,6 +295,8 @@ class ShowRunnerShell extends StatelessWidget {
                         activeProfileDirty: profileDirty,
                         overlayResources: overlayResources,
                         overlayDirty: overlayDirty,
+                        streamPlanResources: streamPlanResources,
+                        streamPlanDirty: streamPlanDirty,
                         onSelected: onTabSelected ?? (_) {},
                         onClosed: onTabClosed ?? (_) {},
                         onReordered: onTabReordered ?? (_, _) {},
@@ -413,7 +427,7 @@ double _clampWidth(double width) => width.clamp(
   FlutterInterfacePreferences.maxProjectSidebarWidth,
 );
 
-class _WorkspaceTabBar extends StatelessWidget {
+class _WorkspaceTabBar extends StatefulWidget {
   const _WorkspaceTabBar({
     required this.tabs,
     required this.selectedWorkspace,
@@ -422,6 +436,8 @@ class _WorkspaceTabBar extends StatelessWidget {
     required this.activeProfileDirty,
     required this.overlayResources,
     required this.overlayDirty,
+    required this.streamPlanResources,
+    required this.streamPlanDirty,
     required this.onSelected,
     required this.onClosed,
     required this.onReordered,
@@ -434,9 +450,63 @@ class _WorkspaceTabBar extends StatelessWidget {
   final bool activeProfileDirty;
   final Map<String, ResourceData> overlayResources;
   final Map<String, bool> overlayDirty;
+  final Map<String, ResourceData> streamPlanResources;
+  final Map<String, bool> streamPlanDirty;
   final ValueChanged<WorkspaceId> onSelected;
   final FutureOr<void> Function(WorkspaceId) onClosed;
   final void Function(int oldPosition, int newPosition) onReordered;
+
+  @override
+  State<_WorkspaceTabBar> createState() => _WorkspaceTabBarState();
+}
+
+class _WorkspaceTabBarState extends State<_WorkspaceTabBar> {
+  final _scrollController = ScrollController();
+  final _tabKeys = <WorkspaceId, GlobalKey>{};
+
+  @override
+  void didUpdateWidget(covariant _WorkspaceTabBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedWorkspace != widget.selectedWorkspace) {
+      _scheduleSelectedTabIntoView();
+    }
+    _tabKeys.removeWhere((id, _) => !widget.tabs.contains(id));
+  }
+
+  void _scheduleSelectedTabIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final selectedKey = _tabKeys[widget.selectedWorkspace];
+      final selectedContext = selectedKey?.currentContext;
+      final selectedPosition = widget.tabs.indexOf(widget.selectedWorkspace);
+      if (selectedPosition == widget.tabs.length - 1) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      } else if (selectedPosition == 0) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      } else if (selectedContext != null) {
+        Scrollable.ensureVisible(
+          selectedContext,
+          alignment: .5,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -452,40 +522,55 @@ class _WorkspaceTabBar extends StatelessWidget {
         child: Align(
           alignment: Alignment.centerLeft,
           child: ReorderableListView.builder(
+            scrollController: _scrollController,
             scrollDirection: Axis.horizontal,
-            shrinkWrap: true,
+            shrinkWrap: false,
             primary: false,
             anchor: 0,
             buildDefaultDragHandles: false,
-            padding: EdgeInsets.zero,
-            itemCount: tabs.length,
-            onReorderItem: onReordered,
+            padding: const EdgeInsets.only(right: 18),
+            itemCount: widget.tabs.length,
+            onReorderItem: widget.onReordered,
             itemBuilder: (context, position) {
-              final tab = tabs[position];
+              final tab = widget.tabs[position];
               final overlayId = WorkspaceIds.overlayResourceId(tab);
-              final descriptor = overlayId == null
-                  ? workspaceDescriptorFor(tab)
-                  : WorkspaceDescriptor(
+              final streamPlanId = WorkspaceIds.streamPlanResourceId(tab);
+              final descriptor = overlayId != null
+                  ? WorkspaceDescriptor(
                       id: tab,
-                      title: overlayResources[overlayId]?.name ?? 'Overlay',
+                      title:
+                          widget.overlayResources[overlayId]?.name ?? 'Overlay',
                       icon: Icons.layers_outlined,
-                    );
+                    )
+                  : streamPlanId != null
+                  ? WorkspaceDescriptor(
+                      id: tab,
+                      title:
+                          widget.streamPlanResources[streamPlanId]?.name ??
+                          'Stream Plan',
+                      icon: Icons.calendar_view_week_outlined,
+                    )
+                  : workspaceDescriptorFor(tab);
               return ReorderableDragStartListener(
-                key: ValueKey('workspace-tab-$tab'),
+                key: _tabKeys.putIfAbsent(tab, GlobalKey.new),
                 index: position,
                 child: _WorkspaceTab(
                   workspace: tab,
                   descriptor: descriptor,
-                  selected: tab == selectedWorkspace,
+                  selected: tab == widget.selectedWorkspace,
                   dirty:
                       (tab == WorkspaceIds.graph &&
-                          hasActiveAutomation &&
-                          activeAutomationDirty) ||
-                      (tab == WorkspaceIds.profiles && activeProfileDirty) ||
-                      (overlayId != null && (overlayDirty[overlayId] ?? false)),
-                  canClose: tabs.length > 1,
-                  onSelected: onSelected,
-                  onClosed: onClosed,
+                          widget.hasActiveAutomation &&
+                          widget.activeAutomationDirty) ||
+                      (tab == WorkspaceIds.profiles &&
+                          widget.activeProfileDirty) ||
+                      (overlayId != null &&
+                          (widget.overlayDirty[overlayId] ?? false)) ||
+                      (streamPlanId != null &&
+                          (widget.streamPlanDirty[streamPlanId] ?? false)),
+                  canClose: widget.tabs.length > 1,
+                  onSelected: widget.onSelected,
+                  onClosed: widget.onClosed,
                 ),
               );
             },

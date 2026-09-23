@@ -231,7 +231,7 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
     DartResourceEditorDefinition.fromContract(
       contract: builtInResourceSpec('StreamPlan'),
       builder: (context, resource, onSave) =>
-          _StreamPlanEditor(resource: resource, onSave: onSave),
+          StreamPlanEditorPage(resource: resource, onSave: onSave),
       runtimeBuilder:
           (
             context,
@@ -239,7 +239,7 @@ DartResourceEditorRegistry createDefaultResourceEditorRegistry() {
             onSave, {
             required registryFuture,
             required resourceOptionsLoader,
-          }) => _StreamPlanEditor(
+          }) => StreamPlanEditorPage(
             resource: resource,
             onSave: onSave,
             registryFuture: registryFuture,
@@ -2252,26 +2252,32 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
       );
 }
 
-class _StreamPlanEditor extends StatefulWidget {
-  const _StreamPlanEditor({
+class StreamPlanEditorPage extends StatefulWidget {
+  const StreamPlanEditorPage({
+    super.key,
     required this.resource,
     required this.onSave,
     this.registryFuture,
     this.resourceOptionsLoader,
+    this.documentMode = false,
+    this.onDocumentChanged,
   });
 
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
   final Future<DartPluginRegistry>? registryFuture;
   final GraphResourceOptionsLoader? resourceOptionsLoader;
+  final bool documentMode;
+  final void Function(ResourceData resource, bool dirty)? onDocumentChanged;
 
   @override
-  State<_StreamPlanEditor> createState() => _StreamPlanEditorState();
+  State<StreamPlanEditorPage> createState() => _StreamPlanEditorPageState();
 }
 
-class _StreamPlanEditorState extends State<_StreamPlanEditor> {
+class _StreamPlanEditorPageState extends State<StreamPlanEditorPage> {
   late final TextEditingController _name;
   late List<StreamPlanSegmentData> _segments;
+  late String _savedBaseline;
   final Map<String, GlobalKey<_StreamPlanSegmentCardState>> _segmentKeys = {};
   ShowRunnerGraphEditor? _activationEditor;
   ShowRunnerGraphEditor? _deactivationEditor;
@@ -2282,6 +2288,7 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
     final plan = StreamPlanData.fromConfig(widget.resource.config);
     _name = TextEditingController(text: plan.name);
     _segments = List<StreamPlanSegmentData>.of(plan.segments);
+    _savedBaseline = jsonEncode(widget.resource.config);
     if (widget.registryFuture != null) {
       _activationEditor = ShowRunnerGraphEditor(
         resourceOptionsLoader: widget.resourceOptionsLoader,
@@ -2289,24 +2296,28 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
       _deactivationEditor = ShowRunnerGraphEditor(
         resourceOptionsLoader: widget.resourceOptionsLoader,
       )..loadAutomation(AutomationData.fromJson(plan.deactivationAutomation));
+      _activationEditor!.documentDirty.addListener(_notifyDirty);
+      _deactivationEditor!.documentDirty.addListener(_notifyDirty);
     }
   }
 
   @override
   void dispose() {
     _name.dispose();
+    _activationEditor?.documentDirty.removeListener(_notifyDirty);
+    _deactivationEditor?.documentDirty.removeListener(_notifyDirty);
     _activationEditor?.dispose();
     _deactivationEditor?.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
-    title: 'Edit stream plan',
-    fields: [
+  Widget build(BuildContext context) {
+    final fields = <Widget>[
       TextField(
         controller: _name,
         decoration: const InputDecoration(labelText: 'Name'),
+        onChanged: (_) => _notifyDirty(),
       ),
       if (_activationEditor != null)
         _inlineStreamPlanAutomation('On Activate', _activationEditor!),
@@ -2332,12 +2343,18 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
           ),
           IconButton(
             tooltip: 'Add segment at start',
-            onPressed: () => setState(() => _segments.insert(0, _newSegment())),
+            onPressed: () {
+              setState(() => _segments.insert(0, _newSegment()));
+              _notifyDirty();
+            },
             icon: const Icon(Icons.vertical_align_top),
           ),
           IconButton(
             tooltip: 'Add segment',
-            onPressed: () => setState(() => _segments.add(_newSegment())),
+            onPressed: () {
+              setState(() => _segments.add(_newSegment()));
+              _notifyDirty();
+            },
             icon: const Icon(Icons.add_box_outlined),
           ),
         ],
@@ -2355,29 +2372,114 @@ class _StreamPlanEditorState extends State<_StreamPlanEditor> {
             segment: _segments[index],
             registryFuture: widget.registryFuture,
             resourceOptionsLoader: widget.resourceOptionsLoader,
-            onChanged: (segment) => setState(() => _segments[index] = segment),
+            onChanged: (segment) {
+              setState(() => _segments[index] = segment);
+              _notifyDirty();
+            },
+            onGraphDirty: _notifyDirty,
             onMoveUp: index == 0
                 ? null
-                : () => setState(() {
-                    final segment = _segments.removeAt(index);
-                    _segments.insert(index - 1, segment);
-                  }),
+                : () {
+                    setState(() {
+                      final segment = _segments.removeAt(index);
+                      _segments.insert(index - 1, segment);
+                    });
+                    _notifyDirty();
+                  },
             onMoveDown: index == _segments.length - 1
                 ? null
-                : () => setState(() {
-                    final segment = _segments.removeAt(index);
-                    _segments.insert(index + 1, segment);
-                  }),
-            onDelete: () => setState(() {
-              final removed = _segments.removeAt(index);
-              _segmentKeys.remove(removed.id);
-            }),
+                : () {
+                    setState(() {
+                      final segment = _segments.removeAt(index);
+                      _segments.insert(index + 1, segment);
+                    });
+                    _notifyDirty();
+                  },
+            onDelete: () {
+              setState(() {
+                final removed = _segments.removeAt(index);
+                _segmentKeys.remove(removed.id);
+              });
+              _notifyDirty();
+            },
           ),
-    ],
-    onSave: () => widget.onSave(
-      ResourceData(id: widget.resource.id, config: _savedConfig()),
-    ),
-  );
+    ];
+    if (!widget.documentMode) {
+      return _ResourceForm(
+        title: 'Edit stream plan',
+        fields: fields,
+        onSave: _save,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 18, 24, 12),
+          child: Row(
+            children: [
+              const Icon(Icons.calendar_view_week_outlined),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  widget.resource.name,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Save'),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: fields,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _save() async {
+    final config = _savedConfig();
+    await widget.onSave(
+      ResourceData(
+        id: widget.resource.id,
+        config: config,
+        state: widget.resource.state,
+      ),
+    );
+    _savedBaseline = jsonEncode(config);
+    _notifyDirty();
+  }
+
+  void _notifyDirty() {
+    if (!mounted) return;
+    final config = _savedConfig();
+    final dirty = jsonEncode(config) != _savedBaseline;
+    widget.onDocumentChanged?.call(
+      ResourceData(
+        id: widget.resource.id,
+        config: config,
+        state: widget.resource.state,
+      ),
+      dirty,
+    );
+  }
 
   JsonMap _savedConfig() {
     final plan = StreamPlanData.fromConfig(widget.resource.config);
@@ -2628,6 +2730,7 @@ class _StreamPlanSegmentCard extends StatefulWidget {
     this.registryFuture,
     this.resourceOptionsLoader,
     required this.onChanged,
+    required this.onGraphDirty,
     required this.onMoveUp,
     required this.onMoveDown,
     required this.onDelete,
@@ -2638,6 +2741,7 @@ class _StreamPlanSegmentCard extends StatefulWidget {
   final Future<DartPluginRegistry>? registryFuture;
   final GraphResourceOptionsLoader? resourceOptionsLoader;
   final ValueChanged<StreamPlanSegmentData> onChanged;
+  final VoidCallback onGraphDirty;
   final VoidCallback? onMoveUp;
   final VoidCallback? onMoveDown;
   final VoidCallback onDelete;
@@ -2666,14 +2770,23 @@ class _StreamPlanSegmentCardState extends State<_StreamPlanSegmentCard> {
           )..loadAutomation(
             AutomationData.fromJson(widget.segment.deactivationAutomation),
           );
+      _activationEditor!.documentDirty.addListener(_syncAutomationChanges);
+      _deactivationEditor!.documentDirty.addListener(_syncAutomationChanges);
     }
   }
 
   @override
   void dispose() {
+    _activationEditor?.documentDirty.removeListener(_syncAutomationChanges);
+    _deactivationEditor?.documentDirty.removeListener(_syncAutomationChanges);
     _activationEditor?.dispose();
     _deactivationEditor?.dispose();
     super.dispose();
+  }
+
+  void _syncAutomationChanges() {
+    widget.onChanged(_savedSegment());
+    widget.onGraphDirty();
   }
 
   StreamPlanSegmentData _savedSegment() {
