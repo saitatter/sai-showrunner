@@ -925,6 +925,10 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       child: _OverlayWidgetInspector(
         key: ValueKey('overlay-widget-inspector-${selected['id']}'),
         widgetConfig: selected,
+        canMoveUp: index > 0,
+        canMoveDown: index < _widgets.length - 1,
+        onMoveUp: () => _moveWidget(index, -1),
+        onMoveDown: () => _moveWidget(index, 1),
         onChanged: (key, value) {
           _markDirty();
           setState(() => selected[key] = value);
@@ -2345,12 +2349,20 @@ class _OverlayWidgetInspector extends StatelessWidget {
     required this.onChanged,
     required this.catalog,
     required this.templateSuggestions,
+    required this.canMoveUp,
+    required this.canMoveDown,
+    required this.onMoveUp,
+    required this.onMoveDown,
   });
 
   final JsonMap widgetConfig;
   final void Function(String key, dynamic value) onChanged;
   final List<GeneratedOverlayWidget> catalog;
   final List<String> templateSuggestions;
+  final bool canMoveUp;
+  final bool canMoveDown;
+  final VoidCallback onMoveUp;
+  final VoidCallback onMoveDown;
 
   @override
   Widget build(BuildContext context) {
@@ -2372,9 +2384,39 @@ class _OverlayWidgetInspector extends StatelessWidget {
     );
     final resolvedPlugin = definition?.pluginId ?? pluginId;
     final resolvedWidget = definition?.id ?? widgetId;
+    final widgetName =
+        widgetConfig['name']?.toString() ?? definition?.name ?? 'Widget';
+    final widgetIdValue = widgetConfig['id']?.toString() ?? widgetId;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Row(
+          children: [
+            Expanded(
+              child: _OverlayWidgetNameField(
+                key: ValueKey('overlay-widget-name-$widgetIdValue'),
+                name: widgetName,
+                onChanged: (value) => onChanged('name', value),
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              key: ValueKey('overlay-widget-move-up-$widgetIdValue'),
+              tooltip: 'Move widget up',
+              visualDensity: VisualDensity.compact,
+              onPressed: canMoveUp ? onMoveUp : null,
+              icon: const Icon(Icons.arrow_upward, size: 18),
+            ),
+            IconButton(
+              key: ValueKey('overlay-widget-move-down-$widgetIdValue'),
+              tooltip: 'Move widget down',
+              visualDensity: VisualDensity.compact,
+              onPressed: canMoveDown ? onMoveDown : null,
+              icon: const Icon(Icons.arrow_downward, size: 18),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         _OverlayWidgetConfigEditor(
           plugin: resolvedPlugin,
           widget: resolvedWidget,
@@ -2499,6 +2541,59 @@ class _OverlayWidgetInspector extends StatelessWidget {
           },
         ),
       );
+}
+
+class _OverlayWidgetNameField extends StatefulWidget {
+  const _OverlayWidgetNameField({
+    super.key,
+    required this.name,
+    required this.onChanged,
+  });
+
+  final String name;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_OverlayWidgetNameField> createState() =>
+      _OverlayWidgetNameFieldState();
+}
+
+class _OverlayWidgetNameFieldState extends State<_OverlayWidgetNameField> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.name);
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OverlayWidgetNameField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.name != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: widget.name,
+        selection: TextSelection.collapsed(offset: widget.name.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: _controller,
+    focusNode: _focusNode,
+    decoration: const InputDecoration(labelText: 'Name', isDense: true),
+    onChanged: widget.onChanged,
+  );
 }
 
 class StreamPlanEditorPage extends StatefulWidget {
