@@ -780,6 +780,9 @@
               "type": "object",
               "editor": "overlayBlockStyle",
               "name": "Block",
+              "allowMargin": false,
+              "allowPadding": false,
+              "allowHorizontalAlign": false,
               "default": {
                 "margin": {
                   "top": 0,

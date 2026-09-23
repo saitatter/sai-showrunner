@@ -793,18 +793,149 @@ void main() {
     await tester.enterText(messageField, 'After');
     await tester.pump();
 
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('overlay-canvas-widget-0')),
-        matching: find.text('After'),
-      ),
-      findsOneWidget,
+    final canvasLabel = tester.widget<Text>(
+      find.byKey(const ValueKey('overlay-canvas-widget-0')),
     );
+    expect(canvasLabel.data, 'After');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
     final widget = (saved!.config['widgets'] as List).single as Map;
     expect((widget['config'] as Map)['message'], 'After');
+  });
+
+  testWidgets(
+    'overlay widget list uses custom names, catalog icons, and order',
+    (tester) async {
+      final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+      ResourceData? saved;
+      await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+      final editor = definition.builder(
+        tester.element(find.byType(Scaffold)),
+        const ResourceData(
+          id: 'overlay-widget-list',
+          config: {
+            'name': 'Widget list overlay',
+            'size': {'width': 1920, 'height': 1080},
+            'widgets': [
+              {
+                'id': 'label-1',
+                'plugin': 'overlays',
+                'widget': 'label',
+                'name': 'Primary title',
+                'position': {'x': 24, 'y': 24},
+                'size': {'width': 300, 'height': 100},
+                'config': {'message': 'Title'},
+                'visible': true,
+                'locked': false,
+              },
+              {
+                'id': 'chat-1',
+                'plugin': 'overlays',
+                'widget': 'chatFeed',
+                'name': 'Live messages',
+                'position': {'x': 24, 'y': 160},
+                'size': {'width': 500, 'height': 200},
+                'config': {},
+                'visible': true,
+                'locked': false,
+              },
+            ],
+          },
+        ),
+        (resource) async => saved = resource,
+      );
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+      expect(find.widgetWithText(ListTile, 'Primary title'), findsOneWidget);
+      expect(find.widgetWithText(ListTile, 'Live messages'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.widgetWithText(ListTile, 'Primary title'),
+          matching: find.byIcon(Icons.text_fields),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.widgetWithText(ListTile, 'Live messages'),
+          matching: find.byIcon(Icons.chat_bubble_outline),
+        ),
+        findsOneWidget,
+      );
+
+      final firstHandle = find.byIcon(Icons.drag_handle).first;
+      await tester.ensureVisible(firstHandle);
+      await tester.drag(firstHandle, const Offset(0, 240));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      final widgets = saved!.config['widgets'] as List;
+      expect((widgets.first as Map)['id'], 'chat-1');
+      expect((widgets.last as Map)['id'], 'label-1');
+    },
+  );
+
+  testWidgets('label inspector matches Vue alignment controls', (tester) async {
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-label-alignment',
+        config: {
+          'name': 'Alignment overlay',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [
+            {
+              'id': 'label-1',
+              'plugin': 'overlays',
+              'widget': 'label',
+              'name': 'Centered label',
+              'position': {'x': 24, 'y': 24},
+              'size': {'width': 300, 'height': 200},
+              'config': {'message': 'Label'},
+              'visible': true,
+              'locked': false,
+            },
+          ],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(find.byIcon(Icons.format_align_left), findsOneWidget);
+    expect(find.byIcon(Icons.format_align_center), findsOneWidget);
+    expect(find.byIcon(Icons.format_align_right), findsOneWidget);
+    expect(find.byIcon(Icons.format_align_justify), findsOneWidget);
+    expect(find.byIcon(Icons.align_vertical_top), findsOneWidget);
+    expect(find.byIcon(Icons.align_vertical_center), findsOneWidget);
+    expect(find.byIcon(Icons.align_vertical_bottom), findsOneWidget);
+    expect(find.text('Horizontal alignment'), findsNothing);
+
+    final horizontalCenter = find.byIcon(Icons.format_align_center);
+    await tester.ensureVisible(horizontalCenter);
+    await tester.tap(horizontalCenter);
+    await tester.pump();
+    final alignmentButtons = tester
+        .widgetList<ToggleButtons>(find.byType(ToggleButtons))
+        .firstWhere((buttons) => buttons.children.length == 4);
+    expect(alignmentButtons.isSelected[1], isTrue);
+    final verticalCenter = find.byIcon(Icons.align_vertical_center);
+    await tester.ensureVisible(verticalCenter);
+    await tester.tap(verticalCenter);
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    final widget = (saved!.config['widgets'] as List).single as Map;
+    expect((widget['config'] as Map)['textAlign'], {'textAlign': 'center'});
+    expect(
+      ((widget['config'] as Map)['block'] as Map)['verticalAlign'],
+      'center',
+    );
   });
 
   testWidgets('overlay editor preserves canonical widget resources', (

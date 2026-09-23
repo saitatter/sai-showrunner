@@ -222,8 +222,10 @@ void main() {
     expect(find.text('Stroke'), findsOneWidget);
     expect(find.text('Text Align'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);
-    expect(find.text('Margin'), findsOneWidget);
-    expect(find.text('Padding'), findsOneWidget);
+    expect(find.text('Horizontal alignment'), findsNothing);
+    expect(find.text('Margin'), findsNothing);
+    expect(find.text('Padding'), findsNothing);
+    expect(find.text('Vertical alignment'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.format_align_center));
     expect((value as Map)['textAlign'], {'textAlign': 'center'});

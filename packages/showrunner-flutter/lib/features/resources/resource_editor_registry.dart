@@ -40,6 +40,8 @@ List<String> _strings(Object? value) =>
     value is List ? value.map((item) => item.toString()).toList() : <String>[];
 
 String _widgetTitle(JsonMap widget) {
+  final name = widget['name']?.toString().trim();
+  if (name != null && name.isNotEmpty) return name;
   final config = widget['config'];
   if (config is Map && config['label']?.toString().trim().isNotEmpty == true) {
     return config['label'].toString();
@@ -932,22 +934,31 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
         Expanded(
           child: _widgets.isEmpty
               ? const Center(child: Text('No widgets defined.'))
-              : ListView.builder(
+              : ReorderableListView.builder(
+                  buildDefaultDragHandles: false,
                   itemCount: _widgets.length,
+                  onReorderItem: _reorderWidgets,
                   itemBuilder: (context, index) {
                     final item = _widgets[index];
                     final selected = index == _selectedWidgetIndex;
                     return ListTile(
+                      key: ValueKey(item['id'] ?? 'overlay-widget-$index'),
                       dense: true,
                       selected: selected,
                       selectedTileColor: Theme.of(
                         context,
                       ).colorScheme.primary.withValues(alpha: .14),
                       onTap: () => setState(() => _selectedWidgetIndex = index),
-                      leading: Icon(
-                        item['locked'] == true
-                            ? Icons.lock_outline
-                            : Icons.widgets_outlined,
+                      leading: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ReorderableDragStartListener(
+                            index: index,
+                            child: const Icon(Icons.drag_handle),
+                          ),
+                          const SizedBox(width: 4),
+                          _widgetListIcon(item),
+                        ],
                       ),
                       title: Text(_widgetTitle(item)),
                       subtitle: Text(
@@ -1255,11 +1266,67 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   void _moveWidget(int index, int delta) {
     final target = index + delta;
     if (index < 0 || target < 0 || target >= _widgets.length) return;
+    final selectedId = _selectedWidgetIndex == null
+        ? null
+        : _widgets[_selectedWidgetIndex!]['id']?.toString();
     setState(() {
       final widget = _widgets.removeAt(index);
       _widgets.insert(target, widget);
+      if (selectedId != null) {
+        final selectedIndex = _widgets.indexWhere(
+          (item) => item['id']?.toString() == selectedId,
+        );
+        if (selectedIndex >= 0) _selectedWidgetIndex = selectedIndex;
+      }
     });
     _markDirty();
+  }
+
+  void _reorderWidgets(int oldIndex, int newIndex) {
+    if (oldIndex == newIndex) return;
+    if (oldIndex < 0 || oldIndex >= _widgets.length) return;
+    if (newIndex < 0 || newIndex >= _widgets.length) return;
+
+    final selectedId = _selectedWidgetIndex == null
+        ? null
+        : _widgets[_selectedWidgetIndex!]['id']?.toString();
+    setState(() {
+      final item = _widgets.removeAt(oldIndex);
+      _widgets.insert(newIndex, item);
+      if (selectedId != null) {
+        final selectedIndex = _widgets.indexWhere(
+          (candidate) => candidate['id']?.toString() == selectedId,
+        );
+        if (selectedIndex >= 0) _selectedWidgetIndex = selectedIndex;
+      }
+    });
+    _markDirty();
+  }
+
+  Widget _widgetListIcon(JsonMap item) {
+    final definition = _overlayWidgetCatalog
+        .cast<GeneratedOverlayWidget?>()
+        .firstWhere(
+          (candidate) =>
+              candidate?.pluginId == _definitionPluginId(item) &&
+              candidate?.id == _definitionWidgetId(item),
+          orElse: () => null,
+        );
+    final icon = definition == null
+        ? const Icon(Icons.widgets_outlined, size: 18)
+        : overlayWidgetIconWidget(definition, size: 18);
+    if (item['locked'] != true) return icon;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        icon,
+        const Positioned(
+          right: -5,
+          bottom: -5,
+          child: Icon(Icons.lock, size: 10),
+        ),
+      ],
+    );
   }
 }
 
@@ -1546,9 +1613,13 @@ class _OverlayCanvas extends StatelessWidget {
                 : (details) => onMove(index, details.delta / scale),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 90),
-              padding: EdgeInsets.all(math.max(3, 6 * scale)),
+              padding: isLabel
+                  ? EdgeInsets.zero
+                  : EdgeInsets.all(math.max(3, 6 * scale)),
               decoration: BoxDecoration(
-                color: _overlayWidgetColor(kind, hidden),
+                color: isLabel
+                    ? Colors.transparent
+                    : _overlayWidgetColor(kind, hidden),
                 border: Border.all(
                   color: selected
                       ? Theme.of(context).colorScheme.primary
@@ -1559,44 +1630,53 @@ class _OverlayCanvas extends StatelessWidget {
               ),
               child: Opacity(
                 opacity: hidden ? .35 : 1,
-                child: FittedBox(
-                  alignment: Alignment.topLeft,
-                  fit: BoxFit.scaleDown,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minWidth: math.max(12, widgetWidth * scale - 12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          locked ? Icons.lock_outline : Icons.widgets_outlined,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 5),
-                        Column(
-                          key: ValueKey('overlay-canvas-widget-$index'),
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              displayTitle,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
+                child: isLabel
+                    ? _buildLabelPreview(
+                        config: config,
+                        message: message ?? 'Label',
+                        scale: scale,
+                        index: index,
+                      )
+                    : FittedBox(
+                        alignment: Alignment.topLeft,
+                        fit: BoxFit.scaleDown,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minWidth: math.max(12, widgetWidth * scale - 12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                locked
+                                    ? Icons.lock_outline
+                                    : Icons.widgets_outlined,
+                                size: 14,
                               ),
-                            ),
-                            if (!isLabel && message?.trim().isNotEmpty == true)
-                              Text(
-                                message!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              const SizedBox(width: 5),
+                              Column(
+                                key: ValueKey('overlay-canvas-widget-$index'),
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    displayTitle,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  if (message?.trim().isNotEmpty == true)
+                                    Text(
+                                      message!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                ],
                               ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
+                      ),
               ),
             ),
           ),
@@ -1607,6 +1687,117 @@ class _OverlayCanvas extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildLabelPreview({
+    required Object? config,
+    required String message,
+    required double scale,
+    required int index,
+  }) {
+    final values = config is Map
+        ? Map<String, dynamic>.from(config)
+        : const <String, dynamic>{};
+    final font = values['font'] is Map
+        ? Map<String, dynamic>.from(values['font'] as Map)
+        : const <String, dynamic>{};
+    final textAlign = values['textAlign'] is Map
+        ? Map<String, dynamic>.from(values['textAlign'] as Map)
+        : const <String, dynamic>{};
+    final block = values['block'] is Map
+        ? Map<String, dynamic>.from(values['block'] as Map)
+        : const <String, dynamic>{};
+    final textStyle = TextStyle(
+      color: _overlayColor(font['fontColor'], Colors.white),
+      fontFamily: font['fontFamily']?.toString(),
+      fontSize: math.max(
+        8,
+        ((font['fontSize'] as num?)?.toDouble() ?? 65) * scale,
+      ),
+      fontWeight: _overlayFontWeight(font['fontWeight']),
+      height: 1.05,
+    );
+    final stroke = font['stroke'] is Map
+        ? Map<String, dynamic>.from(font['stroke'] as Map)
+        : const <String, dynamic>{};
+    final strokeWidth = ((stroke['width'] as num?)?.toDouble() ?? 0) * scale;
+    final text = Text(
+      message,
+      key: ValueKey('overlay-canvas-widget-$index'),
+      maxLines: null,
+      textAlign: _overlayTextAlign(textAlign['textAlign']),
+      style: textStyle,
+    );
+    final content = strokeWidth > 0
+        ? Stack(
+            fit: StackFit.passthrough,
+            children: [
+              Text(
+                message,
+                textAlign: _overlayTextAlign(textAlign['textAlign']),
+                style: textStyle.copyWith(
+                  color: null,
+                  foreground: Paint()
+                    ..style = PaintingStyle.stroke
+                    ..strokeWidth = strokeWidth
+                    ..color = _overlayColor(stroke['color'], Colors.black),
+                ),
+              ),
+              text,
+            ],
+          )
+        : text;
+    final horizontal = switch (block['horizontalAlign']?.toString()) {
+      'center' => 0.0,
+      'right' => 1.0,
+      _ => -1.0,
+    };
+    final vertical = switch (block['verticalAlign']?.toString()) {
+      'center' => 0.0,
+      'bottom' => 1.0,
+      _ => -1.0,
+    };
+    final padding = block['padding'] is Map
+        ? Map<String, dynamic>.from(block['padding'] as Map)
+        : const <String, dynamic>{};
+    return SizedBox.expand(
+      child: Align(
+        alignment: Alignment(horizontal, vertical),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            ((padding['left'] as num?)?.toDouble() ?? 0) * scale,
+            ((padding['top'] as num?)?.toDouble() ?? 0) * scale,
+            ((padding['right'] as num?)?.toDouble() ?? 0) * scale,
+            ((padding['bottom'] as num?)?.toDouble() ?? 0) * scale,
+          ),
+          child: SizedBox(width: double.infinity, child: content),
+        ),
+      ),
+    );
+  }
+
+  Color _overlayColor(Object? value, Color fallback) {
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty) return fallback;
+    final hex = raw.startsWith('#') ? raw.substring(1) : raw;
+    final parsed = int.tryParse(hex, radix: 16);
+    if (parsed == null) return fallback;
+    if (hex.length == 6) return Color(0xff000000 | parsed);
+    if (hex.length == 8) return Color(parsed);
+    return fallback;
+  }
+
+  FontWeight _overlayFontWeight(Object? value) {
+    final number = (value is num ? value : num.tryParse('$value'))?.round();
+    final index = (((number ?? 400).clamp(100, 900) - 100) / 100).round();
+    return FontWeight.values[index];
+  }
+
+  TextAlign _overlayTextAlign(Object? value) => switch (value?.toString()) {
+    'center' => TextAlign.center,
+    'right' => TextAlign.right,
+    'justify' => TextAlign.justify,
+    _ => TextAlign.left,
+  };
 
   Widget _buildResizeHandle(
     BuildContext context,
@@ -1776,9 +1967,7 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
                 ],
                 Expanded(
                   child: Text(
-                    definition == null
-                        ? 'Widget ${index + 1}'
-                        : '${definition.name} · Widget ${index + 1}',
+                    '${_widgetTitle(widgetConfig)} · Widget ${index + 1}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
