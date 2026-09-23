@@ -31,7 +31,7 @@ Status values:
 | Stream plans | stream-plan editor and resources | Inline Stream Plan document tabs, resource repository and runtime | improved | Further visual alignment against the frozen reference |
 | Integrations | plugin details/settings pages | Typed Dart plugin registry, workspaces, health and settings | improved | Full-screen visual comparison |
 | Resources | resource store and resource editors | Resource repositories, typed editors, resource workspaces | improved | Full-screen visual comparison |
-| Overlays | Vue browser-source overlay and editor | Flutter resource configuration, Shader Graph editor/compiler, plus browser overlay package | improved | Overlay visual/protocol comparison in OBS |
+| Overlays | Vue browser-source overlay and editor | Flutter resource configuration, Shader Graph editor/compiler, plus browser overlay package | improved | Canvas origin and 10-division grid now follow the Vue reference; widget/integration tests cover label edit/alignment/reorder/save/restart. Latest temporary screenshot still differs by 78.34%, with OBS connection/source controls and full visual alignment unclosed; verify live OBS protocol before sign-off |
 | Shader Graph | `shader-graph/shader-nodes.ts`, `shader-graph-state.ts`, `ShaderGraphEditor.vue` | Flutter `shader_graph_model`, `shader_graph_compiler`, `shader_graph_editor` using `sai_nodes` | improved | Compare compiled shaders and final OBS visuals |
 | Variables | variable nodes and viewer data | Persistent variable resources and viewer-variable workspace | improved | Runtime fixtures |
 | Queues | queue page and dashboard queue widgets | Queue workspace, queue manager and graph actions | improved | Runtime fixtures and E2E flow |
@@ -91,6 +91,10 @@ height in the offscreen capture window, hiding the Profile and Stream Plan
 document contents. The reference capture harness sets that element to the
 document pane's available height after opening those documents; this is a
 capture-only layout correction, not a source change to the frozen reference.
+The checked-in Flutter overlay capture predates the latest canvas-origin and
+grid-spacing correction. A fresh temporary capture on 2026-09-23 reports
+78.337731% raw pixel difference against the frozen reference; it is not a
+passing parity result and has not replaced the checked-in capture.
 
 The Stream Plan editor now opens as a named workspace document rather than a
 modal. Editing updates the tab title and dirty marker, Save persists the plan

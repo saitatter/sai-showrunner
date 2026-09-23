@@ -780,6 +780,39 @@ void main() {
     expect((widget['size'] as Map)['height'], greaterThan(200));
   });
 
+  testWidgets('overlay stage is top-left anchored over the canvas grid', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-stage-origin',
+        config: {
+          'name': 'Stage origin',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [],
+        },
+      ),
+      (_) async {},
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    final viewport = find.byKey(const ValueKey('overlay-canvas-viewport'));
+    final stage = find.byKey(const ValueKey('overlay-preview-stage'));
+    expect(tester.getTopLeft(stage), tester.getTopLeft(viewport));
+    expect(
+      (tester.widget<Container>(stage).decoration! as BoxDecoration).border,
+      isA<Border>(),
+    );
+    expect(find.byKey(const ValueKey('overlay-canvas-grid')), findsOneWidget);
+  });
+
   testWidgets('overlay label text updates the canvas and persists', (
     tester,
   ) async {
@@ -954,6 +987,21 @@ void main() {
       expect(
         find.descendant(of: firstRow, matching: find.byIcon(mdiIcon(0xF05E7))),
         findsOneWidget,
+      );
+      expect(
+        (tester
+                    .widget<KeyedSubtree>(
+                      find.descendant(
+                        of: firstRow,
+                        matching: find.byKey(
+                          const ValueKey('overlay-widget-row-icon-label-1'),
+                        ),
+                      ),
+                    )
+                    .child
+                as Icon)
+            .icon,
+        mdiIcon(0xF05E7),
       );
       final reorderHandle = find
           .ancestor(
@@ -1700,6 +1748,87 @@ void main() {
           .map((item) => (item as Map)['id'])
           .toList(),
       ['second', 'first'],
+    );
+  });
+
+  testWidgets('overlay widget list exposes direct reorder controls', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-widget-list-reorder-controls',
+        config: {
+          'name': 'Widget list order',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [
+            {
+              'id': 'front',
+              'plugin': 'overlays',
+              'widget': 'label',
+              'name': 'Front',
+              'position': {'x': 0, 'y': 0},
+              'size': {'width': 300, 'height': 100},
+              'config': {'message': 'Front'},
+              'visible': true,
+              'locked': false,
+            },
+            {
+              'id': 'back',
+              'plugin': 'overlays',
+              'widget': 'chatFeed',
+              'name': 'Back',
+              'position': {'x': 0, 'y': 100},
+              'size': {'width': 500, 'height': 200},
+              'config': {},
+              'visible': true,
+              'locked': false,
+            },
+          ],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    await tester.tap(find.byKey(const ValueKey('overlay-widget-row-back')));
+    await tester.pumpAndSettle();
+    final moveUp = find.byKey(
+      const ValueKey('overlay-widget-list-move-up-back'),
+    );
+    await tester.ensureVisible(moveUp);
+    await tester.tap(moveUp);
+    await tester.pumpAndSettle();
+
+    final rowTitles = tester
+        .widgetList<Text>(
+          find.byWidgetPredicate(
+            (candidate) =>
+                candidate is Text &&
+                (candidate.key ==
+                        const ValueKey('overlay-widget-row-title-front') ||
+                    candidate.key ==
+                        const ValueKey('overlay-widget-row-title-back')),
+          ),
+        )
+        .map((title) => title.data)
+        .toList();
+    expect(rowTitles, ['Back', 'Front']);
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(
+      (saved!.config['widgets'] as List)
+          .map((item) => (item as Map)['id'])
+          .toList(),
+      ['back', 'front'],
     );
   });
 
