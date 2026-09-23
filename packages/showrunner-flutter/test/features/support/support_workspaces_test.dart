@@ -43,6 +43,8 @@ void main() {
                     'name': 'ShowRunner-Flutter-windows-1.1.0.zip',
                     'browser_download_url':
                         'https://example.test/showrunner.zip',
+                    'digest':
+                        'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
                   },
                 ],
               },
@@ -74,6 +76,43 @@ void main() {
       find.descendant(of: headerRow, matching: find.text('Updates')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('does not offer a download without a valid release checksum', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UpdateWorkspace(
+            updateService: UpdateCheckService(
+              currentVersion: '1.0.0',
+              fetcher: () async => {
+                'tag_name': 'v1.1.0',
+                'html_url': 'https://example.test/release',
+                'assets': [
+                  {
+                    'name': 'ShowRunner-Flutter-windows-1.1.0.zip',
+                    'browser_download_url':
+                        'https://example.test/showrunner.zip',
+                  },
+                ],
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Download Windows ZIP'), findsNothing);
+    expect(
+      find.text(
+        'Download unavailable: this release has no valid SHA-256 checksum.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Open release page'), findsOneWidget);
   });
 
   testWidgets('renders offline update errors without throwing', (tester) async {

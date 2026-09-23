@@ -25,6 +25,11 @@ final class UpdateArtifactService {
     if (url == null || !{'http', 'https'}.contains(url.scheme)) {
       throw const FormatException('The update artifact URL is invalid.');
     }
+    if (!update.hasValidArtifactDigest) {
+      throw const FormatException(
+        'The update release is missing a valid SHA-256 digest.',
+      );
+    }
     await directory.create(recursive: true);
     final version = normalizeVersion(
       update.latestVersion,
@@ -38,15 +43,16 @@ final class UpdateArtifactService {
       if (!await partial.exists() || await partial.length() == 0) {
         throw const FormatException('The downloaded update artifact is empty.');
       }
-      final expectedDigest = update.artifactSha256?.trim().toLowerCase();
-      if (expectedDigest != null && expectedDigest.isNotEmpty) {
-        final actualDigest = (await sha256.bind(partial.openRead()).first)
-            .toString();
-        if (actualDigest != expectedDigest) {
-          throw const FormatException(
-            'The downloaded update artifact failed its SHA-256 check.',
-          );
-        }
+      final expectedDigest = update.artifactSha256!
+          .trim()
+          .replaceFirst(RegExp(r'^sha256:', caseSensitive: false), '')
+          .toLowerCase();
+      final actualDigest = (await sha256.bind(partial.openRead()).first)
+          .toString();
+      if (actualDigest != expectedDigest) {
+        throw const FormatException(
+          'The downloaded update artifact failed its SHA-256 check.',
+        );
       }
       if (await destination.exists()) await destination.delete();
       return await partial.rename(destination.path);

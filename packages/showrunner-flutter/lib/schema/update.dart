@@ -35,6 +35,14 @@ class UpdateInfo {
   final String? message;
   final bool downloaded;
 
+  bool get hasValidArtifactDigest {
+    final digest = artifactSha256
+        ?.trim()
+        .replaceFirst(RegExp(r'^sha256:', caseSensitive: false), '')
+        .toLowerCase();
+    return digest != null && RegExp(r'^[0-9a-f]{64}$').hasMatch(digest);
+  }
+
   factory UpdateInfo.fromJson(JsonMap json, {required String currentVersion}) {
     final normalizedCurrent = normalizeVersion(currentVersion);
     final latest = normalizeVersion(

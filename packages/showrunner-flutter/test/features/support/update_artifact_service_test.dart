@@ -13,19 +13,22 @@ void main() {
         'showrunner-update-',
       );
       addTearDown(() => directory.delete(recursive: true));
+      const bytes = 'zip-bytes';
+      final digest = sha256.convert(bytes.codeUnits).toString();
       final service = UpdateArtifactService(
         downloader: (uri, destination) async {
           expect(uri.toString(), 'https://example.test/release.zip');
-          await destination.writeAsString('zip-bytes');
+          await destination.writeAsString(bytes);
         },
       );
 
       final artifact = await service.download(
-        const UpdateInfo(
+        UpdateInfo(
           currentVersion: '1.0.0',
           latestVersion: '1.1.0/preview',
           hasUpdate: true,
           artifactUrl: 'https://example.test/release.zip',
+          artifactSha256: digest,
         ),
         directory: directory,
       );
@@ -34,8 +37,38 @@ void main() {
         artifact.path,
         endsWith('ShowRunner-Flutter-windows-1.1.0_preview.zip'),
       );
-      expect(await artifact.readAsString(), 'zip-bytes');
+      expect(await artifact.readAsString(), bytes);
       expect(await File('${artifact.path}.part').exists(), isFalse);
+    },
+  );
+
+  test(
+    'rejects a release without a valid SHA-256 digest before download',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'showrunner-update-no-digest-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final service = UpdateArtifactService(
+        downloader: (_, _) async => fail('The downloader must not be called.'),
+      );
+
+      for (final digest in [null, 'not-a-sha256-digest']) {
+        await expectLater(
+          service.download(
+            UpdateInfo(
+              currentVersion: '1.0.0',
+              latestVersion: '1.1.0',
+              hasUpdate: true,
+              artifactUrl: 'https://example.test/release.zip',
+              artifactSha256: digest,
+            ),
+            directory: directory,
+          ),
+          throwsA(isA<FormatException>()),
+        );
+      }
+      expect(await directory.list().isEmpty, isTrue);
     },
   );
 
@@ -58,6 +91,8 @@ void main() {
           latestVersion: '1.1.0',
           hasUpdate: true,
           artifactUrl: 'https://example.test/release.zip',
+          artifactSha256:
+              '0000000000000000000000000000000000000000000000000000000000000000',
         ),
         directory: directory,
       ),
@@ -90,7 +125,7 @@ void main() {
           latestVersion: '1.1.0',
           hasUpdate: true,
           artifactUrl: 'https://example.test/release.zip',
-          artifactSha256: digest,
+          artifactSha256: 'SHA256:${digest.toUpperCase()}',
         ),
         directory: directory,
       );

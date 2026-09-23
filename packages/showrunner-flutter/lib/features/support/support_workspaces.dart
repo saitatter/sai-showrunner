@@ -256,7 +256,11 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
   }
 
   Future<void> _downloadArtifact() async {
-    if (_updateInfo.artifactUrl.isEmpty || _downloading) return;
+    if (_updateInfo.artifactUrl.isEmpty ||
+        !_updateInfo.hasValidArtifactDigest ||
+        _downloading) {
+      return;
+    }
     setState(() {
       _downloading = true;
       _downloadError = null;
@@ -415,7 +419,8 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
                           ),
                         ),
                       ],
-                      if (_updateInfo.artifactUrl.isNotEmpty) ...[
+                      if (_updateInfo.artifactUrl.isNotEmpty &&
+                          _updateInfo.hasValidArtifactDigest) ...[
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -436,6 +441,14 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
                                   : 'Download Windows ZIP',
                             ),
                           ),
+                        ),
+                      ],
+                      if (_updateInfo.artifactUrl.isNotEmpty &&
+                          !_updateInfo.hasValidArtifactDigest) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Download unavailable: this release has no valid SHA-256 checksum.',
+                          style: TextStyle(color: Color(0xffffc857)),
                         ),
                       ],
                       if (_downloadedArtifact != null) ...[
