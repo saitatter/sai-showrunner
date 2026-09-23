@@ -14,6 +14,7 @@ import '../../schema/stream_plan.dart';
 import '../../persistence/secret_settings_store.dart';
 import 'color_field.dart';
 import '../../components/data_inputs/data_input.dart';
+import '../../components/data_inputs/overlay_style_inputs.dart';
 import '../../plugins/sound/ui/tts_voice_provider_picker.dart';
 import '../../plugins/overlays/shader_graph/shader_graph_editor.dart';
 import '../../plugins/overlays/shader_graph/shader_graph_model.dart';
@@ -39,12 +40,21 @@ void _moveListItem<T>(List<T> items, int from, int to) {
 List<String> _strings(Object? value) =>
     value is List ? value.map((item) => item.toString()).toList() : <String>[];
 
-String _widgetTitle(JsonMap widget) {
+String _widgetTitle(
+  JsonMap widget, [
+  List<GeneratedOverlayWidget> catalog = const [],
+]) {
   final name = widget['name']?.toString().trim();
   if (name != null && name.isNotEmpty) return name;
   final config = widget['config'];
   if (config is Map && config['label']?.toString().trim().isNotEmpty == true) {
     return config['label'].toString();
+  }
+  for (final definition in catalog) {
+    if (definition.pluginId == _definitionPluginId(widget) &&
+        definition.id == _definitionWidgetId(widget)) {
+      return definition.name;
+    }
   }
   return widget['title']?.toString() ??
       widget['widget']?.toString() ??
@@ -890,6 +900,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12),
       child: _OverlayWidgetCard(
+        key: ValueKey('overlay-widget-inspector-${selected['id']}'),
         index: index,
         widgetConfig: selected,
         onChanged: (key, value) {
@@ -942,7 +953,9 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                     final item = _widgets[index];
                     final selected = index == _selectedWidgetIndex;
                     return ListTile(
-                      key: ValueKey(item['id'] ?? 'overlay-widget-$index'),
+                      key: ValueKey(
+                        'overlay-widget-row-${item['id'] ?? index}',
+                      ),
                       dense: true,
                       selected: selected,
                       selectedTileColor: Theme.of(
@@ -960,7 +973,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                           _widgetListIcon(item),
                         ],
                       ),
-                      title: Text(_widgetTitle(item)),
+                      title: Text(_widgetTitle(item, _overlayWidgetCatalog)),
                       subtitle: Text(
                         item['plugin'] != null
                             ? '${item['plugin']}.${item['widget']}'
@@ -968,11 +981,42 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: Icon(
-                        item['visible'] == false
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        size: 18,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Move widget up',
+                            visualDensity: VisualDensity.compact,
+                            constraints: const BoxConstraints.tightFor(
+                              width: 30,
+                              height: 30,
+                            ),
+                            padding: EdgeInsets.zero,
+                            onPressed: index == 0
+                                ? null
+                                : () => _moveWidget(index, -1),
+                            icon: const Icon(Icons.arrow_upward, size: 16),
+                          ),
+                          IconButton(
+                            tooltip: 'Move widget down',
+                            visualDensity: VisualDensity.compact,
+                            constraints: const BoxConstraints.tightFor(
+                              width: 30,
+                              height: 30,
+                            ),
+                            padding: EdgeInsets.zero,
+                            onPressed: index == _widgets.length - 1
+                                ? null
+                                : () => _moveWidget(index, 1),
+                            icon: const Icon(Icons.arrow_downward, size: 16),
+                          ),
+                          Icon(
+                            item['visible'] == false
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 18,
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -1256,8 +1300,19 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   );
 
   void _addWidget(GeneratedOverlayWidget definition) {
+    final widgetConfig = definition.createWidget();
+    final baseName = definition.name;
+    final names = _widgets
+        .map((widget) => widget['name']?.toString())
+        .whereType<String>()
+        .toSet();
+    var name = baseName;
+    for (var suffix = 1; names.contains(name); suffix++) {
+      name = '$baseName $suffix';
+    }
+    widgetConfig['name'] = name;
     setState(() {
-      _widgets.add(definition.createWidget());
+      _widgets.add(widgetConfig);
       _selectedWidgetIndex = _widgets.length - 1;
     });
     _markDirty();
@@ -1283,6 +1338,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   }
 
   void _reorderWidgets(int oldIndex, int newIndex) {
+    // onReorderItem reports the final index after the removal adjustment.
     if (oldIndex == newIndex) return;
     if (oldIndex < 0 || oldIndex >= _widgets.length) return;
     if (newIndex < 0 || newIndex >= _widgets.length) return;
@@ -1588,7 +1644,7 @@ class _OverlayCanvas extends StatelessWidget {
           candidate?.pluginId == pluginId && candidate?.id == widgetId,
       orElse: () => null,
     );
-    final label = _widgetTitle(widgetConfig);
+    final label = _widgetTitle(widgetConfig, catalog);
     final config = widgetConfig['config'];
     final message = config is Map ? config['message']?.toString() : null;
     final isLabel = widgetId == 'label';
@@ -1708,13 +1764,36 @@ class _OverlayCanvas extends StatelessWidget {
         : const <String, dynamic>{};
     final textStyle = TextStyle(
       color: _overlayColor(font['fontColor'], Colors.white),
-      fontFamily: font['fontFamily']?.toString(),
+      fontFamily: font['fontFamily']?.toString().trim().isEmpty == true
+          ? null
+          : font['fontFamily']?.toString(),
       fontSize: math.max(
         8,
         ((font['fontSize'] as num?)?.toDouble() ?? 65) * scale,
       ),
       fontWeight: _overlayFontWeight(font['fontWeight']),
-      height: 1.05,
+      shadows: font['shadow'] is Map
+          ? [
+              Shadow(
+                color: _overlayColor(
+                  (font['shadow'] as Map)['color'],
+                  Colors.transparent,
+                ),
+                offset: Offset(
+                  (((font['shadow'] as Map)['offsetX'] as num?)?.toDouble() ??
+                          0) *
+                      scale,
+                  (((font['shadow'] as Map)['offsetY'] as num?)?.toDouble() ??
+                          0) *
+                      scale,
+                ),
+                blurRadius:
+                    (((font['shadow'] as Map)['blur'] as num?)?.toDouble() ??
+                        0) *
+                    scale,
+              ),
+            ]
+          : const [],
     );
     final stroke = font['stroke'] is Map
         ? Map<String, dynamic>.from(font['stroke'] as Map)
@@ -1724,6 +1803,9 @@ class _OverlayCanvas extends StatelessWidget {
       message,
       key: ValueKey('overlay-canvas-widget-$index'),
       maxLines: null,
+      softWrap: true,
+      textWidthBasis: TextWidthBasis.parent,
+      textScaler: TextScaler.noScaling,
       textAlign: _overlayTextAlign(textAlign['textAlign']),
       style: textStyle,
     );
@@ -1734,6 +1816,9 @@ class _OverlayCanvas extends StatelessWidget {
               Text(
                 message,
                 textAlign: _overlayTextAlign(textAlign['textAlign']),
+                softWrap: true,
+                textWidthBasis: TextWidthBasis.parent,
+                textScaler: TextScaler.noScaling,
                 style: textStyle.copyWith(
                   color: null,
                   foreground: Paint()
@@ -1880,6 +1965,7 @@ class _OverlayGridPainter extends CustomPainter {
 
 class _OverlayWidgetCard extends StatelessWidget {
   const _OverlayWidgetCard({
+    super.key,
     required this.index,
     required this.widgetConfig,
     required this.onChanged,
@@ -1967,7 +2053,7 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
                 ],
                 Expanded(
                   child: Text(
-                    '${_widgetTitle(widgetConfig)} · Widget ${index + 1}',
+                    '${_widgetTitle(widgetConfig, catalog)} · Widget ${index + 1}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -1993,7 +2079,14 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
               title: 'Widget',
               child: Column(
                 children: [
-                  _textField('Name', '${widgetConfig['name'] ?? ''}', 'name'),
+                  _textField(
+                    'Name',
+                    '${widgetConfig['name'] ?? ''}',
+                    'name',
+                    fieldKey: ValueKey(
+                      'overlay-widget-name-${widgetConfig['id']}',
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2123,12 +2216,18 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
     ),
   );
 
-  Widget _textField(String label, String value, String key) => SizedBox(
+  Widget _textField(
+    String label,
+    String value,
+    String configKey, {
+    Key? fieldKey,
+  }) => SizedBox(
     width: 180,
     child: TextFormField(
+      key: fieldKey,
       initialValue: value,
       decoration: InputDecoration(labelText: label),
-      onChanged: (next) => onChanged(key, next),
+      onChanged: (next) => onChanged(configKey, next),
     ),
   );
 
@@ -2395,13 +2494,65 @@ class _OverlayWidgetConfigEditor extends StatelessWidget {
         },
       );
     }
-    final normalizedConfig = _mergeOverlayWidgetDefaults(
-      definition.configSchema,
-      config,
-    );
+    final configSchema = definition.configSchema;
+    final normalizedConfig = _mergeOverlayWidgetDefaults(configSchema, config);
+    final textAlignmentSchema = configSchema.fields
+        .where((field) => field.editor == 'overlayTextAlignment')
+        .firstOrNull;
+    final blockStyleSchema = configSchema.fields
+        .where((field) => field.editor == 'overlayBlockStyle')
+        .firstOrNull;
+    final hasVerticalOnlyAlignment =
+        textAlignmentSchema != null &&
+        blockStyleSchema != null &&
+        blockStyleSchema.allowMargin == false &&
+        blockStyleSchema.allowPadding == false &&
+        blockStyleSchema.allowHorizontalAlign == false &&
+        blockStyleSchema.allowVerticalAlign != false;
+    if (hasVerticalOnlyAlignment) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final field in configSchema.fields)
+            if (field == textAlignmentSchema)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: OverlayLabelAlignmentInput(
+                  textAlignmentSchema: textAlignmentSchema,
+                  textAlignment: normalizedConfig['textAlign'],
+                  onTextAlignmentChanged: (next) =>
+                      onChanged({...normalizedConfig, 'textAlign': next}),
+                  blockStyleSchema: blockStyleSchema,
+                  blockStyle: normalizedConfig['block'],
+                  onBlockStyleChanged: (next) =>
+                      onChanged({...normalizedConfig, 'block': next}),
+                ),
+              )
+            else if (field != blockStyleSchema)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: DartDataInput(
+                  key: ValueKey(field.key ?? field.label),
+                  schema: field,
+                  value: normalizedConfig[field.key ?? field.label],
+                  templateSuggestions: {
+                    ...templateSuggestions,
+                    ..._overlayTemplateSuggestions(catalog),
+                  }.toList()..sort(),
+                  onChanged: (value) {
+                    onChanged({
+                      ...normalizedConfig,
+                      field.key ?? field.label: value,
+                    });
+                  },
+                ),
+              ),
+        ],
+      );
+    }
     return DartDataInput(
       key: ValueKey('$plugin.$widget'),
-      schema: definition.configSchema,
+      schema: configSchema,
       value: normalizedConfig,
       templateSuggestions: {
         ...templateSuggestions,

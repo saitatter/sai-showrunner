@@ -23,8 +23,18 @@ void main() {
         () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(inputChannel, null),
       );
+      final endpointProbe = await ServerSocket.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      final endpointPort = endpointProbe.port;
+      await endpointProbe.close();
+      final dataService = ShowRunnerDataService(root);
+      await dataService.savePluginSettings('ShowRunner', {
+        'port': endpointPort,
+      });
       final services = ShowRunnerServices.create(
-        dataService: ShowRunnerDataService(root),
+        dataService: dataService,
         onVariableChanged: (_, _) {},
       );
 

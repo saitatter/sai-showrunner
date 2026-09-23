@@ -265,6 +265,75 @@ class _OverlayTextAlignmentInput extends StatelessWidget {
   }
 }
 
+/// Presents the text and vertical alignment controls together, matching the
+/// two-row alignment editor used by the overlay widget inspector.
+class OverlayLabelAlignmentInput extends StatelessWidget {
+  const OverlayLabelAlignmentInput({
+    super.key,
+    required this.textAlignmentSchema,
+    required this.textAlignment,
+    required this.onTextAlignmentChanged,
+    required this.blockStyleSchema,
+    required this.blockStyle,
+    required this.onBlockStyleChanged,
+  });
+
+  final DartDataInputSchema textAlignmentSchema;
+  final dynamic textAlignment;
+  final ValueChanged<dynamic> onTextAlignmentChanged;
+  final DartDataInputSchema blockStyleSchema;
+  final dynamic blockStyle;
+  final ValueChanged<dynamic> onBlockStyleChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final textValues = _map(textAlignment);
+    final textField = _field(textAlignmentSchema, 'textAlign');
+    final blockValues = _map(blockStyle);
+    final verticalField = _field(blockStyleSchema, 'verticalAlign');
+    if (textField == null || verticalField == null) {
+      return const SizedBox.shrink();
+    }
+
+    return _InspectorSection(
+      label: 'Alignment',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _IconChoiceRow(
+            selected:
+                textValues['textAlign']?.toString() ??
+                textField.defaultValue?.toString() ??
+                'left',
+            choices: const [
+              ('left', Icons.format_align_left),
+              ('center', Icons.format_align_center),
+              ('right', Icons.format_align_right),
+              ('justify', Icons.format_align_justify),
+            ],
+            onSelected: (next) =>
+                onTextAlignmentChanged({...textValues, 'textAlign': next}),
+          ),
+          const SizedBox(height: 8),
+          _IconChoiceRow(
+            selected:
+                blockValues['verticalAlign']?.toString() ??
+                verticalField.defaultValue?.toString() ??
+                'top',
+            choices: const [
+              ('top', Icons.align_vertical_top),
+              ('center', Icons.align_vertical_center),
+              ('bottom', Icons.align_vertical_bottom),
+            ],
+            onSelected: (next) =>
+                onBlockStyleChanged({...blockValues, 'verticalAlign': next}),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _OverlayBlockStyleInput extends StatelessWidget {
   const _OverlayBlockStyleInput({
     required this.schema,
