@@ -66,8 +66,9 @@ void main() {
     await tester.pump();
     expect(find.text('Saved project'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byKey(const ValueKey('showrunner-toast-dismiss')));
     await tester.pump();
     expect(find.text('Saved project'), findsNothing);
+    expect(find.byKey(const ValueKey('showrunner-toast')), findsNothing);
   });
 }

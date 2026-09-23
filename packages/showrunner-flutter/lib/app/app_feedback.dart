@@ -133,6 +133,7 @@ class _ShowRunnerToastCard extends StatelessWidget {
         .clamp(280.0, 480.0)
         .toDouble();
     return Semantics(
+      key: const ValueKey('showrunner-toast'),
       container: true,
       liveRegion: true,
       label: title == null ? toast.message : '$title: ${toast.message}',
@@ -200,6 +201,7 @@ class _ShowRunnerToastCard extends StatelessWidget {
                     button: true,
                     label: 'Dismiss',
                     child: IconButton(
+                      key: const ValueKey('showrunner-toast-dismiss'),
                       onPressed: onDismiss,
                       visualDensity: VisualDensity.compact,
                       iconSize: 18,

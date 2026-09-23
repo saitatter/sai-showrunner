@@ -226,17 +226,14 @@ Future<void> _capture(WidgetTester tester, String fileName) async {
 }
 
 Future<void> _dismissToasts(WidgetTester tester) async {
-  final dismissButton = find.bySemanticsLabel('Dismiss');
-  for (var attempt = 0; attempt < 3 && tester.any(dismissButton); attempt++) {
+  final toast = find.byKey(const ValueKey('showrunner-toast'));
+  final dismissButton = find.byKey(const ValueKey('showrunner-toast-dismiss'));
+  for (var attempt = 0; attempt < 3 && tester.any(toast); attempt++) {
     final box = tester.renderObject<RenderBox>(dismissButton.last);
     await tester.tapAt(box.localToGlobal(box.size.center(Offset.zero)));
     await tester.pump(const Duration(milliseconds: 200));
   }
-  expect(
-    dismissButton,
-    findsNothing,
-    reason: 'Capture must not include a toast.',
-  );
+  expect(toast, findsNothing, reason: 'Capture must not include a toast.');
 }
 
 Future<void> _pumpApplication(WidgetTester tester) async {
