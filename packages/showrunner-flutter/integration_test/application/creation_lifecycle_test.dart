@@ -67,6 +67,29 @@ void main() {
     expect(find.text('Activation condition (JSON)'), findsNothing);
     await tester.tap(find.widgetWithText(TextButton, 'Group').first);
     await _pumpApplication(tester);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Add Trigger'));
+    await _pumpApplication(tester);
+    expect(find.text('Add profile trigger'), findsOneWidget);
+    final picker = find.byType(Dialog).last;
+    final availableTriggers = find.descendant(
+      of: picker,
+      matching: find.byType(ListTile),
+    );
+    expect(availableTriggers, findsAtLeastNWidgets(1));
+    await tester.ensureVisible(availableTriggers.first);
+    await tester.tap(availableTriggers.first);
+    await _pumpApplication(tester);
+    expect(find.text('Add profile trigger'), findsNothing);
+    expect(find.text('Automation'), findsOneWidget);
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.labelText == 'Description',
+      ),
+      'Incoming chat',
+    );
+    await _pumpApplication(tester);
     await tester.tap(find.widgetWithText(FilledButton, 'Save Profile'));
     await _pumpApplication(tester);
 
@@ -84,6 +107,9 @@ void main() {
       (profile?.activationCondition['operands'] as List).single['type'],
       'group',
     );
+    expect(profile?.triggers.single['plugin'], isNotEmpty);
+    expect(profile?.triggers.single['trigger'], isNotEmpty);
+    expect(profile?.triggers.single['description'], 'Incoming chat');
   });
 }
 

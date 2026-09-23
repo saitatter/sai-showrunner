@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -18,6 +17,7 @@ import '../../schema/profile.dart';
 import '../../services/showrunner_data_service.dart';
 import '../resources/resource_options.dart';
 import 'boolean_expression_editor.dart';
+import 'profile_trigger_editor_card.dart';
 
 typedef ProfileEntry = ({
   String fileName,
@@ -110,10 +110,14 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   final _nameController = TextEditingController();
   late final ShowRunnerGraphEditor _activationEditor;
   late final ShowRunnerGraphEditor _deactivationEditor;
+  late final Future<DartPluginRegistry> _triggerRegistryFuture;
+  late final Future<List<String>> _queueOptionsFuture;
+  DartPluginRegistry? _triggerRegistry;
   List<ProfileEntry> _entries = [];
   int? _selectedIndex;
   String _activationMode = 'toggle';
   List<JsonMap> _triggers = [];
+  final Set<String> _invalidTriggerIds = {};
   JsonMap _activationCondition = createAlwaysOnCondition();
   bool _loading = true;
   bool _saving = false;
@@ -134,15 +138,28 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     _deactivationEditor = ShowRunnerGraphEditor(
       resourceOptionsLoader: _resourceOptions,
     );
+    _triggerRegistryFuture =
+        widget.registryFuture ?? Future.value(createDefaultPluginRegistry());
+    _queueOptionsFuture = _resourceOptions('ActionQueue');
     _nameController.addListener(_markDirty);
     _activationEditor.documentDirty.addListener(_markDirty);
     _deactivationEditor.documentDirty.addListener(_markDirty);
     _initialLoad = _load();
+    unawaited(_loadTriggerRegistry());
     widget.controller?.attach(
       _confirmClose,
       openProfile: _openProfile,
       reloadEntries: _load,
     );
+  }
+
+  Future<void> _loadTriggerRegistry() async {
+    try {
+      final registry = await _triggerRegistryFuture;
+      if (mounted) setState(() => _triggerRegistry = registry);
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    }
   }
 
   @override
@@ -239,6 +256,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       _activationEditor.loadAutomation(_emptyAutomation());
       _deactivationEditor.loadAutomation(_emptyAutomation());
     }
+    _invalidTriggerIds.clear();
     _synchronizing = false;
     _markClean();
     unawaited(_syncRuntimeActive(entry.fileName));
@@ -377,6 +395,12 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
 
   Future<void> _saveProfile() async {
     if (_selectedIndex == null || _selectedIndex! >= _entries.length) return;
+    if (_invalidTriggerIds.isNotEmpty) {
+      setState(
+        () => _error = 'Fix invalid trigger configuration before saving.',
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       final entry = _entries[_selectedIndex!];
@@ -454,46 +478,28 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   Future<void> _addTrigger() async {
-    final registry = widget.registryFuture == null
-        ? null
-        : await widget.registryFuture;
+    final registry = await _triggerRegistryFuture;
     if (!mounted) return;
     final selected = await showDialog<TriggerSpec>(
       context: context,
       builder: (context) => _TriggerPickerDialog(registry: registry),
     );
     if (selected == null || !mounted) return;
+    final initialConfig = selected.configSchema == null
+        ? <String, dynamic>{}
+        : constructDartDataInputDefault(selected.configSchema!);
+    final config = initialConfig is Map
+        ? Map<String, dynamic>.from(initialConfig)
+        : <String, dynamic>{};
     setState(() {
       _triggers.add({
-        'id': 'trigger_${DateTime.now().millisecondsSinceEpoch}',
-        'plugin': selected.pluginId,
-        'trigger': selected.triggerId,
-        'config': <String, dynamic>{},
+        'id': 'trigger_${DateTime.now().microsecondsSinceEpoch}',
+        'plugin': selected.pluginId.value,
+        'trigger': selected.triggerId.value,
+        'config': config,
         'description': selected.displayName,
         'automation': _emptyAutomation().toJson(),
       });
-      _markDirty();
-    });
-  }
-
-  Future<void> _editTrigger(int index) async {
-    final trigger = _triggers[index];
-    final registry = widget.registryFuture == null
-        ? null
-        : await widget.registryFuture;
-    if (!mounted) return;
-    final result = await showDialog<JsonMap>(
-      context: context,
-      builder: (context) => _TriggerEditDialog(
-        trigger: trigger,
-        registry: registry,
-        registryFuture: widget.registryFuture,
-        resourceOptionsLoader: _resourceOptions,
-      ),
-    );
-    if (result == null || !mounted) return;
-    setState(() {
-      _triggers[index] = result;
       _markDirty();
     });
   }
@@ -503,8 +509,10 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   void _removeTrigger(int index) {
+    final id = _triggers[index]['id']?.toString();
     setState(() {
       _triggers.removeAt(index);
+      if (id != null) _invalidTriggerIds.remove(id);
       _markDirty();
     });
   }
@@ -604,7 +612,9 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                           ),
                           const SizedBox(width: 8),
                           FilledButton.icon(
-                            onPressed: _saving ? null : _saveProfile,
+                            onPressed: _saving || _invalidTriggerIds.isNotEmpty
+                                ? null
+                                : _saveProfile,
                             icon: _saving
                                 ? const SizedBox(
                                     width: 16,
@@ -711,40 +721,58 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        ..._triggers.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final trigger = entry.value;
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              leading: const Icon(Icons.bolt),
-                              title: Text(
-                                trigger['description']?.toString().isNotEmpty ==
-                                        true
-                                    ? trigger['description'].toString()
-                                    : 'Trigger ${index + 1}',
-                              ),
-                              subtitle: Text(
-                                '${trigger['plugin'] ?? 'unassigned'}:${trigger['trigger'] ?? 'event'} | '
-                                'Queue: ${trigger['queue'] ?? 'default'}',
-                              ),
-                              trailing: Wrap(
-                                children: [
-                                  IconButton(
-                                    tooltip: 'Edit trigger',
-                                    icon: const Icon(Icons.edit_outlined),
-                                    onPressed: () => _editTrigger(index),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Delete trigger',
-                                    icon: const Icon(Icons.delete_outline),
-                                    onPressed: () => _removeTrigger(index),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }),
+                        if (_triggerRegistry == null)
+                          const LinearProgressIndicator()
+                        else
+                          ReorderableListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            buildDefaultDragHandles: false,
+                            itemCount: _triggers.length,
+                            onReorderItem: (oldIndex, newIndex) {
+                              setState(() {
+                                final item = _triggers.removeAt(oldIndex);
+                                _triggers.insert(newIndex, item);
+                              });
+                              _markDirty();
+                            },
+                            itemBuilder: (context, index) {
+                              final trigger = _triggers[index];
+                              final id =
+                                  trigger['id']?.toString() ?? 'trigger-$index';
+                              return ProfileTriggerEditorCard(
+                                key: ValueKey(id),
+                                trigger: trigger,
+                                registry: _triggerRegistry!,
+                                registryFuture: _triggerRegistryFuture,
+                                resourceOptionsLoader: _resourceOptions,
+                                queueOptionsFuture: _queueOptionsFuture,
+                                dragHandle: ReorderableDragStartListener(
+                                  index: index,
+                                  child: const Icon(Icons.drag_indicator),
+                                ),
+                                onChanged: (updated) {
+                                  _triggers[index] = updated;
+                                  _markDirty();
+                                },
+                                onValidityChanged: (valid) {
+                                  final changed = valid
+                                      ? _invalidTriggerIds.remove(id)
+                                      : _invalidTriggerIds.add(id);
+                                  if (changed && mounted) setState(() {});
+                                },
+                                onDelete: () => _removeTrigger(index),
+                              );
+                            },
+                          ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: _addTrigger,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add Trigger'),
+                          ),
+                        ),
                       ],
                       const SizedBox(height: 28),
                       Text(
@@ -782,15 +810,6 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         ),
       ],
     );
-  }
-}
-
-JsonMap? _tryParseJsonObject(String text) {
-  try {
-    final decoded = jsonDecode(text);
-    return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
-  } on FormatException {
-    return null;
   }
 }
 
@@ -834,328 +853,6 @@ class _TriggerPickerDialog extends StatelessWidget {
       ],
     );
   }
-}
-
-class _TriggerEditDialog extends StatefulWidget {
-  const _TriggerEditDialog({
-    required this.trigger,
-    required this.registry,
-    this.registryFuture,
-    this.resourceOptionsLoader,
-  });
-
-  final JsonMap trigger;
-  final DartPluginRegistry? registry;
-  final Future<DartPluginRegistry>? registryFuture;
-  final GraphResourceOptionsLoader? resourceOptionsLoader;
-
-  @override
-  State<_TriggerEditDialog> createState() => _TriggerEditDialogState();
-}
-
-class _TriggerEditDialogState extends State<_TriggerEditDialog> {
-  late final TextEditingController _description;
-  late final TextEditingController _queue;
-  late final TextEditingController _config;
-  late bool _stop;
-  late String? _selectedTriggerId;
-  late dynamic _configValue;
-  late final AutomationData _originalAutomation;
-  late final DartPluginRegistry _editorRegistry;
-  late final Future<DartPluginRegistry> _editorRegistryFuture;
-  late final ShowRunnerGraphEditor _automationEditor;
-  String? _graphTriggerNodeId;
-  String? _error;
-
-  List<DartTriggerContract> get _availableTriggers => [
-    for (final plugin
-        in widget.registry?.plugins ?? const <DartPluginManifest>[])
-      ...plugin.triggers,
-  ];
-
-  DartTriggerContract? get _selectedTrigger => _availableTriggers
-      .where(
-        (trigger) =>
-            '${trigger.pluginId}:${trigger.triggerId}' == _selectedTriggerId,
-      )
-      .firstOrNull;
-
-  @override
-  void initState() {
-    super.initState();
-    _description = TextEditingController(
-      text: widget.trigger['description']?.toString() ?? '',
-    );
-    _queue = TextEditingController(
-      text: widget.trigger['queue']?.toString() ?? '',
-    );
-    _config = TextEditingController(
-      text: const JsonEncoder.withIndent('  ').convert(
-        widget.trigger['config'] is Map ? widget.trigger['config'] : const {},
-      ),
-    );
-    _stop = widget.trigger['stop'] == true;
-    final rawAutomation = widget.trigger['automation'];
-    _originalAutomation = rawAutomation is Map
-        ? _parseAutomation(rawAutomation)
-        : AutomationData();
-    _editorRegistry = widget.registry ?? createDefaultPluginRegistry();
-    _editorRegistryFuture =
-        widget.registryFuture ?? Future.value(_editorRegistry);
-    _automationEditor = ShowRunnerGraphEditor(
-      registry: _editorRegistry,
-      resourceOptionsLoader: widget.resourceOptionsLoader,
-    )..loadAutomation(_originalAutomation);
-    final graphTrigger = _originalAutomation.triggerNodes.firstOrNull;
-    final plugin = widget.trigger['plugin'] is String
-        ? widget.trigger['plugin'] as String
-        : graphTrigger?['plugin']?.toString();
-    final triggerId = widget.trigger['trigger'] is String
-        ? widget.trigger['trigger'] as String
-        : graphTrigger?['trigger']?.toString();
-    _graphTriggerNodeId = graphTrigger?['id']?.toString();
-    _selectedTriggerId = plugin != null && triggerId != null
-        ? '$plugin:$triggerId'
-        : null;
-    _configValue = widget.trigger['config'] is Map
-        ? Map<String, dynamic>.from(widget.trigger['config'] as Map)
-        : graphTrigger?['config'] is Map
-        ? Map<String, dynamic>.from(graphTrigger!['config'] as Map)
-        : <String, dynamic>{};
-    _config.text = const JsonEncoder.withIndent('  ').convert(_configValue);
-  }
-
-  @override
-  void dispose() {
-    _description.dispose();
-    _queue.dispose();
-    _config.dispose();
-    _automationEditor.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    final text = _config.text.trim();
-    final decoded = _selectedTrigger?.configSchema != null
-        ? (_configValue is Map
-              ? Map<String, dynamic>.from(_configValue as Map)
-              : <String, dynamic>{})
-        : text.isEmpty
-        ? <String, dynamic>{}
-        : _tryParseJsonObject(text);
-    if (decoded == null) {
-      setState(() => _error = 'Config must be a JSON object.');
-      return;
-    }
-    final selectedTrigger = _selectedTrigger;
-    final result = <String, dynamic>{
-      ...widget.trigger,
-      'automation': _saveAutomation(decoded, selectedTrigger),
-      if (selectedTrigger != null) ...{
-        'plugin': selectedTrigger.pluginId,
-        'trigger': selectedTrigger.triggerId,
-      },
-      'description': _description.text.trim(),
-      'config': decoded,
-      if (_queue.text.trim().isNotEmpty) 'queue': _queue.text.trim(),
-      if (_queue.text.trim().isEmpty) 'queue': null,
-      'stop': _stop,
-    };
-    if (_graphTriggerNodeId != null) {
-      result.remove('plugin');
-      result.remove('trigger');
-      result.remove('config');
-    }
-    Navigator.of(context).pop(result);
-  }
-
-  JsonMap _saveAutomation(
-    JsonMap config,
-    DartTriggerContract? selectedTrigger,
-  ) {
-    final automation = _automationEditor.toAutomation(_originalAutomation);
-    final json = automation.toJson();
-    final nodeId = _graphTriggerNodeId;
-    if (nodeId == null) return json;
-    final rawNodes = json['triggerNodes'];
-    if (rawNodes is! List) return json;
-    json['triggerNodes'] = [
-      for (final rawNode in rawNodes)
-        if (rawNode is Map)
-          {
-            ...Map<String, dynamic>.from(rawNode),
-            if (rawNode['id']?.toString() == nodeId) ...{
-              if (selectedTrigger != null) 'plugin': selectedTrigger.pluginId,
-              if (selectedTrigger != null) 'trigger': selectedTrigger.triggerId,
-              'config': config,
-              'stop': _stop,
-            },
-          },
-    ];
-    return json;
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Edit trigger'),
-    content: SizedBox(
-      width: 820,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _description,
-              decoration: const InputDecoration(labelText: 'Description'),
-            ),
-            TextField(
-              controller: _queue,
-              decoration: const InputDecoration(labelText: 'Queue resource'),
-            ),
-            if (_availableTriggers.isNotEmpty)
-              DropdownButtonFormField<String>(
-                initialValue:
-                    _availableTriggers.any(
-                      (trigger) =>
-                          '${trigger.pluginId}:${trigger.triggerId}' ==
-                          _selectedTriggerId,
-                    )
-                    ? _selectedTriggerId
-                    : null,
-                decoration: const InputDecoration(labelText: 'Trigger'),
-                items: [
-                  for (final trigger in _availableTriggers)
-                    DropdownMenuItem(
-                      value: '${trigger.pluginId}:${trigger.triggerId}',
-                      child: Text(
-                        '${trigger.displayName} (${trigger.pluginId})',
-                      ),
-                    ),
-                ],
-                onChanged: (value) {
-                  final trigger = _availableTriggers
-                      .where(
-                        (candidate) =>
-                            '${candidate.pluginId}:${candidate.triggerId}' ==
-                            value,
-                      )
-                      .firstOrNull;
-                  setState(() {
-                    _selectedTriggerId = value;
-                    _configValue =
-                        trigger == null || trigger.configSchema == null
-                        ? <String, dynamic>{}
-                        : constructDartDataInputDefault(trigger.configSchema!);
-                    _config.text = const JsonEncoder.withIndent(
-                      '  ',
-                    ).convert(_configValue);
-                  });
-                },
-              ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Stop propagation'),
-              value: _stop,
-              onChanged: (value) => setState(() => _stop = value),
-            ),
-            _buildConfigurationInput(),
-            const SizedBox(height: 12),
-            ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              leading: const Icon(Icons.account_tree_outlined),
-              title: const Text('Automation'),
-              subtitle: Text(
-                '${_automationEditor.controller.nodes.length} nodes',
-              ),
-              children: [
-                SizedBox(
-                  width: 760,
-                  height: 420,
-                  child: ShowRunnerInlineGraphEditor(
-                    editor: _automationEditor,
-                    registryFuture: _editorRegistryFuture,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(onPressed: _save, child: const Text('Save')),
-    ],
-  );
-
-  Widget _buildConfigurationInput() {
-    final rawSchema = _selectedTrigger?.configSchema;
-    if (rawSchema == null) {
-      return TextField(
-        controller: _config,
-        minLines: 8,
-        maxLines: 14,
-        decoration: InputDecoration(
-          labelText: 'Trigger config (JSON)',
-          border: const OutlineInputBorder(),
-          errorText: _error,
-        ),
-      );
-    }
-    return FutureBuilder<DartDataInputSchema>(
-      future: _hydrateResourceInputSchema(
-        rawSchema,
-        widget.resourceOptionsLoader,
-      ),
-      builder: (context, snapshot) => snapshot.hasData
-          ? DartDataInput(
-              schema: snapshot.data!,
-              value: _configValue,
-              onChanged: (value) => setState(() => _configValue = value),
-            )
-          : const LinearProgressIndicator(),
-    );
-  }
-}
-
-AutomationData _parseAutomation(Object value) {
-  return AutomationData.fromJson(Map<String, dynamic>.from(value as Map));
-}
-
-Future<DartDataInputSchema> _hydrateResourceInputSchema(
-  DartDataInputSchema schema,
-  GraphResourceOptionsLoader? loader,
-) async {
-  final fields = schema.fields.isEmpty
-      ? schema.fields
-      : await Future.wait(
-          schema.fields.map(
-            (field) => _hydrateResourceInputSchema(field, loader),
-          ),
-        );
-  var options = schema.options;
-  if (schema.kind == DartDataInputKind.resource &&
-      options.isEmpty &&
-      schema.resourceType != null &&
-      loader != null) {
-    options = await loader(schema.resourceType!.value);
-  }
-  return DartDataInputSchema(
-    label: schema.label,
-    kind: schema.kind,
-    key: schema.key,
-    options: options,
-    required: schema.required,
-    secret: schema.secret,
-    multiline: schema.multiline,
-    defaultValue: schema.defaultValue,
-    resourceType: schema.resourceType,
-    fields: fields,
-    itemKind: schema.itemKind,
-  );
 }
 
 class _InlineAutomationPanel extends StatelessWidget {
