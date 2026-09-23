@@ -898,19 +898,13 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     final selected = _widgets[index];
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12),
-      child: _OverlayWidgetCard(
+      child: _OverlayWidgetInspector(
         key: ValueKey('overlay-widget-inspector-${selected['id']}'),
-        index: index,
         widgetConfig: selected,
         onChanged: (key, value) {
           _markDirty();
           setState(() => selected[key] = value);
         },
-        onDelete: () => _deleteWidget(index),
-        onMoveUp: index == 0 ? null : () => _moveWidget(index, -1),
-        onMoveDown: index == _widgets.length - 1
-            ? null
-            : () => _moveWidget(index, 1),
         catalog: _overlayWidgetCatalog,
         templateSuggestions: widget.templateSuggestions,
       ),
@@ -951,71 +945,157 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                   itemBuilder: (context, index) {
                     final item = _widgets[index];
                     final selected = index == _selectedWidgetIndex;
-                    return ListTile(
+                    return Material(
                       key: ValueKey(
                         'overlay-widget-row-${item['id'] ?? index}',
                       ),
-                      dense: true,
-                      selected: selected,
-                      selectedTileColor: Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: .14),
-                      onTap: () => setState(() => _selectedWidgetIndex = index),
-                      leading: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ReorderableDragStartListener(
-                            index: index,
-                            child: const Icon(Icons.drag_handle),
-                          ),
-                          const SizedBox(width: 4),
-                          _widgetListIcon(item),
-                        ],
-                      ),
-                      title: Text(_widgetTitle(item, _overlayWidgetCatalog)),
-                      subtitle: Text(
-                        item['plugin'] != null
-                            ? '${item['plugin']}.${item['widget']}'
-                            : '${item['type'] ?? 'widget'}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            tooltip: 'Move widget up',
-                            visualDensity: VisualDensity.compact,
-                            constraints: const BoxConstraints.tightFor(
-                              width: 30,
-                              height: 30,
+                      color: selected
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: .14)
+                          : Colors.transparent,
+                      child: InkWell(
+                        onTap: () =>
+                            setState(() => _selectedWidgetIndex = index),
+                        child: SizedBox(
+                          height: 58,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Row(
+                              children: [
+                                ReorderableDragStartListener(
+                                  index: index,
+                                  child: const SizedBox(
+                                    width: 26,
+                                    child: Icon(Icons.drag_handle, size: 19),
+                                  ),
+                                ),
+                                _widgetListIcon(item),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _widgetTitle(
+                                          item,
+                                          _overlayWidgetCatalog,
+                                        ),
+                                        key: ValueKey(
+                                          'overlay-widget-row-title-${item['id']}',
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        _widgetListSubtitle(
+                                          item,
+                                          _overlayWidgetCatalog,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  key: ValueKey(
+                                    'overlay-widget-visibility-${item['id']}',
+                                  ),
+                                  tooltip: item['visible'] == false
+                                      ? 'Show widget'
+                                      : 'Hide widget',
+                                  visualDensity: VisualDensity.compact,
+                                  constraints: const BoxConstraints.tightFor(
+                                    width: 30,
+                                    height: 30,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  onPressed: () =>
+                                      _toggleWidgetFlag(index, 'visible'),
+                                  icon: Icon(
+                                    item['visible'] == false
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    size: 18,
+                                  ),
+                                ),
+                                IconButton(
+                                  key: ValueKey(
+                                    'overlay-widget-lock-${item['id']}',
+                                  ),
+                                  tooltip: item['locked'] == true
+                                      ? 'Unlock widget'
+                                      : 'Lock widget',
+                                  visualDensity: VisualDensity.compact,
+                                  constraints: const BoxConstraints.tightFor(
+                                    width: 30,
+                                    height: 30,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  onPressed: () =>
+                                      _toggleWidgetFlag(index, 'locked'),
+                                  icon: Icon(
+                                    item['locked'] == true
+                                        ? Icons.lock_outline
+                                        : Icons.lock_open_outlined,
+                                    size: 18,
+                                  ),
+                                ),
+                                PopupMenuButton<String>(
+                                  key: ValueKey(
+                                    'overlay-widget-actions-${item['id']}',
+                                  ),
+                                  tooltip: 'Widget actions',
+                                  padding: EdgeInsets.zero,
+                                  iconSize: 18,
+                                  onSelected: (action) {
+                                    switch (action) {
+                                      case 'rename':
+                                        _renameWidget(index);
+                                        break;
+                                      case 'up':
+                                        _moveWidget(index, -1);
+                                        break;
+                                      case 'down':
+                                        _moveWidget(index, 1);
+                                        break;
+                                      case 'delete':
+                                        _deleteWidget(index);
+                                        break;
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'rename',
+                                      child: Text('Rename'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'up',
+                                      enabled: index > 0,
+                                      child: const Text('Move up'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'down',
+                                      enabled: index < _widgets.length - 1,
+                                      child: const Text('Move down'),
+                                    ),
+                                    const PopupMenuDivider(),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                            padding: EdgeInsets.zero,
-                            onPressed: index == 0
-                                ? null
-                                : () => _moveWidget(index, -1),
-                            icon: const Icon(Icons.arrow_upward, size: 16),
                           ),
-                          IconButton(
-                            tooltip: 'Move widget down',
-                            visualDensity: VisualDensity.compact,
-                            constraints: const BoxConstraints.tightFor(
-                              width: 30,
-                              height: 30,
-                            ),
-                            padding: EdgeInsets.zero,
-                            onPressed: index == _widgets.length - 1
-                                ? null
-                                : () => _moveWidget(index, 1),
-                            icon: const Icon(Icons.arrow_downward, size: 16),
-                          ),
-                          Icon(
-                            item['visible'] == false
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            size: 18,
-                          ),
-                        ],
+                        ),
                       ),
                     );
                   },
@@ -1347,6 +1427,56 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _markDirty();
   }
 
+  void _toggleWidgetFlag(int index, String key) {
+    if (index < 0 || index >= _widgets.length) return;
+    setState(() {
+      _widgets[index][key] = _widgets[index][key] != true;
+    });
+    _markDirty();
+  }
+
+  Future<void> _renameWidget(int index) async {
+    if (index < 0 || index >= _widgets.length) return;
+    final widgetConfig = _widgets[index];
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => _OverlayWidgetRenameDialog(
+        widgetId: widgetConfig['id']?.toString() ?? '$index',
+        name: widgetConfig['name']?.toString() ?? '',
+      ),
+    );
+    final normalizedName = name?.trim();
+    if (normalizedName == null || normalizedName.isEmpty) return;
+    if (!mounted) return;
+    if (index >= _widgets.length || !identical(_widgets[index], widgetConfig)) {
+      return;
+    }
+    setState(() => widgetConfig['name'] = normalizedName);
+    _markDirty();
+  }
+
+  String _widgetListSubtitle(
+    JsonMap item,
+    List<GeneratedOverlayWidget> catalog,
+  ) {
+    final definition = catalog.cast<GeneratedOverlayWidget?>().firstWhere(
+      (candidate) =>
+          candidate?.pluginId == _definitionPluginId(item) &&
+          candidate?.id == _definitionWidgetId(item),
+      orElse: () => null,
+    );
+    if (item['visible'] == false) return 'Hidden in overlay';
+    final description = definition?.description?.trim();
+    if (item['locked'] == true) {
+      return description == null || description.isEmpty
+          ? 'Locked'
+          : 'Locked · $description';
+    }
+    return description == null || description.isEmpty
+        ? 'Visible in overlay'
+        : description;
+  }
+
   Widget _widgetListIcon(JsonMap item) {
     final definition = _overlayWidgetCatalog
         .cast<GeneratedOverlayWidget?>()
@@ -1372,6 +1502,59 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       ],
     );
   }
+}
+
+class _OverlayWidgetRenameDialog extends StatefulWidget {
+  const _OverlayWidgetRenameDialog({
+    required this.widgetId,
+    required this.name,
+  });
+
+  final String widgetId;
+  final String name;
+
+  @override
+  State<_OverlayWidgetRenameDialog> createState() =>
+      _OverlayWidgetRenameDialogState();
+}
+
+class _OverlayWidgetRenameDialogState
+    extends State<_OverlayWidgetRenameDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.name);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Rename ${widget.name}'),
+    content: TextField(
+      key: ValueKey('overlay-widget-rename-${widget.widgetId}'),
+      controller: _controller,
+      autofocus: true,
+      decoration: const InputDecoration(labelText: 'Name'),
+      onSubmitted: (value) => Navigator.of(context).pop(value),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.of(context).pop(_controller.text),
+        child: const Text('Rename'),
+      ),
+    ],
+  );
 }
 
 class _OverlayWidgetMenu extends StatefulWidget {
@@ -1762,7 +1945,7 @@ class _OverlayCanvas extends StatelessWidget {
           ? null
           : font['fontFamily']?.toString(),
       fontSize: math.max(
-        8,
+        .1,
         ((font['fontSize'] as num?)?.toDouble() ?? 65) * scale,
       ),
       fontWeight: _overlayFontWeight(font['fontWeight']),
@@ -1967,59 +2150,17 @@ class _OverlayGridPainter extends CustomPainter {
       oldDelegate.scale != scale || oldDelegate.gridColor != gridColor;
 }
 
-class _OverlayWidgetCard extends StatelessWidget {
-  const _OverlayWidgetCard({
+class _OverlayWidgetInspector extends StatelessWidget {
+  const _OverlayWidgetInspector({
     super.key,
-    required this.index,
     required this.widgetConfig,
     required this.onChanged,
-    required this.onDelete,
-    required this.onMoveUp,
-    required this.onMoveDown,
     required this.catalog,
     required this.templateSuggestions,
   });
 
-  final int index;
   final JsonMap widgetConfig;
   final void Function(String key, dynamic value) onChanged;
-  final VoidCallback onDelete;
-  final VoidCallback? onMoveUp;
-  final VoidCallback? onMoveDown;
-  final List<GeneratedOverlayWidget> catalog;
-  final List<String> templateSuggestions;
-
-  @override
-  Widget build(BuildContext context) => _CanonicalOverlayWidgetCard(
-    index: index,
-    widgetConfig: widgetConfig,
-    onChanged: onChanged,
-    onDelete: onDelete,
-    onMoveUp: onMoveUp,
-    onMoveDown: onMoveDown,
-    catalog: catalog,
-    templateSuggestions: templateSuggestions,
-  );
-}
-
-class _CanonicalOverlayWidgetCard extends StatelessWidget {
-  const _CanonicalOverlayWidgetCard({
-    required this.index,
-    required this.widgetConfig,
-    required this.onChanged,
-    required this.onDelete,
-    required this.onMoveUp,
-    required this.onMoveDown,
-    required this.catalog,
-    required this.templateSuggestions,
-  });
-
-  final int index;
-  final JsonMap widgetConfig;
-  final void Function(String key, dynamic value) onChanged;
-  final VoidCallback onDelete;
-  final VoidCallback? onMoveUp;
-  final VoidCallback? onMoveDown;
   final List<GeneratedOverlayWidget> catalog;
   final List<String> templateSuggestions;
 
@@ -2043,158 +2184,93 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
     );
     final resolvedPlugin = definition?.pluginId ?? pluginId;
     final resolvedWidget = definition?.id ?? widgetId;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                if (definition != null) ...[
-                  overlayWidgetIconWidget(definition, size: 20),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    '${_widgetTitle(widgetConfig, catalog)} · Widget ${index + 1}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _OverlayWidgetConfigEditor(
+          plugin: resolvedPlugin,
+          widget: resolvedWidget,
+          config: config,
+          onChanged: (value) => onChanged('config', value),
+          catalog: catalog,
+          templateSuggestions: templateSuggestions,
+        ),
+        if (resolvedPlugin == 'overlays' && resolvedWidget == 'shaderLayer')
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.auto_awesome),
+              label: const Text('Open Shader Graph'),
+              onPressed: () async {
+                final result = await showDialog<ShaderGraphEditorResult>(
+                  context: context,
+                  builder: (context) => ShaderGraphEditorDialog(config: config),
+                );
+                if (result == null) return;
+                onChanged(
+                  'config',
+                  applyCompiledShaderGraph(
+                    config: config,
+                    graph: result.graph,
+                    glsl: result.glsl,
+                    uniforms: result.uniforms,
+                    bindings: result.bindings,
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Move widget up',
-                  onPressed: onMoveUp,
-                  icon: const Icon(Icons.arrow_upward),
-                ),
-                IconButton(
-                  tooltip: 'Move widget down',
-                  onPressed: onMoveDown,
-                  icon: const Icon(Icons.arrow_downward),
-                ),
-                IconButton(
-                  tooltip: 'Delete widget',
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
+                );
+              },
             ),
-            _inspectorSection(
-              context,
-              title: 'Widget',
-              child: Column(
+          ),
+        const SizedBox(height: 12),
+        _inspectorSection(
+          context,
+          title: 'Transform',
+          child: Column(
+            children: [
+              Row(
                 children: [
-                  _textField(
-                    'Name',
-                    '${widgetConfig['name'] ?? ''}',
-                    'name',
-                    fieldKey: ValueKey(
-                      'overlay-widget-name-${widgetConfig['id']}',
+                  Expanded(
+                    child: _numberField(
+                      'X',
+                      position['x'],
+                      (value) =>
+                          onChanged('position', {...position, 'x': value}),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _numberField(
+                      'Y',
+                      position['y'],
+                      (value) =>
+                          onChanged('position', {...position, 'y': value}),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 10),
-            _inspectorSection(
-              context,
-              title: 'Transform',
-              child: Column(
+              const SizedBox(height: 10),
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _numberField(
-                          'X',
-                          position['x'],
-                          (value) =>
-                              onChanged('position', {...position, 'x': value}),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _numberField(
-                          'Y',
-                          position['y'],
-                          (value) =>
-                              onChanged('position', {...position, 'y': value}),
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: _numberField(
+                      'Width',
+                      size['width'],
+                      (value) => onChanged('size', {...size, 'width': value}),
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _numberField(
-                          'Width',
-                          size['width'],
-                          (value) =>
-                              onChanged('size', {...size, 'width': value}),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _numberField(
-                          'Height',
-                          size['height'],
-                          (value) =>
-                              onChanged('size', {...size, 'height': value}),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _numberField(
+                      'Height',
+                      size['height'],
+                      (value) => onChanged('size', {...size, 'height': value}),
+                    ),
                   ),
                 ],
               ),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Visible'),
-              value: widgetConfig['visible'] != false,
-              onChanged: (value) => onChanged('visible', value),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Locked'),
-              value: widgetConfig['locked'] == true,
-              onChanged: (value) => onChanged('locked', value),
-            ),
-            _OverlayWidgetConfigEditor(
-              plugin: resolvedPlugin,
-              widget: resolvedWidget,
-              config: config,
-              onChanged: (value) => onChanged('config', value),
-              catalog: catalog,
-              templateSuggestions: templateSuggestions,
-            ),
-            if (resolvedPlugin == 'overlays' && resolvedWidget == 'shaderLayer')
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.auto_awesome),
-                  label: const Text('Open Shader Graph'),
-                  onPressed: () async {
-                    final result = await showDialog<ShaderGraphEditorResult>(
-                      context: context,
-                      builder: (context) =>
-                          ShaderGraphEditorDialog(config: config),
-                    );
-                    if (result == null) return;
-                    onChanged(
-                      'config',
-                      applyCompiledShaderGraph(
-                        config: config,
-                        graph: result.graph,
-                        glsl: result.glsl,
-                        uniforms: result.uniforms,
-                        bindings: result.bindings,
-                      ),
-                    );
-                  },
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -2217,21 +2293,6 @@ class _CanonicalOverlayWidgetCard extends StatelessWidget {
           child,
         ],
       ),
-    ),
-  );
-
-  Widget _textField(
-    String label,
-    String value,
-    String configKey, {
-    Key? fieldKey,
-  }) => SizedBox(
-    width: 180,
-    child: TextFormField(
-      key: fieldKey,
-      initialValue: value,
-      decoration: InputDecoration(labelText: label),
-      onChanged: (next) => onChanged(configKey, next),
     ),
   );
 

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../features/resources/color_field.dart';
@@ -55,7 +57,7 @@ class OverlayStyleInput extends StatelessWidget {
   };
 }
 
-class _OverlayTextStyleInput extends StatelessWidget {
+class _OverlayTextStyleInput extends StatefulWidget {
   const _OverlayTextStyleInput({
     required this.schema,
     required this.value,
@@ -67,111 +69,311 @@ class _OverlayTextStyleInput extends StatelessWidget {
   final ValueChanged<dynamic> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    final values = _map(value);
-    final family = _field(schema, 'fontFamily');
-    final size = _field(schema, 'fontSize');
-    final weight = _field(schema, 'fontWeight');
-    final color = _field(schema, 'fontColor');
-    final stroke = _field(schema, 'stroke');
-    final shadow = _field(schema, 'shadow');
+  State<_OverlayTextStyleInput> createState() => _OverlayTextStyleInputState();
+}
 
-    return _InspectorSection(
-      label: schema.label,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+class _OverlayTextStyleInputState extends State<_OverlayTextStyleInput> {
+  final _portal = OverlayPortalController();
+  final _link = LayerLink();
+
+  @override
+  Widget build(BuildContext context) {
+    final values = _map(widget.value);
+    final family = _field(widget.schema, 'fontFamily');
+    final familyName = values['fontFamily']?.toString() ?? '';
+    final fontColor = _color(values['fontColor'], Colors.white);
+    final fontSize = (values['fontSize'] as num?)?.toDouble() ?? 16;
+    final fontWeight = _fontWeight(values['fontWeight']);
+    final stroke = _map(values['stroke']);
+    final shadow = _map(values['shadow']);
+    final previewScale = 16 / math.max(.1, fontSize);
+    final previewStyle = TextStyle(
+      color: fontColor,
+      fontFamily: familyName.isEmpty ? null : familyName,
+      fontSize: 16,
+      fontWeight: fontWeight,
+      shadows: values['shadow'] is Map
+          ? [
+              Shadow(
+                color: _color(shadow['color'], Colors.transparent),
+                offset: Offset(
+                  ((shadow['offsetX'] as num?)?.toDouble() ?? 0) * previewScale,
+                  ((shadow['offsetY'] as num?)?.toDouble() ?? 0) * previewScale,
+                ),
+                blurRadius:
+                    ((shadow['blur'] as num?)?.toDouble() ?? 0) * previewScale,
+              ),
+            ]
+          : const [],
+    );
+    final preview = Stack(
+      children: [
+        if (values['stroke'] is Map &&
+            ((stroke['width'] as num?)?.toDouble() ?? 0) > 0)
+          Text(
+            familyName.isEmpty ? 'Choose a font' : familyName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: previewStyle.copyWith(
+              color: null,
+              foreground: Paint()
+                ..style = PaintingStyle.stroke
+                ..strokeWidth =
+                    ((stroke['width'] as num?)?.toDouble() ?? 0) * previewScale
+                ..color = _color(stroke['color'], Colors.black),
+            ),
+          ),
+        Text(
+          familyName.isEmpty ? 'Choose a font' : familyName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: previewStyle,
+        ),
+      ],
+    );
+
+    final screen = MediaQuery.sizeOf(context);
+    return OverlayPortal(
+      controller: _portal,
+      overlayChildBuilder: (overlayContext) => Stack(
         children: [
-          if (family != null || size != null)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (family != null)
-                  Expanded(
-                    child: _scalar(
-                      family,
-                      values['fontFamily'],
-                      (next) => _set(values, 'fontFamily', next),
-                    ),
-                  ),
-                if (family != null && size != null) const SizedBox(width: 8),
-                if (size != null)
-                  SizedBox(
-                    width: 112,
-                    child: _scalar(
-                      size,
-                      values['fontSize'],
-                      (next) => _set(values, 'fontSize', next),
-                    ),
-                  ),
-              ],
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _portal.hide,
+              child: const SizedBox.expand(),
             ),
-          if (weight != null) ...[
-            const SizedBox(height: 8),
-            _scalar(
-              weight,
-              values['fontWeight'],
-              (next) => _set(values, 'fontWeight', next),
+          ),
+          CompositedTransformFollower(
+            link: _link,
+            showWhenUnlinked: false,
+            targetAnchor: Alignment.bottomRight,
+            followerAnchor: Alignment.topRight,
+            offset: const Offset(0, 4),
+            child: _OverlayFontStyleEditor(
+              key: ValueKey(
+                'overlay-font-editor-${widget.schema.key ?? widget.schema.label}',
+              ),
+              width: math.min(560, math.max(260, screen.width - 24)),
+              schema: widget.schema,
+              value: values,
+              onChanged: widget.onChanged,
+              onClose: _portal.hide,
             ),
-          ],
-          if (color != null) ...[
-            const SizedBox(height: 8),
-            _scalar(
-              color,
-              values['fontColor'],
-              (next) => _set(values, 'fontColor', next),
-            ),
-          ],
-          if (stroke != null) ...[
-            const SizedBox(height: 10),
-            _OptionalStyleSection(
-              label: stroke.label,
-              present: values['stroke'] is Map,
-              onAdd: () =>
-                  _set(values, 'stroke', constructDartDataInputDefault(stroke)),
-              onRemove: () => _remove(values, 'stroke'),
-              child: values['stroke'] is Map
-                  ? _StrokeFields(
-                      schema: stroke,
-                      value: values['stroke'],
-                      onChanged: (next) => _set(values, 'stroke', next),
-                    )
-                  : null,
-            ),
-          ],
-          if (shadow != null) ...[
-            const SizedBox(height: 8),
-            _OptionalStyleSection(
-              label: shadow.label,
-              present: values['shadow'] is Map,
-              onAdd: () =>
-                  _set(values, 'shadow', constructDartDataInputDefault(shadow)),
-              onRemove: () => _remove(values, 'shadow'),
-              child: values['shadow'] is Map
-                  ? _ShadowFields(
-                      schema: shadow,
-                      value: values['shadow'],
-                      onChanged: (next) => _set(values, 'shadow', next),
-                    )
-                  : null,
-            ),
-          ],
+          ),
         ],
+      ),
+      child: CompositedTransformTarget(
+        link: _link,
+        child: InkWell(
+          key: ValueKey(
+            'overlay-font-style-${widget.schema.key ?? widget.schema.label}',
+          ),
+          borderRadius: BorderRadius.circular(4),
+          onTap: family == null
+              ? null
+              : () {
+                  if (_portal.isShowing) {
+                    _portal.hide();
+                  } else {
+                    _portal.show();
+                  }
+                },
+          child: InputDecorator(
+            isEmpty: familyName.isEmpty,
+            decoration: InputDecoration(
+              labelText: widget.schema.label,
+              suffixIcon: const Icon(Icons.arrow_drop_down),
+              isDense: true,
+            ),
+            child: preview,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _scalar(
-    DartDataInputSchema field,
-    dynamic value,
-    ValueChanged<dynamic> onChanged,
-  ) => _OverlayScalarField(schema: field, value: value, onChanged: onChanged);
+  Color _color(Object? value, Color fallback) {
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty) return fallback;
+    final hex = raw.startsWith('#') ? raw.substring(1) : raw;
+    final parsed = int.tryParse(hex, radix: 16);
+    if (parsed == null) return fallback;
+    return switch (hex.length) {
+      6 => Color(0xff000000 | parsed),
+      8 => Color(parsed),
+      _ => fallback,
+    };
+  }
 
-  void _set(Map<String, dynamic> values, String key, dynamic next) =>
-      onChanged(<String, dynamic>{...values, key: _clone(next)});
+  FontWeight _fontWeight(Object? value) {
+    final number = (value is num ? value : num.tryParse('$value'))?.round();
+    return FontWeight.values[((((number ?? 400).clamp(100, 900) - 100) / 100)
+            .round())
+        .clamp(0, 8)];
+  }
+}
 
-  void _remove(Map<String, dynamic> values, String key) {
-    final next = <String, dynamic>{...values}..remove(key);
-    onChanged(next);
+class _OverlayFontStyleEditor extends StatefulWidget {
+  const _OverlayFontStyleEditor({
+    super.key,
+    required this.width,
+    required this.schema,
+    required this.value,
+    required this.onChanged,
+    required this.onClose,
+  });
+
+  final double width;
+  final DartDataInputSchema schema;
+  final Map<String, dynamic> value;
+  final ValueChanged<dynamic> onChanged;
+  final VoidCallback onClose;
+
+  @override
+  State<_OverlayFontStyleEditor> createState() =>
+      _OverlayFontStyleEditorState();
+}
+
+class _OverlayFontStyleEditorState extends State<_OverlayFontStyleEditor> {
+  late Map<String, dynamic> _values;
+
+  @override
+  void initState() {
+    super.initState();
+    _values = _map(widget.value);
+  }
+
+  void _update(String key, dynamic value) {
+    if (value == null) {
+      _values.remove(key);
+    } else {
+      _values[key] = _clone(value);
+    }
+    setState(() {});
+    widget.onChanged(_map(_values));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final family = _field(widget.schema, 'fontFamily');
+    final size = _field(widget.schema, 'fontSize');
+    final color = _field(widget.schema, 'fontColor');
+    final stroke = _field(widget.schema, 'stroke');
+    final shadow = _field(widget.schema, 'shadow');
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 10,
+      color: scheme.surfaceContainer,
+      borderRadius: BorderRadius.circular(6),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: widget.width, maxHeight: 460),
+        child: SizedBox(
+          width: widget.width,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.schema.label,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    IconButton(
+                      key: const ValueKey('overlay-font-editor-close'),
+                      tooltip: 'Close font editor',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: widget.onClose,
+                      icon: const Icon(Icons.close, size: 18),
+                    ),
+                  ],
+                ),
+                if (family != null || size != null)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (family != null)
+                        Expanded(
+                          child: _OverlayScalarField(
+                            schema: family,
+                            value: _values['fontFamily'],
+                            onChanged: (next) => _update('fontFamily', next),
+                          ),
+                        ),
+                      if (family != null && size != null)
+                        const SizedBox(width: 8),
+                      if (size != null)
+                        SizedBox(
+                          width: 132,
+                          child: _OverlayScalarField(
+                            schema: size,
+                            value: _values['fontSize'],
+                            onChanged: (next) => _update('fontSize', next),
+                          ),
+                        ),
+                    ],
+                  ),
+                if (color != null) ...[
+                  const SizedBox(height: 8),
+                  _OverlayScalarField(
+                    schema: color,
+                    value: _values['fontColor'],
+                    onChanged: (next) => _update('fontColor', next),
+                  ),
+                ],
+                if (stroke != null) ...[
+                  const SizedBox(height: 10),
+                  _OptionalStyleSection(
+                    label: stroke.label,
+                    present: _values['stroke'] is Map,
+                    onAdd: () {
+                      final defaults = _map(
+                        constructDartDataInputDefault(stroke),
+                      );
+                      defaults['width'] = 3;
+                      defaults['color'] ??= '#000000';
+                      _update('stroke', defaults);
+                    },
+                    onRemove: () => _update('stroke', null),
+                    child: _values['stroke'] is Map
+                        ? _StrokeFields(
+                            schema: stroke,
+                            value: _values['stroke'],
+                            onChanged: (next) => _update('stroke', next),
+                          )
+                        : null,
+                  ),
+                ],
+                if (shadow != null) ...[
+                  const SizedBox(height: 8),
+                  _OptionalStyleSection(
+                    label: shadow.label,
+                    present: _values['shadow'] is Map,
+                    onAdd: () => _update(
+                      'shadow',
+                      constructDartDataInputDefault(shadow),
+                    ),
+                    onRemove: () => _update('shadow', null),
+                    child: _values['shadow'] is Map
+                        ? _ShadowFields(
+                            schema: shadow,
+                            value: _values['shadow'],
+                            onChanged: (next) => _update('shadow', next),
+                          )
+                        : null,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -296,45 +498,44 @@ class OverlayLabelAlignmentInput extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return _InspectorSection(
-      label: 'Alignment',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: _IconChoiceRow(
-              selected:
-                  textValues['textAlign']?.toString() ??
-                  textField.defaultValue?.toString() ??
-                  'left',
-              choices: [
-                ('left', mdiIcon(0xF0262)),
-                ('center', mdiIcon(0xF0260)),
-                ('right', mdiIcon(0xF0263)),
-                ('justify', mdiIcon(0xF0261)),
-              ],
-              onSelected: (next) =>
-                  onTextAlignmentChanged({...textValues, 'textAlign': next}),
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Center(
+          key: const ValueKey('overlay-label-horizontal-alignment-row'),
+          child: _IconChoiceRow(
+            selected:
+                textValues['textAlign']?.toString() ??
+                textField.defaultValue?.toString() ??
+                'left',
+            choices: [
+              ('left', mdiIcon(0xF0262)),
+              ('center', mdiIcon(0xF0260)),
+              ('right', mdiIcon(0xF0263)),
+              ('justify', mdiIcon(0xF0261)),
+            ],
+            onSelected: (next) =>
+                onTextAlignmentChanged({...textValues, 'textAlign': next}),
           ),
-          const SizedBox(height: 8),
-          Center(
-            child: _IconChoiceRow(
-              selected:
-                  blockValues['verticalAlign']?.toString() ??
-                  verticalField.defaultValue?.toString() ??
-                  'top',
-              choices: [
-                ('top', mdiIcon(0xF11C7)),
-                ('center', mdiIcon(0xF11C6)),
-                ('bottom', mdiIcon(0xF11C5)),
-              ],
-              onSelected: (next) =>
-                  onBlockStyleChanged({...blockValues, 'verticalAlign': next}),
-            ),
+        ),
+        const SizedBox(height: 4),
+        Center(
+          key: const ValueKey('overlay-label-vertical-alignment-row'),
+          child: _IconChoiceRow(
+            selected:
+                blockValues['verticalAlign']?.toString() ??
+                verticalField.defaultValue?.toString() ??
+                'top',
+            choices: [
+              ('top', mdiIcon(0xF11C7)),
+              ('center', mdiIcon(0xF11C6)),
+              ('bottom', mdiIcon(0xF11C5)),
+            ],
+            onSelected: (next) =>
+                onBlockStyleChanged({...blockValues, 'verticalAlign': next}),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1087,18 +1288,27 @@ class _IconChoiceRow extends StatelessWidget {
   final ValueChanged<String> onSelected;
 
   @override
-  Widget build(BuildContext context) => ToggleButtons(
-    isSelected: [for (final choice in choices) choice.$1 == selected],
-    onPressed: (index) => onSelected(choices[index].$1),
-    constraints: const BoxConstraints(minWidth: 42, minHeight: 38),
-    children: [
-      for (final choice in choices)
-        Tooltip(
-          message: _humanize(choice.$1),
-          child: Icon(choice.$2, size: 18),
-        ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return ToggleButtons(
+      isSelected: [for (final choice in choices) choice.$1 == selected],
+      onPressed: (index) => onSelected(choices[index].$1),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
+      borderRadius: BorderRadius.circular(4),
+      borderColor: colors.outlineVariant,
+      selectedBorderColor: colors.primary,
+      color: colors.onSurfaceVariant,
+      selectedColor: colors.primary,
+      fillColor: colors.primary.withValues(alpha: .16),
+      children: [
+        for (final choice in choices)
+          Tooltip(
+            message: _humanize(choice.$1),
+            child: Icon(choice.$2, size: 18),
+          ),
+      ],
+    );
+  }
 }
 
 class _SmallAction extends StatelessWidget {

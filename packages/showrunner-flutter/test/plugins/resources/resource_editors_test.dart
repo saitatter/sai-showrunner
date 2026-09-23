@@ -8,7 +8,9 @@ import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
 
 Future<void> _selectOverlayWidget(WidgetTester tester, String widgetId) async {
-  await tester.tap(find.byKey(ValueKey('overlay-widget-row-$widgetId')));
+  final title = find.byKey(ValueKey('overlay-widget-row-title-$widgetId'));
+  await tester.ensureVisible(title);
+  await tester.tap(title);
   await tester.pumpAndSettle();
 }
 
@@ -865,17 +867,18 @@ void main() {
       );
       await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
-      expect(find.widgetWithText(ListTile, 'Primary title'), findsOneWidget);
+      final firstRow = find.byKey(const ValueKey('overlay-widget-row-label-1'));
       expect(
-        find.descendant(
-          of: find.widgetWithText(ListTile, 'Primary title'),
-          matching: find.byIcon(Icons.text_fields),
-        ),
+        find.descendant(of: firstRow, matching: find.text('Primary title')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: firstRow, matching: find.byIcon(Icons.text_fields)),
         findsOneWidget,
       );
       final firstHandle = find.byIcon(Icons.drag_handle).first;
       await tester.ensureVisible(firstHandle);
-      await tester.drag(firstHandle, const Offset(0, 72));
+      await tester.drag(firstHandle, const Offset(0, 120));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Save'));
       await tester.pumpAndSettle();
@@ -885,6 +888,128 @@ void main() {
       expect((widgets.last as Map)['id'], 'label-1');
     },
   );
+
+  testWidgets('overlay widget visibility and lock controls are interactive', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-widget-controls',
+        config: {
+          'name': 'Widget controls overlay',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [
+            {
+              'id': 'label-controls',
+              'plugin': 'overlays',
+              'widget': 'label',
+              'name': 'On-screen title',
+              'position': {'x': 24, 'y': 24},
+              'size': {'width': 300, 'height': 100},
+              'config': {'message': 'Title'},
+              'visible': true,
+              'locked': false,
+            },
+          ],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(find.text('On-screen title'), findsOneWidget);
+    expect(find.text('overlays.label'), findsNothing);
+    final visibility = find.byKey(
+      const ValueKey('overlay-widget-visibility-label-controls'),
+    );
+    await tester.ensureVisible(visibility);
+    await tester.tap(visibility);
+    final lock = find.byKey(
+      const ValueKey('overlay-widget-lock-label-controls'),
+    );
+    await tester.ensureVisible(lock);
+    await tester.tap(lock);
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    final widget = (saved!.config['widgets'] as List).single as Map;
+    expect(widget['visible'], isFalse);
+    expect(widget['locked'], isTrue);
+  });
+
+  testWidgets('overlay font control previews and edits text style', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-font-editor',
+        config: {
+          'name': 'Font overlay',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [
+            {
+              'id': 'label-font',
+              'plugin': 'overlays',
+              'widget': 'label',
+              'name': 'Title',
+              'position': {'x': 24, 'y': 24},
+              'size': {'width': 300, 'height': 100},
+              'config': {'message': 'Title'},
+              'visible': true,
+              'locked': false,
+            },
+          ],
+        },
+      ),
+      (resource) async => saved = resource,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+    await _selectOverlayWidget(tester, 'label-font');
+
+    final fontControl = find.byKey(const ValueKey('overlay-font-style-font'));
+    expect(fontControl, findsOneWidget);
+    await tester.ensureVisible(fontControl);
+    await tester.tap(fontControl);
+    await tester.pumpAndSettle();
+    final familyInput = find.byWidgetPredicate(
+      (candidate) =>
+          candidate is TextField &&
+          candidate.decoration?.labelText == 'Font Family',
+    );
+    expect(familyInput, findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('overlay-canvas-widget-0')));
+    await tester.pumpAndSettle();
+    expect(familyInput, findsNothing);
+    await tester.tap(fontControl);
+    await tester.pumpAndSettle();
+    await tester.enterText(familyInput, 'Arial');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('overlay-font-editor-close')));
+    await tester.pumpAndSettle();
+
+    final fontPreview = tester.widget<Text>(
+      find.descendant(of: fontControl, matching: find.text('Arial')).last,
+    );
+    expect(fontPreview.data, 'Arial');
+    expect(fontPreview.style?.fontFamily, 'Arial');
+    final canvasLabel = tester.widget<Text>(
+      find.byKey(const ValueKey('overlay-canvas-widget-0')),
+    );
+    expect(canvasLabel.data, 'Title');
+    expect(canvasLabel.style?.fontFamily, 'Arial');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    final widget = (saved!.config['widgets'] as List).single as Map;
+    expect(((widget['config'] as Map)['font'] as Map)['fontFamily'], 'Arial');
+  });
 
   testWidgets('label inspector matches Vue alignment controls', (tester) async {
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
@@ -948,12 +1073,36 @@ void main() {
     );
     expect(find.text('Horizontal alignment'), findsNothing);
     expect(find.text('Vertical alignment'), findsNothing);
-    expect(find.text('Alignment'), findsOneWidget);
+    expect(find.text('Alignment'), findsNothing);
+    final horizontalRow = find.byKey(
+      const ValueKey('overlay-label-horizontal-alignment-row'),
+    );
+    final verticalRow = find.byKey(
+      const ValueKey('overlay-label-vertical-alignment-row'),
+    );
+    expect(
+      tester.getTopLeft(verticalRow).dy,
+      greaterThan(tester.getTopLeft(horizontalRow).dy),
+    );
+    final messageField = find.byWidgetPredicate(
+      (candidate) =>
+          candidate is TextField &&
+          candidate.decoration?.labelText == 'Message',
+    );
+    expect(messageField, findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Transform').first).dy,
+      greaterThan(tester.getTopLeft(messageField).dy),
+    );
 
     final horizontalCenter = find.byIcon(
       const IconData(0xF0260, fontFamily: mdi),
     );
     final labelText = find.byKey(const ValueKey('overlay-canvas-widget-0'));
+    final initialAlignmentButtons = tester
+        .widgetList<ToggleButtons>(find.byType(ToggleButtons))
+        .firstWhere((buttons) => buttons.children.length == 4);
+    expect(initialAlignmentButtons.isSelected.first, isTrue);
     final leftCaretOffset = tester
         .renderObject<RenderParagraph>(labelText)
         .getOffsetForCaret(const TextPosition(offset: 0), Rect.zero)
@@ -971,6 +1120,14 @@ void main() {
         .getOffsetForCaret(const TextPosition(offset: 0), Rect.zero)
         .dx;
     expect(centeredCaretOffset, greaterThan(leftCaretOffset));
+    await tester.tap(find.byIcon(const IconData(0xF0263, fontFamily: mdi)));
+    await tester.pump();
+    expect(tester.widget<Text>(labelText).textAlign, TextAlign.right);
+    await tester.tap(find.byIcon(const IconData(0xF0261, fontFamily: mdi)));
+    await tester.pump();
+    expect(tester.widget<Text>(labelText).textAlign, TextAlign.justify);
+    await tester.tap(horizontalCenter);
+    await tester.pump();
     final labelLayout = find.byKey(
       const ValueKey('overlay-canvas-label-layout-0'),
     );
@@ -984,6 +1141,30 @@ void main() {
       const IconData(0xF11C6, fontFamily: mdi),
     );
     final topTextY = tester.getTopLeft(labelText).dy;
+    final verticalButtonsBefore = tester
+        .widgetList<ToggleButtons>(find.byType(ToggleButtons))
+        .firstWhere((buttons) => buttons.children.length == 3);
+    expect(verticalButtonsBefore.isSelected.first, isTrue);
+    await tester.tap(find.byIcon(const IconData(0xF11C5, fontFamily: mdi)));
+    await tester.pump();
+    expect(
+      tester
+          .widget<Align>(
+            find.descendant(of: labelLayout, matching: find.byType(Align)),
+          )
+          .alignment,
+      const Alignment(0, 1),
+    );
+    await tester.tap(find.byIcon(const IconData(0xF11C7, fontFamily: mdi)));
+    await tester.pump();
+    expect(
+      tester
+          .widget<Align>(
+            find.descendant(of: labelLayout, matching: find.byType(Align)),
+          )
+          .alignment,
+      const Alignment(0, -1),
+    );
     await tester.ensureVisible(verticalCenter);
     await tester.tap(verticalCenter);
     await tester.pump();
@@ -1056,7 +1237,7 @@ void main() {
 
     await _selectOverlayWidget(tester, 'widget-1');
     expect(find.text('Plugin'), findsNothing);
-    expect(find.text('Widget'), findsOneWidget);
+    expect(find.text('Widget'), findsNothing);
     expect(find.byKey(const ValueKey('overlay-plugin-readonly')), findsNothing);
     expect(find.byKey(const ValueKey('overlay-widget-readonly')), findsNothing);
     expect(find.text('Shader Preset'), findsOneWidget);
@@ -1139,8 +1320,12 @@ void main() {
     await tester.tap(find.text('Chat Feed'));
     await tester.pumpAndSettle();
 
-    final addedChat = find.widgetWithText(ListTile, 'Chat Feed');
-    expect(addedChat, findsOneWidget);
+    final addedChat = find
+        .ancestor(
+          of: find.text('Chat Feed').last,
+          matching: find.byType(InkWell),
+        )
+        .first;
     expect(
       find.descendant(
         of: addedChat,
@@ -1186,8 +1371,13 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Label').last);
       await tester.pumpAndSettle();
-      final addedWidget = find.widgetWithText(ListTile, expectedName);
-      expect(addedWidget, findsOneWidget);
+      final addedWidget = find
+          .ancestor(
+            of: find.text(expectedName).last,
+            matching: find.byType(InkWell),
+          )
+          .first;
+      expect(find.text(expectedName), findsAtLeastNWidgets(1));
       expect(
         find.descendant(
           of: addedWidget,
@@ -1244,14 +1434,37 @@ void main() {
 
     await _selectOverlayWidget(tester, 'label-rename');
     final name = find.byKey(const ValueKey('overlay-widget-name-label-rename'));
-    expect(name, findsOneWidget);
-    await tester.enterText(name, 'Updated title');
+    expect(name, findsNothing);
+    final actions = find.byKey(
+      const ValueKey('overlay-widget-actions-label-rename'),
+    );
+    await tester.tap(actions);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rename').first);
+    await tester.pumpAndSettle();
+    final renameInput = find.byKey(
+      const ValueKey('overlay-widget-rename-label-rename'),
+    );
+    await tester.enterText(renameInput, 'Updated title');
+    await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
     await tester.pump();
 
-    expect(find.widgetWithText(ListTile, 'Updated title'), findsOneWidget);
+    final row = find.byKey(const ValueKey('overlay-widget-row-label-rename'));
+    expect(
+      find.descendant(of: row, matching: find.text('Updated title')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('overlay-widget-row-title-label-rename')),
+          )
+          .data,
+      'Updated title',
+    );
     expect(
       find.descendant(
-        of: find.widgetWithText(ListTile, 'Updated title'),
+        of: find.byKey(const ValueKey('overlay-widget-row-label-rename')),
         matching: find.byIcon(Icons.text_fields),
       ),
       findsOneWidget,
@@ -1311,12 +1524,13 @@ void main() {
     final firstRow = find.byKey(
       const ValueKey('overlay-widget-row-widget-first'),
     );
-    await tester.tap(
-      find.descendant(
-        of: firstRow,
-        matching: find.byTooltip('Move widget down'),
-      ),
+    final actions = find.byKey(
+      const ValueKey('overlay-widget-actions-widget-first'),
     );
+    await tester.ensureVisible(actions);
+    await tester.tap(actions);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move down'));
     await tester.pumpAndSettle();
     final secondRow = find.byKey(
       const ValueKey('overlay-widget-row-widget-second'),
@@ -1325,21 +1539,24 @@ void main() {
       tester.getTopLeft(secondRow).dy,
       lessThan(tester.getTopLeft(firstRow).dy),
     );
-    expect((tester.widget<ListTile>(secondRow).title! as Text).data, 'Second');
     expect(
-      (tester
-                  .widget<ListTile>(
-                    find.byKey(
-                      const ValueKey('overlay-widget-row-widget-first'),
-                    ),
-                  )
-                  .title!
-              as Text)
+      tester
+          .widget<Text>(
+            find.byKey(
+              const ValueKey('overlay-widget-row-title-widget-second'),
+            ),
+          )
           .data,
+      'Second',
+    );
+    expect(
+      (tester.widget<Text>(
+        find.byKey(const ValueKey('overlay-widget-row-title-widget-first')),
+      )).data,
       'First',
     );
     expect(
-      find.byKey(const ValueKey('overlay-widget-name-widget-first')),
+      find.byKey(const ValueKey('overlay-widget-actions-widget-first')),
       findsOneWidget,
     );
 

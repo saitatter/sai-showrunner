@@ -216,10 +216,17 @@ void main() {
     );
 
     expect(find.text('Font'), findsOneWidget);
+    final fontControl = find.byKey(const ValueKey('overlay-font-style-font'));
+    expect(fontControl, findsOneWidget);
+    expect(find.text('Font Family'), findsNothing);
+    await tester.tap(fontControl);
+    await tester.pumpAndSettle();
     expect(find.text('Font Family'), findsOneWidget);
     expect(find.text('Size'), findsOneWidget);
     expect(find.text('Font Color'), findsOneWidget);
     expect(find.text('Stroke'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('overlay-font-editor-close')));
+    await tester.pumpAndSettle();
     expect(find.text('Text Align'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);
     expect(find.text('Horizontal alignment'), findsNothing);
