@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../schema/update.dart';
+import 'update_status_view.dart';
 import '../../services/structured_logger.dart';
 import '../../services/update_artifact_service.dart';
 import '../../services/update_check_service.dart';
@@ -194,11 +195,8 @@ class UpdateWorkspace extends StatefulWidget {
 }
 
 class _UpdateWorkspaceState extends State<UpdateWorkspace> {
-  UpdateInfo _updateInfo = const UpdateInfo(
-    currentVersion: showRunnerFlutterVersion,
-    latestVersion: showRunnerFlutterVersion,
-    hasUpdate: false,
-  );
+  late final UpdateCheckService _updateService;
+  late UpdateInfo _updateInfo;
   bool _checking = false;
   bool _downloading = false;
   bool _installing = false;
@@ -209,7 +207,22 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
   @override
   void initState() {
     super.initState();
+    _updateService =
+        widget.updateService ??
+        UpdateCheckService(currentVersion: showRunnerFlutterVersion);
+    _updateInfo =
+        _updateService.lastResult ??
+        const UpdateInfo(
+          currentVersion: showRunnerFlutterVersion,
+          latestVersion: showRunnerFlutterVersion,
+          hasUpdate: false,
+        );
     unawaited(_refreshRollbackAvailability());
+    if (_updateInfo.checkedAt == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_checkUpdate());
+      });
+    }
   }
 
   Future<void> _refreshRollbackAvailability() async {
@@ -221,12 +234,7 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
 
   Future<void> _checkUpdate() async {
     setState(() => _checking = true);
-    final result =
-        await (widget.updateService ??
-                const UpdateCheckService(
-                  currentVersion: showRunnerFlutterVersion,
-                ))
-            .check();
+    final result = await _updateService.check(force: true);
     if (!mounted) return;
     setState(() {
       _checking = false;
@@ -272,6 +280,7 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
           downloaded: true,
         );
       });
+      _updateService.remember(_updateInfo);
     } catch (error) {
       if (mounted) setState(() => _downloadError = error);
     } finally {
@@ -319,6 +328,13 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
     }
   }
 
+  Future<void> _downloadAndInstall() async {
+    await _downloadArtifact();
+    if (mounted && _downloadedArtifact != null && Platform.isWindows) {
+      await _installDownloadedArtifact();
+    }
+  }
+
   Future<void> _rollbackInstalledUpdate() async {
     final directory = widget.rollbackDirectory;
     if (directory == null || _installing || !Platform.isWindows) return;
@@ -353,10 +369,13 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
 
   @override
   Widget build(BuildContext context) {
+    final status = updateStatusView(_updateInfo, checking: _checking);
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
         Text('Updates', style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 4),
+        Text('Current version: v${_updateInfo.currentVersion}'),
         const SizedBox(height: 8),
         const Text(
           'SAI ShowRunner — Desktop Stream Engine & Automation Runtime',
@@ -368,57 +387,40 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Version Information',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                ListTile(
-                  leading: const Icon(Icons.verified),
-                  title: const Text('Current Version'),
-                  subtitle: Text(_updateInfo.currentVersion),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.computer),
-                  title: const Text('Platform Target'),
-                  subtitle: Text(
-                    '${Platform.operatingSystem} (${Platform.operatingSystemVersion})',
-                  ),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.code),
-                  title: const Text('Dart Runtime Environment'),
-                  subtitle: Text(Platform.version),
-                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    FilledButton.icon(
-                      onPressed: _checking ? null : _checkUpdate,
+                    OutlinedButton.icon(
+                      onPressed: _checking || !_updateInfo.canCheckForUpdates
+                          ? null
+                          : _checkUpdate,
                       icon: _checking
                           ? const SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.system_update_alt),
-                      label: Text(
-                        _checking ? 'Checking...' : 'Check for Updates',
-                      ),
+                          : const Icon(Icons.refresh),
+                      label: const Text('Check for updates'),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(child: _updateStatus()),
+                    if (_updateInfo.hasUpdate &&
+                        Platform.isWindows &&
+                        _updateInfo.artifactUrl.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        onPressed: _downloading || _installing
+                            ? null
+                            : _downloadAndInstall,
+                        icon: const Icon(Icons.download),
+                        label: const Text('Update and restart'),
+                      ),
+                    ],
                   ],
                 ),
-                if (_updateInfo.releaseNotes.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Release notes',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  SelectableText(_updateInfo.releaseNotes),
-                ],
+                const SizedBox(height: 12),
+                _updateStatusPanel(context, status),
+                const SizedBox(height: 16),
+                _releaseNotesPanel(context),
                 if (_updateInfo.downloadUrl.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Align(
@@ -521,21 +523,123 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
     );
   }
 
-  Widget _updateStatus() => switch (_updateInfo.status) {
-    UpdateStatus.available => Text(
-      'Update available: ${_updateInfo.latestVersion}',
-      style: const TextStyle(color: Colors.lightGreenAccent),
+  Widget _updateStatusPanel(BuildContext context, UpdateStatusView status) {
+    final color = switch (status.tone) {
+      UpdateStatusTone.current => Colors.green.shade400,
+      UpdateStatusTone.available => Theme.of(context).colorScheme.primary,
+      UpdateStatusTone.error => Theme.of(context).colorScheme.error,
+      UpdateStatusTone.muted => Theme.of(context).colorScheme.outline,
+    };
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        status.title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        status.detail,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Latest version',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Text(
+                      status.latestVersionLabel,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: SizedBox(width: 4, child: ColoredBox(color: color)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _releaseNotesPanel(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      borderRadius: BorderRadius.circular(6),
     ),
-    UpdateStatus.downloaded => const Text(
-      'Update downloaded and ready to install on restart.',
-      style: TextStyle(color: Colors.lightGreenAccent),
+    clipBehavior: Clip.antiAlias,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Release Notes',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              if (_updateInfo.checkedAt case final checkedAt?)
+                Text(
+                  _checkedAtLabel(checkedAt),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
+          ),
+        ),
+        Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+        SizedBox(
+          height: 352,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(14),
+            child: _updateInfo.releaseNotes.isEmpty
+                ? Text(
+                    'Release notes will appear here after checking for updates.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                : SelectableText(_updateInfo.releaseNotes),
+          ),
+        ),
+      ],
     ),
-    UpdateStatus.error => Text(
-      _updateInfo.errorMessage ?? 'Unable to check for updates.',
-      style: const TextStyle(color: Colors.orangeAccent),
-    ),
-    UpdateStatus.checking => const Text('Checking for updates...'),
-    UpdateStatus.upToDate => const Text('ShowRunner is up to date.'),
-    UpdateStatus.idle => const Text('Updates have not been checked yet.'),
-  };
+  );
+
+  String _checkedAtLabel(String checkedAt) {
+    final parsed = DateTime.tryParse(checkedAt)?.toLocal();
+    if (parsed == null) return '';
+    final date = MaterialLocalizations.of(context).formatShortDate(parsed);
+    final time = MaterialLocalizations.of(
+      context,
+    ).formatTimeOfDay(TimeOfDay.fromDateTime(parsed));
+    return 'Last checked $date, $time';
+  }
 }

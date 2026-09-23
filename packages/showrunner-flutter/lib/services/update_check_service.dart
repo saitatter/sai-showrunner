@@ -16,7 +16,7 @@ const showRunnerFlutterVersion = String.fromEnvironment(
 );
 
 final class UpdateCheckService {
-  const UpdateCheckService({
+  UpdateCheckService({
     required this.currentVersion,
     this.repository = 'saitatter/sai-showrunner',
     this.timeout = const Duration(seconds: 8),
@@ -29,9 +29,36 @@ final class UpdateCheckService {
   final Duration timeout;
   final UpdateReleaseFetcher? fetcher;
   final bool canCheckForUpdates;
+  UpdateInfo? _lastResult;
+  Future<UpdateInfo>? _inFlight;
 
-  Future<UpdateInfo> check() async {
-    final checkedAt = DateTime.now().toUtc().toIso8601String();
+  UpdateInfo? get lastResult => _lastResult;
+  bool get isChecking => _inFlight != null;
+
+  void remember(UpdateInfo result) {
+    _lastResult = result;
+  }
+
+  Future<UpdateInfo> check({bool force = false}) {
+    final inFlight = _inFlight;
+    if (inFlight != null) return inFlight;
+    final cached = _lastResult;
+    if (!force && cached != null) return Future.value(cached);
+
+    late final Future<UpdateInfo> request;
+    request = _check()
+        .then((result) {
+          _lastResult = result;
+          return result;
+        })
+        .whenComplete(() {
+          if (identical(_inFlight, request)) _inFlight = null;
+        });
+    _inFlight = request;
+    return request;
+  }
+
+  Future<UpdateInfo> _check() async {
     if (!canCheckForUpdates) {
       return UpdateInfo(
         currentVersion: normalizeVersion(currentVersion),
@@ -39,7 +66,7 @@ final class UpdateCheckService {
         hasUpdate: false,
         status: UpdateStatus.idle,
         canCheckForUpdates: false,
-        checkedAt: checkedAt,
+        checkedAt: _now(),
         message: 'Update checks are unavailable in this development build.',
       );
     }
@@ -51,7 +78,7 @@ final class UpdateCheckService {
         release,
         currentVersion: currentVersion,
       );
-      return _withCheckedAt(result, checkedAt);
+      return _withCheckedAt(result, _now());
     } on Object catch (error) {
       return UpdateInfo(
         currentVersion: normalizeVersion(currentVersion),
@@ -60,7 +87,7 @@ final class UpdateCheckService {
         status: UpdateStatus.error,
         errorMessage: _errorMessage(error),
         canCheckForUpdates: canCheckForUpdates,
-        checkedAt: checkedAt,
+        checkedAt: _now(),
       );
     }
   }
@@ -94,6 +121,8 @@ final class UpdateCheckService {
     }
   }
 }
+
+String _now() => DateTime.now().toUtc().toIso8601String();
 
 UpdateInfo _withCheckedAt(UpdateInfo update, String checkedAt) => UpdateInfo(
   currentVersion: update.currentVersion,

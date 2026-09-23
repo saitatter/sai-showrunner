@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -19,7 +20,9 @@ void main() {
     expect(find.text('License'), findsOneWidget);
   });
 
-  testWidgets('renders fetched release details and notes', (tester) async {
+  testWidgets('checks for updates on open and renders release details', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -44,14 +47,16 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Check for Updates'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
 
-    expect(find.text('Update available: 1.1.0'), findsOneWidget);
+    expect(find.text('Current version: v1.0.0'), findsOneWidget);
+    expect(find.text('Update available'), findsOneWidget);
+    expect(find.text('v1.1.0'), findsOneWidget);
     expect(find.text('Fixes details'), findsOneWidget);
     expect(find.text('Open release page'), findsOneWidget);
     expect(find.text('Download Windows ZIP'), findsOneWidget);
+    expect(find.text('Release Notes'), findsOneWidget);
+    expect(find.textContaining('Last checked'), findsOneWidget);
   });
 
   testWidgets('renders offline update errors without throwing', (tester) async {
@@ -68,9 +73,40 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Check for Updates'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Update check is offline.'), findsOneWidget);
+    expect(find.text('Update check failed'), findsOneWidget);
+    expect(find.textContaining('internet connection'), findsOneWidget);
+    expect(find.text('unknown'), findsOneWidget);
+  });
+
+  testWidgets('keeps an empty release-notes panel before the check finishes', (
+    tester,
+  ) async {
+    final release = Completer<Map<String, dynamic>>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UpdateWorkspace(
+            updateService: UpdateCheckService(
+              currentVersion: '2.0.0',
+              fetcher: () => release.future,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Release Notes'), findsOneWidget);
+    expect(
+      find.text('Release notes will appear here after checking for updates.'),
+      findsOneWidget,
+    );
+    expect(find.text('unknown'), findsOneWidget);
+
+    release.complete({'tag_name': 'v2.0.0', 'body': ''});
+    await tester.pumpAndSettle();
+    expect(find.text("You're up to date"), findsOneWidget);
   });
 }

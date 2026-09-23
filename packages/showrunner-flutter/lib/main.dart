@@ -118,7 +118,7 @@ class ShowRunnerFlutterApp extends StatelessWidget {
         dataService: ShowRunnerDataService(
           userDirectory ?? showRunnerUserDirectory(portable: portable),
         ),
-        updateService: const UpdateCheckService(
+        updateService: UpdateCheckService(
           currentVersion: showRunnerFlutterVersion,
         ),
         smokeScenario: smokeScenario,
