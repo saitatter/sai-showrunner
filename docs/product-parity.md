@@ -56,3 +56,33 @@ The graph stress benchmarks, runtime parity fixtures, document/runtime
 end-to-end coverage, and automated updater replacement/rollback proof are now
 checked in. The `partial` entry is therefore release/visual proof work, not a
 missing plugin contract or unimplemented graph pipeline.
+
+## Current screenshot evidence
+
+The committed visual catalog contains 10 paired captures at 1440×900. Running
+`corepack yarn visual:compare:catalog` on 2026-09-23 with a zero per-channel
+threshold measured these raw pixel differences:
+
+| Screen | Different pixels |
+| --- | ---: |
+| App empty | 72.61% |
+| Settings | 53.48% |
+| Updater | 73.59% |
+| Integrations | 78.84% |
+| Twitch | 63.29% |
+| YouTube | 72.38% |
+| Queues | 80.28% |
+| Variables | 72.09% |
+| Viewer Variables | 80.52% |
+| Automation editor | 68.49% |
+
+These figures come from the checked-in PNGs, not from an assertion that the
+screens are visually equivalent. The current CI step checks that the pairs can
+be compared and reports the differences; it has no acceptance threshold, so a
+green catalog step does not mean visual parity passed. Several captures also
+predate explicit product decisions such as the native Windows title bar,
+tabbed Settings, and removal of Media Library. Refresh the reference fixtures
+against the accepted product decisions, review each remaining difference, and
+then set per-screen tolerances before calling visual parity complete. The
+frozen reference set still has no matching screenshots for the overlay editor,
+Profiles, Stream Plans, or several plugin settings pages.

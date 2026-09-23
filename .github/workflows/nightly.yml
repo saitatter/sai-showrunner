@@ -1,4 +1,4 @@
-name: Nightly Flutter migration checks
+name: Nightly Flutter checks
 
 on:
   schedule:

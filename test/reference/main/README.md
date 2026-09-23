@@ -37,13 +37,15 @@ The currently captured frozen-reference screens are:
 
 ```text
 app-empty.png
-settings.png
-updater.png
 automation-editor-complex.png
 integrations.png
 queues.png
+settings.png
+twitch-workspace.png
+updater.png
 variables.png
 viewer-variables.png
+youtube-workspace.png
 ```
 
 The `integrations.png` reference is the Updates workspace with the

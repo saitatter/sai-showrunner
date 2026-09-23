@@ -120,8 +120,8 @@ jobs:
       - name: Typecheck overlay packages
         run: yarn overlay:typecheck
 
-      - name: Verify overlay runtime has no Vue compatibility layer
-        run: yarn overlay:forbid-vue
+      - name: Verify browser overlay has no Vue dependencies or components
+        run: yarn overlay:verify-no-vue
 
       - name: Compare the committed visual parity catalog
         run: yarn visual:compare:catalog
