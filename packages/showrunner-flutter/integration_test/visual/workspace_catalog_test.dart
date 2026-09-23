@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -16,6 +17,7 @@ void main() {
   testWidgets('captures the parity workspace catalog', (tester) async {
     final directory = await createShowRunnerFixtureDirectory();
     addTearDown(() => directory.delete(recursive: true));
+    await _seedParityResources(directory);
     final view = tester.view;
     view.physicalSize = const ui.Size(1440, 900);
     view.devicePixelRatio = 1;
@@ -109,7 +111,66 @@ void main() {
       await _pumpApplication(tester);
       await _capture(tester, entry.$2);
     }
+
+    await _openCatalogResource(tester, 'Profiles', 'Parity Profile');
+    expect(find.text('Parity Profile'), findsAtLeastNWidgets(1));
+    await _capture(tester, 'profile-editor.png');
+
+    await _openCatalogResource(tester, 'Stream Plans', 'Parity Stream Plan');
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Segments'), findsOneWidget);
+    await _capture(tester, 'stream-plan-editor.png');
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel').last);
+    await _pumpApplication(tester);
+
+    await _openCatalogResource(tester, 'Overlays', 'Parity Overlay');
+    expect(find.text('Stream Title'), findsAtLeastNWidgets(1));
+    await _capture(tester, 'overlay-editor.png');
   });
+}
+
+Future<void> _seedParityResources(Directory directory) async {
+  final fixture = File('../../test/fixtures/visual-parity/resources.json');
+  if (!await fixture.exists()) {
+    throw StateError('Shared main/Flutter visual fixture was not found.');
+  }
+  final resources = jsonDecode(await fixture.readAsString()) as Map;
+  for (final group in resources.entries) {
+    final resourceDirectory = Directory('${directory.path}/${group.key}');
+    await resourceDirectory.create(recursive: true);
+    final groupResources = group.value as Map;
+    for (final resource in groupResources.entries) {
+      await File(
+        '${resourceDirectory.path}/${resource.key}.yaml',
+      ).writeAsString(jsonEncode(resource.value));
+    }
+  }
+}
+
+Future<void> _openCatalogResource(
+  WidgetTester tester,
+  String group,
+  String resource,
+) async {
+  final panel = find.byKey(const ValueKey('showrunner-project-panel-scroll'));
+  final resourceLabel = find.descendant(
+    of: panel,
+    matching: find.text(resource),
+  );
+  if (!tester.any(resourceLabel)) {
+    final groupLabel = find.descendant(of: panel, matching: find.text(group));
+    if (!tester.any(groupLabel)) {
+      throw StateError('Project panel group "$group" was not found.');
+    }
+    await tester.ensureVisible(groupLabel.first);
+    await tester.tap(groupLabel.first);
+    await _pumpApplication(tester);
+  }
+
+  await _scrollProjectPanelTo(tester, resource);
+  final target = find.descendant(of: panel, matching: find.text(resource));
+  await tester.tap(target.last);
+  await _pumpApplication(tester);
 }
 
 Future<void> _capture(WidgetTester tester, String fileName) async {

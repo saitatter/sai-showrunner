@@ -217,7 +217,7 @@ class ShowRunnerShell extends StatelessWidget {
       onRestartRequested: onRestartRequested,
     );
 
-    final shell = ColoredBox(
+    final shell = Material(
       color: ShowRunnerColors.background,
       child: Column(
         children: [

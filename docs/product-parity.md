@@ -27,8 +27,8 @@ Status values:
 | Project navigation | project groups and resource entries | Flutter project panel and workspace routing | equivalent | Full-screen visual comparison |
 | Automation editor | `NodeAutomationEdit.vue` and graph helpers | Flutter graph editor, runtime, debugger, data wires, subgraphs | improved | Stress benchmark and full-screen visual comparison |
 | Timeline editor | README claims a Timeline mode; no Timeline editor source exists in the renderer | No separate Timeline surface | intentionally_removed | Resolved in `docs/architecture/adr-002-timeline.md` |
-| Profiles | `ProfileEditor.vue`, `TriggerEdit.vue` | Profile workspace and profile runtime | equivalent | End-to-end lifecycle suite |
-| Stream plans | stream-plan editor and resources | Stream Plan resource/editor/runtime surfaces | improved | Full-screen visual comparison |
+| Profiles | `ProfileEditor.vue`, `TriggerEdit.vue` | Profile workspace and profile runtime | equivalent | Align profile-editor visual/layout details; end-to-end lifecycle suite |
+| Stream plans | stream-plan editor and resources | Stream Plan resource/editor/runtime surfaces | improved | Replace modal edit with the reference document workspace; lifecycle suite |
 | Integrations | plugin details/settings pages | Typed Dart plugin registry, workspaces, health and settings | improved | Full-screen visual comparison |
 | Resources | resource store and resource editors | Resource repositories, typed editors, resource workspaces | improved | Full-screen visual comparison |
 | Overlays | Vue browser-source overlay and editor | Flutter resource configuration, Shader Graph editor/compiler, plus browser overlay package | improved | Overlay visual/protocol comparison in OBS |
@@ -59,7 +59,7 @@ missing plugin contract or unimplemented graph pipeline.
 
 ## Current screenshot evidence
 
-The committed visual catalog contains 10 paired captures at 1440×900. Running
+The visual catalog now contains 13 paired captures at 1440 x 900. Running
 `corepack yarn visual:compare:catalog` on 2026-09-23 with a zero per-channel
 threshold measured these raw pixel differences:
 
@@ -71,10 +71,24 @@ threshold measured these raw pixel differences:
 | Integrations | 78.84% |
 | Twitch | 63.29% |
 | YouTube | 72.38% |
-| Queues | 80.29% |
-| Variables | 72.12% |
-| Viewer Variables | 80.57% |
-| Automation editor | 69.23% |
+| Queues | 80.01% |
+| Variables | 71.73% |
+| Viewer Variables | 80.54% |
+| Automation editor | 68.90% |
+| Profile editor | 69.73% |
+| Stream Plan editor | 98.00% |
+| Overlay editor | 77.38% |
+
+The frozen Electron reference's `FlexScroller` leaves `.scroller-outer` at zero
+height in the offscreen capture window, hiding the Profile and Stream Plan
+document contents. The reference capture harness sets that element to the
+document pane's available height after opening those documents; this is a
+capture-only layout correction, not a source change to the frozen reference.
+
+The Stream Plan comparison remains the largest visible workflow gap: Flutter
+currently opens its editor in a modal while the reference edits the selected
+plan in the document workspace. The 98.00% raw difference is not a passing
+parity result and warrants aligning the editing surface.
 
 These figures come from the checked-in PNGs, not from an assertion that the
 screens are visually equivalent. The current CI step checks that the pairs can
@@ -83,6 +97,6 @@ green catalog step does not mean visual parity passed. Several captures also
 predate explicit product decisions such as the native Windows title bar,
 tabbed Settings, and removal of Media Library. Refresh the reference fixtures
 against the accepted product decisions, review each remaining difference, and
-then set per-screen tolerances before calling visual parity complete. The
-frozen reference set still has no matching screenshots for the overlay editor,
-Profiles, Stream Plans, or several plugin settings pages.
+then set per-screen tolerances before calling visual parity complete. Matching
+captures now exist for Profiles, Stream Plans, and the Overlay editor; several
+plugin settings pages still need reference/Flutter screenshot pairs.

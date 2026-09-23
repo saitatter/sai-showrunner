@@ -39,8 +39,11 @@ The currently captured frozen-reference screens are:
 app-empty.png
 automation-editor-complex.png
 integrations.png
+overlay-editor.png
+profile-editor.png
 queues.png
 settings.png
+stream-plan-editor.png
 twitch-workspace.png
 updater.png
 variables.png
@@ -52,6 +55,11 @@ The `integrations.png` reference is the Updates workspace with the
 Integrations navigation group expanded. It is paired with the equivalent
 Flutter capture; the graph editor is compared separately as
 `automation-editor-complex.png`.
+
+Profile and Stream Plan documents are opened from the project tree. The
+reference capture harness sets the frozen build's zero-height `.scroller-outer`
+to the document pane height so their intended contents are visible. Overlay
+editor captures use the same fixture data as Flutter.
 
 The Flutter catalog additionally captures `diagnostics.png`, `logs.png`, and
 `about.png`; the frozen Electron build used for this comparison does not expose

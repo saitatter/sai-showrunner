@@ -50,6 +50,21 @@
       "id": "automation-editor",
       "reference": "test/reference/main/automation-editor-complex.png",
       "actual": "test/reference/flutter/app-graph.png"
+    },
+    {
+      "id": "profile-editor",
+      "reference": "test/reference/main/profile-editor.png",
+      "actual": "test/reference/flutter/profile-editor.png"
+    },
+    {
+      "id": "stream-plan-editor",
+      "reference": "test/reference/main/stream-plan-editor.png",
+      "actual": "test/reference/flutter/stream-plan-editor.png"
+    },
+    {
+      "id": "overlay-editor",
+      "reference": "test/reference/main/overlay-editor.png",
+      "actual": "test/reference/flutter/overlay-editor.png"
     }
   ]
 }

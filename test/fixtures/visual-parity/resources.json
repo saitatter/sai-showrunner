@@ -1,0 +1,136 @@
+{
+  "profiles": {
+    "parity-profile": {
+      "name": "Parity Profile",
+      "activationMode": "toggle",
+      "triggers": [],
+      "activationCondition": {
+        "type": "group",
+        "operator": "or",
+        "operands": []
+      },
+      "activationAutomation": {
+        "schemaVersion": 2,
+        "graph": { "nodes": [], "edges": [], "entryNodeId": "" },
+        "subgraphs": [],
+        "dataWires": [],
+        "variableNodes": [],
+        "triggerNodes": []
+      },
+      "deactivationAutomation": {
+        "schemaVersion": 2,
+        "graph": { "nodes": [], "edges": [], "entryNodeId": "" },
+        "subgraphs": [],
+        "dataWires": [],
+        "variableNodes": [],
+        "triggerNodes": []
+      }
+    }
+  },
+  "stream-plans": {
+    "parity-plan": {
+      "name": "Parity Stream Plan",
+      "activationAutomation": {
+        "schemaVersion": 2,
+        "graph": { "nodes": [], "edges": [], "entryNodeId": "" },
+        "subgraphs": [],
+        "dataWires": [],
+        "variableNodes": [],
+        "triggerNodes": []
+      },
+      "deactivationAutomation": {
+        "schemaVersion": 2,
+        "graph": { "nodes": [], "edges": [], "entryNodeId": "" },
+        "subgraphs": [],
+        "dataWires": [],
+        "variableNodes": [],
+        "triggerNodes": []
+      },
+      "segments": [
+        {
+          "id": "opening",
+          "name": "Starting Soon",
+          "components": {},
+          "activationAutomation": {
+            "schemaVersion": 2,
+            "graph": { "nodes": [], "edges": [], "entryNodeId": "" },
+            "subgraphs": [],
+            "dataWires": [],
+            "variableNodes": [],
+            "triggerNodes": []
+          },
+          "deactivationAutomation": {
+            "schemaVersion": 2,
+            "graph": { "nodes": [], "edges": [], "entryNodeId": "" },
+            "subgraphs": [],
+            "dataWires": [],
+            "variableNodes": [],
+            "triggerNodes": []
+          }
+        },
+        {
+          "id": "live",
+          "name": "Live",
+          "components": {},
+          "activationAutomation": {
+            "schemaVersion": 2,
+            "graph": { "nodes": [], "edges": [], "entryNodeId": "" },
+            "subgraphs": [],
+            "dataWires": [],
+            "variableNodes": [],
+            "triggerNodes": []
+          },
+          "deactivationAutomation": {
+            "schemaVersion": 2,
+            "graph": { "nodes": [], "edges": [], "entryNodeId": "" },
+            "subgraphs": [],
+            "dataWires": [],
+            "variableNodes": [],
+            "triggerNodes": []
+          }
+        }
+      ]
+    }
+  },
+  "overlays": {
+    "parity-overlay": {
+      "name": "Parity Overlay",
+      "size": { "width": 1920, "height": 1080 },
+      "widgets": [
+        {
+          "id": "parity-title",
+          "plugin": "overlays",
+          "widget": "label",
+          "name": "Stream Title",
+          "position": { "x": 120, "y": 100 },
+          "size": { "width": 700, "height": 160 },
+          "config": {
+            "message": "LIVE — Starting soon",
+            "font": {
+              "fontSize": 65,
+              "fontColor": "#FFFFFF",
+              "fontFamily": "Impact",
+              "fontWeight": 300,
+              "stroke": { "width": 4, "color": "#000000" },
+              "shadow": {
+                "blur": 4,
+                "color": "#FFFFFF",
+                "offsetX": 0,
+                "offsetY": 0
+              }
+            },
+            "textAlign": { "textAlign": "left" },
+            "block": {
+              "margin": { "top": 0, "bottom": 0, "left": 0, "right": 0 },
+              "padding": { "top": 0, "bottom": 0, "left": 0, "right": 0 },
+              "horizontalAlign": "left",
+              "verticalAlign": "top"
+            }
+          },
+          "visible": true,
+          "locked": false
+        }
+      ]
+    }
+  }
+}

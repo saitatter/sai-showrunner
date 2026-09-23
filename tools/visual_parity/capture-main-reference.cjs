@@ -9,6 +9,7 @@ const referenceRoot = path.join(repositoryRoot, ".tmp", "main-reference")
 const appRoot = path.join(referenceRoot, "packages", "showrunner")
 const appEntry = path.join(appRoot, "dist", "dist-electron", "background.js")
 const outputRoot = path.join(repositoryRoot, "test", "reference", "main")
+const visualResourceFixture = path.join(repositoryRoot, "test", "fixtures", "visual-parity", "resources.json")
 const electronPath = require(path.join(referenceRoot, "node_modules", "electron"))
 const userDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "showrunner-reference-"))
 const port = 9229 + Math.floor(Math.random() * 400)
@@ -110,7 +111,11 @@ async function clickText(send, text) {
 			}).filter((item) => item.visible && item.label.includes(wanted));
 			const target = matches.find((item) => item.label === wanted) || matches[0];
 			if (!target) return null;
-			return { x: target.rect.left + target.rect.width / 2, y: target.rect.top + target.rect.height / 2 };
+			if (target.element.matches('.project-category-header,.project-item')) {
+				target.element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+			}
+			const rect = target.element.getBoundingClientRect();
+			return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 		})()
 	`
 	const deadline = Date.now() + 12000
@@ -136,9 +141,10 @@ async function clickProjectItem(send, text) {
 			const wanted = ${JSON.stringify(text)};
 			const matches = [...document.querySelectorAll('.project-item')]
 				.map((element) => {
+					const rect = element.getBoundingClientRect();
 					const label = (element.innerText || element.textContent || '').replace(/\\s+/g, ' ').trim();
 					const style = getComputedStyle(element);
-					return { element, label, visible: style.visibility !== 'hidden' && style.display !== 'none' };
+					return { element, label, rect, visible: rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' };
 				})
 				.filter((item) => item.visible && item.label === wanted);
 			const target = matches[0];
@@ -166,11 +172,61 @@ async function clickProjectItem(send, text) {
 }
 
 async function waitForSelectedTab(send, label) {
-	await waitFor(
+	const expression = `
+		[...document.querySelectorAll('.docked-tab-head.selected')].some((element) =>
+			(element.innerText || '').replace(/\\s+/g, ' ').trim().includes(${JSON.stringify(label)})
+		)
+	`
+	try {
+		await waitFor(send, expression, `${label} tab`)
+	} catch (error) {
+		const state = await evaluate(
+			send,
+			`JSON.stringify({
+				body: document.body?.innerText?.slice(-1200),
+				tabs: [...document.querySelectorAll('.docked-tab-head')].map((element) => element.innerText),
+			})`,
+		)
+		throw new Error(`${error.message}. UI state: ${state}`)
+	}
+}
+
+async function projectItemIsVisible(send, label) {
+	return evaluate(
 		send,
-		`[...document.querySelectorAll('.docked-tab-head.selected')].some((element) => (element.innerText || '').replace(/\\s+/g, ' ').trim().includes(${JSON.stringify(label)}))`,
-		`${label} tab`,
+		`[...document.querySelectorAll('.project-item')].some((element) => {
+			const text = (element.innerText || element.textContent || '').replace(/\\s+/g, ' ').trim();
+			const style = getComputedStyle(element);
+			const rect = element.getBoundingClientRect();
+			return text === ${JSON.stringify(label)} && rect.width > 0 && rect.height > 0 &&
+				style.visibility !== 'hidden' && style.display !== 'none';
+		})`,
 	)
+}
+
+async function openProjectResource(send, section, resource) {
+	if (!(await projectItemIsVisible(send, resource))) await clickText(send, section)
+	await clickProjectItem(send, resource)
+	await waitForSelectedTab(send, resource)
+	// The frozen Electron build leaves these absolute-positioned scroll areas at
+	// zero height when opened in the offscreen reference window. Give them the
+	// height their document pane already provides so the intended editor renders.
+	await evaluate(
+		send,
+		`document.querySelectorAll('.scroller-outer').forEach((element) => { element.style.height = '100%' })`,
+	)
+	await sleep(350)
+}
+
+function seedVisualResources() {
+	const fixtures = JSON.parse(fs.readFileSync(visualResourceFixture, "utf8"))
+	for (const [directory, resources] of Object.entries(fixtures)) {
+		const targetDirectory = path.join(userDirectory, directory)
+		fs.mkdirSync(targetDirectory, { recursive: true })
+		for (const [id, config] of Object.entries(resources)) {
+			fs.writeFileSync(path.join(targetDirectory, `${id}.yaml`), JSON.stringify(config, null, 2))
+		}
+	}
 }
 
 async function hoverText(send, text) {
@@ -210,6 +266,7 @@ async function capture(send, fileName) {
 
 async function main() {
 	if (!fs.existsSync(appEntry)) throw new Error(`Missing Electron build: ${appEntry}`)
+	seedVisualResources()
 	fs.writeFileSync(path.join(userDirectory, "start-info.yaml"), "lastVer: 0.0.0\n")
 	const environment = {
 		...process.env,
@@ -303,6 +360,15 @@ async function main() {
 			}
 		} else {
 			console.log("Skipped Tools captures: the frozen reference build does not expose a Tools group")
+		}
+
+		for (const [section, resource, fileName] of [
+			["Profiles", "Parity Profile", "profile-editor.png"],
+			["Stream Plans", "Parity Stream Plan", "stream-plan-editor.png"],
+			["Overlays", "Parity Overlay", "overlay-editor.png"],
+		]) {
+			await openProjectResource(cdp.send, section, resource)
+			await capture(cdp.send, fileName)
 		}
 	} finally {
 		cdp?.socket?.close()
