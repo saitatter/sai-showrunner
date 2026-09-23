@@ -227,6 +227,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onVariableChanged: (id, value) =>
           _stateRegistry?.updateDynamicState('variables', id, value),
       activateProfile: _activateProfileResource,
+      smokeMode: widget.smokeScenario != null,
     );
     unawaited(_services.start());
     unawaited(_bindProviderStateDiagnostics());

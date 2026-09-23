@@ -50,6 +50,7 @@ final class ShowRunnerServices {
     required ShowRunnerDataService dataService,
     required void Function(String id, dynamic value) onVariableChanged,
     ShowRunnerProfileActivation? activateProfile,
+    bool smokeMode = false,
   }) {
     final actionQueue = DartActionQueue();
     final eventHub = DartPluginEventHub();
@@ -115,6 +116,7 @@ final class ShowRunnerServices {
       },
       activateProfile: activateProfile,
       variableRuntime: variableRuntime,
+      httpPortOverride: smokeMode ? 0 : null,
       onOverlayPresenceReaderCreated: (reader) {
         if (!overlayPresenceReader.isCompleted) {
           overlayPresenceReader.complete(reader);

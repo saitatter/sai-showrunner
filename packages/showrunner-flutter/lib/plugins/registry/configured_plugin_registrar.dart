@@ -11,6 +11,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   ShowRunnerAutomationRunner? runAutomation,
   ShowRunnerProfileActivation? activateProfile,
   DartVariableRuntime? variableRuntime,
+  int? httpPortOverride,
   void Function(OverlayPresenceReader reader)? onOverlayPresenceReaderCreated,
 }) async {
   final variablesRepository =
@@ -29,7 +30,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     ...showRunnerSettings,
   };
   final httpEndpointService = DartHttpEndpointService(
-    port: _port(appSettings['port'], 8181),
+    port: httpPortOverride ?? _port(appSettings['port'], 8181),
   );
   final registry = DartPluginRegistry();
   _registerHeartRatePlugin(

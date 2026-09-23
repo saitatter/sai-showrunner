@@ -57,6 +57,13 @@ end-to-end coverage, and automated updater replacement/rollback proof are now
 checked in. The `partial` entry is therefore release/visual proof work, not a
 missing plugin contract or unimplemented graph pipeline.
 
+On 2026-09-23, the unsigned `2.0.0` Windows archive passed all eight packaged
+smoke scenarios and the updater install/rollback smoke. Smoke-mode HTTP binds
+an ephemeral loopback port so these checks can run while another ShowRunner
+instance is open. The trusted signed-install proof remains unverified: the
+workflow exists on `migration/flutter` but is not available on GitHub's current
+default branch, and this local environment has no signing certificate.
+
 ## Current screenshot evidence
 
 The visual catalog now contains 13 paired captures at 1440 x 900. Running
