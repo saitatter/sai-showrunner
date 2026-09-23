@@ -9,6 +9,8 @@ import '../../persistence/viewer_data_sync.dart';
 import '../../plugins/registry/plugin_bootstrap.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/overlays/overlay_presence.dart';
+import '../../plugins/obs/overlay_source_service.dart';
+import '../../plugins/obs/connection_router.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../plugins/showrunner/manifest.dart';
 import '../../runtime/action_queue.dart';
@@ -36,6 +38,7 @@ final class ShowRunnerServices {
     required this.queueManager,
     required this.pluginRegistryFuture,
     required this.overlayPresenceReaderFuture,
+    required this.overlayObsSourceService,
     required this.profileManagerFuture,
     required this.profileRuntimeFuture,
     required this.eventHub,
@@ -74,6 +77,10 @@ final class ShowRunnerServices {
       traceService: executionTrace,
     );
     final overlayPresenceReader = Completer<OverlayPresenceReader?>();
+    final overlayObsSourceService = OverlayObsSourceService(
+      dataService: dataService,
+      router: ObsConnectionRouter(dataService: dataService),
+    );
     final queueRepository = QueueConfigRepository(
       Directory('${dataService.userDirectory.path}/queues'),
     );
@@ -162,6 +169,7 @@ final class ShowRunnerServices {
       queueManager: queueManager,
       pluginRegistryFuture: pluginRegistryFuture,
       overlayPresenceReaderFuture: overlayPresenceReader.future,
+      overlayObsSourceService: overlayObsSourceService,
       profileManagerFuture: profileManagerFuture,
       profileRuntimeFuture: profileRuntimeFuture,
       eventHub: eventHub,
@@ -180,6 +188,7 @@ final class ShowRunnerServices {
         () async => (await profileManagerFuture).dispose(),
         () async => (await pluginRegistryFuture).close(),
         eventHub.dispose,
+        overlayObsSourceService.close,
       ],
     );
     return services;
@@ -192,6 +201,7 @@ final class ShowRunnerServices {
   final DartAutomationQueueManager queueManager;
   final Future<DartPluginRegistry> pluginRegistryFuture;
   final Future<OverlayPresenceReader?> overlayPresenceReaderFuture;
+  final OverlayObsSourceService overlayObsSourceService;
   final Future<DartProfileLifecycleManager> profileManagerFuture;
   final Future<DartProfileRuntime> profileRuntimeFuture;
   final DartPluginEventHub eventHub;

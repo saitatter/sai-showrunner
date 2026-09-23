@@ -6,11 +6,14 @@ import 'package:flutter/services.dart';
 
 import '../../editor/showrunner_graph_editor.dart';
 import '../../app/app_feedback.dart';
+import '../../app/name_dialog.dart';
+import '../../design_system/tokens/tokens.dart';
 import '../graph/graph_workspace.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/registry/builtin_resource_specs.dart';
 import '../../runtime/expression.dart';
 import '../../plugins/obs/transport.dart';
+import '../../plugins/obs/overlay_source_service.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
 import '../../schema/stream_plan.dart';
@@ -656,6 +659,7 @@ class OverlayEditorPage extends StatefulWidget {
     this.onDirtyChanged,
     this.templateSuggestions = const <String>[],
     this.presenceReaderFuture,
+    this.obsSourceService,
   });
 
   final ResourceData resource;
@@ -663,6 +667,7 @@ class OverlayEditorPage extends StatefulWidget {
   final ValueChanged<bool>? onDirtyChanged;
   final List<String> templateSuggestions;
   final Future<OverlayPresenceReader?>? presenceReaderFuture;
+  final OverlayObsSourceActions? obsSourceService;
 
   @override
   State<OverlayEditorPage> createState() => _OverlayEditorState();
@@ -685,6 +690,13 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   bool _dirty = false;
   OverlayPresenceReader? _presenceReader;
   late OverlayPresence _presence;
+  List<ObsConnectionChoice> _obsConnections = const [];
+  String? _selectedObsConnectionId;
+  OverlayBrowserSourceStatus? _obsSourceStatus;
+  String? _obsSourceError;
+  bool _obsConnectionsLoading = false;
+  bool _obsSourceLoading = false;
+  Timer? _obsRefreshDebounce;
   Timer? _presenceTimer;
   final _widgetMenuLink = LayerLink();
   final _widgetMenuAnchorKey = GlobalKey();
@@ -712,6 +724,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
         .toList();
     _presence = OverlayPresence.disconnected(widget.resource.id);
     unawaited(_loadPresenceReader());
+    unawaited(_loadObsConnections());
     _presenceTimer = Timer.periodic(
       const Duration(milliseconds: 2500),
       (_) => unawaited(_refreshPresence()),
@@ -731,12 +744,19 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       _presence = OverlayPresence.disconnected(widget.resource.id);
       unawaited(_loadPresenceReader());
     }
+    if (oldWidget.obsSourceService != widget.obsSourceService) {
+      _obsConnections = const [];
+      _selectedObsConnectionId = null;
+      _obsSourceStatus = null;
+      unawaited(_loadObsConnections());
+    }
   }
 
   @override
   void dispose() {
     _closeWidgetMenu();
     _presenceTimer?.cancel();
+    _obsRefreshDebounce?.cancel();
     _name.dispose();
     _width.dispose();
     _height.dispose();
@@ -756,7 +776,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       math.max(280.0, MediaQuery.sizeOf(context).width * .34),
     );
     return Material(
-      color: Theme.of(context).colorScheme.surface,
+      key: const ValueKey('overlay-editor-root'),
+      color: ShowRunnerColors.surfaceB,
       child: Column(
         children: [
           _overlayEditorToolbar(context),
@@ -884,7 +905,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   }
 
   Widget _overlayEditorToolbar(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    key: const ValueKey('overlay-editor-toolbar'),
+    color: ShowRunnerColors.surfaceB,
     child: Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
       child: Wrap(
@@ -908,6 +930,49 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
               onChanged: (_) => _markDirty(),
             ),
           ),
+          if (widget.obsSourceService != null) ...[
+            SizedBox(
+              width: 220,
+              child: DropdownButtonFormField<String>(
+                key: const ValueKey('overlay-obs-connection-selector'),
+                initialValue:
+                    _obsConnections.any(
+                      (connection) => connection.id == _selectedObsConnectionId,
+                    )
+                    ? _selectedObsConnectionId
+                    : null,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'OBS Connection',
+                  isDense: true,
+                  suffixIcon: _obsConnectionsLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : null,
+                ),
+                hint: const Text('Select OBS Connection'),
+                items: [
+                  for (final connection in _obsConnections)
+                    DropdownMenuItem(
+                      value: connection.id,
+                      child: Text(
+                        connection.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: _obsConnectionsLoading ? null : _selectObsConnection,
+              ),
+            ),
+            _overlayObsSourceControl(context),
+          ],
           SizedBox(
             width: 86,
             child: TextField(
@@ -921,6 +986,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
               onChanged: (_) {
                 _markDirty();
                 setState(() {});
+                _scheduleObsSourceRefresh();
               },
             ),
           ),
@@ -937,6 +1003,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
               onChanged: (_) {
                 _markDirty();
                 setState(() {});
+                _scheduleObsSourceRefresh();
               },
             ),
           ),
@@ -953,6 +1020,280 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       ),
     ),
   );
+
+  Widget _overlayObsSourceControl(BuildContext context) {
+    final selected = _selectedObsConnection;
+    final status = _obsSourceStatus;
+    final service = widget.obsSourceService;
+    if (service == null) return const SizedBox.shrink();
+    if (selected == null) {
+      return Tooltip(
+        message: 'Select an OBS connection to manage its Browser Source.',
+        child: OutlinedButton.icon(
+          onPressed: null,
+          icon: const Icon(Icons.link_off),
+          label: const Text('Select OBS Connection'),
+        ),
+      );
+    }
+    if (_obsSourceLoading) {
+      return const SizedBox(
+        width: 42,
+        height: 42,
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    if (_obsSourceError != null || status?.connected != true) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Tooltip(
+            message: _obsSourceError ?? 'OBS connection has not been checked.',
+            child: Icon(
+              Icons.cloud_off_outlined,
+              size: 18,
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
+          const SizedBox(width: 6),
+          if (selected.isLocal)
+            OutlinedButton.icon(
+              key: const ValueKey('overlay-open-obs'),
+              onPressed: () => unawaited(_openObs()),
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Open OBS'),
+            )
+          else
+            Tooltip(
+              message: 'ShowRunner cannot launch OBS on a remote computer.',
+              child: const Chip(label: Text('Remote OBS')),
+            ),
+          IconButton(
+            key: const ValueKey('overlay-check-obs'),
+            tooltip: 'Check OBS connection',
+            onPressed: () => unawaited(_refreshObsSource()),
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      );
+    }
+    if (status!.needsCreate) {
+      return FilledButton.icon(
+        key: const ValueKey('overlay-create-browser-source'),
+        onPressed: () => unawaited(_createObsBrowserSource()),
+        icon: const Icon(Icons.add),
+        label: const Text('Create Source'),
+      );
+    }
+    if (status.needsFix) {
+      return FilledButton.tonalIcon(
+        key: const ValueKey('overlay-fix-browser-source'),
+        onPressed: () => unawaited(_fixObsBrowserSource()),
+        icon: const Icon(Icons.build_outlined),
+        label: const Text('Fix OBS Source'),
+      );
+    }
+    return Tooltip(
+      message: 'This Browser Source is set to the current overlay.',
+      child: Chip(
+        key: const ValueKey('overlay-browser-source-ready'),
+        avatar: const Icon(Icons.web_asset_outlined, size: 18),
+        label: Text(status.sourceName ?? 'OBS source ready'),
+      ),
+    );
+  }
+
+  ObsConnectionChoice? get _selectedObsConnection {
+    final id = _selectedObsConnectionId;
+    if (id == null) return null;
+    return _obsConnections
+        .where((connection) => connection.id == id)
+        .firstOrNull;
+  }
+
+  Future<void> _loadObsConnections() async {
+    final service = widget.obsSourceService;
+    if (service == null) return;
+    setState(() => _obsConnectionsLoading = true);
+    try {
+      final connections = await service.listConnections();
+      final defaultId = await service.defaultConnectionId();
+      if (!mounted || !identical(service, widget.obsSourceService)) return;
+      final selectedId =
+          connections.any((connection) => connection.id == defaultId)
+          ? defaultId
+          : null;
+      setState(() {
+        _obsConnections = connections;
+        _selectedObsConnectionId = selectedId;
+        _obsConnectionsLoading = false;
+      });
+      if (selectedId != null) unawaited(_refreshObsSource());
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _obsConnections = const [];
+        _obsConnectionsLoading = false;
+        _obsSourceError = '$error';
+      });
+    }
+  }
+
+  void _selectObsConnection(String? id) {
+    setState(() {
+      _selectedObsConnectionId = id;
+      _obsSourceStatus = null;
+      _obsSourceError = null;
+    });
+    if (id != null) unawaited(_refreshObsSource());
+  }
+
+  Future<int> _overlayHttpPort() async {
+    var reader = _presenceReader;
+    final future = widget.presenceReaderFuture;
+    if (reader == null && future != null) {
+      try {
+        reader = await future;
+        if (mounted && identical(widget.presenceReaderFuture, future)) {
+          _presenceReader = reader;
+        }
+      } on Object {
+        // The editor remains available when the overlay runtime is offline.
+      }
+    }
+    final url = reader?.browserSourceUrl(widget.resource.id);
+    return Uri.tryParse(url ?? '')?.port ?? 8181;
+  }
+
+  void _scheduleObsSourceRefresh() {
+    if (_selectedObsConnectionId == null) return;
+    _obsRefreshDebounce?.cancel();
+    _obsRefreshDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => unawaited(_refreshObsSource()),
+    );
+  }
+
+  Future<void> _refreshObsSource() async {
+    final service = widget.obsSourceService;
+    final connectionId = _selectedObsConnectionId;
+    if (service == null || connectionId == null) return;
+    setState(() {
+      _obsSourceLoading = true;
+      _obsSourceError = null;
+    });
+    try {
+      final status = await service.inspect(
+        connectionId: connectionId,
+        overlayId: widget.resource.id,
+        width: int.tryParse(_width.text) ?? 1920,
+        height: int.tryParse(_height.text) ?? 1080,
+        port: await _overlayHttpPort(),
+      );
+      if (!mounted || connectionId != _selectedObsConnectionId) return;
+      setState(() => _obsSourceStatus = status);
+    } on Object catch (error) {
+      if (!mounted || connectionId != _selectedObsConnectionId) return;
+      setState(() {
+        _obsSourceStatus = null;
+        _obsSourceError = '$error';
+      });
+    } finally {
+      if (mounted && connectionId == _selectedObsConnectionId) {
+        setState(() => _obsSourceLoading = false);
+      }
+    }
+  }
+
+  Future<void> _openObs() async {
+    final service = widget.obsSourceService;
+    final connectionId = _selectedObsConnectionId;
+    if (service == null || connectionId == null) return;
+    try {
+      final opened = await service.openObs(connectionId);
+      if (!mounted) return;
+      showShowRunnerFeedback(
+        context,
+        opened
+            ? 'Opening OBS Studio.'
+            : 'Could not find OBS. Check the OBS install path in its connection settings.',
+        severity: opened
+            ? ShowRunnerFeedbackSeverity.success
+            : ShowRunnerFeedbackSeverity.warning,
+      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      showShowRunnerFeedback(
+        context,
+        'Could not open OBS: $error',
+        severity: ShowRunnerFeedbackSeverity.error,
+      );
+    }
+  }
+
+  Future<void> _createObsBrowserSource() async {
+    final service = widget.obsSourceService;
+    final connectionId = _selectedObsConnectionId;
+    if (service == null || connectionId == null) return;
+    final sourceName = await showShowRunnerNameDialog(
+      context,
+      title: 'Create Browser Source',
+      initialName:
+          '${_name.text.trim().isEmpty ? 'Overlay' : _name.text.trim()} Browser Source',
+    );
+    if (sourceName == null || !mounted) return;
+    setState(() => _obsSourceLoading = true);
+    try {
+      await service.createBrowserSource(
+        connectionId: connectionId,
+        overlayId: widget.resource.id,
+        sourceName: sourceName,
+        width: int.tryParse(_width.text) ?? 1920,
+        height: int.tryParse(_height.text) ?? 1080,
+        port: await _overlayHttpPort(),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await _refreshObsSource();
+    } on Object catch (error) {
+      if (!mounted) return;
+      showShowRunnerFeedback(
+        context,
+        'Could not create OBS Browser Source: $error',
+        severity: ShowRunnerFeedbackSeverity.error,
+      );
+      setState(() => _obsSourceLoading = false);
+    }
+  }
+
+  Future<void> _fixObsBrowserSource() async {
+    final service = widget.obsSourceService;
+    final connectionId = _selectedObsConnectionId;
+    final sourceName = _obsSourceStatus?.sourceName;
+    if (service == null || connectionId == null || sourceName == null) return;
+    setState(() => _obsSourceLoading = true);
+    try {
+      await service.fixBrowserSource(
+        connectionId: connectionId,
+        overlayId: widget.resource.id,
+        sourceName: sourceName,
+        width: int.tryParse(_width.text) ?? 1920,
+        height: int.tryParse(_height.text) ?? 1080,
+        port: await _overlayHttpPort(),
+      );
+      await _refreshObsSource();
+    } on Object catch (error) {
+      if (!mounted) return;
+      showShowRunnerFeedback(
+        context,
+        'Could not update OBS Browser Source: $error',
+        severity: ShowRunnerFeedbackSeverity.error,
+      );
+      setState(() => _obsSourceLoading = false);
+    }
+  }
 
   Widget _overlayInspector(BuildContext context) {
     final index = _selectedWidgetIndex;
@@ -1171,8 +1512,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                                         size: 18,
                                       ),
                                     ),
-                                    if (selected &&
-                                        constraints.maxWidth >= 280) ...[
+                                    if (constraints.maxWidth >= 280) ...[
                                       IconButton(
                                         key: ValueKey(
                                           'overlay-widget-list-move-up-${item['id']}',
@@ -2028,7 +2368,7 @@ class _OverlayCanvas extends StatelessWidget {
       final stageWidth = width * scale;
       final stageHeight = height * scale;
       return ColoredBox(
-        color: Theme.of(context).colorScheme.surface,
+        color: ShowRunnerColors.surfaceB,
         child: Stack(
           key: const ValueKey('overlay-canvas-viewport'),
           children: [
@@ -2038,7 +2378,7 @@ class _OverlayCanvas extends StatelessWidget {
                 painter: _OverlayGridPainter(
                   horizontalStep: width * scale / 10,
                   verticalStep: height * scale / 10,
-                  gridColor: Theme.of(context).colorScheme.outlineVariant,
+                  gridColor: ShowRunnerColors.surfaceD,
                 ),
               ),
             ),
@@ -2310,7 +2650,7 @@ class _OverlayCanvas extends StatelessWidget {
             ],
           )
         : text;
-    final vertical = switch (block['verticalAlign']?.toString()) {
+    final verticalAlignment = switch (block['verticalAlign']?.toString()) {
       'center' => 0.0,
       'bottom' => 1.0,
       _ => -1.0,
@@ -2318,11 +2658,10 @@ class _OverlayCanvas extends StatelessWidget {
     final padding = block['padding'] is Map
         ? Map<String, dynamic>.from(block['padding'] as Map)
         : const <String, dynamic>{};
-    // The Vue renderer gives its inner text element width: 100%, so text
-    // alignment must be laid out against the full widget width. A loose Align
-    // lets a single-line Text shrink-wrap, making left/center/right appear to
-    // do nothing. Stretch the text to the available width, then use the
-    // equivalent flex cross-axis alignment for top/center/bottom.
+    // Vue's full-size flex container positions its width:100% text child
+    // vertically. Keep the text at its natural height (it may exceed a small
+    // widget, just as the browser renderer permits) while constraining its
+    // width so horizontal text alignment is visible.
     return Padding(
       padding: EdgeInsets.fromLTRB(
         ((padding['left'] as num?)?.toDouble() ?? 0) * scale,
@@ -2336,7 +2675,7 @@ class _OverlayCanvas extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             Align(
-              alignment: Alignment(0, vertical),
+              alignment: Alignment(0, verticalAlignment),
               child: FractionallySizedBox(
                 widthFactor: 1,
                 alignment: Alignment.centerLeft,

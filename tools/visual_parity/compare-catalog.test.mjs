@@ -51,5 +51,15 @@ describe("visual parity catalog", () => {
 		expect(report.results[0].actual).toBe(
 			resolve(actualRoot, basename(manifest.pairs[0].actual)),
 		)
-	})
+		const overlay = report.results.find(({ id }) => id === "overlay-editor")
+		expect(overlay.diagnosticRegion).toMatchObject({
+			label: "Overlay editor workspace, excluding navigation and application tabs",
+			x: 300,
+			y: 200,
+			width: 1140,
+			height: 700,
+		})
+		expect(overlay.diagnosticRegion.differencePercent).toBeGreaterThanOrEqual(0)
+		expect(overlay.diagnosticRegion.differencePercent).toBeLessThanOrEqual(100)
+	}, 15000)
 })

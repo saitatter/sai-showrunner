@@ -503,41 +503,67 @@ class OverlayLabelAlignmentInput extends StatelessWidget {
       children: [
         Center(
           key: const ValueKey('overlay-label-horizontal-alignment-row'),
-          child: _IconChoiceRow(
-            selected:
-                textValues['textAlign']?.toString() ??
-                textField.defaultValue?.toString() ??
-                'left',
-            choices: [
-              ('left', mdiIcon(0xF0262)),
-              ('center', mdiIcon(0xF0260)),
-              ('right', mdiIcon(0xF0263)),
-              ('justify', mdiIcon(0xF0261)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _alignmentGroupLabel(context, textAlignmentSchema.label),
+              const SizedBox(height: 4),
+              _IconChoiceRow(
+                selected:
+                    textValues['textAlign']?.toString() ??
+                    textField.defaultValue?.toString() ??
+                    'left',
+                choices: [
+                  ('left', mdiIcon(0xF0262)),
+                  ('center', mdiIcon(0xF0260)),
+                  ('right', mdiIcon(0xF0263)),
+                  ('justify', mdiIcon(0xF0261)),
+                ],
+                onSelected: (next) =>
+                    onTextAlignmentChanged({...textValues, 'textAlign': next}),
+              ),
             ],
-            onSelected: (next) =>
-                onTextAlignmentChanged({...textValues, 'textAlign': next}),
           ),
         ),
         const SizedBox(height: 4),
         Center(
           key: const ValueKey('overlay-label-vertical-alignment-row'),
-          child: _IconChoiceRow(
-            selected:
-                blockValues['verticalAlign']?.toString() ??
-                verticalField.defaultValue?.toString() ??
-                'top',
-            choices: [
-              ('top', mdiIcon(0xF11C7)),
-              ('center', mdiIcon(0xF11C6)),
-              ('bottom', mdiIcon(0xF11C5)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _alignmentGroupLabel(context, blockStyleSchema.label),
+              const SizedBox(height: 4),
+              _IconChoiceRow(
+                selected:
+                    blockValues['verticalAlign']?.toString() ??
+                    verticalField.defaultValue?.toString() ??
+                    'top',
+                choices: [
+                  ('top', mdiIcon(0xF11C7)),
+                  ('center', mdiIcon(0xF11C6)),
+                  ('bottom', mdiIcon(0xF11C5)),
+                ],
+                onSelected: (next) => onBlockStyleChanged({
+                  ...blockValues,
+                  'verticalAlign': next,
+                }),
+              ),
             ],
-            onSelected: (next) =>
-                onBlockStyleChanged({...blockValues, 'verticalAlign': next}),
           ),
         ),
       ],
     );
   }
+
+  Widget _alignmentGroupLabel(BuildContext context, String label) => Align(
+    alignment: Alignment.centerLeft,
+    child: Text(
+      label,
+      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
 }
 
 class _OverlayBlockStyleInput extends StatelessWidget {

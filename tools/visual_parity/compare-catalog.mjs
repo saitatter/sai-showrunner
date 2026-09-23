@@ -33,6 +33,18 @@ mkdirSync(outputRoot, { recursive: true })
 const results = []
 const failures = []
 
+function reportFrom(result, pairId, scope) {
+	const reportLine = result.stdout
+		.trim()
+		.split(/\r?\n/)
+		.find((line) => line.startsWith("{"))
+	if (!reportLine) {
+		failures.push(`${pairId}: ${scope} comparison failed: ${result.stderr.trim() || "unknown error"}`)
+		return undefined
+	}
+	return JSON.parse(reportLine)
+}
+
 for (const pair of manifest.pairs) {
 	const reference = resolve(repositoryRoot, pair.reference)
 	const actual = actualRoot
@@ -58,21 +70,46 @@ if (!existsSync(reference) || !existsSync(actual)) {
 		],
 		{ cwd: repositoryRoot, encoding: "utf8" },
 	)
-	const reportLine = result.stdout
-		.trim()
-		.split(/\r?\n/)
-		.find((line) => line.startsWith("{"))
-	if (!reportLine) {
-		failures.push(`${pair.id}: comparator failed: ${result.stderr.trim() || "unknown error"}`)
-		continue
+	const report = reportFrom(result, pair.id, "full-screen")
+	if (!report) continue
+	let diagnosticRegion
+	if (pair.diagnosticRegion) {
+		const region = pair.diagnosticRegion
+		const regionResult = spawnSync(
+			process.execPath,
+			[
+				compareScript,
+				`--reference=${reference}`,
+				`--actual=${actual}`,
+				`--diff=${resolve(outputRoot, `${pair.id}.workspace.diff.png`)}`,
+				`--report=${resolve(outputRoot, `${pair.id}.workspace.json`)}`,
+				`--channel-threshold=${channelThreshold}`,
+				"--max-difference=100",
+				`--region=${region.x},${region.y},${region.width},${region.height}`,
+			],
+			{ cwd: repositoryRoot, encoding: "utf8" },
+		)
+		const regionReport = reportFrom(regionResult, pair.id, "workspace-region")
+		if (regionReport) {
+			diagnosticRegion = {
+				label: region.label,
+				x: region.x,
+				y: region.y,
+				width: regionReport.width,
+				height: regionReport.height,
+				differencePercent: regionReport.differencePercent,
+				meanChannelDelta: regionReport.meanChannelDelta,
+				diff: resolve(outputRoot, `${pair.id}.workspace.diff.png`),
+				report: resolve(outputRoot, `${pair.id}.workspace.json`),
+			}
+		}
 	}
-
-	const report = JSON.parse(reportLine)
 	results.push({
 		id: pair.id,
 		actual,
 		differencePercent: report.differencePercent,
 		meanChannelDelta: report.meanChannelDelta,
+		...(diagnosticRegion ? { diagnosticRegion } : {}),
 		diff,
 		report: reportPath,
 	})

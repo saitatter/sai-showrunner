@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
 
+import '../../design_system/tokens/tokens.dart';
 import '../../app/app_feedback.dart';
 import '../../app/startup_health.dart';
 import '../../app/automation_document_manager.dart';
@@ -59,6 +60,7 @@ class GraphWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       if (automationDocuments != null && automationDocuments!.hasDocuments)
         _AutomationDocumentTabBar(
@@ -456,7 +458,7 @@ class _AutomationDocumentTabBar extends StatelessWidget {
   Widget build(BuildContext context) => Material(
     color: Theme.of(context).colorScheme.surfaceContainer,
     child: SizedBox(
-      height: 42,
+      height: ShowRunnerSpacing.controlHeight,
       child: Align(
         alignment: Alignment.centerLeft,
         child: ReorderableListView.builder(

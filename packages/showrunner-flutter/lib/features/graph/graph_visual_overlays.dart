@@ -787,11 +787,14 @@ Widget _buildNodePort(
   NodeStyle style,
 ) {
   final isInput = port.prototype.direction == PortDirection.input;
-  final label = Text(
-    port.prototype.displayName(context),
-    overflow: TextOverflow.ellipsis,
-    textAlign: isInput ? TextAlign.left : TextAlign.right,
-    style: const TextStyle(color: Colors.white70, fontSize: 11),
+  final label = ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 80),
+    child: Text(
+      port.prototype.displayName(context),
+      overflow: TextOverflow.ellipsis,
+      textAlign: isInput ? TextAlign.left : TextAlign.right,
+      style: const TextStyle(color: Colors.white70, fontSize: 10.4),
+    ),
   );
   final type = Text(
     _graphPortTypeLabel(port.prototype),
@@ -819,12 +822,12 @@ Widget _buildNodePort(
 String _graphPortTypeLabel(PortPrototype prototype) {
   if (prototype.type == PortType.control) return 'flow';
   return switch (prototype.dataType.toString()) {
-    'String' => 'string',
-    'num' => 'number',
-    'bool' => 'boolean',
-    'List<dynamic>' => 'array',
-    'Map<String, dynamic>' => 'object',
-    final value => value,
+    'String' => 'str',
+    'num' || 'int' || 'double' => 'num',
+    'bool' => 'bool',
+    'List<dynamic>' => 'list',
+    'Map<String, dynamic>' || 'Object' => 'obj',
+    _ => 'any',
   };
 }
 

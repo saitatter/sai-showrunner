@@ -30,6 +30,11 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     ...showRunnerSettings,
   };
   final httpEndpointService = DartHttpEndpointService(
+    // OBS Browser Sources can run on a different machine. The endpoint must
+    // therefore be reachable on the LAN; isolated smoke runs stay local.
+    host: httpPortOverride != null
+        ? '127.0.0.1'
+        : InternetAddress.anyIPv4.address,
     port: httpPortOverride ?? _port(appSettings['port'], 8181),
   );
   final registry = DartPluginRegistry();

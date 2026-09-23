@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/design_system/brand_icons.dart';
+import 'package:showrunner_flutter/design_system/tokens/tokens.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
 import 'package:showrunner_flutter/plugins/overlays/overlay_presence.dart';
+import 'package:showrunner_flutter/plugins/obs/overlay_source_service.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
@@ -29,6 +31,67 @@ final class _FakeOverlayPresenceReader implements OverlayPresenceReader {
   @override
   String browserSourceUrl(String overlayId) =>
       'http://localhost:8181/overlays/$overlayId';
+}
+
+final class _FakeOverlayObsSourceActions implements OverlayObsSourceActions {
+  const _FakeOverlayObsSourceActions();
+
+  @override
+  Future<List<ObsConnectionChoice>> listConnections() async => const [
+    ObsConnectionChoice(
+      id: 'studio',
+      name: 'Studio OBS',
+      host: '127.0.0.1',
+      port: 4455,
+      isLocal: true,
+    ),
+  ];
+
+  @override
+  Future<String?> defaultConnectionId() async => 'studio';
+
+  @override
+  Future<String> browserSourceUrl({
+    required String connectionId,
+    required String overlayId,
+    required int port,
+  }) async => 'http://localhost:$port/overlays/$overlayId';
+
+  @override
+  Future<OverlayBrowserSourceStatus> inspect({
+    required String connectionId,
+    required String overlayId,
+    required int width,
+    required int height,
+    required int port,
+  }) async =>
+      const OverlayBrowserSourceStatus(connected: true, sceneName: 'Live');
+
+  @override
+  Future<void> createBrowserSource({
+    required String connectionId,
+    required String overlayId,
+    required String sourceName,
+    required int width,
+    required int height,
+    required int port,
+  }) async {}
+
+  @override
+  Future<void> fixBrowserSource({
+    required String connectionId,
+    required String overlayId,
+    required String sourceName,
+    required int width,
+    required int height,
+    required int port,
+  }) async {}
+
+  @override
+  Future<bool> openObs(String connectionId) async => true;
+
+  @override
+  Future<void> close() async {}
 }
 
 void main() {
@@ -725,6 +788,33 @@ void main() {
     await _selectOverlayWidget(tester, 'chat-1');
     expect(find.text('Edit overlay'), findsOneWidget);
     expect(find.text('Chat Feed'), findsAtLeastNWidgets(1));
+    expect(
+      tester
+          .widget<Material>(find.byKey(const ValueKey('overlay-editor-root')))
+          .color,
+      ShowRunnerColors.surfaceB,
+    );
+    expect(
+      tester
+          .widget<Material>(
+            find.byKey(const ValueKey('overlay-editor-toolbar')),
+          )
+          .color,
+      ShowRunnerColors.surfaceB,
+    );
+    expect(
+      tester
+          .widget<ColoredBox>(
+            find
+                .ancestor(
+                  of: find.byKey(const ValueKey('overlay-canvas-grid')),
+                  matching: find.byType(ColoredBox),
+                )
+                .first,
+          )
+          .color,
+      ShowRunnerColors.surfaceB,
+    );
     expect(find.text('Font Family'), findsOneWidget);
     expect(find.text('X'), findsOneWidget);
     expect(find.text('Transform'), findsOneWidget);
@@ -733,6 +823,47 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'overlay editor selects OBS and detects a missing browser source',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: OverlayEditorPage(
+              resource: const ResourceData(
+                id: 'overlay-obs-ui',
+                config: {
+                  'name': 'Stream overlay',
+                  'size': {'width': 1920, 'height': 1080},
+                  'widgets': <Map<String, dynamic>>[],
+                },
+              ),
+              onSave: (_) async {},
+              obsSourceService: const _FakeOverlayObsSourceActions(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(
+        find.byKey(const ValueKey('overlay-obs-connection-selector')),
+        findsOneWidget,
+      );
+      expect(find.text('Studio OBS'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('overlay-create-browser-source')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('overlay canvas resizes the selected widget directly', (
     tester,
@@ -1123,7 +1254,7 @@ void main() {
           candidate.decoration?.labelText == 'Font Family',
     );
     expect(familyInput, findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('overlay-canvas-widget-0')));
+    await tester.tap(find.byKey(const ValueKey('overlay-font-editor-close')));
     await tester.pumpAndSettle();
     expect(familyInput, findsNothing);
     await tester.tap(fontControl);
@@ -1243,6 +1374,8 @@ void main() {
     expect(find.text('Horizontal alignment'), findsNothing);
     expect(find.text('Vertical alignment'), findsNothing);
     expect(find.text('Alignment'), findsNothing);
+    expect(find.text('Text Align'), findsOneWidget);
+    expect(find.text('Block'), findsOneWidget);
     final horizontalRow = find.byKey(
       const ValueKey('overlay-label-horizontal-alignment-row'),
     );
@@ -1291,6 +1424,11 @@ void main() {
     await tester.tap(find.byIcon(const IconData(0xF0263, fontFamily: mdi)));
     await tester.pump();
     expect(tester.widget<Text>(labelText).textAlign, TextAlign.right);
+    final rightCaretOffset = tester
+        .renderObject<RenderParagraph>(labelText)
+        .getOffsetForCaret(const TextPosition(offset: 0), Rect.zero)
+        .dx;
+    expect(rightCaretOffset, greaterThan(centeredCaretOffset));
     await tester.tap(find.byIcon(const IconData(0xF0261, fontFamily: mdi)));
     await tester.pump();
     expect(tester.widget<Text>(labelText).textAlign, TextAlign.justify);
@@ -1798,11 +1936,10 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
-    await tester.tap(find.byKey(const ValueKey('overlay-widget-row-back')));
-    await tester.pumpAndSettle();
     final moveUp = find.byKey(
       const ValueKey('overlay-widget-list-move-up-back'),
     );
+    expect(moveUp, findsOneWidget);
     await tester.ensureVisible(moveUp);
     await tester.tap(moveUp);
     await tester.pumpAndSettle();

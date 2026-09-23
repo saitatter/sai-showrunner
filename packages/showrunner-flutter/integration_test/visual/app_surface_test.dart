@@ -8,6 +8,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
+import 'package:showrunner_flutter/design_system/tokens/tokens.dart';
 
 import '../support/showrunner_test_app.dart';
 
@@ -43,6 +44,12 @@ void main() {
     );
     expect(find.text('File'), findsOneWidget);
     expect(find.text('Help'), findsOneWidget);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('workspace-document-tabs')))
+          .height,
+      ShowRunnerSpacing.controlHeight,
+    );
     await _writeOptionalCapture(tester);
   });
 
@@ -112,6 +119,8 @@ void main() {
     expect(find.text('Add node'), findsOneWidget);
     expect(find.text('Super Chat'), findsOneWidget);
     expect(find.text('Add to Queue'), findsAtLeastNWidgets(1));
+    expect(find.text('str'), findsAtLeastNWidgets(1));
+    expect(find.text('string'), findsNothing);
     expect(find.textContaining('Select a node'), findsOneWidget);
     final dismissButtons = find.text('Dismiss');
     if (dismissButtons.evaluate().isNotEmpty) {

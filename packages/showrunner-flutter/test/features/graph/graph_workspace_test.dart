@@ -41,6 +41,7 @@ void main() {
     DartPluginRegistry? registry,
     AutomationDocumentManager? automationDocuments,
     ValueChanged<String>? onAutomationSelected,
+    Future<StartupHealthSnapshot>? healthFuture,
     Size size = const Size(1200, 800),
   }) async {
     await tester.pumpWidget(
@@ -53,14 +54,16 @@ void main() {
             height: size.height,
             child: GraphWorkspace(
               editor: editor,
-              healthFuture: dataService.health().then(
-                (health) => StartupHealthSnapshot(
-                  state: health.isReady
-                      ? StartupHealthState.ready
-                      : StartupHealthState.offline,
-                  health: health,
-                ),
-              ),
+              healthFuture:
+                  healthFuture ??
+                  dataService.health().then(
+                    (health) => StartupHealthSnapshot(
+                      state: health.isReady
+                          ? StartupHealthState.ready
+                          : StartupHealthState.offline,
+                      health: health,
+                    ),
+                  ),
               dataService: dataService,
               registryFuture: Future.value(registry ?? DartPluginRegistry()),
               automationDocuments: automationDocuments,
@@ -79,7 +82,25 @@ void main() {
 
     expect(find.text('Add node'), findsOneWidget);
     expect(find.text('Graph healthy'), findsOneWidget);
+    expect(find.text('Local data ready'), findsNothing);
     expect(find.textContaining('3 nodes'), findsOneWidget);
+  });
+
+  testWidgets('surfaces startup data failures without a success banner', (
+    tester,
+  ) async {
+    await pumpWorkspace(
+      tester,
+      healthFuture: Future.value(
+        const StartupHealthSnapshot(
+          state: StartupHealthState.offline,
+          error: 'State directory is unavailable.',
+        ),
+      ),
+    );
+
+    expect(find.text('Local data incomplete'), findsOneWidget);
+    expect(find.text('State directory is unavailable.'), findsOneWidget);
   });
 
   test('builds action ports from the manifest schemas', () {
@@ -255,6 +276,7 @@ void main() {
     expect(find.text('First automation'), findsOneWidget);
     expect(find.text('Second automation'), findsNWidgets(2));
     expect(find.text('AUTOMATION FLOW'), findsOneWidget);
+    expect(tester.getTopLeft(find.text('AUTOMATION FLOW')).dx, 12);
     await tester.tap(find.text('First automation'));
     expect(selected, 'first.yaml');
   });

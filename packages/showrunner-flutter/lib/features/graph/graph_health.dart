@@ -12,6 +12,9 @@ class _StartupHealthBanner extends StatelessWidget {
       builder: (context, snapshot) {
         final result = snapshot.data;
         final state = result?.state ?? StartupHealthState.loading;
+        if (state == StartupHealthState.ready) {
+          return const SizedBox.shrink();
+        }
         final health = result?.health;
         final (label, color, icon) = switch (state) {
           StartupHealthState.loading => (

@@ -63,6 +63,16 @@ final class ObsConnectionRouter implements ObsTransport {
   final ObsTransportFactory _transportFactory;
   final _transports = <String, ObsTransport>{};
 
+  Future<List<ResourceData>> listConnections() async =>
+      resourceLoader?.call() ??
+      ResourceRepository(
+        Directory('${dataService.userDirectory.path}/obs/connections'),
+        resourceType: 'OBSConnection',
+        secretSettings: SecretSettingsStore(
+          directory: Directory('${dataService.userDirectory.path}/secrets'),
+        ),
+      ).list();
+
   @override
   Future<RuntimeMap> call(String request, RuntimeMap data) async {
     final endpoint = await resolveEndpoint();
@@ -76,17 +86,7 @@ final class ObsConnectionRouter implements ObsTransport {
   Future<ObsConnectionEndpoint> resolveEndpoint() async {
     final settings =
         await (settingsLoader?.call() ?? dataService.loadPluginSettings('obs'));
-    final resources =
-        await (resourceLoader?.call() ??
-            ResourceRepository(
-              Directory('${dataService.userDirectory.path}/obs/connections'),
-              resourceType: 'OBSConnection',
-              secretSettings: SecretSettingsStore(
-                directory: Directory(
-                  '${dataService.userDirectory.path}/secrets',
-                ),
-              ),
-            ).list());
+    final resources = await listConnections();
     final selectedId = settings['obsDefault']?.toString();
     final selected = resources
         .where((resource) => resource.id == selectedId)
@@ -94,14 +94,45 @@ final class ObsConnectionRouter implements ObsTransport {
     final fallback =
         selected ??
         (selectedId == null && resources.length == 1 ? resources.first : null);
-    final config = fallback?.config;
+    return _endpointFromResource(fallback, settings);
+  }
+
+  Future<ObsConnectionEndpoint> resolveEndpointFor(String connectionId) async {
+    final resources = await listConnections();
+    final selected = resources
+        .where((resource) => resource.id == connectionId)
+        .firstOrNull;
+    if (selected == null) {
+      throw StateError('OBS connection "$connectionId" no longer exists.');
+    }
+    return _endpointFromResource(selected, const <String, dynamic>{});
+  }
+
+  Future<RuntimeMap> callForConnection(
+    String connectionId,
+    String request,
+    RuntimeMap data,
+  ) async {
+    final endpoint = await resolveEndpointFor(connectionId);
+    final transport = _transports.putIfAbsent(
+      endpoint.cacheKey,
+      () => _transportFactory(endpoint, onStateChanged),
+    );
+    return transport.call(request, data);
+  }
+
+  ObsConnectionEndpoint _endpointFromResource(
+    ResourceData? resource,
+    Map<String, dynamic> settings,
+  ) {
+    final config = resource?.config;
     final host = config?['host']?.toString() ?? settings['host']?.toString();
     final port = _port(config?['port'] ?? settings['port']);
     if (host == null || host.trim().isEmpty || port == null) {
       throw StateError('OBS connection is not configured.');
     }
     return ObsConnectionEndpoint(
-      id: fallback?.id ?? 'settings',
+      id: resource?.id ?? 'settings',
       host: host.trim(),
       port: port,
       password:

@@ -64,7 +64,14 @@
     {
       "id": "overlay-editor",
       "reference": "test/reference/main/overlay-editor.png",
-      "actual": "test/reference/flutter/overlay-editor.png"
+      "actual": "test/reference/flutter/overlay-editor.png",
+      "diagnosticRegion": {
+        "label": "Overlay editor workspace, excluding navigation and application tabs",
+        "x": 300,
+        "y": 200,
+        "width": 1140,
+        "height": 700
+      }
     }
   ]
 }

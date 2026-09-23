@@ -31,7 +31,7 @@ Status values:
 | Stream plans | stream-plan editor and resources | Inline Stream Plan document tabs, resource repository and runtime | improved | Further visual alignment against the frozen reference |
 | Integrations | plugin details/settings pages | Typed Dart plugin registry, workspaces, health and settings | improved | Full-screen visual comparison |
 | Resources | resource store and resource editors | Resource repositories, typed editors, resource workspaces | improved | Full-screen visual comparison |
-| Overlays | Vue browser-source overlay and editor | Flutter resource configuration, Shader Graph editor/compiler, plus browser overlay package | improved | Canvas origin and 10-division grid now follow the Vue reference; widget/integration tests cover label edit/alignment/reorder/save/restart. Latest temporary screenshot still differs by 78.34%, with OBS connection/source controls and full visual alignment unclosed; verify live OBS protocol before sign-off |
+| Overlays | Vue browser-source overlay and editor | Flutter resource configuration, Shader Graph editor/compiler, browser overlay package, and per-connection OBS Browser Source controls | improved | Canvas origin, 10-division grid, and surface colors follow the Vue reference; widget/integration tests cover label edit/alignment/reorder/save and OBS connection selection. OBS Browser Source discovery/create/repair has fake-transport coverage; verify against live OBS and refresh the screenshot before sign-off. Full visual alignment remains open. Remote OBS binds the shared HTTP listener to all IPv4 interfaces; dynamic HTTP trigger routes use that listener too, so use a trusted network/firewall |
 | Shader Graph | `shader-graph/shader-nodes.ts`, `shader-graph-state.ts`, `ShaderGraphEditor.vue` | Flutter `shader_graph_model`, `shader_graph_compiler`, `shader_graph_editor` using `sai_nodes` | improved | Compare compiled shaders and final OBS visuals |
 | Variables | variable nodes and viewer data | Persistent variable resources and viewer-variable workspace | improved | Runtime fixtures |
 | Queues | queue page and dashboard queue widgets | Queue workspace, queue manager and graph actions | improved | Runtime fixtures and E2E flow |
@@ -91,10 +91,23 @@ height in the offscreen capture window, hiding the Profile and Stream Plan
 document contents. The reference capture harness sets that element to the
 document pane's available height after opening those documents; this is a
 capture-only layout correction, not a source change to the frozen reference.
-The checked-in Flutter overlay capture predates the latest canvas-origin and
-grid-spacing correction. A fresh temporary capture on 2026-09-23 reports
-78.337731% raw pixel difference against the frozen reference; it is not a
-passing parity result and has not replaced the checked-in capture.
+The checked-in Flutter overlay capture predates the latest canvas-origin,
+grid-spacing, OBS source-management, and surface-color alignment changes. A
+fresh temporary capture on 2026-09-23 reports 72.332176% raw full-screen pixel
+difference against the frozen reference, down from 78.337731% before the
+surface colors were aligned; the latest capture also reduces the application
+and nested document tab rows to the Vue reference height of 40 px and reports
+71.952778% raw difference. The overall result is still not a passing parity
+result; it includes app-shell/tab differences as well as the editor. A
+same-coordinate workspace-only diagnostic region reports a 15.262771 mean
+channel delta at zero threshold. This is diagnostic evidence, not an accepted
+visual tolerance. The newly added OBS source-management flow has not yet been
+exercised against a live OBS WebSocket server.
+
+A fresh graph capture after left-aligning the automation header and hiding the
+healthy-only startup banner reduced the automation-editor raw pixel difference
+from 69.125154% to 68.381173%. Startup errors and offline states remain visible
+and are covered by widget tests. This remains far above a visual-parity pass.
 
 The Stream Plan editor now opens as a named workspace document rather than a
 modal. Editing updates the tab title and dirty marker, Save persists the plan

@@ -10,11 +10,18 @@ Example:
 node tools/visual_parity/compare.mjs `
   --reference=test/reference/main/app-empty.png `
   --actual=test/reference/flutter/app-empty.png `
+  --region=240,80,1200,820 `
   --diff=.tmp/visual/app-empty.diff.png `
   --report=.tmp/visual/app-empty.json `
   --channel-threshold=2 `
   --max-difference=0.05
 ```
+
+`--region=x,y,width,height` optionally compares a bounded part of both
+captures. The catalog can define a `diagnosticRegion` for a screen; catalog
+reports then retain the full-screen result and add a second workspace-only
+result. This helps separate application-shell differences from the feature
+being reviewed; it does not replace the full-screen parity requirement.
 
 The default threshold is strict (`0` channel difference and `0%` differing
 pixels). Any allowance for font rasterization or native chrome must be passed

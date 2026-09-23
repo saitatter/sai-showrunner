@@ -8,6 +8,7 @@ function usage() {
 	console.error(
 		"Usage: node tools/visual_parity/compare.mjs " +
 		"--reference=<path> --actual=<path> [--diff=<path>] " +
+		"[--region=<x,y,width,height>] " +
 		"[--report=<path>] [--channel-threshold=<0..255>] " +
 		"[--max-difference=<percent>]",
 	)
@@ -271,6 +272,36 @@ function compare(reference, actual, channelThreshold) {
 	}
 }
 
+function crop(image, rawRegion) {
+	const values = rawRegion.split(",").map(Number)
+	if (
+		values.length !== 4 ||
+		values.some((value) => !Number.isInteger(value))
+	) {
+		throw new Error("--region must be four comma-separated integers: x,y,width,height")
+	}
+	const [x, y, width, height] = values
+	if (
+		x < 0 ||
+		y < 0 ||
+		width <= 0 ||
+		height <= 0 ||
+		x + width > image.width ||
+		y + height > image.height
+	) {
+		throw new Error(
+			`--region ${rawRegion} exceeds image bounds ${image.width}x${image.height}`,
+		)
+	}
+	const rgba = Buffer.alloc(width * height * 4)
+	for (let row = 0; row < height; row += 1) {
+		const sourceStart = ((y + row) * image.width + x) * 4
+		const sourceEnd = sourceStart + width * 4
+		image.rgba.copy(rgba, row * width * 4, sourceStart, sourceEnd)
+	}
+	return { width, height, rgba }
+}
+
 const options = argumentsFrom(process.argv.slice(2))
 const referencePath = options.get("reference")
 const actualPath = options.get("actual")
@@ -288,11 +319,14 @@ if (!Number.isFinite(maxDifference) || maxDifference < 0 || maxDifference > 100)
 	throw new Error("--max-difference must be between 0 and 100")
 }
 
-const result = compare(
-	decodePng(await readFile(referencePath)),
-	decodePng(await readFile(actualPath)),
-	channelThreshold,
-)
+let reference = decodePng(await readFile(referencePath))
+let actual = decodePng(await readFile(actualPath))
+const region = options.get("region")
+if (region) {
+	reference = crop(reference, region)
+	actual = crop(actual, region)
+}
+const result = compare(reference, actual, channelThreshold)
 if (options.has("diff")) {
 	const diffPath = options.get("diff")
 	await mkdir(dirname(diffPath), { recursive: true })
@@ -310,6 +344,7 @@ const report = {
 	meanChannelDelta: Number(result.meanChannelDelta.toFixed(6)),
 	channelThreshold,
 	maxDifference,
+	...(region ? { region } : {}),
 	passed: result.differencePercent <= maxDifference,
 }
 if (options.has("report")) {

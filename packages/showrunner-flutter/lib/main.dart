@@ -367,6 +367,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       providerEvents: _providerEvents,
       pluginRegistryFuture: _pluginRegistryFuture,
       overlayPresenceReaderFuture: _services.overlayPresenceReaderFuture,
+      overlayObsSourceService: _services.overlayObsSourceService,
       profileRuntimeFuture: _profileRuntimeFuture,
       streamPlanRuntime: streamPlanRuntime,
       variableRuntime: _variableRuntime,
