@@ -204,6 +204,7 @@ Future<void> _openCatalogResource(
 
 Future<void> _capture(WidgetTester tester, String fileName) async {
   if (Platform.environment['SHOWRUNNER_VISUAL_CAPTURE'] != '1') return;
+  await _dismissToasts(tester);
   final outputDirectory = Directory(
     Platform.environment['SHOWRUNNER_VISUAL_OUTPUT'] ??
         'test/reference/flutter',
@@ -222,6 +223,20 @@ Future<void> _capture(WidgetTester tester, String fileName) async {
   } finally {
     image.dispose();
   }
+}
+
+Future<void> _dismissToasts(WidgetTester tester) async {
+  final dismissButton = find.bySemanticsLabel('Dismiss');
+  for (var attempt = 0; attempt < 3 && tester.any(dismissButton); attempt++) {
+    final box = tester.renderObject<RenderBox>(dismissButton.last);
+    await tester.tapAt(box.localToGlobal(box.size.center(Offset.zero)));
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+  expect(
+    dismissButton,
+    findsNothing,
+    reason: 'Capture must not include a toast.',
+  );
 }
 
 Future<void> _pumpApplication(WidgetTester tester) async {
