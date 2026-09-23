@@ -335,6 +335,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
     config: {
       "message": {
         "type": "string",
+        "name": "Text",
         "default": "Label",
         "template": true,
         "multiLine": true,

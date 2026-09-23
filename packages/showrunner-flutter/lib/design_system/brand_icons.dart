@@ -5,6 +5,17 @@ const _materialDesignIconsFont = 'Material Design Icons';
 
 const _mdiFallback = IconData(0xF0A66, fontFamily: _materialDesignIconsFont);
 const _mdiIcons = <int, IconData>{
+  0xF0CE4: IconData(0xF0CE4, fontFamily: _materialDesignIconsFont),
+  0xF0764: IconData(0xF0764, fontFamily: _materialDesignIconsFont),
+  0xF12CA: IconData(0xF12CA, fontFamily: _materialDesignIconsFont),
+  0xF0C68: IconData(0xF0C68, fontFamily: _materialDesignIconsFont),
+  0xF05E7: IconData(0xF05E7, fontFamily: _materialDesignIconsFont),
+  0xF04EB: IconData(0xF04EB, fontFamily: _materialDesignIconsFont),
+  0xF1591: IconData(0xF1591, fontFamily: _materialDesignIconsFont),
+  0xF1844: IconData(0xF1844, fontFamily: _materialDesignIconsFont),
+  0xF1896: IconData(0xF1896, fontFamily: _materialDesignIconsFont),
+  0xF05F6: IconData(0xF05F6, fontFamily: _materialDesignIconsFont),
+  0xF012A: IconData(0xF012A, fontFamily: _materialDesignIconsFont),
   0xF0543: IconData(0xF0543, fontFamily: _materialDesignIconsFont),
   0xF05C3: IconData(0xF05C3, fontFamily: _materialDesignIconsFont),
   0xF046E: IconData(0xF046E, fontFamily: _materialDesignIconsFont),

@@ -1021,13 +1021,19 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                                   children: [
                                     Tooltip(
                                       message: 'Drag to reorder',
-                                      child: ReorderableDragStartListener(
-                                        index: index,
-                                        child: const SizedBox(
-                                          width: 26,
-                                          child: Icon(
-                                            Icons.drag_handle,
-                                            size: 19,
+                                      child: MouseRegion(
+                                        cursor: SystemMouseCursors.grab,
+                                        child: ReorderableDragStartListener(
+                                          index: index,
+                                          child: const SizedBox(
+                                            width: 36,
+                                            height: 48,
+                                            child: Center(
+                                              child: Icon(
+                                                Icons.drag_handle,
+                                                size: 20,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/design_system/brand_icons.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
 import 'package:showrunner_flutter/plugins/overlays/overlay_presence.dart';
@@ -816,8 +817,7 @@ void main() {
     expect(find.text('Select a widget to edit it.'), findsOneWidget);
     await _selectOverlayWidget(tester, 'label-1');
     final messageField = find.byWidgetPredicate(
-      (widget) =>
-          widget is TextField && widget.decoration?.labelText == 'Message',
+      (widget) => widget is TextField && widget.decoration?.labelText == 'Text',
     );
     expect(messageField, findsOneWidget);
     await tester.enterText(messageField, 'After');
@@ -887,9 +887,20 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(of: firstRow, matching: find.byIcon(Icons.text_fields)),
+        find.descendant(of: firstRow, matching: find.byIcon(mdiIcon(0xF05E7))),
         findsOneWidget,
       );
+      final reorderHandle = find
+          .ancestor(
+            of: find.descendant(
+              of: firstRow,
+              matching: find.byIcon(Icons.drag_handle),
+            ),
+            matching: find.byType(ReorderableDragStartListener),
+          )
+          .first;
+      expect(tester.getSize(reorderHandle).width, 36);
+      expect(tester.getSize(reorderHandle).height, 48);
       final firstHandle = find.byIcon(Icons.drag_handle).first;
       await tester.ensureVisible(firstHandle);
       await tester.drag(firstHandle, const Offset(0, 120));
@@ -1100,8 +1111,7 @@ void main() {
     );
     final messageField = find.byWidgetPredicate(
       (candidate) =>
-          candidate is TextField &&
-          candidate.decoration?.labelText == 'Message',
+          candidate is TextField && candidate.decoration?.labelText == 'Text',
     );
     expect(messageField, findsOneWidget);
     expect(
@@ -1345,7 +1355,7 @@ void main() {
     expect(widgetSearch, findsOneWidget);
     await tester.enterText(widgetSearch, 'chat');
     await tester.pump();
-    expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget);
+    expect(find.byIcon(mdiIcon(0xF12CA)), findsOneWidget);
     await tester.tap(find.text('Chat Feed'));
     await tester.pumpAndSettle();
 
@@ -1356,10 +1366,7 @@ void main() {
         )
         .first;
     expect(
-      find.descendant(
-        of: addedChat,
-        matching: find.byIcon(Icons.chat_bubble_outline),
-      ),
+      find.descendant(of: addedChat, matching: find.byIcon(mdiIcon(0xF12CA))),
       findsOneWidget,
     );
     expect(find.text('Font Family'), findsOneWidget);
@@ -1398,6 +1405,11 @@ void main() {
         'label',
       );
       await tester.pump();
+      final menuList = find.byType(ListView);
+      expect(
+        find.descendant(of: menuList, matching: find.byIcon(mdiIcon(0xF05E7))),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Label').last);
       await tester.pumpAndSettle();
       final addedWidget = find
@@ -1410,7 +1422,7 @@ void main() {
       expect(
         find.descendant(
           of: addedWidget,
-          matching: find.byIcon(Icons.text_fields),
+          matching: find.byIcon(mdiIcon(0xF05E7)),
         ),
         findsOneWidget,
       );
@@ -1494,7 +1506,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('overlay-widget-row-label-rename')),
-        matching: find.byIcon(Icons.text_fields),
+        matching: find.byIcon(mdiIcon(0xF05E7)),
       ),
       findsOneWidget,
     );

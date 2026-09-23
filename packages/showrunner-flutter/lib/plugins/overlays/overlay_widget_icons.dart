@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../design_system/brand_icons.dart';
 import 'overlay_widget_catalog.dart';
 
 /// Widget icons mirrored from the reference overlay editor.
 ///
-/// The catalog keeps the original MDI class for browser consumers. Flutter
-/// resolves the same visual meaning locally because CSS icon classes cannot be
-/// rendered by the desktop UI.
+/// Resolve the MDI class from the shared widget catalog so the add menu, widget
+/// list, and other Flutter surfaces use the same icon declaration.
 IconData overlayWidgetIconFor(GeneratedOverlayWidget widget) {
+  final manifestIcon = _mdiIconForClass(widget.icon);
+  if (manifestIcon != null) return manifestIcon;
+
   if (widget.pluginId == 'heartrate') {
     return switch (widget.id) {
       'heartRateGraph' => Icons.show_chart,
@@ -29,6 +32,29 @@ IconData overlayWidgetIconFor(GeneratedOverlayWidget widget) {
     'random.wheel' => Icons.casino_outlined,
     _ => Icons.widgets_outlined,
   };
+}
+
+IconData? _mdiIconForClass(String? value) {
+  if (value == null) return null;
+  final iconClass = value
+      .split(RegExp(r'\s+'))
+      .where((name) => name.startsWith('mdi-'))
+      .firstOrNull;
+  final codePoint = switch (iconClass) {
+    'mdi-alert-box-outline' => 0xF0CE4,
+    'mdi-square' => 0xF0764,
+    'mdi-chat-processing-outline' => 0xF12CA,
+    'mdi-emoticon' => 0xF0C68,
+    'mdi-cursor-text' => 0xF05E7,
+    'mdi-table' => 0xF04EB,
+    'mdi-motion-play-outline' => 0xF1591,
+    'mdi-magic-staff' => 0xF1844,
+    'mdi-tire' => 0xF1896,
+    'mdi-heart-pulse' => 0xF05F6,
+    'mdi-chart-line' => 0xF012A,
+    _ => null,
+  };
+  return codePoint == null ? null : mdiIcon(codePoint);
 }
 
 Widget overlayWidgetIconWidget(

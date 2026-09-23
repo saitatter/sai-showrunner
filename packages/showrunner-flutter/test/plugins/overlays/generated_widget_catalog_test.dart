@@ -157,6 +157,12 @@ void main() {
     );
     expect(
       label.configSchema.fields
+          .firstWhere((field) => field.key == 'message')
+          .label,
+      'Text',
+    );
+    expect(
+      label.configSchema.fields
           .firstWhere((field) => field.key == 'font')
           .editor,
       'overlayTextStyle',
