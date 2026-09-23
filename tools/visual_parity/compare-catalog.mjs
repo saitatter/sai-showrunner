@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { resolve } from "node:path"
+import { basename, resolve } from "node:path"
 import { spawnSync } from "node:child_process"
 
 const repositoryRoot = resolve(import.meta.dirname, "../..")
@@ -18,6 +18,9 @@ const options = new Map(
 )
 const channelThreshold = Number(options.get("channel-threshold") ?? 0)
 const failAbove = options.has("fail-above") ? Number(options.get("fail-above")) : undefined
+const actualRoot = options.has("actual-root")
+	? resolve(repositoryRoot, options.get("actual-root"))
+	: undefined
 
 if (!Number.isFinite(channelThreshold) || channelThreshold < 0 || channelThreshold > 255) {
 	throw new Error("--channel-threshold must be between 0 and 255")
@@ -32,7 +35,9 @@ const failures = []
 
 for (const pair of manifest.pairs) {
 	const reference = resolve(repositoryRoot, pair.reference)
-	const actual = resolve(repositoryRoot, pair.actual)
+	const actual = actualRoot
+		? resolve(actualRoot, basename(pair.actual))
+		: resolve(repositoryRoot, pair.actual)
 	const diff = resolve(outputRoot, `${pair.id}.diff.png`)
 	const reportPath = resolve(outputRoot, `${pair.id}.json`)
 if (!existsSync(reference) || !existsSync(actual)) {
@@ -65,6 +70,7 @@ if (!existsSync(reference) || !existsSync(actual)) {
 	const report = JSON.parse(reportLine)
 	results.push({
 		id: pair.id,
+		actual,
 		differencePercent: report.differencePercent,
 		meanChannelDelta: report.meanChannelDelta,
 		diff,

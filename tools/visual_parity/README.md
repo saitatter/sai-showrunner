@@ -35,6 +35,17 @@ The Flutter capture harness is run with:
 corepack yarn visual:flutter
 ```
 
-It writes captures to `test/reference/flutter/`. The `main` captures are kept
-separately because they must be produced from the frozen reference build. Once
-both sides exist, compare a pair with `corepack yarn visual:compare`.
+It writes captures to `test/reference/flutter/` by default. CI captures the
+current Windows build into `.tmp/visual/flutter/` and compares those files
+against the frozen `main` references:
+
+```powershell
+.\scripts\capture-flutter-visual.ps1 -OutputDirectory '.tmp/visual/flutter'
+corepack yarn visual:compare:catalog --actual-root=.tmp/visual/flutter
+```
+
+The report and difference images are uploaded as the `visual-parity-Windows`
+CI artifact. Until each screen has a reviewed, matching fixture and an explicit
+acceptance threshold, CI treats the comparison as evidence only: a passing
+capture does not mean pixel parity. Use `--fail-above=<percent>` only for
+screens whose fixture and intentional visual differences have been reviewed.

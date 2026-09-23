@@ -75,6 +75,24 @@ jobs:
         shell: pwsh
         run: corepack yarn test:flutter-integration
 
+      - name: Capture and compare current Flutter visual surfaces
+        shell: pwsh
+        run: |
+          .\scripts\capture-flutter-visual.ps1 -OutputDirectory '.tmp/visual/flutter'
+          corepack yarn visual:compare:catalog --actual-root=.tmp/visual/flutter
+
+      - name: Upload visual parity captures and diffs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-parity-${{ runner.os }}
+          path: |
+            .tmp/visual/flutter/*.png
+            .tmp/visual/catalog/*.png
+            .tmp/visual/catalog/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Validate Flutter contract parity
         shell: pwsh
         run: |
@@ -122,9 +140,6 @@ jobs:
 
       - name: Verify browser overlay has no Vue dependencies or components
         run: yarn overlay:verify-no-vue
-
-      - name: Compare the committed visual parity catalog
-        run: yarn visual:compare:catalog
 
       - name: Verify generated overlay registry
         run: |
