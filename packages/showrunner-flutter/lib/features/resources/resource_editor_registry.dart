@@ -699,7 +699,6 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _widgets = overlay.widgets
         .map((widget) => <String, dynamic>{...widget})
         .toList();
-    if (_widgets.isNotEmpty) _selectedWidgetIndex = 0;
     GeneratedOverlayWidgetCatalog.load().then((widgets) {
       if (!mounted) return;
       setState(() => _overlayWidgetCatalog = widgets);
@@ -1319,42 +1318,31 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   }
 
   void _moveWidget(int index, int delta) {
-    final target = index + delta;
-    if (index < 0 || target < 0 || target >= _widgets.length) return;
-    final selectedId = _selectedWidgetIndex == null
-        ? null
-        : _widgets[_selectedWidgetIndex!]['id']?.toString();
-    setState(() {
-      final widget = _widgets.removeAt(index);
-      _widgets.insert(target, widget);
-      if (selectedId != null) {
-        final selectedIndex = _widgets.indexWhere(
-          (item) => item['id']?.toString() == selectedId,
-        );
-        if (selectedIndex >= 0) _selectedWidgetIndex = selectedIndex;
-      }
-    });
-    _markDirty();
+    _moveWidgetTo(index, index + delta);
   }
 
   void _reorderWidgets(int oldIndex, int newIndex) {
     // onReorderItem reports the final index after the removal adjustment.
+    _moveWidgetTo(oldIndex, newIndex);
+  }
+
+  void _moveWidgetTo(int oldIndex, int newIndex) {
     if (oldIndex == newIndex) return;
     if (oldIndex < 0 || oldIndex >= _widgets.length) return;
     if (newIndex < 0 || newIndex >= _widgets.length) return;
-
-    final selectedId = _selectedWidgetIndex == null
-        ? null
-        : _widgets[_selectedWidgetIndex!]['id']?.toString();
+    final selectedIndex = _selectedWidgetIndex;
+    final selectedWidget =
+        selectedIndex != null &&
+            selectedIndex >= 0 &&
+            selectedIndex < _widgets.length
+        ? _widgets[selectedIndex]
+        : null;
     setState(() {
-      final item = _widgets.removeAt(oldIndex);
-      _widgets.insert(newIndex, item);
-      if (selectedId != null) {
-        final selectedIndex = _widgets.indexWhere(
-          (candidate) => candidate['id']?.toString() == selectedId,
-        );
-        if (selectedIndex >= 0) _selectedWidgetIndex = selectedIndex;
-      }
+      final movedWidget = _widgets.removeAt(oldIndex);
+      _widgets.insert(newIndex, movedWidget);
+      _selectedWidgetIndex = selectedWidget == null
+          ? null
+          : _widgets.indexOf(selectedWidget);
     });
     _markDirty();
   }
@@ -1677,12 +1665,17 @@ class _OverlayCanvas extends StatelessWidget {
                 color: isLabel
                     ? Colors.transparent
                     : _overlayWidgetColor(kind, hidden),
-                border: Border.all(
-                  color: selected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.outline,
-                  width: selected ? 2 : 1,
-                ),
+                border: selected
+                    ? Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      )
+                    : isLabel
+                    ? null
+                    : Border.all(
+                        color: Theme.of(context).colorScheme.outline,
+                        width: 1,
+                      ),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Opacity(

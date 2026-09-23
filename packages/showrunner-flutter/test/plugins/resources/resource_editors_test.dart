@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
+
+Future<void> _selectOverlayWidget(WidgetTester tester, String widgetId) async {
+  await tester.tap(find.byKey(ValueKey('overlay-widget-row-$widgetId')));
+  await tester.pumpAndSettle();
+}
 
 void main() {
   test('uses typed resource keys and rejects duplicate editors', () {
@@ -697,6 +703,7 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
+    await _selectOverlayWidget(tester, 'chat-1');
     expect(find.text('Edit overlay'), findsOneWidget);
     expect(find.text('Chat Feed'), findsAtLeastNWidgets(1));
     expect(find.text('Font Family'), findsOneWidget);
@@ -740,6 +747,7 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
+    await _selectOverlayWidget(tester, 'label-1');
     await tester.drag(
       find.byKey(const ValueKey('overlay-resize-0-bottomRight')),
       const Offset(30, 20),
@@ -785,6 +793,12 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
+    final labelBox = tester.widget<AnimatedContainer>(
+      find.byKey(const ValueKey('overlay-canvas-widget-box-label-1')),
+    );
+    expect((labelBox.decoration as BoxDecoration).border, isNull);
+    expect(find.text('Select a widget to edit it.'), findsOneWidget);
+    await _selectOverlayWidget(tester, 'label-1');
     final messageField = find.byWidgetPredicate(
       (widget) =>
           widget is TextField && widget.decoration?.labelText == 'Message',
@@ -902,6 +916,7 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
+    await _selectOverlayWidget(tester, 'label-1');
     const mdi = 'Material Design Icons';
     expect(
       find.byIcon(const IconData(0xF0262, fontFamily: mdi)),
@@ -938,6 +953,11 @@ void main() {
     final horizontalCenter = find.byIcon(
       const IconData(0xF0260, fontFamily: mdi),
     );
+    final labelText = find.byKey(const ValueKey('overlay-canvas-widget-0'));
+    final leftCaretOffset = tester
+        .renderObject<RenderParagraph>(labelText)
+        .getOffsetForCaret(const TextPosition(offset: 0), Rect.zero)
+        .dx;
     await tester.ensureVisible(horizontalCenter);
     await tester.tap(horizontalCenter);
     await tester.pump();
@@ -945,12 +965,12 @@ void main() {
         .widgetList<ToggleButtons>(find.byType(ToggleButtons))
         .firstWhere((buttons) => buttons.children.length == 4);
     expect(alignmentButtons.isSelected[1], isTrue);
-    expect(
-      tester
-          .widget<Text>(find.byKey(const ValueKey('overlay-canvas-widget-0')))
-          .textAlign,
-      TextAlign.center,
-    );
+    expect(tester.widget<Text>(labelText).textAlign, TextAlign.center);
+    final centeredCaretOffset = tester
+        .renderObject<RenderParagraph>(labelText)
+        .getOffsetForCaret(const TextPosition(offset: 0), Rect.zero)
+        .dx;
+    expect(centeredCaretOffset, greaterThan(leftCaretOffset));
     final labelLayout = find.byKey(
       const ValueKey('overlay-canvas-label-layout-0'),
     );
@@ -963,6 +983,7 @@ void main() {
     final verticalCenter = find.byIcon(
       const IconData(0xF11C6, fontFamily: mdi),
     );
+    final topTextY = tester.getTopLeft(labelText).dy;
     await tester.ensureVisible(verticalCenter);
     await tester.tap(verticalCenter);
     await tester.pump();
@@ -978,6 +999,7 @@ void main() {
           .alignment,
       const Alignment(0, 0),
     );
+    expect(tester.getTopLeft(labelText).dy, greaterThan(topTextY));
     expect(
       tester
           .widget<FractionallySizedBox>(
@@ -1032,6 +1054,7 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
+    await _selectOverlayWidget(tester, 'widget-1');
     expect(find.text('Plugin'), findsNothing);
     expect(find.text('Widget'), findsOneWidget);
     expect(find.byKey(const ValueKey('overlay-plugin-readonly')), findsNothing);
@@ -1219,6 +1242,7 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
+    await _selectOverlayWidget(tester, 'label-rename');
     final name = find.byKey(const ValueKey('overlay-widget-name-label-rename'));
     expect(name, findsOneWidget);
     await tester.enterText(name, 'Updated title');
@@ -1283,6 +1307,7 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
+    await _selectOverlayWidget(tester, 'widget-first');
     final firstRow = find.byKey(
       const ValueKey('overlay-widget-row-widget-first'),
     );
@@ -1300,16 +1325,7 @@ void main() {
       tester.getTopLeft(secondRow).dy,
       lessThan(tester.getTopLeft(firstRow).dy),
     );
-    expect(
-      (tester
-                  .widget<ListTile>(
-                    secondRow,
-                  )
-                  .title!
-              as Text)
-          .data,
-      'Second',
-    );
+    expect((tester.widget<ListTile>(secondRow).title! as Text).data, 'Second');
     expect(
       (tester
                   .widget<ListTile>(
@@ -1321,6 +1337,10 @@ void main() {
               as Text)
           .data,
       'First',
+    );
+    expect(
+      find.byKey(const ValueKey('overlay-widget-name-widget-first')),
+      findsOneWidget,
     );
 
     await tester.tap(find.text('Save'));
