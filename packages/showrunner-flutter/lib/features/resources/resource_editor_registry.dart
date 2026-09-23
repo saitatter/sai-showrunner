@@ -751,7 +751,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     final canvasHeight = int.tryParse(_height.text) ?? 1080;
 
     final inspectorWidth = math.min(
-      390.0,
+      352.0,
       math.max(280.0, MediaQuery.sizeOf(context).width * .34),
     );
     return Material(
@@ -789,6 +789,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                 ),
                 const VerticalDivider(width: 1),
                 SizedBox(
+                  key: const ValueKey('overlay-widget-sidebar'),
                   width: inspectorWidth,
                   child: Column(
                     children: [

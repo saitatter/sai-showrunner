@@ -1101,6 +1101,37 @@ void main() {
     expect(((widget['config'] as Map)['font'] as Map)['fontFamily'], 'Arial');
   });
 
+  testWidgets('overlay inspector matches the Vue sidebar width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-inspector-width',
+        config: {
+          'name': 'Inspector width overlay',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [],
+        },
+      ),
+      (_) async {},
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('overlay-widget-sidebar')))
+          .width,
+      352,
+    );
+  });
+
   testWidgets('label inspector matches Vue alignment controls', (tester) async {
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
