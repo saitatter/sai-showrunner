@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
 import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
+import 'package:showrunner_flutter/plugins/overlays/overlay_presence.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
@@ -12,6 +13,19 @@ Future<void> _selectOverlayWidget(WidgetTester tester, String widgetId) async {
   await tester.ensureVisible(title);
   await tester.tap(title);
   await tester.pumpAndSettle();
+}
+
+final class _FakeOverlayPresenceReader implements OverlayPresenceReader {
+  _FakeOverlayPresenceReader(this.presence);
+
+  OverlayPresence presence;
+
+  @override
+  Future<OverlayPresence> getPresence(String overlayId) async => presence;
+
+  @override
+  String browserSourceUrl(String overlayId) =>
+      'http://localhost:8181/overlays/$overlayId';
 }
 
 void main() {
@@ -1131,6 +1145,21 @@ void main() {
     final labelLayout = find.byKey(
       const ValueKey('overlay-canvas-label-layout-0'),
     );
+    final labelLayers = tester
+        .widgetList<Text>(
+          find.descendant(of: labelLayout, matching: find.byType(Text)),
+        )
+        .toList();
+    expect(labelLayers, hasLength(2));
+    expect(labelLayers.map((layer) => layer.data), everyElement('Label'));
+    expect(
+      labelLayers.map((layer) => layer.textAlign),
+      everyElement(TextAlign.center),
+    );
+    expect(
+      labelLayers.map((layer) => layer.textScaler),
+      everyElement(TextScaler.noScaling),
+    );
     expect(
       tester.getSize(labelLayout).width,
       tester
@@ -1477,7 +1506,7 @@ void main() {
     );
   });
 
-  testWidgets('overlay widget list can reorder items with explicit controls', (
+  testWidgets('overlay widget list can reorder items from its action menu', (
     tester,
   ) async {
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
@@ -1568,6 +1597,70 @@ void main() {
           .toList(),
       ['widget-second', 'widget-first'],
     );
+  });
+
+  testWidgets('overlay list reflects browser-source presence and URL', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final reader = _FakeOverlayPresenceReader(
+      OverlayPresence(
+        overlayId: 'overlay-presence',
+        connected: true,
+        subscribers: 2,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OverlayEditorPage(
+            resource: const ResourceData(
+              id: 'overlay-presence',
+              config: {
+                'name': 'Presence',
+                'size': {'width': 1280, 'height': 720},
+                'widgets': [
+                  {
+                    'id': 'presence-label',
+                    'plugin': 'overlays',
+                    'widget': 'label',
+                    'name': 'Status label',
+                    'position': {'x': 0, 'y': 0},
+                    'size': {'width': 300, 'height': 200},
+                    'config': {'message': 'Live'},
+                    'visible': true,
+                    'locked': false,
+                  },
+                ],
+              },
+            ),
+            onSave: (_) async {},
+            presenceReaderFuture: Future.value(reader),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<SelectableText>(
+            find.byKey(const ValueKey('overlay-browser-source-url')),
+          )
+          .data,
+      'http://localhost:8181/overlays/overlay-presence',
+    );
+    expect(find.text('Connected (2)'), findsWidgets);
+    expect(find.text('OBS source disconnected'), findsNothing);
+
+    reader.presence = OverlayPresence.disconnected('overlay-presence');
+    await tester.pump(const Duration(milliseconds: 2500));
+    await tester.pump();
+    expect(find.text('Disconnected'), findsOneWidget);
+    expect(find.text('OBS source disconnected'), findsOneWidget);
   });
 
   testWidgets('stream plan editor adds and persists ordered segments', (

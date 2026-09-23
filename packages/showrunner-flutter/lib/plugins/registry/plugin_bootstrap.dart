@@ -50,6 +50,7 @@ import '../variables/manifest.dart';
 import '../variables/runtime.dart';
 import '../variables/ui/plugin_ui.dart';
 import '../overlays/manifest.dart';
+import '../overlays/overlay_presence.dart';
 import '../overlays/websocket_bridge.dart';
 import '../overlays/ui/plugin_ui.dart';
 import '../spellcast/manifest.dart';

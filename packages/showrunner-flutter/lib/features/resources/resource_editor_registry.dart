@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../editor/showrunner_graph_editor.dart';
+import '../../app/app_feedback.dart';
 import '../graph/graph_workspace.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/registry/builtin_resource_specs.dart';
@@ -20,7 +23,9 @@ import '../../plugins/overlays/shader_graph/shader_graph_editor.dart';
 import '../../plugins/overlays/shader_graph/shader_graph_model.dart';
 import '../../plugins/overlays/generated_widget_catalog.dart';
 import '../../plugins/overlays/overlay_widget_icons.dart';
+import '../../plugins/overlays/overlay_presence.dart';
 import '../../plugins/dashboards/ui/dashboard_widget_config.dart';
+import '../../services/oauth_token.dart';
 
 List<JsonMap> _maps(Object? value) => value is List
     ? value
@@ -650,12 +655,14 @@ class OverlayEditorPage extends StatefulWidget {
     required this.onSave,
     this.onDirtyChanged,
     this.templateSuggestions = const <String>[],
+    this.presenceReaderFuture,
   });
 
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
   final ValueChanged<bool>? onDirtyChanged;
   final List<String> templateSuggestions;
+  final Future<OverlayPresenceReader?>? presenceReaderFuture;
 
   @override
   State<OverlayEditorPage> createState() => _OverlayEditorState();
@@ -675,6 +682,9 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       GeneratedOverlayWidgetCatalog.widgets;
   int? _selectedWidgetIndex;
   bool _dirty = false;
+  OverlayPresenceReader? _presenceReader;
+  late OverlayPresence _presence;
+  Timer? _presenceTimer;
   final _widgetMenuLink = LayerLink();
   final _widgetMenuAnchorKey = GlobalKey();
   OverlayEntry? _widgetMenuEntry;
@@ -699,6 +709,12 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _widgets = overlay.widgets
         .map((widget) => <String, dynamic>{...widget})
         .toList();
+    _presence = OverlayPresence.disconnected(widget.resource.id);
+    unawaited(_loadPresenceReader());
+    _presenceTimer = Timer.periodic(
+      const Duration(milliseconds: 2500),
+      (_) => unawaited(_refreshPresence()),
+    );
     GeneratedOverlayWidgetCatalog.load().then((widgets) {
       if (!mounted) return;
       setState(() => _overlayWidgetCatalog = widgets);
@@ -706,8 +722,20 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   }
 
   @override
+  void didUpdateWidget(covariant OverlayEditorPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.resource.id != widget.resource.id ||
+        oldWidget.presenceReaderFuture != widget.presenceReaderFuture) {
+      _presenceReader = null;
+      _presence = OverlayPresence.disconnected(widget.resource.id);
+      unawaited(_loadPresenceReader());
+    }
+  }
+
+  @override
   void dispose() {
     _closeWidgetMenu();
+    _presenceTimer?.cancel();
     _name.dispose();
     _width.dispose();
     _height.dispose();
@@ -911,199 +939,366 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     );
   }
 
-  Widget _overlayWidgetList(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(10),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
+  Widget _overlayWidgetList(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final showBrowserSourceCard = constraints.maxHeight >= 240;
+      return Padding(
+        padding: const EdgeInsets.all(4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Expanded(
-              child: Text(
-                'Widgets',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            CompositedTransformTarget(
-              key: _widgetMenuAnchorKey,
-              link: _widgetMenuLink,
-              child: IconButton(
-                tooltip: 'Add widget',
-                onPressed: _toggleWidgetMenu,
-                icon: const Icon(Icons.add),
-              ),
-            ),
-          ],
-        ),
-        Expanded(
-          child: _widgets.isEmpty
-              ? const Center(child: Text('No widgets defined.'))
-              : ReorderableListView.builder(
-                  buildDefaultDragHandles: false,
-                  itemCount: _widgets.length,
-                  onReorderItem: _reorderWidgets,
-                  itemBuilder: (context, index) {
-                    final item = _widgets[index];
-                    final selected = index == _selectedWidgetIndex;
-                    return Material(
-                      key: ValueKey(
-                        'overlay-widget-row-${item['id'] ?? index}',
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Widgets',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (!showBrowserSourceCard)
+                  IconButton(
+                    tooltip: 'Browser Source status and URL',
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('OBS Browser Source'),
+                        content: _overlayBrowserSourceCard(context),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text('Close'),
+                          ),
+                        ],
                       ),
-                      color: selected
-                          ? Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: .14)
-                          : Colors.transparent,
-                      child: InkWell(
-                        onTap: () =>
-                            setState(() => _selectedWidgetIndex = index),
-                        child: SizedBox(
-                          height: 58,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Row(
-                              children: [
-                                ReorderableDragStartListener(
-                                  index: index,
-                                  child: const SizedBox(
-                                    width: 26,
-                                    child: Icon(Icons.drag_handle, size: 19),
-                                  ),
+                    ),
+                    icon: Icon(
+                      _presence.connected
+                          ? Icons.wifi_tethering
+                          : Icons.wifi_tethering_off,
+                    ),
+                  ),
+                CompositedTransformTarget(
+                  key: _widgetMenuAnchorKey,
+                  link: _widgetMenuLink,
+                  child: IconButton(
+                    tooltip: 'Add widget',
+                    onPressed: _toggleWidgetMenu,
+                    icon: const Icon(Icons.add),
+                  ),
+                ),
+              ],
+            ),
+            Expanded(
+              child: _widgets.isEmpty
+                  ? const Center(child: Text('No widgets defined.'))
+                  : ReorderableListView.builder(
+                      key: const ValueKey('overlay-widget-reorder-list'),
+                      buildDefaultDragHandles: false,
+                      itemCount: _widgets.length,
+                      onReorderItem: _reorderWidgets,
+                      itemBuilder: (context, index) {
+                        final item = _widgets[index];
+                        final selected = index == _selectedWidgetIndex;
+                        return Material(
+                          key: ValueKey(
+                            'overlay-widget-row-${item['id'] ?? index}',
+                          ),
+                          color: selected
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: .14)
+                              : Colors.transparent,
+                          child: InkWell(
+                            onTap: () =>
+                                setState(() => _selectedWidgetIndex = index),
+                            child: SizedBox(
+                              height: 58,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
                                 ),
-                                _widgetListIcon(item),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _widgetTitle(
-                                          item,
-                                          _overlayWidgetCatalog,
+                                child: Row(
+                                  children: [
+                                    Tooltip(
+                                      message: 'Drag to reorder',
+                                      child: ReorderableDragStartListener(
+                                        index: index,
+                                        child: const SizedBox(
+                                          width: 26,
+                                          child: Icon(
+                                            Icons.drag_handle,
+                                            size: 19,
+                                          ),
                                         ),
-                                        key: ValueKey(
-                                          'overlay-widget-row-title-${item['id']}',
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      Text(
-                                        _widgetListSubtitle(
-                                          item,
-                                          _overlayWidgetCatalog,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodySmall,
+                                    ),
+                                    _widgetListIcon(item),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _widgetTitle(
+                                              item,
+                                              _overlayWidgetCatalog,
+                                            ),
+                                            key: ValueKey(
+                                              'overlay-widget-row-title-${item['id']}',
+                                            ),
+                                            semanticsLabel: _widgetTitle(
+                                              item,
+                                              _overlayWidgetCatalog,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            softWrap: false,
+                                          ),
+                                          Text(
+                                            _widgetListSubtitle(item),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                IconButton(
-                                  key: ValueKey(
-                                    'overlay-widget-visibility-${item['id']}',
-                                  ),
-                                  tooltip: item['visible'] == false
-                                      ? 'Show widget'
-                                      : 'Hide widget',
-                                  visualDensity: VisualDensity.compact,
-                                  constraints: const BoxConstraints.tightFor(
-                                    width: 30,
-                                    height: 30,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  onPressed: () =>
-                                      _toggleWidgetFlag(index, 'visible'),
-                                  icon: Icon(
-                                    item['visible'] == false
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                    size: 18,
-                                  ),
-                                ),
-                                IconButton(
-                                  key: ValueKey(
-                                    'overlay-widget-lock-${item['id']}',
-                                  ),
-                                  tooltip: item['locked'] == true
-                                      ? 'Unlock widget'
-                                      : 'Lock widget',
-                                  visualDensity: VisualDensity.compact,
-                                  constraints: const BoxConstraints.tightFor(
-                                    width: 30,
-                                    height: 30,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  onPressed: () =>
-                                      _toggleWidgetFlag(index, 'locked'),
-                                  icon: Icon(
-                                    item['locked'] == true
-                                        ? Icons.lock_outline
-                                        : Icons.lock_open_outlined,
-                                    size: 18,
-                                  ),
-                                ),
-                                PopupMenuButton<String>(
-                                  key: ValueKey(
-                                    'overlay-widget-actions-${item['id']}',
-                                  ),
-                                  tooltip: 'Widget actions',
-                                  padding: EdgeInsets.zero,
-                                  iconSize: 18,
-                                  onSelected: (action) {
-                                    switch (action) {
-                                      case 'rename':
-                                        _renameWidget(index);
-                                        break;
-                                      case 'up':
-                                        _moveWidget(index, -1);
-                                        break;
-                                      case 'down':
-                                        _moveWidget(index, 1);
-                                        break;
-                                      case 'delete':
-                                        _deleteWidget(index);
-                                        break;
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    const PopupMenuItem(
-                                      value: 'rename',
-                                      child: Text('Rename'),
                                     ),
-                                    PopupMenuItem(
-                                      value: 'up',
-                                      enabled: index > 0,
-                                      child: const Text('Move up'),
+                                    IconButton(
+                                      key: ValueKey(
+                                        'overlay-widget-visibility-${item['id']}',
+                                      ),
+                                      tooltip: item['visible'] == false
+                                          ? 'Show widget'
+                                          : 'Hide widget',
+                                      visualDensity: VisualDensity.compact,
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                            width: 30,
+                                            height: 30,
+                                          ),
+                                      padding: EdgeInsets.zero,
+                                      onPressed: () =>
+                                          _toggleWidgetFlag(index, 'visible'),
+                                      icon: Icon(
+                                        item['visible'] == false
+                                            ? Icons.visibility_off_outlined
+                                            : Icons.visibility_outlined,
+                                        size: 18,
+                                      ),
                                     ),
-                                    PopupMenuItem(
-                                      value: 'down',
-                                      enabled: index < _widgets.length - 1,
-                                      child: const Text('Move down'),
+                                    IconButton(
+                                      key: ValueKey(
+                                        'overlay-widget-lock-${item['id']}',
+                                      ),
+                                      tooltip: item['locked'] == true
+                                          ? 'Unlock widget'
+                                          : 'Lock widget',
+                                      visualDensity: VisualDensity.compact,
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                            width: 30,
+                                            height: 30,
+                                          ),
+                                      padding: EdgeInsets.zero,
+                                      onPressed: () =>
+                                          _toggleWidgetFlag(index, 'locked'),
+                                      icon: Icon(
+                                        item['locked'] == true
+                                            ? Icons.lock_outline
+                                            : Icons.lock_open_outlined,
+                                        size: 18,
+                                      ),
                                     ),
-                                    const PopupMenuDivider(),
-                                    const PopupMenuItem(
-                                      value: 'delete',
-                                      child: Text('Delete'),
+                                    PopupMenuButton<String>(
+                                      key: ValueKey(
+                                        'overlay-widget-actions-${item['id']}',
+                                      ),
+                                      tooltip: 'Widget actions',
+                                      padding: EdgeInsets.zero,
+                                      iconSize: 18,
+                                      onSelected: (action) {
+                                        switch (action) {
+                                          case 'rename':
+                                            _renameWidget(index);
+                                            break;
+                                          case 'up':
+                                            _moveWidget(index, -1);
+                                            break;
+                                          case 'down':
+                                            _moveWidget(index, 1);
+                                            break;
+                                          case 'delete':
+                                            _deleteWidget(index);
+                                            break;
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        const PopupMenuItem(
+                                          value: 'rename',
+                                          child: Text('Rename'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'up',
+                                          enabled: index > 0,
+                                          child: const Text('Move up'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'down',
+                                          enabled: index < _widgets.length - 1,
+                                          child: const Text('Move down'),
+                                        ),
+                                        const PopupMenuDivider(),
+                                        const PopupMenuItem(
+                                          value: 'delete',
+                                          child: Text('Delete'),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                        );
+                      },
+                    ),
+            ),
+            if (showBrowserSourceCard) ...[
+              const Divider(height: 1),
+              _overlayBrowserSourceCard(context),
+            ],
+          ],
         ),
-      ],
-    ),
+      );
+    },
   );
+
+  Widget _overlayBrowserSourceCard(BuildContext context) {
+    final connected = _presence.connected;
+    final url =
+        _presenceReader?.browserSourceUrl(widget.resource.id) ??
+        Uri(
+          scheme: 'http',
+          host: 'localhost',
+          port: 8181,
+          pathSegments: ['overlays', widget.resource.id],
+        ).toString();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 2, 4, 2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Tooltip(
+                message: 'OBS Browser Source',
+                child: Icon(
+                  connected ? Icons.wifi_tethering : Icons.wifi_tethering_off,
+                  size: 15,
+                  color: connected
+                      ? const Color(0xff54d98c)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                connected
+                    ? 'Connected (${_presence.subscribers})'
+                    : 'Disconnected',
+                key: const ValueKey('overlay-browser-source-status'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: connected ? const Color(0xff54d98c) : null,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Copy Browser Source URL',
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints.tightFor(
+                  width: 32,
+                  height: 32,
+                ),
+                padding: EdgeInsets.zero,
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: url));
+                  if (context.mounted) {
+                    showShowRunnerFeedback(
+                      context,
+                      'Browser Source URL copied.',
+                      severity: ShowRunnerFeedbackSeverity.success,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.copy, size: 15),
+              ),
+              IconButton(
+                tooltip: 'Open Browser Source URL',
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints.tightFor(
+                  width: 32,
+                  height: 32,
+                ),
+                padding: EdgeInsets.zero,
+                onPressed: () async {
+                  try {
+                    await openOAuthUrlInBrowser(Uri.parse(url));
+                  } on Object catch (error) {
+                    if (context.mounted) {
+                      showShowRunnerFeedback(
+                        context,
+                        'Could not open Browser Source URL: $error',
+                        severity: ShowRunnerFeedbackSeverity.error,
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.open_in_new, size: 15),
+              ),
+            ],
+          ),
+          SelectableText(
+            url,
+            key: const ValueKey('overlay-browser-source-url'),
+            maxLines: 1,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadPresenceReader() async {
+    final future = widget.presenceReaderFuture;
+    if (future == null) return;
+    try {
+      final reader = await future;
+      if (!mounted || !identical(widget.presenceReaderFuture, future)) return;
+      _presenceReader = reader;
+      await _refreshPresence();
+    } on Object {
+      // Overlay editing remains available even if the runtime is unavailable.
+    }
+  }
+
+  Future<void> _refreshPresence() async {
+    final reader = _presenceReader;
+    if (reader == null) return;
+    try {
+      final presence = await reader.getPresence(widget.resource.id);
+      if (!mounted || presence == _presence) return;
+      setState(() => _presence = presence);
+    } on Object {
+      if (!mounted) return;
+      final disconnected = OverlayPresence.disconnected(widget.resource.id);
+      if (_presence != disconnected) {
+        setState(() => _presence = disconnected);
+      }
+    }
+  }
 
   Future<void> _showPreviewSettings(BuildContext context) async {
     await showDialog<void>(
@@ -1455,26 +1650,10 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _markDirty();
   }
 
-  String _widgetListSubtitle(
-    JsonMap item,
-    List<GeneratedOverlayWidget> catalog,
-  ) {
-    final definition = catalog.cast<GeneratedOverlayWidget?>().firstWhere(
-      (candidate) =>
-          candidate?.pluginId == _definitionPluginId(item) &&
-          candidate?.id == _definitionWidgetId(item),
-      orElse: () => null,
-    );
+  String _widgetListSubtitle(JsonMap item) {
     if (item['visible'] == false) return 'Hidden in overlay';
-    final description = definition?.description?.trim();
-    if (item['locked'] == true) {
-      return description == null || description.isEmpty
-          ? 'Locked'
-          : 'Locked · $description';
-    }
-    return description == null || description.isEmpty
-        ? 'Visible in overlay'
-        : description;
+    if (_presence.connected) return 'Connected (${_presence.subscribers})';
+    return 'OBS source disconnected';
   }
 
   Widget _widgetListIcon(JsonMap item) {
@@ -1976,27 +2155,27 @@ class _OverlayCanvas extends StatelessWidget {
         ? Map<String, dynamic>.from(font['stroke'] as Map)
         : const <String, dynamic>{};
     final strokeWidth = ((stroke['width'] as num?)?.toDouble() ?? 0) * scale;
-    final text = Text(
+    final alignment = _overlayTextAlign(textAlign['textAlign']);
+    Widget labelText(TextStyle style, {Key? key}) => Text(
       message,
-      key: ValueKey('overlay-canvas-widget-$index'),
+      key: key,
       maxLines: null,
       softWrap: true,
       textWidthBasis: TextWidthBasis.parent,
       textScaler: TextScaler.noScaling,
-      textAlign: _overlayTextAlign(textAlign['textAlign']),
-      style: textStyle,
+      textAlign: alignment,
+      style: style,
+    );
+    final text = labelText(
+      textStyle,
+      key: ValueKey('overlay-canvas-widget-$index'),
     );
     final content = strokeWidth > 0
         ? Stack(
             fit: StackFit.passthrough,
             children: [
-              Text(
-                message,
-                textAlign: _overlayTextAlign(textAlign['textAlign']),
-                softWrap: true,
-                textWidthBasis: TextWidthBasis.parent,
-                textScaler: TextScaler.noScaling,
-                style: textStyle.copyWith(
+              labelText(
+                textStyle.copyWith(
                   color: null,
                   foreground: Paint()
                     ..style = PaintingStyle.stroke

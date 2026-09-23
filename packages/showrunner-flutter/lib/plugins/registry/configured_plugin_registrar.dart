@@ -11,6 +11,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   ShowRunnerAutomationRunner? runAutomation,
   ShowRunnerProfileActivation? activateProfile,
   DartVariableRuntime? variableRuntime,
+  void Function(OverlayPresenceReader reader)? onOverlayPresenceReaderCreated,
 }) async {
   final variablesRepository =
       viewerDataRepository ??
@@ -344,6 +345,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           ttsRoot: Directory('${Directory.systemTemp.path}/ShowRunner-tts'),
         );
   if (overlayBridge != null) {
+    onOverlayPresenceReaderCreated?.call(overlayBridge);
     for (final resource in await overlayRepository.list()) {
       overlayBridge.registerAudioOutput(resource.id);
     }

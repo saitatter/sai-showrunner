@@ -22,6 +22,7 @@ import '../features/setup/setup_workspace.dart';
 import '../features/support/support_workspaces.dart';
 import '../features/variables/variables_workspace.dart';
 import '../plugins/registry/plugin_registry.dart';
+import '../plugins/overlays/overlay_presence.dart';
 import '../plugins/runtime/provider_event_workers.dart';
 import '../plugins/stream_plans/manifest.dart';
 import '../plugins/variables/runtime.dart';
@@ -46,6 +47,7 @@ final class WorkspaceHostContext {
     required this.healthFuture,
     required this.providerEvents,
     required this.pluginRegistryFuture,
+    this.overlayPresenceReaderFuture,
     required this.profileRuntimeFuture,
     required this.showGraphEditor,
     required this.onRunNode,
@@ -98,6 +100,7 @@ final class WorkspaceHostContext {
   final Future<StartupHealthSnapshot> healthFuture;
   final ProviderEventRuntime providerEvents;
   final Future<DartPluginRegistry> pluginRegistryFuture;
+  final Future<OverlayPresenceReader?>? overlayPresenceReaderFuture;
   final Future<DartProfileRuntime> profileRuntimeFuture;
   final DartStreamPlanRuntime? streamPlanRuntime;
   final DartVariableRuntime? variableRuntime;
@@ -170,6 +173,7 @@ final class WorkspaceRegistry {
       return OverlayEditorPage(
         resource: resource,
         onSave: host.onSaveOverlay!,
+        presenceReaderFuture: host.overlayPresenceReaderFuture,
         templateSuggestions: [
           for (final definition
               in host.variableRuntime?.definitions ??

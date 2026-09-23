@@ -1299,7 +1299,7 @@ class _IconChoiceRow extends StatelessWidget {
       selectedBorderColor: colors.primary,
       color: colors.onSurfaceVariant,
       selectedColor: colors.primary,
-      fillColor: colors.primary.withValues(alpha: .16),
+      fillColor: colors.primary.withValues(alpha: .30),
       children: [
         for (final choice in choices)
           Tooltip(

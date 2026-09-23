@@ -12,12 +12,13 @@ import '../http/manifest.dart';
 import '../registry/plugin_registry.dart';
 import '../sound/output.dart';
 import 'manifest.dart';
+import 'overlay_presence.dart';
 
 /// Bridges the Flutter runtime to the browser/WebGL overlay.
 ///
 /// The browser renderer remains in `packages/showrunner-obs-overlay`; this
 /// service owns the desktop-side HTTP resources and WebSocket RPC lifecycle.
-final class DartOverlayWebSocketService {
+final class DartOverlayWebSocketService implements OverlayPresenceReader {
   DartOverlayWebSocketService({
     required this.server,
     required this.eventHub,
@@ -59,6 +60,29 @@ final class DartOverlayWebSocketService {
   final _peers = <_OverlayPeer>{};
   final _audioCancellations = <String, Completer<void>>{};
   bool _disposed = false;
+
+  @override
+  Future<OverlayPresence> getPresence(String overlayId) async {
+    final subscribers = _peers
+        .where((peer) => peer.overlayId == overlayId)
+        .length;
+    return OverlayPresence(
+      overlayId: overlayId,
+      connected: subscribers > 0,
+      subscribers: subscribers,
+    );
+  }
+
+  @override
+  String browserSourceUrl(String overlayId) {
+    final port = server.boundPort ?? server.port;
+    return Uri(
+      scheme: 'http',
+      host: 'localhost',
+      port: port,
+      pathSegments: ['overlays', overlayId],
+    ).toString();
+  }
 
   Future<void> dispose() async {
     if (_disposed) return;

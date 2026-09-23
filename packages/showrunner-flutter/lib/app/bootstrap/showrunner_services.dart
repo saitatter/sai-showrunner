@@ -8,6 +8,7 @@ import '../../persistence/viewer_data_repository.dart';
 import '../../persistence/viewer_data_sync.dart';
 import '../../plugins/registry/plugin_bootstrap.dart';
 import '../../plugins/registry/plugin_registry.dart';
+import '../../plugins/overlays/overlay_presence.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../plugins/showrunner/manifest.dart';
 import '../../runtime/action_queue.dart';
@@ -34,6 +35,7 @@ final class ShowRunnerServices {
     required this.executionTrace,
     required this.queueManager,
     required this.pluginRegistryFuture,
+    required this.overlayPresenceReaderFuture,
     required this.profileManagerFuture,
     required this.profileRuntimeFuture,
     required this.eventHub,
@@ -70,6 +72,7 @@ final class ShowRunnerServices {
     final graphExecutionEngine = CompiledExecutionEngine(
       traceService: executionTrace,
     );
+    final overlayPresenceReader = Completer<OverlayPresenceReader?>();
     final queueRepository = QueueConfigRepository(
       Directory('${dataService.userDirectory.path}/queues'),
     );
@@ -112,6 +115,25 @@ final class ShowRunnerServices {
       },
       activateProfile: activateProfile,
       variableRuntime: variableRuntime,
+      onOverlayPresenceReaderCreated: (reader) {
+        if (!overlayPresenceReader.isCompleted) {
+          overlayPresenceReader.complete(reader);
+        }
+      },
+    );
+    unawaited(
+      pluginRegistryFuture.then<void>(
+        (_) {
+          if (!overlayPresenceReader.isCompleted) {
+            overlayPresenceReader.complete(null);
+          }
+        },
+        onError: (Object _, StackTrace _) {
+          if (!overlayPresenceReader.isCompleted) {
+            overlayPresenceReader.complete(null);
+          }
+        },
+      ),
     );
     final profileManagerFuture = pluginRegistryFuture.then((registry) async {
       final runtime = DartProfileRuntime(
@@ -137,6 +159,7 @@ final class ShowRunnerServices {
       executionTrace: executionTrace,
       queueManager: queueManager,
       pluginRegistryFuture: pluginRegistryFuture,
+      overlayPresenceReaderFuture: overlayPresenceReader.future,
       profileManagerFuture: profileManagerFuture,
       profileRuntimeFuture: profileRuntimeFuture,
       eventHub: eventHub,
@@ -166,6 +189,7 @@ final class ShowRunnerServices {
   final ExecutionTraceService executionTrace;
   final DartAutomationQueueManager queueManager;
   final Future<DartPluginRegistry> pluginRegistryFuture;
+  final Future<OverlayPresenceReader?> overlayPresenceReaderFuture;
   final Future<DartProfileLifecycleManager> profileManagerFuture;
   final Future<DartProfileRuntime> profileRuntimeFuture;
   final DartPluginEventHub eventHub;

@@ -18,6 +18,7 @@ import '../features/profile/profile_workspace.dart';
 import '../features/settings/interface_preferences.dart';
 import '../plugins/runtime/provider_event_workers.dart';
 import '../plugins/registry/plugin_registry.dart';
+import '../plugins/overlays/overlay_presence.dart';
 import '../plugins/stream_plans/manifest.dart';
 import '../plugins/variables/runtime.dart';
 import '../runtime/action_queue.dart';
@@ -40,6 +41,7 @@ class ShowRunnerShell extends StatelessWidget {
     required this.healthFuture,
     required this.providerEvents,
     required this.pluginRegistryFuture,
+    this.overlayPresenceReaderFuture,
     required this.profileRuntimeFuture,
     this.streamPlanRuntime,
     this.variableRuntime,
@@ -103,6 +105,7 @@ class ShowRunnerShell extends StatelessWidget {
   final Future<StartupHealthSnapshot> healthFuture;
   final ProviderEventRuntime providerEvents;
   final Future<DartPluginRegistry> pluginRegistryFuture;
+  final Future<OverlayPresenceReader?>? overlayPresenceReaderFuture;
   final Future<DartProfileRuntime> profileRuntimeFuture;
   final DartStreamPlanRuntime? streamPlanRuntime;
   final DartVariableRuntime? variableRuntime;
@@ -185,6 +188,7 @@ class ShowRunnerShell extends StatelessWidget {
       healthFuture: healthFuture,
       providerEvents: providerEvents,
       pluginRegistryFuture: pluginRegistryFuture,
+      overlayPresenceReaderFuture: overlayPresenceReaderFuture,
       profileRuntimeFuture: profileRuntimeFuture,
       streamPlanRuntime: streamPlanRuntime,
       variableRuntime: variableRuntime,

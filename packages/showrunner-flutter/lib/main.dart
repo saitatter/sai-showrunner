@@ -365,6 +365,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       healthFuture: _healthFuture,
       providerEvents: _providerEvents,
       pluginRegistryFuture: _pluginRegistryFuture,
+      overlayPresenceReaderFuture: _services.overlayPresenceReaderFuture,
       profileRuntimeFuture: _profileRuntimeFuture,
       streamPlanRuntime: streamPlanRuntime,
       variableRuntime: _variableRuntime,

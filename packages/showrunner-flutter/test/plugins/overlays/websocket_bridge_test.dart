@@ -8,6 +8,7 @@ import 'package:showrunner_flutter/persistence/viewer_data_repository.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/plugins/http/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
+import 'package:showrunner_flutter/plugins/overlays/overlay_presence.dart';
 import 'package:showrunner_flutter/plugins/overlays/websocket_bridge.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
 import 'package:showrunner_flutter/plugins/sound/output.dart';
@@ -54,6 +55,18 @@ void main() {
       viewerDataRepository: InMemoryViewerDataRepository(),
       mediaRoot: mediaRoot,
       webRoot: webRoot,
+    );
+    expect(
+      await bridge.getPresence('overlay-1'),
+      const OverlayPresence(
+        overlayId: 'overlay-1',
+        connected: false,
+        subscribers: 0,
+      ),
+    );
+    expect(
+      bridge.browserSourceUrl('overlay-1'),
+      'http://localhost:${server.boundPort}/overlays/overlay-1',
     );
     final client = HttpClient();
     WebSocket? socket;
@@ -110,6 +123,14 @@ void main() {
         'size': {'width': 1280, 'height': 720},
         'widgets': [],
       });
+      expect(
+        await bridge.getPresence('overlay-1'),
+        const OverlayPresence(
+          overlayId: 'overlay-1',
+          connected: true,
+          subscribers: 1,
+        ),
+      );
       eventHub.emit(OverlayEventIds.broadcast, {
         'broadcastId': 'showrunner_chat_message',
         'payload': {'message': 'hello'},
@@ -128,6 +149,18 @@ void main() {
         isTrue,
       );
       expect((await audioReceived.future).first, '/media/default/beep.wav');
+
+      await socket.close();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      socket = null;
+      expect(
+        await bridge.getPresence('overlay-1'),
+        const OverlayPresence(
+          overlayId: 'overlay-1',
+          connected: false,
+          subscribers: 0,
+        ),
+      );
     } finally {
       await socketSubscription?.cancel();
       await socket?.close();
