@@ -834,6 +834,67 @@ void main() {
     expect((widget['config'] as Map)['message'], 'After');
   });
 
+  testWidgets('overlay label draws its configured shadow only once', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-label-shadow',
+        config: {
+          'name': 'Label shadow overlay',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [
+            {
+              'id': 'label-shadow',
+              'plugin': 'overlays',
+              'widget': 'label',
+              'name': 'Outlined title',
+              'position': {'x': 24, 'y': 24},
+              'size': {'width': 500, 'height': 120},
+              'config': {
+                'message': 'LIVE — Starting soon',
+                'font': {
+                  'fontSize': 65,
+                  'fontColor': '#FFFFFF',
+                  'fontFamily': 'Impact',
+                  'fontWeight': 300,
+                  'stroke': {'width': 4, 'color': '#000000'},
+                  'shadow': {
+                    'blur': 4,
+                    'color': '#FFFFFF',
+                    'offsetX': 0,
+                    'offsetY': 0,
+                  },
+                },
+              },
+              'visible': true,
+              'locked': false,
+            },
+          ],
+        },
+      ),
+      (_) async {},
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+
+    final labelLayout = find.byKey(
+      const ValueKey('overlay-canvas-label-layout-0'),
+    );
+    final labelLayers = tester
+        .widgetList<Text>(
+          find.descendant(of: labelLayout, matching: find.byType(Text)),
+        )
+        .toList();
+    expect(labelLayers, hasLength(2));
+    expect(labelLayers.first.style?.foreground, isNotNull);
+    expect(labelLayers.first.style?.shadows, hasLength(1));
+    expect(labelLayers.last.style?.foreground, isNull);
+    expect(labelLayers.last.style?.shadows, isEmpty);
+  });
+
   testWidgets(
     'overlay widget list uses custom names, catalog icons, and order',
     (tester) async {

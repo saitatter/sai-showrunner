@@ -2162,6 +2162,9 @@ class _OverlayCanvas extends StatelessWidget {
         : const <String, dynamic>{};
     final strokeWidth = ((stroke['width'] as num?)?.toDouble() ?? 0) * scale;
     final alignment = _overlayTextAlign(textAlign['textAlign']);
+    final fillTextStyle = strokeWidth > 0
+        ? textStyle.copyWith(shadows: const [])
+        : textStyle;
     Widget labelText(TextStyle style, {Key? key}) => Text(
       message,
       key: key,
@@ -2173,7 +2176,7 @@ class _OverlayCanvas extends StatelessWidget {
       style: style,
     );
     final text = labelText(
-      textStyle,
+      fillTextStyle,
       key: ValueKey('overlay-canvas-widget-$index'),
     );
     final content = strokeWidth > 0
