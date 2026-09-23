@@ -457,10 +457,10 @@ class _OverlayTextAlignmentInput extends StatelessWidget {
       child: _IconChoiceRow(
         selected: selected,
         choices: const [
-          ('left', Icons.format_align_left),
-          ('center', Icons.format_align_center),
-          ('right', Icons.format_align_right),
-          ('justify', Icons.format_align_justify),
+          ('left', IconData(0xF0262, fontFamily: 'Material Design Icons')),
+          ('center', IconData(0xF0260, fontFamily: 'Material Design Icons')),
+          ('right', IconData(0xF0263, fontFamily: 'Material Design Icons')),
+          ('justify', IconData(0xF0261, fontFamily: 'Material Design Icons')),
         ],
         onSelected: (next) => onChanged({...values, 'textAlign': next}),
       ),

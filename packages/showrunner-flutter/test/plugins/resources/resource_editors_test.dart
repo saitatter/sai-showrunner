@@ -1703,6 +1703,59 @@ void main() {
     );
   });
 
+  testWidgets('overlay inspector and widget list splitter is adjustable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'overlay-inspector-splitter',
+        config: {
+          'name': 'Inspector splitter overlay',
+          'size': {'width': 1920, 'height': 1080},
+          'widgets': [
+            {
+              'id': 'label-splitter',
+              'plugin': 'overlays',
+              'widget': 'label',
+              'name': 'Label',
+              'position': {'x': 0, 'y': 0},
+              'size': {'width': 300, 'height': 200},
+              'config': {'message': 'Label'},
+              'visible': true,
+              'locked': false,
+            },
+          ],
+        },
+      ),
+      (_) async {},
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+    await _selectOverlayWidget(tester, 'label-splitter');
+
+    final inspectorPane = find.byKey(
+      const ValueKey('overlay-widget-inspector-pane'),
+    );
+    final listPane = find.byKey(const ValueKey('overlay-widget-list-pane'));
+    final splitter = find.byKey(const ValueKey('overlay-inspector-splitter'));
+    final initialInspectorHeight = tester.getSize(inspectorPane).height;
+    final initialListHeight = tester.getSize(listPane).height;
+    await tester.drag(splitter, const Offset(0, 120));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSize(inspectorPane).height,
+      greaterThan(initialInspectorHeight),
+    );
+    expect(tester.getSize(listPane).height, lessThan(initialListHeight));
+  });
+
   testWidgets('overlay widget list can reorder items by dragging', (
     tester,
   ) async {

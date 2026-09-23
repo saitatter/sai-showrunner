@@ -681,6 +681,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   List<GeneratedOverlayWidget> _overlayWidgetCatalog =
       GeneratedOverlayWidgetCatalog.widgets;
   int? _selectedWidgetIndex;
+  int _inspectorPaneFlex = 50;
   bool _dirty = false;
   OverlayPresenceReader? _presenceReader;
   late OverlayPresence _presence;
@@ -793,9 +794,48 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                   width: inspectorWidth,
                   child: Column(
                     children: [
-                      Expanded(flex: 2, child: _overlayInspector(context)),
-                      const Divider(height: 1),
-                      Expanded(flex: 3, child: _overlayWidgetList(context)),
+                      Expanded(
+                        flex: _inspectorPaneFlex,
+                        child: KeyedSubtree(
+                          key: const ValueKey('overlay-widget-inspector-pane'),
+                          child: _overlayInspector(context),
+                        ),
+                      ),
+                      MouseRegion(
+                        cursor: SystemMouseCursors.resizeUpDown,
+                        child: GestureDetector(
+                          key: const ValueKey('overlay-inspector-splitter'),
+                          behavior: HitTestBehavior.opaque,
+                          onVerticalDragUpdate: (details) {
+                            setState(() {
+                              _inspectorPaneFlex =
+                                  (_inspectorPaneFlex +
+                                          (details.delta.dy / 8).round())
+                                      .clamp(25, 75)
+                                      .toInt();
+                            });
+                          },
+                          child: SizedBox(
+                            height: 7,
+                            child: Center(
+                              child: Divider(
+                                height: 1,
+                                thickness: 1,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 100 - _inspectorPaneFlex,
+                        child: KeyedSubtree(
+                          key: const ValueKey('overlay-widget-list-pane'),
+                          child: _overlayWidgetList(context),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1024,7 +1064,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                               child: Row(
                                 children: [
                                   Tooltip(
-                                    message: 'Drag to reorder',
+                                    message:
+                                        'Drag to reorder (or use Widget actions)',
                                     child: MouseRegion(
                                       cursor: SystemMouseCursors.grab,
                                       child: ReorderableDragStartListener(
@@ -1035,7 +1076,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                                           child: Center(
                                             child: Icon(
                                               Icons.drag_handle,
-                                              size: 20,
+                                              size: 28,
                                             ),
                                           ),
                                         ),
@@ -1153,12 +1194,32 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                                       PopupMenuItem(
                                         value: 'up',
                                         enabled: index > 0,
-                                        child: const Text('Move up'),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.keyboard_arrow_up,
+                                              size: 18,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('Move up'),
+                                          ],
+                                        ),
                                       ),
                                       PopupMenuItem(
                                         value: 'down',
                                         enabled: index < _widgets.length - 1,
-                                        child: const Text('Move down'),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.keyboard_arrow_down,
+                                              size: 18,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('Move down'),
+                                          ],
+                                        ),
                                       ),
                                       const PopupMenuDivider(),
                                       const PopupMenuItem(
