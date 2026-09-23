@@ -93,7 +93,6 @@ void main() {
         key: const ValueKey('showrunner-visual-graph'),
         child: buildShowRunnerTestApp(
           dataService: ShowRunnerDataService(directory),
-          loadSampleGraph: true,
         ),
       ),
     );
@@ -107,14 +106,13 @@ void main() {
     await tester.tap(find.text('Paid Event -> Add to Alerts Queue').first);
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump(const Duration(milliseconds: 250));
-    await tester.tap(find.text('Add to Queue').first);
-    await tester.pump(const Duration(milliseconds: 150));
 
     expect(find.text('Graph healthy'), findsOneWidget);
     expect(find.textContaining('2 nodes'), findsOneWidget);
     expect(find.text('Add node'), findsOneWidget);
     expect(find.text('Super Chat'), findsOneWidget);
     expect(find.text('Add to Queue'), findsAtLeastNWidgets(1));
+    expect(find.textContaining('Select a node'), findsOneWidget);
     final dismissButtons = find.text('Dismiss');
     if (dismissButtons.evaluate().isNotEmpty) {
       final dismissBox = tester.renderObject<RenderBox>(dismissButtons.last);
@@ -132,6 +130,13 @@ Future<void> _writeOptionalCapture(
   String fileName = 'app-empty.png',
 }) async {
   if (Platform.environment['SHOWRUNNER_VISUAL_CAPTURE'] != '1') return;
+  final toastDismissButton = find.byKey(
+    const ValueKey('showrunner-toast-dismiss'),
+  );
+  if (toastDismissButton.evaluate().isNotEmpty) {
+    await tester.tap(toastDismissButton);
+    await tester.pump(const Duration(milliseconds: 200));
+  }
   final messenger = find.byType(ScaffoldMessenger);
   if (messenger.evaluate().isNotEmpty) {
     tester

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
+import 'package:showrunner_flutter/design_system/brand_icons.dart';
 import 'package:showrunner_flutter/plugins/overlays/generated_widget_catalog.dart';
 import 'package:showrunner_flutter/schema/identifiers.dart';
 
@@ -234,7 +235,7 @@ void main() {
     expect(find.text('Padding'), findsNothing);
     expect(find.text('Vertical alignment'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.format_align_center));
+    await tester.tap(find.byIcon(mdiIcon(0xF0260)));
     expect((value as Map)['textAlign'], {'textAlign': 'center'});
   });
 

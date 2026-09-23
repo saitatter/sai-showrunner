@@ -207,7 +207,7 @@ class GraphWorkspace extends StatelessWidget {
                                                   editor: editor,
                                                 ),
                                               ),
-                                              if (constraints.maxWidth < 1150)
+                                              if (constraints.maxWidth < 900)
                                                 OverlayData(
                                                   top: 68,
                                                   right: 16,
@@ -284,7 +284,7 @@ class GraphWorkspace extends StatelessWidget {
                                       ),
                                 ),
                               ),
-                              if (constraints.maxWidth >= 1150)
+                              if (constraints.maxWidth >= 900)
                                 _GraphInspectorDock(
                                   editor: editor,
                                   registryFuture: registryFuture,
