@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -827,6 +829,8 @@ void main() {
       find.byKey(const ValueKey('overlay-canvas-widget-0')),
     );
     expect(canvasLabel.data, 'After');
+    expect(canvasLabel.style?.fontFamily, 'Impact');
+    expect(canvasLabel.style?.fontWeight, FontWeight.w300);
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
@@ -1579,9 +1583,13 @@ void main() {
     );
   });
 
-  testWidgets('overlay widget list can reorder items from its action menu', (
+  testWidgets('overlay widget list can reorder items by dragging', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
@@ -1626,17 +1634,25 @@ void main() {
     final firstRow = find.byKey(
       const ValueKey('overlay-widget-row-widget-first'),
     );
-    final actions = find.byKey(
-      const ValueKey('overlay-widget-actions-widget-first'),
-    );
-    await tester.ensureVisible(actions);
-    await tester.tap(actions);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Move down'));
-    await tester.pumpAndSettle();
     final secondRow = find.byKey(
       const ValueKey('overlay-widget-row-widget-second'),
     );
+    final dragHandle = find.descendant(
+      of: firstRow,
+      matching: find.byIcon(Icons.drag_handle),
+    );
+    final gesture = await tester.startGesture(
+      tester.getCenter(dragHandle),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(0, 20));
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.moveBy(const Offset(0, 20));
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.moveBy(const Offset(0, 40));
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.up();
+    await tester.pumpAndSettle();
     expect(
       tester.getTopLeft(secondRow).dy,
       lessThan(tester.getTopLeft(firstRow).dy),
@@ -1657,11 +1673,6 @@ void main() {
       )).data,
       'First',
     );
-    expect(
-      find.byKey(const ValueKey('overlay-widget-actions-widget-first')),
-      findsOneWidget,
-    );
-
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(
