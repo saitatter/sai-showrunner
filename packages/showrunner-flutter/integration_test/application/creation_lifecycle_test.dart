@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:showrunner_flutter/features/profile/profile_workspace.dart';
 import 'package:showrunner_flutter/features/profile/profile_trigger_editor_card.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/persistence/profile_repository.dart';
@@ -61,6 +62,25 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Create'));
     await _pumpApplication(tester);
 
+    final profileWorkspace = find.byType(ProfileWorkspace);
+    expect(profileWorkspace, findsOneWidget);
+    expect(
+      find.descendant(of: profileWorkspace, matching: find.text('Profiles')),
+      findsNothing,
+    );
+    final profileName = find.descendant(
+      of: profileWorkspace,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.labelText == 'Profile Name',
+      ),
+    );
+    expect(profileName, findsOneWidget);
+    expect(
+      tester.widget<TextField>(profileName).controller?.text,
+      'Named profile',
+    );
     expect(find.text('Named profile'), findsAtLeastNWidgets(1));
     expect(find.text('Triggers'), findsOneWidget);
     expect(find.text('Activation'), findsOneWidget);

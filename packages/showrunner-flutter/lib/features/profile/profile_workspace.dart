@@ -277,12 +277,6 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     }
   }
 
-  Future<void> _requestSelectProfile(int index) async {
-    if (index == _selectedIndex || !await _confirmClose()) return;
-    if (!mounted || index < 0 || index >= _entries.length) return;
-    setState(() => _selectProfile(index));
-  }
-
   Future<bool> _confirmClose() async {
     if (!_profileDirty || _selectedIndex == null) {
       return _stopCurrentProfile();
@@ -525,290 +519,224 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         ? _entries[_selectedIndex!]
         : null;
 
-    return Row(
-      children: [
-        SizedBox(
-          width: 300,
-          child: Card(
-            margin: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                ListTile(
-                  title: const Text(
-                    'Profiles',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: widget.onCreate ?? _createProfile,
-                    tooltip: 'Create Profile',
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: _entries.isEmpty
-                      ? const Center(child: Text('No saved profiles'))
-                      : ListView.builder(
-                          itemCount: _entries.length,
-                          itemBuilder: (context, index) {
-                            final entry = _entries[index];
-                            final isSelected = index == _selectedIndex;
-                            return ListTile(
-                              selected: isSelected,
-                              leading: Icon(
-                                entry.profile == null
-                                    ? Icons.error_outline
-                                    : Icons.person,
-                              ),
-                              title: Text(
-                                entry.profile?.name.isNotEmpty == true
-                                    ? entry.profile!.name
-                                    : entry.fileName,
-                              ),
-                              subtitle: Text(
-                                entry.profile?.activationMode ?? 'Invalid',
-                              ),
-                              onTap: () =>
-                                  unawaited(_requestSelectProfile(index)),
-                            );
-                          },
-                        ),
-                ),
-              ],
+    if (selectedEntry == null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.card_membership_outlined, size: 40),
+            const SizedBox(height: 12),
+            const Text('No profiles yet'),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () async {
+                final create = widget.onCreate;
+                if (create != null) {
+                  await create();
+                } else {
+                  await _createProfile();
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Create Profile'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: ListView(
+        children: [
+          Row(
+            children: [
+              Text(
+                'Edit Profile${_profileDirty ? ' *' : ''}',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => _deleteProfile(selectedEntry.fileName),
+                tooltip: 'Delete Profile',
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _saving || widget.runtimeFuture == null
+                    ? null
+                    : _toggleProfile,
+                icon: Icon(_profileActive ? Icons.stop : Icons.play_arrow),
+                label: Text(_profileActive ? 'Deactivate' : 'Activate'),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: _saving || _invalidTriggerIds.isNotEmpty
+                    ? null
+                    : _saveProfile,
+                icon: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
+                label: const Text('Save Profile'),
+              ),
+            ],
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+          ],
+          const SizedBox(height: 16),
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Profile Name',
+              border: OutlineInputBorder(),
             ),
           ),
-        ),
-        Expanded(
-          child: selectedEntry == null
-              ? const Center(child: Text('Select or create a profile to edit'))
-              : Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: ListView(
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Edit Profile${_profileDirty ? ' *' : ''}',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () =>
-                                _deleteProfile(selectedEntry.fileName),
-                            tooltip: 'Delete Profile',
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: _saving || widget.runtimeFuture == null
-                                ? null
-                                : _toggleProfile,
-                            icon: Icon(
-                              _profileActive ? Icons.stop : Icons.play_arrow,
-                            ),
-                            label: Text(
-                              _profileActive ? 'Deactivate' : 'Activate',
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          FilledButton.icon(
-                            onPressed: _saving || _invalidTriggerIds.isNotEmpty
-                                ? null
-                                : _saveProfile,
-                            icon: _saving
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.save),
-                            label: const Text('Save Profile'),
-                          ),
-                        ],
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Error: $_error',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Profile Name',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        initialValue:
-                            [
-                              'toggle',
-                              'manual',
-                              'automation',
-                              'always',
-                            ].contains(_activationMode)
-                            ? _activationMode
-                            : 'toggle',
-                        decoration: const InputDecoration(
-                          labelText: 'Activation Mode',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'toggle',
-                            child: Text('Toggle'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'manual',
-                            child: Text('Manual'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'automation',
-                            child: Text('Automation'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'always',
-                            child: Text('Always Active'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _activationMode = value ?? 'toggle');
-                          _markDirty();
-                        },
-                      ),
-                      const SizedBox(height: 28),
-                      Text(
-                        'Triggers',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 8),
-                      if (_triggers.isEmpty)
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Triggers are how ShowRunner responds to events.',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 12),
-                                OutlinedButton.icon(
-                                  onPressed: _addTrigger,
-                                  icon: const Icon(Icons.add),
-                                  label: const Text('Add Trigger'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else ...[
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: OutlinedButton.icon(
-                            onPressed: _addTrigger,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Trigger'),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        if (_triggerRegistry == null)
-                          const LinearProgressIndicator()
-                        else
-                          ReorderableListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            buildDefaultDragHandles: false,
-                            itemCount: _triggers.length,
-                            onReorderItem: (oldIndex, newIndex) {
-                              setState(() {
-                                final item = _triggers.removeAt(oldIndex);
-                                _triggers.insert(newIndex, item);
-                              });
-                              _markDirty();
-                            },
-                            itemBuilder: (context, index) {
-                              final trigger = _triggers[index];
-                              final id =
-                                  trigger['id']?.toString() ?? 'trigger-$index';
-                              return ProfileTriggerEditorCard(
-                                key: ValueKey(id),
-                                trigger: trigger,
-                                registry: _triggerRegistry!,
-                                registryFuture: _triggerRegistryFuture,
-                                resourceOptionsLoader: _resourceOptions,
-                                queueOptionsFuture: _queueOptionsFuture,
-                                dragHandle: ReorderableDragStartListener(
-                                  index: index,
-                                  child: const Icon(Icons.drag_indicator),
-                                ),
-                                onChanged: (updated) {
-                                  _triggers[index] = updated;
-                                  _markDirty();
-                                },
-                                onValidityChanged: (valid) {
-                                  final changed = valid
-                                      ? _invalidTriggerIds.remove(id)
-                                      : _invalidTriggerIds.add(id);
-                                  if (changed && mounted) setState(() {});
-                                },
-                                onDelete: () => _removeTrigger(index),
-                              );
-                            },
-                          ),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: OutlinedButton.icon(
-                            onPressed: _addTrigger,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Trigger'),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 28),
-                      Text(
-                        'Activation',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 8),
-                      BooleanExpressionEditor(
-                        value: _activationCondition,
-                        registryFuture: widget.registryFuture,
-                        onChanged: (condition) {
-                          setState(() => _activationCondition = condition);
-                          _markDirty();
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _InlineAutomationPanel(
-                        label: 'On Activate',
-                        editor: _activationEditor,
-                        registryFuture:
-                            widget.registryFuture ??
-                            Future.value(DartPluginRegistry()),
-                      ),
-                      const SizedBox(height: 12),
-                      _InlineAutomationPanel(
-                        label: 'On Deactivate',
-                        editor: _deactivationEditor,
-                        registryFuture:
-                            widget.registryFuture ??
-                            Future.value(DartPluginRegistry()),
-                      ),
-                    ],
-                  ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue:
+                [
+                  'toggle',
+                  'manual',
+                  'automation',
+                  'always',
+                ].contains(_activationMode)
+                ? _activationMode
+                : 'toggle',
+            decoration: const InputDecoration(
+              labelText: 'Activation Mode',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'toggle', child: Text('Toggle')),
+              DropdownMenuItem(value: 'manual', child: Text('Manual')),
+              DropdownMenuItem(value: 'automation', child: Text('Automation')),
+              DropdownMenuItem(value: 'always', child: Text('Always Active')),
+            ],
+            onChanged: (value) {
+              setState(() => _activationMode = value ?? 'toggle');
+              _markDirty();
+            },
+          ),
+          const SizedBox(height: 28),
+          Text('Triggers', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 8),
+          if (_triggers.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Triggers are how ShowRunner responds to events.',
+                      style: Theme.of(context).textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _addTrigger,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Trigger'),
+                    ),
+                  ],
                 ),
-        ),
-      ],
+              ),
+            )
+          else ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: _addTrigger,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Trigger'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_triggerRegistry == null)
+              const LinearProgressIndicator()
+            else
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                itemCount: _triggers.length,
+                onReorderItem: (oldIndex, newIndex) {
+                  setState(() {
+                    final item = _triggers.removeAt(oldIndex);
+                    _triggers.insert(newIndex, item);
+                  });
+                  _markDirty();
+                },
+                itemBuilder: (context, index) {
+                  final trigger = _triggers[index];
+                  final id = trigger['id']?.toString() ?? 'trigger-$index';
+                  return ProfileTriggerEditorCard(
+                    key: ValueKey(id),
+                    trigger: trigger,
+                    registry: _triggerRegistry!,
+                    registryFuture: _triggerRegistryFuture,
+                    resourceOptionsLoader: _resourceOptions,
+                    queueOptionsFuture: _queueOptionsFuture,
+                    dragHandle: ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(Icons.drag_indicator),
+                    ),
+                    onChanged: (updated) {
+                      _triggers[index] = updated;
+                      _markDirty();
+                    },
+                    onValidityChanged: (valid) {
+                      final changed = valid
+                          ? _invalidTriggerIds.remove(id)
+                          : _invalidTriggerIds.add(id);
+                      if (changed && mounted) setState(() {});
+                    },
+                    onDelete: () => _removeTrigger(index),
+                  );
+                },
+              ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: _addTrigger,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Trigger'),
+              ),
+            ),
+          ],
+          const SizedBox(height: 28),
+          Text('Activation', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 8),
+          BooleanExpressionEditor(
+            value: _activationCondition,
+            registryFuture: widget.registryFuture,
+            onChanged: (condition) {
+              setState(() => _activationCondition = condition);
+              _markDirty();
+            },
+          ),
+          const SizedBox(height: 16),
+          _InlineAutomationPanel(
+            label: 'On Activate',
+            editor: _activationEditor,
+            registryFuture:
+                widget.registryFuture ?? Future.value(DartPluginRegistry()),
+          ),
+          const SizedBox(height: 12),
+          _InlineAutomationPanel(
+            label: 'On Deactivate',
+            editor: _deactivationEditor,
+            registryFuture:
+                widget.registryFuture ?? Future.value(DartPluginRegistry()),
+          ),
+        ],
+      ),
     );
   }
 }

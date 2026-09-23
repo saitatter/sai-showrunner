@@ -75,7 +75,7 @@ threshold measured these raw pixel differences:
 | Variables | 71.73% |
 | Viewer Variables | 80.54% |
 | Automation editor | 68.90% |
-| Profile editor | 74.26% |
+| Profile editor | 78.62% |
 | Stream Plan editor | 70.30% |
 | Overlay editor | 78.34% |
 

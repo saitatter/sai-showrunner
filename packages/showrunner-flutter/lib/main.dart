@@ -1376,6 +1376,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       initialName: 'New Profile',
     );
     if (name == null || !mounted) return;
+    if (!await _profileWorkspaceController.confirmClose() || !mounted) return;
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileName = 'profile_$timestamp.yaml';
     const emptyAutomation = AutomationData();
@@ -1392,6 +1393,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     ).save(profile);
     if (!mounted) return;
     await _profileWorkspaceController.reloadEntries();
+    if (!mounted) return;
+    await _profileWorkspaceController.openProfile(fileName);
     if (!mounted) return;
     _onProjectCatalogChanged();
     _openDestination(WorkspaceIds.profiles);
