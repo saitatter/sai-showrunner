@@ -32,6 +32,7 @@ void main() {
           showGraphEditor: false,
           updateService: UpdateCheckService(
             currentVersion: '2.0.0',
+            clock: () => DateTime(2026, 9, 23, 6, 17),
             fetcher: () async =>
                 throw const HttpException('No published versions on GitHub'),
           ),
@@ -52,7 +53,7 @@ void main() {
     await tester.tap(find.text('Updates').last);
     await _pumpApplication(tester);
     expect(find.text('Updates').last, findsOneWidget);
-    await tester.tap(find.text('Check for Updates'));
+    await tester.tap(find.text('Check for updates'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
     expect(find.text('No published versions on GitHub'), findsOneWidget);

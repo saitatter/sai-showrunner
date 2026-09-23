@@ -68,7 +68,7 @@ threshold measured these raw pixel differences:
 | App empty | 72.61% |
 | Settings | 53.48% |
 | Updater | 73.59% |
-| Integrations | 78.84% |
+| Integrations | 78.83% |
 | Twitch | 63.29% |
 | YouTube | 72.38% |
 | Queues | 80.01% |
