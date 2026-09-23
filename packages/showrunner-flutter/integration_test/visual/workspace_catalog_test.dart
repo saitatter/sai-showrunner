@@ -40,8 +40,6 @@ void main() {
     );
     await _pumpApplication(tester);
 
-    await _capture(tester, 'app-empty.png');
-
     await tester.tap(find.text('File').first);
     await _pumpApplication(tester);
     await tester.tap(find.text('Settings').last);
