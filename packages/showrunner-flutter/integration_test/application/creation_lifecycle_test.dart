@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:showrunner_flutter/features/profile/profile_trigger_editor_card.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/persistence/profile_repository.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
@@ -87,10 +88,72 @@ void main() {
             widget is TextField &&
             widget.decoration?.labelText == 'Description',
       ),
-      'Incoming chat',
+      'First event',
     );
     await _pumpApplication(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Save Profile'));
+
+    await tester.tap(find.byTooltip('Collapse trigger').first);
+    await _pumpApplication(tester);
+    final addTriggerButtons = find.widgetWithText(
+      OutlinedButton,
+      'Add Trigger',
+    );
+    await tester.ensureVisible(addTriggerButtons.last);
+    await tester.tap(addTriggerButtons.last);
+    await _pumpApplication(tester);
+    final secondPicker = find.byType(Dialog).last;
+    final secondAvailableTriggers = find.descendant(
+      of: secondPicker,
+      matching: find.byType(ListTile),
+    );
+    expect(secondAvailableTriggers, findsAtLeastNWidgets(2));
+    await tester.ensureVisible(secondAvailableTriggers.at(1));
+    await tester.tap(secondAvailableTriggers.at(1));
+    await _pumpApplication(tester);
+    await tester.enterText(
+      find
+          .byWidgetPredicate(
+            (widget) =>
+                widget is TextField &&
+                widget.decoration?.labelText == 'Description',
+          )
+          .last,
+      'Second event',
+    );
+    await _pumpApplication(tester);
+    await tester.tap(find.byTooltip('Collapse trigger').last);
+    await _pumpApplication(tester);
+
+    final dragHandles = find.descendant(
+      of: find.byType(ProfileTriggerEditorCard),
+      matching: find.byType(ReorderableDragStartListener),
+    );
+    expect(dragHandles, findsNWidgets(2));
+    final profileScrollables = find.ancestor(
+      of: find.byType(ProfileTriggerEditorCard).first,
+      matching: find.byType(Scrollable),
+    );
+    expect(profileScrollables, findsAtLeastNWidgets(2));
+    final scrollableCount = profileScrollables.evaluate().length;
+    for (var index = 0; index < scrollableCount; index++) {
+      tester
+          .state<ScrollableState>(profileScrollables.at(index))
+          .position
+          .jumpTo(0);
+    }
+    await _pumpApplication(tester);
+    final firstHandle = tester.getCenter(dragHandles.first);
+    final secondHandle = tester.getCenter(dragHandles.last);
+    await tester.dragFrom(
+      firstHandle,
+      Offset(0, secondHandle.dy - firstHandle.dy + 100),
+    );
+    await _pumpApplication(tester);
+    expect(find.byType(ProfileTriggerEditorCard), findsNWidgets(2));
+    expect(find.text('Save Profile'), findsOneWidget);
+    final saveProfile = find.text('Save Profile');
+    await tester.ensureVisible(saveProfile);
+    await tester.tap(saveProfile);
     await _pumpApplication(tester);
 
     final profileFiles = await Directory('${directory.path}/profiles')
@@ -107,9 +170,11 @@ void main() {
       (profile?.activationCondition['operands'] as List).single['type'],
       'group',
     );
-    expect(profile?.triggers.single['plugin'], isNotEmpty);
-    expect(profile?.triggers.single['trigger'], isNotEmpty);
-    expect(profile?.triggers.single['description'], 'Incoming chat');
+    expect(profile?.triggers, hasLength(2));
+    expect(profile?.triggers.first['plugin'], isNotEmpty);
+    expect(profile?.triggers.first['trigger'], isNotEmpty);
+    expect(profile?.triggers.first['description'], 'Second event');
+    expect(profile?.triggers.last['description'], 'First event');
   });
 }
 
