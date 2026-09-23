@@ -902,18 +902,42 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
-    expect(find.byIcon(Icons.format_align_left), findsOneWidget);
-    expect(find.byIcon(Icons.format_align_center), findsOneWidget);
-    expect(find.byIcon(Icons.format_align_right), findsOneWidget);
-    expect(find.byIcon(Icons.format_align_justify), findsOneWidget);
-    expect(find.byIcon(Icons.align_vertical_top), findsOneWidget);
-    expect(find.byIcon(Icons.align_vertical_center), findsOneWidget);
-    expect(find.byIcon(Icons.align_vertical_bottom), findsOneWidget);
+    const mdi = 'Material Design Icons';
+    expect(
+      find.byIcon(const IconData(0xF0262, fontFamily: mdi)),
+      findsOneWidget,
+    );
+    expect(
+      find.byIcon(const IconData(0xF0260, fontFamily: mdi)),
+      findsOneWidget,
+    );
+    expect(
+      find.byIcon(const IconData(0xF0263, fontFamily: mdi)),
+      findsOneWidget,
+    );
+    expect(
+      find.byIcon(const IconData(0xF0261, fontFamily: mdi)),
+      findsOneWidget,
+    );
+    expect(
+      find.byIcon(const IconData(0xF11C7, fontFamily: mdi)),
+      findsOneWidget,
+    );
+    expect(
+      find.byIcon(const IconData(0xF11C6, fontFamily: mdi)),
+      findsOneWidget,
+    );
+    expect(
+      find.byIcon(const IconData(0xF11C5, fontFamily: mdi)),
+      findsOneWidget,
+    );
     expect(find.text('Horizontal alignment'), findsNothing);
     expect(find.text('Vertical alignment'), findsNothing);
     expect(find.text('Alignment'), findsOneWidget);
 
-    final horizontalCenter = find.byIcon(Icons.format_align_center);
+    final horizontalCenter = find.byIcon(
+      const IconData(0xF0260, fontFamily: mdi),
+    );
     await tester.ensureVisible(horizontalCenter);
     await tester.tap(horizontalCenter);
     await tester.pump();
@@ -927,7 +951,18 @@ void main() {
           .textAlign,
       TextAlign.center,
     );
-    final verticalCenter = find.byIcon(Icons.align_vertical_center);
+    final labelLayout = find.byKey(
+      const ValueKey('overlay-canvas-label-layout-0'),
+    );
+    expect(
+      tester.getSize(labelLayout).width,
+      tester
+          .getSize(find.byKey(const ValueKey('overlay-canvas-widget-0')))
+          .width,
+    );
+    final verticalCenter = find.byIcon(
+      const IconData(0xF11C6, fontFamily: mdi),
+    );
     await tester.ensureVisible(verticalCenter);
     await tester.tap(verticalCenter);
     await tester.pump();
@@ -935,15 +970,25 @@ void main() {
         .widgetList<ToggleButtons>(find.byType(ToggleButtons))
         .firstWhere((buttons) => buttons.children.length == 3);
     expect(verticalButtons.isSelected[1], isTrue);
-    final labelAlignment = tester.widget<Align>(
-      find
-          .ancestor(
-            of: find.byKey(const ValueKey('overlay-canvas-widget-0')),
-            matching: find.byType(Align),
+    expect(
+      tester
+          .widget<Align>(
+            find.descendant(of: labelLayout, matching: find.byType(Align)),
           )
-          .first,
+          .alignment,
+      const Alignment(0, 0),
     );
-    expect(labelAlignment.alignment, const Alignment(-1, 0));
+    expect(
+      tester
+          .widget<FractionallySizedBox>(
+            find.descendant(
+              of: labelLayout,
+              matching: find.byType(FractionallySizedBox),
+            ),
+          )
+          .widthFactor,
+      1,
+    );
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await tester.pumpAndSettle();
 
@@ -1108,7 +1153,7 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
 
-    Future<void> addLabel() async {
+    Future<void> addLabel(String expectedName) async {
       await tester.tap(find.byTooltip('Add widget'));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -1118,10 +1163,19 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Label').last);
       await tester.pumpAndSettle();
+      final addedWidget = find.widgetWithText(ListTile, expectedName);
+      expect(addedWidget, findsOneWidget);
+      expect(
+        find.descendant(
+          of: addedWidget,
+          matching: find.byIcon(Icons.text_fields),
+        ),
+        findsOneWidget,
+      );
     }
 
-    await addLabel();
-    await addLabel();
+    await addLabel('Label');
+    await addLabel('Label 1');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
@@ -1171,6 +1225,13 @@ void main() {
     await tester.pump();
 
     expect(find.widgetWithText(ListTile, 'Updated title'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.widgetWithText(ListTile, 'Updated title'),
+        matching: find.byIcon(Icons.text_fields),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(
@@ -1232,12 +1293,17 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    final secondRow = find.byKey(
+      const ValueKey('overlay-widget-row-widget-second'),
+    );
+    expect(
+      tester.getTopLeft(secondRow).dy,
+      lessThan(tester.getTopLeft(firstRow).dy),
+    );
     expect(
       (tester
                   .widget<ListTile>(
-                    find.byKey(
-                      const ValueKey('overlay-widget-row-widget-second'),
-                    ),
+                    secondRow,
                   )
                   .title!
               as Text)

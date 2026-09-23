@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../features/resources/color_field.dart';
 import '../../schema/data_input.dart';
+import '../../design_system/brand_icons.dart';
 
 /// Compact editors for the structured overlay styles used by the browser
 /// overlay editor. Their layout follows the old inspector: related values are
@@ -305,11 +306,11 @@ class OverlayLabelAlignmentInput extends StatelessWidget {
                 textValues['textAlign']?.toString() ??
                 textField.defaultValue?.toString() ??
                 'left',
-            choices: const [
-              ('left', Icons.format_align_left),
-              ('center', Icons.format_align_center),
-              ('right', Icons.format_align_right),
-              ('justify', Icons.format_align_justify),
+            choices: [
+              ('left', mdiIcon(0xF0262)),
+              ('center', mdiIcon(0xF0260)),
+              ('right', mdiIcon(0xF0263)),
+              ('justify', mdiIcon(0xF0261)),
             ],
             onSelected: (next) =>
                 onTextAlignmentChanged({...textValues, 'textAlign': next}),
@@ -320,10 +321,10 @@ class OverlayLabelAlignmentInput extends StatelessWidget {
                 blockValues['verticalAlign']?.toString() ??
                 verticalField.defaultValue?.toString() ??
                 'top',
-            choices: const [
-              ('top', Icons.align_vertical_top),
-              ('center', Icons.align_vertical_center),
-              ('bottom', Icons.align_vertical_bottom),
+            choices: [
+              ('top', mdiIcon(0xF11C7)),
+              ('center', mdiIcon(0xF11C6)),
+              ('bottom', mdiIcon(0xF11C5)),
             ],
             onSelected: (next) =>
                 onBlockStyleChanged({...blockValues, 'verticalAlign': next}),
@@ -379,10 +380,10 @@ class _OverlayBlockStyleInput extends StatelessWidget {
             const SizedBox(height: 4),
             _IconChoiceRow(
               selected: values['horizontalAlign']?.toString() ?? 'left',
-              choices: const [
-                ('left', Icons.align_horizontal_left),
-                ('center', Icons.align_horizontal_center),
-                ('right', Icons.align_horizontal_right),
+              choices: [
+                ('left', mdiIcon(0xF11C2)),
+                ('center', mdiIcon(0xF11C3)),
+                ('right', mdiIcon(0xF11C4)),
               ],
               onSelected: (next) =>
                   onChanged({...values, 'horizontalAlign': next}),
@@ -394,10 +395,10 @@ class _OverlayBlockStyleInput extends StatelessWidget {
             const SizedBox(height: 4),
             _IconChoiceRow(
               selected: values['verticalAlign']?.toString() ?? 'top',
-              choices: const [
-                ('top', Icons.align_vertical_top),
-                ('center', Icons.align_vertical_center),
-                ('bottom', Icons.align_vertical_bottom),
+              choices: [
+                ('top', mdiIcon(0xF11C7)),
+                ('center', mdiIcon(0xF11C6)),
+                ('bottom', mdiIcon(0xF11C5)),
               ],
               onSelected: (next) =>
                   onChanged({...values, 'verticalAlign': next}),

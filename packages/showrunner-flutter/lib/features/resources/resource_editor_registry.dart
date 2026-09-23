@@ -1668,6 +1668,7 @@ class _OverlayCanvas extends StatelessWidget {
                 ? null
                 : (details) => onMove(index, details.delta / scale),
             child: AnimatedContainer(
+              key: ValueKey('overlay-canvas-widget-box-${widgetConfig['id']}'),
               duration: const Duration(milliseconds: 90),
               padding: isLabel
                   ? EdgeInsets.zero
@@ -1831,11 +1832,6 @@ class _OverlayCanvas extends StatelessWidget {
             ],
           )
         : text;
-    final horizontal = switch (block['horizontalAlign']?.toString()) {
-      'center' => 0.0,
-      'right' => 1.0,
-      _ => -1.0,
-    };
     final vertical = switch (block['verticalAlign']?.toString()) {
       'center' => 0.0,
       'bottom' => 1.0,
@@ -1844,17 +1840,32 @@ class _OverlayCanvas extends StatelessWidget {
     final padding = block['padding'] is Map
         ? Map<String, dynamic>.from(block['padding'] as Map)
         : const <String, dynamic>{};
-    return SizedBox.expand(
-      child: Align(
-        alignment: Alignment(horizontal, vertical),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            ((padding['left'] as num?)?.toDouble() ?? 0) * scale,
-            ((padding['top'] as num?)?.toDouble() ?? 0) * scale,
-            ((padding['right'] as num?)?.toDouble() ?? 0) * scale,
-            ((padding['bottom'] as num?)?.toDouble() ?? 0) * scale,
-          ),
-          child: SizedBox(width: double.infinity, child: content),
+    // The Vue renderer gives its inner text element width: 100%, so text
+    // alignment must be laid out against the full widget width. A loose Align
+    // lets a single-line Text shrink-wrap, making left/center/right appear to
+    // do nothing. Stretch the text to the available width, then use the
+    // equivalent flex cross-axis alignment for top/center/bottom.
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        ((padding['left'] as num?)?.toDouble() ?? 0) * scale,
+        ((padding['top'] as num?)?.toDouble() ?? 0) * scale,
+        ((padding['right'] as num?)?.toDouble() ?? 0) * scale,
+        ((padding['bottom'] as num?)?.toDouble() ?? 0) * scale,
+      ),
+      child: SizedBox.expand(
+        child: Stack(
+          key: ValueKey('overlay-canvas-label-layout-$index'),
+          fit: StackFit.expand,
+          children: [
+            Align(
+              alignment: Alignment(0, vertical),
+              child: FractionallySizedBox(
+                widthFactor: 1,
+                alignment: Alignment.centerLeft,
+                child: content,
+              ),
+            ),
+          ],
         ),
       ),
     );

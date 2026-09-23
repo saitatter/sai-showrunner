@@ -38,6 +38,16 @@ const _mdiIcons = <int, IconData>{
   0xF036B: IconData(0xF036B, fontFamily: _materialDesignIconsFont),
   0xF0F59: IconData(0xF0F59, fontFamily: _materialDesignIconsFont),
   0xF09AD: IconData(0xF09AD, fontFamily: _materialDesignIconsFont),
+  0xF0262: IconData(0xF0262, fontFamily: _materialDesignIconsFont),
+  0xF0260: IconData(0xF0260, fontFamily: _materialDesignIconsFont),
+  0xF0263: IconData(0xF0263, fontFamily: _materialDesignIconsFont),
+  0xF0261: IconData(0xF0261, fontFamily: _materialDesignIconsFont),
+  0xF11C7: IconData(0xF11C7, fontFamily: _materialDesignIconsFont),
+  0xF11C6: IconData(0xF11C6, fontFamily: _materialDesignIconsFont),
+  0xF11C5: IconData(0xF11C5, fontFamily: _materialDesignIconsFont),
+  0xF11C2: IconData(0xF11C2, fontFamily: _materialDesignIconsFont),
+  0xF11C3: IconData(0xF11C3, fontFamily: _materialDesignIconsFont),
+  0xF11C4: IconData(0xF11C4, fontFamily: _materialDesignIconsFont),
 };
 
 IconData mdiIcon(int codePoint) => _mdiIcons[codePoint] ?? _mdiFallback;
