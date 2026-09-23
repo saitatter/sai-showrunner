@@ -28,7 +28,7 @@ Status values:
 | Automation editor | `NodeAutomationEdit.vue` and graph helpers | Flutter graph editor, runtime, debugger, data wires, subgraphs | improved | Stress benchmark and full-screen visual comparison |
 | Timeline editor | README claims a Timeline mode; no Timeline editor source exists in the renderer | No separate Timeline surface | intentionally_removed | Resolved in `docs/architecture/adr-002-timeline.md` |
 | Profiles | `ProfileEditor.vue`, `TriggerEdit.vue` | Profile workspace and profile runtime | equivalent | Align profile-editor visual/layout details; end-to-end lifecycle suite |
-| Stream plans | stream-plan editor and resources | Inline Stream Plan document tabs, resource repository and runtime | improved | App-restart session restore proof and remaining visual alignment |
+| Stream plans | stream-plan editor and resources | Inline Stream Plan document tabs, resource repository and runtime | improved | Further visual alignment against the frozen reference |
 | Integrations | plugin details/settings pages | Typed Dart plugin registry, workspaces, health and settings | improved | Full-screen visual comparison |
 | Resources | resource store and resource editors | Resource repositories, typed editors, resource workspaces | improved | Full-screen visual comparison |
 | Overlays | Vue browser-source overlay and editor | Flutter resource configuration, Shader Graph editor/compiler, plus browser overlay package | improved | Overlay visual/protocol comparison in OBS |

@@ -9,6 +9,8 @@ import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
+import '../support/showrunner_test_app.dart';
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -67,6 +69,66 @@ void main() {
     );
     expect(await repository.list(), isEmpty);
   });
+
+  testWidgets('restores an open Stream Plan document after app restart', (
+    tester,
+  ) async {
+    final root = await createShowRunnerFixtureDirectory();
+    addTearDown(() => root.delete(recursive: true));
+    final dataService = ShowRunnerDataService(root);
+    await ResourceRepository(
+      Directory('${root.path}/stream-plans'),
+      resourceType: 'StreamPlan',
+    ).save(
+      const ResourceData(
+        id: 'session-plan',
+        config: {'name': 'Session Plan', 'segments': []},
+      ),
+    );
+
+    await tester.pumpWidget(
+      buildShowRunnerTestApp(dataService: dataService, showGraphEditor: false),
+    );
+    await _pumpApplication(tester);
+    await _openStreamPlan(tester);
+    expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
+
+    final savedSettings = await dataService.loadPluginSettings(
+      'showrunner-flutter',
+    );
+    expect(
+      savedSettings['openWorkspaceTabs'],
+      contains('workspace.streamPlan.session-plan'),
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 250));
+    await Future<void>.delayed(const Duration(milliseconds: 750));
+    await tester.pumpWidget(
+      buildShowRunnerTestApp(dataService: dataService, showGraphEditor: false),
+    );
+    await _pumpApplication(tester);
+
+    expect(find.text('Session Plan'), findsAtLeastNWidgets(1));
+    expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+  });
+}
+
+Future<void> _openStreamPlan(WidgetTester tester) async {
+  const title = 'Session Plan';
+  final panel = find.byKey(const ValueKey('showrunner-project-panel-scroll'));
+  var item = find.descendant(of: panel, matching: find.text(title));
+  if (!tester.any(item)) {
+    await tester.tap(
+      find.descendant(of: panel, matching: find.text('Stream Plans')),
+    );
+    await _pumpApplication(tester);
+    item = find.descendant(of: panel, matching: find.text(title));
+  }
+  await tester.ensureVisible(item.first);
+  await tester.tap(item.last);
+  await _pumpApplication(tester);
 }
 
 Future<void> _pumpApplication(WidgetTester tester) async {
