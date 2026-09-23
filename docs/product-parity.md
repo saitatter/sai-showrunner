@@ -77,7 +77,7 @@ threshold measured these raw pixel differences:
 | Automation editor | 68.90% |
 | Profile editor | 74.26% |
 | Stream Plan editor | 70.30% |
-| Overlay editor | 77.38% |
+| Overlay editor | 78.34% |
 
 The frozen Electron reference's `FlexScroller` leaves `.scroller-outer` at zero
 height in the offscreen capture window, hiding the Profile and Stream Plan
