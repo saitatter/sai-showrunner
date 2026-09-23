@@ -71,10 +71,10 @@ threshold measured these raw pixel differences:
 | Integrations | 78.84% |
 | Twitch | 63.29% |
 | YouTube | 72.38% |
-| Queues | 80.28% |
-| Variables | 72.09% |
-| Viewer Variables | 80.52% |
-| Automation editor | 68.49% |
+| Queues | 80.29% |
+| Variables | 72.12% |
+| Viewer Variables | 80.57% |
+| Automation editor | 69.23% |
 
 These figures come from the checked-in PNGs, not from an assertion that the
 screens are visually equivalent. The current CI step checks that the pairs can

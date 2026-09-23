@@ -115,9 +115,9 @@ void main() {
     expect(find.text('Add node'), findsOneWidget);
     expect(find.text('Super Chat'), findsOneWidget);
     expect(find.text('Add to Queue'), findsAtLeastNWidgets(1));
-    final dismiss = find.text('Dismiss').last;
-    if (dismiss.evaluate().isNotEmpty) {
-      final dismissBox = tester.renderObject<RenderBox>(dismiss);
+    final dismissButtons = find.text('Dismiss');
+    if (dismissButtons.evaluate().isNotEmpty) {
+      final dismissBox = tester.renderObject<RenderBox>(dismissButtons.last);
       await tester.tapAt(
         dismissBox.localToGlobal(dismissBox.size.center(Offset.zero)),
       );

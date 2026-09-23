@@ -12,13 +12,23 @@ Future<Directory> createShowRunnerFixtureDirectory({
   final directory = await Directory.systemTemp.createTemp(
     'showrunner-integration-',
   );
+  final dataService = ShowRunnerDataService(directory);
+  final httpPort = await _reserveLoopbackPort();
+  await dataService.savePluginSettings('ShowRunner', {'port': httpPort});
   if (setupCompleted) {
-    await ShowRunnerDataService(
-      directory,
-    ).savePluginSettings('showrunner-flutter', const {'setupCompleted': true});
+    await dataService.savePluginSettings('showrunner-flutter', const {
+      'setupCompleted': true,
+    });
   }
   await Directory('${directory.path}/state').create(recursive: true);
   return directory;
+}
+
+Future<int> _reserveLoopbackPort() async {
+  final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+  final port = socket.port;
+  await socket.close();
+  return port;
 }
 
 Widget buildShowRunnerTestApp({
