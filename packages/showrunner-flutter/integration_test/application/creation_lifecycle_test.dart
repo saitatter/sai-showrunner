@@ -61,6 +61,15 @@ void main() {
     await _pumpApplication(tester);
 
     expect(find.text('Named profile'), findsAtLeastNWidgets(1));
+    expect(find.text('Triggers'), findsOneWidget);
+    expect(find.text('Activation'), findsOneWidget);
+    expect(find.text('No Conditions (Always On)'), findsOneWidget);
+    expect(find.text('Activation condition (JSON)'), findsNothing);
+    await tester.tap(find.widgetWithText(TextButton, 'Group').first);
+    await _pumpApplication(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Profile'));
+    await _pumpApplication(tester);
+
     final profileFiles = await Directory('${directory.path}/profiles')
         .list()
         .where((entity) => entity is File && entity.path.endsWith('.yaml'))
@@ -70,6 +79,11 @@ void main() {
       File(profileFiles.single.path),
     ).load();
     expect(profile?.name, 'Named profile');
+    expect(profile?.activationCondition['type'], 'group');
+    expect(
+      (profile?.activationCondition['operands'] as List).single['type'],
+      'group',
+    );
   });
 }
 

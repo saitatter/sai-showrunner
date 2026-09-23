@@ -565,6 +565,9 @@ bool evaluateBooleanCondition(JsonMap condition, EvaluationContext context) {
     final operands = condition['operands'] is List
         ? (condition['operands'] as List).whereType<Map>()
         : const <Map>[];
+    // Match the main application's BooleanExpression evaluator: an empty
+    // group represents "No Conditions (Always On)" regardless of operator.
+    if (operands.isEmpty) return true;
     final values = operands.map(
       (operand) =>
           evaluateBooleanCondition(Map<String, dynamic>.from(operand), context),

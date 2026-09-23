@@ -17,6 +17,7 @@ import '../../schema/automation.dart';
 import '../../schema/profile.dart';
 import '../../services/showrunner_data_service.dart';
 import '../resources/resource_options.dart';
+import 'boolean_expression_editor.dart';
 
 typedef ProfileEntry = ({
   String fileName,
@@ -107,13 +108,13 @@ class ProfileWorkspace extends StatefulWidget {
 
 class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   final _nameController = TextEditingController();
-  final _conditionController = TextEditingController();
   late final ShowRunnerGraphEditor _activationEditor;
   late final ShowRunnerGraphEditor _deactivationEditor;
   List<ProfileEntry> _entries = [];
   int? _selectedIndex;
   String _activationMode = 'toggle';
   List<JsonMap> _triggers = [];
+  JsonMap _activationCondition = createAlwaysOnCondition();
   bool _loading = true;
   bool _saving = false;
   bool _profileActive = false;
@@ -134,7 +135,6 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       resourceOptionsLoader: _resourceOptions,
     );
     _nameController.addListener(_markDirty);
-    _conditionController.addListener(_markDirty);
     _activationEditor.documentDirty.addListener(_markDirty);
     _deactivationEditor.documentDirty.addListener(_markDirty);
     _initialLoad = _load();
@@ -149,11 +149,9 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   void dispose() {
     widget.controller?.detach();
     _nameController.removeListener(_markDirty);
-    _conditionController.removeListener(_markDirty);
     _activationEditor.documentDirty.removeListener(_markDirty);
     _deactivationEditor.documentDirty.removeListener(_markDirty);
     _nameController.dispose();
-    _conditionController.dispose();
     unawaited(_profileSession?.dispose());
     _activationEditor.dispose();
     _deactivationEditor.dispose();
@@ -224,9 +222,9 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     final profile = entry.profile;
     if (profile != null) {
       _nameController.text = profile.name;
-      _conditionController.text = const JsonEncoder.withIndent(
-        '  ',
-      ).convert(profile.activationCondition);
+      _activationCondition = normalizeActivationCondition(
+        profile.activationCondition,
+      );
       _activationMode = profile.activationMode;
       _triggers = profile.triggers
           .map((trigger) => Map<String, dynamic>.from(trigger))
@@ -235,7 +233,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       _deactivationEditor.loadAutomation(profile.deactivationAutomation);
     } else {
       _nameController.text = entry.fileName;
-      _conditionController.text = '{}';
+      _activationCondition = createAlwaysOnCondition();
       _activationMode = 'toggle';
       _triggers = [];
       _activationEditor.loadAutomation(_emptyAutomation());
@@ -383,12 +381,11 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     try {
       final entry = _entries[_selectedIndex!];
       final original = entry.profile;
-      final condition = _parseCondition(_conditionController.text);
       final updated = ShowRunnerProfile(
         name: _nameController.text.trim(),
         activationMode: _activationMode,
         triggers: _triggers,
-        activationCondition: condition,
+        activationCondition: _activationCondition,
         activationAutomation: _activationEditor.toAutomation(
           original?.activationAutomation ?? _emptyAutomation(),
         ),
@@ -637,18 +634,6 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      TextField(
-                        controller: _conditionController,
-                        minLines: 2,
-                        maxLines: 6,
-                        decoration: const InputDecoration(
-                          labelText: 'Activation condition (JSON)',
-                          helperText:
-                              'Use a group expression with operator and operands.',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         initialValue:
                             [
@@ -686,48 +671,46 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                           _markDirty();
                         },
                       ),
-                      const SizedBox(height: 24),
-                      _InlineAutomationPanel(
-                        label: 'On Activate',
-                        editor: _activationEditor,
-                        registryFuture:
-                            widget.registryFuture ??
-                            Future.value(DartPluginRegistry()),
+                      const SizedBox(height: 28),
+                      Text(
+                        'Triggers',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                      const SizedBox(height: 12),
-                      _InlineAutomationPanel(
-                        label: 'On Deactivate',
-                        editor: _deactivationEditor,
-                        registryFuture:
-                            widget.registryFuture ??
-                            Future.value(DartPluginRegistry()),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Text(
-                            'Triggers (${_triggers.length})',
-                            style: Theme.of(context).textTheme.titleLarge,
+                      const SizedBox(height: 8),
+                      if (_triggers.isEmpty)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Triggers are how ShowRunner responds to events.',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: _addTrigger,
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Add Trigger'),
+                                ),
+                              ],
+                            ),
                           ),
-                          const Spacer(),
-                          OutlinedButton.icon(
+                        )
+                      else ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
                             onPressed: _addTrigger,
                             icon: const Icon(Icons.add),
                             label: const Text('Add Trigger'),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (_triggers.isEmpty)
-                        const Card(
-                          child: Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Text(
-                              'No triggers configured for this profile.',
-                            ),
-                          ),
-                        )
-                      else
+                        ),
+                        const SizedBox(height: 8),
                         ..._triggers.asMap().entries.map((entry) {
                           final index = entry.key;
                           final trigger = entry.value;
@@ -736,8 +719,10 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                             child: ListTile(
                               leading: const Icon(Icons.bolt),
                               title: Text(
-                                trigger['description']?.toString() ??
-                                    'Trigger ${index + 1}',
+                                trigger['description']?.toString().isNotEmpty ==
+                                        true
+                                    ? trigger['description'].toString()
+                                    : 'Trigger ${index + 1}',
                               ),
                               subtitle: Text(
                                 '${trigger['plugin'] ?? 'unassigned'}:${trigger['trigger'] ?? 'event'} | '
@@ -760,6 +745,37 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
                             ),
                           );
                         }),
+                      ],
+                      const SizedBox(height: 28),
+                      Text(
+                        'Activation',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      BooleanExpressionEditor(
+                        value: _activationCondition,
+                        registryFuture: widget.registryFuture,
+                        onChanged: (condition) {
+                          setState(() => _activationCondition = condition);
+                          _markDirty();
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _InlineAutomationPanel(
+                        label: 'On Activate',
+                        editor: _activationEditor,
+                        registryFuture:
+                            widget.registryFuture ??
+                            Future.value(DartPluginRegistry()),
+                      ),
+                      const SizedBox(height: 12),
+                      _InlineAutomationPanel(
+                        label: 'On Deactivate',
+                        editor: _deactivationEditor,
+                        registryFuture:
+                            widget.registryFuture ??
+                            Future.value(DartPluginRegistry()),
+                      ),
                     ],
                   ),
                 ),
@@ -767,12 +783,6 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       ],
     );
   }
-}
-
-JsonMap _parseCondition(String text) {
-  final trimmed = text.trim();
-  if (trimmed.isEmpty) return const {};
-  return _tryParseJsonObject(trimmed) ?? const {};
 }
 
 JsonMap? _tryParseJsonObject(String text) {

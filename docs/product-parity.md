@@ -27,7 +27,7 @@ Status values:
 | Project navigation | project groups and resource entries | Flutter project panel and workspace routing | equivalent | Full-screen visual comparison |
 | Automation editor | `NodeAutomationEdit.vue` and graph helpers | Flutter graph editor, runtime, debugger, data wires, subgraphs | improved | Stress benchmark and full-screen visual comparison |
 | Timeline editor | README claims a Timeline mode; no Timeline editor source exists in the renderer | No separate Timeline surface | intentionally_removed | Resolved in `docs/architecture/adr-002-timeline.md` |
-| Profiles | `ProfileEditor.vue`, `TriggerEdit.vue` | Profile workspace and profile runtime | equivalent | Align profile-editor visual/layout details; end-to-end lifecycle suite |
+| Profiles | `ProfileEditor.vue`, `TriggerEdit.vue` | Profile workspace and profile runtime | equivalent | Structured activation-condition builder is present; align remaining profile layout and trigger-card visuals |
 | Stream plans | stream-plan editor and resources | Inline Stream Plan document tabs, resource repository and runtime | improved | Further visual alignment against the frozen reference |
 | Integrations | plugin details/settings pages | Typed Dart plugin registry, workspaces, health and settings | improved | Full-screen visual comparison |
 | Resources | resource store and resource editors | Resource repositories, typed editors, resource workspaces | improved | Full-screen visual comparison |
@@ -75,7 +75,7 @@ threshold measured these raw pixel differences:
 | Variables | 71.73% |
 | Viewer Variables | 80.54% |
 | Automation editor | 68.90% |
-| Profile editor | 69.73% |
+| Profile editor | 74.26% |
 | Stream Plan editor | 70.30% |
 | Overlay editor | 77.38% |
 
@@ -90,6 +90,13 @@ modal. Editing updates the tab title and dirty marker, Save persists the plan
 and refreshes the active runtime, and Save All/close/exit use that same
 document state. The updated 70.30% raw screenshot difference is still not a
 passing parity result; detailed layout alignment remains open.
+
+The Profile editor now uses the reference-style Boolean condition builder
+(nested All/Any groups, value comparisons, state/value operands, and ordering)
+instead of exposing the serialized condition JSON. Empty groups evaluate as
+Always On, matching the Electron editor/runtime semantics. The refreshed
+profile screenshot is still a large raw pixel difference because the overall
+Flutter workspace layout and trigger editor remain different.
 
 These figures come from the checked-in PNGs, not from an assertion that the
 screens are visually equivalent. The current CI step checks that the pairs can

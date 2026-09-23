@@ -33,6 +33,17 @@ JsonMap _profileTrigger({
 };
 
 void main() {
+  test('an empty activation condition group means always on', () {
+    expect(
+      evaluateBooleanCondition({
+        'type': 'group',
+        'operator': 'and',
+        'operands': const [],
+      }, EvaluationContext()),
+      isTrue,
+    );
+  });
+
   test('evaluates profile boolean groups and state values', () {
     final condition = <String, dynamic>{
       'type': 'group',
