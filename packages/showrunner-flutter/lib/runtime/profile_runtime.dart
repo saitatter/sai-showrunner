@@ -559,7 +559,7 @@ final class DartProfileSession {
 }
 
 bool evaluateBooleanCondition(JsonMap condition, EvaluationContext context) {
-  if (condition.isEmpty) return false;
+  if (condition.isEmpty) return true;
   final type = condition['type'];
   if (type == 'group') {
     final operands = condition['operands'] is List
