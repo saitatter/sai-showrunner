@@ -371,6 +371,30 @@ void main() {
     );
   });
 
+  testWidgets('docks the node inspector beside rather than over the canvas', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await pumpWorkspace(tester);
+
+    final canvas = find.byType(NodeEditorWidget);
+    final canvasWidthWithoutSelection = tester.getSize(canvas).width;
+    final node = editor.controller.nodes.values.first;
+    editor.controller.selectNodesById({node.id});
+    await tester.pump();
+
+    final inspectorTitle = find.text('Inspector');
+    expect(inspectorTitle, findsOneWidget);
+    final canvasRect = tester.getRect(canvas);
+    final inspectorTitleRect = tester.getRect(inspectorTitle);
+    expect(canvasRect.right, lessThanOrEqualTo(inspectorTitleRect.left));
+    expect(
+      tester.getSize(canvas).width,
+      closeTo(canvasWidthWithoutSelection, 0.01),
+    );
+  });
+
   testWidgets('selects and drags a node from the rendered graph canvas', (
     tester,
   ) async {

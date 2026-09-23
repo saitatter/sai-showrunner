@@ -102,16 +102,9 @@ class _NodeInspectorPanel extends StatelessWidget {
         .toList();
     final resultMapping = editor.nodeResultMapping(node.id);
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xff121820).withValues(alpha: 0.98),
-        border: Border.all(color: const Color(0xff475569)),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: const [
-          BoxShadow(color: Color(0x66000000), blurRadius: 14, spreadRadius: 1),
-        ],
-      ),
+      decoration: BoxDecoration(color: const Color(0xff121820)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 330, maxHeight: 620),
+        constraints: const BoxConstraints(maxWidth: 330),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(14),
           child: Column(

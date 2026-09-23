@@ -92,167 +92,210 @@ class GraphWorkspace extends StatelessWidget {
                       ),
                     ),
                     child: ClipRect(
-                      child: FutureBuilder<DartPluginRegistry>(
-                        future: registryFuture,
-                        builder: (context, registrySnapshot) =>
-                            NodeEditorShortcutsWidget(
-                              controller: editor.controller,
-                              onCopy: (context) =>
-                                  editor.copySelection(context: context),
-                              onPaste: (context) =>
-                                  editor.pasteSelection(context: context),
-                              onCut: (context) =>
-                                  editor.cutSelection(context: context),
-                              onDuplicate: () =>
-                                  editor.duplicateSelectedAction(),
-                              onDeleteSelection: editor.deleteSelection,
-                              onMoveSelection:
-                                  (key, {required extendSelection}) =>
-                                      editor.moveSelection(
-                                        key,
-                                        extendSelection: extendSelection,
-                                      ),
-                              onSearch: editor.openCanvasSearch,
-                              child: _GraphActionDropTarget(
-                                editor: editor,
-                                registryFuture: registryFuture,
-                                child: NodeEditorWidget(
-                                  controller: editor.controller,
-                                  expandToParent: true,
-                                  overlay: () => [
-                                    OverlayData(
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      child: _GraphFramesOverlay(
-                                        editor: editor,
-                                      ),
-                                    ),
-                                    OverlayData(
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      child: _GraphDropTargetOverlay(
-                                        editor: editor,
-                                      ),
-                                    ),
-                                    OverlayData(
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      child: _GraphAlignmentGuidesOverlay(
-                                        editor: editor,
-                                      ),
-                                    ),
-                                    OverlayData(
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      child: _ExecutionLinkOverlay(
-                                        editor: editor,
-                                      ),
-                                    ),
-                                    OverlayData(
-                                      top: 0,
-                                      left: 0,
-                                      right: 0,
-                                      bottom: 0,
-                                      child: _InvalidLinkOverlay(
-                                        editor: editor,
-                                      ),
-                                    ),
-                                    OverlayData(
-                                      top: 12,
-                                      right: 12,
-                                      child: GraphCanvasSearch(editor: editor),
-                                    ),
-                                    OverlayData(
-                                      top: 16,
-                                      left: 16,
-                                      child: _GraphStatus(editor: editor),
-                                    ),
-                                    OverlayData(
-                                      top: 60,
-                                      left: 16,
-                                      right: 16,
-                                      child: _GraphWireHealthOverlay(
-                                        editor: editor,
-                                      ),
-                                    ),
-                                    OverlayData(
-                                      bottom: 16,
-                                      left: 16,
-                                      child: _GraphHealth(editor: editor),
-                                    ),
-                                    OverlayData(
-                                      top: 68,
-                                      right: 16,
-                                      child: _SelectedNodeDetails(
-                                        editor: editor,
-                                        registryFuture: registryFuture,
-                                      ),
-                                    ),
-                                    OverlayData(
-                                      bottom: 16,
-                                      right: 16,
-                                      child: _GraphMinimap(editor: editor),
-                                    ),
-                                  ],
-                                  headerBuilder:
-                                      (
-                                        context,
-                                        node,
-                                        style,
-                                        onToggleCollapse,
-                                      ) => _buildNodeHeader(
-                                        context,
-                                        node,
-                                        style,
-                                        onToggleCollapse,
-                                        editor: editor,
-                                        onRunNode: onRunNode,
-                                      ),
-                                  fieldBuilder: _buildNodeField,
-                                  portBuilder: _buildNodePort,
-                                  nodeMenuBuilder: (context, node) =>
-                                      _nodeEditorContextMenu(
-                                        context,
-                                        editor,
-                                        node,
-                                        registryFuture: registryFuture,
-                                        onRunNode: onRunNode,
-                                      ),
-                                  nodeEditorMenuBuilder: (context, position) =>
-                                      _canvasNodeEditorContextMenu(
-                                        context: context,
-                                        editor: editor,
-                                        position: position,
-                                        registryFuture: registryFuture,
-                                        registry: registrySnapshot.data,
-                                      ),
-                                  onNodeDoubleTap: (context, node) =>
-                                      _handleNodeDoubleTap(
-                                        context,
-                                        editor,
-                                        node,
-                                      ),
-                                  editorContextMenuBuilder:
-                                      (context, position, defaults) =>
-                                          _editorContextMenu(
-                                            context: context,
-                                            editor: editor,
-                                            position: position,
-                                            defaults: defaults,
-                                            registry: registrySnapshot.data,
-                                            registryFuture: registryFuture,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => SizedBox(
+                          width: constraints.maxWidth.isFinite
+                              ? constraints.maxWidth
+                              : MediaQuery.sizeOf(context).width,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: FutureBuilder<DartPluginRegistry>(
+                                  future: registryFuture,
+                                  builder: (context, registrySnapshot) =>
+                                      NodeEditorShortcutsWidget(
+                                        controller: editor.controller,
+                                        onCopy: (context) => editor
+                                            .copySelection(context: context),
+                                        onPaste: (context) => editor
+                                            .pasteSelection(context: context),
+                                        onCut: (context) => editor.cutSelection(
+                                          context: context,
+                                        ),
+                                        onDuplicate: () =>
+                                            editor.duplicateSelectedAction(),
+                                        onDeleteSelection:
+                                            editor.deleteSelection,
+                                        onMoveSelection:
+                                            (key, {required extendSelection}) =>
+                                                editor.moveSelection(
+                                                  key,
+                                                  extendSelection:
+                                                      extendSelection,
+                                                ),
+                                        onSearch: editor.openCanvasSearch,
+                                        child: _GraphActionDropTarget(
+                                          editor: editor,
+                                          registryFuture: registryFuture,
+                                          child: NodeEditorWidget(
+                                            controller: editor.controller,
+                                            expandToParent: true,
+                                            overlay: () => [
+                                              OverlayData(
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                child: _GraphFramesOverlay(
+                                                  editor: editor,
+                                                ),
+                                              ),
+                                              OverlayData(
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                child: _GraphDropTargetOverlay(
+                                                  editor: editor,
+                                                ),
+                                              ),
+                                              OverlayData(
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                child:
+                                                    _GraphAlignmentGuidesOverlay(
+                                                      editor: editor,
+                                                    ),
+                                              ),
+                                              OverlayData(
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                child: _ExecutionLinkOverlay(
+                                                  editor: editor,
+                                                ),
+                                              ),
+                                              OverlayData(
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                child: _InvalidLinkOverlay(
+                                                  editor: editor,
+                                                ),
+                                              ),
+                                              OverlayData(
+                                                top: 12,
+                                                right: 12,
+                                                child: GraphCanvasSearch(
+                                                  editor: editor,
+                                                ),
+                                              ),
+                                              OverlayData(
+                                                top: 16,
+                                                left: 16,
+                                                child: _GraphStatus(
+                                                  editor: editor,
+                                                ),
+                                              ),
+                                              OverlayData(
+                                                top: 60,
+                                                left: 16,
+                                                right: 16,
+                                                child: _GraphWireHealthOverlay(
+                                                  editor: editor,
+                                                ),
+                                              ),
+                                              OverlayData(
+                                                bottom: 16,
+                                                left: 16,
+                                                child: _GraphHealth(
+                                                  editor: editor,
+                                                ),
+                                              ),
+                                              if (constraints.maxWidth < 1150)
+                                                OverlayData(
+                                                  top: 68,
+                                                  right: 16,
+                                                  child: _SelectedNodeDetails(
+                                                    editor: editor,
+                                                    registryFuture:
+                                                        registryFuture,
+                                                  ),
+                                                ),
+                                              OverlayData(
+                                                bottom: 16,
+                                                right: 16,
+                                                child: _GraphMinimap(
+                                                  editor: editor,
+                                                ),
+                                              ),
+                                            ],
+                                            headerBuilder:
+                                                (
+                                                  context,
+                                                  node,
+                                                  style,
+                                                  onToggleCollapse,
+                                                ) => _buildNodeHeader(
+                                                  context,
+                                                  node,
+                                                  style,
+                                                  onToggleCollapse,
+                                                  editor: editor,
+                                                  onRunNode: onRunNode,
+                                                ),
+                                            fieldBuilder: _buildNodeField,
+                                            portBuilder: _buildNodePort,
+                                            nodeMenuBuilder: (context, node) =>
+                                                _nodeEditorContextMenu(
+                                                  context,
+                                                  editor,
+                                                  node,
+                                                  registryFuture:
+                                                      registryFuture,
+                                                  onRunNode: onRunNode,
+                                                ),
+                                            nodeEditorMenuBuilder:
+                                                (context, position) =>
+                                                    _canvasNodeEditorContextMenu(
+                                                      context: context,
+                                                      editor: editor,
+                                                      position: position,
+                                                      registryFuture:
+                                                          registryFuture,
+                                                      registry:
+                                                          registrySnapshot.data,
+                                                    ),
+                                            onNodeDoubleTap: (context, node) =>
+                                                _handleNodeDoubleTap(
+                                                  context,
+                                                  editor,
+                                                  node,
+                                                ),
+                                            editorContextMenuBuilder:
+                                                (context, position, defaults) =>
+                                                    _editorContextMenu(
+                                                      context: context,
+                                                      editor: editor,
+                                                      position: position,
+                                                      defaults: defaults,
+                                                      registry:
+                                                          registrySnapshot.data,
+                                                      registryFuture:
+                                                          registryFuture,
+                                                    ),
                                           ),
+                                        ),
+                                      ),
                                 ),
                               ),
-                            ),
+                              if (constraints.maxWidth >= 1150)
+                                _GraphInspectorDock(
+                                  editor: editor,
+                                  registryFuture: registryFuture,
+                                  width: math.min(
+                                    330,
+                                    constraints.maxWidth * .38,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -278,6 +321,81 @@ class GraphWorkspace extends StatelessWidget {
     final withoutExtension = fileName.replaceFirst(RegExp(r'\.[^.]+$'), '');
     return _displayDocumentTitle(withoutExtension);
   }
+}
+
+class _GraphInspectorDock extends StatelessWidget {
+  const _GraphInspectorDock({
+    required this.editor,
+    required this.registryFuture,
+    required this.width,
+  });
+
+  final ShowRunnerGraphEditor editor;
+  final Future<DartPluginRegistry> registryFuture;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<NodeEditorEvent>(
+    stream: editor.controller.eventBus.events,
+    builder: (context, snapshot) => AnimatedBuilder(
+      animation: Listenable.merge([
+        editor.controller,
+        editor.frames,
+        editor.selectedFrameId,
+        editor.selectedInvalidFlowEdgeId,
+        editor.selectedInvalidDataWireId,
+      ]),
+      builder: (context, child) {
+        final hasSelection =
+            editor.controller.selectedNodeIds.isNotEmpty ||
+            editor.controller.selectedLinkIds.isNotEmpty ||
+            editor.selectedFrameId.value != null ||
+            editor.selectedInvalidFlowEdgeId.value != null ||
+            editor.selectedInvalidDataWireId.value != null;
+
+        return SizedBox(
+          width: width,
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              color: Color(0xff121820),
+              border: Border(left: BorderSide(color: Color(0xff475569))),
+            ),
+            child: hasSelection
+                ? _SelectedNodeDetails(
+                    editor: editor,
+                    registryFuture: registryFuture,
+                  )
+                : const _EmptyGraphInspector(),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _EmptyGraphInspector extends StatelessWidget {
+  const _EmptyGraphInspector();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Inspector',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const Divider(height: 18),
+        const Text(
+          'Select a node to inspect and edit its configuration.',
+          style: TextStyle(color: Color(0xffa7b0bd)),
+        ),
+      ],
+    ),
+  );
 }
 
 class _GraphDocumentHeader extends StatelessWidget {
