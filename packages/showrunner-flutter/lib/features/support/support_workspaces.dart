@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../schema/update.dart';
+import 'release_notes_view.dart';
 import 'update_status_view.dart';
 import '../../services/structured_logger.dart';
 import '../../services/update_artifact_service.dart';
@@ -371,155 +372,203 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
   Widget build(BuildContext context) {
     final status = updateStatusView(_updateInfo, checking: _checking);
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       children: [
-        Text('Updates', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        Text('Current version: v${_updateInfo.currentVersion}'),
-        const SizedBox(height: 8),
-        const Text(
-          'SAI ShowRunner — Desktop Stream Engine & Automation Runtime',
+        Align(
+          alignment: Alignment.topLeft,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 980),
+            child: SizedBox(
+              key: const ValueKey('update-workspace-content'),
+              width: double.infinity,
+              child: _updateHeader(context),
+            ),
+          ),
         ),
         const SizedBox(height: 24),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _checking || !_updateInfo.canCheckForUpdates
-                          ? null
-                          : _checkUpdate,
-                      icon: _checking
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.refresh),
-                      label: const Text('Check for updates'),
-                    ),
-                    if (_updateInfo.hasUpdate &&
-                        Platform.isWindows &&
-                        _updateInfo.artifactUrl.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      FilledButton.icon(
-                        onPressed: _downloading || _installing
-                            ? null
-                            : _downloadAndInstall,
-                        icon: const Icon(Icons.download),
-                        label: const Text('Update and restart'),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _updateStatusPanel(context, status),
-                const SizedBox(height: 16),
-                _releaseNotesPanel(context),
-                if (_updateInfo.downloadUrl.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: _openRelease,
-                      icon: const Icon(Icons.open_in_new),
-                      label: const Text('Open release page'),
-                    ),
-                  ),
-                ],
-                if (_updateInfo.artifactUrl.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: _downloading ? null : _downloadArtifact,
-                      icon: _downloading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.download),
-                      label: Text(
-                        _downloading
-                            ? 'Downloading...'
-                            : 'Download Windows ZIP',
-                      ),
-                    ),
-                  ),
-                ],
-                if (_downloadedArtifact != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Downloaded to ${_downloadedArtifact!.path}',
-                    style: const TextStyle(color: Colors.lightGreenAccent),
-                  ),
-                  if (Platform.isWindows) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
-                        onPressed: _installing
-                            ? null
-                            : _installDownloadedArtifact,
-                        icon: _installing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.restart_alt),
-                        label: Text(
-                          _installing
-                              ? 'Preparing restart...'
-                              : 'Install and Restart',
+        Align(
+          alignment: Alignment.topLeft,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 980),
+            child: SizedBox(
+              width: double.infinity,
+              child: Card(
+                color: Colors.transparent,
+                elevation: 0,
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _updateStatusPanel(context, status),
+                      const SizedBox(height: 16),
+                      _releaseNotesPanel(context),
+                      if (_updateInfo.downloadUrl.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: _openRelease,
+                            icon: const Icon(Icons.open_in_new),
+                            label: const Text('Open release page'),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ],
-                if (Platform.isWindows &&
-                    widget.rollbackDirectory != null &&
-                    _rollbackAvailable) ...[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: _installing ? null : _rollbackInstalledUpdate,
-                      icon: _installing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.undo),
-                      label: Text(
-                        _installing
-                            ? 'Preparing rollback...'
-                            : 'Rollback previous version',
-                      ),
-                    ),
+                      ],
+                      if (_updateInfo.artifactUrl.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: _downloading ? null : _downloadArtifact,
+                            icon: _downloading
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.download),
+                            label: Text(
+                              _downloading
+                                  ? 'Downloading...'
+                                  : 'Download Windows ZIP',
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (_downloadedArtifact != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Downloaded to ${_downloadedArtifact!.path}',
+                          style: const TextStyle(
+                            color: Colors.lightGreenAccent,
+                          ),
+                        ),
+                        if (Platform.isWindows) ...[
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: OutlinedButton.icon(
+                              onPressed: _installing
+                                  ? null
+                                  : _installDownloadedArtifact,
+                              icon: _installing
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.restart_alt),
+                              label: Text(
+                                _installing
+                                    ? 'Preparing restart...'
+                                    : 'Install and Restart',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                      if (Platform.isWindows &&
+                          widget.rollbackDirectory != null &&
+                          _rollbackAvailable) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: _installing
+                                ? null
+                                : _rollbackInstalledUpdate,
+                            icon: _installing
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.undo),
+                            label: Text(
+                              _installing
+                                  ? 'Preparing rollback...'
+                                  : 'Rollback previous version',
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (_downloadError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Download failed: $_downloadError',
+                          style: const TextStyle(color: Colors.orangeAccent),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-                if (_downloadError != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Download failed: $_downloadError',
-                    style: const TextStyle(color: Colors.orangeAccent),
-                  ),
-                ],
-              ],
+                ),
+              ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _updateHeader(BuildContext context) {
+    final actions = Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _checking || !_updateInfo.canCheckForUpdates
+              ? null
+              : _checkUpdate,
+          icon: _checking
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh),
+          label: const Text('Check for updates'),
+        ),
+        if (_updateInfo.hasUpdate &&
+            Platform.isWindows &&
+            _updateInfo.artifactUrl.isNotEmpty)
+          FilledButton.icon(
+            onPressed: _downloading || _installing ? null : _downloadAndInstall,
+            icon: const Icon(Icons.download),
+            label: const Text('Update and restart'),
+          ),
+      ],
+    );
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Updates', style: Theme.of(context).textTheme.headlineLarge),
+        const SizedBox(height: 4),
+        Text('Current version: v${_updateInfo.currentVersion}'),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) => constraints.maxWidth < 640
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [title, const SizedBox(height: 12), actions],
+            )
+          : Row(
+              key: const ValueKey('update-header-row'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: title),
+                actions,
+              ],
+            ),
     );
   }
 
@@ -616,7 +665,7 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
         ),
         Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
         SizedBox(
-          height: 352,
+          height: 416,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(14),
             child: _updateInfo.releaseNotes.isEmpty
@@ -626,7 +675,10 @@ class _UpdateWorkspaceState extends State<UpdateWorkspace> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   )
-                : SelectableText(_updateInfo.releaseNotes),
+                : ReleaseNotesView(
+                    source: _updateInfo.releaseNotes,
+                    onOpenLink: _openExternalUrl,
+                  ),
           ),
         ),
       ],

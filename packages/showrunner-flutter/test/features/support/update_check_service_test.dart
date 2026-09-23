@@ -7,7 +7,7 @@ import 'package:showrunner_flutter/schema/update.dart';
 import 'package:showrunner_flutter/services/update_check_service.dart';
 
 void main() {
-  test('maps a GitHub release and sanitizes markdown notes', () async {
+  test('maps a GitHub release and preserves safe markdown notes', () async {
     final service = UpdateCheckService(
       currentVersion: '1.0.0-beta1',
       fetcher: () async => {
@@ -35,7 +35,10 @@ void main() {
     expect(result.currentVersion, '1.0.0-beta1');
     expect(result.latestVersion, '1.1.0');
     expect(result.hasUpdate, isTrue);
-    expect(result.releaseNotes, 'Important details\nx');
+    expect(
+      result.releaseNotes,
+      '**Important** [details](https://example.test/details)',
+    );
     expect(result.downloadUrl, contains('/releases/tag/v1.1.0'));
     expect(result.artifactUrl, contains('/downloads/showrunner.zip'));
     expect(
@@ -123,6 +126,18 @@ void main() {
     expect(identical(results[0], results[1]), isTrue);
     expect(identical(await service.check(), results[0]), isTrue);
     expect(fetchCount, 1);
+  });
+
+  test('uses the injected clock for stable check timestamps', () async {
+    final service = UpdateCheckService(
+      currentVersion: '1.0.0',
+      clock: () => DateTime.utc(2026, 9, 23, 3, 17),
+      fetcher: () async => {'tag_name': 'v1.0.0'},
+    );
+
+    final result = await service.check();
+
+    expect(result.checkedAt, '2026-09-23T03:17:00.000Z');
   });
 
   test('forced update check refreshes a cached result', () async {

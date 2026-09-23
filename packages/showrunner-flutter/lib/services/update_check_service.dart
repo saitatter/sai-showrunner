@@ -22,6 +22,7 @@ final class UpdateCheckService {
     this.timeout = const Duration(seconds: 8),
     this.fetcher,
     this.canCheckForUpdates = true,
+    this.clock = DateTime.now,
   });
 
   final String currentVersion;
@@ -29,6 +30,7 @@ final class UpdateCheckService {
   final Duration timeout;
   final UpdateReleaseFetcher? fetcher;
   final bool canCheckForUpdates;
+  final DateTime Function() clock;
   UpdateInfo? _lastResult;
   Future<UpdateInfo>? _inFlight;
 
@@ -120,9 +122,9 @@ final class UpdateCheckService {
       client.close(force: true);
     }
   }
-}
 
-String _now() => DateTime.now().toUtc().toIso8601String();
+  String _now() => clock().toUtc().toIso8601String();
+}
 
 UpdateInfo _withCheckedAt(UpdateInfo update, String checkedAt) => UpdateInfo(
   currentVersion: update.currentVersion,

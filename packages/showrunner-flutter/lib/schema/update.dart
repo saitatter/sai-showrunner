@@ -146,16 +146,29 @@ int compareVersions(String left, String right) {
 }
 
 String sanitizeReleaseNotes(String value) {
-  var sanitized = value.replaceAll(RegExp(r'<[^>]*>'), '');
-  sanitized = sanitized.replaceAllMapped(
-    RegExp(r'!\[([^\]]*)\]\([^)]*\)'),
-    (match) => match.group(1) ?? '',
-  );
-  sanitized = sanitized.replaceAllMapped(
-    RegExp(r'\[([^\]]+)\]\([^)]*\)'),
-    (match) => match.group(1) ?? '',
-  );
-  sanitized = sanitized.replaceAll(RegExp(r'[`*_~]'), '');
+  var sanitized = value
+      .replaceAll(
+        RegExp(
+          r'<(script|style)\b[^>]*>.*?</\1\s*>',
+          caseSensitive: false,
+          dotAll: true,
+        ),
+        '',
+      )
+      .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'<li\b[^>]*>', caseSensitive: false), '- ')
+      .replaceAll(
+        RegExp(r'</(p|div|li|h[1-6]|blockquote)\s*>', caseSensitive: false),
+        '\n',
+      )
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&#x27;', "'");
   return sanitized.trim();
 }
 
