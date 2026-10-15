@@ -6,9 +6,20 @@ NodeStyle graphNodeStyle(
   NodeState state,
   Color accent, {
   bool trigger = false,
+  bool variable = false,
+  bool tinted = false,
 }) => NodeStyle(
   decoration: BoxDecoration(
-    color: trigger ? const Color(0xff40256c) : const Color(0xff151515),
+    color: trigger
+        ? const Color(0xff40256c)
+        : variable
+        ? const Color(0xff1a2428)
+        : tinted
+        ? Color.alphaBlend(
+            accent.withValues(alpha: .12),
+            const Color(0xff151515),
+          )
+        : const Color(0xff151515),
     border: Border.all(
       color: state.isSelected ? const Color(0xffffdf6b) : accent,
       width: 2,

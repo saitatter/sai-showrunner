@@ -1,327 +1,177 @@
 part of 'graph_workspace.dart';
 
-class _GraphNodeHeader extends StatefulWidget {
+/// The reference card groups its title and subtitle beside the icon, with no
+/// separately colored header. Canvas effects belong to the entire card.
+class _GraphNodeHeader extends StatelessWidget {
   const _GraphNodeHeader({
     required this.editor,
     required this.node,
     required this.onToggleCollapse,
     this.onRunNode,
   });
-
   final ShowRunnerGraphEditor editor;
   final NodeDataModel node;
   final VoidCallback onToggleCollapse;
   final Future<void> Function(String schemaNodeId)? onRunNode;
 
   @override
-  State<_GraphNodeHeader> createState() => _GraphNodeHeaderState();
-}
-
-class _GraphNodeHeaderState extends State<_GraphNodeHeader>
-    with SingleTickerProviderStateMixin {
-  bool _runHovered = false;
-  late final AnimationController _pulseController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 720),
-  );
-  late final Listenable _stateChanges = Listenable.merge([
-    widget.editor.activeNodeIds,
-    widget.editor.executionStates,
-    widget.editor.nodeRevision,
-    widget.editor.searchQuery,
-    widget.editor.searchMatchIndex,
-    widget.editor.dropTargetNodeId,
-  ]);
-
-  @override
-  void initState() {
-    super.initState();
-    widget.editor.activeNodeIds.addListener(_syncPulse);
-    widget.editor.executionStates.addListener(_syncPulse);
-    widget.editor.nodeRevision.addListener(_syncPulse);
-    _syncPulse();
-  }
-
-  void _syncPulse() {
-    final isRunning = widget.editor.activeNodeIds.value.contains(
-      widget.node.id,
-    );
-    if (isRunning && !_pulseController.isAnimating) {
-      _pulseController.repeat(reverse: true);
-    } else if (!isRunning && _pulseController.isAnimating) {
-      _pulseController.stop();
-      _pulseController.value = 1;
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.editor.activeNodeIds.removeListener(_syncPulse);
-    widget.editor.executionStates.removeListener(_syncPulse);
-    widget.editor.nodeRevision.removeListener(_syncPulse);
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([_stateChanges, _pulseController]),
+    animation: Listenable.merge([editor.executionStates, editor.nodeRevision]),
     builder: (context, child) {
-      final node = widget.node;
-      final accent = widget.editor.nodeAccent(node.id);
-      final headerStyle = node.builtHeaderStyle;
-      final active = widget.editor.activeNodeIds.value.contains(node.id);
-      final execution = widget.editor.executionStates.value[node.id];
-      final dropTarget = widget.editor.dropTargetNodeId.value == node.id;
-      final searchMatches = widget.editor.searchNodeIds();
-      final searchMatch =
-          searchMatches.isNotEmpty &&
-          searchMatches.elementAt(
-                widget.editor.searchMatchIndex.value % searchMatches.length,
-              ) ==
-              node.id;
-      final statusColor = switch (execution?.status) {
-        GraphNodeExecutionStatus.success => const Color(0xff4ade80),
-        GraphNodeExecutionStatus.error => const Color(0xfff87171),
-        GraphNodeExecutionStatus.running => const Color(0xff38bdf8),
-        GraphNodeExecutionStatus.aborted => const Color(0xff9aa4b2),
-        null => accent,
-      };
-      final reducedMotion =
-          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-      if (reducedMotion && _pulseController.isAnimating) {
-        _pulseController
-          ..stop()
-          ..value = 1;
-      } else if (!reducedMotion && active && !_pulseController.isAnimating) {
-        _pulseController.repeat(reverse: true);
-      }
-      final pulse = active && !reducedMotion
-          ? Curves.easeInOut.transform(_pulseController.value)
-          : 0.0;
-      return Opacity(
-        opacity:
-            widget.editor.searchQuery.value.isEmpty ||
-                widget.editor.searchNodeIds().contains(node.id)
-            ? 1
-            : 0.35,
-        child: AnimatedContainer(
-          duration: reducedMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 180),
-          decoration: headerStyle.decoration.copyWith(
-            color: active
-                ? Color.lerp(
-                    statusColor.withValues(alpha: 0.2),
-                    Colors.white,
-                    pulse * 0.22,
-                  )
-                : Colors.transparent,
-            gradient: null,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(6),
-              topRight: Radius.circular(6),
-            ),
-            border: Border.all(
-              color: dropTarget
-                  ? const Color(0xff2ed47a)
-                  : searchMatch
-                  ? const Color(0xffffcc00)
-                  : active || execution != null
-                  ? statusColor
-                  : Colors.transparent,
-              width: dropTarget
-                  ? 2.5
-                  : searchMatch
-                  ? 2
-                  : (active ? 1.5 + pulse * 1.5 : 1),
-            ),
-            boxShadow: [
-              if (dropTarget)
-                const BoxShadow(
-                  color: Color(0x772ed47a),
-                  blurRadius: 0,
-                  spreadRadius: 3,
-                ),
-              if (searchMatch)
-                const BoxShadow(
-                  color: Color(0x99ffcc00),
-                  blurRadius: 0,
-                  spreadRadius: 2,
-                ),
-              if (active)
-                BoxShadow(
-                  color: statusColor.withValues(alpha: 0.18 + pulse * 0.18),
-                  blurRadius: 8 + pulse * 8,
-                ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+      final badge = editor.nodeBadge(node.id);
+      final execution = editor.executionStates.value[node.id];
+      final subtitle = editor.nodeSubtitle(node.id);
+      final config = editor.nodeConfigLines(node.id);
+      return Padding(
+        key: ValueKey('graph-node-header-${node.id}'),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: const Color(0x1fffffff),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Icon(
-                        widget.editor.nodeIcon(node.id),
-                        size: 20,
-                        color: accent,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.editor.nodeTitle(node.id),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: headerStyle.textStyle.copyWith(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                    ),
-                    if (widget.editor.isTriggerNode(node.id) &&
-                        widget.onRunNode != null &&
-                        widget.editor.schemaNodeIdForEditor(node.id) != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Tooltip(
-                          message: 'Run automation',
-                          child: MouseRegion(
-                            onEnter: (_) => setState(() => _runHovered = true),
-                            onExit: (_) => setState(() => _runHovered = false),
-                            child: InkWell(
-                              onTap: () => unawaited(
-                                widget.onRunNode!(
-                                  widget.editor.schemaNodeIdForEditor(node.id)!,
-                                ),
-                              ),
-                              borderRadius: BorderRadius.circular(10),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 120),
-                                width: 20,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  color: _runHovered
-                                      ? const Color(0xffa7f3b9)
-                                      : const Color(0xff68d391),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    if (_runHovered)
-                                      const BoxShadow(
-                                        color: Color(0x8868d391),
-                                        blurRadius: 8,
-                                        spreadRadius: 1,
-                                      ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.play_arrow,
-                                  color: Color(0xff101316),
-                                  size: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (widget.editor.nodeBadge(node.id) case final badge?)
-                      Container(
-                        margin: const EdgeInsets.only(left: 6),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xffe9aaff),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0x1fffffff),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(
+                    editor.nodeIcon(node.id),
+                    size: 20,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Tooltip(
+                        message: editor.nodeTitle(node.id),
                         child: Text(
-                          badge,
-                          style: TextStyle(
-                            color: const Color(0xff1b0f21),
-                            fontSize: 11,
+                          editor.nodeTitle(node.id),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                    if (execution != null) ...[
-                      const SizedBox(width: 4),
-                      _ExecutionBadge(execution: execution),
-                    ],
-                    IconButton(
-                      tooltip: node.state.isCollapsed
-                          ? 'Expand node'
-                          : 'Collapse node',
-                      onPressed: widget.onToggleCollapse,
-                      icon: Icon(
-                        node.state.isCollapsed
-                            ? Icons.expand_more
-                            : Icons.expand_less,
-                        size: 18,
-                        color: Colors.white60,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints.tightFor(
-                        width: 24,
-                        height: 24,
-                      ),
-                    ),
-                  ],
-                ),
-                if (widget.editor.nodeSubtitle(node.id).isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 40, top: 2),
-                    child: Text(
-                      widget.editor.nodeSubtitle(node.id),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xffd6d6d6),
-                        fontSize: 12.5,
-                      ),
-                    ),
-                  ),
-                for (final line in widget.editor.nodeConfigLines(node.id))
-                  Padding(
-                    padding: const EdgeInsets.only(left: 25, top: 3),
-                    child: Row(
-                      children: [
-                        Text(
-                          line.$1,
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 10,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
+                      if (subtitle.isNotEmpty)
+                        Tooltip(
+                          message: subtitle,
                           child: Text(
-                            line.$2,
+                            subtitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 10,
+                              color: Color(0xffd6d6d6),
+                              fontSize: 12.5,
                             ),
                           ),
                         ),
-                      ],
+                    ],
+                  ),
+                ),
+                if (editor.isTriggerNode(node.id) &&
+                    onRunNode != null &&
+                    editor.schemaNodeIdForEditor(node.id) != null)
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: IconButton(
+                      tooltip: 'Run automation',
+                      padding: EdgeInsets.zero,
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xff4caf50),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => unawaited(
+                        onRunNode!(editor.schemaNodeIdForEditor(node.id)!),
+                      ),
+                      icon: const Icon(Icons.play_arrow, size: 16),
+                    ),
+                  ),
+                if (badge != null && badge != 'Trigger')
+                  Container(
+                    margin: const EdgeInsets.only(left: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: badge == 'Missing'
+                          ? const Color(0xffef5350)
+                          : const Color(0xffe9aaff),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      badge,
+                      style: TextStyle(
+                        color: badge == 'Missing'
+                            ? Colors.white
+                            : const Color(0xff1b0f21),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
               ],
             ),
-          ),
+            if (execution != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _ExecutionBadge(execution: execution),
+                ),
+              ),
+            if (config.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: 4),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Color(0x1affffff))),
+                ),
+                child: Column(
+                  children: [
+                    for (final line in config)
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              line.$1,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xffb0b0b0),
+                                fontSize: 10.8,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              line.$2,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xffe9e9e9),
+                                fontSize: 10.8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+          ],
         ),
       );
     },
@@ -450,6 +300,16 @@ List<NodeEditorMenuEntry> _nodeEditorContextMenu(
         label: 'Rename',
         icon: Icons.edit_outlined,
         onSelected: () => unawaited(_renameNode(context, editor, node)),
+      ),
+      NodeEditorMenuAction(
+        label: node.state.isCollapsed ? 'Expand node' : 'Collapse node',
+        icon: node.state.isCollapsed ? Icons.expand_more : Icons.expand_less,
+        onSelected: () {
+          editor.controller.selectNodesById({node.id});
+          editor.controller.toggleCollapseSelectedNodes(
+            !node.state.isCollapsed,
+          );
+        },
       ),
       NodeEditorMenuAction(
         label: 'Edit configuration',

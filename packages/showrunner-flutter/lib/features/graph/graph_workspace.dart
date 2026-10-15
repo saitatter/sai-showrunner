@@ -28,6 +28,7 @@ part 'graph_inspector.dart';
 part 'graph_visual_overlays.dart';
 part 'graph_node_insertion.dart';
 part 'graph_node_rendering.dart';
+part 'graph_node_effects.dart';
 part 'graph_health.dart';
 
 /// Composes the ShowRunner graph surface around the generic `sai_nodes` canvas.
@@ -178,6 +179,15 @@ class GraphWorkspace extends StatelessWidget {
                                                 right: 0,
                                                 bottom: 0,
                                                 child: _InvalidLinkOverlay(
+                                                  editor: editor,
+                                                ),
+                                              ),
+                                              OverlayData(
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                child: _GraphNodeEffects(
                                                   editor: editor,
                                                 ),
                                               ),
@@ -570,6 +580,16 @@ class ShowRunnerInlineGraphEditor extends StatelessWidget {
                       right: 0,
                       bottom: 0,
                       child: _GraphAlignmentGuidesOverlay(editor: editor),
+                    ),
+                    OverlayData(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: _GraphNodeEffects(
+                        key: ObjectKey(editor.controller),
+                        editor: editor,
+                      ),
                     ),
                     OverlayData(
                       top: 12,

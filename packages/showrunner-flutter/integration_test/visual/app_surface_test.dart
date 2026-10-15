@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sai_nodes/sai_nodes.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
@@ -122,6 +123,22 @@ void main() {
     expect(find.text('str'), findsAtLeastNWidgets(1));
     expect(find.text('string'), findsNothing);
     expect(find.textContaining('Select a node'), findsOneWidget);
+    final graphController = tester
+        .widget<NodeEditorWidget>(find.byType(NodeEditorWidget).first)
+        .controller;
+    final flow = graphController.linksAsList.single;
+    final sourceNode = graphController.nodes[flow.endpoints.sourceNodeId]!;
+    final targetNode = graphController.nodes[flow.endpoints.targetNodeId]!;
+    final sourcePort = sourceNode.ports[flow.endpoints.sourcePortId]!;
+    final targetPort = targetNode.ports[flow.endpoints.targetPortId]!;
+    expect(
+      sourcePort.offset.dx,
+      greaterThan(100),
+      reason:
+          'Output endpoint must be on the right edge before any interaction.',
+    );
+    expect(sourcePort.offset.dy, greaterThan(30));
+    expect(targetPort.offset.dy, greaterThan(30));
     final dismissButtons = find.text('Dismiss');
     if (dismissButtons.evaluate().isNotEmpty) {
       final dismissBox = tester.renderObject<RenderBox>(dismissButtons.last);

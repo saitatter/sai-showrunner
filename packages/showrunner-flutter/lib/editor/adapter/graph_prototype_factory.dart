@@ -16,7 +16,7 @@ extension ShowRunnerGraphPrototypeFactory on ShowRunnerGraphEditor {
       _prototype(
         idName: 'if',
         title: 'If',
-        color: const Color(0xff7c3aed),
+        color: const Color(0xff64b5f6),
         input: true,
         output: false,
         flowOutputs: const ['then', 'else'],
@@ -26,16 +26,16 @@ extension ShowRunnerGraphPrototypeFactory on ShowRunnerGraphEditor {
       _prototype(
         idName: 'switch',
         title: 'Switch',
-        color: const Color(0xff9333ea),
+        color: const Color(0xff7c4dff),
         input: true,
         output: false,
         flowOutputs: const ['case:0', 'default'],
       ),
     );
     for (final definition in const [
-      (type: 'for', title: 'For', color: Color(0xff0891b2)),
-      (type: 'forEach', title: 'For each', color: Color(0xff0e7490)),
-      (type: 'while', title: 'While', color: Color(0xff155e75)),
+      (type: 'for', title: 'For', color: Color(0xff68d391)),
+      (type: 'forEach', title: 'For each', color: Color(0xff68d391)),
+      (type: 'while', title: 'While', color: Color(0xff4db6ac)),
     ]) {
       target.registerNodePrototype(
         _prototype(
@@ -49,9 +49,9 @@ extension ShowRunnerGraphPrototypeFactory on ShowRunnerGraphEditor {
       );
     }
     for (final definition in const [
-      (type: 'break', title: 'Break', color: Color(0xffbe123c)),
-      (type: 'continue', title: 'Continue', color: Color(0xffbe123c)),
-      (type: 'return', title: 'Return', color: Color(0xffbe123c)),
+      (type: 'break', title: 'Break', color: Color(0xffef9a9a)),
+      (type: 'continue', title: 'Continue', color: Color(0xffef9a9a)),
+      (type: 'return', title: 'Return', color: Color(0xffffab91)),
     ]) {
       target.registerNodePrototype(
         _prototype(
@@ -89,7 +89,8 @@ extension ShowRunnerGraphPrototypeFactory on ShowRunnerGraphEditor {
       idName: 'variable.$type',
       displayName: (_) => title,
       description: (_) => 'ShowRunner variable node: $title',
-      styleBuilder: (state) => graphNodeStyle(state, color),
+      styleBuilder: (state) =>
+          graphNodeStyle(state, const Color(0xff90a4ae), variable: true),
       ports: [
         _typedPort(
           idName: 'value',
@@ -230,22 +231,25 @@ extension ShowRunnerGraphPrototypeFactory on ShowRunnerGraphEditor {
       };
 
   PortStyle _flowPortStyleBuilder(PortState state) =>
-      _portStyle(const Color(0xffe9aaff), state);
+      _portStyle(const Color(0xffe9aaff), state, flow: true);
 
   PortStyle Function(PortState) _dataPortStyleBuilder(DartDataInputKind kind) =>
       (state) => _portStyle(_dataPortColor(kind), state);
 
-  PortStyle _portStyle(Color color, PortState state) => PortStyle(
-    shape: PortShape.circle,
-    color: color,
-    radius: state.isHovered ? 7 : 5,
-    linkStyleBuilder: (link) => LinkStyle(
-      color: link.isSelected ? const Color(0xffffcc00) : color,
-      lineWidth: link.isSelected ? 3.5 : 2.5,
-      drawMode: LineDrawMode.solid,
-      curveType: LinkCurveType.bezier,
-    ),
-  );
+  PortStyle _portStyle(Color color, PortState state, {bool flow = false}) =>
+      PortStyle(
+        shape: PortShape.circle,
+        color: color,
+        radius: flow
+            ? (state.isHovered ? 8.8 : 6.8)
+            : (state.isHovered ? 7 : 5),
+        linkStyleBuilder: (link) => LinkStyle(
+          color: link.isSelected ? const Color(0xffffcc00) : color,
+          lineWidth: link.isSelected ? 3.5 : (flow ? 2.5 : 2),
+          drawMode: LineDrawMode.solid,
+          curveType: LinkCurveType.bezier,
+        ),
+      );
 
   Color _dataPortColor(DartDataInputKind kind) => switch (kind) {
     DartDataInputKind.text ||
@@ -287,6 +291,9 @@ extension ShowRunnerGraphPrototypeFactory on ShowRunnerGraphEditor {
         state,
         idName.startsWith('trigger.') ? const Color(0xffe9aaff) : color,
         trigger: idName.startsWith('trigger.'),
+        tinted:
+            idName.toLowerCase().startsWith('showrunner.') &&
+            color == const Color(0xffffcf5a),
       ),
       ports: [
         if (input)
@@ -373,9 +380,6 @@ extension ShowRunnerGraphPrototypeFactory on ShowRunnerGraphEditor {
     if (normalized.startsWith('showrunner.') &&
         (normalized.contains('queue') || normalized.endsWith('.skip'))) {
       return const Color(0xffffcf5a);
-    }
-    if (normalized == 'overlays.pushchatmessage') {
-      return const Color(0xff34d399);
     }
     return const Color(0xff7d32d4);
   }
@@ -464,7 +468,8 @@ extension ShowRunnerGraphPrototypeFactory on ShowRunnerGraphEditor {
         idName: nodeType,
         displayName: (_) => title,
         description: (_) => 'ShowRunner data conversion: $title',
-        styleBuilder: (state) => graphNodeStyle(state, const Color(0xff4dd0e1)),
+        styleBuilder: (state) =>
+            graphNodeStyle(state, const Color(0xff4dd0e1), tinted: true),
         ports: [
           _typedPort(
             idName: _conversionInputPort('value'),
@@ -609,7 +614,7 @@ extension ShowRunnerGraphPrototypeFactory on ShowRunnerGraphEditor {
       _prototype(
         idName: 'switch',
         title: 'Switch',
-        color: const Color(0xff9333ea),
+        color: const Color(0xff7c4dff),
         input: true,
         output: false,
         flowOutputs: ports.toSet().toList(),

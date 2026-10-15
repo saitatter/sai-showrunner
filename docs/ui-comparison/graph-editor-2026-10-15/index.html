@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ro">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Graph editor — comparație cu varianta Electron</title>
+<style>
+body{margin:0;background:#131316;color:#eee;font:16px/1.55 system-ui,sans-serif}main{max-width:1800px;margin:auto;padding:28px}h1{font-size:28px;margin:0 0 12px}h2{font-size:20px}p{max-width:1050px;color:#c2c2cd}a{color:#e9aaff}section{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}figure{margin:0;background:#202024;border:1px solid #393940;border-radius:8px;overflow:hidden}figcaption{padding:14px}img{width:100%;height:auto;display:block}table{border-collapse:collapse;width:100%;margin:24px 0}th,td{text-align:left;padding:12px;border-bottom:1px solid #393940}th{color:#e9aaff}.states{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:850px){section,.states{grid-template-columns:1fr}}
+</style>
+<main>
+<h1>Graph editor: revenire spre aspectul Electron</h1>
+<p>Referința istorică este captura existentă din repository, verificată împreună cu sursele Vue. Capturile Flutter sunt produse de aplicația nativă Windows. Layoutul aplicației și datele fixture-urilor diferă; comparația urmărește cardurile, conectorii și feedbackul vizual, fără a pretinde identitate pixel cu pixel.</p>
+<section>
+<figure><a href="../../../test/reference/main/automation-editor-complex.png"><img src="../../../test/reference/main/automation-editor-complex.png" alt="Editorul vechi Electron, trigger Super Chat și nod Add to Queue"></a><figcaption>Referința Electron: card unitar, subtitlu sub titlu, fundal violet pentru trigger și auriu discret pentru coadă, fire de execuție roz.</figcaption></figure>
+<figure><a href="flutter-after.png"><img src="flutter-after.png" alt="Editorul Flutter actualizat, cu aceleași tipuri de noduri"></a><figcaption>Flutter actualizat: aceeași grupare titlu/subtitlu și paletă pe tip de nod. Porturile sunt măsurate și redesenate după încărcarea documentului, înainte de interacțiune.</figcaption></figure>
+</section>
+<h2>Ce s-a schimbat</h2>
+<table><tr><th>Element</th><th>Flutter anterior</th><th>Flutter actualizat</th></tr>
+<tr><td>Card</td><td>Antet cu efecte separate; unele culori diferite de referință</td><td>Card unitar, rază 6, contur 2, fundaluri pe tipul nodului</td></tr>
+<tr><td>Titlu și subtitlu</td><td>Rânduri separate, spațiu consumat de badge și collapse</td><td>Grupate lângă icon; collapse/expand rămâne în meniul contextual</td></tr>
+<tr><td>Conectori</td><td>Aceeași dimensiune și grosime pentru flow și date</td><td>Flow mai mare, fir 2.5; date mai mici, fir 2; selecție aurie 3.5</td></tr>
+<tr><td>Căutare</td><td>Primul antet putea apărea galben fără interogare</td><td>Evidențiere numai pentru căutare activă; restul cardurilor se estompează</td></tr>
+<tr><td>Execuție</td><td>Feedback concentrat în antet</td><td>Conturul întregului card: puls albastru 800 ms, verde pentru succes, roșu pentru eroare; respectă reduced motion</td></tr>
+<tr><td>Muchii după încărcare</td><td>Uneori rămâneau în cache la colțul nodului</td><td>Geometrie sincronizată după layout, cu invalidarea desenării și hit testing-ului</td></tr>
+</table>
+<details><summary>Captura Flutter dinaintea ajustărilor (fixture cu trei noduri)</summary><img src="flutter-before.png" alt="Flutter înainte: antet galben, titluri trunchiate și culori diferite"></details>
+<h2>Stări de execuție</h2>
+<p>Aceste imagini verifică proiecția stărilor pe canvas. Sunt stări simulate de test, separate de execuțiile funcționale HTTP/OBS locale. Două capturi consecutive ale conturului în rulare au diferențe de pixeli, confirmând animația.</p>
+<section class="states">
+<figure><a href="running.png"><img src="running.png" alt="Nod în rulare, cu contur albastru"></a><figcaption>Rulare</figcaption></figure>
+<figure><a href="success.png"><img src="success.png" alt="Nod finalizat cu succes, cu contur verde"></a><figcaption>Succes</figcaption></figure>
+<figure><a href="error.png"><img src="error.png" alt="Nod cu eroare, cu contur roșu"></a><figcaption>Eroare</figcaption></figure>
+</section>
+<p>Unele detalii rămân specifice Flutter/sai_nodes: randarea fonturilor, mânerele de redimensionare, selecția porturilor și aspectul shell-ului. Sursa de referință nu a fost modificată.</p>
+<p><a href="../../testing/live-nodes.md">Teste funcționale și configurația conexiunilor</a></p>
+</main>
+</html>

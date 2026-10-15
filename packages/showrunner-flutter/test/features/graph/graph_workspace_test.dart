@@ -405,6 +405,76 @@ void main() {
     expect(editor.flowLinkIdAtScreenPosition(globalPoint), link.id);
   });
 
+  testWidgets(
+    'late-loaded documents measure flow endpoints before canvas interaction',
+    (tester) async {
+      await pumpWorkspace(tester);
+      editor.loadAutomation(
+        const AutomationData(
+          graph: AutomationGraph(
+            entryNodeId: 'first',
+            nodes: [
+              GraphNode(
+                id: 'first',
+                type: 'action',
+                x: -260,
+                y: 0,
+                data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
+              ),
+              GraphNode(
+                id: 'second',
+                type: 'action',
+                x: 40,
+                y: 40,
+                data: {'plugin': 'overlays', 'action': 'pushChatMessage'},
+              ),
+            ],
+            edges: [GraphEdge(id: 'flow', from: 'first', to: 'second')],
+          ),
+        ),
+      );
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      final link = editor.controller.linksAsList.single;
+      final source = editor.controller.nodes[link.endpoints.sourceNodeId]!;
+      final target = editor.controller.nodes[link.endpoints.targetNodeId]!;
+      expect(
+        source.ports['completed']!.offset.dx,
+        closeTo(tester.getSize(find.byKey(source.key)).width, .1),
+      );
+      expect(
+        source.ports['completed']!.offset.dy,
+        closeTo(tester.getSize(find.byKey(source.key)).height / 2, 1),
+      );
+      expect(
+        target.ports['exec']!.offset.dy,
+        closeTo(tester.getSize(find.byKey(target.key)).height / 2, 1),
+      );
+      final midpoint =
+          (source.offset +
+              source.ports['completed']!.offset +
+              target.offset +
+              target.ports['exec']!.offset) /
+          2;
+      final canvas =
+          editor.controller.editorKey.currentContext!.findRenderObject()
+              as RenderBox;
+      await tester.tapAt(
+        canvas.localToGlobal(
+          editor.controller.worldToScreen(midpoint, canvas.size),
+        ),
+      );
+      await tester.pump();
+      expect(
+        editor.controller.selectedLinkIds,
+        contains(link.id),
+        reason:
+            'The first rendered wire must use measured endpoints for both painting and hit testing.',
+      );
+    },
+  );
+
   testWidgets('publishes alignment guides while moving a selected node', (
     tester,
   ) async {
