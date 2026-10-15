@@ -57,7 +57,8 @@ List<DartActionContract> _obsStreamingActions(ObsTransport transport) => [
     invoke: (config, context) async {
       var enabled = config.mode;
       if (enabled == ObsToggleMode.toggle) {
-        enabled = config.studioModeEnabled == true
+        final status = await transport.call('GetStudioModeEnabled', {});
+        enabled = status['studioModeEnabled'] == true
             ? ObsToggleMode.disabled
             : ObsToggleMode.enabled;
       }

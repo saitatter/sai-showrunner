@@ -1,16 +1,164 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/plugins/obs/actions.dart';
 import 'package:showrunner_flutter/plugins/obs/contracts.dart';
+import 'package:showrunner_flutter/plugins/obs/connection_router.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/provider_settings_validator.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
+  test(
+    'replay waits for the selected connection to finish saving and cancels listeners',
+    () async {
+      final requested = Completer<void>();
+      final transport = _EventObsTransport((request, data) async {
+        expect(request, 'SaveReplayBuffer');
+        requested.complete();
+        return {};
+      });
+      final router = ObsConnectionRouter(
+        dataService: ShowRunnerDataService(Directory('test-obs-unused')),
+        settingsLoader: () async => {'host': '127.0.0.1', 'port': 4455},
+        resourceLoader: () async => [],
+        transportFactory: (endpoint, state) => transport,
+      );
+      final registry = DartPluginRegistry()..register(createObsPlugin(router));
+      addTearDown(registry.close);
+      addTearDown(transport.controller.close);
+      var completed = false;
+      final result = registry.invokeAction('obs', 'replaySave', {}).then((
+        value,
+      ) {
+        completed = true;
+        return value;
+      });
+      await requested.future;
+      expect(completed, false);
+      transport.controller.add({'eventType': 'RecordStateChanged'});
+      transport.controller.add({
+        'eventType': 'ReplayBufferSaved',
+        'savedReplayPath': 'new-replay.mp4',
+      });
+      expect(await result, {'replayFile': 'new-replay.mp4'});
+      expect(transport.controller.hasListener, false);
+
+      final failing = _EventObsTransport(
+        (request, data) async => throw StateError('not running'),
+      );
+      addTearDown(failing.controller.close);
+      await expectLater(saveObsReplayBuffer(failing), throwsStateError);
+      expect(failing.controller.hasListener, false);
+    },
+  );
+
+  test(
+    'studio toggle reads OBS state instead of a stale configuration',
+    () async {
+      var studio = false;
+      final registry = DartPluginRegistry()
+        ..register(
+          createObsPlugin(
+            CallbackObsTransport((request, data) async {
+              if (request == 'GetStudioModeEnabled') {
+                return {'studioModeEnabled': studio};
+              }
+              if (request == 'SetStudioModeEnabled') {
+                studio = data['studioModeEnabled'] == true;
+              }
+              return {};
+            }),
+          ),
+        );
+      addTearDown(registry.close);
+      for (final expected in [true, false, true]) {
+        await registry.invokeAction('obs', 'toggleStudioMode', {
+          'studioMode': 'toggle',
+          'studioModeEnabled': true,
+        });
+        expect(studio, expected);
+      }
+    },
+  );
+
+  test(
+    'browser refresh accepts the source field exposed by its editor',
+    () async {
+      final registry = DartPluginRegistry()
+        ..register(
+          createObsPlugin(
+            CallbackObsTransport((request, data) async {
+              expect(request, 'PressInputPropertiesButton');
+              expect(data['inputName'], 'Browser');
+              return {};
+            }),
+          ),
+        );
+      addTearDown(registry.close);
+      await registry.invokeAction('obs', 'browserRefresh', {
+        'source': 'Browser',
+      });
+      await registry.invokeAction('obs', 'refreshBrowser', {
+        'sourceName': 'Browser',
+      });
+    },
+  );
+
+  test(
+    'playMedia resolves the scene item before enabling or restarting it',
+    () async {
+      final requests = <String>[];
+      final registry = DartPluginRegistry()
+        ..register(
+          createObsPlugin(
+            CallbackObsTransport((request, data) async {
+              requests.add(request);
+              if (request == 'GetSceneItemList') {
+                return {
+                  'sceneItems': [
+                    {'sceneItemId': 2, 'sourceName': 'Other'},
+                    {'sceneItemId': 7, 'sourceName': 'Clip'},
+                  ],
+                };
+              }
+              if (request == 'GetSceneItemEnabled') {
+                return {'sceneItemEnabled': false};
+              }
+              if (request == 'TriggerMediaInputAction') {
+                expect(data['inputName'], 'Clip');
+              }
+              return {};
+            }),
+          ),
+        );
+      addTearDown(registry.close);
+      await registry.invokeAction('obs', 'playMedia', {
+        'scene': 'Main',
+        'source': 7,
+      });
+      expect(requests, [
+        'GetSceneItemList',
+        'GetSceneItemEnabled',
+        'SetSceneItemEnabled',
+        'TriggerMediaInputAction',
+      ]);
+      requests.clear();
+      await expectLater(
+        registry.invokeAction('obs', 'playMedia', {
+          'scene': 'Main',
+          'source': 99,
+        }),
+        throwsStateError,
+      );
+      expect(requests, ['GetSceneItemList']);
+    },
+  );
+
   test('exposes structured configuration for every OBS action', () {
     final actions = createObsPlugin(
       CallbackObsTransport((request, data) async => {}),
@@ -325,4 +473,19 @@ void main() {
       'inputSettings': {'device_id': 'camera-2'},
     });
   });
+}
+
+final class _EventObsTransport implements ObsTransport, ObsEventTransport {
+  _EventObsTransport(this.callback);
+  final ObsCall callback;
+  final controller = StreamController<Map<String, dynamic>>.broadcast();
+  @override
+  Stream<Map<String, dynamic>> get events => controller.stream;
+  @override
+  Future<Map<String, dynamic>> call(
+    String request,
+    Map<String, dynamic> data,
+  ) => callback(request, data);
+  @override
+  Future<void> close() async {}
 }

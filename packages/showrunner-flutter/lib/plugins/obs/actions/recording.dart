@@ -35,11 +35,7 @@ List<DartActionContract> _obsRecordingActions(ObsTransport transport) => [
     displayName: 'Save Replay Buffer',
     configSchema: _emptyConfigSchema,
     configCodec: obsEmptyConfigCodec,
-    invoke: (config, context) async {
-      await transport.call('SaveReplayBuffer', {});
-      final response = await transport.call('GetLastReplayBufferReplay', {});
-      return {'replayFile': response['savedReplayPath']};
-    },
+    invoke: (config, context) => saveObsReplayBuffer(transport),
   ),
   ActionSpec<ObsChapterMarkerConfig, RuntimeMap>(
     pluginId: PluginId('obs'),

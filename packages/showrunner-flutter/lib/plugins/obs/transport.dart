@@ -8,7 +8,7 @@ import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import 'actions.dart';
 
-final class ObsWebSocketTransport implements ObsTransport {
+final class ObsWebSocketTransport implements ObsTransport, ObsEventTransport {
   ObsWebSocketTransport({
     required this.host,
     required this.port,
@@ -32,6 +32,10 @@ final class ObsWebSocketTransport implements ObsTransport {
   int _connectionGeneration = 0;
   final _pending = <String, Completer<RuntimeMap>>{};
   int _requestId = 0;
+  final _events = StreamController<RuntimeMap>.broadcast();
+
+  @override
+  Stream<RuntimeMap> get events => _events.stream;
 
   @override
   Future<RuntimeMap> call(String request, RuntimeMap data) async {
@@ -167,10 +171,12 @@ final class ObsWebSocketTransport implements ObsTransport {
               onStateChanged?.call('recording', values['outputActive'] == true);
           }
         }
-        eventHub?.emit('obsVendorEvent', {
+        final event = <String, dynamic>{
           'eventType': data['eventType'],
           if (eventData is Map) ...Map<String, dynamic>.from(eventData),
-        });
+        };
+        _events.add(event);
+        eventHub?.emit('obsVendorEvent', event);
       }
       return;
     }

@@ -37,7 +37,7 @@ typedef ObsTransportFactory =
 /// selected default to actions and state providers. Keeping that resolution
 /// here lets all OBS-backed plugins share one lifecycle without putting file
 /// access in action definitions or widgets.
-final class ObsConnectionRouter implements ObsTransport {
+final class ObsConnectionRouter implements ObsTransport, ObsReplayTransport {
   ObsConnectionRouter({
     required this.dataService,
     this.eventHub,
@@ -81,6 +81,16 @@ final class ObsConnectionRouter implements ObsTransport {
       () => _transportFactory(endpoint, onStateChanged),
     );
     return transport.call(request, data);
+  }
+
+  @override
+  Future<RuntimeMap> saveReplayBuffer() async {
+    final endpoint = await resolveEndpoint();
+    final transport = _transports.putIfAbsent(
+      endpoint.cacheKey,
+      () => _transportFactory(endpoint, onStateChanged),
+    );
+    return saveObsReplayBuffer(transport);
   }
 
   Future<ObsConnectionEndpoint> resolveEndpoint() async {

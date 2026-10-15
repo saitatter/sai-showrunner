@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:io';
+import 'dart:async';
 
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
@@ -16,6 +17,41 @@ part 'actions/recording.dart';
 part 'actions/streaming.dart';
 
 typedef ObsCall = Future<RuntimeMap> Function(String request, RuntimeMap data);
+
+/// Optional event support for requests whose response precedes completion.
+abstract interface class ObsEventTransport {
+  Stream<RuntimeMap> get events;
+}
+
+abstract interface class ObsReplayTransport {
+  Future<RuntimeMap> saveReplayBuffer();
+}
+
+Future<RuntimeMap> saveObsReplayBuffer(ObsTransport transport) async {
+  if (transport is ObsReplayTransport) {
+    return (transport as ObsReplayTransport).saveReplayBuffer();
+  }
+  if (transport is ObsEventTransport) {
+    final saved = Completer<RuntimeMap>();
+    final subscription = (transport as ObsEventTransport).events.listen((
+      event,
+    ) {
+      if (event['eventType'] == 'ReplayBufferSaved' && !saved.isCompleted) {
+        saved.complete({'replayFile': event['savedReplayPath']});
+      }
+    });
+    try {
+      await transport.call('SaveReplayBuffer', {});
+      return await saved.future.timeout(const Duration(seconds: 30));
+    } finally {
+      await subscription.cancel();
+    }
+  }
+  // Compatibility for call-only injected transports.
+  await transport.call('SaveReplayBuffer', {});
+  final response = await transport.call('GetLastReplayBufferReplay', {});
+  return {'replayFile': response['savedReplayPath']};
+}
 
 const _transformConfigSchema = DartDataInputSchema(
   label: 'Source transform',

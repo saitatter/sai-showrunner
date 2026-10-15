@@ -131,6 +131,24 @@ List<DartActionContract> _obsSourceActions(ObsTransport transport) => [
       final sceneName = config.scene;
       final sceneItemId = config.source;
       if (sceneName == null || sceneItemId == null) return null;
+      var inputName = config.sourceName;
+      if (inputName == null || inputName.isEmpty) {
+        final response = await transport.call('GetSceneItemList', {
+          'sceneName': sceneName,
+        });
+        final items = response['sceneItems'] as List? ?? const [];
+        for (final item in items.whereType<Map>()) {
+          if (item['sceneItemId'] == sceneItemId) {
+            inputName = item['sourceName']?.toString();
+            break;
+          }
+        }
+        if (inputName == null || inputName.isEmpty) {
+          throw StateError(
+            'Scene item $sceneItemId was not found in $sceneName.',
+          );
+        }
+      }
       final enabled = await transport.call('GetSceneItemEnabled', {
         'sceneName': sceneName,
         'sceneItemId': sceneItemId,
@@ -143,7 +161,7 @@ List<DartActionContract> _obsSourceActions(ObsTransport transport) => [
         });
       }
       await transport.call('TriggerMediaInputAction', {
-        'inputName': config.sourceName ?? config.source,
+        'inputName': inputName,
         'mediaAction': 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART',
       });
       return {'playing': true};

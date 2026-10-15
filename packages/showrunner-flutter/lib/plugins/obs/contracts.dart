@@ -131,7 +131,9 @@ final class ObsSourceNameConfig {
   const ObsSourceNameConfig({this.sourceName});
 
   factory ObsSourceNameConfig.fromRuntime(RuntimeMap value) =>
-      ObsSourceNameConfig(sourceName: _string(value['sourceName']));
+      ObsSourceNameConfig(
+        sourceName: _string(value['sourceName'] ?? value['source']),
+      );
 
   final String? sourceName;
 
