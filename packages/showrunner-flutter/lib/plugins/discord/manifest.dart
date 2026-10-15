@@ -38,7 +38,7 @@ final class DiscordHttpTransport {
       request.headers.contentType = ContentType.json;
       request.write(jsonEncode(body));
       final response = await request.close();
-      return _readDiscordResponse(response);
+      return await _readDiscordResponse(response);
     } finally {
       client.close(force: true);
     }
@@ -91,7 +91,7 @@ final class DiscordHttpTransport {
       request.write('--$boundary--\r\n');
 
       final response = await request.close();
-      return _readDiscordResponse(response);
+      return await _readDiscordResponse(response);
     } finally {
       client.close(force: true);
     }

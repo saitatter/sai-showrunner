@@ -121,7 +121,7 @@ final class OAuthAuthorizationFlow {
       );
       await openAuthorizationUrl(request.authorizationUrl);
       final result = await callback;
-      return tokenClient.exchangeCode(
+      return await tokenClient.exchangeCode(
         tokenEndpoint: tokenEndpoint,
         clientId: clientId,
         clientSecret: clientSecret,

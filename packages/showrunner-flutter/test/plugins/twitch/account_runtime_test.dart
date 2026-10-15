@@ -108,6 +108,14 @@ void main() {
     expect(authorizations, hasLength(2));
     expect(authorizations.first, contains('channel:manage:broadcast'));
     expect(authorizations.last, contains('chat:edit'));
+    expect(
+      authorizations.first,
+      containsAll(['user:read:chat', 'user:write:chat']),
+    );
+    expect(
+      authorizations.last,
+      containsAll(['user:read:chat', 'user:write:chat']),
+    );
 
     final repository = ResourceRepository(
       Directory('${root.path}/accounts/twitch'),
