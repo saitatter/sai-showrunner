@@ -20,6 +20,9 @@ class GraphCanvasControls extends StatelessWidget {
       editor.previewPlaying,
       editor.previewElapsed,
       editor.nodeRevision,
+      editor.selectedFrameId,
+      editor.selectedInvalidFlowEdgeId,
+      editor.selectedInvalidDataWireId,
     ]),
     builder: (context, child) {
       final controller = editor.controller;
@@ -166,8 +169,13 @@ class GraphCanvasControls extends StatelessWidget {
               _button(
                 tooltip: 'Delete selection',
                 icon: Icons.delete_outline,
-                onPressed: hasSelection || controller.selectedLinkIds.isNotEmpty
-                    ? controller.deleteSelection
+                onPressed:
+                    hasSelection ||
+                        controller.selectedLinkIds.isNotEmpty ||
+                        editor.selectedFrameId.value != null ||
+                        editor.selectedInvalidFlowEdgeId.value != null ||
+                        editor.selectedInvalidDataWireId.value != null
+                    ? editor.deleteSelection
                     : null,
               ),
             ],

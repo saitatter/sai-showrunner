@@ -227,6 +227,41 @@ void main() {
     expect(editor.canvasSearchOpen.value, isFalse);
   });
 
+  testWidgets('graph find accepts typing after shortcut and match navigation', (
+    tester,
+  ) async {
+    await pumpWorkspace(tester);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    await tester.pump();
+    final input = find.descendant(
+      of: find.byType(GraphCanvasSearch),
+      matching: find.byType(TextField),
+    );
+    expect(tester.widget<TextField>(input).focusNode!.hasFocus, isTrue);
+    tester.testTextInput.enterText('Chat');
+    await tester.pump();
+    expect(editor.searchQuery.value, 'Chat');
+    await tester.tap(
+      find.descendant(
+        of: find.byType(GraphCanvasSearch),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is IconButton && widget.tooltip == 'Next match',
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.widget<TextField>(input).focusNode!.hasFocus, isTrue);
+    tester.testTextInput.enterText('no such node');
+    await tester.pump();
+    expect(editor.searchResultCount(), 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(editor.canvasSearchOpen.value, isFalse);
+  });
+
   testWidgets('editor desktop visual regression', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -579,6 +614,28 @@ void main() {
     expect(editor.invalidFlowEdges, isEmpty);
     expect(find.text('1 invalid sequence edge'), findsNothing);
   });
+
+  testWidgets(
+    'toolbar deletes a selected annotation without deleting its nodes',
+    (tester) async {
+      await pumpWorkspace(tester);
+      editor.controller.selectAllNodes();
+      editor.frameSelection(title: 'QA annotation');
+      editor.controller.clearSelection();
+      editor.selectedFrameId.value = editor.frames.value.single.id;
+      await tester.pump();
+      final delete = find.byWidgetPredicate(
+        (widget) =>
+            widget is IconButton && widget.tooltip == 'Delete selection',
+      );
+      await tester.ensureVisible(delete);
+      await tester.tap(delete);
+      await tester.pump();
+      expect(editor.frames.value, isEmpty);
+      expect(editor.controller.nodes, hasLength(3));
+      expect(editor.selectedFrameId.value, isNull);
+    },
+  );
 
   testWidgets('renders branch labels from persisted control-flow metadata', (
     tester,

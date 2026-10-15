@@ -20,6 +20,7 @@ class GraphCanvasSearch extends StatefulWidget {
 class _GraphCanvasSearchState extends State<GraphCanvasSearch> {
   late final TextEditingController _textController;
   late final FocusNode _focusNode;
+  late final FocusNode _inputFocusNode;
 
   ShowRunnerGraphEditor get editor => widget.editor;
 
@@ -28,6 +29,7 @@ class _GraphCanvasSearchState extends State<GraphCanvasSearch> {
     super.initState();
     _textController = TextEditingController(text: editor.searchQuery.value);
     _focusNode = FocusNode(debugLabel: 'graph-canvas-search');
+    _inputFocusNode = FocusNode(debugLabel: 'graph-canvas-search-input');
     editor.canvasSearchOpen.addListener(_handleOpenChanged);
     _handleOpenChanged();
   }
@@ -37,6 +39,7 @@ class _GraphCanvasSearchState extends State<GraphCanvasSearch> {
     editor.canvasSearchOpen.removeListener(_handleOpenChanged);
     _textController.dispose();
     _focusNode.dispose();
+    _inputFocusNode.dispose();
     super.dispose();
   }
 
@@ -49,13 +52,15 @@ class _GraphCanvasSearchState extends State<GraphCanvasSearch> {
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && editor.canvasSearchOpen.value) _focusNode.requestFocus();
+      if (mounted && editor.canvasSearchOpen.value) {
+        _inputFocusNode.requestFocus();
+      }
     });
   }
 
   void _cycle({required bool forward}) {
     editor.focusSearchResult(forward: forward);
-    _focusNode.requestFocus();
+    _inputFocusNode.requestFocus();
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -123,6 +128,7 @@ class _GraphCanvasSearchState extends State<GraphCanvasSearch> {
                 ),
                 Expanded(
                   child: TextField(
+                    focusNode: _inputFocusNode,
                     controller: _textController,
                     autofocus: false,
                     onChanged: editor.setSearchQuery,
