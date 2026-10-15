@@ -26,6 +26,8 @@ dist/
 .env
 .env.*
 !.env.example
+connections.local.yml
+connections.local.yaml
 .DS_Store
 .vscode-test/
 

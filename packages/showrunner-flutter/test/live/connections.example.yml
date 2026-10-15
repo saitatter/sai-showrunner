@@ -1,0 +1,932 @@
+# Copy to connections.local.yml; this file contains no real credentials.
+# Run: ./scripts/test-live-nodes.ps1 -ConfigPath <path-to-local-yml>
+# Only enabled scenarios run. Settings are written to an isolated temporary profile.
+version: 1
+enabled_plugins: [ShowRunner, http, time, random, variables, overlays]
+plugin_settings:
+  "heartrate":
+    "autoConnect": false # Auto-connect preferred device
+    "scanHeartRateOnly": true # Show heart-rate devices only
+    "reconnectEnabled": true # Reconnect after disconnect
+    "staleAfterMs": 3000 # Stale data timeout (ms)
+    "batteryPollSeconds": 30 # Battery refresh interval (seconds)
+    "preferredDeviceId": "" # Preferred device ID
+    "preferredDeviceName": "" # Preferred device name
+  "ShowRunner":
+    "allowRemoteAccess": false # Allow OBS and HTTP access from the local network
+    "port": 8181 # Internal Webserver Port
+  "obs":
+    "obsDefault": "" # Default OBS Connection
+    "host": "127.0.0.1" # Host
+    "port": 4455 # Port
+    "password": "" # Password (SECRET)
+  "aitum":
+    "obsConnection": "" # OBS Connection
+  "advss":
+    "obsConnection": "" # OBS Connection
+  "youtube":
+    "clientId": "" # Client ID
+    "clientSecret": "" # Client Secret (SECRET)
+    "accessToken": "" # Access Token (SECRET)
+    "refreshToken": "" # Refresh Token (SECRET)
+    "liveChatId": "" # Live Chat ID
+  "twitch":
+    "clientId": "" # Client ID
+    "clientSecret": "" # Client Secret (SECRET)
+    "accessToken": "" # Access Token (SECRET)
+    "broadcasterId": "" # Broadcaster ID
+    "moderatorId": "" # Moderator ID
+    "refreshToken": "" # Refresh Token (SECRET)
+  "moderation":
+    "enabled": "" # Enabled
+    "apiBaseUrl": "" # API URL
+    "apiToken": "" # API Token (SECRET)
+    "dashboardWsUrl": "" # Dashboard WebSocket URL
+    "forwardYouTube": true # Forward YouTube Chat
+  "bluesky":
+    "identifier": "" # Handle or DID
+    "appPassword": "" # App Password (SECRET)
+    "serviceUrl": "https://bsky.social" # Service URL
+  "donordrive":
+    "apiBase": "https://www.extra-life.org/api" # API Base URL
+    "participantId": "" # Participant ID
+    "pollIntervalSeconds": 15 # Poll Interval (seconds)
+  "remote":
+    "enabled": false # Enable remote HTTP server
+    "host": "127.0.0.1" # Bind host
+    "port": 8390 # Bind port
+    "apiBase": "https://api.ShowRunner.io" # Remote dashboard API base URL
+  "voicemod":
+    "host": "127.0.0.1" # VoiceMod Hostname
+    "port": 59129 # VoiceMod Port
+  "sound":
+    "globalVolume": 100 # Global Volume (0-100)
+    "defaultOutput": "system.default" # Default Sound Output
+  "govee":
+    "apiKey": "" # Govee API Key (SECRET)
+  "philips-hue":
+    "hubIp": "" # Hue Hub IP
+    "hubKey": "" # Hue Application Key (SECRET)
+  "twinkly":
+    "subnetMask": "255.255.255.255" # Subnet Mask
+  "elgato":
+    "host": "" # Device IP / Host
+    "port": 9123 # Device Port
+    "numberOfLights": 1 # Number of Lights
+    "rgb": false # RGB / Light Strip
+  "tplink-kasa":
+    "host": "" # Device IP / Host
+    "port": 9999 # Device Port
+    "subnetMask": "255.255.255.255" # Discovery Subnet Mask
+  "lifx":
+    "host": "" # Device IP / Host
+    "port": 56700 # LAN Port
+    "target": "" # Target MAC (hex, optional)
+    "subnetMask": "255.255.255.255" # Discovery Subnet Mask
+  "wyze":
+    "keyId": "" # Wyze Key ID (SECRET)
+    "apiKey": "" # Wyze API Key (SECRET)
+    "email": "" # Wyze Email
+    "accessToken": "" # Access Token (SECRET)
+    "refreshToken": "" # Refresh Token (SECRET)
+# Resource references use these isolated IDs, not your production profile IDs.
+resources: []
+# Example OBS resource (add obs to enabled_plugins):
+# - type: OBSConnection
+#   id: qa-obs
+#   config: {name: QA OBS, host: 127.0.0.1, port: 4455, password: ""}
+
+scenarios:
+  - name: Local number conversion
+    enabled: true
+    plugin: ShowRunner
+    action: convertNumberToString
+    config: {value: 42}
+    expect: {value: "42"}
+  # Add one enabled scenario for each live action you want to test.
+  # The exact action IDs and configuration fields are in docs/testing/node-catalog.json.
+  - name: "Heart Rate: Connect Preferred Device"
+    enabled: false
+    plugin: "heartrate"
+    action: "connectPreferredDevice"
+    config: {}
+  - name: "Heart Rate: Disconnect Heart Rate Device"
+    enabled: false
+    plugin: "heartrate"
+    action: "disconnect"
+    config: {}
+  - name: "Heart Rate: Start Heart Rate Simulation"
+    enabled: false
+    plugin: "heartrate"
+    action: "startSimulation"
+    config: {"bpm":124,"batteryPercent":86}
+  - name: "Heart Rate: Stop Heart Rate Simulation"
+    enabled: false
+    plugin: "heartrate"
+    action: "stopSimulation"
+    config: {}
+  - name: "Heart Rate: Reset Heart Rate Statistics"
+    enabled: false
+    plugin: "heartrate"
+    action: "resetStatistics"
+    config: {}
+  - name: "ShowRunner: Convert Boolean To String"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "convertBooleanToString"
+    config: {"value":false}
+  - name: "ShowRunner: Convert String To Number"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "convertStringToNumber"
+    config: {"value":""}
+  - name: "ShowRunner: Convert Boolean To Number"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "convertBooleanToNumber"
+    config: {"value":false}
+  - name: "ShowRunner: Convert Number To Boolean"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "convertNumberToBoolean"
+    config: {"value":0}
+  - name: "ShowRunner: Convert String To Boolean"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "convertStringToBoolean"
+    config: {"value":""}
+  - name: "ShowRunner: Convert Object To JSON String"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "convertObjectToJsonString"
+    config: {"value":{}}
+  - name: "ShowRunner: Convert Array To JSON String"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "convertArrayToJsonString"
+    config: {"value":[]}
+  - name: "ShowRunner: Convert JSON String To Object"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "convertJsonStringToObject"
+    config: {"value":""}
+  - name: "ShowRunner: Convert JSON String To Array"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "convertJsonStringToArray"
+    config: {"value":""}
+  - name: "ShowRunner: Add to Queue"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "addToQueue"
+    config: {"queue":"","automation":"","payload":{}}
+  - name: "ShowRunner: Complete Queue Item"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "completeQueueItem"
+    config: {}
+  - name: "ShowRunner: Cancel Queue Item"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "cancelQueueItem"
+    config: {"queue":""}
+  - name: "ShowRunner: Clear Queue"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "clearQueue"
+    config: {"queue":""}
+  - name: "ShowRunner: Queue Skip"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "skip"
+    config: {"queue":""}
+  - name: "ShowRunner: Pause Queue"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "pause"
+    config: {"queue":"","paused":"toggle"}
+  - name: "ShowRunner: Profile Activation"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "profileActivation"
+    config: {"profile":"","activation":"true"}
+  - name: "ShowRunner: Toggle Profile Activation"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "toggleProfileActivation"
+    config: {"profile":""}
+  - name: "ShowRunner: Run Automation"
+    enabled: false
+    plugin: "ShowRunner"
+    action: "runAutomation"
+    config: {"automation":""}
+  - name: "OBS Studio: Change Scene"
+    enabled: false
+    plugin: "obs"
+    action: "scene"
+    config: {"scene":""}
+  - name: "OBS Studio: Previous Scene"
+    enabled: false
+    plugin: "obs"
+    action: "prevScene"
+    config: {}
+  - name: "OBS Studio: Hotkey"
+    enabled: false
+    plugin: "obs"
+    action: "hotkey"
+    config: {"hotkey":""}
+  - name: "OBS Studio: Stream Start/Stop"
+    enabled: false
+    plugin: "obs"
+    action: "streamStartStop"
+    config: {"streaming":true}
+  - name: "OBS Studio: Recording Start/Stop"
+    enabled: false
+    plugin: "obs"
+    action: "recordingStartStop"
+    config: {"recording":true}
+  - name: "OBS Studio: Virtual Cam Start/Stop"
+    enabled: false
+    plugin: "obs"
+    action: "virtualCamStartStop"
+    config: {"virtualCam":true}
+  - name: "OBS Studio: Replay Buffer Start/Stop"
+    enabled: false
+    plugin: "obs"
+    action: "replayBufferStartStop"
+    config: {"replayBuffer":true}
+  - name: "OBS Studio: Save Replay Buffer"
+    enabled: false
+    plugin: "obs"
+    action: "replaySave"
+    config: {}
+  - name: "OBS Studio: Toggle Studio Mode"
+    enabled: false
+    plugin: "obs"
+    action: "toggleStudioMode"
+    config: {"studioMode":true}
+  - name: "OBS Studio: Trigger Studio Mode Transition"
+    enabled: false
+    plugin: "obs"
+    action: "triggerStudioModeTransition"
+    config: {}
+  - name: "OBS Studio: Mute Source"
+    enabled: false
+    plugin: "obs"
+    action: "mute"
+    config: {"source":"","muted":true}
+  - name: "OBS Studio: Change Volume"
+    enabled: false
+    plugin: "obs"
+    action: "changeVolume"
+    config: {"source":"","volume":100}
+  - name: "OBS Studio: Source Visibility"
+    enabled: false
+    plugin: "obs"
+    action: "source"
+    config: {"scene":"","source":0,"enabled":true}
+  - name: "OBS Studio: Get Input Settings"
+    enabled: false
+    plugin: "obs"
+    action: "getInputSettings"
+    config: {"sourceName":""}
+  - name: "OBS Studio: Set Input Settings"
+    enabled: false
+    plugin: "obs"
+    action: "setInputSettings"
+    config: {"sourceName":"","inputSettings":{}}
+  - name: "OBS Studio: Filter Visibility"
+    enabled: false
+    plugin: "obs"
+    action: "filter"
+    config: {"sourceName":"","filterName":"","filterEnabled":true}
+  - name: "OBS Studio: Set Source Text"
+    enabled: false
+    plugin: "obs"
+    action: "text"
+    config: {"sourceName":"","text":""}
+  - name: "OBS Studio: Media Controls"
+    enabled: false
+    plugin: "obs"
+    action: "mediaAction"
+    config: {"source":"","action":"Play"}
+  - name: "OBS Studio: Play Media"
+    enabled: false
+    plugin: "obs"
+    action: "playMedia"
+    config: {"scene":"","source":0}
+  - name: "OBS Studio: Chapter Marker"
+    enabled: false
+    plugin: "obs"
+    action: "chapterMarker"
+    config: {}
+  - name: "OBS Studio: Set Browser Source URL"
+    enabled: false
+    plugin: "obs"
+    action: "browserUrl"
+    config: {"source":"","url":""}
+  - name: "OBS Studio: Refresh Browser Source"
+    enabled: false
+    plugin: "obs"
+    action: "browserRefresh"
+    config: {"source":""}
+  - name: "OBS Studio: Refresh Browser"
+    enabled: false
+    plugin: "obs"
+    action: "refreshBrowser"
+    config: {"sourceName":""}
+  - name: "OBS Studio: Set Browser URL"
+    enabled: false
+    plugin: "obs"
+    action: "setBrowserURL"
+    config: {"sourceName":"","url":""}
+  - name: "OBS Studio: Set Image Source"
+    enabled: false
+    plugin: "obs"
+    action: "setImage"
+    config: {"sourceName":"","image":""}
+  - name: "OBS Studio: Screenshot Source"
+    enabled: false
+    plugin: "obs"
+    action: "screenshot"
+    config: {"directory":"","filename":"screenshot.png"}
+  - name: "OBS Studio: Source Transform"
+    enabled: false
+    plugin: "obs"
+    action: "transform"
+    config: {"scene":"","source":0,"transform":{}}
+  - name: "Aitum: Change Vertical Scene"
+    enabled: false
+    plugin: "aitum"
+    action: "verticalScene"
+    config: {"scene":""}
+  - name: "Aitum: Vertical Stream Start/Stop"
+    enabled: false
+    plugin: "aitum"
+    action: "verticalStreamStartStop"
+    config: {"streaming":"true"}
+  - name: "Aitum: Vertical Recording Start/Stop"
+    enabled: false
+    plugin: "aitum"
+    action: "verticalRecordingStartStop"
+    config: {"streaming":"true"}
+  - name: "Aitum: Vertical Backtrack Start/Stop"
+    enabled: false
+    plugin: "aitum"
+    action: "verticalBacktrackStartStop"
+    config: {"streaming":"true"}
+  - name: "Aitum: Save Backtrack"
+    enabled: false
+    plugin: "aitum"
+    action: "saveBacktrack"
+    config: {}
+  - name: "Aitum: Vertical Chapter Marker"
+    enabled: false
+    plugin: "aitum"
+    action: "verticalChapterMarker"
+    config: {}
+  - name: "Advanced Scene Switcher: Advanced Scene Switcher Message"
+    enabled: false
+    plugin: "advss"
+    action: "AdvSSMessage"
+    config: {"message":""}
+  - name: "YouTube: Send Chat Message"
+    enabled: false
+    plugin: "youtube"
+    action: "sendChatMessage"
+    config: {"message":""}
+  - name: "YouTube: Delete Chat Message"
+    enabled: false
+    plugin: "youtube"
+    action: "deleteMessage"
+    config: {"messageId":""}
+  - name: "YouTube: Ban User from Chat"
+    enabled: false
+    plugin: "youtube"
+    action: "banUser"
+    config: {"channelId":"","banDurationSeconds":0}
+  - name: "YouTube: Unban User from Chat"
+    enabled: false
+    plugin: "youtube"
+    action: "removeBan"
+    config: {"banId":""}
+  - name: "Twitch: Create Clip"
+    enabled: false
+    plugin: "twitch"
+    action: "createClip"
+    config: {"createAfterDelay":true}
+  - name: "Twitch: Place Stream Marker"
+    enabled: false
+    plugin: "twitch"
+    action: "streamMarker"
+    config: {"markerName":""}
+  - name: "Twitch: Run Ad"
+    enabled: false
+    plugin: "twitch"
+    action: "runAd"
+    config: {"duration":30}
+  - name: "Twitch: Snooze Ads"
+    enabled: false
+    plugin: "twitch"
+    action: "snoozeAds"
+    config: {}
+  - name: "Twitch: Create Prediction"
+    enabled: false
+    plugin: "twitch"
+    action: "createPrediction"
+    config: {"title":"","duration":30,"outcomes":[]}
+  - name: "Twitch: Chat Message"
+    enabled: false
+    plugin: "twitch"
+    action: "chat"
+    config: {"message":""}
+  - name: "Twitch: Make Announcement"
+    enabled: false
+    plugin: "twitch"
+    action: "annoucement"
+    config: {"message":"","color":"primary"}
+  - name: "Twitch: Make Announcement"
+    enabled: false
+    plugin: "twitch"
+    action: "announcement"
+    config: {"message":"","color":"primary"}
+  - name: "Twitch: Shoutout"
+    enabled: false
+    plugin: "twitch"
+    action: "shoutout"
+    config: {"streamer":""}
+  - name: "Twitch: Update Stream Info"
+    enabled: false
+    plugin: "twitch"
+    action: "setStreamInfo"
+    config: {"tags":[]}
+  - name: "Twitch: Create Poll"
+    enabled: false
+    plugin: "twitch"
+    action: "createPoll"
+    config: {"title":"","duration":30,"choices":[]}
+  - name: "Twitch: Start Raid"
+    enabled: false
+    plugin: "twitch"
+    action: "startRaid"
+    config: {"target":""}
+  - name: "Twitch: Cancel Raid"
+    enabled: false
+    plugin: "twitch"
+    action: "cancelRaid"
+    config: {}
+  - name: "Twitch: List Channel Point Rewards"
+    enabled: false
+    plugin: "twitch"
+    action: "listChannelPointRewards"
+    config: {}
+  - name: "Twitch: Create Channel Point Reward"
+    enabled: false
+    plugin: "twitch"
+    action: "createChannelPointReward"
+    config: {"title":"","backgroundColor":"#9147ff","cost":1,"isEnabled":true}
+  - name: "Twitch: Update Channel Point Reward"
+    enabled: false
+    plugin: "twitch"
+    action: "updateChannelPointReward"
+    config: {"rewardId":"","title":"","backgroundColor":"#9147ff","cost":1,"isEnabled":true}
+  - name: "Twitch: Delete Channel Point Reward"
+    enabled: false
+    plugin: "twitch"
+    action: "deleteChannelPointReward"
+    config: {"rewardId":""}
+  - name: "Twitch: Update Channel Point Redemption"
+    enabled: false
+    plugin: "twitch"
+    action: "updateChannelPointRedemption"
+    config: {"rewardId":"","redemptionId":"","status":"FULFILLED"}
+  - name: "Twitch: Timeout Viewer"
+    enabled: false
+    plugin: "twitch"
+    action: "timeout"
+    config: {"viewerId":"","duration":600}
+  - name: "Twitch: Ban Viewer"
+    enabled: false
+    plugin: "twitch"
+    action: "ban"
+    config: {"viewerId":""}
+  - name: "Twitch: Unban Viewer"
+    enabled: false
+    plugin: "twitch"
+    action: "unban"
+    config: {"viewerId":""}
+  - name: "Twitch: Add Viewer to Group"
+    enabled: false
+    plugin: "twitch"
+    action: "addViewerToGroup"
+    config: {"group":"","viewer":""}
+  - name: "Twitch: Remove Viewer from Group"
+    enabled: false
+    plugin: "twitch"
+    action: "removeViewerFromGroup"
+    config: {"group":"","viewer":""}
+  - name: "Twitch: Clear Viewer Group"
+    enabled: false
+    plugin: "twitch"
+    action: "clearViewerGroup"
+    config: {"group":""}
+  - name: "Moderation Docker: Filter Chat Message"
+    enabled: false
+    plugin: "moderation"
+    action: "moderateChatMessage"
+    config: {"platform":"twitch","message":""}
+  - name: "Moderation Docker: Send Test Moderation Event"
+    enabled: false
+    plugin: "moderation"
+    action: "sendTestMessage"
+    config: {}
+  - name: "Moderation Docker: Request Moderation Override"
+    enabled: false
+    plugin: "moderation"
+    action: "requestOverride"
+    config: {"messageId":"","action":"approve"}
+  - name: "Discord: Discord Message"
+    enabled: false
+    plugin: "discord"
+    action: "discordMessage"
+    config: {"webhook":"","message":"","files":[]}
+  - name: "BlueSky: BlueSky Post"
+    enabled: false
+    plugin: "bluesky"
+    action: "post"
+    config: {"text":""}
+  - name: "Voicemod: List Voices"
+    enabled: false
+    plugin: "voicemod"
+    action: "getVoices"
+    config: {}
+  - name: "Voicemod: Change Voice"
+    enabled: false
+    plugin: "voicemod"
+    action: "selectVoice"
+    config: {"voice":"nofx"}
+  - name: "Sound & TTS: Play Sound"
+    enabled: false
+    plugin: "sound"
+    action: "sound"
+    config: {"sound":"","volume":100,"startTime":0}
+  - name: "Sound & TTS: Speak Text-to-Speech"
+    enabled: false
+    plugin: "sound"
+    action: "speakTTS"
+    config: {"text":"","voice":"","volume":100,"pitch":0,"rate":0}
+  - name: "Sound & TTS: Text to Speech"
+    enabled: false
+    plugin: "sound"
+    action: "tts"
+    config: {"text":"","voice":"","volume":100,"pitch":0,"rate":0}
+  - name: "Minecraft: Minecraft RCON Command"
+    enabled: false
+    plugin: "minecraft"
+    action: "mineCmd"
+    config: {"server":"","command":""}
+  - name: "HTTP: HTTP Request"
+    enabled: false
+    plugin: "http"
+    action: "request"
+    config: {"url":"","method":"GET","contentType":"application/json"}
+  - name: "Time: Delay"
+    enabled: false
+    plugin: "time"
+    action: "delay"
+    config: {"duration":1}
+  - name: "Time: Toggle Timer"
+    enabled: false
+    plugin: "time"
+    action: "toggleTimer"
+    config: {"timer":"","on":true}
+  - name: "Time: Set Timer"
+    enabled: false
+    plugin: "time"
+    action: "setTimer"
+    config: {"timer":"","duration":5}
+  - name: "Time: Offset Timer"
+    enabled: false
+    plugin: "time"
+    action: "offsetTimer"
+    config: {"timer":"","duration":5}
+  - name: "Operating System: PowerShell Command"
+    enabled: false
+    plugin: "os"
+    action: "powershell"
+    config: {"command":""}
+  - name: "Operating System: Launch Process"
+    enabled: false
+    plugin: "os"
+    action: "launchProcess"
+    config: {"application":"","args":[],"ignoreIfRunning":true}
+  - name: "Operating System: Launch App"
+    enabled: false
+    plugin: "os"
+    action: "launch"
+    config: {"application":"","args":[],"ignoreIfRunning":true}
+  - name: "Random: Random Decision"
+    enabled: false
+    plugin: "random"
+    action: "random"
+    config: {"min":0,"max":100}
+  - name: "Random: Spin Wheel"
+    enabled: false
+    plugin: "random"
+    action: "spinWheel"
+    config: {"wheel":{"widgetId":"","overlayId":""},"strength":1}
+  - name: "Variables: Set Variable"
+    enabled: false
+    plugin: "variables"
+    action: "set"
+    config: {"variable":""}
+  - name: "Variables: Offset Variable"
+    enabled: false
+    plugin: "variables"
+    action: "offset"
+    config: {"variable":"","offset":0,"clamp":{}}
+  - name: "Variables: Set Variable"
+    enabled: false
+    plugin: "variables"
+    action: "setVariable"
+    config: {"variable":""}
+  - name: "Variables: Get Variable"
+    enabled: false
+    plugin: "variables"
+    action: "getVariable"
+    config: {"variable":""}
+  - name: "Variables: Set Viewer Variable"
+    enabled: false
+    plugin: "variables"
+    action: "setViewerVar"
+    config: {"viewer":{"id":""},"variable":""}
+  - name: "Variables: Offset Viewer Variable"
+    enabled: false
+    plugin: "variables"
+    action: "offsetViewerVar"
+    config: {"viewer":{"id":""},"variable":"","offset":0}
+  - name: "Overlays: Trigger Overlay Widget"
+    enabled: false
+    plugin: "overlays"
+    action: "triggerWidget"
+    config: {"widgetId":"","payload":{}}
+  - name: "Overlays: Show Alert"
+    enabled: false
+    plugin: "overlays"
+    action: "alert"
+    config: {"alert":{"widgetId":"","overlayId":""},"title":"","subtitle":""}
+  - name: "Overlays: Push Chat Message"
+    enabled: false
+    plugin: "overlays"
+    action: "pushChatMessage"
+    config: {"targetWidget":{},"messageId":"","platform":"twitch","viewerName":"","message":"","badges":""}
+  - name: "Overlays: Push Paid Alert"
+    enabled: false
+    plugin: "overlays"
+    action: "pushPaidAlert"
+    config: {"targetWidget":{},"eventId":"","platform":"youtube","viewerName":"","amount":"","currency":"USD","title":"New Support","message":""}
+  - name: "Overlays: Begin Scene Overlay"
+    enabled: false
+    plugin: "overlays"
+    action: "beginSceneOverlay"
+    config: {"targetWidget":{},"sceneKey":"main","title":"Starting Soon","subtitle":"","accentColor":"#9146ff"}
+  - name: "Overlays: End Scene Overlay"
+    enabled: false
+    plugin: "overlays"
+    action: "endSceneOverlay"
+    config: {"targetWidget":{},"sceneKey":"main"}
+  - name: "Overlays: Bounce Emotes"
+    enabled: false
+    plugin: "overlays"
+    action: "spawnEmotes"
+    config: {"bouncer":{"widgetId":""},"message":""}
+  - name: "Overlays: Widget Visibility"
+    enabled: false
+    plugin: "overlays"
+    action: "widgetVisibility"
+    config: {"widget":{"widgetId":"","overlayId":""},"enabled":"true"}
+  - name: "Spellcast: Cast Spell"
+    enabled: false
+    plugin: "spellcast"
+    action: "castSpell"
+    config: ""
+  - name: "IoT & Smart Home: Set Light Color"
+    enabled: false
+    plugin: "iot"
+    action: "setLightColor"
+    config: {"lightId":""}
+  - name: "IoT & Smart Home: Toggle Light"
+    enabled: false
+    plugin: "iot"
+    action: "toggleLight"
+    config: {"lightId":"","state":"toggle"}
+  - name: "IoT & Smart Home: Change Light"
+    enabled: false
+    plugin: "iot"
+    action: "light"
+    config: {"light":"","on":"true","transition":0.5}
+  - name: "IoT & Smart Home: Switch Plug"
+    enabled: false
+    plugin: "iot"
+    action: "plug"
+    config: {"plug":"","switch":"true"}
+  - name: "Govee: List Devices"
+    enabled: false
+    plugin: "govee"
+    action: "listDevices"
+    config: {}
+  - name: "Govee: Get Device State"
+    enabled: false
+    plugin: "govee"
+    action: "getDeviceState"
+    config: {"device":"","model":""}
+  - name: "Govee: Set Power"
+    enabled: false
+    plugin: "govee"
+    action: "setPower"
+    config: {"device":"","model":"","state":"on"}
+  - name: "Govee: Set Color"
+    enabled: false
+    plugin: "govee"
+    action: "setColor"
+    config: {"device":"","model":""}
+  - name: "Govee: Set Brightness"
+    enabled: false
+    plugin: "govee"
+    action: "setBrightness"
+    config: {"device":"","model":"","brightness":100}
+  - name: "Philips Hue: List Lights"
+    enabled: false
+    plugin: "philips-hue"
+    action: "listLights"
+    config: {}
+  - name: "Philips Hue: List Light Groups"
+    enabled: false
+    plugin: "philips-hue"
+    action: "listGroups"
+    config: {}
+  - name: "Philips Hue: List Scenes"
+    enabled: false
+    plugin: "philips-hue"
+    action: "listScenes"
+    config: {}
+  - name: "Philips Hue: Set Light State"
+    enabled: false
+    plugin: "philips-hue"
+    action: "setLightState"
+    config: {"lightId":"","resourceType":"light","state":"on","transition":0.5}
+  - name: "Philips Hue: Set Plug State"
+    enabled: false
+    plugin: "philips-hue"
+    action: "setPlugState"
+    config: {"lightId":"","state":"on"}
+  - name: "Philips Hue: Recall Hue Scene"
+    enabled: false
+    plugin: "philips-hue"
+    action: "recallScene"
+    config: {}
+  - name: "Philips Hue: Set HUE Scene"
+    enabled: false
+    plugin: "philips-hue"
+    action: "scene"
+    config: {}
+  - name: "Twinkly: Get Device Info"
+    enabled: false
+    plugin: "twinkly"
+    action: "getInfo"
+    config: {"ip":""}
+  - name: "Twinkly: Get LED Mode"
+    enabled: false
+    plugin: "twinkly"
+    action: "getMode"
+    config: {"ip":""}
+  - name: "Twinkly: Get LED Color"
+    enabled: false
+    plugin: "twinkly"
+    action: "getColor"
+    config: {"ip":""}
+  - name: "Twinkly: Set LED Color"
+    enabled: false
+    plugin: "twinkly"
+    action: "setColor"
+    config: {"ip":""}
+  - name: "Twinkly: Turn LEDs Off"
+    enabled: false
+    plugin: "twinkly"
+    action: "turnOff"
+    config: {"ip":""}
+  - name: "Twinkly: List Movies"
+    enabled: false
+    plugin: "twinkly"
+    action: "listMovies"
+    config: {"ip":""}
+  - name: "Twinkly: Set Movie"
+    enabled: false
+    plugin: "twinkly"
+    action: "setMovie"
+    config: {"ip":"","movieId":""}
+  - name: "Twinkly: Twinkly Movie"
+    enabled: false
+    plugin: "twinkly"
+    action: "movie"
+    config: {"ip":"","movieId":""}
+  - name: "Elgato: Get Accessory Info"
+    enabled: false
+    plugin: "elgato"
+    action: "getInfo"
+    config: {}
+  - name: "Elgato: Get Light State"
+    enabled: false
+    plugin: "elgato"
+    action: "getLights"
+    config: {}
+  - name: "Elgato: Set Light State"
+    enabled: false
+    plugin: "elgato"
+    action: "setLightState"
+    config: {"state":"on","port":9123,"numberOfLights":1}
+  - name: "TP-Link Kasa: Get Device Info"
+    enabled: false
+    plugin: "tplink-kasa"
+    action: "getDeviceInfo"
+    config: {}
+  - name: "TP-Link Kasa: Get Light State"
+    enabled: false
+    plugin: "tplink-kasa"
+    action: "getLightState"
+    config: {}
+  - name: "TP-Link Kasa: Set Light State"
+    enabled: false
+    plugin: "tplink-kasa"
+    action: "setLightState"
+    config: {"state":"on","port":9999,"transition":0.5}
+  - name: "TP-Link Kasa: Set Plug State"
+    enabled: false
+    plugin: "tplink-kasa"
+    action: "setPlugState"
+    config: {"state":"on","port":9999}
+  - name: "LIFX: Get Light State"
+    enabled: false
+    plugin: "lifx"
+    action: "getState"
+    config: {}
+  - name: "LIFX: Set Power"
+    enabled: false
+    plugin: "lifx"
+    action: "setPower"
+    config: {"state":"on","port":56700,"transition":0.5}
+  - name: "LIFX: Set Color"
+    enabled: false
+    plugin: "lifx"
+    action: "setColor"
+    config: {"state":"on","port":56700,"transition":0.5}
+  - name: "LIFX: Set Light State"
+    enabled: false
+    plugin: "lifx"
+    action: "setLightState"
+    config: {"state":"on","port":56700,"transition":0.5}
+  - name: "Wyze: Login"
+    enabled: false
+    plugin: "wyze"
+    action: "login"
+    config: {"email":"","password":""}
+  - name: "Wyze: List Devices"
+    enabled: false
+    plugin: "wyze"
+    action: "listDevices"
+    config: {}
+  - name: "Wyze: Get Device State"
+    enabled: false
+    plugin: "wyze"
+    action: "getDeviceState"
+    config: {"device":"","model":""}
+  - name: "Wyze: Set Light State"
+    enabled: false
+    plugin: "wyze"
+    action: "setLightState"
+    config: {"device":"","model":"","state":"on"}
+  - name: "Wyze: Set Plug State"
+    enabled: false
+    plugin: "wyze"
+    action: "setPlugState"
+    config: {"device":"","model":"","state":"on"}
+  - name: "Input: Simulate Keyboard"
+    enabled: false
+    plugin: "input"
+    action: "pressKey"
+    config: {"duration":0.1}
+  - name: "Input: Simulate Mouse"
+    enabled: false
+    plugin: "input"
+    action: "mouseButton"
+    config: {"button":"left","duration":0.1}
+  - name: "Stream Plans: Next Segment"
+    enabled: false
+    plugin: "stream-plans"
+    action: "nextSegment"
+    config: {}
+  - name: "Stream Plans: Previous Segment"
+    enabled: false
+    plugin: "stream-plans"
+    action: "prevSegment"
+    config: {}
