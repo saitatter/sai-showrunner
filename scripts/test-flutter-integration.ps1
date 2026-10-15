@@ -16,6 +16,9 @@ try {
     'integration_test/resources/resource_workspace_lifecycle_test.dart',
     'integration_test/schema/strict_schema_restart_test.dart',
     'integration_test/visual/app_surface_test.dart',
+    'integration_test/visual/overlay_popup_rendering_test.dart',
+    'integration_test/visual/overlay_alignment_test.dart',
+    'integration_test/visual/editor_workflows_test.dart',
     'integration_test/visual/workspace_catalog_test.dart'
   )
   foreach ($test in $tests) {

@@ -145,7 +145,7 @@ void main() {
     );
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await _pumpApplication(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save').last);
     await _pumpApplication(tester);
     final savedPlan = await ResourceRepository(
       Directory('${directory.path}/stream-plans'),
@@ -156,6 +156,42 @@ void main() {
     await _openCatalogResource(tester, 'Overlays', 'Parity Overlay');
     expect(find.text('Stream Title'), findsAtLeastNWidgets(1));
     await _capture(tester, 'overlay-editor.png');
+    await tester.tap(find.text('Stream Title').last);
+    await tester.pump(const Duration(milliseconds: 350));
+    await _pumpApplication(tester);
+    await _capture(tester, 'overlay-inspector-label.png');
+    await tester.tap(find.byKey(const ValueKey('overlay-font-style-font')));
+    await _pumpApplication(tester);
+    await _capture(tester, 'overlay-inspector-font.png');
+    await tester.tap(find.byKey(const ValueKey('overlay-font-editor-close')));
+    await _pumpApplication(tester);
+    final text = find.byWidgetPredicate(
+      (widget) => widget is TextField && widget.decoration?.labelText == 'Text',
+    );
+    await tester.enterText(text, 'Updated overlay label');
+    await _pumpApplication(tester);
+    await tester.tap(
+      find.ancestor(
+        of: find.byTooltip('Close Parity Overlay tab'),
+        matching: find.byType(IconButton),
+      ),
+    );
+    await _pumpApplication(tester);
+    expect(
+      find.text('Save changes to Parity Overlay before closing?'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save').last);
+    await _pumpApplication(tester);
+    final savedOverlay = await ResourceRepository(
+      Directory('${directory.path}/overlays'),
+      resourceType: 'Overlay',
+    ).load('parity-overlay');
+    expect(
+      ((savedOverlay!.config['widgets'] as List).first['config']
+          as Map)['message'],
+      'Updated overlay label',
+    );
   });
 }
 
