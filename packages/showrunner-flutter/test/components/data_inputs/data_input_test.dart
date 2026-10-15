@@ -1,11 +1,85 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
+import 'package:showrunner_flutter/components/data_inputs/overlay_style_inputs.dart';
 import 'package:showrunner_flutter/design_system/brand_icons.dart';
 import 'package:showrunner_flutter/plugins/overlays/generated_widget_catalog.dart';
 import 'package:showrunner_flutter/schema/identifiers.dart';
 
 void main() {
+  testWidgets('shadow picker survives repeated popup dismissal and resizing', (
+    tester,
+  ) async {
+    final label = (await GeneratedOverlayWidgetCatalog.find(
+      'overlays',
+      'label',
+    ))!;
+    final schema = label.configSchema.fields.firstWhere(
+      (field) => field.key == 'font',
+    );
+    dynamic value = (label.defaultConfig() as Map)['font'];
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, update) => Align(
+              alignment: Alignment.bottomRight,
+              child: SizedBox(
+                width: 340,
+                child: OverlayStyleInput(
+                  schema: schema,
+                  value: value,
+                  onChanged: (next) => update(() => value = next),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    for (var iteration = 0; iteration < 12; iteration++) {
+      await tester.tap(find.byKey(const ValueKey('overlay-font-style-font')));
+      await tester.pumpAndSettle();
+      tester.view.physicalSize = iteration.isEven
+          ? const Size(800, 600)
+          : const Size(1000, 800);
+      await tester.pumpAndSettle();
+      final editor = find.byKey(const ValueKey('overlay-font-editor-font'));
+      final bounds = tester.getRect(editor);
+      expect(bounds.left, greaterThanOrEqualTo(0));
+      expect(bounds.top, greaterThanOrEqualTo(0));
+      expect(bounds.right, lessThanOrEqualTo(tester.view.physicalSize.width));
+      expect(bounds.bottom, lessThanOrEqualTo(tester.view.physicalSize.height));
+      if (find.text('Add Shadow').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Add Shadow'));
+        await tester.pumpAndSettle();
+      }
+      final color = find.byWidgetPredicate(
+        (widget) =>
+            widget is InputDecorator &&
+            widget.decoration.labelText == 'Shadow Color',
+      );
+      await tester.ensureVisible(color);
+      await tester.tap(color);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('color-picker-popover')),
+        findsOneWidget,
+      );
+      final selected = iteration.isEven ? '#ef4444' : '#ffffff';
+      await tester.tap(find.byTooltip(selected));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('color-picker-popover')), findsNothing);
+      expect((value as Map)['shadow']['color'], selected);
+      await tester.tap(find.byKey(const ValueKey('overlay-font-editor-close')));
+      await tester.pumpAndSettle();
+      expect(editor, findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+  });
   testWidgets('parses scalar data input values', (tester) async {
     dynamic value;
     await tester.pumpWidget(
@@ -222,10 +296,13 @@ void main() {
     expect(find.text('Font Family'), findsNothing);
     await tester.tap(fontControl);
     await tester.pumpAndSettle();
-    expect(find.text('Font Family'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('overlay-font-family-dropdown')),
+      findsOneWidget,
+    );
     expect(find.text('Size'), findsOneWidget);
     expect(find.text('Font Color'), findsOneWidget);
-    expect(find.text('Stroke'), findsOneWidget);
+    expect(find.text('Stroke:'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('overlay-font-editor-close')));
     await tester.pumpAndSettle();
     expect(find.text('Text Align'), findsOneWidget);

@@ -13,6 +13,7 @@ import '../../plugins/input/ui/key_combo_input.dart';
 import '../../plugins/input/ui/keyboard_key_input.dart';
 import '../../plugins/obs/ui/obs_transform_input.dart';
 import 'overlay_style_inputs.dart';
+import 'numeric_input_formatter.dart';
 
 class DartDataInput extends StatefulWidget {
   const DartDataInput({
@@ -179,6 +180,7 @@ class _DartDataInputState extends State<DartDataInput> {
       _ => TextField(
         controller: _controller,
         obscureText: widget.schema.secret,
+        minLines: 1,
         maxLines:
             widget.schema.multiline ||
                 widget.schema.kind == DartDataInputKind.multilineText ||
@@ -188,6 +190,9 @@ class _DartDataInputState extends State<DartDataInput> {
         keyboardType: widget.schema.kind == DartDataInputKind.number
             ? TextInputType.number
             : TextInputType.text,
+        inputFormatters: widget.schema.kind == DartDataInputKind.number
+            ? const [NumericInputFormatter()]
+            : null,
         decoration: InputDecoration(
           labelText: widget.schema.label,
           suffixIcon: widget.schema.kind == DartDataInputKind.filePath
@@ -435,6 +440,7 @@ class _TemplateDataInputState extends State<_TemplateDataInput> {
   @override
   Widget build(BuildContext context) => TextField(
     controller: _controller,
+    minLines: 1,
     maxLines:
         widget.schema.multiline ||
             widget.schema.kind == DartDataInputKind.multilineText

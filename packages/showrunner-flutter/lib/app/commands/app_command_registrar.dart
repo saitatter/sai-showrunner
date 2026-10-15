@@ -24,6 +24,7 @@ final class AppCommandRegistrar {
     required this.onNewAutomationFromStarter,
     required this.onNewProfile,
     required this.onSave,
+    this.canSaveDocument,
     required this.onSaveAll,
     required this.onOpenDestination,
     required this.onCloseWorkspace,
@@ -46,6 +47,7 @@ final class AppCommandRegistrar {
   final WorkspaceId Function() selectedWorkspace;
   final bool graphEditorVisible;
   final bool Function() hasActiveAutomation;
+  final bool Function()? canSaveDocument;
   final bool Function() hasDirtyAutomation;
   final bool Function() canCloseWorkspace;
   final bool Function() canCloseOthers;
@@ -102,7 +104,7 @@ final class AppCommandRegistrar {
       additionalShortcuts: const [
         SingleActivator(LogicalKeyboardKey.keyS, meta: true),
       ],
-      canExecute: (_) => hasActiveAutomation(),
+      canExecute: (_) => canSaveDocument?.call() ?? hasActiveAutomation(),
       execute: (_) => onSave(),
     ),
     AppCommand(

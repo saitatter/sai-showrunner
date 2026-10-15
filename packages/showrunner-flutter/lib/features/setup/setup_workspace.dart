@@ -1,3 +1,4 @@
+import '../../components/data_inputs/numeric_input_formatter.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -366,6 +367,9 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
               const SizedBox(height: 12),
               TextField(
                 controller: _portController,
+                inputFormatters: const [
+                  NumericInputFormatter(decimal: false, signed: false),
+                ],
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Server port',

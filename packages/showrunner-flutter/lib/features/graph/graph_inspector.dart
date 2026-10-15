@@ -333,6 +333,9 @@ class _InspectorConfigurationEditorState
             keyboardType: type == 'number'
                 ? TextInputType.number
                 : TextInputType.text,
+            inputFormatters: type == 'number'
+                ? const [NumericInputFormatter()]
+                : null,
             decoration: const InputDecoration(labelText: 'Value'),
             onChanged: (value) => widget.editor.updateVariableNodeValue(
               widget.node.id,
@@ -629,6 +632,9 @@ class _InspectorControlConfigurationEditorState
   }) => TextField(
     controller: controller,
     keyboardType: keyboardType,
+    inputFormatters: keyboardType?.index == TextInputType.number.index
+        ? const [NumericInputFormatter()]
+        : null,
     decoration: InputDecoration(labelText: label, hintText: hint),
     onChanged: (_) => _update(),
   );

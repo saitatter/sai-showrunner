@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:sai_nodes/sai_nodes.dart';
 import 'package:flutter/material.dart';
+import '../../components/data_inputs/numeric_input_formatter.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
 

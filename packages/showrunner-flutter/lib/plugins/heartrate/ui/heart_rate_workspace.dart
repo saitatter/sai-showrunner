@@ -1,3 +1,4 @@
+import '../../../components/data_inputs/numeric_input_formatter.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -478,6 +479,7 @@ class _ZonesEditorState extends State<_ZonesEditor> {
                 width: 90,
                 child: TextField(
                   controller: _drafts[index].min,
+                  inputFormatters: const [NumericInputFormatter()],
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Min'),
                 ),
@@ -487,6 +489,7 @@ class _ZonesEditorState extends State<_ZonesEditor> {
                 width: 90,
                 child: TextField(
                   controller: _drafts[index].max,
+                  inputFormatters: const [NumericInputFormatter()],
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Max'),
                 ),

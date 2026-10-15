@@ -72,15 +72,21 @@ final class ResourceSection extends StatelessWidget {
                 for (final entry in entries)
                   _ProjectItemRow(
                     title: entry.title,
-                    icon: item.icon,
+                    icon: entry.error == null ? item.icon : Icons.warning_amber,
                     selected:
                         selectedResourceType == entry.resourceType &&
                         selectedResourceId == entry.resource.id,
                     indent: 1,
                     compact: compact,
-                    onRename: _rename(entry),
+                    onRename: entry.error == null ? _rename(entry) : null,
                     onDelete: _delete(entry),
-                    onTap: _open(entry),
+                    onTap: entry.error == null
+                        ? _open(entry)
+                        : () => showShowRunnerFeedback(
+                            context,
+                            'Could not read ${entry.resource.id}: ${entry.error}',
+                            severity: ShowRunnerFeedbackSeverity.error,
+                          ),
                   ),
               ],
             ),

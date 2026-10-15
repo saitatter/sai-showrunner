@@ -3,17 +3,28 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <set>
 #include <vector>
 
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "utils.h"
 
 namespace {
 
 constexpr char kInputMethodChannel[] = "showrunner/input";
 constexpr char kInputEventChannel[] = "showrunner/input/events";
 constexpr wchar_t kInputWindowClassName[] = L"SHOWRUNNER_INPUT_EVENT_WINDOW";
+
+int CALLBACK CollectFontFamily(const LOGFONTW* font, const TEXTMETRICW*,
+                              DWORD, LPARAM families) {
+  if (font->lfFaceName[0] != L'@') {
+    reinterpret_cast<std::set<std::string>*>(families)->insert(
+        Utf8FromUtf16(font->lfFaceName));
+  }
+  return 1;
+}
 
 std::optional<int> ReadIntegerArgument(
     const flutter::EncodableValue* arguments, const char* name) {
@@ -178,6 +189,23 @@ void FlutterWindow::SetupInputChannels() {
 void FlutterWindow::HandleInputMethod(
     const flutter::MethodCall<flutter::EncodableValue>& call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+  if (call.method_name() == "listFontFamilies") {
+    const HDC context = GetDC(nullptr);
+    if (!context) {
+      result->Error("fonts_unavailable", "Unable to enumerate system fonts.");
+      return;
+    }
+    LOGFONTW filter{};
+    filter.lfCharSet = DEFAULT_CHARSET;
+    std::set<std::string> families;
+    EnumFontFamiliesExW(context, &filter, CollectFontFamily,
+                        reinterpret_cast<LPARAM>(&families), 0);
+    ReleaseDC(nullptr, context);
+    flutter::EncodableList names;
+    for (const auto& family : families) names.emplace_back(family);
+    result->Success(flutter::EncodableValue(names));
+    return;
+  }
   if (call.method_name() == "simulateKeyDown" ||
       call.method_name() == "simulateKeyUp") {
     const auto virtual_key_code =

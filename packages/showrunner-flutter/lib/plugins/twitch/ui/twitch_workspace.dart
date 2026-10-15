@@ -1,3 +1,4 @@
+import '../../../components/data_inputs/numeric_input_formatter.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -1142,11 +1143,17 @@ final class _ChannelPointRewardDialogState
             ),
             TextField(
               controller: _cost,
+              inputFormatters: const [
+                NumericInputFormatter(decimal: false, signed: false),
+              ],
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Cost'),
             ),
             TextField(
               controller: _cooldown,
+              inputFormatters: const [
+                NumericInputFormatter(decimal: false, signed: false),
+              ],
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Global cooldown (seconds)',
@@ -1154,6 +1161,9 @@ final class _ChannelPointRewardDialogState
             ),
             TextField(
               controller: _maxPerStream,
+              inputFormatters: const [
+                NumericInputFormatter(decimal: false, signed: false),
+              ],
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Max redemptions per stream',
@@ -1161,6 +1171,9 @@ final class _ChannelPointRewardDialogState
             ),
             TextField(
               controller: _maxPerUser,
+              inputFormatters: const [
+                NumericInputFormatter(decimal: false, signed: false),
+              ],
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Max redemptions per viewer per stream',

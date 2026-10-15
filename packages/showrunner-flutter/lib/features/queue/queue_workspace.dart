@@ -1,3 +1,4 @@
+import '../../components/data_inputs/numeric_input_formatter.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -554,11 +555,13 @@ class _EditQueueDialogState extends State<_EditQueueDialog> {
             onChanged: (value) => setState(() => _paused = value),
           ),
           TextField(
+            inputFormatters: const [NumericInputFormatter()],
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(labelText: 'Gap (seconds)'),
             controller: _gapController,
           ),
           TextField(
+            inputFormatters: const [NumericInputFormatter()],
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(labelText: 'Timeout (seconds)'),
             controller: _timeoutController,

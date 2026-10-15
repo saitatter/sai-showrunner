@@ -1,3 +1,4 @@
+import '../../../components/data_inputs/numeric_input_formatter.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -104,6 +105,7 @@ class _ObsTransformDialogState extends State<_ObsTransformDialog> {
       TextField(
         controller: controller,
         decoration: InputDecoration(labelText: label),
+        inputFormatters: const [NumericInputFormatter()],
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
       );
 
@@ -761,6 +763,7 @@ class _ObsWorkspaceState extends State<ObsWorkspace> {
                 TextField(
                   controller: _portController,
                   decoration: const InputDecoration(labelText: 'Port'),
+                  inputFormatters: const [NumericInputFormatter()],
                   keyboardType: TextInputType.number,
                   enabled: !_settingsSaving,
                 ),

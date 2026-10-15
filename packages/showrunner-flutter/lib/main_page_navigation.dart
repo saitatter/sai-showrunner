@@ -32,11 +32,11 @@ extension _ShowRunnerPageNavigation on _ShowRunnerPageState {
           .where(
             (tab) =>
                 (!WorkspaceIds.isOverlay(tab) ||
-                    _openOverlayResources.containsKey(
+                    _overlayDocuments.resources.containsKey(
                       WorkspaceIds.overlayResourceId(tab),
                     )) &&
                 (!WorkspaceIds.isStreamPlan(tab) ||
-                    _openStreamPlanResources.containsKey(
+                    _streamPlanDocuments.resources.containsKey(
                       WorkspaceIds.streamPlanResourceId(tab),
                     )),
           )
@@ -67,7 +67,7 @@ extension _ShowRunnerPageNavigation on _ShowRunnerPageState {
       final resourceId = WorkspaceIds.overlayResourceId(tab);
       if (resourceId == null) continue;
       final resource = await repository.load(resourceId);
-      if (resource != null) _openOverlayResources[resource.id] = resource;
+      if (resource != null) _overlayDocuments.resources[resource.id] = resource;
     }
   }
 
@@ -88,7 +88,9 @@ extension _ShowRunnerPageNavigation on _ShowRunnerPageState {
         continue;
       }
       final resource = await repository.load(resourceId);
-      if (resource != null) _openStreamPlanResources[resource.id] = resource;
+      if (resource != null) {
+        _streamPlanDocuments.resources[resource.id] = resource;
+      }
     }
   }
 

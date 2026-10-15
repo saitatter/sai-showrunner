@@ -73,7 +73,9 @@ extension _ShowRunnerPageWindow on _ShowRunnerPageState {
       }
       if (!await _confirmAllAutomationClose()) return false;
       if (!await _profileWorkspaceController.confirmClose()) return false;
+      if (!await _confirmAllResourceClose()) return false;
       await saveShowRunnerWindowState(_windowStateFile);
+      await ShowRunnerLogger.instance.flush();
       await windowManager.setPreventClose(false);
       // Re-issue the close through the normal Win32 path after releasing the
       // interception. This lets the runner finish its native shutdown flow.

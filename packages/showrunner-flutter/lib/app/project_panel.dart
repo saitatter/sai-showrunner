@@ -12,6 +12,7 @@ import '../schema/automation.dart';
 import '../schema/resource.dart';
 import '../services/project_catalog_service.dart';
 import 'workspace_registry.dart';
+import 'app_feedback.dart';
 
 part 'project_panel/project_panel_controller.dart';
 part 'project_panel/project_catalog_section.dart';

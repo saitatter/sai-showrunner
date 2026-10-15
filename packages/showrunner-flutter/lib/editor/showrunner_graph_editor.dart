@@ -19,6 +19,7 @@ import 'search/graph_search_controller.dart';
 
 part 'persistence/automation_graph_serializer.dart';
 part 'adapter/automation_graph_adapter.dart';
+part 'adapter/graph_prototype_factory.dart';
 part 'nodes/showrunner_node_presentation.dart';
 part 'subgraphs/subgraph_editor_coordinator.dart';
 part 'clipboard/showrunner_graph_clipboard.dart';

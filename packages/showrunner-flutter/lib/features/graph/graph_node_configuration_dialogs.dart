@@ -79,6 +79,9 @@ class _VariableNodeConfigDialogState extends State<_VariableNodeConfigDialog> {
               keyboardType: widget.type == 'number'
                   ? const TextInputType.numberWithOptions(decimal: true)
                   : TextInputType.text,
+              inputFormatters: widget.type == 'number'
+                  ? const [NumericInputFormatter()]
+                  : null,
               decoration: InputDecoration(
                 labelText: 'Value',
                 hintText: widget.type == 'color' ? '#ffffff' : null,
@@ -419,6 +422,9 @@ class _ControlNodeConfigDialogState extends State<_ControlNodeConfigDialog> {
     controller: controller,
     autofocus: label == 'Condition',
     keyboardType: keyboardType,
+    inputFormatters: keyboardType?.index == TextInputType.number.index
+        ? const [NumericInputFormatter()]
+        : null,
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,

@@ -34,12 +34,20 @@ class GeneratedOverlayWidget {
         : <String, dynamic>{};
   }
 
-  Map<String, dynamic> createWidget({String? widgetId}) => {
+  Map<String, dynamic> createWidget({
+    String? widgetId,
+    int canvasWidth = 1920,
+    int canvasHeight = 1080,
+  }) => {
     'id': widgetId ?? 'widget-${DateTime.now().microsecondsSinceEpoch}',
     'plugin': pluginId,
     'widget': id,
     'name': name,
-    'size': _cloneMap(defaultSize),
+    'size': {
+      ..._cloneMap(defaultSize),
+      if (defaultSize['width'] == 'canvas') 'width': canvasWidth,
+      if (defaultSize['height'] == 'canvas') 'height': canvasHeight,
+    },
     'position': {'x': 0, 'y': 0},
     'config': defaultConfig(),
     'visible': true,

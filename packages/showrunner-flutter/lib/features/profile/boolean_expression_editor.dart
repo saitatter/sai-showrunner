@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../components/data_inputs/numeric_input_formatter.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
 import '../../schema/automation.dart';
@@ -640,6 +641,9 @@ class _LiteralValueEditor extends StatelessWidget {
             keyboardType: kind == 'String'
                 ? TextInputType.text
                 : const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: kind == 'String'
+                ? null
+                : const [NumericInputFormatter()],
             decoration: InputDecoration(
               labelText: kind == 'String' ? 'Value' : 'Value ($kind)',
               isDense: true,

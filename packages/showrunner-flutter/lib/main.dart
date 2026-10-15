@@ -1,5 +1,8 @@
+import 'app/resource_document_manager.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
+import 'services/structured_logger.dart';
 
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
@@ -57,12 +60,36 @@ import 'features/setup/setup_workspace.dart';
 
 part 'main_page_navigation.dart';
 part 'main_page_window.dart';
+part 'app/showrunner_smoke_scenarios.dart';
+part 'app/showrunner_document_commands.dart';
+part 'app/showrunner_project_commands.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   final portable = args.contains('--portable');
   final userDirectory = showRunnerUserDirectory(portable: portable);
+  await ShowRunnerLogger.instance.initialize(
+    Directory('${userDirectory.path}/logs'),
+  );
+  FlutterError.onError = (details) {
+    ShowRunnerLogger.instance.error(
+      'flutter',
+      'Flutter framework error',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    ShowRunnerLogger.instance.error(
+      'application',
+      'Unhandled asynchronous error',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return true;
+  };
   final instanceLock = await SingleInstanceLock.acquire(userDirectory);
   if (instanceLock == null) {
     stderr.writeln(
@@ -180,10 +207,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   int _projectCatalogRevision = 0;
   String? _selectedResourceType;
   String? _selectedResourceId;
-  final _openOverlayResources = <String, ResourceData>{};
-  final _overlayDirty = <String, bool>{};
-  final _openStreamPlanResources = <String, ResourceData>{};
-  final _streamPlanDirty = <String, bool>{};
+  final _overlayDocuments = ResourceDocumentManager();
+  final _streamPlanDocuments = ResourceDocumentManager();
 
   AutomationDocumentSession? get _activeAutomationSession =>
       _automationDocuments.active;
@@ -252,13 +277,25 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       graphEditorVisible: widget.showGraphEditor,
       hasActiveAutomation: () => _activeAutomationFile != null,
       hasDirtyAutomation: () =>
-          _automationDocuments.documents.any((document) => document.dirty),
+          _automationDocuments.documents.any((document) => document.dirty) ||
+          _overlayDocuments.hasUnsavedChanges ||
+          _streamPlanDocuments.hasUnsavedChanges,
       canCloseWorkspace: () => _workspaceDocuments.canClose,
       canCloseOthers: () => _workspaceDocuments.canCloseOthers,
       onNewAutomation: _createAutomation,
       onNewAutomationFromStarter: () => _createAutomation(starterOnly: true),
       onNewProfile: _createProfile,
-      onSave: _saveAutomation,
+      onSave: _saveSelectedDocument,
+      canSaveDocument: () =>
+          _activeAutomationFile != null ||
+          WorkspaceIds.overlayResourceId(
+                _workspaceDocuments.selectedWorkspace,
+              ) !=
+              null ||
+          WorkspaceIds.streamPlanResourceId(
+                _workspaceDocuments.selectedWorkspace,
+              ) !=
+              null,
       onSaveAll: _saveAll,
       onOpenDestination: _openDestination,
       onCloseWorkspace: _closeTab,
@@ -280,6 +317,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _lifecycle = AppLifecycleCoordinator(
       shutdownTasks: [
         _services.shutdown,
+        ShowRunnerLogger.instance.flush,
         () async => widget.instanceLock?.release(),
       ],
     );
@@ -388,12 +426,14 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       selectedResourceId: _selectedResourceId,
       onResourceSelected: _openResourceType,
       onOpenResource: _openResource,
-      overlayResources: _openOverlayResources,
-      overlayDirty: _overlayDirty,
+      overlayResources: _overlayDocuments.resources,
+      overlayDirty: _overlayDocuments.dirty,
       onSaveOverlay: _saveOverlayResource,
       onOverlayDirtyChanged: _setOverlayDirty,
-      streamPlanResources: _openStreamPlanResources,
-      streamPlanDirty: _streamPlanDirty,
+      onOverlayDocumentChanged: (resource, dirty) =>
+          _overlayDocuments.update(resource, isDirty: dirty),
+      streamPlanResources: _streamPlanDocuments.resources,
+      streamPlanDirty: _streamPlanDocuments.dirty,
       onSaveStreamPlan: _saveStreamPlanResource,
       onStreamPlanDocumentChanged: _syncStreamPlanDocument,
       onProfileEntriesChanged: _onProjectCatalogChanged,
@@ -466,8 +506,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     if (resourceType == 'Overlay') {
       final workspace = WorkspaceIds.overlay(resource.id);
       setState(() {
-        _openOverlayResources[resource.id] = resource;
-        _overlayDirty.putIfAbsent(resource.id, () => false);
+        _overlayDocuments.open(resource);
         _selectedResourceType = null;
         _selectedResourceId = null;
         _workspaceDocuments.open(workspace);
@@ -479,8 +518,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     if (resourceType == 'StreamPlan') {
       final workspace = WorkspaceIds.streamPlan(resource.id);
       setState(() {
-        _openStreamPlanResources[resource.id] = resource;
-        _streamPlanDirty.putIfAbsent(resource.id, () => false);
+        _streamPlanDocuments.open(resource);
         _selectedResourceType = null;
         _selectedResourceId = null;
         _workspaceDocuments.open(workspace);
@@ -500,28 +538,28 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
 
   void _setOverlayDirty(String resourceId, bool dirty) {
     if (!mounted) return;
-    setState(() => _overlayDirty[resourceId] = dirty);
+    setState(() => _overlayDocuments.dirty[resourceId] = dirty);
   }
 
   Future<void> _saveOverlayResource(ResourceData resource) async {
+    final expected = _overlayDocuments.resources[resource.id];
     await ResourceRepository(
       Directory('${widget.dataService.userDirectory.path}/overlays'),
       resourceType: 'Overlay',
       secretSettings: widget.dataService.secretSettingsStore,
     ).save(resource);
-    _openOverlayResources[resource.id] = resource;
-    _overlayDirty[resource.id] = false;
+    _overlayDocuments.markSavedIfCurrent(resource, expected);
     if (!mounted) return;
     setState(() => _projectCatalogRevision++);
     unawaited(_persistNavigation());
   }
 
   void _syncStreamPlanDocument(ResourceData resource, bool dirty) {
-    final previous = _openStreamPlanResources[resource.id];
+    final previous = _streamPlanDocuments.resources[resource.id];
     final nameChanged = previous?.name != resource.name;
-    final dirtyChanged = _streamPlanDirty[resource.id] != dirty;
-    _openStreamPlanResources[resource.id] = resource;
-    _streamPlanDirty[resource.id] = dirty;
+    final dirtyChanged = _streamPlanDocuments.dirty[resource.id] != dirty;
+    _streamPlanDocuments.resources[resource.id] = resource;
+    _streamPlanDocuments.dirty[resource.id] = dirty;
     if (mounted && (nameChanged || dirtyChanged)) setState(() {});
   }
 
@@ -535,8 +573,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       resourceType: 'StreamPlan',
       secretSettings: widget.dataService.secretSettingsStore,
     ).save(resource);
-    _openStreamPlanResources[resource.id] = resource;
-    _streamPlanDirty[resource.id] = false;
+    _streamPlanDocuments.markSaved(resource);
     if (streamPlanRuntime.activePlanId == resource.id) {
       await streamPlanRuntime.updateActivePlan(
         resource.id,
@@ -643,948 +680,6 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         );
       },
     );
-  }
-
-  Future<void> _runSmokeScenario() async {
-    try {
-      await Future.wait([
-        _healthFuture,
-        _pluginRegistryFuture,
-        _profileRuntimeFuture,
-      ]);
-      final scenario = widget.smokeScenario;
-      if (scenario == 'first-run') {
-        final appSettings = await widget.dataService.loadPluginSettings(
-          'showrunner-flutter',
-        );
-        final providerSettings = await Future.wait([
-          widget.dataService.loadPluginSettings('obs'),
-          loadTwitchChannelSettings(widget.dataService),
-          widget.dataService.loadPluginSettings('youtube'),
-        ]);
-        if (appSettings['setupCompleted'] == true ||
-            providerSettings.any((settings) => settings.isNotEmpty)) {
-          throw StateError('First-run smoke started with existing setup data.');
-        }
-      } else if (scenario == 'automation') {
-        await _runAutomationSmoke();
-      } else if (scenario == 'workflow') {
-        await _runWorkflowSmoke();
-      } else if (scenario == 'profile') {
-        await _runProfileSmoke();
-      } else if (scenario == 'integrations') {
-        await _runIntegrationsSmoke();
-      } else if (scenario == 'overlays') {
-        await _runOverlaySmoke();
-      } else if (scenario == 'updates') {
-        await _runUpdateSmoke();
-      } else if (scenario != 'startup') {
-        throw ArgumentError.value(
-          scenario,
-          'smokeScenario',
-          'Expected startup, first-run, automation, workflow, profile, '
-              'integrations, overlays, or updates.',
-        );
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-      // Smoke runs are already isolated and must not open the interactive
-      // hide-to-tray/close dialog introduced for normal desktop shutdown.
-      if (Platform.isWindows) await _handleWindowClose(forceClose: true);
-    } catch (error, stackTrace) {
-      stderr.writeln('Flutter smoke failed: $error');
-      stderr.writeln(stackTrace);
-      exitCode = 1;
-      if (Platform.isWindows) await windowManager.destroy();
-    }
-  }
-
-  Future<void> _runAutomationSmoke() async {
-    final automation = AutomationData(
-      extra: const {'name': 'Packaged automation smoke'},
-      graph: AutomationGraph(
-        nodes: [
-          GraphNode(
-            id: 'convert',
-            type: 'action',
-            x: 80,
-            y: 80,
-            data: {
-              'plugin': 'ShowRunner',
-              'action': 'convertNumberToString',
-              'config': {'value': 42},
-              'resultMapping': {'value': 'smokeValue'},
-            },
-          ),
-        ],
-        entryNodeId: 'convert',
-      ),
-    );
-    final file = File(
-      '${widget.dataService.userDirectory.path}/automations/smoke.yaml',
-    );
-    final repository = AutomationRepository(file);
-    await repository.save(automation);
-    final loaded = await repository.load();
-    if (loaded == null) {
-      throw StateError('Automation smoke could not reload its fixture.');
-    }
-    final registry = await _pluginRegistryFuture;
-    final result = await _graphExecutionEngine.executeWithRegistry(
-      automation: loaded,
-      context: EvaluationContext(),
-      registry: registry,
-    );
-    if (!result.completed || result.contextState['smokeValue'] != '42') {
-      throw StateError(
-        'Automation smoke did not execute and map the action result.',
-      );
-    }
-  }
-
-  Future<void> _runWorkflowSmoke() async {
-    final registry = await _pluginRegistryFuture;
-    final editor = ShowRunnerGraphEditor(registry: registry);
-    ShowRunnerGraphEditor? reopenedEditor;
-    try {
-      final conditionId = editor.addNodeType('if');
-      final actionId = editor.addNodeType('overlays.triggerWidget');
-      if (conditionId == null || actionId == null) {
-        throw StateError('Workflow smoke could not create its graph nodes.');
-      }
-      editor.updateNodeConfig(actionId, const {
-        'widgetId': 'workflow-widget',
-        'overlayId': 'workflow-overlay',
-        'payload': {'source': 'packaged-workflow'},
-      });
-      final link = editor.controller.addLink(
-        conditionId,
-        'then',
-        actionId,
-        'exec',
-        eventId: 'workflow-condition-action',
-      );
-      if (link == null) {
-        throw StateError('Workflow smoke could not connect its control flow.');
-      }
-
-      final created = editor.toAutomation(
-        const AutomationData(extra: {'name': 'Packaged workflow smoke'}),
-      );
-      final file = File(
-        '${widget.dataService.userDirectory.path}/automations/workflow.yaml',
-      );
-      final repository = AutomationRepository(file);
-      await repository.save(created);
-      final loaded = await repository.load();
-      if (loaded == null) {
-        throw StateError('Workflow smoke could not reopen its saved graph.');
-      }
-      final nodesByType = {
-        for (final node in loaded.graph.nodes) node.type: node,
-      };
-      final flowEdge = loaded.graph.edges
-          .where(
-            (edge) =>
-                edge.from == nodesByType['if']?.id &&
-                edge.to == nodesByType['action']?.id,
-          )
-          .firstOrNull;
-      if (loaded.graph.entryNodeId != nodesByType['if']?.id ||
-          nodesByType['if'] == null ||
-          nodesByType['action'] == null ||
-          flowEdge?.port != 'then') {
-        throw StateError(
-          'Workflow smoke did not persist the editor control-flow graph.',
-        );
-      }
-
-      reopenedEditor = ShowRunnerGraphEditor(registry: registry)
-        ..loadAutomation(loaded);
-      if (reopenedEditor.controller.nodes.length != 2) {
-        throw StateError('Workflow smoke did not restore both graph nodes.');
-      }
-      final result = await _graphExecutionEngine.executeWithRegistry(
-        automation: loaded,
-        context: EvaluationContext(),
-        registry: registry,
-      );
-      if (!result.completed) {
-        throw StateError(
-          'Workflow smoke did not test-run the saved control-flow graph.',
-        );
-      }
-    } finally {
-      reopenedEditor?.dispose();
-      editor.dispose();
-    }
-  }
-
-  Future<void> _runProfileSmoke() async {
-    final activation = AutomationData(
-      graph: AutomationGraph(
-        nodes: [
-          GraphNode(
-            id: 'activate',
-            type: 'action',
-            x: 80,
-            y: 80,
-            data: {
-              'plugin': 'ShowRunner',
-              'action': 'convertBooleanToString',
-              'config': {'value': true},
-              'resultMapping': {'value': 'profileValue'},
-            },
-          ),
-        ],
-        entryNodeId: 'activate',
-      ),
-    );
-    final profile = ShowRunnerProfile(
-      name: 'Packaged profile smoke',
-      activationMode: 'manual',
-      triggers: const [],
-      activationCondition: const {},
-      activationAutomation: activation,
-      deactivationAutomation: const AutomationData(),
-    );
-    final file = File(
-      '${widget.dataService.userDirectory.path}/profiles/smoke.yaml',
-    );
-    final repository = ProfileRepository(file);
-    await repository.save(profile);
-    final loaded = await repository.load();
-    if (loaded == null) {
-      throw StateError('Profile smoke could not reload its fixture.');
-    }
-    final runtime = await _profileRuntimeFuture;
-    final result = await runtime.activate('smoke', loaded);
-    if (!runtime.isActive('smoke') ||
-        !result.completed ||
-        result.contextState['profileValue'] != 'true') {
-      throw StateError('Profile smoke did not activate its automation.');
-    }
-    await runtime.deactivate('smoke', loaded);
-    if (runtime.isActive('smoke')) {
-      throw StateError('Profile smoke did not deactivate cleanly.');
-    }
-  }
-
-  Future<void> _runIntegrationsSmoke() async {
-    final registry = await _pluginRegistryFuture;
-    const requiredPlugins = [
-      'ShowRunner',
-      'obs',
-      'twitch',
-      'youtube',
-      'overlays',
-      'input',
-      'remote',
-    ];
-    final missing = requiredPlugins
-        .where((pluginId) => registry.findPlugin(pluginId) == null)
-        .toList();
-    if (missing.isNotEmpty) {
-      throw StateError('Integration smoke is missing: ${missing.join(', ')}.');
-    }
-    if (registry.plugins.length < requiredPlugins.length) {
-      throw StateError(
-        'Integration smoke loaded an incomplete plugin catalog.',
-      );
-    }
-  }
-
-  Future<void> _runOverlaySmoke() async {
-    final registry = await _pluginRegistryFuture;
-    final event = _eventHub.stream(OverlayEventIds.widget).first;
-    final result = await registry.invokeActionKey(
-      const ActionKey(
-        plugin: PluginId('overlays'),
-        action: ActionId('triggerWidget'),
-      ),
-      {
-        'widgetId': 'smoke-widget',
-        'overlayId': 'smoke-overlay',
-        'payload': {'source': 'packaged-smoke'},
-      },
-    );
-    final payload = await event.timeout(const Duration(seconds: 1));
-    if (result is! Map ||
-        result['triggered'] != true ||
-        payload['widgetId'] != 'smoke-widget' ||
-        payload['overlayId'] != 'smoke-overlay') {
-      throw StateError('Overlay smoke did not publish the widget event.');
-    }
-  }
-
-  Future<void> _runUpdateSmoke() async {
-    final current = await UpdateCheckService(
-      currentVersion: showRunnerFlutterVersion,
-      fetcher: () async => {'tag_name': 'v$showRunnerFlutterVersion'},
-    ).check();
-    final available = await UpdateCheckService(
-      currentVersion: showRunnerFlutterVersion,
-      fetcher: () async => {
-        'tag_name': 'v2.0.1',
-        'body': 'Smoke update',
-        'html_url': 'https://example.test/releases/v2.0.1',
-      },
-    ).check();
-    if (current.status != UpdateStatus.upToDate ||
-        current.hasUpdate ||
-        available.status != UpdateStatus.available ||
-        !available.hasUpdate) {
-      throw StateError('Update smoke did not classify release states.');
-    }
-  }
-
-  Future<void> _closeTab(WorkspaceId workspace) async {
-    if (!_workspaceDocuments.canClose) return;
-    if (workspace == WorkspaceIds.graph &&
-        _activeAutomationFile != null &&
-        _graphEditor.documentDirty.value) {
-      if (!await _confirmAutomationClose()) return;
-    }
-    if (workspace == WorkspaceIds.profiles &&
-        !await _profileWorkspaceController.confirmClose()) {
-      return;
-    }
-    final streamPlanId = WorkspaceIds.streamPlanResourceId(workspace);
-    if (streamPlanId != null && !await _confirmStreamPlanClose(streamPlanId)) {
-      return;
-    }
-    if (!_workspaceDocuments.close(workspace)) return;
-    final overlayId = WorkspaceIds.overlayResourceId(workspace);
-    if (overlayId != null) {
-      _openOverlayResources.remove(overlayId);
-      _overlayDirty.remove(overlayId);
-    }
-    if (streamPlanId != null) {
-      _openStreamPlanResources.remove(streamPlanId);
-      _streamPlanDirty.remove(streamPlanId);
-    }
-    setState(() {});
-    unawaited(_persistNavigation());
-  }
-
-  Future<void> _closeOtherTabs() async {
-    final selected = _workspaceDocuments.selectedWorkspace;
-    if (!_workspaceDocuments.canCloseOthers) return;
-    if (selected != WorkspaceIds.graph &&
-        _activeAutomationFile != null &&
-        _graphEditor.documentDirty.value &&
-        !await _confirmAutomationClose()) {
-      return;
-    }
-    if (selected != WorkspaceIds.profiles &&
-        _workspaceDocuments.openWorkspaces.contains(WorkspaceIds.profiles) &&
-        !await _profileWorkspaceController.confirmClose()) {
-      return;
-    }
-    final otherStreamPlanIds = _workspaceDocuments.openWorkspaces
-        .where((workspace) => workspace != selected)
-        .map(WorkspaceIds.streamPlanResourceId)
-        .whereType<String>()
-        .where((id) => _streamPlanDirty[id] == true)
-        .toList();
-    for (final id in otherStreamPlanIds) {
-      if (!await _confirmStreamPlanClose(id)) return;
-    }
-    if (!_workspaceDocuments.closeOthers()) return;
-    _openStreamPlanResources.removeWhere(
-      (id, _) => selected != WorkspaceIds.streamPlan(id),
-    );
-    _streamPlanDirty.removeWhere(
-      (id, _) => selected != WorkspaceIds.streamPlan(id),
-    );
-    setState(() {});
-    unawaited(_persistNavigation());
-  }
-
-  Future<bool> _confirmAutomationClose() async {
-    _captureActiveAutomation();
-    final session = _activeAutomationSession;
-    if (session == null || !session.dirty) return true;
-    final decision = await _showAutomationCloseDialog(session.fileName);
-    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
-      return false;
-    }
-    if (decision == _CloseDecision.save) {
-      return _saveAutomationSession(session);
-    }
-    return true;
-  }
-
-  Future<bool> _confirmAllAutomationClose() async {
-    _captureActiveAutomation();
-    final dirtyAutomations = _automationDocuments.documents
-        .where((document) => document.dirty)
-        .toList();
-    final dirtyStreamPlans = _streamPlanDirty.entries
-        .where((entry) => entry.value)
-        .map((entry) => _openStreamPlanResources[entry.key])
-        .whereType<ResourceData>()
-        .toList();
-    if (dirtyAutomations.isEmpty && dirtyStreamPlans.isEmpty) return true;
-    final dirtyNames = [
-      ...dirtyAutomations.map((document) => document.fileName),
-      ...dirtyStreamPlans.map((resource) => resource.name),
-    ];
-    final decision = await showDialog<_CloseDecision>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unsaved changes'),
-        content: Text(
-          'Save changes to ${dirtyNames.join(', ')} before exiting?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.discard),
-            child: const Text("Don't Save"),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
-            child: const Text('Save All'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
-      return false;
-    }
-    if (decision == _CloseDecision.save) {
-      for (final session in dirtyAutomations) {
-        if (!await _saveAutomationSession(session)) return false;
-      }
-      for (final resource in dirtyStreamPlans) {
-        if (!await _trySaveStreamPlanResource(resource)) return false;
-      }
-    }
-    return true;
-  }
-
-  Future<bool> _confirmStreamPlanClose(String resourceId) async {
-    final resource = _openStreamPlanResources[resourceId];
-    if (resource == null || _streamPlanDirty[resourceId] != true) return true;
-    final decision = await showDialog<_CloseDecision>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unsaved changes'),
-        content: Text('Save changes to ${resource.name} before closing?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.discard),
-            child: const Text("Don't Save"),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
-      return false;
-    }
-    if (decision == _CloseDecision.save) {
-      return _trySaveStreamPlanResource(resource);
-    }
-    return true;
-  }
-
-  Future<_CloseDecision?> _showAutomationCloseDialog(String fileName) {
-    return showDialog<_CloseDecision>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unsaved changes'),
-        content: Text('Save changes to $fileName before closing?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.discard),
-            child: const Text("Don't Save"),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _closeAutomationDocument(String fileName) async {
-    final session = _automationDocuments.find(fileName);
-    if (session == null) return;
-    _captureActiveAutomation();
-    if (session.dirty) {
-      final decision = await _showAutomationCloseDialog(fileName);
-      if (!mounted || decision == null || decision == _CloseDecision.cancel) {
-        return;
-      }
-      if (decision == _CloseDecision.save &&
-          !await _saveAutomationSession(session)) {
-        return;
-      }
-    }
-    final wasActive = _activeAutomationFile == fileName;
-    _automationDocuments.close(fileName);
-    if (wasActive) {
-      final replacement = _activeAutomationSession;
-      if (replacement == null) {
-        _graphEditor.loadAutomation(const AutomationData());
-      } else {
-        _loadAutomationSession(replacement);
-      }
-    }
-    if (!mounted) return;
-    setState(() {});
-    unawaited(_persistNavigation());
-  }
-
-  Future<void> _saveAutomation() async {
-    final current = _captureActiveAutomation();
-    final fileName = _activeAutomationFile;
-    if (fileName == null || current == null) return;
-    final saved = await _saveAutomationSession(
-      _automationDocuments.find(fileName)!,
-      data: current,
-      showFeedback: true,
-    );
-    if (saved && mounted) setState(() {});
-  }
-
-  AutomationData? _captureActiveAutomation() {
-    final original = _activeAutomation;
-    if (original == null) return null;
-    final current = _graphEditor.toAutomation(original);
-    _automationDocuments.updateActive(current);
-    return current;
-  }
-
-  Future<bool> _saveAutomationSession(
-    AutomationDocumentSession session, {
-    AutomationData? data,
-    bool showFeedback = false,
-  }) async {
-    final saved = data ?? session.data;
-    final fileName = session.fileName;
-    try {
-      final issues = validateAutomationGraph(saved);
-      if (issues.isNotEmpty) {
-        throw FormatException(
-          'Automation graph is invalid: ${issues.join(' ')}',
-        );
-      }
-      await AutomationRepository(
-        File('${widget.dataService.userDirectory.path}/automations/$fileName'),
-      ).save(saved);
-      _automationDocuments.markSaved(session.fileName, saved);
-      if (session.fileName == _activeAutomationFile) {
-        _graphEditor.markDocumentClean();
-      }
-      if (showFeedback && mounted) {
-        showShowRunnerFeedback(
-          context,
-          'Saved $fileName',
-          severity: ShowRunnerFeedbackSeverity.success,
-        );
-      }
-      return true;
-    } catch (error) {
-      if (showFeedback && mounted) {
-        showShowRunnerFeedback(
-          context,
-          'Unable to save automation: $error',
-          severity: ShowRunnerFeedbackSeverity.error,
-        );
-      }
-      return false;
-    }
-  }
-
-  Future<void> _frameSelectionFromCommand() async {
-    final titleController = TextEditingController(text: 'Frame');
-    try {
-      final title = await showDialog<String>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Name annotation'),
-          content: TextField(
-            controller: titleController,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Annotation title',
-              border: OutlineInputBorder(),
-            ),
-            onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(titleController.text),
-              child: const Text('Create'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted || title == null || title.trim().isEmpty) return;
-      _graphEditor.frameSelection(title: title.trim());
-    } finally {
-      titleController.dispose();
-    }
-  }
-
-  Future<void> _saveAll() async {
-    _captureActiveAutomation();
-    for (final session in _automationDocuments.documents) {
-      if (session.dirty && !await _saveAutomationSession(session)) return;
-    }
-    for (final entry in _streamPlanDirty.entries.toList()) {
-      final resource = _openStreamPlanResources[entry.key];
-      if (entry.value &&
-          resource != null &&
-          !await _trySaveStreamPlanResource(resource)) {
-        return;
-      }
-    }
-    if (mounted) setState(() {});
-  }
-
-  Future<bool> _trySaveStreamPlanResource(ResourceData resource) async {
-    try {
-      await _saveStreamPlanResource(resource);
-      return true;
-    } catch (error) {
-      if (mounted) {
-        showShowRunnerFeedback(
-          context,
-          'Unable to save stream plan: $error',
-          severity: ShowRunnerFeedbackSeverity.error,
-        );
-      }
-      return false;
-    }
-  }
-
-  Future<void> _openAutomation(
-    AutomationData automation,
-    String fileName,
-  ) async {
-    if (!_isSafeAutomationFileName(fileName)) return;
-    _captureActiveAutomation();
-    final session = _automationDocuments.open(automation, fileName);
-    _loadAutomationSession(session);
-    if (!mounted) return;
-    setState(() {
-      _workspaceDocuments.open(WorkspaceIds.graph);
-      _workspaceDocuments.select(WorkspaceIds.graph);
-    });
-    showShowRunnerFeedback(
-      context,
-      'Loaded $fileName into the graph editor',
-      severity: ShowRunnerFeedbackSeverity.info,
-    );
-  }
-
-  Future<void> _selectAutomationDocument(String fileName) async {
-    final session = _automationDocuments.find(fileName);
-    if (session == null || session.fileName == _activeAutomationFile) {
-      if (session != null) _openDestination(WorkspaceIds.graph);
-      return;
-    }
-    _captureActiveAutomation();
-    if (!_automationDocuments.activate(fileName)) return;
-    _loadAutomationSession(session);
-    if (!mounted) return;
-    setState(() {
-      _workspaceDocuments.open(WorkspaceIds.graph);
-      _workspaceDocuments.select(WorkspaceIds.graph);
-    });
-  }
-
-  void _loadAutomationSession(AutomationDocumentSession session) {
-    _graphEditor.loadAutomation(session.data);
-    _graphEditor.restoreDocumentDirty(session.dirty);
-    _graphEditor.bindExecutionTrace(
-      _services.executionTrace,
-      ExecutionTraceSource(type: 'automation', id: session.fileName),
-    );
-  }
-
-  void _reorderAutomationDocument(int oldPosition, int newPosition) {
-    if (!_automationDocuments.reorder(oldPosition, newPosition)) return;
-    setState(() {});
-    unawaited(_persistNavigation());
-  }
-
-  Future<void> _createAutomation({bool starterOnly = false}) async {
-    final selection =
-        await showDialog<({String name, AutomationStarter? starter})>(
-          context: context,
-          builder: (context) => _NewAutomationDialog(starterOnly: starterOnly),
-        );
-    if (!mounted) return;
-    if (selection == null) return;
-    _captureActiveAutomation();
-    final fileName = 'automation-${DateTime.now().millisecondsSinceEpoch}.yaml';
-    final starter = selection.starter;
-    final base = starter?.automation ?? const AutomationData();
-    final automation = AutomationData(
-      schemaVersion: base.schemaVersion,
-      graph: base.graph,
-      subgraphs: base.subgraphs,
-      dataWires: base.dataWires,
-      variableNodes: base.variableNodes,
-      triggerNodes: base.triggerNodes,
-      extra: {...base.extra, 'name': selection.name},
-    );
-    await AutomationRepository(
-      File('${widget.dataService.userDirectory.path}/automations/$fileName'),
-    ).save(automation);
-    final session = _automationDocuments.open(automation, fileName);
-    _loadAutomationSession(session);
-    if (!mounted) return;
-    setState(() {
-      _workspaceDocuments.open(WorkspaceIds.graph);
-      _workspaceDocuments.select(WorkspaceIds.graph);
-      _projectCatalogRevision++;
-    });
-    showShowRunnerFeedback(
-      context,
-      'Created ${selection.name}',
-      severity: ShowRunnerFeedbackSeverity.success,
-    );
-  }
-
-  Future<void> _createProfile() async {
-    final name = await showShowRunnerNameDialog(
-      context,
-      title: 'New profile',
-      initialName: 'New Profile',
-    );
-    if (name == null || !mounted) return;
-    if (!await _profileWorkspaceController.confirmClose() || !mounted) return;
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final fileName = 'profile_$timestamp.yaml';
-    const emptyAutomation = AutomationData();
-    final profile = ShowRunnerProfile(
-      name: name,
-      activationMode: 'toggle',
-      triggers: [],
-      activationCondition: {},
-      activationAutomation: emptyAutomation,
-      deactivationAutomation: emptyAutomation,
-    );
-    await ProfileRepository(
-      File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
-    ).save(profile);
-    if (!mounted) return;
-    await _profileWorkspaceController.reloadEntries();
-    if (!mounted) return;
-    await _profileWorkspaceController.openProfile(fileName);
-    if (!mounted) return;
-    _onProjectCatalogChanged();
-    _openDestination(WorkspaceIds.profiles);
-    showShowRunnerFeedback(
-      context,
-      'Created $name',
-      severity: ShowRunnerFeedbackSeverity.success,
-    );
-  }
-
-  Future<void> _createResource(String resourceType) async {
-    final definition = createDefaultResourceEditorRegistry().find(resourceType);
-    if (definition == null) return;
-    final name = await showShowRunnerNameDialog(
-      context,
-      title: 'New ${definition.displayName}',
-      initialName: definition.displayName,
-    );
-    if (name == null || !mounted) return;
-    final resource = ResourceData(
-      id: 'resource-${DateTime.now().microsecondsSinceEpoch}',
-      config: definition.defaultConfig(name),
-    );
-    await ResourceRepository(
-      Directory(
-        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
-      ),
-      resourceType: resourceType,
-      secretSettings: widget.dataService.secretSettingsStore,
-    ).save(resource);
-    if (resourceType == 'Variable') await _variableRuntime.reload();
-    if (!mounted) return;
-    _onProjectCatalogChanged();
-    _openResource(resource, resourceType);
-    showShowRunnerFeedback(
-      context,
-      'Created $name',
-      severity: ShowRunnerFeedbackSeverity.success,
-    );
-  }
-
-  Future<void> _renameAutomationEntry(String fileName, String name) async {
-    if (!_isSafeAutomationFileName(fileName)) return;
-    final file = File(
-      '${widget.dataService.userDirectory.path}/automations/$fileName',
-    );
-    final automation = await AutomationRepository(file).load();
-    if (automation == null) return;
-    await AutomationRepository(file).save(
-      AutomationData(
-        schemaVersion: automation.schemaVersion,
-        graph: automation.graph,
-        subgraphs: automation.subgraphs,
-        dataWires: automation.dataWires,
-        variableNodes: automation.variableNodes,
-        triggerNodes: automation.triggerNodes,
-        extra: {...automation.extra, 'name': name},
-      ),
-    );
-    if (!mounted) return;
-    setState(() => _projectCatalogRevision++);
-  }
-
-  Future<void> _renameProfileEntry(String fileName, String name) async {
-    if (!_isSafeAutomationFileName(fileName)) return;
-    final file = File(
-      '${widget.dataService.userDirectory.path}/profiles/$fileName',
-    );
-    final profile = await ProfileRepository(file).load();
-    if (profile == null) return;
-    await ProfileRepository(file).save(
-      ShowRunnerProfile(
-        name: name,
-        activationMode: profile.activationMode,
-        triggers: profile.triggers,
-        activationCondition: profile.activationCondition,
-        activationAutomation: profile.activationAutomation,
-        deactivationAutomation: profile.deactivationAutomation,
-        extra: profile.extra,
-      ),
-    );
-    if (!mounted) return;
-    setState(() => _projectCatalogRevision++);
-  }
-
-  Future<void> _deleteProfileEntry(String fileName) async {
-    if (!_isSafeAutomationFileName(fileName)) return;
-    final profileController = _profileWorkspaceController;
-    if (profileController.activeProfileFile == fileName &&
-        !await profileController.confirmClose()) {
-      return;
-    }
-    final file = File(
-      '${widget.dataService.userDirectory.path}/profiles/$fileName',
-    );
-    if (await file.exists()) await file.delete();
-    if (profileController.activeProfileFile == fileName) {
-      await profileController.reloadEntries();
-    }
-    if (!mounted) return;
-    setState(() => _projectCatalogRevision++);
-  }
-
-  Future<void> _renameResourceEntry(
-    ResourceData resource,
-    String resourceType,
-    String name,
-  ) async {
-    if (!_isSafeResourceId(resource.id)) return;
-    final definition = createDefaultResourceEditorRegistry().find(resourceType);
-    if (definition == null) return;
-    final updated = ResourceData(
-      id: resource.id,
-      config: {...resource.config, 'name': name},
-      state: resource.state,
-    );
-    final repository = ResourceRepository(
-      Directory(
-        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
-      ),
-      resourceType: resourceType,
-      secretSettings: widget.dataService.secretSettingsStore,
-    );
-    await repository.save(updated);
-    if (resourceType == 'Dashboard') {
-      await repository.save(
-        await DashboardCloudSyncService(
-          dataService: widget.dataService,
-        ).synchronize(updated),
-      );
-    }
-    if (!mounted) return;
-    setState(() => _projectCatalogRevision++);
-  }
-
-  Future<void> _deleteResourceEntry(
-    ResourceData resource,
-    String resourceType,
-  ) async {
-    if (!_isSafeResourceId(resource.id)) return;
-    final definition = createDefaultResourceEditorRegistry().find(resourceType);
-    if (definition == null) return;
-    final repository = ResourceRepository(
-      Directory(
-        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
-      ),
-      resourceType: resourceType,
-      secretSettings: widget.dataService.secretSettingsStore,
-    );
-    if (resourceType == 'Dashboard') {
-      await DashboardCloudSyncService(
-        dataService: widget.dataService,
-      ).synchronize(
-        ResourceData(
-          id: resource.id,
-          config: {...resource.config, 'remoteTwitchIds': const <String>[]},
-          state: resource.state,
-        ),
-      );
-    }
-    await repository.delete(resource.id);
-    if (!mounted) return;
-    setState(() => _projectCatalogRevision++);
-  }
-
-  Future<void> _deleteAutomation(String fileName) async {
-    if (!_isSafeAutomationFileName(fileName)) return;
-    if (_activeAutomationFile == fileName && !await _confirmAutomationClose()) {
-      return;
-    }
-    final file = File(
-      '${widget.dataService.userDirectory.path}/automations/$fileName',
-    );
-    await AutomationRepository(file).delete();
-    if (!mounted) return;
-    if (_activeAutomationFile == fileName) {
-      _automationDocuments.close(fileName);
-      final replacement = _activeAutomationSession;
-      if (replacement == null) {
-        _graphEditor.loadAutomation(const AutomationData());
-      } else {
-        _loadAutomationSession(replacement);
-      }
-    } else {
-      _automationDocuments.close(fileName);
-    }
-    setState(() => _projectCatalogRevision++);
-    unawaited(_persistNavigation());
   }
 
   Future<void> _runAutomation() async {

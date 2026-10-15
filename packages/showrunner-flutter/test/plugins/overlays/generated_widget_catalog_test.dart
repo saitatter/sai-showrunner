@@ -133,6 +133,10 @@ void main() {
       containsAll(<String>['x', 'y', 'angle', 'spread', 'velocity']),
     );
     expect(bouncer.defaultSize['height'], 'canvas');
+    expect(
+      bouncer.createWidget(canvasWidth: 1080, canvasHeight: 1920)['size'],
+      {'width': 1080, 'height': 1920},
+    );
     expect(wheel.defaultSize['width'], 500);
     expect(
       wheel.configSchema.fields.map((field) => field.key),

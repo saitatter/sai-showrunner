@@ -68,6 +68,30 @@ class ShowRunnerSystemBar extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             _SystemMenuButton(
+              label: 'Edit',
+              onSelected: runCommand,
+              itemBuilder: (context) => [
+                for (final id in [
+                  'edit.undo',
+                  'edit.redo',
+                  'edit.cut',
+                  'edit.copy',
+                  'edit.paste',
+                  'edit.delete',
+                ])
+                  _commandMenuItem(id, commandContext, commands),
+              ],
+            ),
+            const SizedBox(width: 4),
+            _SystemMenuButton(
+              label: 'View',
+              onSelected: runCommand,
+              itemBuilder: (context) => [
+                _commandMenuItem('view.fitGraph', commandContext, commands),
+              ],
+            ),
+            const SizedBox(width: 4),
+            _SystemMenuButton(
               label: 'Help',
               onSelected: runCommand,
               itemBuilder: (context) => [

@@ -88,6 +88,7 @@ class ShowRunnerShell extends StatelessWidget {
     this.overlayDirty = const <String, bool>{},
     this.onSaveOverlay,
     this.onOverlayDirtyChanged,
+    this.onOverlayDocumentChanged,
     this.streamPlanResources = const <String, ResourceData>{},
     this.streamPlanDirty = const <String, bool>{},
     this.onSaveStreamPlan,
@@ -163,6 +164,8 @@ class ShowRunnerShell extends StatelessWidget {
   final Map<String, bool> overlayDirty;
   final Future<void> Function(ResourceData resource)? onSaveOverlay;
   final void Function(String resourceId, bool dirty)? onOverlayDirtyChanged;
+  final void Function(ResourceData resource, bool dirty)?
+  onOverlayDocumentChanged;
   final Map<String, ResourceData> streamPlanResources;
   final Map<String, bool> streamPlanDirty;
   final Future<void> Function(ResourceData resource)? onSaveStreamPlan;
@@ -227,6 +230,7 @@ class ShowRunnerShell extends StatelessWidget {
       overlayResources: overlayResources,
       onSaveOverlay: onSaveOverlay,
       onOverlayDirtyChanged: onOverlayDirtyChanged,
+      onOverlayDocumentChanged: onOverlayDocumentChanged,
       streamPlanResources: streamPlanResources,
       onSaveStreamPlan: onSaveStreamPlan,
       onStreamPlanDocumentChanged: onStreamPlanDocumentChanged,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../components/data_inputs/numeric_input_formatter.dart';
 
 import '../../services/oauth_token.dart';
 import '../../app/app_feedback.dart';
@@ -801,6 +802,9 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         keyboardType: definition.valueType == DartSettingType.number
             ? const TextInputType.numberWithOptions(decimal: true)
             : TextInputType.text,
+        inputFormatters: definition.valueType == DartSettingType.number
+            ? const [NumericInputFormatter()]
+            : null,
         decoration: InputDecoration(
           labelText: definition.displayName,
           border: const OutlineInputBorder(),

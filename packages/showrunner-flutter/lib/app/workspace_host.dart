@@ -85,6 +85,7 @@ final class WorkspaceHostContext {
     this.overlayResources = const <String, ResourceData>{},
     this.onSaveOverlay,
     this.onOverlayDirtyChanged,
+    this.onOverlayDocumentChanged,
     this.streamPlanResources = const <String, ResourceData>{},
     this.onSaveStreamPlan,
     this.onStreamPlanDocumentChanged,
@@ -147,6 +148,8 @@ final class WorkspaceHostContext {
   final Map<String, ResourceData> overlayResources;
   final Future<void> Function(ResourceData resource)? onSaveOverlay;
   final void Function(String resourceId, bool dirty)? onOverlayDirtyChanged;
+  final void Function(ResourceData resource, bool dirty)?
+  onOverlayDocumentChanged;
   final Map<String, ResourceData> streamPlanResources;
   final Future<void> Function(ResourceData resource)? onSaveStreamPlan;
   final void Function(ResourceData resource, bool dirty)?
@@ -176,6 +179,7 @@ final class WorkspaceRegistry {
       return OverlayEditorPage(
         resource: resource,
         onSave: host.onSaveOverlay!,
+        onDocumentChanged: host.onOverlayDocumentChanged,
         presenceReaderFuture: host.overlayPresenceReaderFuture,
         obsSourceService: host.overlayObsSourceService,
         templateSuggestions: [

@@ -1,0 +1,309 @@
+part of '../main.dart';
+
+extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
+  Future<void> _openAutomation(
+    AutomationData automation,
+    String fileName,
+  ) async {
+    if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
+    _captureActiveAutomation();
+    final session = _automationDocuments.open(automation, fileName);
+    _loadAutomationSession(session);
+    if (!mounted) return;
+    _updatePageState(() {
+      _workspaceDocuments.open(WorkspaceIds.graph);
+      _workspaceDocuments.select(WorkspaceIds.graph);
+    });
+    showShowRunnerFeedback(
+      context,
+      'Loaded $fileName into the graph editor',
+      severity: ShowRunnerFeedbackSeverity.info,
+    );
+  }
+
+  Future<void> _selectAutomationDocument(String fileName) async {
+    final session = _automationDocuments.find(fileName);
+    if (session == null || session.fileName == _activeAutomationFile) {
+      if (session != null) _openDestination(WorkspaceIds.graph);
+      return;
+    }
+    _captureActiveAutomation();
+    if (!_automationDocuments.activate(fileName)) return;
+    _loadAutomationSession(session);
+    if (!mounted) return;
+    _updatePageState(() {
+      _workspaceDocuments.open(WorkspaceIds.graph);
+      _workspaceDocuments.select(WorkspaceIds.graph);
+    });
+  }
+
+  void _loadAutomationSession(AutomationDocumentSession session) {
+    _graphEditor.loadAutomation(session.data);
+    _graphEditor.restoreDocumentDirty(session.dirty);
+    _graphEditor.bindExecutionTrace(
+      _services.executionTrace,
+      ExecutionTraceSource(type: 'automation', id: session.fileName),
+    );
+  }
+
+  void _reorderAutomationDocument(int oldPosition, int newPosition) {
+    if (!_automationDocuments.reorder(oldPosition, newPosition)) return;
+    _updatePageState(() {});
+    unawaited(_persistNavigation());
+  }
+
+  Future<void> _createAutomation({bool starterOnly = false}) async {
+    final selection =
+        await showDialog<({String name, AutomationStarter? starter})>(
+          context: context,
+          builder: (context) => _NewAutomationDialog(starterOnly: starterOnly),
+        );
+    if (!mounted) return;
+    if (selection == null) return;
+    _captureActiveAutomation();
+    final fileName = 'automation-${DateTime.now().millisecondsSinceEpoch}.yaml';
+    final starter = selection.starter;
+    final base = starter?.automation ?? const AutomationData();
+    final automation = AutomationData(
+      schemaVersion: base.schemaVersion,
+      graph: base.graph,
+      subgraphs: base.subgraphs,
+      dataWires: base.dataWires,
+      variableNodes: base.variableNodes,
+      triggerNodes: base.triggerNodes,
+      extra: {...base.extra, 'name': selection.name},
+    );
+    await AutomationRepository(
+      File('${widget.dataService.userDirectory.path}/automations/$fileName'),
+    ).save(automation);
+    final session = _automationDocuments.open(automation, fileName);
+    _loadAutomationSession(session);
+    if (!mounted) return;
+    _updatePageState(() {
+      _workspaceDocuments.open(WorkspaceIds.graph);
+      _workspaceDocuments.select(WorkspaceIds.graph);
+      _projectCatalogRevision++;
+    });
+    showShowRunnerFeedback(
+      context,
+      'Created ${selection.name}',
+      severity: ShowRunnerFeedbackSeverity.success,
+    );
+  }
+
+  Future<void> _createProfile() async {
+    final name = await showShowRunnerNameDialog(
+      context,
+      title: 'New profile',
+      initialName: 'New Profile',
+    );
+    if (name == null || !mounted) return;
+    if (!await _profileWorkspaceController.confirmClose() || !mounted) return;
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final fileName = 'profile_$timestamp.yaml';
+    const emptyAutomation = AutomationData();
+    final profile = ShowRunnerProfile(
+      name: name,
+      activationMode: 'toggle',
+      triggers: [],
+      activationCondition: {},
+      activationAutomation: emptyAutomation,
+      deactivationAutomation: emptyAutomation,
+    );
+    await ProfileRepository(
+      File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
+    ).save(profile);
+    if (!mounted) return;
+    await _profileWorkspaceController.reloadEntries();
+    if (!mounted) return;
+    await _profileWorkspaceController.openProfile(fileName);
+    if (!mounted) return;
+    _onProjectCatalogChanged();
+    _openDestination(WorkspaceIds.profiles);
+    showShowRunnerFeedback(
+      context,
+      'Created $name',
+      severity: ShowRunnerFeedbackSeverity.success,
+    );
+  }
+
+  Future<void> _createResource(String resourceType) async {
+    final definition = createDefaultResourceEditorRegistry().find(resourceType);
+    if (definition == null) return;
+    final name = await showShowRunnerNameDialog(
+      context,
+      title: 'New ${definition.displayName}',
+      initialName: definition.displayName,
+    );
+    if (name == null || !mounted) return;
+    final resource = ResourceData(
+      id: 'resource-${DateTime.now().microsecondsSinceEpoch}',
+      config: definition.defaultConfig(name),
+    );
+    await ResourceRepository(
+      Directory(
+        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
+      ),
+      resourceType: resourceType,
+      secretSettings: widget.dataService.secretSettingsStore,
+    ).save(resource);
+    if (resourceType == 'Variable') await _variableRuntime.reload();
+    if (!mounted) return;
+    _onProjectCatalogChanged();
+    _openResource(resource, resourceType);
+    showShowRunnerFeedback(
+      context,
+      'Created $name',
+      severity: ShowRunnerFeedbackSeverity.success,
+    );
+  }
+
+  Future<void> _renameAutomationEntry(String fileName, String name) async {
+    if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
+    final file = File(
+      '${widget.dataService.userDirectory.path}/automations/$fileName',
+    );
+    final automation = await AutomationRepository(file).load();
+    if (automation == null) return;
+    await AutomationRepository(file).save(
+      AutomationData(
+        schemaVersion: automation.schemaVersion,
+        graph: automation.graph,
+        subgraphs: automation.subgraphs,
+        dataWires: automation.dataWires,
+        variableNodes: automation.variableNodes,
+        triggerNodes: automation.triggerNodes,
+        extra: {...automation.extra, 'name': name},
+      ),
+    );
+    if (!mounted) return;
+    _updatePageState(() => _projectCatalogRevision++);
+  }
+
+  Future<void> _renameProfileEntry(String fileName, String name) async {
+    if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
+    final file = File(
+      '${widget.dataService.userDirectory.path}/profiles/$fileName',
+    );
+    final profile = await ProfileRepository(file).load();
+    if (profile == null) return;
+    await ProfileRepository(file).save(
+      ShowRunnerProfile(
+        name: name,
+        activationMode: profile.activationMode,
+        triggers: profile.triggers,
+        activationCondition: profile.activationCondition,
+        activationAutomation: profile.activationAutomation,
+        deactivationAutomation: profile.deactivationAutomation,
+        extra: profile.extra,
+      ),
+    );
+    if (!mounted) return;
+    _updatePageState(() => _projectCatalogRevision++);
+  }
+
+  Future<void> _deleteProfileEntry(String fileName) async {
+    if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
+    final profileController = _profileWorkspaceController;
+    if (profileController.activeProfileFile == fileName &&
+        !await profileController.confirmClose()) {
+      return;
+    }
+    final file = File(
+      '${widget.dataService.userDirectory.path}/profiles/$fileName',
+    );
+    if (await file.exists()) await file.delete();
+    if (profileController.activeProfileFile == fileName) {
+      await profileController.reloadEntries();
+    }
+    if (!mounted) return;
+    _updatePageState(() => _projectCatalogRevision++);
+  }
+
+  Future<void> _renameResourceEntry(
+    ResourceData resource,
+    String resourceType,
+    String name,
+  ) async {
+    if (!_ShowRunnerPageState._isSafeResourceId(resource.id)) return;
+    final definition = createDefaultResourceEditorRegistry().find(resourceType);
+    if (definition == null) return;
+    final updated = ResourceData(
+      id: resource.id,
+      config: {...resource.config, 'name': name},
+      state: resource.state,
+    );
+    final repository = ResourceRepository(
+      Directory(
+        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
+      ),
+      resourceType: resourceType,
+      secretSettings: widget.dataService.secretSettingsStore,
+    );
+    await repository.save(updated);
+    if (resourceType == 'Dashboard') {
+      await repository.save(
+        await DashboardCloudSyncService(
+          dataService: widget.dataService,
+        ).synchronize(updated),
+      );
+    }
+    if (!mounted) return;
+    _updatePageState(() => _projectCatalogRevision++);
+  }
+
+  Future<void> _deleteResourceEntry(
+    ResourceData resource,
+    String resourceType,
+  ) async {
+    if (!_ShowRunnerPageState._isSafeResourceId(resource.id)) return;
+    final definition = createDefaultResourceEditorRegistry().find(resourceType);
+    if (definition == null) return;
+    final repository = ResourceRepository(
+      Directory(
+        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
+      ),
+      resourceType: resourceType,
+      secretSettings: widget.dataService.secretSettingsStore,
+    );
+    if (resourceType == 'Dashboard') {
+      await DashboardCloudSyncService(
+        dataService: widget.dataService,
+      ).synchronize(
+        ResourceData(
+          id: resource.id,
+          config: {...resource.config, 'remoteTwitchIds': const <String>[]},
+          state: resource.state,
+        ),
+      );
+    }
+    await repository.delete(resource.id);
+    if (!mounted) return;
+    _updatePageState(() => _projectCatalogRevision++);
+  }
+
+  Future<void> _deleteAutomation(String fileName) async {
+    if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
+    if (_activeAutomationFile == fileName && !await _confirmAutomationClose()) {
+      return;
+    }
+    final file = File(
+      '${widget.dataService.userDirectory.path}/automations/$fileName',
+    );
+    await AutomationRepository(file).delete();
+    if (!mounted) return;
+    if (_activeAutomationFile == fileName) {
+      _automationDocuments.close(fileName);
+      final replacement = _activeAutomationSession;
+      if (replacement == null) {
+        _graphEditor.loadAutomation(const AutomationData());
+      } else {
+        _loadAutomationSession(replacement);
+      }
+    } else {
+      _automationDocuments.close(fileName);
+    }
+    _updatePageState(() => _projectCatalogRevision++);
+    unawaited(_persistNavigation());
+  }
+}

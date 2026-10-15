@@ -1,3 +1,4 @@
+import '../../../components/data_inputs/numeric_input_formatter.dart';
 import 'package:flutter/material.dart';
 
 import '../transform.dart';
@@ -153,6 +154,7 @@ class _ObsTransformInputState extends State<ObsTransformInput> {
       child: TextFormField(
         key: ValueKey('$group.$field.$value'),
         initialValue: value?.toString() ?? '',
+        inputFormatters: const [NumericInputFormatter()],
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(labelText: label),
         onChanged: (text) => _updateNumber(group, field, text),

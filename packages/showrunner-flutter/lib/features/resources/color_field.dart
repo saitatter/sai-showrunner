@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
+
+import 'color_picker.dart';
 
 class ColorValueField extends StatefulWidget {
   const ColorValueField({
@@ -6,11 +9,13 @@ class ColorValueField extends StatefulWidget {
     required this.label,
     required this.initialValue,
     required this.onChanged,
+    this.bar = false,
   });
 
   final String label;
   final String initialValue;
   final ValueChanged<String> onChanged;
+  final bool bar;
 
   @override
   State<ColorValueField> createState() => _ColorValueFieldState();
@@ -32,72 +37,150 @@ class _ColorValueFieldState extends State<ColorValueField> {
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 160,
-    child: TextFormField(
-      controller: _controller,
-      decoration: InputDecoration(
-        labelText: widget.label,
-        prefixIcon: Padding(
-          padding: const EdgeInsets.all(12),
-          child: _ColorSwatch(value: _controller.text),
-        ),
-        suffixIcon: IconButton(
-          tooltip: 'Choose color',
-          icon: const Icon(Icons.palette_outlined),
-          onPressed: _chooseColor,
-        ),
-      ),
-      onChanged: (value) {
-        widget.onChanged(value);
-        setState(() {});
-      },
-    ),
-  );
+  void didUpdateWidget(ColorValueField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue &&
+        _controller.text != widget.initialValue) {
+      _controller.text = widget.initialValue;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.bar
+      ? InkWell(
+          onTap: _chooseColor,
+          child: InputDecorator(
+            decoration: InputDecoration(labelText: widget.label),
+            child: SizedBox(
+              height: 24,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: _ColorSwatch(value: _controller.text),
+              ),
+            ),
+          ),
+        )
+      : SizedBox(
+          width: 160,
+          child: TextFormField(
+            controller: _controller,
+            decoration: InputDecoration(
+              labelText: widget.label,
+              prefixIcon: Padding(
+                padding: const EdgeInsets.all(12),
+                child: _ColorSwatch(value: _controller.text),
+              ),
+              suffixIcon: IconButton(
+                tooltip: 'Choose color',
+                icon: const Icon(Icons.palette_outlined),
+                onPressed: _chooseColor,
+              ),
+            ),
+            onChanged: (value) {
+              widget.onChanged(value);
+              setState(() {});
+            },
+          ),
+        );
 
   Future<void> _chooseColor() async {
+    final box = context.findRenderObject() as RenderBox;
+    final anchor = box.localToGlobal(Offset.zero) & box.size;
+    final initialValue = _controller.text;
+    void update(String value) {
+      if (!mounted) return;
+      _controller.text = value;
+      widget.onChanged(value);
+      setState(() {});
+    }
+
     final selected = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(widget.label),
-        content: Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _colorChoice(context, 'transparent'),
-            for (final value in _palette) _colorChoice(context, value),
-          ],
-        ),
+      barrierColor: Colors.transparent,
+      builder: (context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final width = math.min(402.0, constraints.maxWidth - 24);
+          final left = anchor.left.clamp(
+            12.0,
+            math.max(12.0, constraints.maxWidth - width - 12),
+          );
+          final top = anchor.bottom.clamp(
+            12.0,
+            math.max(12.0, constraints.maxHeight - 330),
+          );
+          return Stack(
+            children: [
+              Positioned(
+                left: left.toDouble(),
+                top: top.toDouble(),
+                width: width,
+                child: Material(
+                  key: const ValueKey('color-picker-popover'),
+                  color: const Color(0xff202020),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(5),
+                    side: const BorderSide(color: Color(0xff555555)),
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      inputDecorationTheme: InputDecorationTheme(
+                        isDense: true,
+                        filled: true,
+                        fillColor: const Color(0xff121212),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 9,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(4),
+                          borderSide: const BorderSide(
+                            color: Color(0xff555555),
+                          ),
+                        ),
+                      ),
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: math.max(
+                          1,
+                          constraints.maxHeight - top - 12,
+                        ),
+                      ),
+                      child: SingleChildScrollView(
+                        child: ShowRunnerColorPicker(
+                          initialValue: initialValue,
+                          onChanged: update,
+                          onPaletteSelected: (value) =>
+                              Navigator.of(context).pop(value),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
     if (selected == null || !mounted) return;
-    _controller.value = TextEditingValue(text: selected);
-    widget.onChanged(selected);
-    setState(() {});
+    update(selected);
   }
-
-  Widget _colorChoice(BuildContext context, String value) => Tooltip(
-    message: value,
-    child: InkWell(
-      onTap: () => Navigator.of(context).pop(value),
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: _ColorSwatch(value: value, size: 32),
-      ),
-    ),
-  );
 }
 
 class _ColorSwatch extends StatelessWidget {
-  const _ColorSwatch({required this.value, this.size = 20});
+  const _ColorSwatch({required this.value});
 
   final String value;
-  final double size;
+  final double size = 20;
 
   @override
   Widget build(BuildContext context) {
-    final color = _parseColor(value);
+    final color = parseCssColor(value);
     return Container(
       width: size,
       height: size,
@@ -109,24 +192,4 @@ class _ColorSwatch extends StatelessWidget {
       child: color == null ? const Icon(Icons.block, size: 14) : null,
     );
   }
-}
-
-const _palette = <String>[
-  '#ffffff',
-  '#000000',
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#06b6d4',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-];
-
-Color? _parseColor(String value) {
-  if (value.toLowerCase() == 'transparent') return null;
-  final hex = value.replaceFirst('#', '');
-  if (!RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(hex)) return null;
-  return Color(int.parse('ff$hex', radix: 16));
 }
