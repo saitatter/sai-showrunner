@@ -25,12 +25,15 @@ final class ProjectResourceCatalogEntry {
   const ProjectResourceCatalogEntry({
     required this.resourceType,
     required this.resource,
+    this.error,
   });
 
   final String resourceType;
   final ResourceData resource;
+  final Object? error;
 
-  String get title => resource.name;
+  String get title =>
+      error == null ? resource.name : '${resource.name} (unreadable)';
 }
 
 final class ShowRunnerProjectCatalogService {
@@ -57,17 +60,26 @@ final class ShowRunnerProjectCatalogService {
           Directory('${userDirectory.path}/${entry.value}'),
           resourceType: entry.key,
           secretSettings: secretSettings,
-        ).list(),
+        ).listWithErrors(),
     ]);
     final resources = <String, List<ProjectResourceCatalogEntry>>{};
     for (var index = 0; index < resourceDirectories.length; index++) {
       final resourceType = resourceDirectories[index].key;
       final entries =
-          (results[index + 2] as List<ResourceData>)
+          (results[index + 2] as List<ResourceCatalogEntry>)
               .map(
-                (resource) => ProjectResourceCatalogEntry(
+                (entry) => ProjectResourceCatalogEntry(
                   resourceType: resourceType,
-                  resource: resource,
+                  resource:
+                      entry.resource ??
+                      ResourceData(
+                        id: entry.fileName.replaceFirst(
+                          RegExp(r'\.(yaml|json)$'),
+                          '',
+                        ),
+                        config: {'name': entry.fileName},
+                      ),
+                  error: entry.error,
                 ),
               )
               .toList()

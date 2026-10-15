@@ -9,6 +9,7 @@ import '../../services/http_provider_transports.dart';
 import '../obs/actions.dart';
 import '../obs/ui/plugin_ui.dart';
 import 'plugin_registry.dart';
+import 'flutter_plugin_ui_contract.dart';
 import 'plugin_host_context.dart';
 import 'generic_plugin_ui.dart';
 import '../obs/connection_router.dart';

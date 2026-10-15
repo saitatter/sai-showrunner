@@ -221,17 +221,19 @@ final class FileViewerDataRepository implements ViewerDataRepository {
         'Imported viewer rows require provider and id.',
       );
     }
-    final file = _viewerFile(row.provider, row.viewer.id);
-    if (!overwrite && await file.exists()) return false;
-    final current = await _readViewer(row.provider, row.viewer);
-    await _writeViewer(
-      ViewerDataRow(
-        provider: row.provider,
-        viewer: row.viewer,
-        values: {...current.values, ...row.values},
-      ),
-    );
-    return true;
+    return _withViewerLock(_viewerKey(row.provider, row.viewer.id), () async {
+      final file = _viewerFile(row.provider, row.viewer.id);
+      if (!overwrite && await file.exists()) return false;
+      final current = await _readViewer(row.provider, row.viewer);
+      await _writeViewer(
+        ViewerDataRow(
+          provider: row.provider,
+          viewer: row.viewer,
+          values: {...current.values, ...row.values},
+        ),
+      );
+      return true;
+    });
   }
 
   @override

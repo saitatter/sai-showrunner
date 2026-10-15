@@ -29,7 +29,6 @@ DartPluginRegistry buildDefaultPluginRegistry({
       return true;
     },
   );
-  registry.registerUi('obs', createObsPluginUi());
   registry.register(
     createAitumPlugin(CallbackObsTransport(_unconfiguredAitum)),
   );
@@ -45,14 +44,12 @@ DartPluginRegistry buildDefaultPluginRegistry({
       eventHub: eventHub,
     ),
   );
-  registry.registerUi('youtube', createYouTubePluginUi());
   registry.register(
     createTwitchPlugin(
       TwitchTransport(_unconfiguredTwitch),
       eventHub: eventHub,
     ),
   );
-  registry.registerUi('twitch', createTwitchPluginUi());
   _registerTwitchStreamPlanComponent(
     transport: TwitchTransport(_unconfiguredTwitch),
   );
@@ -70,14 +67,11 @@ DartPluginRegistry buildDefaultPluginRegistry({
     createModerationPluginUi(moderationService),
   );
   registry.register(createDiscordPlugin());
-  registry.registerUi('discord', createDiscordPluginUi());
   registry.register(
     createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
   );
-  registry.registerUi('bluesky', createBlueskyPluginUi());
   registry.register(createDonorDrivePlugin(null, eventHub: eventHub));
   registry.register(createRemotePlugin(eventHub: eventHub));
-  registry.registerUi('remote', createRemotePluginUi());
   final voiceModTransport = CallbackVoiceModTransport(
     getVoicesCallback: _unconfiguredVoiceModVoices,
     selectVoiceCallback: _unconfiguredVoiceMod,
@@ -89,9 +83,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(
     createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
   );
-  registry.registerUi('sound', createSoundPluginUi());
   registry.register(createMinecraftPlugin());
-  registry.registerUi('minecraft', createMinecraftPluginUi());
   registry.register(createHttpPlugin(eventHub: eventHub));
   registry.register(createTimePlugin());
   registry.register(createOsPlugin());
@@ -104,12 +96,10 @@ DartPluginRegistry buildDefaultPluginRegistry({
   );
   registry.registerUi('variables', createVariablesPluginUi());
   registry.register(createOverlaysPlugin(eventHub: eventHub));
-  registry.registerUi('overlays', createOverlaysPluginUi());
   final spellcastHub = eventHub ?? DartPluginEventHub();
   registry.register(createSpellcastPlugin(eventHub: spellcastHub));
   registry.registerUi('spellcast', createSpellcastPluginUi(spellcastHub));
   registry.register(createIotPlugin());
-  registry.registerUi('iot', createIotPluginUi());
   registry.register(createGoveePlugin(GoveeTransport(_unconfiguredGovee)));
   registry.register(
     createPhilipsHuePlugin(HueTransport(_unconfiguredPhilipsHue)),
@@ -124,11 +114,8 @@ DartPluginRegistry buildDefaultPluginRegistry({
     createWyzePlugin(_unconfiguredWyzeTransport),
     onStop: _unconfiguredWyzeTransport.close,
   );
-  registry.registerUi('wyze', createWyzePluginUi());
   registry.register(dashboardPlugin);
-  registry.registerUi('dashboards', createDashboardsPluginUi());
   registry.register(createInputPlugin());
-  registry.registerUi('input', createInputPluginUi());
   registry.register(
     createStreamPlansPlugin(
       registry: registry,
@@ -136,12 +123,34 @@ DartPluginRegistry buildDefaultPluginRegistry({
       executionEngine: executionEngine,
     ),
   );
-  registry.registerUi('stream-plans', createStreamPlansPluginUi());
-  _registerGenericPluginUis(registry);
+  _registerCommonPluginUis(registry);
   return registry;
 }
 
-void _registerGenericPluginUis(DartPluginRegistry registry) {
+void _registerCommonPluginUis(DartPluginRegistry registry) {
+  final factories = <String, DartPluginUiContribution Function()>{
+    'obs': createObsPluginUi,
+    'youtube': createYouTubePluginUi,
+    'twitch': createTwitchPluginUi,
+    'discord': createDiscordPluginUi,
+    'bluesky': createBlueskyPluginUi,
+    'remote': createRemotePluginUi,
+    'sound': createSoundPluginUi,
+    'minecraft': createMinecraftPluginUi,
+    'overlays': createOverlaysPluginUi,
+    'iot': createIotPluginUi,
+    'wyze': createWyzePluginUi,
+    'dashboards': createDashboardsPluginUi,
+    'input': createInputPluginUi,
+    'stream-plans': createStreamPlansPluginUi,
+  };
+  for (final entry in factories.entries) {
+    if (registry.findPlugin(entry.key) != null &&
+        registry.uiFor(entry.key) == null) {
+      registry.registerUi(entry.key, entry.value());
+    }
+  }
+
   for (final pluginId in const [
     'advss',
     'aitum',

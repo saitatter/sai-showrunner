@@ -32,9 +32,9 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   final httpEndpointService = DartHttpEndpointService(
     // OBS Browser Sources can run on a different machine. The endpoint must
     // therefore be reachable on the LAN; isolated smoke runs stay local.
-    host: httpPortOverride != null
-        ? '127.0.0.1'
-        : InternetAddress.anyIPv4.address,
+    host: httpPortOverride == null && appSettings['allowRemoteAccess'] == true
+        ? InternetAddress.anyIPv4.address
+        : '127.0.0.1',
     port: httpPortOverride ?? _port(appSettings['port'], 8181),
   );
   final registry = DartPluginRegistry();
@@ -72,7 +72,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       return true;
     },
   );
-  registry.registerUi('obs', createObsPluginUi());
   registry.register(createAitumPlugin(obsTransport));
   registry.register(createAdvssPlugin(obsTransport, eventHub: eventHub));
   final twitchClientId = twitch['clientId'] as String?;
@@ -110,7 +109,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       eventHub: eventHub,
     ),
   );
-  registry.registerUi('youtube', createYouTubePluginUi());
   final configuredTwitchTransport = TwitchTransport((
     method,
     path,
@@ -131,7 +129,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       ),
     ),
   );
-  registry.registerUi('twitch', createTwitchPluginUi());
   _registerTwitchStreamPlanComponent(
     transport: configuredTwitchTransport,
     broadcasterId: twitch['broadcasterId']?.toString(),
@@ -158,7 +155,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           (await discordWebhookRepository.load(id))?.config,
     ),
   );
-  registry.registerUi('discord', createDiscordPluginUi());
   final blueskySettings = await dataService.loadPluginSettings('bluesky');
   final blueskyIdentifier = blueskySettings['identifier']?.toString().trim();
   final blueskyPassword = blueskySettings['appPassword']?.toString().trim();
@@ -185,7 +181,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           (await blueskyAccountRepository.load(id))?.config,
     ),
   );
-  registry.registerUi('bluesky', createBlueskyPluginUi());
   final donorDriveSettings = await dataService.loadPluginSettings('donordrive');
   final donorDriveApiBase = donorDriveSettings['apiBase']?.toString().trim();
   final donorDriveParticipant = donorDriveSettings['participantId']
@@ -237,7 +232,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     onStart: remoteRuntime?.start,
     onStop: remoteRuntime?.stop,
   );
-  registry.registerUi('remote', createRemotePluginUi());
   final voiceModSettings = await dataService.loadPluginSettings('voicemod');
   final voiceModHost = voiceModSettings['host']?.toString().trim();
   final voiceModTransport = VoiceModWebSocketTransport(
@@ -289,7 +283,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       globalVolume: _percentage(soundSettings['globalVolume'], 100),
     ),
   );
-  registry.registerUi('sound', createSoundPluginUi());
   final rconConnectionRepository = ResourceRepository(
     Directory('${dataService.userDirectory.path}/minecraft/connections'),
     resourceType: 'RCONConnection',
@@ -301,7 +294,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
           (await rconConnectionRepository.load(id))?.config,
     ),
   );
-  registry.registerUi('minecraft', createMinecraftPluginUi());
   registry.register(
     createHttpPlugin(eventHub: eventHub, endpointService: httpEndpointService),
     onStart: httpEndpointService.start,
@@ -360,7 +352,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     createOverlaysPlugin(eventHub: eventHub, overlayStore: overlayStore),
     onStop: overlayBridge?.dispose,
   );
-  registry.registerUi('overlays', createOverlaysPluginUi());
   final spellcastHub = eventHub ?? DartPluginEventHub();
   registry.register(createSpellcastPlugin(eventHub: spellcastHub));
   registry.registerUi('spellcast', createSpellcastPluginUi(spellcastHub));
@@ -520,20 +511,17 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     createWyzePlugin(wyzeTransport),
     onStop: wyzeTransport.close,
   );
-  registry.registerUi('wyze', createWyzePluginUi());
   registry.register(
     createDashboardPlugin(),
     onStart: dashboardHost?.start,
     onStop: dashboardHost?.stop,
   );
-  registry.registerUi('dashboards', createDashboardsPluginUi());
   final inputPlatform = const NativeInputPlatform();
   registry.register(
     createInputPlugin(platform: inputPlatform),
     onStart: inputPlatform.startEvents,
     onStop: inputPlatform.stopEvents,
   );
-  registry.registerUi('input', createInputPluginUi());
   registry.register(
     createStreamPlansPlugin(
       registry: registry,
@@ -541,7 +529,6 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       executionEngine: executionEngine,
     ),
   );
-  registry.registerUi('stream-plans', createStreamPlansPluginUi());
   registry.register(
     createIotPlugin(
       resolver: createConfiguredIotResolver(
@@ -550,8 +537,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       ),
     ),
   );
-  registry.registerUi('iot', createIotPluginUi());
-  _registerGenericPluginUis(registry);
+  _registerCommonPluginUis(registry);
   final disabled = appSettings['disabledPlugins'];
   if (disabled is List) {
     for (final pluginId in disabled.whereType<String>()) {

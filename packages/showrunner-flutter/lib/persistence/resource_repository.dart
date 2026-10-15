@@ -1,13 +1,28 @@
+import 'document_codec.dart';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
 import 'filesystem/atomic_file.dart';
+import 'filesystem/safe_path.dart';
+import '../services/structured_logger.dart';
 import '../schema/resource.dart';
 import 'secret_settings_store.dart';
 
 typedef _JsonMap = Map<String, dynamic>;
+
+final class ResourceCatalogEntry {
+  const ResourceCatalogEntry({
+    required this.fileName,
+    this.resource,
+    this.error,
+  });
+  final String fileName;
+  final ResourceData? resource;
+  final Object? error;
+  bool get isValid => resource != null && error == null;
+}
 
 class ResourceRepository {
   const ResourceRepository(
@@ -20,7 +35,12 @@ class ResourceRepository {
   final String? resourceType;
   final SecretSettingsStore? secretSettings;
 
-  Future<List<ResourceData>> list() async {
+  Future<List<ResourceData>> list() async => (await listWithErrors())
+      .where((entry) => entry.isValid)
+      .map((entry) => entry.resource!)
+      .toList();
+
+  Future<List<ResourceCatalogEntry>> listWithErrors() async {
     if (!await directory.exists()) return const [];
     final files = await directory
         .list()
@@ -32,27 +52,52 @@ class ResourceRepository {
         .cast<File>()
         .toList();
 
-    final resources = <ResourceData>[];
+    final resources = <ResourceCatalogEntry>[];
     for (final file in files) {
       try {
-        resources.add(await _read(file));
-      } catch (_) {
-        // Ignore unparseable or corrupted files gracefully
+        resources.add(
+          ResourceCatalogEntry(
+            fileName: file.uri.pathSegments.last,
+            resource: await _read(file),
+          ),
+        );
+      } catch (error, stackTrace) {
+        resources.add(
+          ResourceCatalogEntry(
+            fileName: file.uri.pathSegments.last,
+            error: error,
+          ),
+        );
+        ShowRunnerLogger.instance.error(
+          'persistence',
+          'Could not read resource ${file.path}',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
-    resources.sort((left, right) => left.id.compareTo(right.id));
+    resources.sort((left, right) => left.fileName.compareTo(right.fileName));
     return resources;
   }
 
   Future<ResourceData?> load(String id) async {
-    final jsonFile = File('${directory.path}/$id.json');
+    validateFileIdentifier(id);
+    final jsonFile = await containedFile(directory, ['$id.json']);
     if (await jsonFile.exists()) return _read(jsonFile);
-    final yamlFile = File('${directory.path}/$id.yaml');
+    final yamlFile = await containedFile(directory, ['$id.yaml']);
     if (await yamlFile.exists()) return _read(yamlFile);
     return null;
   }
 
-  Future<void> save(ResourceData resource) async {
+  Future<void> save(ResourceData resource) {
+    validateFileIdentifier(resource.id);
+    return withFileLock(
+      '${directory.path}/${resource.id}.transaction',
+      () => _save(resource),
+    );
+  }
+
+  Future<void> _save(ResourceData resource) async {
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
@@ -80,29 +125,45 @@ class ResourceRepository {
       config: publicConfig,
       state: resource.state,
     );
-    final jsonFile = File('${directory.path}/${resource.id}.json');
-    final yamlFile = File('${directory.path}/${resource.id}.yaml');
+    final jsonFile = await containedFile(directory, ['${resource.id}.json']);
+    final yamlFile = await containedFile(directory, ['${resource.id}.yaml']);
     if (!await jsonFile.exists() && await yamlFile.exists()) {
-      await writeAtomicText(yamlFile, _encodeYaml(publicConfig));
+      final stateFile = await containedFile(directory, [
+        '.state',
+        '${resource.id}.json',
+      ]);
+      if (resource.state.isNotEmpty) {
+        await writeAtomicText(stateFile, jsonEncode(resource.state));
+      } else if (await stateFile.exists()) {
+        await stateFile.delete();
+      }
+      await writeAtomicText(yamlFile, encodeYaml(publicConfig));
       return;
     }
     const encoder = JsonEncoder.withIndent('  ');
     await writeAtomicText(jsonFile, encoder.convert(publicResource.toJson()));
   }
 
-  Future<void> delete(String id) async {
+  Future<void> delete(String id) {
+    validateFileIdentifier(id);
+    return withFileLock('${directory.path}/$id.transaction', () => _delete(id));
+  }
+
+  Future<void> _delete(String id) async {
     if (resourceType != null && secretSettings != null) {
       await secretSettings!.deleteResource(resourceType!, id);
     }
     for (final file in [
-      File('${directory.path}/$id.json'),
-      File('${directory.path}/$id.yaml'),
+      await containedFile(directory, ['$id.json']),
+      await containedFile(directory, ['$id.yaml']),
+      await containedFile(directory, ['.state', '$id.json']),
     ]) {
       if (await file.exists()) await file.delete();
     }
   }
 
   Future<ResourceData> _read(File file) async {
+    file = await containedFile(directory, [file.uri.pathSegments.last]);
     final content = await file.readAsString();
     ResourceData resource;
     if (file.path.endsWith('.json')) {
@@ -120,7 +181,18 @@ class ResourceRepository {
         RegExp(r'\.yaml$'),
         '',
       );
-      resource = ResourceData(id: id, config: _yamlMap(parsed));
+      final stateFile = await containedFile(directory, ['.state', '$id.json']);
+      final state = await stateFile.exists()
+          ? jsonDecode(await stateFile.readAsString())
+          : <String, dynamic>{};
+      if (state is! Map) {
+        throw const FormatException('Resource state must be an object.');
+      }
+      resource = ResourceData(
+        id: id,
+        config: _yamlMap(parsed),
+        state: Map<String, dynamic>.from(state),
+      );
     }
     return _withSecretResourceConfig(resource);
   }
@@ -132,7 +204,13 @@ class ResourceRepository {
     _JsonMap secrets;
     try {
       secrets = await _loadSecretResource(resource.id);
-    } on Object {
+    } on Object catch (error, stackTrace) {
+      ShowRunnerLogger.instance.error(
+        'persistence',
+        'Could not decrypt resource ${resource.id}',
+        error: error,
+        stackTrace: stackTrace,
+      );
       secrets = <String, dynamic>{};
     }
     if (secrets.isEmpty) return resource;
@@ -161,66 +239,4 @@ dynamic _yamlValue(dynamic value) {
   if (value is YamlMap) return _yamlMap(value);
   if (value is YamlList) return value.map(_yamlValue).toList();
   return value;
-}
-
-String _encodeYaml(_JsonMap value) {
-  final lines = <String>[];
-  _appendYamlMap(lines, value, 0);
-  return '${lines.join('\n')}\n';
-}
-
-void _appendYamlMap(List<String> lines, _JsonMap value, int indentation) {
-  final prefix = ' ' * indentation;
-  for (final entry in value.entries) {
-    final nested = entry.value;
-    if (nested is Map) {
-      final map = Map<String, dynamic>.from(nested);
-      lines.add('$prefix${entry.key}:');
-      if (map.isEmpty) {
-        lines[lines.length - 1] += ' {}';
-      } else {
-        _appendYamlMap(lines, map, indentation + 2);
-      }
-    } else if (nested is List) {
-      lines.add('$prefix${entry.key}:');
-      if (nested.isEmpty) {
-        lines[lines.length - 1] += ' []';
-      } else {
-        _appendYamlList(lines, nested, indentation + 2);
-      }
-    } else {
-      lines.add('$prefix${entry.key}: ${_yamlScalar(nested)}');
-    }
-  }
-}
-
-void _appendYamlList(List<String> lines, List<dynamic> value, int indentation) {
-  final prefix = ' ' * indentation;
-  for (final item in value) {
-    if (item is Map) {
-      final map = Map<String, dynamic>.from(item);
-      if (map.isEmpty) {
-        lines.add('$prefix- {}');
-      } else {
-        final first = map.entries.first;
-        lines.add('$prefix- ${first.key}: ${_yamlScalar(first.value)}');
-        if (map.length > 1) {
-          _appendYamlMap(
-            lines,
-            Map<String, dynamic>.fromEntries(map.entries.skip(1)),
-            indentation + 2,
-          );
-        }
-      }
-    } else {
-      lines.add('$prefix- ${_yamlScalar(item)}');
-    }
-  }
-}
-
-String _yamlScalar(dynamic value) {
-  if (value == null) return 'null';
-  if (value is bool || value is num) return value.toString();
-  final text = value.toString().replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-  return '"$text"';
 }

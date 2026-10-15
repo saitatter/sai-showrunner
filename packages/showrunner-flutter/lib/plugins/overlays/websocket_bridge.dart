@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../persistence/viewer_data_repository.dart';
+import '../../persistence/filesystem/safe_path.dart';
 import '../../schema/automation.dart';
 import '../../schema/resource.dart';
 import '../../schema/viewer_data.dart';
@@ -144,7 +145,12 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
         await _respond(request, HttpStatus.badRequest);
         return true;
       }
-      file = File('${root.path}/${segments.skip(1).join('/')}');
+      try {
+        file = await containedFile(root, segments.skip(1).toList());
+      } on ArgumentError {
+        await _respond(request, HttpStatus.badRequest);
+        return true;
+      }
     }
     if (file == null) return false;
     if (!await file.exists()) {
@@ -161,6 +167,11 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
   Future<bool> _handleWebSocket(HttpRequest request, WebSocket socket) async {
     final overlayId = request.uri.queryParameters['overlay']?.trim() ?? '';
     if (overlayId.isEmpty) return false;
+    try {
+      validateFileIdentifier(overlayId);
+    } on ArgumentError {
+      return false;
+    }
     final resource = await overlayStore.load(overlayId);
     if (resource == null) {
       await socket.close(WebSocketStatus.normalClosure);
@@ -198,10 +209,10 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
       await _respond(request, HttpStatus.notFound);
       return true;
     }
-    final file = File('${root.path}/${segments.skip(2).join('/')}');
-    final rootPath = Directory(root.path).absolute.path.toLowerCase();
-    final filePath = file.absolute.path.toLowerCase();
-    if (!filePath.startsWith('$rootPath${Platform.pathSeparator}')) {
+    File file;
+    try {
+      file = await containedFile(root, segments.skip(2).toList());
+    } on ArgumentError {
       await _respond(request, HttpStatus.badRequest);
       return true;
     }
@@ -261,6 +272,11 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
   }
 
   Future<void> _reloadConfig(String overlayId) async {
+    try {
+      validateFileIdentifier(overlayId);
+    } on ArgumentError {
+      return;
+    }
     final resource = await overlayStore.load(overlayId);
     if (resource == null) return;
     for (final peer in _targetPeers(overlayId)) {

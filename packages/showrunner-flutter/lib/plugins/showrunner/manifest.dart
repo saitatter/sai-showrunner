@@ -321,6 +321,12 @@ DartPluginManifest createShowRunnerPlugin({
   name: 'ShowRunner',
   settings: [
     SettingSpec(
+      id: SettingId('allowRemoteAccess'),
+      displayName: 'Allow OBS and HTTP access from the local network',
+      type: DartSettingType.boolean,
+      defaultValue: false,
+    ),
+    SettingSpec(
       id: SettingId('port'),
       displayName: 'Internal Webserver Port',
       defaultValue: 8181,

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../persistence/filesystem/atomic_file.dart';
+import '../persistence/filesystem/safe_path.dart';
 
 typedef UpdateProcessLauncher =
     Future<void> Function(File script, List<String> arguments);
@@ -42,7 +43,7 @@ final class UpdateInstallService {
         'The ShowRunner install directory was not found.',
       );
     }
-    _validateRollbackDirectory(installDirectory, rollbackDirectory);
+    await _validateRollbackDirectory(installDirectory, rollbackDirectory);
     await rollbackDirectory.create(recursive: true);
 
     final script = File(
@@ -101,7 +102,7 @@ final class UpdateInstallService {
         'The ShowRunner rollback backup is incomplete.',
       );
     }
-    _validateRollbackDirectory(installDirectory, rollbackDirectory);
+    await _validateRollbackDirectory(installDirectory, rollbackDirectory);
 
     final script = File(
       '${Directory.systemTemp.path}/showrunner-rollback-${DateTime.now().microsecondsSinceEpoch}.ps1',
@@ -127,24 +128,27 @@ final class UpdateInstallService {
   }
 }
 
-void _validateRollbackDirectory(
+Future<void> _validateRollbackDirectory(
   Directory installDirectory,
   Directory rollbackDirectory,
-) {
-  final installPath = _normalizedPath(installDirectory.absolute.path);
-  final rollbackPath = _normalizedPath(rollbackDirectory.absolute.path);
-  if (rollbackPath == installPath ||
-      rollbackPath.startsWith('$installPath${Platform.pathSeparator}')) {
+) async {
+  final installPath = await canonicalPath(installDirectory.path);
+  final rollbackPath = await canonicalPath(rollbackDirectory.path);
+  final same = Platform.isWindows
+      ? installPath.toLowerCase() == rollbackPath.toLowerCase()
+      : installPath == rollbackPath;
+  if (same ||
+      pathIsWithin(installPath, rollbackPath) ||
+      pathIsWithin(rollbackPath, installPath)) {
     throw ArgumentError(
-      'The rollback directory must not be inside the install directory.',
+      'The rollback and install directories must be disjoint.',
     );
   }
+  if (Directory(installPath).parent.path == installPath ||
+      Directory(rollbackPath).parent.path == rollbackPath) {
+    throw ArgumentError('An update directory must not be a filesystem root.');
+  }
 }
-
-String _normalizedPath(String path) => path
-    .replaceAll('/', Platform.pathSeparator)
-    .replaceFirst(RegExp(r'[\\/]+$'), '')
-    .toLowerCase();
 
 bool _isWindows() => Platform.isWindows;
 
@@ -202,7 +206,24 @@ function Restore-Backup {
   Copy-DirectoryContents $RollbackDirectory $InstallDirectory -ExcludeMetadata
 }
 
+function Assert-NoReparseAncestors([string]$Directory) {
+  $checked = [IO.Path]::GetFullPath($Directory)
+  while ($checked) {
+    if (Test-Path -LiteralPath $checked) {
+      $item = Get-Item -LiteralPath $checked -Force
+      if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        throw "Updater directories must not contain junction or symlink ancestors: $checked"
+      }
+    }
+    $parent = Split-Path -Parent $checked
+    if ($parent -eq $checked) { break }
+    $checked = $parent
+  }
+}
+
 try {
+  Assert-NoReparseAncestors $InstallDirectory
+  Assert-NoReparseAncestors $RollbackDirectory
   if (-not (Test-Path -LiteralPath $InstallDirectory -PathType Container)) {
     throw "Install directory does not exist: $InstallDirectory"
   }
@@ -210,8 +231,11 @@ try {
   $installFullPath = [IO.Path]::GetFullPath($InstallDirectory).TrimEnd('\', '/')
   $rollbackFullPath = [IO.Path]::GetFullPath($RollbackDirectory).TrimEnd('\', '/')
   if ($rollbackFullPath.Equals($installFullPath, [StringComparison]::OrdinalIgnoreCase) -or
-      $rollbackFullPath.StartsWith("$installFullPath\", [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Rollback directory must not be inside the install directory."
+      $rollbackFullPath.StartsWith("$installFullPath\", [StringComparison]::OrdinalIgnoreCase) -or
+      $installFullPath.StartsWith("$rollbackFullPath\", [StringComparison]::OrdinalIgnoreCase) -or
+      $installFullPath -eq [IO.Path]::GetPathRoot($installFullPath).TrimEnd('\', '/') -or
+      $rollbackFullPath -eq [IO.Path]::GetPathRoot($rollbackFullPath).TrimEnd('\', '/')) {
+    throw "Rollback and install directories must be disjoint and must not be filesystem roots."
   }
 
   try {

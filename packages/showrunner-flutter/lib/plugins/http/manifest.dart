@@ -5,6 +5,8 @@ import 'dart:io';
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
+import '../../services/http_policy.dart';
+import '../../services/structured_logger.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 
@@ -17,7 +19,15 @@ const _endpointMethods = ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'];
 /// trigger becomes active. Cancelling that trigger subscription removes the
 /// route, which keeps the server aligned with the active profile set.
 final class DartHttpEndpointService {
-  DartHttpEndpointService({this.host = '127.0.0.1', this.port = 8181});
+  DartHttpEndpointService({
+    this.host = '127.0.0.1',
+    this.port = 8181,
+    this.maxBodyBytes = 1024 * 1024,
+    this.requestTimeout = const Duration(seconds: 20),
+  });
+
+  final int maxBodyBytes;
+  final Duration requestTimeout;
 
   final String host;
   final int port;
@@ -88,14 +98,71 @@ final class DartHttpEndpointService {
   }
 
   Future<void> _handleRequest(HttpRequest request) async {
-    if (WebSocketTransformer.isUpgradeRequest(request)) {
-      final socket = await WebSocketTransformer.upgrade(request);
-      for (final handler in List<DartHttpWebSocketHandler>.of(
-        _webSocketHandlers,
-      )) {
-        if (await handler(request, socket)) return;
+    try {
+      final origin = request.headers.value('origin');
+      if (origin != null) {
+        final uri = Uri.tryParse(origin);
+        final authority = request.headers.value(HttpHeaders.hostHeader);
+        if (uri == null ||
+            !{'http', 'https'}.contains(uri.scheme) ||
+            uri.authority != authority) {
+          await _respond(request, HttpStatus.forbidden);
+          return;
+        }
       }
-      await socket.close(WebSocketStatus.normalClosure);
+      await _dispatchRequest(request).timeout(requestTimeout);
+    } on HttpBodyLimitException catch (error) {
+      if (!error.responseSent) {
+        await _respondQuietly(request, HttpStatus.requestEntityTooLarge);
+      }
+    } on TimeoutException {
+      await _respondQuietly(request, HttpStatus.requestTimeout);
+    } on ArgumentError {
+      await _respondQuietly(request, HttpStatus.badRequest);
+    } on FormatException {
+      await _respondQuietly(request, HttpStatus.badRequest);
+    } on Object catch (error, stackTrace) {
+      ShowRunnerLogger.instance.error(
+        'http',
+        'HTTP request failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await _respondQuietly(request, HttpStatus.internalServerError);
+    }
+  }
+
+  Future<void> _respondQuietly(HttpRequest request, int status) async {
+    try {
+      await _respond(request, status);
+    } on Object {
+      request.response
+          .detachSocket()
+          .then((socket) => socket.destroy())
+          .ignore();
+    }
+  }
+
+  Future<void> _dispatchRequest(HttpRequest request) async {
+    if (WebSocketTransformer.isUpgradeRequest(request)) {
+      if (request.uri.path != '/' ||
+          request.uri.queryParameters['overlay']?.isNotEmpty != true ||
+          _webSocketHandlers.isEmpty) {
+        await _respond(request, HttpStatus.notFound);
+        return;
+      }
+      final socket = await WebSocketTransformer.upgrade(request);
+      try {
+        for (final handler in List<DartHttpWebSocketHandler>.of(
+          _webSocketHandlers,
+        )) {
+          if (await handler(request, socket)) return;
+        }
+        await socket.close(WebSocketStatus.normalClosure);
+      } on Object {
+        await socket.close(WebSocketStatus.internalServerError);
+        rethrow;
+      }
       return;
     }
     for (final handler in List<DartHttpRequestHandler>.of(_requestHandlers)) {
@@ -142,7 +209,11 @@ final class DartHttpEndpointService {
   }
 
   Future<dynamic> _readRequestBody(HttpRequest request) async {
-    final raw = await utf8.decoder.bind(request).join();
+    final raw = await readHttpText(
+      request,
+      maxBytes: maxBodyBytes,
+      onLimit: () => _respond(request, HttpStatus.requestEntityTooLarge),
+    ).timeout(requestTimeout);
     if (raw.isEmpty) return <String, dynamic>{};
     final mimeType = request.headers.contentType?.mimeType;
     if (mimeType == 'application/json' || mimeType == 'text/json') {

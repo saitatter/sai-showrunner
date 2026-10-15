@@ -1,3 +1,4 @@
+import 'document_codec.dart';
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
@@ -7,6 +8,8 @@ import 'package:yaml/yaml.dart';
 
 import '../schema/automation.dart';
 import 'filesystem/atomic_file.dart';
+import 'filesystem/safe_path.dart';
+import '../services/structured_logger.dart';
 
 typedef SecretSettingsCipher = Future<List<int>> Function(List<int> bytes);
 
@@ -80,28 +83,47 @@ final class SecretSettingsStore {
   }
 
   Future<void> deleteResource(String resourceType, String resourceId) async {
-    final file = _resourceFile(resourceType, resourceId);
+    var file = _resourceFile(resourceType, resourceId);
+    final relative = file.absolute.path
+        .substring(directory.absolute.path.length + 1)
+        .replaceAll('\\', '/')
+        .split('/');
+    file = await containedFile(directory, relative);
     if (await file.exists()) await file.delete();
   }
 
   Future<JsonMap> _loadFile(File file, String label) async {
     if (!await file.exists()) return <String, dynamic>{};
+    final relative = file.absolute.path
+        .substring(directory.absolute.path.length + 1)
+        .replaceAll('\\', '/')
+        .split('/');
+    file = await containedFile(directory, relative);
     final encrypted = await file.readAsBytes();
     final plaintext = await (decrypt ?? decryptWithWindowsDpapi)(encrypted);
     final parsed = loadYaml(utf8.decode(plaintext));
     if (parsed is! YamlMap) {
       throw FormatException('$label must contain a map.');
     }
-    return _yamlMap(parsed);
+    final values = _yamlMap(parsed);
+    ShowRunnerLogger.instance.registerSecrets(values);
+    return values;
   }
 
   Future<void> _saveFile(File file, JsonMap values) async {
-    final plaintext = utf8.encode(_yamlEncode(values));
+    final relative = file.absolute.path
+        .substring(directory.absolute.path.length + 1)
+        .replaceAll('\\', '/')
+        .split('/');
+    file = await containedFile(directory, relative);
+    ShowRunnerLogger.instance.registerSecrets(values);
+    final plaintext = utf8.encode(encodeYaml(values));
     final encrypted = await (encrypt ?? encryptWithWindowsDpapi)(plaintext);
     await writeAtomicBytes(file, encrypted);
   }
 
   File _file(String pluginId) {
+    validateFileIdentifier(pluginId);
     if (!_isSafePluginId(pluginId)) {
       throw ArgumentError.value(pluginId, 'pluginId');
     }
@@ -109,6 +131,8 @@ final class SecretSettingsStore {
   }
 
   File _resourceFile(String resourceType, String resourceId) {
+    validateFileIdentifier(resourceType);
+    validateFileIdentifier(resourceId);
     if (!_isSafePluginId(resourceType) || !_isSafePluginId(resourceId)) {
       throw ArgumentError(
         'Resource secret path contains an unsafe identifier.',
@@ -216,68 +240,6 @@ dynamic _yamlValue(dynamic value) {
   if (value is YamlMap) return _yamlMap(value);
   if (value is YamlList) return value.map(_yamlValue).toList();
   return value;
-}
-
-String _yamlEncode(JsonMap value) {
-  final lines = <String>[];
-  _appendYamlMap(lines, value, 0);
-  return '${lines.join('\n')}\n';
-}
-
-void _appendYamlMap(List<String> lines, JsonMap value, int indentation) {
-  final prefix = ' ' * indentation;
-  for (final entry in value.entries) {
-    final nested = entry.value;
-    if (nested is Map) {
-      final map = Map<String, dynamic>.from(nested);
-      lines.add('$prefix${entry.key}:');
-      if (map.isEmpty) {
-        lines[lines.length - 1] += ' {}';
-      } else {
-        _appendYamlMap(lines, map, indentation + 2);
-      }
-    } else if (nested is List) {
-      lines.add('$prefix${entry.key}:');
-      if (nested.isEmpty) {
-        lines[lines.length - 1] += ' []';
-      } else {
-        _appendYamlList(lines, nested, indentation + 2);
-      }
-    } else {
-      lines.add('$prefix${entry.key}: ${_yamlScalar(nested)}');
-    }
-  }
-}
-
-void _appendYamlList(List<String> lines, List<dynamic> value, int indentation) {
-  final prefix = ' ' * indentation;
-  for (final item in value) {
-    if (item is Map) {
-      final map = Map<String, dynamic>.from(item);
-      if (map.isEmpty) {
-        lines.add('$prefix- {}');
-      } else {
-        final first = map.entries.first;
-        lines.add('$prefix- ${first.key}: ${_yamlScalar(first.value)}');
-        if (map.length > 1) {
-          _appendYamlMap(
-            lines,
-            Map<String, dynamic>.fromEntries(map.entries.skip(1)),
-            indentation + 2,
-          );
-        }
-      }
-    } else {
-      lines.add('$prefix- ${_yamlScalar(item)}');
-    }
-  }
-}
-
-String _yamlScalar(dynamic value) {
-  if (value == null) return 'null';
-  if (value is bool || value is num) return value.toString();
-  final text = value.toString().replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-  return '"$text"';
 }
 
 bool _isSafePluginId(String value) =>

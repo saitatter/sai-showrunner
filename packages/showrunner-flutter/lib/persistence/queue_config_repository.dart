@@ -1,9 +1,10 @@
+import 'document_codec.dart';
 import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
 import 'filesystem/atomic_file.dart';
-import '../schema/automation.dart';
+import 'filesystem/safe_path.dart';
 import '../schema/queue.dart';
 
 final class QueueConfigRepository {
@@ -40,6 +41,10 @@ final class QueueConfigRepository {
   }
 
   Future<QueueConfig> load(File file) async {
+    if (!pathIsWithin(directory.absolute.path, file.absolute.path)) {
+      throw ArgumentError('Queue file leaves the repository.');
+    }
+    file = await containedFile(directory, [file.uri.pathSegments.last]);
     final parsed = _yamlToDart(loadYaml(await file.readAsString()));
     if (parsed is! Map) {
       throw const FormatException('Queue config must contain an object.');
@@ -48,12 +53,14 @@ final class QueueConfigRepository {
   }
 
   Future<void> save(String fileName, QueueConfig config) async {
-    final file = File('${directory.path}/$fileName');
-    await writeAtomicText(file, _yamlEncode(config.toJson()));
+    validateFileIdentifier(fileName);
+    final file = await containedFile(directory, [fileName]);
+    await writeAtomicText(file, encodeYaml(config.toJson()));
   }
 
   Future<void> delete(String fileName) async {
-    final file = File('${directory.path}/$fileName');
+    validateFileIdentifier(fileName);
+    final file = await containedFile(directory, [fileName]);
     if (await file.exists()) await file.delete();
   }
 }
@@ -67,14 +74,4 @@ dynamic _yamlToDart(dynamic value) {
   }
   if (value is YamlList) return value.map(_yamlToDart).toList();
   return value;
-}
-
-String _yamlEncode(JsonMap value) =>
-    '${value.entries.map((entry) => '${entry.key}: ${_yamlScalar(entry.value)}').join('\n')}\n';
-
-String _yamlScalar(dynamic value) {
-  if (value == null) return 'null';
-  if (value is bool || value is num) return value.toString();
-  final text = value.toString().replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-  return '"$text"';
 }

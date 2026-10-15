@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'http_policy.dart';
 
 import '../schema/automation.dart';
 import '../schema/update.dart';
@@ -95,7 +96,9 @@ final class UpdateCheckService {
   }
 
   Future<JsonMap> _fetchLatestRelease() async {
-    final client = HttpClient()..userAgent = 'SAI-ShowRunner/$currentVersion';
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 10)
+      ..userAgent = 'SAI-ShowRunner/$currentVersion';
     try {
       final request = await client.getUrl(
         Uri.parse('https://api.github.com/repos/$repository/releases/latest'),
@@ -105,8 +108,13 @@ final class UpdateCheckService {
         'application/vnd.github+json',
       );
       request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-      final response = await request.close();
-      final body = await utf8.decoder.bind(response).join();
+      final response = await request.close().timeout(
+        const Duration(seconds: 20),
+      );
+      final body = await readHttpText(
+        response,
+        maxBytes: 1024 * 1024,
+      ).timeout(const Duration(seconds: 20));
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException(
           'GitHub returned HTTP ${response.statusCode}.',

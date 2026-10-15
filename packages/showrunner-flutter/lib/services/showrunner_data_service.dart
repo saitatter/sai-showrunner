@@ -1,8 +1,11 @@
+import '../persistence/document_codec.dart';
 import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
 import '../persistence/filesystem/atomic_file.dart';
+import '../persistence/filesystem/safe_path.dart';
+import 'structured_logger.dart';
 import '../persistence/secret_settings_store.dart';
 import '../schema/automation.dart';
 
@@ -58,7 +61,8 @@ final class ShowRunnerDataService {
   }
 
   Future<JsonMap> loadPluginSettings(String pluginId) async {
-    final file = File('${settingsDirectory.path}/$pluginId.yaml');
+    validateFileIdentifier(pluginId);
+    final file = await containedFile(settingsDirectory, ['$pluginId.yaml']);
     final values = <String, dynamic>{};
     if (await file.exists()) {
       final parsed = loadYaml(await file.readAsString());
@@ -66,14 +70,26 @@ final class ShowRunnerDataService {
     }
     try {
       values.addAll(await secretSettingsStore.load(pluginId));
-    } on Object {
-      // Keep public settings usable if a secret file belongs to another
-      // Windows profile or cannot be decrypted in this environment.
+    } on Object catch (error, stackTrace) {
+      ShowRunnerLogger.instance.error(
+        'persistence',
+        'Could not decrypt settings for $pluginId',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
     return values;
   }
 
-  Future<void> savePluginSettings(String pluginId, JsonMap settings) async {
+  Future<void> savePluginSettings(String pluginId, JsonMap settings) {
+    validateFileIdentifier(pluginId);
+    return withFileLock(
+      '${settingsDirectory.path}/$pluginId.transaction',
+      () => _savePluginSettings(pluginId, settings),
+    );
+  }
+
+  Future<void> _savePluginSettings(String pluginId, JsonMap settings) async {
     final secretKeys = secretSettingIdsFor(pluginId);
     final publicSettings = <String, dynamic>{
       for (final entry in settings.entries)
@@ -90,8 +106,9 @@ final class ShowRunnerDataService {
         ...secretSettings,
       });
     }
-    final file = File('${settingsDirectory.path}/$pluginId.yaml');
-    await writeAtomicText(file, _yamlEncode(publicSettings));
+    validateFileIdentifier(pluginId);
+    final file = await containedFile(settingsDirectory, ['$pluginId.yaml']);
+    await writeAtomicText(file, encodeYaml(publicSettings));
   }
 
   Future<void> updatePluginSetting(
@@ -99,23 +116,26 @@ final class ShowRunnerDataService {
     String settingId,
     dynamic value,
   ) async {
-    final settings = await loadPluginSettings(pluginId);
-    settings[settingId] = value;
-    await savePluginSettings(pluginId, settings);
+    validateFileIdentifier(pluginId);
+    await withFileLock(
+      '${settingsDirectory.path}/$pluginId.transaction',
+      () async {
+        final settings = await loadPluginSettings(pluginId);
+        settings[settingId] = value;
+        await _savePluginSettings(pluginId, settings);
+      },
+    );
   }
 
   Future<JsonMap> _loadSecretSettings(String pluginId) async {
-    try {
-      return await secretSettingsStore.load(pluginId);
-    } on Object {
-      return <String, dynamic>{};
-    }
+    // A decryption failure must never authorize overwriting an existing secret.
+    return secretSettingsStore.load(pluginId);
   }
 
   Future<Map<String, JsonMap>> loadResourceConfigs(
     String resourceDirectory,
   ) async {
-    final directory = Directory('${userDirectory.path}/$resourceDirectory');
+    final directory = safeRelativeDirectory(userDirectory, resourceDirectory);
     if (!await directory.exists()) return <String, JsonMap>{};
     final resources = <String, JsonMap>{};
     await for (final entity in directory.list()) {
@@ -124,7 +144,11 @@ final class ShowRunnerDataService {
         RegExp(r'\.yaml$'),
         '',
       );
-      final parsed = loadYaml(await entity.readAsString());
+      final safeFile = await containedFile(userDirectory, [
+        ...resourceDirectory.split('/'),
+        entity.uri.pathSegments.last,
+      ]);
+      final parsed = loadYaml(await safeFile.readAsString());
       if (parsed is YamlMap) resources[id] = _toMap(parsed);
     }
     return resources;
@@ -135,13 +159,17 @@ final class ShowRunnerDataService {
     String resourceId,
     JsonMap config,
   ) async {
-    final directory = Directory('${userDirectory.path}/$resourceDirectory');
-    final file = File('${directory.path}/$resourceId.yaml');
-    await writeAtomicText(file, _yamlEncode(config));
+    safeRelativeDirectory(userDirectory, resourceDirectory);
+    validateFileIdentifier(resourceId);
+    final file = await containedFile(userDirectory, [
+      ...resourceDirectory.split('/'),
+      '$resourceId.yaml',
+    ]);
+    await writeAtomicText(file, encodeYaml(config));
   }
 
   Future<List<String>> listUserFiles(String relativeDirectory) async {
-    final directory = Directory('${userDirectory.path}/$relativeDirectory');
+    final directory = safeRelativeDirectory(userDirectory, relativeDirectory);
     if (!await directory.exists()) return <String>[];
     final files = <String>[];
     await for (final entity in directory.list()) {
@@ -160,72 +188,4 @@ dynamic _toDart(dynamic value) {
   if (value is YamlMap) return _toMap(value);
   if (value is YamlList) return value.map(_toDart).toList();
   return value;
-}
-
-String _yamlEncode(JsonMap value) {
-  final lines = <String>[];
-  _appendYamlMap(lines, value, 0);
-  return '${lines.join('\n')}\n';
-}
-
-void _appendYamlMap(List<String> lines, JsonMap value, int indentation) {
-  final prefix = ' ' * indentation;
-  for (final entry in value.entries) {
-    final nested = entry.value;
-    if (nested is Map) {
-      final map = Map<String, dynamic>.from(nested);
-      lines.add('$prefix${entry.key}:');
-      if (map.isEmpty) {
-        lines[lines.length - 1] += ' {}';
-      } else {
-        _appendYamlMap(lines, map, indentation + 2);
-      }
-    } else if (nested is List) {
-      lines.add('$prefix${entry.key}:');
-      if (nested.isEmpty) {
-        lines[lines.length - 1] += ' []';
-      } else {
-        _appendYamlList(lines, nested, indentation + 2);
-      }
-    } else {
-      lines.add('$prefix${entry.key}: ${_yamlScalar(nested)}');
-    }
-  }
-}
-
-void _appendYamlList(List<String> lines, List<dynamic> value, int indentation) {
-  final prefix = ' ' * indentation;
-  for (final item in value) {
-    if (item is Map) {
-      final map = Map<String, dynamic>.from(item);
-      if (map.isEmpty) {
-        lines.add('$prefix- {}');
-      } else {
-        final first = map.entries.first;
-        lines.add('$prefix- ${first.key}: ${_yamlScalar(first.value)}');
-        if (map.length > 1) {
-          _appendYamlMap(
-            lines,
-            Map<String, dynamic>.fromEntries(map.entries.skip(1)),
-            indentation + 2,
-          );
-        }
-      }
-    } else if (item is List) {
-      lines.add('$prefix-');
-      _appendYamlList(lines, item, indentation + 2);
-    } else {
-      lines.add('$prefix- ${_yamlScalar(item)}');
-    }
-  }
-}
-
-String _yamlScalar(dynamic value) {
-  if (value == null) return 'null';
-  if (value is bool || value is num) return value.toString();
-  if (value is String) {
-    final escaped = value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-    return '"$escaped"';
-  }
-  return '"${value.toString()}"';
 }

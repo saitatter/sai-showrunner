@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../services/structured_logger.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -52,6 +53,9 @@ final class RemoteDashboardHost extends ChangeNotifier {
 
   Future<void> start() async {
     if (_started || _closed) return;
+    await _stopping;
+    _stopping = null;
+    if (_closed) return;
     _started = true;
     registry.addListener(_handleRegistryStateChange);
     _signalingSubscription = signaling.messages.listen(
@@ -66,24 +70,43 @@ final class RemoteDashboardHost extends ChangeNotifier {
     }
   }
 
-  Future<void> stop() async {
+  Future<void>? _stopping;
+  Future<void> stop() => _stopping ??= _stop();
+  Future<void> _stop() async {
     if (!_started) return;
     _started = false;
     registry.removeListener(_handleRegistryStateChange);
-    await _signalingSubscription?.cancel();
-    _signalingSubscription = null;
-    await _fileSubscription?.cancel();
-    _fileSubscription = null;
-    for (final connection in _connections.values.toList()) {
-      _connections.remove(connection.id);
-      _stateSubscriptions.remove(connection.id);
-      await connection.close();
-      connection.dispose();
+    Object? failure;
+    StackTrace? failureStack;
+    Future<void> attempt(Future<void> Function() operation) async {
+      try {
+        await operation();
+      } catch (error, stack) {
+        failure ??= error;
+        failureStack ??= stack;
+      }
     }
+
+    await attempt(() async => _signalingSubscription?.cancel());
+    _signalingSubscription = null;
+    await attempt(() async => _fileSubscription?.cancel());
+    _fileSubscription = null;
+    final connections = _connections.values.toList();
     _connections.clear();
     _stateSubscriptions.clear();
     _pendingCandidates.clear();
-    await signaling.stop();
+    for (final connection in connections) {
+      await attempt(() async {
+        try {
+          await connection.close();
+        } finally {
+          connection.dispose();
+        }
+      });
+    }
+    await attempt(signaling.stop);
+    if (failure != null) Error.throwWithStackTrace(failure!, failureStack!);
+
     notifyListeners();
   }
 
@@ -279,7 +302,19 @@ final class RemoteDashboardHost extends ChangeNotifier {
   void _connectionClosed(_RemoteDashboardHostConnection connection) {
     if (_connections.remove(connection.id) != null) {
       _stateSubscriptions.remove(connection.id);
-      connection.dispose();
+      unawaited(
+        connection.close().whenComplete(connection.dispose).catchError((
+          Object error,
+          StackTrace stack,
+        ) {
+          ShowRunnerLogger.instance.error(
+            'remote',
+            'Could not close dashboard connection.',
+            error: error,
+            stackTrace: stack,
+          );
+        }),
+      );
       notifyListeners();
     }
   }
@@ -442,9 +477,23 @@ final class RemoteDashboardHost extends ChangeNotifier {
   }
 
   @override
+  void notifyListeners() {
+    if (!_closed) super.notifyListeners();
+  }
+
+  @override
   void dispose() {
     _closed = true;
-    unawaited(stop());
+    unawaited(
+      stop().catchError((Object error, StackTrace stack) {
+        ShowRunnerLogger.instance.error(
+          'remote',
+          'Dashboard host shutdown failed.',
+          error: error,
+          stackTrace: stack,
+        );
+      }),
+    );
     super.dispose();
   }
 }
@@ -527,10 +576,17 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
     final requestId = '$id-${_requestNumber++}';
     final completer = Completer<dynamic>();
     _pending[requestId] = completer;
-    await channel.sendText(
-      jsonEncode({'requestId': requestId, 'name': name, 'args': args}),
+    // Attach before send: a synchronous disconnect may fail the reply early.
+    unawaited(
+      completer.future.then<void>(
+        (_) {},
+        onError: (Object error, StackTrace stack) {},
+      ),
     );
     try {
+      await channel.sendText(
+        jsonEncode({'requestId': requestId, 'name': name, 'args': args}),
+      );
       return await completer.future.timeout(const Duration(seconds: 20));
     } finally {
       _pending.remove(requestId);
@@ -551,7 +607,9 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
   Future<void> sendStateUpdate(String plugin, String state, dynamic value) =>
       callRpc('dashboard_stateUpdate', [plugin, state, value]);
 
-  Future<void> close() async {
+  Future<void>? _closing;
+  Future<void> close() => _closing ??= _close();
+  Future<void> _close() async {
     if (_closed) return;
     _closed = true;
     for (final completer in _pending.values) {
@@ -560,14 +618,31 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
       }
     }
     _pending.clear();
-    await _control?.close();
-    await _peer?.close();
-    await _peer?.dispose();
+    final control = _control;
+    final peer = _peer;
     _control = null;
     _peer = null;
+    try {
+      await control?.close();
+    } finally {
+      try {
+        await peer?.close();
+      } finally {
+        await peer?.dispose();
+      }
+    }
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_closed) super.notifyListeners();
   }
 
   void _handleDataChannel(SatelliteDataChannel channel) {
+    if (_closed) {
+      unawaited(channel.close());
+      return;
+    }
     if (channel.label != 'controlChannel') {
       unawaited(channel.close());
       return;
@@ -588,6 +663,7 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
   }
 
   void _handlePeerState(SatellitePeerState state) {
+    if (_closed) return;
     if (state == SatellitePeerState.failed ||
         state == SatellitePeerState.disconnected ||
         state == SatellitePeerState.closed) {

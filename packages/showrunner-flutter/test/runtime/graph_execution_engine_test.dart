@@ -7,6 +7,68 @@ import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 
 void main() {
+  test(
+    'subgraph layout reuses a program and renamed metadata recompiles it',
+    () {
+      final cache = GraphProgramCache();
+      const subgraph = SubgraphDefinition(
+        id: 'sub',
+        name: 'Original',
+        nodes: [GraphNode(id: 'return', type: 'return', x: 0, y: 0)],
+        edges: [],
+        entryNodeId: 'return',
+      );
+      final graph = _singleActionAutomation('first').graph;
+      final program = cache.getOrCompile(
+        AutomationData(graph: graph, subgraphs: [subgraph]),
+      );
+      final moved = subgraph.copyWith(
+        nodes: [const GraphNode(id: 'return', type: 'return', x: 500, y: 200)],
+      );
+      expect(
+        cache.getOrCompile(AutomationData(graph: graph, subgraphs: [moved])),
+        same(program),
+      );
+      final renamed = cache.getOrCompile(
+        AutomationData(
+          graph: graph,
+          subgraphs: [moved.copyWith(name: 'Renamed')],
+        ),
+      );
+      expect(renamed.subgraphs.single.name, 'Renamed');
+      expect(cache.compilationCount, 2);
+    },
+  );
+
+  test(
+    'layout changes reuse compiled programs while node configuration invalidates them',
+    () {
+      final cache = GraphProgramCache();
+      final original = _singleActionAutomation('first');
+      final program = cache.getOrCompile(original);
+      final moved = AutomationData(
+        graph: AutomationGraph(
+          nodes: [
+            for (final node in original.graph.nodes)
+              GraphNode(
+                id: node.id,
+                type: node.type,
+                x: node.x + 300,
+                y: node.y + 200,
+                data: node.data,
+              ),
+          ],
+          edges: original.graph.edges,
+          entryNodeId: original.graph.entryNodeId,
+        ),
+      );
+      expect(identical(cache.getOrCompile(moved), program), isTrue);
+      expect(cache.compilationCount, 1);
+      cache.getOrCompile(_singleActionAutomation('changed'));
+      expect(cache.compilationCount, 2);
+    },
+  );
+
   test('uses the production sixteen-opcode program shape', () async {
     expect(DartGraphOpCode.values, hasLength(16));
 

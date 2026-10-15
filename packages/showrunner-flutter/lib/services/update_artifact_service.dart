@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 
 import '../schema/update.dart';
+import '../persistence/filesystem/atomic_file.dart';
 
 typedef UpdateArtifactDownloader =
     Future<void> Function(Uri uri, File destination);
@@ -37,38 +38,46 @@ final class UpdateArtifactService {
     final destination = File(
       '${directory.path}/ShowRunner-Flutter-windows-$version.zip',
     );
-    final partial = File('${destination.path}.part');
-    try {
-      await downloader(url, partial);
-      if (!await partial.exists() || await partial.length() == 0) {
-        throw const FormatException('The downloaded update artifact is empty.');
+    return withFileLock(destination.path, () async {
+      final partial = File('${destination.path}.part');
+      try {
+        await downloader(url, partial);
+        if (!await partial.exists() || await partial.length() == 0) {
+          throw const FormatException(
+            'The downloaded update artifact is empty.',
+          );
+        }
+        final expectedDigest = update.artifactSha256!
+            .trim()
+            .replaceFirst(RegExp(r'^sha256:', caseSensitive: false), '')
+            .toLowerCase();
+        final actualDigest = (await sha256.bind(partial.openRead()).first)
+            .toString();
+        if (actualDigest != expectedDigest) {
+          throw const FormatException(
+            'The downloaded update artifact failed its SHA-256 check.',
+          );
+        }
+        if (await destination.exists()) await destination.delete();
+        return await partial.rename(destination.path);
+      } on Object {
+        if (await partial.exists()) await partial.delete();
+        rethrow;
       }
-      final expectedDigest = update.artifactSha256!
-          .trim()
-          .replaceFirst(RegExp(r'^sha256:', caseSensitive: false), '')
-          .toLowerCase();
-      final actualDigest = (await sha256.bind(partial.openRead()).first)
-          .toString();
-      if (actualDigest != expectedDigest) {
-        throw const FormatException(
-          'The downloaded update artifact failed its SHA-256 check.',
-        );
-      }
-      if (await destination.exists()) await destination.delete();
-      return await partial.rename(destination.path);
-    } on Object {
-      if (await partial.exists()) await partial.delete();
-      rethrow;
-    }
+    });
   }
 }
 
 Future<void> _download(Uri uri, File destination) async {
-  final client = HttpClient()..userAgent = 'SAI-ShowRunner-updater';
+  final client = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 10)
+    ..userAgent = 'SAI-ShowRunner-updater';
   try {
-    final request = await client.getUrl(uri);
+    final request = await client
+        .getUrl(uri)
+        .timeout(const Duration(seconds: 20));
     request.headers.set(HttpHeaders.acceptHeader, 'application/zip');
-    final response = await request.close();
+    final response = await request.close().timeout(const Duration(seconds: 20));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw HttpException(
         'Update artifact download failed with HTTP ${response.statusCode}.',
@@ -77,7 +86,21 @@ Future<void> _download(Uri uri, File destination) async {
     }
     final sink = destination.openWrite();
     try {
-      await response.pipe(sink);
+      var received = 0;
+      await sink
+          .addStream(
+            response.timeout(const Duration(seconds: 30)).map((chunk) {
+              received += chunk.length;
+              if (received > 1024 * 1024 * 1024) {
+                throw const FormatException(
+                  'Update archive exceeds the size limit.',
+                );
+              }
+              return chunk;
+            }),
+          )
+          .timeout(const Duration(minutes: 10));
+      await sink.close();
     } on Object {
       await sink.close();
       rethrow;

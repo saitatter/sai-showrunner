@@ -183,7 +183,30 @@ final class GraphProgramCache {
     String? entryNodeId,
   }) {
     final signature = jsonEncode({
-      'automation': automation.toJson(),
+      'graph': _executableGraph(automation.graph),
+      'subgraphs': [
+        for (final subgraph in automation.subgraphs)
+          {
+            'id': subgraph.id,
+            'name': subgraph.name,
+            'parameters': subgraph.parameters,
+            'outputs': subgraph.outputs,
+            'dataWires': subgraph.dataWires
+                .map((wire) => wire.toJson())
+                .toList(),
+            ..._executableGraph(
+              AutomationGraph(
+                nodes: subgraph.nodes,
+                edges: subgraph.edges,
+                entryNodeId: subgraph.entryNodeId,
+              ),
+            ),
+          },
+      ],
+      'dataWires': automation.dataWires.map((wire) => wire.toJson()).toList(),
+      'triggerNodes': automation.triggerNodes
+          .map((node) => {'id': node['id']})
+          .toList(),
       'entryNodeId': entryNodeId ?? automation.graph.entryNodeId,
     });
     final cached = _entries.remove(signature);
@@ -202,6 +225,15 @@ final class GraphProgramCache {
     }
     return program;
   }
+
+  Map<String, dynamic> _executableGraph(AutomationGraph graph) => {
+    'entryNodeId': graph.entryNodeId,
+    'nodes': [
+      for (final node in graph.nodes)
+        {'id': node.id, 'type': node.type, 'data': node.data},
+    ],
+    'edges': graph.edges.map((edge) => edge.toJson()).toList(),
+  };
 
   void clear() {
     _entries.clear();
