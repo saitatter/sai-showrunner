@@ -84,3 +84,8 @@ Regenerarea catalogului și șablonului (nu modifică fișierul local):
 cd packages/showrunner-flutter
 flutter test test/live/catalog_contract_test.dart --dart-define=SHOWRUNNER_EXPORT_CATALOG=true
 ```
+
+Runda OBS completă este documentată în [raportul OBS](obs-live-2026-10-15.md):
+27 de acțiuni, catalogul workspace, browser source din Overlay Editor și
+evenimentele OBS. Pentru repetare: `./scripts/test-live-obs.ps1` din rădăcina
+repo, cu o instanță OBS de test și conexiunea locală completată.
