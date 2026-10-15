@@ -89,3 +89,11 @@ Runda OBS completă este documentată în [raportul OBS](obs-live-2026-10-15.md)
 27 de acțiuni, catalogul workspace, browser source din Overlay Editor și
 evenimentele OBS. Pentru repetare: `./scripts/test-live-obs.ps1` din rădăcina
 repo, cu o instanță OBS de test și conexiunea locală completată.
+
+Pentru conectarea contului Twitch din aplicația desktop, înregistrează aplicația
+cu Client Type **Public** și OAuth Redirect URL exact
+`http://localhost:17563/oauth/callback`. Fluxul de cont folosește autorizarea
+implicită și necesită doar `clientId`; `clientSecret` și `refreshToken` pot
+rămâne goale pentru acest flux. Tokenul și ID-ul contului se obțin după login.
+Callback-ul folosește portul fix 17563, deoarece Twitch cere potrivirea exactă
+a adresei înregistrate. Alte fluxuri OAuth pot avea cerințe diferite.

@@ -193,7 +193,7 @@ final class OAuthAuthorizationFlow {
 /// fragment to the loopback server with a same-origin request.
 final class OAuthImplicitAuthorizationFlow {
   const OAuthImplicitAuthorizationFlow({
-    this.httpServerFactory = _bindLoopback,
+    this.httpServerFactory = _bindTwitchLoopback,
   });
 
   final Future<HttpServer> Function() httpServerFactory;
@@ -208,7 +208,7 @@ final class OAuthImplicitAuthorizationFlow {
     final server = await httpServerFactory();
     final redirectUri = Uri(
       scheme: 'http',
-      host: InternetAddress.loopbackIPv4.host,
+      host: 'localhost',
       port: server.port,
       path: '/oauth/callback',
     );
@@ -452,6 +452,11 @@ Future<void> openOAuthUrlInBrowser(Uri url) async {
 
 Future<HttpServer> _bindLoopback() =>
     HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+
+// Twitch requires an exact registered redirect, including a fixed port.
+// localhost is the exception to its HTTPS requirement for development clients.
+Future<HttpServer> _bindTwitchLoopback() =>
+    HttpServer.bind(InternetAddress.loopbackIPv4, 17563);
 
 OAuthTokenSet _decodeTokenSet(String body) {
   final decoded = jsonDecode(body);
