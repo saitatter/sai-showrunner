@@ -11,6 +11,27 @@ import 'package:showrunner_flutter/plugins/registry/plugin_module.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_ui.dart';
 
 void main() {
+  test(
+    'disabled plugins do not start workers or stop workers that never started',
+    () async {
+      final events = <String>[];
+      final registry = DartPluginRegistry()
+        ..register(
+          const DartPluginManifest(id: PluginId('disabled'), name: 'Disabled'),
+          onStart: () async => events.add('disabled:start'),
+          onStop: () async => events.add('disabled:stop'),
+        )
+        ..register(
+          const DartPluginManifest(id: PluginId('enabled'), name: 'Enabled'),
+          onStart: () async => events.add('enabled:start'),
+          onStop: () async => events.add('enabled:stop'),
+        );
+      registry.setPluginEnabled('disabled', false);
+      await registry.start();
+      await registry.close();
+      expect(events, ['enabled:start', 'enabled:stop']);
+    },
+  );
   test('keeps Flutter UI contributions outside the plugin manifest', () {
     final registry = DartPluginRegistry()
       ..register(

@@ -17,6 +17,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   final Map<ResourceTypeId, DartResourceContract> _resources = {};
   final Map<PluginId, DartPluginUiContribution> _uiContributions = {};
   final Set<PluginId> _disabledPluginIds = {};
+  final Set<PluginId> _skippedStartModuleIds = {};
   final Map<PluginId, Map<StateId, Object?>> _stateValues = {};
   Future<void>? _initializeFuture;
   Future<void>? _startFuture;
@@ -296,6 +297,10 @@ final class DartPluginRegistry extends ChangeNotifier {
       throw StateError('Plugin registry is closed.');
     }
     for (final module in _modules.values) {
+      if (!isPluginEnabledId(module.manifest.id)) {
+        _skippedStartModuleIds.add(module.manifest.id);
+        continue;
+      }
       await module.start();
     }
   }
@@ -387,6 +392,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     Object? firstError;
     StackTrace? firstStackTrace;
     for (final module in modules) {
+      if (_skippedStartModuleIds.contains(module.manifest.id)) continue;
       try {
         await module.stop();
       } catch (error, stackTrace) {
