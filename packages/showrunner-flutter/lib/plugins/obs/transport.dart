@@ -15,6 +15,8 @@ final class ObsWebSocketTransport implements ObsTransport {
     this.password,
     this.eventHub,
     this.onStateChanged,
+    this.handshakeTimeout = const Duration(seconds: 10),
+    this.requestTimeout = const Duration(seconds: 20),
   });
 
   final String host;
@@ -22,7 +24,12 @@ final class ObsWebSocketTransport implements ObsTransport {
   final String? password;
   final DartPluginEventHub? eventHub;
   final void Function(String state, dynamic value)? onStateChanged;
+  final Duration handshakeTimeout;
+  final Duration requestTimeout;
   WebSocket? _socket;
+  Future<void>? _connecting;
+  Completer<void>? _identified;
+  int _connectionGeneration = 0;
   final _pending = <String, Completer<RuntimeMap>>{};
   int _requestId = 0;
 
@@ -45,38 +52,97 @@ final class ObsWebSocketTransport implements ObsTransport {
       }),
     );
     try {
-      return await completer.future;
+      return await completer.future.timeout(requestTimeout);
     } finally {
       _pending.remove(requestId);
     }
   }
 
-  Future<void> connect() async {
-    if (_socket != null) return;
-    final socket = await WebSocket.connect('ws://$host:$port');
-    _socket = socket;
-    final hello = jsonDecode(await socket.first as String) as RuntimeMap;
-    final helloData = Map<String, dynamic>.from(hello['d'] as Map);
-    final identify = <String, dynamic>{'rpcVersion': 1};
-    final authentication = helloData['authentication'];
-    if (authentication is Map && password != null) {
-      final auth = Map<String, dynamic>.from(authentication);
-      identify['authentication'] = _authentication(
-        password!,
-        auth['salt'] as String,
-        auth['challenge'] as String,
-      );
+  Future<void> connect() {
+    final pending = _connecting;
+    if (pending != null) return pending;
+    if (_socket != null) return Future.value();
+    return _connecting = _open().whenComplete(() => _connecting = null);
+  }
+
+  Future<void> _open() async {
+    final generation = _connectionGeneration;
+    final socket = await WebSocket.connect(
+      'ws://$host:$port',
+    ).timeout(handshakeTimeout);
+    if (generation != _connectionGeneration) {
+      await socket.close();
+      throw StateError('OBS connection was cancelled.');
     }
-    socket.listen(_handleMessage, onDone: _handleClosed, onError: _handleError);
-    socket.add(jsonEncode({'op': 1, 'd': identify}));
-    onStateChanged?.call('connected', true);
-    onStateChanged?.call('connection', 'connected');
+    _socket = socket;
+    final identified = _identified = Completer<void>();
+    // A WebSocket stream is single-subscription. Consume Hello, Identified,
+    // events and responses through the same listener for its entire lifetime.
+    socket.listen(
+      (raw) {
+        try {
+          final message = jsonDecode(raw as String) as Map;
+          if (message['op'] == 0) {
+            final data = Map<String, dynamic>.from(message['d'] as Map);
+            final identify = <String, dynamic>{'rpcVersion': 1};
+            final authentication = data['authentication'];
+            if (authentication is Map) {
+              if (password == null || password!.isEmpty) {
+                throw StateError('OBS requires a WebSocket password.');
+              }
+              identify['authentication'] = _authentication(
+                password!,
+                authentication['salt'] as String,
+                authentication['challenge'] as String,
+              );
+            }
+            socket.add(jsonEncode({'op': 1, 'd': identify}));
+          } else if (message['op'] == 2) {
+            if (!identified.isCompleted) identified.complete();
+          } else {
+            _handleMessage(raw);
+          }
+        } on Object catch (error) {
+          if (!identified.isCompleted) identified.completeError(error);
+          _failPending(error);
+        }
+      },
+      onDone: () {
+        if (!identified.isCompleted) {
+          identified.completeError(
+            StateError('OBS closed the connection during identification.'),
+          );
+        }
+        if (identical(_socket, socket)) _handleClosed();
+      },
+      onError: (Object error) {
+        if (!identified.isCompleted) identified.completeError(error);
+        _handleError(error);
+      },
+    );
+    try {
+      await identified.future.timeout(handshakeTimeout);
+      if (generation != _connectionGeneration || !identical(_socket, socket)) {
+        throw StateError('OBS connection was cancelled.');
+      }
+      onStateChanged?.call('connected', true);
+      onStateChanged?.call('connection', 'connected');
+    } on Object {
+      if (identical(_socket, socket)) _socket = null;
+      await socket.close();
+      rethrow;
+    }
   }
 
   @override
   Future<void> close() async {
+    _connectionGeneration++;
     final socket = _socket;
     _socket = null;
+    final identified = _identified;
+    if (identified != null && !identified.isCompleted) {
+      identified.completeError(StateError('OBS WebSocket closed.'));
+    }
     await socket?.close();
     _failPending(StateError('OBS WebSocket closed.'));
     onStateChanged?.call('connected', false);
