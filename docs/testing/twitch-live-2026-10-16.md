@@ -53,6 +53,37 @@ variabile a păstrat textul mesajului. Raportul este în
 `packages/showrunner-flutter/.tmp/twitch-proof-1792121107165/report.json`,
 cu `liveChatTriggerGraph: PASS`. Listenerul a fost oprit la finalul probei.
 
+## Chat → graf → overlay → OBS portabil: PASS
+
+Proba completă a trecut cu mesajul real trimis de utilizator: EventSub →
+contractul triggerului → condiția din graful compilat → variabilă → acțiunea
+`overlays.pushChatMessage` → WebSocket-ul aplicației → rendererul real în browser
+source OBS. Captura OBS arată `SaiTatter` și `showrunner-test`.
+
+Raportul este în
+`packages/showrunner-flutter/.tmp/chat-overlay-proof-1792121400628/report.json`.
+[Înainte](twitch-overlay-2026-10-16/before.png) și
+[după](twitch-overlay-2026-10-16/after.png) sunt capturi din sursa OBS, nu mockup-uri.
+Testul verifică schimbarea PNG-ului; rezultatul a fost inspectat și vizual.
+
+Testul refuză rularea dacă procesul care ascultă pe 4456 nu este executabilul
+`.tmp/obs-portable/bin/64bit/obs64.exe` din workspace. Creează numai un overlay,
+o scenă și o sursă temporare; restaurează scena anterioară și elimină scena de
+test la final. Nu modifică profiluri, rezoluții sau ieșiri OBS.
+
+Pentru repetare, pornește copia OBS portabilă pe portul 4456 și compilează
+rendererul dacă sursele lui s-au schimbat:
+
+```powershell
+node .yarn/releases/yarn-4.1.0.cjs overlay:build
+./scripts/test-live-twitch-overlay.ps1
+```
+
+După `READY`, trimite din nou `showrunner-test` în chat. Proba așteaptă patru
+minute. `-LocalPrecheck` verifică graful, overlay-ul și captura OBS cu un mesaj
+local, fără să valideze recepția unui eveniment Twitch real. Raportul distinge
+explicit sursa `local fixture` de `live Twitch EventSub`.
+
 Contractele și permisiunile au fost verificate în
 [documentația EventSub](https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/)
 și [validarea tokenurilor](https://dev.twitch.tv/docs/authentication/validate-tokens/).
