@@ -17,7 +17,7 @@ The repository is organized around these runtime surfaces:
   Dart plugin implementations;
 - `packages/showrunner-obs-overlay`: the browser source required by OBS;
 - `libs/showrunner-schema`, `libs/showrunner-overlay-core`, and
-  `libs/showrunner-ws-rpc`: the web protocol boundary used by that source.
+  `libs/showrunner-overlay-widget-loader`: the web protocol boundary used by that source.
 
 ## Intentional browser boundary
 

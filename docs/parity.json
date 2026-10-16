@@ -1417,19 +1417,22 @@
     },
     {
       "id": "ShowRunner",
-      "status": "equivalent",
+      "status": "improved",
       "categories": {
         "settings": {
           "expected": [
             "port"
           ],
           "actual": [
+            "allowRemoteAccess",
             "port"
           ],
           "missing": [],
-          "extra": [],
+          "extra": [
+            "allowRemoteAccess"
+          ],
           "relocated": [],
-          "status": "equivalent"
+          "status": "improved"
         },
         "actions": {
           "expected": [

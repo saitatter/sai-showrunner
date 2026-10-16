@@ -23,18 +23,9 @@ run the whole broadcast from one place.
 
 ## 📸 Demo
 
-<p align="center">
-  <em>Demo screenshots and GIFs will be added here.</em>
-</p>
+[Overlay editor and widget inspector comparison](docs/ui-comparison/overlay-inspector.html)
 
-<!--
-Suggested demo assets:
-
-<p align="center">
-  <img src="docs/images/showrunner-dashboard.png" alt="ShowRunner dashboard" width="48%">
-  <img src="docs/images/showrunner-automation-editor.png" alt="ShowRunner automation editor" width="48%">
-</p>
--->
+![Flutter overlay widget inspector](docs/ui-comparison/flutter-overlay-inspector-label.png)
 
 ## ✨ What you can do
 
@@ -128,11 +119,12 @@ flutter build windows --release
 Pop-Location
 ```
 
-Node.js and Yarn are only needed when changing the browser overlay runtime:
+Use Node.js 22 (see `.nvmrc`) and the Corepack-managed Yarn 4.1.0 for the browser overlay and parity tooling:
 
 ```powershell
 corepack enable
-yarn install
+yarn install --immutable
+yarn overlay:typecheck
 yarn overlay:test
 yarn overlay:build
 ```
