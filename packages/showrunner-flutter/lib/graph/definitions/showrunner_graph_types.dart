@@ -18,6 +18,9 @@ String graphTypeForInput(DartDataInputKind kind) => switch (kind) {
   DartDataInputKind.obsTransform => 'showrunner.obsTransform',
   DartDataInputKind.lightColor => 'showrunner.lightColor',
 };
+String graphTypeForSchema(DartDataInputSchema schema) =>
+    schema.graphEditor?.dataType ?? graphTypeForInput(schema.kind);
+
 GraphTypeSystem createShowrunnerGraphTypes() {
   final types = GraphTypeSystem.core();
   for (final id in {

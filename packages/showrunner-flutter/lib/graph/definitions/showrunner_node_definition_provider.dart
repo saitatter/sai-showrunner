@@ -128,7 +128,7 @@ final class ShowrunnerNodeDefinitionProvider {
         _ => GraphFieldKind.custom,
       },
       dataPath: [...prefix, key],
-      dataType: graphTypeForInput(schema.kind),
+      dataType: graphTypeForSchema(schema),
       metadata: {
         'placement': inlineField(schema) ? 'inline' : 'inspector',
         'inputKind': schema.kind.name,
@@ -161,7 +161,7 @@ final class ShowrunnerNodeDefinitionProvider {
                 'config:${schemaKey(field)}',
                 GraphPortDirection.input,
                 field.label,
-                graphTypeForInput(field.kind),
+                graphTypeForSchema(field),
                 metadata: {
                   'configPath': [schemaKey(field)],
                 },
@@ -179,7 +179,7 @@ final class ShowrunnerNodeDefinitionProvider {
               'result:_result',
               GraphPortDirection.output,
               action.resultSchema!.label,
-              graphTypeForInput(action.resultSchema!.kind),
+              graphTypeForSchema(action.resultSchema!),
             ),
           if (action.resultSchema?.kind == DartDataInputKind.object)
             for (final field in results)
@@ -187,7 +187,7 @@ final class ShowrunnerNodeDefinitionProvider {
                 'result:${schemaKey(field)}',
                 GraphPortDirection.output,
                 field.label,
-                graphTypeForInput(field.kind),
+                graphTypeForSchema(field),
               ),
         ]),
       ],
@@ -214,7 +214,7 @@ final class ShowrunnerNodeDefinitionProvider {
             'event:${schemaKey(field)}',
             GraphPortDirection.output,
             field.label,
-            graphTypeForInput(field.kind),
+            graphTypeForSchema(field),
           ),
       ]),
     ],

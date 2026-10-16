@@ -27,9 +27,13 @@ enum DartGraphFieldPlacement { automatic, inline, inspector }
 final class DartGraphEditorHints {
   const DartGraphEditorHints({
     this.connectable = true,
+    this.dataType,
     this.placement = DartGraphFieldPlacement.automatic,
   });
   final bool connectable;
+
+  /// Optional semantic graph type; editors never infer types from labels.
+  final String? dataType;
   final DartGraphFieldPlacement placement;
 }
 

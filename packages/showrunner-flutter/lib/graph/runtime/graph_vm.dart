@@ -465,7 +465,7 @@ final class DartGraphVm {
           ? _resolveWireSource(wired[name]!)
           : inputs.containsKey(name)
           ? _evaluateInput(inputs[name])
-          : _evaluateInput(subgraph.paramDefaults[name]);
+          : subgraph.paramDefaults[name];
     }
     _localSlotsByName
       ..clear()

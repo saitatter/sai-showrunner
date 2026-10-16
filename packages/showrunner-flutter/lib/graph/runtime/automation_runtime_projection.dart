@@ -201,7 +201,7 @@ final class RuntimeSubgraph {
         'id': port.id,
         'name': port.name,
         'type': port.type,
-        'expression': port.defaultValue,
+        'expression': {'type': 'literal', 'value': port.defaultValue},
       },
     ),
   );

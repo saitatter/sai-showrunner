@@ -7,6 +7,7 @@ import 'package:showrunner_flutter/graph/runtime/graph_runtime.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/runtime/cancellation.dart';
+import 'package:showrunner_flutter/schema/data_input.dart';
 
 void main() {
   test('literal variables retain objects containing a type property', () async {
@@ -81,7 +82,7 @@ void main() {
             GraphNode(
               id: 'v',
               type: 'showrunner.variable',
-              data: {'name': 'flag', 'value': true},
+              data: {'name': 'flag', 'dataType': 'core.boolean', 'value': true},
             ),
             GraphNode(
               id: 'if',
@@ -256,7 +257,6 @@ void main() {
             [
               flow('loop', 'a', port: 'flow:body'),
               flow('a', 'control'),
-              flow('control', 'unreachable'),
               flow('loop', 'done', port: 'flow:next'),
               wire('loop', 'loop:index', 'a', 'config:value'),
             ],
@@ -413,6 +413,95 @@ void main() {
       },
     );
   }
+  test(
+    'parameter and output defaults are literal JSON, including type properties and null',
+    () async {
+      final value = {'type': 'event', 'text': 'literal'};
+      for (final explicit in [false, true]) {
+        final signature = AutomationSubgraph(
+          id: 'defaults',
+          name: 'Defaults',
+          entryNodeId: explicit ? 'return' : 'noop',
+          parameters: [
+            AutomationParameter(
+              id: 'p',
+              name: 'parameter',
+              defaultValue: value,
+            ),
+          ],
+          outputs: [
+            AutomationParameter(id: 'o', name: 'answer', defaultValue: value),
+            AutomationParameter(id: 'null', name: 'nullable'),
+          ],
+        );
+        final result = await parity(
+          document(
+            [
+              GraphNode(
+                id: 'call',
+                type: 'showrunner.subgraphCall',
+                data: {'subgraphId': signature.id},
+              ),
+              action('a'),
+            ],
+            [flow('call', 'a'), wire('call', 'output:o', 'a', 'config:value')],
+            entry: 'call',
+            subgraphs: {signature.id: signature},
+            spaces: {
+              signature.spaceId: GraphSpace(
+                id: signature.spaceId,
+                nodes: {
+                  if (explicit)
+                    'return': GraphNode(id: 'return', type: 'showrunner.return')
+                  else
+                    'noop': action('noop', value: 'done'),
+                },
+              ),
+            },
+          ),
+        );
+        expect(result.nodeResults['call'], {'answer': value, 'nullable': null});
+        expect(result.nodeResults['a']!['value'], value);
+      }
+    },
+  );
+  for (final engine in <GraphExecutionEngine>[
+    const InterpreterExecutionEngine(),
+    CompiledExecutionEngine(),
+  ]) {
+    test(
+      '${engine.runtimeType} refuses type-incompatible or unknown connection ports',
+      () async {
+        final registry = DartPluginRegistry();
+        addTearDown(registry.close);
+        for (final output in ['value.out', 'missing']) {
+          await expectLater(
+            engine.executeWithRegistry(
+              automation: document(
+                [
+                  GraphNode(
+                    id: 'number',
+                    type: 'showrunner.variable',
+                    data: {'name': 'n', 'dataType': 'core.number', 'value': 4},
+                  ),
+                  GraphNode(
+                    id: 'condition',
+                    type: 'showrunner.if',
+                    data: {'condition': true},
+                  ),
+                ],
+                [wire('number', output, 'condition', 'config:condition')],
+                entry: 'condition',
+              ),
+              context: EvaluationContext(),
+              registry: registry,
+            ),
+            throwsStateError,
+          );
+        }
+      },
+    );
+  }
   test('layout changes reuse compilation; semantic changes invalidate it', () {
     final cache = GraphProgramCache();
     final initial = document([action('a')], [], entry: 'a');
@@ -502,10 +591,31 @@ Future<GraphExecutionResult> parity(
         DartPluginManifest(
           id: PluginId('fixture'),
           name: 'Fixture',
+          triggers: [
+            TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
+              pluginId: PluginId('fixture'),
+              triggerId: TriggerId('message'),
+              displayName: 'Message',
+              listen: () => const Stream.empty(),
+              eventSchema: const DartDataInputSchema(
+                label: 'Event',
+                kind: DartDataInputKind.object,
+                fields: [
+                  DartDataInputSchema(
+                    key: 'text',
+                    label: 'Text',
+                    kind: DartDataInputKind.text,
+                  ),
+                ],
+              ),
+            ),
+          ],
           actions: [
             ActionSpec<Map<String, dynamic>, Object?>(
               pluginId: PluginId('fixture'),
               actionId: ActionId('record'),
+              configSchema: fixtureSchema,
+              resultSchema: fixtureSchema,
               invoke: (config, context) async {
                 recorded.add(config['value']);
                 return {'value': config['value']};
@@ -534,3 +644,16 @@ Future<GraphExecutionResult> parity(
   runs?.addAll(calls);
   return results.last;
 }
+
+const fixtureSchema = DartDataInputSchema(
+  label: 'Record',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      key: 'value',
+      label: 'Value',
+      kind: DartDataInputKind.object,
+      graphEditor: DartGraphEditorHints(dataType: 'core.any'),
+    ),
+  ],
+);

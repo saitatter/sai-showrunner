@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'package:sai_nodes_core/sai_nodes_core.dart';
+import '../definitions/showrunner_graph_types.dart';
+import '../definitions/showrunner_node_definition_provider.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
 import 'automation_runtime_projection.dart';
@@ -53,6 +56,7 @@ final class InterpreterExecutionEngine implements GraphExecutionEngine {
     ExecutionTraceMode traceMode = ExecutionTraceMode.live,
     ExecutionTraceSource? traceSource,
   }) async {
+    _validateContracts(automation, registry);
     final projection = AutomationRuntimeProjection(automation);
     projection.validate();
     final session = traceSink == null && traceService != null
@@ -123,6 +127,7 @@ final class CompiledExecutionEngine implements GraphExecutionEngine {
     ExecutionTraceMode traceMode = ExecutionTraceMode.live,
     ExecutionTraceSource? traceSource,
   }) async {
+    _validateContracts(automation, registry);
     final program = cache.getOrCompile(automation, entryNodeId: entryNodeId);
     final executionContext = EvaluationContext(
       locals: context.locals,
@@ -250,4 +255,27 @@ Object? _canonical(Object? value) {
   }
   if (value is List) return value.map(_canonical).toList();
   return value;
+}
+
+void _validateContracts(
+  AutomationDocument automation,
+  DartPluginRegistry registry,
+) {
+  final definitions = ShowrunnerNodeDefinitionProvider(registry);
+  try {
+    final resolution = GraphResolver(
+      definitions: definitions.definitions,
+      types: createShowrunnerGraphTypes(),
+    ).resolve(automation.graph);
+    final errors = resolution.diagnostics.where(
+      (issue) => issue.severity == GraphDiagnosticSeverity.error,
+    );
+    if (errors.isNotEmpty) {
+      throw StateError(
+        'Automation cannot execute: ${errors.map((issue) => '${issue.entityId}: ${issue.message}').join('; ')}',
+      );
+    }
+  } finally {
+    definitions.dispose();
+  }
 }

@@ -119,6 +119,10 @@ final class RuntimeValueResolver {
     Map expressions,
     EvaluationContext context,
   ) => {
+    for (final output
+        in projection.signatureForSpace(nodes[nodeId]!.space.id)?.outputs ??
+            <AutomationParameter>[])
+      output.name: output.defaultValue,
     for (final entry in expressions.entries)
       entry.key.toString(): input(
         nodeId,
