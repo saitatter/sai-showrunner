@@ -26,6 +26,10 @@ void main() {
   testWidgets('invalid variable JSON stays in the editor until corrected', (
     tester,
   ) async {
+    if (!tester.testTextInput.isRegistered) {
+      tester.testTextInput.register();
+      addTearDown(tester.testTextInput.unregister);
+    }
     final definition = createDefaultResourceEditorRegistry().find('Variable')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
@@ -55,6 +59,8 @@ void main() {
     expect(find.text('Edit variable'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.enterText(current, '{"valid": [1, true]}');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save'));
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(saved?.state['value'], {

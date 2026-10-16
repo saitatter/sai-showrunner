@@ -14,6 +14,7 @@ import 'package:showrunner_flutter/plugins/twitch/actions.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'twitch_chat_fixture.dart';
+import 'package:showrunner_flutter/plugins/remote/manifest.dart';
 
 AutomationData _graph(
   String plugin,
@@ -35,6 +36,78 @@ AutomationData _graph(
 );
 
 void main() {
+  test(
+    'real local remote buttons execute graphs once before and after restart',
+    () async {
+      final hub = DartPluginEventHub();
+      final runtime = RemoteButtonRuntime(
+        eventHub: hub,
+        port: 0,
+        loadButtonNames: () async => ['Start'],
+      );
+      final plugin = createRemotePlugin(eventHub: hub);
+      final registry = DartPluginRegistry()
+        ..register(plugin)
+        ..register(createVariablesPlugin());
+      addTearDown(registry.close);
+      addTearDown(hub.dispose);
+      addTearDown(runtime.stop);
+      final results = <Future<void>>[];
+      final trigger = plugin.triggers.single;
+      final listener = trigger.listenFromRuntime().listen((event) {
+        if (!trigger.matchesRuntime({'name': 'Start'}, event)) return;
+        results.add(
+          CompiledExecutionEngine()
+              .executeWithRegistry(
+                automation: _graph('variables', 'set', {
+                  'variable': 'buttonProof',
+                  'value': '{{name}}',
+                }),
+                context: EvaluationContext(locals: event),
+                registry: registry,
+              )
+              .then((r) {
+                expect(r.completed, true);
+                expect(r.nodeResults['probe']?['value'], 'Start');
+              }),
+        );
+      });
+      addTearDown(listener.cancel);
+      final client = HttpClient();
+      addTearDown(() => client.close(force: true));
+      for (var round = 0; round < 2; round++) {
+        await runtime.start();
+        final port = runtime.boundPort;
+        await runtime.start();
+        expect(runtime.boundPort, port);
+        final list = await (await client.getUrl(
+          Uri.parse('http://127.0.0.1:$port/buttons'),
+        )).close();
+        expect(jsonDecode(await utf8.decoder.bind(list).join()), {
+          'buttons': ['Start'],
+        });
+        final missing = await (await client.postUrl(
+          Uri.parse('http://127.0.0.1:$port/buttons/press'),
+        )).close();
+        expect(missing.statusCode, 404);
+        await missing.drain<void>();
+        await Future.wait(
+          List.generate(3, (_) async {
+            final response = await (await client.postUrl(
+              Uri.parse('http://127.0.0.1:$port/buttons/press?button=Start'),
+            )).close();
+            expect(response.statusCode, 204);
+            await response.drain<void>();
+          }),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await Future.wait(results);
+        expect(results, hasLength((round + 1) * 3));
+        await runtime.stop();
+        expect(runtime.boundPort, isNull);
+      }
+    },
+  );
   test('typed Twitch chat triggers run the gated compiled graph', () async {
     final hub = DartPluginEventHub();
     final twitch = createTwitchPlugin(

@@ -12,6 +12,10 @@ import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
+import 'package:showrunner_flutter/plugins/variables/manifest.dart';
+import 'package:showrunner_flutter/runtime/expression.dart';
+import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
+import 'package:showrunner_flutter/schema/automation.dart';
 
 void main() {
   test(
@@ -68,7 +72,46 @@ void main() {
           .stream('remoteButton')
           .listen(events.add);
       final registry = DartPluginRegistry()
-        ..register(createRemotePlugin(eventHub: eventHub));
+        ..register(createRemotePlugin(eventHub: eventHub))
+        ..register(createVariablesPlugin());
+      final graphResults = <Future<void>>[];
+      final trigger = registry.findPlugin('remote')!.triggers.single;
+      final graphListener = trigger.listenFromRuntime().listen((event) {
+        if (!trigger.matchesRuntime({'name': 'Start'}, event)) return;
+        graphResults.add(
+          CompiledExecutionEngine()
+              .executeWithRegistry(
+                automation: AutomationData(
+                  graph: AutomationGraph(
+                    entryNodeId: 'record',
+                    nodes: const [
+                      GraphNode(
+                        id: 'record',
+                        type: 'action',
+                        x: 0,
+                        y: 0,
+                        data: {
+                          'plugin': 'variables',
+                          'action': 'set',
+                          'config': {
+                            'variable': 'remoteProof',
+                            'value': '{{name}}',
+                          },
+                        },
+                      ),
+                    ],
+                    edges: const [],
+                  ),
+                ),
+                context: EvaluationContext(locals: event),
+                registry: registry,
+              )
+              .then((result) {
+                expect(result.completed, true);
+                expect(result.nodeResults['record']?['value'], 'Start');
+              }),
+        );
+      });
       final peer = _FakePeerConnection();
       final host = RemoteDashboardHost(
         dataService: dataService,
@@ -163,7 +206,105 @@ void main() {
         'responseId': 'widget-1',
         'result': true,
       });
+      await Future.wait(graphResults);
+      expect(graphResults, hasLength(1));
+      for (final args in [
+        ['pressbutton', 'button-1', 'Forged'],
+        ['pressbutton', 'missing', 'Start'],
+      ]) {
+        channel.emitMessage(
+          jsonEncode({
+            'requestId': 'reject-${args[1]}',
+            'name': 'dashboard_widgetRPC',
+            'args': args,
+          }),
+        );
+      }
+      await _settle();
+      expect(events, hasLength(1));
+      channel.autoAcknowledge = true;
+      registry.updateDynamicState('variables', 'counter', 1);
+      channel.emitMessage(
+        jsonEncode({
+          'requestId': 'subscribe',
+          'name': 'dashboard_acquireState',
+          'args': ['variables', 'counter'],
+        }),
+      );
+      await _settle();
+      List<Map> updates() => channel.sent
+          .map((s) => jsonDecode(s) as Map)
+          .where((m) => m['name'] == 'dashboard_stateUpdate')
+          .toList();
+      expect(updates().last['args'], ['variables', 'counter', 1]);
+      registry.updateDynamicState('variables', 'counter', 2);
+      await _settle();
+      expect(updates().last['args'], ['variables', 'counter', 2]);
+      channel.emitMessage(
+        jsonEncode({
+          'requestId': 'unsubscribe',
+          'name': 'dashboard_freeState',
+          'args': ['variables', 'counter'],
+        }),
+      );
+      await _settle();
+      final count = updates().length;
+      registry.updateDynamicState('variables', 'counter', 3);
+      await _settle();
+      expect(updates(), hasLength(count));
+      channel.emitState(SatelliteChannelState.closed);
+      await _settle();
+      expect(host.connectionIds, isEmpty);
+      socket.messagesController.add(
+        jsonEncode({
+          'type': 'message',
+          'dataType': 'json',
+          'data': {
+            'plugin': 'satellite',
+            'event': 'satelliteConnectionRequest',
+            'context': {
+              'satelliteService': 'twitch',
+              'satelliteId': 'satellite-1',
+              'ShowRunnerService': 'twitch',
+              'ShowRunnerId': 'owner-1',
+              'dashId': 'dash-1',
+              'sdp': {'sdp': 'new-offer', 'type': 'offer'},
+            },
+          },
+        }),
+      );
+      await _settle();
+      expect(host.connectionIds, hasLength(1));
+      final reconnected = _FakeDataChannel()..autoAcknowledge = true;
+      peer.emitDataChannel(reconnected);
+      reconnected.emitState(SatelliteChannelState.open);
+      await _settle();
+      reconnected.emitMessage(
+        jsonEncode({
+          'requestId': 'resubscribe',
+          'name': 'dashboard_acquireState',
+          'args': ['variables', 'counter'],
+        }),
+      );
+      await _settle();
+      registry.updateDynamicState('variables', 'counter', 4);
+      await _settle();
+      final latest = reconnected.sent
+          .map((s) => jsonDecode(s) as Map)
+          .lastWhere((m) => m['name'] == 'dashboard_stateUpdate');
+      expect(latest['args'], ['variables', 'counter', 4]);
+      reconnected.emitMessage(
+        jsonEncode({
+          'requestId': 'press-again',
+          'name': 'dashboard_widgetRPC',
+          'args': ['pressbutton', 'button-1', 'Start'],
+        }),
+      );
+      await _settle();
+      await Future.wait(graphResults);
+      expect(graphResults, hasLength(2));
 
+      await graphListener.cancel();
       await eventSubscription.cancel();
       await host.stop();
       host.dispose();
@@ -194,6 +335,7 @@ class _FakeCloudPubSubSocket implements CloudPubSubSocket {
 }
 
 class _FakeDataChannel implements SatelliteDataChannel {
+  bool autoAcknowledge = false;
   SatelliteChannelState _state = SatelliteChannelState.connecting;
   final sent = <String>[];
   void Function(SatelliteChannelState state)? _onStateChanged;
@@ -216,7 +358,17 @@ class _FakeDataChannel implements SatelliteDataChannel {
   }
 
   @override
-  Future<void> sendText(String message) async => sent.add(message);
+  Future<void> sendText(String message) async {
+    sent.add(message);
+    final decoded = jsonDecode(message) as Map;
+    if (autoAcknowledge && decoded['requestId'] != null) {
+      scheduleMicrotask(
+        () => emitMessage(
+          jsonEncode({'responseId': decoded['requestId'], 'result': null}),
+        ),
+      );
+    }
+  }
 
   @override
   Future<void> close() async => emitState(SatelliteChannelState.closed);
