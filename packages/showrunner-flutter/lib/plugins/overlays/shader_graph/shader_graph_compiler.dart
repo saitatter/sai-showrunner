@@ -228,6 +228,13 @@ Set<String> _dependencies(ShaderGraph graph, String outputId) {
   return visited;
 }
 
+String _safeNodeIdentifier(String id) {
+  final safe = id
+      .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_')
+      .replaceAll(RegExp(r'^_+|_+$'), '');
+  return safe.isEmpty ? 'node' : safe;
+}
+
 String _nodeLabel(ShaderNodeInstance node) =>
     shaderNodeDefinitionById[node.defId]?.name ?? node.defId;
 
@@ -240,14 +247,16 @@ String shaderGlslDefault(ShaderGlslType type) => switch (type) {
 
 String getShaderUniformName(ShaderNodeInstance node) {
   final raw = node.inputDefaults['name']?.toString().trim() ?? '';
-  final fallback = 'parameter_${node.id}';
-  var safe = (raw.isEmpty ? fallback : raw).replaceAll(
-    RegExp(r'[^a-zA-Z0-9_]'),
-    '_',
-  );
+  final fallback = _safeNodeIdentifier('parameter_${node.id}');
+  var safe = (raw.isEmpty ? fallback : raw)
+      .replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_')
+      .replaceAll(RegExp(r'_+'), '_');
   safe = safe.replaceFirst(RegExp(r'^[^a-zA-Z_]+'), '');
   final base = safe.isEmpty ? fallback : safe;
-  final name = base.startsWith('u_') ? base : 'u_$base';
+  final name = (base.startsWith('u_') ? base : 'u_$base').replaceAll(
+    RegExp(r'_+'),
+    '_',
+  );
   return _builtInUniforms.contains(name) ? '${name}_custom' : name;
 }
 
@@ -455,8 +464,7 @@ ShaderGraphCompileResult compileShaderGraph(ShaderGraph graph) {
     final definition = shaderNodeDefinitionById[node.defId]!;
     variables[id] = {
       for (final port in definition.outputs)
-        port.key:
-            'v${counter++}_${id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_${port.key}',
+        port.key: 'v${counter++}_${_safeNodeIdentifier(id)}_${port.key}',
     };
   }
   final wireMap = <String, ShaderWire>{

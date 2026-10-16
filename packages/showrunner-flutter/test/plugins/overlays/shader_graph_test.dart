@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 
@@ -7,6 +9,47 @@ import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_mo
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_node_definitions.dart';
 
 void main() {
+  test(
+    'every shader catalog node and starter generates a renderable fixture',
+    () async {
+      final fixtures = <Map<String, dynamic>>[];
+      void add(String id, ShaderGraph graph) {
+        final result = compileShaderGraph(graph);
+        expect(result.errors, isEmpty, reason: id);
+        expect(result.isValid, true, reason: id);
+        fixtures.add({
+          'id': id,
+          'glsl': result.glsl,
+          'graph': graph.toJson(),
+          'uniforms': collectShaderUniformDefaults(graph),
+          'bindings': collectShaderUniformBindings(graph),
+        });
+      }
+
+      for (final definition in shaderNodeDefinitions) {
+        final graph = ShaderGraph(
+          nodes: [
+            ShaderNodeInstance(id: 'probe', defId: definition.id, x: 0, y: 0),
+          ],
+          wires: const [],
+        );
+        final preview = createShaderNodePreviewGraph(graph, 'probe');
+        expect(preview, isNotNull, reason: definition.id);
+        add(definition.id, preview!);
+      }
+      for (final starter in shaderGraphStarters) {
+        add('starter-${starter.id}', createShaderGraphStarter(starter.id));
+      }
+      final unusual = ShaderGraph(nodes:const [ShaderNodeInstance(id:'---',defId:'uniform_float',x:0,y:0,inputDefaults:{'name':'123','value':'0.5'})],wires:const []);
+      expect(getShaderUniformName(unusual.nodes.single), matches(RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$')));
+      add('numeric-uniform-name',createShaderNodePreviewGraph(unusual,'---')!);
+      if (Platform.environment['SHOWRUNNER_EXPORT_SHADER_FIXTURES'] == '1') {
+        final file = File('.tmp/shader-catalog.json');
+        await file.parent.create(recursive: true);
+        await file.writeAsString(jsonEncode(fixtures));
+      }
+    },
+  );
   group('shader graph model', () {
     test('round-trips graph data without losing frames or defaults', () {
       final graph = ShaderGraph(

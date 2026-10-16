@@ -1,6 +1,7 @@
 // ignore_for_file: curly_braces_in_flow_control_structures, prefer_function_declarations_over_variables
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -47,6 +48,7 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
   late StreamSubscription<NodeEditorEvent> _events;
   final Map<String, String> _editorToGraphId = {};
   final Map<String, String> _graphToEditorId = {};
+  final Map<String, List<ShaderWire>> _removedNodeWires = {};
   final Set<String> _expandedCategories = {...shaderNodeCategories};
   String? _starter;
   String? _selectedFrameId;
@@ -55,6 +57,8 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
   bool _showPalette = true;
   bool _showFrames = true;
   bool _loading = false;
+  int _loadGeneration = 0;
+  Timer? _loadTimer;
 
   @override
   void initState() {
@@ -240,10 +244,12 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
       );
 
   void _loadGraph(ShaderGraph graph) {
+    final generation = ++_loadGeneration;
     _loading = true;
     _controller.clear();
     _editorToGraphId.clear();
     _graphToEditorId.clear();
+    _removedNodeWires.clear();
     for (final shaderNode in graph.nodes) {
       final node = _controller.addNode(
         shaderNode.defId,
@@ -266,23 +272,58 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
       if (from != null && to != null)
         _controller.addLink(from, wire.fromPort, to, wire.toPort);
     }
-    _loading = false;
+    // Controller events are delivered asynchronously. Keep the load transaction
+    // open until its events have drained, including history's subscription.
+    _loadTimer?.cancel();
+    _loadTimer = Timer(Duration.zero, () {
+      if (!mounted || generation != _loadGeneration) return;
+      _loading = false;
+      _controller.history.clear();
+      _controller.focusAllNodes(animate: false);
+      setState(() {});
+    });
     if (mounted) setState(() {});
   }
 
   void _onEditorEvent(NodeEditorEvent event) {
     if (!mounted || _loading) return;
+    // The controller removes incident links before emitting node removal.
+    // Capture them from our pre-event graph so undo can restore the topology.
+    for (final node in _graph.nodes) {
+      if (!_controller.nodes.containsKey(_graphToEditorId[node.id])) {
+        _removedNodeWires[node.id] = _graph.wires
+            .where((wire) => wire.fromNode == node.id || wire.toNode == node.id)
+            .toList();
+      }
+    }
     if (event is AddNodeEvent) {
-      final id =
-          'shader-${DateTime.now().microsecondsSinceEpoch}-${_editorToGraphId.length}';
-      _editorToGraphId[event.node.id] = id;
+      final id = _editorToGraphId.putIfAbsent(
+        event.node.id,
+        () => 'shader-${event.node.id}',
+      );
       _graphToEditorId[id] = event.node.id;
+      for (final wire in _removedNodeWires[id] ?? <ShaderWire>[]) {
+        final from = _graphToEditorId[wire.fromNode];
+        final to = _graphToEditorId[wire.toNode];
+        if (from != null &&
+            to != null &&
+            _controller.nodes.containsKey(from) &&
+            _controller.nodes.containsKey(to)) {
+          _controller.addLink(
+            from,
+            wire.fromPort,
+            to,
+            wire.toPort,
+            eventId: event.id,
+          );
+        }
+      }
     }
-    if (event is RemoveNodeEvent) {
-      final graphId = _editorToGraphId.remove(event.node.id);
-      if (graphId != null) _graphToEditorId.remove(graphId);
-    }
-    setState(_syncGraph);
+    setState(() {
+      final previous = jsonEncode(_graph.toJson());
+      _syncGraph();
+      if (jsonEncode(_graph.toJson()) != previous) _compileResult = null;
+    });
   }
 
   void _syncGraph() {
@@ -388,13 +429,15 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
       }
     }
     final row = <int, int>{};
+    final positions = <String, Offset>{};
     for (final node in _controller.nodes.values) {
       final id = _editorToGraphId[node.id];
       if (id == null) continue;
       final level = levels[id] ?? 0;
       final index = row.update(level, (value) => value + 1, ifAbsent: () => 0);
-      node.offset = Offset(80 + level * 280, 80 + index * 150);
+      positions[node.id] = Offset(80 + level * 280, 80 + index * 150);
     }
+    _controller.applyLayout(positions);
     setState(_syncGraph);
     _controller.focusAllNodes();
   }
@@ -436,6 +479,7 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
 
   @override
   void dispose() {
+    _loadTimer?.cancel();
     _events.cancel();
     _controller.dispose();
     super.dispose();

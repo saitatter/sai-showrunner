@@ -154,9 +154,11 @@ export class ShaderRenderer {
 		const gl = this.gl
 		const nextProgram = gl.createProgram()
 		if (!nextProgram) throw new Error("Failed to create shader program.")
-		const vertexShader = this.createShader(gl.VERTEX_SHADER, vertexShaderSource)
-		const fragmentShader = this.createShader(gl.FRAGMENT_SHADER, fragmentSource)
+		let vertexShader: WebGLShader | undefined
+		let fragmentShader: WebGLShader | undefined
 		try {
+			vertexShader = this.createShader(gl.VERTEX_SHADER, vertexShaderSource)
+			fragmentShader = this.createShader(gl.FRAGMENT_SHADER, fragmentSource)
 			gl.attachShader(nextProgram, vertexShader)
 			gl.attachShader(nextProgram, fragmentShader)
 			gl.linkProgram(nextProgram)
@@ -168,8 +170,8 @@ export class ShaderRenderer {
 			gl.deleteProgram(nextProgram)
 			throw error
 		} finally {
-			gl.deleteShader(vertexShader)
-			gl.deleteShader(fragmentShader)
+			if (vertexShader) gl.deleteShader(vertexShader)
+			if (fragmentShader) gl.deleteShader(fragmentShader)
 		}
 	}
 }

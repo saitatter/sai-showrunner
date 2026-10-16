@@ -206,6 +206,8 @@ describe("ShaderRenderer", () => {
 		const error = renderer.compileShader("invalid_shader")
 
 		expect(error).toBe("fake shader compilation error")
+		expect(gl.calls.filter((call) => call === "deleteProgram")).toHaveLength(1)
+		expect(gl.calls.filter((call) => call === "deleteShader")).toHaveLength(4)
 		expect(gl.calls.filter((call) => call === "drawArrays")).toHaveLength(1)
 		renderer.dispose()
 	})
