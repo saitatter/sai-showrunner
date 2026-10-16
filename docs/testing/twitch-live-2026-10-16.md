@@ -46,8 +46,12 @@ Defecte corectate în această rundă:
 Verificare finală: **707 teste trecute**, trei probe live sărite fără opt-in,
 analiză statică fără probleme. Raportul live fără mesaj manual este în
 `packages/showrunner-flutter/.tmp/twitch-proof-1792120719295/report.json`.
-Proba care a așteptat mesajul manual a expirat fără să-l observe; recepția
-chatului real și rularea grafului din acel mesaj nu sunt încă marcate PASS.
+Proba manuală ulterioară a trecut: mesajul `showrunner-test` trimis de utilizator
+a fost recepționat prin EventSub, decodat de contractul triggerului Twitch și
+procesat de graful compilat; condiția a selectat ramura corectă, iar nodul de
+variabile a păstrat textul mesajului. Raportul este în
+`packages/showrunner-flutter/.tmp/twitch-proof-1792121107165/report.json`,
+cu `liveChatTriggerGraph: PASS`. Listenerul a fost oprit la finalul probei.
 
 Contractele și permisiunile au fost verificate în
 [documentația EventSub](https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/)
