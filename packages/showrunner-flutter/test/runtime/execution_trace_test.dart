@@ -28,7 +28,7 @@ void main() {
     expect(firstSnapshot.info.status, ExecutionTraceRunStatus.completed);
     expect(firstSnapshot.events.length, lessThanOrEqualTo(4));
     expect(
-      firstSnapshot.nodes['main:action']?.status,
+      firstSnapshot.nodes[const ExecutionNodeRef(nodeId: 'action').key]?.status,
       ExecutionTraceNodeStatus.success,
     );
 
@@ -68,7 +68,7 @@ void main() {
     final snapshot = service.snapshotFor(session.executionId)!;
     expect(snapshot.info.status, ExecutionTraceRunStatus.aborted);
     expect(
-      snapshot.nodes['main:wait']?.status,
+      snapshot.nodes[const ExecutionNodeRef(nodeId: 'wait').key]?.status,
       ExecutionTraceNodeStatus.aborted,
     );
 
@@ -158,11 +158,14 @@ void main() {
     final snapshot = service.snapshotFor(session.executionId)!;
     expect(snapshot.info.status, ExecutionTraceRunStatus.error);
     expect(
-      snapshot.nodes['main:action']?.status,
+      snapshot.nodes[const ExecutionNodeRef(nodeId: 'action').key]?.status,
       ExecutionTraceNodeStatus.error,
     );
     expect(
-      snapshot.nodes['main:action']?.error?.message,
+      snapshot
+          .nodes[const ExecutionNodeRef(nodeId: 'action').key]
+          ?.error
+          ?.message,
       contains('expected failure'),
     );
 
@@ -273,13 +276,23 @@ void main() {
       expect(path.node.nodeId, 'branch');
       expect(path.port, 'then');
       expect(
-        snapshot.nodes['main:branch']?.status,
+        snapshot.nodes[const ExecutionNodeRef(nodeId: 'branch').key]?.status,
         ExecutionTraceNodeStatus.success,
       );
-      expect(snapshot.nodes['main:branch']?.selectedPort, 'then');
-      expect(snapshot.nodes['main:falseAction'], isNull);
       expect(
-        snapshot.nodes['main:trueAction']?.status,
+        snapshot
+            .nodes[const ExecutionNodeRef(nodeId: 'branch').key]
+            ?.selectedPort,
+        'then',
+      );
+      expect(
+        snapshot.nodes[const ExecutionNodeRef(nodeId: 'falseAction').key],
+        isNull,
+      );
+      expect(
+        snapshot
+            .nodes[const ExecutionNodeRef(nodeId: 'trueAction').key]
+            ?.status,
         ExecutionTraceNodeStatus.success,
       );
 
@@ -334,11 +347,16 @@ void main() {
       hasLength(1),
     );
     expect(
-      snapshot.nodes['main:call']?.status,
+      snapshot.nodes[const ExecutionNodeRef(nodeId: 'call').key]?.status,
       ExecutionTraceNodeStatus.success,
     );
     expect(
-      snapshot.nodes['inner:innerAction']?.status,
+      snapshot
+          .nodes[const ExecutionNodeRef(
+            nodeId: 'innerAction',
+            scope: SubgraphScope('inner'),
+          ).key]
+          ?.status,
       ExecutionTraceNodeStatus.success,
     );
 
@@ -396,13 +414,18 @@ void main() {
         ),
         [1, 2, 3],
       );
-      expect(snapshot.nodes['main:for']?.lastIteration, 3);
       expect(
-        snapshot.nodes['main:for']?.status,
+        snapshot
+            .nodes[const ExecutionNodeRef(nodeId: 'for').key]
+            ?.lastIteration,
+        3,
+      );
+      expect(
+        snapshot.nodes[const ExecutionNodeRef(nodeId: 'for').key]?.status,
         ExecutionTraceNodeStatus.success,
       );
       expect(
-        snapshot.nodes['main:done']?.status,
+        snapshot.nodes[const ExecutionNodeRef(nodeId: 'done').key]?.status,
         ExecutionTraceNodeStatus.success,
       );
 

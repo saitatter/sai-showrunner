@@ -87,8 +87,11 @@ final class ExecutionNodeRef {
   final String nodeId;
   final ExecutionGraphScope scope;
 
-  String get key =>
-      '${scope is SubgraphScope ? (scope as SubgraphScope).id : 'main'}:$nodeId';
+  String get key => jsonEncode([
+    scope is SubgraphScope ? 'subgraph' : 'main',
+    scope is SubgraphScope ? (scope as SubgraphScope).id : null,
+    nodeId,
+  ]);
 
   Map<String, Object?> toJson() => {
     'nodeId': nodeId,
@@ -500,6 +503,7 @@ final class ExecutionTraceNodeSnapshot {
     required this.node,
     required this.status,
     required this.invocationCount,
+    this.activeCount = 0,
     this.startedAt,
     this.duration,
     this.error,
@@ -512,6 +516,7 @@ final class ExecutionTraceNodeSnapshot {
   final ExecutionNodeRef node;
   final ExecutionTraceNodeStatus status;
   final int invocationCount;
+  final int activeCount;
   final DateTime? startedAt;
   final Duration? duration;
   final ExecutionTraceError? error;
@@ -526,11 +531,19 @@ final class ExecutionTraceRunSnapshot {
     required this.info,
     required this.events,
     required this.nodes,
+    this.edges = const {},
   });
 
   final ExecutionTraceRunInfo info;
   final List<ExecutionTraceEvent> events;
   final Map<String, ExecutionTraceNodeSnapshot> nodes;
+  final Map<String, ExecutionTraceEdgeSnapshot> edges;
+}
+
+final class ExecutionTraceEdgeSnapshot {
+  const ExecutionTraceEdgeSnapshot(this.edge, this.traversalCount);
+  final ExecutionEdgeRef edge;
+  final int traversalCount;
 }
 
 abstract interface class ExecutionTraceSink {
@@ -879,11 +892,38 @@ final class _TraceRunState {
   final int maxEventsPerRun;
   final List<ExecutionTraceEvent> events = [];
   final Map<String, _TraceNodeState> nodes = {};
+  final Map<String, int> activeCounts = {}, invocationTotals = {};
+  final Map<String, ExecutionTraceEdgeSnapshot> edges = {};
   int sequence = 0;
 
   int _nextSequence() => sequence++;
 
   void accept(ExecutionTraceEvent event) {
+    switch (event) {
+      case ExecutionNodeStartedEvent(:final node, :final invocation):
+        activeCounts.update(node.key, (value) => value + 1, ifAbsent: () => 1);
+        final previous = invocationTotals[node.key] ?? 0;
+        invocationTotals[node.key] = invocation > previous
+            ? invocation
+            : previous;
+      case ExecutionNodeCompletedEvent(:final node) ||
+          ExecutionNodeFailedEvent(:final node):
+        activeCounts.update(
+          node.key,
+          (value) => value > 0 ? value - 1 : 0,
+          ifAbsent: () => 0,
+        );
+      case ExecutionRunEndedEvent():
+        break;
+      case ExecutionEdgeTraversedEvent(:final edge):
+        final key = jsonEncode([edge.from.key, edge.edgeId]);
+        edges[key] = ExecutionTraceEdgeSnapshot(
+          edge,
+          (edges[key]?.traversalCount ?? 0) + 1,
+        );
+      default:
+        break;
+    }
     events.add(event);
     if (events.length > maxEventsPerRun) events.removeAt(0);
     switch (event) {
@@ -897,7 +937,10 @@ final class _TraceRunState {
         );
         for (final entry in nodes.entries.toList()) {
           final previous = entry.value;
-          if (previous.status != ExecutionTraceNodeStatus.running) continue;
+          if (previous.status != ExecutionTraceNodeStatus.running &&
+              (activeCounts[entry.key] ?? 0) == 0) {
+            continue;
+          }
           nodes[entry.key] = _TraceNodeState(
             node: previous.node,
             status: status == ExecutionTraceRunStatus.aborted
@@ -1046,14 +1089,20 @@ final class _TraceRunState {
       case ExecutionEdgeTraversedEvent():
         break;
     }
+    if (event is ExecutionRunEndedEvent) activeCounts.clear();
   }
 
   ExecutionTraceRunSnapshot snapshot() => ExecutionTraceRunSnapshot(
     info: info,
     events: List.unmodifiable(events),
     nodes: {
-      for (final entry in nodes.entries) entry.key: entry.value.snapshot(),
+      for (final entry in nodes.entries)
+        entry.key: entry.value.snapshot(
+          activeCount: activeCounts[entry.key] ?? 0,
+          invocationCount: invocationTotals[entry.key],
+        ),
     },
+    edges: Map.unmodifiable(edges),
   );
 }
 
@@ -1082,10 +1131,14 @@ final class _TraceNodeState {
   final int? lastIteration;
   final String? subgraphId;
 
-  ExecutionTraceNodeSnapshot snapshot() => ExecutionTraceNodeSnapshot(
+  ExecutionTraceNodeSnapshot snapshot({
+    required int activeCount,
+    int? invocationCount,
+  }) => ExecutionTraceNodeSnapshot(
     node: node,
-    status: status,
-    invocationCount: invocationCount,
+    status: activeCount > 0 ? ExecutionTraceNodeStatus.running : status,
+    activeCount: activeCount,
+    invocationCount: invocationCount ?? this.invocationCount,
     startedAt: startedAt,
     duration: duration,
     error: error,

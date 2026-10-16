@@ -1,0 +1,253 @@
+import 'dart:convert';
+
+import '../../plugins/registry/plugin_registry.dart';
+import 'automation_runtime_projection.dart';
+import '../domain/automation_document.dart';
+import '../../runtime/expression.dart';
+import 'graph_runtime.dart';
+import 'production_graph_vm.dart';
+import '../../runtime/execution_trace.dart';
+
+typedef GraphExecutionObserver = void Function(String nodeId);
+
+/// The single execution boundary used by application-owned graph runners.
+///
+/// The interpreter remains available as a reference oracle, while the
+/// production implementation uses the same flat-program/VM shape as the
+/// reference desktop runtime.
+abstract interface class GraphExecutionEngine {
+  Future<GraphExecutionResult> executeWithRegistry({
+    required AutomationDocument automation,
+    required EvaluationContext context,
+    required DartPluginRegistry registry,
+    String? entryNodeId,
+    GraphExecutionObserver? onNodeEnter,
+    GraphExecutionObserver? onNodeExit,
+    ExecutionTraceSink? traceSink,
+    ExecutionTraceMode traceMode = ExecutionTraceMode.live,
+    ExecutionTraceSource? traceSource,
+  });
+}
+
+/// Reference implementation used by parity tests.
+final class InterpreterExecutionEngine implements GraphExecutionEngine {
+  const InterpreterExecutionEngine({
+    this.maxSteps = 10000,
+    this.maxDepth = 64,
+    this.traceService,
+  });
+
+  final int maxSteps;
+  final int maxDepth;
+  final ExecutionTraceService? traceService;
+
+  @override
+  Future<GraphExecutionResult> executeWithRegistry({
+    required AutomationDocument automation,
+    required EvaluationContext context,
+    required DartPluginRegistry registry,
+    String? entryNodeId,
+    GraphExecutionObserver? onNodeEnter,
+    GraphExecutionObserver? onNodeExit,
+    ExecutionTraceSink? traceSink,
+    ExecutionTraceMode traceMode = ExecutionTraceMode.live,
+    ExecutionTraceSource? traceSource,
+  }) async {
+    final projection = AutomationRuntimeProjection(automation);
+    projection.validate();
+    final session = traceSink == null && traceService != null
+        ? traceService!.start(
+            mode: traceMode,
+            source: traceSource ?? _defaultTraceSource(automation),
+          )
+        : null;
+    final sink = traceSink ?? session;
+    try {
+      final result =
+          await DartGraphRuntime(
+            maxSteps: maxSteps,
+            maxDepth: maxDepth,
+          ).executeWithRegistry(
+            graph: projection.graph,
+            context: context,
+            registry: registry,
+            dataWires: projection.dataWires,
+            subgraphs: projection.subgraphs,
+            entryNodeId: entryNodeId,
+            onNodeEnter: onNodeEnter,
+            onNodeExit: onNodeExit,
+            traceSink: sink,
+          );
+      session?.end(ExecutionTraceRunStatus.completed);
+      return result;
+    } catch (error, stackTrace) {
+      session?.end(
+        traceStatusForError(error),
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
+}
+
+/// Production graph engine: compile to a flat program, cache it, and execute
+/// through the 16-opcode VM.
+final class CompiledExecutionEngine implements GraphExecutionEngine {
+  CompiledExecutionEngine({
+    this.maxIterations = 10000,
+    this.maxCallDepth = 32,
+    GraphProgramCache? cache,
+    this.traceService,
+  }) : cache = cache ?? GraphProgramCache();
+
+  final int maxIterations;
+  final int maxCallDepth;
+  final GraphProgramCache cache;
+  final ExecutionTraceService? traceService;
+
+  int get compilationCount => cache.compilationCount;
+  int get cacheSize => cache.length;
+
+  void clearCache() => cache.clear();
+
+  @override
+  Future<GraphExecutionResult> executeWithRegistry({
+    required AutomationDocument automation,
+    required EvaluationContext context,
+    required DartPluginRegistry registry,
+    String? entryNodeId,
+    GraphExecutionObserver? onNodeEnter,
+    GraphExecutionObserver? onNodeExit,
+    ExecutionTraceSink? traceSink,
+    ExecutionTraceMode traceMode = ExecutionTraceMode.live,
+    ExecutionTraceSource? traceSource,
+  }) async {
+    final program = cache.getOrCompile(automation, entryNodeId: entryNodeId);
+    final executionContext = EvaluationContext(
+      locals: context.locals,
+      contextState: {...registry.stateContext(), ...context.contextState},
+      cancellationToken: context.cancellationToken,
+    );
+    final session = traceSink == null && traceService != null
+        ? traceService!.start(
+            mode: traceMode,
+            source: traceSource ?? _defaultTraceSource(automation),
+          )
+        : null;
+    final sink = traceSink ?? session;
+    try {
+      final result =
+          await DartGraphVm(
+            program,
+            maxIterations: maxIterations,
+            maxCallDepth: maxCallDepth,
+            onNodeEnter: onNodeEnter,
+            onNodeExit: onNodeExit,
+            traceSink: sink,
+          ).execute(
+            context: executionContext,
+            action: (node, config, actionContext) => registry.invokeAction(
+              node.data['plugin'] as String,
+              node.data['action'] as String,
+              config,
+              context: actionContext,
+            ),
+          );
+      session?.end(ExecutionTraceRunStatus.completed);
+      return result;
+    } catch (error, stackTrace) {
+      session?.end(
+        traceStatusForError(error),
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
+}
+
+ExecutionTraceSource _defaultTraceSource(AutomationDocument automation) =>
+    ExecutionTraceSource(type: 'automation', id: automation.id);
+
+/// Bounded in-memory cache matching the reference runtime's program cache.
+final class GraphProgramCache {
+  GraphProgramCache({this.maxEntries = 128});
+
+  final int maxEntries;
+  final Map<String, DartGraphProgram> _entries = {};
+  int compilationCount = 0;
+
+  int get length => _entries.length;
+
+  DartGraphProgram getOrCompile(
+    AutomationDocument automation, {
+    String? entryNodeId,
+  }) {
+    final signature = jsonEncode(
+      _canonical({
+        'spaces': {
+          for (final space in automation.graph.spaces.values)
+            space.id: {
+              'nodes': {
+                for (final node in space.nodes.values)
+                  node.id: {
+                    'id': node.id,
+                    'type': node.type,
+                    'data': node.data,
+                    'metadata': node.metadata,
+                  },
+              },
+              'connections': {
+                for (final edge in space.connections.values)
+                  edge.id: {
+                    'id': edge.id,
+                    'kind': edge.kind.name,
+                    'from': {
+                      'nodeId': edge.from.nodeId,
+                      'portId': edge.from.portId,
+                    },
+                    'to': {'nodeId': edge.to.nodeId, 'portId': edge.to.portId},
+                    'data': edge.data,
+                  },
+              },
+              'metadata': space.metadata,
+            },
+        },
+        'subgraphs': {
+          for (final entry in automation.subgraphs.entries)
+            entry.key: entry.value.toJson(),
+        },
+        'entryNodeId': entryNodeId ?? automation.entryNodeId,
+      }),
+    );
+    final cached = _entries.remove(signature);
+    if (cached != null) {
+      _entries[signature] = cached;
+      return cached;
+    }
+    final program = DartProductionGraphCompiler().compileAutomation(
+      automation,
+      entryNodeId: entryNodeId,
+    );
+    compilationCount++;
+    _entries[signature] = program;
+    while (_entries.length > maxEntries) {
+      _entries.remove(_entries.keys.first);
+    }
+    return program;
+  }
+
+  void clear() {
+    _entries.clear();
+  }
+}
+
+Object? _canonical(Object? value) {
+  if (value is Map) {
+    final keys = value.keys.cast<String>().toList()..sort();
+    return {for (final key in keys) key: _canonical(value[key])};
+  }
+  if (value is List) return value.map(_canonical).toList();
+  return value;
+}
