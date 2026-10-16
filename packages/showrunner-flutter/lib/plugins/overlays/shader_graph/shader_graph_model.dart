@@ -1,6 +1,4 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
-
-import 'dart:math' as math;
+import 'package:sai_nodes_core/sai_nodes_core.dart';
 
 typedef ShaderJsonMap = Map<String, dynamic>;
 
@@ -29,239 +27,122 @@ final class ShaderPortDefinition {
   final String? defaultValue;
 }
 
-final class ShaderNodeInstance {
-  const ShaderNodeInstance({
-    required this.id,
-    required this.defId,
-    required this.x,
-    required this.y,
-    this.inputDefaults = const <String, dynamic>{},
-  });
+const shaderSpaceId = 'space:shader';
 
-  final String id;
-  final String defId;
-  final double x;
-  final double y;
-  final Map<String, dynamic> inputDefaults;
-
-  ShaderNodeInstance copyWith({
-    String? id,
-    String? defId,
-    double? x,
-    double? y,
-    Map<String, dynamic>? inputDefaults,
-  }) => ShaderNodeInstance(
-    id: id ?? this.id,
-    defId: defId ?? this.defId,
-    x: x ?? this.x,
-    y: y ?? this.y,
-    inputDefaults:
-        inputDefaults ?? Map<String, dynamic>.from(this.inputDefaults),
-  );
-
-  ShaderJsonMap toJson() => {
-    'id': id,
-    'defId': defId,
-    'x': x,
-    'y': y,
-    if (inputDefaults.isNotEmpty) 'inputDefaults': _cloneValue(inputDefaults),
-  };
-
-  factory ShaderNodeInstance.fromJson(Map value) => ShaderNodeInstance(
-    id: value['id'].toString(),
-    defId: value['defId'].toString(),
-    x: _finite(value['x'], 0),
-    y: _finite(value['y'], 0),
-    inputDefaults: value['inputDefaults'] is Map
-        ? Map<String, dynamic>.from(value['inputDefaults'] as Map)
-        : const <String, dynamic>{},
-  );
-}
-
-final class ShaderWire {
-  const ShaderWire({
-    required this.id,
-    required this.fromNode,
-    required this.fromPort,
-    required this.toNode,
-    required this.toPort,
-  });
-
-  final String id;
-  final String fromNode;
-  final String fromPort;
-  final String toNode;
-  final String toPort;
-
-  ShaderJsonMap toJson() => {
-    'id': id,
-    'fromNode': fromNode,
-    'fromPort': fromPort,
-    'toNode': toNode,
-    'toPort': toPort,
-  };
-
-  factory ShaderWire.fromJson(Map value) => ShaderWire(
-    id: value['id'].toString(),
-    fromNode: value['fromNode'].toString(),
-    fromPort: value['fromPort'].toString(),
-    toNode: value['toNode'].toString(),
-    toPort: value['toPort'].toString(),
-  );
-}
-
-final class ShaderFrame {
-  const ShaderFrame({
-    required this.id,
-    required this.title,
-    required this.color,
-    required this.x,
-    required this.y,
-    required this.width,
-    required this.height,
-    this.nodeIds = const <String>[],
-  });
-
-  final String id;
-  final String title;
-  final String color;
-  final double x;
-  final double y;
-  final double width;
-  final double height;
-  final List<String> nodeIds;
-
-  ShaderFrame copyWith({
-    String? id,
-    String? title,
-    String? color,
-    double? x,
-    double? y,
-    double? width,
-    double? height,
-    List<String>? nodeIds,
-  }) => ShaderFrame(
-    id: id ?? this.id,
-    title: title ?? this.title,
-    color: color ?? this.color,
-    x: x ?? this.x,
-    y: y ?? this.y,
-    width: width ?? this.width,
-    height: height ?? this.height,
-    nodeIds: nodeIds ?? List<String>.from(this.nodeIds),
-  );
-
-  ShaderJsonMap toJson() => {
-    'id': id,
-    'title': title,
-    'color': color,
-    'x': x,
-    'y': y,
-    'width': width,
-    'height': height,
-    if (nodeIds.isNotEmpty) 'nodeIds': nodeIds,
-  };
-
-  factory ShaderFrame.fromJson(Map value) => ShaderFrame(
-    id: value['id'].toString(),
-    title: _text(value['title'], 'Frame'),
-    color: _text(value['color'], '#7c4dff'),
-    x: _finite(value['x'], 0),
-    y: _finite(value['y'], 0),
-    width: math.max(160, _finite(value['width'], 360)),
-    height: math.max(96, _finite(value['height'], 220)),
-    nodeIds: value['nodeIds'] is List
-        ? (value['nodeIds'] as List).whereType<String>().toList()
-        : const <String>[],
-  );
-}
-
-final class ShaderGraph {
-  const ShaderGraph({
-    required this.nodes,
-    required this.wires,
-    this.frames = const <ShaderFrame>[],
-    this.outputNodeId,
-  });
-
-  final List<ShaderNodeInstance> nodes;
-  final List<ShaderWire> wires;
-  final List<ShaderFrame> frames;
-  final String? outputNodeId;
-
-  ShaderGraph copyWith({
-    List<ShaderNodeInstance>? nodes,
-    List<ShaderWire>? wires,
-    List<ShaderFrame>? frames,
-    String? outputNodeId,
-  }) => ShaderGraph(
-    nodes: nodes ?? List<ShaderNodeInstance>.from(this.nodes),
-    wires: wires ?? List<ShaderWire>.from(this.wires),
-    frames: frames ?? List<ShaderFrame>.from(this.frames),
-    outputNodeId: outputNodeId ?? this.outputNodeId,
-  );
-
-  ShaderJsonMap toJson() => {
-    'nodes': nodes.map((node) => node.toJson()).toList(),
-    'wires': wires.map((wire) => wire.toJson()).toList(),
-    if (frames.isNotEmpty)
-      'frames': frames.map((frame) => frame.toJson()).toList(),
-    if (outputNodeId != null) 'outputNodeId': outputNodeId,
-  };
-
-  factory ShaderGraph.fromJson(Map value) {
-    final rawNodes = value['nodes'];
-    final rawWires = value['wires'];
-    if (rawNodes is! List || rawWires is! List) {
-      return createDefaultShaderGraph();
+/// Shader authoring has one immutable document. GLSL and uniforms are derived.
+final class ShaderDocument {
+  ShaderDocument(this.graph) {
+    if (!graph.spaces.containsKey(shaderSpaceId)) {
+      throw const FormatException('Shader document requires space:shader.');
     }
-    final nodes = rawNodes
-        .whereType<Map>()
-        .where((node) => node['id'] is String && node['defId'] is String)
-        .map(ShaderNodeInstance.fromJson)
-        .toList();
-    final ids = nodes.map((node) => node.id).toSet();
-    final wires = rawWires
-        .whereType<Map>()
-        .where(
-          (wire) =>
-              wire['id'] is String &&
-              wire['fromNode'] is String &&
-              wire['fromPort'] is String &&
-              wire['toNode'] is String &&
-              wire['toPort'] is String &&
-              ids.contains(wire['fromNode']) &&
-              ids.contains(wire['toNode']),
-        )
-        .map(ShaderWire.fromJson)
-        .toList();
-    if (nodes.isEmpty) return createDefaultShaderGraph();
-    final frames = value['frames'] is List
-        ? (value['frames'] as List)
-              .whereType<Map>()
-              .where((frame) => frame['id'] is String)
-              .map(ShaderFrame.fromJson)
-              .map(
-                (frame) => frame.copyWith(
-                  nodeIds: frame.nodeIds.where(ids.contains).toList(),
-                ),
-              )
-              .toList()
-        : const <ShaderFrame>[];
-    final requestedOutput = value['outputNodeId'];
-    final output = requestedOutput is String && ids.contains(requestedOutput)
-        ? requestedOutput
-        : nodes
-              .where((node) => node.defId == 'fragment_output')
-              .map((node) => node.id)
-              .firstOrNull;
-    return ShaderGraph(
-      nodes: nodes,
-      wires: wires,
-      frames: frames,
-      outputNodeId: output,
+    final settings = graph.metadata['shader'];
+    if (settings is! Map ||
+        settings.keys.any((key) => key != 'outputNodeId') ||
+        (settings['outputNodeId'] != null &&
+            settings['outputNodeId'] is! String)) {
+      throw const FormatException('Invalid shader document settings.');
+    }
+  }
+  factory ShaderDocument.fromJson(Map value) =>
+      ShaderDocument(GraphDocument.fromJson(Map<String, Object?>.from(value)));
+  final GraphDocument graph;
+  GraphSpace get space => graph.spaces[shaderSpaceId]!;
+  List<GraphNode> get nodes => List.unmodifiable(space.nodes.values);
+  List<GraphConnection> get connections =>
+      List.unmodifiable(space.connections.values);
+  String? get outputNodeId =>
+      (graph.metadata['shader'] as Map)['outputNodeId'] as String?;
+  GraphJson toJson() => graph.toJson();
+  ShaderDocument withOutput(String? id) => ShaderDocument(
+    graph.copyWith(
+      metadata: {
+        ...graph.metadata,
+        'shader': {'outputNodeId': id},
+      },
+    ),
+  );
+}
+
+extension ShaderNodeSemantics on GraphNode {
+  String get shaderDefinitionId =>
+      type.startsWith('shader.') ? type.substring(7) : type;
+  GraphJson get shaderValues => data['values'] is Map
+      ? Map<String, Object?>.from(data['values'] as Map)
+      : const {};
+}
+
+GraphNode createShaderNode(
+  String id,
+  String definition, {
+  GraphJson values = const {},
+}) => GraphNode(id: id, type: 'shader.$definition', data: {'values': values});
+
+GraphConnection createShaderConnection(
+  String id,
+  String from,
+  String output,
+  String to,
+  String input,
+) => GraphConnection(
+  id: id,
+  kind: GraphConnectionKind.data,
+  from: PortRef(nodeId: from, portId: 'out:$output'),
+  to: PortRef(nodeId: to, portId: 'in:$input'),
+);
+
+ShaderDocument createShaderDocument({
+  String? id,
+  Iterable<GraphNode> nodes = const [],
+  Iterable<GraphConnection> connections = const [],
+  Map<String, NodePresentation> presentations = const {},
+  Map<String, GraphFrame> frames = const {},
+  String? outputNodeId,
+}) => ShaderDocument(
+  GraphDocument(
+    id: id ?? newGraphId(),
+    spaces: {
+      shaderSpaceId: GraphSpace(
+        id: shaderSpaceId,
+        nodes: {for (final node in nodes) node.id: node},
+        connections: {for (final edge in connections) edge.id: edge},
+        nodePresentations: presentations,
+        frames: frames,
+      ),
+    },
+    metadata: {
+      'shader': {'outputNodeId': outputNodeId},
+    },
+  ),
+);
+
+final class _ShaderDocumentBuilder {
+  final nodes = <String, GraphNode>{};
+  final connections = <String, GraphConnection>{};
+  final presentations = <String, NodePresentation>{};
+  void node(
+    String id,
+    String definition,
+    double x,
+    double y, [
+    GraphJson values = const {},
+  ]) {
+    nodes[id] = createShaderNode(id, definition, values: values);
+    presentations[id] = NodePresentation(
+      nodeId: id,
+      position: GraphPoint(x, y),
     );
   }
+
+  void wire(String id, String from, String output, String to, String input) {
+    connections[id] = createShaderConnection(id, from, output, to, input);
+  }
+
+  ShaderDocument build({String? outputNodeId}) => createShaderDocument(
+    nodes: nodes.values,
+    connections: connections.values,
+    presentations: presentations,
+    outputNodeId: outputNodeId,
+  );
 }
 
 const defaultShaderColorRampStops = <ShaderJsonMap>[
@@ -305,94 +186,38 @@ const shaderGraphStarters = <ShaderGraphStarter>[
   ),
 ];
 
-ShaderGraph createDefaultShaderGraph() => ShaderGraph(
-  nodes: const [
-    ShaderNodeInstance(id: 'uv', defId: 'uv', x: 40, y: 180),
-    ShaderNodeInstance(id: 'split_uv', defId: 'vec2_split', x: 260, y: 180),
-    ShaderNodeInstance(id: 'accent', defId: 'accent_color', x: 260, y: 20),
-    ShaderNodeInstance(
-      id: 'secondary',
-      defId: 'secondary_color',
-      x: 260,
-      y: 340,
-    ),
-    ShaderNodeInstance(id: 'gradient', defId: 'mix_color', x: 520, y: 180),
-    ShaderNodeInstance(id: 'output', defId: 'fragment_output', x: 780, y: 190),
-  ],
-  wires: const [
-    ShaderWire(
-      id: 'uv:uv->split_uv:v',
-      fromNode: 'uv',
-      fromPort: 'uv',
-      toNode: 'split_uv',
-      toPort: 'v',
-    ),
-    ShaderWire(
-      id: 'accent:color->gradient:a',
-      fromNode: 'accent',
-      fromPort: 'color',
-      toNode: 'gradient',
-      toPort: 'a',
-    ),
-    ShaderWire(
-      id: 'secondary:color->gradient:b',
-      fromNode: 'secondary',
-      fromPort: 'color',
-      toNode: 'gradient',
-      toPort: 'b',
-    ),
-    ShaderWire(
-      id: 'split_uv:x->gradient:t',
-      fromNode: 'split_uv',
-      fromPort: 'x',
-      toNode: 'gradient',
-      toPort: 't',
-    ),
-    ShaderWire(
-      id: 'gradient:result->output:color',
-      fromNode: 'gradient',
-      fromPort: 'result',
-      toNode: 'output',
-      toPort: 'color',
-    ),
-  ],
-  outputNodeId: 'output',
-);
-
-ShaderGraph createShaderGraphStarter(String id) {
-  final nodes = <ShaderNodeInstance>[];
-  final wires = <ShaderWire>[];
-  void node(
-    String nodeId,
-    String defId,
-    double x,
-    double y, [
-    Map<String, dynamic> defaults = const {},
-  ]) => nodes.add(
-    ShaderNodeInstance(
-      id: nodeId,
-      defId: defId,
-      x: x,
-      y: y,
-      inputDefaults: defaults,
-    ),
+ShaderDocument createDefaultShaderDocument() {
+  final builder = _ShaderDocumentBuilder();
+  builder.node('uv', 'uv', 40, 180);
+  builder.node('split_uv', 'vec2_split', 360, 180);
+  builder.node('accent', 'accent_color', 360, 20);
+  builder.node('secondary', 'secondary_color', 360, 420);
+  builder.node('gradient', 'mix_color', 680, 180);
+  builder.node('output', 'fragment_output', 1000, 190);
+  builder.wire('uv:uv->split_uv:v', 'uv', 'uv', 'split_uv', 'v');
+  builder.wire('accent:color->gradient:a', 'accent', 'color', 'gradient', 'a');
+  builder.wire(
+    'secondary:color->gradient:b',
+    'secondary',
+    'color',
+    'gradient',
+    'b',
   );
-  void wire(
-    String id,
-    String from,
-    String fromPort,
-    String to,
-    String toPort,
-  ) => wires.add(
-    ShaderWire(
-      id: id,
-      fromNode: from,
-      fromPort: fromPort,
-      toNode: to,
-      toPort: toPort,
-    ),
+  builder.wire('split_uv:x->gradient:t', 'split_uv', 'x', 'gradient', 't');
+  builder.wire(
+    'gradient:result->output:color',
+    'gradient',
+    'result',
+    'output',
+    'color',
   );
+  return builder.build(outputNodeId: 'output');
+}
 
+ShaderDocument createShaderGraphStarter(String id) {
+  final builder = _ShaderDocumentBuilder();
+  final node = builder.node;
+  final wire = builder.wire;
   switch (id) {
     case 'procedural-terrain':
       node('uv', 'uv', 40, 220);
@@ -528,17 +353,14 @@ ShaderGraph createShaderGraphStarter(String id) {
       wire('mix:result->ramp:factor', 'mix', 'result', 'ramp', 'factor');
       wire('ramp:color->output:color', 'ramp', 'color', 'output', 'color');
     default:
-      return createDefaultShaderGraph();
+      return createDefaultShaderDocument();
   }
-  return ShaderGraph(nodes: nodes, wires: wires, outputNodeId: 'output');
+  return builder.build(outputNodeId: 'output');
 }
-
-ShaderGraph cloneShaderGraph(ShaderGraph graph) =>
-    ShaderGraph.fromJson(graph.toJson());
 
 ShaderJsonMap applyCompiledShaderGraph({
   required ShaderJsonMap config,
-  required ShaderGraph graph,
+  required ShaderDocument graph,
   required String glsl,
   Map<String, dynamic> uniforms = const {},
   Map<String, dynamic> bindings = const {},
@@ -552,19 +374,12 @@ ShaderJsonMap applyCompiledShaderGraph({
 };
 
 dynamic _cloneValue(dynamic value) {
-  if (value is Map)
+  if (value is Map) {
     return {
       for (final entry in value.entries)
         '${entry.key}': _cloneValue(entry.value),
     };
+  }
   if (value is List) return value.map(_cloneValue).toList();
   return value;
-}
-
-double _finite(dynamic value, double fallback) =>
-    value is num && value.isFinite ? value.toDouble() : fallback;
-
-String _text(dynamic value, String fallback) {
-  final text = value?.toString().trim();
-  return text == null || text.isEmpty ? fallback : text;
 }

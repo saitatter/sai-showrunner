@@ -198,8 +198,8 @@ void main() {
     final trigger = decodeContractNodeType(eventDocument.graph.spaces[mainAutomationSpace]!.nodes.values.single.type, 'trigger');
     expect(trigger?.$1, isNotEmpty);
     expect(trigger?.$2, isNotEmpty);
-    expect(profile?.triggers.first['description'], 'Second event');
-    expect(profile?.triggers.last['description'], 'First event');
+    expect(profile.triggers.first['description'], 'Second event');
+    expect(profile.triggers.last['description'], 'First event');
   });
 }
 

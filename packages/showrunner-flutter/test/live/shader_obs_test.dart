@@ -70,7 +70,7 @@ void main() {
         viewerDataRepository: InMemoryViewerDataRepository(),
       );
       var service = bridge();
-      Future<void> save(ShaderGraph graph) async {
+      Future<void> save(ShaderDocument graph) async {
         final compiled = compileShaderGraph(graph);
         expect(compiled.errors, isEmpty);
         await repository.save(
@@ -154,14 +154,12 @@ void main() {
         final b = await screenshot('energy-2');
         expect(a, isNot(b));
         report['animatedCompiledShader'] = 'PASS';
-        final binding = ShaderGraph(
-          nodes: const [
-            ShaderNodeInstance(
-              id: 'pulse',
-              defId: 'uniform_float',
-              x: 0,
-              y: 0,
-              inputDefaults: {
+        final binding = createShaderDocument(
+          nodes: [
+            createShaderNode(
+              'pulse',
+              'uniform_float',
+              values: {
                 'name': 'pulse',
                 'value': '0.2',
                 'bindingSource': 'state',
@@ -170,21 +168,19 @@ void main() {
                 'bindingPath': 'value',
               },
             ),
-            ShaderNodeInstance(
-              id: 'output',
-              defId: 'fragment_output',
-              x: 200,
-              y: 0,
-              inputDefaults: {'color': 'vec3(1.0)'},
+            createShaderNode(
+              'output',
+              'fragment_output',
+              values: {'color': 'vec3(1.0)'},
             ),
           ],
-          wires: const [
-            ShaderWire(
-              id: 'alpha',
-              fromNode: 'pulse',
-              fromPort: 'value',
-              toNode: 'output',
-              toPort: 'alpha',
+          connections: [
+            createShaderConnection(
+              'alpha',
+              'pulse',
+              'value',
+              'output',
+              'alpha',
             ),
           ],
           outputNodeId: 'output',

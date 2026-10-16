@@ -1,9 +1,16 @@
 // ignore_for_file: curly_braces_in_flow_control_structures, unnecessary_brace_in_string_interps
 
 import 'dart:convert';
+import 'package:sai_nodes_core/sai_nodes_core.dart';
 
 import 'shader_graph_model.dart';
 import 'shader_node_definitions.dart';
+
+String shaderPortKey(PortRef port) => port.portId.startsWith('out:')
+    ? port.portId.substring(4)
+    : port.portId.startsWith('in:')
+    ? port.portId.substring(3)
+    : port.portId;
 
 const _builtInUniforms = {
   'u_resolution',
@@ -31,13 +38,15 @@ final class ShaderGraphCompileResult {
 }
 
 ShaderPortDefinition? getShaderPortDefinition(
-  ShaderGraph graph,
+  ShaderDocument graph,
   String nodeId,
   String portKey, {
   required bool input,
 }) {
   final node = graph.nodes.where((item) => item.id == nodeId).firstOrNull;
-  final definition = node == null ? null : shaderNodeDefinitionById[node.defId];
+  final definition = node == null
+      ? null
+      : shaderNodeDefinitionById[node.shaderDefinitionId];
   if (definition == null) return null;
   final ports = input ? definition.inputs : definition.outputs;
   return ports.where((port) => port.key == portKey).firstOrNull;
@@ -46,14 +55,15 @@ ShaderPortDefinition? getShaderPortDefinition(
 bool areShaderTypesCompatible(ShaderGlslType from, ShaderGlslType to) =>
     from == to;
 
-List<String> _topologicalSort(ShaderGraph graph) {
+List<String> _topologicalSort(ShaderDocument graph) {
   final ids = graph.nodes.map((node) => node.id).toSet();
   final degree = {for (final id in ids) id: 0};
   final adjacency = {for (final id in ids) id: <String>[]};
-  for (final wire in graph.wires) {
-    if (!ids.contains(wire.fromNode) || !ids.contains(wire.toNode)) continue;
-    adjacency[wire.fromNode]!.add(wire.toNode);
-    degree[wire.toNode] = degree[wire.toNode]! + 1;
+  for (final wire in graph.connections) {
+    if (!ids.contains(wire.from.nodeId) || !ids.contains(wire.to.nodeId))
+      continue;
+    adjacency[wire.from.nodeId]!.add(wire.to.nodeId);
+    degree[wire.to.nodeId] = degree[wire.to.nodeId]! + 1;
   }
   final queue = <String>[
     for (final node in graph.nodes)
@@ -71,49 +81,71 @@ List<String> _topologicalSort(ShaderGraph graph) {
   return sorted;
 }
 
-bool shaderGraphHasCycle(ShaderGraph graph) =>
+bool shaderGraphHasCycle(ShaderDocument graph) =>
     _topologicalSort(graph).length != graph.nodes.length;
 
 bool wouldCreateShaderGraphCycle(
-  ShaderGraph graph,
+  ShaderDocument graph,
   String fromNode,
   String toNode,
 ) {
   if (fromNode == toNode) return true;
   return shaderGraphHasCycle(
-    graph.copyWith(
-      wires: [
-        ...graph.wires,
-        ShaderWire(
-          id: '__candidate',
-          fromNode: fromNode,
-          fromPort: '',
-          toNode: toNode,
-          toPort: '',
-        ),
-      ],
+    ShaderDocument(
+      graph.graph.copyWith(
+        spaces: {
+          ...graph.graph.spaces,
+          shaderSpaceId: graph.space.copyWith(
+            connections: {
+              ...graph.space.connections,
+              '__candidate': createShaderConnection(
+                '__candidate',
+                fromNode,
+                '',
+                toNode,
+                '',
+              ),
+            },
+          ),
+        },
+      ),
     ),
   );
 }
 
-List<String> validateShaderGraph(ShaderGraph graph) {
-  final errors = <String>[];
+List<String> validateShaderGraph(ShaderDocument graph) {
+  final errors = <String>[
+    for (final issue in const GraphDocumentValidator().validate(graph.graph))
+      issue.message,
+    if (graph.graph.spaces.length != 1)
+      'Shader documents require exactly one shader space.',
+    for (final edge in graph.connections)
+      if (edge.kind != GraphConnectionKind.data ||
+          !edge.from.portId.startsWith('out:') ||
+          !edge.to.portId.startsWith('in:'))
+        'Invalid shader connection: ${edge.id}.',
+  ];
   final nodeById = {for (final node in graph.nodes) node.id: node};
   final outputNodes = graph.nodes
-      .where((node) => node.defId == 'fragment_output')
+      .where((node) => node.shaderDefinitionId == 'fragment_output')
       .toList();
 
   for (final node in graph.nodes) {
-    if (!shaderNodeDefinitionById.containsKey(node.defId)) {
+    if (!node.type.startsWith('shader.') ||
+        !shaderNodeDefinitionById.containsKey(node.shaderDefinitionId)) {
       errors.add(
-        'Node ${node.id} uses unknown shader node type "${node.defId}".',
+        'Node ${node.id} uses unknown shader node type "${node.shaderDefinitionId}".',
       );
     }
   }
 
   final uniformNames = <String>{};
   for (final node in graph.nodes) {
-    if (!{'uniform_float', 'uniform_vec2', 'uniform_vec3'}.contains(node.defId))
+    if (!{
+      'uniform_float',
+      'uniform_vec2',
+      'uniform_vec3',
+    }.contains(node.shaderDefinitionId))
       continue;
     final name = getShaderUniformName(node);
     if (!uniformNames.add(name)) {
@@ -127,7 +159,7 @@ List<String> validateShaderGraph(ShaderGraph graph) {
       errors.add(
         'Shader graph output node "${graph.outputNodeId}" is missing.',
       );
-    } else if (output.defId != 'fragment_output') {
+    } else if (output.shaderDefinitionId != 'fragment_output') {
       errors.add(
         'Shader graph output node "${graph.outputNodeId}" is not a Fragment Output node.',
       );
@@ -141,37 +173,39 @@ List<String> validateShaderGraph(ShaderGraph graph) {
   }
 
   final inputTargets = <String>{};
-  for (final wire in graph.wires) {
-    final fromNode = nodeById[wire.fromNode];
-    final toNode = nodeById[wire.toNode];
+  for (final wire in graph.connections) {
+    final fromNode = nodeById[wire.from.nodeId];
+    final toNode = nodeById[wire.to.nodeId];
     if (fromNode == null) {
-      errors.add('Wire ${wire.id} starts at missing node "${wire.fromNode}".');
+      errors.add(
+        'Wire ${wire.id} starts at missing node "${wire.from.nodeId}".',
+      );
       continue;
     }
     if (toNode == null) {
-      errors.add('Wire ${wire.id} ends at missing node "${wire.toNode}".');
+      errors.add('Wire ${wire.id} ends at missing node "${wire.to.nodeId}".');
       continue;
     }
     final fromPort = getShaderPortDefinition(
       graph,
-      wire.fromNode,
-      wire.fromPort,
+      wire.from.nodeId,
+      shaderPortKey(wire.from),
       input: false,
     );
     final toPort = getShaderPortDefinition(
       graph,
-      wire.toNode,
-      wire.toPort,
+      wire.to.nodeId,
+      shaderPortKey(wire.to),
       input: true,
     );
     if (fromPort == null) {
       errors.add(
-        'Wire ${wire.id} starts at missing output port "${wire.fromNode}:${wire.fromPort}".',
+        'Wire ${wire.id} starts at missing output port "${wire.from.nodeId}:${shaderPortKey(wire.from)}".',
       );
     }
     if (toPort == null) {
       errors.add(
-        'Wire ${wire.id} ends at missing input port "${wire.toNode}:${wire.toPort}".',
+        'Wire ${wire.id} ends at missing input port "${wire.to.nodeId}:${shaderPortKey(wire.to)}".',
       );
     }
     if (fromPort != null &&
@@ -181,7 +215,7 @@ List<String> validateShaderGraph(ShaderGraph graph) {
         'Wire ${wire.id} connects incompatible types: ${fromPort.type.glsl} -> ${toPort.type.glsl}.',
       );
     }
-    final target = '${wire.toNode}:${wire.toPort}';
+    final target = '${wire.to.nodeId}:${shaderPortKey(wire.to)}';
     if (!inputTargets.add(target))
       errors.add('Input port "$target" has multiple incoming wires.');
   }
@@ -189,15 +223,18 @@ List<String> validateShaderGraph(ShaderGraph graph) {
   return errors;
 }
 
-List<String> collectShaderGraphWarnings(ShaderGraph graph) {
+List<String> collectShaderGraphWarnings(ShaderDocument graph) {
   final warnings = <String>[];
   final nodeById = {for (final node in graph.nodes) node.id: node};
   final output =
       (graph.outputNodeId == null ? null : nodeById[graph.outputNodeId]) ??
-      graph.nodes.where((node) => node.defId == 'fragment_output').firstOrNull;
-  if (output == null || output.defId != 'fragment_output') return warnings;
-  if (!graph.wires.any(
-    (wire) => wire.toNode == output.id && wire.toPort == 'color',
+      graph.nodes
+          .where((node) => node.shaderDefinitionId == 'fragment_output')
+          .firstOrNull;
+  if (output == null || output.shaderDefinitionId != 'fragment_output')
+    return warnings;
+  if (!graph.connections.any(
+    (wire) => wire.to.nodeId == output.id && shaderPortKey(wire.to) == 'color',
   )) {
     warnings.add(
       'Fragment Output "${_nodeLabel(output)}" has no color input connected; it will render black.',
@@ -205,7 +242,8 @@ List<String> collectShaderGraphWarnings(ShaderGraph graph) {
   }
   final dependencies = _dependencies(graph, output.id);
   for (final node in graph.nodes) {
-    if (dependencies.contains(node.id) || node.defId == 'fragment_output')
+    if (dependencies.contains(node.id) ||
+        node.shaderDefinitionId == 'fragment_output')
       continue;
     warnings.add(
       'Node "${_nodeLabel(node)}" is not connected to the active Fragment Output.',
@@ -214,10 +252,10 @@ List<String> collectShaderGraphWarnings(ShaderGraph graph) {
   return warnings;
 }
 
-Set<String> _dependencies(ShaderGraph graph, String outputId) {
+Set<String> _dependencies(ShaderDocument graph, String outputId) {
   final reverse = <String, List<String>>{};
-  for (final wire in graph.wires)
-    reverse.putIfAbsent(wire.toNode, () => []).add(wire.fromNode);
+  for (final wire in graph.connections)
+    reverse.putIfAbsent(wire.to.nodeId, () => []).add(wire.from.nodeId);
   final visited = <String>{};
   final stack = [outputId];
   while (stack.isNotEmpty) {
@@ -235,8 +273,9 @@ String _safeNodeIdentifier(String id) {
   return safe.isEmpty ? 'node' : safe;
 }
 
-String _nodeLabel(ShaderNodeInstance node) =>
-    shaderNodeDefinitionById[node.defId]?.name ?? node.defId;
+String _nodeLabel(GraphNode node) =>
+    shaderNodeDefinitionById[node.shaderDefinitionId]?.name ??
+    node.shaderDefinitionId;
 
 String shaderGlslDefault(ShaderGlslType type) => switch (type) {
   ShaderGlslType.float => '0.0',
@@ -245,8 +284,8 @@ String shaderGlslDefault(ShaderGlslType type) => switch (type) {
   ShaderGlslType.vec4 => 'vec4(0.0, 0.0, 0.0, 1.0)',
 };
 
-String getShaderUniformName(ShaderNodeInstance node) {
-  final raw = node.inputDefaults['name']?.toString().trim() ?? '';
+String getShaderUniformName(GraphNode node) {
+  final raw = node.shaderValues['name']?.toString().trim() ?? '';
   final fallback = _safeNodeIdentifier('parameter_${node.id}');
   var safe = (raw.isEmpty ? fallback : raw)
       .replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_')
@@ -260,43 +299,47 @@ String getShaderUniformName(ShaderNodeInstance node) {
   return _builtInUniforms.contains(name) ? '${name}_custom' : name;
 }
 
-Map<String, dynamic> collectShaderUniformDefaults(ShaderGraph graph) {
+Map<String, dynamic> collectShaderUniformDefaults(ShaderDocument graph) {
   final values = <String, dynamic>{};
   for (final node in graph.nodes) {
     final name = getShaderUniformName(node);
     final value = _nodeValue(
       node,
-      node.defId == 'uniform_vec3'
+      node.shaderDefinitionId == 'uniform_vec3'
           ? 'vec3(1.0, 1.0, 1.0)'
-          : node.defId == 'uniform_vec2'
+          : node.shaderDefinitionId == 'uniform_vec2'
           ? 'vec2(0.0, 0.0)'
           : '1.0',
     );
-    if (node.defId == 'uniform_float')
+    if (node.shaderDefinitionId == 'uniform_float')
       values[name] = double.tryParse(value) ?? 1;
-    if (node.defId == 'uniform_vec2')
+    if (node.shaderDefinitionId == 'uniform_vec2')
       values[name] = _parseVector(value, 2, [0, 0]);
-    if (node.defId == 'uniform_vec3')
+    if (node.shaderDefinitionId == 'uniform_vec3')
       values[name] = _parseVector(value, 3, [1, 1, 1]);
   }
   return values;
 }
 
-Map<String, dynamic> collectShaderUniformBindings(ShaderGraph graph) {
+Map<String, dynamic> collectShaderUniformBindings(ShaderDocument graph) {
   final bindings = <String, dynamic>{};
   for (final node in graph.nodes) {
-    if (!{'uniform_float', 'uniform_vec2', 'uniform_vec3'}.contains(node.defId))
+    if (!{
+      'uniform_float',
+      'uniform_vec2',
+      'uniform_vec3',
+    }.contains(node.shaderDefinitionId))
       continue;
-    final source = node.inputDefaults['bindingSource']?.toString();
+    final source = node.shaderValues['bindingSource']?.toString();
     final name = getShaderUniformName(node);
     if (source == 'config') {
-      final path = node.inputDefaults['bindingPath']?.toString().trim() ?? '';
+      final path = node.shaderValues['bindingPath']?.toString().trim() ?? '';
       if (path.isNotEmpty) bindings[name] = {'source': source, 'path': path};
     } else if (source == 'state') {
       final plugin =
-          node.inputDefaults['bindingPlugin']?.toString().trim() ?? '';
-      final state = node.inputDefaults['bindingState']?.toString().trim() ?? '';
-      final path = node.inputDefaults['bindingPath']?.toString().trim() ?? '';
+          node.shaderValues['bindingPlugin']?.toString().trim() ?? '';
+      final state = node.shaderValues['bindingState']?.toString().trim() ?? '';
+      final path = node.shaderValues['bindingPath']?.toString().trim() ?? '';
       if (plugin.isNotEmpty && state.isNotEmpty && path.isNotEmpty) {
         bindings[name] = {
           'source': source,
@@ -310,141 +353,76 @@ Map<String, dynamic> collectShaderUniformBindings(ShaderGraph graph) {
   return bindings;
 }
 
-ShaderGraph? createShaderNodePreviewGraph(ShaderGraph graph, String nodeId) {
-  final node = graph.nodes.where((item) => item.id == nodeId).firstOrNull;
-  final definition = node == null ? null : shaderNodeDefinitionById[node.defId];
+/// Creates a separate ephemeral preview document without modifying authoring state.
+ShaderDocument? createShaderNodePreviewGraph(
+  ShaderDocument graph,
+  String nodeId,
+) {
+  final node = graph.space.nodes[nodeId];
+  final definition = node == null
+      ? null
+      : shaderNodeDefinitionById[node.shaderDefinitionId];
   if (node == null || definition == null) return null;
-  if (node.defId == 'fragment_output')
-    return graph.copyWith(outputNodeId: node.id);
+  if (node.shaderDefinitionId == 'fragment_output')
+    return graph.withOutput(node.id);
   final port =
       definition.outputs
-          .where((item) => item.type == ShaderGlslType.vec3)
+          .where((port) => port.type == ShaderGlslType.vec3)
           .firstOrNull ??
       definition.outputs
-          .where((item) => item.type == ShaderGlslType.float)
+          .where((port) => port.type == ShaderGlslType.float)
           .firstOrNull ??
       definition.outputs
-          .where((item) => item.type == ShaderGlslType.vec2)
+          .where((port) => port.type == ShaderGlslType.vec2)
           .firstOrNull;
   if (port == null) return null;
-  final nodes = graph.nodes
-      .where((item) => item.defId != 'fragment_output')
-      .map((item) => item.copyWith())
-      .toList();
-  final ids = nodes.map((item) => item.id).toSet();
-  final wires = graph.wires
-      .where((wire) => ids.contains(wire.fromNode) && ids.contains(wire.toNode))
-      .toList();
-  final outputId = '__preview_${node.id}_output';
+  final nodes = {
+    for (final item in graph.nodes.where(
+      (item) => item.shaderDefinitionId != 'fragment_output',
+    ))
+      item.id: item,
+  };
+  final connections = {
+    for (final edge in graph.connections.where(
+      (edge) =>
+          nodes.containsKey(edge.from.nodeId) &&
+          nodes.containsKey(edge.to.nodeId),
+    ))
+      edge.id: edge,
+  };
+  final outputId = newGraphId();
+  nodes[outputId] = createShaderNode(outputId, 'fragment_output');
+  void connect(String from, String output, String to, String input) {
+    final id = newGraphId();
+    connections[id] = createShaderConnection(id, from, output, to, input);
+  }
+
   if (port.type == ShaderGlslType.vec3) {
-    return ShaderGraph(
-      nodes: [
-        ...nodes,
-        ShaderNodeInstance(
-          id: outputId,
-          defId: 'fragment_output',
-          x: node.x + 240,
-          y: node.y,
-        ),
-      ],
-      wires: [
-        ...wires,
-        ShaderWire(
-          id: '${node.id}:${port.key}->${outputId}:color',
-          fromNode: node.id,
-          fromPort: port.key,
-          toNode: outputId,
-          toPort: 'color',
-        ),
-      ],
-      outputNodeId: outputId,
-    );
-  }
-  final composeId = '__preview_${node.id}_color';
-  final previewNodes = [
-    ...nodes,
-    ShaderNodeInstance(
-      id: composeId,
-      defId: 'vec3_compose',
-      x: node.x + 240,
-      y: node.y,
-    ),
-    ShaderNodeInstance(
-      id: outputId,
-      defId: 'fragment_output',
-      x: node.x + 480,
-      y: node.y,
-    ),
-  ];
-  final previewWires = [
-    ...wires,
-    ShaderWire(
-      id: '$composeId:result->$outputId:color',
-      fromNode: composeId,
-      fromPort: 'result',
-      toNode: outputId,
-      toPort: 'color',
-    ),
-  ];
-  if (port.type == ShaderGlslType.float) {
-    for (final component in ['x', 'y', 'z']) {
-      previewWires.add(
-        ShaderWire(
-          id: '${node.id}:${port.key}->${composeId}:$component',
-          fromNode: node.id,
-          fromPort: port.key,
-          toNode: composeId,
-          toPort: component,
-        ),
-      );
-    }
+    connect(node.id, port.key, outputId, 'color');
   } else {
-    final splitId = '__preview_${node.id}_split';
-    previewNodes.insert(
-      previewNodes.length - 2,
-      ShaderNodeInstance(
-        id: splitId,
-        defId: 'vec2_split',
-        x: node.x + 240,
-        y: node.y,
-      ),
-    );
-    previewWires.add(
-      ShaderWire(
-        id: '${node.id}:${port.key}->${splitId}:v',
-        fromNode: node.id,
-        fromPort: port.key,
-        toNode: splitId,
-        toPort: 'v',
-      ),
-    );
-    previewWires.add(
-      ShaderWire(
-        id: '${splitId}:x->$composeId:x',
-        fromNode: splitId,
-        fromPort: 'x',
-        toNode: composeId,
-        toPort: 'x',
-      ),
-    );
-    previewWires.add(
-      ShaderWire(
-        id: '${splitId}:y->$composeId:y',
-        fromNode: splitId,
-        fromPort: 'y',
-        toNode: composeId,
-        toPort: 'y',
-      ),
-    );
+    final composeId = newGraphId();
+    nodes[composeId] = createShaderNode(composeId, 'vec3_compose');
+    connect(composeId, 'result', outputId, 'color');
+    if (port.type == ShaderGlslType.float) {
+      for (final component in ['x', 'y', 'z']) {
+        connect(node.id, port.key, composeId, component);
+      }
+    } else {
+      final splitId = newGraphId();
+      nodes[splitId] = createShaderNode(splitId, 'vec2_split');
+      connect(node.id, port.key, splitId, 'v');
+      connect(splitId, 'x', composeId, 'x');
+      connect(splitId, 'y', composeId, 'y');
+    }
   }
-  return ShaderGraph(
-    nodes: previewNodes,
-    wires: previewWires,
+  return createShaderDocument(
+    nodes: nodes.values,
+    connections: connections.values,
     outputNodeId: outputId,
   );
 }
 
-ShaderGraphCompileResult compileShaderGraph(ShaderGraph graph) {
+ShaderGraphCompileResult compileShaderGraph(ShaderDocument graph) {
   final errors = validateShaderGraph(graph);
   if (errors.isNotEmpty)
     return ShaderGraphCompileResult(
@@ -461,29 +439,30 @@ ShaderGraphCompileResult compileShaderGraph(ShaderGraph graph) {
   var counter = 0;
   for (final id in sorted) {
     final node = byId[id]!;
-    final definition = shaderNodeDefinitionById[node.defId]!;
+    final definition = shaderNodeDefinitionById[node.shaderDefinitionId]!;
     variables[id] = {
       for (final port in definition.outputs)
         port.key: 'v${counter++}_${_safeNodeIdentifier(id)}_${port.key}',
     };
   }
-  final wireMap = <String, ShaderWire>{
-    for (final wire in graph.wires) '${wire.toNode}:${wire.toPort}': wire,
+  final wireMap = <String, GraphConnection>{
+    for (final wire in graph.connections)
+      '${wire.to.nodeId}:${shaderPortKey(wire.to)}': wire,
   };
   for (final id in sorted) {
     final node = byId[id]!;
-    final definition = shaderNodeDefinitionById[node.defId]!;
+    final definition = shaderNodeDefinitionById[node.shaderDefinitionId]!;
     final input = <String, String>{};
     for (final port in definition.inputs) {
       final wire = wireMap['$id:${port.key}'];
       if (wire != null) {
         input[port.key] =
-            variables[wire.fromNode]?[wire.fromPort] ??
+            variables[wire.from.nodeId]?[shaderPortKey(wire.from)] ??
             port.defaultValue ??
             shaderGlslDefault(port.type);
       } else {
         input[port.key] =
-            node.inputDefaults[port.key]?.toString() ??
+            node.shaderValues[port.key]?.toString() ??
             port.defaultValue ??
             shaderGlslDefault(port.type);
       }
@@ -491,29 +470,33 @@ ShaderGraphCompileResult compileShaderGraph(ShaderGraph graph) {
     final output = variables[id]!;
     for (final port in definition.outputs)
       body.add('\t${port.type.glsl} ${output[port.key]};');
-    if (node.defId == 'uniform_float') {
+    if (node.shaderDefinitionId == 'uniform_float') {
       final name = getShaderUniformName(node);
       uniforms.add('uniform float $name;');
       body.add('\t${output['value']} = $name;');
-    } else if (node.defId == 'uniform_vec2') {
+    } else if (node.shaderDefinitionId == 'uniform_vec2') {
       final name = getShaderUniformName(node);
       uniforms.add('uniform vec2 $name;');
       body.add('\t${output['value']} = $name;');
-    } else if (node.defId == 'uniform_vec3') {
+    } else if (node.shaderDefinitionId == 'uniform_vec3') {
       final name = getShaderUniformName(node);
       uniforms.add('uniform vec3 $name;');
       body.add('\t${output['value']} = $name;');
-    } else if (node.defId == 'float_const') {
+    } else if (node.shaderDefinitionId == 'float_const') {
       body.add('\t${output['value']} = ${_nodeValue(node, '1.0')};');
-    } else if (node.defId == 'vec3_const') {
+    } else if (node.shaderDefinitionId == 'vec3_const') {
       body.add(
         '\t${output['value']} = ${_nodeValue(node, 'vec3(1.0, 1.0, 1.0)')};',
       );
-    } else if (node.defId == 'color_ramp' && _customRamp(node)) {
+    } else if (node.shaderDefinitionId == 'color_ramp' && _customRamp(node)) {
       body.addAll(_compileRamp(node, input, output).map((line) => '\t$line'));
     } else {
       body.addAll(
-        _compileNode(node.defId, input, output).map((line) => '\t$line'),
+        _compileNode(
+          node.shaderDefinitionId,
+          input,
+          output,
+        ).map((line) => '\t$line'),
       );
     }
     body.add('');
@@ -543,8 +526,8 @@ ${body.join('\n')}
   );
 }
 
-String _nodeValue(ShaderNodeInstance node, String fallback) {
-  final value = node.inputDefaults['value'];
+String _nodeValue(GraphNode node, String fallback) {
+  final value = node.shaderValues['value'];
   if (value is num && value.isFinite) return '$value';
   final text = value?.toString().trim();
   return text == null || text.isEmpty ? fallback : text;
@@ -783,8 +766,8 @@ List<String> _compileNode(
   };
 }
 
-bool _customRamp(ShaderNodeInstance node) {
-  final value = node.inputDefaults['rampStops'];
+bool _customRamp(GraphNode node) {
+  final value = node.shaderValues['rampStops'];
   if (value is List) return value.length >= 2;
   if (value is String && value.trim().isNotEmpty) {
     try {
@@ -798,11 +781,11 @@ bool _customRamp(ShaderNodeInstance node) {
 }
 
 List<String> _compileRamp(
-  ShaderNodeInstance node,
+  GraphNode node,
   Map<String, String> i,
   Map<String, String> o,
 ) {
-  final stops = _normalizeRamp(node.inputDefaults['rampStops']);
+  final stops = _normalizeRamp(node.shaderValues['rampStops']);
   final factor = i['factor'] ?? '0.5';
   final color = o['color']!;
   final lines = <String>[

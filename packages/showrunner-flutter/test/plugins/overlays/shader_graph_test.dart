@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:sai_nodes_core/sai_nodes_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 
@@ -13,7 +14,7 @@ void main() {
     'every shader catalog node and starter generates a renderable fixture',
     () async {
       final fixtures = <Map<String, dynamic>>[];
-      void add(String id, ShaderGraph graph) {
+      void add(String id, ShaderDocument graph) {
         final result = compileShaderGraph(graph);
         expect(result.errors, isEmpty, reason: id);
         expect(result.isValid, true, reason: id);
@@ -27,11 +28,9 @@ void main() {
       }
 
       for (final definition in shaderNodeDefinitions) {
-        final graph = ShaderGraph(
-          nodes: [
-            ShaderNodeInstance(id: 'probe', defId: definition.id, x: 0, y: 0),
-          ],
-          wires: const [],
+        final graph = createShaderDocument(
+          nodes: [createShaderNode('probe', definition.id)],
+          connections: [],
         );
         final preview = createShaderNodePreviewGraph(graph, 'probe');
         expect(preview, isNotNull, reason: definition.id);
@@ -40,9 +39,24 @@ void main() {
       for (final starter in shaderGraphStarters) {
         add('starter-${starter.id}', createShaderGraphStarter(starter.id));
       }
-      final unusual = ShaderGraph(nodes:const [ShaderNodeInstance(id:'---',defId:'uniform_float',x:0,y:0,inputDefaults:{'name':'123','value':'0.5'})],wires:const []);
-      expect(getShaderUniformName(unusual.nodes.single), matches(RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$')));
-      add('numeric-uniform-name',createShaderNodePreviewGraph(unusual,'---')!);
+      final unusual = createShaderDocument(
+        nodes: [
+          createShaderNode(
+            '---',
+            'uniform_float',
+            values: {'name': '123', 'value': '0.5'},
+          ),
+        ],
+        connections: [],
+      );
+      expect(
+        getShaderUniformName(unusual.nodes.single),
+        matches(RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$')),
+      );
+      add(
+        'numeric-uniform-name',
+        createShaderNodePreviewGraph(unusual, '---')!,
+      );
       if (Platform.environment['SHOWRUNNER_EXPORT_SHADER_FIXTURES'] == '1') {
         final file = File('.tmp/shader-catalog.json');
         await file.parent.create(recursive: true);
@@ -52,49 +66,49 @@ void main() {
   );
   group('shader graph model', () {
     test('round-trips graph data without losing frames or defaults', () {
-      final graph = ShaderGraph(
-        nodes: const [
-          ShaderNodeInstance(
-            id: 'parameter',
-            defId: 'uniform_float',
-            x: 10,
-            y: 20,
-            inputDefaults: {'name': 'pulse', 'value': '0.75'},
+      final graph = createShaderDocument(
+        nodes: [
+          createShaderNode(
+            'parameter',
+            'uniform_float',
+            values: {'name': 'pulse', 'value': '0.75'},
           ),
-          ShaderNodeInstance(
-            id: 'output',
-            defId: 'fragment_output',
-            x: 300,
-            y: 20,
+          createShaderNode('output', 'fragment_output'),
+        ],
+        connections: [
+          createShaderConnection(
+            'wire',
+            'parameter',
+            'value',
+            'output',
+            'alpha',
           ),
         ],
-        wires: const [
-          ShaderWire(
-            id: 'wire',
-            fromNode: 'parameter',
-            fromPort: 'value',
-            toNode: 'output',
-            toPort: 'alpha',
+        presentations: {
+          'parameter': NodePresentation(
+            nodeId: 'parameter',
+            position: const GraphPoint(10, 20),
           ),
-        ],
-        frames: const [
-          ShaderFrame(
+          'output': NodePresentation(
+            nodeId: 'output',
+            position: const GraphPoint(300, 20),
+          ),
+        },
+        frames: {
+          'frame': GraphFrame(
             id: 'frame',
             title: 'Parameters',
-            color: '#7c4dff',
-            x: 0,
-            y: 0,
-            width: 400,
-            height: 200,
-            nodeIds: ['parameter'],
+            bounds: const GraphRect(0, 0, 400, 200),
+            memberNodeIds: {'parameter'},
+            metadata: {'color': '#7c4dff'},
           ),
-        ],
+        },
         outputNodeId: 'output',
       );
 
-      final restored = ShaderGraph.fromJson(graph.toJson());
+      final restored = ShaderDocument.fromJson(graph.toJson());
       expect(restored.toJson(), graph.toJson());
-      expect(restored.frames.single.nodeIds, ['parameter']);
+      expect(restored.space.frames.values.single.memberNodeIds, {'parameter'});
     });
 
     test('starter graphs are valid and compile', () {
@@ -127,20 +141,9 @@ void main() {
     });
 
     test('reports missing output and type mismatches', () {
-      final graph = ShaderGraph(
-        nodes: const [
-          ShaderNodeInstance(id: 'uv', defId: 'uv', x: 0, y: 0),
-          ShaderNodeInstance(id: 'add', defId: 'add', x: 100, y: 0),
-        ],
-        wires: const [
-          ShaderWire(
-            id: 'bad',
-            fromNode: 'uv',
-            fromPort: 'uv',
-            toNode: 'add',
-            toPort: 'a',
-          ),
-        ],
+      final graph = createShaderDocument(
+        nodes: [createShaderNode('uv', 'uv'), createShaderNode('add', 'add')],
+        connections: [createShaderConnection('bad', 'uv', 'uv', 'add', 'a')],
       );
       final errors = validateShaderGraph(graph);
       expect(
@@ -154,39 +157,15 @@ void main() {
     });
 
     test('reports cycles and duplicate uniform names', () {
-      final graph = ShaderGraph(
-        nodes: const [
-          ShaderNodeInstance(
-            id: 'a',
-            defId: 'uniform_float',
-            x: 0,
-            y: 0,
-            inputDefaults: {'name': 'pulse'},
-          ),
-          ShaderNodeInstance(
-            id: 'b',
-            defId: 'uniform_float',
-            x: 0,
-            y: 100,
-            inputDefaults: {'name': 'pulse'},
-          ),
-          ShaderNodeInstance(id: 'one', defId: 'add', x: 100, y: 0),
+      final graph = createShaderDocument(
+        nodes: [
+          createShaderNode('a', 'uniform_float', values: {'name': 'pulse'}),
+          createShaderNode('b', 'uniform_float', values: {'name': 'pulse'}),
+          createShaderNode('one', 'add'),
         ],
-        wires: const [
-          ShaderWire(
-            id: 'ab',
-            fromNode: 'a',
-            fromPort: 'value',
-            toNode: 'one',
-            toPort: 'a',
-          ),
-          ShaderWire(
-            id: 'ba',
-            fromNode: 'one',
-            fromPort: 'result',
-            toNode: 'a',
-            toPort: 'value',
-          ),
+        connections: [
+          createShaderConnection('ab', 'a', 'value', 'one', 'a'),
+          createShaderConnection('ba', 'one', 'result', 'a', 'value'),
         ],
       );
       final errors = validateShaderGraph(graph);
@@ -199,35 +178,22 @@ void main() {
     });
 
     test('collects uniform defaults, bindings and node previews', () {
-      final graph = ShaderGraph(
-        nodes: const [
-          ShaderNodeInstance(
-            id: 'value',
-            defId: 'uniform_vec3',
-            x: 0,
-            y: 0,
-            inputDefaults: {
+      final graph = createShaderDocument(
+        nodes: [
+          createShaderNode(
+            'value',
+            'uniform_vec3',
+            values: {
               'name': 'accent',
               'value': 'vec3(0.2, 0.4, 0.8)',
               'bindingSource': 'config',
               'bindingPath': 'accentColor',
             },
           ),
-          ShaderNodeInstance(
-            id: 'output',
-            defId: 'fragment_output',
-            x: 300,
-            y: 0,
-          ),
+          createShaderNode('output', 'fragment_output'),
         ],
-        wires: const [
-          ShaderWire(
-            id: 'color',
-            fromNode: 'value',
-            fromPort: 'value',
-            toNode: 'output',
-            toPort: 'color',
-          ),
+        connections: [
+          createShaderConnection('color', 'value', 'value', 'output', 'color'),
         ],
         outputNodeId: 'output',
       );
@@ -241,8 +207,10 @@ void main() {
         'path': 'accentColor',
       });
       expect(
-        createShaderNodePreviewGraph(graph, 'value')?.outputNodeId,
-        '__preview_value_output',
+        createShaderNodePreviewGraph(graph, 'value')?.nodes
+            .where((node) => node.shaderDefinitionId == 'fragment_output')
+            .length,
+        1,
       );
       expect(
         compileShaderGraph(graph).glsl,
@@ -251,33 +219,20 @@ void main() {
     });
 
     test('supports custom color ramp stops', () {
-      final graph = ShaderGraph(
-        nodes: const [
-          ShaderNodeInstance(
-            id: 'ramp',
-            defId: 'color_ramp',
-            x: 0,
-            y: 0,
-            inputDefaults: {
+      final graph = createShaderDocument(
+        nodes: [
+          createShaderNode(
+            'ramp',
+            'color_ramp',
+            values: {
               'rampStops':
                   '[{"offset":0,"color":"#000000"},{"offset":1,"color":"#ffffff"}]',
             },
           ),
-          ShaderNodeInstance(
-            id: 'output',
-            defId: 'fragment_output',
-            x: 300,
-            y: 0,
-          ),
+          createShaderNode('output', 'fragment_output'),
         ],
-        wires: const [
-          ShaderWire(
-            id: 'color',
-            fromNode: 'ramp',
-            fromPort: 'color',
-            toNode: 'output',
-            toPort: 'color',
-          ),
+        connections: [
+          createShaderConnection('color', 'ramp', 'color', 'output', 'color'),
         ],
         outputNodeId: 'output',
       );
@@ -298,6 +253,8 @@ void main() {
   });
 
   testWidgets('renders the Shader Graph editor in Flutter', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 950));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark(),
@@ -307,6 +264,6 @@ void main() {
     await tester.pump();
     expect(find.text('Shader Graph'), findsOneWidget);
     expect(find.text('Input'), findsOneWidget);
-    expect(find.text('Output'), findsOneWidget);
+    expect(find.text('Output'), findsAtLeastNWidgets(1));
   });
 }

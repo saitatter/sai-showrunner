@@ -46,9 +46,24 @@ workflow, 1 reopen workflow and 1 strict-format rejection workflow.
 These counts include tests of the old shader/editor implementation and therefore
 are not evidence that the whole rewrite is finished.
 
+## Shader migration
+
+ShaderDocument now wraps the same immutable core document. Typed definitions cover
+all 84 shader node types. The editor uses NodeEditor and core history/clipboard,
+with direct entity IDs, explicit presentations and frames; the old shader model,
+wire records, editor mirror and ID maps have been removed. GLSL compilation,
+uniform defaults/bindings and separate node preview documents derive from core
+entities. Layout/camera/selection changes reuse compilation; semantic edits
+invalidate it. Invalid imported entities remain visible with diagnostics.
+
+Verification: 19 focused compiler/controller/UI tests, 3 Windows UI workflows,
+and 89 production WebGL shader fixtures passed. Full Flutter suite after shader
+cutover: 740 passed, 7 external live probes skipped. Analysis is clean. Narrow
+creation/search and inspector access are covered by the additional UI scenario.
+
 ## Remaining
 
-Shader editor migration, host clipboard subgraph dependencies,
+Host clipboard subgraph dependencies,
 inline execution feedback and removal of the old editor/runtime stacks
 remain. Final native regression, pure-core isolation, benchmarks, package checks
 and documentation will follow their completion. Existing old implementations are
