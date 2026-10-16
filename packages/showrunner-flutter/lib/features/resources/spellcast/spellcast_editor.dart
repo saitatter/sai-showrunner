@@ -185,11 +185,13 @@ class _ResourceForm extends StatelessWidget {
     required this.title,
     required this.fields,
     required this.onSave,
+    this.validate,
   });
 
   final String title;
   final List<Widget> fields;
   final Future<void> Function() onSave;
+  final bool Function()? validate;
 
   @override
   Widget build(BuildContext context) => AlertDialog(
@@ -204,6 +206,7 @@ class _ResourceForm extends StatelessWidget {
       ),
       FilledButton(
         onPressed: () async {
+          if (validate?.call() == false) return;
           await onSave();
           if (context.mounted) Navigator.pop(context);
         },

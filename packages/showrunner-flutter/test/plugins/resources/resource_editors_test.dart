@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
@@ -7,6 +8,118 @@ import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
 
 void main() {
+  test('explicit null current variable values survive reopening', () {
+    final variable = VariableResource.fromResource(
+      const ResourceData(
+        id: 'nullable',
+        config: {
+          'name': 'Nullable',
+          'type': 'json',
+          'defaultValue': {'fallback': true},
+        },
+        state: {'value': null},
+      ),
+    );
+    expect(variable.currentValue, isNull);
+    expect(variable.toResource().state, {'value': null});
+  });
+  testWidgets('invalid variable JSON stays in the editor until corrected', (
+    tester,
+  ) async {
+    final definition = createDefaultResourceEditorRegistry().find('Variable')!;
+    ResourceData? saved;
+    await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+    final editor = definition.builder(
+      tester.element(find.byType(Scaffold)),
+      const ResourceData(
+        id: 'json',
+        config: {'name': 'JSON', 'type': 'json', 'defaultValue': {}},
+        state: {'value': {}},
+      ),
+      (value) async => saved = value,
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+    final current = find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.labelText == 'Current value',
+    );
+    await tester.enterText(current, '{bad JSON');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(saved, isNull);
+    expect(find.text('Edit variable'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.enterText(current, '{"valid": [1, true]}');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(saved?.state['value'], {
+      'valid': [1, true],
+    });
+  });
+  for (final entry in <String, Object>{
+    'number': 42.5,
+    'boolean': true,
+    'json': {
+      'nested': [1, true, 'hello'],
+    },
+    'list': [
+      1,
+      {'enabled': true},
+    ],
+  }.entries) {
+    testWidgets(
+      'variable editor preserves ${entry.key} values when saving unchanged',
+      (tester) async {
+        final definition = createDefaultResourceEditorRegistry().find(
+          'Variable',
+        )!;
+        ResourceData? saved;
+        await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+        final resource = ResourceData(
+          id: 'typed',
+          config: {
+            'name': 'Typed variable',
+            'type': entry.key,
+            'defaultValue': entry.value,
+          },
+          state: {'value': entry.value, 'customState': 'keep'},
+        );
+        final editor = definition.builder(
+          tester.element(find.byType(Scaffold)),
+          resource,
+          (value) async => saved = value,
+        );
+        await tester.pumpWidget(MaterialApp(home: Scaffold(body: editor)));
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+        expect(saved?.config['defaultValue'], entry.value);
+        expect(saved?.state['value'], entry.value);
+        expect(saved?.state['customState'], 'keep');
+        final changed = <String, Object>{
+          'number': 43.5,
+          'boolean': false,
+          'json': {'changed': true},
+          'list': [2],
+        }[entry.key]!;
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+        final reopened = definition.builder(
+          tester.element(find.byType(Scaffold)),
+          saved!,
+          (value) async => saved = value,
+        );
+        await tester.pumpWidget(MaterialApp(home: Scaffold(body: reopened)));
+        await tester.enterText(
+          find.byWidgetPredicate(
+            (w) => w is TextField && w.decoration?.labelText == 'Current value',
+          ),
+          changed is Map || changed is List ? jsonEncode(changed) : '$changed',
+        );
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+        expect(saved?.state['value'], changed);
+      },
+    );
+  }
   test('uses typed resource keys and rejects duplicate editors', () {
     final registry = DartResourceEditorRegistry();
     final definition = DartResourceEditorDefinition.fromContract(

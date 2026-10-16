@@ -124,7 +124,9 @@ class VariableResource {
       name: resource.name,
       type: (config['type'] as String?) ?? 'string',
       defaultValue: config['defaultValue'],
-      currentValue: resource.state['value'] ?? config['defaultValue'],
+      currentValue: resource.state.containsKey('value')
+          ? resource.state['value']
+          : config['defaultValue'],
       persistent: (config['persistent'] as bool?) ?? true,
     );
   }
