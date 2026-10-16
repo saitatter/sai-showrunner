@@ -8,6 +8,31 @@ import 'package:showrunner_flutter/services/http_policy.dart';
 
 void main() {
   test(
+    'GET and HEAD discard placeholder bodies while keeping query parameters',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      final received = <String>[];
+      server.listen((request) async {
+        received.add(request.method);
+        expect(request.uri.queryParameters['channel'], 'test');
+        expect(await utf8.decoder.bind(request).join(), isEmpty);
+        if (request.method != 'HEAD') request.response.write('{}');
+        await request.response.close();
+      });
+      final transport = JsonHttpTransport(
+        baseUrl: 'http://127.0.0.1:${server.port}',
+      );
+      for (final method in ['GET', 'HEAD']) {
+        expect(
+          await transport.request(method, '/', {'channel': 'test'}, {}),
+          isEmpty,
+        );
+      }
+      expect(received, ['GET', 'HEAD']);
+    },
+  );
+  test(
     'rate limits retry reads once but never repeat provider mutations',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

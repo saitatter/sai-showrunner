@@ -25,6 +25,28 @@ typedef TwitchRequest =
 final class TwitchTransport {
   const TwitchTransport(this.request);
 
+  factory TwitchTransport.withDefaults(
+    TwitchRequest request, {
+    String? broadcasterId,
+    String? moderatorId,
+  }) {
+    RuntimeMap resolve(RuntimeMap fields) => {
+      for (final entry in fields.entries)
+        entry.key: entry.value == null || '${entry.value}'.trim().isEmpty
+            ? (switch (entry.key) {
+                    'broadcaster_id' || 'from_broadcaster_id' => broadcasterId,
+                    'moderator_id' || 'sender_id' => moderatorId,
+                    _ => null,
+                  }) ??
+                  entry.value
+            : entry.value,
+    };
+    return TwitchTransport(
+      (method, path, query, body) =>
+          request(method, path, resolve(query), resolve(body)),
+    );
+  }
+
   final TwitchRequest request;
 }
 

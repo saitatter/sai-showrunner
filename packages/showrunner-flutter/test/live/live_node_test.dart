@@ -46,7 +46,6 @@ bool _contains(Object? actual, Object? expected) {
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
   final path = Platform.environment['SHOWRUNNER_LIVE_CONFIG'];
   test(
     'enabled YAML scenarios execute through the production graph engine',

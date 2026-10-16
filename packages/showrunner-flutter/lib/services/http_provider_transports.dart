@@ -81,7 +81,9 @@ final class JsonHttpTransport {
       if (token?.isNotEmpty == true) {
         request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
       }
-      if (body != null) request.write(jsonEncode(body));
+      if (body != null && !{'GET', 'HEAD'}.contains(method.toUpperCase())) {
+        request.write(jsonEncode(body));
+      }
       final response = await request.close().timeout(timeout);
       final text = await readHttpText(
         response,

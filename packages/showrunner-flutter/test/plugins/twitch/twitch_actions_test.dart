@@ -11,6 +11,43 @@ import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
+  test(
+    'configured graph actions use default IDs and retain explicit targets',
+    () async {
+      final bodies = <Map>[];
+      final queries = <Map>[];
+      final registry = DartPluginRegistry()
+        ..register(
+          createTwitchPlugin(
+            TwitchTransport.withDefaults(
+              (method, path, query, body) async {
+                bodies.add(body);
+                queries.add(query);
+                return {};
+              },
+              broadcasterId: 'channel',
+              moderatorId: 'sender',
+            ),
+          ),
+        );
+      addTearDown(registry.close);
+      await registry.invokeAction('twitch', 'chat', {'message': 'test'});
+      expect(bodies.last, {
+        'broadcaster_id': 'channel',
+        'sender_id': 'sender',
+        'message': 'test',
+      });
+      await registry.invokeAction('twitch', 'listChannelPointRewards', {});
+      expect(queries.last, {'broadcaster_id': 'channel'});
+      await registry.invokeAction('twitch', 'chat', {
+        'message': 'test',
+        'broadcasterId': 'other',
+        'moderatorId': 'explicit',
+      });
+      expect(bodies.last['broadcaster_id'], 'other');
+      expect(bodies.last['sender_id'], 'explicit');
+    },
+  );
   test('decodes core action configurations into typed contracts', () {
     final plugin = createTwitchPlugin(
       TwitchTransport((method, path, query, body) async => const {}),

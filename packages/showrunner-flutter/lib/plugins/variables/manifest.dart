@@ -315,11 +315,13 @@ void _setContextVariable(
 ) {
   context.contextState[variable] = value;
   final state = context.contextState['variables'];
-  if (state is Map) {
-    state[variable] = value;
-  } else {
-    context.contextState['variables'] = {variable: value};
-  }
+  // Registry snapshots may expose an immutable map. The execution context
+  // owns its updated values without mutating that shared snapshot.
+  context.contextState['variables'] = <String, dynamic>{
+    if (state is Map)
+      for (final entry in state.entries) '${entry.key}': entry.value,
+    variable: value,
+  };
 }
 
 Future<RuntimeMap> _setViewerVar(

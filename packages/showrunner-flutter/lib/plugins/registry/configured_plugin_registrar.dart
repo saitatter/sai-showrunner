@@ -109,17 +109,18 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       eventHub: eventHub,
     ),
   );
-  final configuredTwitchTransport = TwitchTransport((
-    method,
-    path,
-    query,
-    body,
-  ) async {
-    if (twitchTransport == null) {
-      return _unconfiguredTwitch(method, path, query, body);
-    }
-    return twitchTransport.request(method, path, query, body);
-  });
+  final configuredTwitchTransport = TwitchTransport.withDefaults(
+    (method, path, query, body) async {
+      if (twitchTransport == null) {
+        return _unconfiguredTwitch(method, path, query, body);
+      }
+      return twitchTransport.request(method, path, query, body);
+    },
+    broadcasterId: twitch['broadcasterId']?.toString(),
+    moderatorId:
+        twitch['moderatorId']?.toString() ??
+        twitch['broadcasterId']?.toString(),
+  );
   registry.register(
     createTwitchPlugin(
       configuredTwitchTransport,

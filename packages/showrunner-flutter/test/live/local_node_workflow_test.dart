@@ -10,6 +10,10 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
 import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/plugins/twitch/actions.dart';
+import 'package:showrunner_flutter/plugins/variables/manifest.dart';
+import 'package:showrunner_flutter/services/plugin_event_hub.dart';
+import 'twitch_chat_fixture.dart';
 
 AutomationData _graph(
   String plugin,
@@ -31,6 +35,44 @@ AutomationData _graph(
 );
 
 void main() {
+  test('typed Twitch chat triggers run the gated compiled graph', () async {
+    final hub = DartPluginEventHub();
+    final twitch = createTwitchPlugin(
+      TwitchTransport((method, path, query, body) async => {}),
+      eventHub: hub,
+    );
+    final registry = DartPluginRegistry()
+      ..register(twitch)
+      ..register(createVariablesPlugin());
+    addTearDown(registry.close);
+    addTearDown(hub.dispose);
+    final trigger = twitch.triggers.firstWhere(
+      (t) => t.triggerId.value == 'chat',
+    );
+    for (final message in ['showrunner-test', 'different-message']) {
+      final eventFuture = trigger.listenFromRuntime().first;
+      hub.emit('chat', {
+        'viewerId': 'local-viewer',
+        'message': message,
+        'platform': 'twitch',
+      });
+      final event = await eventFuture;
+      final result = await CompiledExecutionEngine().executeWithRegistry(
+        automation: twitchChatProofGraph(),
+        context: EvaluationContext(locals: Map<String, dynamic>.from(event)),
+        registry: registry,
+      );
+      expect(result.completed, true);
+      expect(
+        result.nodeResults.containsKey('matched'),
+        message == 'showrunner-test',
+      );
+      if (message == 'showrunner-test') {
+        expect(result.nodeResults['matched']?['value'], message);
+      }
+    }
+  });
+
   test(
     'Discord consumes streamed JSON before closing its HTTP client',
     () async {
