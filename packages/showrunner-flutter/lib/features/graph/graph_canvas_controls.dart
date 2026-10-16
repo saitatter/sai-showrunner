@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sai_nodes/sai_nodes.dart';
+import 'package:sai_nodes/sai_nodes.dart' hide GraphNode;
 
 import '../../editor/showrunner_graph_editor.dart';
 

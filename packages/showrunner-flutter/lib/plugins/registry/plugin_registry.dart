@@ -119,6 +119,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     _actions.addAll(actions);
     _triggers.addAll(triggers);
     _resources.addAll(resources);
+    notifyListeners();
   }
 
   /// Registers Flutter UI separately from the declarative plugin contract.

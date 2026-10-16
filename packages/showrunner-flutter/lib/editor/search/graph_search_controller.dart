@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:sai_nodes/sai_nodes.dart';
+import 'package:sai_nodes/sai_nodes.dart' hide GraphNode;
 
 /// Provides search, focus, and keyboard cycling for the active graph.
 ///

@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:sai_nodes/sai_nodes.dart';
+import 'package:sai_nodes/sai_nodes.dart' hide GraphNode;
 
 import 'shader_graph_compiler.dart';
 import 'shader_graph_model.dart';

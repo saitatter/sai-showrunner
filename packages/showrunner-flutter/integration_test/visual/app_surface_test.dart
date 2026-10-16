@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sai_nodes/sai_nodes.dart';
+import 'package:sai_nodes/sai_nodes.dart' hide GraphNode;
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/schema/automation.dart';

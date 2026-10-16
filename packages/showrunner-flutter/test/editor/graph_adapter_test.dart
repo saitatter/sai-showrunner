@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
-import 'package:sai_nodes/sai_nodes.dart';
+import 'package:sai_nodes/sai_nodes.dart' hide GraphNode;
 import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/editor/showrunner_graph_editor.dart';
 import 'package:showrunner_flutter/editor/models/graph_editor_models.dart';

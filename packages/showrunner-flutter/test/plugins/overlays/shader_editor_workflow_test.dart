@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sai_nodes/sai_nodes.dart';
+import 'package:sai_nodes/sai_nodes.dart' hide GraphNode;
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_compiler.dart';
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_editor.dart';
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_model.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sai_nodes/sai_nodes.dart';
+import 'package:sai_nodes/sai_nodes.dart' hide GraphNode;
 
 /// Colors and geometry from the reference automation node card.
 NodeStyle graphNodeStyle(
