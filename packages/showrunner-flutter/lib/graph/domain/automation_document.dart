@@ -228,6 +228,15 @@ final class AutomationDocument {
           },
         ),
       );
+  AutomationDocument withMetadata(GraphJson value) =>
+      AutomationDocument.fromGraph(
+        graph.copyWith(
+          metadata: {
+            ...graph.metadata,
+            automationHostMetadata: {..._host, 'metadata': value},
+          },
+        ),
+      );
   AutomationDocument withSubgraphs(Map<String, AutomationSubgraph> value) =>
       AutomationDocument.fromGraph(
         graph.copyWith(

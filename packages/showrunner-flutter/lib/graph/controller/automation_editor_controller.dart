@@ -67,6 +67,8 @@ final class AutomationEditorController {
 
   void updateSettings(GraphJson settings) =>
       _metadata(document.withSettings(settings), 'Edit automation settings');
+  void updateMetadata(GraphJson metadata) =>
+      _metadata(document.withMetadata(metadata), 'Edit automation details');
 
   void updateField(String nodeId, ResolvedField field, Object? value) {
     final sid = graph.activeSpaceId!;
