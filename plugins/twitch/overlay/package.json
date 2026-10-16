@@ -1,26 +1,26 @@
 {
-	"name": "showrunner-plugin-twitch-overlays",
-	"private": true,
-	"version": "0.0.1",
-	"type": "module",
-	"main": "src/main.ts",
-	"devMain": "src/main.ts",
-	"types": "./dist/types/main.d.ts",
-	"scripts": {
-		"build": "tsc --noEmit",
-		"typecheck": "tsc --noEmit"
-	},
-	"showrunner": {
-		"pluginId": "twitch",
-		"overlay": {
-			"entry": "./src/main.ts",
-			"widgets": []
-		}
-	},
-	"dependencies": {
-		"showrunner-overlay-core": "workspace:^"
-	},
-	"devDependencies": {
-		"typescript": "*"
-	}
+  "name": "showrunner-plugin-twitch-overlays",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/main.ts",
+  "devMain": "src/main.ts",
+  "types": "./dist/types/main.d.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "showrunner": {
+    "pluginId": "twitch",
+    "overlay": {
+      "entry": "./src/main.ts",
+      "widgets": []
+    }
+  },
+  "dependencies": {
+    "showrunner-overlay-core": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
 }

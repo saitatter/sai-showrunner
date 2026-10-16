@@ -123,6 +123,6 @@
     "showrunner-overlay-core": "workspace:^"
   },
   "devDependencies": {
-    "typescript": "*"
+    "typescript": "^5.7.3"
   }
 }

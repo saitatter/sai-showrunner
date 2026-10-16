@@ -1,74 +1,79 @@
 {
-	"name": "showrunner-plugin-random-overlays",
-	"private": true,
-	"version": "0.0.1",
-	"type": "module",
-	"main": "src/main.ts",
-	"devMain": "src/main.ts",
-	"types": "./dist/types/main.d.ts",
-	"scripts": {
-		"build": "tsc --noEmit",
-		"typecheck": "tsc --noEmit"
-	},
-	"showrunner": {
-		"pluginId": "random",
-		"overlay": {
-			"entry": "./src/main.ts",
-			"widgets": [
-				{
-					"id": "wheel",
-					"name": "Wheel",
-					"description": "A wheel for randomly selecting things",
-					"icon": "mdi mdi-tire",
-					"defaultSize": {
-						"width": 500,
-						"height": 500
-					},
-					"capabilities": {
-						"commands": [
-							"spinWheel"
-						],
-						"resizable": true
-					},
-					"contracts": {
-						"commands": {
-							"spinWheel": {
-								"args": {
-									"type": "tuple",
-									"items": [
-										{ "type": "number", "optional": true }
-									]
-								},
-								"result": { "type": "unknown" }
-							}
-						}
-					},
-					"config": {
-						"slices": {
-							"type": "number",
-							"default": 12
-						},
-						"items": {
-							"type": "array"
-						},
-						"style": {
-							"type": "array"
-						},
-						"damping": {
-							"type": "object"
-						},
-						"clicker": {
-							"type": "object"
-						}
-					}
-				}
-			]
-		}
-	},
-	"dependencies": {
-		"showrunner-overlay-core": "workspace:^"
-	},
-	"devDependencies": {
-		"typescript": "*"
-	}
+  "name": "showrunner-plugin-random-overlays",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/main.ts",
+  "devMain": "src/main.ts",
+  "types": "./dist/types/main.d.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "showrunner": {
+    "pluginId": "random",
+    "overlay": {
+      "entry": "./src/main.ts",
+      "widgets": [
+        {
+          "id": "wheel",
+          "name": "Wheel",
+          "description": "A wheel for randomly selecting things",
+          "icon": "mdi mdi-tire",
+          "defaultSize": {
+            "width": 500,
+            "height": 500
+          },
+          "capabilities": {
+            "commands": [
+              "spinWheel"
+            ],
+            "resizable": true
+          },
+          "contracts": {
+            "commands": {
+              "spinWheel": {
+                "args": {
+                  "type": "tuple",
+                  "items": [
+                    {
+                      "type": "number",
+                      "optional": true
+                    }
+                  ]
+                },
+                "result": {
+                  "type": "unknown"
+                }
+              }
+            }
+          },
+          "config": {
+            "slices": {
+              "type": "number",
+              "default": 12
+            },
+            "items": {
+              "type": "array"
+            },
+            "style": {
+              "type": "array"
+            },
+            "damping": {
+              "type": "object"
+            },
+            "clicker": {
+              "type": "object"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "showrunner-overlay-core": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
 }

@@ -11,6 +11,7 @@
 **/flutter_export_environment.sh
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
+**/pubspec_overrides.yaml
 **/windows/flutter/ephemeral/
 
 # JavaScript dependencies and build output

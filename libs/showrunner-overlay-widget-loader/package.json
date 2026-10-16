@@ -1,19 +1,19 @@
 {
-	"name": "showrunner-overlay-widget-loader",
-	"private": true,
-	"version": "0.0.1",
-	"type": "module",
-	"main": "src/overlay-widget-loader.ts",
-	"devMain": "src/overlay-widget-loader.ts",
-	"types": "./dist/types/overlay-widget-loader.d.ts",
-	"scripts": {
-		"build": "tsc --noEmit",
-		"typecheck": "tsc --noEmit"
-	},
-	"dependencies": {
-		"showrunner-overlay-core": "workspace:^"
-	},
-	"devDependencies": {
-		"typescript": "*"
-	}
+  "name": "showrunner-overlay-widget-loader",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "main": "src/overlay-widget-loader.ts",
+  "devMain": "src/overlay-widget-loader.ts",
+  "types": "./dist/types/overlay-widget-loader.d.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "showrunner-overlay-core": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
 }

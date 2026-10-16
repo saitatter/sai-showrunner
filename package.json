@@ -7,7 +7,7 @@
   "scripts": {
     "overlay:generate": "node ./tools/overlay_registry/generate.mjs",
     "overlay:build": "yarn overlay:generate && yarn workspace showrunner-obs-overlay build:test",
-    "overlay:typecheck": "yarn workspace showrunner-overlay-core typecheck && yarn workspace showrunner-overlay-widget-loader typecheck && yarn workspace showrunner-plugin-overlays-overlays typecheck && yarn workspace showrunner-plugin-random-overlays typecheck && yarn workspace showrunner-plugin-twitch-overlays typecheck && yarn workspace showrunner-plugin-heartrate-overlays typecheck && yarn workspace showrunner-obs-overlay typecheck",
+    "overlay:typecheck": "yarn workspace showrunner-schema typecheck && yarn workspace showrunner-plugin-overlays-shared typecheck && yarn workspace showrunner-plugin-twitch-shared typecheck && yarn workspace showrunner-overlay-core typecheck && yarn workspace showrunner-overlay-widget-loader typecheck && yarn workspace showrunner-plugin-overlays-overlays typecheck && yarn workspace showrunner-plugin-random-overlays typecheck && yarn workspace showrunner-plugin-twitch-overlays typecheck && yarn workspace showrunner-plugin-heartrate-overlays typecheck && yarn workspace showrunner-obs-overlay typecheck",
     "overlay:verify-no-vue": "node ./tools/overlay_registry/verify-no-vue.mjs",
     "overlay:test": "vitest run",
     "parity:check": "node ./tools/parity/check.mjs",
@@ -19,7 +19,9 @@
     "test:flutter-integration": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-flutter-integration.ps1",
     "flutter:smoke-windows": "pwsh -NoProfile -File ./scripts/smoke-flutter-windows.ps1",
     "flutter:package-windows": "pwsh -NoProfile -File ./scripts/package-flutter-windows.ps1",
-    "release:dry-run": "semantic-release --dry-run --no-ci"
+    "release:dry-run": "semantic-release --dry-run --no-ci",
+    "visual:regression": "node ./tools/visual_parity/check-regression.mjs",
+    "overlay:browser-smoke": "node tools/overlay_registry/browser-smoke.mjs"
   },
   "workspaces": [
     "packages/showrunner-obs-overlay",
@@ -27,7 +29,6 @@
     "libs/showrunner-overlay-core",
     "libs/showrunner-overlay-widget-loader",
     "libs/showrunner-overlay-build",
-    "libs/showrunner-ws-rpc",
     "plugins/overlays/shared",
     "plugins/overlays/overlay",
     "plugins/random/overlay",
