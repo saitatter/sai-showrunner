@@ -1,4 +1,5 @@
 import '../../components/data_inputs/numeric_input_formatter.dart';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -54,11 +55,12 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
     try {
       final entries = await _repository.list();
       var selectedIndex = _selectedIndex;
+      if (entries.isEmpty) selectedIndex = null;
       if (entries.isNotEmpty &&
           (selectedIndex == null || selectedIndex >= entries.length)) {
         selectedIndex = 0;
       }
-      var selectedQueue = _selectedQueue;
+      var selectedQueue = widget.queue;
       final selectedConfig = selectedIndex == null
           ? null
           : entries[selectedIndex].config;
@@ -82,6 +84,7 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
             ..defaultTimeout = selectedConfig.timeout;
         }
         _loading = false;
+        _error = null;
       });
     } catch (error) {
       if (mounted) {
@@ -104,11 +107,10 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
     await widget.queueManager?.applyConfig(fileName, QueueConfig(name: name));
     await _load();
     if (mounted) {
-      setState(
-        () => _selectedIndex = _entries.indexWhere(
-          (entry) => entry.fileName == fileName,
-        ),
-      );
+      final index = _entries.indexWhere((entry) => entry.fileName == fileName);
+      if (index >= 0) {
+        await _selectQueue(index, fileName, _entries[index].config!);
+      }
     }
   }
 
@@ -159,11 +161,41 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
 
   void _replay(QueuedGraphExecution item) {
     queue.replay(item.id);
+    unawaited(_drainSelectedQueue());
     showShowRunnerFeedback(
       context,
       'Queued replay of ${item.id}',
       severity: ShowRunnerFeedbackSeverity.info,
     );
+  }
+
+  Future<void> _drainSelectedQueue() async {
+    final index = _selectedIndex;
+    try {
+      await widget.queueManager?.drain(
+        index == null ? 'default' : _entries[index].fileName,
+      );
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    }
+  }
+
+  Future<void> _togglePaused() async {
+    final paused = !queue.paused;
+    final manager = widget.queueManager;
+    try {
+      if (manager == null) {
+        queue.setPaused(paused);
+      } else {
+        final index = _selectedIndex;
+        await manager.setPaused(
+          index == null ? 'default' : _entries[index].fileName,
+          paused,
+        );
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    }
   }
 
   void _skip(QueuedGraphExecution item) {
@@ -218,7 +250,7 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
           ),
           IconButton(
             tooltip: queue.paused ? 'Resume queue' : 'Pause queue',
-            onPressed: () => queue.setPaused(!queue.paused),
+            onPressed: _togglePaused,
             icon: Icon(queue.paused ? Icons.play_arrow : Icons.pause),
           ),
           IconButton(
@@ -383,7 +415,7 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
     final runtimeQueue = _queueForEntry(index, entry.fileName);
     final running = runtimeQueue?.running;
     final pending = runtimeQueue?.pending ?? const <QueuedGraphExecution>[];
-    final state = config.paused
+    final state = (runtimeQueue?.paused ?? config.paused)
         ? 'Paused'
         : running != null
         ? 'Running'
