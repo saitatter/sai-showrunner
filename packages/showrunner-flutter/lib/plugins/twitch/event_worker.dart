@@ -128,6 +128,7 @@ final class TwitchEventSubWorker {
     List<TwitchEventSubSubscription>? subscriptions,
     this.ignoreSubscriptionErrors = true,
     this.adSchedulePollInterval = const Duration(minutes: 1),
+    this.welcomeTimeout = const Duration(seconds: 15),
   }) : _subscriptions =
            subscriptions ??
            (subscriptionTypes == null
@@ -156,6 +157,12 @@ final class TwitchEventSubWorker {
   final void Function()? onStatusChanged;
   final bool ignoreSubscriptionErrors;
   final Duration adSchedulePollInterval;
+  final Duration welcomeTimeout;
+  final _seenMessages = <String>{};
+  Timer? _keepaliveTimer;
+  Duration? _keepaliveTimeout;
+  int _generation = 0;
+  Completer<String>? _welcome;
   final List<TwitchEventSubSubscription> _subscriptions;
   EventSubSocket? _socket;
   StreamSubscription<dynamic>? _subscription;
@@ -180,26 +187,40 @@ final class TwitchEventSubWorker {
       _subscriptions.map((subscription) => subscription.type).toList();
 
   Future<void> start() async {
+    if (isRunning || _state == ProviderWorkerState.starting || _reconnecting) {
+      return;
+    }
     _stopping = false;
     lastError = null;
     reconnectAttempts = 0;
     _setState(ProviderWorkerState.starting);
+    final generation = _generation;
     try {
       await _connect();
     } catch (error) {
+      if (generation != _generation) return;
       lastError = error;
-      _socket = null;
+      await _disposeConnection();
+      if (_stopping) return;
       _setState(ProviderWorkerState.error);
       rethrow;
     }
   }
 
-  Future<void> _connect() async {
+  Future<void> _connect({Uri? reconnectUri}) async {
+    final generation = _generation;
     final socket = await socketFactory(
-      Uri.parse('wss://eventsub.wss.twitch.tv/ws'),
+      reconnectUri ?? Uri.parse('wss://eventsub.wss.twitch.tv/ws'),
     );
-    _socket = socket;
+    if (_stopping || generation != _generation) {
+      await socket.close();
+      throw StateError('Twitch EventSub connection was cancelled.');
+    }
+    final previousSocket = _socket;
+    final previousSubscription = _subscription;
+    if (reconnectUri == null) _socket = socket;
     final welcomeCompleter = Completer<String>();
+    _welcome = welcomeCompleter;
     final subscription = socket.messages.listen(
       (raw) {
         if (!welcomeCompleter.isCompleted) {
@@ -212,11 +233,21 @@ final class TwitchEventSubWorker {
           }
           return;
         }
-        _handleMessage(raw);
+        if (!_stopping && identical(_socket, socket)) {
+          _resetKeepalive();
+          try {
+            _handleMessage(raw);
+          } on FormatException {
+            // A malformed frame must not terminate event delivery.
+          }
+        }
       },
       onError: (Object error, StackTrace stackTrace) {
         if (!welcomeCompleter.isCompleted) {
           welcomeCompleter.completeError(error, stackTrace);
+        } else if (identical(_socket, socket)) {
+          lastError = error;
+          _handleClosed();
         }
       },
       onDone: () {
@@ -224,20 +255,51 @@ final class TwitchEventSubWorker {
           welcomeCompleter.completeError(
             StateError('Twitch EventSub socket closed before welcome.'),
           );
-        } else {
+        } else if (identical(_socket, socket)) {
           _handleClosed();
         }
       },
     );
-    _subscription = subscription;
-    final welcome = jsonDecode(await welcomeCompleter.future) as Map;
+    if (reconnectUri == null) _subscription = subscription;
+    Map welcome;
+    try {
+      welcome =
+          jsonDecode(await welcomeCompleter.future.timeout(welcomeTimeout))
+              as Map;
+    } catch (_) {
+      await subscription.cancel();
+      await socket.close();
+      rethrow;
+    }
+    if (_stopping || generation != _generation) {
+      await subscription.cancel();
+      await socket.close();
+      throw StateError('Twitch EventSub connection was cancelled.');
+    }
     final session = (welcome['payload'] as Map?)?['session'] as Map?;
     final sessionId = session?['id']?.toString();
     if (sessionId == null || sessionId.isEmpty) {
+      await subscription.cancel();
+      await socket.close();
       throw StateError('Twitch EventSub welcome did not contain a session ID.');
     }
+    _socket = socket;
+    _subscription = subscription;
+    final timeoutSeconds = session?['keepalive_timeout_seconds'];
+    _keepaliveTimeout = timeoutSeconds is num && timeoutSeconds > 0
+        ? Duration(milliseconds: (timeoutSeconds * 1000).round())
+        : null;
+    _resetKeepalive();
+    if (reconnectUri != null) {
+      await previousSubscription?.cancel();
+      await previousSocket?.close();
+    }
     final subscriptionErrors = <String>[];
-    for (final subscriptionRequest in _subscriptions) {
+    for (final subscriptionRequest
+        in reconnectUri == null
+            ? _subscriptions
+            : <TwitchEventSubSubscription>[]) {
+      if (_stopping || generation != _generation) return;
       try {
         await request('POST', '/helix/eventsub/subscriptions', {}, {
           'type': subscriptionRequest.type,
@@ -250,7 +312,13 @@ final class TwitchEventSubWorker {
         if (!ignoreSubscriptionErrors) rethrow;
       }
     }
-    this.subscriptionErrors = List.unmodifiable(subscriptionErrors);
+    if (_stopping || generation != _generation || !identical(_socket, socket)) {
+      return;
+    }
+    if (reconnectUri == null) {
+      this.subscriptionErrors = List.unmodifiable(subscriptionErrors);
+    }
+    lastError = null;
     connectedAt = DateTime.now();
     _setState(ProviderWorkerState.running);
     if (_subscriptions.any((item) => item.type == 'channel.ad_break.begin')) {
@@ -294,21 +362,18 @@ final class TwitchEventSubWorker {
 
   Future<void> stop() async {
     _stopping = true;
+    _generation++;
     _adScheduleTimer?.cancel();
     _adScheduleTimer = null;
     _adEndTimer?.cancel();
     _adEndTimer = null;
-    await _subscription?.cancel();
-    _subscription = null;
-    final socket = _socket;
-    _socket = null;
-    await socket?.close();
+    await _disposeConnection();
     _reconnecting = false;
     _setState(ProviderWorkerState.stopped);
   }
 
   void _handleClosed() {
-    _socket = null;
+    unawaited(_disposeConnection());
     _adScheduleTimer?.cancel();
     _adScheduleTimer = null;
     if (_stopping) {
@@ -322,32 +387,38 @@ final class TwitchEventSubWorker {
   Future<void> _reconnect() async {
     if (_reconnecting || _stopping) return;
     _reconnecting = true;
+    final generation = _generation;
     _setState(ProviderWorkerState.reconnecting);
     try {
       for (
         var attempt = 0;
-        attempt < maxReconnectAttempts && !_stopping;
+        attempt < maxReconnectAttempts &&
+            !_stopping &&
+            generation == _generation;
         attempt++
       ) {
         reconnectAttempts = attempt + 1;
         final multiplier = 1 << attempt;
         await Future<void>.delayed(reconnectDelay * multiplier);
-        if (_stopping) return;
+        if (_stopping || generation != _generation) return;
         try {
           await _connect();
           return;
         } catch (error) {
+          if (generation != _generation) return;
           lastError = error;
-          _socket = null;
+          await _disposeConnection();
           _setState(ProviderWorkerState.error);
         }
       }
     } finally {
-      _reconnecting = false;
-      if (_stopping) {
-        _setState(ProviderWorkerState.stopped);
-      } else if (!isRunning) {
-        _setState(ProviderWorkerState.error);
+      if (generation == _generation) {
+        _reconnecting = false;
+        if (_stopping) {
+          _setState(ProviderWorkerState.stopped);
+        } else if (!isRunning) {
+          _setState(ProviderWorkerState.error);
+        }
       }
     }
   }
@@ -362,12 +433,27 @@ final class TwitchEventSubWorker {
     final message = jsonDecode(raw);
     if (message is! Map || message['metadata'] is! Map) return;
     final metadata = Map<String, dynamic>.from(message['metadata'] as Map);
+    if (metadata['message_type'] == 'session_reconnect') {
+      final session = (message['payload'] as Map?)?['session'] as Map?;
+      final url = session?['reconnect_url'];
+      if (url is String && !_reconnecting) {
+        unawaited(_handover(Uri.parse(url)));
+      }
+      return;
+    }
     if (metadata['message_type'] != 'notification') return;
     final payload = message['payload'];
     if (payload is! Map) return;
     final subscription = payload['subscription'];
     final event = payload['event'];
     if (subscription is! Map || event is! Map) return;
+    final messageId = metadata['message_id']?.toString();
+    if (messageId != null && messageId.isNotEmpty) {
+      if (!_seenMessages.add(messageId)) return;
+      if (_seenMessages.length > 4096) {
+        _seenMessages.remove(_seenMessages.first);
+      }
+    }
     final type = subscription['type']?.toString();
     final eventId = switch (type) {
       'channel.chat.message' => 'chat',
@@ -422,6 +508,54 @@ final class TwitchEventSubWorker {
         unawaited(_refreshAdSchedule());
       }
     }
+  }
+
+  Future<void> _disposeConnection() async {
+    final welcome = _welcome;
+    _welcome = null;
+    if (welcome != null && !welcome.isCompleted) {
+      welcome.completeError(
+        StateError('Twitch EventSub connection was cancelled.'),
+      );
+    }
+    _keepaliveTimer?.cancel();
+    _keepaliveTimer = null;
+    final subscription = _subscription;
+    final socket = _socket;
+    _subscription = null;
+    _socket = null;
+    await subscription?.cancel();
+    await socket?.close();
+  }
+
+  void _resetKeepalive() {
+    _keepaliveTimer?.cancel();
+    final timeout = _keepaliveTimeout;
+    if (timeout != null && !_stopping) {
+      _keepaliveTimer = Timer(timeout, () {
+        lastError = TimeoutException(
+          'Twitch EventSub keepalive timed out.',
+          timeout,
+        );
+        _handleClosed();
+      });
+    }
+  }
+
+  Future<void> _handover(Uri uri) async {
+    final generation = _generation;
+    _reconnecting = true;
+    _setState(ProviderWorkerState.reconnecting);
+    try {
+      await _connect(reconnectUri: uri);
+    } catch (error) {
+      if (generation != _generation) return;
+      lastError = error;
+      await _disposeConnection();
+    } finally {
+      if (generation == _generation) _reconnecting = false;
+    }
+    if (!_stopping && !isRunning) unawaited(_reconnect());
   }
 }
 

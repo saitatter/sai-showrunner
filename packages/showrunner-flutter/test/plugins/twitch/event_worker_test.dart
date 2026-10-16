@@ -8,6 +8,196 @@ import 'package:showrunner_flutter/plugins/twitch/event_worker.dart';
 import 'package:showrunner_flutter/plugins/runtime/provider_worker_status.dart';
 
 void main() {
+  test(
+    'stop cancels an unfinished welcome without resurrecting the worker',
+    () async {
+      final hub = DartPluginEventHub();
+      final socket = _FakeEventSubSocket();
+      final ready = Completer<void>();
+      final worker = TwitchEventSubWorker(
+        accessToken: 'token',
+        clientId: 'client',
+        broadcasterId: 'broadcaster',
+        eventHub: hub,
+        request: (method, path, query, body) async => {},
+        socketFactory: (_) async {
+          ready.complete();
+          return socket;
+        },
+      );
+      final start = worker.start();
+      await ready.future;
+      await Future<void>.delayed(Duration.zero);
+      await worker.stop();
+      await start.timeout(const Duration(seconds: 1));
+      expect(worker.state, ProviderWorkerState.stopped);
+      expect(socket.closed, true);
+      await hub.dispose();
+    },
+  );
+  test('deduplicates burst delivery and ignores malformed frames', () async {
+    final hub = DartPluginEventHub();
+    final socket = _FakeEventSubSocket();
+    final worker = _workerWithSocket(socket, hub);
+    final events = <Map>[];
+    final listener = hub.stream('ban').listen(events.add);
+    await worker.start();
+    socket.add('{bad json');
+    for (var i = 0; i < 100; i++) {
+      final frame = jsonEncode({
+        'metadata': {'message_type': 'notification', 'message_id': '$i'},
+        'payload': {
+          'subscription': {'type': 'channel.ban'},
+          'event': {'user_id': '$i', 'is_permanent': true},
+        },
+      });
+      socket.add(frame);
+      socket.add(frame);
+    }
+    await _waitFor(() => events.length == 100);
+    expect(
+      events.map((event) => event['viewerId']),
+      List.generate(100, (i) => '$i'),
+    );
+    await worker.stop();
+    await listener.cancel();
+    await hub.dispose();
+  });
+
+  test(
+    'planned reconnect transfers subscriptions and closes the old socket',
+    () async {
+      final hub = DartPluginEventHub();
+      final sockets = <_FakeEventSubSocket>[];
+      final urls = <Uri>[];
+      var requests = 0;
+      final worker = TwitchEventSubWorker(
+        accessToken: 'token',
+        clientId: 'client',
+        broadcasterId: 'broadcaster',
+        eventHub: hub,
+        subscriptionTypes: const ['channel.chat.message'],
+        request: (method, path, query, body) async {
+          requests++;
+          return {};
+        },
+        socketFactory: (uri) async {
+          urls.add(uri);
+          final socket = _FakeEventSubSocket();
+          sockets.add(socket);
+          if (sockets.length == 1) {
+            scheduleMicrotask(
+              () => socket.add(
+                jsonEncode({
+                  'payload': {
+                    'session': {'id': 'session-${sockets.length}'},
+                  },
+                }),
+              ),
+            );
+          }
+          return socket;
+        },
+      );
+      await worker.start();
+      sockets.first.add(
+        jsonEncode({
+          'metadata': {'message_type': 'session_reconnect'},
+          'payload': {
+            'session': {
+              'reconnect_url': 'wss://eventsub.wss.twitch.tv/ws?reconnect=test',
+            },
+          },
+        }),
+      );
+      await _waitFor(() => urls.length == 2);
+      final duringHandover = hub.stream('chat').first;
+      sockets.first.add(
+        jsonEncode({
+          'metadata': {'message_type': 'notification', 'message_id': 'overlap'},
+          'payload': {
+            'subscription': {'type': 'channel.chat.message'},
+            'event': {
+              'message': {'text': 'still connected'},
+            },
+          },
+        }),
+      );
+      expect((await duringHandover)['message'], 'still connected');
+      expect(sockets.first.closed, false);
+      sockets.last.add(
+        jsonEncode({
+          'payload': {
+            'session': {'id': 'transferred'},
+          },
+        }),
+      );
+      await _waitFor(() => worker.isRunning);
+      expect(urls.last.query, 'reconnect=test');
+      expect(requests, 1);
+      expect(sockets.first.closed, isTrue);
+      await worker.stop();
+      await hub.dispose();
+    },
+  );
+
+  test('welcome timeout disposes the failed connection', () async {
+    final hub = DartPluginEventHub();
+    final socket = _FakeEventSubSocket();
+    final worker = TwitchEventSubWorker(
+      accessToken: 'token',
+      clientId: 'client',
+      broadcasterId: 'broadcaster',
+      eventHub: hub,
+      request: (method, path, query, body) async => {},
+      socketFactory: (_) async => socket,
+      welcomeTimeout: const Duration(milliseconds: 20),
+    );
+    await expectLater(worker.start(), throwsA(isA<TimeoutException>()));
+    expect(socket.closed, isTrue);
+    expect(worker.state, ProviderWorkerState.error);
+    await worker.stop();
+    await hub.dispose();
+  });
+
+  test(
+    'silent connections reconnect when the keepalive deadline passes',
+    () async {
+      final hub = DartPluginEventHub();
+      var connections = 0;
+      final worker = TwitchEventSubWorker(
+        accessToken: 'token',
+        clientId: 'client',
+        broadcasterId: 'broadcaster',
+        eventHub: hub,
+        subscriptionTypes: const [],
+        reconnectDelay: Duration.zero,
+        request: (method, path, query, body) async => {},
+        socketFactory: (_) async {
+          connections++;
+          final socket = _FakeEventSubSocket();
+          scheduleMicrotask(
+            () => socket.add(
+              jsonEncode({
+                'payload': {
+                  'session': {
+                    'id': '$connections',
+                    'keepalive_timeout_seconds': 0.02,
+                  },
+                },
+              }),
+            ),
+          );
+          return socket;
+        },
+      );
+      await worker.start();
+      await Future<void>.delayed(const Duration(milliseconds: 35));
+      expect(connections, greaterThanOrEqualTo(2));
+      await worker.stop();
+      await hub.dispose();
+    },
+  );
   test('routes platform trigger events through a Dart event hub', () async {
     final hub = DartPluginEventHub();
     final twitch = createTwitchPlugin(
@@ -358,6 +548,7 @@ Future<void> _waitFor(bool Function() condition) async {
 }
 
 final class _FakeEventSubSocket implements EventSubSocket {
+  bool get closed => _controller.isClosed;
   final StreamController<dynamic> _controller = StreamController<dynamic>();
 
   @override
