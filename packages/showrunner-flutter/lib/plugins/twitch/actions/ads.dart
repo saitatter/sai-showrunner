@@ -8,18 +8,14 @@ List<DartActionContract> _twitchAdActions(TwitchTransport transport) => [
     configSchema: _clipSchema,
     configCodec: twitchClipConfigCodec,
     invoke: (config, context) async {
-      final response = await transport.request(
-        'POST',
-        '/helix/clips',
-        {
-          'broadcaster_id': _idValue(
-            config.broadcasterId,
-            context,
-            'broadcasterId',
-          ),
-        },
-        {'has_delay': config.createAfterDelay},
-      );
+      final response = await transport.request('POST', '/helix/clips', {
+        'broadcaster_id': _idValue(
+          config.broadcasterId,
+          context,
+          'broadcasterId',
+        ),
+        'has_delay': config.createAfterDelay,
+      }, {});
       return {'clipId': _clipId(response)};
     },
   ),
@@ -29,18 +25,15 @@ List<DartActionContract> _twitchAdActions(TwitchTransport transport) => [
     displayName: 'Run Ad',
     configSchema: _adSchema,
     configCodec: twitchAdConfigCodec,
-    invoke: (config, context) => transport.request(
-      'POST',
-      '/helix/channels/commercial',
-      {
-        'broadcaster_id': _idValue(
-          config.broadcasterId,
-          context,
-          'broadcasterId',
-        ),
-      },
-      {'length': config.duration ?? 30},
-    ),
+    invoke: (config, context) =>
+        transport.request('POST', '/helix/channels/commercial', {}, {
+          'broadcaster_id': _idValue(
+            config.broadcasterId,
+            context,
+            'broadcasterId',
+          ),
+          'length': config.duration ?? 30,
+        }),
   ),
   ActionSpec<TwitchBroadcasterConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),

@@ -11,6 +11,111 @@ import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
+  test('a dropped chat message fails the action even with HTTP 200', () async {
+    final registry = DartPluginRegistry()
+      ..register(
+        createTwitchPlugin(
+          TwitchTransport(
+            (method, path, query, body) async => {
+              'data': [
+                {
+                  'is_sent': false,
+                  'drop_reason': {
+                    'code': 'msg_rejected',
+                    'message': 'Held by moderation',
+                  },
+                },
+              ],
+            },
+          ),
+        ),
+      );
+    addTearDown(registry.close);
+    await expectLater(
+      registry.invokeAction('twitch', 'chat', {'message': 'test'}),
+      throwsA(
+        isA<StateError>().having(
+          (e) => '$e',
+          'drop reason',
+          contains('Held by moderation'),
+        ),
+      ),
+    );
+  });
+  test(
+    'uses documented Helix bodies and query fields for mutation nodes',
+    () async {
+      final calls = <Map>[];
+      final registry = DartPluginRegistry()
+        ..register(
+          createTwitchPlugin(
+            TwitchTransport.withDefaults(
+              (method, path, query, body) async {
+                calls.add({'path': path, 'query': query, 'body': body});
+                return {};
+              },
+              broadcasterId: 'channel',
+              moderatorId: 'owner',
+            ),
+          ),
+        );
+      addTearDown(registry.close);
+      await registry.invokeAction('twitch', 'timeout', {
+        'viewerId': 'test',
+        'duration': 30,
+        'reason': 'QA',
+      });
+      expect(calls.last['body'], {
+        'data': {'user_id': 'test', 'duration': 30, 'reason': 'QA'},
+      });
+      await registry.invokeAction('twitch', 'streamMarker', {
+        'markerName': 'QA',
+      });
+      expect(calls.last['query'], isEmpty);
+      expect(calls.last['body'], {'user_id': 'channel', 'description': 'QA'});
+      await registry.invokeAction('twitch', 'createPrediction', {
+        'title': 'QA',
+        'outcomes': ['A', 'B'],
+        'duration': 30,
+      });
+      expect(calls.last['query'], isEmpty);
+      expect(calls.last['body'], {
+        'broadcaster_id': 'channel',
+        'title': 'QA',
+        'prediction_window': 30,
+        'outcomes': [
+          {'title': 'A'},
+          {'title': 'B'},
+        ],
+      });
+      await registry.invokeAction('twitch', 'createPoll', {
+        'title': 'QA',
+        'choices': ['A', 'B'],
+        'duration': 15,
+      });
+      expect(calls.last['query'], isEmpty);
+      expect(calls.last['body'], {
+        'broadcaster_id': 'channel',
+        'title': 'QA',
+        'duration': 15,
+        'choices': [
+          {'title': 'A'},
+          {'title': 'B'},
+        ],
+      });
+      await registry.invokeAction('twitch', 'runAd', {'duration': 30});
+      expect(calls.last['query'], isEmpty);
+      expect(calls.last['body'], {'broadcaster_id': 'channel', 'length': 30});
+      await registry.invokeAction('twitch', 'createClip', {
+        'createAfterDelay': false,
+      });
+      expect(calls.last['query'], {
+        'broadcaster_id': 'channel',
+        'has_delay': false,
+      });
+      expect(calls.last['body'], isEmpty);
+    },
+  );
   test(
     'configured graph actions use default IDs and retain explicit targets',
     () async {
@@ -98,7 +203,7 @@ void main() {
     final requests = <String>[];
     final transport = TwitchTransport((method, path, query, body) async {
       requests.add(
-        '$method $path ${body['comment'] ?? body['user_id'] ?? body['message'] ?? ''}',
+        '$method $path ${body['description'] ?? (body['data'] as Map?)?['user_id'] ?? body['message'] ?? ''}',
       );
       return path == '/helix/clips'
           ? {

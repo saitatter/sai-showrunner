@@ -30,20 +30,25 @@ final class TwitchTransport {
     String? broadcasterId,
     String? moderatorId,
   }) {
-    RuntimeMap resolve(RuntimeMap fields) => {
+    RuntimeMap resolve(RuntimeMap fields, {bool marker = false}) => {
       for (final entry in fields.entries)
         entry.key: entry.value == null || '${entry.value}'.trim().isEmpty
             ? (switch (entry.key) {
                     'broadcaster_id' || 'from_broadcaster_id' => broadcasterId,
                     'moderator_id' || 'sender_id' => moderatorId,
+                    'user_id' when marker => broadcasterId,
                     _ => null,
                   }) ??
                   entry.value
             : entry.value,
     };
     return TwitchTransport(
-      (method, path, query, body) =>
-          request(method, path, resolve(query), resolve(body)),
+      (method, path, query, body) => request(
+        method,
+        path,
+        resolve(query),
+        resolve(body, marker: path == '/helix/streams/markers'),
+      ),
     );
   }
 
@@ -934,8 +939,17 @@ Future<RuntimeMap> _ban(
   final body = <String, dynamic>{'user_id': config.viewerId ?? config.viewer};
   if (config.reason != null) body['reason'] = config.reason;
   if (duration != null) body['duration'] = duration;
-  return transport.request('POST', '/helix/moderation/bans', {
-    'broadcaster_id': _idValue(config.broadcasterId, context, 'broadcasterId'),
-    'moderator_id': _idValue(config.moderatorId, context, 'moderatorId'),
-  }, body);
+  return transport.request(
+    'POST',
+    '/helix/moderation/bans',
+    {
+      'broadcaster_id': _idValue(
+        config.broadcasterId,
+        context,
+        'broadcasterId',
+      ),
+      'moderator_id': _idValue(config.moderatorId, context, 'moderatorId'),
+    },
+    {'data': body},
+  );
 }

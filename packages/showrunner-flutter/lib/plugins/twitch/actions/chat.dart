@@ -7,16 +7,31 @@ List<DartActionContract> _twitchChatActions(TwitchTransport transport) => [
     displayName: 'Chat Message',
     configSchema: _chatSchema,
     configCodec: twitchChatConfigCodec,
-    invoke: (config, context) =>
-        transport.request('POST', '/helix/chat/messages', {}, {
-          'broadcaster_id': _idValue(
-            config.broadcasterId,
-            context,
-            'broadcasterId',
-          ),
-          'sender_id': _idValue(config.moderatorId, context, 'moderatorId'),
-          'message': config.message,
-        }),
+    invoke: (config, context) async {
+      final response = await transport
+          .request('POST', '/helix/chat/messages', {}, {
+            'broadcaster_id': _idValue(
+              config.broadcasterId,
+              context,
+              'broadcasterId',
+            ),
+            'sender_id': _idValue(config.moderatorId, context, 'moderatorId'),
+            'message': config.message,
+          });
+      final data = response['data'];
+      if (data is List && data.isNotEmpty && data.first is Map) {
+        final result = data.first as Map;
+        if (result['is_sent'] == false) {
+          final reason = result['drop_reason'];
+          throw StateError(
+            reason is Map
+                ? 'Twitch chat message rejected (${reason['code']}): ${reason['message']}'
+                : 'Twitch chat message was not sent.',
+          );
+        }
+      }
+      return response;
+    },
   ),
   ActionSpec<TwitchAnnouncementConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),

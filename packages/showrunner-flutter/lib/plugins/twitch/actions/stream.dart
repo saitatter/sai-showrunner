@@ -7,18 +7,11 @@ List<DartActionContract> _twitchStreamActions(TwitchTransport transport) => [
     displayName: 'Place Stream Marker',
     configSchema: _markerSchema,
     configCodec: twitchStreamMarkerConfigCodec,
-    invoke: (config, context) => transport.request(
-      'POST',
-      '/helix/streams/markers',
-      {
-        'broadcaster_id': _idValue(
-          config.broadcasterId,
-          context,
-          'broadcasterId',
-        ),
-      },
-      {'comment': config.markerName ?? ''},
-    ),
+    invoke: (config, context) =>
+        transport.request('POST', '/helix/streams/markers', {}, {
+          'user_id': _idValue(config.broadcasterId, context, 'broadcasterId'),
+          'description': config.markerName ?? '',
+        }),
   ),
   ActionSpec<TwitchPredictionConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
@@ -26,24 +19,19 @@ List<DartActionContract> _twitchStreamActions(TwitchTransport transport) => [
     displayName: 'Create Prediction',
     configSchema: _predictionSchema,
     configCodec: twitchPredictionConfigCodec,
-    invoke: (config, context) => transport.request(
-      'POST',
-      '/helix/predictions',
-      {
-        'broadcaster_id': _idValue(
-          config.broadcasterId,
-          context,
-          'broadcasterId',
-        ),
-      },
-      {
-        'title': config.title,
-        'prediction_window': config.duration ?? 30,
-        'outcomes': config.outcomes
-            .map((outcome) => outcome is Map ? outcome : {'title': outcome})
-            .toList(),
-      },
-    ),
+    invoke: (config, context) =>
+        transport.request('POST', '/helix/predictions', {}, {
+          'broadcaster_id': _idValue(
+            config.broadcasterId,
+            context,
+            'broadcasterId',
+          ),
+          'title': config.title,
+          'prediction_window': config.duration ?? 30,
+          'outcomes': config.outcomes
+              .map((outcome) => outcome is Map ? outcome : {'title': outcome})
+              .toList(),
+        }),
   ),
   ActionSpec<TwitchStreamInfoConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
@@ -74,24 +62,18 @@ List<DartActionContract> _twitchStreamActions(TwitchTransport transport) => [
     displayName: 'Create Poll',
     configSchema: _pollSchema,
     configCodec: twitchPollConfigCodec,
-    invoke: (config, context) => transport.request(
-      'POST',
-      '/helix/polls',
-      {
-        'broadcaster_id': _idValue(
-          config.broadcasterId,
-          context,
-          'broadcasterId',
-        ),
-      },
-      {
-        'title': config.title,
-        'duration': config.duration ?? 30,
-        'choices': config.choices
-            .map((choice) => choice is Map ? choice : {'title': choice})
-            .toList(),
-      },
-    ),
+    invoke: (config, context) => transport.request('POST', '/helix/polls', {}, {
+      'broadcaster_id': _idValue(
+        config.broadcasterId,
+        context,
+        'broadcasterId',
+      ),
+      'title': config.title,
+      'duration': config.duration ?? 30,
+      'choices': config.choices
+          .map((choice) => choice is Map ? choice : {'title': choice})
+          .toList(),
+    }),
   ),
   ActionSpec<TwitchRaidConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
