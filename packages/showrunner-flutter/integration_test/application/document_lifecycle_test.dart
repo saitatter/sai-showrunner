@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../support/integration_fixtures.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 import '../support/showrunner_test_app.dart';
@@ -20,12 +20,7 @@ void main() {
     const fileName = 'e2e-automation.yaml';
     await AutomationRepository(
       File('${directory.path}/automations/$fileName'),
-    ).save(
-      const AutomationData(
-        extra: {'name': 'E2E Automation'},
-        graph: AutomationGraph(entryNodeId: ''),
-      ),
-    );
+    ).save(namedAutomation('E2E Automation'));
 
     await tester.pumpWidget(buildShowRunnerTestApp(dataService: dataService));
     await _pumpApplication(tester);

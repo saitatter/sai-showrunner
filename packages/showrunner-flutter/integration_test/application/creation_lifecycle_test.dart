@@ -5,6 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/features/profile/profile_workspace.dart';
 import 'package:showrunner_flutter/features/profile/profile_trigger_editor_card.dart';
+import 'package:showrunner_flutter/graph/ui/inline_automation_graph.dart';
+import 'package:showrunner_flutter/graph/domain/automation_document.dart';
+import 'package:showrunner_flutter/graph/definitions/showrunner_graph_types.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/persistence/profile_repository.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
@@ -46,7 +49,7 @@ void main() {
     final automation = await AutomationRepository(
       File(automationFiles.single.path),
     ).load();
-    expect(automation?.extra['name'], 'Named automation');
+    expect(automation?.metadata['name'], 'Named automation');
 
     await tester.tap(find.text('Profiles').first);
     await _pumpApplication(tester);
@@ -101,7 +104,7 @@ void main() {
     await tester.tap(availableTriggers.first);
     await _pumpApplication(tester);
     expect(find.text('Add profile trigger'), findsNothing);
-    expect(find.text('Automation'), findsOneWidget);
+    expect(find.byType(InlineAutomationGraph), findsAtLeastNWidgets(1));
     await tester.enterText(
       find.byWidgetPredicate(
         (widget) =>
@@ -191,8 +194,10 @@ void main() {
       'group',
     );
     expect(profile?.triggers, hasLength(2));
-    expect(profile?.triggers.first['plugin'], isNotEmpty);
-    expect(profile?.triggers.first['trigger'], isNotEmpty);
+    final eventDocument = AutomationDocument.fromJson(Map<String, Object?>.from(profile!.triggers.first['automation'] as Map));
+    final trigger = decodeContractNodeType(eventDocument.graph.spaces[mainAutomationSpace]!.nodes.values.single.type, 'trigger');
+    expect(trigger?.$1, isNotEmpty);
+    expect(trigger?.$2, isNotEmpty);
     expect(profile?.triggers.first['description'], 'Second event');
     expect(profile?.triggers.last['description'], 'First event');
   });

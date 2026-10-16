@@ -3,8 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
-import 'package:showrunner_flutter/editor/showrunner_graph_editor.dart';
+import 'package:showrunner_flutter/graph/ui/automation_graph_workspace.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
@@ -29,37 +28,46 @@ void main() {
     await _pumpApplication(tester);
     await _openAutomation(tester, 'Graph edit');
 
-    final graph = tester.widget<GraphWorkspace>(find.byType(GraphWorkspace));
+    final graph = tester.widget<AutomationGraphWorkspace>(
+      find.byType(AutomationGraphWorkspace),
+    );
     final editor = graph.editor;
-    expect(editor.documentDirty.value, isFalse);
-    expect(
-      editor.addNodeType(
-        'ShowRunner.convertNumberToString',
-        title: 'Saved conversion',
-      ),
-      isNotNull,
+    expect(editor.isDirty, isFalse);
+    final nodeId = editor.addNode(
+      actionNodeType('ShowRunner', 'convertNumberToString'),
+      const GraphPoint(80, 80),
+    );
+    editor.graph.execute(
+      SetNodeTitleCommand(mainAutomationSpace, nodeId, 'Saved conversion'),
     );
     await tester.pump();
-    expect(editor.documentDirty.value, isTrue);
+    expect(editor.isDirty, isTrue);
 
     await _runFileCommand(tester, 'Save automation');
-    expect(editor.documentDirty.value, isFalse);
+    expect(editor.isDirty, isFalse);
     final saved = await AutomationRepository(
       File('${directory.path}/automations/$fileName'),
     ).load();
-    expect(saved?.graph.nodes, hasLength(1));
-    expect(saved?.graph.nodes.single.data['title'], 'Saved conversion');
+    expect(saved?.graph.spaces[mainAutomationSpace]!.nodes, hasLength(1));
+    expect(
+      saved
+          ?.graph
+          .spaces[mainAutomationSpace]!
+          .nodePresentations[nodeId]!
+          .title,
+      'Saved conversion',
+    );
 
     await tester.tap(find.byTooltip('Close $fileName'));
     await _pumpApplication(tester);
     expect(find.byTooltip('Close $fileName'), findsNothing);
 
     await _openAutomation(tester, 'Graph edit');
-    final reopenedGraph = tester.widget<GraphWorkspace>(
-      find.byType(GraphWorkspace),
+    final reopenedGraph = tester.widget<AutomationGraphWorkspace>(
+      find.byType(AutomationGraphWorkspace),
     );
-    expect(reopenedGraph.editor.controller.nodes, hasLength(1));
-    expect(reopenedGraph.editor.documentDirty.value, isFalse);
+    expect(reopenedGraph.editor.graph.activeSpace!.nodes, hasLength(1));
+    expect(reopenedGraph.editor.isDirty, isFalse);
   });
 
   testWidgets('supports Cancel, Discard, Save, and Save All close flows', (
@@ -79,12 +87,23 @@ void main() {
     await _pumpApplication(tester);
     await _openAutomation(tester, 'Close flow');
 
-    var graph = tester.widget<GraphWorkspace>(find.byType(GraphWorkspace));
-    graph.editor.addNodeType('ShowRunner.convertNumberToString');
+    var graph = tester.widget<AutomationGraphWorkspace>(
+      find.byType(AutomationGraphWorkspace),
+    );
+    graph.editor.addNode(
+      actionNodeType('ShowRunner', 'convertNumberToString'),
+      const GraphPoint(80, 80),
+    );
     await tester.pump();
     await tester.tap(find.byTooltip('Close close-flow.yaml'));
     await _pumpApplication(tester);
-    expect(find.text('Unsaved changes'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Unsaved changes'),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await _pumpApplication(tester);
     expect(find.byTooltip('Close close-flow.yaml'), findsOneWidget);
@@ -97,13 +116,18 @@ void main() {
     expect(
       (await AutomationRepository(
         File('${directory.path}/automations/close-flow.yaml'),
-      ).load())!.graph.nodes,
+      ).load())!.graph.spaces[mainAutomationSpace]!.nodes,
       isEmpty,
     );
 
     await _openAutomation(tester, 'Close flow');
-    graph = tester.widget<GraphWorkspace>(find.byType(GraphWorkspace));
-    graph.editor.addNodeType('ShowRunner.convertNumberToString');
+    graph = tester.widget<AutomationGraphWorkspace>(
+      find.byType(AutomationGraphWorkspace),
+    );
+    graph.editor.addNode(
+      actionNodeType('ShowRunner', 'convertNumberToString'),
+      const GraphPoint(80, 80),
+    );
     await tester.pump();
     await tester.tap(find.byTooltip('Close close-flow.yaml'));
     await _pumpApplication(tester);
@@ -113,13 +137,18 @@ void main() {
     expect(
       (await AutomationRepository(
         File('${directory.path}/automations/close-flow.yaml'),
-      ).load())!.graph.nodes,
+      ).load())!.graph.spaces[mainAutomationSpace]!.nodes,
       hasLength(1),
     );
 
     await _openAutomation(tester, 'Close flow');
-    graph = tester.widget<GraphWorkspace>(find.byType(GraphWorkspace));
-    graph.editor.addNodeType('ShowRunner.convertNumberToString');
+    graph = tester.widget<AutomationGraphWorkspace>(
+      find.byType(AutomationGraphWorkspace),
+    );
+    graph.editor.addNode(
+      actionNodeType('ShowRunner', 'convertNumberToString'),
+      const GraphPoint(80, 80),
+    );
     await tester.pump();
     await tester.tap(find.byTooltip('Create Automations'));
     await _pumpApplication(tester);
@@ -133,17 +162,22 @@ void main() {
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Create'));
     await _pumpApplication(tester);
-    graph = tester.widget<GraphWorkspace>(find.byType(GraphWorkspace));
-    graph.editor.addNodeType('ShowRunner.convertNumberToString');
+    graph = tester.widget<AutomationGraphWorkspace>(
+      find.byType(AutomationGraphWorkspace),
+    );
+    graph.editor.addNode(
+      actionNodeType('ShowRunner', 'convertNumberToString'),
+      const GraphPoint(80, 80),
+    );
     await tester.pump();
     await _runFileCommand(tester, 'Save all');
     final secondEntry = (await AutomationRepository.loadDirectory(
       Directory('${directory.path}/automations'),
-    )).singleWhere((entry) => entry.automation?.extra['name'] == 'Second');
+    )).singleWhere((entry) => entry.automation?.metadata['name'] == 'Second');
     expect(
       (await AutomationRepository(
         File('${directory.path}/automations/${secondEntry.fileName}'),
-      ).load())!.graph.nodes,
+      ).load())!.graph.spaces[mainAutomationSpace]!.nodes,
       hasLength(1),
     );
   });

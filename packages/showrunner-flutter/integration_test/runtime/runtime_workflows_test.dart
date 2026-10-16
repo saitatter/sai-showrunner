@@ -7,9 +7,9 @@ import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
 import 'package:showrunner_flutter/runtime/cancellation.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
 import 'package:showrunner_flutter/runtime/profile_runtime.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 import '../support/integration_fixtures.dart';
@@ -47,70 +47,79 @@ void main() {
     final registry = DartPluginRegistry()..register(createShowRunnerPlugin());
     addTearDown(registry.close);
 
-    final automation = AutomationData(
-      graph: AutomationGraph(
-        entryNodeId: 'call',
-        nodes: [
-          const GraphNode(
-            id: 'call',
-            type: 'subgraphCall',
-            x: 0,
-            y: 0,
-            data: {
-              'subgraphId': 'format',
-              'inputs': {
-                'value': {'type': 'literal', 'value': 7},
-              },
+    final signature = AutomationSubgraph(
+      id: 'format',
+      name: 'Format',
+      entryNodeId: 'convert',
+      parameters: [
+        AutomationParameter(id: 'p', name: 'value', type: 'core.number'),
+      ],
+      outputs: [
+        AutomationParameter(id: 'r', name: 'result', type: 'core.string'),
+      ],
+    );
+    final automation = automationFixture(
+      entryNodeId: 'call',
+      nodes: [
+        GraphNode(
+          id: 'call',
+          type: 'showrunner.subgraphCall',
+          data: {
+            'subgraphId': 'format',
+            'arguments': {'p': 7},
+          },
+        ),
+        GraphNode(
+          id: 'return',
+          type: 'showrunner.return',
+          data: {
+            'outputs': {
+              'result': {'type': 'port', 'nodeId': 'call', 'port': 'result'},
             },
-          ),
-          const GraphNode(
-            id: 'return',
-            type: 'return',
-            x: 100,
-            y: 0,
-            data: {
-              'outputs': {
-                'result': {'type': 'port', 'nodeId': 'call', 'port': 'result'},
-              },
-            },
-          ),
-        ],
-        edges: const [GraphEdge(id: 'call-return', from: 'call', to: 'return')],
-      ),
-      subgraphs: [
-        SubgraphDefinition(
-          id: 'format',
-          name: 'Format',
-          parameters: const [
-            {'name': 'value'},
-          ],
-          outputs: const [
-            {
-              'name': 'result',
-              'expression': {
-                'type': 'port',
-                'nodeId': 'convert',
-                'port': 'value',
-              },
-            },
-          ],
-          entryNodeId: 'convert',
-          nodes: [
-            const GraphNode(
-              id: 'convert',
-              type: 'action',
-              x: 0,
-              y: 0,
-              data: {
-                'plugin': 'ShowRunner',
-                'action': 'convertNumberToString',
-                'config': {'value': '{{value}}'},
-              },
-            ),
-          ],
-          edges: const [],
+          },
         ),
       ],
+      connections: [controlFixture('call-return', 'call', 'return')],
+      subgraphs: {'format': signature},
+      spaces: {
+        signature.spaceId: GraphSpace(
+          id: signature.spaceId,
+          nodes: {
+            'parameter': GraphNode(
+              id: 'parameter',
+              type: 'showrunner.parameter',
+              data: {'parameterId': 'p'},
+            ),
+            'convert': actionFixture(
+              'convert',
+              plugin: 'ShowRunner',
+              action: 'convertNumberToString',
+              config: {'value': 0},
+            ),
+            'sub-return': GraphNode(
+              id: 'sub-return',
+              type: 'showrunner.return',
+            ),
+          },
+          connections: {
+            'next': controlFixture('next', 'convert', 'sub-return'),
+            'input': valueFixture(
+              'input',
+              'parameter',
+              'value.out',
+              'convert',
+              'config:value',
+            ),
+            'output': valueFixture(
+              'output',
+              'convert',
+              'result:value',
+              'sub-return',
+              'output:r',
+            ),
+          },
+        ),
+      },
     );
 
     final result = await CompiledExecutionEngine().executeWithRegistry(
@@ -153,24 +162,16 @@ void main() {
     );
     addTearDown(queueManager.dispose);
 
-    final automation = AutomationData(
-      extra: const {'name': 'Queued integration'},
-      graph: AutomationGraph(
-        entryNodeId: 'record',
-        nodes: const [
-          GraphNode(
-            id: 'record',
-            type: 'action',
-            x: 0,
-            y: 0,
-            data: {
-              'plugin': 'integration',
-              'action': 'record',
-              'config': {'value': 'queued'},
-            },
-          ),
-        ],
-      ),
+    final automation = automationFixture(
+      name: 'Queued integration',
+      nodes: [
+        actionFixture(
+          'record',
+          plugin: 'integration',
+          config: {'value': 'queued'},
+        ),
+      ],
+      entryNodeId: 'record',
     );
     final item = await queueManager.enqueue(automation, EvaluationContext());
     await queueManager.drain('default');
@@ -202,22 +203,13 @@ void main() {
           ],
         ),
       );
+    registry.register(createShowRunnerPlugin());
     addTearDown(registry.close);
     final runtime = DartProfileRuntime(registry: registry);
     addTearDown(runtime.dispose);
-    final triggered = AutomationData(
-      graph: AutomationGraph(
-        entryNodeId: 'record',
-        nodes: const [
-          GraphNode(
-            id: 'record',
-            type: 'action',
-            x: 0,
-            y: 0,
-            data: {'plugin': 'integration', 'action': 'record', 'config': {}},
-          ),
-        ],
-      ),
+    final triggered = automationFixture(
+      nodes: [actionFixture('record', plugin: 'integration')],
+      entryNodeId: 'record',
     );
     final profile = profileWithTrigger(triggerAutomation: triggered);
     await runtime.activate('integration-profile', profile);
@@ -258,19 +250,9 @@ void main() {
         ),
       );
     addTearDown(registry.close);
-    final failed = AutomationData(
-      graph: AutomationGraph(
-        entryNodeId: 'fail',
-        nodes: const [
-          GraphNode(
-            id: 'fail',
-            type: 'action',
-            x: 0,
-            y: 0,
-            data: {'plugin': 'integration', 'action': 'fail'},
-          ),
-        ],
-      ),
+    final failed = automationFixture(
+      nodes: [actionFixture('fail', plugin: 'integration', action: 'fail')],
+      entryNodeId: 'fail',
     );
     await expectLater(
       CompiledExecutionEngine().executeWithRegistry(
@@ -282,19 +264,9 @@ void main() {
     );
 
     final token = DartCancellationToken(id: 'integration-cancel');
-    final cancellationGraph = AutomationData(
-      graph: AutomationGraph(
-        entryNodeId: 'cancel',
-        nodes: const [
-          GraphNode(
-            id: 'cancel',
-            type: 'action',
-            x: 0,
-            y: 0,
-            data: {'plugin': 'integration', 'action': 'cancel'},
-          ),
-        ],
-      ),
+    final cancellationGraph = automationFixture(
+      nodes: [actionFixture('cancel', plugin: 'integration', action: 'cancel')],
+      entryNodeId: 'cancel',
     );
     await expectLater(
       CompiledExecutionEngine().executeWithRegistry(

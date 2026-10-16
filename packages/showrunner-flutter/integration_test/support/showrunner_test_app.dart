@@ -15,11 +15,10 @@ Future<Directory> createShowRunnerFixtureDirectory({
   final dataService = ShowRunnerDataService(directory);
   final httpPort = await _reserveLoopbackPort();
   await dataService.savePluginSettings('ShowRunner', {'port': httpPort});
-  if (setupCompleted) {
-    await dataService.savePluginSettings('showrunner-flutter', const {
-      'setupCompleted': true,
-    });
-  }
+  await dataService.savePluginSettings('showrunner-flutter', {
+    'setupCompleted': setupCompleted,
+    'disabledPlugins': ['obs', 'aitum', 'advss', 'input'],
+  });
   await Directory('${directory.path}/state').create(recursive: true);
   return directory;
 }

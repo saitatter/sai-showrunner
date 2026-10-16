@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../support/integration_fixtures.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -16,10 +16,7 @@ void main() {
     addTearDown(() => root.delete(recursive: true));
     final canonicalFile = File('${root.path}/automations/current.yaml');
     final unsupportedFile = File('${root.path}/automations/unsupported.yaml');
-    const canonical = AutomationData(
-      extra: {'name': 'Canonical'},
-      graph: AutomationGraph(entryNodeId: ''),
-    );
+    final canonical = namedAutomation('Canonical');
     await AutomationRepository(canonicalFile).save(canonical);
     await unsupportedFile.parent.create(recursive: true);
     await unsupportedFile.writeAsString(

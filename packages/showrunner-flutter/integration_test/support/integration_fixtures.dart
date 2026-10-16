@@ -1,70 +1,80 @@
 import 'dart:io';
-
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
+import '../../test/support/graph_fixtures.dart';
+export '../../test/support/graph_fixtures.dart';
 
-AutomationData namedAutomation(
+AutomationDocument namedAutomation(
   String name, {
   bool withAction = false,
   String actionValue = '42',
-}) {
-  final nodes = <GraphNode>[];
-  if (withAction) {
-    nodes.add(
-      GraphNode(
-        id: 'convert',
-        type: 'action',
-        x: 80,
-        y: 80,
+}) => automationFixture(
+  name: name,
+  nodes: [
+    if (withAction)
+      actionFixture(
+        'convert',
+        plugin: 'ShowRunner',
+        action: 'convertNumberToString',
+        config: {'value': actionValue},
         data: {
-          'plugin': 'ShowRunner',
-          'action': 'convertNumberToString',
-          'config': {'value': actionValue},
           'resultMapping': {'value': 'converted'},
         },
       ),
-    );
-  }
-  return AutomationData(
-    extra: {'name': name},
-    graph: AutomationGraph(
-      nodes: nodes,
-      entryNodeId: withAction ? 'convert' : '',
-    ),
-  );
-}
-
-AutomationData actionAutomation({String value = '42'}) => namedAutomation(
+  ],
+  entryNodeId: withAction ? 'convert' : '',
+);
+AutomationDocument actionAutomation({String value = '42'}) => namedAutomation(
   'Integration automation',
   withAction: true,
   actionValue: value,
 );
-
 Future<void> saveAutomation(
   Directory root,
   String fileName,
-  AutomationData automation,
+  AutomationDocument automation,
 ) => AutomationRepository(
   File('${root.path}/automations/$fileName'),
 ).save(automation);
-
 ShowRunnerProfile profileWithTrigger({
-  required AutomationData triggerAutomation,
+  required AutomationDocument triggerAutomation,
   String name = 'Integration profile',
-}) => ShowRunnerProfile(
-  name: name,
-  activationMode: 'always',
-  triggers: [
-    {
-      'id': 'integration-trigger',
-      'plugin': 'ShowRunner',
-      'trigger': 'autoRun',
-      'config': const <String, dynamic>{},
-      'automation': triggerAutomation.toJson(),
-    },
-  ],
-  activationCondition: const <String, dynamic>{},
-  activationAutomation: const AutomationData(),
-  deactivationAutomation: const AutomationData(),
-);
+}) {
+  final space = triggerAutomation.graph.spaces[mainAutomationSpace]!;
+  const source = 'integration-event';
+  final document = AutomationDocument.fromGraph(
+    triggerAutomation.graph.copyWith(
+      spaces: {
+        ...triggerAutomation.graph.spaces,
+        mainAutomationSpace: space.copyWith(
+          nodes: {
+            ...space.nodes,
+            source: GraphNode(
+              id: source,
+              type: triggerNodeType('ShowRunner', 'autoRun'),
+            ),
+          },
+          connections: {
+            ...space.connections,
+            if (triggerAutomation.entryNodeId.isNotEmpty)
+              'event-next': controlFixture(
+                'event-next',
+                source,
+                triggerAutomation.entryNodeId,
+              ),
+          },
+        ),
+      },
+    ),
+  ).withSettings({...triggerAutomation.settings, 'entryNodeId': source});
+  return ShowRunnerProfile(
+    name: name,
+    activationMode: 'always',
+    triggers: [
+      {'id': 'integration-trigger', 'automation': document.toJson()},
+    ],
+    activationCondition: const {},
+    activationAutomation: AutomationDocument.empty(),
+    deactivationAutomation: AutomationDocument.empty(),
+  );
+}

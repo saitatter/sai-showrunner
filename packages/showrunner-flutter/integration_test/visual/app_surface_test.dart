@@ -4,10 +4,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sai_nodes/sai_nodes.dart' hide GraphNode;
+import 'package:sai_nodes/sai_nodes.dart' show NodeEditor, GraphSceneBuilder;
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../support/integration_fixtures.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 import 'package:showrunner_flutter/design_system/tokens/tokens.dart';
 
@@ -60,35 +60,18 @@ void main() {
     await AutomationRepository(
       File('${directory.path}/automations/visual-automation.yaml'),
     ).save(
-      const AutomationData(
-        extra: {
-          'name': 'Paid Event -> Add to Alerts Queue',
-          'plugin': 'youtube',
-          'trigger': 'superChat',
-        },
-        graph: AutomationGraph(
-          entryNodeId: 'queue',
-          nodes: [
-            GraphNode(
-              id: 'queue',
-              type: 'action',
-              x: 0,
-              y: 0,
-              data: {'plugin': 'ShowRunner', 'action': 'addToQueue'},
-            ),
-          ],
-        ),
-        triggerNodes: [
-          {
-            'id': 'super-chat',
-            'plugin': 'youtube',
-            'trigger': 'superChat',
-            'x': -360,
-            'y': 0,
-            'config': <String, dynamic>{},
-            'stop': false,
-          },
+      automationFixture(
+        name: 'Paid Event -> Add to Alerts Queue',
+        entryNodeId: 'super-chat',
+        nodes: [
+          GraphNode(
+            id: 'super-chat',
+            type: triggerNodeType('youtube', 'superChat'),
+            data: {'config': {}},
+          ),
+          actionFixture('queue', plugin: 'ShowRunner', action: 'addToQueue'),
         ],
+        connections: [controlFixture('event-queue', 'super-chat', 'queue')],
       ),
     );
     final view = tester.view;
@@ -124,21 +107,18 @@ void main() {
     expect(find.text('string'), findsNothing);
     expect(find.textContaining('Select a node'), findsOneWidget);
     final graphController = tester
-        .widget<NodeEditorWidget>(find.byType(NodeEditorWidget).first)
+        .widget<NodeEditor>(find.byType(NodeEditor).first)
         .controller;
-    final flow = graphController.linksAsList.single;
-    final sourceNode = graphController.nodes[flow.endpoints.sourceNodeId]!;
-    final targetNode = graphController.nodes[flow.endpoints.targetNodeId]!;
-    final sourcePort = sourceNode.ports[flow.endpoints.sourcePortId]!;
-    final targetPort = targetNode.ports[flow.endpoints.targetPortId]!;
-    expect(
-      sourcePort.offset.dx,
-      greaterThan(100),
-      reason:
-          'Output endpoint must be on the right edge before any interaction.',
-    );
-    expect(sourcePort.offset.dy, greaterThan(30));
-    expect(targetPort.offset.dy, greaterThan(30));
+    final connection = graphController.activeSpace!.connections.values.single;
+    final scene = GraphSceneBuilder().build(graphController);
+    final source = scene.nodes[connection.from.nodeId]!.geometry;
+    final target = scene.nodes[connection.to.nodeId]!.geometry;
+    final sourcePort = source.ports[connection.from.portId]!;
+    final targetPort = target.ports[connection.to.portId]!;
+    expect(sourcePort.x, closeTo(source.bounds.right, .1));
+    expect(targetPort.x, closeTo(target.bounds.left, .1));
+    expect(sourcePort.y, greaterThan(source.bounds.top + 30));
+    expect(targetPort.y, greaterThan(target.bounds.top + 30));
     final dismissButtons = find.text('Dismiss');
     if (dismissButtons.evaluate().isNotEmpty) {
       final dismissBox = tester.renderObject<RenderBox>(dismissButtons.last);
