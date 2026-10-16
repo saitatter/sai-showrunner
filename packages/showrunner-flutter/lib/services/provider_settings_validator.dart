@@ -1,4 +1,4 @@
-import '../schema/automation.dart';
+import '../schema/json.dart';
 
 final class ProviderSettingsValidation {
   const ProviderSettingsValidation(this.pluginId, this.errors);

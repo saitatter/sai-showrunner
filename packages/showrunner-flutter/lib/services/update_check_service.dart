@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'http_policy.dart';
 
-import '../schema/automation.dart';
+import '../schema/json.dart';
 import '../schema/update.dart';
 
 typedef UpdateReleaseFetcher = Future<JsonMap> Function();

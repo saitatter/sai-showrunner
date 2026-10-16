@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:yaml/yaml.dart';
 
 import 'filesystem/atomic_file.dart';
-import '../schema/automation.dart';
+import '../schema/json.dart';
 import '../schema/viewer_data.dart';
 
 final class ViewerDataSyncResult {

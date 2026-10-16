@@ -4,7 +4,7 @@ import 'dart:io';
 
 import '../../persistence/viewer_data_repository.dart';
 import '../../persistence/filesystem/safe_path.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../schema/resource.dart';
 import '../../schema/viewer_data.dart';
 import '../../runtime/expression.dart';

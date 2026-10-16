@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:yaml/yaml.dart';
 
-import '../schema/automation.dart';
+import '../schema/json.dart';
 import 'filesystem/atomic_file.dart';
 import 'filesystem/safe_path.dart';
 import '../services/structured_logger.dart';

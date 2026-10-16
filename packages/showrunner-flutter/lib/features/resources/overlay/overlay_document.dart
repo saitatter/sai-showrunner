@@ -1,5 +1,5 @@
 import 'dart:convert';
-import '../../../schema/automation.dart';
+import '../../../schema/json.dart';
 import '../../../schema/resource.dart';
 import '../../../schema/data_input.dart';
 

@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../persistence/resource_repository.dart';
-import '../../../schema/automation.dart';
+import '../../../schema/json.dart';
 import '../../../schema/resource.dart';
 import '../../../plugins/runtime/provider_event_workers.dart';
 import '../../../services/plugin_event_hub.dart';

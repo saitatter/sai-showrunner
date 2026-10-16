@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/profile/boolean_expression_editor.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/schema/json.dart';
 
 void main() {
   testWidgets('builds nested groups and value conditions visually', (

@@ -13,7 +13,7 @@ import '../../plugins/stream_plans/manifest.dart';
 import '../../plugins/variables/runtime.dart';
 import '../../schema/stream_plan.dart';
 import 'resource_editor_registry.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../schema/resource.dart';
 import '../../services/showrunner_data_service.dart';
 import 'media_picker.dart';

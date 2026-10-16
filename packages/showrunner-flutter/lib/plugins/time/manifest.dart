@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../../schema/data_input.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../runtime/cancellation.dart';
 import '../../runtime/expression.dart';
 import '../registry/plugin_contract.dart';

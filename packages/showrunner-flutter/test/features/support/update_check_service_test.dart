@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/schema/json.dart';
 import 'package:showrunner_flutter/schema/update.dart';
 import 'package:showrunner_flutter/services/update_check_service.dart';
 

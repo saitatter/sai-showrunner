@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../persistence/filesystem/atomic_file.dart';
-import '../schema/automation.dart';
+import '../schema/json.dart';
 import 'app_foundations.dart';
 
 final class ShowRunnerWindowState {

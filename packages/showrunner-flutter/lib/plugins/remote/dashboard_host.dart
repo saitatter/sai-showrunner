@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../../persistence/resource_repository.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../schema/resource.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';

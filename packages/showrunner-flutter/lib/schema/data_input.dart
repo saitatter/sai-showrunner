@@ -21,6 +21,18 @@ enum DartDataInputKind {
   resource,
 }
 
+enum DartGraphFieldPlacement { automatic, inline, inspector }
+
+/// Authoring hints are declarative; plugin contracts carry no editor widgets.
+final class DartGraphEditorHints {
+  const DartGraphEditorHints({
+    this.connectable = true,
+    this.placement = DartGraphFieldPlacement.automatic,
+  });
+  final bool connectable;
+  final DartGraphFieldPlacement placement;
+}
+
 final class DartDataInputSchema {
   const DartDataInputSchema({
     required this.label,
@@ -41,10 +53,12 @@ final class DartDataInputSchema {
     this.allowPadding,
     this.allowHorizontalAlign,
     this.allowVerticalAlign,
+    this.graphEditor,
   });
 
   final String label;
   final DartDataInputKind kind;
+  final DartGraphEditorHints? graphEditor;
   final String? key;
   final List<String> options;
   final bool required;

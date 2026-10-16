@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../components/data_inputs/numeric_input_formatter.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 
 int _conditionIdCounter = 0;
 

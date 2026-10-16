@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import '../../persistence/resource_repository.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../schema/resource.dart';
 import '../../services/showrunner_data_service.dart';
 import 'manifest.dart';

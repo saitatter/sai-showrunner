@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import '../../persistence/resource_repository.dart';
 import '../../persistence/secret_settings_store.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../schema/resource.dart';
 import 'manifest.dart';
 

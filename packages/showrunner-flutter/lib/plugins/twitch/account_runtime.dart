@@ -4,7 +4,7 @@ import 'dart:convert';
 import '../../services/oauth_token.dart';
 import '../../persistence/resource_repository.dart';
 import '../../services/showrunner_data_service.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../schema/resource.dart';
 
 typedef TwitchAccountAuthorizer =

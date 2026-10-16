@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart';
 import '../../app/commands/app_command.dart';
 import '../../app/workspace_registry.dart';
 import '../../persistence/resource_repository.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../services/showrunner_data_service.dart';
 import '../runtime/provider_event_workers.dart';
 import 'plugin_registry.dart';

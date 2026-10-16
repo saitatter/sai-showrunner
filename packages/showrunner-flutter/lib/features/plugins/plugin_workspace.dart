@@ -15,7 +15,7 @@ import '../../plugins/philips_hue/discovery.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../plugins/twitch/account_runtime.dart';
 import '../../services/provider_settings_validator.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../schema/data_input.dart';
 import '../../services/showrunner_data_service.dart';
 import 'plugin_visibility.dart';

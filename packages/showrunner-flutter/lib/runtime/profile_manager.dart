@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../persistence/profile_repository.dart';
-import '../schema/automation.dart';
+import '../schema/json.dart';
 import '../schema/profile.dart';
 import 'expression.dart';
 import 'profile_runtime.dart';

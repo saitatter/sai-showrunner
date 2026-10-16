@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../services/oauth_token.dart';
 import '../../services/showrunner_data_service.dart';
 

@@ -1,4 +1,5 @@
-typedef JsonMap = Map<String, dynamic>;
+import 'json.dart';
+export 'json.dart';
 
 final class GraphNode {
   const GraphNode({

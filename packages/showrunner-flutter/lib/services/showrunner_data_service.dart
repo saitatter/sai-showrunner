@@ -7,7 +7,7 @@ import '../persistence/filesystem/atomic_file.dart';
 import '../persistence/filesystem/safe_path.dart';
 import 'structured_logger.dart';
 import '../persistence/secret_settings_store.dart';
-import '../schema/automation.dart';
+import '../schema/json.dart';
 
 final class ShowRunnerHealth {
   const ShowRunnerHealth({
