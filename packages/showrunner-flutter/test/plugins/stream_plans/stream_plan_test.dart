@@ -8,6 +8,81 @@ import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
 
 void main() {
+  test(
+    'editing active components activates additions and cleans up removals',
+    () async {
+      final registry = DartPluginRegistry();
+      addTearDown(registry.close);
+      final runtime = DartStreamPlanRuntime();
+      addTearDown(runtime.dispose);
+      final calls = <String>[];
+      for (final id in ['a', 'b']) {
+        runtime.registerComponentType(
+          DartStreamPlanComponent(
+            id: id,
+            onActivate: (segment, config) => calls.add('$id:on'),
+            onDeactivate: (segment, config) => calls.add('$id:off'),
+            activeConfigChanged: (segment, config) => calls.add('$id:update'),
+          ),
+        );
+      }
+      StreamPlanData plan(String component) => StreamPlanData(
+        name: 'Editable',
+        activationAutomation: emptyInlineAutomation(),
+        deactivationAutomation: emptyInlineAutomation(),
+        segments: [
+          _segment(
+            'one',
+            components: {
+              component: {'enabled': true},
+            },
+          ),
+        ],
+      );
+      await runtime.activatePlan('plan', plan('a'), registry: registry);
+      await runtime.updateActivePlan('plan', plan('a'));
+      await runtime.updateActivePlan('plan', plan('b'));
+      await runtime.deactivatePlan(registry: registry);
+      expect(calls, ['a:on', 'a:update', 'a:off', 'b:on', 'b:off']);
+    },
+  );
+  test('rapid navigation executes each transition once in order', () async {
+    final registry = DartPluginRegistry();
+    addTearDown(registry.close);
+    final runtime = DartStreamPlanRuntime();
+    addTearDown(runtime.dispose);
+    final activated = <String>[];
+    runtime.registerComponentType(
+      DartStreamPlanComponent(
+        id: 'slow',
+        onActivate: (id, config) async {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          activated.add(id);
+        },
+      ),
+    );
+    final plan = StreamPlanData(
+      name: 'Rapid navigation',
+      activationAutomation: emptyInlineAutomation(),
+      deactivationAutomation: emptyInlineAutomation(),
+      segments: [
+        for (final id in ['one', 'two', 'three', 'four'])
+          _segment(id, components: {'slow': {}}),
+      ],
+    );
+    await runtime.activatePlan('probe', plan, registry: registry);
+    final results = await Future.wait(
+      List.generate(
+        3,
+        (_) =>
+            runtime.transitionToNextSegment('probe', plan, registry: registry),
+      ),
+    );
+    expect(results, ['two', 'three', 'four']);
+    expect(activated, ['one', 'two', 'three', 'four']);
+    expect(runtime.activeSegmentId, 'four');
+    await runtime.deactivatePlan(registry: registry);
+  });
   test('round-trips Stream Plan config with default values', () {
     final plan = StreamPlanData.fromConfig({
       'name': 'Friday show',

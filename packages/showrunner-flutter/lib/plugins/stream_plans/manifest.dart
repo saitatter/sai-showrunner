@@ -191,9 +191,26 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
             .where((item) => item.id == activeSegmentId)
             .firstOrNull;
         if (segment == null) return;
+        final previous = _activePlan?.segments
+            .where((item) => item.id == activeSegmentId)
+            .firstOrNull;
         _activePlan = plan;
         notifyListeners();
-        await _invokeActiveConfigChanged(segment);
+        for (final entry in (previous?.components ?? {}).entries) {
+          if (!segment.components.containsKey(entry.key)) {
+            await _componentTypes[entry.key]?.onDeactivate?.call(
+              segment.id,
+              entry.value,
+            );
+          }
+        }
+        for (final entry in segment.components.entries) {
+          final component = _componentTypes[entry.key];
+          final handler = previous?.components.containsKey(entry.key) == true
+              ? component?.activeConfigChanged
+              : component?.onActivate;
+          await handler?.call(segment.id, entry.value);
+        }
       });
 
   Future<String?> transitionToNextSegment(
@@ -387,15 +404,6 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     }
   }
 
-  Future<void> _invokeActiveConfigChanged(StreamPlanSegmentData segment) async {
-    for (final entry in segment.components.entries) {
-      await _componentTypes[entry.key]?.activeConfigChanged?.call(
-        segment.id,
-        entry.value,
-      );
-    }
-  }
-
   Future<GraphExecutionResult> _runAutomation(
     JsonMap automation, {
     required String planId,
@@ -466,23 +474,16 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
 
   Future<T> _exclusive<T>(Future<T> Function() operation) async {
     final previous = _transition;
-    if (previous != null) {
-      try {
-        await previous;
-      } catch (_) {
-        // A failed transition must not permanently block later controls.
-      }
-    }
-    final current = operation();
-    final marker = current.then<void>(
-      (_) {},
-      onError: (Object error, StackTrace stack) {},
-    );
-    _transition = marker;
+    // Reserve our position before awaiting the preceding transition. Otherwise
+    // multiple rapid commands wait for the same predecessor and run together.
+    final release = Completer<void>();
+    _transition = release.future;
     try {
-      return await current;
+      if (previous != null) await previous;
+      return await operation();
     } finally {
-      if (identical(_transition, marker)) _transition = null;
+      release.complete();
+      if (identical(_transition, release.future)) _transition = null;
     }
   }
 }
