@@ -9,6 +9,7 @@ import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/persistence/viewer_data_repository.dart';
 import 'package:showrunner_flutter/plugins/http/manifest.dart';
 import 'package:showrunner_flutter/plugins/obs/transport.dart';
+import 'package:showrunner_flutter/plugins/obs/actions.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/websocket_bridge.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
@@ -171,11 +172,12 @@ void main() {
       );
       final registry = DartPluginRegistry()
         ..register(twitch)
+        ..register(createObsPlugin(obs))
         ..register(createVariablesPlugin())
         ..register(createOverlaysPlugin(eventHub: hub, overlayStore: store));
       final server = DartHttpEndpointService(host: '127.0.0.1', port: 0);
       await server.start();
-      final bridge = DartOverlayWebSocketService(
+      var bridge = DartOverlayWebSocketService(
         server: server,
         eventHub: hub,
         overlayStore: store,
@@ -299,6 +301,113 @@ void main() {
         );
         report['compiledGraph'] = 'PASS';
         report['obsScreenshotChanged'] = 'PASS';
+        if (Platform.environment['SHOWRUNNER_OVERLAY_STABILITY'] == '1') {
+          for (var cycle = 1; cycle <= 3; cycle++) {
+            await bridge.dispose();
+            await Future<void>.delayed(const Duration(milliseconds: 200));
+            bridge = DartOverlayWebSocketService(
+              server: server,
+              eventHub: hub,
+              overlayStore: store,
+              registry: registry,
+              viewerDataRepository: InMemoryViewerDataRepository(),
+            );
+            for (var attempt = 0; attempt < 100; attempt++) {
+              if ((await bridge.getPresence(overlayId)).connected) break;
+              await Future<void>.delayed(const Duration(milliseconds: 100));
+            }
+            expect((await bridge.getPresence(overlayId)).subscribers, 1);
+            await Future<void>.delayed(const Duration(milliseconds: 500));
+            await screenshot('reconnect-$cycle-before');
+            final empty = sha256
+                .convert(
+                  await File(
+                    '${root.path}/reconnect-$cycle-before.png',
+                  ).readAsBytes(),
+                )
+                .toString();
+            for (var i = 1; i <= 3; i++) {
+              final proof = await CompiledExecutionEngine().executeWithRegistry(
+                automation: _overlayChatGraph(overlayId),
+                context: EvaluationContext(
+                  locals: {
+                    'message': 'showrunner-test',
+                    'messageId': 'reconnect-$cycle-$i',
+                    'viewerName': 'RECONNECTED $cycle / MESSAGE $i',
+                  },
+                ),
+                registry: registry,
+              );
+              expect(proof.completed, true);
+              expect(proof.nodeResults['overlay-chat']?['sent'], true);
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 800));
+            await screenshot('reconnect-$cycle-after');
+            final rendered = sha256
+                .convert(
+                  await File(
+                    '${root.path}/reconnect-$cycle-after.png',
+                  ).readAsBytes(),
+                )
+                .toString();
+            expect(rendered, isNot(empty));
+          }
+          report['threeBridgeRestartsWithBurstRendering'] = 'PASS';
+          final entered = <String>[];
+          await expectLater(
+            CompiledExecutionEngine().executeWithRegistry(
+              automation: AutomationData(
+                graph: AutomationGraph(
+                  entryNodeId: 'missing',
+                  nodes: [
+                    const GraphNode(
+                      id: 'missing',
+                      type: 'action',
+                      x: 0,
+                      y: 0,
+                      data: {
+                        'plugin': 'obs',
+                        'action': 'getInputSettings',
+                        'config': {
+                          'sourceName': 'ShowRunner nonexistent QA source',
+                        },
+                      },
+                    ),
+                    const GraphNode(
+                      id: 'must-not-run',
+                      type: 'action',
+                      x: 0,
+                      y: 0,
+                      data: {
+                        'plugin': 'variables',
+                        'action': 'set',
+                        'config': {'variable': 'unexpected', 'value': true},
+                      },
+                    ),
+                  ],
+                  edges: const [
+                    GraphEdge(id: 'next', from: 'missing', to: 'must-not-run'),
+                  ],
+                ),
+              ),
+              context: EvaluationContext(),
+              registry: registry,
+              onNodeEnter: entered.add,
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => '$e',
+                'OBS error code',
+                contains('600'),
+              ),
+            ),
+          );
+          expect(entered, ['missing']);
+          report['missingSourceStopsGraphWithObsError'] = 'PASS';
+          stdout.writeln(
+            'PASS three real browser reconnects, nine rendered graph messages and missing OBS source stops the graph.',
+          );
+        }
         stdout.writeln(
           'PASS ${report['source']}: typed trigger -> graph -> overlay broadcast -> production browser renderer -> changed OBS screenshot.',
         );
