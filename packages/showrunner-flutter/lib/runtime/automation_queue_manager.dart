@@ -1,14 +1,14 @@
+import '../graph/domain/automation_document.dart';
 import 'dart:async';
 
 import '../domain/errors/showrunner_error.dart';
-import '../schema/automation.dart';
 import '../schema/queue.dart';
 import 'action_queue.dart';
 import 'expression.dart';
 
 typedef DartQueuedAutomationExecutor =
     Future<Object?> Function(
-      AutomationData automation,
+      AutomationDocument automation,
       EvaluationContext context,
       QueuedGraphExecution item,
     );
@@ -90,22 +90,23 @@ final class DartAutomationQueueManager {
   }
 
   Future<QueuedGraphExecution> enqueue(
-    AutomationData automation,
+    AutomationDocument automation,
     EvaluationContext context, {
     String? queueId,
     RuntimeMap? sourceMetadata,
+    String? entryNodeId,
   }) async {
     final queueKey = _key(queueId);
     final queue = await queueFor(queueKey);
-    final source = automation.toJson();
-    if (sourceMetadata != null) source.addAll(sourceMetadata);
     final traceQueueKey = queueKey.isEmpty ? 'default' : queueKey;
-    source['queueId'] = traceQueueKey;
-    source['queueName'] = _queueNames[traceQueueKey] ?? traceQueueKey;
-    final name = source['name']?.toString();
-    if (name == null || name.trim().isEmpty) {
-      source['name'] = 'Queued automation';
-    }
+    final source = <String, Object?>{
+      'automation': automation.toJson(),
+      ...?sourceMetadata,
+      'queueId': traceQueueKey,
+      'queueName': _queueNames[traceQueueKey] ?? traceQueueKey,
+      'name': automation.metadata['name'] ?? 'Queued automation',
+      'entryNodeId': ?entryNodeId,
+    };
     final item = queue.enqueue(
       source,
       context.contextState,
@@ -186,7 +187,9 @@ final class DartAutomationQueueManager {
               'queuedAt': item.contextState['queuedAt'],
             'startedAt': item.startedAt?.toIso8601String(),
           });
-          final automation = AutomationData.fromJson(item.source);
+          final automation = AutomationDocument.fromJson(
+            Map<String, Object?>.from(item.source['automation'] as Map),
+          );
           return execute(
             automation,
             EvaluationContext(

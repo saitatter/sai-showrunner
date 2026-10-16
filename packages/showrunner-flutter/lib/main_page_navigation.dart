@@ -129,8 +129,7 @@ extension _ShowRunnerPageNavigation on _ShowRunnerPageState {
     }
     final active = _activeAutomationSession;
     if (active != null) {
-      _graphEditor.loadAutomation(active.data);
-      _graphEditor.restoreDocumentDirty(active.dirty);
+      _loadAutomationSession(active);
     }
   }
 

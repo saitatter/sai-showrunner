@@ -1,7 +1,7 @@
+import '../../graph/domain/automation_document.dart';
 import 'dart:convert';
 
 import '../../schema/data_input.dart';
-import '../../schema/automation.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../../runtime/action_queue.dart';
 import '../../runtime/expression.dart';
@@ -298,10 +298,10 @@ const _runAutomationSchema = DartDataInputSchema(
 );
 
 typedef ShowRunnerAutomationLoader =
-    Future<AutomationData?> Function(String automationId);
+    Future<AutomationDocument?> Function(String automationId);
 typedef ShowRunnerAutomationRunner =
     Future<Object?> Function(
-      AutomationData automation,
+      AutomationDocument automation,
       EvaluationContext context,
     );
 typedef ShowRunnerProfileActivation =

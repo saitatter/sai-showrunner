@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "parity-empty",
+  "graph": {
+    "schemaVersion": 1,
+    "id": "parity-empty",
+    "spaces": {
+      "space:main": {
+        "id": "space:main",
+        "nodes": {},
+        "connections": {},
+        "nodePresentations": {},
+        "connectionPresentations": {},
+        "frames": {},
+        "comments": {},
+        "metadata": {}
+      }
+    },
+    "metadata": {}
+  },
+  "subgraphs": {},
+  "settings": {},
+  "metadata": {}
+}

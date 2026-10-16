@@ -11,7 +11,7 @@ import 'package:showrunner_flutter/plugins/registry/plugin_module.dart';
 import 'package:showrunner_flutter/runtime/cancellation.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/runtime/profile_runtime.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
 
 void main() {
@@ -222,34 +222,26 @@ void main() {
       triggers: [
         {
           'id': 'keyboard-shortcut',
-          'plugin': 'input',
-          'trigger': 'keyboardShortcut',
+
+
           'config': {
             'combo': ['LeftControl', 'A'],
           },
-          'automation': {
-            'schemaVersion': 2,
-            'graph': {
-              'nodes': [
-                {
-                  'id': 'record',
-                  'type': 'action',
-                  'plugin': 'test',
-                  'action': 'record',
-                },
-              ],
-              'entryNodeId': 'record',
+          'automation': eventFixture(
+            id: 'keyboard',
+            plugin: 'input',
+            trigger: 'keyboardShortcut',
+            config: {
+              'combo': ['LeftControl', 'A'],
             },
-            'subgraphs': [],
-            'dataWires': [],
-            'variableNodes': [],
-            'triggerNodes': [],
-          },
+            nodes: [actionFixture('record')],
+            next: 'record',
+          ).toJson(),
         },
       ],
       activationCondition: const {},
-      activationAutomation: AutomationData(),
-      deactivationAutomation: AutomationData(),
+      activationAutomation: AutomationDocument.empty(),
+      deactivationAutomation: AutomationDocument.empty(),
     );
     final runtime = DartProfileRuntime(registry: registry);
     await runtime.activate('shortcuts', profile);

@@ -6,7 +6,8 @@ import 'package:showrunner_flutter/persistence/profile_repository.dart';
 import 'package:showrunner_flutter/runtime/profile_manager.dart';
 import 'package:showrunner_flutter/runtime/profile_runtime.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../support/graph_fixtures.dart';
+import 'package:showrunner_flutter/schema/json.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 
@@ -52,28 +53,18 @@ void main() {
         triggers: [
           {
             'id': 'event-trigger',
-            'plugin': 'test',
-            'trigger': 'event',
-            'config': {},
-            'automation': AutomationData(
-              graph: AutomationGraph(
-                nodes: [
-                  GraphNode(
-                    id: 'record',
-                    type: 'action',
-                    x: 0,
-                    y: 0,
-                    data: {'plugin': 'test', 'action': 'record'},
-                  ),
-                ],
-                entryNodeId: 'record',
-              ),
+
+            'automation': eventFixture(
+              id: 'source',
+              trigger: 'event',
+              nodes: [actionFixture('record')],
+              next: 'record',
             ).toJson(),
           },
         ],
         activationCondition: const {},
-        activationAutomation: const AutomationData(),
-        deactivationAutomation: const AutomationData(),
+        activationAutomation: AutomationDocument.empty(),
+        deactivationAutomation: AutomationDocument.empty(),
       );
       await ProfileRepository(
         File('${directory.path}/always.yaml'),
@@ -121,8 +112,8 @@ void main() {
         'lhs': {'type': 'state', 'plugin': 'test', 'state': 'enabled'},
         'rhs': {'type': 'value', 'value': true},
       },
-      activationAutomation: const AutomationData(),
-      deactivationAutomation: const AutomationData(),
+      activationAutomation: AutomationDocument.empty(),
+      deactivationAutomation: AutomationDocument.empty(),
     );
     await ProfileRepository(
       File('${directory.path}/conditional.yaml'),
@@ -153,15 +144,13 @@ void main() {
       triggers: [
         {
           'id': 'first-trigger',
-          'plugin': 'test',
-          'trigger': 'event',
-          'config': {},
-          'automation': const AutomationData().toJson(),
+
+          'automation': eventFixture(id: 'source', trigger: 'event').toJson(),
         },
       ],
       activationCondition: const {},
-      activationAutomation: const AutomationData(),
-      deactivationAutomation: const AutomationData(),
+      activationAutomation: AutomationDocument.empty(),
+      deactivationAutomation: AutomationDocument.empty(),
     );
     final file = File('${directory.path}/always.yaml');
     await ProfileRepository(file).save(first);
@@ -176,7 +165,7 @@ void main() {
     );
     addTearDown(manager.dispose);
     await manager.start();
-    expect(notifications.single.single['id'], 'first-trigger');
+    expect(notifications.single.single['profileTriggerId'], 'first-trigger');
 
     final second = ShowRunnerProfile(
       name: first.name,
@@ -191,7 +180,7 @@ void main() {
     await ProfileRepository(file).save(second);
     await manager.refresh();
 
-    expect(notifications.last.single['id'], 'second-trigger');
+    expect(notifications.last.single['profileTriggerId'], 'second-trigger');
     expect(notifications, hasLength(2));
   });
 
@@ -202,19 +191,11 @@ void main() {
         'profile-manager-',
       );
       addTearDown(() => directory.delete(recursive: true));
-      final failingAutomation = AutomationData(
-        graph: AutomationGraph(
-          nodes: [
-            GraphNode(
-              id: 'missing-action',
-              type: 'action',
-              x: 0,
-              y: 0,
-              data: {'plugin': 'missing', 'action': 'action'},
-            ),
-          ],
-          entryNodeId: 'missing-action',
-        ),
+      final failingAutomation = automationFixture(
+        nodes: [
+          actionFixture('missing-action', plugin: 'missing', action: 'action'),
+        ],
+        entryNodeId: 'missing-action',
       );
       await ProfileRepository(File('${directory.path}/broken.yaml')).save(
         ShowRunnerProfile(
@@ -223,7 +204,7 @@ void main() {
           triggers: const [],
           activationCondition: const {},
           activationAutomation: failingAutomation,
-          deactivationAutomation: const AutomationData(),
+          deactivationAutomation: AutomationDocument.empty(),
         ),
       );
 

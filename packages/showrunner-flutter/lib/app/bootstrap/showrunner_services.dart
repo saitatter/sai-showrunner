@@ -15,7 +15,7 @@ import '../../plugins/runtime/provider_event_workers.dart';
 import '../../plugins/showrunner/manifest.dart';
 import '../../runtime/action_queue.dart';
 import '../../runtime/automation_queue_manager.dart';
-import '../../runtime/graph_execution_engine.dart';
+import '../../graph/runtime/graph_execution_engine.dart';
 import '../../runtime/execution_trace.dart';
 import '../../runtime/profile_manager.dart';
 import '../../runtime/profile_runtime.dart';
@@ -100,6 +100,7 @@ final class ShowRunnerServices {
           automation: automation,
           context: context,
           registry: registry,
+          entryNodeId: item.source['entryNodeId'] as String?,
           traceSource: ExecutionTraceSource.fromMetadata({
             ...item.source,
             'itemId': item.id,

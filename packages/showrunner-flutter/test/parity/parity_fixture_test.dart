@@ -5,35 +5,38 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/profile_repository.dart';
 import 'package:showrunner_flutter/persistence/queue_config_repository.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/domain/automation_document.dart';
 
 void main() {
   const root = 'test/fixtures/parity';
 
-  test('loads the canonical automation fixtures as V2 documents', () async {
-    for (final path in [
-      '$root/automation_project/automation.json',
-      '$root/strict_v2_project/automation.json',
-    ]) {
-      final value = jsonDecode(await File(path).readAsString());
-      expect(value, isA<Map>());
-      final automation = AutomationData.fromJson(
-        Map<String, dynamic>.from(value as Map),
-      );
-      expect(automation.schemaVersion, 2);
-    }
-  });
+  test(
+    'loads the canonical automation fixtures as immutable graph documents',
+    () async {
+      for (final path in [
+        '$root/automation_project/automation.json',
+        '$root/immutable_document_project/automation.json',
+      ]) {
+        final value = jsonDecode(await File(path).readAsString());
+        expect(value, isA<Map>());
+        final automation = AutomationDocument.fromJson(
+          Map<String, dynamic>.from(value as Map),
+        );
+        expect(automation.toJson()['schemaVersion'], 1);
+      }
+    },
+  );
 
   test(
-    'loads the canonical profile fixture with V2 nested automations',
+    'loads the canonical profile fixture with canonical nested automations',
     () async {
       final profile = await ProfileRepository(
         File('$root/profile_project/profile.json'),
       ).load();
 
       expect(profile?.name, 'Parity Profile');
-      expect(profile?.activationAutomation.schemaVersion, 2);
-      expect(profile?.deactivationAutomation.schemaVersion, 2);
+      expect(profile?.activationAutomation.toJson()['schemaVersion'], 1);
+      expect(profile?.deactivationAutomation.toJson()['schemaVersion'], 1);
       expect(profile?.triggers.single['automation'], isA<Map>());
     },
   );

@@ -42,6 +42,7 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
               'integrations, overlays, or updates.',
         );
       }
+      stdout.writeln('Flutter smoke passed: $scenario');
       await Future<void>.delayed(const Duration(milliseconds: 250));
       // Smoke runs are already isolated and must not open the interactive
       // hide-to-tray/close dialog introduced for normal desktop shutdown.
@@ -55,26 +56,12 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
   }
 
   Future<void> _runAutomationSmoke() async {
-    final automation = AutomationData(
-      extra: const {'name': 'Packaged automation smoke'},
-      graph: AutomationGraph(
-        nodes: [
-          GraphNode(
-            id: 'convert',
-            type: 'action',
-            x: 80,
-            y: 80,
-            data: {
-              'plugin': 'ShowRunner',
-              'action': 'convertNumberToString',
-              'config': {'value': 42},
-              'resultMapping': {'value': 'smokeValue'},
-            },
-          ),
-        ],
-        entryNodeId: 'convert',
-      ),
-    );
+    final automation = _smokeActionDocument(
+      'convert',
+      'convertNumberToString',
+      {'value': 42},
+      'smokeValue',
+    ).withMetadata({'name': 'Packaged automation smoke'});
     final file = File(
       '${widget.dataService.userDirectory.path}/automations/smoke.yaml',
     );
@@ -99,33 +86,43 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
 
   Future<void> _runWorkflowSmoke() async {
     final registry = await _pluginRegistryFuture;
-    final editor = ShowRunnerGraphEditor(registry: registry);
-    ShowRunnerGraphEditor? reopenedEditor;
+    final editor = AutomationEditorController(
+      document: AutomationDocument.empty(),
+      registry: registry,
+    );
+    AutomationEditorController? reopenedEditor;
     try {
-      final conditionId = editor.addNodeType('if');
-      final actionId = editor.addNodeType('overlays.triggerWidget');
-      if (conditionId == null || actionId == null) {
-        throw StateError('Workflow smoke could not create its graph nodes.');
-      }
-      editor.updateNodeConfig(actionId, const {
-        'widgetId': 'workflow-widget',
-        'overlayId': 'workflow-overlay',
-        'payload': {'source': 'packaged-workflow'},
+      final conditionId = editor.addNode(
+        'showrunner.if',
+        const GraphPoint(40, 80),
+      );
+      final actionId = editor.addNode(
+        actionNodeType('overlays', 'triggerWidget'),
+        const GraphPoint(400, 80),
+      );
+      editor.graph.execute(
+        UpdateNodeDataCommand(mainAutomationSpace, actionId, {
+          'config': {
+            'widgetId': 'workflow-widget',
+            'overlayId': 'workflow-overlay',
+            'payload': {'source': 'packaged-workflow'},
+          },
+        }),
+      );
+      editor.graph.execute(
+        AddConnectionCommand(
+          mainAutomationSpace,
+          GraphConnection(
+            id: 'workflow-condition-action',
+            from: PortRef(nodeId: conditionId, portId: 'flow:then'),
+            to: PortRef(nodeId: actionId, portId: 'exec.in'),
+            kind: GraphConnectionKind.control,
+          ),
+        ),
+      );
+      final created = editor.document.withMetadata({
+        'name': 'Packaged workflow smoke',
       });
-      final link = editor.controller.addLink(
-        conditionId,
-        'then',
-        actionId,
-        'exec',
-        eventId: 'workflow-condition-action',
-      );
-      if (link == null) {
-        throw StateError('Workflow smoke could not connect its control flow.');
-      }
-
-      final created = editor.toAutomation(
-        const AutomationData(extra: {'name': 'Packaged workflow smoke'}),
-      );
       final file = File(
         '${widget.dataService.userDirectory.path}/automations/workflow.yaml',
       );
@@ -135,29 +132,21 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       if (loaded == null) {
         throw StateError('Workflow smoke could not reopen its saved graph.');
       }
-      final nodesByType = {
-        for (final node in loaded.graph.nodes) node.type: node,
-      };
-      final flowEdge = loaded.graph.edges
-          .where(
-            (edge) =>
-                edge.from == nodesByType['if']?.id &&
-                edge.to == nodesByType['action']?.id,
-          )
-          .firstOrNull;
-      if (loaded.graph.entryNodeId != nodesByType['if']?.id ||
-          nodesByType['if'] == null ||
-          nodesByType['action'] == null ||
-          flowEdge?.port != 'then') {
+      final space = loaded.graph.spaces[mainAutomationSpace]!;
+      final flowEdge = space.connections['workflow-condition-action'];
+      if (loaded.entryNodeId != conditionId ||
+          space.nodes.length != 2 ||
+          flowEdge?.from.portId != 'flow:then') {
         throw StateError(
-          'Workflow smoke did not persist the editor control-flow graph.',
+          'Workflow smoke did not persist the canonical control-flow graph.',
         );
       }
-
-      reopenedEditor = ShowRunnerGraphEditor(registry: registry)
-        ..loadAutomation(loaded);
-      if (reopenedEditor.controller.nodes.length != 2) {
-        throw StateError('Workflow smoke did not restore both graph nodes.');
+      reopenedEditor = AutomationEditorController(
+        document: loaded,
+        registry: registry,
+      );
+      if (reopenedEditor.graph.activeSpace!.nodes.length != 2) {
+        throw StateError('Workflow smoke lost nodes.');
       }
       final result = await _graphExecutionEngine.executeWithRegistry(
         automation: loaded,
@@ -176,24 +165,11 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
   }
 
   Future<void> _runProfileSmoke() async {
-    final activation = AutomationData(
-      graph: AutomationGraph(
-        nodes: [
-          GraphNode(
-            id: 'activate',
-            type: 'action',
-            x: 80,
-            y: 80,
-            data: {
-              'plugin': 'ShowRunner',
-              'action': 'convertBooleanToString',
-              'config': {'value': true},
-              'resultMapping': {'value': 'profileValue'},
-            },
-          ),
-        ],
-        entryNodeId: 'activate',
-      ),
+    final activation = _smokeActionDocument(
+      'activate',
+      'convertBooleanToString',
+      {'value': true},
+      'profileValue',
     );
     final profile = ShowRunnerProfile(
       name: 'Packaged profile smoke',
@@ -201,7 +177,7 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       triggers: const [],
       activationCondition: const {},
       activationAutomation: activation,
-      deactivationAutomation: const AutomationData(),
+      deactivationAutomation: AutomationDocument.empty(),
     );
     final file = File(
       '${widget.dataService.userDirectory.path}/profiles/smoke.yaml',
@@ -292,4 +268,39 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       throw StateError('Update smoke did not classify release states.');
     }
   }
+}
+
+AutomationDocument _smokeActionDocument(
+  String id,
+  String action,
+  JsonMap config,
+  String target,
+) {
+  final document = AutomationDocument.empty();
+  return AutomationDocument(
+    graph: document.graph.copyWith(
+      spaces: {
+        mainAutomationSpace: GraphSpace(
+          id: mainAutomationSpace,
+          nodes: {
+            id: GraphNode(
+              id: id,
+              type: actionNodeType('ShowRunner', action),
+              data: {
+                'config': config,
+                'resultMapping': {'value': target},
+              },
+            ),
+          },
+          nodePresentations: {
+            id: NodePresentation(
+              nodeId: id,
+              position: const GraphPoint(80, 80),
+            ),
+          },
+        ),
+      },
+    ),
+    settings: {'entryNodeId': id},
+  );
 }

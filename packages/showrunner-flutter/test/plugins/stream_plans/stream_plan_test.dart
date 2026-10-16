@@ -4,7 +4,8 @@ import 'package:showrunner_flutter/plugins/stream_plans/manifest.dart';
 import 'package:showrunner_flutter/plugins/stream_plans/contracts.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/schema/json.dart';
+import '../../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
 
 void main() {
@@ -102,7 +103,7 @@ void main() {
 
     expect(plan.name, 'Friday show');
     expect(plan.segments, hasLength(1));
-    expect(plan.segments.single.activationAutomation['schemaVersion'], 2);
+    expect(plan.segments.single.activationAutomation['schemaVersion'], 1);
     expect(plan.segments.single.components['twitch-stream-info'], isNotNull);
 
     final restored = StreamPlanData.fromConfig(plan.toConfig());
@@ -294,10 +295,9 @@ void main() {
     addTearDown(registry.close);
     final plan = StreamPlanData(
       name: 'Show',
-      activationAutomation: {
-        ..._automation('plan:activate'),
-        'queue': 'default',
-      },
+      activationAutomation: AutomationDocument.fromJson(
+        _automation('plan:activate'),
+      ).withSettings({'entryNodeId': 'record', 'queue': 'default'}).toJson(),
       deactivationAutomation: emptyInlineAutomation(),
       segments: const [],
     );
@@ -329,21 +329,9 @@ StreamPlanSegmentData _segment(
       : _automation(deactivation),
 );
 
-JsonMap _automation(String value) => AutomationData(
-  graph: AutomationGraph(
-    nodes: [
-      GraphNode(
-        id: 'record',
-        type: 'action',
-        x: 0,
-        y: 0,
-        data: {
-          'plugin': 'test',
-          'action': 'record',
-          'config': {'value': value},
-        },
-      ),
-    ],
-    entryNodeId: 'record',
-  ),
+JsonMap _automation(String value) => automationFixture(
+  nodes: [
+    actionFixture('record', config: {'value': value}),
+  ],
+  entryNodeId: 'record',
 ).toJson();

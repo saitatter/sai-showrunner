@@ -5,17 +5,21 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../editor/showrunner_graph_editor.dart';
+import '../../graph/controller/automation_editor_controller.dart';
+import '../../graph/domain/automation_document.dart';
+import '../../components/data_inputs/resource_schema.dart';
+import '../../graph/ui/inline_automation_graph.dart';
+import 'package:sai_nodes_core/sai_nodes_core.dart';
 import '../../app/app_feedback.dart';
 import '../../app/name_dialog.dart';
 import '../../design_system/tokens/tokens.dart';
-import '../graph/graph_workspace.dart';
+
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/registry/builtin_resource_specs.dart';
 import '../../runtime/expression.dart';
 import '../../plugins/obs/transport.dart';
 import '../../plugins/obs/overlay_source_service.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../schema/resource.dart';
 import '../../schema/stream_plan.dart';
 import '../../persistence/secret_settings_store.dart';
@@ -181,7 +185,7 @@ typedef DartResourceEditorRuntimeBuilder =
       ResourceData resource,
       Future<void> Function(ResourceData resource) onSave, {
       required Future<DartPluginRegistry> registryFuture,
-      required GraphResourceOptionsLoader resourceOptionsLoader,
+      required ResourceOptionsLoader resourceOptionsLoader,
     });
 
 final class DartResourceEditorDefinition implements DartResourceContract {

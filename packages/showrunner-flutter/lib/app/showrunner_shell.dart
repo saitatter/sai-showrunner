@@ -1,10 +1,11 @@
+import '../graph/domain/automation_document.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import 'commands/app_command.dart';
 import 'app_feedback.dart';
-import 'automation_document_manager.dart';
+import '../graph/controller/automation_document_sessions.dart';
 import '../app/startup_health.dart';
 import '../design_system/controls/controls.dart';
 import '../design_system/tokens/tokens.dart';
@@ -12,7 +13,9 @@ import 'project_panel.dart';
 import 'system_bar.dart';
 import 'workspace_registry.dart';
 import 'workspace_host.dart';
-import '../editor/showrunner_graph_editor.dart';
+import '../graph/controller/automation_editor_controller.dart';
+import '../graph/ui/automation_graph_workspace.dart';
+import '../graph/execution/showrunner_execution_visual_adapter.dart';
 import '../features/plugins/plugin_visibility.dart';
 import '../features/profile/profile_workspace.dart';
 import '../features/settings/interface_preferences.dart';
@@ -24,7 +27,6 @@ import '../plugins/stream_plans/manifest.dart';
 import '../plugins/variables/runtime.dart';
 import '../runtime/action_queue.dart';
 import '../runtime/automation_queue_manager.dart';
-import '../schema/automation.dart';
 import '../schema/resource.dart';
 import '../runtime/profile_runtime.dart';
 import '../services/showrunner_data_service.dart';
@@ -37,6 +39,9 @@ class ShowRunnerShell extends StatelessWidget {
     super.key,
     required this.dataService,
     required this.graphEditor,
+    this.graphCanvasKey,
+    this.graphExecution,
+    this.onRunGraph,
     required this.actionQueue,
     this.queueManager,
     required this.healthFuture,
@@ -102,7 +107,10 @@ class ShowRunnerShell extends StatelessWidget {
   });
 
   final ShowRunnerDataService dataService;
-  final ShowRunnerGraphEditor graphEditor;
+  final AutomationEditorController graphEditor;
+  final GlobalKey<AutomationGraphWorkspaceState>? graphCanvasKey;
+  final ShowrunnerExecutionVisualAdapter? graphExecution;
+  final Future<void> Function()? onRunGraph;
   final DartActionQueue actionQueue;
   final DartAutomationQueueManager? queueManager;
   final Future<StartupHealthSnapshot> healthFuture;
@@ -119,12 +127,12 @@ class ShowRunnerShell extends StatelessWidget {
   final bool showGraphEditor;
   final ValueChanged<WorkspaceId> onDestinationSelected;
   final Future<void> Function(String schemaNodeId)? onRunNode;
-  final FutureOr<void> Function(AutomationData automation, String fileName)
+  final FutureOr<void> Function(AutomationDocument automation, String fileName)
   onOpenAutomation;
   final FutureOr<void> Function(String fileName, String name)?
   onRenameAutomation;
   final FutureOr<void> Function(String fileName)? onDeleteAutomationItem;
-  final Future<void> Function(AutomationData automation, String fileName)
+  final Future<void> Function(AutomationDocument automation, String fileName)
   onRepairAutomation;
   final Future<void> Function() onCreateAutomation;
   final Future<void> Function(String fileName) onDeleteAutomation;
@@ -134,7 +142,7 @@ class ShowRunnerShell extends StatelessWidget {
   final ValueChanged<WorkspaceId>? onTabSelected;
   final FutureOr<void> Function(WorkspaceId)? onTabClosed;
   final void Function(int oldPosition, int newPosition)? onTabReordered;
-  final AutomationDocumentManager? automationDocuments;
+  final AutomationDocumentSessions? automationDocuments;
   final ValueChanged<String>? onAutomationSelected;
   final FutureOr<void> Function(String fileName)? onAutomationClosed;
   final void Function(int oldPosition, int newPosition)? onAutomationReordered;
@@ -189,6 +197,9 @@ class ShowRunnerShell extends StatelessWidget {
     final workspaceHost = WorkspaceHostContext(
       dataService: dataService,
       graphEditor: graphEditor,
+      graphCanvasKey: graphCanvasKey,
+      graphExecution: graphExecution,
+      onRunGraph: onRunGraph,
       actionQueue: actionQueue,
       queueManager: queueManager,
       healthFuture: healthFuture,

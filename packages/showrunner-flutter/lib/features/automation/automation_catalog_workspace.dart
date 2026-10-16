@@ -1,11 +1,11 @@
+import '../../graph/domain/automation_document.dart';
 import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../../persistence/automation_repository.dart';
-import '../../runtime/automation_recovery.dart';
-import '../../schema/automation.dart';
+import '../../graph/domain/automation_validation.dart';
 import '../../services/showrunner_data_service.dart';
 
 class AutomationCatalogWorkspace extends StatefulWidget {
@@ -21,9 +21,9 @@ class AutomationCatalogWorkspace extends StatefulWidget {
 
   final ShowRunnerDataService dataService;
   final Future<List<AutomationCatalogEntry>> Function()? entriesLoader;
-  final FutureOr<void> Function(AutomationData automation, String fileName)?
+  final FutureOr<void> Function(AutomationDocument automation, String fileName)?
   onOpen;
-  final Future<void> Function(AutomationData automation, String fileName)?
+  final Future<void> Function(AutomationDocument automation, String fileName)?
   onRepair;
   final Future<void> Function()? onCreate;
   final Future<void> Function(String fileName)? onDelete;
@@ -85,7 +85,7 @@ class _AutomationCatalogWorkspaceState
     if (mounted) _refresh();
   }
 
-  Future<void> _repair(AutomationData automation, String fileName) async {
+  Future<void> _repair(AutomationDocument automation, String fileName) async {
     if (widget.onRepair == null) return;
     await widget.onRepair!(automation, fileName);
     if (mounted) _refresh();
@@ -138,7 +138,7 @@ class _AutomationCatalogWorkspaceState
               final automation = entry.automation;
               final issues = automation == null
                   ? const <String>[]
-                  : validateAutomationGraph(automation);
+                  : validateAutomationDocument(automation);
               return ListTile(
                 leading: Icon(
                   entry.isValid && issues.isEmpty
@@ -146,13 +146,13 @@ class _AutomationCatalogWorkspaceState
                       : Icons.error_outline,
                 ),
                 title: Text(
-                  automation?.extra['name']?.toString() ?? entry.fileName,
+                  automation?.metadata['name']?.toString() ?? entry.fileName,
                 ),
                 subtitle: Text(
                   entry.isValid
                       ? issues.isEmpty
-                            ? '${automation!.graph.nodes.length} nodes, ${automation.graph.edges.length} links'
-                            : 'Needs repair: ${issues.first}'
+                            ? '${automation!.graph.spaces[mainAutomationSpace]!.nodes.length} nodes, ${automation.graph.spaces[mainAutomationSpace]!.connections.length} links'
+                            : 'Graph issues: ${issues.first}'
                       : 'Invalid automation: ${entry.error}',
                 ),
                 trailing: Row(
@@ -173,7 +173,7 @@ class _AutomationCatalogWorkspaceState
                       )
                     else if (entry.isValid && automation != null)
                       IconButton(
-                        tooltip: 'Repair automation graph',
+                        tooltip: 'Inspect graph issues',
                         icon: const Icon(Icons.build_circle_outlined),
                         onPressed: () => _repair(automation, entry.fileName),
                       ),

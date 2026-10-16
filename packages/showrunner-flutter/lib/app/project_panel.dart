@@ -1,3 +1,4 @@
+import '../graph/domain/automation_document.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,6 @@ import '../features/plugins/plugin_catalog_filter.dart';
 import '../features/plugins/plugin_metadata.dart';
 import '../features/settings/interface_preferences.dart';
 import '../plugins/registry/plugin_registry.dart';
-import '../schema/automation.dart';
 import '../schema/resource.dart';
 import '../services/project_catalog_service.dart';
 import 'workspace_registry.dart';

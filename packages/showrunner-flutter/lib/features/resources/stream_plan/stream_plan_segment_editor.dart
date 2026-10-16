@@ -17,7 +17,7 @@ class _StreamPlanSegmentCard extends StatefulWidget {
   final int index;
   final StreamPlanSegmentData segment;
   final Future<DartPluginRegistry>? registryFuture;
-  final GraphResourceOptionsLoader? resourceOptionsLoader;
+  final ResourceOptionsLoader? resourceOptionsLoader;
   final ValueChanged<StreamPlanSegmentData> onChanged;
   final VoidCallback onGraphDirty;
   final VoidCallback? onMoveUp;
@@ -29,34 +29,34 @@ class _StreamPlanSegmentCard extends StatefulWidget {
 }
 
 class _StreamPlanSegmentCardState extends State<_StreamPlanSegmentCard> {
-  ShowRunnerGraphEditor? _activationEditor;
-  ShowRunnerGraphEditor? _deactivationEditor;
+  AutomationEditorController? _activationEditor;
+  AutomationEditorController? _deactivationEditor;
 
   @override
   void initState() {
     super.initState();
     if (widget.registryFuture != null) {
-      _activationEditor =
-          ShowRunnerGraphEditor(
-            resourceOptionsLoader: widget.resourceOptionsLoader,
-          )..loadAutomation(
-            AutomationData.fromJson(widget.segment.activationAutomation),
-          );
-      _deactivationEditor =
-          ShowRunnerGraphEditor(
-            resourceOptionsLoader: widget.resourceOptionsLoader,
-          )..loadAutomation(
-            AutomationData.fromJson(widget.segment.deactivationAutomation),
-          );
-      _activationEditor!.documentDirty.addListener(_syncAutomationChanges);
-      _deactivationEditor!.documentDirty.addListener(_syncAutomationChanges);
+      _activationEditor = AutomationEditorController(
+        document: AutomationDocument.fromJson(
+          widget.segment.activationAutomation,
+        ),
+      );
+      _deactivationEditor = AutomationEditorController(
+        document: AutomationDocument.fromJson(
+          widget.segment.deactivationAutomation,
+        ),
+      );
+      _activationEditor!.graph.addDocumentListener(_graphChanged);
+      _deactivationEditor!.graph.addDocumentListener(_graphChanged);
     }
   }
 
+  void _graphChanged(GraphDocumentChange change) => _syncAutomationChanges();
+
   @override
   void dispose() {
-    _activationEditor?.documentDirty.removeListener(_syncAutomationChanges);
-    _deactivationEditor?.documentDirty.removeListener(_syncAutomationChanges);
+    _activationEditor?.graph.removeDocumentListener(_graphChanged);
+    _deactivationEditor?.graph.removeDocumentListener(_graphChanged);
     _activationEditor?.dispose();
     _deactivationEditor?.dispose();
     super.dispose();
@@ -74,18 +74,9 @@ class _StreamPlanSegmentCardState extends State<_StreamPlanSegmentCard> {
       name: segment.name,
       components: segment.components,
       activationAutomation:
-          _activationEditor
-              ?.toAutomation(
-                AutomationData.fromJson(segment.activationAutomation),
-              )
-              .toJson() ??
-          segment.activationAutomation,
+          _activationEditor?.document.toJson() ?? segment.activationAutomation,
       deactivationAutomation:
-          _deactivationEditor
-              ?.toAutomation(
-                AutomationData.fromJson(segment.deactivationAutomation),
-              )
-              .toJson() ??
+          _deactivationEditor?.document.toJson() ??
           segment.deactivationAutomation,
     );
   }
@@ -242,18 +233,19 @@ class _StreamPlanSegmentCardState extends State<_StreamPlanSegmentCard> {
     );
   }
 
-  Widget _inlineAutomation(String label, ShowRunnerGraphEditor editor) =>
+  Widget _inlineAutomation(String label, AutomationEditorController editor) =>
       ExpansionTile(
         key: ValueKey('stream-plan-segment-${widget.segment.id}-$label'),
         leading: const Icon(Icons.account_tree_outlined),
         title: Text(label),
-        subtitle: Text('${editor.controller.nodes.length} nodes'),
+        subtitle: Text('${editor.graph.activeSpace!.nodes.length} nodes'),
         children: [
           SizedBox(
             width: 720,
-            child: ShowRunnerInlineGraphEditor(
+            child: InlineAutomationGraph(
               editor: editor,
               registryFuture: widget.registryFuture!,
+              resourceOptionsLoader: widget.resourceOptionsLoader,
             ),
           ),
         ],

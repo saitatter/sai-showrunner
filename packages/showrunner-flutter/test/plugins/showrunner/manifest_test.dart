@@ -5,7 +5,7 @@ import 'package:showrunner_flutter/plugins/showrunner/contracts.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../../support/graph_fixtures.dart';
 
 void main() {
   test('decodes core ShowRunner actions through typed config contracts', () {
@@ -42,7 +42,9 @@ void main() {
     )..register('alerts', queue);
     addTearDown(manager.dispose);
 
-    final automation = AutomationData(extra: const {'name': 'Alert worker'});
+    final automation = AutomationDocument.empty().withMetadata({
+      'name': 'Alert worker',
+    });
     final registry = DartPluginRegistry()
       ..register(
         createShowRunnerPlugin(
@@ -127,9 +129,11 @@ void main() {
     () async {
       String? activatedProfile;
       String? activationMode;
-      AutomationData? executedAutomation;
+      AutomationDocument? executedAutomation;
       EvaluationContext? executedContext;
-      final automation = AutomationData(extra: const {'name': 'Reusable'});
+      final automation = AutomationDocument.empty().withMetadata({
+        'name': 'Reusable',
+      });
       final registry = DartPluginRegistry()
         ..register(
           createShowRunnerPlugin(

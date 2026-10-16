@@ -1,9 +1,11 @@
+import '../../graph/domain/automation_document.dart';
+import '../../graph/definitions/showrunner_graph_types.dart';
 import 'dart:io';
 
 import 'dart:async';
 
 import '../../runtime/expression.dart';
-import '../../runtime/graph_execution_engine.dart';
+import '../../graph/runtime/graph_execution_engine.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/http_provider_transports.dart';
 import '../obs/actions.dart';
@@ -15,7 +17,7 @@ import 'generic_plugin_ui.dart';
 import '../obs/connection_router.dart';
 import '../../services/oauth_token.dart';
 import '../../services/showrunner_data_service.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../twitch/actions.dart';
 import '../twitch/account_runtime.dart';
@@ -148,7 +150,22 @@ Future<List<String>> _loadRemoteButtonNames(
       ).load();
       if (profile == null) continue;
       for (final trigger in profile.triggers) {
-        _addRemoteButtonName(names, trigger);
+        final automation = AutomationDocument.fromJson(
+          Map<String, Object?>.from(trigger['automation'] as Map),
+        );
+        for (final node
+            in automation.graph.spaces[mainAutomationSpace]!.nodes.values) {
+          if (decodeContractNodeType(node.type, 'trigger') case (
+            'remote',
+            'button',
+          )) {
+            final config = node.data['config'];
+            final name = config is Map
+                ? config['name']?.toString().trim()
+                : null;
+            if (name != null && name.isNotEmpty) names.add(name);
+          }
+        }
       }
     } on Object {
       // A malformed profile should not make the remote button API unavailable.
@@ -157,7 +174,7 @@ Future<List<String>> _loadRemoteButtonNames(
   return names.toList(growable: false);
 }
 
-Future<AutomationData?> _loadAutomationResource(
+Future<AutomationDocument?> _loadAutomationResource(
   ShowRunnerDataService dataService,
   String automationId,
 ) async {
@@ -173,17 +190,6 @@ Future<AutomationData?> _loadAutomationResource(
   return AutomationRepository(
     File('${dataService.userDirectory.path}/automations/$fileName'),
   ).load();
-}
-
-void _addRemoteButtonName(Set<String> names, Object? trigger) {
-  if (trigger is! Map ||
-      trigger['plugin']?.toString() != 'remote' ||
-      trigger['trigger']?.toString() != 'button') {
-    return;
-  }
-  final config = trigger['config'];
-  final name = config is Map ? config['name']?.toString().trim() : null;
-  if (name?.isNotEmpty == true) names.add(name!);
 }
 
 void _registerTwitchStreamPlanComponent({

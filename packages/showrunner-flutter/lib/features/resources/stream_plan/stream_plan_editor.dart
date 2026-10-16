@@ -14,7 +14,7 @@ class StreamPlanEditorPage extends StatefulWidget {
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
   final Future<DartPluginRegistry>? registryFuture;
-  final GraphResourceOptionsLoader? resourceOptionsLoader;
+  final ResourceOptionsLoader? resourceOptionsLoader;
   final bool documentMode;
   final void Function(ResourceData resource, bool dirty)? onDocumentChanged;
 
@@ -25,35 +25,40 @@ class StreamPlanEditorPage extends StatefulWidget {
 class _StreamPlanEditorPageState extends State<StreamPlanEditorPage> {
   late final TextEditingController _name;
   late List<StreamPlanSegmentData> _segments;
+  late final StreamPlanData _initialPlan;
   late String _savedBaseline;
   final Map<String, GlobalKey<_StreamPlanSegmentCardState>> _segmentKeys = {};
-  ShowRunnerGraphEditor? _activationEditor;
-  ShowRunnerGraphEditor? _deactivationEditor;
+  AutomationEditorController? _activationEditor;
+  AutomationEditorController? _deactivationEditor;
 
   @override
   void initState() {
     super.initState();
-    final plan = StreamPlanData.fromConfig(widget.resource.config);
+    final plan = _initialPlan = StreamPlanData.fromConfig(
+      widget.resource.config,
+    );
     _name = TextEditingController(text: plan.name);
     _segments = List<StreamPlanSegmentData>.of(plan.segments);
-    _savedBaseline = jsonEncode(widget.resource.config);
     if (widget.registryFuture != null) {
-      _activationEditor = ShowRunnerGraphEditor(
-        resourceOptionsLoader: widget.resourceOptionsLoader,
-      )..loadAutomation(AutomationData.fromJson(plan.activationAutomation));
-      _deactivationEditor = ShowRunnerGraphEditor(
-        resourceOptionsLoader: widget.resourceOptionsLoader,
-      )..loadAutomation(AutomationData.fromJson(plan.deactivationAutomation));
-      _activationEditor!.documentDirty.addListener(_notifyDirty);
-      _deactivationEditor!.documentDirty.addListener(_notifyDirty);
+      _activationEditor = AutomationEditorController(
+        document: AutomationDocument.fromJson(plan.activationAutomation),
+      );
+      _deactivationEditor = AutomationEditorController(
+        document: AutomationDocument.fromJson(plan.deactivationAutomation),
+      );
+      _activationEditor!.graph.addDocumentListener(_graphChanged);
+      _deactivationEditor!.graph.addDocumentListener(_graphChanged);
     }
+    _savedBaseline = jsonEncode(_savedConfig());
   }
+
+  void _graphChanged(GraphDocumentChange change) => _notifyDirty();
 
   @override
   void dispose() {
     _name.dispose();
-    _activationEditor?.documentDirty.removeListener(_notifyDirty);
-    _deactivationEditor?.documentDirty.removeListener(_notifyDirty);
+    _activationEditor?.graph.removeDocumentListener(_graphChanged);
+    _deactivationEditor?.graph.removeDocumentListener(_graphChanged);
     _activationEditor?.dispose();
     _deactivationEditor?.dispose();
     super.dispose();
@@ -230,22 +235,14 @@ class _StreamPlanEditorPageState extends State<StreamPlanEditorPage> {
   }
 
   JsonMap _savedConfig() {
-    final plan = StreamPlanData.fromConfig(widget.resource.config);
+    final plan = _initialPlan;
     return {
       ...widget.resource.config,
       'name': _name.text.trim(),
       'activationAutomation':
-          _activationEditor
-              ?.toAutomation(AutomationData.fromJson(plan.activationAutomation))
-              .toJson() ??
-          plan.activationAutomation,
+          _activationEditor?.document.toJson() ?? plan.activationAutomation,
       'deactivationAutomation':
-          _deactivationEditor
-              ?.toAutomation(
-                AutomationData.fromJson(plan.deactivationAutomation),
-              )
-              .toJson() ??
-          plan.deactivationAutomation,
+          _deactivationEditor?.document.toJson() ?? plan.deactivationAutomation,
       'segments': _segments
           .map(
             (segment) =>
@@ -285,18 +282,19 @@ class _StreamPlanEditorPageState extends State<StreamPlanEditorPage> {
 
   Widget _inlineStreamPlanAutomation(
     String label,
-    ShowRunnerGraphEditor editor,
+    AutomationEditorController editor,
   ) => ExpansionTile(
     key: ValueKey('stream-plan-$label'),
     leading: const Icon(Icons.account_tree_outlined),
     title: Text(label),
-    subtitle: Text('${editor.controller.nodes.length} nodes'),
+    subtitle: Text('${editor.graph.activeSpace!.nodes.length} nodes'),
     children: [
       SizedBox(
         width: 720,
-        child: ShowRunnerInlineGraphEditor(
+        child: InlineAutomationGraph(
           editor: editor,
           registryFuture: widget.registryFuture!,
+          resourceOptionsLoader: widget.resourceOptionsLoader,
         ),
       ),
     ],

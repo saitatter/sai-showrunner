@@ -33,7 +33,15 @@ final class ShowrunnerNodeDefinitionProvider {
     refresh();
     plugins.addListener(refresh);
   }
-  final DartPluginRegistry plugins;
+  DartPluginRegistry plugins;
+  void bindRegistry(DartPluginRegistry registry) {
+    if (identical(registry, plugins)) return;
+    plugins.removeListener(refresh);
+    plugins = registry;
+    refresh();
+    plugins.addListener(refresh);
+  }
+
   final NodeDefinitionRegistry definitions = NodeDefinitionRegistry();
   final Map<String, Object> _contracts = {};
   DartDataInputSchema? schemaForField(String type, ResolvedField field) {
@@ -67,23 +75,21 @@ final class ShowrunnerNodeDefinitionProvider {
             trigger;
       }
     }
-    for (final type in _contracts.keys.toList()) {
-      if (!available.containsKey(type)) {
-        definitions.unregister(type);
-        _contracts.remove(type);
-      }
-    }
-    for (final entry in available.entries) {
-      if (identical(_contracts[entry.key], entry.value)) continue;
-      final value = entry.value;
-      definitions.register(
-        value is DartActionContract
-            ? _action(entry.key, value)
-            : _trigger(entry.key, value as DartTriggerContract),
-        replace: definitions[entry.key] != null,
-      );
-      _contracts[entry.key] = value;
-    }
+    final next = <NodeDefinition>[
+      for (final entry in definitions.definitions.entries)
+        if (!_contracts.containsKey(entry.key)) entry.value,
+      for (final entry in available.entries)
+        if (identical(_contracts[entry.key], entry.value))
+          definitions[entry.key]!
+        else
+          entry.value is DartActionContract
+              ? _action(entry.key, entry.value as DartActionContract)
+              : _trigger(entry.key, entry.value as DartTriggerContract),
+    ];
+    _contracts
+      ..clear()
+      ..addAll(available);
+    definitions.replaceAll(next);
   }
 
   List<DartDataInputSchema> schemaFields(DartDataInputSchema? schema) =>

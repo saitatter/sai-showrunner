@@ -1,3 +1,4 @@
+import 'graph/domain/automation_document.dart';
 import 'app/resource_document_manager.dart';
 import 'dart:async';
 import 'dart:io';
@@ -10,7 +11,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app/app_foundations.dart';
 import 'app/app_feedback.dart';
-import 'app/automation_document_manager.dart';
+import 'graph/controller/automation_document_sessions.dart';
 import 'app/bootstrap/showrunner_services.dart';
 import 'app/commands/app_command.dart';
 import 'app/commands/app_command_registrar.dart';
@@ -24,7 +25,14 @@ import 'app/single_instance_lock.dart';
 import 'app/window_configuration.dart';
 import 'app/workspace_document_manager.dart';
 import 'app/workspace_registry.dart';
-import 'editor/showrunner_graph_editor.dart';
+import 'graph/controller/automation_editor_controller.dart';
+import 'graph/domain/automation_factories.dart';
+import 'graph/definitions/showrunner_graph_types.dart';
+import 'graph/ui/automation_graph_workspace.dart';
+import 'graph/execution/showrunner_execution_visual_adapter.dart';
+import 'package:sai_nodes/sai_nodes.dart' show GraphSceneBuilder;
+import 'package:sai_nodes_core/sai_nodes_core.dart';
+import 'package:flutter/services.dart';
 import 'persistence/automation_repository.dart';
 import 'persistence/profile_repository.dart';
 import 'persistence/resource_repository.dart';
@@ -36,13 +44,12 @@ import 'plugins/variables/runtime.dart';
 import 'services/plugin_event_hub.dart';
 import 'plugins/runtime/provider_event_workers.dart';
 import 'plugins/twitch/account_runtime.dart';
-import 'runtime/graph_execution_engine.dart';
+import 'graph/runtime/graph_execution_engine.dart';
 import 'runtime/execution_trace.dart';
 import 'runtime/profile_runtime.dart';
 import 'runtime/profile_manager.dart';
 import 'runtime/automation_queue_manager.dart';
-import 'runtime/automation_recovery.dart';
-import 'schema/automation.dart';
+import 'schema/json.dart';
 import 'schema/profile.dart';
 import 'schema/resource.dart';
 import 'schema/stream_plan.dart';
@@ -54,7 +61,6 @@ import 'services/update_check_service.dart';
 import 'features/automation/automation_starters.dart';
 import 'features/profile/profile_workspace.dart';
 import 'features/settings/interface_preferences.dart';
-import 'features/resources/resource_options.dart';
 import 'features/resources/resource_editor_registry.dart';
 import 'features/setup/setup_workspace.dart';
 
@@ -63,6 +69,7 @@ part 'main_page_window.dart';
 part 'app/showrunner_smoke_scenarios.dart';
 part 'app/showrunner_document_commands.dart';
 part 'app/showrunner_project_commands.dart';
+part 'app/graph_document_commands.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -159,11 +166,6 @@ enum _CloseDecision { save, discard, cancel }
 
 enum _WindowCloseChoice { hide, close, cancel }
 
-Future<List<String>> _resourceOptions(
-  ShowRunnerDataService dataService,
-  String resourceType,
-) => loadResourceOptions(dataService, resourceType);
-
 class ShowRunnerPage extends StatefulWidget {
   const ShowRunnerPage({
     super.key,
@@ -187,13 +189,17 @@ class ShowRunnerPage extends StatefulWidget {
 }
 
 class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
-  late final ShowRunnerGraphEditor _graphEditor;
+  late final AutomationEditorController _scratchEditor;
+  AutomationEditorController get _graphEditor =>
+      _automationDocuments.active?.editor ?? _scratchEditor;
+  final _graphCanvasKey = GlobalKey<AutomationGraphWorkspaceState>();
+  late final ShowrunnerExecutionVisualAdapter _graphExecution;
   late final ShowRunnerServices _services;
   late final FlutterInterfacePreferences _interfacePreferences;
   late final AppCommandRegistry _commandRegistry;
   late final AppLifecycleCoordinator _lifecycle;
   ShowRunnerTrayController? _tray;
-  final _automationDocuments = AutomationDocumentManager();
+  final _automationDocuments = AutomationDocumentSessions();
   final _profileWorkspaceController = ProfileWorkspaceController();
   DartPluginRegistry? _stateRegistry;
   bool _disposed = false;
@@ -210,9 +216,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   final _overlayDocuments = ResourceDocumentManager();
   final _streamPlanDocuments = ResourceDocumentManager();
 
-  AutomationDocumentSession? get _activeAutomationSession =>
+  AutomationEditorSession? get _activeAutomationSession =>
       _automationDocuments.active;
-  AutomationData? get _activeAutomation => _activeAutomationSession?.data;
+  AutomationDocument? get _activeAutomation => _activeAutomationSession?.data;
   String? get _activeAutomationFile => _automationDocuments.activeFileName;
   bool _profileDirty = false;
 
@@ -237,22 +243,37 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   @override
   void initState() {
     super.initState();
-    _graphEditor = ShowRunnerGraphEditor(
-      resourceOptionsLoader: (resourceType) =>
-          _resourceOptions(widget.dataService, resourceType),
+    _scratchEditor = AutomationEditorController(
+      document: widget.loadSampleGraph
+          ? createSampleAutomation()
+          : AutomationDocument.empty(),
     );
-    _graphEditor.documentDirty.addListener(_onGraphDirtyChanged);
+    _scratchEditor.graph.addDocumentListener(_scratchChanged);
+    _automationDocuments.addListener(_onGraphDirtyChanged);
     if (Platform.isWindows) {
       windowManager.addListener(this);
       unawaited(windowManager.setPreventClose(true));
     }
-    if (widget.loadSampleGraph) _graphEditor.loadSampleGraph();
     _services = ShowRunnerServices.create(
       dataService: widget.dataService,
       onVariableChanged: (id, value) =>
           _stateRegistry?.updateDynamicState('variables', id, value),
       activateProfile: _activateProfileResource,
       smokeMode: widget.smokeScenario != null,
+    );
+    _graphExecution = ShowrunnerExecutionVisualAdapter(
+      service: _services.executionTrace,
+      source: ExecutionTraceSource(
+        type: 'automation',
+        id: _scratchEditor.document.id,
+      ),
+    );
+    unawaited(
+      _pluginRegistryFuture.then<void>((registry) {
+        if (!mounted || _disposed) return;
+        _scratchEditor.bindRegistry(registry);
+        _automationDocuments.bindRegistry(registry);
+      }),
     );
     unawaited(_services.start());
     unawaited(_bindProviderStateDiagnostics());
@@ -301,16 +322,16 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       onCloseWorkspace: _closeTab,
       onCloseOthers: _closeOtherTabs,
       onExit: _handleWindowClose,
-      canUndo: () => _graphEditor.controller.history.canUndo,
-      canRedo: () => _graphEditor.controller.history.canRedo,
-      onUndo: _graphEditor.controller.history.undo,
-      onRedo: _graphEditor.controller.history.redo,
-      onCopy: (context) => _graphEditor.copySelection(context: context),
-      onPaste: (context) => _graphEditor.pasteSelection(context: context),
-      onCut: (context) => _graphEditor.cutSelection(context: context),
+      canUndo: () => _graphEditor.graph.canUndo,
+      canRedo: () => _graphEditor.graph.canRedo,
+      onUndo: () => _graphEditor.graph.undo(),
+      onRedo: () => _graphEditor.graph.redo(),
+      onCopy: (context) => _copyGraph(),
+      onPaste: (context) => _pasteGraph(),
+      onCut: (context) => _copyGraph(cut: true),
       onFrameSelection: _frameSelectionFromCommand,
-      onFitGraph: _graphEditor.fitGraph,
-      onResetSample: _graphEditor.loadSampleGraph,
+      onFitGraph: () => _graphCanvasKey.currentState?.fitGraph(),
+      onResetSample: () => _graphEditor.load(createSampleAutomation()),
       onRunAutomation: _runAutomation,
       onOpenLogFolder: _openLogFolder,
     ).build();
@@ -331,9 +352,12 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _disposed = true;
     _providerEvents.removeListener(_syncProviderStateDiagnostics);
     _stateRegistry = null;
-    _graphEditor.documentDirty.removeListener(_onGraphDirtyChanged);
+    _scratchEditor.graph.removeDocumentListener(_scratchChanged);
+    _automationDocuments.removeListener(_onGraphDirtyChanged);
     if (Platform.isWindows) windowManager.removeListener(this);
-    _graphEditor.dispose();
+    _automationDocuments.dispose();
+    _scratchEditor.dispose();
+    _graphExecution.dispose();
     _interfacePreferences.dispose();
     final tray = _tray;
     _tray = null;
@@ -378,8 +402,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     );
   }
 
+  void _scratchChanged(GraphDocumentChange change) => _onGraphDirtyChanged();
+
   void _onGraphDirtyChanged() {
-    _automationDocuments.setActiveDirty(_graphEditor.documentDirty.value);
     if (!mounted) return;
     setState(() {});
   }
@@ -399,6 +424,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     return ShowRunnerShell(
       dataService: widget.dataService,
       graphEditor: _graphEditor,
+      graphCanvasKey: _graphCanvasKey,
+      graphExecution: _graphExecution,
+      onRunGraph: _runAutomation,
       actionQueue: _actionQueue,
       queueManager: _automationQueueManager,
       healthFuture: _healthFuture,
@@ -417,7 +445,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       openWorkspaces: _workspaceDocuments.openWorkspaces,
       selectedPluginId: _selectedPluginId,
       activeAutomationFile: _activeAutomationFile,
-      activeAutomationDirty: _graphEditor.documentDirty.value,
+      activeAutomationDirty: _graphEditor.isDirty,
       automationDocuments: _automationDocuments,
       profileController: _profileWorkspaceController,
       profileDirty: _profileDirty,
@@ -682,105 +710,50 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     );
   }
 
-  Future<void> _runAutomation() async {
-    final automation = _captureActiveAutomation();
-    if (automation == null) return;
-    _graphEditor.clearExecutionStates();
-    final source = automation.toJson()
-      ..['sourceType'] = 'automation'
-      ..['sourceId'] = _activeAutomationFile ?? 'active';
-    final item = _actionQueue.enqueue(source, <String, dynamic>{});
+  Future<void> _runAutomation() => _executeGraph();
+  Future<void> _runNode(String nodeId) => _executeGraph(entryNodeId: nodeId);
+  Future<void> _executeGraph({String? entryNodeId}) async {
+    final automation = _graphEditor.document;
+    final source = ExecutionTraceSource(
+      type: 'automation',
+      id: _activeAutomationFile ?? automation.id,
+    );
+    _graphExecution.setSource(source);
     try {
-      final registry = await _pluginRegistryFuture;
-      await _actionQueue.processNext((queued) async {
-        final loaded = AutomationData.fromJson(queued.source);
-        return _graphExecutionEngine.executeWithRegistry(
-          automation: loaded,
-          context: EvaluationContext(
-            cancellationToken: _actionQueue.runningCancellationToken,
-          ),
-          registry: registry,
+      final item = await _automationQueueManager.enqueue(
+        automation,
+        EvaluationContext(),
+        entryNodeId: entryNodeId,
+        queueId: automation.queueId,
+        sourceMetadata: {'sourceType': source.type, 'sourceId': source.id},
+      );
+      await _automationQueueManager.drain(automation.queueId);
+      if (item.status == 'failed') {
+        throw StateError(
+          item.errorUserMessage ?? item.error ?? 'Execution failed',
         );
-      });
+      }
       if (!mounted) return;
       showShowRunnerFeedback(
         context,
-        'Executed ${item.id}',
+        '${item.status == 'pending' ? 'Queued' : 'Executed'} ${item.id}',
         severity: ShowRunnerFeedbackSeverity.success,
       );
     } catch (error) {
-      _graphEditor.markActiveSchemaNodeFailed(error);
-      if (!mounted) return;
-      showShowRunnerFeedback(
-        context,
-        'Automation failed: $error',
-        severity: ShowRunnerFeedbackSeverity.error,
-      );
-    }
-  }
-
-  Future<void> _runNode(String schemaNodeId) async {
-    final automation = _captureActiveAutomation();
-    if (automation == null) return;
-    _graphEditor.clearExecutionStates();
-    final source = automation.toJson()
-      ..['sourceType'] = 'automation'
-      ..['sourceId'] = _activeAutomationFile ?? 'active';
-    final item = _actionQueue.enqueue(source, <String, dynamic>{});
-    try {
-      final registry = await _pluginRegistryFuture;
-      await _actionQueue.processNext((queued) async {
-        final loaded = AutomationData.fromJson(queued.source);
-        return _graphExecutionEngine.executeWithRegistry(
-          automation: loaded,
-          context: EvaluationContext(
-            cancellationToken: _actionQueue.runningCancellationToken,
-          ),
-          registry: registry,
-          entryNodeId: schemaNodeId,
+      if (mounted) {
+        showShowRunnerFeedback(
+          context,
+          'Automation failed: $error',
+          severity: ShowRunnerFeedbackSeverity.error,
         );
-      });
-      if (!mounted) return;
-      showShowRunnerFeedback(
-        context,
-        'Executed node from ${item.id}',
-        severity: ShowRunnerFeedbackSeverity.success,
-      );
-    } catch (error) {
-      _graphEditor.markActiveSchemaNodeFailed(error);
-      if (!mounted) return;
-      showShowRunnerFeedback(
-        context,
-        'Node execution failed: $error',
-        severity: ShowRunnerFeedbackSeverity.error,
-      );
+      }
     }
   }
 
   Future<void> _repairAutomation(
-    AutomationData automation,
+    AutomationDocument automation,
     String fileName,
-  ) async {
-    try {
-      await AutomationRepository(
-        File('${widget.dataService.userDirectory.path}/automations/$fileName'),
-      ).save(repairAutomation(automation));
-      if (!mounted) return;
-      setState(() {});
-      showShowRunnerFeedback(
-        context,
-        'Repaired $fileName',
-        severity: ShowRunnerFeedbackSeverity.success,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      showShowRunnerFeedback(
-        context,
-        'Unable to repair automation: $error',
-        severity: ShowRunnerFeedbackSeverity.error,
-      );
-    }
-  }
+  ) => _openAutomation(automation, fileName);
 
   Future<void> _openLogFolder() async {
     final directory = Directory(

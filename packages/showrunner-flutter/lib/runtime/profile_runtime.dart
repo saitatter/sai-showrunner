@@ -1,11 +1,13 @@
+import '../graph/domain/automation_document.dart';
+import '../graph/definitions/showrunner_graph_types.dart';
 import 'dart:async';
 
 import '../plugins/registry/plugin_registry.dart';
-import '../schema/automation.dart';
+import '../schema/json.dart';
 import '../schema/profile.dart';
 import 'expression.dart';
-import 'graph_execution_engine.dart';
-import 'graph_runtime.dart';
+import '../graph/runtime/graph_execution_engine.dart';
+import '../graph/runtime/graph_runtime.dart';
 import 'automation_queue_manager.dart';
 import 'execution_trace.dart';
 
@@ -35,7 +37,7 @@ final class DartProfileRuntime {
       _managedSessions.containsKey(profileId);
 
   bool shouldBeActive(ShowRunnerProfile profile, {EvaluationContext? context}) {
-    final runtimeContext = context ?? EvaluationContext();
+    final runtimeContext = _withRegistryState(context);
     return switch (profile.activationMode) {
       'always' || 'automation' => true,
       'manual' => false,
@@ -201,7 +203,9 @@ final class DartProfileRuntime {
     final typedPluginId = PluginId(pluginId);
     final typedTriggerId = TriggerId(triggerId);
     for (final target in _triggerTargets(profile)) {
-      if (triggerEntry != null && !identical(target.entry, triggerEntry)) {
+      if (triggerEntry != null &&
+          (target.entry['id'] != triggerEntry['id'] ||
+              target.entry['documentId'] != triggerEntry['documentId'])) {
         continue;
       }
       if (target.pluginId != typedPluginId ||
@@ -372,50 +376,27 @@ final class DartProfileRuntime {
     ShowRunnerProfile profile,
   ) sync* {
     for (final trigger in profile.triggers) {
-      final rawAutomation = trigger['automation'];
-      if (rawAutomation is! Map) continue;
-      final automation = AutomationData.fromJson(
-        Map<String, dynamic>.from(rawAutomation),
+      final automation = AutomationDocument.fromJson(
+        Map<String, Object?>.from(trigger['automation'] as Map),
       );
-      if (automation.triggerNodes.isNotEmpty) {
-        for (final node in automation.triggerNodes) {
-          final rawPluginId = node['plugin'] as String?;
-          final rawTriggerId = node['trigger'] as String?;
-          final nodeId = node['id']?.toString();
-          if (rawPluginId == null ||
-              rawTriggerId == null ||
-              nodeId == null ||
-              nodeId.isEmpty) {
-            continue;
-          }
-          final pluginId = PluginId(rawPluginId);
-          final triggerId = TriggerId(rawTriggerId);
-          yield (
-            pluginId: pluginId,
-            triggerId: triggerId,
-            config: _triggerConfig(node['config']),
-            entry: {
-              ...trigger,
-              'id': nodeId,
-              'plugin': pluginId.value,
-              'trigger': triggerId.value,
-              'config': _triggerConfig(node['config']),
-              'stop': node['stop'] ?? trigger['stop'],
-            },
-          );
-        }
-        continue;
-      }
-      final rawPluginId = trigger['plugin'] as String?;
-      final rawTriggerId = trigger['trigger'] as String?;
-      if (rawPluginId != null && rawTriggerId != null) {
-        final pluginId = PluginId(rawPluginId);
-        final triggerId = TriggerId(rawTriggerId);
+      for (final node
+          in automation.graph.spaces[mainAutomationSpace]!.nodes.values) {
+        final contract = decodeContractNodeType(node.type, 'trigger');
+        if (contract == null) continue;
         yield (
-          pluginId: pluginId,
-          triggerId: triggerId,
-          config: _triggerConfig(trigger['config']),
-          entry: trigger,
+          pluginId: PluginId(contract.$1),
+          triggerId: TriggerId(contract.$2),
+          config: _triggerConfig(node.data['config']),
+          entry: {
+            ...trigger,
+            'id': node.id,
+            'documentId': automation.id,
+            'plugin': contract.$1,
+            'trigger': contract.$2,
+            'config': _triggerConfig(node.data['config']),
+            'stop': node.data['stop'] == true,
+            'queue': automation.queueId,
+          },
         );
       }
     }
@@ -467,10 +448,10 @@ final class DartProfileRuntime {
     final rawAutomation = target.entry['automation'];
     if (rawAutomation is! Map) {
       throw const FormatException(
-        'Profile trigger must contain a V2 automation document.',
+        'Profile trigger must contain a version-1 automation document.',
       );
     }
-    final automation = AutomationData.fromJson(
+    final automation = AutomationDocument.fromJson(
       Map<String, dynamic>.from(rawAutomation),
     );
     final sourceSubId = target.entry['id']?.toString();
@@ -483,12 +464,14 @@ final class DartProfileRuntime {
           ...?context?.contextState,
           ...payload,
           'event': payload,
+          'trigger': payload,
         },
         cancellationToken: context?.cancellationToken,
       ),
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
       queueId: target.entry['queue']?.toString(),
+      entryNodeId: target.entry['id']?.toString(),
       sourceMetadata: {
         'sourceType': 'profile',
         'sourceId': profileId,
@@ -499,9 +482,10 @@ final class DartProfileRuntime {
   }
 
   Future<GraphExecutionResult> _runAutomation(
-    AutomationData automation,
+    AutomationDocument automation,
     EvaluationContext context, {
     String? queueId,
+    String? entryNodeId,
     RuntimeMap? sourceMetadata,
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
@@ -514,6 +498,7 @@ final class DartProfileRuntime {
         context,
         queueId: effectiveQueueId,
         sourceMetadata: sourceMetadata,
+        entryNodeId: entryNodeId,
       );
       return GraphExecutionResult(
         completed: true,
@@ -529,6 +514,7 @@ final class DartProfileRuntime {
     }
     return executionEngine.executeWithRegistry(
       automation: automation,
+      entryNodeId: entryNodeId,
       context: context,
       registry: registry,
       onNodeEnter: onNodeEnter,

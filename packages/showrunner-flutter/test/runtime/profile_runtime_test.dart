@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/showrunner/manifest.dart';
@@ -7,30 +6,9 @@ import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/runtime/profile_runtime.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
-import 'package:showrunner_flutter/runtime/graph_runtime.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
-
-JsonMap _profileTrigger({
-  required String id,
-  required String plugin,
-  required String trigger,
-  required JsonMap graph,
-  JsonMap config = const {},
-}) => {
-  'id': id,
-  'plugin': plugin,
-  'trigger': trigger,
-  'config': config,
-  'automation': {
-    'schemaVersion': 2,
-    'graph': graph,
-    'subgraphs': [],
-    'dataWires': [],
-    'variableNodes': [],
-    'triggerNodes': [],
-  },
-};
+import '../support/graph_fixtures.dart';
 
 void main() {
   test('empty activation conditions mean always on', () {
@@ -78,382 +56,14 @@ void main() {
     );
   });
 
-  test('runs activation and deactivation automations on transitions', () async {
-    final calls = <String>[];
-    final registry = DartPluginRegistry()
-      ..register(
-        DartPluginManifest(
-          id: PluginId('test'),
-          name: 'Test',
-          actions: [
-            ActionSpec<Map<String, dynamic>, Object?>(
-              pluginId: PluginId('test'),
-              actionId: ActionId('record'),
-              invoke: (config, context) async {
-                calls.add(config['value'] as String);
-                return null;
-              },
-            ),
-          ],
-        ),
-      );
-    GraphNode node(String id, String value) => GraphNode(
-      id: id,
-      type: 'action',
-      x: 0,
-      y: 0,
-      data: {
-        'plugin': 'test',
-        'action': 'record',
-        'config': {'value': value},
-      },
-    );
-    AutomationData automation(String id, String value) => AutomationData(
-      graph: AutomationGraph(nodes: [node(id, value)], entryNodeId: id),
-    );
-    final profile = ShowRunnerProfile(
-      name: 'Main',
-      activationMode: 'toggle',
-      triggers: const [],
-      activationCondition: {
-        'type': 'group',
-        'operator': 'or',
-        'operands': [
-          {
-            'type': 'value',
-            'operator': 'equal',
-            'lhs': {'type': 'state', 'plugin': 'state', 'state': 'enabled'},
-            'rhs': {'type': 'value', 'value': true},
-          },
-        ],
-      },
-      activationAutomation: automation('activate', 'activated'),
-      deactivationAutomation: automation('deactivate', 'deactivated'),
-    );
-    final runtime = DartProfileRuntime(registry: registry);
-
-    await runtime.reconcile(
-      'main',
-      profile,
-      context: EvaluationContext(
-        contextState: {
-          'state': {'enabled': true},
-        },
-      ),
-    );
-    expect(calls, ['activated']);
-    expect(runtime.isActive('main'), isTrue);
-
-    await runtime.reconcile(
-      'main',
-      profile,
-      context: EvaluationContext(
-        contextState: {
-          'state': {'enabled': false},
-        },
-      ),
-    );
-    expect(calls, ['activated', 'deactivated']);
-    expect(runtime.isActive('main'), isFalse);
-  });
-
-  test('routes active trigger events to the matching inline graph', () async {
-    final payloads = <dynamic>[];
-    final registry = DartPluginRegistry()
-      ..register(
-        DartPluginManifest(
-          id: PluginId('test'),
-          name: 'Test',
-          actions: [
-            ActionSpec<Map<String, dynamic>, Object?>(
-              pluginId: PluginId('test'),
-              actionId: ActionId('record'),
-              invoke: (config, context) async {
-                payloads.add(context.contextState['event']);
-                return null;
-              },
-            ),
-          ],
-        ),
-      );
-    final profile = ShowRunnerProfile(
-      name: 'Main',
-      activationMode: 'always',
-      triggers: [
-        _profileTrigger(
-          id: 'chat-trigger',
-          plugin: 'test',
-          trigger: 'chat',
-          graph: {
-            'nodes': [
-              {
-                'id': 'record',
-                'type': 'action',
-                'x': 0,
-                'y': 0,
-                'plugin': 'test',
-                'action': 'record',
-                'config': {},
-              },
-            ],
-            'edges': [],
-            'entryNodeId': 'record',
-          },
-        ),
-      ],
-      activationCondition: const {},
-      activationAutomation: AutomationData(),
-      deactivationAutomation: AutomationData(),
-    );
-    final runtime = DartProfileRuntime(registry: registry);
-    await runtime.activate('main', profile);
-    await runtime.handleTrigger('main', profile, 'test', 'chat', {
-      'message': 'hi',
-    });
-
-    expect(payloads, [
-      {'message': 'hi'},
-    ]);
-  });
-
-  test('queues a profile trigger in the configured resource queue', () async {
-    final calls = <String>[];
-    final registry = DartPluginRegistry()
-      ..register(
-        DartPluginManifest(
-          id: PluginId('test'),
-          name: 'Test',
-          actions: [
-            ActionSpec<Map<String, dynamic>, Object?>(
-              pluginId: PluginId('test'),
-              actionId: ActionId('record'),
-              invoke: (config, context) async {
-                calls.add(context.contextState['event']['message'] as String);
-                return null;
-              },
-            ),
-          ],
-        ),
-      );
-    final defaultQueue = DartActionQueue();
-    final alertsQueue = DartActionQueue()..setPaused(true);
-    final queueManager = DartAutomationQueueManager(
-      defaultQueue: defaultQueue,
-      execute: (automation, context, item) =>
-          const DartGraphRuntime().executeWithRegistry(
-            graph: automation.graph,
-            context: context,
-            registry: registry,
-            dataWires: automation.dataWires,
-            subgraphs: automation.subgraphs,
-          ),
-    )..register('alerts', alertsQueue);
-    addTearDown(queueManager.dispose);
-    final profile = ShowRunnerProfile(
-      name: 'Queued',
-      activationMode: 'always',
-      triggers: [
-        {
-          ..._profileTrigger(
-            id: 'chat-trigger',
-            plugin: 'test',
-            trigger: 'chat',
-            graph: {
-              'nodes': [
-                {
-                  'id': 'record',
-                  'type': 'action',
-                  'plugin': 'test',
-                  'action': 'record',
-                },
-              ],
-              'entryNodeId': 'record',
-            },
-          ),
-          'queue': 'alerts',
-        },
-      ],
-      activationCondition: const {},
-      activationAutomation: const AutomationData(),
-      deactivationAutomation: const AutomationData(),
-    );
-    final runtime = DartProfileRuntime(
-      registry: registry,
-      queueManager: queueManager,
-    );
-    await runtime.activate('queued', profile);
-    final result = await runtime.handleTrigger(
-      'queued',
-      profile,
-      'test',
-      'chat',
-      {'message': 'hello'},
-    );
-
-    expect(result?.outputValues['queued'], isTrue);
-    expect(alertsQueue.pending, hasLength(1));
-    expect(calls, isEmpty);
-
-    alertsQueue.setPaused(false);
-    await queueManager.drain('alerts');
-    expect(calls, ['hello']);
-  });
-
-  test(
-    'routes multiple persisted trigger nodes to one executable graph',
-    () async {
-      final payloads = <dynamic>[];
-      final registry = DartPluginRegistry()
-        ..register(
-          DartPluginManifest(
-            id: PluginId('test'),
-            name: 'Test',
-            actions: [
-              ActionSpec<Map<String, dynamic>, Object?>(
-                pluginId: PluginId('test'),
-                actionId: ActionId('record'),
-                invoke: (config, context) async {
-                  payloads.add(context.contextState['event']);
-                  return null;
-                },
-              ),
-            ],
-          ),
-        );
-      final profile = ShowRunnerProfile(
-        name: 'Main',
-        activationMode: 'always',
-        triggers: [
-          _profileTrigger(
-            id: 'chat-trigger',
-            plugin: 'test',
-            trigger: 'chat',
-            graph: {
-              'nodes': [
-                {
-                  'id': 'record',
-                  'type': 'action',
-                  'x': 0,
-                  'y': 0,
-                  'plugin': 'test',
-                  'action': 'record',
-                  'config': {},
-                },
-              ],
-              'entryNodeId': 'record',
-            },
-          ),
-          _profileTrigger(
-            id: 'keyword-trigger',
-            plugin: 'test',
-            trigger: 'keyword',
-            graph: {
-              'nodes': [
-                {
-                  'id': 'record',
-                  'type': 'action',
-                  'x': 0,
-                  'y': 0,
-                  'plugin': 'test',
-                  'action': 'record',
-                  'config': {},
-                },
-              ],
-              'entryNodeId': 'record',
-            },
-          ),
-        ],
-        activationCondition: const {},
-        activationAutomation: AutomationData(),
-        deactivationAutomation: AutomationData(),
-      );
-      final runtime = DartProfileRuntime(registry: registry);
-      await runtime.activate('main', profile);
-
-      await runtime.handleTrigger('main', profile, 'test', 'chat', {
-        'message': 'hello',
-      });
-      await runtime.handleTrigger('main', profile, 'test', 'keyword', {
-        'word': 'launch',
-      });
-
-      expect(payloads, [
-        {'message': 'hello'},
-        {'word': 'launch'},
-      ]);
-    },
-  );
-
-  test('watch subscribes and disposes profile trigger streams', () async {
-    final events = StreamController<RuntimeMap>.broadcast();
-    addTearDown(events.close);
-    var executions = 0;
-    final registry = DartPluginRegistry()
-      ..register(
-        DartPluginManifest(
-          id: PluginId('test'),
-          name: 'Test',
-          actions: [
-            ActionSpec<Map<String, dynamic>, Object?>(
-              pluginId: PluginId('test'),
-              actionId: ActionId('record'),
-              invoke: (config, context) async {
-                executions++;
-                return null;
-              },
-            ),
-          ],
-          triggers: [
-            TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-              pluginId: PluginId('test'),
-              triggerId: TriggerId('chat'),
-              displayName: 'Chat',
-              listen: () => events.stream,
-            ),
-          ],
-        ),
-      );
-    final profile = ShowRunnerProfile(
-      name: 'Main',
-      activationMode: 'always',
-      triggers: [
-        _profileTrigger(
-          id: 'chat-trigger',
-          plugin: 'test',
-          trigger: 'chat',
-          graph: {
-            'nodes': [
-              {
-                'id': 'record',
-                'type': 'action',
-                'plugin': 'test',
-                'action': 'record',
-              },
-            ],
-            'entryNodeId': 'record',
-          },
-        ),
-      ],
-      activationCondition: const {},
-      activationAutomation: AutomationData(),
-      deactivationAutomation: AutomationData(),
-    );
-    final runtime = DartProfileRuntime(registry: registry);
-    await runtime.activate('main', profile);
-    final session = runtime.watch('main', profile);
-
-    events.add({});
-    await Future<void>.delayed(Duration.zero);
-    expect(executions, 1);
-    await session.dispose();
-    events.add({});
-    await Future<void>.delayed(Duration.zero);
-    expect(executions, 1);
-  });
-
-  test('reacts to state changes for autoRun and condition triggers', () async {
-    final calls = <String>[];
-    final registry = DartPluginRegistry()
+  late DartPluginRegistry registry;
+  late DartProfileRuntime runtime;
+  late StreamController<RuntimeMap> events;
+  late List<Object?> calls;
+  setUp(() {
+    calls = [];
+    events = StreamController<RuntimeMap>.broadcast();
+    registry = DartPluginRegistry()
       ..register(
         DartPluginManifest(
           id: PluginId('test'),
@@ -466,320 +76,275 @@ void main() {
             ),
           ],
           actions: [
-            ActionSpec<Map<String, dynamic>, Object?>(
+            ActionSpec<RuntimeMap, Object?>(
               pluginId: PluginId('test'),
               actionId: ActionId('record'),
               invoke: (config, context) async {
-                calls.add(config['value'] as String);
-                return null;
+                calls.add(config['value'] ?? context.contextState['message']);
+                return config;
               },
+            ),
+          ],
+          triggers: [
+            TriggerSpec<RuntimeMap, RuntimeMap>(
+              pluginId: PluginId('test'),
+              triggerId: TriggerId('chat'),
+              displayName: 'Chat',
+              listen: () => events.stream,
             ),
           ],
         ),
       )
       ..register(createShowRunnerPlugin());
-
-    JsonMap trigger(String id, String type, String value, JsonMap config) =>
-        _profileTrigger(
-          id: id,
-          plugin: 'ShowRunner',
-          trigger: type,
-          config: config,
-          graph: {
-            'nodes': [
-              {
-                'id': 'record',
-                'type': 'action',
-                'plugin': 'test',
-                'action': 'record',
-                'config': {'value': value},
-              },
-            ],
-            'entryNodeId': 'record',
-          },
-        );
-    final profile = ShowRunnerProfile(
-      name: 'Reactive',
-      activationMode: 'always',
-      triggers: [
-        trigger('auto', 'autoRun', 'auto', const {}),
-        trigger('condition', 'condition', 'condition', {
-          'condition': {
-            'type': 'value',
-            'operator': 'equal',
-            'lhs': {'type': 'state', 'plugin': 'test', 'state': 'enabled'},
-            'rhs': {'type': 'value', 'value': true},
-          },
-          'runImmediately': false,
-        }),
-      ],
-      activationCondition: const {},
-      activationAutomation: const AutomationData(),
-      deactivationAutomation: const AutomationData(),
-    );
-    final runtime = DartProfileRuntime(registry: registry);
-    await runtime.activate('reactive', profile);
-    final session = runtime.watch('reactive', profile);
-    await Future<void>.delayed(Duration.zero);
-    expect(calls, ['auto']);
-
-    registry.updateState('test', 'enabled', true);
-    await Future<void>.delayed(Duration.zero);
-    expect(calls, ['auto', 'auto', 'condition']);
-
-    registry.updateState('test', 'enabled', true);
-    await Future<void>.delayed(Duration.zero);
-    expect(calls, ['auto', 'auto', 'condition']);
-
-    await session.dispose();
-    registry.updateState('test', 'enabled', false);
-    registry.updateState('test', 'enabled', true);
-    await Future<void>.delayed(Duration.zero);
-    expect(calls, ['auto', 'auto', 'condition']);
+    runtime = DartProfileRuntime(registry: registry);
   });
-
-  test('watch executes every repeated persisted trigger target', () async {
-    final events = StreamController<RuntimeMap>.broadcast();
-    addTearDown(events.close);
-    var executions = 0;
-    final registry = DartPluginRegistry()
-      ..register(
-        DartPluginManifest(
-          id: PluginId('test'),
-          name: 'Test',
-          actions: [
-            ActionSpec<Map<String, dynamic>, Object?>(
-              pluginId: PluginId('test'),
-              actionId: ActionId('record'),
-              invoke: (config, context) async {
-                executions++;
-                return null;
-              },
-            ),
-          ],
-          triggers: [
-            TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-              pluginId: PluginId('test'),
-              triggerId: TriggerId('chat'),
-              displayName: 'Chat',
-              listen: () => events.stream,
-            ),
-          ],
-        ),
-      );
-    final profile = ShowRunnerProfile(
-      name: 'Main',
-      activationMode: 'always',
-      triggers: [
-        _profileTrigger(
-          id: 'chat-one',
-          plugin: 'test',
-          trigger: 'chat',
-          graph: {
-            'nodes': [
-              {
-                'id': 'record',
-                'type': 'action',
-                'plugin': 'test',
-                'action': 'record',
-              },
-            ],
-            'entryNodeId': 'record',
-          },
-        ),
-        _profileTrigger(
-          id: 'chat-two',
-          plugin: 'test',
-          trigger: 'chat',
-          graph: {
-            'nodes': [
-              {
-                'id': 'record',
-                'type': 'action',
-                'plugin': 'test',
-                'action': 'record',
-              },
-            ],
-            'entryNodeId': 'record',
-          },
-        ),
-      ],
-      activationCondition: const {},
-      activationAutomation: AutomationData(),
-      deactivationAutomation: AutomationData(),
-    );
-    final runtime = DartProfileRuntime(registry: registry);
-    await runtime.activate('main', profile);
-    final session = runtime.watch('main', profile);
-
-    events.add({});
-    await Future<void>.delayed(Duration.zero);
-    expect(executions, 2);
-    await session.dispose();
+  tearDown(() async {
+    await runtime.dispose();
+    await events.close();
+    await registry.close();
   });
 
   test(
-    'watch supports graph trigger nodes inside a profile automation',
+    'runs activation and deactivation automations on condition transitions',
     () async {
-      final events = StreamController<RuntimeMap>.broadcast();
-      addTearDown(events.close);
-      var executions = 0;
-      final registry = DartPluginRegistry()
-        ..register(
-          DartPluginManifest(
-            id: PluginId('test'),
-            name: 'Test',
-            actions: [
-              ActionSpec<Map<String, dynamic>, Object?>(
-                pluginId: PluginId('test'),
-                actionId: ActionId('record'),
-                invoke: (config, context) async {
-                  executions++;
-                  return null;
-                },
-              ),
-            ],
-            triggers: [
-              TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-                pluginId: PluginId('test'),
-                triggerId: TriggerId('chat'),
-                displayName: 'Chat',
-                listen: () => events.stream,
-              ),
-            ],
-          ),
-        );
-      final profile = ShowRunnerProfile(
-        name: 'Graph trigger profile',
-        activationMode: 'always',
-        triggers: [
-          {
-            'id': 'automation-trigger',
-            'automation': {
-              'schemaVersion': 2,
-              'graph': {
-                'nodes': [
-                  {
-                    'id': 'record',
-                    'type': 'action',
-                    'plugin': 'test',
-                    'action': 'record',
-                  },
-                ],
-                'edges': [],
-                'entryNodeId': 'record',
-              },
-              'subgraphs': [],
-              'dataWires': [],
-              'variableNodes': [],
-              'triggerNodes': [
-                {
-                  'id': 'graph-trigger',
-                  'plugin': 'test',
-                  'trigger': 'chat',
-                  'config': {},
-                },
-              ],
-            },
-          },
-        ],
-        activationCondition: const {},
-        activationAutomation: const AutomationData(),
-        deactivationAutomation: const AutomationData(),
+      final profile = profileFixture(
+        activation: automationFixture(
+          nodes: [
+            actionFixture('on', config: {'value': 'on'}),
+          ],
+          entryNodeId: 'on',
+        ),
+        deactivation: automationFixture(
+          nodes: [
+            actionFixture('off', config: {'value': 'off'}),
+          ],
+          entryNodeId: 'off',
+        ),
+        condition: {
+          'type': 'value',
+          'operator': 'equal',
+          'lhs': {'type': 'state', 'plugin': 'test', 'state': 'enabled'},
+          'rhs': {'type': 'value', 'value': true},
+        },
       );
-      final runtime = DartProfileRuntime(registry: registry);
-      await runtime.activate('graph', profile);
-      final session = runtime.watch('graph', profile);
-
-      events.add({'message': 'hello'});
-      await Future<void>.delayed(Duration.zero);
-      expect(executions, 1);
-      await session.dispose();
+      registry.updateState('test', 'enabled', true);
+      await runtime.reconcile('p', profile);
+      expect(runtime.isActive('p'), true);
+      registry.updateState('test', 'enabled', false);
+      await runtime.reconcile('p', profile);
+      expect(runtime.isActive('p'), false);
+      expect(calls, ['on', 'off']);
     },
   );
-
-  test('honors stop propagation for shared profile trigger streams', () async {
-    final events = StreamController<RuntimeMap>.broadcast();
-    addTearDown(events.close);
-    final calls = <String>[];
-    final registry = DartPluginRegistry()
-      ..register(
-        DartPluginManifest(
-          id: PluginId('test'),
-          name: 'Test',
-          actions: [
-            ActionSpec<Map<String, dynamic>, Object?>(
-              pluginId: PluginId('test'),
-              actionId: ActionId('record'),
-              invoke: (config, context) async {
-                calls.add(config['value'] as String);
-                return null;
-              },
-            ),
-          ],
-          triggers: [
-            TriggerSpec<Map<String, dynamic>, Map<String, dynamic>>(
-              pluginId: PluginId('test'),
-              triggerId: TriggerId('chat'),
-              displayName: 'Chat',
-              listen: () => events.stream,
-            ),
-          ],
-        ),
-      );
-    final profile = ShowRunnerProfile(
-      name: 'Stop propagation',
-      activationMode: 'always',
-      triggers: [
-        {
-          ..._profileTrigger(
-            id: 'stop-first',
-            plugin: 'test',
-            trigger: 'chat',
-            graph: {
-              'nodes': [
-                {
-                  'id': 'record',
-                  'type': 'action',
-                  'plugin': 'test',
-                  'action': 'record',
-                  'config': {'value': 'first'},
-                },
-              ],
-              'entryNodeId': 'record',
-            },
+  test(
+    'routes active trigger events to their actual trigger node and payload',
+    () async {
+      final profile = profileFixture(
+        events: [
+          eventFixture(
+            id: 'event',
+            nodes: [actionFixture('record')],
+            next: 'record',
           ),
-          'stop': true,
-        },
-        _profileTrigger(
-          id: 'stop-second',
-          plugin: 'test',
-          trigger: 'chat',
-          graph: {
-            'nodes': [
-              {
-                'id': 'record',
-                'type': 'action',
-                'plugin': 'test',
-                'action': 'record',
-                'config': {'value': 'second'},
-              },
+        ],
+      );
+      expect(
+        await runtime.handleTrigger('p', profile, 'test', 'chat', {
+          'message': 'ignored',
+        }),
+        isNull,
+      );
+      await runtime.activate('p', profile);
+      await runtime.handleTrigger('p', profile, 'test', 'chat', {
+        'message': 'hello',
+      });
+      expect(calls, ['hello']);
+    },
+  );
+  test(
+    'queues a profile trigger with its entry override and unchanged canonical envelope',
+    () async {
+      final queue = DartActionQueue()..setPaused(true);
+      final manager = DartAutomationQueueManager(
+        defaultQueue: DartActionQueue(),
+        execute: (document, context, item) =>
+            CompiledExecutionEngine().executeWithRegistry(
+              automation: document,
+              context: context,
+              registry: registry,
+              entryNodeId: item.source['entryNodeId'] as String?,
+            ),
+      )..register('alerts', queue);
+      addTearDown(manager.dispose);
+      runtime = DartProfileRuntime(registry: registry, queueManager: manager);
+      final document = eventFixture(
+        id: 'event',
+        nodes: [actionFixture('record')],
+        next: 'record',
+        queue: 'alerts',
+      );
+      final profile = profileFixture(events: [document]);
+      await runtime.activate('p', profile);
+      await runtime.handleTrigger('p', profile, 'test', 'chat', {
+        'message': 'queued',
+      });
+      expect(queue.pending, hasLength(1));
+      expect(queue.pending.single.source['automation'], document.toJson());
+      expect(queue.pending.single.source['entryNodeId'], 'event');
+      expect(calls, isEmpty);
+      queue.setPaused(false);
+      await manager.drain('alerts');
+      expect(calls, ['queued']);
+    },
+  );
+  test(
+    'multiple trigger nodes enter their own branch in one document',
+    () async {
+      final document = automationFixture(
+        entryNodeId: 'left',
+        nodes: [
+          GraphNode(id: 'left', type: triggerNodeType('test', 'chat')),
+          GraphNode(id: 'right', type: triggerNodeType('test', 'chat')),
+          actionFixture('a', config: {'value': 'left'}),
+          actionFixture('b', config: {'value': 'right'}),
+        ],
+        connections: [
+          controlFixture('left-a', 'left', 'a'),
+          controlFixture('right-b', 'right', 'b'),
+        ],
+      );
+      final profile = profileFixture(events: [document]);
+      await runtime.activate('p', profile);
+      final session = runtime.watch('p', profile);
+      addTearDown(session.dispose);
+      events.add({});
+      await flushEvents();
+      expect(calls, ['left', 'right']);
+    },
+  );
+  test(
+    'watch subscribes to repeated event targets and disposes subscriptions',
+    () async {
+      final profile = profileFixture(
+        events: [
+          eventFixture(
+            id: 'first',
+            nodes: [
+              actionFixture('a', config: {'value': 'first'}),
             ],
-            'entryNodeId': 'record',
-          },
+            next: 'a',
+          ),
+          eventFixture(
+            id: 'second',
+            nodes: [
+              actionFixture('b', config: {'value': 'second'}),
+            ],
+            next: 'b',
+          ),
+        ],
+      );
+      await runtime.activate('p', profile);
+      final session = runtime.watch('p', profile);
+      events.add({});
+      await flushEvents();
+      expect(calls, ['first', 'second']);
+      await session.dispose();
+      events.add({});
+      await flushEvents();
+      expect(calls, ['first', 'second']);
+    },
+  );
+  test('stop propagation belongs to the source node', () async {
+    final profile = profileFixture(
+      events: [
+        eventFixture(
+          id: 'first',
+          nodes: [
+            actionFixture('a', config: {'value': 'first'}),
+          ],
+          next: 'a',
+          stop: true,
+        ),
+        eventFixture(
+          id: 'second',
+          nodes: [
+            actionFixture('b', config: {'value': 'second'}),
+          ],
+          next: 'b',
         ),
       ],
-      activationCondition: const {},
-      activationAutomation: const AutomationData(),
-      deactivationAutomation: const AutomationData(),
     );
-    final runtime = DartProfileRuntime(registry: registry);
-    await runtime.activate('stop', profile);
-    final session = runtime.watch('stop', profile);
-
+    await runtime.activate('p', profile);
+    final session = runtime.watch('p', profile);
+    addTearDown(session.dispose);
     events.add({});
-    await Future<void>.delayed(Duration.zero);
+    await flushEvents();
     expect(calls, ['first']);
-    await session.dispose();
   });
+  test(
+    'autoRun and condition triggers react to registry state changes',
+    () async {
+      final profile = profileFixture(
+        events: [
+          eventFixture(
+            id: 'auto',
+            plugin: 'ShowRunner',
+            trigger: 'autoRun',
+            nodes: [
+              actionFixture('a', config: {'value': 'auto'}),
+            ],
+            next: 'a',
+          ),
+          eventFixture(
+            id: 'condition',
+            plugin: 'ShowRunner',
+            trigger: 'condition',
+            config: {
+              'condition': {
+                'type': 'value',
+                'operator': 'equal',
+                'lhs': {'type': 'state', 'plugin': 'test', 'state': 'enabled'},
+                'rhs': {'type': 'value', 'value': true},
+              },
+              'runImmediately': false,
+            },
+            nodes: [
+              actionFixture('b', config: {'value': 'condition'}),
+            ],
+            next: 'b',
+          ),
+        ],
+      );
+      await runtime.activate('p', profile);
+      final session = runtime.watch('p', profile);
+      addTearDown(session.dispose);
+      await flushEvents();
+      expect(calls, ['auto']);
+      registry.updateState('test', 'enabled', true);
+      await flushEvents();
+      expect(calls, ['auto', 'auto', 'condition']);
+    },
+  );
+}
+
+ShowRunnerProfile profileFixture({
+  AutomationDocument? activation,
+  AutomationDocument? deactivation,
+  List<AutomationDocument> events = const [],
+  RuntimeMap condition = const {},
+}) => ShowRunnerProfile(
+  name: 'Test',
+  activationMode: condition.isEmpty ? 'always' : 'conditional',
+  triggers: [
+    for (final (index, document) in events.indexed)
+      {'id': 'event-$index', 'automation': document.toJson()},
+  ],
+  activationCondition: condition,
+  activationAutomation: activation ?? AutomationDocument.empty(),
+  deactivationAutomation: deactivation ?? AutomationDocument.empty(),
+);
+Future<void> flushEvents() async {
+  for (var i = 0; i < 12; i++) {
+    await Future<void>.delayed(Duration.zero);
+  }
 }

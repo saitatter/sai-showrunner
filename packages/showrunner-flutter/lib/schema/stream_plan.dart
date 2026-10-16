@@ -1,13 +1,7 @@
-import 'automation.dart';
+import 'json.dart';
+import '../graph/domain/automation_document.dart';
 
-JsonMap emptyInlineAutomation() => const {
-  'schemaVersion': 2,
-  'graph': {'nodes': [], 'edges': [], 'entryNodeId': ''},
-  'subgraphs': [],
-  'dataWires': [],
-  'variableNodes': [],
-  'triggerNodes': [],
-};
+JsonMap emptyInlineAutomation() => AutomationDocument.empty().toJson();
 
 final class StreamPlanSegmentData {
   const StreamPlanSegmentData({
@@ -81,5 +75,6 @@ final class StreamPlanData {
 JsonMap _map(Object? value) =>
     value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 
-JsonMap _automation(Object? value) =>
-    value is Map ? Map<String, dynamic>.from(value) : emptyInlineAutomation();
+JsonMap _automation(Object? value) => value is Map
+    ? AutomationDocument.fromJson(Map<String, Object?>.from(value)).toJson()
+    : emptyInlineAutomation();

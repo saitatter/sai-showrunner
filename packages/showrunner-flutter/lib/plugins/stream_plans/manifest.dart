@@ -1,13 +1,14 @@
+import '../../graph/domain/automation_document.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
-import '../../runtime/graph_execution_engine.dart';
-import '../../runtime/graph_runtime.dart';
+import '../../graph/runtime/graph_execution_engine.dart';
+import '../../graph/runtime/graph_runtime.dart';
 import '../../runtime/automation_queue_manager.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../schema/stream_plan.dart';
 import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_registry.dart';
@@ -415,7 +416,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     void Function(String nodeId)? onNodeExit,
   }) async {
     final baseContext = context ?? EvaluationContext();
-    final parsed = AutomationData.fromJson(automation);
+    final parsed = AutomationDocument.fromJson(automation);
     final executionContext = EvaluationContext(
       locals: Map<String, dynamic>.from(baseContext.locals),
       contextState: {

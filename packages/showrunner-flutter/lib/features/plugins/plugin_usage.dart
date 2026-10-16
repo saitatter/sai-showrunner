@@ -1,7 +1,10 @@
+import 'package:sai_nodes_core/sai_nodes_core.dart';
+import '../../graph/definitions/showrunner_graph_types.dart';
+import '../../graph/domain/automation_document.dart';
 import 'dart:io';
 
 import '../../persistence/automation_repository.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 
 /// A persisted automation location that references one integration plugin.
 final class PluginUsageEntry {
@@ -20,7 +23,7 @@ final class PluginUsageEntry {
   final JsonMap config;
 }
 
-/// Loads every persisted V2 automation that references [pluginId].
+/// Loads every persisted canonical automation that references [pluginId].
 ///
 /// Usage is intentionally derived at the persistence boundary so the
 /// integration details page does not need to know how automation documents
@@ -37,34 +40,19 @@ Future<List<PluginUsageEntry>> loadPluginUsage({
     final automation = entry.automation;
     if (automation == null) continue;
     final automationName = _automationName(automation, entry.fileName);
-    for (final trigger in automation.triggerNodes) {
-      if (trigger['plugin']?.toString() != pluginId) continue;
-      usage.add(
-        PluginUsageEntry(
-          automationFile: entry.fileName,
-          automationName: automationName,
-          kind: 'Trigger',
-          name: trigger['trigger']?.toString() ?? '(missing trigger)',
-          config: _map(trigger['config']),
-        ),
-      );
-    }
-    _addGraphUsage(
-      usage,
-      automation.graph.nodes,
-      pluginId: pluginId,
-      automationFile: entry.fileName,
-      automationName: automationName,
-    );
-    for (final subgraph in automation.subgraphs) {
+    for (final space in automation.graph.spaces.values) {
+      final signature = automation.subgraphs.values
+          .where((signature) => signature.spaceId == space.id)
+          .firstOrNull;
       _addGraphUsage(
         usage,
-        subgraph.nodes,
+        space.nodes.values,
         pluginId: pluginId,
         automationFile: entry.fileName,
         automationName: automationName,
-        kindPrefix:
-            'Subgraph action · ${subgraph.name.isEmpty ? subgraph.id : subgraph.name}',
+        kindPrefix: signature == null
+            ? null
+            : 'Subgraph action · ${signature.name}',
       );
     }
   }
@@ -87,23 +75,24 @@ void _addGraphUsage(
   String? kindPrefix,
 }) {
   for (final node in nodes) {
-    if (node.type != 'action' || node.data['plugin']?.toString() != pluginId) {
-      continue;
-    }
+    final action = decodeContractNodeType(node.type, 'action');
+    final trigger = decodeContractNodeType(node.type, 'trigger');
+    final contract = action ?? trigger;
+    if (contract == null || contract.$1 != pluginId) continue;
     usage.add(
       PluginUsageEntry(
         automationFile: automationFile,
         automationName: automationName,
-        kind: kindPrefix ?? 'Action node',
-        name: node.data['action']?.toString() ?? node.id,
+        kind: kindPrefix ?? (trigger == null ? 'Action node' : 'Trigger'),
+        name: contract.$2,
         config: _map(node.data['config']),
       ),
     );
   }
 }
 
-String _automationName(AutomationData automation, String fileName) {
-  final name = automation.extra['name']?.toString().trim();
+String _automationName(AutomationDocument automation, String fileName) {
+  final name = automation.metadata['name']?.toString().trim();
   return name == null || name.isEmpty ? fileName : name;
 }
 

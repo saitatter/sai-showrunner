@@ -5,7 +5,7 @@ extension _ShowrunnerDocumentCommands on _ShowRunnerPageState {
     if (!_workspaceDocuments.canClose) return;
     if (workspace == WorkspaceIds.graph &&
         _activeAutomationFile != null &&
-        _graphEditor.documentDirty.value) {
+        _graphEditor.isDirty) {
       if (!await _confirmAutomationClose()) return;
     }
     if (workspace == WorkspaceIds.profiles &&
@@ -32,7 +32,7 @@ extension _ShowrunnerDocumentCommands on _ShowRunnerPageState {
     if (!_workspaceDocuments.canCloseOthers) return;
     if (selected != WorkspaceIds.graph &&
         _activeAutomationFile != null &&
-        _graphEditor.documentDirty.value &&
+        _graphEditor.isDirty &&
         !await _confirmAutomationClose()) {
       return;
     }
@@ -209,7 +209,13 @@ extension _ShowrunnerDocumentCommands on _ShowRunnerPageState {
     if (wasActive) {
       final replacement = _activeAutomationSession;
       if (replacement == null) {
-        _graphEditor.loadAutomation(const AutomationData());
+        _scratchEditor.load(AutomationDocument.empty());
+        _graphExecution.setSource(
+          ExecutionTraceSource(
+            type: 'automation',
+            id: _scratchEditor.document.id,
+          ),
+        );
       } else {
         _loadAutomationSession(replacement);
       }
@@ -248,35 +254,22 @@ extension _ShowrunnerDocumentCommands on _ShowRunnerPageState {
     if (saved && mounted) _updatePageState(() {});
   }
 
-  AutomationData? _captureActiveAutomation() {
-    final original = _activeAutomation;
-    if (original == null) return null;
-    final current = _graphEditor.toAutomation(original);
-    _automationDocuments.updateActive(current);
-    return current;
-  }
+  AutomationDocument? _captureActiveAutomation() =>
+      _activeAutomationSession?.data;
 
   Future<bool> _saveAutomationSession(
-    AutomationDocumentSession session, {
-    AutomationData? data,
+    AutomationEditorSession session, {
+    AutomationDocument? data,
     bool showFeedback = false,
   }) async {
     final saved = data ?? session.data;
+    final savedRevision = session.editor.graph.revision;
     final fileName = session.fileName;
     try {
-      final issues = validateAutomationGraph(saved);
-      if (issues.isNotEmpty) {
-        throw FormatException(
-          'Automation graph is invalid: ${issues.join(' ')}',
-        );
-      }
       await AutomationRepository(
         File('${widget.dataService.userDirectory.path}/automations/$fileName'),
       ).save(saved);
-      _automationDocuments.markSaved(session.fileName, saved);
-      if (session.fileName == _activeAutomationFile) {
-        _graphEditor.markDocumentClean();
-      }
+      _automationDocuments.markSaved(session.fileName, revision: savedRevision);
       if (showFeedback && mounted) {
         showShowRunnerFeedback(
           context,
@@ -327,7 +320,17 @@ extension _ShowrunnerDocumentCommands on _ShowRunnerPageState {
         ),
       );
       if (!mounted || title == null || title.trim().isEmpty) return;
-      _graphEditor.frameSelection(title: title.trim());
+      final graph = _graphEditor.graph;
+      final scene = GraphSceneBuilder().build(graph);
+      final bounds = graph.selection.nodes
+          .map((id) => scene.nodes[id]?.geometry.bounds)
+          .whereType<GraphRect>();
+      if (bounds.isNotEmpty) {
+        graph.createFrameFromSelection(
+          bounds.reduce((a, b) => a.union(b)).inflate(24),
+          title: title.trim(),
+        );
+      }
     } finally {
       titleController.dispose();
     }

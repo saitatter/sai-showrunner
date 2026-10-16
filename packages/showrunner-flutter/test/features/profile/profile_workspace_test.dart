@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/profile_repository.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
 import 'package:showrunner_flutter/features/profile/profile_workspace.dart';
 
@@ -35,10 +35,12 @@ void main() {
         triggers: [
           {
             'id': 'trigger-1',
-            'plugin': 'twitch',
-            'trigger': 'chat',
-            'config': {'user': 'alice'},
-            'automation': AutomationData().toJson(),
+
+            'automation': eventFixture(
+              id: 'chat',
+              plugin: 'twitch',
+              config: {'user': 'alice'},
+            ).toJson(),
           },
         ],
         activationCondition: {
@@ -46,19 +48,23 @@ void main() {
           'operator': 'or',
           'operands': const [],
         },
-        activationAutomation: AutomationData(),
-        deactivationAutomation: AutomationData(),
+        activationAutomation: AutomationDocument.empty(),
+        deactivationAutomation: AutomationDocument.empty(),
       );
       await ProfileRepository(profileFile).save(profile);
       final saved = await ProfileRepository(profileFile).load();
       expect(saved?.activationCondition['operator'], 'or');
-      expect(saved!.triggers.single['plugin'], 'twitch');
-      expect(saved.triggers.single['trigger'], 'chat');
-      expect(saved.triggers.single['config'], {'user': 'alice'});
+      final document = AutomationDocument.fromJson(
+        Map<String, Object?>.from(saved!.triggers.single['automation'] as Map),
+      );
+      final event =
+          document.graph.spaces[mainAutomationSpace]!.nodes.values.single;
+      expect(event.type, triggerNodeType('twitch', 'chat'));
+      expect(event.data['config'], {'user': 'alice'});
     },
   );
 
-  test('loads current V2 profiles with graph trigger nodes', () async {
+  test('rejects old profile automation documents without conversion', () async {
     final directory = await Directory.systemTemp.createTemp('profile-v2-');
     addTearDown(() => directory.delete(recursive: true));
     final file = File('${directory.path}/profiles/graph.yaml');
@@ -77,12 +83,7 @@ void main() {
               'dataWires': [],
               'variableNodes': [],
               'triggerNodes': [
-                {
-                  'id': 'trigger-1',
-                  'plugin': 'twitch',
-                  'trigger': 'chat',
-                  'config': {},
-                },
+                {'id': 'trigger-1'},
               ],
             },
           },
@@ -107,13 +108,7 @@ void main() {
       }),
     );
 
-    final profile = await ProfileRepository(file).load();
-
-    expect(profile, isNotNull);
-    expect(
-      profile!.triggers.single['automation']['triggerNodes'],
-      hasLength(1),
-    );
+    await expectLater(ProfileRepository(file).load(), throwsFormatException);
     expect(await Directory('${directory.path}/backup').exists(), isFalse);
   });
 }

@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../support/graph_fixtures.dart';
 
 void main() {
   test('saves, loads, and deletes an automation file', () async {
@@ -14,22 +14,21 @@ void main() {
     final repository = AutomationRepository(
       File('${directory.path}/automations/new.yaml'),
     );
-    const automation = AutomationData(
-      extra: {'name': 'New Automation'},
-      graph: AutomationGraph(entryNodeId: 'trigger-1'),
-    );
+    final automation = AutomationDocument.empty()
+        .withMetadata({'name': 'New Automation'})
+        .withSettings({'entryNodeId': 'trigger-1'});
 
     await repository.save(automation);
     final loaded = await repository.load();
 
-    expect(loaded?.extra['name'], 'New Automation');
-    expect(loaded?.graph.entryNodeId, 'trigger-1');
+    expect(loaded?.metadata['name'], 'New Automation');
+    expect(loaded?.entryNodeId, 'trigger-1');
 
     await repository.delete();
     expect(await repository.file.exists(), isFalse);
   });
 
-  test('rejects non-V2 automation files', () async {
+  test('rejects legacy automation files', () async {
     final directory = await Directory.systemTemp.createTemp(
       'showrunner-invalid-automation-',
     );
@@ -38,7 +37,7 @@ void main() {
     await file.parent.create(recursive: true);
     await file.writeAsString(
       jsonEncode({
-        'schemaVersion': 1,
+        'schemaVersion': 2,
         'graph': {'nodes': [], 'edges': [], 'entryNodeId': ''},
       }),
     );

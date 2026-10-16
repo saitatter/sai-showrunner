@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:sai_nodes_core/sai_nodes_core.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
@@ -10,9 +11,11 @@ import '../domain/automation_document.dart';
 final class AutomationEditorController {
   AutomationEditorController({
     required AutomationDocument document,
-    required DartPluginRegistry registry,
+    DartPluginRegistry? registry,
   }) {
-    definitions = ShowrunnerNodeDefinitionProvider(registry);
+    final currentRegistry = registry ?? DartPluginRegistry();
+    _ownedRegistry = registry == null ? currentRegistry : null;
+    definitions = ShowrunnerNodeDefinitionProvider(currentRegistry);
     graph = GraphController(
       document: document.graph,
       activeSpaceId: mainAutomationSpace,
@@ -25,6 +28,14 @@ final class AutomationEditorController {
   }
   late final ShowrunnerNodeDefinitionProvider definitions;
   late final GraphController graph;
+  DartPluginRegistry? _ownedRegistry;
+  void bindRegistry(DartPluginRegistry registry) {
+    definitions.bindRegistry(registry);
+    final previous = _ownedRegistry;
+    _ownedRegistry = null;
+    if (previous != null) unawaited(previous.close());
+  }
+
   AutomationDocument get document =>
       AutomationDocument.fromGraph(graph.document);
   AutomationSubgraph? get activeSubgraph => document.subgraphs.values
@@ -155,6 +166,9 @@ final class AutomationEditorController {
   void dispose() {
     graph.dispose();
     definitions.dispose();
+    final registry = _ownedRegistry;
+    _ownedRegistry = null;
+    if (registry != null) unawaited(registry.close());
   }
 }
 

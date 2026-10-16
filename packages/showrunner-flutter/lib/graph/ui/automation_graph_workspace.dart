@@ -10,11 +10,13 @@ import 'package:sai_nodes/sai_nodes.dart'
 import 'package:sai_nodes_core/sai_nodes_core.dart';
 
 import '../../components/data_inputs/data_input.dart';
+import '../../components/data_inputs/resource_schema.dart';
 import '../controller/automation_editor_controller.dart';
 import '../domain/automation_document.dart';
 import '../definitions/showrunner_graph_types.dart';
 import '../execution/showrunner_execution_visual_adapter.dart';
 import 'graph_value_input.dart';
+import 'showrunner_node_widgets.dart';
 
 /// Product palette, inspector and run controls around the generic canvas.
 class AutomationGraphWorkspace extends StatefulWidget {
@@ -23,16 +25,20 @@ class AutomationGraphWorkspace extends StatefulWidget {
     required this.editor,
     this.onRun,
     this.execution,
+    this.resourceOptionsLoader,
+    this.onRunNode,
   });
   final AutomationEditorController editor;
   final Future<void> Function(AutomationDocument document)? onRun;
   final ShowrunnerExecutionVisualAdapter? execution;
+  final ResourceOptionsLoader? resourceOptionsLoader;
+  final Future<void> Function(String nodeId)? onRunNode;
   @override
   State<AutomationGraphWorkspace> createState() =>
-      _AutomationGraphWorkspaceState();
+      AutomationGraphWorkspaceState();
 }
 
-class _AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
+class AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
   AutomationEditorController get editor => widget.editor;
   bool inspector = true, snapping = false, running = false;
   ConnectionRouting routing = ConnectionRouting.bezier;
@@ -45,14 +51,14 @@ class _AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
   }
 
   @override
-  void didUpdateWidget(AutomationGraphWorkspace old) {
-    super.didUpdateWidget(old);
-    if (old.editor != editor) {
-      old.editor.removeListener(_changed);
+  void didUpdateWidget(AutomationGraphWorkspace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.editor != editor) {
+      oldWidget.editor.removeListener(_changed);
       editor.addListener(_changed);
     }
-    if (old.execution != widget.execution) {
-      old.execution?.removeListener(_changed);
+    if (oldWidget.execution != widget.execution) {
+      oldWidget.execution?.removeListener(_changed);
       widget.execution?.addListener(_changed);
     }
   }
@@ -73,6 +79,113 @@ class _AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('$error')));
+    }
+  }
+
+  void fitGraph() => _fit();
+  Future<void> _findNode() async {
+    var query = '';
+    final selected = await showDialog<(String, String)>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, refresh) {
+          final matches = [
+            for (final space in editor.document.graph.spaces.values)
+              for (final node in space.nodes.values)
+                if ('${space.nodePresentations[node.id]?.title ?? ''} ${node.id} ${node.type} ${node.data}'
+                    .toLowerCase()
+                    .contains(query.toLowerCase()))
+                  (space, node),
+          ];
+          return AlertDialog(
+            title: const Text('Find in graph'),
+            content: SizedBox(
+              width: 520,
+              height: 420,
+              child: Column(
+                children: [
+                  TextField(
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Search graph nodes',
+                    ),
+                    onChanged: (value) => refresh(() => query = value),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        for (final (space, node) in matches)
+                          ListTile(
+                            title: Text(
+                              space.nodePresentations[node.id]?.title ??
+                                  node.type,
+                            ),
+                            subtitle: Text('${space.id} · ${node.id}'),
+                            onTap: () =>
+                                Navigator.pop(context, (space.id, node.id)),
+                          ),
+                        if (matches.isEmpty)
+                          const ListTile(title: Text('No matching nodes')),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (!mounted || selected == null) return;
+    editor.graph.setActiveSpace(selected.$1);
+    editor.graph.select(GraphSelection(nodes: {selected.$2}));
+    final scene = GraphSceneBuilder().build(editor.graph);
+    editor.graph.focusNodes(
+      {selected.$2},
+      {
+        for (final node in scene.nodes.values)
+          node.node.id: node.geometry.bounds,
+      },
+      viewport,
+    );
+  }
+
+  Future<void> _toggleInspector() async {
+    final width = (context.findRenderObject() as RenderBox?)?.size.width ?? 800;
+    if (width >= 660) {
+      setState(() => inspector = !inspector);
+      return;
+    }
+    final changes = ValueNotifier(0);
+    void changed() => changes.value++;
+    final currentEditor = editor;
+    currentEditor.addListener(changed);
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => SizedBox(
+          height: MediaQuery.sizeOf(context).height * .8,
+          child: ListenableBuilder(
+            listenable: changes,
+            builder: (context, _) => _Inspector(
+              editor: editor,
+              onRunNode: widget.onRunNode,
+              onError: _error,
+              resourceOptionsLoader: widget.resourceOptionsLoader,
+            ),
+          ),
+        ),
+      );
+    } finally {
+      currentEditor.removeListener(changed);
+      changes.dispose();
     }
   }
 
@@ -150,6 +263,11 @@ class _AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
                 icon: const Icon(Icons.fit_screen),
               ),
               IconButton(
+                tooltip: 'Find in graph',
+                onPressed: _findNode,
+                icon: const Icon(Icons.search),
+              ),
+              IconButton(
                 tooltip: 'Snap to grid',
                 isSelected: snapping,
                 onPressed: () => setState(() => snapping = !snapping),
@@ -193,7 +311,7 @@ class _AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
               IconButton(
                 tooltip: 'Inspector',
                 isSelected: inspector,
-                onPressed: () => setState(() => inspector = !inspector),
+                onPressed: _toggleInspector,
                 icon: const Icon(Icons.tune),
               ),
               TextButton.icon(
@@ -209,6 +327,20 @@ class _AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
               Padding(
                 padding: const EdgeInsets.all(8),
                 child: Text(editor.isDirty ? 'Unsaved changes' : 'Saved'),
+              ),
+              if (graph.resolution.diagnostics.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text(
+                    'Graph healthy',
+                    style: TextStyle(color: Color(0xff69c8a3)),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(
+                  '${graph.activeSpace?.nodes.length ?? 0} nodes · ${graph.activeSpace?.connections.length ?? 0} connections',
+                ),
               ),
             ],
           ),
@@ -244,6 +376,8 @@ class _AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
                   Expanded(
                     child: NodeEditor(
                       controller: graph,
+                      headerBuilder: showrunnerNodeHeader,
+                      portLabelBuilder: showrunnerPortLabel,
                       executionSource: widget.execution,
                       onCreateNode: _pick,
                       onError: _error,
@@ -254,7 +388,12 @@ class _AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
                   if (showInspector)
                     SizedBox(
                       width: 320,
-                      child: _Inspector(editor: editor, onError: _error),
+                      child: _Inspector(
+                        onRunNode: widget.onRunNode,
+                        editor: editor,
+                        onError: _error,
+                        resourceOptionsLoader: widget.resourceOptionsLoader,
+                      ),
                     ),
                 ],
               );
@@ -451,9 +590,16 @@ class _NodePickerState extends State<_NodePicker> {
 }
 
 class _Inspector extends StatelessWidget {
-  const _Inspector({required this.editor, required this.onError});
+  const _Inspector({
+    required this.editor,
+    required this.onError,
+    this.resourceOptionsLoader,
+    this.onRunNode,
+  });
   final AutomationEditorController editor;
   final ValueChanged<Object> onError;
+  final ResourceOptionsLoader? resourceOptionsLoader;
+  final Future<void> Function(String nodeId)? onRunNode;
   @override
   Widget build(BuildContext context) {
     final graph = editor.graph;
@@ -588,6 +734,12 @@ class _Inspector extends StatelessWidget {
               },
               child: const Text('Set as entry node'),
             ),
+            if (onRunNode != null)
+              TextButton.icon(
+                onPressed: () => onRunNode!(node.id),
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Run from this node'),
+              ),
             for (final field in structure?.fields ?? <ResolvedField>[])
               Padding(
                 padding: const EdgeInsets.only(top: 14),
@@ -614,11 +766,12 @@ class _Inspector extends StatelessWidget {
     final schema = editor.definitions.schemaForField(node.type, field);
     void changed(Object? value) => editor.updateField(node.id, field, value);
     return schema != null
-        ? DartDataInput(
+        ? _SchemaInput(
             key: ValueKey('${node.id}/${field.id}'),
             schema: schema,
             value: value,
             onChanged: changed,
+            loader: resourceOptionsLoader,
           )
         : GraphValueInput(
             key: ValueKey('${node.id}/${field.id}'),
@@ -679,6 +832,50 @@ class _Inspector extends StatelessWidget {
       onError(error);
     }
   }
+}
+
+class _SchemaInput extends StatefulWidget {
+  const _SchemaInput({
+    super.key,
+    required this.schema,
+    required this.value,
+    required this.onChanged,
+    this.loader,
+  });
+  final DartDataInputSchema schema;
+  final Object? value;
+  final ValueChanged<Object?> onChanged;
+  final ResourceOptionsLoader? loader;
+  @override
+  State<_SchemaInput> createState() => _SchemaInputState();
+}
+
+class _SchemaInputState extends State<_SchemaInput> {
+  late Future<DartDataInputSchema> schema = _load();
+  Future<DartDataInputSchema> _load() => widget.loader == null
+      ? Future.value(widget.schema)
+      : hydrateResourceSchema(widget.schema, widget.loader!);
+  @override
+  void didUpdateWidget(_SchemaInput old) {
+    super.didUpdateWidget(old);
+    if (old.schema != widget.schema || old.loader != widget.loader) {
+      schema = _load();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<DartDataInputSchema>(
+    future: schema,
+    builder: (context, snapshot) => snapshot.hasError
+        ? Text('Unable to load ${widget.schema.label}: ${snapshot.error}')
+        : snapshot.hasData
+        ? DartDataInput(
+            schema: snapshot.data!,
+            value: widget.value,
+            onChanged: widget.onChanged,
+          )
+        : const LinearProgressIndicator(),
+  );
 }
 
 class _ParameterDialog extends StatefulWidget {

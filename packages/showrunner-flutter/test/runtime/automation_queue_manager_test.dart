@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../support/graph_fixtures.dart';
 
 void main() {
   test(
@@ -24,7 +24,9 @@ void main() {
       )..register('alerts', alertsQueue);
       addTearDown(manager.dispose);
 
-      final automation = AutomationData(extra: const {'name': 'Alert'});
+      final automation = AutomationDocument.empty().withMetadata({
+        'name': 'Alert',
+      });
       await manager.enqueue(
         automation,
         EvaluationContext(
@@ -64,11 +66,11 @@ void main() {
     addTearDown(manager.dispose);
 
     await manager.enqueue(
-      AutomationData(extra: const {'name': 'bad'}),
+      AutomationDocument.empty().withMetadata({'name': 'bad'}),
       EvaluationContext(),
     );
     await manager.enqueue(
-      AutomationData(extra: const {'name': 'good'}),
+      AutomationDocument.empty().withMetadata({'name': 'good'}),
       EvaluationContext(),
     );
     await manager.drain(null);

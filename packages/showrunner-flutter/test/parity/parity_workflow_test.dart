@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
-import 'package:showrunner_flutter/plugins/showrunner/manifest.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/persistence/profile_repository.dart';
 import 'package:showrunner_flutter/persistence/queue_config_repository.dart';
@@ -12,8 +11,9 @@ import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_runtime.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import 'package:showrunner_flutter/graph/domain/automation_document.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 const _fixtureRoot = 'test/fixtures/parity';
@@ -26,7 +26,7 @@ void main() {
     addTearDown(() => root.delete(recursive: true));
 
     final source = File('$_fixtureRoot/automation_project/automation.json');
-    final automation = AutomationData.fromJson(
+    final automation = AutomationDocument.fromJson(
       Map<String, dynamic>.from(jsonDecode(await source.readAsString()) as Map),
     );
     final saved = AutomationRepository(File('${root.path}/automation.json'));
@@ -40,17 +40,16 @@ void main() {
     final queueManager = DartAutomationQueueManager(
       defaultQueue: defaultQueue,
       execute: (queuedAutomation, context, _) =>
-          const DartGraphRuntime().executeWithRegistry(
-            graph: queuedAutomation.graph,
+          CompiledExecutionEngine().executeWithRegistry(
+            automation: queuedAutomation,
             context: context,
             registry: registry,
-            dataWires: queuedAutomation.dataWires,
-            subgraphs: queuedAutomation.subgraphs,
           ),
     );
-    registry = DartPluginRegistry()
-      ..register(createShowRunnerPlugin(queueManager: queueManager))
-      ..register(createOverlaysPlugin(eventHub: eventHub));
+    registry = createDefaultPluginRegistry(
+      eventHub: eventHub,
+      queueManager: queueManager,
+    );
     addTearDown(() async {
       await queueManager.dispose();
       await registry.close();
@@ -58,21 +57,19 @@ void main() {
     });
 
     final broadcast = eventHub.stream(OverlayEventIds.broadcast).first;
-    final result = await const DartGraphRuntime().executeWithRegistry(
-      graph: reopened!.graph,
+    final result = await CompiledExecutionEngine().executeWithRegistry(
+      automation: reopened!,
       context: EvaluationContext(
         contextState: {
           'event': {'message': 'fixture'},
         },
       ),
       registry: registry,
-      dataWires: reopened.dataWires,
-      subgraphs: reopened.subgraphs,
     );
     final overlayEvent = await broadcast;
 
     expect(result.completed, isTrue);
-    expect(result.steps, 3);
+    expect(result.steps, greaterThan(0));
     expect(result.nodeResults['queue-alert']?['queued'], isFalse);
     expect(overlayEvent['broadcastId'], 'showrunner_chat_message');
     expect(

@@ -1,4 +1,7 @@
-import '../../schema/automation.dart';
+import 'package:sai_nodes_core/sai_nodes_core.dart';
+import '../../graph/definitions/showrunner_graph_types.dart';
+import '../../graph/domain/automation_document.dart';
+import '../../schema/json.dart';
 
 final class AutomationStarter {
   const AutomationStarter({
@@ -11,14 +14,13 @@ final class AutomationStarter {
   final String id;
   final String name;
   final String description;
-  final AutomationData automation;
+  final AutomationDocument automation;
 }
 
 /// Product starter templates from the reference application.
 ///
-/// A starter contains ordinary V2 action nodes and data wires. The selected
-/// trigger is kept as document metadata so it can be used when the resource
-/// is attached to a profile, while the graph itself remains reusable.
+/// A starter stores trigger, action and value connections in one canonical graph.
+/// Presentation is independent of executable node data.
 List<AutomationStarter> defaultAutomationStarters() => [
   _template(
     id: 'youtube-paid-alert',
@@ -27,7 +29,15 @@ List<AutomationStarter> defaultAutomationStarters() => [
     plugin: 'youtube',
     trigger: 'superChat',
     nodes: [
-      _action('push-paid-alert', 'overlays', 'pushPaidAlert', 360, 120, {
+      _action(
+        'format-amount',
+        'ShowRunner',
+        'convertNumberToString',
+        360,
+        120,
+        {'value': 0},
+      ),
+      _action('push-paid-alert', 'overlays', 'pushPaidAlert', 700, 120, {
         'eventId': '',
         'platform': 'youtube',
         'viewerName': '',
@@ -37,13 +47,26 @@ List<AutomationStarter> defaultAutomationStarters() => [
         'message': '',
       }),
     ],
-    dataWires: _triggerWires('push-paid-alert', {
-      'messageId': 'eventId',
-      'viewerName': 'viewerName',
-      'amountMicros': 'amount',
-      'currency': 'currency',
-      'message': 'message',
-    }),
+    dataWires: [
+      _valueWire(
+        'event',
+        'event:amountMicros',
+        'format-amount',
+        'config:value',
+      ),
+      _valueWire(
+        'format-amount',
+        'result:value',
+        'push-paid-alert',
+        'config:amount',
+      ),
+      ..._triggerWires('push-paid-alert', {
+        'messageId': 'eventId',
+        'viewerName': 'viewerName',
+        'currency': 'currency',
+        'message': 'message',
+      }),
+    ],
   ),
   _template(
     id: 'twitch-sub-paid-alert',
@@ -52,8 +75,16 @@ List<AutomationStarter> defaultAutomationStarters() => [
     plugin: 'twitch',
     trigger: 'subscription',
     nodes: [
-      _action('push-paid-alert', 'overlays', 'pushPaidAlert', 360, 120, {
-        'eventId': 'twitch-sub-{{ viewer }}-{{ totalMonths }}',
+      _action(
+        'format-amount',
+        'ShowRunner',
+        'convertNumberToString',
+        360,
+        120,
+        {'value': 0},
+      ),
+      _action('push-paid-alert', 'overlays', 'pushPaidAlert', 700, 120, {
+        'eventId': 'twitch-sub-{{ viewerName }}-{{ totalMonths }}',
         'platform': 'twitch',
         'viewerName': '',
         'amount': '',
@@ -62,11 +93,19 @@ List<AutomationStarter> defaultAutomationStarters() => [
         'message': '',
       }),
     ],
-    dataWires: _triggerWires('push-paid-alert', {
-      'viewer': 'viewerName',
-      'totalMonths': 'amount',
-      'message': 'message',
-    }),
+    dataWires: [
+      _valueWire('event', 'event:totalMonths', 'format-amount', 'config:value'),
+      _valueWire(
+        'format-amount',
+        'result:value',
+        'push-paid-alert',
+        'config:amount',
+      ),
+      ..._triggerWires('push-paid-alert', {
+        'viewerName': 'viewerName',
+        'message': 'message',
+      }),
+    ],
   ),
   _template(
     id: 'twitch-bits-paid-alert',
@@ -75,8 +114,16 @@ List<AutomationStarter> defaultAutomationStarters() => [
     plugin: 'twitch',
     trigger: 'bits',
     nodes: [
-      _action('push-paid-alert', 'overlays', 'pushPaidAlert', 360, 120, {
-        'eventId': 'twitch-bits-{{ viewer }}-{{ bits }}',
+      _action(
+        'format-amount',
+        'ShowRunner',
+        'convertNumberToString',
+        360,
+        120,
+        {'value': 0},
+      ),
+      _action('push-paid-alert', 'overlays', 'pushPaidAlert', 700, 120, {
+        'eventId': 'twitch-bits-{{ viewerName }}-{{ bits }}',
         'platform': 'twitch',
         'viewerName': '',
         'amount': '',
@@ -85,11 +132,19 @@ List<AutomationStarter> defaultAutomationStarters() => [
         'message': '',
       }),
     ],
-    dataWires: _triggerWires('push-paid-alert', {
-      'viewer': 'viewerName',
-      'bits': 'amount',
-      'message': 'message',
-    }),
+    dataWires: [
+      _valueWire('event', 'event:bits', 'format-amount', 'config:value'),
+      _valueWire(
+        'format-amount',
+        'result:value',
+        'push-paid-alert',
+        'config:amount',
+      ),
+      ..._triggerWires('push-paid-alert', {
+        'viewerName': 'viewerName',
+        'message': 'message',
+      }),
+    ],
   ),
   _template(
     id: 'starting-soon-scene-banner',
@@ -328,65 +383,101 @@ AutomationStarter _template({
   required String description,
   required String plugin,
   required String trigger,
-  required List<GraphNode> nodes,
-  List<GraphEdge>? edges,
-  List<DataWire> dataWires = const <DataWire>[],
-  JsonMap triggerConfig = const <String, dynamic>{},
+  required List<_StarterNode> nodes,
+  List<GraphConnection> dataWires = const [],
+  JsonMap triggerConfig = const {},
 }) {
-  final graphEdges = edges ?? _sequentialEdges(nodes);
+  final document = AutomationDocument.empty();
+  final triggerNode = GraphNode(
+    id: 'event',
+    type: triggerNodeType(plugin, trigger),
+    data: {'config': triggerConfig, 'stop': false},
+  );
+  final connections = <GraphConnection>[
+    for (var index = 0; index < nodes.length; index++)
+      GraphConnection(
+        id: 'sequence:$index',
+        from: PortRef(
+          nodeId: index == 0 ? triggerNode.id : nodes[index - 1].node.id,
+          portId: 'exec.out',
+        ),
+        to: PortRef(nodeId: nodes[index].node.id, portId: 'exec.in'),
+        kind: GraphConnectionKind.control,
+      ),
+    ...dataWires,
+  ];
   return AutomationStarter(
     id: id,
     name: name,
     description: description,
-    automation: AutomationData(
-      graph: AutomationGraph(
-        nodes: nodes,
-        edges: graphEdges,
-        entryNodeId: nodes.first.id,
+    automation: AutomationDocument(
+      graph: document.graph.copyWith(
+        spaces: {
+          mainAutomationSpace: GraphSpace(
+            id: mainAutomationSpace,
+            nodes: {
+              triggerNode.id: triggerNode,
+              for (final item in nodes) item.node.id: item.node,
+            },
+            nodePresentations: {
+              triggerNode.id: NodePresentation(
+                nodeId: triggerNode.id,
+                position: const GraphPoint(40, 120),
+              ),
+              for (final item in nodes) item.node.id: item.presentation,
+            },
+            connections: {
+              for (final connection in connections) connection.id: connection,
+            },
+          ),
+        },
       ),
-      dataWires: dataWires,
-      extra: {
-        'name': name,
-        'plugin': plugin,
-        'trigger': trigger,
-        'config': triggerConfig,
-        'stop': false,
-      },
+      settings: {'entryNodeId': triggerNode.id},
+      metadata: {'name': name},
     ),
   );
 }
 
-GraphNode _action(
+final class _StarterNode {
+  const _StarterNode(this.node, this.presentation);
+  final GraphNode node;
+  final NodePresentation presentation;
+}
+
+_StarterNode _action(
   String id,
   String plugin,
   String action,
   double x,
   double y,
   JsonMap config,
-) => GraphNode(
-  id: id,
-  type: 'action',
-  x: x,
-  y: y,
-  data: {'plugin': plugin, 'action': action, 'config': config},
+) => _StarterNode(
+  GraphNode(
+    id: id,
+    type: actionNodeType(plugin, action),
+    data: {'config': config},
+  ),
+  NodePresentation(nodeId: id, position: GraphPoint(x, y)),
 );
+List<GraphConnection> _triggerWires(String toNode, Map<String, String> ports) =>
+    [
+      for (final entry in ports.entries)
+        GraphConnection(
+          id: 'event:${entry.key}/$toNode:${entry.value}',
+          from: PortRef(nodeId: 'event', portId: 'event:${entry.key}'),
+          to: PortRef(nodeId: toNode, portId: 'config:${entry.value}'),
+          kind: GraphConnectionKind.data,
+        ),
+    ];
 
-List<GraphEdge> _sequentialEdges(List<GraphNode> nodes) => [
-  for (var index = 0; index < nodes.length - 1; index++)
-    GraphEdge(
-      id: '${nodes[index].id}:${nodes[index + 1].id}',
-      from: nodes[index].id,
-      to: nodes[index + 1].id,
-    ),
-];
-
-List<DataWire> _triggerWires(String toNode, Map<String, String> ports) => [
-  for (final entry in ports.entries)
-    DataWire(
-      id: 'trigger:${entry.key}->$toNode:${entry.value}',
-      fromNode: 'trigger',
-      fromPort: entry.key,
-      toNode: toNode,
-      toPort: entry.value,
-    ),
-];
+GraphConnection _valueWire(
+  String from,
+  String output,
+  String to,
+  String input,
+) => GraphConnection(
+  id: '$from/$output/$to/$input',
+  from: PortRef(nodeId: from, portId: output),
+  to: PortRef(nodeId: to, portId: input),
+  kind: GraphConnectionKind.data,
+);

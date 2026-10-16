@@ -1,10 +1,10 @@
+import '../graph/domain/automation_document.dart';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
 import 'filesystem/atomic_file.dart';
-import '../schema/automation.dart';
 
 final class AutomationCatalogEntry {
   const AutomationCatalogEntry({
@@ -14,7 +14,7 @@ final class AutomationCatalogEntry {
   });
 
   final String fileName;
-  final AutomationData? automation;
+  final AutomationDocument? automation;
   final Object? error;
 
   bool get isValid => automation != null && error == null;
@@ -25,10 +25,10 @@ final class AutomationRepository {
 
   final File file;
 
-  Future<AutomationData?> load() => loadStrict();
+  Future<AutomationDocument?> load() => loadStrict();
 
-  /// Loads only the canonical V2 graph representation.
-  Future<AutomationData?> loadStrict() async {
+  /// Loads only the canonical version-1 automation envelope.
+  Future<AutomationDocument?> loadStrict() async {
     if (!await file.exists()) return null;
     final contents = await file.readAsString();
     dynamic decoded;
@@ -43,7 +43,7 @@ final class AutomationRepository {
       );
     }
     final source = Map<String, dynamic>.from(decoded);
-    return AutomationData.fromJson(source);
+    return AutomationDocument.fromJson(source);
   }
 
   static Future<List<AutomationCatalogEntry>> loadDirectory(
@@ -69,7 +69,7 @@ final class AutomationRepository {
     return entries;
   }
 
-  Future<void> save(AutomationData automation) async {
+  Future<void> save(AutomationDocument automation) async {
     await writeAtomicText(
       file,
       const JsonEncoder.withIndent('  ').convert(automation.toJson()),

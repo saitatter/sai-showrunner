@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/resources/resource_editor_registry.dart';
-import 'package:showrunner_flutter/features/graph/graph_workspace.dart';
+import 'package:showrunner_flutter/graph/ui/inline_automation_graph.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
@@ -926,7 +926,7 @@ void main() {
     expect(find.text('On Activate'), findsNWidgets(2));
     expect(find.text('On Deactivate'), findsNWidgets(2));
     expect(find.text('Segment 1'), findsOneWidget);
-    expect(find.byType(ShowRunnerInlineGraphEditor), findsNothing);
+    expect(find.byType(InlineAutomationGraph), findsNothing);
     await tester.tap(find.byKey(const ValueKey('stream-plan-On Activate')));
     final segmentActivation = find.byKey(
       const ValueKey('stream-plan-segment-segment-runtime-On Activate'),
@@ -934,7 +934,7 @@ void main() {
     await tester.ensureVisible(segmentActivation);
     await tester.tap(segmentActivation);
     await tester.pump();
-    expect(find.byType(ShowRunnerInlineGraphEditor), findsNWidgets(2));
+    expect(find.byType(InlineAutomationGraph), findsNWidgets(2));
   });
 
   testWidgets('variable editor persists the persistent toggle', (tester) async {

@@ -23,6 +23,77 @@ void main() {
     await registry.close();
   });
 
+  testWidgets('find locates a subgraph node without editing the document', (
+    tester,
+  ) async {
+    final space = editor.createSubgraph();
+    final node = editor.addNode('showrunner.if', const GraphPoint(1800, 1200));
+    editor.graph.execute(
+      SetNodeTitleCommand(
+        editor.document.subgraphs[space]!.spaceId,
+        node,
+        'Search target',
+      ),
+    );
+    editor.graph.setActiveSpace(mainAutomationSpace);
+    editor.graph.markSaved();
+    final revision = editor.graph.revision;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: AutomationGraphWorkspace(editor: editor)),
+      ),
+    );
+    await tester.tap(find.byTooltip('Find in graph'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Search graph nodes'),
+      'Search target',
+    );
+    await tester.pump();
+    await tester.tap(find.widgetWithText(ListTile, 'Search target'));
+    await tester.pumpAndSettle();
+    expect(
+      editor.graph.activeSpaceId,
+      editor.document.subgraphs[space]!.spaceId,
+    );
+    expect(editor.graph.selection.nodes, {node});
+    expect(editor.graph.revision, revision);
+    expect(editor.isDirty, isFalse);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('narrow workspace exposes a reactive inspector sheet', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(560, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final node = editor.addNode('showrunner.if', GraphPoint.zero);
+    editor.graph.select(GraphSelection(nodes: {node}));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: AutomationGraphWorkspace(editor: editor)),
+      ),
+    );
+    await tester.tap(find.byTooltip('Inspector'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.text('Set as entry node'), findsOneWidget);
+    editor.graph.execute(
+      SetNodeTitleCommand(mainAutomationSpace, node, 'Sheet update'),
+    );
+    await tester.pump();
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField && widget.controller?.text == 'Sheet update',
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets(
     'subgraph parameter editing preserves its ID and rejects malformed default drafts',
     (tester) async {

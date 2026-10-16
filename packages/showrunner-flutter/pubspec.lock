@@ -563,8 +563,8 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/sai_nodes"
-      ref: "f099fa8a186c7c0281b44cae213ee10187669284"
-      resolved-ref: "f099fa8a186c7c0281b44cae213ee10187669284"
+      ref: "1de1e3d1c17085cd272e704978bcdd2725976637"
+      resolved-ref: "1de1e3d1c17085cd272e704978bcdd2725976637"
       url: "https://github.com/saitatter/sai_nodes.git"
     source: git
     version: "1.0.0-dev.1"
@@ -572,8 +572,8 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/sai_nodes_core"
-      ref: "f099fa8a186c7c0281b44cae213ee10187669284"
-      resolved-ref: "f099fa8a186c7c0281b44cae213ee10187669284"
+      ref: "1de1e3d1c17085cd272e704978bcdd2725976637"
+      resolved-ref: "1de1e3d1c17085cd272e704978bcdd2725976637"
       url: "https://github.com/saitatter/sai_nodes.git"
     source: git
     version: "1.0.0-dev.1"

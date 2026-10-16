@@ -1,4 +1,6 @@
-import 'automation.dart';
+import '../graph/domain/automation_document.dart';
+import 'json.dart';
+import '../graph/definitions/showrunner_graph_types.dart';
 
 final class ShowRunnerProfile {
   const ShowRunnerProfile({
@@ -15,8 +17,8 @@ final class ShowRunnerProfile {
   final String activationMode;
   final List<JsonMap> triggers;
   final JsonMap activationCondition;
-  final AutomationData activationAutomation;
-  final AutomationData deactivationAutomation;
+  final AutomationDocument activationAutomation;
+  final AutomationDocument deactivationAutomation;
   final JsonMap extra;
 
   JsonMap toJson() => {
@@ -40,10 +42,10 @@ final class ShowRunnerProfile {
       activationCondition: json['activationCondition'] is Map
           ? Map<String, dynamic>.from(json['activationCondition'] as Map)
           : const <String, dynamic>{},
-      activationAutomation: AutomationData.fromJson(
+      activationAutomation: AutomationDocument.fromJson(
         _map(json['activationAutomation']),
       ),
-      deactivationAutomation: AutomationData.fromJson(
+      deactivationAutomation: AutomationDocument.fromJson(
         _map(json['deactivationAutomation']),
       ),
       extra: json
@@ -73,34 +75,33 @@ List<JsonMap> _maps(dynamic value) => value is List
 
 void _validateTriggers(List<JsonMap> triggers) {
   for (final trigger in triggers) {
+    if (trigger.keys.any(
+      (key) => !{'id', 'description', 'automation'}.contains(key),
+    )) {
+      throw const FormatException('Unsupported profile event fields.');
+    }
     if (trigger['id'] is! String || (trigger['id'] as String).isEmpty) {
       throw const FormatException('Profile trigger must contain an id.');
     }
     final automation = trigger['automation'];
     if (automation is! Map) {
       throw const FormatException(
-        'Profile triggers must contain a V2 automation document.',
+        'Profile triggers must contain a version-1 automation document.',
       );
     }
-    final parsedAutomation = AutomationData.fromJson(
+    final parsedAutomation = AutomationDocument.fromJson(
       Map<String, dynamic>.from(automation),
     );
-    final triggerNodes = parsedAutomation.triggerNodes;
-    if (triggerNodes.isNotEmpty) {
-      for (final triggerNode in triggerNodes) {
-        for (final key in const ['id', 'plugin', 'trigger']) {
-          if (triggerNode[key] is! String ||
-              (triggerNode[key] as String).isEmpty) {
-            throw FormatException('Profile trigger node must contain a $key.');
-          }
-        }
-      }
-      continue;
-    }
-    for (final key in const ['plugin', 'trigger']) {
-      if (trigger[key] is! String || (trigger[key] as String).isEmpty) {
-        throw FormatException('Profile trigger must contain a $key.');
-      }
+    final triggerNodes = parsedAutomation
+        .graph
+        .spaces[mainAutomationSpace]!
+        .nodes
+        .values
+        .where((node) => decodeContractNodeType(node.type, 'trigger') != null);
+    if (triggerNodes.isEmpty) {
+      throw const FormatException(
+        'Profile event automation requires a trigger node.',
+      );
     }
   }
 }

@@ -2,7 +2,7 @@ part of '../main.dart';
 
 extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
   Future<void> _openAutomation(
-    AutomationData automation,
+    AutomationDocument automation,
     String fileName,
   ) async {
     if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
@@ -37,11 +37,8 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     });
   }
 
-  void _loadAutomationSession(AutomationDocumentSession session) {
-    _graphEditor.loadAutomation(session.data);
-    _graphEditor.restoreDocumentDirty(session.dirty);
-    _graphEditor.bindExecutionTrace(
-      _services.executionTrace,
+  void _loadAutomationSession(AutomationEditorSession session) {
+    _graphExecution.setSource(
       ExecutionTraceSource(type: 'automation', id: session.fileName),
     );
   }
@@ -63,16 +60,11 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     _captureActiveAutomation();
     final fileName = 'automation-${DateTime.now().millisecondsSinceEpoch}.yaml';
     final starter = selection.starter;
-    final base = starter?.automation ?? const AutomationData();
-    final automation = AutomationData(
-      schemaVersion: base.schemaVersion,
-      graph: base.graph,
-      subgraphs: base.subgraphs,
-      dataWires: base.dataWires,
-      variableNodes: base.variableNodes,
-      triggerNodes: base.triggerNodes,
-      extra: {...base.extra, 'name': selection.name},
-    );
+    final base = starter?.automation ?? AutomationDocument.empty();
+    final automation = base.withMetadata({
+      ...base.metadata,
+      'name': selection.name,
+    });
     await AutomationRepository(
       File('${widget.dataService.userDirectory.path}/automations/$fileName'),
     ).save(automation);
@@ -101,7 +93,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     if (!await _profileWorkspaceController.confirmClose() || !mounted) return;
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileName = 'profile_$timestamp.yaml';
-    const emptyAutomation = AutomationData();
+    final emptyAutomation = AutomationDocument.empty();
     final profile = ShowRunnerProfile(
       name: name,
       activationMode: 'toggle',
@@ -165,17 +157,9 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     );
     final automation = await AutomationRepository(file).load();
     if (automation == null) return;
-    await AutomationRepository(file).save(
-      AutomationData(
-        schemaVersion: automation.schemaVersion,
-        graph: automation.graph,
-        subgraphs: automation.subgraphs,
-        dataWires: automation.dataWires,
-        variableNodes: automation.variableNodes,
-        triggerNodes: automation.triggerNodes,
-        extra: {...automation.extra, 'name': name},
-      ),
-    );
+    await AutomationRepository(
+      file,
+    ).save(automation.withMetadata({...automation.metadata, 'name': name}));
     if (!mounted) return;
     _updatePageState(() => _projectCatalogRevision++);
   }
@@ -296,7 +280,13 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
       _automationDocuments.close(fileName);
       final replacement = _activeAutomationSession;
       if (replacement == null) {
-        _graphEditor.loadAutomation(const AutomationData());
+        _scratchEditor.load(AutomationDocument.empty());
+        _graphExecution.setSource(
+          ExecutionTraceSource(
+            type: 'automation',
+            id: _scratchEditor.document.id,
+          ),
+        );
       } else {
         _loadAutomationSession(replacement);
       }

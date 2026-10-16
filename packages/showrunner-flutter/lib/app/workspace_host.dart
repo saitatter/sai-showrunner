@@ -1,14 +1,17 @@
+import '../graph/domain/automation_document.dart';
 import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../editor/showrunner_graph_editor.dart';
+import '../graph/controller/automation_editor_controller.dart';
+import '../graph/ui/automation_graph_workspace.dart';
+import '../graph/execution/showrunner_execution_visual_adapter.dart';
 import 'commands/app_command.dart';
 import '../features/automation/automation_catalog_workspace.dart';
 import '../features/dashboard/main_dashboard_workspace.dart';
 import '../features/diagnostics/diagnostics_workspace.dart';
-import '../features/graph/graph_workspace.dart';
+import '../graph/ui/automation_resource_workspace.dart';
 import '../features/plugins/plugin_workspace.dart';
 import '../features/profile/profile_workspace.dart';
 import '../features/queue/queue_workspace.dart';
@@ -30,12 +33,11 @@ import '../plugins/variables/runtime.dart';
 import '../runtime/action_queue.dart';
 import '../runtime/automation_queue_manager.dart';
 import '../runtime/profile_runtime.dart';
-import '../schema/automation.dart';
 import '../schema/resource.dart';
 import '../services/showrunner_data_service.dart';
 import '../services/update_check_service.dart';
 import '../services/update_install_service.dart';
-import 'automation_document_manager.dart';
+import '../graph/controller/automation_document_sessions.dart';
 import 'startup_health.dart';
 import 'workspace_registry.dart';
 
@@ -44,6 +46,9 @@ final class WorkspaceHostContext {
   const WorkspaceHostContext({
     required this.dataService,
     required this.graphEditor,
+    this.graphCanvasKey,
+    this.graphExecution,
+    this.onRunGraph,
     required this.actionQueue,
     required this.healthFuture,
     required this.providerEvents,
@@ -97,7 +102,10 @@ final class WorkspaceHostContext {
   });
 
   final ShowRunnerDataService dataService;
-  final ShowRunnerGraphEditor graphEditor;
+  final AutomationEditorController graphEditor;
+  final GlobalKey<AutomationGraphWorkspaceState>? graphCanvasKey;
+  final ShowrunnerExecutionVisualAdapter? graphExecution;
+  final Future<void> Function()? onRunGraph;
   final DartActionQueue actionQueue;
   final DartAutomationQueueManager? queueManager;
   final Future<StartupHealthSnapshot> healthFuture;
@@ -110,16 +118,16 @@ final class WorkspaceHostContext {
   final DartVariableRuntime? variableRuntime;
   final bool showGraphEditor;
   final Future<void> Function(String schemaNodeId)? onRunNode;
-  final FutureOr<void> Function(AutomationData automation, String fileName)
+  final FutureOr<void> Function(AutomationDocument automation, String fileName)
   onOpenAutomation;
-  final Future<void> Function(AutomationData automation, String fileName)
+  final Future<void> Function(AutomationDocument automation, String fileName)
   onRepairAutomation;
   final Future<void> Function() onCreateAutomation;
   final Future<void> Function(String fileName) onDeleteAutomation;
   final FlutterInterfacePreferences interfacePreferences;
   final ValueChanged<WorkspaceId> onOpenWorkspace;
   final AppCommandRegistry? commands;
-  final AutomationDocumentManager? automationDocuments;
+  final AutomationDocumentSessions? automationDocuments;
   final ValueChanged<String>? onAutomationSelected;
   final FutureOr<void> Function(String fileName)? onAutomationClosed;
   final void Function(int oldPosition, int newPosition)? onAutomationReordered;
@@ -216,16 +224,19 @@ final class WorkspaceRegistry {
     return switch (id) {
       WorkspaceIds.graph =>
         host.showGraphEditor
-            ? GraphWorkspace(
+            ? AutomationResourceWorkspace(
                 editor: host.graphEditor,
+                documents: host.automationDocuments,
+                onSelected: host.onAutomationSelected,
+                onClosed: host.onAutomationClosed,
+                onReordered: host.onAutomationReordered,
                 healthFuture: host.healthFuture,
-                dataService: host.dataService,
-                registryFuture: host.pluginRegistryFuture,
+                canvasKey: host.graphCanvasKey,
+                execution: host.graphExecution,
+                onRun: host.onRunGraph,
                 onRunNode: host.onRunNode,
-                automationDocuments: host.automationDocuments,
-                onAutomationSelected: host.onAutomationSelected,
-                onAutomationClosed: host.onAutomationClosed,
-                onAutomationReordered: host.onAutomationReordered,
+                resourceOptionsLoader: (type) =>
+                    loadResourceOptions(host.dataService, type),
               )
             : const LogsWorkspace(),
       WorkspaceIds.plugins => PluginWorkspace(

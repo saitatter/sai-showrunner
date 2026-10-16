@@ -27,7 +27,7 @@ final class ProjectPanelCallbacks {
   final ValueChanged<WorkspaceId> onDestinationSelected;
   final ValueChanged<String> onPluginSelected;
   final Future<void> Function(String pluginId, bool enabled) onPluginToggle;
-  final FutureOr<void> Function(AutomationData automation, String fileName)?
+  final FutureOr<void> Function(AutomationDocument automation, String fileName)?
   onOpenAutomation;
   final FutureOr<void> Function(String fileName)? onOpenProfile;
   final ValueChanged<String>? onResourceSelected;

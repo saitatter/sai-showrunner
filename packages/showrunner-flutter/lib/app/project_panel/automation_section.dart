@@ -38,7 +38,7 @@ final class AutomationSection extends StatelessWidget {
             for (final entry in catalog.automations)
               _ProjectItemRow(
                 title:
-                    entry.automation?.extra['name']?.toString() ??
+                    entry.automation?.metadata['name']?.toString() ??
                     entry.fileName,
                 icon: entry.isValid
                     ? Icons.account_tree_outlined

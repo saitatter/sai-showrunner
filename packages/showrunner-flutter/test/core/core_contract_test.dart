@@ -1,22 +1,19 @@
 import 'dart:io';
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:showrunner_flutter/editor/showrunner_graph_editor.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/persistence/profile_repository.dart';
 import 'package:showrunner_flutter/persistence/queue_config_repository.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_runtime.dart';
-import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/queue.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/schema/update.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 import 'package:showrunner_flutter/services/structured_logger.dart';
+import 'package:showrunner_flutter/persistence/document_codec.dart';
+import 'package:showrunner_flutter/schema/profile.dart';
+import '../support/graph_fixtures.dart';
 
 void main() {
   test(
@@ -86,165 +83,6 @@ void main() {
     });
     expect(executions, 2);
   });
-
-  test('builds a connected sample graph through the adapter', () {
-    final editor = ShowRunnerGraphEditor()..loadSampleGraph();
-
-    expect(editor.controller.nodes, hasLength(3));
-    expect(editor.controller.project.projectData.links, hasLength(2));
-    expect(
-      editor.controller.nodes.values.map((node) => node.prototype.idName),
-      containsAll(<String>[
-        'trigger.twitch.chat',
-        'ShowRunner.addToQueue',
-        'overlays.pushChatMessage',
-      ]),
-    );
-
-    editor.dispose();
-  });
-
-  test(
-    'executes direct subgraph calls before continuing the parent graph',
-    () async {
-      final automation = AutomationData.fromJson({
-        'schemaVersion': 2,
-        'graph': {
-          'entryNodeId': 'call',
-          'nodes': [
-            {'id': 'call', 'type': 'subgraphCall', 'subgraphId': 'greeting'},
-            {
-              'id': 'done',
-              'type': 'action',
-              'config': {'label': 'done'},
-            },
-          ],
-          'edges': [
-            {
-              'id': 'complete',
-              'from': 'call',
-              'to': 'done',
-              'port': 'completed',
-            },
-          ],
-        },
-        'subgraphs': [
-          {
-            'id': 'greeting',
-            'name': 'Greeting',
-            'entryNodeId': 'nested',
-            'nodes': [
-              {
-                'id': 'nested',
-                'type': 'action',
-                'config': {'label': 'hello'},
-              },
-            ],
-            'edges': [],
-          },
-        ],
-      });
-      final executed = <String>[];
-
-      final result = await const DartGraphRuntime().execute(
-        graph: automation.graph,
-        subgraphs: {
-          for (final subgraph in automation.subgraphs) subgraph.id: subgraph,
-        },
-        context: EvaluationContext(),
-        action: (node, config, context) async {
-          executed.add(config['label'] as String);
-          return null;
-        },
-      );
-
-      expect(result.completed, isTrue);
-      expect(executed, ['hello', 'done']);
-    },
-  );
-
-  test('limits recursive subgraph calls in both runtimes', () async {
-    final recursive = SubgraphDefinition(
-      id: 'recursive',
-      name: 'Recursive',
-      nodes: const [
-        GraphNode(
-          id: 'call-self',
-          type: 'subgraphCall',
-          x: 0,
-          y: 0,
-          data: {'subgraphId': 'recursive'},
-        ),
-      ],
-      edges: const [],
-      entryNodeId: 'call-self',
-    );
-    final automation = AutomationData(
-      graph: const AutomationGraph(
-        nodes: [
-          GraphNode(
-            id: 'call',
-            type: 'subgraphCall',
-            x: 0,
-            y: 0,
-            data: {'subgraphId': 'recursive'},
-          ),
-        ],
-        edges: [],
-        entryNodeId: 'call',
-      ),
-      subgraphs: [recursive],
-    );
-    final subgraphs = {
-      for (final subgraph in automation.subgraphs) subgraph.id: subgraph,
-    };
-
-    await expectLater(
-      const DartGraphRuntime(maxDepth: 3).execute(
-        graph: automation.graph,
-        context: EvaluationContext(),
-        subgraphs: subgraphs,
-        action: (node, config, context) async => null,
-      ),
-      throwsA(isA<StateError>()),
-    );
-  });
-
-  test('rejects automation data outside the V2 graph schema', () {
-    expect(
-      () => AutomationData.fromJson({
-        'schemaVersion': 1,
-        'graph': {'nodes': [], 'edges': [], 'entryNodeId': ''},
-      }),
-      throwsA(isA<FormatException>()),
-    );
-  });
-
-  test(
-    'persists and loads automation JSON through the Dart repository',
-    () async {
-      final directory = await Directory.systemTemp.createTemp(
-        'showrunner-flutter-',
-      );
-      addTearDown(() => directory.delete(recursive: true));
-      final repository = AutomationRepository(
-        File('${directory.path}/automation.json'),
-      );
-      const automation = AutomationData(
-        graph: AutomationGraph(
-          nodes: [GraphNode(id: 'node-1', type: 'action', x: 10, y: 20)],
-          entryNodeId: 'node-1',
-        ),
-      );
-
-      await repository.save(automation);
-      final loaded = await repository.load();
-
-      expect(loaded?.schemaVersion, 2);
-      expect(loaded?.graph.nodes.single.id, 'node-1');
-      expect(loaded?.graph.entryNodeId, 'node-1');
-    },
-  );
 
   test('loads and saves plugin YAML settings with a health snapshot', () async {
     final directory = await Directory.systemTemp.createTemp('showrunner-data-');
@@ -366,343 +204,6 @@ void main() {
     );
   });
 
-  test('executes Dart graph actions and conditional flow', () async {
-    final executed = <String>[];
-    final graph = AutomationGraph(
-      nodes: [
-        const GraphNode(
-          id: 'check',
-          type: 'if',
-          x: 0,
-          y: 0,
-          data: {
-            'condition': {'type': 'variable', 'name': 'approved'},
-          },
-        ),
-        const GraphNode(
-          id: 'accepted',
-          type: 'action',
-          x: 100,
-          y: 0,
-          data: {
-            'config': {'label': 'accepted'},
-          },
-        ),
-        const GraphNode(
-          id: 'rejected',
-          type: 'action',
-          x: 100,
-          y: 100,
-          data: {
-            'config': {'label': 'rejected'},
-          },
-        ),
-      ],
-      edges: [
-        const GraphEdge(
-          id: 'then',
-          from: 'check',
-          to: 'accepted',
-          port: 'then',
-        ),
-        const GraphEdge(
-          id: 'else',
-          from: 'check',
-          to: 'rejected',
-          port: 'else',
-        ),
-      ],
-      entryNodeId: 'check',
-    );
-
-    final result = await const DartGraphRuntime().execute(
-      graph: graph,
-      context: EvaluationContext(contextState: {'approved': true}),
-      action: (node, config, context) async {
-        executed.add(config['label'] as String);
-        return {'done': true};
-      },
-    );
-
-    expect(result.completed, isTrue);
-    expect(result.steps, 2);
-    expect(executed, ['accepted']);
-    expect(result.nodeResults['accepted'], {'done': true});
-  });
-
-  test('resolves data wires into action configuration', () async {
-    RuntimeMap? receivedConfig;
-    final graph = AutomationGraph(
-      nodes: [
-        const GraphNode(
-          id: 'action-1',
-          type: 'action',
-          x: 0,
-          y: 0,
-          data: {
-            'config': {'payload': {}},
-          },
-        ),
-      ],
-      entryNodeId: 'action-1',
-    );
-
-    final result = await const DartGraphRuntime().execute(
-      graph: graph,
-      context: EvaluationContext(contextState: {'message': 'hello'}),
-      dataWires: const [
-        DataWire(
-          id: 'wire-1',
-          fromNode: 'trigger',
-          fromPort: 'message',
-          toNode: 'action-1',
-          toPort: 'payload.text',
-        ),
-      ],
-      action: (node, config, context) async {
-        receivedConfig = config;
-        return null;
-      },
-    );
-
-    expect(result.completed, isTrue);
-    expect(receivedConfig, {
-      'payload': {'text': 'hello'},
-    });
-  });
-
-  test('binds subgraph parameters and exposes output wires', () async {
-    RuntimeMap? receivedConfig;
-    final graph = AutomationGraph(
-      nodes: const [
-        GraphNode(id: 'producer', type: 'action', x: 0, y: 0),
-        GraphNode(
-          id: 'call',
-          type: 'subgraphCall',
-          x: 100,
-          y: 0,
-          data: {'subgraphId': 'echo', 'inputs': {}},
-        ),
-        GraphNode(
-          id: 'consumer',
-          type: 'action',
-          x: 200,
-          y: 0,
-          data: {
-            'config': {'text': ''},
-          },
-        ),
-      ],
-      edges: const [
-        GraphEdge(id: 'to-call', from: 'producer', to: 'call'),
-        GraphEdge(id: 'to-consumer', from: 'call', to: 'consumer'),
-      ],
-      entryNodeId: 'producer',
-    );
-    final subgraph = SubgraphDefinition(
-      id: 'echo',
-      name: 'Echo',
-      parameters: const [
-        {'name': 'text', 'type': 'string', 'default': 'fallback'},
-      ],
-      outputs: const [
-        {'name': 'message', 'type': 'string'},
-      ],
-      nodes: const [GraphNode(id: 'echo-node', type: 'action', x: 0, y: 0)],
-      edges: const [],
-      dataWires: const [
-        DataWire(
-          id: 'parameter-wire',
-          fromNode: '__param:text',
-          fromPort: 'value',
-          toNode: 'echo-node',
-          toPort: 'text',
-        ),
-        DataWire(
-          id: 'output-boundary-wire',
-          fromNode: 'echo-node',
-          fromPort: 'echoed',
-          toNode: '__output:message',
-          toPort: 'value',
-        ),
-      ],
-      entryNodeId: 'echo-node',
-    );
-
-    final result = await const DartGraphRuntime().execute(
-      graph: graph,
-      context: EvaluationContext(),
-      subgraphs: {'echo': subgraph},
-      dataWires: const [
-        DataWire(
-          id: 'input-wire',
-          fromNode: 'producer',
-          fromPort: 'payload.message',
-          toNode: 'call',
-          toPort: 'text',
-        ),
-        DataWire(
-          id: 'output-wire',
-          fromNode: 'call',
-          fromPort: 'message',
-          toNode: 'consumer',
-          toPort: 'text',
-        ),
-      ],
-      action: (node, config, context) async {
-        if (node.id == 'producer') {
-          return {
-            'payload': {'message': 'wired'},
-          };
-        }
-        if (node.id == 'echo-node') return {'echoed': config['text']};
-        receivedConfig = config;
-        return null;
-      },
-    );
-
-    expect(result.completed, isTrue);
-    expect(receivedConfig, {'text': 'wired'});
-    expect(result.nodeResults['call'], {'message': 'wired'});
-  });
-
-  test('emits node execution callbacks in traversal order', () async {
-    final events = <String>[];
-    final graph = AutomationGraph(
-      nodes: const [
-        GraphNode(id: 'first', type: 'action', x: 0, y: 0),
-        GraphNode(id: 'second', type: 'action', x: 0, y: 0),
-      ],
-      edges: const [GraphEdge(id: 'edge', from: 'first', to: 'second')],
-      entryNodeId: 'first',
-    );
-
-    await const DartGraphRuntime().execute(
-      graph: graph,
-      context: EvaluationContext(),
-      action: (node, config, context) async => null,
-      onNodeEnter: (nodeId) => events.add('enter:$nodeId'),
-      onNodeExit: (nodeId) => events.add('exit:$nodeId'),
-    );
-
-    expect(events, [
-      'enter:first',
-      'exit:first',
-      'enter:second',
-      'exit:second',
-    ]);
-  });
-
-  test('executes bounded forEach flow in Dart', () async {
-    final values = <dynamic>[];
-    final graph = AutomationGraph(
-      nodes: [
-        const GraphNode(
-          id: 'loop',
-          type: 'forEach',
-          x: 0,
-          y: 0,
-          data: {
-            'variable': 'item',
-            'indexVariable': 'position',
-            'collection': {'type': 'variable', 'name': 'items'},
-          },
-        ),
-        const GraphNode(id: 'capture', type: 'action', x: 100, y: 0),
-      ],
-      edges: [
-        const GraphEdge(id: 'body', from: 'loop', to: 'capture', port: 'body'),
-        const GraphEdge(id: 'repeat', from: 'capture', to: 'loop'),
-      ],
-      entryNodeId: 'loop',
-    );
-
-    final result = await const DartGraphRuntime(maxSteps: 20).execute(
-      graph: graph,
-      context: EvaluationContext(
-        contextState: {
-          'items': ['a', 'b', 'c'],
-        },
-      ),
-      action: (node, config, context) async {
-        values.add(context.locals['item']);
-        return null;
-      },
-    );
-
-    expect(result.completed, isTrue);
-    expect(values, ['a', 'b', 'c']);
-  });
-
-  test('maps action results into runtime context state', () async {
-    final context = EvaluationContext();
-    final graph = AutomationGraph(
-      nodes: [
-        const GraphNode(
-          id: 'action-1',
-          type: 'action',
-          x: 0,
-          y: 0,
-          data: {
-            'resultMapping': {'value': 'mappedValue'},
-          },
-        ),
-      ],
-      entryNodeId: 'action-1',
-    );
-
-    final result = await const DartGraphRuntime().execute(
-      graph: graph,
-      context: context,
-      action: (node, config, runtimeContext) async => {'value': 42},
-    );
-
-    expect(context.contextState, isEmpty);
-    expect(result.contextState, {'mappedValue': 42});
-  });
-
-  test('registers and invokes Dart plugin actions', () async {
-    final registry = DartPluginRegistry();
-    registry.register(
-      DartPluginManifest(
-        id: PluginId('sample'),
-        name: 'Sample plugin',
-        actions: [
-          ActionSpec<Map<String, dynamic>, Object?>(
-            pluginId: PluginId('sample'),
-            actionId: ActionId('echo'),
-            invoke: (config, context) async => config['value'],
-          ),
-        ],
-      ),
-    );
-    const node = GraphNode(
-      id: 'action-1',
-      type: 'action',
-      x: 0,
-      y: 0,
-      data: {
-        'plugin': 'sample',
-        'action': 'echo',
-        'config': {'value': 'ok'},
-      },
-    );
-
-    final result = await registry.invoke(node, EvaluationContext(), {
-      'value': 'ok',
-    });
-
-    expect(result, 'ok');
-    expect(registry.findAction('sample', 'echo'), isNotNull);
-
-    final execution = await const DartGraphRuntime().executeWithRegistry(
-      graph: const AutomationGraph(nodes: [node], entryNodeId: 'action-1'),
-      context: EvaluationContext(),
-      registry: registry,
-    );
-    expect(execution.nodeResults['action-1'], {'_result': 'ok'});
-  });
-
   test('lists user files in stable order', () async {
     final directory = await Directory.systemTemp.createTemp(
       'showrunner-catalog-',
@@ -730,19 +231,14 @@ void main() {
         'showrunner-automation-yaml-',
       );
       final file = File('${directory.path}/automation.yaml');
-      await file.writeAsString('''
-name: Existing automation
-schemaVersion: 2
-graph:
-  nodes: []
-  edges: []
-  entryNodeId: ""
-''');
+      await file.writeAsString(
+        encodeYaml(automationFixture(name: 'Existing automation').toJson()),
+      );
 
       final automation = await AutomationRepository(file).load();
 
       expect(automation, isNotNull);
-      expect(automation!.extra['name'], 'Existing automation');
+      expect(automation!.metadata['name'], 'Existing automation');
       await directory.delete(recursive: true);
     },
   );
@@ -754,34 +250,35 @@ graph:
         'showrunner-profile-',
       );
       final file = File('${directory.path}/profile.yaml');
-      await file.writeAsString('''
-name: Main
-activationMode: toggle
-triggers: []
-activationCondition:
-  type: group
-  operator: or
-  operands: []
-activationAutomation:
-  schemaVersion: 2
-  graph:
-    nodes: []
-    edges: []
-    entryNodeId: ""
-deactivationAutomation:
-  schemaVersion: 2
-  graph:
-    nodes: []
-    edges: []
-    entryNodeId: ""
-''');
+      await file.writeAsString(
+        encodeYaml(
+          ShowRunnerProfile(
+            name: 'Main',
+            activationMode: 'toggle',
+            triggers: [],
+            activationCondition: {},
+            activationAutomation: AutomationDocument.empty(),
+            deactivationAutomation: AutomationDocument.empty(),
+          ).toJson(),
+        ),
+      );
 
       final profile = await ProfileRepository(file).load();
 
       expect(profile?.name, 'Main');
       expect(profile?.activationMode, 'toggle');
-      expect(profile?.activationAutomation.graph.nodes, isEmpty);
-      expect(profile?.deactivationAutomation.graph.nodes, isEmpty);
+      expect(
+        profile?.activationAutomation.graph.spaces[mainAutomationSpace]!.nodes,
+        isEmpty,
+      );
+      expect(
+        profile
+            ?.deactivationAutomation
+            .graph
+            .spaces[mainAutomationSpace]!
+            .nodes,
+        isEmpty,
+      );
       await directory.delete(recursive: true);
     },
   );
@@ -859,66 +356,36 @@ deactivationAutomation:
     expect(await repository.load('res-1'), isNull);
   });
 
-  testWidgets('mounts the deterministic navigation rail shell', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: NavigationRail(
-            selectedIndex: 0,
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.account_tree),
-                label: Text('Graph'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.extension),
-                label: Text('Plugins'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.monitor_heart),
-                label: Text('Diagnostics'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.bolt),
-                label: Text('Automations'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.people_alt),
-                label: Text('Profiles'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.layers),
-                label: Text('Resources'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.receipt_long),
-                label: Text('Logs'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.info),
-                label: Text('About'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.settings),
-                label: Text('Settings'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.rocket_launch),
-                label: Text('Setup'),
-              ),
-            ],
-          ),
-        ),
+  test('loads and edits YAML resources without creating duplicates', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'showrunner-yaml-resource-repo-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final yamlResource = File('${directory.path}/yaml-resource.yaml');
+    await yamlResource.writeAsString('''
+name: Overlay
+width: 1920
+widgets:
+  - type: text
+    text: Hello
+''');
+    final repository = ResourceRepository(directory);
+
+    final loaded = await repository.load('yaml-resource');
+    expect(loaded?.config['name'], 'Overlay');
+    expect((loaded?.config['widgets'] as List).single['text'], 'Hello');
+
+    await repository.save(
+      ResourceData(
+        id: 'yaml-resource',
+        config: {...loaded!.config, 'name': 'Updated overlay'},
       ),
     );
-    expect(find.text('Graph'), findsOneWidget);
-    expect(find.text('Plugins'), findsOneWidget);
-    expect(find.text('Resources'), findsOneWidget);
-    expect(find.text('Logs'), findsOneWidget);
-    expect(find.text('About'), findsOneWidget);
-    expect(find.text('Settings'), findsOneWidget);
-    expect(find.text('Setup'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    expect(
+      await File('${directory.path}/yaml-resource.json').exists(),
+      isFalse,
+    );
+    expect((await repository.load('yaml-resource'))?.name, 'Updated overlay');
+    expect((await directory.list().toList()), hasLength(1));
   });
 }

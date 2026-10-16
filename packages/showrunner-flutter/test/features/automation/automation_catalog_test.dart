@@ -1,67 +1,50 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/automation/automation_catalog_workspace.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
-import 'package:showrunner_flutter/runtime/automation_recovery.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
+import '../../support/graph_fixtures.dart';
 
 void main() {
-  testWidgets('refreshes the catalog after repairing an automation', (
-    tester,
-  ) async {
-    var entries = <AutomationCatalogEntry>[
-      const AutomationCatalogEntry(
-        fileName: 'stale.yaml',
-        automation: AutomationData(
-          extra: {'name': 'Stale graph'},
-          graph: AutomationGraph(
-            nodes: [GraphNode(id: 'start', type: 'action', x: 0, y: 0)],
-            edges: [GraphEdge(id: 'stale', from: 'start', to: 'missing')],
-            entryNodeId: 'start',
-          ),
-        ),
-      ),
-    ];
-    final repairCalls = <String>[];
-    final dataService = ShowRunnerDataService(Directory.current);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: AutomationCatalogWorkspace(
-            dataService: dataService,
-            entriesLoader: () async => entries,
-            onRepair: (automation, fileName) async {
-              repairCalls.add(fileName);
-              entries = [
+  testWidgets(
+    'inspecting graph issues retains invalid entities for manual repair',
+    (tester) async {
+      final document = automationFixture(
+        name: 'Stale graph',
+        nodes: [actionFixture('start')],
+        connections: [controlFixture('stale', 'start', 'missing')],
+        entryNodeId: 'start',
+      );
+      final inspected = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AutomationCatalogWorkspace(
+              dataService: ShowRunnerDataService(Directory.current),
+              entriesLoader: () async => [
                 AutomationCatalogEntry(
-                  fileName: fileName,
-                  automation: repairAutomation(automation),
+                  fileName: 'stale.yaml',
+                  automation: document,
                 ),
-              ];
-            },
+              ],
+              onRepair: (automation, fileName) async {
+                expect(automation.graph, document.graph);
+                inspected.add(fileName);
+              },
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(
-      find.text('Needs repair: Edge stale ends at missing node: missing'),
-      findsOneWidget,
-    );
-    await tester.tap(find.byTooltip('Repair automation graph'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump();
-
-    expect(repairCalls, ['stale.yaml']);
-    expect(find.text('1 nodes, 0 links'), findsOneWidget);
-    expect(find.byTooltip('Repair automation graph'), findsNothing);
-    expect(find.byTooltip('Open in graph editor'), findsOneWidget);
-  });
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Graph issues:'), findsOneWidget);
+      await tester.tap(find.byTooltip('Inspect graph issues'));
+      await tester.pumpAndSettle();
+      expect(inspected, ['stale.yaml']);
+      expect(document.graph.spaces[mainAutomationSpace]!.connections.keys, [
+        'stale',
+      ]);
+      expect(find.byTooltip('Inspect graph issues'), findsOneWidget);
+    },
+  );
 }

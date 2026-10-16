@@ -1,3 +1,4 @@
+import '../../graph/domain/automation_document.dart';
 import 'dart:io';
 import 'dart:async';
 
@@ -5,14 +6,17 @@ import 'package:flutter/material.dart';
 
 import '../../components/data_inputs/data_input.dart';
 import '../../app/name_dialog.dart';
-import '../../editor/showrunner_graph_editor.dart';
-import '../graph/graph_workspace.dart';
+import '../../graph/controller/automation_editor_controller.dart';
+import '../../graph/domain/automation_factories.dart';
+import '../../graph/ui/inline_automation_graph.dart';
+import 'package:sai_nodes_core/sai_nodes_core.dart';
+
 import '../../persistence/profile_repository.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/registry/plugin_bootstrap.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../runtime/profile_runtime.dart';
-import '../../schema/automation.dart';
+import '../../schema/json.dart';
 import '../../schema/profile.dart';
 import '../../services/showrunner_data_service.dart';
 import '../resources/resource_options.dart';
@@ -108,8 +112,8 @@ class ProfileWorkspace extends StatefulWidget {
 
 class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   final _nameController = TextEditingController();
-  late final ShowRunnerGraphEditor _activationEditor;
-  late final ShowRunnerGraphEditor _deactivationEditor;
+  late final AutomationEditorController _activationEditor;
+  late final AutomationEditorController _deactivationEditor;
   late final Future<DartPluginRegistry> _triggerRegistryFuture;
   late final Future<List<String>> _queueOptionsFuture;
   DartPluginRegistry? _triggerRegistry;
@@ -132,18 +136,18 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   @override
   void initState() {
     super.initState();
-    _activationEditor = ShowRunnerGraphEditor(
-      resourceOptionsLoader: _resourceOptions,
+    _activationEditor = AutomationEditorController(
+      document: AutomationDocument.empty(),
     );
-    _deactivationEditor = ShowRunnerGraphEditor(
-      resourceOptionsLoader: _resourceOptions,
+    _deactivationEditor = AutomationEditorController(
+      document: AutomationDocument.empty(),
     );
     _triggerRegistryFuture =
         widget.registryFuture ?? Future.value(createDefaultPluginRegistry());
     _queueOptionsFuture = _resourceOptions('ActionQueue');
     _nameController.addListener(_markDirty);
-    _activationEditor.documentDirty.addListener(_markDirty);
-    _deactivationEditor.documentDirty.addListener(_markDirty);
+    _activationEditor.graph.addDocumentListener(_graphChanged);
+    _deactivationEditor.graph.addDocumentListener(_graphChanged);
     _initialLoad = _load();
     unawaited(_loadTriggerRegistry());
     widget.controller?.attach(
@@ -156,7 +160,11 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   Future<void> _loadTriggerRegistry() async {
     try {
       final registry = await _triggerRegistryFuture;
-      if (mounted) setState(() => _triggerRegistry = registry);
+      if (mounted) {
+        _activationEditor.bindRegistry(registry);
+        _deactivationEditor.bindRegistry(registry);
+        setState(() => _triggerRegistry = registry);
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error);
     }
@@ -166,14 +174,16 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   void dispose() {
     widget.controller?.detach();
     _nameController.removeListener(_markDirty);
-    _activationEditor.documentDirty.removeListener(_markDirty);
-    _deactivationEditor.documentDirty.removeListener(_markDirty);
+    _activationEditor.graph.removeDocumentListener(_graphChanged);
+    _deactivationEditor.graph.removeDocumentListener(_graphChanged);
     _nameController.dispose();
     unawaited(_profileSession?.dispose());
     _activationEditor.dispose();
     _deactivationEditor.dispose();
     super.dispose();
   }
+
+  void _graphChanged(GraphDocumentChange change) => _markDirty();
 
   void _markDirty() {
     if (_synchronizing || _selectedIndex == null || _loading) return;
@@ -246,15 +256,15 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       _triggers = profile.triggers
           .map((trigger) => Map<String, dynamic>.from(trigger))
           .toList();
-      _activationEditor.loadAutomation(profile.activationAutomation);
-      _deactivationEditor.loadAutomation(profile.deactivationAutomation);
+      _activationEditor.load(profile.activationAutomation);
+      _deactivationEditor.load(profile.deactivationAutomation);
     } else {
       _nameController.text = entry.fileName;
       _activationCondition = createAlwaysOnCondition();
       _activationMode = 'toggle';
       _triggers = [];
-      _activationEditor.loadAutomation(_emptyAutomation());
-      _deactivationEditor.loadAutomation(_emptyAutomation());
+      _activationEditor.load(_emptyAutomation());
+      _deactivationEditor.load(_emptyAutomation());
     }
     _invalidTriggerIds.clear();
     _synchronizing = false;
@@ -404,12 +414,8 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         activationMode: _activationMode,
         triggers: _triggers,
         activationCondition: _activationCondition,
-        activationAutomation: _activationEditor.toAutomation(
-          original?.activationAutomation ?? _emptyAutomation(),
-        ),
-        deactivationAutomation: _deactivationEditor.toAutomation(
-          original?.deactivationAutomation ?? _emptyAutomation(),
-        ),
+        activationAutomation: _activationEditor.document,
+        deactivationAutomation: _deactivationEditor.document,
         extra: original?.extra ?? const {},
       );
       final repo = ProfileRepository(
@@ -488,11 +494,12 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     setState(() {
       _triggers.add({
         'id': 'trigger_${DateTime.now().microsecondsSinceEpoch}',
-        'plugin': selected.pluginId.value,
-        'trigger': selected.triggerId.value,
-        'config': config,
         'description': selected.displayName,
-        'automation': _emptyAutomation().toJson(),
+        'automation': createEventAutomation(
+          plugin: selected.pluginId.value,
+          trigger: selected.triggerId.value,
+          config: config,
+        ).toJson(),
       });
       _markDirty();
     });
@@ -791,7 +798,7 @@ class _InlineAutomationPanel extends StatelessWidget {
   });
 
   final String label;
-  final ShowRunnerGraphEditor editor;
+  final AutomationEditorController editor;
   final Future<DartPluginRegistry> registryFuture;
 
   @override
@@ -800,18 +807,12 @@ class _InlineAutomationPanel extends StatelessWidget {
     child: ExpansionTile(
       leading: const Icon(Icons.account_tree_outlined),
       title: Text(label),
-      subtitle: Text('${editor.controller.nodes.length} nodes'),
+      subtitle: Text('${editor.graph.activeSpace!.nodes.length} nodes'),
       children: [
-        ShowRunnerInlineGraphEditor(
-          editor: editor,
-          registryFuture: registryFuture,
-        ),
+        InlineAutomationGraph(editor: editor, registryFuture: registryFuture),
       ],
     ),
   );
 }
 
-AutomationData _emptyAutomation() => AutomationData(
-  schemaVersion: 2,
-  graph: AutomationGraph(nodes: const [], edges: const [], entryNodeId: ''),
-);
+AutomationDocument _emptyAutomation() => AutomationDocument.empty();

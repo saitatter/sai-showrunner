@@ -1,3 +1,5 @@
+import '../graph/domain/automation_document.dart';
+import '../graph/definitions/showrunner_graph_types.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -211,7 +213,21 @@ final class DartProfileLifecycleManager {
     onActivityChanged?.call(
       profileId,
       active: active,
-      triggers: profile.triggers,
+      triggers: [
+        for (final group in profile.triggers)
+          for (final node in AutomationDocument.fromJson(
+            Map<String, Object?>.from(group['automation'] as Map),
+          ).graph.spaces[mainAutomationSpace]!.nodes.values)
+            if (decodeContractNodeType(node.type, 'trigger')
+                case final contract?)
+              {
+                'id': node.id,
+                'profileTriggerId': group['id'],
+                'plugin': contract.$1,
+                'trigger': contract.$2,
+                'config': node.data['config'] ?? {},
+              },
+      ],
     );
   }
 

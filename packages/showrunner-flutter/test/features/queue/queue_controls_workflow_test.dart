@@ -6,7 +6,7 @@ import 'package:showrunner_flutter/persistence/queue_config_repository.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
 import 'package:showrunner_flutter/schema/queue.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
@@ -89,7 +89,7 @@ void main() {
       expect(old.paused, true);
       expect(old.pending, hasLength(1));
       await manager.enqueue(
-        const AutomationData(extra: {'name': 'Run after resume'}),
+        AutomationDocument.empty().withMetadata({'name': 'Run after resume'}),
         EvaluationContext(),
         queueId: newKey,
       );

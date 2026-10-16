@@ -1,10 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/automation/automation_starters.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
-import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
-import 'package:showrunner_flutter/runtime/automation_recovery.dart';
+import 'package:showrunner_flutter/graph/domain/automation_validation.dart';
+import 'package:showrunner_flutter/graph/definitions/showrunner_node_definition_provider.dart';
+import 'package:showrunner_flutter/graph/definitions/showrunner_graph_types.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
+import 'package:showrunner_flutter/runtime/action_queue.dart';
+import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
+import 'package:sai_nodes_core/sai_nodes_core.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_runtime.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
@@ -33,18 +38,38 @@ void main() {
         'scene-banner-queue-worker',
       ]),
     );
+    final queue = DartAutomationQueueManager(
+      defaultQueue: DartActionQueue(),
+      execute: (_, _, _) async => null,
+    );
+    addTearDown(queue.dispose);
+    final registry = createDefaultPluginRegistry(queueManager: queue);
+    addTearDown(registry.close);
+    final provider = ShowrunnerNodeDefinitionProvider(registry);
+    addTearDown(provider.dispose);
+    final resolver = GraphResolver(
+      definitions: provider.definitions,
+      types: createShowrunnerGraphTypes(),
+    );
+    final issues = <String>[];
     for (final starter in starters) {
-      expect(validateAutomationGraph(starter.automation), isEmpty);
-      expect(starter.automation.graph.entryNodeId, isNotEmpty);
+      expect(validateAutomationDocument(starter.automation), isEmpty);
+      expect(starter.automation.entryNodeId, isNotEmpty);
+      final diagnostics = resolver
+          .resolve(starter.automation.graph)
+          .diagnostics;
+      issues.addAll(
+        diagnostics.map((issue) => '${starter.id}: ${issue.message}'),
+      );
     }
+    expect(issues, isEmpty);
   });
 
   test(
     'starter data wires and placeholders reach the real overlay action',
     () async {
       final eventHub = DartPluginEventHub();
-      final registry = DartPluginRegistry()
-        ..register(createOverlaysPlugin(eventHub: eventHub));
+      final registry = createDefaultPluginRegistry(eventHub: eventHub);
       addTearDown(registry.close);
       addTearDown(eventHub.dispose);
       final starter = defaultAutomationStarters().firstWhere(
@@ -52,9 +77,8 @@ void main() {
       );
       final event = eventHub.stream(OverlayEventIds.broadcast).first;
 
-      final result = await const DartGraphRuntime().executeWithRegistry(
-        graph: starter.automation.graph,
-        dataWires: starter.automation.dataWires,
+      final result = await CompiledExecutionEngine().executeWithRegistry(
+        automation: starter.automation,
         context: EvaluationContext(
           contextState: {
             'messageId': 'event-1',
