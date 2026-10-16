@@ -5,6 +5,12 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/obs/transport.dart';
+import 'package:showrunner_flutter/plugins/obs/actions.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/variables/manifest.dart';
+import 'package:showrunner_flutter/runtime/expression.dart';
+import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
+import 'package:showrunner_flutter/schema/automation.dart';
 
 void main() {
   Future<HttpServer> server(void Function(WebSocket socket) handle) async {
@@ -33,6 +39,50 @@ void main() {
         'responseData': {'request': data['requestType']},
       },
     }),
+  );
+
+  test(
+    'duplicate and late responses do not poison subsequent requests',
+    () async {
+      Map? delayed;
+      final endpoint = await server((socket) {
+        socket.add(
+          jsonEncode({
+            'op': 0,
+            'd': {'rpcVersion': 1},
+          }),
+        );
+        socket.listen((raw) {
+          final message = jsonDecode(raw as String) as Map;
+          if (message['op'] == 1) {
+            socket.add(jsonEncode({'op': 2, 'd': {}}));
+          } else if (message['op'] == 6) {
+            final data = message['d'] as Map;
+            if (data['requestType'] == 'Ignored') {
+              delayed = data;
+            } else {
+              if (delayed != null) reply(socket, delayed!);
+              reply(socket, data);
+              reply(socket, data);
+            }
+          }
+        });
+      });
+      final transport = ObsWebSocketTransport(
+        host: '127.0.0.1',
+        port: endpoint.port,
+        requestTimeout: const Duration(milliseconds: 50),
+      );
+      addTearDown(transport.close);
+      await expectLater(
+        transport.call('Ignored', {}),
+        throwsA(isA<TimeoutException>()),
+      );
+      expect(await transport.call('GetVersion', {}), {'request': 'GetVersion'});
+      expect(await transport.call('GetSceneList', {}), {
+        'request': 'GetSceneList',
+      });
+    },
   );
 
   test(
@@ -151,7 +201,10 @@ void main() {
           if (message['op'] == 1) {
             socket.add(jsonEncode({'op': 2, 'd': {}}));
           } else if (message['op'] == 6 &&
-              message['d']['requestType'] != 'Ignored') {
+              ![
+                'Ignored',
+                'GetInputSettings',
+              ].contains(message['d']['requestType'])) {
             reply(socket, message['d'] as Map);
           }
         });
@@ -166,6 +219,56 @@ void main() {
         transport.call('Ignored', {}),
         throwsA(isA<TimeoutException>()),
       );
+      final registry = DartPluginRegistry()
+        ..register(createObsPlugin(transport))
+        ..register(createVariablesPlugin());
+      addTearDown(registry.close);
+      final entered = <String>[];
+      await expectLater(
+        CompiledExecutionEngine().executeWithRegistry(
+          automation: AutomationData(
+            graph: AutomationGraph(
+              entryNodeId: 'timeout',
+              nodes: const [
+                GraphNode(
+                  id: 'timeout',
+                  type: 'action',
+                  x: 0,
+                  y: 0,
+                  data: {
+                    'plugin': 'obs',
+                    'action': 'getInputSettings',
+                    'config': {'sourceName': 'test'},
+                  },
+                ),
+                GraphNode(
+                  id: 'next',
+                  type: 'action',
+                  x: 0,
+                  y: 0,
+                  data: {
+                    'plugin': 'variables',
+                    'action': 'set',
+                    'config': {'variable': 'unexpected', 'value': true},
+                  },
+                ),
+              ],
+              edges: const [GraphEdge(id: 'edge', from: 'timeout', to: 'next')],
+            ),
+          ),
+          context: EvaluationContext(),
+          registry: registry,
+          onNodeEnter: entered.add,
+        ),
+        throwsA(
+          isA<TimeoutException>().having(
+            (e) => '$e',
+            'request name',
+            contains('GetInputSettings'),
+          ),
+        ),
+      );
+      expect(entered, ['timeout']);
       expect(await transport.call('GetVersion', {}), {'request': 'GetVersion'});
     },
   );

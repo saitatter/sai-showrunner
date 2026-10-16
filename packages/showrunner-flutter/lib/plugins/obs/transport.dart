@@ -56,7 +56,15 @@ final class ObsWebSocketTransport implements ObsTransport, ObsEventTransport {
       }),
     );
     try {
-      return await completer.future.timeout(requestTimeout);
+      return await completer.future.timeout(
+        requestTimeout,
+        onTimeout: () {
+          throw TimeoutException(
+            'OBS request "$request" timed out.',
+            requestTimeout,
+          );
+        },
+      );
     } finally {
       _pending.remove(requestId);
     }
@@ -121,7 +129,10 @@ final class ObsWebSocketTransport implements ObsTransport, ObsEventTransport {
       },
       onError: (Object error) {
         if (!identified.isCompleted) identified.completeError(error);
-        _handleError(error);
+        if (identical(_socket, socket)) {
+          _handleClosed();
+          unawaited(socket.close());
+        }
       },
     );
     try {
@@ -184,7 +195,7 @@ final class ObsWebSocketTransport implements ObsTransport, ObsEventTransport {
     final data = Map<String, dynamic>.from(message['d'] as Map);
     final requestId = data['requestId'] as String?;
     final completer = requestId == null ? null : _pending[requestId];
-    if (completer == null) return;
+    if (completer == null || completer.isCompleted) return;
     final status = Map<String, dynamic>.from(data['requestStatus'] as Map);
     if (status['result'] == true) {
       final response = data['responseData'];
@@ -204,8 +215,6 @@ final class ObsWebSocketTransport implements ObsTransport, ObsEventTransport {
     onStateChanged?.call('connected', false);
     onStateChanged?.call('connection', 'disconnected');
   }
-
-  void _handleError(Object error) => _failPending(error);
 
   void _failPending(Object error) {
     for (final completer in _pending.values) {
