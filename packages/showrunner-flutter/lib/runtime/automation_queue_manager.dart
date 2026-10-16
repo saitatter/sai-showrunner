@@ -95,6 +95,7 @@ final class DartAutomationQueueManager {
     String? queueId,
     RuntimeMap? sourceMetadata,
     String? entryNodeId,
+    String? entrySpaceId,
   }) async {
     final queueKey = _key(queueId);
     final queue = await queueFor(queueKey);
@@ -106,6 +107,7 @@ final class DartAutomationQueueManager {
       'queueName': _queueNames[traceQueueKey] ?? traceQueueKey,
       'name': automation.metadata['name'] ?? 'Queued automation',
       'entryNodeId': ?entryNodeId,
+      'entrySpaceId': ?entrySpaceId,
     };
     final item = queue.enqueue(
       source,

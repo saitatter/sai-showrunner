@@ -711,8 +711,14 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   }
 
   Future<void> _runAutomation() => _executeGraph();
-  Future<void> _runNode(String nodeId) => _executeGraph(entryNodeId: nodeId);
-  Future<void> _executeGraph({String? entryNodeId}) async {
+  Future<void> _runNode(String nodeId) => _executeGraph(
+    entryNodeId: nodeId,
+    entrySpaceId: _graphEditor.graph.activeSpaceId,
+  );
+  Future<void> _executeGraph({
+    String? entryNodeId,
+    String? entrySpaceId,
+  }) async {
     final automation = _graphEditor.document;
     final source = ExecutionTraceSource(
       type: 'automation',
@@ -724,6 +730,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         automation,
         EvaluationContext(),
         entryNodeId: entryNodeId,
+        entrySpaceId: entrySpaceId,
         queueId: automation.queueId,
         sourceMetadata: {'sourceType': source.type, 'sourceId': source.id},
       );

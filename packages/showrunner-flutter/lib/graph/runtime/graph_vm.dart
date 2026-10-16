@@ -7,7 +7,6 @@ import 'graph_runtime.dart';
 
 import 'graph_program.dart';
 import 'runtime_values.dart';
-import '../domain/automation_document.dart';
 
 final class DartGraphVm {
   DartGraphVm(
@@ -62,7 +61,12 @@ final class DartGraphVm {
     _loopTraceIterations.clear();
     _didReturn = false;
     _outputValues = {};
-    _graphScope = const MainGraphScope();
+    final signature = program.values.projection.signatureForSpace(
+      program.rootSpaceId,
+    );
+    _graphScope = signature == null
+        ? const MainGraphScope()
+        : SubgraphScope(signature.id);
     _executedInstructionCount = 0;
     _pc = 0;
     _localSlotsByName
@@ -78,7 +82,7 @@ final class DartGraphVm {
       nodeResults: _nodeResults,
       cancellationToken: context.cancellationToken,
     );
-    program.values.seedScope(mainAutomationSpace, _context);
+    program.values.seedScope(program.rootSpaceId, _context);
     for (final entry in _localSlotsByName.entries) {
       if (_context.locals.containsKey(entry.key)) {
         _locals[entry.value] = _context.locals[entry.key];

@@ -10,11 +10,24 @@ export '../../schema/json.dart';
 /// Wrappers retain original entities/IDs. Port names are decoded to runtime
 /// config/result paths; there is no editor/schema node-ID mapping.
 final class AutomationRuntimeProjection {
-  AutomationRuntimeProjection(this.document) {
+  AutomationRuntimeProjection(
+    this.document, {
+    this.rootSpaceId = mainAutomationSpace,
+  }) {
+    final space = document.graph.spaces[rootSpaceId];
+    if (space == null) {
+      throw StateError('Missing execution space: $rootSpaceId');
+    }
+    final signature = signatureForSpace(rootSpaceId);
+    if (rootSpaceId != mainAutomationSpace && signature == null) {
+      throw StateError(
+        'Execution space has no subgraph declaration: $rootSpaceId',
+      );
+    }
     graph = RuntimeGraph(
       this,
-      document.graph.spaces[mainAutomationSpace]!,
-      document.entryNodeId,
+      space,
+      signature?.entryNodeId ?? document.entryNodeId,
     );
     subgraphs = List.unmodifiable(
       document.subgraphs.values.map(
@@ -23,6 +36,7 @@ final class AutomationRuntimeProjection {
     );
   }
   final AutomationDocument document;
+  final String rootSpaceId;
   late final RuntimeValueResolver values = RuntimeValueResolver(this);
   late final RuntimeGraph graph;
   late final List<RuntimeSubgraph> subgraphs;

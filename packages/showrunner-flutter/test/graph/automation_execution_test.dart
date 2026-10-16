@@ -10,6 +10,62 @@ import 'package:showrunner_flutter/runtime/cancellation.dart';
 import 'package:showrunner_flutter/schema/data_input.dart';
 
 void main() {
+  test(
+    'run from a subgraph node uses its space, parameter defaults and output signature',
+    () async {
+      final signature = AutomationSubgraph(
+        id: 'sub',
+        name: 'Sub',
+        entryNodeId: 'skip',
+        parameters: [
+          AutomationParameter(id: 'p', name: 'Input', defaultValue: 42),
+        ],
+        outputs: [
+          AutomationParameter(id: 'o', name: 'Output', defaultValue: 99),
+        ],
+      );
+      final seen = <List<Object?>>[];
+      final result = await parity(
+        document(
+          [action('main', value: 'main')],
+          [],
+          entry: 'main',
+          subgraphs: {signature.id: signature},
+          spaces: {
+            signature.spaceId: GraphSpace(
+              id: signature.spaceId,
+              nodes: {
+                'skip': action('skip', value: 'skipped'),
+                'chosen': action('chosen'),
+                'parameter': GraphNode(
+                  id: 'parameter',
+                  type: 'showrunner.parameter',
+                  data: {'parameterId': 'p'},
+                ),
+                'ret': GraphNode(id: 'ret', type: 'showrunner.return'),
+              },
+              connections: {
+                for (final edge in [
+                  flow('skip', 'chosen'),
+                  flow('chosen', 'ret'),
+                  wire('parameter', 'value.out', 'chosen', 'config:value'),
+                ])
+                  edge.id: edge,
+              },
+            ),
+          },
+        ),
+        entrySpaceId: signature.spaceId,
+        entryNodeId: 'chosen',
+        runs: seen,
+      );
+      expect(seen, [
+        [42],
+        [42],
+      ]);
+      expect(result.outputValues, {'Output': 99});
+    },
+  );
   test('literal variables retain objects containing a type property', () async {
     final result = await parity(
       document(
@@ -575,6 +631,8 @@ GraphConnection wire(String from, String output, String to, String input) =>
 
 Future<GraphExecutionResult> parity(
   AutomationDocument doc, {
+  String entrySpaceId = mainAutomationSpace,
+  String? entryNodeId,
   EvaluationContext Function()? context,
   List<List<Object?>>? runs,
 }) async {
@@ -630,6 +688,8 @@ Future<GraphExecutionResult> parity(
           automation: doc,
           context: context?.call() ?? EvaluationContext(),
           registry: registry,
+          entrySpaceId: entrySpaceId,
+          entryNodeId: entryNodeId,
         ),
       );
     } finally {

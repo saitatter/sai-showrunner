@@ -107,6 +107,7 @@ final class DartGraphProgram {
     required this.loopNodeIds,
     required this.nodeTypes,
     required this.values,
+    required this.rootSpaceId,
   });
 
   final List<DartGraphInstruction> instructions;
@@ -116,6 +117,7 @@ final class DartGraphProgram {
   final List<String> slotNames;
   final Map<PortRef, DartGraphWireSource> wireMap;
   final RuntimeValueResolver values;
+  final String rootSpaceId;
   final List<String> contextSourceNodeIds;
   final List<String> wireTargetNodeIds;
   final List<RuntimeValueBinding> dataWires;

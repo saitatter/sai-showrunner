@@ -16,6 +16,7 @@ import '../../plugins/showrunner/manifest.dart';
 import '../../runtime/action_queue.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../../graph/runtime/graph_execution_engine.dart';
+import '../../graph/domain/automation_document.dart';
 import '../../runtime/execution_trace.dart';
 import '../../runtime/profile_manager.dart';
 import '../../runtime/profile_runtime.dart';
@@ -101,6 +102,8 @@ final class ShowRunnerServices {
           context: context,
           registry: registry,
           entryNodeId: item.source['entryNodeId'] as String?,
+          entrySpaceId:
+              item.source['entrySpaceId'] as String? ?? mainAutomationSpace,
           traceSource: ExecutionTraceSource.fromMetadata({
             ...item.source,
             'itemId': item.id,

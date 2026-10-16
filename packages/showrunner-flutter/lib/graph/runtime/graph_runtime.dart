@@ -52,6 +52,7 @@ final class DartGraphRuntime {
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
     ExecutionTraceSink? traceSink,
+    ExecutionGraphScope graphScope = const MainGraphScope(),
   }) {
     return execute(
       graph: graph,
@@ -66,6 +67,7 @@ final class DartGraphRuntime {
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
       traceSink: traceSink,
+      graphScope: graphScope,
       action: (node, config, runtimeContext) => registry.invokeAction(
         node.data['plugin'] as String,
         node.data['action'] as String,

@@ -107,6 +107,11 @@ final class RuntimeValueResolver {
   }
 
   void seedScope(String spaceId, EvaluationContext context) {
+    for (final parameter
+        in projection.signatureForSpace(spaceId)?.parameters ??
+            <AutomationParameter>[]) {
+      context.locals.putIfAbsent(parameter.name, () => parameter.defaultValue);
+    }
     for (final entry in variables.values.where(
       (value) => value.spaceId == spaceId,
     )) {

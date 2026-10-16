@@ -32,8 +32,9 @@ final class DartProductionGraphCompiler {
   DartGraphProgram compileAutomation(
     AutomationDocument automation, {
     String? entryNodeId,
+    String entrySpaceId = mainAutomationSpace,
   }) => compile(
-    AutomationRuntimeProjection(automation),
+    AutomationRuntimeProjection(automation, rootSpaceId: entrySpaceId),
     entryNodeId: entryNodeId,
   );
   DartGraphProgram compile(
@@ -108,6 +109,7 @@ final class DartProductionGraphCompiler {
         ...subgraph.nodes.map((node) => node.id),
     };
     return DartGraphProgram(
+      rootSpaceId: projection.rootSpaceId,
       values: projection.values,
       instructions: List.unmodifiable(_instructions),
       actionNodes: List.unmodifiable(_actionNodes),

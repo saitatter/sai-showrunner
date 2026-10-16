@@ -24,6 +24,7 @@ abstract interface class GraphExecutionEngine {
     required EvaluationContext context,
     required DartPluginRegistry registry,
     String? entryNodeId,
+    String entrySpaceId = mainAutomationSpace,
     GraphExecutionObserver? onNodeEnter,
     GraphExecutionObserver? onNodeExit,
     ExecutionTraceSink? traceSink,
@@ -50,6 +51,7 @@ final class InterpreterExecutionEngine implements GraphExecutionEngine {
     required EvaluationContext context,
     required DartPluginRegistry registry,
     String? entryNodeId,
+    String entrySpaceId = mainAutomationSpace,
     GraphExecutionObserver? onNodeEnter,
     GraphExecutionObserver? onNodeExit,
     ExecutionTraceSink? traceSink,
@@ -57,7 +59,10 @@ final class InterpreterExecutionEngine implements GraphExecutionEngine {
     ExecutionTraceSource? traceSource,
   }) async {
     _validateContracts(automation, registry);
-    final projection = AutomationRuntimeProjection(automation);
+    final projection = AutomationRuntimeProjection(
+      automation,
+      rootSpaceId: entrySpaceId,
+    );
     projection.validate();
     final session = traceSink == null && traceService != null
         ? traceService!.start(
@@ -73,6 +78,9 @@ final class InterpreterExecutionEngine implements GraphExecutionEngine {
             maxDepth: maxDepth,
           ).executeWithRegistry(
             graph: projection.graph,
+            graphScope: projection.signatureForSpace(entrySpaceId) != null
+                ? SubgraphScope(projection.signatureForSpace(entrySpaceId)!.id)
+                : const MainGraphScope(),
             context: context,
             registry: registry,
             dataWires: projection.dataWires,
@@ -121,6 +129,7 @@ final class CompiledExecutionEngine implements GraphExecutionEngine {
     required EvaluationContext context,
     required DartPluginRegistry registry,
     String? entryNodeId,
+    String entrySpaceId = mainAutomationSpace,
     GraphExecutionObserver? onNodeEnter,
     GraphExecutionObserver? onNodeExit,
     ExecutionTraceSink? traceSink,
@@ -128,7 +137,11 @@ final class CompiledExecutionEngine implements GraphExecutionEngine {
     ExecutionTraceSource? traceSource,
   }) async {
     _validateContracts(automation, registry);
-    final program = cache.getOrCompile(automation, entryNodeId: entryNodeId);
+    final program = cache.getOrCompile(
+      automation,
+      entryNodeId: entryNodeId,
+      entrySpaceId: entrySpaceId,
+    );
     final executionContext = EvaluationContext(
       locals: context.locals,
       contextState: {...registry.stateContext(), ...context.contextState},
@@ -188,6 +201,7 @@ final class GraphProgramCache {
   DartGraphProgram getOrCompile(
     AutomationDocument automation, {
     String? entryNodeId,
+    String entrySpaceId = mainAutomationSpace,
   }) {
     final signature = jsonEncode(
       _canonical({
@@ -223,7 +237,15 @@ final class GraphProgramCache {
           for (final entry in automation.subgraphs.entries)
             entry.key: entry.value.toJson(),
         },
-        'entryNodeId': entryNodeId ?? automation.entryNodeId,
+        'entrySpaceId': entrySpaceId,
+        'entryNodeId':
+            entryNodeId ??
+            (entrySpaceId == mainAutomationSpace
+                ? automation.entryNodeId
+                : automation.subgraphs.values
+                      .where((signature) => signature.spaceId == entrySpaceId)
+                      .firstOrNull
+                      ?.entryNodeId),
       }),
     );
     final cached = _entries.remove(signature);
@@ -234,6 +256,7 @@ final class GraphProgramCache {
     final program = DartProductionGraphCompiler().compileAutomation(
       automation,
       entryNodeId: entryNodeId,
+      entrySpaceId: entrySpaceId,
     );
     compilationCount++;
     _entries[signature] = program;
