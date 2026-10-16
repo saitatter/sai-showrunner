@@ -105,7 +105,13 @@ class _VariablesWorkspaceState extends State<VariablesWorkspace> {
 
   Future<void> _save(ResourceData resource) async {
     await _repository.save(resource);
-    await widget.variableRuntime?.reload();
+    final runtime = widget.variableRuntime;
+    if (runtime != null) {
+      await runtime.reload();
+      if (resource.state.containsKey('value')) {
+        await runtime.setValue(resource.id, resource.state['value']);
+      }
+    }
   }
 
   List<ResourceData> get _filteredVariables {
@@ -298,6 +304,7 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
   Object? _error;
   bool _loadingDefinitions = true;
   bool _loadingViewer = false;
+  int _viewerLoadGeneration = 0;
   bool _loadingViewers = false;
   List<ViewerDataRow> _viewerRows = const [];
   int _viewerPage = 0;
@@ -365,24 +372,8 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
     if (event['provider']?.toString() != 'twitch') return;
     final id = event['id']?.toString();
     if (id == null || id.isEmpty) return;
-    final values = event['values'];
-    final viewer = ViewerIdentity(
-      id: id,
-      displayName: event['displayName']?.toString() ?? id,
-    );
-    if (mounted && values is Map) {
-      setState(
-        () => _row = ViewerDataRow(
-          provider: 'twitch',
-          viewer: viewer,
-          values: {
-            for (final entry in values.entries)
-              entry.key.toString(): entry.value,
-          },
-        ),
-      );
-    }
-    _loadViewers();
+    _onViewerDataChanged(event);
+    if (!_viewerRows.any((row) => row.viewer.id == id)) _loadViewers();
   }
 
   Future<void> _loadDefinitions() async {
@@ -391,6 +382,14 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
       if (!mounted) return;
       setState(() {
         _definitions = definitions;
+        if (_viewerSortBy != 'id' &&
+            _viewerSortBy != 'displayName' &&
+            !definitions.any(
+              (definition) => definition.name == _viewerSortBy,
+            )) {
+          _viewerSortBy = 'id';
+          _viewerPage = 0;
+        }
         _loadingDefinitions = false;
         _error = null;
       });
@@ -406,6 +405,7 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
   Future<void> _loadViewer() async {
     final id = _viewerIdController.text.trim();
     if (id.isEmpty) return;
+    final generation = ++_viewerLoadGeneration;
     setState(() {
       _loadingViewer = true;
       _error = null;
@@ -415,16 +415,23 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
         'twitch',
         ViewerIdentity(id: id, displayName: id),
       );
-      if (mounted) setState(() => _row = row);
+      if (mounted && generation == _viewerLoadGeneration) {
+        setState(() => _row = row);
+      }
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted && generation == _viewerLoadGeneration) {
+        setState(() => _error = error);
+      }
     }
-    if (mounted) setState(() => _loadingViewer = false);
+    if (mounted && generation == _viewerLoadGeneration) {
+      setState(() => _loadingViewer = false);
+    }
   }
 
   Future<void> _setValue(String variable, dynamic value) async {
     final row = _row;
     if (row == null) return;
+    final generation = _viewerLoadGeneration;
     try {
       final next = await widget.repository.setViewerValue(
         row.provider,
@@ -432,9 +439,17 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
         variable,
         value,
       );
-      if (mounted) setState(() => _row = next);
+      if (mounted &&
+          generation == _viewerLoadGeneration &&
+          _row?.viewer.id == row.viewer.id) {
+        setState(() => _row = next);
+      }
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted &&
+          generation == _viewerLoadGeneration &&
+          _row?.viewer.id == row.viewer.id) {
+        setState(() => _error = error);
+      }
     }
   }
 
@@ -643,7 +658,11 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
             const SizedBox(height: 8),
             for (final definition in _definitions)
               _ViewerValueTile(
-                key: ValueKey(definition.name),
+                key: ValueKey((
+                  _row!.provider,
+                  _row!.viewer.id,
+                  definition.name,
+                )),
                 definition: definition,
                 value: _row!.values[definition.name],
                 onChanged: (value) => _setValue(definition.name, value),
