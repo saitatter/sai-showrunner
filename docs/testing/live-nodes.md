@@ -97,3 +97,8 @@ implicită și necesită doar `clientId`; `clientSecret` și `refreshToken` pot
 rămâne goale pentru acest flux. Tokenul și ID-ul contului se obțin după login.
 Callback-ul folosește portul fix 17563, deoarece Twitch cere potrivirea exactă
 a adresei înregistrate. Alte fluxuri OAuth pot avea cerințe diferite.
+
+Runda Twitch și limitările ei sunt descrise în
+[raportul Twitch](twitch-live-2026-10-16.md). Verificările de conexiune se repetă
+cu `./scripts/test-live-twitch.ps1`; opțiunea `-WaitChatSeconds 180` permite
+testarea unui mesaj real prin trigger și graful compilat.

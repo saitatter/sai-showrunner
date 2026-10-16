@@ -1,0 +1,82 @@
+# Twitch — verificare live, 16 octombrie 2026
+
+Autorizarea contului prin aplicația Public a reușit. Client ID-ul, identitatea
+tokenului și cele 20 de permisiuni au fost validate la Twitch. Tokenul și ID-urile
+numerice au fost salvate în `connections.local.yml`, ignorat de Git, și în
+profilul izolat de test. Nu este necesar Client Secret pentru acest flux.
+
+Au trecut citirea dashboardului canalului, setările chatului, urmăritorii și
+crearea tuturor celor **21 de abonamente EventSub**, fără respingeri.
+Citirea programului de reclame a fost acceptată de API. Citirea recompenselor
+prin nodul compilat a primit `403`; această funcție rămâne nevalidată pentru
+canalul configurat și trebuie verificată eligibilitatea lui.
+Acceptarea unui abonament nu validează producerea și recepția evenimentului.
+Pentru primirea efectivă a unui mesaj și executarea grafului se folosește proba
+manuală descrisă mai jos. Nu au fost trimise mesaje din cont și nu au fost
+executate reclame, raiduri, sancțiuni sau modificări ale canalului.
+
+Defecte corectate în această rundă:
+
+- deschiderea prin Explorer putea ignora URL-ul lung de autorizare; se folosește
+  acum handlerul URL Windows prin Start-Process, cu parametrul citat;
+- testele OAuth utilizau portul autentificării reale; folosesc acum un port
+  efemer și verifică separat adresa fixă a produsului;
+- butonul Authorize din setările generice Twitch cerea încă secret și folosea
+  fluxul vechi; utilizează acum serviciul de cont Public;
+- identitatea Twitch returnează `display_name` și `broadcaster_type`; acestea
+  sunt convertite pentru modelul de cont;
+- lipseau scope-urile `channel:moderate` și `bits:read`;
+- shoutout primit necesita și `moderator_user_id`; banul folosește condiția
+  broadcasterului și distinge timeout-ul prin `ends_at`/`is_permanent`;
+- mesajele EventSub au un obiect `message.text`, nu un șir direct;
+- `channel.ad_break.end` și `channel.ad_schedule` nu sunt abonamente EventSub
+  documentate: finalul reclamei este derivat din început/durată, iar programul
+  reclamelor este citit periodic din Helix. Aceste două fluxuri au teste locale,
+  nu o verificare cu reclame reale;
+- nodurile fără ID explicit foloseau șiruri goale; transportul configurat
+  completează broadcaster/sender/moderator din setări, păstrând suprascrierile;
+- un GET din nodurile provider scria corpul `{}` și eșua în HttpClient înainte
+  să ajungă la Twitch; GET/HEAD nu mai trimit acel corp;
+- runnerul YAML activa interceptarea HTTP din Flutter test, blocând conexiunile
+  reale; această inițializare a fost eliminată din runnerul fără interfață.
+- nodul de variabile încerca să modifice harta nemodificabilă din snapshot-ul
+  registry-ului; contextul păstrează acum propria copie. Același graf de test
+  este verificat local pentru mesaje potrivite și nepotrivite.
+
+Verificare finală: **707 teste trecute**, trei probe live sărite fără opt-in,
+analiză statică fără probleme. Raportul live fără mesaj manual este în
+`packages/showrunner-flutter/.tmp/twitch-proof-1792120719295/report.json`.
+Proba care a așteptat mesajul manual a expirat fără să-l observe; recepția
+chatului real și rularea grafului din acel mesaj nu sunt încă marcate PASS.
+
+Contractele și permisiunile au fost verificate în
+[documentația EventSub](https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/)
+și [validarea tokenurilor](https://dev.twitch.tv/docs/authentication/validate-tokens/).
+
+## Repetare
+
+Din rădăcina repo, pentru verificările fără modificări ale canalului:
+
+```powershell
+./scripts/test-live-twitch.ps1
+```
+
+Pentru proba mesaj real → trigger Twitch → condiție în Graph Editor → variabilă:
+
+```powershell
+./scripts/test-live-twitch.ps1 -WaitChatSeconds 180
+```
+
+După mesajul `READY`, scrie exact `showrunner-test` în chatul canalului
+configurat. Testul verifică textul decodat de contractul triggerului și rezultatul
+motorului compilat. Dacă mesajul nu ajunge în interval, proba expiră; nu este
+marcată ca funcțională automat. Raportul fără tokenuri este salvat în
+`packages/showrunner-flutter/.tmp/twitch-proof-*/report.json`.
+
+Nu rula două probe EventSub simultan cu aceeași configurație: Twitch poate
+respinge abonamentele duplicate cât timp primul listener este încă activ.
+Funcțiile cu efecte publice și cele care cer un stream live/monetizare rămân
+pentru o rundă separată, cu ținte de test. OBS-ul principal nu este folosit;
+viitoarele teste OBS folosesc exclusiv copia portabilă.
+Configurația locală OBS de test indică portul 4456 al copiei portabile;
+scenariul vechi care citea o sursă din instanța principală a fost dezactivat.
