@@ -1,6 +1,6 @@
 # Remedieri și comparație UI — 2 octombrie 2026
 
-Acest raport urmărește cele 25 de puncte din [auditul inițial](audit-2026-10-02.md). Modificările sunt în working tree; nu au fost publicate sau incluse într-un commit. Verificarea folosește Windows, Flutter 3.44.0 / Dart 3.12.0 și Node 22.
+Acest raport urmărește cele 25 de puncte din [auditul inițial](audit-2026-10-02.md). Verificarea inițială folosește Windows, Flutter 3.44.0 / Dart 3.12.0 și Node 22. Modificările, aflate atunci în working tree, au fost ulterior incluse în commituri; ultimele schimbări de infrastructură și dovezile auditului au fost comise pe 16 octombrie 2026. Nu au fost publicate prin această intervenție.
 
 ## Remedieri
 
