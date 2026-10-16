@@ -79,7 +79,11 @@ void main() {
   });
 
   test('completes the Twitch-style browser fragment flow', () async {
-    final flow = const OAuthImplicitAuthorizationFlow();
+    expect(twitchOAuthRedirectUrl, 'http://localhost:17563/oauth/callback');
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final flow = OAuthImplicitAuthorizationFlow(
+      httpServerFactory: () async => server,
+    );
     final token = await flow.authorize(
       authorizationEndpoint: 'https://id.twitch.tv/oauth2/authorize',
       clientId: 'public-client',
@@ -89,7 +93,10 @@ void main() {
         expect(url.queryParameters['client_id'], 'public-client');
         expect(url.queryParameters.containsKey('client_secret'), isFalse);
         final redirect = Uri.parse(url.queryParameters['redirect_uri']!);
-        expect(redirect.toString(), 'http://localhost:17563/oauth/callback');
+        expect(
+          redirect.toString(),
+          'http://localhost:${server.port}/oauth/callback',
+        );
         final client = HttpClient();
         try {
           final page = await client.getUrl(redirect);

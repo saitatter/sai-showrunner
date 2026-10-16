@@ -46,11 +46,6 @@ final class TwitchAccountAuthService {
         ? twitchPublicClientId
         : configuredClientId;
     final clientSecret = settings['clientSecret']?.toString().trim() ?? '';
-    if (authorize != null && clientSecret.isEmpty) {
-      throw StateError(
-        'Twitch client ID and client secret are required before account sign-in.',
-      );
-    }
     final scopes = normalizedId == 'bot' ? _botScopes : _channelScopes;
     final token = authorize == null
         ? await _authorizeWithBrowser(clientId: clientId, scopes: scopes)
@@ -127,6 +122,8 @@ const _channelScopes = <String>[
   'moderator:read:followers',
   'moderator:manage:shoutouts',
   'moderator:manage:banned_users',
+  'channel:moderate',
+  'bits:read',
   'channel:manage:raids',
   'channel:manage:polls',
   'channel:manage:predictions',
@@ -180,7 +177,11 @@ Future<JsonMap> _loadTwitchIdentity(String accessToken, String clientId) async {
     if (first is! Map) {
       throw const FormatException('Twitch identity response was invalid.');
     }
-    return Map<String, dynamic>.from(first);
+    return {
+      ...Map<String, dynamic>.from(first),
+      'displayName': first['display_name'],
+      'broadcasterType': first['broadcaster_type'],
+    };
   } finally {
     client.close(force: true);
   }

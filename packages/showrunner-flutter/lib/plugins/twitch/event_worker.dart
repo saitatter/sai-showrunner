@@ -43,23 +43,10 @@ List<TwitchEventSubSubscription> defaultTwitchEventSubSubscriptions(
   TwitchEventSubSubscription(
     type: 'channel.ban',
     version: '1',
-    condition: {
-      'broadcaster_user_id': broadcasterId,
-      'moderator_user_id': broadcasterId,
-    },
-  ),
-  TwitchEventSubSubscription(
-    type: 'channel.moderate',
-    version: '2',
-    condition: {
-      'broadcaster_user_id': broadcasterId,
-      'moderator_user_id': broadcasterId,
-    },
+    condition: {'broadcaster_user_id': broadcasterId},
   ),
   for (final type in const [
     'channel.ad_break.begin',
-    'channel.ad_break.end',
-    'channel.ad_schedule',
     'channel.channel_points_custom_reward_redemption.add',
     'channel.cheer',
     'channel.hype_train.begin',
@@ -97,7 +84,10 @@ List<TwitchEventSubSubscription> defaultTwitchEventSubSubscriptions(
   TwitchEventSubSubscription(
     type: 'channel.shoutout.receive',
     version: '1',
-    condition: {'broadcaster_user_id': broadcasterId},
+    condition: {
+      'broadcaster_user_id': broadcasterId,
+      'moderator_user_id': broadcasterId,
+    },
   ),
   TwitchEventSubSubscription(
     type: 'channel.raid',
@@ -137,6 +127,7 @@ final class TwitchEventSubWorker {
     List<String>? subscriptionTypes,
     List<TwitchEventSubSubscription>? subscriptions,
     this.ignoreSubscriptionErrors = true,
+    this.adSchedulePollInterval = const Duration(minutes: 1),
   }) : _subscriptions =
            subscriptions ??
            (subscriptionTypes == null
@@ -164,6 +155,7 @@ final class TwitchEventSubWorker {
   final int maxReconnectAttempts;
   final void Function()? onStatusChanged;
   final bool ignoreSubscriptionErrors;
+  final Duration adSchedulePollInterval;
   final List<TwitchEventSubSubscription> _subscriptions;
   EventSubSocket? _socket;
   StreamSubscription<dynamic>? _subscription;
@@ -174,6 +166,11 @@ final class TwitchEventSubWorker {
   int reconnectAttempts = 0;
   DateTime? connectedAt;
   List<String> subscriptionErrors = const [];
+  Object? adScheduleError;
+  Timer? _adScheduleTimer;
+  Timer? _adEndTimer;
+  String? _lastAdSchedule;
+  bool _loadingAdSchedule = false;
 
   ProviderWorkerState get state => _state;
   bool get isRunning => _state == ProviderWorkerState.running;
@@ -256,10 +253,51 @@ final class TwitchEventSubWorker {
     this.subscriptionErrors = List.unmodifiable(subscriptionErrors);
     connectedAt = DateTime.now();
     _setState(ProviderWorkerState.running);
+    if (_subscriptions.any((item) => item.type == 'channel.ad_break.begin')) {
+      await _refreshAdSchedule();
+      if (_stopping) return;
+      _adScheduleTimer?.cancel();
+      _adScheduleTimer = Timer.periodic(adSchedulePollInterval, (_) {
+        unawaited(_refreshAdSchedule());
+      });
+    }
+  }
+
+  Future<void> _refreshAdSchedule() async {
+    if (_stopping || _loadingAdSchedule) return;
+    _loadingAdSchedule = true;
+    try {
+      final response = await request('GET', '/helix/channels/ads', {
+        'broadcaster_id': broadcasterId,
+      }, {});
+      if (_stopping) return;
+      final data = response['data'];
+      if (data is List && data.isNotEmpty && data.first is Map) {
+        final schedule = Map<String, dynamic>.from(data.first as Map);
+        final fingerprint = jsonEncode(schedule);
+        if (fingerprint != _lastAdSchedule) {
+          _lastAdSchedule = fingerprint;
+          eventHub.emit('adSchedule', {
+            ...schedule,
+            'eventType': 'adSchedule',
+            'platform': 'twitch',
+          });
+        }
+      }
+      adScheduleError = null;
+    } catch (error) {
+      adScheduleError = error;
+    } finally {
+      _loadingAdSchedule = false;
+    }
   }
 
   Future<void> stop() async {
     _stopping = true;
+    _adScheduleTimer?.cancel();
+    _adScheduleTimer = null;
+    _adEndTimer?.cancel();
+    _adEndTimer = null;
     await _subscription?.cancel();
     _subscription = null;
     final socket = _socket;
@@ -271,6 +309,8 @@ final class TwitchEventSubWorker {
 
   void _handleClosed() {
     _socket = null;
+    _adScheduleTimer?.cancel();
+    _adScheduleTimer = null;
     if (_stopping) {
       _setState(ProviderWorkerState.stopped);
     } else {
@@ -333,7 +373,10 @@ final class TwitchEventSubWorker {
       'channel.chat.message' => 'chat',
       'channel.chat.notification' =>
         event['notice_type'] == 'first_message' ? 'firstTimeChat' : 'chat',
-      'channel.ban' => event['duration'] == null ? 'ban' : 'timeout',
+      'channel.ban' =>
+        event['is_permanent'] == false || event['ends_at'] != null
+            ? 'timeout'
+            : 'ban',
       'channel.moderate' => event['action'] == 'timeout' ? 'timeout' : null,
       'channel.ad_break.begin' => 'adStarted',
       'channel.ad_break.end' => 'adEnded',
@@ -361,6 +404,23 @@ final class TwitchEventSubWorker {
     };
     if (eventId != null) {
       eventHub.emit(eventId, _normalizeTwitchEvent(eventId, event));
+      if (eventId == 'adStarted') {
+        _adEndTimer?.cancel();
+        final seconds = int.tryParse('${event['duration_seconds']}');
+        if (seconds != null && seconds > 0) {
+          final start =
+              DateTime.tryParse('${event['started_at']}') ?? DateTime.now();
+          final delay = start
+              .add(Duration(seconds: seconds))
+              .difference(DateTime.now());
+          _adEndTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
+            if (!_stopping) {
+              eventHub.emit('adEnded', _normalizeTwitchEvent('adEnded', event));
+            }
+          });
+        }
+        unawaited(_refreshAdSchedule());
+      }
     }
   }
 }
@@ -381,7 +441,8 @@ RuntimeMap _normalizeTwitchEvent(String eventId, Map event) {
     'viewerName',
     event['user_name'] ?? event['user_login'] ?? event['chatter_user_name'],
   );
-  copyIfPresent('message', event['message']);
+  final message = event['message'];
+  copyIfPresent('message', message is Map ? message['text'] : message);
   copyIfPresent('messageId', event['message_id']);
   copyIfPresent('bits', event['bits']);
   copyIfPresent('tier', _tierNumber(event['tier']));

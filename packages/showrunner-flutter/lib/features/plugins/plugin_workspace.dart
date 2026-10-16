@@ -13,6 +13,7 @@ import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/registry/flutter_plugin_ui_contract.dart';
 import '../../plugins/philips_hue/discovery.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
+import '../../plugins/twitch/account_runtime.dart';
 import '../../services/provider_settings_validator.dart';
 import '../../schema/automation.dart';
 import '../../schema/data_input.dart';
@@ -159,6 +160,28 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     try {
       final clientId = _controllers['$pluginId:clientId']!.text.trim();
       final clientSecret = _controllers['$pluginId:clientSecret']!.text.trim();
+      if (pluginId == 'twitch') {
+        if (clientId.isEmpty) {
+          throw ArgumentError(
+            'Client ID is required before Twitch authorization.',
+          );
+        }
+        await widget.dataService.savePluginSettings('twitch', {
+          ...?_settings['twitch'],
+          'clientId': clientId,
+        });
+        await TwitchAccountAuthService(
+          dataService: widget.dataService,
+        ).authorizeAccount('channel');
+        final values = await loadTwitchChannelSettings(widget.dataService);
+        await widget.dataService.savePluginSettings('twitch', values);
+        if (!mounted) return;
+        _settings['twitch'] = values;
+        for (final entry in values.entries) {
+          _controllers['twitch:${entry.key}']?.text = '${entry.value ?? ''}';
+        }
+        return;
+      }
       final isYouTube = pluginId == 'youtube';
       if (clientId.isEmpty || (!isYouTube && clientSecret.isEmpty)) {
         throw ArgumentError(
@@ -216,8 +239,9 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
       _controllers['$pluginId:accessToken']!.text = token.accessToken;
     } catch (error) {
       _error = error;
+    } finally {
+      if (mounted) setState(() => _saving = null);
     }
-    if (mounted) setState(() => _saving = null);
   }
 
   Future<void> _pairHueBridge() async {

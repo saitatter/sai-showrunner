@@ -186,6 +186,8 @@ final class OAuthAuthorizationFlow {
   }
 }
 
+const twitchOAuthRedirectUrl = 'http://localhost:17563/oauth/callback';
+
 /// OAuth implicit flow used by Twitch's public desktop application client.
 ///
 /// Twitch returns the token in the URL fragment, which browsers deliberately
@@ -208,7 +210,7 @@ final class OAuthImplicitAuthorizationFlow {
     final server = await httpServerFactory();
     final redirectUri = Uri(
       scheme: 'http',
-      host: 'localhost',
+      host: Uri.parse(twitchOAuthRedirectUrl).host,
       port: server.port,
       path: '/oauth/callback',
     );
@@ -445,9 +447,22 @@ Future<void> openOAuthUrlInBrowser(Uri url) async {
       'OAuth browser launch is currently supported on Windows only.',
     );
   }
-  // Keep the URL as one Explorer argument. `cmd /c start` treats ampersands
-  // in OAuth query strings as command separators and can drop parameters.
-  await Process.start('explorer.exe', [url.toString()]);
+  // Use the registered Windows URL handler. Explorer can silently ignore long
+  // authorization URLs; a shell command with an unquoted URL drops '&' fields.
+  final quotedUrl = url.toString().replaceAll("'", "''");
+  final command = "Start-Process -FilePath '$quotedUrl'";
+  final encoded = base64Encode([
+    for (final unit in command.codeUnits) ...[unit & 0xff, unit >> 8],
+  ]);
+  final result = await Process.run('powershell.exe', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-EncodedCommand',
+    encoded,
+  ]);
+  if (result.exitCode != 0) {
+    throw StateError('Windows could not open the OAuth authorization page.');
+  }
 }
 
 Future<HttpServer> _bindLoopback() =>
@@ -455,8 +470,10 @@ Future<HttpServer> _bindLoopback() =>
 
 // Twitch requires an exact registered redirect, including a fixed port.
 // localhost is the exception to its HTTPS requirement for development clients.
-Future<HttpServer> _bindTwitchLoopback() =>
-    HttpServer.bind(InternetAddress.loopbackIPv4, 17563);
+Future<HttpServer> _bindTwitchLoopback() => HttpServer.bind(
+  InternetAddress.loopbackIPv4,
+  Uri.parse(twitchOAuthRedirectUrl).port,
+);
 
 OAuthTokenSet _decodeTokenSet(String body) {
   final decoded = jsonDecode(body);

@@ -62,7 +62,7 @@ void main() {
             'chatter_user_id': 'viewer-1',
             'chatter_user_name': 'Viewer',
             'message_id': 'message-1',
-            'message': 'hello',
+            'message': {'text': 'hello', 'fragments': []},
             'badges': [
               {'set_id': 'subscriber'},
             ],
@@ -186,6 +186,22 @@ void main() {
       'broadcaster_user_id': 'broadcaster',
       'moderator_user_id': 'broadcaster',
     });
+    final types = requests.map((request) => request['type']);
+    expect(types, isNot(contains('channel.ad_break.end')));
+    expect(types, isNot(contains('channel.ad_schedule')));
+    expect(
+      requests.firstWhere((item) => item['type'] == 'channel.ban')['condition'],
+      {'broadcaster_user_id': 'broadcaster'},
+    );
+    expect(
+      requests.firstWhere(
+        (item) => item['type'] == 'channel.shoutout.receive',
+      )['condition'],
+      {
+        'broadcaster_user_id': 'broadcaster',
+        'moderator_user_id': 'broadcaster',
+      },
+    );
     final incomingRaid = requests.firstWhere(
       (request) =>
           request['type'] == 'channel.raid' &&
@@ -238,7 +254,101 @@ void main() {
       await hub.dispose();
     },
   );
+
+  test(
+    'routes temporary and permanent bans using real EventSub fields',
+    () async {
+      final hub = DartPluginEventHub();
+      final socket = _FakeEventSubSocket();
+      final worker = _workerWithSocket(socket, hub);
+      await worker.start();
+      for (final permanent in [false, true]) {
+        final result = hub.stream(permanent ? 'ban' : 'timeout').first;
+        socket.add(
+          jsonEncode({
+            'metadata': {'message_type': 'notification'},
+            'payload': {
+              'subscription': {'type': 'channel.ban'},
+              'event': {
+                'user_id': 'viewer',
+                'is_permanent': permanent,
+                'ends_at': permanent ? null : '2026-10-16T12:00:00Z',
+              },
+            },
+          }),
+        );
+        expect((await result)['eventType'], permanent ? 'ban' : 'timeout');
+      }
+      await worker.stop();
+      await hub.dispose();
+    },
+  );
+
+  test(
+    'reads ad schedules over Helix and derives ad end from the deadline',
+    () async {
+      final hub = DartPluginEventHub();
+      final socket = _FakeEventSubSocket();
+      final scheduleFuture = hub.stream('adSchedule').first;
+      final worker = _workerWithSocket(socket, hub, adSchedule: true);
+      await worker.start();
+      expect((await scheduleFuture)['next_ad_at'], '123');
+      final ended = hub.stream('adEnded').first;
+      socket.add(
+        jsonEncode({
+          'metadata': {'message_type': 'notification'},
+          'payload': {
+            'subscription': {'type': 'channel.ad_break.begin'},
+            'event': {
+              'duration_seconds': 1,
+              'started_at': DateTime.now()
+                  .subtract(const Duration(seconds: 2))
+                  .toUtc()
+                  .toIso8601String(),
+            },
+          },
+        }),
+      );
+      expect(
+        (await ended.timeout(const Duration(seconds: 2)))['eventType'],
+        'adEnded',
+      );
+      await worker.stop();
+      await hub.dispose();
+    },
+  );
 }
+
+TwitchEventSubWorker _workerWithSocket(
+  _FakeEventSubSocket socket,
+  DartPluginEventHub hub, {
+  bool adSchedule = false,
+}) => TwitchEventSubWorker(
+  accessToken: 'token',
+  clientId: 'client',
+  broadcasterId: 'broadcaster',
+  eventHub: hub,
+  subscriptionTypes: [adSchedule ? 'channel.ad_break.begin' : 'channel.ban'],
+  request: (method, path, query, body) async => method == 'GET'
+      ? {
+          'data': [
+            {'next_ad_at': '123'},
+          ],
+        }
+      : {},
+  socketFactory: (_) async {
+    scheduleMicrotask(
+      () => socket.add(
+        jsonEncode({
+          'payload': {
+            'session': {'id': 'session'},
+          },
+        }),
+      ),
+    );
+    return socket;
+  },
+);
 
 Future<void> _waitFor(bool Function() condition) async {
   for (var attempt = 0; attempt < 20 && !condition(); attempt++) {

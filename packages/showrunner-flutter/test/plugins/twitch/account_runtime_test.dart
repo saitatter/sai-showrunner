@@ -76,15 +76,13 @@ void main() {
         decrypt: cipher,
       ),
     );
-    await dataService.savePluginSettings('twitch', {
-      'clientId': 'client-id',
-      'clientSecret': 'client-secret',
-    });
+    await dataService.savePluginSettings('twitch', {'clientId': 'client-id'});
     final authorizations = <List<String>>[];
     final service = TwitchAccountAuthService(
       dataService: dataService,
       authorize:
           ({required clientId, required clientSecret, required scopes}) async {
+            expect(clientSecret, isEmpty);
             authorizations.add(scopes);
             return OAuthTokenSet(
               accessToken: scopes.contains('channel:manage:broadcast')
@@ -110,7 +108,12 @@ void main() {
     expect(authorizations.last, contains('chat:edit'));
     expect(
       authorizations.first,
-      containsAll(['user:read:chat', 'user:write:chat']),
+      containsAll([
+        'user:read:chat',
+        'user:write:chat',
+        'channel:moderate',
+        'bits:read',
+      ]),
     );
     expect(
       authorizations.last,
