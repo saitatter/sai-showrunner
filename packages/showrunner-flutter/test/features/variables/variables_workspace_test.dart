@@ -47,6 +47,13 @@ void main() {
   testWidgets('a late viewer load cannot overwrite a newer selection', (
     tester,
   ) async {
+    // Native integration bindings use the real platform text input by default.
+    // Register the test input so both simulated submissions address the current
+    // client after the first submission has unfocused the field.
+    if (!tester.testTextInput.isRegistered) {
+      tester.testTextInput.register();
+      addTearDown(tester.testTextInput.unregister);
+    }
     final repository = _DelayedViewerRepository();
     await tester.pumpWidget(
       MaterialApp(

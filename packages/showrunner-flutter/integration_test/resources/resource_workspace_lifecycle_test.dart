@@ -134,10 +134,19 @@ void main() {
       find.byKey(const ValueKey('overlay-widget-row-label-title')),
     );
     await _pumpApplication(tester);
+    final layerTitle = find.byKey(
+      const ValueKey('overlay-widget-row-title-label-title'),
+    );
+    await tester.tap(layerTitle);
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tap(layerTitle);
+    await _pumpApplication(tester);
     await tester.enterText(
-      find.byKey(const ValueKey('overlay-widget-name-label-title')),
+      find.byKey(const ValueKey('overlay-layer-rename-label-title')),
       'Stream title',
     );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await _pumpApplication(tester);
     final messageField = find.byWidgetPredicate(
       (candidate) =>
           candidate is TextField && candidate.decoration?.labelText == 'Text',
