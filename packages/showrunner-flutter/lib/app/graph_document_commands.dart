@@ -6,7 +6,7 @@ extension _GraphDocumentCommands on _ShowRunnerPageState {
     final selection = graph.selection;
     final revision = graph.revision;
     final spaceId = graph.activeSpaceId;
-    final fragment = GraphFragment.capture(graph);
+    final fragment = _graphEditor.captureFragment();
     await Clipboard.setData(ClipboardData(text: fragment.encode()));
     if (cut &&
         mounted &&
@@ -19,14 +19,16 @@ extension _GraphDocumentCommands on _ShowRunnerPageState {
 
   Future<void> _pasteGraph() async {
     final graph = _graphEditor.graph;
-    final data = await Clipboard.getData('text/plain');
-    if (!mounted ||
-        !identical(graph, _graphEditor.graph) ||
-        data?.text == null) {
-      return;
-    }
+    final spaceId = graph.activeSpaceId;
     try {
-      graph.pasteGraphFragment(GraphFragment.decode(data!.text!));
+      final data = await Clipboard.getData('text/plain');
+      if (!mounted ||
+          !identical(graph, _graphEditor.graph) ||
+          graph.activeSpaceId != spaceId ||
+          data?.text == null) {
+        return;
+      }
+      _graphEditor.pasteFragment(GraphFragment.decode(data!.text!));
     } catch (error) {
       if (mounted) {
         showShowRunnerFeedback(

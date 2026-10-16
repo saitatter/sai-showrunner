@@ -73,3 +73,20 @@ Git dependencies are pinned to local commits in the sibling library. Local path
 overrides are ignored; clean remote checkout requires publishing those library
 commits first. Credentials, portable OBS and generated artifacts remain ignored.
 The personal OBS profile is not used or modified.
+
+## Clipboard and inline execution follow-up
+
+Host clipboard payloads include the transitive subgraph closure. Cross-document
+paste allocates fresh entity IDs, remaps calls and expression references, preserves
+literal JSON, and commits definitions/spaces/root selection as one undo step.
+Unchanged dependencies within the source document are reused. Recursive dependency
+capture terminates. Generic canvas shortcuts/context menus and application commands
+share the same host hooks. Pending clipboard reads cannot cross tab/space changes.
+
+Inline profile and stream-plan canvases now receive the application runtime and
+trace service through an inherited UI capability. Their run/test controls use the
+host engine; trace snapshots filter by canonical document ID, keeping separate
+inline documents with identical node IDs isolated. Source filtering correctly
+handles a missing sub-ID as a wildcard on the filter. Execution leaves authoring
+state and dirty status unchanged. Full Flutter suite: 746 passed, 7 live probes
+skipped; analysis clean. Library checkpoint: 36 core and 92 Flutter tests passed.

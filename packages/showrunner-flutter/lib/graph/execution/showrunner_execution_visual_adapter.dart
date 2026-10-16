@@ -12,6 +12,7 @@ final class ShowrunnerExecutionVisualAdapter
   ShowrunnerExecutionVisualAdapter({
     required this.service,
     required this._source,
+    this.documentId,
   }) {
     _subscription = service.events.listen((_) => _refresh());
     _refresh();
@@ -21,11 +22,16 @@ final class ShowrunnerExecutionVisualAdapter
   final GraphExecutionVisualController _visuals =
       GraphExecutionVisualController();
   ExecutionTraceSource _source;
+  final String? documentId;
   String? _pinnedId;
   bool _disposed = false;
   String? get pinnedExecutionId => _pinnedId;
   List<ExecutionTraceRunSnapshot> get runs =>
-      service.snapshotsFor(_source)
+      (documentId == null
+            ? service.snapshotsFor(_source)
+            : service.snapshots
+                  .where((run) => run.info.source.documentId == documentId)
+                  .toList())
         ..sort((a, b) => b.info.startedAt.compareTo(a.info.startedAt));
   @override
   GraphExecutionSnapshot get snapshot => _visuals.snapshot;

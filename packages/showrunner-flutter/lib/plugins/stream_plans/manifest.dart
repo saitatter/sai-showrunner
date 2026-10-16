@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
+import '../../runtime/execution_trace.dart';
 import '../../graph/runtime/graph_execution_engine.dart';
 import '../../graph/runtime/graph_runtime.dart';
 import '../../runtime/automation_queue_manager.dart';
@@ -456,6 +457,11 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
       registry: registry,
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
+      traceSource: ExecutionTraceSource(
+        type: 'stream-plan',
+        id: planId,
+        subId: sourceSubId,
+      ),
     );
   }
 

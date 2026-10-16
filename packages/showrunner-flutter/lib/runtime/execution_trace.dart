@@ -42,6 +42,7 @@ final class ExecutionTraceSource {
     this.queueId,
     this.queueName,
     this.itemId,
+    this.documentId,
   });
 
   final String type;
@@ -50,6 +51,7 @@ final class ExecutionTraceSource {
   final String? queueId;
   final String? queueName;
   final String? itemId;
+  final String? documentId;
 
   factory ExecutionTraceSource.fromMetadata(Map value) => ExecutionTraceSource(
     type: value['sourceType']?.toString() ?? 'automation',
@@ -58,6 +60,7 @@ final class ExecutionTraceSource {
     queueId: value['queueId']?.toString(),
     queueName: value['queueName']?.toString(),
     itemId: value['itemId']?.toString(),
+    documentId: value['documentId']?.toString(),
   );
 
   Map<String, Object?> toJson() => {
@@ -67,12 +70,24 @@ final class ExecutionTraceSource {
     if (queueId != null && queueId!.isNotEmpty) 'queueId': queueId,
     if (queueName != null && queueName!.isNotEmpty) 'queueName': queueName,
     if (itemId != null && itemId!.isNotEmpty) 'itemId': itemId,
+    if (documentId != null) 'documentId': documentId,
   };
 
   bool matches(ExecutionTraceSource other) =>
       type == other.type &&
       id == other.id &&
+      (documentId == null || documentId == other.documentId) &&
       (subId == null || subId!.isEmpty || subId == other.subId);
+
+  ExecutionTraceSource withDocumentId(String value) => ExecutionTraceSource(
+    type: type,
+    id: id,
+    subId: subId,
+    queueId: queueId,
+    queueName: queueName,
+    itemId: itemId,
+    documentId: value,
+  );
 
   @override
   String toString() => '$type:$id${subId == null ? '' : ':$subId'}';
@@ -812,7 +827,7 @@ final class ExecutionTraceService {
 
   List<ExecutionTraceRunSnapshot> snapshotsFor(ExecutionTraceSource source) =>
       snapshots
-          .where((snapshot) => snapshot.info.source.matches(source))
+          .where((snapshot) => source.matches(snapshot.info.source))
           .toList(growable: false);
 
   ExecutionTraceRunSnapshot? snapshotFor(String executionId) =>
@@ -822,7 +837,7 @@ final class ExecutionTraceService {
       snapshots
           .where(
             (snapshot) =>
-                snapshot.info.source.matches(source) &&
+                source.matches(snapshot.info.source) &&
                 snapshot.info.status == ExecutionTraceRunStatus.running,
           )
           .toList(growable: false);

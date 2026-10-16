@@ -12,6 +12,7 @@ import 'package:sai_nodes_core/sai_nodes_core.dart';
 import '../../components/data_inputs/data_input.dart';
 import '../../components/data_inputs/resource_schema.dart';
 import '../controller/automation_editor_controller.dart';
+import '../controller/automation_clipboard.dart';
 import '../domain/automation_document.dart';
 import '../definitions/showrunner_graph_types.dart';
 import '../execution/showrunner_execution_visual_adapter.dart';
@@ -176,7 +177,7 @@ class AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
             listenable: changes,
             builder: (context, _) => _Inspector(
               editor: editor,
-              onRunNode: widget.onRunNode,
+              onRunNode: widget.onRunNode == null ? null : _runFromNode,
               onError: _error,
               resourceOptionsLoader: widget.resourceOptionsLoader,
             ),
@@ -223,6 +224,18 @@ class AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
     setState(() => running = true);
     try {
       await widget.onRun!(editor.document);
+    } catch (error) {
+      _error(error);
+    } finally {
+      if (mounted) setState(() => running = false);
+    }
+  }
+
+  Future<void> _runFromNode(String nodeId) async {
+    if (running || widget.onRunNode == null) return;
+    setState(() => running = true);
+    try {
+      await widget.onRunNode!(nodeId);
     } catch (error) {
       _error(error);
     } finally {
@@ -376,6 +389,8 @@ class AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
                   Expanded(
                     child: NodeEditor(
                       controller: graph,
+                      captureFragment: editor.captureFragment,
+                      pasteFragment: editor.pasteFragment,
                       headerBuilder: showrunnerNodeHeader,
                       portLabelBuilder: showrunnerPortLabel,
                       executionSource: widget.execution,
@@ -389,7 +404,9 @@ class AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
                     SizedBox(
                       width: 320,
                       child: _Inspector(
-                        onRunNode: widget.onRunNode,
+                        onRunNode: widget.onRunNode == null
+                            ? null
+                            : _runFromNode,
                         editor: editor,
                         onError: _error,
                         resourceOptionsLoader: widget.resourceOptionsLoader,

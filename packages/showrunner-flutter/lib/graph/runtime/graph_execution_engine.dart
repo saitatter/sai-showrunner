@@ -67,7 +67,8 @@ final class InterpreterExecutionEngine implements GraphExecutionEngine {
     final session = traceSink == null && traceService != null
         ? traceService!.start(
             mode: traceMode,
-            source: traceSource ?? _defaultTraceSource(automation),
+            source: (traceSource ?? _defaultTraceSource(automation))
+                .withDocumentId(automation.id),
           )
         : null;
     final sink = traceSink ?? session;
@@ -150,7 +151,8 @@ final class CompiledExecutionEngine implements GraphExecutionEngine {
     final session = traceSink == null && traceService != null
         ? traceService!.start(
             mode: traceMode,
-            source: traceSource ?? _defaultTraceSource(automation),
+            source: (traceSource ?? _defaultTraceSource(automation))
+                .withDocumentId(automation.id),
           )
         : null;
     final sink = traceSink ?? session;
