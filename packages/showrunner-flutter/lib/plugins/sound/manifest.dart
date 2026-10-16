@@ -292,7 +292,19 @@ Future<RuntimeMap> _speakTTS(
     pitch: pitch,
     rate: rate,
   );
-  final generatedFile = await fileService?.synthesizeToFile(request);
+  // Playback owns action/global/output volume. Baking the same gain into the
+  // WAV would apply it twice and make routed speech unexpectedly quiet.
+  final generatedFile = await fileService?.synthesizeToFile(
+    TtsSpeechRequest(
+      text: text,
+      voiceProvider: voiceProvider,
+      voiceName: voiceName,
+      voiceLocale: voiceLocale,
+      volume: 1,
+      pitch: pitch,
+      rate: rate,
+    ),
+  );
   if (generatedFile != null) {
     final played = await _playOutput(
       outputs,

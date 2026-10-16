@@ -86,6 +86,7 @@ void main() {
   });
 
   test('routes synthesized WAV through the selected sound output', () async {
+    TtsSpeechRequest? synthesized;
     final speech = _RecordingSpeechService();
     final output = _RecordingSoundOutput('system.main');
     final outputs = SoundOutputRegistry(defaultOutputId: 'system.main')
@@ -94,9 +95,10 @@ void main() {
       ..register(
         createSoundPlugin(
           ttsService: speech,
-          ttsFileService: CallbackTtsFileSynthesisService(
-            (_) async => 'C:/temp/showrunner-tts.wav',
-          ),
+          ttsFileService: CallbackTtsFileSynthesisService((request) async {
+            synthesized = request;
+            return 'C:/temp/showrunner-tts.wav';
+          }),
           soundOutputs: outputs,
         ),
       );
@@ -116,6 +118,12 @@ void main() {
     expect(speech.requests, isEmpty);
     expect(output.requests.single.file, 'C:/temp/showrunner-tts.wav');
     expect(output.requests.single.volume, 60);
+    expect(
+      synthesized!.volume,
+      1,
+      reason:
+          'The output applies volume once; the synthesized WAV stays at full gain.',
+    );
   });
 
   test('applies the configured global volume to TTS output', () async {
