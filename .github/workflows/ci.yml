@@ -53,6 +53,7 @@ jobs:
         shell: pwsh
         run: |
           yarn overlay:generate
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
           git diff --exit-code -- `
             packages/showrunner-obs-overlay/src/generated `
             packages/showrunner-flutter/assets/overlay_widgets.generated.json `
@@ -64,11 +65,17 @@ jobs:
         run: |
           Push-Location packages/showrunner-flutter
           flutter pub get
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
           dart format --output=none --set-exit-if-changed lib test tool integration_test
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
           flutter analyze
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
           flutter test
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
           flutter build windows --debug
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
           flutter build windows --release
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
           Pop-Location
 
       - name: Run Flutter integration gate
@@ -79,7 +86,11 @@ jobs:
         shell: pwsh
         run: |
           .\scripts\capture-flutter-visual.ps1 -OutputDirectory '.tmp/visual/flutter'
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter capture failed.' }
           corepack yarn visual:compare:catalog --actual-root=.tmp/visual/flutter
+          if ($LASTEXITCODE -ne 0) { throw "Visual comparison failed." }
+          corepack yarn visual:regression --actual-root=.tmp/visual/flutter
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter visual regression failed.' }
 
       - name: Upload visual parity captures and diffs
         if: always()
@@ -90,14 +101,28 @@ jobs:
             .tmp/visual/flutter/*.png
             .tmp/visual/catalog/*.png
             .tmp/visual/catalog/*.json
+            .tmp/visual/regression/*
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Verify local version defaults
+        run: node tools/verify-local-version.mjs
+
+      - name: Verify overlay in a real Chromium browser
+        shell: pwsh
+        run: |
+          corepack yarn overlay:build
+          if ($LASTEXITCODE -ne 0) { throw 'Overlay build failed.' }
+          corepack yarn overlay:browser-smoke
+          if ($LASTEXITCODE -ne 0) { throw 'Browser DOM/WebGL smoke failed.' }
 
       - name: Validate Flutter contract parity
         shell: pwsh
         run: |
           yarn parity:check
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
           yarn parity:product
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
 
       - name: Smoke Flutter Windows startup
         shell: pwsh
@@ -144,6 +169,7 @@ jobs:
       - name: Verify generated overlay registry
         run: |
           yarn overlay:generate
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
           git diff --exit-code -- packages/showrunner-obs-overlay/src/generated packages/showrunner-flutter/assets/overlay_widgets.generated.json
 
       - name: Build browser overlay runtime

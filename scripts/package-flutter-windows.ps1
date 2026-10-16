@@ -1,5 +1,5 @@
 param(
-  [string]$Version = '2.0.0',
+  [string]$Version = '',
   [string]$OutputDirectory = 'release',
   [switch]$SkipSmoke,
   [switch]$RequireBundledYouTubeClient,
@@ -8,6 +8,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $manifestPath = Join-Path $PSScriptRoot '..\package.json'
+  $Version = (Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json).version
+}
 
 Push-Location (Join-Path $PSScriptRoot '..\packages\showrunner-flutter')
 try {
@@ -26,6 +30,7 @@ try {
   }
 
   flutter build windows --release --build-name=$Version --build-number=1 @dartDefines
+  if ($LASTEXITCODE -ne 0) { throw "Flutter release build failed with exit code $LASTEXITCODE." }
   $bundle = Join-Path (Get-Location) 'build\windows\x64\runner\Release'
   if (-not (Test-Path $bundle)) {
     throw "Flutter Windows bundle was not produced at $bundle"

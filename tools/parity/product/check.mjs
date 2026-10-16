@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -28,6 +28,21 @@ function validateEntries(category, entries) {
     }
     if (entry.status !== 'intentionally_removed' && entry.main == null) {
       errors.push(`${category}.${id}: non-removed entry needs main evidence`);
+    }
+    if (!['intentionally_removed', 'not_applicable'].includes(entry.status)) {
+      if (!Array.isArray(entry.flutterEvidence) || !entry.flutterEvidence.length) {
+        errors.push(`${category}.${id}: Flutter evidence files are required`);
+      }
+      for (const evidence of entry.flutterEvidence ?? []) {
+        const path = resolve(root, evidence.path ?? '');
+        const rel = relative(root, path);
+        if (rel.startsWith('..') || isAbsolute(rel) || !existsSync(path)) {
+          errors.push(`${category}.${id}: evidence file missing or outside repository: ${evidence.path}`);
+        } else if (evidence.marker && !readFileSync(path, 'utf8').includes(evidence.marker)) {
+          errors.push(`${category}.${id}: evidence marker missing: ${evidence.marker}`);
+        }
+      }
+      if (entry.status === 'missing' || (entry.status === 'partial' && !entry.externalValidation?.length)) errors.push(`${category}.${id}: incomplete product surface`);
     }
     if (entry.status !== 'intentionally_removed' && entry.flutter == null) {
       errors.push(`${category}.${id}: non-removed entry needs Flutter evidence`);

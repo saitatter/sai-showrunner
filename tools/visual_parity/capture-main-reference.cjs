@@ -8,7 +8,7 @@ const repositoryRoot = path.resolve(__dirname, "..", "..")
 const referenceRoot = path.join(repositoryRoot, ".tmp", "main-reference")
 const appRoot = path.join(referenceRoot, "packages", "showrunner")
 const appEntry = path.join(appRoot, "dist", "dist-electron", "background.js")
-const outputRoot = path.join(repositoryRoot, "test", "reference", "main")
+const outputRoot = path.resolve(process.env.SHOWRUNNER_REFERENCE_OUTPUT || path.join(repositoryRoot, "test", "reference", "main"))
 const visualResourceFixture = path.join(repositoryRoot, "test", "fixtures", "visual-parity", "resources.json")
 const electronPath = require(path.join(referenceRoot, "node_modules", "electron"))
 const userDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "showrunner-reference-"))
@@ -301,6 +301,7 @@ async function main() {
 			"loaded ShowRunner shell",
 		)
 
+		if (!process.argv.includes("--overlay-only")) {
 		await capture(cdp.send, "app-empty.png")
 		await clickText(cdp.send, "File")
 		await clickText(cdp.send, "Settings")
@@ -362,15 +363,38 @@ async function main() {
 			console.log("Skipped Tools captures: the frozen reference build does not expose a Tools group")
 		}
 
+		}
 		for (const [section, resource, fileName] of [
 			["Profiles", "Parity Profile", "profile-editor.png"],
 			["Stream Plans", "Parity Stream Plan", "stream-plan-editor.png"],
 			["Overlays", "Parity Overlay", "overlay-editor.png"],
 		]) {
+			if (process.argv.includes("--overlay-only") && section !== "Overlays") continue
 			await openProjectResource(cdp.send, section, resource)
 			await capture(cdp.send, fileName)
-		}
-	} finally {
+            if (fileName === "overlay-editor.png") {
+                await evaluate(cdp.send, `(() => {
+                    const items = [...document.querySelectorAll('.widget-list-item')].filter(e => e.innerText.includes('Stream Title'));
+                    if (!items.length) throw new Error('Overlay fixture widget was not found');
+                    items.at(-1).click();
+                })()`);
+                await waitFor(cdp.send, `document.querySelector('.overlay-editor')?.innerText.includes('Font')`, 'selected widget inspector');
+                await sleep(500);
+                await capture(cdp.send, "overlay-inspector-label.png");
+                const fontPoint = await evaluate(cdp.send, `(() => {
+                    const inputs = [...document.querySelectorAll('.overlay-editor .clickable-input')].filter(e => e.innerText.includes('Impact'));
+                    const input = inputs.find(e => {const r=e.getBoundingClientRect(); return r.width>20 && r.height>20 && r.x>=1080 && r.y>=200 && r.y<550;});
+                    if (!input) throw new Error('Visible font preview missing');
+                    const r=input.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2};
+                })()`);
+                await cdp.send("Input.dispatchMouseEvent", {type:"mousePressed",button:"left",clickCount:1,...fontPoint});
+                await cdp.send("Input.dispatchMouseEvent", {type:"mouseReleased",button:"left",clickCount:1,...fontPoint});
+                await waitFor(cdp.send, `Boolean(document.querySelector('.style-edit'))`, 'font style popup');
+                await sleep(500);
+                await capture(cdp.send, "overlay-inspector-font.png");
+            }
+        }
+    } finally {
 		cdp?.socket?.close()
 		if (!child.killed) child.kill()
 		for (let attempt = 0; attempt < 8; attempt += 1) {

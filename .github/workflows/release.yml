@@ -9,7 +9,42 @@ permissions:
   contents: write
 
 jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+      - name: Verify release inputs
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack yarn install --immutable
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
+          corepack yarn overlay:typecheck
+          if ($LASTEXITCODE -ne 0) { throw 'Overlay typecheck failed.' }
+          corepack yarn overlay:test
+          if ($LASTEXITCODE -ne 0) { throw 'Overlay tests failed.' }
+          Push-Location packages/showrunner-flutter
+          flutter pub get
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter dependencies failed.' }
+          flutter analyze --no-pub
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter analysis failed.' }
+          flutter test --no-pub
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter tests failed.' }
+          Pop-Location
+          corepack yarn parity:check
+          if ($LASTEXITCODE -ne 0) { throw 'Contract parity failed.' }
+          corepack yarn parity:product
+          if ($LASTEXITCODE -ne 0) { throw 'Product parity failed.' }
+
   release:
+    needs: validate
     runs-on: ubuntu-latest
     outputs:
       released: ${{ steps.semantic-release.outputs.new_release_published || 'false' }}

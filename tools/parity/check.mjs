@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { contractRegressions } from './gate.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const referenceRef = 'parity-reference/main-2026-09-05';
@@ -41,6 +42,11 @@ try {
   );
   writeFileSync(reportPath, report);
   const parsed = JSON.parse(report);
+  const failures = contractRegressions(parsed);
+  if (failures.length) {
+    process.stderr.write(`Contract regressions:\n${failures.join('\n')}\n`);
+    process.exitCode = 1;
+  }
   const counts = parsed.plugins.reduce((summary, plugin) => {
     summary[plugin.status] = (summary[plugin.status] || 0) + 1;
     return summary;
