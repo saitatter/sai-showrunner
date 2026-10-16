@@ -63,12 +63,16 @@ class _VariableEditorState extends State<_VariableEditor> {
             TextFormField(
               controller: _defaultValue,
               decoration: const InputDecoration(labelText: 'Default value'),
-              validator: _validateValue,
+              validator: (value) =>
+                  _validateValue(value, widget.resource.config['defaultValue']),
             ),
             TextFormField(
               controller: _currentValue,
               decoration: const InputDecoration(labelText: 'Current value'),
-              validator: _validateValue,
+              validator: (value) => _validateValue(
+                value,
+                VariableResource.fromResource(widget.resource).currentValue,
+              ),
             ),
           ],
         ),
@@ -136,9 +140,9 @@ class _VariableEditorState extends State<_VariableEditor> {
     return text;
   }
 
-  String? _validateValue(String? value) {
+  String? _validateValue(String? value, Object? original) {
     try {
-      _readValue(value ?? '', null);
+      _readValue(value ?? '', original);
       return null;
     } on FormatException catch (error) {
       return error.message;

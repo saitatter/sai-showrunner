@@ -48,6 +48,12 @@ void main() {
     expect(saved, isNull);
     expect(find.text('Edit variable'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    await tester.enterText(current, '');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(saved, isNull);
+    expect(find.text('Edit variable'), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await tester.enterText(current, '{"valid": [1, true]}');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
