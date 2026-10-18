@@ -13,17 +13,9 @@ dependencies:
 
   path: ^1.9.1
   crypto: ^3.0.3
-  sai_nodes_core:
-    git:
-      url: https://github.com/saitatter/sai_nodes.git
-      ref: 'efd339ddd0e976076b7476f34804c3a7834247c6'
-      path: packages/sai_nodes_core
+  sai_nodes_core: 1.0.0
   ffi: ^2.1.3
-  sai_nodes:
-    git:
-      url: https://github.com/saitatter/sai_nodes.git
-      ref: 'efd339ddd0e976076b7476f34804c3a7834247c6'
-      path: packages/sai_nodes
+  sai_nodes: 1.0.0
   flutter_svg: ^2.0.17
   yaml: ^3.1.3
   window_manager: ^0.5.1

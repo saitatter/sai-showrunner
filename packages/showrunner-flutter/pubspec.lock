@@ -546,21 +546,19 @@ packages:
   sai_nodes:
     dependency: "direct main"
     description:
-      path: "packages/sai_nodes"
-      ref: "efd339ddd0e976076b7476f34804c3a7834247c6"
-      resolved-ref: "efd339ddd0e976076b7476f34804c3a7834247c6"
-      url: "https://github.com/saitatter/sai_nodes.git"
-    source: git
-    version: "1.0.0-dev.1"
+      name: sai_nodes
+      sha256: "5dd7a3fd786deb80d5eeebe8d842f06c23791a255d3b75de4ea8b10d1d894867"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   sai_nodes_core:
     dependency: "direct main"
     description:
-      path: "packages/sai_nodes_core"
-      ref: "efd339ddd0e976076b7476f34804c3a7834247c6"
-      resolved-ref: "efd339ddd0e976076b7476f34804c3a7834247c6"
-      url: "https://github.com/saitatter/sai_nodes.git"
-    source: git
-    version: "1.0.0-dev.1"
+      name: sai_nodes_core
+      sha256: "2044980e39584510f2663b3388b7ac9175f81f1a5dbff8b092af7590b759d515"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   screen_retriever:
     dependency: transitive
     description:
