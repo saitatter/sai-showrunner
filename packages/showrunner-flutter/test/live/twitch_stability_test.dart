@@ -10,8 +10,8 @@ import 'package:showrunner_flutter/plugins/twitch/event_worker.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import '../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/services/http_provider_transports.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
@@ -230,21 +230,17 @@ void main() {
   );
 }
 
-AutomationData _graph(String plugin, String action, RuntimeMap config) =>
-    AutomationData(
-      graph: AutomationGraph(
-        entryNodeId: 'action',
-        nodes: [
-          GraphNode(
-            id: 'action',
-            type: 'action',
-            x: 0,
-            y: 0,
-            data: {'plugin': plugin, 'action': action, 'config': config},
-          ),
-        ],
-        edges: const [],
-      ),
+AutomationDocument _graph(String plugin, String action, RuntimeMap config) =>
+    automationFixture(
+      entryNodeId: 'action',
+      nodes: [
+        GraphNode(
+          id: 'action',
+          type: actionNodeType(plugin, action),
+          data: {'config': config},
+        ),
+      ],
+      connections: [],
     );
 Future<void> _until(bool Function() condition) async {
   final deadline = DateTime.now().add(const Duration(seconds: 30));

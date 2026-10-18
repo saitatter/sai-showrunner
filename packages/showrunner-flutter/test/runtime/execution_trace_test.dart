@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/runtime/execution_trace.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/production_graph_vm.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/production_graph_vm.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_runtime.dart';
+import '../support/graph_fixtures.dart';
 
 void main() {
   test('creates ordered bounded traces for concurrent runs', () async {
@@ -76,42 +77,22 @@ void main() {
   });
 
   test(
-    'production VM emits action trace events without changing results',
+    'production VM emits action events and callbacks without changing results',
     () async {
-      const automation = AutomationData(
-        graph: AutomationGraph(
-          entryNodeId: 'action',
+      final callbacks = <String>[];
+      final traced = await trace(
+        automationFixture(
           nodes: [
-            GraphNode(
-              id: 'action',
-              type: 'action',
-              x: 0,
-              y: 0,
-              data: {
-                'config': {'value': 42},
-              },
-            ),
+            actionFixture('action', config: {'value': 42}),
           ],
+          entryNodeId: 'action',
         ),
+        callbacks: callbacks,
       );
-      final program = DartProductionGraphCompiler().compileAutomation(
-        automation,
-      );
-      final service = ExecutionTraceService();
-      final session = service.start(
-        mode: ExecutionTraceMode.test,
-        source: const ExecutionTraceSource(type: 'automation', id: 'demo'),
-      );
-
-      final result = await DartGraphVm(program, traceSink: session).execute(
-        context: EvaluationContext(),
-        action: (node, config, context) async => {'value': config['value']},
-      );
-      session.end(ExecutionTraceRunStatus.completed);
-
-      final events = service.snapshotFor(session.executionId)!.events;
-      expect(result.completed, isTrue);
-      expect(events.map((event) => event.type), [
+      expect(traced.result!.completed, true);
+      expect(traced.result!.nodeResults['action']!['value'], 42);
+      expect(callbacks, ['enter:action', 'exit:action']);
+      expect(traced.snapshot.events.map((event) => event.type), [
         'run.started',
         'node.started',
         'node.result',
@@ -119,317 +100,258 @@ void main() {
         'run.ended',
       ]);
       expect(
-        (events.whereType<ExecutionNodeCompletedEvent>().single).duration,
+        traced.snapshot.events
+            .whereType<ExecutionNodeCompletedEvent>()
+            .single
+            .duration,
         isA<Duration>(),
       );
-
-      await service.dispose();
     },
   );
-
-  test('failed action emits a bounded error and terminal run status', () async {
-    const automation = AutomationData(
-      graph: AutomationGraph(
+  test('failed action emits bounded error and terminal status', () async {
+    final traced = await trace(
+      automationFixture(
+        nodes: [actionFixture('action')],
         entryNodeId: 'action',
-        nodes: [GraphNode(id: 'action', type: 'action', x: 0, y: 0)],
       ),
+      action: (node, config, context) async =>
+          throw StateError('expected failure'),
     );
-    final program = DartProductionGraphCompiler().compileAutomation(automation);
-    final service = ExecutionTraceService();
-    final session = service.start(
-      mode: ExecutionTraceMode.live,
-      source: const ExecutionTraceSource(type: 'automation', id: 'failure'),
-    );
-
-    await expectLater(
-      DartGraphVm(program, traceSink: session).execute(
-        context: EvaluationContext(),
-        action: (node, config, context) async {
-          throw StateError('expected failure');
-        },
-      ),
-      throwsA(isA<StateError>()),
-    );
-    session.end(
-      ExecutionTraceRunStatus.error,
-      error: StateError('expected failure'),
-    );
-
-    final snapshot = service.snapshotFor(session.executionId)!;
-    expect(snapshot.info.status, ExecutionTraceRunStatus.error);
-    expect(
-      snapshot.nodes[const ExecutionNodeRef(nodeId: 'action').key]?.status,
-      ExecutionTraceNodeStatus.error,
-    );
-    expect(
-      snapshot
-          .nodes[const ExecutionNodeRef(nodeId: 'action').key]
-          ?.error
-          ?.message,
-      contains('expected failure'),
-    );
-
-    await service.dispose();
+    expect(traced.error, isA<StateError>());
+    expect(traced.snapshot.info.status, ExecutionTraceRunStatus.error);
+    final state =
+        traced.snapshot.nodes[const ExecutionNodeRef(nodeId: 'action').key]!;
+    expect(state.status, ExecutionTraceNodeStatus.error);
+    expect(state.error!.message, contains('expected failure'));
   });
-
-  test('production VM emits exact flow edges with their ports', () async {
-    const automation = AutomationData(
-      graph: AutomationGraph(
-        entryNodeId: 'trigger',
-        nodes: [
-          GraphNode(id: 'first', type: 'action', x: 0, y: 0),
-          GraphNode(id: 'second', type: 'action', x: 120, y: 0),
-        ],
-        edges: [
-          GraphEdge(id: 'trigger-first', from: 'trigger', to: 'first'),
-          GraphEdge(
-            id: 'first-second',
-            from: 'first',
-            to: 'second',
-            port: 'completed',
-          ),
-        ],
-      ),
-    );
-    final program = DartProductionGraphCompiler().compileAutomation(automation);
-    final service = ExecutionTraceService();
-    final session = service.start(
-      mode: ExecutionTraceMode.test,
-      source: const ExecutionTraceSource(type: 'automation', id: 'edges'),
-    );
-
-    await DartGraphVm(program, traceSink: session).execute(
-      context: EvaluationContext(),
-      action: (node, config, context) async => null,
-    );
-    session.end(ExecutionTraceRunStatus.completed);
-
-    final edges = service
-        .snapshotFor(session.executionId)!
-        .events
-        .whereType<ExecutionEdgeTraversedEvent>()
-        .toList();
-    expect(edges, hasLength(2));
-    expect(edges[0].edge.edgeId, 'trigger-first');
-    expect(edges[0].edge.from.nodeId, 'trigger');
-    expect(edges[0].edge.to.nodeId, 'first');
-    expect(edges[1].edge.edgeId, 'first-second');
-    expect(edges[1].edge.port, 'completed');
-
-    await service.dispose();
-  });
-
   test(
-    'control-flow trace records the selected branch and control lifecycle',
+    'actual trigger and unified control connection IDs appear directly in traces',
     () async {
-      const automation = AutomationData(
-        graph: AutomationGraph(
-          entryNodeId: 'branch',
+      final document = eventFixture(
+        id: 'trigger',
+        nodes: [actionFixture('first'), actionFixture('second')],
+        next: 'first',
+        connections: [controlFixture('first-second', 'first', 'second')],
+      );
+      final traced = await trace(document);
+      final edges = traced.snapshot.events
+          .whereType<ExecutionEdgeTraversedEvent>()
+          .map((event) => event.edge)
+          .toList();
+      expect(edges.map((edge) => edge.edgeId), [
+        'trigger:next',
+        'first-second',
+      ]);
+      expect(edges.first.from.nodeId, 'trigger');
+      expect(edges.first.to.nodeId, 'first');
+      expect(edges.last.to.nodeId, 'second');
+    },
+  );
+  test(
+    'control-flow trace records selected branch and control lifecycle',
+    () async {
+      final traced = await trace(
+        automationFixture(
           nodes: [
             GraphNode(
               id: 'branch',
-              type: 'if',
-              x: 0,
-              y: 0,
-              data: {
-                'condition': {'type': 'literal', 'value': true},
-              },
+              type: 'showrunner.if',
+              data: {'condition': true},
             ),
-            GraphNode(id: 'trueAction', type: 'action', x: 120, y: -40),
-            GraphNode(id: 'falseAction', type: 'action', x: 120, y: 40),
+            actionFixture('trueAction'),
+            actionFixture('falseAction'),
           ],
-          edges: [
-            GraphEdge(
-              id: 'branch-then',
-              from: 'branch',
-              to: 'trueAction',
-              port: 'then',
+          entryNodeId: 'branch',
+          connections: [
+            controlFixture(
+              'true-edge',
+              'branch',
+              'trueAction',
+              port: 'flow:then',
             ),
-            GraphEdge(
-              id: 'branch-else',
-              from: 'branch',
-              to: 'falseAction',
-              port: 'else',
+            controlFixture(
+              'false-edge',
+              'branch',
+              'falseAction',
+              port: 'flow:else',
             ),
           ],
         ),
       );
-      final service = ExecutionTraceService();
-      final session = service.start(
-        mode: ExecutionTraceMode.test,
-        source: const ExecutionTraceSource(type: 'automation', id: 'branch'),
-      );
-      final program = DartProductionGraphCompiler().compileAutomation(
-        automation,
-      );
-
-      await DartGraphVm(program, traceSink: session).execute(
-        context: EvaluationContext(),
-        action: (node, config, context) async => null,
-      );
-      session.end(ExecutionTraceRunStatus.completed);
-
-      final snapshot = service.snapshotFor(session.executionId)!;
-      final path = snapshot.events
-          .whereType<ExecutionControlPathEvent>()
-          .single;
-      expect(path.node.nodeId, 'branch');
-      expect(path.port, 'then');
+      final branch =
+          traced.snapshot.nodes[const ExecutionNodeRef(nodeId: 'branch').key]!;
+      expect(branch.selectedPort, 'then');
+      expect(branch.status, ExecutionTraceNodeStatus.success);
       expect(
-        snapshot.nodes[const ExecutionNodeRef(nodeId: 'branch').key]?.status,
-        ExecutionTraceNodeStatus.success,
-      );
-      expect(
-        snapshot
-            .nodes[const ExecutionNodeRef(nodeId: 'branch').key]
-            ?.selectedPort,
-        'then',
-      );
-      expect(
-        snapshot.nodes[const ExecutionNodeRef(nodeId: 'falseAction').key],
+        traced.snapshot.nodes[const ExecutionNodeRef(
+          nodeId: 'falseAction',
+        ).key],
         isNull,
       );
       expect(
-        snapshot
-            .nodes[const ExecutionNodeRef(nodeId: 'trueAction').key]
-            ?.status,
+        traced
+            .snapshot
+            .nodes[const ExecutionNodeRef(nodeId: 'trueAction').key]!
+            .status,
         ExecutionTraceNodeStatus.success,
       );
-
-      await service.dispose();
     },
   );
-
-  test('subgraph trace exposes parent call and nested graph scope', () async {
-    const automation = AutomationData(
-      graph: AutomationGraph(
-        entryNodeId: 'call',
-        nodes: [
-          GraphNode(
-            id: 'call',
-            type: 'subgraphCall',
-            x: 0,
-            y: 0,
-            data: {'subgraphId': 'inner'},
-          ),
-        ],
-      ),
-      subgraphs: [
-        SubgraphDefinition(
+  for (final direct in [false, true]) {
+    test(
+      'subgraph trace retains exact scope for ${direct ? 'direct node execution' : 'nested calls'}',
+      () async {
+        final signature = AutomationSubgraph(
           id: 'inner',
           name: 'Inner',
           entryNodeId: 'innerAction',
-          nodes: [GraphNode(id: 'innerAction', type: 'action', x: 0, y: 0)],
-          edges: [],
-        ),
-      ],
-    );
-    final service = ExecutionTraceService();
-    final session = service.start(
-      mode: ExecutionTraceMode.test,
-      source: const ExecutionTraceSource(type: 'automation', id: 'subgraph'),
-    );
-    final program = DartProductionGraphCompiler().compileAutomation(automation);
-
-    await DartGraphVm(program, traceSink: session).execute(
-      context: EvaluationContext(),
-      action: (node, config, context) async => {'done': true},
-    );
-    session.end(ExecutionTraceRunStatus.completed);
-
-    final snapshot = service.snapshotFor(session.executionId)!;
-    expect(
-      snapshot.events.whereType<ExecutionSubgraphEnteredEvent>(),
-      hasLength(1),
-    );
-    expect(
-      snapshot.events.whereType<ExecutionSubgraphExitedEvent>(),
-      hasLength(1),
-    );
-    expect(
-      snapshot.nodes[const ExecutionNodeRef(nodeId: 'call').key]?.status,
-      ExecutionTraceNodeStatus.success,
-    );
-    expect(
-      snapshot
-          .nodes[const ExecutionNodeRef(
+        );
+        final document = automationFixture(
+          nodes: [
+            GraphNode(
+              id: 'call',
+              type: 'showrunner.subgraphCall',
+              data: {'subgraphId': signature.id},
+            ),
+          ],
+          entryNodeId: 'call',
+          subgraphs: {signature.id: signature},
+          spaces: {
+            signature.spaceId: GraphSpace(
+              id: signature.spaceId,
+              nodes: {'innerAction': actionFixture('innerAction')},
+            ),
+          },
+        );
+        final traced = await trace(
+          document,
+          spaceId: direct ? signature.spaceId : mainAutomationSpace,
+        );
+        expect(traced.error, isNull);
+        expect(
+          traced.snapshot.events.whereType<ExecutionSubgraphEnteredEvent>(),
+          hasLength(direct ? 0 : 1),
+        );
+        expect(
+          traced.snapshot.events.whereType<ExecutionSubgraphExitedEvent>(),
+          hasLength(direct ? 0 : 1),
+        );
+        expect(
+          traced
+              .snapshot
+              .nodes[const ExecutionNodeRef(
+                nodeId: 'innerAction',
+                scope: SubgraphScope('inner'),
+              ).key]!
+              .status,
+          ExecutionTraceNodeStatus.success,
+        );
+        expect(
+          traced.snapshot.nodes[const ExecutionNodeRef(
             nodeId: 'innerAction',
-            scope: SubgraphScope('inner'),
-          ).key]
-          ?.status,
-      ExecutionTraceNodeStatus.success,
+          ).key],
+          isNull,
+        );
+        if (!direct) {
+          expect(
+            traced
+                .snapshot
+                .nodes[const ExecutionNodeRef(nodeId: 'call').key]!
+                .status,
+            ExecutionTraceNodeStatus.success,
+          );
+        }
+      },
     );
-
-    await service.dispose();
-  });
-
-  test(
-    'production VM traces loop iterations and zero-iteration completion',
-    () async {
-      const automation = AutomationData(
-        graph: AutomationGraph(
-          entryNodeId: 'for',
+  }
+  for (final count in [0, 3]) {
+    test('loop trace records exactly $count executed iterations', () async {
+      final traced = await trace(
+        automationFixture(
           nodes: [
             GraphNode(
               id: 'for',
-              type: 'for',
-              x: 0,
-              y: 0,
-              data: {
-                'variable': 'index',
-                'start': {'type': 'literal', 'value': 0},
-                'end': {'type': 'literal', 'value': 3},
-                'step': {'type': 'literal', 'value': 1},
-              },
+              type: 'showrunner.for',
+              data: {'start': 0, 'end': count, 'step': 1},
             ),
-            GraphNode(id: 'body', type: 'action', x: 120, y: 0),
-            GraphNode(id: 'done', type: 'return', x: 240, y: 0),
+            actionFixture('body'),
+            GraphNode(id: 'done', type: 'showrunner.return'),
           ],
-          edges: [
-            GraphEdge(id: 'body-edge', from: 'for', to: 'body', port: 'body'),
-            GraphEdge(id: 'repeat', from: 'body', to: 'for'),
-            GraphEdge(id: 'next', from: 'for', to: 'done', port: 'next'),
+          entryNodeId: 'for',
+          connections: [
+            controlFixture('body-edge', 'for', 'body', port: 'flow:body'),
+            controlFixture('next-edge', 'for', 'done', port: 'flow:next'),
           ],
         ),
       );
-      final service = ExecutionTraceService();
-      final session = service.start(
-        mode: ExecutionTraceMode.test,
-        source: const ExecutionTraceSource(type: 'automation', id: 'loop'),
-      );
-
-      final program = DartProductionGraphCompiler().compileAutomation(
-        automation,
-      );
-      await DartGraphVm(program, traceSink: session).execute(
-        context: EvaluationContext(),
-        action: (node, config, context) async => null,
-      );
-      session.end(ExecutionTraceRunStatus.completed);
-
-      final snapshot = service.snapshotFor(session.executionId)!;
+      expect(traced.error, isNull);
       expect(
-        snapshot.events.whereType<ExecutionLoopIterationEvent>().map(
+        traced.snapshot.events.whereType<ExecutionLoopIterationEvent>().map(
           (event) => event.iteration,
         ),
-        [1, 2, 3],
+        List.generate(count, (index) => index + 1),
       );
       expect(
-        snapshot
-            .nodes[const ExecutionNodeRef(nodeId: 'for').key]
-            ?.lastIteration,
-        3,
-      );
-      expect(
-        snapshot.nodes[const ExecutionNodeRef(nodeId: 'for').key]?.status,
+        traced
+            .snapshot
+            .nodes[const ExecutionNodeRef(nodeId: 'for').key]!
+            .status,
         ExecutionTraceNodeStatus.success,
       );
       expect(
-        snapshot.nodes[const ExecutionNodeRef(nodeId: 'done').key]?.status,
+        traced
+            .snapshot
+            .nodes[const ExecutionNodeRef(nodeId: 'done').key]!
+            .status,
         ExecutionTraceNodeStatus.success,
       );
+    });
+  }
+}
 
-      await service.dispose();
-    },
+Future<
+  ({
+    GraphExecutionResult? result,
+    ExecutionTraceRunSnapshot snapshot,
+    Object? error,
+  })
+>
+trace(
+  AutomationDocument document, {
+  DartProgramAction? action,
+  List<String>? callbacks,
+  String spaceId = mainAutomationSpace,
+}) async {
+  final service = ExecutionTraceService();
+  final session = service.start(
+    mode: ExecutionTraceMode.test,
+    source: ExecutionTraceSource(type: 'automation', id: document.id),
   );
+  GraphExecutionResult? result;
+  Object? failure;
+  try {
+    final program = DartProductionGraphCompiler().compileAutomation(
+      document,
+      entrySpaceId: spaceId,
+    );
+    result =
+        await DartGraphVm(
+          program,
+          traceSink: session,
+          onNodeEnter: (id) => callbacks?.add('enter:$id'),
+          onNodeExit: (id) => callbacks?.add('exit:$id'),
+        ).execute(
+          context: EvaluationContext(),
+          action:
+              action ??
+              (node, config, context) async => {'value': config['value']},
+        );
+    session.end(ExecutionTraceRunStatus.completed);
+  } catch (error, stack) {
+    failure = error;
+    session.end(ExecutionTraceRunStatus.error, error: error, stackTrace: stack);
+  }
+  final snapshot = service.snapshotFor(session.executionId)!;
+  await service.dispose();
+  return (result: result, snapshot: snapshot, error: failure);
 }

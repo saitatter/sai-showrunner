@@ -3,7 +3,6 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/youtube/actions.dart';
 import 'package:showrunner_flutter/plugins/youtube/contracts.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
@@ -66,28 +65,13 @@ void main() {
       final registry = DartPluginRegistry()
         ..register(createYouTubePlugin(transport));
 
-      await registry.invoke(
-        const GraphNode(
-          id: 'chat',
-          type: 'action',
-          x: 0,
-          y: 0,
-          data: {'plugin': 'youtube', 'action': 'sendChatMessage'},
-        ),
-        EvaluationContext(contextState: {'liveChatId': 'chat-1'}),
-        {'message': 'hello'},
-      );
-      await registry.invoke(
-        const GraphNode(
-          id: 'ban',
-          type: 'action',
-          x: 0,
-          y: 0,
-          data: {'plugin': 'youtube', 'action': 'banUser'},
-        ),
-        EvaluationContext(contextState: {'liveChatId': 'chat-1'}),
-        {'channelId': 'channel-1', 'banDurationSeconds': 30},
-      );
+      await registry.invokeAction('youtube', 'sendChatMessage', {
+        'message': 'hello',
+      }, context: EvaluationContext(contextState: {'liveChatId': 'chat-1'}));
+      await registry.invokeAction('youtube', 'banUser', {
+        'channelId': 'channel-1',
+        'banDurationSeconds': 30,
+      }, context: EvaluationContext(contextState: {'liveChatId': 'chat-1'}));
 
       expect(requests, [
         'POST /youtube/v3/liveChat/messages snippet',

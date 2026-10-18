@@ -18,8 +18,8 @@ import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import '../support/graph_fixtures.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -174,19 +174,15 @@ void main() {
         RuntimeMap config = const {},
       ]) async {
         final execution = await CompiledExecutionEngine().executeWithRegistry(
-          automation: AutomationData(
-            graph: AutomationGraph(
-              entryNodeId: 'obs',
-              nodes: [
-                GraphNode(
-                  id: 'obs',
-                  type: 'action',
-                  x: 0,
-                  y: 0,
-                  data: {'plugin': 'obs', 'action': action, 'config': config},
-                ),
-              ],
-            ),
+          automation: automationFixture(
+            entryNodeId: 'obs',
+            nodes: [
+              GraphNode(
+                id: 'obs',
+                type: actionNodeType('obs', action),
+                data: {'config': config},
+              ),
+            ],
           ),
           context: EvaluationContext(),
           registry: registry,

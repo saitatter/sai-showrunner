@@ -1,4 +1,4 @@
-import 'automation.dart';
+import 'json.dart';
 
 final class QueueConfig {
   const QueueConfig({

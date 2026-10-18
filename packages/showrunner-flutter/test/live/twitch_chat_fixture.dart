@@ -1,37 +1,29 @@
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../support/graph_fixtures.dart';
 
-AutomationData twitchChatProofGraph() => AutomationData(
-  graph: AutomationGraph(
-    entryNodeId: 'condition',
-    nodes: const [
-      GraphNode(
-        id: 'condition',
-        type: 'if',
-        x: 0,
-        y: 0,
-        data: {
-          'condition': {
-            'type': 'binary',
-            'op': '==',
-            'left': {'type': 'variable', 'name': 'message'},
-            'right': {'type': 'literal', 'value': 'showrunner-test'},
-          },
+AutomationDocument twitchChatProofGraph() => automationFixture(
+  entryNodeId: 'condition',
+  nodes: [
+    GraphNode(
+      id: 'condition',
+      type: 'showrunner.if',
+      data: {
+        'condition': {
+          'type': 'binary',
+          'op': '==',
+          'left': {'type': 'variable', 'name': 'message'},
+          'right': {'type': 'literal', 'value': 'showrunner-test'},
         },
-      ),
-      GraphNode(
-        id: 'matched',
-        type: 'action',
-        x: 300,
-        y: 0,
-        data: {
-          'plugin': 'variables',
-          'action': 'set',
-          'config': {'variable': 'twitchProof', 'value': '{{message}}'},
-        },
-      ),
-    ],
-    edges: const [
-      GraphEdge(id: 'yes', from: 'condition', to: 'matched', port: 'then'),
-    ],
-  ),
+      },
+    ),
+    GraphNode(
+      id: 'matched',
+      type: actionNodeType('variables', 'set'),
+      data: {
+        'config': {'variable': 'twitchProof', 'value': '{{message}}'},
+      },
+    ),
+  ],
+  connections: [
+    controlFixture('yes', 'condition', 'matched', port: 'flow:then'),
+  ],
 );

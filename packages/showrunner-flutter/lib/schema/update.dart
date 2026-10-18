@@ -1,4 +1,4 @@
-import 'automation.dart';
+import 'json.dart';
 
 enum UpdateStatus { idle, checking, available, downloaded, upToDate, error }
 

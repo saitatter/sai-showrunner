@@ -13,8 +13,8 @@ import 'package:showrunner_flutter/plugins/twitch/event_worker.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import '../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/services/http_provider_transports.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
@@ -139,23 +139,15 @@ void main() {
         stdout.writeln('PASS dashboard, chat settings and followers.');
         try {
           final result = await CompiledExecutionEngine().executeWithRegistry(
-            automation: AutomationData(
-              graph: AutomationGraph(
-                entryNodeId: 'rewards',
-                nodes: [
-                  const GraphNode(
-                    id: 'rewards',
-                    type: 'action',
-                    x: 0,
-                    y: 0,
-                    data: {
-                      'plugin': 'twitch',
-                      'action': 'listChannelPointRewards',
-                      'config': {},
-                    },
-                  ),
-                ],
-              ),
+            automation: automationFixture(
+              entryNodeId: 'rewards',
+              nodes: [
+                GraphNode(
+                  id: 'rewards',
+                  type: actionNodeType('twitch', 'listChannelPointRewards'),
+                  data: {'config': {}},
+                ),
+              ],
             ),
             context: EvaluationContext(),
             registry: registry,

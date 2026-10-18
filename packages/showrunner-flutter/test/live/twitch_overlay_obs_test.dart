@@ -17,43 +17,38 @@ import 'package:showrunner_flutter/plugins/twitch/actions.dart';
 import 'package:showrunner_flutter/plugins/twitch/event_worker.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import '../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/http_provider_transports.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'twitch_chat_fixture.dart';
 
-AutomationData _overlayChatGraph(String overlayId) {
-  final base = twitchChatProofGraph().graph;
-  return AutomationData(
-    graph: AutomationGraph(
-      entryNodeId: base.entryNodeId,
-      nodes: [
-        ...base.nodes,
-        GraphNode(
-          id: 'overlay-chat',
-          type: 'action',
-          x: 600,
-          y: 0,
-          data: {
-            'plugin': 'overlays',
-            'action': 'pushChatMessage',
-            'config': {
-              'targetWidget': {'widgetId': 'chat', 'overlayId': overlayId},
-              'messageId': '{{messageId}}',
-              'platform': 'twitch',
-              'viewerName': '{{viewerName}}',
-              'message': '{{message}}',
-            },
+AutomationDocument _overlayChatGraph(String overlayId) {
+  final document = twitchChatProofGraph();
+  final base = document.graph.spaces[mainAutomationSpace]!;
+  return automationFixture(
+    entryNodeId: document.entryNodeId,
+    nodes: [
+      ...base.nodes.values,
+      GraphNode(
+        id: 'overlay-chat',
+        type: actionNodeType('overlays', 'pushChatMessage'),
+        data: {
+          'config': {
+            'targetWidget': {'widgetId': 'chat', 'overlayId': overlayId},
+            'messageId': '{{messageId}}',
+            'platform': 'twitch',
+            'viewerName': '{{viewerName}}',
+            'message': '{{message}}',
           },
-        ),
-      ],
-      edges: [
-        ...base.edges,
-        const GraphEdge(id: 'publish', from: 'matched', to: 'overlay-chat'),
-      ],
-    ),
+        },
+      ),
+    ],
+    connections: [
+      ...base.connections.values,
+      controlFixture('publish', 'matched', 'overlay-chat'),
+    ],
   );
 }
 
@@ -197,7 +192,7 @@ void main() {
         broadcasterId: resolve(twitchSettings['broadcasterId']),
         request: transport.request,
         eventHub: hub,
-        subscriptionTypes: const ['channel.chat.message'],
+        subscriptionTypes: ['channel.chat.message'],
         ignoreSubscriptionErrors: false,
       );
       final message = Completer<RuntimeMap>();
@@ -356,39 +351,29 @@ void main() {
           final entered = <String>[];
           await expectLater(
             CompiledExecutionEngine().executeWithRegistry(
-              automation: AutomationData(
-                graph: AutomationGraph(
-                  entryNodeId: 'missing',
-                  nodes: [
-                    const GraphNode(
-                      id: 'missing',
-                      type: 'action',
-                      x: 0,
-                      y: 0,
-                      data: {
-                        'plugin': 'obs',
-                        'action': 'getInputSettings',
-                        'config': {
-                          'sourceName': 'ShowRunner nonexistent QA source',
-                        },
+              automation: automationFixture(
+                entryNodeId: 'missing',
+                nodes: [
+                  GraphNode(
+                    id: 'missing',
+                    type: actionNodeType('obs', 'getInputSettings'),
+                    data: {
+                      'config': {
+                        'sourceName': 'ShowRunner nonexistent QA source',
                       },
-                    ),
-                    const GraphNode(
-                      id: 'must-not-run',
-                      type: 'action',
-                      x: 0,
-                      y: 0,
-                      data: {
-                        'plugin': 'variables',
-                        'action': 'set',
-                        'config': {'variable': 'unexpected', 'value': true},
-                      },
-                    ),
-                  ],
-                  edges: const [
-                    GraphEdge(id: 'next', from: 'missing', to: 'must-not-run'),
-                  ],
-                ),
+                    },
+                  ),
+                  GraphNode(
+                    id: 'must-not-run',
+                    type: actionNodeType('variables', 'set'),
+                    data: {
+                      'config': {'variable': 'unexpected', 'value': true},
+                    },
+                  ),
+                ],
+                connections: [
+                  controlFixture('next', 'missing', 'must-not-run'),
+                ],
               ),
               context: EvaluationContext(),
               registry: registry,

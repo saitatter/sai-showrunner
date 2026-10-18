@@ -1,4 +1,4 @@
-import 'automation.dart';
+import 'json.dart';
 
 String normalizeViewerVariableType(String type) {
   switch (type.trim().toLowerCase()) {

@@ -1,4 +1,4 @@
-import 'automation.dart';
+import 'json.dart';
 
 class ResourceData {
   const ResourceData({

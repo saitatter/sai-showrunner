@@ -9,8 +9,8 @@ import 'package:showrunner_flutter/plugins/sound/output.dart';
 import 'package:showrunner_flutter/plugins/sound/tts_runtime.dart';
 import 'package:showrunner_flutter/plugins/sound/windows_audio.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import '../../test/support/graph_fixtures.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +30,7 @@ void main() {
       expect(await File(file!).length(), greaterThan(44));
       final outputs = createDefaultSoundOutputRegistry();
       expect(outputs.find('system.default'), isNotNull);
-      outputs.registerSplitter('qa-splitter', const [
+      outputs.registerSplitter('qa-splitter', [
         AudioSplitterRedirect(output: 'system.default', volume: 30),
       ]);
       final registry = DartPluginRegistry()
@@ -44,20 +44,16 @@ void main() {
       addTearDown(registry.close);
       Future<Map> graph(String action, Map<String, dynamic> config) async {
         final result = await CompiledExecutionEngine().executeWithRegistry(
-          automation: AutomationData(
-            graph: AutomationGraph(
-              entryNodeId: 'audio',
-              nodes: [
-                GraphNode(
-                  id: 'audio',
-                  type: 'action',
-                  x: 0,
-                  y: 0,
-                  data: {'plugin': 'sound', 'action': action, 'config': config},
-                ),
-              ],
-              edges: const [],
-            ),
+          automation: automationFixture(
+            entryNodeId: 'audio',
+            nodes: [
+              GraphNode(
+                id: 'audio',
+                type: actionNodeType('sound', action),
+                data: {'config': config},
+              ),
+            ],
+            connections: [],
           ),
           context: EvaluationContext(),
           registry: registry,

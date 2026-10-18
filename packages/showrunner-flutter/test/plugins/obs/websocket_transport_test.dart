@@ -9,8 +9,8 @@ import 'package:showrunner_flutter/plugins/obs/actions.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import '../../support/graph_fixtures.dart';
 
 void main() {
   Future<HttpServer> server(void Function(WebSocket socket) handle) async {
@@ -226,35 +226,25 @@ void main() {
       final entered = <String>[];
       await expectLater(
         CompiledExecutionEngine().executeWithRegistry(
-          automation: AutomationData(
-            graph: AutomationGraph(
-              entryNodeId: 'timeout',
-              nodes: const [
-                GraphNode(
-                  id: 'timeout',
-                  type: 'action',
-                  x: 0,
-                  y: 0,
-                  data: {
-                    'plugin': 'obs',
-                    'action': 'getInputSettings',
-                    'config': {'sourceName': 'test'},
-                  },
-                ),
-                GraphNode(
-                  id: 'next',
-                  type: 'action',
-                  x: 0,
-                  y: 0,
-                  data: {
-                    'plugin': 'variables',
-                    'action': 'set',
-                    'config': {'variable': 'unexpected', 'value': true},
-                  },
-                ),
-              ],
-              edges: const [GraphEdge(id: 'edge', from: 'timeout', to: 'next')],
-            ),
+          automation: automationFixture(
+            entryNodeId: 'timeout',
+            nodes: [
+              GraphNode(
+                id: 'timeout',
+                type: actionNodeType('obs', 'getInputSettings'),
+                data: {
+                  'config': {'sourceName': 'test'},
+                },
+              ),
+              GraphNode(
+                id: 'next',
+                type: actionNodeType('variables', 'set'),
+                data: {
+                  'config': {'variable': 'unexpected', 'value': true},
+                },
+              ),
+            ],
+            connections: [controlFixture('edge', 'timeout', 'next')],
           ),
           context: EvaluationContext(),
           registry: registry,

@@ -8,31 +8,27 @@ import 'package:showrunner_flutter/plugins/obs/actions.dart';
 import 'package:showrunner_flutter/plugins/obs/transport.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import '../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/plugins/twitch/actions.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'twitch_chat_fixture.dart';
 import 'package:showrunner_flutter/plugins/remote/manifest.dart';
 
-AutomationData _graph(
+AutomationDocument _graph(
   String plugin,
   String action,
   Map<String, dynamic> config,
-) => AutomationData(
-  graph: AutomationGraph(
-    entryNodeId: 'probe',
-    nodes: [
-      GraphNode(
-        id: 'probe',
-        x: 0,
-        y: 0,
-        type: 'action',
-        data: {'plugin': plugin, 'action': action, 'config': config},
-      ),
-    ],
-  ),
+) => automationFixture(
+  entryNodeId: 'probe',
+  nodes: [
+    GraphNode(
+      id: 'probe',
+      type: actionNodeType(plugin, action),
+      data: {'config': config},
+    ),
+  ],
 );
 
 void main() {

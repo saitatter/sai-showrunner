@@ -6,8 +6,8 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/plugins/variables/runtime.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_runtime.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import '../../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 
 void main() {
@@ -88,17 +88,13 @@ void main() {
     // loading; this keeps the fixture hermetic and proves plugin state is
     // available to a new graph context.
     registry.updateDynamicState('variables', 'count', 7);
-    final result = await const DartGraphRuntime().executeWithRegistry(
-      graph: const AutomationGraph(
+    final result = await CompiledExecutionEngine().executeWithRegistry(
+      automation: automationFixture(
         nodes: [
           GraphNode(
             id: 'get',
-            type: 'action',
-            x: 0,
-            y: 0,
+            type: actionNodeType('variables', 'getVariable'),
             data: {
-              'plugin': 'variables',
-              'action': 'getVariable',
               'config': {'variable': 'count'},
             },
           ),

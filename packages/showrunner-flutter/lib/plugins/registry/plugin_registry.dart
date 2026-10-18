@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 
 import '../../domain/errors/showrunner_error.dart';
 import '../../runtime/expression.dart';
-import '../../schema/automation.dart';
 import 'plugin_contract.dart';
 import 'plugin_host_context.dart';
 import 'plugin_module.dart';
@@ -304,38 +303,6 @@ final class DartPluginRegistry extends ChangeNotifier {
       }
       await module.start();
     }
-  }
-
-  Future<Object?> invoke(
-    GraphNode node,
-    EvaluationContext context,
-    RuntimeMap config,
-  ) {
-    context.cancellationToken?.throwIfCancelled();
-    final plugin = node.data['plugin'];
-    final actionId = node.data['action'];
-    final definition = plugin is String && actionId is String
-        ? action(
-            ActionKey(plugin: PluginId(plugin), action: ActionId(actionId)),
-          )
-        : null;
-    if (plugin is String && !isPluginEnabledId(PluginId(plugin))) {
-      throw PluginConfigurationError(
-        pluginId: PluginId(plugin),
-        operationId: actionId is String ? actionId : null,
-        technicalMessage: 'Plugin is disabled: $plugin',
-        userMessage: 'Enable the $plugin integration before running it.',
-      );
-    }
-    if (definition == null) {
-      throw ActionExecutionError(
-        pluginId: plugin is String ? PluginId(plugin) : null,
-        operationId: actionId is String ? actionId : null,
-        technicalMessage: 'Unknown Dart action: $plugin:$actionId',
-        userMessage: 'This automation action is no longer available.',
-      );
-    }
-    return definition.invokeFromRuntime(config, context);
   }
 
   Future<Object?> invokeAction(

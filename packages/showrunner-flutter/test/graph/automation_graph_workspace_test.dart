@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sai_nodes/sai_nodes.dart' show NodeEditor;
 import 'package:sai_nodes_core/sai_nodes_core.dart';
@@ -43,7 +44,10 @@ void main() {
         home: Scaffold(body: AutomationGraphWorkspace(editor: editor)),
       ),
     );
-    await tester.tap(find.byTooltip('Find in graph'));
+    await tester.tapAt(const Offset(100, 350));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextField, 'Search graph nodes'),

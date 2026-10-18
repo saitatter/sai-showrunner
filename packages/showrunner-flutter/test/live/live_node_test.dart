@@ -7,8 +7,8 @@ import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
 import 'package:showrunner_flutter/runtime/cancellation.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import '../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
@@ -142,23 +142,15 @@ Future<void> runLiveNodeScenarios(String path) async {
     try {
       final result = await engine
           .executeWithRegistry(
-            automation: AutomationData(
-              graph: AutomationGraph(
-                entryNodeId: 'probe',
-                nodes: [
-                  GraphNode(
-                    id: 'probe',
-                    x: 0,
-                    y: 0,
-                    type: 'action',
-                    data: {
-                      'plugin': plugin,
-                      'action': action,
-                      'config': _map(_resolve(scenario['config'])),
-                    },
-                  ),
-                ],
-              ),
+            automation: automationFixture(
+              entryNodeId: 'probe',
+              nodes: [
+                GraphNode(
+                  id: 'probe',
+                  type: actionNodeType(plugin, action),
+                  data: {'config': _map(_resolve(scenario['config']))},
+                ),
+              ],
             ),
             context: EvaluationContext(cancellationToken: token),
             registry: registry,

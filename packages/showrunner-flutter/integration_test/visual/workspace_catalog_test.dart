@@ -196,9 +196,9 @@ void main() {
 }
 
 Future<void> _seedParityResources(Directory directory) async {
-  final fixture = File('../../test/fixtures/visual-parity/resources.json');
+  final fixture = File('test/fixtures/visual/catalog-resources.json');
   if (!await fixture.exists()) {
-    throw StateError('Shared main/Flutter visual fixture was not found.');
+    throw StateError('Canonical Flutter visual fixture was not found.');
   }
   final resources = jsonDecode(await fixture.readAsString()) as Map;
   for (final group in resources.entries) {

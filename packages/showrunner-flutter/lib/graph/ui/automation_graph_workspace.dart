@@ -391,6 +391,7 @@ class AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
                       controller: graph,
                       captureFragment: editor.captureFragment,
                       pasteFragment: editor.pasteFragment,
+                      onFind: () => unawaited(_findNode()),
                       headerBuilder: showrunnerNodeHeader,
                       portLabelBuilder: showrunnerPortLabel,
                       executionSource: widget.execution,

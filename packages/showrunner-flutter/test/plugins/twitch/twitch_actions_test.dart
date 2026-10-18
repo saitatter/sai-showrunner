@@ -6,7 +6,6 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/twitch/actions.dart';
 import 'package:showrunner_flutter/plugins/twitch/contracts.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
@@ -222,28 +221,16 @@ void main() {
       },
     );
 
-    final clip = await registry.invoke(
-      const GraphNode(
-        id: 'clip',
-        type: 'action',
-        x: 0,
-        y: 0,
-        data: {'plugin': 'twitch', 'action': 'createClip'},
-      ),
-      context,
+    final clip = await registry.invokeAction(
+      'twitch',
+      'createClip',
       {},
+      context: context,
     );
-    await registry.invoke(
-      const GraphNode(
-        id: 'ban',
-        type: 'action',
-        x: 0,
-        y: 0,
-        data: {'plugin': 'twitch', 'action': 'ban'},
-      ),
-      context,
-      {'viewerId': 'viewer-1', 'reason': 'test'},
-    );
+    await registry.invokeAction('twitch', 'ban', {
+      'viewerId': 'viewer-1',
+      'reason': 'test',
+    }, context: context);
     await registry.invokeAction('twitch', 'runAd', {'duration': 60});
     await registry.invokeAction('twitch', 'snoozeAds', {});
     await registry.invokeAction('twitch', 'createPrediction', {

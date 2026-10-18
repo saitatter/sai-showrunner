@@ -22,12 +22,12 @@
     },
     "graph": {
       "main": "NodeAutomationEdit",
-      "flutter": "ShowRunnerGraphEditor",
+      "flutter": "AutomationGraphWorkspace",
       "status": "improved",
       "flutterEvidence": [
         {
-          "path": "packages/showrunner-flutter/lib/editor/validation/graph_diagnostics.dart",
-          "marker": "ShowRunnerGraphEditor"
+          "path": "packages/showrunner-flutter/lib/graph/ui/automation_graph_workspace.dart",
+          "marker": "AutomationGraphWorkspace"
         }
       ]
     },
@@ -315,8 +315,8 @@
       "status": "equivalent",
       "flutterEvidence": [
         {
-          "path": "packages/showrunner-flutter/lib/persistence/automation_repository.dart",
-          "marker": "AutomationData"
+          "path": "packages/showrunner-flutter/lib/graph/domain/automation_document.dart",
+          "marker": "AutomationDocument"
         }
       ]
     },
@@ -435,8 +435,8 @@
       "status": "improved",
       "flutterEvidence": [
         {
-          "path": "packages/showrunner-flutter/lib/features/graph/graph_workspace.dart",
-          "marker": "GraphWorkspace"
+          "path": "packages/showrunner-flutter/lib/graph/ui/automation_graph_workspace.dart",
+          "marker": "AutomationGraphWorkspace"
         }
       ]
     },
@@ -544,7 +544,6 @@
       "automation",
       "dashboard",
       "diagnostics",
-      "graph",
       "plugins",
       "profile",
       "queue",

@@ -14,8 +14,8 @@ import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/plugins/variables/manifest.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
-import 'package:showrunner_flutter/runtime/graph_execution_engine.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
+import '../../support/graph_fixtures.dart';
 
 void main() {
   test(
@@ -81,27 +81,21 @@ void main() {
         graphResults.add(
           CompiledExecutionEngine()
               .executeWithRegistry(
-                automation: AutomationData(
-                  graph: AutomationGraph(
-                    entryNodeId: 'record',
-                    nodes: const [
-                      GraphNode(
-                        id: 'record',
-                        type: 'action',
-                        x: 0,
-                        y: 0,
-                        data: {
-                          'plugin': 'variables',
-                          'action': 'set',
-                          'config': {
-                            'variable': 'remoteProof',
-                            'value': '{{name}}',
-                          },
+                automation: automationFixture(
+                  entryNodeId: 'record',
+                  nodes: [
+                    GraphNode(
+                      id: 'record',
+                      type: actionNodeType('variables', 'set'),
+                      data: {
+                        'config': {
+                          'variable': 'remoteProof',
+                          'value': '{{name}}',
                         },
-                      ),
-                    ],
-                    edges: const [],
-                  ),
+                      },
+                    ),
+                  ],
+                  connections: [],
                 ),
                 context: EvaluationContext(locals: event),
                 registry: registry,

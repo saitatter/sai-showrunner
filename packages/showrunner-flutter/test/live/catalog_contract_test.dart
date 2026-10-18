@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:showrunner_flutter/editor/showrunner_graph_editor.dart';
+import 'package:showrunner_flutter/graph/controller/automation_editor_controller.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
-import 'package:showrunner_flutter/schema/automation.dart';
+import '../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/schema/data_input.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
@@ -27,7 +27,10 @@ void main() {
       final hub = DartPluginEventHub();
       addTearDown(hub.dispose);
       final registry = createDefaultPluginRegistry(eventHub: hub);
-      final editor = ShowRunnerGraphEditor(registry: registry);
+      final editor = AutomationEditorController(
+        document: AutomationDocument.empty(),
+        registry: registry,
+      );
       addTearDown(editor.dispose);
       addTearDown(registry.close);
       var actions = 0;
@@ -54,15 +57,18 @@ plugin_settings:
           }
         }
         for (final action in plugin.actions) {
-          final key = '$id.${action.actionId.value}';
-          final nodeId = editor.addNodeType(key);
-          expect(nodeId, isNotNull, reason: key);
-          expect(editor.controller.nodes[nodeId]!.prototype.idName, key);
+          final key = actionNodeType(id, action.actionId.value);
+          final nodeId = editor.addNode(key, GraphPoint(actions * 320, 0));
+          expect(editor.graph.activeSpace!.nodes[nodeId]!.type, key);
           actions++;
         }
         for (final trigger in plugin.triggers) {
-          final key = 'trigger.$id.${trigger.triggerId.value}';
-          expect(editor.addNodeType(key), isNotNull, reason: key);
+          final key = triggerNodeType(id, trigger.triggerId.value);
+          expect(
+            editor.addNode(key, GraphPoint(triggers * 320, 400)),
+            isNotEmpty,
+            reason: key,
+          );
           triggers++;
         }
         catalog.add({
@@ -103,13 +109,26 @@ plugin_settings:
           ],
         });
       }
-      final saved = editor.toAutomation(const AutomationData());
-      expect(saved.graph.nodes.length, actions);
-      expect(saved.triggerNodes.length, triggers);
-      final restored = ShowRunnerGraphEditor(registry: registry)
-        ..loadAutomation(saved);
+      final saved = editor.document;
+      expect(
+        saved.graph.spaces[mainAutomationSpace]!.nodes.values.where(
+          (node) => decodeContractNodeType(node.type, 'action') != null,
+        ),
+        hasLength(actions),
+      );
+      expect(
+        saved.graph.spaces[mainAutomationSpace]!.nodes.values.where(
+          (node) => decodeContractNodeType(node.type, 'trigger') != null,
+        ),
+        hasLength(triggers),
+      );
+      final restored = AutomationEditorController(
+        registry: registry,
+        document: AutomationDocument.fromJson(saved.toJson()),
+      );
       addTearDown(restored.dispose);
-      expect(restored.controller.nodes.length, actions + triggers);
+      expect(restored.graph.activeSpace!.nodes.length, actions + triggers);
+      expect(restored.document.graph, saved.graph);
       // These checks exercise the editor/serialization contract, not external services.
       stdout.writeln(
         '${registry.plugins.length} plugins, $actions action nodes, $triggers trigger nodes round-tripped.',
