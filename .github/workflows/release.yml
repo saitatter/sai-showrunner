@@ -1,104 +1,137 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version without v; empty derives it from conventional commits
+        required: false
+        type: string
+      dry_run:
+        description: Preview version and changelog without changing files, tags or releases
+        required: false
+        default: false
+        type: boolean
+      backfill_version:
+        description: Rebuild signed assets of an existing Flutter release without changing its tag or publication state
+        required: false
+        type: string
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: showrunner-release
+  cancel-in-progress: false
 
 jobs:
-  validate:
-    runs-on: windows-latest
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      commit: ${{ steps.plan.outputs.commit }}
+      build: ${{ steps.plan.outputs.build }}
+      publish: ${{ steps.plan.outputs.publish }}
     steps:
+      - name: Require trusted main
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: test "$RELEASE_REF" = refs/heads/main
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.44.0'
-          channel: stable
-      - name: Verify release inputs
-        shell: pwsh
+      - name: Preview version and notes
+        id: plan
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          BACKFILL_VERSION: ${{ inputs.backfill_version }}
         run: |
-          corepack enable
-          corepack yarn install --immutable
-          if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
-          corepack yarn overlay:typecheck
-          if ($LASTEXITCODE -ne 0) { throw 'Overlay typecheck failed.' }
-          corepack yarn overlay:test
-          if ($LASTEXITCODE -ne 0) { throw 'Overlay tests failed.' }
-          Push-Location packages/showrunner-flutter
-          flutter pub get
-          if ($LASTEXITCODE -ne 0) { throw 'Flutter dependencies failed.' }
-          flutter analyze --no-pub
-          if ($LASTEXITCODE -ne 0) { throw 'Flutter analysis failed.' }
-          flutter test --no-pub
-          if ($LASTEXITCODE -ne 0) { throw 'Flutter tests failed.' }
-          Pop-Location
-          corepack yarn parity:check
-          if ($LASTEXITCODE -ne 0) { throw 'Contract parity failed.' }
-          corepack yarn parity:product
-          if ($LASTEXITCODE -ne 0) { throw 'Product parity failed.' }
+          args=(--check --notes "$RUNNER_TEMP/release-notes.md")
+          if [ -n "$REQUESTED_VERSION" ]; then args+=(--version "$REQUESTED_VERSION"); fi
+          if [ -n "$BACKFILL_VERSION" ]; then args+=(--backfill "$BACKFILL_VERSION"); fi
+          node tools/release/prepare.mjs "${args[@]}"
+      - name: Verify existing GitHub release for backfill
+        if: inputs.backfill_version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.plan.outputs.tag }}
+        run: gh release view "$RELEASE_TAG" --json tagName,isDraft,isPrerelease
 
-  release:
-    needs: validate
+  validate:
+    needs: plan
+    if: needs.plan.outputs.publish == 'true' && !inputs.dry_run
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.plan.outputs.commit }}
+
+  prepare:
+    needs: [plan, validate]
+    if: needs.plan.outputs.publish == 'true' && !inputs.dry_run
     runs-on: ubuntu-latest
-    outputs:
-      released: ${{ steps.semantic-release.outputs.new_release_published || 'false' }}
-      version: ${{ steps.semantic-release.outputs.new_release_version }}
-      tag: ${{ steps.semantic-release.outputs.new_release_git_tag }}
+    environment: release
+    permissions:
+      contents: write
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Require release token for protected main
+        if: inputs.backfill_version == ''
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo '::error::Set RELEASE_TOKEN with permission to push the release commit to protected main. See docs/versioning-policy.md.'
+            exit 1
+          fi
+      - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.plan.outputs.commit }}
           fetch-depth: 0
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: yarn
-          cache-dependency-path: yarn.lock
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install release tooling
-        run: yarn install --immutable
+      - name: Prepare, commit and tag the validated snapshot
+        if: inputs.backfill_version == ''
         env:
-          YARN_ENABLE_SCRIPTS: false
-
-      - name: Semantic release
-        id: semantic-release
-        uses: cycjimmy/semantic-release-action@v4
-        with:
-          semantic_version: 24
-          extra_plugins: |
-            @semantic-release/commit-analyzer
-            @semantic-release/release-notes-generator
-            @semantic-release/github
-            conventional-changelog-conventionalcommits
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          EXPECTED_COMMIT: ${{ needs.plan.outputs.commit }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_COMMIT"
+          node tools/release/prepare.mjs --version "$RELEASE_VERSION" --notes "$RUNNER_TEMP/release-notes.md"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add CHANGELOG.md package.json packages/showrunner-flutter/pubspec.yaml packages/showrunner-flutter/lib/services/update_check_service.dart
+          git commit -m "chore(release): $RELEASE_VERSION"
+          git tag -a "v$RELEASE_VERSION" -m "v$RELEASE_VERSION"
+          git push --atomic origin HEAD:refs/heads/main "refs/tags/v$RELEASE_VERSION"
+          args=(--draft --latest=false)
+          if [[ "$RELEASE_VERSION" == *-* ]]; then args+=(--prerelease); fi
+          gh release create "v$RELEASE_VERSION" --verify-tag --title "v$RELEASE_VERSION" --notes-file "$RUNNER_TEMP/release-notes.md" "${args[@]}"
 
   package-windows:
     runs-on: windows-latest
-    needs: release
-    if: needs.release.outputs.released == 'true'
+    environment: release
+    permissions:
+      contents: write
+    needs: [plan, prepare]
+    if: needs.plan.outputs.publish == 'true' && !inputs.dry_run
     steps:
       - name: Checkout released commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.release.outputs.tag }}
+          ref: ${{ needs.plan.outputs.tag }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.0'
+          flutter-version: '3.47.7'
           channel: stable
           cache: true
 
@@ -130,7 +163,8 @@ jobs:
         shell: pwsh
         run: |
           $packageArgs = @(
-            '-Version', '${{ needs.release.outputs.version }}',
+            '-Version', $env:RELEASE_VERSION,
+            '-BuildNumber', $env:RELEASE_BUILD,
             '-RequireBundledYouTubeClient',
             '-SignWindowsBundle',
             '-RequireWindowsSignature'
@@ -144,6 +178,8 @@ jobs:
           & .\scripts\package-flutter-windows.ps1 @packageArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         env:
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          RELEASE_BUILD: ${{ needs.plan.outputs.build }}
           SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
           SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
@@ -153,8 +189,21 @@ jobs:
       - name: Upload Windows package
         shell: pwsh
         run: |
-          $archive = Get-Item -LiteralPath ".\release\ShowRunner-Flutter-windows-${{ needs.release.outputs.version }}.zip"
-          gh release upload "${{ needs.release.outputs.tag }}" $archive.FullName --clobber
-          gh release edit "${{ needs.release.outputs.tag }}" --draft=false --latest
+          $archive = Get-Item -LiteralPath ".\release\ShowRunner-Flutter-windows-$env:RELEASE_VERSION.zip"
+          gh release upload $env:RELEASE_TAG $archive.FullName --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release asset upload failed.' }
+          if ($env:BACKFILL_VERSION -eq '') {
+            $releaseArgs = @('release', 'edit', $env:RELEASE_TAG, '--draft=false')
+            if ($env:RELEASE_VERSION.Contains('-')) {
+              $releaseArgs += @('--prerelease', '--latest=false')
+            } else {
+              $releaseArgs += '--latest'
+            }
+            & gh @releaseArgs
+            if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
+          }
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          BACKFILL_VERSION: ${{ inputs.backfill_version }}

@@ -19,6 +19,9 @@
 - Document contribution rules and isolated testing requirements in AGENTS.md.
 
 ### CI & Build
+- Make releases manual from main with conventional-commit version selection, curated notes, dry-run and immutable-tag asset rebuilds.
+- Keep Windows releases as drafts until signed packaging and updater smoke tests pass.
+- Align the Flutter SDK and required CI checks with the supported development environment.
 
 ## Published history
 

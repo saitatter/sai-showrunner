@@ -1,6 +1,7 @@
 param(
   [string]$Version = '',
   [string]$OutputDirectory = 'release',
+  [int]$BuildNumber = 0,
   [switch]$SkipSmoke,
   [switch]$RequireBundledYouTubeClient,
   [switch]$SignWindowsBundle,
@@ -20,6 +21,13 @@ try {
     throw 'A bundled YouTube OAuth client ID is required for a release build.'
   }
 
+  if ($BuildNumber -eq 0) {
+    $versionLine = Get-Content -LiteralPath pubspec.yaml | Where-Object { $_ -match '^version:' }
+    if ($versionLine -match '\+(\d+)') { $BuildNumber = [int]$Matches[1] }
+  }
+  if ($BuildNumber -lt 1 -or $BuildNumber -gt 65535) { throw 'Invalid Windows build number.' }
+  if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw 'Invalid release version.' }
+  $nativeVersion = ($Version -split '-')[0]
   $dartDefines = @()
   $dartDefines += "--dart-define=SHOWRUNNER_VERSION=$Version"
   if (-not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)) {
@@ -29,7 +37,7 @@ try {
     $dartDefines += "--dart-define=SHOWRUNNER_YOUTUBE_CLIENT_SECRET=$($env:SHOWRUNNER_YOUTUBE_CLIENT_SECRET)"
   }
 
-  flutter build windows --release --build-name=$Version --build-number=1 @dartDefines
+  flutter build windows --release --build-name=$nativeVersion --build-number=$BuildNumber @dartDefines
   if ($LASTEXITCODE -ne 0) { throw "Flutter release build failed with exit code $LASTEXITCODE." }
   $bundle = Join-Path (Get-Location) 'build\windows\x64\runner\Release'
   if (-not (Test-Path $bundle)) {
@@ -38,7 +46,7 @@ try {
 
   $bundleExecutable = Get-Item -LiteralPath (Join-Path $bundle 'showrunner_flutter.exe')
   $actualVersion = ($bundleExecutable.VersionInfo.ProductVersion -split '\+')[0]
-  $expectedVersion = $Version.TrimStart('v')
+  $expectedVersion = $nativeVersion
   if ($actualVersion -ne $expectedVersion) {
     throw "Flutter executable version $actualVersion does not match release version $expectedVersion."
   }

@@ -1,6 +1,11 @@
 name: CI
 
 on:
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
   pull_request:
     branches:
       - main
@@ -14,18 +19,19 @@ permissions:
   contents: read
 
 jobs:
-  flutter-windows:
+  test-windows:
     runs-on: windows-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 0
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.0'
+          flutter-version: '3.47.7'
           channel: stable
           cache: true
 
@@ -60,23 +66,18 @@ jobs:
             packages/showrunner-flutter/lib/plugins/overlays/overlay_widget_catalog.generated.dart `
             libs/showrunner-overlay-core/src/generated
 
-      - name: Analyze, test, and build Flutter desktop app
+      - name: Analyze and test Flutter desktop app
+        shell: pwsh
+        run: ./scripts/ci-check.ps1 -Stage Flutter
+
+      - name: Build Flutter Windows debug and release
+        working-directory: packages/showrunner-flutter
         shell: pwsh
         run: |
-          Push-Location packages/showrunner-flutter
-          flutter pub get
-          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
-          dart format --output=none --set-exit-if-changed lib test tool integration_test
-          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
-          flutter analyze
-          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
-          flutter test
-          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
-          flutter build windows --debug
-          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
-          flutter build windows --release
-          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
-          Pop-Location
+          flutter build windows --debug --no-pub
+          if ($LASTEXITCODE -ne 0) { throw 'Debug build failed.' }
+          flutter build windows --release --no-pub
+          if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
 
       - name: Run Flutter integration gate
         shell: pwsh
@@ -118,11 +119,7 @@ jobs:
 
       - name: Validate Flutter contract parity
         shell: pwsh
-        run: |
-          yarn parity:check
-          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
-          yarn parity:product
-          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
+        run: ./scripts/ci-check.ps1 -Stage Parity
 
       - name: Smoke Flutter Windows startup
         shell: pwsh
@@ -136,11 +133,13 @@ jobs:
         shell: pwsh
         run: .\scripts\smoke-flutter-windows.ps1 -Configuration Release
 
-  browser-overlay:
+  scripts-ubuntu:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -157,6 +156,11 @@ jobs:
         env:
           YARN_ENABLE_SCRIPTS: false
 
+      - name: Verify documentation and local versions
+        run: |
+          node tools/check-docs.mjs
+          node tools/verify-local-version.mjs
+
       - name: Test browser overlay runtime
         run: yarn overlay:test
 
@@ -169,7 +173,6 @@ jobs:
       - name: Verify generated overlay registry
         run: |
           yarn overlay:generate
-          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
           git diff --exit-code -- packages/showrunner-obs-overlay/src/generated packages/showrunner-flutter/assets/overlay_widgets.generated.json
 
       - name: Build browser overlay runtime
@@ -183,6 +186,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -200,5 +204,5 @@ jobs:
         env:
           YARN_ENABLE_SCRIPTS: false
 
-      - name: Semantic release dry run
-        run: yarn release:dry-run
+      - name: Preview manual release without mutations
+        run: node tools/release/prepare.mjs --check

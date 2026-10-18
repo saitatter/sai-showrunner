@@ -14,6 +14,7 @@ permissions:
 
 jobs:
   signed-windows-proof:
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
     steps:
       - name: Checkout trusted main
@@ -24,7 +25,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.0'
+          flutter-version: '3.47.7'
           channel: stable
           cache: true
 
@@ -65,12 +66,13 @@ jobs:
             throw 'A bundled YouTube OAuth client ID is required for the release proof.'
           }
           & .\scripts\package-flutter-windows.ps1 `
-            -Version '${{ inputs.version }}' `
+            -Version $env:PROOF_VERSION `
             -RequireBundledYouTubeClient `
             -SignWindowsBundle `
             -RequireWindowsSignature
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         env:
+          PROOF_VERSION: ${{ inputs.version }}
           SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
           SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64 }}

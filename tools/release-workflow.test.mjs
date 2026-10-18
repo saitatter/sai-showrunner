@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises"
 import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
+import { parse } from "yaml"
 
 const repositoryRoot = resolve(import.meta.dirname, "..")
 const workflowPath = resolve(repositoryRoot, ".github/workflows/release.yml")
@@ -41,4 +42,51 @@ describe("Windows release workflow", () => {
 		expect(workflow).toContain("actions/upload-artifact@v4")
 		expect(workflow).not.toContain("gh release upload")
 	})
+})
+
+
+describe("Manual release policy", () => {
+  it("never publishes on pushes or PR merges and validates the planned commit", async () => {
+    const workflow = parse(await readFile(workflowPath, "utf8"))
+    expect(Object.keys(workflow.on)).toEqual(["workflow_dispatch"])
+    expect(workflow.concurrency["cancel-in-progress"]).toBe(false)
+    expect(workflow.permissions.contents).toBe("read")
+    expect(workflow.jobs.validate.uses).toBe("./.github/workflows/ci.yml")
+    expect(workflow.jobs.validate.with.ref).toContain("needs.plan.outputs.commit")
+    expect(workflow.jobs.prepare.needs).toContain("validate")
+    expect(workflow.jobs["package-windows"].needs).toContain("prepare")
+    const steps = workflow.jobs.prepare.steps.map(step => step.run ?? "").join("\n")
+    expect(steps).toContain("git push --atomic")
+    expect(steps).toContain("--draft --latest=false")
+    expect(steps).toContain('test "$(git rev-parse origin/main)" = "$EXPECTED_COMMIT"')
+  })
+  it("isolates publish credentials and keeps prereleases and backfills out of Latest", async () => {
+    const workflow = parse(await readFile(workflowPath, "utf8"))
+    expect(workflow.on.workflow_dispatch.inputs).toHaveProperty("dry_run")
+    expect(workflow.on.workflow_dispatch.inputs).toHaveProperty("backfill_version")
+    const packaging = workflow.jobs["package-windows"]
+    expect(packaging.environment).toBe("release")
+    const upload = packaging.steps.find(step => step.name === "Upload Windows package")
+    expect(upload.run).toContain("if ($env:BACKFILL_VERSION -eq '')")
+    expect(upload.run).toContain("'--prerelease', '--latest=false'")
+    expect(upload.run.indexOf("gh release upload")).toBeLessThan(upload.run.indexOf("'release', 'edit'"))
+    for (const job of Object.values(workflow.jobs)) {
+      for (const step of job.steps ?? []) expect(step.run ?? "").not.toMatch(/\$\{\{\s*inputs\./)
+    }
+  })
+  it("matches branch-protection checks and pins the same SDK in every workflow", async () => {
+    const ci = parse(await readFile(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8"))
+    expect(Object.keys(ci.jobs).sort()).toEqual(["release-dry-run", "scripts-ubuntu", "test-windows"])
+    expect(ci.on).toHaveProperty("workflow_call")
+    for (const name of ["ci", "nightly", "release", "release-proof"]) {
+      const source = await readFile(resolve(repositoryRoot, `.github/workflows/${name}.yml`), "utf8")
+      const workflow = parse(source)
+      for (const job of Object.values(workflow.jobs)) {
+        for (const step of job.steps ?? []) {
+          if (step.uses?.startsWith("subosito/flutter-action")) expect(step.with["flutter-version"]).toBe("3.47.7")
+        }
+      }
+      expect(source).not.toContain("semantic-release")
+    }
+  })
 })
