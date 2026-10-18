@@ -8,6 +8,41 @@ import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/schema/stream_plan.dart';
 
 void main() {
+  testWidgets(
+    'unsupported inline graph format shows an error without allowing overwrite',
+    (tester) async {
+      var saved = false;
+      var changed = false;
+      const resource = ResourceData(
+        id: 'invalid-plan',
+        config: {
+          'name': 'Invalid plan',
+          'activationAutomation': {'schemaVersion': 99},
+          'segments': [],
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StreamPlanEditorPage(
+              resource: resource,
+              documentMode: true,
+              onSave: (_) async => saved = true,
+              onDocumentChanged: (_, _) => changed = true,
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Stream plan could not be opened'), findsOneWidget);
+      expect(find.textContaining('schemaVersion 1'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Save'), findsNothing);
+      expect(saved, false);
+      expect(changed, false);
+      expect(resource.config['activationAutomation'], {'schemaVersion': 99});
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(tester.takeException(), isNull);
+    },
+  );
   test('explicit null current variable values survive reopening', () {
     final variable = VariableResource.fromResource(
       const ResourceData(

@@ -30,26 +30,33 @@ class _StreamPlanEditorPageState extends State<StreamPlanEditorPage> {
   final Map<String, GlobalKey<_StreamPlanSegmentCardState>> _segmentKeys = {};
   AutomationEditorController? _activationEditor;
   AutomationEditorController? _deactivationEditor;
+  Object? _loadError;
 
   @override
   void initState() {
     super.initState();
-    final plan = _initialPlan = StreamPlanData.fromConfig(
-      widget.resource.config,
-    );
-    _name = TextEditingController(text: plan.name);
-    _segments = List<StreamPlanSegmentData>.of(plan.segments);
-    if (widget.registryFuture != null) {
-      _activationEditor = AutomationEditorController(
-        document: AutomationDocument.fromJson(plan.activationAutomation),
+    _name = TextEditingController(text: widget.resource.name);
+    _segments = [];
+    try {
+      final plan = _initialPlan = StreamPlanData.fromConfig(
+        widget.resource.config,
       );
-      _deactivationEditor = AutomationEditorController(
-        document: AutomationDocument.fromJson(plan.deactivationAutomation),
-      );
-      _activationEditor!.graph.addDocumentListener(_graphChanged);
-      _deactivationEditor!.graph.addDocumentListener(_graphChanged);
+      _name.text = plan.name;
+      _segments = List<StreamPlanSegmentData>.of(plan.segments);
+      if (widget.registryFuture != null) {
+        _activationEditor = AutomationEditorController(
+          document: AutomationDocument.fromJson(plan.activationAutomation),
+        );
+        _deactivationEditor = AutomationEditorController(
+          document: AutomationDocument.fromJson(plan.deactivationAutomation),
+        );
+        _activationEditor!.graph.addDocumentListener(_graphChanged);
+        _deactivationEditor!.graph.addDocumentListener(_graphChanged);
+      }
+      _savedBaseline = jsonEncode(_savedConfig());
+    } catch (error) {
+      _loadError = error;
     }
-    _savedBaseline = jsonEncode(_savedConfig());
   }
 
   void _graphChanged(GraphDocumentChange change) => _notifyDirty();
@@ -66,6 +73,20 @@ class _StreamPlanEditorPageState extends State<StreamPlanEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loadError != null) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Stream plan could not be opened'),
+            const SizedBox(height: 12),
+            SelectableText('$_loadError'),
+          ],
+        ),
+      );
+    }
     final fields = <Widget>[
       TextField(
         controller: _name,

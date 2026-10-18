@@ -853,6 +853,15 @@ class _StreamPlanDashboardCardState extends State<_StreamPlanDashboardCard> {
     final runtime = widget.runtime;
     final selected = _selectedPlan;
     final active = selected != null && runtime?.activePlanId == selected.id;
+    StreamPlanData? parsed;
+    Object? loadError;
+    if (selected != null) {
+      try {
+        parsed = StreamPlanData.fromConfig(selected.config);
+      } catch (error) {
+        loadError = error;
+      }
+    }
     return _DashboardCard(
       icon: mdiIcon(0xF00F0),
       title: 'Stream Plan',
@@ -885,7 +894,10 @@ class _StreamPlanDashboardCardState extends State<_StreamPlanDashboardCard> {
                   tooltip: active
                       ? 'Deactivate stream plan'
                       : 'Activate stream plan',
-                  onPressed: _busy || selected == null ? null : _toggle,
+                  onPressed:
+                      _busy || selected == null || (!active && parsed == null)
+                      ? null
+                      : _toggle,
                   icon: Icon(active ? Icons.stop_circle : Icons.play_circle),
                 ),
               ],
@@ -904,9 +916,9 @@ class _StreamPlanDashboardCardState extends State<_StreamPlanDashboardCard> {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            for (final segment in StreamPlanData.fromConfig(
-                              selected.config,
-                            ).segments)
+                            for (final segment
+                                in parsed?.segments ??
+                                    <StreamPlanSegmentData>[])
                               Padding(
                                 padding: const EdgeInsets.only(right: 4),
                                 child: Chip(label: Text(segment.name)),
@@ -916,12 +928,12 @@ class _StreamPlanDashboardCardState extends State<_StreamPlanDashboardCard> {
                       ),
               ),
             ),
-            if (selected != null) ...[
+            if (selected != null && parsed != null) ...[
               const SizedBox(height: 4),
               Text(
                 active
                     ? 'Active${runtime?.activeSegmentId == null ? '' : ' · ${runtime!.activeSegmentId}'}'
-                    : '${StreamPlanData.fromConfig(selected.config).segments.length} segments',
+                    : '${parsed.segments.length} segments',
               ),
               if (active)
                 Row(
@@ -939,6 +951,11 @@ class _StreamPlanDashboardCardState extends State<_StreamPlanDashboardCard> {
                   ],
                 ),
             ],
+            if (loadError != null)
+              Text(
+                'Invalid stream plan: $loadError',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             if (_error != null)
               Text(
                 'Stream Plan action failed: $_error',
