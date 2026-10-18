@@ -216,7 +216,13 @@ ShaderDocument createDefaultShaderDocument() {
 
 ShaderDocument createShaderGraphStarter(String id) {
   final builder = _ShaderDocumentBuilder();
-  final node = builder.node;
+  void node(
+    String id,
+    String definition,
+    double x,
+    double y, [
+    GraphJson values = const {},
+  ]) => builder.node(id, definition, x * 1.4, y * 1.5, values);
   final wire = builder.wire;
   switch (id) {
     case 'procedural-terrain':

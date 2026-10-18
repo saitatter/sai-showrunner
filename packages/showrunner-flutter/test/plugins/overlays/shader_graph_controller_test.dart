@@ -1,11 +1,38 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sai_nodes_core/sai_nodes_core.dart';
+import 'package:sai_nodes/sai_nodes.dart';
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_controller.dart';
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_compiler.dart';
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_model.dart';
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_node_definitions.dart';
 
 void main() {
+  test('shader starters leave visible space between resolved node bounds', () {
+    for (final document in [
+      createDefaultShaderDocument(),
+      ...shaderGraphStarters.map(
+        (starter) => createShaderGraphStarter(starter.id),
+      ),
+    ]) {
+      final editor = ShaderEditorController(document);
+      addTearDown(editor.dispose);
+      final nodes = GraphSceneBuilder()
+          .build(editor.graph)
+          .nodes
+          .values
+          .toList();
+      for (var i = 0; i < nodes.length; i++) {
+        for (var j = i + 1; j < nodes.length; j++) {
+          expect(
+            nodes[i].geometry.bounds
+                .inflate(8)
+                .overlaps(nodes[j].geometry.bounds),
+            false,
+            reason: '${nodes[i].node.id} overlaps ${nodes[j].node.id}',
+          );
+        }
+      }
+    }
+  });
   test(
     'every shader node resolves exact typed ports and all editable defaults',
     () {
