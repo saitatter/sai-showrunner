@@ -15,6 +15,7 @@ permissions:
 jobs:
   signed-windows-proof:
     if: github.ref == 'refs/heads/main'
+    environment: release
     runs-on: windows-latest
     steps:
       - name: Checkout trusted main

@@ -41,6 +41,7 @@ describe("Windows release workflow", () => {
 		expect(workflow).toContain("package-flutter-windows.ps1")
 		expect(workflow).toContain("actions/upload-artifact@v7")
 		expect(workflow).not.toContain("gh release upload")
+		expect(parse(workflow).jobs["signed-windows-proof"].environment).toBe("release")
 	})
 })
 
