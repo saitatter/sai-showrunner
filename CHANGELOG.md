@@ -17,12 +17,14 @@
 ### Docs
 - Consolidate historical audits into maintained architecture, testing, product-status and Streamer.bot comparison documents.
 - Document contribution rules and isolated testing requirements in AGENTS.md.
+- Clarify Twitch Public OAuth setup and remove stale test-count claims from the node-testing guide.
 
 ### CI & Build
 - Make releases manual from main with conventional-commit version selection, curated notes, dry-run and immutable-tag asset rebuilds.
 - Keep Windows releases as drafts until signed packaging and updater smoke tests pass; signing proofs use the same protected release environment.
 - Align the Flutter SDK and required CI checks with the supported development environment.
 - Use current maintained workflow actions and cancel superseded CI runs without cancelling releases.
+- Remove dependency-update rules for the retired semantic-release tooling.
 - Pin the published graph packages and re-review inspector screenshot baselines for Flutter 3.47.7 without relaxing visual tolerances.
 
 ## Published history

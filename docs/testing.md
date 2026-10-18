@@ -66,9 +66,11 @@ The two inspector crops were inspected side by side: text/font choices, alignmen
 geometry, color inputs, stroke and shadow controls remain the intended UI. The
 reviewed Flutter PNGs are refreshed for this supported SDK. No product widget,
 frozen Electron image, comparison region, channel threshold or 0.5% tolerance is
-changed. Repeat the independent capture/regression check after the refresh; its
-actual result, and the CI artifact, determine whether the gate passes. Do not
-assume that copying a capture alone proves determinism or cross-runner behavior.
+changed. A second independent native capture passed with 0 differing pixels in both
+regions at the unchanged channel threshold 3 and 0.5% limit. The full 21-file
+native suite completed, with its opt-in audio probe skipped. Cross-runner behavior
+is still determined by the GitHub Windows artifact; local determinism is not a
+claim of universal pixel equivalence.
 
 ## Browser shaders and audio
 

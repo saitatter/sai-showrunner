@@ -1,8 +1,8 @@
 # Testarea funcțională a nodurilor
 
-Catalogul generat din manifestele aplicației are **33 de pluginuri, 166 de acțiuni și 51 de triggeri**, inclusiv triggerii disponibili numai când există event hub. [Inventarul JSON](node-catalog.json) enumeră ID-urile exacte, configurațiile, rezultatele și resursele.
+Catalogul generat din manifestele aplicatiei enumera actiunile, triggerii, configuratiile si resursele disponibile: [inventarul JSON](node-catalog.json). El se regenereaza din surse; nu este un raport de verificare live.
 
-Toate cele 217 tipuri de noduri trec testul de inserare și salvare/redeschidere. Acesta este un test de contract al editorului, nu dovada executării fiecărei integrări live. Testele de runtime și plugin folosesc și servicii simulate. Verificările locale suplimentare execută VM-ul de producție cu HTTP real și OBS WebSocket real către servere locale de test; testul Discord verifică citirea unui răspuns transmis în bucăți, fără să trimită mesaje pe Discord.
+Testele de catalog verifica inserarea si salvarea/redeschiderea nodurilor. Acestea sunt teste de contract ale editorului, nu dovada executarii fiecarei integrari live. Testele runtime folosesc si servicii simulate; fixturele HTTP/Discord/OBS locale nu trimit mesaje catre servicii externe.
 
 ## Fișierul de completat
 
@@ -47,7 +47,7 @@ Activarea unui scenariu execută acțiunea reală. De exemplu, un scenariu de ch
 | --- | --- |
 | OBS | OBS pornit, WebSocket activ, host, port (implicit 4455), parolă; numele scenei/sursei/filtrului pentru scenariile respective. `getInputSettings` este un prim test de citire. |
 | Aitum / ADVSS | Aceeași conexiune OBS și extensia respectivă instalată, plus numele macro-urilor/vertical scenes folosite. |
-| Twitch | Client ID, Client Secret dacă folosești refresh, access token, refresh token, broadcaster ID și moderator/sender ID. ID-ul expeditorului trebuie să corespundă tokenului. Pentru început se poate activa `listChannelPointRewards`. Unele acțiuni cer canal afiliat/partener sau drepturi de moderator. |
+| Twitch | Fluxul Public din desktop cere Client ID si login; tokenul si ID-urile sunt obtinute la autorizare. Alte fluxuri de token/refresh pot cere Client Secret si refresh token. Contul expeditorului trebuie sa corespunda tokenului; unele actiuni cer afiliere/parteneriat sau drepturi de moderator. |
 | YouTube | Client ID/Secret, access/refresh token și un `liveChatId` de test. Acțiunile expuse sunt de scriere/moderare; testele live trebuie pregătite pe un chat de test. |
 | Discord | O resursă `DiscordWebhook`, cu URL-ul webhook-ului unui canal de test; opțional fișiere locale pentru atașamente. |
 | Bluesky | Handle/DID, app password și service URL; postarea live necesită contul ales pentru test. |
@@ -72,7 +72,7 @@ Pentru Twitch, aplicația cere acum și scope-urile moderne `user:read:chat` și
 
 ## Ce mai trebuie validat live
 
-Testele nu marchează automat toate acțiunile ca funcționale live. Catalogul păstrează explicit `liveStatus: pending`. Pentru triggeri trebuie generat evenimentul real: mesaj chat, follow/subscription, eveniment OBS, cerere HTTP, puls de la senzor etc. Runnerul YAML execută acțiuni; nu pretinde că a verificat livrarea tuturor celor 51 de triggeri live.
+Testele nu marchează automat toate acțiunile ca funcționale live. Catalogul păstrează explicit `liveStatus: pending`. Pentru triggeri trebuie generat evenimentul real: mesaj chat, follow/subscription, eveniment OBS, cerere HTTP, puls de la senzor etc. Runnerul YAML execută acțiuni; nu pretinde că a verificat livrarea fiecarui trigger live.
 
 Verificarea curenta, limitele si comenzile de repetare sunt in [ghidul de testare](../testing.md). Prezenta unui nod in catalog nu dovedeste executarea lui live.
 
