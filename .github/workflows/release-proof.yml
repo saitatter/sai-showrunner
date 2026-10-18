@@ -18,7 +18,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout trusted main
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main
 
@@ -30,7 +30,7 @@ jobs:
           cache: true
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: yarn
@@ -51,7 +51,7 @@ jobs:
         run: yarn overlay:build
 
       - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
+        uses: NuGet/setup-nuget@v4
 
       - name: Build, sign, and smoke-test Windows package
         shell: pwsh
@@ -80,7 +80,7 @@ jobs:
           SHOWRUNNER_WINDOWS_TIMESTAMP_URL: ${{ vars.SHOWRUNNER_WINDOWS_TIMESTAMP_URL }}
 
       - name: Upload signed proof archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: showrunner-windows-signed-proof-${{ inputs.version }}
           path: release/ShowRunner-Flutter-windows-${{ inputs.version }}.zip

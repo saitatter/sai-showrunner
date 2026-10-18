@@ -39,7 +39,7 @@ describe("Windows release workflow", () => {
 		expect(workflow).toContain("-SignWindowsBundle")
 		expect(workflow).toContain("-RequireWindowsSignature")
 		expect(workflow).toContain("package-flutter-windows.ps1")
-		expect(workflow).toContain("actions/upload-artifact@v4")
+		expect(workflow).toContain("actions/upload-artifact@v7")
 		expect(workflow).not.toContain("gh release upload")
 	})
 })

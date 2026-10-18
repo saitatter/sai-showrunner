@@ -22,6 +22,7 @@
 - Make releases manual from main with conventional-commit version selection, curated notes, dry-run and immutable-tag asset rebuilds.
 - Keep Windows releases as drafts until signed packaging and updater smoke tests pass.
 - Align the Flutter SDK and required CI checks with the supported development environment.
+- Use current maintained workflow actions and cancel superseded CI runs without cancelling releases.
 - Pin the published graph packages and re-review inspector screenshot baselines for Flutter 3.47.7 without relaxing visual tolerances.
 
 ## Published history

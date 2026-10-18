@@ -21,7 +21,8 @@ runs startup smokes, and exercises the production overlay in Chromium.
 Required GitHub checks retain the branch-protection names test-windows,
 scripts-ubuntu and release-dry-run. The release preview is read-only and does not
 require publishing credentials. Manual Release reuses the same workflow on the
-exact planned commit; nightly adds repeated benchmark sampling.
+exact planned commit; nightly adds repeated benchmark sampling. PRs target main,
+and CI push checks run only on main to avoid duplicate migration-branch runs.
 
 ## Focused checks
 

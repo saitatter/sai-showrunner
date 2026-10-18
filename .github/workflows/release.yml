@@ -38,12 +38,12 @@ jobs:
         env:
           RELEASE_REF: ${{ github.ref }}
         run: test "$RELEASE_REF" = refs/heads/main
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Preview version and notes
@@ -87,12 +87,12 @@ jobs:
             echo '::error::Set RELEASE_TOKEN with permission to push the release commit to protected main. See docs/versioning-policy.md.'
             exit 1
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.plan.outputs.commit }}
           fetch-depth: 0
           token: ${{ secrets.RELEASE_TOKEN || github.token }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Prepare, commit and tag the validated snapshot
@@ -124,7 +124,7 @@ jobs:
     if: needs.plan.outputs.publish == 'true' && !inputs.dry_run
     steps:
       - name: Checkout released commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.plan.outputs.tag }}
 
@@ -136,7 +136,7 @@ jobs:
           cache: true
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: yarn
@@ -157,7 +157,7 @@ jobs:
         run: yarn overlay:build
 
       - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
+        uses: NuGet/setup-nuget@v4
 
       - name: Build and smoke-test Windows package
         shell: pwsh
