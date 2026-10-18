@@ -1,149 +1,75 @@
 <p align="center">
-  <img src="docs/branding/showrunner-icon-mark.svg" alt="ShowRunner" width="128" height="128">
+  <img src="docs/branding/showrunner-icon-mark.svg" alt="ShowRunner" width="128">
 </p>
 
 <h1 align="center">ShowRunner</h1>
 
-<p align="center">
-  A production workspace for streamers and live creators.
-</p>
+A production workspace for streamers and live creators, built with Flutter for Windows.
 
-<p align="center">
-  <a href="https://github.com/saitatter/sai-showrunner/actions/workflows/ci.yml"><img src="https://github.com/saitatter/sai-showrunner/actions/workflows/ci.yml/badge.svg" alt="Build"></a>
-  <a href="https://github.com/saitatter/sai-showrunner/releases"><img src="https://img.shields.io/github/v/release/saitatter/sai-showrunner" alt="Latest release"></a>
-  <a href="LICENSE.md"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="AGPL-3.0 license"></a>
-  <img src="https://img.shields.io/badge/Made%20with-Flutter-02569B?logo=flutter&logoColor=white" alt="Made with Flutter">
-  <img src="https://img.shields.io/badge/Platform-Windows-lightgrey" alt="Windows">
-</p>
+[Download releases](https://github.com/saitatter/sai-showrunner/releases) ?
+[Changelog](CHANGELOG.md) ? [Documentation](docs/README.md)
 
-ShowRunner brings stream control, visual automations, OBS, Twitch, YouTube,
-overlays, queues, profiles, and production tools into one workspace. It is
-designed for creators who want to prepare a show, connect their services, and
-run the whole broadcast from one place.
+## Prepare and run your show
 
-## 📸 Demo
+- Build visual automations with typed connections, conditions, variables,
+  reusable subgraphs, queues and execution feedback.
+- Connect Twitch, YouTube and OBS; manage chat, events, scenes and production tools.
+- Organize broadcasts with profiles and segmented Stream Plans.
+- Design OBS browser overlays with editable widgets and visual Shader Graph effects.
+- Route sound and TTS, use viewer data, and control remote dashboards.
+- Connect Bluetooth heart-rate sensors and supported lighting/device integrations.
 
-[Overlay editor and widget inspector comparison](docs/ui-comparison/overlay-inspector.html)
+![Overlay editor and widget inspector](docs/ui-comparison/flutter-overlay-inspector-label.png)
 
-![Flutter overlay widget inspector](docs/ui-comparison/flutter-overlay-inspector-label.png)
+ShowRunner is based on [CastMate](https://github.com/LordTocs/CastMate), with its own
+Flutter desktop runtime and release process. Attribution and license notices remain.
+OBS overlays use a separate browser renderer because OBS consumes Browser Sources.
+The automation and shader editors use [sai_nodes](https://github.com/saitatter/sai_nodes).
 
-## ✨ What you can do
+The Flutter cutover is tracked under **Unreleased** until a signed release is
+published. Existing downloads can predate this implementation. Supported features,
+external-service limits and missing integrations are documented in
+[product status](docs/product-parity.md) and the
+[Streamer.bot comparison](docs/streamerbot-comparison.md).
 
-- ⚡ Build visual automations with conditions, variables, reusable sections, and
-  queues.
-- 🔌 Connect Twitch, YouTube, OBS, moderation, sound, lighting, remote
-  controls, and other production services.
-- 🎬 Organize broadcasts with profiles and segmented Stream Plans.
-- 🎨 Create browser overlays for OBS, including shader-driven effects made in
-  the visual Shader Graph editor powered by [SAI Nodes](https://github.com/saitatter/sai_nodes).
-- ❤️ Connect Bluetooth heart-rate sensors, use live zones and stats, and drive
-  heart-rate automations and overlays.
-- 📊 Manage connection health, live state, diagnostics, updates, and resources
-  from the same workspace.
+## Build and contribute
 
-## 🚀 ShowRunner features beyond CastMate
-
-ShowRunner is based on the [CastMate](https://github.com/LordTocs/CastMate)
-project, but it is developed as its own product and desktop experience.
-Compared with the public CastMate feature surface, ShowRunner includes or
-targets these additional workflows:
-
-- **Shader Graph overlays** — visual shader editing for procedural noise and
-  terrain, lighting, camera and material effects, generated shaders, and
-  automation-driven controls.
-- **YouTube workflows** — live chat, memberships, paid messages, and matching
-  overlay and automation starters alongside Twitch workflows.
-- **Segmented Stream Plans** — reusable broadcast segments with separate start
-  and stop automations.
-- **Automation queues** — controlled sequencing for alerts, sounds, scenes, and
-  other actions.
-- **Local media assets** — sound, image, and video selection for overlays and
-  playback without a separate persistent media catalog.
-- **Production dashboards** — connection health, stream plans, queue state, and
-  live-service status in one view.
-- **Remote and Satellite control** — trigger and monitor ShowRunner through its
-  remote control protocol.
-- **SAI services and moderation** — ShowRunner-specific services and moderation
-  workflows connected to automations.
-- **Expanded integrations** — including Bluesky, DonorDrive, Elgato, Govee,
-  LIFX, TP-Link/Kasa, Twinkly, Wyze, Voicemod, Aitum, ADVSS, HTTP, IoT,
-  operating-system, and input controls in addition to the core streaming
-  integrations.
-
-Optional CastMate plugins may overlap with individual integrations. The
-important distinction is that these workflows are maintained as part of
-ShowRunner itself.
-
-## 🔄 Differences from CastMate
-
-- ShowRunner uses a Flutter desktop application instead of CastMate's Electron
-  desktop application.
-- The desktop experience is organized around ShowRunner's visual graph editor,
-  profiles, Stream Plans, queues, and production workspaces.
-- ShowRunner has its own supported integrations, remote controls, data model,
-  and release process.
-- OBS overlay rendering remains browser-based because OBS consumes overlays as
-  Browser Sources. The desktop app manages their resources, configuration, and
-  events; the browser package renders them.
-
-Visual regression checks use frozen product references so the Flutter desktop
-experience can be compared against established behavior. They are not part of
-the current desktop runtime.
-
-## 📦 Download
-
-Windows releases are available on the
-[GitHub Releases page](https://github.com/saitatter/sai-showrunner/releases).
-The current release target is Windows. Official packages are signed by the
-protected release workflow; locally built archives are development artifacts
-and may still show a SmartScreen warning.
-
-## 🛠️ Run locally
-
-The desktop application is developed from `packages/showrunner-flutter`:
+Use Flutter **3.47.7**, Dart **3.13.5**, Node.js **22**, and the repository's Yarn **4.1.0**.
+Windows desktop builds also require Visual Studio's Desktop development with C++
+and the Windows SDK. Keep dependency lockfiles intact.
 
 ```powershell
-Push-Location .\packages\showrunner-flutter
-flutter pub get
+node .yarn/releases/yarn-4.1.0.cjs install --immutable
+node .yarn/releases/yarn-4.1.0.cjs overlay:build
+Push-Location packages/showrunner-flutter
+flutter pub get --enforce-lockfile
 flutter run -d windows
 Pop-Location
 ```
 
-To validate the desktop app:
+Run the same local checks used by CI:
 
 ```powershell
-Push-Location .\packages\showrunner-flutter
-flutter analyze
-flutter test
-flutter build windows --release
-Pop-Location
+./scripts/ci-check.ps1
+# Native lifecycle and screenshot checks when relevant:
+./scripts/ci-check.ps1 -Integration -Visual
 ```
 
-Use Node.js 22 (see `.nvmrc`) and the Corepack-managed Yarn 4.1.0 for the browser overlay and parity tooling:
+See [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md),
+[testing](docs/testing.md) and [release policy](docs/versioning-policy.md).
+Releases are manual from main, with a preview, curated changelog notes and signed
+Windows packaging. Merging a PR does not publish or change the version.
 
-```powershell
-corepack enable
-yarn install --immutable
-yarn overlay:typecheck
-yarn overlay:test
-yarn overlay:build
-```
+## Repository layout
 
-The Windows package can be built and smoke-tested with:
+| Path | Purpose |
+| --- | --- |
+| `packages/showrunner-flutter` | Desktop application, graph runtime, persistence and Dart plugins |
+| `packages/showrunner-obs-overlay` | OBS browser source |
+| `libs/showrunner-schema`, `libs/showrunner-overlay-*` | Browser contracts, widget loading and rendering/build support |
+| `plugins/*/overlay`, `plugins/*/shared` | Maintained browser widgets and shared protocol types |
+| `scripts`, `tools` | Verification, packaging and release tooling |
+| `test/reference` | Frozen comparison fixtures and Flutter regression baselines |
 
-```powershell
-.\scripts\package-flutter-windows.ps1 -Version 2.0.0
-```
-
-## 🗂️ Repository layout
-
-- 🖥️ `packages/showrunner-flutter` — the Flutter desktop application.
-- 🌐 `packages/showrunner-obs-overlay` — the browser runtime loaded by OBS.
-- 🧩 `plugins/*/overlay` and `libs/*overlay*` — reusable overlay widgets and
-  protocol packages.
-- 📚 `docs` — product, parity, and contributor documentation.
-
-## 📄 License
-
-ShowRunner is distributed under the [AGPL-3.0 license](LICENSE.md) and retains
-the upstream CastMate license notices.
+Licensed under [AGPL-3.0](LICENSE.md). See [dependency provenance](docs/dependency-provenance.md)
+for upstream package and font notices.

@@ -10,8 +10,8 @@ overlay, or starter changes.
 - [ ] Save, close, reopen, and execute a graph containing actions, conditions,
       data wires, variables, queues, and a subgraph call.
 - [ ] Add a profile trigger, configure its event and filter, save, activate the
-      profile, and confirm its V2 trigger automation executes once.
-- [ ] Confirm an invalid non-V2 document is reported and is not rewritten.
+      profile, and confirm its canonical trigger automation executes once.
+- [ ] Confirm an invalid unsupported document is reported and is not rewritten.
 
 ## Integrations
 

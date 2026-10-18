@@ -74,9 +74,7 @@ Pentru Twitch, aplicația cere acum și scope-urile moderne `user:read:chat` și
 
 Testele nu marchează automat toate acțiunile ca funcționale live. Catalogul păstrează explicit `liveStatus: pending`. Pentru triggeri trebuie generat evenimentul real: mesaj chat, follow/subscription, eveniment OBS, cerere HTTP, puls de la senzor etc. Runnerul YAML execută acțiuni; nu pretinde că a verificat livrarea tuturor celor 51 de triggeri live.
 
-Validarea acestei runde: **698 de teste automate trecute**, un test live omis intenționat când lipsește configurația, plus teste native Windows pentru scenariul YAML local, fluxul editorului și deschiderea documentului în aplicația completă. Analiza statică și verificările vizuale sunt separate de validarea conturilor reale.
-
-Propunerea pentru prima rundă este: **OBS + Twitch + un overlay de test**. Sunt suficiente datele OBS și OAuth/ID-urile Twitch de mai sus. După aceea putem adăuga serviciile și dispozitivele pe care le folosești efectiv.
+Verificarea curenta, limitele si comenzile de repetare sunt in [ghidul de testare](../testing.md). Prezenta unui nod in catalog nu dovedeste executarea lui live.
 
 Regenerarea catalogului și șablonului (nu modifică fișierul local):
 
@@ -85,7 +83,7 @@ cd packages/showrunner-flutter
 flutter test test/live/catalog_contract_test.dart --dart-define=SHOWRUNNER_EXPORT_CATALOG=true
 ```
 
-Runda OBS completă este documentată în [raportul OBS](obs-live-2026-10-15.md):
+Runda OBS completă este documentată în [raportul OBS](live-services.md):
 27 de acțiuni, catalogul workspace, browser source din Overlay Editor și
 evenimentele OBS. Pentru repetare: `./scripts/test-live-obs.ps1` din rădăcina
 repo, cu o instanță OBS de test și conexiunea locală completată.
@@ -99,6 +97,6 @@ Callback-ul folosește portul fix 17563, deoarece Twitch cere potrivirea exactă
 a adresei înregistrate. Alte fluxuri OAuth pot avea cerințe diferite.
 
 Runda Twitch și limitările ei sunt descrise în
-[raportul Twitch](twitch-live-2026-10-16.md). Verificările de conexiune se repetă
+[raportul Twitch](live-services.md). Verificările de conexiune se repetă
 cu `./scripts/test-live-twitch.ps1`; opțiunea `-WaitChatSeconds 180` permite
 testarea unui mesaj real prin trigger și graful compilat.

@@ -4,7 +4,7 @@ Status: accepted
 
 ## Context
 
-The `main` README describes a Timeline mode, but the frozen renderer source
+The frozen desktop README describes a Timeline mode, but the frozen renderer source
 contains no Timeline editor implementation or Timeline-specific persistence
 contract. The renderer's automation page routes to the node editor, while the
 remaining Timeline references are theme styles and branding assets.
@@ -15,10 +15,10 @@ debugger feedback, save/close behavior and runtime execution.
 
 ## Decision
 
-Do not add a separate Timeline editor to the Flutter replacement candidate.
+Do not add a separate Timeline editor to the Flutter application.
 Automation editing remains graph-only. The unsupported Timeline label is not
 carried into the Flutter shell, and no Timeline-specific data is synthesized
-or converted by the strict V2 repositories.
+or converted by the strict graph repositories.
 
 ## Consequences
 

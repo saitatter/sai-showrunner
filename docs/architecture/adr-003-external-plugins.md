@@ -16,7 +16,7 @@ new crash and security boundary before first-party product parity is closed.
 ## Decision
 
 Do not port the template projects or add an in-process third-party plugin SDK
-to the replacement candidate. First-party parity and release hardening take
+to the maintained desktop. First-party parity and release hardening take
 priority.
 
 If external plugins become a product requirement, the follow-up design is an

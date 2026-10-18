@@ -3,9 +3,9 @@
 Heart Rate is a native Flutter/Dart ShowRunner integration for Bluetooth SIG
 Heart Rate Service devices such as the COOSPO H808S.
 
-## Current milestone
+## Supported workflows
 
-Phases 0-10 are implemented:
+The integration provides:
 
 - typed Bluetooth transport boundary;
 - deterministic HRS measurement parser, including 16-bit BPM, sensor contact,
