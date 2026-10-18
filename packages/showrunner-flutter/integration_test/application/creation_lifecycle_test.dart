@@ -194,8 +194,13 @@ void main() {
       'group',
     );
     expect(profile?.triggers, hasLength(2));
-    final eventDocument = AutomationDocument.fromJson(Map<String, Object?>.from(profile!.triggers.first['automation'] as Map));
-    final trigger = decodeContractNodeType(eventDocument.graph.spaces[mainAutomationSpace]!.nodes.values.single.type, 'trigger');
+    final eventDocument = AutomationDocument.fromJson(
+      Map<String, Object?>.from(profile!.triggers.first['automation'] as Map),
+    );
+    final trigger = decodeContractNodeType(
+      eventDocument.graph.spaces[mainAutomationSpace]!.nodes.values.single.type,
+      'trigger',
+    );
     expect(trigger?.$1, isNotEmpty);
     expect(trigger?.$2, isNotEmpty);
     expect(profile.triggers.first['description'], 'Second event');

@@ -223,7 +223,6 @@ void main() {
         {
           'id': 'keyboard-shortcut',
 
-
           'config': {
             'combo': ['LeftControl', 'A'],
           },

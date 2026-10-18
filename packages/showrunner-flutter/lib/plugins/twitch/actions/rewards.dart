@@ -23,18 +23,14 @@ List<DartActionContract> _twitchRewardActions(TwitchTransport transport) => [
     displayName: 'Create Channel Point Reward',
     configSchema: _createRewardSchema,
     configCodec: twitchChannelPointRewardConfigCodec,
-    invoke: (config, context) => transport.request(
-      'POST',
-      '/helix/channel_points/custom_rewards',
-      {
-        'broadcaster_id': _idValue(
-          config.broadcasterId,
-          context,
-          'broadcasterId',
-        ),
-      },
-      _rewardDraft(config).toRequestBody(),
-    ),
+    invoke: (config, context) =>
+        transport.request('POST', '/helix/channel_points/custom_rewards', {
+          'broadcaster_id': _idValue(
+            config.broadcasterId,
+            context,
+            'broadcasterId',
+          ),
+        }, _rewardDraft(config).toRequestBody()),
   ),
   ActionSpec<TwitchChannelPointRewardConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
@@ -42,19 +38,15 @@ List<DartActionContract> _twitchRewardActions(TwitchTransport transport) => [
     displayName: 'Update Channel Point Reward',
     configSchema: _updateRewardSchema,
     configCodec: twitchChannelPointRewardConfigCodec,
-    invoke: (config, context) => transport.request(
-      'PATCH',
-      '/helix/channel_points/custom_rewards',
-      {
-        'broadcaster_id': _idValue(
-          config.broadcasterId,
-          context,
-          'broadcasterId',
-        ),
-        'id': _requiredValue(config.rewardId, 'rewardId'),
-      },
-      _rewardDraft(config).toRequestBody(),
-    ),
+    invoke: (config, context) =>
+        transport.request('PATCH', '/helix/channel_points/custom_rewards', {
+          'broadcaster_id': _idValue(
+            config.broadcasterId,
+            context,
+            'broadcasterId',
+          ),
+          'id': _requiredValue(config.rewardId, 'rewardId'),
+        }, _rewardDraft(config).toRequestBody()),
   ),
   ActionSpec<TwitchRewardIdConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
