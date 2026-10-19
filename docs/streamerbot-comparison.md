@@ -5,7 +5,9 @@
 Compared official Streamer.bot documentation with the current Flutter application
 under `packages/showrunner-flutter/lib`. Legacy TypeScript plugins, marketing
 claims and generic HTTP/PowerShell workarounds are not counted as native feature
-parity. This is a source/documentation audit, not a new live-service test run.
+parity. This combines source review, official documentation, static inspection of
+the shipped Streamer.bot 1.0.7 artifacts and an authorized isolated UI inspection.
+It is not a live-service test run.
 No personal profiles, credentials, provider settings or running streams were changed.
 
 The official changelog lists 1.0.7 as stable and 1.1.0 as alpha. The alpha advertises
@@ -33,8 +35,8 @@ Existing live-test limits are recorded in `docs/testing/`.
 
 | Capability | Current ShowRunner evidence | Missing or partial | Priority |
 | --- | --- | --- | --- |
-| Managed chat commands | `features/automation/automation_starters.dart`; Twitch chat trigger | No dedicated cross-platform command manager with aliases, parsing modes, global/user cooldowns, permission enforcement and counters. Raw chat plus conditions is not equivalent. | P0/P1 |
-| Unified chat client | Separate Twitch/YouTube workspaces; overlay chat actions | No unified Twitch/YouTube/Kick message history and composer, per-message/user quick actions, emote autocomplete or dedicated chat OBS dock identified. | P1 |
+| Managed chat commands | Development: Chat Commands workspace, shared Twitch/YouTube runtime, aliases, literal matching, argument parsers, roles, cooldowns, persisted counters and named queues | Advanced permission rules, regex, additional command sources, grouping and automation-facing management events/actions remain. See focused comparison below. | P1 |
+| Unified chat client | Development: shared Twitch/YouTube history/composer, built-in moderation, emote-name suggestions and authenticated local OBS dock | Rich emotes, command menus, configurable quick actions, highlights, multi-send and full provider moderation synchronization remain. | P1 |
 | Kick | No Flutter provider, OAuth/runtime, manifest or UI identified | Native chat, moderation, platform events and platform-state integration. | P1 if multistreaming |
 | Donation/commerce integrations | DonorDrive exists; generic HTTP endpoints exist | No native StreamElements, Streamlabs, Ko-Fi, Fourthwall, Patreon, Throne, Shopify, StreamLoots or TipeeeStream integration identified. Generic endpoints require users to implement mappings/auth themselves. | P1 for selected providers |
 | Twitch action breadth | `plugins/twitch/actions/stream.dart`, `actions.dart` | Poll/prediction creation exists; corresponding get/terminate/archive/lock/resolve/cancel actions are not exposed as dedicated native actions. Also missing documented pinned-message, channel-tag, VIP/moderator-management and warn-user actions. | P1 |
@@ -53,31 +55,127 @@ Existing live-test limits are recorded in `docs/testing/`.
 Priorities are product recommendations, not implementation estimates. P0 means
 verify/fix correctness before adding more surface; P1 is the first product wave.
 
-## Static correctness finding: chat-command starter
+## Command and chat comparison
 
-The `twitch-chat-command-reply` starter declares `config.command.match = !hello`
-(and a `cooldown` placeholder), then connects the chat trigger directly to the
-send-chat action. However:
+The development branch implements the foundation described in
+[Chat and commands](chat-and-commands.md). It also fixes the earlier raw Twitch
+starter defect: configured literal patterns and aliases are now enforced, and
+unsupported trigger cooldown configuration is rejected visibly. Managed cooldowns
+belong in Chat Commands. Fixture coverage is not live-account certification.
 
-1. `plugins/twitch/actions.dart`, `_twitchTrigger`, builds chat using
-   `_emptyTwitchTrigger`.
-2. `_emptyTwitchTrigger` uses `TwitchEmptyConfig` with no `matches` callback.
-3. `plugins/registry/plugin_contract.dart`, `TriggerSpec.matchesRuntime`, returns
-   true when no matcher is provided.
-4. `runtime/profile_runtime.dart` dispatches matching trigger events to the graph;
-   it does not implement a separate command/cooldown matcher.
+| Area | Development implementation | Remaining work relative to Streamer.bot |
+| --- | --- | --- |
+| Matching and arguments | Token, exact, prefix, contains; case sensitivity; words, quotes or remainder | Regex/capture groups; command grouping and inclusion in public command lists |
+| Permissions | Provider roles checked before cooldown reservation | Allow/Deny rules for named users and custom groups; configurable exemptions |
+| Cooldowns and counters | Shared alias/platform global cooldown, platform-specific user cooldown; persisted total/user counters | Reset-cooldown actions, separate user-counter reset, persistence switches; Streamer.bot exempts broadcasters whereas ours currently applies cooldowns to them |
+| Command sources | Twitch and YouTube chat messages; configured bot identities excluded | Whispers, bot whispers, subscription/re-subscription text, explicit Shared Chat selection and internal loopback controls; Kick deferred |
+| Automation integration | Saved automation and selected queue; command/user/message context and counters | Dedicated command-triggered/cooldown events and command-management graph actions |
+| Sending | Selected platform; Twitch channel identity | Multi-send, account selection, keyboard routing, native reply threads |
+| Suggestions | Built-in emoji and fetched Twitch emote names | Slash/action and managed-command menus; emote images, YouTube/7TV/BTTV/FFZ catalogs |
+| Quick actions | Reply, copy, user search, delete, timeout, ban and Twitch unban | Configurable global/user/message/event actions; exact user identity view and richer user cards |
+| History and appearance | Session history, platform filters/search, deleted markers, local dock | Highlights, mentions, event feed, pause/scroll controls, full external deletion/clear synchronization; configurable fonts, direction, timestamps, avatars, badges and animated emotes |
+| Ignore rules | Search and platform filtering only | Per-user and literal/regex ignore rules; hiding detected command messages; explicit policy for hiding versus preventing command execution |
+| OBS | Authenticated loopback dock with composer and moderation | Preferences sync, overlay mode and styling controls; direct OBS/CEF verification remains separate |
 
-Consequently, the declared command configuration is not enforced by this path.
-The starter can reply to unrelated messages unless an explicit graph condition
-filters them. This is a static finding, not a live-channel reproduction. Validate
-with matching/nonmatching messages, aliases, role checks, per-user/global cooldowns
-and bot-message exclusion before calling managed commands supported.
+These remaining items are product gaps, not all blockers for the initial
+Twitch/YouTube release. Prioritize permissions, moderation synchronization and
+command-management events before cosmetic parity. The richer command settings
+and chat features are documented by the official
+[commands guide](https://docs.streamer.bot/guide/core/commands) and
+[chat guide](https://docs.streamer.bot/guide/extra-features/chat).
+
+## Shipped-artifact evidence and limits
+
+Static REA inspection used a copy of Streamer.bot 1.0.7 without launching it or
+reading personal configuration. The executable is an obfuscated, IL-only x64 .NET Framework 4.8.1
+assembly (version 1.0.7.0), SHA-256
+`25d7d968d60a9905e11d3c1f771788ac60c4235775b685d7a7a186fbb236471b`,
+MVID `8fb72992-3b94-47ca-a889-323763c32d38`.
+
+REA's executable artifact inventory completed (7,379 types; 67,496 methods), but
+its member parser hit a 64 MiB representation limit. This is an inspection limit,
+not evidence that features are absent. A read-only Microsoft
+`System.Reflection.Metadata`/`PEReader` inventory, without loading target assemblies,
+found command cooldown fields at type token `0x020000fb` (`CooldownLeft`,
+`GlobalCooldownLeft`, `UserCooldownLeft`) and properties at `0x020003ca`
+(`CommandTrigger`, `GlobalCooldown`, `UserCooldown`). These are metadata anchors,
+not a recovered implementation or proof of runtime semantics.
+
+REA completed member inspection of `Streamer.bot.Common.dll`, SHA-256
+`971f7a0db0e233c7e4bd5b080373b3473bb5128cbf63806e1ca163d3005469ce`,
+MVID `e40999f7-1de9-4311-9e1f-65bdef59fb75`. Its EventType enum declares
+`CommandTriggered` (`0x040000ed`), `CommandCooldown` (`0x040000ee`),
+`ChatWindowAction` (`0x040000fc`), command add/update/delete (`0x04000148`–`14a`),
+Twitch message deletion (`0x04000080`), chat clearing (`0x04000096`) and Shared Chat
+session events (`0x040000d0`–`d2`). Tokens apply only to these exact artifacts.
+Names corroborate exposed concepts; detailed behavior comes from official docs.
+
+The local REA evidence bundle and metadata inventory are retained under ignored
+`.tmp/rea/`; proprietary artifacts and dumps are not repository fixtures. No C#
+method bodies were recovered. Static metadata does not establish runtime behavior;
+the subsequent UI inspection below provides a separate kind of evidence.
+
+## Runtime UI findings
+
+After explicit user authorization, the distribution ZIP was extracted into
+`.tmp/rea/runtime-1.0.7` with fresh local storage. No accounts were connected and
+no personal Streamer.bot or OBS configuration was copied or changed. Windows
+UI Automation inspected the native application; window captures used PrintWindow
+because screen-region capture could include an obscuring application. The
+temporary inspection instance was closed afterwards.
+
+The native command workflow was exercised by creating and saving an isolated
+command with two aliases. The saved version-7 command document confirmed the
+definition, options, source mask, permissions and cooldown fields. Options,
+Cooldowns, Sources and User Permissions tabs were inspected, including Normal/Regex
+matching, independent bot/internal-message switches and Shared Chat/whisper sources.
+This confirms configuration behavior, not delivery or enforcement against live chat.
+
+The desktop opens chat in a separate WebView2 window loading
+`https://chat.streamer.bot/feed/chat`. That page is a separately hosted service:
+its current UI must not be represented as an immutable part of the 1.0.7 binary.
+REA captured passive DOM/accessibility evidence through this instance's loopback
+CDP endpoint. UI actions used isolated Windows/DOM helpers. REA's active browser
+scenario could not navigate this embedded target; it was not used to claim actions.
+
+Observed additions to the source/documentation comparison:
+
+- A dense command table shows aliases, matching location, cooldowns and enabled
+  state; its editor separates options, sources/cooldowns and permissions. Our
+  command cards and longer scrolling dialog work, but a compact table and grouped
+  editor sections would scale better to larger command libraries.
+- Chat has separate combined-chat and event tabs, a compact composer and a
+  navigation panel for preferences. Preferences cover typography, message order,
+  alternating rows, platform icons, avatars, badges, animated emotes and timestamps.
+- Platform preferences expose sender-account selection, user/role colors and
+  independent event visibility/highlights in chat and the event feed. Twitch also
+  exposes pronoun and GIF preferences. Their presence does not prove every event
+  can be received by this offline instance.
+- Quick actions have four scopes (global/message/user/event), ordering and fields
+  for label, target action, icon, platform, color, menu placement and extra arguments.
+  A local blank action was added to inspect this editor; no automation was executed.
+- Highlights include role/mention/first-message categories, custom text/regex rules,
+  per-user highlights and exclusions. Ignores include users, detected command
+  prefixes and prefix/contains/regex rules. An isolated ignore rule was saved and
+  remained present after navigation; a font-size change also survived navigation.
+- Dock settings expose separate chat/event URLs and settings synchronization.
+  Overlay preferences include visible-message bounds, expiry, direction, reload
+  behavior, event/timestamp visibility and a generated-message preview. These
+  correspond to a dedicated chat-feed presentation workflow, distinct from our
+  general overlay editor and current control dock.
+
+Runtime evidence anchors: chat `ev_91c2982df2336380b84ac8835c5bb6932f8ed3c2b1ba7a1c5418614c9ccd878d`,
+saved ignore rule `ev_ab9ac3270d8662d45d5fa98643b98c4bad3507e24f19c0c2c2a2917163f584ca`,
+quick-action editor `ev_2119b93ab9da1083f111297edca8305f8c910e1e6dd9f8a2ea1eccd29404444e`.
+Captures, UI trees, the evidence bundle and temporary definitions remain under
+ignored `.tmp/rea/`. External sends, moderation, provider-native replies and
+authenticated emote catalogs were not tested against Streamer.bot accounts.
 
 ## Recommended sequence
 
-1. Verify/fix command filtering and establish a shared command model/runtime.
-2. Add a command workspace (aliases, arguments, permissions and cooldowns).
-3. Add unified Twitch/YouTube chat, per-message actions, then Kick if wanted.
+1. Finish live authorization checks for managed commands and unified Twitch/YouTube chat.
+2. Add advanced command permissions, management events/actions and moderation synchronization.
+3. Add rich emotes, command menus and configurable chat actions; keep Kick separate.
 4. Add the highest-value donation providers and complete Twitch poll/prediction
    lifecycle actions.
 5. Add shareable automation packages and full configuration backup/restore.

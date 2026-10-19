@@ -2,24 +2,23 @@
 
 ## Unreleased
 
-### CI & Build
-- Wait for shader field edits to settle before switching inputs in native workflow tests.
-- Recover draft release assets using the protected publishing job's permissions.
-- Pass named packaging parameters correctly when building Windows releases.
-
 ### Features
 - Add managed Twitch/YouTube chat commands with aliases, argument parsing, permissions, cooldowns, persisted counters and named automation queues.
 - Add unified Twitch/YouTube chat with moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
-- Enforce configured Twitch chat-trigger filters.
 - Preserve workspace navigation during startup restoration.
+- Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
 
 ### Docs
+- Document chat setup and remaining Streamer.bot differences using static .NET evidence and an isolated runtime UI comparison.
 
 ### CI & Build
+- Recover draft release assets using the protected publishing job's permissions.
+- Pass named packaging parameters correctly when building Windows releases.
+- Wait for shader field edits to settle before switching inputs in native workflow tests.
 
 ## 2.0.0 - 2026-10-19
 
@@ -64,4 +63,4 @@
 ## Published history
 
 Earlier releases and their notes remain available on [GitHub Releases](https://github.com/saitatter/sai-showrunner/releases).
-The Unreleased section records the Flutter cutover relative to the last published stable tag; it is not a claim that this version has shipped.
+The Unreleased section records development after the latest published version.
