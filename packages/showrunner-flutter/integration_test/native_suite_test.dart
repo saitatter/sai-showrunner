@@ -6,6 +6,7 @@ import 'application/creation_lifecycle_test.dart' as creation_lifecycle;
 import 'application/document_edit_save_close_test.dart'
     as document_edit_save_close;
 import 'application/first_run_setup_test.dart' as first_run_setup;
+import 'application/chat_workspaces_test.dart' as chat_workspaces;
 import 'runtime/runtime_workflows_test.dart' as runtime_workflows;
 import 'plugins/provider_lifecycle_test.dart' as provider_lifecycle;
 import 'plugins/heart_rate_lifecycle_test.dart' as heart_rate_lifecycle;
@@ -33,6 +34,7 @@ void main() {
   group('application/creation_lifecycle', creation_lifecycle.main);
   group('application/document_edit_save_close', document_edit_save_close.main);
   group('application/first_run_setup', first_run_setup.main);
+  group('application/chat_workspaces', chat_workspaces.main);
   group('runtime/runtime_workflows', runtime_workflows.main);
   group('plugins/provider_lifecycle', provider_lifecycle.main);
   group('plugins/heart_rate_lifecycle', heart_rate_lifecycle.main);

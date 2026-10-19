@@ -1,5 +1,7 @@
 import '../graph/domain/automation_document.dart';
 import 'dart:async';
+import '../features/chat/unified_chat_runtime.dart';
+import '../features/chat/chat_dock_service.dart';
 
 import 'package:flutter/material.dart';
 
@@ -46,6 +48,8 @@ class ShowRunnerShell extends StatelessWidget {
     this.queueManager,
     required this.healthFuture,
     required this.providerEvents,
+    this.chatRuntime,
+    this.chatDock,
     required this.pluginRegistryFuture,
     this.overlayPresenceReaderFuture,
     this.overlayObsSourceService,
@@ -115,6 +119,8 @@ class ShowRunnerShell extends StatelessWidget {
   final DartAutomationQueueManager? queueManager;
   final Future<StartupHealthSnapshot> healthFuture;
   final ProviderEventRuntime providerEvents;
+  final UnifiedChatRuntime? chatRuntime;
+  final ChatDockService? chatDock;
   final Future<DartPluginRegistry> pluginRegistryFuture;
   final Future<OverlayPresenceReader?>? overlayPresenceReaderFuture;
   final OverlayObsSourceActions? overlayObsSourceService;
@@ -204,6 +210,8 @@ class ShowRunnerShell extends StatelessWidget {
       queueManager: queueManager,
       healthFuture: healthFuture,
       providerEvents: providerEvents,
+      chatRuntime: chatRuntime,
+      chatDock: chatDock,
       pluginRegistryFuture: pluginRegistryFuture,
       overlayPresenceReaderFuture: overlayPresenceReaderFuture,
       overlayObsSourceService: overlayObsSourceService,

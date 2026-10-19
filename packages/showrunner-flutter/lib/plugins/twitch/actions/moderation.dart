@@ -4,6 +4,27 @@ List<DartActionContract> _twitchModerationActions(
   TwitchTransport transport,
   ResourceRepository? viewerGroupRepository,
 ) => [
+  ActionSpec<TwitchDeleteMessageConfig, RuntimeMap>(
+    pluginId: PluginId('twitch'),
+    actionId: ActionId('deleteMessage'),
+    displayName: 'Delete Chat Message',
+    configSchema: _twitchObject('Delete chat message', [
+      ..._identities,
+      _twitchText('Message ID', 'messageId', required: true),
+    ]),
+    configCodec: twitchDeleteMessageConfigCodec,
+    invoke: (config, context) {
+      return transport.request('DELETE', '/helix/moderation/chat', {
+        'broadcaster_id': _idValue(
+          config.broadcasterId,
+          context,
+          'broadcasterId',
+        ),
+        'moderator_id': _idValue(config.moderatorId, context, 'moderatorId'),
+        'message_id': config.messageId,
+      }, {});
+    },
+  ),
   ActionSpec<TwitchTimeoutConfig, RuntimeMap>(
     pluginId: PluginId('twitch'),
     actionId: ActionId('timeout'),

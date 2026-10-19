@@ -167,6 +167,21 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
             onTap: () => callbacks.onDestinationSelected(WorkspaceIds.queues),
           ),
           _ProjectItemRow(
+            title: 'Chat Commands',
+            icon: Icons.terminal,
+            selected: widget.selectedWorkspace == WorkspaceIds.chatCommands,
+            compact: compact,
+            onTap: () =>
+                callbacks.onDestinationSelected(WorkspaceIds.chatCommands),
+          ),
+          _ProjectItemRow(
+            title: 'Chat',
+            icon: Icons.forum_outlined,
+            selected: widget.selectedWorkspace == WorkspaceIds.chat,
+            compact: compact,
+            onTap: () => callbacks.onDestinationSelected(WorkspaceIds.chat),
+          ),
+          _ProjectItemRow(
             title: 'Variables',
             icon: Icons.data_object,
             selected: widget.selectedWorkspace == WorkspaceIds.variables,

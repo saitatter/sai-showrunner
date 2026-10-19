@@ -18,6 +18,7 @@ export default defineConfig({
 		rollupOptions: {
 			input: {
 				main: path.resolve(dirname, "overlay.html"),
+				chatDock: path.resolve(dirname, "chat-dock.html"),
 			},
 		},
 	},

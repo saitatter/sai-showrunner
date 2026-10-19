@@ -8,8 +8,11 @@
 - Pass named packaging parameters correctly when building Windows releases.
 
 ### Features
+- Add managed Twitch/YouTube chat commands with aliases, argument parsing, permissions, cooldowns, persisted counters and named automation queues.
+- Add unified Twitch/YouTube chat with moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Enforce configured Twitch chat-trigger filters.
 - Preserve workspace navigation during startup restoration.
 
 ### Refactors

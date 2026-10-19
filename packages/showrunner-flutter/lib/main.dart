@@ -437,6 +437,8 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         queueManager: _automationQueueManager,
         healthFuture: _healthFuture,
         providerEvents: _providerEvents,
+        chatRuntime: _services.chatRuntime,
+        chatDock: _services.chatDock,
         pluginRegistryFuture: _pluginRegistryFuture,
         overlayPresenceReaderFuture: _services.overlayPresenceReaderFuture,
         overlayObsSourceService: _services.overlayObsSourceService,

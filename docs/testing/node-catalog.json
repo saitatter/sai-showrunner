@@ -2467,6 +2467,35 @@
           "liveStatus": "pending"
         },
         {
+          "id": "deleteMessage",
+          "name": "Delete Chat Message",
+          "config": {
+            "key": null,
+            "label": "Delete chat message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "messageId",
+                "label": "Message ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
           "id": "addViewerToGroup",
           "name": "Add Viewer to Group",
           "config": {
@@ -2540,7 +2569,51 @@
         {
           "id": "chat",
           "name": "Chat Message",
-          "config": null,
+          "config": {
+            "key": null,
+            "label": "Chat filter",
+            "type": "object",
+            "fields": [
+              {
+                "key": "command",
+                "label": "Command",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "match",
+                    "label": "Match (empty accepts all)",
+                    "type": "text"
+                  },
+                  {
+                    "key": "mode",
+                    "label": "Mode",
+                    "type": "enumeration",
+                    "options": [
+                      "command",
+                      "exact",
+                      "startsWith",
+                      "contains"
+                    ]
+                  },
+                  {
+                    "key": "aliases",
+                    "label": "Aliases",
+                    "type": "array"
+                  },
+                  {
+                    "key": "caseSensitive",
+                    "label": "Case sensitive",
+                    "type": "boolean"
+                  },
+                  {
+                    "key": "hasMessage",
+                    "label": "Require arguments",
+                    "type": "boolean"
+                  }
+                ]
+              }
+            ]
+          },
           "liveStatus": "pending"
         },
         {
@@ -5764,28 +5837,52 @@
           "defaultConfig": {
             "name": "QA resource",
             "activationAutomation": {
-              "schemaVersion": 2,
+              "schemaVersion": 1,
+              "id": "81c4f3869d3cb9110b7657b9540d01d2",
               "graph": {
-                "nodes": [],
-                "edges": [],
-                "entryNodeId": ""
+                "schemaVersion": 1,
+                "id": "81c4f3869d3cb9110b7657b9540d01d2",
+                "spaces": {
+                  "space:main": {
+                    "id": "space:main",
+                    "nodes": {},
+                    "connections": {},
+                    "nodePresentations": {},
+                    "connectionPresentations": {},
+                    "frames": {},
+                    "comments": {},
+                    "metadata": {}
+                  }
+                },
+                "metadata": {}
               },
-              "subgraphs": [],
-              "dataWires": [],
-              "variableNodes": [],
-              "triggerNodes": []
+              "subgraphs": {},
+              "settings": {},
+              "metadata": {}
             },
             "deactivationAutomation": {
-              "schemaVersion": 2,
+              "schemaVersion": 1,
+              "id": "2228b2121402b054cc72e01664be7678",
               "graph": {
-                "nodes": [],
-                "edges": [],
-                "entryNodeId": ""
+                "schemaVersion": 1,
+                "id": "2228b2121402b054cc72e01664be7678",
+                "spaces": {
+                  "space:main": {
+                    "id": "space:main",
+                    "nodes": {},
+                    "connections": {},
+                    "nodePresentations": {},
+                    "connectionPresentations": {},
+                    "frames": {},
+                    "comments": {},
+                    "metadata": {}
+                  }
+                },
+                "metadata": {}
               },
-              "subgraphs": [],
-              "dataWires": [],
-              "variableNodes": [],
-              "triggerNodes": []
+              "subgraphs": {},
+              "settings": {},
+              "metadata": {}
             },
             "segments": []
           }
@@ -5795,7 +5892,7 @@
   ],
   "counts": {
     "plugins": 33,
-    "actions": 166,
+    "actions": 167,
     "triggers": 51
   },
   "note": "Insertion and serialization passed; live execution requires enabled scenarios and connections."

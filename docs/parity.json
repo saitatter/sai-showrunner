@@ -1993,6 +1993,7 @@
             "createPoll",
             "createPrediction",
             "deleteChannelPointReward",
+            "deleteMessage",
             "listChannelPointRewards",
             "removeViewerFromGroup",
             "runAd",
@@ -2013,7 +2014,8 @@
             "createChannelPointReward",
             "updateChannelPointReward",
             "deleteChannelPointReward",
-            "updateChannelPointRedemption"
+            "updateChannelPointRedemption",
+            "deleteMessage"
           ],
           "relocated": [],
           "status": "improved"
