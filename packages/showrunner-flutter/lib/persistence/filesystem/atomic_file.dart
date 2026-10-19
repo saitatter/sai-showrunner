@@ -33,7 +33,23 @@ Future<void> writeAtomicBytes(File file, List<int> bytes) =>
       final temporary = File('${file.path}.$pid.${_temporarySequence++}.tmp');
       try {
         await temporary.writeAsBytes(bytes, flush: true);
-        await temporary.rename(file.path);
+        for (var attempt = 0; ; attempt++) {
+          try {
+            await temporary.rename(file.path);
+            break;
+          } on FileSystemException catch (error) {
+            // Windows readers/scanners can briefly deny replacement. Keep the
+            // original file intact and retry the same atomic rename only.
+            if (!Platform.isWindows ||
+                !{5, 32, 33}.contains(error.osError?.errorCode) ||
+                attempt >= 7) {
+              rethrow;
+            }
+            await Future<void>.delayed(
+              Duration(milliseconds: 25 * (attempt + 1)),
+            );
+          }
+        }
       } finally {
         if (await temporary.exists()) await temporary.delete();
       }
