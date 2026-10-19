@@ -39,7 +39,7 @@ void main() {
     // A clean first run can be completed without credentials. Provider
     // authorization remains available from Plugins after the initial setup.
     for (var step = 0; step < 3; step++) {
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Skip'));
+      await _tapVisible(tester, find.widgetWithText(OutlinedButton, 'Skip'));
       await _pumpSetup(tester);
     }
 
@@ -55,6 +55,9 @@ void main() {
   testWidgets(
     'opens and completes first-run setup from the application shell',
     (tester) async {
+      tester.view.physicalSize = const Size(1024, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final directory = await createShowRunnerFixtureDirectory(
         setupCompleted: false,
       );
@@ -76,7 +79,7 @@ void main() {
       await _pumpUntilVisible(tester, find.text('First-run setup'));
 
       for (var step = 0; step < 3; step++) {
-        await tester.tap(find.widgetWithText(OutlinedButton, 'Skip'));
+        await _tapVisible(tester, find.widgetWithText(OutlinedButton, 'Skip'));
         await _pumpSetup(tester);
       }
 
@@ -88,7 +91,10 @@ void main() {
         isTrue,
       );
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Get started'));
+      await _tapVisible(
+        tester,
+        find.widgetWithText(FilledButton, 'Get started'),
+      );
       await _pumpSetup(tester);
       expect(find.text('First-run setup'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
@@ -100,6 +106,15 @@ void main() {
 Future<void> _pumpSetup(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 250));
   await tester.pump(const Duration(milliseconds: 250));
+}
+
+Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  // Provider forms have different heights. A hosted Windows runner can have a
+  // smaller viewport than a development desktop, so scroll before interacting.
+  await tester.ensureVisible(finder);
+  await _pumpSetup(tester);
+  expect(finder.hitTestable(), findsOneWidget);
+  await tester.tap(finder);
 }
 
 Future<void> _pumpUntilVisible(WidgetTester tester, Finder finder) async {

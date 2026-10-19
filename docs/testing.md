@@ -40,6 +40,9 @@ Pop-Location
 The graph runtime has an interpreter oracle and compiled VM fixtures. Native tests
 cover authoring, strict persistence, save/reopen, selection/focus, undo/clipboard,
 profiles, queues, resources, remote/provider lifecycle and overlay/shader workflows.
+The first-run shell test uses a 1024x640 viewport and scrolls provider controls
+into view before asserting hit-testability and clicking. Keep this smaller-screen
+coverage so hosted runners exercise the same scrollable setup as desktop users.
 Do not treat test counts from retired implementations as current coverage; use the
 current CI result. The last completed graph-cutover verification recorded 650
 unit/widget passes with 7 opt-in probes skipped, all 21 native integration files,
