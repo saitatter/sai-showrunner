@@ -91,6 +91,14 @@ captured command list was inspected. Twitch delete/clear events are tested with
 channel scoping and whisper input is asserted absent from public history. These
 are fixture proofs; live whisper scopes and privileges remain unverified.
 
+Preferences fixtures verify strict version/limit validation, platform-scoped
+ignore/highlight identities, bounded regex rules, hide-only versus command-block
+behavior, authenticated dock updates and preservation of unsupported preferences.
+The native fixture edits display/highlight settings; Chromium verifies font and
+history-direction synchronization. Captures were inspected, including highlight
+text contrast. The capture contract remains Windows, Flutter 3.47.7, 1440?900/DPR 1;
+no frozen inspector/Electron references or comparison thresholds were changed.
+
 The Chromium overlay smoke proof also exercises the chat dock with isolated mock
 HTTP APIs: two-provider history, text escaping, filters, routing, emoji and reply.
 These fixtures make no live provider calls and do not verify OBS/CEF itself.

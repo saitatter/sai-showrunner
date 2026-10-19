@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import 'chat_message.dart';
 import 'chat_completion.dart';
+import 'chat_preferences_dialog.dart';
 import 'unified_chat_runtime.dart';
 import 'chat_dock_service.dart';
 
@@ -163,6 +164,7 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
     builder: (context, _) {
       final runtime = widget.runtime;
       final search = _search.text.toLowerCase();
+      final preferences = runtime.preferences;
       final messages = runtime.messages
           .where(
             (m) =>
@@ -205,6 +207,14 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                       label: Text('Bot whispers: ${worker.state.name}'),
                     ),
                   ),
+                IconButton(
+                  tooltip: 'Chat preferences',
+                  icon: const Icon(Icons.tune),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => ChatPreferencesDialog(runtime: runtime),
+                  ),
+                ),
                 TextButton(
                   onPressed: runtime.clearHistory,
                   child: const Text('Clear local history'),
@@ -301,29 +311,54 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                       ),
                     )
                   : ListView.builder(
-                      reverse: true,
+                      reverse: !preferences.newestFirst,
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
                         final message = messages[index];
                         return ListTile(
-                          leading: Tooltip(
-                            message: message.platform.name,
-                            child: Icon(
-                              message.platform == ChatPlatform.twitch
-                                  ? Icons.live_tv
-                                  : Icons.smart_display_outlined,
-                            ),
-                          ),
+                          tileColor: preferences.highlights(message)
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : preferences.alternatingRows && index.isOdd
+                              ? Theme.of(context).colorScheme.surfaceContainer
+                              : null,
+                          leading: !preferences.platformIcons
+                              ? null
+                              : Tooltip(
+                                  message: message.platform.name,
+                                  child: Icon(
+                                    message.platform == ChatPlatform.twitch
+                                        ? Icons.live_tv
+                                        : Icons.smart_display_outlined,
+                                  ),
+                                ),
                           title: Text(
-                            '${message.userName}${message.isBroadcaster
+                            '${preferences.timestamps ? '${message.receivedAt.toLocal().toIso8601String().substring(11, 19)} ' : ''}${message.userName}${preferences.roleBadges && message.isBroadcaster
                                 ? ' · owner'
-                                : message.isModerator
+                                : preferences.roleBadges && message.isModerator
                                 ? ' · moderator'
                                 : ''}',
-                            style: Theme.of(context).textTheme.labelLarge,
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
+                                  color: preferences.highlights(message)
+                                      ? Theme.of(
+                                          context,
+                                        ).colorScheme.onPrimaryContainer
+                                      : null,
+                                ),
                           ),
                           subtitle: SelectableText(
                             message.deleted ? 'Message deleted' : message.text,
+                            style: TextStyle(
+                              fontSize: preferences.fontSize,
+                              color: preferences.highlights(message)
+                                  ? Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimaryContainer
+                                  : null,
+                              fontFamily: preferences.font == 'system'
+                                  ? null
+                                  : preferences.font,
+                            ),
                           ),
                           trailing: PopupMenuButton<String>(
                             tooltip: 'Message and user actions',

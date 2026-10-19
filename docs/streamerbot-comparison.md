@@ -73,9 +73,9 @@ belong in Chat Commands. Fixture coverage is not live-account certification.
 | Sending | Selected platform; Twitch channel identity | Multi-send, account selection, keyboard routing, native reply threads |
 | Suggestions | Built-in emoji, fetched Twitch emote names, platform command/alias menus and local slash actions with keyboard selection | Emote images, YouTube/7TV/BTTV/FFZ catalogs; automation-backed slash actions |
 | Quick actions | Reply, copy, user search, delete, timeout, ban and Twitch unban | Configurable global/user/message/event actions; richer user cards |
-| History and appearance | Session history, platform filters/search, deleted markers, local dock | Highlights, mentions, event feed, external Twitch delete/clear synchronization; configurable fonts, direction, timestamps, avatars, badges and animated emotes |
-| Ignore rules | Search and platform filtering only | Per-user and literal/regex ignore rules; hiding detected command messages; explicit policy for hiding versus preventing command execution |
-| OBS | Authenticated loopback dock with composer and moderation | Preferences sync, overlay mode and styling controls; direct OBS/CEF verification remains separate |
+| History and appearance | Session history, platform/user filters/search, deletion sync, pause, shared fonts/direction/timestamps, role labels, text/user/role highlights and local dock | Event feed, avatars, provider badge images and rich emote rendering |
+| Ignore rules | Platform user IDs, literal prefix/contains and bounded regex; detected-command hiding; explicit hide-only versus command-block policy | Raw provider triggers intentionally remain independent |
+| OBS | Authenticated loopback dock with composer and moderation | Overlay mode and advanced styling controls; direct OBS/CEF verification remains separate |
 
 These remaining items are product gaps, not all blockers for the initial
 Twitch/YouTube release. Prioritize permissions, moderation synchronization and

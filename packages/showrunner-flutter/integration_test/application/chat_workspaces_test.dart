@@ -154,6 +154,17 @@ void main() {
         tester.widget<TextField>(_field('Message')).controller!.text,
         '\u{1f600} ',
       );
+      await tester.tap(find.byTooltip('Chat preferences'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Show timestamps'));
+      await tester.tap(find.text('Highlights'));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Highlight text or mentions'), 'hello');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save preferences'));
+      await _wait(tester, () => !tester.any(find.byType(AlertDialog)));
+      expect(chat.preferences.timestamps, isTrue);
+      expect(chat.preferences.highlightTerms, ['hello']);
+      await _capture(tester, 'chat-preferences.png');
       await tester.tap(find.widgetWithText(TextButton, 'Pause view'));
       chat.ingest(
         ChatMessage(

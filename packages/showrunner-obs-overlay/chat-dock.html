@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ShowRunner Chat</title></head>
-<body><header><strong>ShowRunner Chat</strong><select id="filter" aria-label="Filter platform"><option value="">All platforms</option><option>twitch</option><option>youtube</option></select></header>
+<body><header><strong>ShowRunner Chat</strong><select id="filter" aria-label="Filter platform"><option value="">All platforms</option><option>twitch</option><option>youtube</option></select><button id="preferences-toggle" type="button" aria-expanded="false">Preferences</button></header>
+<section id="preferences" hidden aria-label="Chat preferences"><label>Font <select id="chat-font"><option value="system">System</option><option>monospace</option><option>serif</option></select></label><label>Size <input id="font-size" type="number" min="10" max="28" value="14"></label><label><input id="timestamps" type="checkbox">Timestamps</label><label><input id="newest-first" type="checkbox">Newest first</label><label><input id="alternating-rows" type="checkbox">Alternating rows</label><button id="save-preferences" type="button">Save</button><span>Edit highlights and ignore rules in ShowRunner Chat preferences.</span></section>
 <div id="status" role="status"></div><main id="messages" aria-label="Chat history"></main>
 <div id="emotes" aria-label="Emote suggestions"></div>
 <form id="composer"><select id="platform" aria-label="Send to platform"><option>twitch</option><option>youtube</option></select><input id="message" aria-label="Message" autocomplete="off" placeholder="Message"><button>Send</button></form>

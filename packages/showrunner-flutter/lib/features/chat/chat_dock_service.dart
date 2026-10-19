@@ -4,6 +4,7 @@ import 'dart:math';
 
 import '../../persistence/filesystem/safe_path.dart';
 import 'chat_message.dart';
+import 'chat_preferences.dart';
 import 'unified_chat_runtime.dart';
 
 /// A local, authenticated OBS dock. Browser rendering stays in the overlay
@@ -111,12 +112,14 @@ final class ChatDockService {
         }
         if (path == '/api/chat' && request.method == 'GET') {
           return await _respond(request, HttpStatus.ok, {
+            'preferences': runtime.preferences.toJson(),
             'messages': runtime.messages
                 .map(
                   (m) => {
                     'identity': m.identity,
                     ...m.context,
                     'deleted': m.deleted,
+                    'highlighted': runtime.preferences.highlights(m),
                     'time': m.receivedAt.toUtc().toIso8601String(),
                   },
                 )
@@ -141,7 +144,7 @@ final class ChatDockService {
           const Duration(seconds: 10),
         )) {
           bytes.addAll(chunk);
-          if (bytes.length > 8192) {
+          if (bytes.length > (path == '/api/preferences' ? 262144 : 8192)) {
             return await _respond(request, HttpStatus.requestEntityTooLarge);
           }
         }
@@ -153,6 +156,10 @@ final class ChatDockService {
           await runtime.send(
             ChatPlatform.values.byName(payload['platform'] as String),
             payload['message'] as String,
+          );
+        } else if (path == '/api/preferences') {
+          await runtime.savePreferences(
+            ChatPreferences.fromJson(Map<String, dynamic>.from(payload)),
           );
         } else if (path == '/api/clear') {
           runtime.clearHistory();

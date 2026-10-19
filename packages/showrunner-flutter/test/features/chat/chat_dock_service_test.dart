@@ -87,6 +87,37 @@ void main() {
   }
 
   test(
+    'authenticated preferences update syncs and rejects unsupported versions',
+    () async {
+      final snapshot =
+          jsonDecode((await get('/api/chat', authenticate: true)).text) as Map;
+      final preferences = Map<String, dynamic>.from(
+        snapshot['preferences'] as Map,
+      )..['fontSize'] = 19;
+      Future<int> save(
+        Map<String, dynamic> value, {
+        bool authenticated = true,
+      }) async {
+        final request = await client.postUrl(url.resolve('/api/preferences'));
+        if (authenticated) {
+          request.headers.set('x-showrunner-chat', url.fragment);
+        }
+        request.headers.contentType = ContentType.json;
+        request.write(jsonEncode(value));
+        final response = await request.close();
+        await response.drain<void>();
+        return response.statusCode;
+      }
+
+      expect(await save(preferences, authenticated: false), 401);
+      expect(runtime.preferences.fontSize, 14);
+      expect(await save(preferences), 200);
+      expect(runtime.preferences.fontSize, 19);
+      expect(await save({...preferences, 'version': 10}), 400);
+      expect((await data.loadPluginSettings('chat'))['fontSize'], 19);
+    },
+  );
+  test(
     'serves browser assets but requires authentication for chat history',
     () async {
       expect((await get('/chat-dock')).status, 200);

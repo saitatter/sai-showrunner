@@ -90,6 +90,25 @@ token in the fragment. Keep the full URL private. The token is stored through th
 desktop secret store; it is not an OAuth token. **Stop dock** disables automatic
 restoration. This is a control dock, not a transparent stream overlay.
 
+## Preferences, highlights and ignores
+
+Open **Chat preferences** for shared font/size, timestamps, history direction,
+alternating rows, platform icons, role labels and the animated-emote preference.
+The dock receives these settings and can edit basic display options. Highlights
+match case-insensitive text/mentions, platform-qualified users or selected roles.
+Deleted messages are never highlighted.
+
+Ignore rules match platform-qualified users, literal prefixes, literal contained
+text or bounded regex. **Hide detected managed commands** matches enabled commands
+on their configured platforms and sources. Rules affect both native history and
+the dock; changing preferences re-evaluates the retained session history.
+By default hiding does not prevent automation. Enable **Also prevent ignored
+messages from running commands** to block managed command dispatch as well.
+This policy does not disable separately configured raw provider graph triggers.
+Regex failures are visible; affected messages stay hidden and the explicit block
+policy controls dispatch. Unsupported saved preferences are preserved and editing
+is refused until the file is repaired. Preferences live in `settings/chat.yaml`.
+
 ## Accounts and validation boundary
 
 Use the existing Twitch and YouTube settings; no new API key is needed for the
