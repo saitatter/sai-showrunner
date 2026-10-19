@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { contractRegressions } from './gate.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const referenceRef = 'parity-reference/main-2026-09-05';
+// Pin the approved historical commit, not a tag that may exist only locally.
+const referenceRef = '890ee2c9cc0522f2d8c747612920c6d12a1cb716';
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'showrunner-parity-'));
 const mainPath = join(temporaryDirectory, 'main.json');
 const flutterPath = join(temporaryDirectory, 'flutter.json');

@@ -6,9 +6,11 @@ plugins and reports IDs for settings, actions, triggers, states, resources,
 and workspace contributions; it does not infer runtime equivalence from a
 folder name.
 
-The reference is frozen at the local tag
-`parity-reference/main-2026-09-05`; update that tag deliberately when a new
-product baseline is approved.
+The reference is frozen at commit
+`890ee2c9cc0522f2d8c747612920c6d12a1cb716`, the historical Electron main.
+Use a full-history checkout (`fetch-depth: 0` in GitHub Actions). The check does
+not depend on local-only tags or the changing main branch. Change the pinned
+commit deliberately only when a new product baseline is approved.
 
 Run from the repository root:
 

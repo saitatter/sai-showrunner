@@ -70,10 +70,11 @@ geometry, color inputs, stroke and shadow controls remain the intended UI. The
 reviewed Flutter PNGs are refreshed for this supported SDK. No product widget,
 frozen Electron image, comparison region, channel threshold or 0.5% tolerance is
 changed. A second independent native capture passed with 0 differing pixels in both
-regions at the unchanged channel threshold 3 and 0.5% limit. The full 21-file
-native suite completed, with its opt-in audio probe skipped. Cross-runner behavior
-is still determined by the GitHub Windows artifact; local determinism is not a
-claim of universal pixel equivalence.
+regions at the unchanged channel threshold 3 and 0.5% limit. GitHub Windows
+captures independently passed with 0 differing pixels in both regions. The full
+21-file native suite also passed locally and on GitHub, with its opt-in audio
+probe skipped. These results cover the pinned capture contract and SDK, rather
+than establishing universal pixel equivalence across machines.
 
 ## Browser shaders and audio
 

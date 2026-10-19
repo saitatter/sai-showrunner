@@ -1,7 +1,7 @@
 # Product status and comparison boundaries
 
 The maintained desktop is Flutter. Frozen contracts and screenshots refer to
-`parity-reference/main-2026-09-05`, not whichever implementation happens to be on
+commit `890ee2c9cc0522f2d8c747612920c6d12a1cb716`, not whichever implementation happens to be on
 main after integration. The old desktop is not a supported runtime.
 
 ## Supported surfaces
