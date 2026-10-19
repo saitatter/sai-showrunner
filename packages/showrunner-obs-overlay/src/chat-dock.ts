@@ -139,7 +139,7 @@ function suggest(reset = true) {
   const available = completions[platform.value] ?? emotes
     .filter(e => platform.value === "twitch" || e.name.startsWith(":"))
     .map(e => ({ ...e, label: e.name, kind: "emote" }))
-  candidates = word && (word.length >= 2 || word === "!" || word === "/")
+  candidates = input.selectionStart === input.selectionEnd && word && (word.length >= 2 || word === "!" || word === "/")
     ? available.filter(e => (e.kind === "emote" || first) && (e.kind === "emote" ? e.label : e.text).toLowerCase().startsWith(word.toLowerCase())).slice(0, 12) : []
   selectedCompletion = candidates.length ? (selectedCompletion + candidates.length) % candidates.length : 0
   for (const [index, item] of candidates.entries()) {
