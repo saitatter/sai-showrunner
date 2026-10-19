@@ -165,13 +165,27 @@ void main() {
     () async {
       final hub = DartPluginEventHub();
       var connections = 0;
-      final worker = TwitchEventSubWorker(
+      final reconnected = Completer<void>();
+      Duration? keepaliveDeadline;
+      late final TwitchEventSubWorker worker;
+      worker = TwitchEventSubWorker(
         accessToken: 'token',
         clientId: 'client',
         broadcasterId: 'broadcaster',
         eventHub: hub,
         subscriptionTypes: const [],
         reconnectDelay: Duration.zero,
+        onStatusChanged: () {
+          final error = worker.lastError;
+          if (worker.isReconnecting && error is TimeoutException) {
+            keepaliveDeadline = error.duration;
+          }
+          if (connections == 2 &&
+              worker.isRunning &&
+              !reconnected.isCompleted) {
+            reconnected.complete();
+          }
+        },
         request: (method, path, query, body) async => {},
         socketFactory: (_) async {
           connections++;
@@ -191,11 +205,17 @@ void main() {
           return socket;
         },
       );
-      await worker.start();
-      await Future<void>.delayed(const Duration(milliseconds: 35));
-      expect(connections, greaterThanOrEqualTo(2));
-      await worker.stop();
-      await hub.dispose();
+      try {
+        await worker.start();
+        await reconnected.future.timeout(const Duration(seconds: 1));
+        expect(keepaliveDeadline, const Duration(milliseconds: 20));
+        expect(connections, 2);
+        expect(worker.isRunning, isTrue);
+      } finally {
+        await worker.stop();
+        await hub.dispose();
+      }
+      expect(worker.state, ProviderWorkerState.stopped);
     },
   );
   test('routes platform trigger events through a Dart event hub', () async {
