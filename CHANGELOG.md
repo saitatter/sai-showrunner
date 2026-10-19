@@ -15,6 +15,7 @@
 - Remove the Electron/Vue desktop runtime while retaining the browser overlay required by OBS.
 
 ### Docs
+- Align the product inventory and live-service verification boundaries with unsigned Windows packaging.
 - Explain parallel Windows gates, single-build native fixtures and exact-commit CI reuse during release, with measured baseline timings.
 - Document unsigned Windows distribution and the publishing credentials still required for manual releases.
 - Consolidate historical audits into maintained architecture, testing, product-status and Streamer.bot comparison documents.

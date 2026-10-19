@@ -167,7 +167,7 @@
       "main": "Update page and release metadata",
       "flutter": "UpdateWorkspace",
       "status": "partial",
-      "reason": "Feature implementation and local updater proof are complete; releases now refuse unsigned Windows packages, but trusted installed upgrade and rollback evidence still requires configured signing secrets and a release environment.",
+      "reason": "Feature implementation and unsigned package/install/rollback proofs pass locally; the published release download and installed upgrade still require an authorized manual release and operator verification.",
       "flutterEvidence": [
         {
           "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
@@ -175,7 +175,7 @@
         }
       ],
       "externalValidation": [
-        "Trusted certificate installed upgrade and rollback in the release environment"
+        "Download a published Windows ZIP and verify installed upgrade and rollback in isolated release storage"
       ]
     },
     "persistent-media-library": {

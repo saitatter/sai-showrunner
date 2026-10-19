@@ -51,6 +51,7 @@ Remote signaling/WebRTC fixtures do not prove a real remote deployment.
 
 The [node setup guide](live-nodes.md) points to the ignored local YAML and versioned
 example. All real write scenarios default disabled. Keep liveStatus pending until
-that exact scenario has recorded evidence. Signed Windows install/rollback is a
-separate release gate requiring a trusted certificate; an unsigned local smoke is
-not a public-release proof.
+that exact scenario has recorded evidence. Unsigned Windows package/install/rollback
+proofs run in isolated storage. Downloading a published release and verifying an
+installed upgrade remains a separate operator check; local fixtures do not prove
+the public release channel.
