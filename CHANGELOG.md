@@ -12,6 +12,7 @@
 - Add unified Twitch/YouTube chat with moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Preserve settings through temporary Windows file-sharing locks by retrying atomic replacement without removing the original.
 - Keep command priority controls correct while filtering the command list.
 - Preserve workspace navigation during startup restoration.
 - Enforce configured Twitch chat-trigger filters.
