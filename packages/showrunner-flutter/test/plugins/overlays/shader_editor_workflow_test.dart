@@ -167,8 +167,26 @@ void main() {
       final field = find.widgetWithText(TextField, entry.key);
       await tester.ensureVisible(field);
       await tester.enterText(field, entry.value);
-      await tester.pump();
+      await tester.pumpAndSettle();
+      final fieldId = {
+        'Uniform name': 'name',
+        'Value': 'value',
+        'Binding source (config/state)': 'bindingSource',
+        'Binding path': 'bindingPath',
+      }[entry.key]!;
+      expect(
+        graph.activeSpace!.nodes[parameter.id]!.shaderValues[fieldId],
+        entry.value,
+      );
     }
+    expect(
+      graph.activeSpace!.nodes[parameter.id]!.shaderValues['bindingSource'],
+      'config',
+    );
+    expect(
+      graph.activeSpace!.nodes[parameter.id]!.shaderValues['bindingPath'],
+      'customPulse',
+    );
     graph.execute(
       AddConnectionCommand(
         shaderSpaceId,
