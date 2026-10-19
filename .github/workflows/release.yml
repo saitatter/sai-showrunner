@@ -173,11 +173,11 @@ jobs:
       - name: Build and smoke-test Windows package
         shell: pwsh
         run: |
-          $packageArgs = @(
-            '-Version', $env:RELEASE_VERSION,
-            '-BuildNumber', $env:RELEASE_BUILD,
-            '-RequireBundledYouTubeClient'
-          )
+          $packageArgs = @{
+            Version = $env:RELEASE_VERSION
+            BuildNumber = [int]$env:RELEASE_BUILD
+            RequireBundledYouTubeClient = $true
+          }
           Write-Host 'Packaging unsigned Windows binaries and running application/updater proofs.'
           & .\scripts\package-flutter-windows.ps1 @packageArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
