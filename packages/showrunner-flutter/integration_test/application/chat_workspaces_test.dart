@@ -165,6 +165,37 @@ void main() {
       expect(chat.preferences.timestamps, isTrue);
       expect(chat.preferences.highlightTerms, ['hello']);
       await _capture(tester, 'chat-preferences.png');
+      await tester.tap(find.widgetWithText(TextButton, 'Chat actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'New chat action'));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Action label'), 'Global probe');
+      await tester.tap(find.text('message').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('global').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Save chat action'));
+      await _wait(tester, () => chat.configuredActions.length == 1);
+      await tester.tap(find.widgetWithText(TextButton, 'Close'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Global probe'));
+      await tester.pumpAndSettle();
+      chat.eventHub.emit('follow', {
+        'id': 'native-follow',
+        'user_id': 'follower',
+        'user_name': 'Fixture follower',
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Events'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('twitch - follow - Fixture follower'),
+        findsOneWidget,
+      );
+      await _capture(tester, 'chat-events.png');
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Messages'));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.widgetWithText(TextButton, 'Pause view'));
       chat.ingest(
         ChatMessage(

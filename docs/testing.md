@@ -99,6 +99,13 @@ history-direction synchronization. Captures were inspected, including highlight
 text contrast. The capture contract remains Windows, Flutter 3.47.7, 1440?900/DPR 1;
 no frozen inspector/Electron references or comparison thresholds were changed.
 
+Configured chat-action fixtures cover immutable definitions, scoped targets,
+platform enforcement, expired/deleted targets and curated public event fields.
+The service composition fixture runs a user shortcut through the real saved-graph
+queue and verifies resolved viewer/message/argument values. The native fixture
+creates and executes a global shortcut and displays a public follow event;
+Chromium verifies global/message/event requests and escaped event text.
+
 The Chromium overlay smoke proof also exercises the chat dock with isolated mock
 HTTP APIs: two-provider history, text escaping, filters, routing, emoji and reply.
 These fixtures make no live provider calls and do not verify OBS/CEF itself.

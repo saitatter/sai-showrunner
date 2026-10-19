@@ -202,7 +202,7 @@ class _CommandsWorkspaceState extends State<CommandsWorkspace> {
                                       tooltip: 'Move command down',
                                       onPressed:
                                           _busy ||
-                                              index ==
+                                              priority ==
                                                   manager.commands.length - 1
                                           ? null
                                           : () => _run(

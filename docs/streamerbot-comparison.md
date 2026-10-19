@@ -36,7 +36,7 @@ Existing live-test limits are recorded in `docs/testing/`.
 | Capability | Current ShowRunner evidence | Missing or partial | Priority |
 | --- | --- | --- | --- |
 | Managed chat commands | Development: Chat Commands workspace, shared Twitch/YouTube runtime, aliases, bounded regex/captures, argument parsers, Allow/Deny roles/users/groups, selectable sources, cooldowns, persistence switches, grouping and graph management events/actions | Internal sources require an explicit runtime producer; live whisper authorization remains unverified. See focused comparison below. | P1 |
-| Unified chat client | Development: shared Twitch/YouTube history/composer, built-in moderation, emote-name suggestions and authenticated local OBS dock | Rich emotes, command menus, configurable quick actions, highlights, multi-send and full provider moderation synchronization remain. | P1 |
+| Unified chat client | Development: shared Twitch/YouTube history/composer, built-in moderation, emote-name suggestions and authenticated local OBS dock | Rich emotes, multi-send/account selection and remaining provider moderation edge cases remain. | P1 |
 | Kick | No Flutter provider, OAuth/runtime, manifest or UI identified | Native chat, moderation, platform events and platform-state integration. | P1 if multistreaming |
 | Donation/commerce integrations | DonorDrive exists; generic HTTP endpoints exist | No native StreamElements, Streamlabs, Ko-Fi, Fourthwall, Patreon, Throne, Shopify, StreamLoots or TipeeeStream integration identified. Generic endpoints require users to implement mappings/auth themselves. | P1 for selected providers |
 | Twitch action breadth | `plugins/twitch/actions/stream.dart`, `actions.dart` | Poll/prediction creation exists; corresponding get/terminate/archive/lock/resolve/cancel actions are not exposed as dedicated native actions. Also missing documented pinned-message, channel-tag, VIP/moderator-management and warn-user actions. | P1 |
@@ -71,9 +71,9 @@ belong in Chat Commands. Fixture coverage is not live-account certification.
 | Command sources | Twitch/YouTube chat; explicit Shared Chat, subscription text, channel/bot whisper sources; bot/internal switches | Live whisper authorization unverified; internal injection has no public endpoint; Kick deferred |
 | Automation integration | Saved automation/queue, context/counters/captures, lifecycle triggers and list/get/enable/delete/reset actions | Graph actions do not create/edit definitions |
 | Sending | Selected platform; Twitch channel identity | Multi-send, account selection, keyboard routing, native reply threads |
-| Suggestions | Built-in emoji, fetched Twitch emote names, platform command/alias menus and local slash actions with keyboard selection | Emote images, YouTube/7TV/BTTV/FFZ catalogs; automation-backed slash actions |
-| Quick actions | Reply, copy, user search, delete, timeout, ban and Twitch unban | Configurable global/user/message/event actions; richer user cards |
-| History and appearance | Session history, platform/user filters/search, deletion sync, pause, shared fonts/direction/timestamps, role labels, text/user/role highlights and local dock | Event feed, avatars, provider badge images and rich emote rendering |
+| Suggestions | Built-in emoji, fetched Twitch emote names, platform command/alias menus and local slash actions with keyboard selection | Emote images, YouTube/7TV/BTTV/FFZ catalogs; native provider slash commands |
+| Quick actions | Reply/copy, exact user filter, moderation and configurable global/user/message/event graph shortcuts with arguments, icons/colors and ordering | Richer user cards |
+| History and appearance | Session history, platform/user filters/search, deletion sync, pause, shared fonts/direction/timestamps, role labels, text/user/role highlights, curated public event feed and local dock | Avatars, provider badge images and rich emote rendering |
 | Ignore rules | Platform user IDs, literal prefix/contains and bounded regex; detected-command hiding; explicit hide-only versus command-block policy | Raw provider triggers intentionally remain independent |
 | OBS | Authenticated loopback dock with composer and moderation | Overlay mode and advanced styling controls; direct OBS/CEF verification remains separate |
 

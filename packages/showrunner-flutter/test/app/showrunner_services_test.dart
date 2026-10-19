@@ -1,3 +1,4 @@
+import 'package:showrunner_flutter/features/chat/configured_chat_action.dart';
 import 'dart:io';
 import 'dart:async';
 
@@ -35,7 +36,7 @@ void main() {
       });
       await services.start();
       final registry = await services.pluginRegistryFuture;
-      final captured = Completer<Map<String, dynamic>>();
+      var captured = Completer<Map<String, dynamic>>();
       registry.register(
         DartPluginManifest(
           id: const PluginId('capture'),
@@ -109,6 +110,69 @@ void main() {
       expect(
         services.chatRuntime.commands.countersFor('capture').dispatched,
         1,
+      );
+      captured = Completer<Map<String, dynamic>>();
+      await AutomationRepository(
+        File('${root.path}/automations/quick.yaml'),
+      ).save(
+        eventFixture(
+          id: 'event',
+          plugin: 'twitch',
+          next: 'record',
+          nodes: [
+            actionFixture(
+              'record',
+              plugin: 'capture',
+              action: 'receive',
+              config: {
+                'scope': '{{ chatActionScope }}',
+                'name': '{{ viewerName }}',
+                'mode': '{{ actionArguments.mode }}',
+                'text': '{{ trigger.message }}',
+              },
+            ),
+          ],
+        ),
+      );
+      await services.chatRuntime.saveActions([
+        ConfiguredChatAction(
+          id: 'quick',
+          label: 'Quick',
+          automationFile: 'quick.yaml',
+          scope: ChatActionScope.user,
+          arguments: {'mode': 'probe'},
+        ),
+      ]);
+      services.chatRuntime.ingest(
+        ChatMessage(
+          platform: ChatPlatform.twitch,
+          id: 'quick-target',
+          channelId: 'channel',
+          userId: 'viewer',
+          userName: 'Ada',
+          text: 'Selected message',
+          receivedAt: DateTime.now(),
+        ),
+      );
+      await services.chatRuntime.runConfiguredAction(
+        'quick',
+        platform: ChatPlatform.twitch,
+        messageIdentity: services.chatRuntime.messages.single.identity,
+      );
+      expect(await captured.future.timeout(const Duration(seconds: 5)), {
+        'scope': 'user',
+        'name': 'Ada',
+        'mode': 'probe',
+        'text': 'Selected message',
+      });
+      await services.queueManager.drain('default');
+      expect(services.actionQueue.history, hasLength(2));
+      expect(
+        services.actionQueue.history
+            .where((item) => item.source['sourceType'] == 'chat-quick-action')
+            .single
+            .status,
+        'completed',
       );
     },
   );

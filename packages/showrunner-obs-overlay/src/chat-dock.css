@@ -24,3 +24,10 @@ button:disabled { opacity: .5; }
 #messages.alternating article:nth-child(even) { background: #24212b; }
 #messages article.highlighted { background: #423357; border-left: 3px solid #c6a0ff; padding-left: 8px; }
 #emotes button[aria-pressed="true"] { outline: 2px solid #c6a0ff; }
+
+#global-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 12px; }
+button[data-color="purple"] { border-color: #cc99ff; }
+button[data-color="blue"] { border-color: #66ccff; }
+button[data-color="green"] { border-color: #99dd77; }
+button[data-color="orange"] { border-color: #ffbb66; }
+button[data-color="red"] { border-color: #ff8888; }
