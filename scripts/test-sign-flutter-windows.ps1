@@ -50,8 +50,20 @@ try {
 
   Push-Location (Join-Path $PSScriptRoot '..\packages\showrunner-flutter')
   try {
-    dart run tool/update_smoke.dart "--bundle=$testBundle" '--require-signature'
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $dartExecutable = (Get-Command dart -ErrorAction Stop).Source
+    $previousErrorPreference = $ErrorActionPreference
+    try {
+      # Windows PowerShell 5 treats benign native stderr (Dart build hooks) as
+      # an error record. The native exit code still decides whether proof passed.
+      $ErrorActionPreference = 'Continue'
+      & $dartExecutable run tool/update_smoke.dart "--bundle=$testBundle" '--require-signature'
+      $updaterExitCode = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousErrorPreference
+    }
+    if ($updaterExitCode -ne 0) {
+      throw "Signed updater proof failed with exit code $updaterExitCode."
+    }
   } finally {
     Pop-Location
   }
