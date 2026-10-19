@@ -9,21 +9,17 @@
 - Add keyboard command and local-action menus, paused chat views and exact user filtering in chat and the OBS dock.
 - Add advanced command permissions, bounded regex, private Twitch sources, graph management actions and external Twitch moderation synchronization.
 - Add managed Twitch/YouTube chat commands with aliases, argument parsing, permissions, cooldowns, persisted counters and named automation queues.
-- Add unified Twitch/YouTube chat with moderation, emote suggestions and an authenticated local OBS browser dock.
+- Add unified Twitch/YouTube chat with channel-scoped moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
-- Keep local chat deletion scoped to the selected channel when message IDs overlap.
-- Keep normal Tab focus traversal when chat suggestions are closed and return focus after inserting a suggestion.
-- Treat empty Deny rules as unrestricted and match explicit command/highlight roles against actual provider badges.
-- Synchronize YouTube ban/tombstone events and keep late deleted messages suppressed without clearing unrelated users or channels.
 - Preserve settings through temporary Windows file-sharing locks by retrying atomic replacement without removing the original.
-- Keep command priority controls correct while filtering the command list.
 - Preserve workspace navigation during startup restoration.
 - Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
 
 ### Docs
+- Clarify that corrections made while implementing new features remain in their feature entries rather than release fixes.
 - Document chat setup and remaining Streamer.bot differences using static .NET evidence and an isolated runtime UI comparison.
 
 ### CI & Build
