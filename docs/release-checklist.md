@@ -31,6 +31,8 @@ overlay, or starter changes.
 
 ## Overlays and updates
 
+- [ ] Build the unsigned Windows ZIP with the browser overlay included, then pass
+      packaged startup and updater install/rollback proofs without signing secrets.
 - [ ] Open an overlay resource, add a widget, save it, and verify the persisted
       widget configuration.
 - [ ] Load the browser source in OBS and confirm the presence indicator and RPC

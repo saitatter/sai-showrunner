@@ -26,7 +26,7 @@ Flutter desktop runtime and release process. Attribution and license notices rem
 OBS overlays use a separate browser renderer because OBS consumes Browser Sources.
 The automation and shader editors use [sai_nodes](https://github.com/saitatter/sai_nodes).
 
-The Flutter cutover is tracked under **Unreleased** until a signed release is
+The Flutter cutover is tracked under **Unreleased** until a release is
 published. Existing downloads can predate this implementation. Supported features,
 external-service limits and missing integrations are documented in
 [product status](docs/product-parity.md) and the
@@ -57,8 +57,9 @@ Run the same local checks used by CI:
 
 See [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md),
 [testing](docs/testing.md) and [release policy](docs/versioning-policy.md).
-Releases are manual from main, with a preview, curated changelog notes and signed
-Windows packaging. Merging a PR does not publish or change the version.
+Releases are manual from main, with a preview, curated changelog notes and unsigned
+Windows ZIP packages. No signing certificate is required. Merging a PR does not
+publish or change the version.
 
 ## Repository layout
 

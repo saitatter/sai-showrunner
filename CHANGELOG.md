@@ -15,6 +15,7 @@
 - Remove the Electron/Vue desktop runtime while retaining the browser overlay required by OBS.
 
 ### Docs
+- Document unsigned Windows distribution and the publishing credentials still required for manual releases.
 - Consolidate historical audits into maintained architecture, testing, product-status and Streamer.bot comparison documents.
 - Document contribution rules and isolated testing requirements in AGENTS.md.
 - Clarify Twitch Public OAuth setup and remove stale test-count claims from the node-testing guide.
@@ -27,7 +28,7 @@
 - Pin the historical contract comparison to its immutable commit so clean CI checkouts do not require local-only tags.
 - Scroll first-run setup controls into view during native tests on smaller Windows runner screens.
 - Make releases manual from main with conventional-commit version selection, curated notes, dry-run and immutable-tag asset rebuilds.
-- Keep Windows releases as drafts until signed packaging and updater smoke tests pass; signing proofs use the same protected release environment.
+- Keep Windows releases as drafts until packaging and updater smoke tests pass; manual package proofs use the same protected release environment.
 - Align the Flutter SDK and required CI checks with the supported development environment.
 - Use current maintained workflow actions and cancel superseded CI runs without cancelling releases.
 - Remove dependency-update rules for the retired semantic-release tooling.

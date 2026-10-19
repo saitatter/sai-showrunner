@@ -99,4 +99,6 @@ Use [live-services.md](testing/live-services.md) and [live-nodes.md](testing/liv
 for credentials, eligibility and previously demonstrated limits. Explicitly distinguish
 fixtures, API acceptance and delivered real events. Never auto-enable write scenarios
 or print tokens. The [release checklist](release-checklist.md) remains an
-operator gate; signed installed upgrade/rollback needs real signing credentials.
+operator gate. Public packages and the manual Windows release proof are unsigned;
+packaging still exercises installed upgrade/rollback without a signature requirement.
+The separate signing-helper fixture uses a temporary test certificate only.
