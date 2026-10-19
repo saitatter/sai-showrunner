@@ -25,6 +25,7 @@
 - Document chat setup and remaining Streamer.bot differences using static .NET evidence and an isolated runtime UI comparison.
 
 ### CI & Build
+- Add opt-in public 7TV/BTTV/FFZ catalog contract probes without credentials or account writes.
 - Recover draft release assets using the protected publishing job's permissions.
 - Pass named packaging parameters correctly when building Windows releases.
 - Wait for shader field edits to settle before switching inputs in native workflow tests.
