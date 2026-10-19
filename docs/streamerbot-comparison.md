@@ -70,16 +70,17 @@ belong in Chat Commands. Fixture coverage is not live-account certification.
 | Cooldowns and counters | Alias/platform global and per-user cooldowns; separate reset actions, persistence switches and configurable broadcaster bypass | Cooldowns intentionally reset on restart |
 | Command sources | Twitch/YouTube chat; explicit Shared Chat, subscription text, channel/bot whisper sources; bot/internal switches | Live whisper authorization unverified; internal injection has no public endpoint; Kick deferred |
 | Automation integration | Saved automation/queue, context/counters/captures, lifecycle triggers and list/get/enable/delete/reset actions | Graph actions do not create/edit definitions |
-| Sending | Selected platform; Twitch channel identity | Multi-send, account selection, keyboard routing, native reply threads |
+| Sending | Selected platform; Twitch channel identity | Multi-send, account selection and native reply threads |
 | Suggestions | Built-in emoji, Twitch fragments and Twitch/7TV/BTTV/FFZ image catalogs, platform command/alias menus and local slash actions with keyboard selection | Native YouTube custom-emoji catalog (not exposed by live-chat API); native provider slash commands |
 | Quick actions | Reply/copy, exact user filter, moderation and configurable global/user/message/event graph shortcuts with arguments, icons/colors and ordering | Richer user cards |
 | History and appearance | Session history, platform/user filters/search, deletion sync, pause, shared fonts/direction/timestamps, role labels, text/user/role highlights, curated public event feed and local dock | Avatars and provider badge images |
 | Ignore rules | Platform user IDs, literal prefix/contains and bounded regex; detected-command hiding; explicit hide-only versus command-block policy | Raw provider triggers intentionally remain independent |
-| OBS | Authenticated loopback dock with composer and moderation | Overlay mode and advanced styling controls; direct OBS/CEF verification remains separate |
+| OBS | Authenticated loopback dock with composer, moderation, shared preferences, event feed and configured shortcuts | Overlay mode and advanced styling controls; direct OBS/CEF verification remains separate |
 
 These remaining items are product gaps, not all blockers for the initial
-Twitch/YouTube release. Prioritize permissions, moderation synchronization and
-command-management events before cosmetic parity. The richer command settings
+Twitch/YouTube release. The implemented permission and management controls still
+need live-account validation; sender selection and richer provider identity UI
+remain separate follow-ups. The richer command settings
 and chat features are documented by the official
 [commands guide](https://docs.streamer.bot/guide/core/commands) and
 [chat guide](https://docs.streamer.bot/guide/extra-features/chat).

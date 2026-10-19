@@ -96,7 +96,7 @@ ignore/highlight identities, bounded regex rules, hide-only versus command-block
 behavior, authenticated dock updates and preservation of unsupported preferences.
 The native fixture edits display/highlight settings; Chromium verifies font and
 history-direction synchronization. Captures were inspected, including highlight
-text contrast. The capture contract remains Windows, Flutter 3.47.7, 1440?900/DPR 1;
+text contrast. The capture contract remains Windows, Flutter 3.47.7, 1440x900/DPR 1;
 no frozen inspector/Electron references or comparison thresholds were changed.
 
 Configured chat-action fixtures cover immutable definitions, scoped targets,
@@ -115,7 +115,9 @@ failed-image fallback and rejection of a malicious image URL without live CDN I/
 
 The Chromium overlay smoke proof also exercises the chat dock with isolated mock
 HTTP APIs: two-provider history, text escaping, filters, routing, emoji and reply.
-These fixtures make no live provider calls and do not verify OBS/CEF itself.
+The browser and default fixtures make no live provider calls and do not verify
+OBS/CEF itself. The separate public-emote opt-in checks current 7TV/BTTV/FFZ
+global responses without OAuth, channel access or writes; all three passed.
 
 See [the visual harness](../tools/visual_parity/README.md). The historical Electron
 catalog is diagnostic; a green comparison does not establish pixel equivalence.

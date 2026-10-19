@@ -50,12 +50,29 @@ bans, timeouts or personal OBS dock changes were made for those fixtures.
 See [setup and behavior](../chat-and-commands.md).
 
 Before a live pass, reconnect Twitch if its token predates
-`moderator:manage:chat_messages`. The client uses the authenticated channel account
+`moderator:manage:chat_messages` or `user:read:whispers` (channel and separate bot).
+The client uses the authenticated channel account
 for sends and moderation. YouTube needs an active test broadcast/liveChatId and
 an account allowed to send and moderate. Use a separate consenting test account
 for timeout/ban tests. Test aliases, unrelated messages, role rejection and
 global/user cooldowns using different users; inspect actual Queues execution as
 well as command counters. Browser fixtures do not replace an OBS/CEF dock check.
+
+## Public emote catalogs
+
+The read-only public 7TV, BTTV and FFZ global catalog probes passed against their
+current API responses and verified nonempty catalogs with approved image hosts.
+They do not access a personal channel or require tokens. Repeat explicitly with:
+
+```powershell
+cd packages/showrunner-flutter
+flutter test --no-pub --dart-define=SHOWRUNNER_LIVE_PUBLIC_EMOTES=true test/live/public_emote_catalog_test.dart
+```
+
+Normal CI skips these external-network probes. Offline fixtures cover channel
+parsing, caching, partial outages, image fallback and native/browser rendering.
+This public GET proof does not certify channel catalogs, Twitch OAuth emote reads,
+whisper delivery, paid-event eligibility or live moderation permissions.
 
 ## Other providers and devices
 
