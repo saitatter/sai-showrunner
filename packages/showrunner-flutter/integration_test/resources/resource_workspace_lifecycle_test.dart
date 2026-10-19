@@ -52,6 +52,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Create'));
     await _pumpApplication(tester);
     final overlayTitle = find.widgetWithText(ListTile, 'Integration overlay');
+    await _waitForWidget(tester, overlayTitle);
     expect(overlayTitle, findsOneWidget);
 
     await tester.tap(overlayTitle);
@@ -62,6 +63,7 @@ void main() {
     await _pumpApplication(tester);
     await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
     await _pumpApplication(tester);
+    await _waitForWidget(tester, find.text('No overlays defined'));
     expect(find.text('No overlays defined'), findsOneWidget);
 
     final repository = ResourceRepository(
@@ -263,4 +265,15 @@ Future<void> _openStreamPlan(WidgetTester tester) async {
 Future<void> _pumpApplication(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 250));
   await tester.pump(const Duration(milliseconds: 250));
+}
+
+Future<void> _waitForWidget(WidgetTester tester, Finder finder) async {
+  // Creating/deleting a resource performs asynchronous disk I/O and a list
+  // reload. Fixed frame delays can finish before that work on a hosted runner.
+  final elapsed = Stopwatch()..start();
+  while (elapsed.elapsed < const Duration(seconds: 10)) {
+    await tester.pump(const Duration(milliseconds: 100));
+    if (tester.any(finder)) return;
+  }
+  throw TestFailure('Timed out waiting for resource list update: $finder.');
 }
