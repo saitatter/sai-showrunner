@@ -94,7 +94,11 @@ still work. See [YouTube's resource contract](https://developers.google.com/yout
 
 Paid YouTube messages use their dedicated event streams. YouTube deletion events
 and successful local deletions update history. External Twitch message deletion,
-room clear and user-message clear update history scoped to their channel.
+room clear and user-message clear update history scoped to their channel. Bounded
+session tombstones also handle deletion arriving before the message; clear events
+use provider timestamps to distinguish late old messages from new ones. YouTube
+ban events target `bannedUserDetails.channelId`, and deletion/tombstones are scoped
+to the live chat. Malformed user-clear events never clear the entire room.
 
 Use **Copy OBS dock URL**, then OBS **Docks > Custom Browser Docks**. The dock is
 served locally by ShowRunner, includes history/composer/moderation and requires

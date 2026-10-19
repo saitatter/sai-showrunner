@@ -265,14 +265,22 @@ void main() {
     final eventFuture = hub.stream('chat').first;
     socket.add(
       jsonEncode({
-        'metadata': {'message_type': 'notification'},
+        'metadata': {
+          'message_type': 'notification',
+          'message_timestamp': '2026-01-01T00:00:00Z',
+        },
         'payload': {
           'subscription': {'type': 'channel.chat.message'},
           'event': {
             'chatter_user_id': 'viewer-1',
             'chatter_user_name': 'Viewer',
             'message_id': 'message-1',
-            'message': {'text': 'hello', 'fragments': []},
+            'message': {
+              'text': 'hello',
+              'fragments': [
+                {'type': 'text', 'text': 'hello'},
+              ],
+            },
             'badges': [
               {'set_id': 'subscriber'},
             ],
@@ -286,6 +294,10 @@ void main() {
       'chatter_user_name': 'Viewer',
       'message_id': 'message-1',
       'message': 'hello',
+      'messageFragments': [
+        {'type': 'text', 'text': 'hello'},
+      ],
+      'providerTime': '2026-01-01T00:00:00Z',
       'eventType': 'chat',
       'platform': 'twitch',
       'viewerId': 'viewer-1',

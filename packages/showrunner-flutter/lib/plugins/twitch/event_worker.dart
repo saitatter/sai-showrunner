@@ -511,7 +511,11 @@ final class TwitchEventSubWorker {
       _ => null,
     };
     if (eventId != null) {
-      eventHub.emit(eventId, _normalizeTwitchEvent(eventId, event));
+      eventHub.emit(eventId, {
+        ..._normalizeTwitchEvent(eventId, event),
+        if (metadata['message_timestamp'] is String)
+          'providerTime': metadata['message_timestamp'],
+      });
       if (eventId == 'adStarted') {
         _adEndTimer?.cancel();
         final seconds = int.tryParse('${event['duration_seconds']}');
