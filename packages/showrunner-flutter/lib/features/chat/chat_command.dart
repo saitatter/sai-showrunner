@@ -156,9 +156,9 @@ final class ChatCommand {
     final empty = roles.isEmpty && users.isEmpty && groups.isEmpty;
     final listed =
         users.contains(message.userIdentity) ||
-        roles.any(message.permits) ||
+        roles.any(message.hasRole) ||
         groups.any(memberships.contains);
-    return grant == CommandGrant.allow ? empty || listed : !empty && !listed;
+    return grant == CommandGrant.allow ? empty || listed : !listed;
   }
 
   final List<String> aliases;

@@ -12,6 +12,7 @@
 - Add unified Twitch/YouTube chat with moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Treat empty Deny rules as unrestricted and match explicit command/highlight roles against actual provider badges.
 - Synchronize YouTube ban/tombstone events and keep late deleted messages suppressed without clearing unrelated users or channels.
 - Preserve settings through temporary Windows file-sharing locks by retrying atomic replacement without removing the original.
 - Keep command priority controls correct while filtering the command list.
