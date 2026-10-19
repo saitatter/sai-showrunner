@@ -8,6 +8,7 @@ import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
 import '../../services/http_provider_transports.dart';
 import 'chat_message.dart';
+import 'chat_completion.dart';
 import 'command_manager.dart';
 
 enum ChatQuickAction { deleteMessage, timeout, ban, unban }
@@ -91,6 +92,14 @@ final class UnifiedChatRuntime extends ChangeNotifier {
       )
       .take(12)
       .toList();
+
+  List<ChatCompletion> composerCompletions(ChatPlatform platform) => [
+    ...chatLocalActions,
+    ...commandCompletions(commands.commands, platform),
+    for (final emote in emotes)
+      if (platform == ChatPlatform.twitch || emote.name.startsWith(':'))
+        ChatCompletion(emote.text, emote.name, 'emote'),
+  ];
 
   Future<void>? _starting;
   Future<void> start() => _starting ??= _start();

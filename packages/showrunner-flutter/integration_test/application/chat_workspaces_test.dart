@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -135,6 +136,41 @@ void main() {
         tester.widget<TextField>(_field('Message')).controller!.text,
         startsWith('@'),
       );
+      await tester.enterText(_field('Message'), '!h');
+      await tester.pump();
+      expect(find.text('!hi - Edited command'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        tester.widget<TextField>(_field('Message')).controller!.text,
+        '!hi ',
+      );
+      await tester.enterText(_field('Message'), ':smi');
+      await tester.pump();
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(
+        tester.widget<TextField>(_field('Message')).controller!.text,
+        '\u{1f600} ',
+      );
+      await tester.tap(find.widgetWithText(TextButton, 'Pause view'));
+      chat.ingest(
+        ChatMessage(
+          platform: ChatPlatform.twitch,
+          id: 'paused',
+          channelId: 'channel',
+          userId: 'later',
+          userName: 'Later',
+          text: 'Arrived while paused',
+          receivedAt: DateTime.now(),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Arrived while paused'), findsNothing);
+      await tester.tap(find.widgetWithText(TextButton, 'Resume view'));
+      await tester.pump();
+      expect(find.text('Arrived while paused'), findsOneWidget);
       await tester.tap(find.text('Chat Commands').first);
       await _wait(tester, () => tester.any(find.byType(CommandsWorkspace)));
       await tester.tap(find.byType(Switch).first);

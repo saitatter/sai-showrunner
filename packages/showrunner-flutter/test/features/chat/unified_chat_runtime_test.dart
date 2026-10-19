@@ -119,6 +119,71 @@ void main() {
       'isChatSponsor': true,
     },
   };
+  test(
+    'command menus respect visibility, platform, enabled state and sources',
+    () async {
+      for (final command in [
+        ChatCommand(
+          id: 'visible',
+          name: 'Visible',
+          pattern: '!hello',
+          aliases: ['!hi'],
+          automationFile: 'a.yaml',
+          platforms: {ChatPlatform.twitch},
+        ),
+        ChatCommand(
+          id: 'hidden',
+          name: 'Hidden',
+          pattern: '!hidden',
+          automationFile: 'a.yaml',
+          includeInList: false,
+        ),
+        ChatCommand(
+          id: 'disabled',
+          name: 'Disabled',
+          pattern: '!disabled',
+          automationFile: 'a.yaml',
+          enabled: false,
+        ),
+        ChatCommand(
+          id: 'private',
+          name: 'Private',
+          pattern: '!secret',
+          automationFile: 'a.yaml',
+          origins: {ChatOrigin.whisper},
+        ),
+        ChatCommand(
+          id: 'regex',
+          name: 'Regex',
+          pattern: '!regex.*',
+          automationFile: 'a.yaml',
+          matchMode: CommandMatchMode.regex,
+        ),
+      ]) {
+        await runtime.commands.save(command);
+      }
+      expect(
+        runtime
+            .composerCompletions(ChatPlatform.twitch)
+            .where((s) => s.kind == 'command')
+            .map((s) => s.text),
+        ['!hello', '!hi'],
+      );
+      expect(
+        runtime
+            .composerCompletions(ChatPlatform.youtube)
+            .where((s) => s.kind == 'command'),
+        isEmpty,
+      );
+      expect(
+        runtime
+            .composerCompletions(ChatPlatform.youtube)
+            .where((s) => s.kind == 'action')
+            .map((s) => s.text),
+        ['/clear', '/pause', '/resume'],
+      );
+    },
+  );
   test('external Twitch moderation is scoped by channel and viewer', () async {
     hub.emit('chat', twitch('one'));
     hub.emit('chat', {

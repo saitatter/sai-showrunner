@@ -71,9 +71,9 @@ belong in Chat Commands. Fixture coverage is not live-account certification.
 | Command sources | Twitch/YouTube chat; explicit Shared Chat, subscription text, channel/bot whisper sources; bot/internal switches | Live whisper authorization unverified; internal injection has no public endpoint; Kick deferred |
 | Automation integration | Saved automation/queue, context/counters/captures, lifecycle triggers and list/get/enable/delete/reset actions | Graph actions do not create/edit definitions |
 | Sending | Selected platform; Twitch channel identity | Multi-send, account selection, keyboard routing, native reply threads |
-| Suggestions | Built-in emoji and fetched Twitch emote names | Slash/action and managed-command menus; emote images, YouTube/7TV/BTTV/FFZ catalogs |
-| Quick actions | Reply, copy, user search, delete, timeout, ban and Twitch unban | Configurable global/user/message/event actions; exact user identity view and richer user cards |
-| History and appearance | Session history, platform filters/search, deleted markers, local dock | Highlights, mentions, event feed, pause/scroll controls, external Twitch delete/clear synchronization; configurable fonts, direction, timestamps, avatars, badges and animated emotes |
+| Suggestions | Built-in emoji, fetched Twitch emote names, platform command/alias menus and local slash actions with keyboard selection | Emote images, YouTube/7TV/BTTV/FFZ catalogs; automation-backed slash actions |
+| Quick actions | Reply, copy, user search, delete, timeout, ban and Twitch unban | Configurable global/user/message/event actions; richer user cards |
+| History and appearance | Session history, platform filters/search, deleted markers, local dock | Highlights, mentions, event feed, external Twitch delete/clear synchronization; configurable fonts, direction, timestamps, avatars, badges and animated emotes |
 | Ignore rules | Search and platform filtering only | Per-user and literal/regex ignore rules; hiding detected command messages; explicit policy for hiding versus preventing command execution |
 | OBS | Authenticated loopback dock with composer and moderation | Preferences sync, overlay mode and styling controls; direct OBS/CEF verification remains separate |
 

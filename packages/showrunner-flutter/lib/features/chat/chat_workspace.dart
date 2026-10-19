@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import 'chat_message.dart';
+import 'chat_completion.dart';
 import 'unified_chat_runtime.dart';
 import 'chat_dock_service.dart';
 
@@ -26,36 +27,75 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
   ChatPlatform? _filter;
   bool _busy = false;
   Object? _error;
-  List<ChatEmote> get _suggestions {
+  int _selectedSuggestion = 0;
+  Set<String>? _pausedIdentities;
+  String? _userIdentity;
+  List<ChatCompletion> get _suggestions {
     final selection = _message.selection;
     if (!selection.isValid || !selection.isCollapsed) return [];
     final before = _message.text.substring(0, selection.baseOffset);
     final word = before.split(RegExp(r'\s')).last;
-    return word.length < 2
-        ? []
-        : widget.runtime.suggestEmotes(word, _destination);
+    if (word.isEmpty || (word.length < 2 && word != '!' && word != '/')) {
+      return [];
+    }
+    final firstWord = !before.trimLeft().contains(RegExp(r'\s'));
+    return widget.runtime
+        .composerCompletions(_destination)
+        .where(
+          (item) =>
+              (item.kind == 'emote' || firstWord) &&
+              (item.kind == 'emote' ? item.label : item.text)
+                  .toLowerCase()
+                  .startsWith(word.toLowerCase()),
+        )
+        .take(12)
+        .toList();
   }
 
-  void _insertEmote(ChatEmote emote) {
+  void _insertSuggestion(ChatCompletion suggestion) {
     final cursor = _message.selection.baseOffset;
     if (cursor < 0) return;
     final prefix = _message.text.substring(0, cursor);
     final word = prefix.split(RegExp(r'\s')).last;
-    final inserted = '${emote.text} ';
-    final value = _message.text.replaceRange(
-      cursor - word.length,
-      cursor,
-      inserted,
-    );
-    setState(
-      () => _message.value = TextEditingValue(
-        text: value,
+    final inserted = '${suggestion.text} ';
+    setState(() {
+      _message.value = TextEditingValue(
+        text: _message.text.replaceRange(
+          cursor - word.length,
+          cursor,
+          inserted,
+        ),
         selection: TextSelection.collapsed(
           offset: cursor - word.length + inserted.length,
         ),
-      ),
-    );
+      );
+      _selectedSuggestion = 0;
+    });
   }
+
+  void _completeOrSend() {
+    final suggestions = _suggestions;
+    if (suggestions.isNotEmpty) {
+      _insertSuggestion(suggestions[_selectedSuggestion % suggestions.length]);
+    } else {
+      _send();
+    }
+  }
+
+  void _stepSuggestion(int offset) {
+    if (_suggestions.isNotEmpty) {
+      setState(
+        () => _selectedSuggestion =
+            (_selectedSuggestion + offset) % _suggestions.length,
+      );
+    }
+  }
+
+  void _pause() => setState(
+    () => _pausedIdentities = widget.runtime.messages
+        .map((m) => m.identity)
+        .toSet(),
+  );
 
   @override
   void dispose() {
@@ -78,7 +118,16 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
   }
 
   Future<void> _send() => _run(() async {
-    await widget.runtime.send(_destination, _message.text);
+    switch (_message.text.trim()) {
+      case '/clear':
+        widget.runtime.clearHistory();
+      case '/pause':
+        _pause();
+      case '/resume':
+        setState(() => _pausedIdentities = null);
+      default:
+        await widget.runtime.send(_destination, _message.text);
+    }
     if (mounted) _message.clear();
   });
   Future<void> _moderate(ChatMessage message, ChatQuickAction action) async {
@@ -106,7 +155,11 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([widget.runtime, widget.providerEvents]),
+    listenable: Listenable.merge([
+      widget.runtime,
+      widget.runtime.commands,
+      widget.providerEvents,
+    ]),
     builder: (context, _) {
       final runtime = widget.runtime;
       final search = _search.text.toLowerCase();
@@ -114,6 +167,9 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
           .where(
             (m) =>
                 (_filter == null || m.platform == _filter) &&
+                (_userIdentity == null || m.userIdentity == _userIdentity) &&
+                (_pausedIdentities == null ||
+                    _pausedIdentities!.contains(m.identity)) &&
                 (search.isEmpty ||
                     '${m.userName} ${m.text}'.toLowerCase().contains(search)),
           )
@@ -159,6 +215,22 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                       : () => _run(runtime.loadTwitchEmotes),
                   child: const Text('Load Twitch emotes'),
                 ),
+                TextButton.icon(
+                  onPressed: () => _pausedIdentities == null
+                      ? _pause()
+                      : setState(() => _pausedIdentities = null),
+                  icon: Icon(
+                    _pausedIdentities == null ? Icons.pause : Icons.play_arrow,
+                  ),
+                  label: Text(
+                    _pausedIdentities == null ? 'Pause view' : 'Resume view',
+                  ),
+                ),
+                if (_userIdentity != null)
+                  InputChip(
+                    label: Text('User: $_userIdentity'),
+                    onDeleted: () => setState(() => _userIdentity = null),
+                  ),
                 if (widget.dock != null)
                   TextButton(
                     onPressed: _busy
@@ -266,7 +338,9 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                                   _message.text = '@${message.userName} ';
                                 });
                               } else if (value == 'user') {
-                                setState(() => _search.text = message.userName);
+                                setState(
+                                  () => _userIdentity = message.userIdentity,
+                                );
                               } else {
                                 _moderate(
                                   message,
@@ -321,10 +395,12 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
               Wrap(
                 spacing: 6,
                 children: [
-                  for (final emote in _suggestions)
-                    ActionChip(
-                      label: Text(emote.name),
-                      onPressed: () => _insertEmote(emote),
+                  for (final (index, suggestion) in _suggestions.indexed)
+                    InputChip(
+                      selected:
+                          index == _selectedSuggestion % _suggestions.length,
+                      label: Text(suggestion.label),
+                      onPressed: () => _insertSuggestion(suggestion),
                     ),
                 ],
               ),
@@ -345,15 +421,32 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextField(
-                    controller: _message,
-                    enabled: !_busy,
-                    decoration: const InputDecoration(
-                      labelText: 'Message',
-                      hintText: 'Send to the selected platform',
+                  child: CallbackShortcuts(
+                    bindings: {
+                      const SingleActivator(LogicalKeyboardKey.tab): () {
+                        final suggestions = _suggestions;
+                        if (suggestions.isNotEmpty) {
+                          _insertSuggestion(
+                            suggestions[_selectedSuggestion %
+                                suggestions.length],
+                          );
+                        }
+                      },
+                      const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
+                          _stepSuggestion(1),
+                      const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
+                          _stepSuggestion(-1),
+                    },
+                    child: TextField(
+                      controller: _message,
+                      enabled: !_busy,
+                      decoration: const InputDecoration(
+                        labelText: 'Message',
+                        hintText: 'Send to the selected platform',
+                      ),
+                      onSubmitted: (_) => _completeOrSend(),
+                      onChanged: (_) => setState(() => _selectedSuggestion = 0),
                     ),
-                    onSubmitted: (_) => _send(),
-                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 const SizedBox(width: 12),
