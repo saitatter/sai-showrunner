@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### CI & Build
+- Pass named packaging parameters correctly when building Windows releases.
+
 ### Features
 
 ### Fixes
