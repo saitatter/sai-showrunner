@@ -21,6 +21,7 @@
 - Clarify Twitch Public OAuth setup and remove stale test-count claims from the node-testing guide.
 
 ### CI & Build
+- Reuse successful CI only for the exact trusted main commit during release; run fresh validation whenever that proof is absent or incomplete.
 - Compile native lifecycle tests once and capture their visual fixtures in the same run, preserving all existing scenarios and visual tolerances.
 - Publish unsigned Windows packages without requiring signing credentials, while retaining application and updater proofs before publication.
 - Wait for asynchronous resource-list updates in native create/delete tests instead of relying on fixed frame delays.

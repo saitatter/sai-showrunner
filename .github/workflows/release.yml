@@ -27,12 +27,16 @@ concurrency:
 jobs:
   plan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
       commit: ${{ steps.plan.outputs.commit }}
       build: ${{ steps.plan.outputs.build }}
       publish: ${{ steps.plan.outputs.publish }}
+      ci_reuse: ${{ steps.ci.outputs.reuse }}
     steps:
       - name: Require trusted main
         env:
@@ -56,6 +60,13 @@ jobs:
           if [ -n "$REQUESTED_VERSION" ]; then args+=(--version "$REQUESTED_VERSION"); fi
           if [ -n "$BACKFILL_VERSION" ]; then args+=(--backfill "$BACKFILL_VERSION"); fi
           node tools/release/prepare.mjs "${args[@]}"
+      - name: Look for successful CI on the exact main commit
+        id: ci
+        if: steps.plan.outputs.publish == 'true' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLANNED_COMMIT: ${{ steps.plan.outputs.commit }}
+        run: node tools/release/ci-proof.mjs
       - name: Verify existing GitHub release for backfill
         if: inputs.backfill_version != ''
         env:
@@ -65,14 +76,14 @@ jobs:
 
   validate:
     needs: plan
-    if: needs.plan.outputs.publish == 'true' && !inputs.dry_run
+    if: needs.plan.outputs.publish == 'true' && !inputs.dry_run && needs.plan.outputs.ci_reuse != 'true'
     uses: ./.github/workflows/ci.yml
     with:
       ref: ${{ needs.plan.outputs.commit }}
 
   prepare:
     needs: [plan, validate]
-    if: needs.plan.outputs.publish == 'true' && !inputs.dry_run
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.publish == 'true' && !inputs.dry_run && (needs.plan.outputs.ci_reuse == 'true' || needs.validate.result == 'success')
     runs-on: ubuntu-latest
     environment: release
     permissions:

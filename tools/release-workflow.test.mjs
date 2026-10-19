@@ -47,6 +47,17 @@ describe("Windows release workflow", () => {
 
 
 describe("Manual release policy", () => {
+  it("requires a trusted exact-commit proof or successful fresh CI before preparing a release", async () => {
+    const release = parse(await readFile(workflowPath, "utf8"))
+    expect(release.jobs.plan.permissions.actions).toBe("read")
+    const proof = release.jobs.plan.steps.find(step => step.id === "ci")
+    expect(proof.env.PLANNED_COMMIT).toBe("${{ steps.plan.outputs.commit }}")
+    expect(proof.run).toContain("tools/release/ci-proof.mjs")
+    expect(release.jobs.validate.if).toContain("needs.plan.outputs.ci_reuse != 'true'")
+    expect(release.jobs.prepare.if).toContain("always()")
+    expect(release.jobs.prepare.if).toContain("needs.plan.result == 'success'")
+    expect(release.jobs.prepare.if).toContain("(needs.plan.outputs.ci_reuse == 'true' || needs.validate.result == 'success')")
+  })
   it("separates production startup from integration and requires both Windows gates", async () => {
     const ci = parse(await readFile(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8"))
     const steps = ci.jobs["windows-build"].steps
