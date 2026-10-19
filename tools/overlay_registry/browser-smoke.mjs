@@ -16,8 +16,8 @@ if (!existsSync(join(dist, 'overlay.html'))) throw new Error('Build the overlay 
 const profile = mkdtempSync(join(tmpdir(), 'showrunner-browser-smoke-'));
 const dockToken = 'isolated-browser-smoke-token';
 const dockMessages = [
-  {identity:'twitch:channel:1', platform:'twitch', viewerName:'Twitch Viewer', message:'Hello from Twitch', isOwner:false, deleted:false},
-  {identity:'youtube:live:2', platform:'youtube', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', isOwner:false, deleted:false},
+  {identity:'twitch:channel:1', platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', isOwner:false, deleted:false},
+  {identity:'youtube:live:2', platform:'youtube', viewerId:'same-id', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', isOwner:false, deleted:false},
 ];
 const dockRequests = [];
 const server = createServer(async (request, response) => {
@@ -25,7 +25,7 @@ const server = createServer(async (request, response) => {
   if (pathname.startsWith('/api/')) {
     if (request.headers['x-showrunner-chat'] !== dockToken) {response.writeHead(401); response.end(); return;}
     response.setHeader('Content-Type', 'application/json');
-    if (pathname === '/api/chat') {response.end(JSON.stringify({messages:dockMessages, emotes:[{name:':smile:',text:'😀'}]})); return;}
+    if (pathname === '/api/chat') {response.end(JSON.stringify({messages:dockMessages, completions:{twitch:[{text:'!hello',label:'!hello - Hello',kind:'command'},{text:'!hi',label:'!hi - Hello',kind:'command'},{text:'/pause',label:'/pause',kind:'action'},{text:'/resume',label:'/resume',kind:'action'},{text:'\u{1f600}',label:':smile:',kind:'emote'}],youtube:[{text:'\u{1f600}',label:':smile:',kind:'emote'}]}, emotes:[{name:':smile:',text:'😀'}]})); return;}
     let body = ''; for await (const chunk of request) body += chunk;
     dockRequests.push({path:pathname, ...JSON.parse(body)});
     response.end(JSON.stringify({ok:true})); return;
@@ -126,10 +126,23 @@ try {
   if (!(await evaluate(`document.querySelector('#message').value === '😀 '`))) throw new Error('Chat dock emote autocomplete failed.');
   await evaluate(`const menu=document.querySelector('article select'); menu.value='reply'; menu.dispatchEvent(new Event('change'))`);
   if (!(await evaluate(`document.querySelector('#platform').value === 'twitch' && document.querySelector('#message').value === '@Twitch Viewer '`))) throw new Error('Chat dock reply target failed.');
+  await evaluate(`document.querySelector('#message').value='!h'; document.querySelector('#message').setSelectionRange(2,2); document.querySelector('#message').dispatchEvent(new Event('input'))`);
+  if (!(await evaluate(`document.querySelectorAll('#emotes button').length === 2`))) throw new Error('Managed command aliases missing from dock menu.');
+  await evaluate(`document.querySelector('#message').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true})); document.querySelector('#message').dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true}))`);
+  if (!(await evaluate(`document.querySelector('#message').value === '!hi '`))) throw new Error('Dock keyboard command completion failed.');
+  await evaluate(`document.querySelector('#message').value='/pause'; document.querySelector('#composer').requestSubmit()`);
+  await pause(50);
+  dockMessages.push({identity:'twitch:channel:late',platform:'twitch',viewerId:'late',viewerName:'Late',message:'Incoming during pause',isOwner:false,deleted:false});
+  await pause(1100);
+  if (await evaluate(`document.querySelector('#messages').textContent.includes('Incoming during pause')`)) throw new Error('Paused dock rendered new arrivals.');
+  await evaluate(`document.querySelector('#message').value='/resume'; document.querySelector('#composer').requestSubmit()`);
+  await pause(50);
+  if (!(await evaluate(`document.querySelector('#messages').textContent.includes('Incoming during pause')`))) throw new Error('Resumed dock did not show arrivals.');
+  if (dockRequests.length !== 1) throw new Error('Local slash actions leaked to provider send endpoint.');
   const screenshot = await send('Page.captureScreenshot', {format:'png'});
   writeFileSync(join(root, '.tmp/overlay-browser/chat-dock.png'), Buffer.from(screenshot.data, 'base64'));
   if (errors.length) throw new Error(`Chat dock browser exceptions: ${JSON.stringify(errors)}`);
-  console.log('Chat dock history, HTML safety, platform filter, composer, emote autocomplete and reply passed.');
+  console.log('Chat dock history, HTML safety, platform filter, composer, emote/command keyboard completion, local pause/resume and reply passed.');
 } finally {
   socket?.close();
   for (const entry of pending.values()) clearTimeout(entry.timer);

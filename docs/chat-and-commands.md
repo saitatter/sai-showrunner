@@ -62,7 +62,12 @@ and counters; the same values are available under `event` and `trigger`.
 ## Unified chat and OBS dock
 
 **Chat** keeps a bounded session history from both connected providers, with search,
-platform filtering, reply/copy and moderation actions. Reply selects the destination
+platform filtering, reply/copy and moderation actions. The user action filters by
+platform-qualified ID, so identical names on different platforms stay separate.
+Pause view freezes visible arrivals while collection continues; resume shows them.
+Type `!` for enabled, listed commands and aliases on the selected platform, or `/`
+for local clear/pause/resume actions. Arrow keys select a suggestion; Tab or Enter
+inserts it before sending. These menus are shared with the browser dock. Reply selects the destination
 and inserts a mention; it does not create a provider-native reply thread. Sending
 targets the selected platform. Messages appear when received from the provider,
 without speculative local echoes. Clearing history keeps replay deduplication.

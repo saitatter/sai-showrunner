@@ -121,6 +121,13 @@ final class ChatDockService {
                   },
                 )
                 .toList(),
+            'completions': {
+              for (final platform in ChatPlatform.values)
+                platform.name: runtime
+                    .composerCompletions(platform)
+                    .map((s) => s.toJson())
+                    .toList(),
+            },
             'emotes': runtime.emotes
                 .map((e) => {'name': e.name, 'text': e.text})
                 .toList(),
@@ -147,6 +154,8 @@ final class ChatDockService {
             ChatPlatform.values.byName(payload['platform'] as String),
             payload['message'] as String,
           );
+        } else if (path == '/api/clear') {
+          runtime.clearHistory();
         } else if (path == '/api/action') {
           final target = runtime.messages
               .where((m) => m.identity == payload['identity'])
