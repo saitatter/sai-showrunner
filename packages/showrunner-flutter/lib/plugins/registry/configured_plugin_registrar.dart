@@ -3,6 +3,7 @@ part of 'plugin_bootstrap.dart';
 Future<DartPluginRegistry> createConfiguredPluginRegistry(
   ShowRunnerDataService dataService, {
   DartPluginEventHub? eventHub,
+  Future<ChatCommandManager>? chatCommands,
   TtsSpeechService? ttsService,
   SoundOutputRegistry? soundOutputs,
   ViewerDataRepository? viewerDataRepository,
@@ -38,6 +39,14 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     port: httpPortOverride ?? _port(appSettings['port'], 8181),
   );
   final registry = DartPluginRegistry();
+  registry.register(
+    createChatCommandsPlugin(
+      manager: () =>
+          chatCommands ??
+          Future.error(StateError('Chat Commands runtime is unavailable.')),
+      eventHub: eventHub,
+    ),
+  );
   _registerHeartRatePlugin(
     registry,
     dataService: dataService,

@@ -23,6 +23,7 @@ final class ProviderEventRuntime extends ChangeNotifier {
   final DartPluginEventHub eventHub;
   final Map<String, List<JsonMap>> _activeProfileTriggerSets = {};
   TwitchEventSubWorker? twitch;
+  TwitchEventSubWorker? botWhispers;
   YouTubeLiveChatWorker? youtube;
   YouTubeRequest? _youtubeRequest;
   String? _youtubeLiveChatId;
@@ -224,11 +225,43 @@ final class ProviderEventRuntime extends ChangeNotifier {
       onStatusChanged: notifyListeners,
     );
     await twitch!.start();
+    await botWhispers?.stop();
+    botWhispers = null;
+    final bot = await TwitchAccountAuthService(
+      dataService: dataService,
+    ).loadAccount('bot');
+    final botToken = bot?.config['accessToken']?.toString() ?? '';
+    final botId = bot?.config['twitchId']?.toString() ?? '';
+    if (botToken.isNotEmpty && botId.isNotEmpty && botId != broadcasterId) {
+      final botTransport = JsonHttpTransport(
+        baseUrl: 'https://api.twitch.tv',
+        accessToken: botToken,
+        headers: {'Client-Id': twitchClientId},
+      );
+      botWhispers = TwitchEventSubWorker(
+        accessToken: botToken,
+        clientId: twitchClientId,
+        broadcasterId: botId,
+        request: botTransport.request,
+        eventHub: eventHub,
+        onStatusChanged: notifyListeners,
+        subscriptions: [
+          TwitchEventSubSubscription(
+            type: 'user.whisper.message',
+            version: '1',
+            condition: {'user_id': botId},
+          ),
+        ],
+      );
+      await botWhispers!.start();
+    }
     notifyListeners();
   }
 
   Future<void> stopTwitch() async {
     await twitch?.stop();
+    await botWhispers?.stop();
+    botWhispers = null;
     twitch = null;
     notifyListeners();
   }
@@ -264,6 +297,8 @@ final class ProviderEventRuntime extends ChangeNotifier {
 
   Future<void> stop() async {
     await twitch?.stop();
+    await botWhispers?.stop();
+    botWhispers = null;
     await youtube?.stop();
     twitch = null;
     youtube = null;

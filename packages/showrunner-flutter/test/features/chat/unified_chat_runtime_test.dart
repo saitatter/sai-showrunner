@@ -119,6 +119,65 @@ void main() {
       'isChatSponsor': true,
     },
   };
+  test('external Twitch moderation is scoped by channel and viewer', () async {
+    hub.emit('chat', twitch('one'));
+    hub.emit('chat', {
+      ...twitch('two'),
+      'broadcaster_user_id': 'other-channel',
+    });
+    await Future<void>.delayed(Duration.zero);
+    hub.emit('twitchChatDeleted', {
+      'broadcaster_user_id': 'channel',
+      'message_id': 'one',
+    });
+    await Future<void>.delayed(Duration.zero);
+    expect(runtime.messages.first.deleted, isTrue);
+    expect(runtime.messages.last.deleted, isFalse);
+    hub.emit('twitchChatCleared', {'broadcaster_user_id': 'other-channel'});
+    await Future<void>.delayed(Duration.zero);
+    expect(runtime.messages.last.deleted, isTrue);
+  });
+  test(
+    'whispers can trigger opted-in commands without entering public history',
+    () async {
+      await runtime.close();
+      final contexts = <Map<String, dynamic>>[];
+      runtime = UnifiedChatRuntime(
+        eventHub: hub,
+        dataService: data,
+        registryFuture: Future.value(registry),
+        commands: ChatCommandManager(
+          repository: CommandRepository(root),
+          execute: (_, context) async => contexts.add(context),
+        ),
+      );
+      await runtime.start();
+      await runtime.commands.save(
+        ChatCommand(
+          id: 'private',
+          name: 'Private',
+          pattern: '!private',
+          automationFile: 'private.yaml',
+          origins: {ChatOrigin.whisper, ChatOrigin.botWhisper},
+        ),
+      );
+      for (final recipient in ['channel', 'bot']) {
+        hub.emit('twitchWhisper', {
+          'whisper_id': recipient,
+          'to_user_id': recipient,
+          'from_user_id': 'viewer',
+          'from_user_name': 'Viewer',
+          'whisper': {'text': '!private'},
+        });
+      }
+      for (var i = 0; i < 100 && contexts.length < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(contexts.map((c) => c['origin']), ['whisper', 'botWhisper']);
+      expect(contexts.map((c) => c['channelId']), ['channel', 'channel']);
+      expect(runtime.messages, isEmpty);
+    },
+  );
   test(
     'includes paid YouTube messages from their dedicated event streams',
     () async {

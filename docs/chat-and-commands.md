@@ -15,21 +15,43 @@ empty; a configured pattern enforces the chosen filter mode.
 The first matching enabled command wins, including when its permission or cooldown
 rejects execution. Use the up/down buttons to set priority. Command mode requires
 a token boundary (`!go` does not match `!good`); Exact, Starts With and Contains
-are literal alternatives. Case sensitivity is optional. Argument parsing supports
+are literal alternatives. Regex supports numbered/named capture groups, runs in a
+separate isolate and is terminated after 250 ms; patterns are limited to 2,048
+characters and input to 4,096. Case sensitivity is optional. Argument parsing supports
 words, quoted strings with escapes, or the entire remainder. Malformed quoted
 arguments and insufficient arguments are rejected before reserving cooldowns.
 
 Permissions use provider roles: everyone, subscriber/member, VIP, moderator and
 broadcaster. Moderators and broadcasters satisfy subscriber and VIP restrictions.
-User identity includes its platform. Global cooldowns span aliases and platforms;
-user cooldowns span aliases for that platform/user. Cooldowns also apply to the
-broadcaster and reset when the application restarts. Bot-account messages are
-excluded using configured account identities, rather than a message-supplied flag.
+The minimum role is combined with an optional Allow/Deny rule. Within that rule,
+selected roles, platform-qualified users (`twitch:123`, `youtube:UC...`) and viewer
+groups are alternatives. An empty Allow rule permits everyone who meets the minimum;
+an empty Deny rule denies nobody. Existing Viewer Data groups supply membership;
+unqualified group user IDs are Twitch IDs. A missing group fails closed.
+
+Global cooldowns span aliases and platforms; user cooldowns span aliases for that
+platform/user. Both reset at application restart. Broadcasters obey permissions
+and cooldowns unless **Broadcaster bypass** is enabled; a bypassed invocation still
+reserves the next cooldown for other viewers. Bot/internal inputs are ignored by
+default, using configured account identities rather than message-supplied flags.
+Select Chat, Shared Chat, Whisper, Bot Whisper, Subscription or Internal sources
+explicitly. Whisper sources dispatch commands privately and never enter public
+history or the dock. Internal inputs require opting in to both the source and flag.
+Group labels organize command search; Include in list controls graph list results.
 
 Accepted, queued, failed and per-user counters persist separately from authoring
 definitions. A queued count confirms enqueueing, not successful graph completion;
 inspect Queues for execution results. Counters are reserved before enqueueing and
 remain consumed if enqueueing fails. Reset counters does not reset cooldowns.
+Separate controls reset user counters or cooldowns (all or one platform:user ID).
+Persistence switches independently control total and per-user counters on restart;
+counts remain available for the current session when persistence is disabled.
+
+The **Chat Commands** graph plugin exposes List, Get, Enable/Disable, Delete and
+counter/cooldown reset actions. Triggers report additions, updates, deletion,
+accepted commands, cooldowns, permission/configuration rejection, enqueue failure
+and resets; each can filter by command ID. Disabling this plugin also disables
+managed command dispatch. Regex captures are in the `captures` context map.
 
 Definitions are in `chat-commands.json` (version 1); counters are in
 `state/chat-command-counters.json`. Unsupported or malformed files fail visibly
@@ -53,7 +75,8 @@ Twitch global/channel emote names can be loaded with **Load Twitch emotes**.
 Built-in emoji shortcuts work on either platform. Emote images and third-party
 catalogs are not yet supported. Paid YouTube messages use their dedicated event
 streams and appear as text. YouTube deletion events and successful local deletions
-update history; external Twitch moderation synchronization is still open work.
+update history. External Twitch message deletion, room clear and user-message clear
+also update history, scoped to the originating channel.
 
 Use **Copy OBS dock URL**, then OBS **Docks > Custom Browser Docks**. The dock is
 served locally by ShowRunner, includes history/composer/moderation and requires
@@ -66,7 +89,10 @@ restoration. This is a control dock, not a transparent stream overlay.
 
 Use the existing Twitch and YouTube settings; no new API key is needed for the
 dock. Twitch deletion needs `moderator:manage:chat_messages`; reconnect an account
-authorized before that scope was added. Moderation requires the authenticated
+authorized before that scope was added. Private command sources additionally need
+`user:read:whispers`; reauthorize both the channel and a separately configured bot.
+Bot whispers use their own authenticated EventSub connection, whose status is
+shown in Chat. Shared Chat and subscription text use existing chat notifications. Moderation requires the authenticated
 identity to match the moderator used by the API and to hold channel permissions.
 YouTube needs an active `liveChatId` and a suitably authorized account. Its quick
 timeout is temporary (60 seconds); unban requires a ban ID and remains in the

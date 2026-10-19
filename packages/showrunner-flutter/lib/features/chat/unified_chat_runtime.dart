@@ -38,6 +38,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
   final _seen = <String>{};
   final _botIds = <ChatPlatform, Set<String>>{};
   String _liveChatId = '';
+  String _twitchChannelId = '';
   bool _closed = false;
   Object? error;
   final List<ChatEmote> emotes = [
@@ -107,6 +108,64 @@ final class UnifiedChatRuntime extends ChangeNotifier {
         if (message != null) ingest(message);
       }),
     );
+    _subscriptions.add(
+      eventHub.stream('twitchWhisper').listen((event) {
+        final whisper = event['whisper'];
+        final text = whisper is Map ? whisper['text'] : null;
+        if (text is! String || text.isEmpty) return;
+        final message = ChatMessage.fromTwitch(
+          {
+            ...event,
+            'message': text,
+            'message_id': event['whisper_id'],
+            'chatter_user_id': event['from_user_id'],
+            'chatter_user_name': event['from_user_name'],
+            'broadcaster_user_id': _twitchChannelId.isEmpty
+                ? event['to_user_id']
+                : _twitchChannelId,
+          },
+          origin:
+              (_botIds[ChatPlatform.twitch]?.contains(event['to_user_id']) ??
+                  false)
+              ? ChatOrigin.botWhisper
+              : ChatOrigin.whisper,
+          botIds: _botIds[ChatPlatform.twitch] ?? {},
+        );
+        if (message != null) ingest(message);
+      }),
+    );
+    _subscriptions.add(
+      eventHub
+          .stream('twitchChatDeleted')
+          .listen(
+            (event) => markDeleted(
+              ChatPlatform.twitch,
+              '${event['message_id'] ?? ''}',
+              channelId: event['broadcaster_user_id']?.toString(),
+            ),
+          ),
+    );
+    _subscriptions.add(
+      eventHub
+          .stream('twitchChatCleared')
+          .listen(
+            (event) => markUserDeleted(
+              ChatPlatform.twitch,
+              channelId: event['broadcaster_user_id']?.toString(),
+            ),
+          ),
+    );
+    _subscriptions.add(
+      eventHub
+          .stream('twitchUserChatCleared')
+          .listen(
+            (event) => markUserDeleted(
+              ChatPlatform.twitch,
+              channelId: event['broadcaster_user_id']?.toString(),
+              userId: event['target_user_id']?.toString(),
+            ),
+          ),
+    );
     for (final eventId in ['chatMessage', 'superChat', 'superSticker']) {
       _subscriptions.add(
         eventHub.stream(eventId).listen((event) {
@@ -138,9 +197,12 @@ final class UnifiedChatRuntime extends ChangeNotifier {
       dataService: dataService,
     ).loadAccount('bot');
     final youtube = await dataService.loadPluginSettings('youtube');
+    _twitchChannelId = twitch['broadcasterId']?.toString() ?? '';
     _botIds[ChatPlatform.twitch] = {
       if (bot?.config['twitchId'] case final String id when id.isNotEmpty) id,
-      if (twitch['moderatorId'] case final String id when id.isNotEmpty) id,
+      if (twitch['moderatorId'] case final String id
+          when id.isNotEmpty && id != _twitchChannelId)
+        id,
     };
     _botIds[ChatPlatform.youtube] = {
       if (youtube['channelId'] case final String id when id.isNotEmpty) id,
@@ -153,11 +215,20 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     if (_closed) return;
     if (message.id.isNotEmpty && !_seen.add(message.identity)) return;
     if (_seen.length > 4096) _seen.remove(_seen.first);
+    if (message.origin == ChatOrigin.whisper ||
+        message.origin == ChatOrigin.botWhisper) {
+      _dispatchCommand(message);
+      return; // Private inputs never enter the public history, dock or overlay.
+    }
     _messages.add(message);
     while (_messages.length > historyLimit) {
       _messages.removeAt(0);
     }
     notifyListeners();
+    _dispatchCommand(message);
+  }
+
+  void _dispatchCommand(ChatMessage message) {
     unawaited(
       commands.handle(message).catchError((Object failure) {
         error = failure;
@@ -171,11 +242,30 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     notifyListeners();
   }
 
-  void markDeleted(ChatPlatform platform, String id) {
+  void markUserDeleted(
+    ChatPlatform platform, {
+    String? channelId,
+    String? userId,
+  }) {
+    if (channelId == null || channelId.isEmpty) return;
+    for (var i = 0; i < _messages.length; i++) {
+      final message = _messages[i];
+      if (message.platform == platform &&
+          message.channelId == channelId &&
+          (userId == null || message.userId == userId)) {
+        _messages[i] = message.markDeleted();
+      }
+    }
+    if (!_closed) notifyListeners();
+  }
+
+  void markDeleted(ChatPlatform platform, String id, {String? channelId}) {
     if (id.isEmpty) return;
     for (var i = 0; i < _messages.length; i++) {
       final message = _messages[i];
-      if (message.platform == platform && message.id == id) {
+      if (message.platform == platform &&
+          message.id == id &&
+          (channelId == null || message.channelId == channelId)) {
         _messages[i] = message.markDeleted();
       }
     }

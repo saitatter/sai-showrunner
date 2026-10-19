@@ -35,6 +35,24 @@ List<TwitchEventSubSubscription> defaultTwitchEventSubSubscriptions(
     version: '1',
     condition: {'broadcaster_user_id': broadcasterId, 'user_id': broadcasterId},
   ),
+  for (final type in [
+    'channel.chat.message_delete',
+    'channel.chat.clear',
+    'channel.chat.clear_user_messages',
+  ])
+    TwitchEventSubSubscription(
+      type: type,
+      version: '1',
+      condition: {
+        'broadcaster_user_id': broadcasterId,
+        'user_id': broadcasterId,
+      },
+    ),
+  TwitchEventSubSubscription(
+    type: 'user.whisper.message',
+    version: '1',
+    condition: {'user_id': broadcasterId},
+  ),
   TwitchEventSubSubscription(
     type: 'channel.chat.notification',
     version: '1',
@@ -457,6 +475,10 @@ final class TwitchEventSubWorker {
     final type = subscription['type']?.toString();
     final eventId = switch (type) {
       'channel.chat.message' => 'chat',
+      'channel.chat.message_delete' => 'twitchChatDeleted',
+      'channel.chat.clear' => 'twitchChatCleared',
+      'channel.chat.clear_user_messages' => 'twitchUserChatCleared',
+      'user.whisper.message' => 'twitchWhisper',
       'channel.chat.notification' =>
         event['notice_type'] == 'first_message' ? 'firstTimeChat' : 'chat',
       'channel.ban' =>

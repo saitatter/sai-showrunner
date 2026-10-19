@@ -35,7 +35,7 @@ Existing live-test limits are recorded in `docs/testing/`.
 
 | Capability | Current ShowRunner evidence | Missing or partial | Priority |
 | --- | --- | --- | --- |
-| Managed chat commands | Development: Chat Commands workspace, shared Twitch/YouTube runtime, aliases, literal matching, argument parsers, roles, cooldowns, persisted counters and named queues | Advanced permission rules, regex, additional command sources, grouping and automation-facing management events/actions remain. See focused comparison below. | P1 |
+| Managed chat commands | Development: Chat Commands workspace, shared Twitch/YouTube runtime, aliases, bounded regex/captures, argument parsers, Allow/Deny roles/users/groups, selectable sources, cooldowns, persistence switches, grouping and graph management events/actions | Internal sources require an explicit runtime producer; live whisper authorization remains unverified. See focused comparison below. | P1 |
 | Unified chat client | Development: shared Twitch/YouTube history/composer, built-in moderation, emote-name suggestions and authenticated local OBS dock | Rich emotes, command menus, configurable quick actions, highlights, multi-send and full provider moderation synchronization remain. | P1 |
 | Kick | No Flutter provider, OAuth/runtime, manifest or UI identified | Native chat, moderation, platform events and platform-state integration. | P1 if multistreaming |
 | Donation/commerce integrations | DonorDrive exists; generic HTTP endpoints exist | No native StreamElements, Streamlabs, Ko-Fi, Fourthwall, Patreon, Throne, Shopify, StreamLoots or TipeeeStream integration identified. Generic endpoints require users to implement mappings/auth themselves. | P1 for selected providers |
@@ -65,15 +65,15 @@ belong in Chat Commands. Fixture coverage is not live-account certification.
 
 | Area | Development implementation | Remaining work relative to Streamer.bot |
 | --- | --- | --- |
-| Matching and arguments | Token, exact, prefix, contains; case sensitivity; words, quotes or remainder | Regex/capture groups; command grouping and inclusion in public command lists |
-| Permissions | Provider roles checked before cooldown reservation | Allow/Deny rules for named users and custom groups; configurable exemptions |
-| Cooldowns and counters | Shared alias/platform global cooldown, platform-specific user cooldown; persisted total/user counters | Reset-cooldown actions, separate user-counter reset, persistence switches; Streamer.bot exempts broadcasters whereas ours currently applies cooldowns to them |
-| Command sources | Twitch and YouTube chat messages; configured bot identities excluded | Whispers, bot whispers, subscription/re-subscription text, explicit Shared Chat selection and internal loopback controls; Kick deferred |
-| Automation integration | Saved automation and selected queue; command/user/message context and counters | Dedicated command-triggered/cooldown events and command-management graph actions |
+| Matching and arguments | Token, exact, prefix, contains and bounded regex/captures; case sensitivity; argument parsers; grouping and list inclusion | No additional matching gap identified in the compared settings |
+| Permissions | Minimum roles plus Allow/Deny roles, platform users and persisted viewer groups; explicit broadcaster bypass | Live account roles still need provider validation |
+| Cooldowns and counters | Alias/platform global and per-user cooldowns; separate reset actions, persistence switches and configurable broadcaster bypass | Cooldowns intentionally reset on restart |
+| Command sources | Twitch/YouTube chat; explicit Shared Chat, subscription text, channel/bot whisper sources; bot/internal switches | Live whisper authorization unverified; internal injection has no public endpoint; Kick deferred |
+| Automation integration | Saved automation/queue, context/counters/captures, lifecycle triggers and list/get/enable/delete/reset actions | Graph actions do not create/edit definitions |
 | Sending | Selected platform; Twitch channel identity | Multi-send, account selection, keyboard routing, native reply threads |
 | Suggestions | Built-in emoji and fetched Twitch emote names | Slash/action and managed-command menus; emote images, YouTube/7TV/BTTV/FFZ catalogs |
 | Quick actions | Reply, copy, user search, delete, timeout, ban and Twitch unban | Configurable global/user/message/event actions; exact user identity view and richer user cards |
-| History and appearance | Session history, platform filters/search, deleted markers, local dock | Highlights, mentions, event feed, pause/scroll controls, full external deletion/clear synchronization; configurable fonts, direction, timestamps, avatars, badges and animated emotes |
+| History and appearance | Session history, platform filters/search, deleted markers, local dock | Highlights, mentions, event feed, pause/scroll controls, external Twitch delete/clear synchronization; configurable fonts, direction, timestamps, avatars, badges and animated emotes |
 | Ignore rules | Search and platform filtering only | Per-user and literal/regex ignore rules; hiding detected command messages; explicit policy for hiding versus preventing command execution |
 | OBS | Authenticated loopback dock with composer and moderation | Preferences sync, overlay mode and styling controls; direct OBS/CEF verification remains separate |
 

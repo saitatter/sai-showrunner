@@ -5,6 +5,8 @@ import 'dart:io';
 import 'dart:async';
 
 import '../../runtime/expression.dart';
+import '../../features/chat/command_manager.dart';
+import '../../features/chat/command_plugin.dart';
 import '../../graph/runtime/graph_execution_engine.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/http_provider_transports.dart';

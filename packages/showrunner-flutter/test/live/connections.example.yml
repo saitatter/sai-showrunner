@@ -105,6 +105,41 @@ scenarios:
     expect: {value: "42"}
   # Add one enabled scenario for each live action you want to test.
   # The exact action IDs and configuration fields are in docs/testing/node-catalog.json.
+  - name: "Chat Commands: List Chat Commands"
+    enabled: false
+    plugin: "chatCommands"
+    action: "list"
+    config: {"includedOnly":true}
+  - name: "Chat Commands: Get Chat Command and Counters"
+    enabled: false
+    plugin: "chatCommands"
+    action: "get"
+    config: {"commandId":""}
+  - name: "Chat Commands: Enable or Disable Chat Command"
+    enabled: false
+    plugin: "chatCommands"
+    action: "setEnabled"
+    config: {"commandId":"","enabled":true}
+  - name: "Chat Commands: Reset Chat Command Counters"
+    enabled: false
+    plugin: "chatCommands"
+    action: "resetCounters"
+    config: {"commandId":""}
+  - name: "Chat Commands: Reset Chat Command User Counters"
+    enabled: false
+    plugin: "chatCommands"
+    action: "resetUserCounters"
+    config: {"commandId":""}
+  - name: "Chat Commands: Reset Chat Command Cooldowns"
+    enabled: false
+    plugin: "chatCommands"
+    action: "resetCooldowns"
+    config: {"commandId":""}
+  - name: "Chat Commands: Delete Chat Command"
+    enabled: false
+    plugin: "chatCommands"
+    action: "delete"
+    config: {"commandId":""}
   - name: "Heart Rate: Connect Preferred Device"
     enabled: false
     plugin: "heartrate"

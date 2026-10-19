@@ -141,6 +141,14 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                     'YouTube: ${widget.providerEvents.youtubeState.name}',
                   ),
                 ),
+                if (widget.providerEvents.botWhispers case final worker?)
+                  Tooltip(
+                    message:
+                        worker.lastError?.toString() ?? 'Private command input',
+                    child: Chip(
+                      label: Text('Bot whispers: ${worker.state.name}'),
+                    ),
+                  ),
                 TextButton(
                   onPressed: runtime.clearHistory,
                   child: const Text('Clear local history'),
