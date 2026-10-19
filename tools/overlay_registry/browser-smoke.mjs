@@ -16,8 +16,8 @@ if (!existsSync(join(dist, 'overlay.html'))) throw new Error('Build the overlay 
 const profile = mkdtempSync(join(tmpdir(), 'showrunner-browser-smoke-'));
 const dockToken = 'isolated-browser-smoke-token';
 const dockMessages = [
-  {identity:'twitch:channel:1', platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', isOwner:false, deleted:false},
-  {identity:'youtube:live:2', platform:'youtube', viewerId:'same-id', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', isOwner:false, deleted:false},
+  {identity:'twitch:channel:1', platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', parts:[{text:'Hello '},{text:'from',imageUrl:'https://static-cdn.jtvnw.net/probe.png'},{text:' '},{text:'Twitch',imageUrl:'https://static-cdn.jtvnw.net/missing.png'}], isOwner:false, deleted:false},
+  {identity:'youtube:live:2', platform:'youtube', viewerId:'same-id', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', parts:[{text:'<script>window.chatXss=true</script>',imageUrl:'javascript:window.chatXss=true'}], isOwner:false, deleted:false},
 ];
 let dockPreferences = {version:1,fontSize:14,font:'system',timestamps:false,newestFirst:false,alternatingRows:false,platformIcons:true,roleBadges:true,animatedEmotes:true,hideCommands:false,preventIgnoredCommands:false,ignoredUsers:[],highlightedUsers:[],highlightedRoles:[],highlightTerms:[],ignoreRules:[]};
 const dockRequests = [];
@@ -72,6 +72,11 @@ try {
     if (message.id && pending.has(message.id)) {
       const handler = pending.get(message.id); pending.delete(message.id); clearTimeout(handler.timer);
       message.error ? handler.reject(new Error(JSON.stringify(message.error))) : handler.resolve(message.result);
+    } else if (message.method === 'Fetch.requestPaused') {
+      void send('Fetch.fulfillRequest', {requestId:message.params.requestId,
+        responseCode:message.params.request.url.endsWith('/missing.png') ? 404 : 200,
+        responseHeaders:[{name:'Content-Type',value:'image/png'}],
+        body:message.params.request.url.endsWith('/missing.png') ? '' : 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPYNfX/fwAHqQNOBH0anwAAAABJRU5ErkJggg=='}).catch(error => errors.push(String(error)));
     } else if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails);
     else if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') errors.push(message.params.args);
   });
@@ -109,9 +114,13 @@ try {
   mkdirSync(join(root, '.tmp/overlay-browser'), {recursive:true});
   writeFileSync(join(root, '.tmp/overlay-browser/report.json'), JSON.stringify({...proof, updated:true, stopped:true},null,2));
   console.log('Browser DOM, WebGL, update, removal and shutdown passed:', JSON.stringify(proof));
+  await send('Fetch.enable', {patterns:[{urlPattern:'https://static-cdn.jtvnw.net/*'}]});
   await send('Page.navigate', {url:`http://127.0.0.1:${server.address().port}/chat-dock#${dockToken}`});
   for (let attempt = 0; !(await evaluate('document.querySelectorAll("article").length === 2')); attempt++) {
     if (attempt > 100) throw new Error('Chat dock did not load shared history.'); await pause(100);
+  }
+  for (let attempt=0; !(await evaluate('document.querySelector("article img.emote")?.naturalWidth > 0 && document.querySelectorAll("article img.emote").length === 1')); attempt++) {
+    if(attempt>100) throw new Error('Rich emote image or failed-image text fallback did not render: ' + await evaluate('JSON.stringify([...document.querySelectorAll("article img")].map(i=>({src:i.src,width:i.naturalWidth,complete:i.complete})))')); await pause(50);
   }
   if (await evaluate('Boolean(window.chatXss) || document.querySelector("article b") !== null')) throw new Error('Chat dock interpreted a message or user name as HTML.');
   await evaluate(`document.querySelector('#filter').value='twitch'; document.querySelector('#filter').dispatchEvent(new Event('change'))`);

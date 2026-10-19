@@ -106,6 +106,13 @@ queue and verifies resolved viewer/message/argument values. The native fixture
 creates and executes a global shortcut and displays a public follow event;
 Chromium verifies global/message/event requests and escaped event text.
 
+Rich-emote fixtures cover provider parsing, channel/platform scope, Twitch
+fragments with punctuation, trusted HTTPS hosts, animation/static selection,
+public-catalog caching and partial provider failure. The widget proof verifies
+image semantics and disabled-animation text fallback. Chromium intercepts CDN
+requests with a generated PNG and an empty 404, verifying actual image decoding,
+failed-image fallback and rejection of a malicious image URL without live CDN I/O.
+
 The Chromium overlay smoke proof also exercises the chat dock with isolated mock
 HTTP APIs: two-provider history, text escaping, filters, routing, emoji and reply.
 These fixtures make no live provider calls and do not verify OBS/CEF itself.

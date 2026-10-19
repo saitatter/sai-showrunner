@@ -76,12 +76,25 @@ a separate bot sender is not yet exposed in this workspace.
 For YouTube, the active provider worker's chat takes precedence over the saved
 liveChatId, including a broadcast discovered through the YouTube workspace.
 
-Twitch global/channel emote names can be loaded with **Load Twitch emotes**.
-Built-in emoji shortcuts work on either platform. Emote images and third-party
-catalogs are not yet supported. Paid YouTube messages use their dedicated event
-streams and appear as text. YouTube deletion events and successful local deletions
-update history. External Twitch message deletion, room clear and user-message clear
-also update history, scoped to the originating channel.
+Use **Load twitch/youtube emotes** for the selected composer platform. Twitch
+native fragments render provider emotes directly; loaded catalogs add names and
+images from Twitch global/channel, 7TV, BetterTTV and FrankerFaceZ (Twitch only).
+7TV/BTTV use the selected platform's configured channel ID. Built-in emoji work
+without accounts. Public catalogs are cached for 15 minutes; provider failures
+are reported separately and do not prevent other catalogs loading.
+
+Emote names match case-sensitively in messages. Native fragments take precedence,
+then Twitch > 7TV > BTTV > FFZ, with channel entries ahead of globals. Images use
+approved HTTPS CDN hosts, preserve text for copy/accessibility and fall back to
+text on failure. Disabling animation chooses a static image where available;
+animated entries without a supplied static asset fall back to their name.
+YouTube's public live-chat API does not expose a native custom-emoji catalog or
+Super Sticker image URLs, so those remain text; Unicode and third-party catalogs
+still work. See [YouTube's resource contract](https://developers.google.com/youtube/data/live/reference/rest/v3/liveChatMessages).
+
+Paid YouTube messages use their dedicated event streams. YouTube deletion events
+and successful local deletions update history. External Twitch message deletion,
+room clear and user-message clear update history scoped to their channel.
 
 Use **Copy OBS dock URL**, then OBS **Docks > Custom Browser Docks**. The dock is
 served locally by ShowRunner, includes history/composer/moderation and requires

@@ -6,6 +6,7 @@ import 'chat_completion.dart';
 import 'chat_preferences_dialog.dart';
 import 'chat_actions_dialog.dart';
 import 'configured_chat_action.dart';
+import 'chat_message_body.dart';
 import 'unified_chat_runtime.dart';
 import 'chat_dock_service.dart';
 
@@ -294,8 +295,8 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                 TextButton(
                   onPressed: _busy
                       ? null
-                      : () => _run(runtime.loadTwitchEmotes),
-                  child: const Text('Load Twitch emotes'),
+                      : () => _run(() => runtime.loadEmotes(_destination)),
+                  child: Text('Load ${_destination.name} emotes'),
                 ),
                 TextButton.icon(
                   onPressed: () =>
@@ -311,6 +312,21 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                   InputChip(
                     label: Text('User: $_userIdentity'),
                     onDeleted: () => setState(() => _userIdentity = null),
+                  ),
+                if (runtime.emoteCatalog.status.isNotEmpty)
+                  Tooltip(
+                    message: runtime.emoteCatalog.status.entries
+                        .map((e) => '${e.key}: ${e.value}')
+                        .join('\n'),
+                    child: Chip(
+                      label: Text(
+                        runtime.emoteCatalog.status.values.any(
+                              (s) => s == 'unavailable',
+                            )
+                            ? 'Emotes: some catalogs unavailable'
+                            : 'Emote catalogs loaded',
+                      ),
+                    ),
                   ),
                 if (widget.dock != null)
                   TextButton(
@@ -456,8 +472,9 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                                       : null,
                                 ),
                           ),
-                          subtitle: SelectableText(
-                            message.deleted ? 'Message deleted' : message.text,
+                          subtitle: ChatMessageBody(
+                            parts: runtime.messageParts(message),
+                            animate: preferences.animatedEmotes,
                             style: TextStyle(
                               fontSize: preferences.fontSize,
                               color: preferences.highlights(message)

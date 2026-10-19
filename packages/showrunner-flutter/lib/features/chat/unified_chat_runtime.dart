@@ -12,14 +12,11 @@ import 'chat_message.dart';
 import 'chat_completion.dart';
 import 'chat_preferences.dart';
 import 'configured_chat_action.dart';
+import 'chat_emote.dart';
+import 'chat_emote_catalog.dart';
 import 'command_manager.dart';
 
 enum ChatQuickAction { deleteMessage, timeout, ban, unban }
-
-final class ChatEmote {
-  const ChatEmote(this.name, this.text);
-  final String name, text;
-}
 
 final class UnifiedChatRuntime extends ChangeNotifier {
   UnifiedChatRuntime({
@@ -29,9 +26,11 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     required this.commands,
     this.youtubeLiveChatId,
     this.executeAction,
+    ChatEmoteCatalog? emoteCatalog,
     this.historyLimit = 500,
-  });
+  }) : emoteCatalog = emoteCatalog ?? ChatEmoteCatalog();
 
+  final ChatEmoteCatalog emoteCatalog;
   final DartPluginEventHub eventHub;
   final ShowRunnerDataService dataService;
   final Future<DartPluginRegistry> registryFuture;
@@ -272,48 +271,60 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     });
   }
 
-  Future<void> loadTwitchEmotes() async {
-    final settings = await loadTwitchChannelSettings(dataService);
+  List<ChatTextPart> messageParts(ChatMessage message) =>
+      chatMessageParts(message, emotes);
+
+  Future<void> loadTwitchEmotes() => loadEmotes(ChatPlatform.twitch);
+  Future<void> loadEmotes(ChatPlatform platform) async {
+    final settings = platform == ChatPlatform.twitch
+        ? await loadTwitchChannelSettings(dataService)
+        : await dataService.loadPluginSettings('youtube');
+    final channel =
+        settings[platform == ChatPlatform.twitch
+                ? 'broadcasterId'
+                : 'channelId']
+            ?.toString() ??
+        '';
     final token = settings['accessToken']?.toString() ?? '';
     final clientId = settings['clientId']?.toString() ?? '';
-    final channel = settings['broadcasterId']?.toString() ?? '';
-    if (token.isEmpty || clientId.isEmpty || channel.isEmpty) {
-      throw StateError('Connect Twitch before loading its emotes.');
-    }
     final transport = JsonHttpTransport(
       baseUrl: 'https://api.twitch.tv',
       accessToken: token,
       headers: {'Client-Id': clientId},
     );
-    final responses = await Future.wait([
-      transport.request('GET', '/helix/chat/emotes/global', {}, null),
-      transport.request('GET', '/helix/chat/emotes', {
-        'broadcaster_id': channel,
-      }, null),
-    ]);
-    final names = <String>{};
-    for (final response in responses) {
-      for (final item in (response['data'] as List? ?? []).whereType<Map>()) {
-        final name = item['name'];
-        if (name is String && name.isNotEmpty) names.add(name);
-      }
-    }
-    if (_closed) return;
-    emotes.removeWhere((e) => !e.name.startsWith(':'));
-    emotes.addAll(
-      (names.toList()..sort()).map((name) => ChatEmote(name, name)),
+    final loaded = await emoteCatalog.load(
+      platform,
+      channel,
+      twitch:
+          platform == ChatPlatform.twitch &&
+              token.isNotEmpty &&
+              clientId.isNotEmpty
+          ? (path, query) => transport.request('GET', path, query, null)
+          : null,
     );
+    if (_closed) return;
+    emotes.removeWhere((e) => e.platform == platform);
+    emotes.addAll(loaded);
     notifyListeners();
   }
 
-  List<ChatEmote> suggestEmotes(String prefix, ChatPlatform platform) => emotes
-      .where(
-        (emote) =>
-            (platform == ChatPlatform.twitch || emote.name.startsWith(':')) &&
-            emote.name.toLowerCase().startsWith(prefix.toLowerCase()),
-      )
-      .take(12)
-      .toList();
+  List<ChatEmote> emotesFor(ChatPlatform platform) {
+    final names = <String>{};
+    return [
+      for (final emote in emotes)
+        if (emote.supports(platform) && names.add(emote.name)) emote,
+    ];
+  }
+
+  List<ChatEmote> suggestEmotes(String prefix, ChatPlatform platform) =>
+      emotesFor(platform)
+          .where(
+            (emote) =>
+                emote.supports(platform) &&
+                emote.name.toLowerCase().startsWith(prefix.toLowerCase()),
+          )
+          .take(12)
+          .toList();
 
   List<ChatCompletion> composerCompletions(ChatPlatform platform) => [
     ...chatLocalActions,
@@ -324,9 +335,8 @@ final class UnifiedChatRuntime extends ChangeNotifier {
         'action',
       ),
     ...commandCompletions(commands.commands, platform),
-    for (final emote in emotes)
-      if (platform == ChatPlatform.twitch || emote.name.startsWith(':'))
-        ChatCompletion(emote.text, emote.name, 'emote'),
+    for (final emote in emotesFor(platform))
+      ChatCompletion(emote.text, emote.name, 'emote'),
   ];
 
   Future<void>? _starting;
