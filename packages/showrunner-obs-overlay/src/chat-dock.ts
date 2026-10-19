@@ -1,7 +1,10 @@
 import "./chat-dock.css"
 
-type Message = { identity: string; platform: string; viewerName: string; message: string; isOwner: boolean; deleted: boolean }
+type Message = { identity: string; platform: string; viewerName: string; message: string; isOwner: boolean; deleted: boolean; highlighted?: boolean; time?: string; isModerator?: boolean }
 type Emote = { name: string; text: string }
+type Preferences = { fontSize: number; font: string; timestamps: boolean; newestFirst: boolean; alternatingRows: boolean; platformIcons: boolean; roleBadges: boolean }
+let preferences: Preferences = { fontSize: 14, font: "system", timestamps: false, newestFirst: false, alternatingRows: false, platformIcons: true, roleBadges: true }
+let storedPreferences: Record<string, unknown> | undefined
 type Completion = { text: string; label: string; kind: string }
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 const history = element<HTMLElement>("messages")
@@ -29,10 +32,16 @@ async function request(path: string, body?: unknown) {
 function render() {
   const atBottom = history.scrollHeight - history.scrollTop - history.clientHeight < 50
   history.replaceChildren()
-  for (const message of messages.filter(m => (!filter.value || m.platform === filter.value) && (!pausedIdentities || pausedIdentities.has(m.identity)) && (!userIdentity || userKey(m) === userIdentity))) {
+  const visible = messages.filter(m => (!filter.value || m.platform === filter.value) && (!pausedIdentities || pausedIdentities.has(m.identity)) && (!userIdentity || userKey(m) === userIdentity))
+  if (preferences.newestFirst) visible.reverse()
+  history.style.fontSize = `${preferences.fontSize}px`
+  history.style.fontFamily = preferences.font === "system" ? "system-ui, sans-serif" : preferences.font
+  history.classList.toggle("alternating", preferences.alternatingRows)
+  for (const message of visible) {
     const row = document.createElement("article")
+    row.classList.toggle("highlighted", message.highlighted === true)
     const title = document.createElement("strong")
-    title.textContent = `${message.platform} · ${message.viewerName}`
+    title.textContent = `${preferences.timestamps && message.time ? new Date(message.time).toLocaleTimeString() + " " : ""}${preferences.platformIcons ? message.platform + " - " : ""}${message.viewerName}${preferences.roleBadges ? message.isOwner ? " - owner" : message.isModerator ? " - moderator" : "" : ""}`
     const text = document.createElement("p")
     text.textContent = message.deleted ? "Message deleted" : message.message
     const actions = document.createElement("select")
@@ -54,7 +63,7 @@ function render() {
     })
     row.append(title, actions, text); history.append(row)
   }
-  if (atBottom) history.scrollTop = history.scrollHeight
+  if (atBottom && !preferences.newestFirst) history.scrollTop = history.scrollHeight
 }
 filter.addEventListener("change", () => { userIdentity = undefined; render() })
 function insertCompletion(index: number) {
@@ -112,8 +121,9 @@ form.addEventListener("submit", async event => {
 })
 async function poll() {
   try {
-    const snapshot = await request("/api/chat") as { messages: Message[]; emotes: Emote[]; completions?: Record<string, Completion[]> }
-    const next = JSON.stringify(snapshot.messages)
+    const snapshot = await request("/api/chat") as { messages: Message[]; emotes: Emote[]; preferences?: Preferences & Record<string, unknown>; completions?: Record<string, Completion[]> }
+    const next = JSON.stringify([snapshot.messages, snapshot.preferences])
+    if (snapshot.preferences) { preferences = snapshot.preferences; storedPreferences = snapshot.preferences }
     emotes = snapshot.emotes
     completions = snapshot.completions ?? {}
     if (next !== signature) { signature = next; messages = snapshot.messages; render() }
@@ -121,4 +131,26 @@ async function poll() {
   } catch (error) { status.textContent = String(error) }
   setTimeout(poll, 1000)
 }
+element("preferences-toggle").addEventListener("click", () => {
+  const panel = element("preferences"); panel.hidden = !panel.hidden
+  element("preferences-toggle").setAttribute("aria-expanded", String(!panel.hidden))
+  element<HTMLSelectElement>("chat-font").value = preferences.font
+  element<HTMLInputElement>("font-size").value = String(preferences.fontSize)
+  element<HTMLInputElement>("timestamps").checked = preferences.timestamps
+  element<HTMLInputElement>("newest-first").checked = preferences.newestFirst
+  element<HTMLInputElement>("alternating-rows").checked = preferences.alternatingRows
+})
+element("save-preferences").addEventListener("click", async () => {
+  if (!storedPreferences) { status.textContent = "Chat preferences have not loaded yet."; return }
+  const size = element<HTMLInputElement>("font-size").valueAsNumber
+  if (!Number.isFinite(size) || size < 10 || size > 28) { status.textContent = "Font size must be between 10 and 28."; return }
+  const button = element<HTMLButtonElement>("save-preferences"); button.disabled = true
+  try {
+    await request("/api/preferences", { ...storedPreferences, fontSize: size, font: element<HTMLSelectElement>("chat-font").value,
+      timestamps: element<HTMLInputElement>("timestamps").checked, newestFirst: element<HTMLInputElement>("newest-first").checked,
+      alternatingRows: element<HTMLInputElement>("alternating-rows").checked })
+    status.textContent = "Preferences saved."
+  } catch (error) { status.textContent = String(error) }
+  finally { button.disabled = false }
+})
 void poll()

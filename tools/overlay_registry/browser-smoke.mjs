@@ -19,15 +19,17 @@ const dockMessages = [
   {identity:'twitch:channel:1', platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', isOwner:false, deleted:false},
   {identity:'youtube:live:2', platform:'youtube', viewerId:'same-id', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', isOwner:false, deleted:false},
 ];
+let dockPreferences = {version:1,fontSize:14,font:'system',timestamps:false,newestFirst:false,alternatingRows:false,platformIcons:true,roleBadges:true,animatedEmotes:true,hideCommands:false,preventIgnoredCommands:false,ignoredUsers:[],highlightedUsers:[],highlightedRoles:[],highlightTerms:[],ignoreRules:[]};
 const dockRequests = [];
 const server = createServer(async (request, response) => {
   const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname).replace(/^\/overlays(?=\/assets\/)/, '');
   if (pathname.startsWith('/api/')) {
     if (request.headers['x-showrunner-chat'] !== dockToken) {response.writeHead(401); response.end(); return;}
     response.setHeader('Content-Type', 'application/json');
-    if (pathname === '/api/chat') {response.end(JSON.stringify({messages:dockMessages, completions:{twitch:[{text:'!hello',label:'!hello - Hello',kind:'command'},{text:'!hi',label:'!hi - Hello',kind:'command'},{text:'/pause',label:'/pause',kind:'action'},{text:'/resume',label:'/resume',kind:'action'},{text:'\u{1f600}',label:':smile:',kind:'emote'}],youtube:[{text:'\u{1f600}',label:':smile:',kind:'emote'}]}, emotes:[{name:':smile:',text:'😀'}]})); return;}
+    if (pathname === '/api/chat') {response.end(JSON.stringify({messages:dockMessages, preferences:dockPreferences, completions:{twitch:[{text:'!hello',label:'!hello - Hello',kind:'command'},{text:'!hi',label:'!hi - Hello',kind:'command'},{text:'/pause',label:'/pause',kind:'action'},{text:'/resume',label:'/resume',kind:'action'},{text:'\u{1f600}',label:':smile:',kind:'emote'}],youtube:[{text:'\u{1f600}',label:':smile:',kind:'emote'}]}, emotes:[{name:':smile:',text:'😀'}]})); return;}
     let body = ''; for await (const chunk of request) body += chunk;
     dockRequests.push({path:pathname, ...JSON.parse(body)});
+    if (pathname === '/api/preferences') dockPreferences = JSON.parse(body);
     response.end(JSON.stringify({ok:true})); return;
   }
   const file = pathname.startsWith('/assets/') ? resolve(dist, '.' + pathname) : join(dist, pathname === '/chat-dock' ? 'chat-dock.html' : 'overlay.html');
@@ -139,6 +141,10 @@ try {
   await pause(50);
   if (!(await evaluate(`document.querySelector('#messages').textContent.includes('Incoming during pause')`))) throw new Error('Resumed dock did not show arrivals.');
   if (dockRequests.length !== 1) throw new Error('Local slash actions leaked to provider send endpoint.');
+  await evaluate(`document.querySelector('#preferences-toggle').click(); document.querySelector('#font-size').value='18'; document.querySelector('#newest-first').checked=true; document.querySelector('#save-preferences').click()`);
+  for (let attempt=0; dockPreferences.fontSize !== 18; attempt++) { if(attempt>100) throw new Error('Dock preferences did not save.'); await pause(50); }
+  await pause(1100);
+  if (!(await evaluate(`document.querySelector('#messages').style.fontSize === '18px' && document.querySelector('article').textContent.includes('Incoming during pause')`))) throw new Error('Dock preferences did not sync font and history direction.');
   const screenshot = await send('Page.captureScreenshot', {format:'png'});
   writeFileSync(join(root, '.tmp/overlay-browser/chat-dock.png'), Buffer.from(screenshot.data, 'base64'));
   if (errors.length) throw new Error(`Chat dock browser exceptions: ${JSON.stringify(errors)}`);

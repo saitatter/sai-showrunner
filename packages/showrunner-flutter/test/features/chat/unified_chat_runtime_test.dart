@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/chat/chat_command.dart';
+import 'package:showrunner_flutter/features/chat/chat_preferences.dart';
 import 'package:showrunner_flutter/features/chat/chat_message.dart';
 import 'package:showrunner_flutter/features/chat/command_manager.dart';
 import 'package:showrunner_flutter/features/chat/unified_chat_runtime.dart';
@@ -119,6 +120,101 @@ void main() {
       'isChatSponsor': true,
     },
   };
+  test(
+    'unsupported persisted preferences remain intact and cannot be overwritten',
+    () async {
+      await data.savePluginSettings('chat', {'version': 99, 'unknown': 'keep'});
+      final second = UnifiedChatRuntime(
+        eventHub: hub,
+        dataService: data,
+        registryFuture: Future.value(registry),
+        commands: ChatCommandManager(
+          repository: CommandRepository(
+            await Directory('${root.path}/other').create(),
+          ),
+          execute: (_, _) async {},
+        ),
+      );
+      await second.start();
+      expect(second.error, isFormatException);
+      await expectLater(
+        second.savePreferences(ChatPreferences()),
+        throwsStateError,
+      );
+      expect(await data.loadPluginSettings('chat'), {
+        'version': 99,
+        'unknown': 'keep',
+      });
+      await second.close();
+    },
+  );
+  test(
+    'ignores hide by stable identity without blocking commands unless selected',
+    () async {
+      await runtime.commands.save(
+        ChatCommand(
+          id: 'probe',
+          name: 'Probe',
+          pattern: '!probe',
+          automationFile: 'a.yaml',
+        ),
+      );
+      await runtime.savePreferences(
+        ChatPreferences(ignoredUsers: {'twitch:viewer'}),
+      );
+      hub.emit('chat', twitch('hidden', text: '!probe'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await runtime.filtersSettled;
+      expect(runtime.messages, isEmpty);
+      expect(runtime.commands.countersFor('probe').dispatched, 1);
+      await runtime.savePreferences(
+        ChatPreferences(
+          ignoredUsers: {'twitch:viewer'},
+          preventIgnoredCommands: true,
+        ),
+      );
+      hub.emit('chat', twitch('blocked', text: '!probe'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await runtime.filtersSettled;
+      expect(runtime.commands.countersFor('probe').accepted, 1);
+      await runtime.savePreferences(
+        ChatPreferences(
+          highlightTerms: ['!PROBE'],
+          fontSize: 18,
+          timestamps: true,
+        ),
+      );
+      expect(runtime.messages, hasLength(2));
+      expect(runtime.preferences.highlights(runtime.messages.first), isTrue);
+      expect((await data.loadPluginSettings('chat'))['fontSize'], 18);
+    },
+  );
+  test(
+    'bounded ignore regex and command detection are shared with public history',
+    () async {
+      await runtime.commands.save(
+        ChatCommand(
+          id: 'probe',
+          name: 'Probe',
+          pattern: '!probe',
+          automationFile: 'a.yaml',
+        ),
+      );
+      await runtime.savePreferences(
+        ChatPreferences(
+          hideCommands: true,
+          ignoreRules: [ChatIgnoreRule(ChatRuleMode.regex, r'^spam\d+$')],
+        ),
+      );
+      hub.emit('chat', twitch('spam', text: 'spam42'));
+      hub.emit('chat', twitch('command', text: '!probe'));
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      await runtime.filtersSettled;
+      expect(runtime.messages, isEmpty);
+      await runtime.savePreferences(ChatPreferences());
+      expect(runtime.messages.map((m) => m.text), ['spam42', '!probe']);
+    },
+  );
   test(
     'command menus respect visibility, platform, enabled state and sources',
     () async {

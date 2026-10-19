@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
@@ -9,6 +10,7 @@ import '../../services/showrunner_data_service.dart';
 import '../../services/http_provider_transports.dart';
 import 'chat_message.dart';
 import 'chat_completion.dart';
+import 'chat_preferences.dart';
 import 'command_manager.dart';
 
 enum ChatQuickAction { deleteMessage, timeout, ban, unban }
@@ -42,13 +44,101 @@ final class UnifiedChatRuntime extends ChangeNotifier {
   String _twitchChannelId = '';
   bool _closed = false;
   Object? error;
+  ChatPreferences preferences = ChatPreferences();
+  bool _preferencesValid = true;
+  int _changingPreferences = 0;
+  final _hidden = <String>{};
+  final _pending = <String>{};
+  Future<void> _filterTail = Future.value();
+  Future<void> get filtersSettled => _filterTail;
   final List<ChatEmote> emotes = [
     const ChatEmote(':smile:', '😀'),
     const ChatEmote(':heart:', '❤️'),
     const ChatEmote(':wave:', '👋'),
     const ChatEmote(':party:', '🎉'),
   ];
-  List<ChatMessage> get messages => List.unmodifiable(_messages);
+  List<ChatMessage> get messages => List.unmodifiable(
+    _messages.where(
+      (message) =>
+          !_hidden.contains(message.identity) &&
+          !_pending.contains(message.identity),
+    ),
+  );
+
+  Future<void> savePreferences(ChatPreferences next) async {
+    if (!_preferencesValid) {
+      throw StateError(
+        'Existing chat preferences are invalid and were preserved.',
+      );
+    }
+    if (_closed) throw StateError('Chat runtime is closed.');
+    _changingPreferences++;
+    final saved = _filterTail
+        .then((_) async {
+          final hidden = <String>{};
+          for (final message in List<ChatMessage>.of(_messages)) {
+            if (await _isIgnored(message, policy: next)) {
+              hidden.add(message.identity);
+            }
+          }
+          await dataService.savePluginSettings('chat', next.toJson());
+          preferences = next;
+          _hidden
+            ..clear()
+            ..addAll(hidden);
+          if (!_closed) notifyListeners();
+        })
+        .whenComplete(() => _changingPreferences--);
+    _filterTail = saved.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    await saved;
+  }
+
+  Future<bool> _isIgnored(
+    ChatMessage message, {
+    ChatPreferences? policy,
+  }) async {
+    final settings = policy ?? preferences;
+    if (await settings.ignores(message)) return true;
+    if (settings.hideCommands) {
+      for (final command in commands.commands) {
+        if (command.enabled &&
+            command.platforms.contains(message.platform) &&
+            command.origins.contains(message.origin) &&
+            await command.matchAsync(message.text) != null) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void _filterAndDispatch(ChatMessage message, {required bool isPublic}) {
+    if (!preferences.hasIgnores && _changingPreferences == 0) {
+      _dispatchCommand(message);
+      return;
+    }
+    if (isPublic) _pending.add(message.identity);
+    _filterTail = _filterTail.then((_) async {
+      var ignored = true;
+      try {
+        ignored = await _isIgnored(message);
+      } catch (failure) {
+        error = failure;
+      }
+      if (_closed) return;
+      _pending.remove(message.identity);
+      if (ignored && _messages.any((m) => m.identity == message.identity)) {
+        _hidden.add(message.identity);
+      }
+      if (!ignored || !preferences.preventIgnoredCommands) {
+        _dispatchCommand(message);
+      }
+      notifyListeners();
+    });
+  }
 
   Future<void> loadTwitchEmotes() async {
     final settings = await loadTwitchChannelSettings(dataService);
@@ -107,6 +197,18 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     if (_subscriptions.isNotEmpty || _closed) return;
     await refreshIdentities();
     await commands.load();
+    try {
+      final saved = await dataService.loadPluginSettings('chat');
+      if (saved.isNotEmpty ||
+          await File(
+            '${dataService.settingsDirectory.path}/chat.yaml',
+          ).exists()) {
+        preferences = ChatPreferences.fromJson(saved);
+      }
+    } catch (failure) {
+      _preferencesValid = false;
+      error = failure;
+    }
     if (_closed) return;
     _subscriptions.add(
       eventHub.stream('chat').listen((event) {
@@ -226,15 +328,17 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     if (_seen.length > 4096) _seen.remove(_seen.first);
     if (message.origin == ChatOrigin.whisper ||
         message.origin == ChatOrigin.botWhisper) {
-      _dispatchCommand(message);
+      _filterAndDispatch(message, isPublic: false);
       return; // Private inputs never enter the public history, dock or overlay.
     }
     _messages.add(message);
     while (_messages.length > historyLimit) {
-      _messages.removeAt(0);
+      final removed = _messages.removeAt(0);
+      _hidden.remove(removed.identity);
+      _pending.remove(removed.identity);
     }
+    _filterAndDispatch(message, isPublic: true);
     notifyListeners();
-    _dispatchCommand(message);
   }
 
   void _dispatchCommand(ChatMessage message) {
@@ -248,6 +352,8 @@ final class UnifiedChatRuntime extends ChangeNotifier {
 
   void clearHistory() {
     _messages.clear();
+    _hidden.clear();
+    _pending.clear();
     notifyListeners();
   }
 
@@ -378,6 +484,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     }
     await Future.wait(_subscriptions.map((s) => s.cancel()));
     _subscriptions.clear();
+    await _filterTail;
     await commands.close();
     dispose();
   }
