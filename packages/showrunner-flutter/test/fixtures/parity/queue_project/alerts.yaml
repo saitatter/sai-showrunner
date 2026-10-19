@@ -1,0 +1,4 @@
+name: Alerts
+paused: false
+gap: 250
+timeout: 30000

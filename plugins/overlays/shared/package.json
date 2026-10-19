@@ -1,21 +1,18 @@
 {
-	"name": "showrunner-plugin-overlays-shared",
-	"version": "1.0.0",
-	"description": "",
-	"main": "src/main.ts",
-	"devMain": "src/main.ts",
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
-	"author": "",
-	"license": "ISC",
-	"devDependencies": {
-		"typescript": "*"
-	},
-	"dependencies": {
-		"axios": "*",
-		"showrunner-core": "workspace:^",
-		"showrunner-plugin-sound-shared": "workspace:^",
-		"showrunner-schema": "workspace:^"
-	}
+  "name": "showrunner-plugin-overlays-shared",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/main.ts",
+  "devMain": "src/main.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "showrunner-schema": "workspace:^"
+  }
 }

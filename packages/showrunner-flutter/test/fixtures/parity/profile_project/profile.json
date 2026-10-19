@@ -1,0 +1,109 @@
+{
+  "name": "Parity Profile",
+  "activationMode": "toggle",
+  "activationCondition": {
+    "type": "literal",
+    "value": true
+  },
+  "triggers": [
+    {
+      "id": "profile-chat",
+      "automation": {
+        "schemaVersion": 1,
+        "id": "7246962d41f72a533cf84d2a15930b18",
+        "graph": {
+          "schemaVersion": 1,
+          "id": "7246962d41f72a533cf84d2a15930b18",
+          "spaces": {
+            "space:main": {
+              "id": "space:main",
+              "nodes": {
+                "profile-chat-source": {
+                  "id": "profile-chat-source",
+                  "type": "trigger:twitch/chat",
+                  "data": {
+                    "config": {},
+                    "stop": false
+                  },
+                  "metadata": {}
+                }
+              },
+              "connections": {},
+              "nodePresentations": {
+                "profile-chat-source": {
+                  "nodeId": "profile-chat-source",
+                  "position": {
+                    "x": 80.0,
+                    "y": 80.0
+                  },
+                  "size": null,
+                  "title": null,
+                  "collapsed": false,
+                  "metadata": {}
+                }
+              },
+              "connectionPresentations": {},
+              "frames": {},
+              "comments": {},
+              "metadata": {}
+            }
+          },
+          "metadata": {}
+        },
+        "subgraphs": {},
+        "settings": {
+          "entryNodeId": "profile-chat-source"
+        },
+        "metadata": {}
+      }
+    }
+  ],
+  "activationAutomation": {
+    "schemaVersion": 1,
+    "id": "profile-activation",
+    "graph": {
+      "schemaVersion": 1,
+      "id": "profile-activation",
+      "spaces": {
+        "space:main": {
+          "id": "space:main",
+          "nodes": {},
+          "connections": {},
+          "nodePresentations": {},
+          "connectionPresentations": {},
+          "frames": {},
+          "comments": {},
+          "metadata": {}
+        }
+      },
+      "metadata": {}
+    },
+    "subgraphs": {},
+    "settings": {},
+    "metadata": {}
+  },
+  "deactivationAutomation": {
+    "schemaVersion": 1,
+    "id": "profile-deactivation",
+    "graph": {
+      "schemaVersion": 1,
+      "id": "profile-deactivation",
+      "spaces": {
+        "space:main": {
+          "id": "space:main",
+          "nodes": {},
+          "connections": {},
+          "nodePresentations": {},
+          "connectionPresentations": {},
+          "frames": {},
+          "comments": {},
+          "metadata": {}
+        }
+      },
+      "metadata": {}
+    },
+    "subgraphs": {},
+    "settings": {},
+    "metadata": {}
+  }
+}

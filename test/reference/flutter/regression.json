@@ -1,0 +1,27 @@
+{
+  "baselineRoot": "test/reference/flutter/reviewed",
+  "screens": [
+    {
+      "file": "overlay-inspector-label.png",
+      "region": [
+        1088,
+        210,
+        352,
+        345
+      ],
+      "channelThreshold": 3,
+      "maxDifference": 0.5
+    },
+    {
+      "file": "overlay-inspector-font.png",
+      "region": [
+        780,
+        340,
+        660,
+        430
+      ],
+      "channelThreshold": 3,
+      "maxDifference": 0.5
+    }
+  ]
+}

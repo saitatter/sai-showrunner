@@ -1,0 +1,75 @@
+param(
+  [Parameter(Mandatory = $true)]
+  [string]$BundlePath
+)
+
+$ErrorActionPreference = 'Stop'
+
+if (-not (Test-Path -LiteralPath $BundlePath -PathType Container)) {
+  throw "Windows bundle was not found: $BundlePath"
+}
+
+$root = Join-Path ([IO.Path]::GetTempPath()) "showrunner-sign-test-$([guid]::NewGuid().ToString('N'))"
+$testBundle = Join-Path $root 'bundle'
+$pfxPath = Join-Path $root 'test-signing.pfx'
+$passwordText = 'showrunner-local-sign-test'
+$password = ConvertTo-SecureString $passwordText -AsPlainText -Force
+$certificate = $null
+
+try {
+  New-Item -ItemType Directory -Force -Path $testBundle | Out-Null
+  Copy-Item -Path (Join-Path $BundlePath '*') -Destination $testBundle -Recurse -Force
+
+  $certificate = New-SelfSignedCertificate `
+    -Subject 'CN=ShowRunner local signing test' `
+    -Type CodeSigningCert `
+    -CertStoreLocation 'Cert:\CurrentUser\My'
+  Export-PfxCertificate -Cert $certificate -FilePath $pfxPath -Password $password | Out-Null
+  $certificateBase64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($pfxPath))
+
+  & (Join-Path $PSScriptRoot 'sign-flutter-windows.ps1') `
+    -BundlePath $testBundle `
+    -CertificateBase64 $certificateBase64 `
+    -CertificatePassword $passwordText
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  $targets = @(
+    Get-ChildItem -LiteralPath $testBundle -Recurse -File |
+      Where-Object { $_.Extension -in @('.exe', '.dll') }
+  )
+  $unsigned = @(
+    $targets |
+      Where-Object {
+        (Get-AuthenticodeSignature -LiteralPath $_.FullName).Status -eq 'NotSigned'
+      }
+  )
+  if ($unsigned.Count -gt 0) {
+    throw "The self-signed Windows proof left unsigned files: $($unsigned.FullName -join ', ')"
+  }
+  Write-Host "Windows signing proof passed for $($targets.Count) bundle files."
+
+  Push-Location (Join-Path $PSScriptRoot '..\packages\showrunner-flutter')
+  try {
+    $dartExecutable = (Get-Command dart -ErrorAction Stop).Source
+    $previousErrorPreference = $ErrorActionPreference
+    try {
+      # Windows PowerShell 5 treats benign native stderr (Dart build hooks) as
+      # an error record. The native exit code still decides whether proof passed.
+      $ErrorActionPreference = 'Continue'
+      & $dartExecutable run tool/update_smoke.dart "--bundle=$testBundle" '--require-signature'
+      $updaterExitCode = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousErrorPreference
+    }
+    if ($updaterExitCode -ne 0) {
+      throw "Signed updater proof failed with exit code $updaterExitCode."
+    }
+  } finally {
+    Pop-Location
+  }
+} finally {
+  if ($certificate) {
+    Remove-Item -LiteralPath "Cert:\CurrentUser\My\$($certificate.Thumbprint)" -Force -ErrorAction SilentlyContinue
+  }
+  Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+}

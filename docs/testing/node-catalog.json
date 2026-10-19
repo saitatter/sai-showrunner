@@ -1,0 +1,5802 @@
+{
+  "schemaVersion": 1,
+  "plugins": [
+    {
+      "id": "heartrate",
+      "name": "Heart Rate",
+      "actions": [
+        {
+          "id": "connectPreferredDevice",
+          "name": "Connect Preferred Device",
+          "config": {
+            "key": null,
+            "label": "Heart Rate configuration",
+            "type": "object"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "disconnect",
+          "name": "Disconnect Heart Rate Device",
+          "config": {
+            "key": null,
+            "label": "Heart Rate configuration",
+            "type": "object"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "startSimulation",
+          "name": "Start Heart Rate Simulation",
+          "config": {
+            "key": null,
+            "label": "Heart Rate simulation",
+            "type": "object",
+            "fields": [
+              {
+                "key": "bpm",
+                "label": "BPM",
+                "type": "number"
+              },
+              {
+                "key": "batteryPercent",
+                "label": "Battery percent",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "stopSimulation",
+          "name": "Stop Heart Rate Simulation",
+          "config": {
+            "key": null,
+            "label": "Heart Rate configuration",
+            "type": "object"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "resetStatistics",
+          "name": "Reset Heart Rate Statistics",
+          "config": {
+            "key": null,
+            "label": "Heart Rate configuration",
+            "type": "object"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "deviceConnected",
+          "name": "Device Connected",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "deviceDisconnected",
+          "name": "Device Disconnected",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "zoneChanged",
+          "name": "Zone Changed",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "above",
+          "name": "Heart Rate Above",
+          "config": {
+            "key": null,
+            "label": "Heart-rate threshold",
+            "type": "object",
+            "fields": [
+              {
+                "key": "threshold",
+                "label": "Threshold (BPM)",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "hysteresis",
+                "label": "Hysteresis (BPM)",
+                "type": "number"
+              },
+              {
+                "key": "cooldownSeconds",
+                "label": "Cooldown (seconds)",
+                "type": "number"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "below",
+          "name": "Heart Rate Below",
+          "config": {
+            "key": null,
+            "label": "Heart-rate threshold",
+            "type": "object",
+            "fields": [
+              {
+                "key": "threshold",
+                "label": "Threshold (BPM)",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "hysteresis",
+                "label": "Hysteresis (BPM)",
+                "type": "number"
+              },
+              {
+                "key": "cooldownSeconds",
+                "label": "Cooldown (seconds)",
+                "type": "number"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
+      "id": "ShowRunner",
+      "name": "ShowRunner",
+      "actions": [
+        {
+          "id": "convertNumberToString",
+          "name": "Convert Number To String",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Number",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "convertBooleanToString",
+          "name": "Convert Boolean To String",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Boolean",
+                "type": "boolean",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "convertStringToNumber",
+          "name": "Convert String To Number",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Text",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "fallback",
+                "label": "Fallback",
+                "type": "number"
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "number"
+              },
+              {
+                "key": "converted",
+                "label": "Converted",
+                "type": "boolean"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "convertBooleanToNumber",
+          "name": "Convert Boolean To Number",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Boolean",
+                "type": "boolean",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "number"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "convertNumberToBoolean",
+          "name": "Convert Number To Boolean",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Number",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "boolean"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "convertStringToBoolean",
+          "name": "Convert String To Boolean",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Text",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "fallback",
+                "label": "Fallback",
+                "type": "boolean"
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "boolean"
+              },
+              {
+                "key": "converted",
+                "label": "Converted",
+                "type": "boolean"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "convertObjectToJsonString",
+          "name": "Convert Object To JSON String",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Object",
+                "type": "object",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "convertArrayToJsonString",
+          "name": "Convert Array To JSON String",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Array",
+                "type": "array",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "convertJsonStringToObject",
+          "name": "Convert JSON String To Object",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "JSON",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "object"
+              },
+              {
+                "key": "converted",
+                "label": "Converted",
+                "type": "boolean"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "convertJsonStringToArray",
+          "name": "Convert JSON String To Array",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "JSON",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "array"
+              },
+              {
+                "key": "converted",
+                "label": "Converted",
+                "type": "boolean"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "addToQueue",
+          "name": "Add to Queue",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "queue",
+                "label": "Queue",
+                "type": "resource",
+                "required": true,
+                "resourceType": "ActionQueue"
+              },
+              {
+                "key": "automation",
+                "label": "Worker Automation",
+                "type": "resource",
+                "required": true,
+                "resourceType": "Automation"
+              },
+              {
+                "key": "payload",
+                "label": "Payload",
+                "type": "object"
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "queued",
+                "label": "Queued",
+                "type": "boolean"
+              },
+              {
+                "key": "queueId",
+                "label": "Queue ID",
+                "type": "text"
+              },
+              {
+                "key": "automationId",
+                "label": "Automation ID",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "completeQueueItem",
+          "name": "Complete Queue Item",
+          "config": null,
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "completed",
+                "label": "Completed",
+                "type": "boolean"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "cancelQueueItem",
+          "name": "Cancel Queue Item",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "queue",
+                "label": "Queue",
+                "type": "resource",
+                "required": true,
+                "resourceType": "ActionQueue"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "clearQueue",
+          "name": "Clear Queue",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "queue",
+                "label": "Queue",
+                "type": "resource",
+                "required": true,
+                "resourceType": "ActionQueue"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "skip",
+          "name": "Queue Skip",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "queue",
+                "label": "Queue",
+                "type": "resource",
+                "required": true,
+                "resourceType": "ActionQueue"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "pause",
+          "name": "Pause Queue",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "queue",
+                "label": "Queue",
+                "type": "resource",
+                "required": true,
+                "resourceType": "ActionQueue"
+              },
+              {
+                "key": "paused",
+                "label": "Paused",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "profileActivation",
+          "name": "Profile Activation",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "profile",
+                "label": "Profile",
+                "type": "resource",
+                "required": true,
+                "resourceType": "Profile"
+              },
+              {
+                "key": "activation",
+                "label": "Activation",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "profileId",
+                "label": "Profile ID",
+                "type": "text"
+              },
+              {
+                "key": "active",
+                "label": "Active",
+                "type": "boolean"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "toggleProfileActivation",
+          "name": "Toggle Profile Activation",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "profile",
+                "label": "Profile",
+                "type": "resource",
+                "required": true,
+                "resourceType": "Profile"
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Returns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "profileId",
+                "label": "Profile ID",
+                "type": "text"
+              },
+              {
+                "key": "active",
+                "label": "Active",
+                "type": "boolean"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "runAutomation",
+          "name": "Run Automation",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "automation",
+                "label": "Worker Automation",
+                "type": "resource",
+                "required": true,
+                "resourceType": "Automation"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "autoRun",
+          "name": "Run On Change",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object"
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "condition",
+          "name": "Condition",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "condition",
+                "label": "Condition",
+                "type": "object",
+                "required": true
+              },
+              {
+                "key": "runImmediately",
+                "label": "Run on enable",
+                "type": "boolean"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
+      "id": "obs",
+      "name": "OBS Studio",
+      "actions": [
+        {
+          "id": "scene",
+          "name": "Change Scene",
+          "config": {
+            "key": null,
+            "label": "Scene configuration",
+            "type": "object",
+            "fields": [
+              {
+                "key": "scene",
+                "label": "Scene",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "prevScene",
+          "name": "Previous Scene",
+          "config": {
+            "key": null,
+            "label": "OBS action",
+            "type": "object"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "hotkey",
+          "name": "Hotkey",
+          "config": {
+            "key": null,
+            "label": "Hotkey configuration",
+            "type": "object",
+            "fields": [
+              {
+                "key": null,
+                "label": "hotkey",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "streamStartStop",
+          "name": "Stream Start/Stop",
+          "config": {
+            "key": null,
+            "label": "OBS Streaming",
+            "type": "object",
+            "fields": [
+              {
+                "key": "streaming",
+                "label": "Streaming",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "recordingStartStop",
+          "name": "Recording Start/Stop",
+          "config": {
+            "key": null,
+            "label": "OBS Recording",
+            "type": "object",
+            "fields": [
+              {
+                "key": "recording",
+                "label": "Recording",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "virtualCamStartStop",
+          "name": "Virtual Cam Start/Stop",
+          "config": {
+            "key": null,
+            "label": "OBS Virtual camera",
+            "type": "object",
+            "fields": [
+              {
+                "key": "virtualCam",
+                "label": "Virtual camera",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "replayBufferStartStop",
+          "name": "Replay Buffer Start/Stop",
+          "config": {
+            "key": null,
+            "label": "OBS Replay buffer",
+            "type": "object",
+            "fields": [
+              {
+                "key": "replayBuffer",
+                "label": "Replay buffer",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "replaySave",
+          "name": "Save Replay Buffer",
+          "config": {
+            "key": null,
+            "label": "OBS action",
+            "type": "object"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "toggleStudioMode",
+          "name": "Toggle Studio Mode",
+          "config": {
+            "key": null,
+            "label": "OBS Studio mode",
+            "type": "object",
+            "fields": [
+              {
+                "key": "studioMode",
+                "label": "Studio mode",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "triggerStudioModeTransition",
+          "name": "Trigger Studio Mode Transition",
+          "config": {
+            "key": null,
+            "label": "OBS action",
+            "type": "object"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "mute",
+          "name": "Mute Source",
+          "config": {
+            "key": null,
+            "label": "OBS mute source",
+            "type": "object",
+            "fields": [
+              {
+                "key": "source",
+                "label": "Source",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "muted",
+                "label": "Muted",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "changeVolume",
+          "name": "Change Volume",
+          "config": {
+            "key": null,
+            "label": "OBS source volume",
+            "type": "object",
+            "fields": [
+              {
+                "key": "source",
+                "label": "Source",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "volume",
+                "label": "Volume (0-100)",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "source",
+          "name": "Source Visibility",
+          "config": {
+            "key": null,
+            "label": "OBS source visibility",
+            "type": "object",
+            "fields": [
+              {
+                "key": "scene",
+                "label": "Scene",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "source",
+                "label": "Source ID",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "enabled",
+                "label": "Visible",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getInputSettings",
+          "name": "Get Input Settings",
+          "config": {
+            "key": null,
+            "label": "Input settings query",
+            "type": "object",
+            "fields": [
+              {
+                "key": "sourceName",
+                "label": "Source name",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setInputSettings",
+          "name": "Set Input Settings",
+          "config": {
+            "key": null,
+            "label": "Input settings",
+            "type": "object",
+            "fields": [
+              {
+                "key": "sourceName",
+                "label": "Source name",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "inputSettings",
+                "label": "Input settings",
+                "type": "object",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "filter",
+          "name": "Filter Visibility",
+          "config": {
+            "key": null,
+            "label": "OBS filter visibility",
+            "type": "object",
+            "fields": [
+              {
+                "key": "sourceName",
+                "label": "Source name",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "filterName",
+                "label": "Filter name",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "filterEnabled",
+                "label": "Enabled",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "text",
+          "name": "Set Source Text",
+          "config": {
+            "key": null,
+            "label": "OBS source text",
+            "type": "object",
+            "fields": [
+              {
+                "key": "sourceName",
+                "label": "Source name",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "text",
+                "label": "Text",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "mediaAction",
+          "name": "Media Controls",
+          "config": {
+            "key": null,
+            "label": "OBS media action",
+            "type": "object",
+            "fields": [
+              {
+                "key": "source",
+                "label": "Source",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "action",
+                "label": "Media action",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "Play",
+                  "Pause",
+                  "Restart",
+                  "Stop",
+                  "Next",
+                  "Previous"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "playMedia",
+          "name": "Play Media",
+          "config": {
+            "key": null,
+            "label": "OBS play media",
+            "type": "object",
+            "fields": [
+              {
+                "key": "scene",
+                "label": "Scene",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "source",
+                "label": "Source ID",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "chapterMarker",
+          "name": "Chapter Marker",
+          "config": {
+            "key": null,
+            "label": "OBS chapter marker",
+            "type": "object",
+            "fields": [
+              {
+                "key": "chapterName",
+                "label": "Chapter name",
+                "type": "text"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "browserUrl",
+          "name": "Set Browser Source URL",
+          "config": {
+            "key": null,
+            "label": "OBS browser URL",
+            "type": "object",
+            "fields": [
+              {
+                "key": "source",
+                "label": "Source",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "url",
+                "label": "URL",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "browserRefresh",
+          "name": "Refresh Browser Source",
+          "config": {
+            "key": null,
+            "label": "OBS browser refresh",
+            "type": "object",
+            "fields": [
+              {
+                "key": "source",
+                "label": "Source",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "refreshBrowser",
+          "name": "Refresh Browser",
+          "config": {
+            "key": null,
+            "label": "OBS browser refresh",
+            "type": "object",
+            "fields": [
+              {
+                "key": "sourceName",
+                "label": "Source name",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setBrowserURL",
+          "name": "Set Browser URL",
+          "config": {
+            "key": null,
+            "label": "OBS browser source URL",
+            "type": "object",
+            "fields": [
+              {
+                "key": "sourceName",
+                "label": "Source name",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "url",
+                "label": "URL",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setImage",
+          "name": "Set Image Source",
+          "config": {
+            "key": null,
+            "label": "OBS image source",
+            "type": "object",
+            "fields": [
+              {
+                "key": "sourceName",
+                "label": "Source name",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "image",
+                "label": "Image",
+                "type": "filePath",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "screenshot",
+          "name": "Screenshot Source",
+          "config": {
+            "key": null,
+            "label": "OBS screenshot",
+            "type": "object",
+            "fields": [
+              {
+                "key": "sourceName",
+                "label": "Source name",
+                "type": "text"
+              },
+              {
+                "key": "width",
+                "label": "Width",
+                "type": "number"
+              },
+              {
+                "key": "height",
+                "label": "Height",
+                "type": "number"
+              },
+              {
+                "key": "directory",
+                "label": "Directory",
+                "type": "filePath",
+                "required": true
+              },
+              {
+                "key": "filename",
+                "label": "Filename",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "transform",
+          "name": "Source Transform",
+          "config": {
+            "key": null,
+            "label": "Source transform",
+            "type": "object",
+            "fields": [
+              {
+                "key": "scene",
+                "label": "Scene",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "source",
+                "label": "Source ID",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "transform",
+                "label": "Transform",
+                "type": "obsTransform",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "OBSConnection",
+          "directory": "obs/connections",
+          "defaultConfig": {
+            "name": "QA resource",
+            "host": "127.0.0.1",
+            "port": 4455,
+            "local": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "aitum",
+      "name": "Aitum",
+      "actions": [
+        {
+          "id": "verticalScene",
+          "name": "Change Vertical Scene",
+          "config": {
+            "key": null,
+            "label": "Aitum vertical scene",
+            "type": "object",
+            "fields": [
+              {
+                "key": "scene",
+                "label": "Scene",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "verticalStreamStartStop",
+          "name": "Vertical Stream Start/Stop",
+          "config": {
+            "key": null,
+            "label": "Aitum vertical control",
+            "type": "object",
+            "fields": [
+              {
+                "key": "streaming",
+                "label": "State",
+                "type": "enumeration",
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "verticalRecordingStartStop",
+          "name": "Vertical Recording Start/Stop",
+          "config": {
+            "key": null,
+            "label": "Aitum vertical control",
+            "type": "object",
+            "fields": [
+              {
+                "key": "streaming",
+                "label": "State",
+                "type": "enumeration",
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "verticalBacktrackStartStop",
+          "name": "Vertical Backtrack Start/Stop",
+          "config": {
+            "key": null,
+            "label": "Aitum vertical control",
+            "type": "object",
+            "fields": [
+              {
+                "key": "streaming",
+                "label": "State",
+                "type": "enumeration",
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "saveBacktrack",
+          "name": "Save Backtrack",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "verticalChapterMarker",
+          "name": "Vertical Chapter Marker",
+          "config": {
+            "key": null,
+            "label": "Aitum chapter marker",
+            "type": "object",
+            "fields": [
+              {
+                "key": "chapterName",
+                "label": "Chapter name",
+                "type": "text"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": []
+    },
+    {
+      "id": "advss",
+      "name": "Advanced Scene Switcher",
+      "actions": [
+        {
+          "id": "AdvSSMessage",
+          "name": "Advanced Scene Switcher Message",
+          "config": {
+            "key": null,
+            "label": "Advanced Scene Switcher message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "advssEvent",
+          "name": "Advanced Scene Switcher Event",
+          "config": {
+            "key": null,
+            "label": "Advanced Scene Switcher event",
+            "type": "object",
+            "fields": [
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
+      "id": "youtube",
+      "name": "YouTube",
+      "actions": [
+        {
+          "id": "sendChatMessage",
+          "name": "Send Chat Message",
+          "config": {
+            "key": null,
+            "label": "YouTube chat message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "liveChatId",
+                "label": "Live chat ID",
+                "type": "text"
+              },
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "deleteMessage",
+          "name": "Delete Chat Message",
+          "config": {
+            "key": null,
+            "label": "YouTube chat message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "messageId",
+                "label": "Message ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "banUser",
+          "name": "Ban User from Chat",
+          "config": {
+            "key": null,
+            "label": "YouTube chat ban",
+            "type": "object",
+            "fields": [
+              {
+                "key": "liveChatId",
+                "label": "Live chat ID",
+                "type": "text"
+              },
+              {
+                "key": "channelId",
+                "label": "Channel ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "banDurationSeconds",
+                "label": "Duration (seconds; 0 = permanent)",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "removeBan",
+          "name": "Unban User from Chat",
+          "config": {
+            "key": null,
+            "label": "YouTube chat ban",
+            "type": "object",
+            "fields": [
+              {
+                "key": "banId",
+                "label": "Ban ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "chatMessage",
+          "name": "Chat Message",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "superChat",
+          "name": "Super Chat",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "superSticker",
+          "name": "Super Sticker",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "membership",
+          "name": "Membership",
+          "config": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
+      "id": "twitch",
+      "name": "Twitch",
+      "actions": [
+        {
+          "id": "createClip",
+          "name": "Create Clip",
+          "config": {
+            "key": null,
+            "label": "Twitch clip",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "createAfterDelay",
+                "label": "Create after delay",
+                "type": "boolean"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "streamMarker",
+          "name": "Place Stream Marker",
+          "config": {
+            "key": null,
+            "label": "Twitch stream marker",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "markerName",
+                "label": "Marker name",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "runAd",
+          "name": "Run Ad",
+          "config": {
+            "key": null,
+            "label": "Twitch ad",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "duration",
+                "label": "Duration (seconds)",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "snoozeAds",
+          "name": "Snooze Ads",
+          "config": {
+            "key": null,
+            "label": "Twitch ad schedule",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "createPrediction",
+          "name": "Create Prediction",
+          "config": {
+            "key": null,
+            "label": "Twitch prediction",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "title",
+                "label": "Title",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "duration",
+                "label": "Duration (seconds)",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "outcomes",
+                "label": "Outcomes",
+                "type": "array",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "chat",
+          "name": "Chat Message",
+          "config": {
+            "key": null,
+            "label": "Twitch chat message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "annoucement",
+          "name": "Make Announcement",
+          "config": {
+            "key": null,
+            "label": "Twitch announcement",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "enumeration",
+                "options": [
+                  "primary",
+                  "blue",
+                  "green",
+                  "orange",
+                  "purple"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "announcement",
+          "name": "Make Announcement",
+          "config": {
+            "key": null,
+            "label": "Twitch announcement",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "enumeration",
+                "options": [
+                  "primary",
+                  "blue",
+                  "green",
+                  "orange",
+                  "purple"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "shoutout",
+          "name": "Shoutout",
+          "config": {
+            "key": null,
+            "label": "Twitch shoutout",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "streamer",
+                "label": "Target broadcaster ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setStreamInfo",
+          "name": "Update Stream Info",
+          "config": {
+            "key": null,
+            "label": "Twitch stream info",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "title",
+                "label": "Title",
+                "type": "text"
+              },
+              {
+                "key": "categoryId",
+                "label": "Category ID",
+                "type": "text"
+              },
+              {
+                "key": "tags",
+                "label": "Tags",
+                "type": "array"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "createPoll",
+          "name": "Create Poll",
+          "config": {
+            "key": null,
+            "label": "Twitch poll",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "title",
+                "label": "Title",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "duration",
+                "label": "Duration (seconds)",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "choices",
+                "label": "Choices",
+                "type": "array",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "startRaid",
+          "name": "Start Raid",
+          "config": {
+            "key": null,
+            "label": "Twitch raid",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "target",
+                "label": "Target broadcaster ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "cancelRaid",
+          "name": "Cancel Raid",
+          "config": {
+            "key": null,
+            "label": "Twitch raid cancellation",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "listChannelPointRewards",
+          "name": "List Channel Point Rewards",
+          "config": {
+            "key": null,
+            "label": "Twitch channel point rewards",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "onlyManageable",
+                "label": "Only manageable rewards",
+                "type": "boolean"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "createChannelPointReward",
+          "name": "Create Channel Point Reward",
+          "config": {
+            "key": null,
+            "label": "Twitch channel point reward",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "title",
+                "label": "Title",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "prompt",
+                "label": "Prompt",
+                "type": "multilineText"
+              },
+              {
+                "key": "backgroundColor",
+                "label": "Background color",
+                "type": "color"
+              },
+              {
+                "key": "cost",
+                "label": "Cost",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "userInputRequired",
+                "label": "User input required",
+                "type": "boolean"
+              },
+              {
+                "key": "skipQueue",
+                "label": "Skip request queue",
+                "type": "boolean"
+              },
+              {
+                "key": "isEnabled",
+                "label": "Enabled",
+                "type": "boolean"
+              },
+              {
+                "key": "maxRedemptionsPerStream",
+                "label": "Max redemptions per stream",
+                "type": "number"
+              },
+              {
+                "key": "maxRedemptionsPerUserPerStream",
+                "label": "Max redemptions per user per stream",
+                "type": "number"
+              },
+              {
+                "key": "cooldown",
+                "label": "Global cooldown (seconds)",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "updateChannelPointReward",
+          "name": "Update Channel Point Reward",
+          "config": {
+            "key": null,
+            "label": "Twitch channel point reward update",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "rewardId",
+                "label": "Reward ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "title",
+                "label": "Title",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "prompt",
+                "label": "Prompt",
+                "type": "multilineText"
+              },
+              {
+                "key": "backgroundColor",
+                "label": "Background color",
+                "type": "color"
+              },
+              {
+                "key": "cost",
+                "label": "Cost",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "userInputRequired",
+                "label": "User input required",
+                "type": "boolean"
+              },
+              {
+                "key": "skipQueue",
+                "label": "Skip request queue",
+                "type": "boolean"
+              },
+              {
+                "key": "isEnabled",
+                "label": "Enabled",
+                "type": "boolean"
+              },
+              {
+                "key": "maxRedemptionsPerStream",
+                "label": "Max redemptions per stream",
+                "type": "number"
+              },
+              {
+                "key": "maxRedemptionsPerUserPerStream",
+                "label": "Max redemptions per user per stream",
+                "type": "number"
+              },
+              {
+                "key": "cooldown",
+                "label": "Global cooldown (seconds)",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "deleteChannelPointReward",
+          "name": "Delete Channel Point Reward",
+          "config": {
+            "key": null,
+            "label": "Twitch channel point reward",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "rewardId",
+                "label": "Reward ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "updateChannelPointRedemption",
+          "name": "Update Channel Point Redemption",
+          "config": {
+            "key": null,
+            "label": "Twitch redemption",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "rewardId",
+                "label": "Reward ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "redemptionId",
+                "label": "Redemption ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "status",
+                "label": "Status",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "FULFILLED",
+                  "CANCELED"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "timeout",
+          "name": "Timeout Viewer",
+          "config": {
+            "key": null,
+            "label": "Twitch timeout",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "viewerId",
+                "label": "Viewer ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "reason",
+                "label": "Reason",
+                "type": "multilineText"
+              },
+              {
+                "key": "duration",
+                "label": "Duration (seconds)",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "ban",
+          "name": "Ban Viewer",
+          "config": {
+            "key": null,
+            "label": "Twitch moderation",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "viewerId",
+                "label": "Viewer ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "reason",
+                "label": "Reason",
+                "type": "multilineText"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "unban",
+          "name": "Unban Viewer",
+          "config": {
+            "key": null,
+            "label": "Twitch moderation",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "viewerId",
+                "label": "Viewer ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "reason",
+                "label": "Reason",
+                "type": "multilineText"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "addViewerToGroup",
+          "name": "Add Viewer to Group",
+          "config": {
+            "key": null,
+            "label": "Twitch viewer group",
+            "type": "object",
+            "fields": [
+              {
+                "key": "group",
+                "label": "Group resource ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "viewer",
+                "label": "Viewer ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "removeViewerFromGroup",
+          "name": "Remove Viewer from Group",
+          "config": {
+            "key": null,
+            "label": "Twitch viewer group",
+            "type": "object",
+            "fields": [
+              {
+                "key": "group",
+                "label": "Group resource ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "viewer",
+                "label": "Viewer ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "clearViewerGroup",
+          "name": "Clear Viewer Group",
+          "config": {
+            "key": null,
+            "label": "Twitch viewer group",
+            "type": "object",
+            "fields": [
+              {
+                "key": "group",
+                "label": "Group resource ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "chat",
+          "name": "Chat Message",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "ban",
+          "name": "Viewer Banned",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "timeout",
+          "name": "Viewer Timed Out",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "adStarted",
+          "name": "adStarted",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "adEnded",
+          "name": "adEnded",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "adSchedule",
+          "name": "adSchedule",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "predictionStarted",
+          "name": "predictionStarted",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "predictionLocked",
+          "name": "predictionLocked",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "predictionSettled",
+          "name": "predictionSettled",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "pollStarted",
+          "name": "pollStarted",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "pollEnded",
+          "name": "pollEnded",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "subscription",
+          "name": "subscription",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "giftedSub",
+          "name": "giftedSub",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "follow",
+          "name": "follow",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "redemption",
+          "name": "redemption",
+          "config": {
+            "key": null,
+            "label": "Twitch redemption trigger",
+            "type": "object",
+            "fields": [
+              {
+                "key": "rewardId",
+                "label": "Reward Twitch ID",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "bits",
+          "name": "bits",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "watchstreak",
+          "name": "watchstreak",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "raid",
+          "name": "raid",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "raidOut",
+          "name": "raidOut",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "raidStarted",
+          "name": "raidStarted",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "raidCanceled",
+          "name": "raidCanceled",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "hypeTrainStarted",
+          "name": "hypeTrainStarted",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "hypeTrainLevelUp",
+          "name": "hypeTrainLevelUp",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "hypeTrainEnded",
+          "name": "hypeTrainEnded",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "firstTimeChat",
+          "name": "firstTimeChat",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "shoutoutSent",
+          "name": "shoutoutSent",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "shoutoutReceived",
+          "name": "shoutoutReceived",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "beforeRaid",
+          "name": "beforeRaid",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "walkon",
+          "name": "walkon",
+          "config": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": [
+        {
+          "type": "CustomTwitchViewerGroup",
+          "directory": "twitch/groups",
+          "defaultConfig": {
+            "name": "QA resource",
+            "userIds": []
+          }
+        },
+        {
+          "type": "TwitchAccount",
+          "directory": "accounts/twitch",
+          "defaultConfig": {
+            "name": "QA resource",
+            "twitchId": "",
+            "isAffiliate": false,
+            "isPartner": false,
+            "email": ""
+          }
+        },
+        {
+          "type": "ChannelPointReward",
+          "directory": "twitch/channelpoints",
+          "defaultConfig": {
+            "name": "QA resource",
+            "twitchId": "",
+            "controllable": true,
+            "transient": false,
+            "allowEnable": true,
+            "rewardData": {
+              "prompt": "",
+              "backgroundColor": "#9147ff",
+              "userInputRequired": false,
+              "cost": 100,
+              "cooldown": null,
+              "maxRedemptionsPerStream": null,
+              "maxRedemptionsPerUserPerStream": null,
+              "skipQueue": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "moderation",
+      "name": "Moderation Docker",
+      "actions": [
+        {
+          "id": "moderateChatMessage",
+          "name": "Filter Chat Message",
+          "config": {
+            "key": null,
+            "label": "Moderation chat message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "platform",
+                "label": "Platform",
+                "type": "text"
+              },
+              {
+                "key": "messageId",
+                "label": "Message ID",
+                "type": "text"
+              },
+              {
+                "key": "viewerId",
+                "label": "Viewer ID",
+                "type": "text"
+              },
+              {
+                "key": "viewerName",
+                "label": "Viewer name",
+                "type": "text"
+              },
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "multilineText",
+                "required": true
+              },
+              {
+                "key": "badges",
+                "label": "Badges (comma-separated)",
+                "type": "text"
+              },
+              {
+                "key": "isModerator",
+                "label": "Moderator",
+                "type": "boolean"
+              },
+              {
+                "key": "isMember",
+                "label": "Member",
+                "type": "boolean"
+              },
+              {
+                "key": "isOwner",
+                "label": "Owner",
+                "type": "boolean"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "sendTestMessage",
+          "name": "Send Test Moderation Event",
+          "config": {
+            "key": null,
+            "label": "Moderation action",
+            "type": "object"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "requestOverride",
+          "name": "Request Moderation Override",
+          "config": {
+            "key": null,
+            "label": "Moderation override",
+            "type": "object",
+            "fields": [
+              {
+                "key": "messageId",
+                "label": "Message ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "action",
+                "label": "Action",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "approve",
+                  "block",
+                  "falsePositive"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": []
+    },
+    {
+      "id": "discord",
+      "name": "Discord",
+      "actions": [
+        {
+          "id": "discordMessage",
+          "name": "Discord Message",
+          "config": {
+            "key": null,
+            "label": "Discord message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "webhook",
+                "label": "Webhook",
+                "type": "resource",
+                "required": true,
+                "resourceType": "DiscordWebhook"
+              },
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "multilineText",
+                "required": true
+              },
+              {
+                "key": "files",
+                "label": "Files",
+                "type": "array"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "DiscordWebhook",
+          "directory": "discord/webhooks",
+          "defaultConfig": {
+            "name": "QA resource",
+            "webhookUrl": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": "bluesky",
+      "name": "BlueSky",
+      "actions": [
+        {
+          "id": "post",
+          "name": "BlueSky Post",
+          "config": {
+            "key": null,
+            "label": "Bluesky post",
+            "type": "object",
+            "fields": [
+              {
+                "key": "account",
+                "label": "Account",
+                "type": "resource",
+                "resourceType": "BlueSkyAccount"
+              },
+              {
+                "key": "identifier",
+                "label": "Identifier",
+                "type": "text"
+              },
+              {
+                "key": "appPassword",
+                "label": "App password",
+                "type": "text",
+                "secret": true
+              },
+              {
+                "key": "text",
+                "label": "Text",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "BlueSkyAccount",
+          "directory": "accounts/bluesky",
+          "defaultConfig": {
+            "name": "QA resource",
+            "identifier": "",
+            "appPassword": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": "donordrive",
+      "name": "Donor Drive",
+      "actions": [],
+      "triggers": [
+        {
+          "id": "donation",
+          "name": "DonorDrive Donation",
+          "config": {
+            "key": null,
+            "label": "DonorDrive donation",
+            "type": "object",
+            "fields": [
+              {
+                "key": "minimumAmount",
+                "label": "Minimum amount",
+                "type": "number"
+              },
+              {
+                "key": "incentive",
+                "label": "Incentives only",
+                "type": "boolean"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "incentive",
+          "name": "DonorDrive Incentive",
+          "config": {
+            "key": null,
+            "label": "DonorDrive incentive",
+            "type": "object",
+            "fields": [
+              {
+                "key": "incentive",
+                "label": "Incentive ID",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "milestone",
+          "name": "DonorDrive Milestone",
+          "config": {
+            "key": null,
+            "label": "DonorDrive milestone",
+            "type": "object",
+            "fields": [
+              {
+                "key": "milestone",
+                "label": "Milestone ID",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
+      "id": "remote",
+      "name": "Remote",
+      "actions": [],
+      "triggers": [
+        {
+          "id": "button",
+          "name": "Remote Button",
+          "config": {
+            "key": null,
+            "label": "Remote button",
+            "type": "object",
+            "fields": [
+              {
+                "key": "name",
+                "label": "Button name",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
+      "id": "voicemod",
+      "name": "Voicemod",
+      "actions": [
+        {
+          "id": "getVoices",
+          "name": "List Voices",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "selectVoice",
+          "name": "Change Voice",
+          "config": {
+            "key": null,
+            "label": "VoiceMod voice",
+            "type": "object",
+            "fields": [
+              {
+                "key": "voice",
+                "label": "Voice ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": []
+    },
+    {
+      "id": "sound",
+      "name": "Sound & TTS",
+      "actions": [
+        {
+          "id": "sound",
+          "name": "Play Sound",
+          "config": {
+            "key": null,
+            "label": "Sound",
+            "type": "object",
+            "fields": [
+              {
+                "key": "output",
+                "label": "Output",
+                "type": "resource",
+                "resourceType": "SoundOutput"
+              },
+              {
+                "key": "sound",
+                "label": "Sound file",
+                "type": "filePath",
+                "required": true
+              },
+              {
+                "key": "volume",
+                "label": "Volume (0-100)",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "startTime",
+                "label": "Start timestamp",
+                "type": "duration",
+                "required": true
+              },
+              {
+                "key": "endTime",
+                "label": "End timestamp",
+                "type": "duration"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "speakTTS",
+          "name": "Speak Text-to-Speech",
+          "config": {
+            "key": null,
+            "label": "Text to Speech",
+            "type": "object",
+            "fields": [
+              {
+                "key": "text",
+                "label": "Text",
+                "type": "multilineText",
+                "required": true
+              },
+              {
+                "key": "output",
+                "label": "Output",
+                "type": "resource",
+                "resourceType": "SoundOutput"
+              },
+              {
+                "key": "voice",
+                "label": "Voice",
+                "type": "resource",
+                "required": true,
+                "resourceType": "TTSVoice"
+              },
+              {
+                "key": "voiceProvider",
+                "label": "Voice provider",
+                "type": "text"
+              },
+              {
+                "key": "volume",
+                "label": "Volume (0-100)",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "pitch",
+                "label": "Pitch (-10 to 10)",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "rate",
+                "label": "Rate (-10 to 10)",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "tts",
+          "name": "Text to Speech",
+          "config": {
+            "key": null,
+            "label": "Text to Speech",
+            "type": "object",
+            "fields": [
+              {
+                "key": "text",
+                "label": "Text",
+                "type": "multilineText",
+                "required": true
+              },
+              {
+                "key": "output",
+                "label": "Output",
+                "type": "resource",
+                "resourceType": "SoundOutput"
+              },
+              {
+                "key": "voice",
+                "label": "Voice",
+                "type": "resource",
+                "required": true,
+                "resourceType": "TTSVoice"
+              },
+              {
+                "key": "voiceProvider",
+                "label": "Voice provider",
+                "type": "text"
+              },
+              {
+                "key": "volume",
+                "label": "Volume (0-100)",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "pitch",
+                "label": "Pitch (-10 to 10)",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "rate",
+                "label": "Rate (-10 to 10)",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "TTSVoice",
+          "directory": "sound/tts",
+          "defaultConfig": {
+            "name": "QA resource",
+            "voiceProvider": "",
+            "providerConfig": {}
+          }
+        },
+        {
+          "type": "AudioSplitterOutput",
+          "directory": "sound/splitters",
+          "defaultConfig": {
+            "name": "QA resource",
+            "type": "splitter",
+            "redirects": []
+          }
+        },
+        {
+          "type": "SoundOutput",
+          "directory": "sound/outputs",
+          "defaultConfig": {
+            "name": "QA resource",
+            "type": "system",
+            "deviceId": "",
+            "isDefault": false
+          }
+        },
+        {
+          "type": "TTSVoiceProvider",
+          "directory": "sound/tts-providers",
+          "defaultConfig": {
+            "name": "QA resource",
+            "provider": "",
+            "providerId": "",
+            "config": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "minecraft",
+      "name": "Minecraft",
+      "actions": [
+        {
+          "id": "mineCmd",
+          "name": "Minecraft RCON Command",
+          "config": {
+            "key": null,
+            "label": "Minecraft command",
+            "type": "object",
+            "fields": [
+              {
+                "key": "server",
+                "label": "Server",
+                "type": "resource",
+                "required": true,
+                "resourceType": "RCONConnection"
+              },
+              {
+                "key": "command",
+                "label": "Command",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "RCONConnection",
+          "directory": "minecraft/connections",
+          "defaultConfig": {
+            "name": "QA resource",
+            "host": "127.0.0.1",
+            "port": 25575
+          }
+        }
+      ]
+    },
+    {
+      "id": "http",
+      "name": "HTTP",
+      "actions": [
+        {
+          "id": "request",
+          "name": "HTTP Request",
+          "config": {
+            "key": null,
+            "label": "HTTP request",
+            "type": "object",
+            "fields": [
+              {
+                "key": "url",
+                "label": "URL",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "method",
+                "label": "Method",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "GET",
+                  "POST",
+                  "PUT",
+                  "PATCH",
+                  "DELETE"
+                ]
+              },
+              {
+                "key": "query",
+                "label": "Query String",
+                "type": "text"
+              },
+              {
+                "key": "contentType",
+                "label": "Content type",
+                "type": "enumeration",
+                "options": [
+                  "application/json",
+                  "application/x-www-form-urlencoded",
+                  "text/plain"
+                ]
+              },
+              {
+                "key": "headers",
+                "label": "Headers (JSON)",
+                "type": "multilineText"
+              },
+              {
+                "key": "body",
+                "label": "Body",
+                "type": "multilineText"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "endpoint",
+          "name": "HTTP Endpoint",
+          "config": {
+            "key": null,
+            "label": "HTTP Endpoint",
+            "type": "object",
+            "fields": [
+              {
+                "key": "method",
+                "label": "Method",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "GET",
+                  "POST",
+                  "DELETE",
+                  "PUT",
+                  "PATCH"
+                ]
+              },
+              {
+                "key": "route",
+                "label": "Route",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
+      "id": "time",
+      "name": "Time",
+      "actions": [
+        {
+          "id": "delay",
+          "name": "Delay",
+          "config": {
+            "key": null,
+            "label": "Delay",
+            "type": "object",
+            "fields": [
+              {
+                "key": "duration",
+                "label": "Duration",
+                "type": "duration",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "toggleTimer",
+          "name": "Toggle Timer",
+          "config": {
+            "key": null,
+            "label": "Toggle timer",
+            "type": "object",
+            "fields": [
+              {
+                "key": "timer",
+                "label": "Timer",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "on",
+                "label": "Start/Stop",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setTimer",
+          "name": "Set Timer",
+          "config": {
+            "key": null,
+            "label": "Timer",
+            "type": "object",
+            "fields": [
+              {
+                "key": "timer",
+                "label": "Timer",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "duration",
+                "label": "Duration",
+                "type": "duration",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "offsetTimer",
+          "name": "Offset Timer",
+          "config": {
+            "key": null,
+            "label": "Timer",
+            "type": "object",
+            "fields": [
+              {
+                "key": "timer",
+                "label": "Timer",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "duration",
+                "label": "Duration",
+                "type": "duration",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "repeat",
+          "name": "Repeat",
+          "config": {
+            "key": null,
+            "label": "Repeat",
+            "type": "object",
+            "fields": [
+              {
+                "key": "delay",
+                "label": "Delay",
+                "type": "duration"
+              },
+              {
+                "key": "interval",
+                "label": "Interval",
+                "type": "duration",
+                "required": true
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "timer",
+          "name": "Timer",
+          "config": {
+            "key": null,
+            "label": "Timer trigger",
+            "type": "object",
+            "fields": [
+              {
+                "key": "timer",
+                "label": "Timer",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "offset",
+                "label": "Time remaining offset",
+                "type": "duration",
+                "required": true
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
+      "id": "os",
+      "name": "Operating System",
+      "actions": [
+        {
+          "id": "powershell",
+          "name": "PowerShell Command",
+          "config": {
+            "key": null,
+            "label": "",
+            "type": "object",
+            "fields": [
+              {
+                "key": "command",
+                "label": "Command",
+                "type": "multilineText",
+                "required": true
+              },
+              {
+                "key": "cwd",
+                "label": "Working Directory",
+                "type": "filePath"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "launchProcess",
+          "name": "Launch Process",
+          "config": {
+            "key": null,
+            "label": "Launch App",
+            "type": "object",
+            "fields": [
+              {
+                "key": "application",
+                "label": "Application",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "dir",
+                "label": "Working Directory",
+                "type": "text"
+              },
+              {
+                "key": "args",
+                "label": "Arguments",
+                "type": "array",
+                "required": true
+              },
+              {
+                "key": "ignoreIfRunning",
+                "label": "Ignore If Already Running",
+                "type": "boolean",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "launch",
+          "name": "Launch App",
+          "config": {
+            "key": null,
+            "label": "Launch App",
+            "type": "object",
+            "fields": [
+              {
+                "key": "application",
+                "label": "Application",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "dir",
+                "label": "Working Directory",
+                "type": "text"
+              },
+              {
+                "key": "args",
+                "label": "Arguments",
+                "type": "array",
+                "required": true
+              },
+              {
+                "key": "ignoreIfRunning",
+                "label": "Ignore If Already Running",
+                "type": "boolean",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": []
+    },
+    {
+      "id": "random",
+      "name": "Random",
+      "actions": [
+        {
+          "id": "random",
+          "name": "Random Decision",
+          "config": {
+            "key": null,
+            "label": "Random range",
+            "type": "object",
+            "fields": [
+              {
+                "key": "min",
+                "label": "Minimum",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "max",
+                "label": "Maximum",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "spinWheel",
+          "name": "Spin Wheel",
+          "config": {
+            "key": null,
+            "label": "Spin wheel",
+            "type": "object",
+            "fields": [
+              {
+                "key": "wheel",
+                "label": "Wheel",
+                "type": "object",
+                "required": true,
+                "fields": [
+                  {
+                    "key": "widgetId",
+                    "label": "Widget ID",
+                    "type": "text",
+                    "required": true
+                  },
+                  {
+                    "key": "overlayId",
+                    "label": "Overlay ID",
+                    "type": "text",
+                    "required": true
+                  }
+                ]
+              },
+              {
+                "key": "strength",
+                "label": "Strength",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "wheelLanded",
+          "name": "Wheel Stopped",
+          "config": {
+            "key": null,
+            "label": "Wheel trigger",
+            "type": "object",
+            "fields": [
+              {
+                "key": "wheel",
+                "label": "Wheel",
+                "type": "object",
+                "required": true,
+                "fields": [
+                  {
+                    "key": "widgetId",
+                    "label": "Widget ID",
+                    "type": "text",
+                    "required": true
+                  },
+                  {
+                    "key": "overlayId",
+                    "label": "Overlay ID",
+                    "type": "text",
+                    "required": true
+                  }
+                ]
+              },
+              {
+                "key": "item",
+                "label": "Item name",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
+      "id": "variables",
+      "name": "Variables",
+      "actions": [
+        {
+          "id": "set",
+          "name": "Set Variable",
+          "config": {
+            "key": null,
+            "label": "Variable",
+            "type": "object",
+            "fields": [
+              {
+                "key": "variable",
+                "label": "Variable",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "multilineText"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "offset",
+          "name": "Offset Variable",
+          "config": {
+            "key": null,
+            "label": "Variable offset",
+            "type": "object",
+            "fields": [
+              {
+                "key": "variable",
+                "label": "Variable",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "offset",
+                "label": "Offset",
+                "type": "number",
+                "required": true
+              },
+              {
+                "key": "clamp",
+                "label": "Clamp",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "min",
+                    "label": "Minimum",
+                    "type": "number"
+                  },
+                  {
+                    "key": "max",
+                    "label": "Maximum",
+                    "type": "number"
+                  }
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setVariable",
+          "name": "Set Variable",
+          "config": {
+            "key": null,
+            "label": "Variable",
+            "type": "object",
+            "fields": [
+              {
+                "key": "variable",
+                "label": "Variable",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "multilineText"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getVariable",
+          "name": "Get Variable",
+          "config": {
+            "key": null,
+            "label": "Variable",
+            "type": "object",
+            "fields": [
+              {
+                "key": "variable",
+                "label": "Variable",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setViewerVar",
+          "name": "Set Viewer Variable",
+          "config": {
+            "key": null,
+            "label": "Viewer variable",
+            "type": "object",
+            "fields": [
+              {
+                "key": "viewer",
+                "label": "Viewer",
+                "type": "object",
+                "required": true,
+                "fields": [
+                  {
+                    "key": "id",
+                    "label": "ID",
+                    "type": "text",
+                    "required": true
+                  },
+                  {
+                    "key": "displayName",
+                    "label": "Display name",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "key": "variable",
+                "label": "Variable",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "value",
+                "label": "Value",
+                "type": "multilineText"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "offsetViewerVar",
+          "name": "Offset Viewer Variable",
+          "config": {
+            "key": null,
+            "label": "Viewer variable offset",
+            "type": "object",
+            "fields": [
+              {
+                "key": "viewer",
+                "label": "Viewer",
+                "type": "object",
+                "required": true,
+                "fields": [
+                  {
+                    "key": "id",
+                    "label": "ID",
+                    "type": "text",
+                    "required": true
+                  },
+                  {
+                    "key": "displayName",
+                    "label": "Display name",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "key": "variable",
+                "label": "Variable",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "offset",
+                "label": "Offset",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "Variable",
+          "directory": "variables",
+          "defaultConfig": {
+            "name": "QA resource",
+            "type": "string",
+            "defaultValue": "",
+            "persistent": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "overlays",
+      "name": "Overlays",
+      "actions": [
+        {
+          "id": "triggerWidget",
+          "name": "Trigger Overlay Widget",
+          "config": {
+            "key": null,
+            "label": "Overlay widget trigger",
+            "type": "object",
+            "fields": [
+              {
+                "key": "widgetId",
+                "label": "Widget ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "overlayId",
+                "label": "Overlay ID",
+                "type": "text"
+              },
+              {
+                "key": "payload",
+                "label": "Payload",
+                "type": "object"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "alert",
+          "name": "Show Alert",
+          "config": {
+            "key": null,
+            "label": "Overlay alert",
+            "type": "object",
+            "fields": [
+              {
+                "key": "alert",
+                "label": "Alert widget",
+                "type": "object",
+                "required": true,
+                "fields": [
+                  {
+                    "key": "widgetId",
+                    "label": "Widget ID",
+                    "type": "text",
+                    "required": true
+                  },
+                  {
+                    "key": "overlayId",
+                    "label": "Overlay ID",
+                    "type": "text",
+                    "required": true
+                  }
+                ]
+              },
+              {
+                "key": "title",
+                "label": "Title",
+                "type": "multilineText",
+                "required": true
+              },
+              {
+                "key": "subtitle",
+                "label": "Subtitle",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "pushChatMessage",
+          "name": "Push Chat Message",
+          "config": {
+            "key": null,
+            "label": "Chat message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "targetWidget",
+                "label": "Target widget",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "widgetId",
+                    "label": "Widget ID",
+                    "type": "text"
+                  },
+                  {
+                    "key": "overlayId",
+                    "label": "Overlay ID",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "key": "messageId",
+                "label": "Message ID",
+                "type": "text"
+              },
+              {
+                "key": "platform",
+                "label": "Platform",
+                "type": "text"
+              },
+              {
+                "key": "viewerName",
+                "label": "Viewer name",
+                "type": "text"
+              },
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "multilineText",
+                "required": true
+              },
+              {
+                "key": "badges",
+                "label": "Badges",
+                "type": "text"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "pushPaidAlert",
+          "name": "Push Paid Alert",
+          "config": {
+            "key": null,
+            "label": "Paid alert",
+            "type": "object",
+            "fields": [
+              {
+                "key": "targetWidget",
+                "label": "Target widget",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "widgetId",
+                    "label": "Widget ID",
+                    "type": "text"
+                  },
+                  {
+                    "key": "overlayId",
+                    "label": "Overlay ID",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "key": "eventId",
+                "label": "Event ID",
+                "type": "text"
+              },
+              {
+                "key": "platform",
+                "label": "Platform",
+                "type": "text"
+              },
+              {
+                "key": "viewerName",
+                "label": "Viewer name",
+                "type": "text"
+              },
+              {
+                "key": "amount",
+                "label": "Amount",
+                "type": "text"
+              },
+              {
+                "key": "currency",
+                "label": "Currency",
+                "type": "text"
+              },
+              {
+                "key": "title",
+                "label": "Title",
+                "type": "text"
+              },
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "multilineText"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "beginSceneOverlay",
+          "name": "Begin Scene Overlay",
+          "config": {
+            "key": null,
+            "label": "Begin scene overlay",
+            "type": "object",
+            "fields": [
+              {
+                "key": "targetWidget",
+                "label": "Target widget",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "widgetId",
+                    "label": "Widget ID",
+                    "type": "text"
+                  },
+                  {
+                    "key": "overlayId",
+                    "label": "Overlay ID",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "key": "sceneKey",
+                "label": "Scene key",
+                "type": "text"
+              },
+              {
+                "key": "title",
+                "label": "Title",
+                "type": "text"
+              },
+              {
+                "key": "subtitle",
+                "label": "Subtitle",
+                "type": "text"
+              },
+              {
+                "key": "accentColor",
+                "label": "Accent color",
+                "type": "color"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "endSceneOverlay",
+          "name": "End Scene Overlay",
+          "config": {
+            "key": null,
+            "label": "End scene overlay",
+            "type": "object",
+            "fields": [
+              {
+                "key": "targetWidget",
+                "label": "Target widget",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "widgetId",
+                    "label": "Widget ID",
+                    "type": "text"
+                  },
+                  {
+                    "key": "overlayId",
+                    "label": "Overlay ID",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "key": "sceneKey",
+                "label": "Scene key",
+                "type": "text"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "spawnEmotes",
+          "name": "Bounce Emotes",
+          "config": {
+            "key": null,
+            "label": "Emote message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "bouncer",
+                "label": "Bouncer widget",
+                "type": "object",
+                "required": true,
+                "fields": [
+                  {
+                    "key": "widgetId",
+                    "label": "Widget ID",
+                    "type": "text",
+                    "required": true
+                  },
+                  {
+                    "key": "overlayId",
+                    "label": "Overlay ID",
+                    "type": "text"
+                  }
+                ]
+              },
+              {
+                "key": "message",
+                "label": "Emote message",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "widgetVisibility",
+          "name": "Widget Visibility",
+          "config": {
+            "key": null,
+            "label": "Widget visibility",
+            "type": "object",
+            "fields": [
+              {
+                "key": "widget",
+                "label": "Widget",
+                "type": "object",
+                "required": true,
+                "fields": [
+                  {
+                    "key": "widgetId",
+                    "label": "Widget ID",
+                    "type": "text",
+                    "required": true
+                  },
+                  {
+                    "key": "overlayId",
+                    "label": "Overlay ID",
+                    "type": "text",
+                    "required": true
+                  }
+                ]
+              },
+              {
+                "key": "enabled",
+                "label": "Visibility",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "Overlay",
+          "directory": "overlays",
+          "defaultConfig": {
+            "name": "QA resource",
+            "size": {
+              "width": 1920,
+              "height": 1080
+            },
+            "widgets": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "spellcast",
+      "name": "Spellcast",
+      "actions": [
+        {
+          "id": "castSpell",
+          "name": "Cast Spell",
+          "config": {
+            "key": "spell",
+            "label": "Spell resource",
+            "type": "resource",
+            "required": true,
+            "resourceType": "SpellHook"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "spellHook",
+          "name": "Spellcast Spell",
+          "config": {
+            "key": "spell",
+            "label": "Spell resource",
+            "type": "resource",
+            "required": true,
+            "resourceType": "SpellHook"
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": [
+        {
+          "type": "SpellHook",
+          "directory": "spellcast/spells",
+          "defaultConfig": {
+            "name": "QA resource",
+            "spellId": "",
+            "spellData": {
+              "enabled": false,
+              "description": "",
+              "bits": 10,
+              "color": "#719ece"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "iot",
+      "name": "IoT & Smart Home",
+      "actions": [
+        {
+          "id": "setLightColor",
+          "name": "Set Light Color",
+          "config": {
+            "key": null,
+            "label": "Set light color",
+            "type": "object",
+            "fields": [
+              {
+                "key": "lightId",
+                "label": "Light",
+                "type": "resource",
+                "required": true,
+                "resourceType": "Light"
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "lightColor"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "toggleLight",
+          "name": "Toggle Light",
+          "config": {
+            "key": null,
+            "label": "Toggle light",
+            "type": "object",
+            "fields": [
+              {
+                "key": "lightId",
+                "label": "Light",
+                "type": "resource",
+                "required": true,
+                "resourceType": "Light"
+              },
+              {
+                "key": "state",
+                "label": "State",
+                "type": "enumeration",
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "light",
+          "name": "Change Light",
+          "config": {
+            "key": null,
+            "label": "Change light",
+            "type": "object",
+            "fields": [
+              {
+                "key": "light",
+                "label": "Light",
+                "type": "resource",
+                "required": true,
+                "resourceType": "Light"
+              },
+              {
+                "key": "on",
+                "label": "On",
+                "type": "enumeration",
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              },
+              {
+                "key": "lightColor",
+                "label": "Color",
+                "type": "lightColor"
+              },
+              {
+                "key": "transition",
+                "label": "Transition time (seconds)",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "plug",
+          "name": "Switch Plug",
+          "config": {
+            "key": null,
+            "label": "Change plug",
+            "type": "object",
+            "fields": [
+              {
+                "key": "plug",
+                "label": "Plug",
+                "type": "resource",
+                "required": true,
+                "resourceType": "Plug"
+              },
+              {
+                "key": "switch",
+                "label": "State",
+                "type": "enumeration",
+                "options": [
+                  "true",
+                  "false",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "Light",
+          "directory": "iot/lights",
+          "defaultConfig": {
+            "name": "QA resource",
+            "provider": "",
+            "providerId": "",
+            "host": "",
+            "ip": "",
+            "hubKey": "",
+            "model": "",
+            "resourceType": "light",
+            "target": "",
+            "rgbAvailable": true,
+            "kelvinAvailable": true,
+            "dimmingAvailable": true,
+            "transitionsAvailable": true
+          }
+        },
+        {
+          "type": "Plug",
+          "directory": "iot/plugs",
+          "defaultConfig": {
+            "name": "QA resource",
+            "provider": "",
+            "providerId": "",
+            "host": "",
+            "ip": "",
+            "model": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": "govee",
+      "name": "Govee",
+      "actions": [
+        {
+          "id": "listDevices",
+          "name": "List Devices",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getDeviceState",
+          "name": "Get Device State",
+          "config": {
+            "key": null,
+            "label": "Govee device",
+            "type": "object",
+            "fields": [
+              {
+                "key": "device",
+                "label": "Device ID / MAC",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "model",
+                "label": "Model",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setPower",
+          "name": "Set Power",
+          "config": {
+            "key": null,
+            "label": "Govee power",
+            "type": "object",
+            "fields": [
+              {
+                "key": "device",
+                "label": "Device ID / MAC",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "model",
+                "label": "Model",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setColor",
+          "name": "Set Color",
+          "config": {
+            "key": null,
+            "label": "Govee color",
+            "type": "object",
+            "fields": [
+              {
+                "key": "device",
+                "label": "Device ID / MAC",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "model",
+                "label": "Model",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "lightColor",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setBrightness",
+          "name": "Set Brightness",
+          "config": {
+            "key": null,
+            "label": "Govee brightness",
+            "type": "object",
+            "fields": [
+              {
+                "key": "device",
+                "label": "Device ID / MAC",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "model",
+                "label": "Model",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "brightness",
+                "label": "Brightness",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": []
+    },
+    {
+      "id": "philips-hue",
+      "name": "Philips Hue",
+      "actions": [
+        {
+          "id": "listLights",
+          "name": "List Lights",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "listGroups",
+          "name": "List Light Groups",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "listScenes",
+          "name": "List Scenes",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setLightState",
+          "name": "Set Light State",
+          "config": {
+            "key": null,
+            "label": "Hue light",
+            "type": "object",
+            "fields": [
+              {
+                "key": "lightId",
+                "label": "Resource ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "host",
+                "label": "Bridge IP / Host",
+                "type": "text"
+              },
+              {
+                "key": "hubKey",
+                "label": "Bridge application key",
+                "type": "text",
+                "secret": true
+              },
+              {
+                "key": "resourceType",
+                "label": "Resource type",
+                "type": "enumeration",
+                "options": [
+                  "light",
+                  "grouped_light"
+                ]
+              },
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "lightColor"
+              },
+              {
+                "key": "transition",
+                "label": "Transition (seconds)",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setPlugState",
+          "name": "Set Plug State",
+          "config": {
+            "key": null,
+            "label": "Hue plug state",
+            "type": "object",
+            "fields": [
+              {
+                "key": "lightId",
+                "label": "Resource ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "host",
+                "label": "Bridge IP / Host",
+                "type": "text"
+              },
+              {
+                "key": "hubKey",
+                "label": "Bridge application key",
+                "type": "text",
+                "secret": true
+              },
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "recallScene",
+          "name": "Recall Hue Scene",
+          "config": {
+            "key": null,
+            "label": "Hue scene",
+            "type": "object",
+            "fields": [
+              {
+                "key": "group",
+                "label": "Group",
+                "type": "resource",
+                "resourceType": "Light"
+              },
+              {
+                "key": "sceneId",
+                "label": "Scene ID",
+                "type": "text"
+              },
+              {
+                "key": "scene",
+                "label": "Scene alias",
+                "type": "text"
+              },
+              {
+                "key": "host",
+                "label": "Bridge IP / Host",
+                "type": "text"
+              },
+              {
+                "key": "hubKey",
+                "label": "Bridge application key",
+                "type": "text",
+                "secret": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "scene",
+          "name": "Set HUE Scene",
+          "config": {
+            "key": null,
+            "label": "Hue scene",
+            "type": "object",
+            "fields": [
+              {
+                "key": "group",
+                "label": "Group",
+                "type": "resource",
+                "resourceType": "Light"
+              },
+              {
+                "key": "sceneId",
+                "label": "Scene ID",
+                "type": "text"
+              },
+              {
+                "key": "scene",
+                "label": "Scene alias",
+                "type": "text"
+              },
+              {
+                "key": "host",
+                "label": "Bridge IP / Host",
+                "type": "text"
+              },
+              {
+                "key": "hubKey",
+                "label": "Bridge application key",
+                "type": "text",
+                "secret": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": []
+    },
+    {
+      "id": "twinkly",
+      "name": "Twinkly",
+      "actions": [
+        {
+          "id": "getInfo",
+          "name": "Get Device Info",
+          "config": {
+            "key": null,
+            "label": "Twinkly device",
+            "type": "object",
+            "fields": [
+              {
+                "key": "ip",
+                "label": "Device IP",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getMode",
+          "name": "Get LED Mode",
+          "config": {
+            "key": null,
+            "label": "Twinkly device",
+            "type": "object",
+            "fields": [
+              {
+                "key": "ip",
+                "label": "Device IP",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getColor",
+          "name": "Get LED Color",
+          "config": {
+            "key": null,
+            "label": "Twinkly device",
+            "type": "object",
+            "fields": [
+              {
+                "key": "ip",
+                "label": "Device IP",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setColor",
+          "name": "Set LED Color",
+          "config": {
+            "key": null,
+            "label": "Twinkly color",
+            "type": "object",
+            "fields": [
+              {
+                "key": "ip",
+                "label": "Device IP",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "lightColor",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "turnOff",
+          "name": "Turn LEDs Off",
+          "config": {
+            "key": null,
+            "label": "Twinkly device",
+            "type": "object",
+            "fields": [
+              {
+                "key": "ip",
+                "label": "Device IP",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "listMovies",
+          "name": "List Movies",
+          "config": {
+            "key": null,
+            "label": "Twinkly device",
+            "type": "object",
+            "fields": [
+              {
+                "key": "ip",
+                "label": "Device IP",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setMovie",
+          "name": "Set Movie",
+          "config": {
+            "key": null,
+            "label": "Twinkly movie",
+            "type": "object",
+            "fields": [
+              {
+                "key": "ip",
+                "label": "Device IP",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "movieId",
+                "label": "Movie ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "movie",
+          "name": "Twinkly Movie",
+          "config": {
+            "key": null,
+            "label": "Twinkly movie",
+            "type": "object",
+            "fields": [
+              {
+                "key": "ip",
+                "label": "Device IP",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "movieId",
+                "label": "Movie ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": []
+    },
+    {
+      "id": "elgato",
+      "name": "Elgato",
+      "actions": [
+        {
+          "id": "getInfo",
+          "name": "Get Accessory Info",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getLights",
+          "name": "Get Light State",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setLightState",
+          "name": "Set Light State",
+          "config": {
+            "key": null,
+            "label": "Elgato light state",
+            "type": "object",
+            "fields": [
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              },
+              {
+                "key": "host",
+                "label": "Device IP / Host",
+                "type": "text"
+              },
+              {
+                "key": "port",
+                "label": "Device Port",
+                "type": "number"
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "lightColor"
+              },
+              {
+                "key": "numberOfLights",
+                "label": "Number of lights",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": []
+    },
+    {
+      "id": "tplink-kasa",
+      "name": "TP-Link Kasa",
+      "actions": [
+        {
+          "id": "getDeviceInfo",
+          "name": "Get Device Info",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getLightState",
+          "name": "Get Light State",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setLightState",
+          "name": "Set Light State",
+          "config": {
+            "key": null,
+            "label": "Kasa light state",
+            "type": "object",
+            "fields": [
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              },
+              {
+                "key": "host",
+                "label": "Device IP / Host",
+                "type": "text"
+              },
+              {
+                "key": "port",
+                "label": "Device Port",
+                "type": "number"
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "lightColor"
+              },
+              {
+                "key": "transition",
+                "label": "Transition (seconds)",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setPlugState",
+          "name": "Set Plug State",
+          "config": {
+            "key": null,
+            "label": "Kasa plug state",
+            "type": "object",
+            "fields": [
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              },
+              {
+                "key": "host",
+                "label": "Device IP / Host",
+                "type": "text"
+              },
+              {
+                "key": "port",
+                "label": "Device Port",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": []
+    },
+    {
+      "id": "lifx",
+      "name": "LIFX",
+      "actions": [
+        {
+          "id": "getState",
+          "name": "Get Light State",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setPower",
+          "name": "Set Power",
+          "config": {
+            "key": null,
+            "label": "LIFX light state",
+            "type": "object",
+            "fields": [
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              },
+              {
+                "key": "host",
+                "label": "Device IP / Host",
+                "type": "text"
+              },
+              {
+                "key": "port",
+                "label": "LAN Port",
+                "type": "number"
+              },
+              {
+                "key": "target",
+                "label": "Target MAC (hex, optional)",
+                "type": "text"
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "lightColor"
+              },
+              {
+                "key": "transition",
+                "label": "Transition (seconds)",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setColor",
+          "name": "Set Color",
+          "config": {
+            "key": null,
+            "label": "LIFX light state",
+            "type": "object",
+            "fields": [
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              },
+              {
+                "key": "host",
+                "label": "Device IP / Host",
+                "type": "text"
+              },
+              {
+                "key": "port",
+                "label": "LAN Port",
+                "type": "number"
+              },
+              {
+                "key": "target",
+                "label": "Target MAC (hex, optional)",
+                "type": "text"
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "lightColor"
+              },
+              {
+                "key": "transition",
+                "label": "Transition (seconds)",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setLightState",
+          "name": "Set Light State",
+          "config": {
+            "key": null,
+            "label": "LIFX light state",
+            "type": "object",
+            "fields": [
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              },
+              {
+                "key": "host",
+                "label": "Device IP / Host",
+                "type": "text"
+              },
+              {
+                "key": "port",
+                "label": "LAN Port",
+                "type": "number"
+              },
+              {
+                "key": "target",
+                "label": "Target MAC (hex, optional)",
+                "type": "text"
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "lightColor"
+              },
+              {
+                "key": "transition",
+                "label": "Transition (seconds)",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": []
+    },
+    {
+      "id": "wyze",
+      "name": "Wyze",
+      "actions": [
+        {
+          "id": "login",
+          "name": "Login",
+          "config": {
+            "key": null,
+            "label": "Wyze login",
+            "type": "object",
+            "fields": [
+              {
+                "key": "email",
+                "label": "Email",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "password",
+                "label": "Password",
+                "type": "text",
+                "required": true,
+                "secret": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "listDevices",
+          "name": "List Devices",
+          "config": null,
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getDeviceState",
+          "name": "Get Device State",
+          "config": {
+            "key": null,
+            "label": "Wyze device",
+            "type": "object",
+            "fields": [
+              {
+                "key": "device",
+                "label": "MAC / Device ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "model",
+                "label": "Product model",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setLightState",
+          "name": "Set Light State",
+          "config": {
+            "key": null,
+            "label": "Wyze light state",
+            "type": "object",
+            "fields": [
+              {
+                "key": "device",
+                "label": "MAC / Device ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "model",
+                "label": "Product model",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              },
+              {
+                "key": "color",
+                "label": "Color",
+                "type": "lightColor"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setPlugState",
+          "name": "Set Plug State",
+          "config": {
+            "key": null,
+            "label": "Wyze plug state",
+            "type": "object",
+            "fields": [
+              {
+                "key": "device",
+                "label": "MAC / Device ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "model",
+                "label": "Product model",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "state",
+                "label": "Power",
+                "type": "enumeration",
+                "options": [
+                  "on",
+                  "off",
+                  "toggle"
+                ]
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "WyzeAccount",
+          "directory": "accounts/wyze",
+          "defaultConfig": {
+            "name": "QA resource",
+            "email": "",
+            "scopes": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "dashboards",
+      "name": "Dashboards",
+      "actions": [],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "Dashboard",
+          "directory": "dashboards",
+          "defaultConfig": {
+            "name": "QA resource",
+            "pages": [],
+            "remoteTwitchIds": [],
+            "resourceSlots": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "input",
+      "name": "Input",
+      "actions": [
+        {
+          "id": "pressKey",
+          "name": "Simulate Keyboard",
+          "config": {
+            "key": null,
+            "label": "Keyboard action",
+            "type": "object",
+            "fields": [
+              {
+                "key": "key",
+                "label": "Key",
+                "type": "keyboardKey",
+                "required": true
+              },
+              {
+                "key": "duration",
+                "label": "Press time (seconds)",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "mouseButton",
+          "name": "Simulate Mouse",
+          "config": {
+            "key": null,
+            "label": "Mouse action",
+            "type": "object",
+            "fields": [
+              {
+                "key": "button",
+                "label": "Button",
+                "type": "enumeration",
+                "required": true,
+                "options": [
+                  "left",
+                  "right",
+                  "middle",
+                  "mouse4",
+                  "mouse5"
+                ]
+              },
+              {
+                "key": "duration",
+                "label": "Duration (seconds)",
+                "type": "duration",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "keyboardShortcut",
+          "name": "Keyboard Shortcut",
+          "config": {
+            "key": null,
+            "label": "Keyboard shortcut",
+            "type": "object",
+            "fields": [
+              {
+                "key": "combo",
+                "label": "Combo",
+                "type": "keyCombo",
+                "required": true
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": [
+        {
+          "type": "Gamepad",
+          "directory": "input/gamepads",
+          "defaultConfig": {
+            "name": "QA resource",
+            "id": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": "stream-plans",
+      "name": "Stream Plans",
+      "actions": [
+        {
+          "id": "nextSegment",
+          "name": "Next Segment",
+          "config": {
+            "key": null,
+            "label": "Stream plan segment",
+            "type": "object"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "prevSegment",
+          "name": "Previous Segment",
+          "config": {
+            "key": null,
+            "label": "Stream plan segment",
+            "type": "object"
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [],
+      "resources": [
+        {
+          "type": "StreamPlan",
+          "directory": "stream-plans",
+          "defaultConfig": {
+            "name": "QA resource",
+            "activationAutomation": {
+              "schemaVersion": 2,
+              "graph": {
+                "nodes": [],
+                "edges": [],
+                "entryNodeId": ""
+              },
+              "subgraphs": [],
+              "dataWires": [],
+              "variableNodes": [],
+              "triggerNodes": []
+            },
+            "deactivationAutomation": {
+              "schemaVersion": 2,
+              "graph": {
+                "nodes": [],
+                "edges": [],
+                "entryNodeId": ""
+              },
+              "subgraphs": [],
+              "dataWires": [],
+              "variableNodes": [],
+              "triggerNodes": []
+            },
+            "segments": []
+          }
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "plugins": 33,
+    "actions": 166,
+    "triggers": 51
+  },
+  "note": "Insertion and serialization passed; live execution requires enabled scenarios and connections."
+}

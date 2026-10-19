@@ -1,0 +1,16 @@
+import '../../../features/resources/resource_editor_registry.dart';
+import '../../../features/resources/resources_workspace.dart';
+import '../../registry/plugin_ui.dart';
+import '../manifest.dart';
+
+DartPluginUiContribution createStreamPlansPluginUi({
+  DartStreamPlanRuntime? runtime,
+}) => DartFlutterPluginUiContribution(
+  builder: (context, host) => ResourcesWorkspace(
+    dataService: host.dataService,
+    editorRegistry: createDefaultResourceEditorRegistry(),
+    registryFuture: host.registryFuture,
+    streamPlanRuntime: runtime ?? streamPlanRuntime,
+    resourceType: 'StreamPlan',
+  ),
+);

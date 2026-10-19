@@ -1,0 +1,208 @@
+import '../../schema/data_input.dart';
+import '../../runtime/cancellation.dart';
+import '../../runtime/expression.dart';
+import '../registry/builtin_resource_specs.dart';
+import '../registry/plugin_contract.dart';
+import 'keyboard.dart';
+import 'native_input.dart';
+import 'contracts.dart';
+
+const inputMouseButtons = <String>[
+  'left',
+  'right',
+  'middle',
+  'mouse4',
+  'mouse5',
+];
+
+const _pressKeyConfigSchema = DartDataInputSchema(
+  label: 'Keyboard action',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Key',
+      key: 'key',
+      kind: DartDataInputKind.keyboardKey,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Press time (seconds)',
+      key: 'duration',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 0.1,
+    ),
+  ],
+);
+
+const _keyboardShortcutConfigSchema = DartDataInputSchema(
+  label: 'Keyboard shortcut',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Combo',
+      key: 'combo',
+      kind: DartDataInputKind.keyCombo,
+      required: true,
+    ),
+  ],
+);
+
+const _mouseButtonConfigSchema = DartDataInputSchema(
+  label: 'Mouse action',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Button',
+      key: 'button',
+      kind: DartDataInputKind.enumeration,
+      options: inputMouseButtons,
+      required: true,
+      defaultValue: 'left',
+    ),
+    DartDataInputSchema(
+      label: 'Duration (seconds)',
+      key: 'duration',
+      kind: DartDataInputKind.duration,
+      required: true,
+      defaultValue: 0.1,
+    ),
+  ],
+);
+
+DartPluginManifest createInputPlugin({InputPlatform? platform}) {
+  final inputPlatform = platform ?? const NativeInputPlatform();
+  return DartPluginManifest(
+    id: PluginId('input'),
+    name: 'Input',
+    resources: builtInResourceSpecsFor(const PluginId('input')),
+    actions: [
+      ActionSpec<InputPressKeyConfig, Object?>(
+        pluginId: PluginId('input'),
+        actionId: ActionId('pressKey'),
+        displayName: 'Simulate Keyboard',
+        configSchema: _pressKeyConfigSchema,
+        invoke: (config, context) => _pressKey(inputPlatform, config, context),
+        configCodec: inputPressKeyConfigCodec,
+      ),
+      ActionSpec<InputMouseButtonConfig, Object?>(
+        pluginId: PluginId('input'),
+        actionId: ActionId('mouseButton'),
+        displayName: 'Simulate Mouse',
+        configSchema: _mouseButtonConfigSchema,
+        invoke: (config, context) =>
+            _mouseButton(inputPlatform, config, context),
+        configCodec: inputMouseButtonConfigCodec,
+      ),
+    ],
+    triggers: [
+      TriggerSpec<InputKeyboardShortcutConfig, InputKeyboardShortcutEvent>(
+        pluginId: PluginId('input'),
+        triggerId: TriggerId('keyboardShortcut'),
+        displayName: 'Keyboard Shortcut',
+        configSchema: _keyboardShortcutConfigSchema,
+        listen: () => _listenKeyboardShortcuts(inputPlatform),
+        matches: _matchesKeyboardShortcut,
+        configCodec: inputKeyboardShortcutConfigCodec,
+        eventDecoder: InputKeyboardShortcutEvent.fromRuntime,
+        eventEncoder: (event) => event.toRuntime(),
+      ),
+    ],
+  );
+}
+
+Future<Object?> _pressKey(
+  InputPlatform platform,
+  InputPressKeyConfig config,
+  EvaluationContext context,
+) async {
+  final key = config.key?.trim() ?? '';
+  final duration = config.duration.toDouble();
+  final virtualKeyCode = virtualKeyCodeForKeyboardKey(key);
+  if (virtualKeyCode == null) {
+    return {'pressed': false, 'key': key, 'duration': duration};
+  }
+  final boundedDuration = duration.isFinite && duration > 0 ? duration : 0;
+  await platform.simulateKeyDown(virtualKeyCode);
+  try {
+    if (boundedDuration > 0) {
+      await cancellableDelay(
+        Duration(microseconds: (boundedDuration * 1000000).round()),
+        context.cancellationToken,
+      );
+    }
+  } finally {
+    await platform.simulateKeyUp(virtualKeyCode);
+  }
+  return {'pressed': true, 'key': key, 'duration': duration};
+}
+
+Stream<InputKeyboardShortcutEvent> _listenKeyboardShortcuts(
+  InputPlatform platform,
+) async* {
+  final pressedKeys = <String>{};
+  await for (final event in platform.events) {
+    final key = keyboardKeyNameForVirtualKey(event.virtualKeyCode);
+    if (key == null) continue;
+    final normalizedKey = normalizeKeyboardKey(key);
+    if (event.pressed) {
+      if (!pressedKeys.add(normalizedKey)) continue;
+      yield InputKeyboardShortcutEvent(
+        key: normalizedKey,
+        vkCode: event.virtualKeyCode,
+        pressedKeys: List<String>.unmodifiable(pressedKeys),
+      );
+    } else {
+      pressedKeys.remove(normalizedKey);
+    }
+  }
+}
+
+bool _matchesKeyboardShortcut(
+  InputKeyboardShortcutConfig config,
+  InputKeyboardShortcutEvent payload,
+) {
+  final eventKey = payload.key;
+  if (eventKey == null) {
+    return false;
+  }
+  final normalizedCombo = config.combo.map(normalizeKeyboardKey).toSet();
+  final normalizedPressedKeys = payload.pressedKeys
+      .map(normalizeKeyboardKey)
+      .toSet();
+  return normalizedCombo.isNotEmpty &&
+      normalizedCombo.contains(normalizeKeyboardKey(eventKey)) &&
+      normalizedCombo.every(normalizedPressedKeys.contains);
+}
+
+bool matchesKeyboardShortcut(RuntimeMap config, RuntimeMap payload) =>
+    _matchesKeyboardShortcut(
+      InputKeyboardShortcutConfig.fromRuntime(config),
+      InputKeyboardShortcutEvent.fromRuntime(payload),
+    );
+
+Future<Object?> _mouseButton(
+  InputPlatform platform,
+  InputMouseButtonConfig config,
+  EvaluationContext context,
+) async {
+  final button = config.button.trim().toLowerCase();
+  final duration = config.duration.toDouble();
+  if (!inputMouseButtons.contains(button)) {
+    return {'pressed': false, 'button': button, 'duration': duration};
+  }
+
+  final boundedDuration = duration.isFinite && duration > 0 ? duration : 0;
+  await platform.simulateMouseDown(button);
+  try {
+    if (boundedDuration > 0) {
+      await cancellableDelay(
+        Duration(microseconds: (boundedDuration * 1000000).round()),
+        context.cancellationToken,
+      );
+    }
+  } finally {
+    await platform.simulateMouseUp(button);
+  }
+  return {'pressed': true, 'button': button, 'duration': duration};
+}

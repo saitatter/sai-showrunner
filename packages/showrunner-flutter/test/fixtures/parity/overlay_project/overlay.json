@@ -1,0 +1,20 @@
+{
+  "id": "overlay",
+  "config": {
+    "name": "Parity Overlay",
+    "size": {
+      "width": 1920,
+      "height": 1080
+    },
+    "widgets": [
+      {
+        "id": "chat-feed",
+        "type": "chatFeed",
+        "config": {
+          "title": "Chat"
+        }
+      }
+    ]
+  },
+  "state": {}
+}

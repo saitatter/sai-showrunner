@@ -1,0 +1,17 @@
+import '../../features/plugins/plugin_workspace.dart';
+import 'plugin_ui.dart';
+
+/// Exposes the canonical integration details surface for plugins whose
+/// original renderer only contributed icons or input registrations.
+///
+/// Keeping this as a real UI contribution makes the plugin boundary explicit
+/// without duplicating an otherwise identical settings/actions/triggers page.
+DartPluginUiContribution createGenericPluginUi(String pluginId) =>
+    DartFlutterPluginUiContribution(
+      builder: (context, host) => PluginWorkspace(
+        dataService: host.dataService,
+        registryFuture: host.registryFuture,
+        providerEvents: host.providerEvents,
+        selectedPluginId: pluginId,
+      ),
+    );

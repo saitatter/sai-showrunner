@@ -1,0 +1,483 @@
+import 'package:sai_nodes_core/sai_nodes_core.dart';
+import '../../graph/definitions/showrunner_graph_types.dart';
+import '../../graph/domain/automation_document.dart';
+import '../../schema/json.dart';
+
+final class AutomationStarter {
+  const AutomationStarter({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.automation,
+  });
+
+  final String id;
+  final String name;
+  final String description;
+  final AutomationDocument automation;
+}
+
+/// Product starter templates from the reference application.
+///
+/// A starter stores trigger, action and value connections in one canonical graph.
+/// Presentation is independent of executable node data.
+List<AutomationStarter> defaultAutomationStarters() => [
+  _template(
+    id: 'youtube-paid-alert',
+    name: 'YouTube Paid Alert',
+    description: 'Super Chat or Super Sticker -> Paid Alert widget.',
+    plugin: 'youtube',
+    trigger: 'superChat',
+    nodes: [
+      _action(
+        'format-amount',
+        'ShowRunner',
+        'convertNumberToString',
+        360,
+        120,
+        {'value': 0},
+      ),
+      _action('push-paid-alert', 'overlays', 'pushPaidAlert', 700, 120, {
+        'eventId': '',
+        'platform': 'youtube',
+        'viewerName': '',
+        'amount': '',
+        'currency': 'USD',
+        'title': 'New Super Chat',
+        'message': '',
+      }),
+    ],
+    dataWires: [
+      _valueWire(
+        'event',
+        'event:amountMicros',
+        'format-amount',
+        'config:value',
+      ),
+      _valueWire(
+        'format-amount',
+        'result:value',
+        'push-paid-alert',
+        'config:amount',
+      ),
+      ..._triggerWires('push-paid-alert', {
+        'messageId': 'eventId',
+        'viewerName': 'viewerName',
+        'currency': 'currency',
+        'message': 'message',
+      }),
+    ],
+  ),
+  _template(
+    id: 'twitch-sub-paid-alert',
+    name: 'Twitch Sub Alert',
+    description: 'Subscription -> Paid Alert widget.',
+    plugin: 'twitch',
+    trigger: 'subscription',
+    nodes: [
+      _action(
+        'format-amount',
+        'ShowRunner',
+        'convertNumberToString',
+        360,
+        120,
+        {'value': 0},
+      ),
+      _action('push-paid-alert', 'overlays', 'pushPaidAlert', 700, 120, {
+        'eventId': 'twitch-sub-{{ viewerName }}-{{ totalMonths }}',
+        'platform': 'twitch',
+        'viewerName': '',
+        'amount': '',
+        'currency': '',
+        'title': 'New Subscriber',
+        'message': '',
+      }),
+    ],
+    dataWires: [
+      _valueWire('event', 'event:totalMonths', 'format-amount', 'config:value'),
+      _valueWire(
+        'format-amount',
+        'result:value',
+        'push-paid-alert',
+        'config:amount',
+      ),
+      ..._triggerWires('push-paid-alert', {
+        'viewerName': 'viewerName',
+        'message': 'message',
+      }),
+    ],
+  ),
+  _template(
+    id: 'twitch-bits-paid-alert',
+    name: 'Twitch Bits Alert',
+    description: 'Bits cheered -> Paid Alert widget.',
+    plugin: 'twitch',
+    trigger: 'bits',
+    nodes: [
+      _action(
+        'format-amount',
+        'ShowRunner',
+        'convertNumberToString',
+        360,
+        120,
+        {'value': 0},
+      ),
+      _action('push-paid-alert', 'overlays', 'pushPaidAlert', 700, 120, {
+        'eventId': 'twitch-bits-{{ viewerName }}-{{ bits }}',
+        'platform': 'twitch',
+        'viewerName': '',
+        'amount': '',
+        'currency': 'bits',
+        'title': 'Bits Cheered',
+        'message': '',
+      }),
+    ],
+    dataWires: [
+      _valueWire('event', 'event:bits', 'format-amount', 'config:value'),
+      _valueWire(
+        'format-amount',
+        'result:value',
+        'push-paid-alert',
+        'config:amount',
+      ),
+      ..._triggerWires('push-paid-alert', {
+        'viewerName': 'viewerName',
+        'message': 'message',
+      }),
+    ],
+  ),
+  _template(
+    id: 'starting-soon-scene-banner',
+    name: 'Starting Soon Scene Banner',
+    description: 'Starter graph that publishes a scene.begin banner.',
+    plugin: 'ShowRunner',
+    trigger: 'autoRun',
+    nodes: [
+      _action('begin-scene', 'overlays', 'beginSceneOverlay', 360, 120, {
+        'sceneKey': 'starting-soon',
+        'title': 'Starting Soon',
+        'subtitle': 'Stream begins shortly',
+        'accentColor': '#9146ff',
+      }),
+    ],
+  ),
+  _template(
+    id: 'obs-scene-change',
+    name: 'OBS Scene Change',
+    description: 'Manual starter that changes the current OBS scene.',
+    plugin: 'ShowRunner',
+    trigger: 'autoRun',
+    nodes: [
+      _action('change-scene', 'obs', 'scene', 360, 120, {
+        'obs': null,
+        'scene': '',
+      }),
+    ],
+  ),
+  _template(
+    id: 'twitch-chat-command-reply',
+    name: 'Twitch Chat Command Reply',
+    description: 'Chat command -> send a chat response.',
+    plugin: 'twitch',
+    trigger: 'chat',
+    triggerConfig: {
+      'command': {
+        'mode': 'command',
+        'match': '!hello',
+        'arguments': [],
+        'hasMessage': false,
+      },
+      'cooldown': null,
+      'group': <String, dynamic>{},
+    },
+    nodes: [
+      _action('send-chat-reply', 'twitch', 'chat', 360, 120, {
+        'message': 'Hey {{ viewerName }}, thanks for using the command!',
+      }),
+    ],
+  ),
+  _template(
+    id: 'twitch-chat-moderation-review',
+    name: 'Twitch Chat Moderation Review',
+    description: 'Chat command context -> moderation docker filter action.',
+    plugin: 'twitch',
+    trigger: 'chat',
+    triggerConfig: {
+      'command': {
+        'mode': 'command',
+        'match': '!moderate',
+        'arguments': [],
+        'hasMessage': true,
+      },
+      'cooldown': null,
+      'group': <String, dynamic>{},
+    },
+    nodes: [
+      _action('moderate-chat', 'moderation', 'moderateChatMessage', 360, 120, {
+        'platform': '',
+        'messageId': '',
+        'viewerId': '',
+        'viewerName': '',
+        'message': '',
+        'badges': '',
+        'isModerator': false,
+        'isMember': false,
+        'isOwner': false,
+      }),
+    ],
+    dataWires: _triggerWires('moderate-chat', {
+      'platform': 'platform',
+      'messageId': 'messageId',
+      'viewerId': 'viewerId',
+      'viewerName': 'viewerName',
+      'message': 'message',
+      'badges': 'badges',
+    }),
+  ),
+  _template(
+    id: 'stream-plan-next-segment',
+    name: 'Stream Plan Next Segment',
+    description: 'Manual starter that advances the active stream plan.',
+    plugin: 'ShowRunner',
+    trigger: 'autoRun',
+    nodes: [
+      _action(
+        'next-stream-plan-segment',
+        'stream-plans',
+        'nextSegment',
+        360,
+        120,
+        const {},
+      ),
+    ],
+  ),
+  _template(
+    id: 'ending-scene-banner',
+    name: 'Ending Scene Banner',
+    description:
+        'Starter graph that publishes a scene.end banner after a closing message.',
+    plugin: 'ShowRunner',
+    trigger: 'autoRun',
+    nodes: [
+      _action('begin-scene', 'overlays', 'beginSceneOverlay', 360, 120, {
+        'sceneKey': 'ending',
+        'title': 'Thanks for watching',
+        'subtitle': 'See you next stream',
+        'accentColor': '#64b5f6',
+      }),
+      _action('end-scene', 'overlays', 'endSceneOverlay', 640, 120, {
+        'sceneKey': 'ending',
+      }),
+    ],
+  ),
+  _template(
+    id: 'youtube-paid-event-alerts-queue',
+    name: 'Paid Event -> Add to Alerts Queue',
+    description:
+        'Super Chat -> Add to Queue for a paid alert worker automation.',
+    plugin: 'youtube',
+    trigger: 'superChat',
+    nodes: [
+      _action('queue-paid-alert', 'ShowRunner', 'addToQueue', 360, 120, {
+        'queue': null,
+        'automation': null,
+        'payload': {
+          'eventId': '{{ messageId }}',
+          'platform': 'youtube',
+          'viewerName': '{{ viewerName }}',
+          'amount': '{{ amountMicros }}',
+          'currency': '{{ currency }}',
+          'title': 'New Super Chat',
+          'message': '{{ message }}',
+        },
+      }),
+    ],
+  ),
+  _template(
+    id: 'paid-alert-queue-worker',
+    name: 'Queue Item Started -> Paid Alert Overlay -> Sound -> Complete',
+    description: 'Queue worker graph for paid alerts with optional sound.',
+    plugin: 'ShowRunner',
+    trigger: 'queueItemStarted',
+    nodes: [
+      _action('push-paid-alert', 'overlays', 'pushPaidAlert', 360, 120, {
+        'targetWidget': null,
+        'eventId': '{{ payload.eventId }}',
+        'platform': '{{ payload.platform }}',
+        'viewerName': '{{ payload.viewerName }}',
+        'amount': '{{ payload.amount }}',
+        'currency': '{{ payload.currency }}',
+        'title': '{{ payload.title }}',
+        'message': '{{ payload.message }}',
+      }),
+      _action('play-alert-sound', 'sound', 'sound', 640, 120, {
+        'output': null,
+        'sound': '',
+        'volume': 100,
+        'startTime': 0,
+      }),
+      _action(
+        'complete-paid-alert',
+        'ShowRunner',
+        'completeQueueItem',
+        920,
+        120,
+        const {},
+      ),
+    ],
+  ),
+  _template(
+    id: 'scene-begin-scene-queue',
+    name: 'Scene Begin -> Add to Scene Queue',
+    description:
+        'Scene start event -> Add to Queue for a scene worker automation.',
+    plugin: 'ShowRunner',
+    trigger: 'autoRun',
+    nodes: [
+      _action('queue-scene-banner', 'ShowRunner', 'addToQueue', 360, 120, {
+        'queue': null,
+        'automation': null,
+        'payload': {
+          'sceneKey': 'starting-soon',
+          'title': 'Starting Soon',
+          'subtitle': 'Stream begins shortly',
+          'accentColor': '#9146ff',
+        },
+      }),
+    ],
+  ),
+  _template(
+    id: 'scene-banner-queue-worker',
+    name: 'Queue Item Started -> Scene Banner -> Shader Layer -> Complete',
+    description:
+        'Queue worker graph for scene banners with an optional shader layer.',
+    plugin: 'ShowRunner',
+    trigger: 'queueItemStarted',
+    nodes: [
+      _action('begin-scene-banner', 'overlays', 'beginSceneOverlay', 360, 120, {
+        'targetWidget': null,
+        'sceneKey': '{{ payload.sceneKey }}',
+        'title': '{{ payload.title }}',
+        'subtitle': '{{ payload.subtitle }}',
+        'accentColor': '{{ payload.accentColor }}',
+      }),
+      _action('show-shader-layer', 'overlays', 'widgetVisibility', 640, 120, {
+        'widget': null,
+        'enabled': true,
+      }),
+      _action(
+        'complete-scene-banner',
+        'ShowRunner',
+        'completeQueueItem',
+        920,
+        120,
+        const {},
+      ),
+    ],
+  ),
+];
+
+AutomationStarter _template({
+  required String id,
+  required String name,
+  required String description,
+  required String plugin,
+  required String trigger,
+  required List<_StarterNode> nodes,
+  List<GraphConnection> dataWires = const [],
+  JsonMap triggerConfig = const {},
+}) {
+  final document = AutomationDocument.empty();
+  final triggerNode = GraphNode(
+    id: 'event',
+    type: triggerNodeType(plugin, trigger),
+    data: {'config': triggerConfig, 'stop': false},
+  );
+  final connections = <GraphConnection>[
+    for (var index = 0; index < nodes.length; index++)
+      GraphConnection(
+        id: 'sequence:$index',
+        from: PortRef(
+          nodeId: index == 0 ? triggerNode.id : nodes[index - 1].node.id,
+          portId: 'exec.out',
+        ),
+        to: PortRef(nodeId: nodes[index].node.id, portId: 'exec.in'),
+        kind: GraphConnectionKind.control,
+      ),
+    ...dataWires,
+  ];
+  return AutomationStarter(
+    id: id,
+    name: name,
+    description: description,
+    automation: AutomationDocument(
+      graph: document.graph.copyWith(
+        spaces: {
+          mainAutomationSpace: GraphSpace(
+            id: mainAutomationSpace,
+            nodes: {
+              triggerNode.id: triggerNode,
+              for (final item in nodes) item.node.id: item.node,
+            },
+            nodePresentations: {
+              triggerNode.id: NodePresentation(
+                nodeId: triggerNode.id,
+                position: const GraphPoint(40, 120),
+              ),
+              for (final item in nodes) item.node.id: item.presentation,
+            },
+            connections: {
+              for (final connection in connections) connection.id: connection,
+            },
+          ),
+        },
+      ),
+      settings: {'entryNodeId': triggerNode.id},
+      metadata: {'name': name},
+    ),
+  );
+}
+
+final class _StarterNode {
+  const _StarterNode(this.node, this.presentation);
+  final GraphNode node;
+  final NodePresentation presentation;
+}
+
+_StarterNode _action(
+  String id,
+  String plugin,
+  String action,
+  double x,
+  double y,
+  JsonMap config,
+) => _StarterNode(
+  GraphNode(
+    id: id,
+    type: actionNodeType(plugin, action),
+    data: {'config': config},
+  ),
+  NodePresentation(nodeId: id, position: GraphPoint(x, y)),
+);
+List<GraphConnection> _triggerWires(String toNode, Map<String, String> ports) =>
+    [
+      for (final entry in ports.entries)
+        GraphConnection(
+          id: 'event:${entry.key}/$toNode:${entry.value}',
+          from: PortRef(nodeId: 'event', portId: 'event:${entry.key}'),
+          to: PortRef(nodeId: toNode, portId: 'config:${entry.value}'),
+          kind: GraphConnectionKind.data,
+        ),
+    ];
+
+GraphConnection _valueWire(
+  String from,
+  String output,
+  String to,
+  String input,
+) => GraphConnection(
+  id: '$from/$output/$to/$input',
+  from: PortRef(nodeId: from, portId: output),
+  to: PortRef(nodeId: to, portId: input),
+  kind: GraphConnectionKind.data,
+);

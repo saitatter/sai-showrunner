@@ -1,6 +1,6 @@
-import { definePluginOverlays } from "showrunner-overlay-core"
+import { defineOverlayPlugin } from "showrunner-overlay-core"
 
-export default definePluginOverlays({
-	id: "twitch",
+export default defineOverlayPlugin({
+	pluginId: "twitch",
 	widgets: [],
 })

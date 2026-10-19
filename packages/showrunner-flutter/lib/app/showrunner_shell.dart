@@ -1,0 +1,686 @@
+import '../graph/domain/automation_document.dart';
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import 'commands/app_command.dart';
+import 'app_feedback.dart';
+import '../graph/controller/automation_document_sessions.dart';
+import '../app/startup_health.dart';
+import '../design_system/controls/controls.dart';
+import '../design_system/tokens/tokens.dart';
+import 'project_panel.dart';
+import 'system_bar.dart';
+import 'workspace_registry.dart';
+import 'workspace_host.dart';
+import '../graph/controller/automation_editor_controller.dart';
+import '../graph/ui/automation_graph_workspace.dart';
+import '../graph/execution/showrunner_execution_visual_adapter.dart';
+import '../features/plugins/plugin_visibility.dart';
+import '../features/profile/profile_workspace.dart';
+import '../features/settings/interface_preferences.dart';
+import '../plugins/runtime/provider_event_workers.dart';
+import '../plugins/registry/plugin_registry.dart';
+import '../plugins/overlays/overlay_presence.dart';
+import '../plugins/obs/overlay_source_service.dart';
+import '../plugins/stream_plans/manifest.dart';
+import '../plugins/variables/runtime.dart';
+import '../runtime/action_queue.dart';
+import '../runtime/automation_queue_manager.dart';
+import '../schema/resource.dart';
+import '../runtime/profile_runtime.dart';
+import '../services/showrunner_data_service.dart';
+import '../services/project_catalog_service.dart';
+import '../services/update_check_service.dart';
+import '../services/update_install_service.dart';
+
+class ShowRunnerShell extends StatelessWidget {
+  const ShowRunnerShell({
+    super.key,
+    required this.dataService,
+    required this.graphEditor,
+    this.graphCanvasKey,
+    this.graphExecution,
+    this.onRunGraph,
+    required this.actionQueue,
+    this.queueManager,
+    required this.healthFuture,
+    required this.providerEvents,
+    required this.pluginRegistryFuture,
+    this.overlayPresenceReaderFuture,
+    this.overlayObsSourceService,
+    required this.profileRuntimeFuture,
+    this.streamPlanRuntime,
+    this.variableRuntime,
+    required this.selectedWorkspace,
+    required this.activeAutomationFile,
+    this.activeAutomationDirty = false,
+    required this.showGraphEditor,
+    required this.onDestinationSelected,
+    required this.onRunNode,
+    required this.onOpenAutomation,
+    this.onRenameAutomation,
+    this.onDeleteAutomationItem,
+    required this.onRepairAutomation,
+    required this.onCreateAutomation,
+    required this.onDeleteAutomation,
+    required this.interfacePreferences,
+    required this.commands,
+    this.openWorkspaces = const [WorkspaceIds.graph],
+    this.onTabSelected,
+    this.onTabClosed,
+    this.onTabReordered,
+    this.automationDocuments,
+    this.onAutomationSelected,
+    this.onAutomationClosed,
+    this.onAutomationReordered,
+    this.profileController,
+    this.profileDirty = false,
+    this.onProfileDirtyChanged,
+    this.onProfileEntriesChanged,
+    this.onRenameProfile,
+    this.onDeleteProfile,
+    this.onCreateProfile,
+    this.projectCatalogRevision = 0,
+    this.selectedResourceType,
+    this.selectedResourceId,
+    this.onResourceSelected,
+    this.onOpenResource,
+    this.onRenameResource,
+    this.onDeleteResource,
+    this.onCreateResource,
+    this.overlayResources = const <String, ResourceData>{},
+    this.overlayDirty = const <String, bool>{},
+    this.onSaveOverlay,
+    this.onOverlayDirtyChanged,
+    this.onOverlayDocumentChanged,
+    this.streamPlanResources = const <String, ResourceData>{},
+    this.streamPlanDirty = const <String, bool>{},
+    this.onSaveStreamPlan,
+    this.onStreamPlanDocumentChanged,
+    this.selectedPluginId,
+    this.onPluginSelected,
+    this.updateService,
+    this.installService,
+    this.onRestartRequested,
+    this.workspaceRegistry = const WorkspaceRegistry(),
+  });
+
+  final ShowRunnerDataService dataService;
+  final AutomationEditorController graphEditor;
+  final GlobalKey<AutomationGraphWorkspaceState>? graphCanvasKey;
+  final ShowrunnerExecutionVisualAdapter? graphExecution;
+  final Future<void> Function()? onRunGraph;
+  final DartActionQueue actionQueue;
+  final DartAutomationQueueManager? queueManager;
+  final Future<StartupHealthSnapshot> healthFuture;
+  final ProviderEventRuntime providerEvents;
+  final Future<DartPluginRegistry> pluginRegistryFuture;
+  final Future<OverlayPresenceReader?>? overlayPresenceReaderFuture;
+  final OverlayObsSourceActions? overlayObsSourceService;
+  final Future<DartProfileRuntime> profileRuntimeFuture;
+  final DartStreamPlanRuntime? streamPlanRuntime;
+  final DartVariableRuntime? variableRuntime;
+  final WorkspaceId selectedWorkspace;
+  final String? activeAutomationFile;
+  final bool activeAutomationDirty;
+  final bool showGraphEditor;
+  final ValueChanged<WorkspaceId> onDestinationSelected;
+  final Future<void> Function(String schemaNodeId)? onRunNode;
+  final FutureOr<void> Function(AutomationDocument automation, String fileName)
+  onOpenAutomation;
+  final FutureOr<void> Function(String fileName, String name)?
+  onRenameAutomation;
+  final FutureOr<void> Function(String fileName)? onDeleteAutomationItem;
+  final Future<void> Function(AutomationDocument automation, String fileName)
+  onRepairAutomation;
+  final Future<void> Function() onCreateAutomation;
+  final Future<void> Function(String fileName) onDeleteAutomation;
+  final FlutterInterfacePreferences interfacePreferences;
+  final AppCommandRegistry commands;
+  final List<WorkspaceId> openWorkspaces;
+  final ValueChanged<WorkspaceId>? onTabSelected;
+  final FutureOr<void> Function(WorkspaceId)? onTabClosed;
+  final void Function(int oldPosition, int newPosition)? onTabReordered;
+  final AutomationDocumentSessions? automationDocuments;
+  final ValueChanged<String>? onAutomationSelected;
+  final FutureOr<void> Function(String fileName)? onAutomationClosed;
+  final void Function(int oldPosition, int newPosition)? onAutomationReordered;
+  final ProfileWorkspaceController? profileController;
+  final bool profileDirty;
+  final ValueChanged<bool>? onProfileDirtyChanged;
+  final VoidCallback? onProfileEntriesChanged;
+  final FutureOr<void> Function(String fileName, String name)? onRenameProfile;
+  final FutureOr<void> Function(String fileName)? onDeleteProfile;
+  final FutureOr<void> Function()? onCreateProfile;
+  final int projectCatalogRevision;
+  final String? selectedResourceType;
+  final String? selectedResourceId;
+  final ValueChanged<String>? onResourceSelected;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onOpenResource;
+  final FutureOr<void> Function(
+    ResourceData resource,
+    String resourceType,
+    String name,
+  )?
+  onRenameResource;
+  final FutureOr<void> Function(ResourceData resource, String resourceType)?
+  onDeleteResource;
+  final FutureOr<void> Function(String resourceType)? onCreateResource;
+  final Map<String, ResourceData> overlayResources;
+  final Map<String, bool> overlayDirty;
+  final Future<void> Function(ResourceData resource)? onSaveOverlay;
+  final void Function(String resourceId, bool dirty)? onOverlayDirtyChanged;
+  final void Function(ResourceData resource, bool dirty)?
+  onOverlayDocumentChanged;
+  final Map<String, ResourceData> streamPlanResources;
+  final Map<String, bool> streamPlanDirty;
+  final Future<void> Function(ResourceData resource)? onSaveStreamPlan;
+  final void Function(ResourceData resource, bool dirty)?
+  onStreamPlanDocumentChanged;
+  final String? selectedPluginId;
+  final ValueChanged<String>? onPluginSelected;
+  final UpdateCheckService? updateService;
+  final UpdateInstallService? installService;
+  final Future<bool> Function()? onRestartRequested;
+  final WorkspaceRegistry workspaceRegistry;
+
+  @override
+  Widget build(BuildContext context) {
+    final tabs = openWorkspaces.isEmpty ? [selectedWorkspace] : openWorkspaces;
+    final selectedTab = tabs.indexOf(selectedWorkspace);
+    void runCommand(String id) {
+      unawaited(commands.run(id, AppCommandContext(buildContext: context)));
+    }
+
+    final workspaceHost = WorkspaceHostContext(
+      dataService: dataService,
+      graphEditor: graphEditor,
+      graphCanvasKey: graphCanvasKey,
+      graphExecution: graphExecution,
+      onRunGraph: onRunGraph,
+      actionQueue: actionQueue,
+      queueManager: queueManager,
+      healthFuture: healthFuture,
+      providerEvents: providerEvents,
+      pluginRegistryFuture: pluginRegistryFuture,
+      overlayPresenceReaderFuture: overlayPresenceReaderFuture,
+      overlayObsSourceService: overlayObsSourceService,
+      profileRuntimeFuture: profileRuntimeFuture,
+      streamPlanRuntime: streamPlanRuntime,
+      variableRuntime: variableRuntime,
+      showGraphEditor: showGraphEditor,
+      onRunNode: onRunNode,
+      onOpenAutomation: onOpenAutomation,
+      onRepairAutomation: onRepairAutomation,
+      onCreateAutomation: onCreateAutomation,
+      onDeleteAutomation: onDeleteAutomation,
+      interfacePreferences: interfacePreferences,
+      onOpenWorkspace: onDestinationSelected,
+      commands: commands,
+      automationDocuments: automationDocuments,
+      onAutomationSelected: onAutomationSelected,
+      onAutomationClosed: onAutomationClosed,
+      onAutomationReordered: onAutomationReordered,
+      profileController: profileController,
+      profileDirty: profileDirty,
+      onProfileDirtyChanged: onProfileDirtyChanged,
+      onProfileEntriesChanged: onProfileEntriesChanged,
+      onRenameProfile: onRenameProfile,
+      onDeleteProfile: onDeleteProfile,
+      onCreateProfile: onCreateProfile,
+      projectCatalogRevision: projectCatalogRevision,
+      selectedResourceType: selectedResourceType,
+      selectedResourceId: selectedResourceId,
+      onResourceSelected: onResourceSelected,
+      onOpenResource: onOpenResource,
+      onRenameResource: onRenameResource,
+      onDeleteResource: onDeleteResource,
+      onCreateResource: onCreateResource,
+      overlayResources: overlayResources,
+      onSaveOverlay: onSaveOverlay,
+      onOverlayDirtyChanged: onOverlayDirtyChanged,
+      onOverlayDocumentChanged: onOverlayDocumentChanged,
+      streamPlanResources: streamPlanResources,
+      onSaveStreamPlan: onSaveStreamPlan,
+      onStreamPlanDocumentChanged: onStreamPlanDocumentChanged,
+      selectedPluginId: selectedPluginId,
+      onPluginSelected: onPluginSelected,
+      updateService: updateService,
+      installService: installService,
+      onRestartRequested: onRestartRequested,
+    );
+
+    final shell = Material(
+      color: ShowRunnerColors.background,
+      child: Column(
+        children: [
+          ShowRunnerSystemBar(commands: commands),
+          Expanded(
+            child: Row(
+              children: [
+                ListenableBuilder(
+                  listenable: interfacePreferences,
+                  builder: (context, child) => _ResizableProjectSidebar(
+                    initialWidth: interfacePreferences.compactProjectSidebar
+                        ? FlutterInterfacePreferences.minProjectSidebarWidth
+                        : interfacePreferences.projectSidebarWidth,
+                    onWidthChanged: interfacePreferences.setProjectSidebarWidth,
+                    child: ShowRunnerProjectPanel(
+                      selectedWorkspace: selectedWorkspace,
+                      pluginRegistryFuture: pluginRegistryFuture,
+                      preferences: interfacePreferences,
+                      selectedPluginId: selectedPluginId,
+                      callbacks: ProjectPanelCallbacks(
+                        onDestinationSelected: onDestinationSelected,
+                        onPluginSelected: (pluginId) {
+                          onPluginSelected?.call(pluginId);
+                          onDestinationSelected(WorkspaceIds.plugins);
+                        },
+                        onPluginToggle: (pluginId, enabled) =>
+                            _setPluginEnabled(context, pluginId, enabled),
+                        onOpenAutomation: onOpenAutomation,
+                        onRenameAutomation: onRenameAutomation,
+                        onDeleteAutomation: onDeleteAutomationItem,
+                        onCreateAutomation: onCreateAutomation,
+                        onRenameProfile: onRenameProfile,
+                        onDeleteProfile: onDeleteProfile,
+                        onCreateProfile: onCreateProfile,
+                        onResourceSelected: onResourceSelected,
+                        onOpenResource: onOpenResource,
+                        onRenameResource: onRenameResource,
+                        onDeleteResource: onDeleteResource,
+                        onCreateResource: onCreateResource,
+                        onOpenProfile: (fileName) {
+                          onDestinationSelected(WorkspaceIds.profiles);
+                          return profileController?.openProfile(fileName);
+                        },
+                      ),
+                      catalogService: ShowRunnerProjectCatalogService(
+                        dataService.userDirectory,
+                      ),
+                      catalogRevision: projectCatalogRevision,
+                      activeAutomationFile: activeAutomationFile,
+                      selectedResourceType: selectedResourceType,
+                      selectedResourceId: selectedResourceId,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _WorkspaceTabBar(
+                        tabs: tabs,
+                        selectedWorkspace: selectedWorkspace,
+                        activeAutomationDirty: activeAutomationDirty,
+                        hasActiveAutomation: activeAutomationFile != null,
+                        activeProfileDirty: profileDirty,
+                        overlayResources: overlayResources,
+                        overlayDirty: overlayDirty,
+                        streamPlanResources: streamPlanResources,
+                        streamPlanDirty: streamPlanDirty,
+                        onSelected: onTabSelected ?? (_) {},
+                        onClosed: onTabClosed ?? (_) {},
+                        onReordered: onTabReordered ?? (_, _) {},
+                      ),
+                      Expanded(
+                        child: IndexedStack(
+                          index: selectedTab < 0 ? 0 : selectedTab,
+                          children: [
+                            for (final tab in tabs)
+                              KeyedSubtree(
+                                key: ValueKey(tab),
+                                child: workspaceRegistry.build(
+                                  context,
+                                  tab,
+                                  workspaceHost,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    return CallbackShortcuts(
+      bindings: {
+        for (final command in commands.shortcutCommands)
+          for (final activator in command.activators)
+            activator: () => runCommand(command.id),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(resizeToAvoidBottomInset: false, body: shell),
+      ),
+    );
+  }
+
+  Future<void> _setPluginEnabled(
+    BuildContext context,
+    String pluginId,
+    bool enabled,
+  ) async {
+    try {
+      final registry = await pluginRegistryFuture;
+      await persistPluginEnabled(
+        dataService: dataService,
+        registry: registry,
+        pluginId: pluginId,
+        enabled: enabled,
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      showShowRunnerFeedback(
+        context,
+        'Unable to update plugin: $error',
+        severity: ShowRunnerFeedbackSeverity.error,
+      );
+    }
+  }
+}
+
+class _ResizableProjectSidebar extends StatefulWidget {
+  const _ResizableProjectSidebar({
+    required this.initialWidth,
+    required this.child,
+    this.onWidthChanged,
+  });
+
+  final double initialWidth;
+  final Widget child;
+  final FutureOr<void> Function(double width)? onWidthChanged;
+
+  @override
+  State<_ResizableProjectSidebar> createState() =>
+      _ResizableProjectSidebarState();
+}
+
+class _ResizableProjectSidebarState extends State<_ResizableProjectSidebar> {
+  late double _width = _clampWidth(widget.initialWidth);
+  bool _dragging = false;
+
+  @override
+  void didUpdateWidget(covariant _ResizableProjectSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_dragging && oldWidget.initialWidth != widget.initialWidth) {
+      _width = _clampWidth(widget.initialWidth);
+    }
+  }
+
+  void _resize(double delta) {
+    final next = _clampWidth(_width + delta);
+    if (next == _width) return;
+    setState(() {
+      _dragging = true;
+      _width = next;
+    });
+  }
+
+  void _finishResize() {
+    if (!_dragging) return;
+    setState(() => _dragging = false);
+    final callback = widget.onWidthChanged;
+    if (callback != null) {
+      unawaited(Future<void>.sync(() => callback(_width)).catchError((_) {}));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      SizedBox(width: _width, child: widget.child),
+      SrSplitter(
+        axis: Axis.vertical,
+        onDelta: _resize,
+        onDragEnd: _finishResize,
+      ),
+    ],
+  );
+}
+
+double _clampWidth(double width) => width.clamp(
+  FlutterInterfacePreferences.minProjectSidebarWidth,
+  FlutterInterfacePreferences.maxProjectSidebarWidth,
+);
+
+class _WorkspaceTabBar extends StatefulWidget {
+  const _WorkspaceTabBar({
+    required this.tabs,
+    required this.selectedWorkspace,
+    required this.activeAutomationDirty,
+    required this.hasActiveAutomation,
+    required this.activeProfileDirty,
+    required this.overlayResources,
+    required this.overlayDirty,
+    required this.streamPlanResources,
+    required this.streamPlanDirty,
+    required this.onSelected,
+    required this.onClosed,
+    required this.onReordered,
+  });
+
+  final List<WorkspaceId> tabs;
+  final WorkspaceId selectedWorkspace;
+  final bool activeAutomationDirty;
+  final bool hasActiveAutomation;
+  final bool activeProfileDirty;
+  final Map<String, ResourceData> overlayResources;
+  final Map<String, bool> overlayDirty;
+  final Map<String, ResourceData> streamPlanResources;
+  final Map<String, bool> streamPlanDirty;
+  final ValueChanged<WorkspaceId> onSelected;
+  final FutureOr<void> Function(WorkspaceId) onClosed;
+  final void Function(int oldPosition, int newPosition) onReordered;
+
+  @override
+  State<_WorkspaceTabBar> createState() => _WorkspaceTabBarState();
+}
+
+class _WorkspaceTabBarState extends State<_WorkspaceTabBar> {
+  final _scrollController = ScrollController();
+  final _tabKeys = <WorkspaceId, GlobalKey>{};
+
+  @override
+  void didUpdateWidget(covariant _WorkspaceTabBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedWorkspace != widget.selectedWorkspace) {
+      _scheduleSelectedTabIntoView();
+    }
+    _tabKeys.removeWhere((id, _) => !widget.tabs.contains(id));
+  }
+
+  void _scheduleSelectedTabIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final selectedKey = _tabKeys[widget.selectedWorkspace];
+      final selectedContext = selectedKey?.currentContext;
+      final selectedPosition = widget.tabs.indexOf(widget.selectedWorkspace);
+      if (selectedPosition == widget.tabs.length - 1) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      } else if (selectedPosition == 0) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      } else if (selectedContext != null) {
+        Scrollable.ensureVisible(
+          selectedContext,
+          alignment: .5,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: ShowRunnerColors.surfaceB,
+      child: Container(
+        key: const ValueKey('workspace-document-tabs'),
+        height: ShowRunnerSpacing.controlHeight,
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: ShowRunnerColors.surfaceBorder),
+          ),
+        ),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: ReorderableListView.builder(
+            scrollController: _scrollController,
+            scrollDirection: Axis.horizontal,
+            shrinkWrap: false,
+            primary: false,
+            anchor: 0,
+            buildDefaultDragHandles: false,
+            padding: const EdgeInsets.only(right: 18),
+            itemCount: widget.tabs.length,
+            onReorderItem: widget.onReordered,
+            itemBuilder: (context, position) {
+              final tab = widget.tabs[position];
+              final overlayId = WorkspaceIds.overlayResourceId(tab);
+              final streamPlanId = WorkspaceIds.streamPlanResourceId(tab);
+              final descriptor = overlayId != null
+                  ? WorkspaceDescriptor(
+                      id: tab,
+                      title:
+                          widget.overlayResources[overlayId]?.name ?? 'Overlay',
+                      icon: Icons.layers_outlined,
+                    )
+                  : streamPlanId != null
+                  ? WorkspaceDescriptor(
+                      id: tab,
+                      title:
+                          widget.streamPlanResources[streamPlanId]?.name ??
+                          'Stream Plan',
+                      icon: Icons.calendar_view_week_outlined,
+                    )
+                  : workspaceDescriptorFor(tab);
+              return ReorderableDragStartListener(
+                key: _tabKeys.putIfAbsent(tab, GlobalKey.new),
+                index: position,
+                child: _WorkspaceTab(
+                  workspace: tab,
+                  descriptor: descriptor,
+                  selected: tab == widget.selectedWorkspace,
+                  dirty:
+                      (tab == WorkspaceIds.graph &&
+                          widget.hasActiveAutomation &&
+                          widget.activeAutomationDirty) ||
+                      (tab == WorkspaceIds.profiles &&
+                          widget.activeProfileDirty) ||
+                      (overlayId != null &&
+                          (widget.overlayDirty[overlayId] ?? false)) ||
+                      (streamPlanId != null &&
+                          (widget.streamPlanDirty[streamPlanId] ?? false)),
+                  canClose: widget.tabs.length > 1,
+                  onSelected: widget.onSelected,
+                  onClosed: widget.onClosed,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceTab extends StatelessWidget {
+  const _WorkspaceTab({
+    required this.workspace,
+    required this.descriptor,
+    required this.selected,
+    required this.dirty,
+    required this.canClose,
+    required this.onSelected,
+    required this.onClosed,
+  });
+
+  final WorkspaceId workspace;
+  final WorkspaceDescriptor descriptor;
+  final bool selected;
+  final bool dirty;
+  final bool canClose;
+  final ValueChanged<WorkspaceId> onSelected;
+  final FutureOr<void> Function(WorkspaceId) onClosed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final borderColor = ShowRunnerColors.surfaceBorder;
+    return SizedBox(
+      height: ShowRunnerSpacing.controlHeight,
+      child: Material(
+        color: selected ? ShowRunnerColors.surfaceD : ShowRunnerColors.surfaceB,
+        child: InkWell(
+          onTap: () => onSelected(workspace),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(color: borderColor),
+                right: BorderSide(color: borderColor),
+                top: BorderSide(
+                  color: selected ? colorScheme.primary : borderColor,
+                  width: selected ? 2 : 1,
+                ),
+                bottom: selected
+                    ? BorderSide.none
+                    : BorderSide(color: borderColor, width: 2),
+              ),
+            ),
+            padding: const EdgeInsets.only(left: 14, right: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(descriptor.icon, size: 17),
+                const SizedBox(width: 8),
+                Text(descriptor.title),
+                if (dirty) ...[
+                  const SizedBox(width: 7),
+                  Semantics(
+                    label: 'Unsaved changes',
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const SizedBox(width: 8, height: 8),
+                    ),
+                  ),
+                ],
+                if (canClose)
+                  SrIconButton(
+                    tooltip: 'Close ${descriptor.title} tab',
+                    icon: const Icon(Icons.close, size: 16),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onClosed(workspace),
+                  ),
+                if (!canClose) const SizedBox(width: 10),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

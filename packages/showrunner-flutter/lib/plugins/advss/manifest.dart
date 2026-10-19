@@ -1,0 +1,80 @@
+import '../../schema/data_input.dart';
+import '../../runtime/expression.dart';
+import '../../services/plugin_event_hub.dart';
+import '../obs/actions.dart';
+import '../registry/plugin_contract.dart';
+import 'contracts.dart';
+
+const _vendorName = 'AdvancedSceneSwitcher';
+
+const _messageSchema = DartDataInputSchema(
+  label: 'Advanced Scene Switcher message',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Message',
+      key: 'message',
+      kind: DartDataInputKind.multilineText,
+      required: true,
+    ),
+  ],
+);
+
+const _eventSchema = DartDataInputSchema(
+  label: 'Advanced Scene Switcher event',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Message',
+      key: 'message',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+  ],
+);
+
+DartPluginManifest createAdvssPlugin(
+  ObsTransport transport, {
+  DartPluginEventHub? eventHub,
+}) => DartPluginManifest(
+  id: PluginId('advss'),
+  name: 'Advanced Scene Switcher',
+  settings: const [
+    SettingSpec(id: SettingId('obsConnection'), displayName: 'OBS Connection'),
+  ],
+  actions: [
+    ActionSpec<AdvssMessageConfig, RuntimeMap>(
+      pluginId: PluginId('advss'),
+      actionId: ActionId('AdvSSMessage'),
+      displayName: 'Advanced Scene Switcher Message',
+      configSchema: _messageSchema,
+      configCodec: advssMessageConfigCodec,
+      invoke: (config, context) => transport.call('CallVendorRequest', {
+        'vendorName': _vendorName,
+        'requestType': 'AdvancedSceneSwitcherMessage',
+        'requestData': {'message': config.message},
+      }),
+    ),
+  ],
+  triggers: eventHub == null
+      ? const []
+      : [
+          TriggerSpec<AdvssEventConfig, AdvssEvent>(
+            pluginId: PluginId('advss'),
+            triggerId: TriggerId('advssEvent'),
+            displayName: 'Advanced Scene Switcher Event',
+            configSchema: _eventSchema,
+            listen: () => eventHub
+                .stream('obsVendorEvent')
+                .map<AdvssEvent>((event) => AdvssEvent.fromRuntime(event)),
+            eventDecoder: AdvssEvent.fromRuntime,
+            eventEncoder: (event) => event.toRuntime(),
+            matches: (config, payload) =>
+                payload.vendorName == _vendorName &&
+                payload.eventType == 'AdvancedSceneSwitcherEvent' &&
+                (config.message?.trim().isEmpty != false ||
+                    config.message == payload.message),
+            configCodec: advssEventConfigCodec,
+          ),
+        ],
+);

@@ -1,0 +1,298 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/sound/manifest.dart';
+import 'package:showrunner_flutter/plugins/sound/output.dart';
+import 'package:showrunner_flutter/plugins/sound/windows_audio.dart';
+import 'package:showrunner_flutter/runtime/cancellation.dart';
+import 'package:showrunner_flutter/runtime/expression.dart';
+
+void main() {
+  test('parses PCM WAVE data and trims playback to frame boundaries', () {
+    final bytes = _waveBytes([10, 20, 30, 40], sampleRate: 1000);
+    final info = parsePcmWave(bytes);
+
+    expect(info.channels, 1);
+    expect(info.sampleRate, 1000);
+    expect(info.bitsPerSample, 8);
+    expect(
+      trimPcmWave(
+        bytes,
+        info,
+        const SoundPlayRequest(file: 'test.wav', startSec: .001, endSec: .003),
+      ),
+      [20, 30],
+    );
+  });
+
+  test('rejects non-PCM WAVE formats', () {
+    final bytes = _waveBytes([10, 20], sampleRate: 1000);
+    bytes[20] = 3;
+    expect(() => parsePcmWave(bytes), throwsFormatException);
+  });
+
+  test('routes multi-format playback through the MediaKit backend', () async {
+    SoundPlayRequest? request;
+    String? device;
+    final output = MediaKitSoundOutput(
+      id: 'system.custom',
+      name: 'Studio headphones',
+      preferredDeviceDescription: 'Studio headphones',
+      playback: (nextRequest, preferredDevice) async {
+        request = nextRequest;
+        device = preferredDevice;
+      },
+    );
+
+    final played = await output.playFile(
+      const SoundPlayRequest(
+        file: 'music.flac',
+        startSec: 1.25,
+        endSec: 4.5,
+        volume: 72,
+      ),
+    );
+
+    expect(played, isTrue);
+    expect(request?.file, 'music.flac');
+    expect(request?.startSec, 1.25);
+    expect(request?.endSec, 4.5);
+    expect(request?.volume, 72);
+    expect(device, 'Studio headphones');
+  });
+
+  test('fans out splitter redirects with mute and scaled volume', () async {
+    final output = _RecordingOutput('system.main');
+    final registry = SoundOutputRegistry(defaultOutputId: 'splitter');
+    registry.register(output);
+    registry.registerSplitter('splitter', [
+      const AudioSplitterRedirect(output: 'system.main', volume: 50),
+      const AudioSplitterRedirect(
+        output: 'system.main',
+        volume: 100,
+        mute: true,
+      ),
+    ]);
+
+    final played = await registry.playFile(
+      file: 'alert.wav',
+      startSec: 2,
+      endSec: 5,
+      volume: 80,
+    );
+
+    expect(played, isTrue);
+    expect(output.requests, hasLength(1));
+    expect(output.requests.single.file, 'alert.wav');
+    expect(output.requests.single.startSec, 2);
+    expect(output.requests.single.endSec, 5);
+    expect(output.requests.single.volume, 40);
+  });
+
+  test('nested redirects keep the loudest route to a direct output', () async {
+    final output = _RecordingOutput('system.main');
+    final registry = SoundOutputRegistry(defaultOutputId: 'root');
+    registry.register(output);
+    registry.registerSplitter('child', [
+      const AudioSplitterRedirect(output: 'system.main', volume: 100),
+    ]);
+    registry.registerSplitter('root', [
+      const AudioSplitterRedirect(output: 'child', volume: 50),
+      const AudioSplitterRedirect(output: 'system.main', volume: 30),
+    ]);
+
+    final played = await registry.playFile(file: 'voice.wav', volume: 80);
+
+    expect(played, isTrue);
+    expect(output.requests, hasLength(1));
+    expect(output.requests.single.volume, 40);
+  });
+
+  test('splitter cycles terminate and missing outputs are ignored', () async {
+    final registry = SoundOutputRegistry(defaultOutputId: 'root');
+    registry.registerSplitter('root', [
+      const AudioSplitterRedirect(output: 'child'),
+      const AudioSplitterRedirect(output: 'missing'),
+    ]);
+    registry.registerSplitter('child', [
+      const AudioSplitterRedirect(output: 'root'),
+    ]);
+
+    expect(await registry.playFile(file: 'cycle.wav'), isFalse);
+  });
+
+  test('refreshes persisted splitter routes before playback', () async {
+    final playedVolumes = <double>[];
+    final output = CallbackSoundOutput(
+      id: 'system.main',
+      player: (request) async {
+        playedVolumes.add(request.volume);
+        return true;
+      },
+    );
+    var splitterVolume = 40.0;
+    late final SoundOutputRegistry registry;
+    registry = SoundOutputRegistry(
+      defaultOutputId: 'splitter',
+      refresh: () async {
+        registry.register(output);
+        registry.registerSplitter('splitter', [
+          AudioSplitterRedirect(output: 'system.main', volume: splitterVolume),
+        ]);
+      },
+    );
+
+    expect(await registry.playFile(file: 'test.wav', volume: 100), isTrue);
+    splitterVolume = 80;
+    expect(await registry.playFile(file: 'test.wav', volume: 100), isTrue);
+
+    expect(playedVolumes, [40, 80]);
+  });
+
+  test('aborts an active playback by its protocol play ID', () async {
+    final finished = Completer<bool>();
+    String? abortedPlayId;
+    final output = CallbackSoundOutput(
+      id: 'system.main',
+      player: (_) => finished.future,
+      aborter: (playId) async {
+        abortedPlayId = playId;
+        if (!finished.isCompleted) finished.complete(true);
+      },
+    );
+    final registry = SoundOutputRegistry(defaultOutputId: 'system.main')
+      ..register(output);
+
+    final playback = registry.playFile(
+      file: 'long-running.wav',
+      playId: 'remote-play-7',
+    );
+    await Future<void>.delayed(Duration.zero);
+    await registry.abortPlay('remote-play-7');
+
+    expect(await playback, isTrue);
+    expect(abortedPlayId, 'remote-play-7');
+  });
+
+  test('binds graph cancellation to sound playback', () async {
+    final finished = Completer<bool>();
+    String? requestedPlayId;
+    final output = CallbackSoundOutput(
+      id: 'system.main',
+      player: (request) {
+        requestedPlayId = request.playId;
+        return finished.future;
+      },
+      aborter: (_) async {
+        if (!finished.isCompleted) finished.complete(true);
+      },
+    );
+    final outputs = SoundOutputRegistry(defaultOutputId: 'system.main')
+      ..register(output);
+    final registry = DartPluginRegistry()
+      ..register(createSoundPlugin(soundOutputs: outputs));
+    final token = DartCancellationToken(id: 'sound-cancel');
+
+    final playback = registry.invokeAction('sound', 'sound', {
+      'sound': 'long-running.wav',
+    }, context: EvaluationContext(cancellationToken: token));
+    await Future<void>.delayed(Duration.zero);
+    token.cancel();
+
+    expect(await playback, {'played': true, 'sound': 'long-running.wav'});
+    expect(requestedPlayId, 'sound-cancel');
+  });
+
+  test('sound action resolves file and output fields', () async {
+    final output = _RecordingOutput('system.main');
+    final outputs = SoundOutputRegistry(defaultOutputId: 'system.main')
+      ..register(output);
+    final registry = DartPluginRegistry()
+      ..register(createSoundPlugin(soundOutputs: outputs));
+
+    final result = await registry.invokeAction('sound', 'sound', {
+      'sound': 'notification.wav',
+      'volume': 65,
+      'startTime': 1,
+      'endTime': 4,
+    });
+
+    expect(result, {'played': true, 'sound': 'notification.wav'});
+    expect(output.requests.single.volume, 65);
+    expect(output.requests.single.startSec, 1);
+    expect(output.requests.single.endSec, 4);
+  });
+
+  test('applies the configured global volume to sound actions', () async {
+    final output = _RecordingOutput('system.main');
+    final outputs = SoundOutputRegistry(defaultOutputId: 'system.main')
+      ..register(output);
+    final registry = DartPluginRegistry()
+      ..register(createSoundPlugin(soundOutputs: outputs, globalVolume: 40));
+
+    await registry.invokeAction('sound', 'sound', {
+      'sound': 'notification.wav',
+      'volume': 75,
+    });
+
+    expect(output.requests.single.volume, 30);
+  });
+
+  test('exposes global volume and default output settings', () {
+    final plugin = createSoundPlugin();
+
+    expect(plugin.settings.map((setting) => setting.id.value), [
+      'globalVolume',
+      'defaultOutput',
+    ]);
+    expect(plugin.settings.first.defaultValue, 100);
+    expect(plugin.settings.last.defaultValue, 'system.default');
+  });
+}
+
+final class _RecordingOutput implements SoundOutput {
+  _RecordingOutput(this.id);
+
+  @override
+  final String id;
+  final requests = <SoundPlayRequest>[];
+
+  @override
+  Future<bool> playFile(SoundPlayRequest request) async {
+    requests.add(request);
+    return true;
+  }
+}
+
+Uint8List _waveBytes(List<int> samples, {required int sampleRate}) {
+  final bytes = Uint8List(44 + samples.length);
+  final view = ByteData.sublistView(bytes);
+  void ascii(int offset, String value) {
+    for (var index = 0; index < value.length; index++) {
+      bytes[offset + index] = value.codeUnitAt(index);
+    }
+  }
+
+  void uint16(int offset, int value) =>
+      view.setUint16(offset, value, Endian.little);
+  void uint32(int offset, int value) =>
+      view.setUint32(offset, value, Endian.little);
+
+  ascii(0, 'RIFF');
+  uint32(4, bytes.length - 8);
+  ascii(8, 'WAVE');
+  ascii(12, 'fmt ');
+  uint32(16, 16);
+  uint16(20, 1);
+  uint16(22, 1);
+  uint32(24, sampleRate);
+  uint32(28, sampleRate);
+  uint16(32, 1);
+  uint16(34, 8);
+  ascii(36, 'data');
+  uint32(40, samples.length);
+  bytes.setRange(44, bytes.length, samples);
+  return bytes;
+}

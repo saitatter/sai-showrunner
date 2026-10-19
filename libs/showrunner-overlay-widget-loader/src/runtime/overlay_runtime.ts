@@ -1,0 +1,324 @@
+import {
+	OverlayConfig,
+	OverlayTransport,
+	OverlayTransportMessage,
+	OverlayWidgetConfig,
+	OverlayWidget,
+	StateAccess,
+	Unsubscribe,
+	ViewerDataAccess,
+	ViewerDataRow,
+	ViewerVariable,
+	WidgetContext,
+	WidgetScope,
+	mediaUrl,
+	playMedia,
+} from "showrunner-overlay-core"
+import { StateStore } from "../state/state_store"
+import { ViewerDataStore } from "../viewer_data/viewer_data_store"
+import { WidgetRegistry } from "../registry/widget_registry"
+import { createWidgetBridge } from "../bridge/widget_bridge"
+import { WidgetCommandRegistry, WidgetEventRegistry } from "../bridge/widget_dispatcher"
+import { PendingRPCRegistry } from "../transport/pending_rpc"
+
+interface WidgetInstance {
+	config: OverlayWidgetConfig
+	container: HTMLElement
+	widget: OverlayWidget
+	scope: WidgetScope
+}
+
+export interface OverlayRuntimeOptions {
+	root: HTMLElement
+	transport: OverlayTransport
+	registry: WidgetRegistry
+	overlayId: string
+	isEditor?: boolean
+	statusVisible?: boolean
+	host?: string
+	rpcTimeoutMs?: number
+}
+
+/** Owns transport dispatch and mounted widget lifecycles for one browser source. */
+export class OverlayRuntime {
+	private static readonly supportedSchemaVersion = 1
+	private readonly instances = new Map<string, WidgetInstance>()
+	private readonly events = new WidgetEventRegistry()
+	private readonly commands = new WidgetCommandRegistry()
+	private readonly playingAudio = new Map<string, HTMLAudioElement>()
+	private readonly stateStore: StateStore
+	private readonly viewerData: ViewerDataStore
+	private readonly pendingRPC: PendingRPCRegistry
+	private config: OverlayConfig = { name: "UNLOADED OVERLAY", size: { width: 0, height: 0 }, widgets: [] }
+	private unsubscribeTransport?: Unsubscribe
+	private unsubscribeTransportStatus?: Unsubscribe
+	private hasConnected = false
+	private hasDisconnected = false
+	private readonly status?: HTMLElement
+
+	constructor(private readonly options: OverlayRuntimeOptions) {
+		this.pendingRPC = new PendingRPCRegistry(
+			(message) => this.options.transport.send(message),
+			Math.max(1, options.rpcTimeoutMs ?? 10_000),
+		)
+		this.stateStore = new StateStore(
+			(pluginId, stateId) => void this.callBackend("overlays_acquireState", pluginId, stateId),
+			(pluginId, stateId) => void this.callBackend("overlays_freeState", pluginId, stateId),
+		)
+		this.viewerData = new ViewerDataStore(
+			() => void this.callBackend("overlays_observeViewerData"),
+			() => void this.callBackend("overlays_unobserveViewerData"),
+			(start, end, sortBy, sortOrder) =>
+				this.callBackend<ViewerDataRow[]>("overlays_queryViewerData", start, end, sortBy, sortOrder),
+			() => this.callBackend<ViewerVariable[]>("overlays_getViewerVariables"),
+		)
+		if (options.statusVisible) {
+			this.status = document.createElement("div")
+			this.status.className = "overlay-status overlay-status--idle"
+			options.root.appendChild(this.status)
+		}
+	}
+
+	async start(): Promise<void> {
+		if (this.unsubscribeTransport) return
+		this.unsubscribeTransport = this.options.transport.onMessage((message) => void this.handleMessage(message))
+		this.unsubscribeTransportStatus = this.options.transport.onStatus?.((status) => {
+			this.handleTransportStatus(status)
+		})
+		this.setStatus("connecting")
+		await this.options.transport.connect()
+		this.handleTransportStatus("connected")
+	}
+
+	async stop(): Promise<void> {
+		this.unsubscribeTransport?.()
+		this.unsubscribeTransport = undefined
+		this.unsubscribeTransportStatus?.()
+		this.unsubscribeTransportStatus = undefined
+		this.hasConnected = false
+		this.hasDisconnected = false
+		for (const id of [...this.instances.keys()]) this.removeInstance(id)
+		this.stateStore.clear()
+		for (const audio of this.playingAudio.values()) audio.pause()
+		this.playingAudio.clear()
+		this.pendingRPC.reset(new Error("Overlay runtime stopped."))
+		await this.options.transport.close()
+		this.setStatus("idle")
+	}
+
+	getConfig(): OverlayConfig {
+		return this.config
+	}
+
+	private setStatus(status: string): void {
+		if (!this.status) return
+		this.status.className = `overlay-status overlay-status--${status}`
+		this.status.textContent = status.charAt(0).toUpperCase() + status.slice(1)
+	}
+
+	private handleTransportStatus(status: "idle" | "connecting" | "connected" | "reconnecting"): void {
+		this.setStatus(status)
+		if (status !== "connected") {
+			if (this.hasConnected || this.hasDisconnected) {
+				this.pendingRPC.reset(new Error(`Overlay transport ${status}.`))
+				this.hasDisconnected = true
+			}
+			this.hasConnected = false
+			return
+		}
+
+		if (this.hasDisconnected) {
+			this.stateStore.reconnect()
+			this.viewerData.reconnect()
+		}
+		this.hasConnected = true
+		this.hasDisconnected = false
+	}
+
+	private async handleMessage(message: OverlayTransportMessage): Promise<void> {
+		if (message.responseId) {
+			this.pendingRPC.handleResponse(message)
+			return
+		}
+		if (!message.name || !message.requestId) return
+		try {
+			const result = await this.handleRequest(message.name, message.args ?? [])
+			this.options.transport.send({ responseId: message.requestId, result })
+		} catch (error) {
+			this.options.transport.send({ responseId: message.requestId, failed: String(error) })
+		}
+	}
+
+	private async handleRequest(name: string, args: unknown[]): Promise<unknown> {
+		switch (name) {
+			case "overlays_setConfig":
+				this.setConfig(args[0] as OverlayConfig)
+				return undefined
+			case "overlays_stateUpdate":
+				this.stateStore.set(String(args[0]), String(args[1]), args[2])
+				return undefined
+			case "overlays_widget":
+				this.emitMessage(String(args[0]), args[1])
+				return undefined
+			case "overlays_widgetRPC":
+				return this.commands.invoke(`${String(args[0])}.${String(args[1])}`, args.slice(2))
+			case "overlays_broadcast":
+				this.emitMessage(String(args[0]), args.length === 2 ? args[1] : args.slice(1))
+				return undefined
+			case "overlays_onNewViewerData":
+				this.viewerData.newRow(String(args[0]), String(args[1]), args[2] as ViewerDataRow)
+				return undefined
+			case "overlays_onViewerDataChanged":
+				this.viewerData.changed(String(args[0]), String(args[1]), String(args[2]), args[3])
+				return undefined
+			case "overlays_onViewerDataRemoved":
+				this.viewerData.removed(String(args[0]), String(args[1]))
+				return undefined
+			case "overlays_onNewViewerVariable":
+				this.viewerData.newVariable({ name: String(args[0]), schema: args[1] })
+				return undefined
+			case "overlays_onViewerVariableDeleted":
+				this.viewerData.deleteVariable(String(args[0]))
+				return undefined
+			case "overlays_playAudio":
+				{
+					const playId = String(args[1] ?? "")
+					const audio = playMedia(this.options.host ?? window.location.host, String(args[0]), {
+						playId,
+						startSec: Number(args[2]),
+						endSec: args[3] == null ? undefined : Number(args[3]),
+						volume: args[4] == null ? undefined : Number(args[4]),
+					})
+					if (audio && playId) {
+						this.playingAudio.get(playId)?.pause()
+						this.playingAudio.set(playId, audio)
+						const clear = () => {
+							if (this.playingAudio.get(playId) === audio) this.playingAudio.delete(playId)
+						}
+						audio.addEventListener("ended", clear, { once: true })
+						audio.addEventListener("pause", clear, { once: true })
+					}
+				}
+				return undefined
+			case "overlays_cancelAudio":
+				{
+					const playId = String(args[0] ?? "")
+					this.playingAudio.get(playId)?.pause()
+					this.playingAudio.delete(playId)
+				}
+				return undefined
+			default:
+				return undefined
+		}
+	}
+
+	private setConfig(config: OverlayConfig): void {
+		if (!config || typeof config !== "object" || !config.size || !Array.isArray(config.widgets)) {
+			this.setStatus("invalid-config")
+			console.error("Invalid overlay definition received.")
+			return
+		}
+		if (config.schemaVersion !== undefined && config.schemaVersion > OverlayRuntime.supportedSchemaVersion) {
+			this.setStatus("unsupported-config")
+			console.error(`Unsupported overlay schema version: ${config.schemaVersion}`)
+			return
+		}
+		this.config = config
+		document.title = `ShowRunner Overlay -- ${config.name}`
+		const desired = new Set(config.widgets.filter((widget) => widget.visible).map((widget) => widget.id))
+		for (const id of [...this.instances.keys()]) if (!desired.has(id)) this.removeInstance(id)
+		for (const widgetConfig of config.widgets) {
+			if (!widgetConfig.visible) continue
+			const existing = this.instances.get(widgetConfig.id)
+			if (existing) {
+				existing.config = widgetConfig
+				existing.widget.update(widgetConfig.config)
+				this.position(existing.container, widgetConfig)
+				continue
+			}
+			this.addInstance(widgetConfig)
+		}
+	}
+
+	private addInstance(config: OverlayWidgetConfig): void {
+		const info = this.options.registry.get(config.plugin, config.widget)
+		if (!info) {
+			console.error(`Unknown overlay widget ${config.plugin}.${config.widget}`)
+			return
+		}
+		const container = document.createElement("div")
+		container.className = "overlay-widget"
+		container.dataset.widgetId = config.id
+		this.position(container, config)
+		this.options.root.appendChild(container)
+		const scope = new WidgetScope()
+		const bridge = createWidgetBridge(
+			{
+				overlayId: this.options.overlayId,
+				host: this.options.host,
+				stateStore: this.stateStore,
+				viewerData: this.viewerData,
+				getConfig: () => this.instances.get(config.id)?.config ?? config,
+				onEvent: (type, widgetId, handler, instanceScope) =>
+					this.events.register(type, widgetId, handler, instanceScope),
+				exposeCommand: (key, handler, instanceScope) =>
+					this.commands.register(key, handler, instanceScope),
+				callBackend: (name, ...args) => this.callBackend(name, ...args),
+			},
+			config,
+			scope,
+		)
+		const state: StateAccess = {
+			get: (pluginId, stateId) => this.stateStore.get(pluginId, stateId),
+			watch: (pluginId, stateId, handler) => scope.add(this.stateStore.watch(pluginId, stateId, handler)),
+		}
+		const viewerData: ViewerDataAccess = {
+			observe: (observer) => scope.add(this.viewerData.observe(observer)),
+			query: (start, end, sortBy, sortOrder) => this.viewerData.query(start, end, sortBy, sortOrder),
+			getVariables: () => this.viewerData.getVariables(),
+		}
+		const context: WidgetContext = {
+			overlayId: this.options.overlayId,
+			widgetId: config.id,
+			scope,
+			bridge,
+			state,
+			viewerData,
+			isEditor: this.options.isEditor ?? false,
+			mediaUrl: (file) => mediaUrl(this.options.host ?? window.location.host, file),
+		}
+		const widget = info.definition.create(context, config.config)
+		this.instances.set(config.id, { config, container, widget, scope })
+		try {
+			widget.mount(container, config.config, context)
+		} catch (error) {
+			this.removeInstance(config.id)
+			throw error
+		}
+	}
+
+	private removeInstance(id: string): void {
+		const instance = this.instances.get(id)
+		if (!instance) return
+		try {
+			instance.widget.destroy()
+		} finally {
+			instance.scope.dispose()
+		}
+		instance.container.remove()
+		this.instances.delete(id)
+	}
+
+	private position(container: HTMLElement, config: OverlayWidgetConfig): void {
+		container.style.cssText = `position:absolute;left:${config.position.x}px;top:${config.position.y}px;width:${config.size.width}px;height:${config.size.height}px;`
+		container.style.display = config.visible ? "block" : "none"
+	}
+
+	private emitMessage(id: string, payload: unknown): void {
+		this.events.emit(id, payload)
+	}
+
+	private callBackend<T = unknown>(name: string, ...args: unknown[]): Promise<T> {
+		return this.pendingRPC.call<T>(name, ...args)
+	}
+}

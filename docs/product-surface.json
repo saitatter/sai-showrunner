@@ -1,0 +1,573 @@
+{
+  "reference": "890ee2c9cc0522f2d8c747612920c6d12a1cb716",
+  "statuses": [
+    "equivalent",
+    "partial",
+    "missing",
+    "improved",
+    "intentionally_removed",
+    "not_applicable"
+  ],
+  "workspaces": {
+    "home": {
+      "main": "ProjectView dashboard",
+      "flutter": "MainDashboardWorkspace",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "marker": "MainDashboardWorkspace"
+        }
+      ]
+    },
+    "graph": {
+      "main": "NodeAutomationEdit",
+      "flutter": "AutomationGraphWorkspace",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/graph/ui/automation_graph_workspace.dart",
+          "marker": "AutomationGraphWorkspace"
+        }
+      ]
+    },
+    "plugins": {
+      "main": "Integration catalog",
+      "flutter": "PluginWorkspace",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/iot/ui/plugin_ui.dart",
+          "marker": "PluginWorkspace"
+        }
+      ]
+    },
+    "diagnostics": {
+      "main": "Integration feedback and status",
+      "flutter": "DiagnosticsWorkspace",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/features/diagnostics/diagnostics_workspace.dart",
+          "marker": "DiagnosticsWorkspace"
+        }
+      ]
+    },
+    "automations": {
+      "main": "Automation catalog",
+      "flutter": "AutomationCatalogWorkspace",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/features/automation/automation_catalog_workspace.dart",
+          "marker": "AutomationCatalogWorkspace"
+        }
+      ]
+    },
+    "profiles": {
+      "main": "Profile editor",
+      "flutter": "ProfileWorkspace",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "marker": "ProfileWorkspace"
+        }
+      ]
+    },
+    "queues": {
+      "main": "Queue page and dashboard widgets",
+      "flutter": "QueueWorkspace",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "marker": "QueueWorkspace"
+        }
+      ]
+    },
+    "resources": {
+      "main": "Resource catalog and editors",
+      "flutter": "ResourcesWorkspace",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/overlays/ui/plugin_ui.dart",
+          "marker": "ResourcesWorkspace"
+        }
+      ]
+    },
+    "logs": {
+      "main": "Runtime feedback",
+      "flutter": "LogsWorkspace",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "marker": "LogsWorkspace"
+        }
+      ]
+    },
+    "about": {
+      "main": "About dialog",
+      "flutter": "AboutWorkspace",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "marker": "AboutWorkspace"
+        }
+      ]
+    },
+    "settings": {
+      "main": "Settings page",
+      "flutter": "SettingsWorkspace",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "marker": "SettingsWorkspace"
+        }
+      ]
+    },
+    "setup": {
+      "main": "Setup and integration onboarding",
+      "flutter": "SetupWorkspace",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "marker": "SetupWorkspace"
+        }
+      ]
+    },
+    "variables": {
+      "main": "Variable viewer",
+      "flutter": "VariablesWorkspace",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/variables/ui/plugin_ui.dart",
+          "marker": "VariablesWorkspace"
+        }
+      ]
+    },
+    "remote": {
+      "main": "Remote and Satellite dashboard",
+      "flutter": "RemoteWorkspace",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/remote/ui/plugin_ui.dart",
+          "marker": "RemoteWorkspace"
+        }
+      ]
+    },
+    "updates": {
+      "main": "Update page and release metadata",
+      "flutter": "UpdateWorkspace",
+      "status": "partial",
+      "reason": "Feature implementation and unsigned package/install/rollback proofs pass locally; the published release download and installed upgrade still require an authorized manual release and operator verification.",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "marker": "UpdateWorkspace"
+        }
+      ],
+      "externalValidation": [
+        "Download a published Windows ZIP and verify installed upgrade and rollback in isolated release storage"
+      ]
+    },
+    "persistent-media-library": {
+      "main": null,
+      "flutter": null,
+      "status": "intentionally_removed",
+      "reason": "Not part of the target CastMate/ShowRunner product surface."
+    }
+  },
+  "commands": {
+    "file.save": {
+      "main": "Save",
+      "flutter": "Save",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/resource_document_manager.dart",
+          "marker": "Save"
+        }
+      ]
+    },
+    "file.saveAll": {
+      "main": "Save All",
+      "flutter": "Save All",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/showrunner_document_commands.dart",
+          "marker": "Save All"
+        }
+      ]
+    },
+    "file.close": {
+      "main": "Close",
+      "flutter": "Close",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/workspace_document_manager.dart",
+          "marker": "Close"
+        }
+      ]
+    },
+    "file.closeOthers": {
+      "main": "Close Others",
+      "flutter": "Close other workspaces",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/commands/app_command_registrar.dart",
+          "marker": "file.closeOthers"
+        }
+      ]
+    },
+    "edit.undo": {
+      "main": "Undo",
+      "flutter": "Undo",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/commands/app_command_registrar.dart",
+          "marker": "Undo"
+        }
+      ]
+    },
+    "edit.redo": {
+      "main": "Redo",
+      "flutter": "Redo",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/commands/app_command_registrar.dart",
+          "marker": "Redo"
+        }
+      ]
+    },
+    "edit.copy": {
+      "main": "Copy",
+      "flutter": "Copy",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/commands/app_command_registrar.dart",
+          "marker": "Copy"
+        }
+      ]
+    },
+    "edit.paste": {
+      "main": "Paste",
+      "flutter": "Paste",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/commands/app_command_registrar.dart",
+          "marker": "Paste"
+        }
+      ]
+    },
+    "edit.delete": {
+      "main": "Delete",
+      "flutter": "Delete",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/project_panel/profile_section.dart",
+          "marker": "Delete"
+        }
+      ]
+    },
+    "file.newAutomation": {
+      "main": "New automation",
+      "flutter": "New automation",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/commands/app_command_registrar.dart",
+          "marker": "New automation"
+        }
+      ]
+    },
+    "file.newProfile": {
+      "main": "New profile",
+      "flutter": "New profile",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/commands/app_command_registrar.dart",
+          "marker": "New profile"
+        }
+      ]
+    }
+  },
+  "documents": {
+    "automation": {
+      "main": "Automation resource",
+      "flutter": "AutomationData",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/graph/domain/automation_document.dart",
+          "marker": "AutomationDocument"
+        }
+      ]
+    },
+    "profile": {
+      "main": "Profile resource",
+      "flutter": "ShowRunnerProfile",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/persistence/profile_repository.dart",
+          "marker": "ShowRunnerProfile"
+        }
+      ]
+    },
+    "resource": {
+      "main": "Plugin resource",
+      "flutter": "ResourceData",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/resource_document_manager.dart",
+          "marker": "ResourceData"
+        }
+      ]
+    },
+    "stream-plan": {
+      "main": "Stream plan resource",
+      "flutter": "StreamPlanData",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/schema/stream_plan.dart",
+          "marker": "StreamPlanData"
+        }
+      ]
+    }
+  },
+  "resources": {
+    "automation": {
+      "main": "Automation",
+      "flutter": "Automation",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/features/resources/resource_options.dart",
+          "marker": "Automation"
+        }
+      ]
+    },
+    "profile": {
+      "main": "Profile",
+      "flutter": "Profile",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/project_panel/profile_section.dart",
+          "marker": "Profile"
+        }
+      ]
+    },
+    "overlay": {
+      "main": "Overlay",
+      "flutter": "Overlay",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/overlays/ui/plugin_ui.dart",
+          "marker": "Overlay"
+        }
+      ]
+    },
+    "variable": {
+      "main": "Variable",
+      "flutter": "Variable",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/variables/ui/plugin_ui.dart",
+          "marker": "Variable"
+        }
+      ]
+    },
+    "dashboard": {
+      "main": "Dashboard",
+      "flutter": "Dashboard",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/dashboards/manifest.dart",
+          "marker": "Dashboard"
+        }
+      ]
+    },
+    "stream-plan": {
+      "main": "StreamPlan",
+      "flutter": "StreamPlan",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/stream_plans/ui/plugin_ui.dart",
+          "marker": "StreamPlan"
+        }
+      ]
+    },
+    "persistent-media-library": {
+      "main": null,
+      "flutter": null,
+      "status": "intentionally_removed",
+      "reason": "Local file selection is sufficient for sound and overlay resources; a persistent catalog is out of scope."
+    }
+  },
+  "editorModes": {
+    "graph": {
+      "main": "Node editor",
+      "flutter": "Node editor",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/graph/ui/automation_graph_workspace.dart",
+          "marker": "AutomationGraphWorkspace"
+        }
+      ]
+    },
+    "timeline": {
+      "main": "Historical README label only",
+      "flutter": null,
+      "status": "intentionally_removed",
+      "reason": "Automation remains graph-only; timing semantics are represented by graph nodes. See ADR-002."
+    }
+  },
+  "systemMenus": {
+    "file": {
+      "main": "File menu",
+      "flutter": "File menu",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/system_bar.dart",
+          "marker": "File"
+        }
+      ]
+    },
+    "edit": {
+      "main": "Edit menu",
+      "flutter": "Edit menu",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/system_bar.dart",
+          "marker": "Edit"
+        }
+      ]
+    },
+    "view": {
+      "main": "View menu",
+      "flutter": "View menu",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/system_bar.dart",
+          "marker": "View"
+        }
+      ]
+    },
+    "help": {
+      "main": "Help menu",
+      "flutter": "Help menu",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/app/system_bar.dart",
+          "marker": "Help"
+        }
+      ]
+    }
+  },
+  "appFeatures": {
+    "browser-overlay-runtime": {
+      "main": "OBS Browser Source",
+      "flutter": "showrunner-obs-overlay",
+      "status": "not_applicable"
+    },
+    "shader-graph-overlays": {
+      "main": "Shader Graph",
+      "flutter": "Flutter Shader Graph editor and compiler",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/overlays/shader_graph/shader_graph_compiler.dart",
+          "marker": ""
+        }
+      ]
+    },
+    "sound-local-file-selection": {
+      "main": "Sound file actions",
+      "flutter": "Sound file actions and local picker",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/sound/manifest.dart",
+          "marker": ""
+        }
+      ]
+    },
+    "remote-agent": {
+      "main": "Satellite protocol",
+      "flutter": "Versioned remote agent protocol",
+      "status": "equivalent",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/remote/satellite/protocol.dart",
+          "marker": ""
+        }
+      ]
+    },
+    "persistent-media-library": {
+      "main": null,
+      "flutter": null,
+      "status": "intentionally_removed",
+      "reason": "No product workspace, catalog, scanner, database, or watcher is retained."
+    }
+  },
+  "discovery": {
+    "flutterFeatureDirectories": [
+      "automation",
+      "dashboard",
+      "diagnostics",
+      "plugins",
+      "profile",
+      "queue",
+      "remote",
+      "resources",
+      "settings",
+      "setup",
+      "support",
+      "variables"
+    ],
+    "forbiddenFlutterMarkers": [
+      "MediaWorkspace",
+      "MediaCatalogService",
+      "MediaLibraryService",
+      "MediaLibraryWatcher",
+      "MediaIndexStore",
+      "media_scan_benchmark.dart",
+      "desktop_drop",
+      "package:sqlite3"
+    ],
+    "forbiddenFlutterFileExtensions": [
+      "vue",
+      "ts",
+      "tsx"
+    ]
+  }
+}

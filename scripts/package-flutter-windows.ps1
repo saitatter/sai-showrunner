@@ -1,0 +1,136 @@
+param(
+  [string]$Version = '',
+  [string]$OutputDirectory = 'release',
+  [int]$BuildNumber = 0,
+  [switch]$SkipSmoke,
+  [switch]$RequireBundledYouTubeClient,
+  [switch]$SignWindowsBundle,
+  [switch]$RequireWindowsSignature
+)
+
+$ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $manifestPath = Join-Path $PSScriptRoot '..\package.json'
+  $Version = (Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json).version
+}
+
+Push-Location (Join-Path $PSScriptRoot '..\packages\showrunner-flutter')
+try {
+  if ($RequireBundledYouTubeClient -and
+      [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)) {
+    throw 'A bundled YouTube OAuth client ID is required for a release build.'
+  }
+
+  if ($BuildNumber -eq 0) {
+    $versionLine = Get-Content -LiteralPath pubspec.yaml | Where-Object { $_ -match '^version:' }
+    if ($versionLine -match '\+(\d+)') { $BuildNumber = [int]$Matches[1] }
+  }
+  if ($BuildNumber -lt 1 -or $BuildNumber -gt 65535) { throw 'Invalid Windows build number.' }
+  if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw 'Invalid release version.' }
+  $nativeVersion = ($Version -split '-')[0]
+  $dartDefines = @()
+  $dartDefines += "--dart-define=SHOWRUNNER_VERSION=$Version"
+  if (-not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)) {
+    $dartDefines += "--dart-define=SHOWRUNNER_YOUTUBE_CLIENT_ID=$($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)"
+  }
+  if (-not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_SECRET)) {
+    $dartDefines += "--dart-define=SHOWRUNNER_YOUTUBE_CLIENT_SECRET=$($env:SHOWRUNNER_YOUTUBE_CLIENT_SECRET)"
+  }
+
+  flutter build windows --release --build-name=$nativeVersion --build-number=$BuildNumber @dartDefines
+  if ($LASTEXITCODE -ne 0) { throw "Flutter release build failed with exit code $LASTEXITCODE." }
+  $bundle = Join-Path (Get-Location) 'build\windows\x64\runner\Release'
+  if (-not (Test-Path $bundle)) {
+    throw "Flutter Windows bundle was not produced at $bundle"
+  }
+
+  $bundleExecutable = Get-Item -LiteralPath (Join-Path $bundle 'showrunner_flutter.exe')
+  $actualVersion = ($bundleExecutable.VersionInfo.ProductVersion -split '\+')[0]
+  $expectedVersion = $nativeVersion
+  if ($actualVersion -ne $expectedVersion) {
+    throw "Flutter executable version $actualVersion does not match release version $expectedVersion."
+  }
+
+  if ($SignWindowsBundle -or $RequireWindowsSignature) {
+    & (Join-Path $PSScriptRoot 'sign-flutter-windows.ps1') `
+      -BundlePath $bundle `
+      -RequireSignature:($SignWindowsBundle -or $RequireWindowsSignature)
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  }
+
+  $requiredBundlePaths = @(
+    'showrunner_flutter.exe',
+    'flutter_windows.dll',
+    'libmpv-2.dll',
+    'media_kit_libs_windows_audio_plugin.dll',
+    'universal_ble_plugin.dll',
+    'data\flutter_assets'
+  )
+  $missingBundlePaths = @(
+    $requiredBundlePaths |
+      Where-Object { -not (Test-Path -LiteralPath (Join-Path $bundle $_)) }
+  )
+  if ($missingBundlePaths.Count -gt 0) {
+    throw "Flutter Windows bundle is missing required files: $($missingBundlePaths -join ', ')"
+  }
+
+  $overlaySource = Join-Path (Get-Location) '..\showrunner-obs-overlay\dist\obs-overlay'
+  if (-not (Test-Path -LiteralPath $overlaySource)) {
+    throw "Browser overlay build is missing at $overlaySource. Run 'yarn overlay:build' before packaging."
+  }
+  Copy-Item -LiteralPath $overlaySource -Destination (Join-Path $bundle 'obs-overlay') -Recurse -Force
+  if (-not (Test-Path -LiteralPath (Join-Path $bundle 'obs-overlay\overlay.html'))) {
+    throw "Browser overlay was not copied into the Windows bundle."
+  }
+
+  $outputRoot = Join-Path (Get-Location) "..\..\$OutputDirectory"
+  New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
+  $archive = Join-Path $outputRoot "ShowRunner-Flutter-windows-$Version.zip"
+  if (Test-Path $archive) {
+    Remove-Item -Force $archive
+  }
+  Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath $archive
+  Write-Host "Created $archive"
+
+  if (-not $SkipSmoke) {
+    $smokeScenarios = @(
+      'startup',
+      'first-run',
+      'automation',
+      'workflow',
+      'profile',
+      'integrations',
+      'overlays',
+      'updates'
+    )
+    foreach ($scenario in $smokeScenarios) {
+      & (Join-Path $PSScriptRoot 'smoke-flutter-windows.ps1') `
+        -ArchivePath $archive `
+        -Configuration Release `
+        -Scenario $scenario
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    Write-Host "Running local Windows updater install/rollback smoke"
+    $updateSmokeArgs = @("--bundle=$bundle")
+    if ($SignWindowsBundle -or $RequireWindowsSignature) {
+      $updateSmokeArgs += '--require-signature'
+    }
+    $dartExecutable = (Get-Command dart -ErrorAction Stop).Source
+    $previousErrorPreference = $ErrorActionPreference
+    try {
+      # Dart build-hook diagnostics on stderr are not failures in PowerShell 5.
+      $ErrorActionPreference = 'Continue'
+      & $dartExecutable run tool/update_smoke.dart @updateSmokeArgs
+      $updaterExitCode = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousErrorPreference
+    }
+    if ($updaterExitCode -ne 0) {
+      throw "Packaged updater proof failed with exit code $updaterExitCode."
+    }
+  }
+}
+finally {
+  Pop-Location
+}

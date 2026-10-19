@@ -1,0 +1,383 @@
+import 'dart:async';
+
+import '../../runtime/expression.dart';
+import '../../schema/data_input.dart';
+import '../registry/builtin_resource_specs.dart';
+import '../registry/plugin_contract.dart';
+import 'contracts.dart';
+import 'output.dart';
+import 'tts_runtime.dart';
+import 'windows_audio.dart';
+
+const _soundSchema = DartDataInputSchema(
+  label: 'Sound',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Output',
+      key: 'output',
+      kind: DartDataInputKind.resource,
+      resourceType: ResourceTypeId('SoundOutput'),
+    ),
+    DartDataInputSchema(
+      label: 'Sound file',
+      key: 'sound',
+      kind: DartDataInputKind.filePath,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Volume (0-100)',
+      key: 'volume',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 100,
+    ),
+    DartDataInputSchema(
+      label: 'Start timestamp',
+      key: 'startTime',
+      kind: DartDataInputKind.duration,
+      required: true,
+      defaultValue: 0,
+    ),
+    DartDataInputSchema(
+      label: 'End timestamp',
+      key: 'endTime',
+      kind: DartDataInputKind.duration,
+    ),
+  ],
+);
+
+const _speakTtsSchema = DartDataInputSchema(
+  label: 'Text to Speech',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Text',
+      key: 'text',
+      kind: DartDataInputKind.multilineText,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Output',
+      key: 'output',
+      kind: DartDataInputKind.resource,
+      resourceType: ResourceTypeId('SoundOutput'),
+    ),
+    DartDataInputSchema(
+      label: 'Voice',
+      key: 'voice',
+      kind: DartDataInputKind.resource,
+      resourceType: ResourceTypeId('TTSVoice'),
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Voice provider',
+      key: 'voiceProvider',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Volume (0-100)',
+      key: 'volume',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 100,
+    ),
+    DartDataInputSchema(
+      label: 'Pitch (-10 to 10)',
+      key: 'pitch',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 0,
+    ),
+    DartDataInputSchema(
+      label: 'Rate (-10 to 10)',
+      key: 'rate',
+      kind: DartDataInputKind.number,
+      required: true,
+      defaultValue: 0,
+    ),
+  ],
+);
+
+final class _SoundDependencies {
+  const _SoundDependencies({
+    required this.tts,
+    required this.ttsFile,
+    required this.outputs,
+    required this.resolveVoice,
+    required this.globalVolume,
+  });
+
+  final TtsSpeechService tts;
+  final TtsFileSynthesisService? ttsFile;
+  final SoundOutputRegistry outputs;
+  final TtsVoiceResolver? resolveVoice;
+  final double globalVolume;
+}
+
+typedef TtsVoiceResolver = Future<RuntimeMap?> Function(String id);
+
+DartPluginManifest createSoundPlugin({
+  TtsSpeechService? ttsService,
+  TtsFileSynthesisService? ttsFileService,
+  SoundOutputRegistry? soundOutputs,
+  TtsVoiceResolver? ttsVoiceResolver,
+  double globalVolume = 100,
+}) {
+  final dependencies = _SoundDependencies(
+    tts: ttsService ?? FlutterTtsSpeechService(),
+    ttsFile: ttsFileService ?? createDefaultTtsFileSynthesisService(),
+    outputs: soundOutputs ?? createDefaultSoundOutputRegistry(),
+    resolveVoice: ttsVoiceResolver,
+    globalVolume: globalVolume.clamp(0, 100).toDouble(),
+  );
+  return DartPluginManifest(
+    id: PluginId('sound'),
+    name: 'Sound & TTS',
+    resources: builtInResourceSpecsFor(const PluginId('sound')),
+    settings: const [
+      SettingSpec(
+        id: SettingId('globalVolume'),
+        displayName: 'Global Volume (0-100)',
+        defaultValue: 100,
+      ),
+      SettingSpec(
+        id: SettingId('defaultOutput'),
+        displayName: 'Default Sound Output',
+        defaultValue: 'system.default',
+      ),
+    ],
+    actions: [
+      ActionSpec<SoundPlaybackConfig, RuntimeMap>(
+        pluginId: PluginId('sound'),
+        actionId: ActionId('sound'),
+        displayName: 'Play Sound',
+        configSchema: _soundSchema,
+        configCodec: soundPlaybackConfigCodec,
+        invoke: (config, context) => _playSound(
+          config,
+          context,
+          dependencies.outputs,
+          globalVolume: dependencies.globalVolume,
+        ),
+      ),
+      ActionSpec<TtsActionConfig, RuntimeMap>(
+        pluginId: PluginId('sound'),
+        actionId: ActionId('speakTTS'),
+        displayName: 'Speak Text-to-Speech',
+        configSchema: _speakTtsSchema,
+        configCodec: ttsActionConfigCodec,
+        invoke: (config, context) => _speakTTS(
+          config,
+          context,
+          dependencies.tts,
+          dependencies.ttsFile,
+          dependencies.outputs,
+          dependencies.resolveVoice,
+          globalVolume: dependencies.globalVolume,
+        ),
+      ),
+      ActionSpec<TtsActionConfig, RuntimeMap>(
+        pluginId: PluginId('sound'),
+        actionId: ActionId('tts'),
+        displayName: 'Text to Speech',
+        configSchema: _speakTtsSchema,
+        configCodec: ttsActionConfigCodec,
+        invoke: (config, context) => _speakTTS(
+          config,
+          context,
+          dependencies.tts,
+          dependencies.ttsFile,
+          dependencies.outputs,
+          dependencies.resolveVoice,
+          globalVolume: dependencies.globalVolume,
+        ),
+      ),
+    ],
+  );
+}
+
+Future<RuntimeMap> _playSound(
+  SoundPlaybackConfig config,
+  EvaluationContext context,
+  SoundOutputRegistry outputs, {
+  required double globalVolume,
+}) async {
+  final abortPlayId = _firstText([config.abortPlay]);
+  if (abortPlayId != null) {
+    await outputs.abortPlay(abortPlayId);
+    return {'aborted': true, 'playId': abortPlayId};
+  }
+  final file = _firstText([config.sound]);
+  if (file == null) return {'played': false};
+
+  final result = await _playOutput(
+    outputs,
+    context,
+    outputId: _resourceId(config.output),
+    file: file,
+    startSec: (config.startTime ?? 0).clamp(0, double.infinity),
+    endSec: config.endTime ?? double.infinity,
+    volume: _applyGlobalVolume(config.volume ?? 100, globalVolume),
+    playId: _firstText([config.playId]),
+  );
+  return {'played': result, 'sound': file};
+}
+
+String? _resourceId(Object? value) {
+  if (value is String) return _firstText([value]);
+  if (value is Map) {
+    return _firstText(<Object?>[
+      value['id'],
+      value['value'],
+      if (value['resource'] is Map) (value['resource'] as Map)['id'],
+    ]);
+  }
+  return null;
+}
+
+Future<RuntimeMap> _speakTTS(
+  TtsActionConfig config,
+  EvaluationContext context,
+  TtsSpeechService service,
+  TtsFileSynthesisService? fileService,
+  SoundOutputRegistry outputs,
+  TtsVoiceResolver? resolveVoice, {
+  double globalVolume = 100,
+}) async {
+  final text = config.text ?? '';
+  if (text.trim().isEmpty) return {'spoken': false, 'text': text};
+
+  final rawVoice = config.voice;
+  final voiceId = _resourceId(rawVoice);
+  final resolvedVoice = voiceId == null
+      ? null
+      : await resolveVoice?.call(voiceId);
+  final effectiveVoice = resolvedVoice ?? rawVoice;
+  final voiceConfig = effectiveVoice is Map && effectiveVoice['config'] is Map
+      ? Map<String, dynamic>.from(effectiveVoice['config'] as Map)
+      : effectiveVoice is Map
+      ? Map<String, dynamic>.from(effectiveVoice)
+      : const <String, dynamic>{};
+  final providerConfig = config.providerConfig != null
+      ? Map<String, dynamic>.from(config.providerConfig!)
+      : voiceConfig['providerConfig'] is Map
+      ? Map<String, dynamic>.from(voiceConfig['providerConfig'] as Map)
+      : const <String, dynamic>{};
+  final voiceProvider = _firstText(<Object?>[
+    config.voiceProvider,
+    voiceConfig['voiceProvider'],
+    effectiveVoice is String ? effectiveVoice : null,
+  ]);
+  final voiceName = _firstText(<Object?>[
+    config.voiceName,
+    voiceConfig['name'],
+    effectiveVoice is Map ? effectiveVoice['name'] : null,
+  ]);
+  final voiceLocale = _firstText(<Object?>[
+    config.voiceLocale,
+    voiceConfig['locale'],
+    effectiveVoice is Map ? effectiveVoice['locale'] : null,
+  ]);
+  final pitch = _normalizePitch(providerConfig['pitch'] ?? config.pitch);
+  final rate = _normalizeRate(providerConfig['rate'] ?? config.rate);
+  final volume =
+      _normalizeVolume(config.volume) * (globalVolume.clamp(0, 100) / 100);
+  final request = TtsSpeechRequest(
+    text: text,
+    voiceProvider: voiceProvider,
+    voiceName: voiceName,
+    voiceLocale: voiceLocale,
+    volume: volume,
+    pitch: pitch,
+    rate: rate,
+  );
+  // Playback owns action/global/output volume. Baking the same gain into the
+  // WAV would apply it twice and make routed speech unexpectedly quiet.
+  final generatedFile = await fileService?.synthesizeToFile(
+    TtsSpeechRequest(
+      text: text,
+      voiceProvider: voiceProvider,
+      voiceName: voiceName,
+      voiceLocale: voiceLocale,
+      volume: 1,
+      pitch: pitch,
+      rate: rate,
+    ),
+  );
+  if (generatedFile != null) {
+    final played = await _playOutput(
+      outputs,
+      context,
+      outputId: _resourceId(config.output),
+      file: generatedFile,
+      volume: volume * 100,
+    );
+    return {'spoken': played, 'text': text, 'file': generatedFile};
+  }
+  final result = await service.speak(request);
+  return result.toMap();
+}
+
+Future<bool> _playOutput(
+  SoundOutputRegistry outputs,
+  EvaluationContext context, {
+  String? outputId,
+  required String file,
+  double startSec = 0,
+  double endSec = double.infinity,
+  double volume = 100,
+  String? playId,
+}) async {
+  final token = context.cancellationToken;
+  final effectivePlayId = _firstText([playId]) ?? token?.id;
+  void abort() {
+    final id = effectivePlayId;
+    if (id != null) unawaited(outputs.abortPlay(id));
+  }
+
+  token?.addListener(abort);
+  try {
+    return await outputs.playFile(
+      outputId: outputId,
+      file: file,
+      startSec: startSec,
+      endSec: endSec,
+      volume: volume,
+      playId: effectivePlayId,
+    );
+  } finally {
+    token?.removeListener(abort);
+  }
+}
+
+String? _firstText(Iterable<Object?> values) {
+  for (final value in values) {
+    final text = value?.toString().trim();
+    if (text != null && text.isNotEmpty) return text;
+  }
+  return null;
+}
+
+double _normalizeVolume(Object? value) =>
+    ((value is num ? value.toDouble() : double.tryParse('$value') ?? 100) / 100)
+        .clamp(0, 1)
+        .toDouble();
+
+double _applyGlobalVolume(double volume, double globalVolume) =>
+    (volume.clamp(0, 100) * globalVolume.clamp(0, 100) / 100)
+        .clamp(0, 100)
+        .toDouble();
+
+double _normalizeRate(Object? value) {
+  final rate = value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
+  return ((rate.clamp(-10, 10) + 10) / 20).clamp(0, 1).toDouble();
+}
+
+double _normalizePitch(Object? value) {
+  final pitch = value is num
+      ? value.toDouble()
+      : double.tryParse('$value') ?? 0;
+  final normalized = 1 + pitch.clamp(-10, 10) / 10;
+  return normalized.clamp(0.5, 2).toDouble();
+}

@@ -1,4 +1,3 @@
-import { SoundOutputConfig } from "showrunner-plugin-sound-shared"
 import { IPCSchema, SchemaObj } from "showrunner-schema"
 
 export interface OverlayWidgetSize {
@@ -68,6 +67,7 @@ export interface IPCOverlayWidgetDescriptor {
 	}
 }
 
-export interface OverlaySoundConfig extends SoundOutputConfig {
+export interface OverlaySoundConfig {
+	name: string
 	overlayId: string
 }

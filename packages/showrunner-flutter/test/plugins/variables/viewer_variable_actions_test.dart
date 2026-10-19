@@ -1,0 +1,181 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/persistence/viewer_data_repository.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/variables/contracts.dart';
+import 'package:showrunner_flutter/plugins/variables/manifest.dart';
+import 'package:showrunner_flutter/runtime/expression.dart';
+import 'package:showrunner_flutter/schema/viewer_data.dart';
+import 'package:showrunner_flutter/services/plugin_event_hub.dart';
+
+void main() {
+  late InMemoryViewerDataRepository repository;
+  late DartPluginRegistry registry;
+
+  setUp(() {
+    repository = InMemoryViewerDataRepository(
+      definitions: [
+        const ViewerVariableDefinition(
+          name: 'points',
+          type: 'Number',
+          defaultValue: 10,
+        ),
+        const ViewerVariableDefinition(name: 'title', type: 'String'),
+      ],
+    );
+    registry = DartPluginRegistry()
+      ..register(createVariablesPlugin(viewerDataRepository: repository));
+  });
+
+  test('decodes variable action configurations into typed contracts', () {
+    final set = registry.findAction('variables', 'setVariable')!;
+    final setConfig = set.decodeConfig({'variable': 'points', 'value': 3});
+    expect(setConfig, isA<VariableValueConfig>());
+    expect((setConfig as VariableValueConfig).value, 3);
+
+    final offset = registry.findAction('variables', 'offset')!;
+    final offsetConfig = offset.decodeConfig({
+      'variable': 'points',
+      'offset': 2,
+      'clamp': {'max': 10},
+    });
+    expect(offsetConfig, isA<VariableOffsetConfig>());
+    expect((offsetConfig as VariableOffsetConfig).maximum, 10);
+
+    final viewer = registry.findAction('variables', 'setViewerVar')!;
+    final viewerConfig = viewer.decodeConfig({
+      'viewer': {'id': '42', 'displayName': 'Ada'},
+      'variable': 'points',
+      'value': 12,
+    });
+    expect(viewerConfig, isA<ViewerVariableValueConfig>());
+    expect((viewerConfig as ViewerVariableValueConfig).viewer.id, '42');
+  });
+
+  test('invokes viewer actions against the injected repository', () async {
+    final setResult = await registry.invokeAction('variables', 'setViewerVar', {
+      'viewer': {'id': '42', 'displayName': 'Ada'},
+      'variable': 'title',
+      'value': 'Champion',
+    });
+    expect(setResult, {
+      'provider': 'twitch',
+      'viewer': '42',
+      'variable': 'title',
+      'value': 'Champion',
+    });
+
+    final offsetResult = await registry.invokeAction(
+      'variables',
+      'offsetViewerVar',
+      {'viewer': '42', 'variable': 'points', 'offset': 2},
+    );
+    expect(offsetResult, {
+      'provider': 'twitch',
+      'viewer': '42',
+      'variable': 'points',
+      'value': 12,
+    });
+    expect(
+      (await repository.loadViewer(
+        'twitch',
+        const ViewerIdentity(id: '42', displayName: 'Ada'),
+      )).values,
+      {'points': 12, 'title': 'Champion'},
+    );
+  });
+
+  test('keeps global variable actions in evaluation context state', () async {
+    final context = EvaluationContext(contextState: <String, dynamic>{});
+    await registry.invokeAction('variables', 'setVariable', {
+      'variable': 'globalCounter',
+      'value': 3,
+    }, context: context);
+
+    expect(
+      await registry.invokeAction('variables', 'getVariable', {
+        'variable': 'globalCounter',
+      }, context: context),
+      {'variable': 'globalCounter', 'value': 3},
+    );
+    expect(
+      (await repository.loadViewer(
+        'twitch',
+        const ViewerIdentity(id: '42', displayName: 'Ada'),
+      )).persisted,
+      isFalse,
+    );
+  });
+
+  test('preserves global set and offset actions', () async {
+    final context = EvaluationContext(
+      contextState: <String, dynamic>{'counter': 8},
+    );
+
+    expect(
+      await registry.invokeAction('variables', 'set', {
+        'variable': 'counter',
+        'value': 4,
+      }, context: context),
+      {'variable': 'counter', 'value': 4},
+    );
+    expect(
+      await registry.invokeAction('variables', 'offset', {
+        'variable': 'counter',
+        'offset': 10,
+        'clamp': {'max': 12},
+      }, context: context),
+      {'variable': 'counter', 'value': 12},
+    );
+    expect(context.contextState['counter'], 12);
+  });
+
+  test('publishes viewer changes to the in-process event hub', () async {
+    final eventHub = DartPluginEventHub();
+    final event = eventHub.stream('viewerDataChanged').first;
+    final eventRegistry = DartPluginRegistry()
+      ..register(
+        createVariablesPlugin(
+          viewerDataRepository: repository,
+          eventHub: eventHub,
+        ),
+      );
+
+    await eventRegistry.invokeAction('variables', 'setViewerVar', {
+      'viewer': {'id': '42', 'displayName': 'Ada'},
+      'variable': 'title',
+      'value': 'Champion',
+    });
+
+    expect(await event, {
+      'provider': 'twitch',
+      'id': '42',
+      'displayName': 'Ada',
+      'variable': 'title',
+      'value': 'Champion',
+      'values': {'points': 10, 'title': 'Champion'},
+    });
+    await eventHub.dispose();
+  });
+
+  test(
+    'rejects viewer actions with invalid type or missing identity',
+    () async {
+      expect(
+        () => registry.invokeAction('variables', 'offsetViewerVar', {
+          'viewer': '42',
+          'variable': 'title',
+          'offset': 1,
+        }),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        () => registry.invokeAction('variables', 'setViewerVar', {
+          'viewer': {'displayName': 'Ada'},
+          'variable': 'title',
+          'value': 'Champion',
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    },
+  );
+}

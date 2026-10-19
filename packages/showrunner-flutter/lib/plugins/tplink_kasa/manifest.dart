@@ -1,0 +1,302 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import '../../schema/data_input.dart';
+import '../../runtime/expression.dart';
+import '../iot/light_color.dart';
+import '../registry/plugin_contract.dart';
+import 'contracts.dart';
+
+typedef KasaRequest = Future<RuntimeMap> Function(RuntimeMap request);
+
+final class KasaTransport {
+  const KasaTransport(this.request);
+
+  final KasaRequest request;
+}
+
+final class KasaTcpTransport {
+  const KasaTcpTransport({required this.host, this.port = 9999});
+
+  final String host;
+  final int port;
+
+  Future<RuntimeMap> request(RuntimeMap payload) async {
+    final socket = await Socket.connect(
+      host,
+      port,
+      timeout: const Duration(seconds: 2),
+    );
+    try {
+      final responseFuture = _readFrame(socket);
+      socket.add(encodeKasaFrame(jsonEncode(payload)));
+      await socket.flush();
+      final response = await responseFuture.timeout(const Duration(seconds: 5));
+      final decoded = jsonDecode(decodeKasaPayload(response));
+      return decoded is Map
+          ? Map<String, dynamic>.from(decoded)
+          : <String, dynamic>{};
+    } finally {
+      await socket.close();
+    }
+  }
+}
+
+Uint8List encodeKasaFrame(String payload) {
+  final encrypted = _xor(payload.codeUnits);
+  final frame = Uint8List(encrypted.length + 4);
+  ByteData.sublistView(frame).setUint32(0, encrypted.length);
+  frame.setRange(4, frame.length, encrypted);
+  return frame;
+}
+
+String decodeKasaPayload(List<int> encrypted) =>
+    utf8.decode(_xor(encrypted, decode: true));
+
+const _sysInfo = <String, dynamic>{
+  'system': {'get_sysinfo': <String, dynamic>{}},
+};
+
+const _lightSchema = DartDataInputSchema(
+  label: 'Kasa light state',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Power',
+      key: 'state',
+      kind: DartDataInputKind.enumeration,
+      options: ['on', 'off', 'toggle'],
+      defaultValue: 'on',
+    ),
+    DartDataInputSchema(
+      label: 'Device IP / Host',
+      key: 'host',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Device Port',
+      key: 'port',
+      kind: DartDataInputKind.number,
+      defaultValue: 9999,
+    ),
+    DartDataInputSchema(
+      label: 'Color',
+      key: 'color',
+      kind: DartDataInputKind.lightColor,
+    ),
+    DartDataInputSchema(
+      label: 'Transition (seconds)',
+      key: 'transition',
+      kind: DartDataInputKind.number,
+      defaultValue: 0.5,
+    ),
+  ],
+);
+
+const _plugSchema = DartDataInputSchema(
+  label: 'Kasa plug state',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Power',
+      key: 'state',
+      kind: DartDataInputKind.enumeration,
+      options: ['on', 'off', 'toggle'],
+      defaultValue: 'on',
+    ),
+    DartDataInputSchema(
+      label: 'Device IP / Host',
+      key: 'host',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Device Port',
+      key: 'port',
+      kind: DartDataInputKind.number,
+      defaultValue: 9999,
+    ),
+  ],
+);
+
+typedef KasaTransportResolver = KasaTransport Function(RuntimeMap config);
+
+DartPluginManifest createKasaPlugin(
+  KasaTransport transport, {
+  KasaTransportResolver? transportResolver,
+}) => DartPluginManifest(
+  id: PluginId('tplink-kasa'),
+  name: 'TP-Link Kasa',
+  settings: const [
+    SettingSpec(id: SettingId('host'), displayName: 'Device IP / Host'),
+    SettingSpec(
+      id: SettingId('port'),
+      displayName: 'Device Port',
+      defaultValue: 9999,
+    ),
+    SettingSpec(
+      id: SettingId('subnetMask'),
+      displayName: 'Discovery Subnet Mask',
+      defaultValue: '255.255.255.255',
+    ),
+  ],
+  actions: [
+    ActionSpec<KasaDeviceConfig, RuntimeMap>(
+      pluginId: PluginId('tplink-kasa'),
+      actionId: ActionId('getDeviceInfo'),
+      displayName: 'Get Device Info',
+      configCodec: kasaDeviceConfigCodec,
+      invoke: (config, context) =>
+          (transportResolver?.call(config.toRuntime()) ?? transport).request(
+            _sysInfo,
+          ),
+    ),
+    ActionSpec<KasaDeviceConfig, RuntimeMap>(
+      pluginId: PluginId('tplink-kasa'),
+      actionId: ActionId('getLightState'),
+      displayName: 'Get Light State',
+      configCodec: kasaDeviceConfigCodec,
+      invoke: (config, context) =>
+          (transportResolver?.call(config.toRuntime()) ?? transport).request(
+            _sysInfo,
+          ),
+    ),
+    ActionSpec<KasaDeviceConfig, RuntimeMap>(
+      pluginId: PluginId('tplink-kasa'),
+      actionId: ActionId('setLightState'),
+      displayName: 'Set Light State',
+      configSchema: _lightSchema,
+      configCodec: kasaDeviceConfigCodec,
+      invoke: (config, context) => _setLightState(
+        transportResolver?.call(config.toRuntime()) ?? transport,
+        config,
+      ),
+    ),
+    ActionSpec<KasaDeviceConfig, RuntimeMap>(
+      pluginId: PluginId('tplink-kasa'),
+      actionId: ActionId('setPlugState'),
+      displayName: 'Set Plug State',
+      configSchema: _plugSchema,
+      configCodec: kasaDeviceConfigCodec,
+      invoke: (config, context) => _setPlugState(
+        transportResolver?.call(config.toRuntime()) ?? transport,
+        config,
+      ),
+    ),
+  ],
+);
+
+Future<RuntimeMap> _setLightState(
+  KasaTransport transport,
+  KasaDeviceConfig config,
+) async {
+  var power = config.power ?? KasaPowerMode.enabled;
+  RuntimeMap? current;
+  if (power == KasaPowerMode.toggle || config.color == null) {
+    current = await transport.request(_sysInfo);
+  }
+  if (power == KasaPowerMode.toggle) {
+    power = _isOn(current ?? const {})
+        ? KasaPowerMode.disabled
+        : KasaPowerMode.enabled;
+  }
+  final update = <String, dynamic>{
+    'on_off': power == KasaPowerMode.enabled ? 1 : 0,
+    'transition_period': (_number(config.transitionSeconds, 0.5) * 1000)
+        .clamp(0, 600000)
+        .round(),
+  };
+  final color = parseLightColor(config.color);
+  if (color != null) {
+    update['brightness'] = color.brightness.clamp(0, 100).round();
+    if (color.isKelvin) {
+      update['color_temp'] = color.kelvin!.round();
+      update['hue'] = 0;
+      update['saturation'] = 0;
+    } else {
+      update['hue'] = color.hue!.floor();
+      update['saturation'] = color.saturation!.ceil();
+      update['color_temp'] = 0;
+    }
+  }
+  return transport.request({
+    'smartlife.iot.smartbulb.lightingservice': {
+      'transition_light_state': update,
+    },
+  });
+}
+
+Future<RuntimeMap> _setPlugState(
+  KasaTransport transport,
+  KasaDeviceConfig config,
+) async {
+  var power = config.power ?? KasaPowerMode.enabled;
+  if (power == KasaPowerMode.toggle) {
+    final current = await transport.request(_sysInfo);
+    power = _isOn(current) ? KasaPowerMode.disabled : KasaPowerMode.enabled;
+  }
+  return transport.request({
+    'system': {
+      'set_relay_state': {'state': power == KasaPowerMode.enabled ? 1 : 0},
+    },
+  });
+}
+
+bool _isOn(RuntimeMap response) {
+  final system = response['system'];
+  final info = system is Map ? system['get_sysinfo'] : null;
+  final value = info is Map ? info['relay_state'] ?? info['device_on'] : null;
+  return value == true || value == 1;
+}
+
+double _number(Object? value, double fallback) =>
+    value is num ? value.toDouble() : double.tryParse('$value') ?? fallback;
+
+Future<List<int>> _readFrame(Socket socket) {
+  final completer = Completer<List<int>>();
+  final buffer = <int>[];
+  StreamSubscription<List<int>>? subscription;
+  subscription = socket.listen(
+    (chunk) {
+      buffer.addAll(chunk);
+      if (buffer.length < 4) return;
+      final length = ByteData.sublistView(
+        Uint8List.fromList(buffer),
+      ).getUint32(0);
+      if (length > 1024 * 1024 || buffer.length < length + 4) return;
+      if (!completer.isCompleted) {
+        completer.complete(buffer.sublist(4, length + 4));
+        unawaited(subscription?.cancel());
+      }
+    },
+    onError: (Object error, StackTrace stack) {
+      if (!completer.isCompleted) completer.completeError(error, stack);
+    },
+    onDone: () {
+      if (!completer.isCompleted) {
+        completer.completeError(
+          StateError('Kasa socket closed before a response.'),
+        );
+      }
+    },
+    cancelOnError: false,
+  );
+  return completer.future;
+}
+
+List<int> _xor(List<int> bytes, {bool decode = false}) {
+  var key = 171;
+  final result = <int>[];
+  for (final byte in bytes) {
+    if (decode) {
+      result.add(byte ^ key);
+      key = byte;
+    } else {
+      final encrypted = byte ^ key;
+      result.add(encrypted);
+      key = encrypted;
+    }
+  }
+  return result;
+}

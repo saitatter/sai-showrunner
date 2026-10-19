@@ -1,0 +1,194 @@
+import 'json.dart';
+
+enum UpdateStatus { idle, checking, available, downloaded, upToDate, error }
+
+class UpdateInfo {
+  const UpdateInfo({
+    required this.currentVersion,
+    required this.latestVersion,
+    required this.hasUpdate,
+    this.releaseNotes = '',
+    this.downloadUrl = '',
+    this.artifactUrl = '',
+    this.artifactSha256,
+    this.releaseDate = '',
+    this.status = UpdateStatus.idle,
+    this.errorMessage,
+    this.canCheckForUpdates = true,
+    this.checkedAt,
+    this.message,
+    this.downloaded = false,
+  });
+
+  final String currentVersion;
+  final String latestVersion;
+  final bool hasUpdate;
+  final String releaseNotes;
+  final String downloadUrl;
+  final String artifactUrl;
+  final String? artifactSha256;
+  final String releaseDate;
+  final UpdateStatus status;
+  final String? errorMessage;
+  final bool canCheckForUpdates;
+  final String? checkedAt;
+  final String? message;
+  final bool downloaded;
+
+  bool get hasValidArtifactDigest {
+    final digest = artifactSha256
+        ?.trim()
+        .replaceFirst(RegExp(r'^sha256:', caseSensitive: false), '')
+        .toLowerCase();
+    return digest != null && RegExp(r'^[0-9a-f]{64}$').hasMatch(digest);
+  }
+
+  factory UpdateInfo.fromJson(JsonMap json, {required String currentVersion}) {
+    final normalizedCurrent = normalizeVersion(currentVersion);
+    final latest = normalizeVersion(
+      (json['version'] ?? json['tag_name'])?.toString() ?? normalizedCurrent,
+    );
+    final hasUp = compareVersions(latest, normalizedCurrent) > 0;
+    return UpdateInfo(
+      currentVersion: normalizedCurrent,
+      latestVersion: latest,
+      hasUpdate: hasUp,
+      releaseNotes: sanitizeReleaseNotes(
+        (json['releaseNotes'] ?? json['body'])?.toString() ?? '',
+      ),
+      downloadUrl: (json['downloadUrl'] ?? json['html_url'])?.toString() ?? '',
+      artifactUrl:
+          (json['artifactUrl'] ?? _windowsArtifactUrl(json['assets']))
+              ?.toString() ??
+          '',
+      artifactSha256:
+          (json['artifactSha256'] ?? _windowsArtifactSha256(json['assets']))
+              ?.toString(),
+      releaseDate:
+          (json['releaseDate'] ?? json['published_at'])?.toString() ?? '',
+      status: hasUp ? UpdateStatus.available : UpdateStatus.upToDate,
+    );
+  }
+
+  UpdateInfo copyWith({UpdateStatus? status, bool? downloaded}) => UpdateInfo(
+    currentVersion: currentVersion,
+    latestVersion: latestVersion,
+    hasUpdate: hasUpdate,
+    releaseNotes: releaseNotes,
+    downloadUrl: downloadUrl,
+    artifactUrl: artifactUrl,
+    artifactSha256: artifactSha256,
+    releaseDate: releaseDate,
+    status: status ?? this.status,
+    errorMessage: errorMessage,
+    canCheckForUpdates: canCheckForUpdates,
+    checkedAt: checkedAt,
+    message: message,
+    downloaded: downloaded ?? this.downloaded,
+  );
+
+  JsonMap toJson() => <String, dynamic>{
+    'currentVersion': currentVersion,
+    'latestVersion': latestVersion,
+    'hasUpdate': hasUpdate,
+    'releaseNotes': releaseNotes,
+    'downloadUrl': downloadUrl,
+    'artifactUrl': artifactUrl,
+    'artifactSha256': artifactSha256,
+    'releaseDate': releaseDate,
+    'status': status.name,
+    'canCheckForUpdates': canCheckForUpdates,
+    'checkedAt': checkedAt,
+    'message': message,
+    'downloaded': downloaded,
+  };
+}
+
+String? _windowsArtifactUrl(dynamic assets) {
+  if (assets is! List) return null;
+  for (final asset in assets.whereType<Map>()) {
+    final name = asset['name']?.toString().toLowerCase() ?? '';
+    final url = asset['browser_download_url']?.toString();
+    if (url != null &&
+        url.isNotEmpty &&
+        name.contains('windows') &&
+        name.endsWith('.zip')) {
+      return url;
+    }
+  }
+  return null;
+}
+
+String? _windowsArtifactSha256(dynamic assets) {
+  if (assets is! List) return null;
+  for (final asset in assets.whereType<Map>()) {
+    final name = asset['name']?.toString().toLowerCase() ?? '';
+    if (!name.contains('windows') || !name.endsWith('.zip')) continue;
+    final digest = asset['digest'] ?? asset['sha256'];
+    if (digest == null) return null;
+    final normalized = digest
+        .toString()
+        .replaceFirst(RegExp(r'^sha256:', caseSensitive: false), '')
+        .toLowerCase();
+    return RegExp(r'^[0-9a-f]{64}$').hasMatch(normalized) ? normalized : null;
+  }
+  return null;
+}
+
+String normalizeVersion(String value) =>
+    value.trim().replaceFirst(RegExp(r'^v', caseSensitive: false), '');
+
+int compareVersions(String left, String right) {
+  final leftParts = _versionParts(normalizeVersion(left));
+  final rightParts = _versionParts(normalizeVersion(right));
+  for (var index = 0; index < 3; index++) {
+    final comparison = leftParts.numbers[index].compareTo(
+      rightParts.numbers[index],
+    );
+    if (comparison != 0) return comparison;
+  }
+  if (leftParts.prerelease == rightParts.prerelease) return 0;
+  if (leftParts.prerelease.isEmpty) return 1;
+  if (rightParts.prerelease.isEmpty) return -1;
+  return leftParts.prerelease.compareTo(rightParts.prerelease);
+}
+
+String sanitizeReleaseNotes(String value) {
+  var sanitized = value
+      .replaceAll(
+        RegExp(
+          r'<(script|style)\b[^>]*>.*?</\1\s*>',
+          caseSensitive: false,
+          dotAll: true,
+        ),
+        '',
+      )
+      .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'<li\b[^>]*>', caseSensitive: false), '- ')
+      .replaceAll(
+        RegExp(r'</(p|div|li|h[1-6]|blockquote)\s*>', caseSensitive: false),
+        '\n',
+      )
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&#x27;', "'");
+  return sanitized.trim();
+}
+
+({List<int> numbers, String prerelease}) _versionParts(String value) {
+  final withoutBuild = value.split('+').first;
+  final pieces = withoutBuild.split('-');
+  final numeric = pieces.first.split('.');
+  return (
+    numbers: [
+      for (var index = 0; index < 3; index++)
+        int.tryParse(index < numeric.length ? numeric[index] : '') ?? 0,
+    ],
+    prerelease: pieces.length > 1 ? pieces.sublist(1).join('-') : '',
+  );
+}

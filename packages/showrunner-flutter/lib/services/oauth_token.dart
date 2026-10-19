@@ -1,0 +1,493 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
+
+final class OAuthTokenSet {
+  const OAuthTokenSet({
+    required this.accessToken,
+    this.refreshToken,
+    this.expiresAt,
+  });
+
+  final String accessToken;
+  final String? refreshToken;
+  final DateTime? expiresAt;
+
+  bool get isExpired =>
+      accessToken.isEmpty ||
+      (expiresAt != null && DateTime.now().isAfter(expiresAt!));
+}
+
+final class OAuthAuthorizationRequest {
+  const OAuthAuthorizationRequest({
+    required this.authorizationUrl,
+    required this.state,
+    this.codeVerifier,
+  });
+
+  final Uri authorizationUrl;
+  final String state;
+  final String? codeVerifier;
+}
+
+final class OAuthAuthorizationClient {
+  const OAuthAuthorizationClient();
+
+  OAuthAuthorizationRequest buildRequest({
+    required String authorizationEndpoint,
+    required String clientId,
+    required String redirectUri,
+    required String state,
+    required List<String> scopes,
+    String? codeVerifier,
+  }) {
+    return OAuthAuthorizationRequest(
+      state: state,
+      codeVerifier: codeVerifier,
+      authorizationUrl: Uri.parse(authorizationEndpoint).replace(
+        queryParameters: {
+          'client_id': clientId,
+          'redirect_uri': redirectUri,
+          'response_type': 'code',
+          'scope': scopes.join(' '),
+          'state': state,
+          'access_type': 'offline',
+          'prompt': 'consent',
+          if (codeVerifier != null) ...{
+            'code_challenge': createOAuthCodeChallenge(codeVerifier),
+            'code_challenge_method': 'S256',
+          },
+        },
+      ),
+    );
+  }
+}
+
+String createOAuthState([Random? random]) {
+  final source = random ?? Random.secure();
+  final bytes = List<int>.generate(32, (_) => source.nextInt(256));
+  return base64UrlEncode(bytes).replaceAll('=', '');
+}
+
+String createOAuthCodeVerifier([Random? random]) {
+  final source = random ?? Random.secure();
+  final bytes = List<int>.generate(64, (_) => source.nextInt(256));
+  return base64UrlEncode(bytes).replaceAll('=', '');
+}
+
+String createOAuthCodeChallenge(String verifier) => base64UrlEncode(
+  sha256.convert(utf8.encode(verifier)).bytes,
+).replaceAll('=', '');
+
+final class OAuthCallbackResult {
+  const OAuthCallbackResult({required this.code, required this.state});
+
+  final String code;
+  final String state;
+}
+
+final class OAuthAuthorizationFlow {
+  const OAuthAuthorizationFlow({this.httpServerFactory = _bindLoopback});
+
+  final Future<HttpServer> Function() httpServerFactory;
+
+  Future<OAuthTokenSet> authorize({
+    required OAuthAuthorizationRequest Function(Uri redirectUri) requestBuilder,
+    required Future<void> Function(Uri authorizationUrl) openAuthorizationUrl,
+    required OAuthTokenClient tokenClient,
+    required String tokenEndpoint,
+    required String clientId,
+    String? clientSecret,
+    String callbackPath = '/oauth/callback',
+    Duration timeout = const Duration(minutes: 5),
+  }) async {
+    final server = await httpServerFactory();
+    final redirectUri = Uri(
+      scheme: 'http',
+      host: InternetAddress.loopbackIPv4.host,
+      port: server.port,
+      path: callbackPath,
+    );
+    final request = requestBuilder(redirectUri);
+    try {
+      final callback = _readCallback(
+        server,
+        request.state,
+        callbackPath,
+        timeout,
+      );
+      await openAuthorizationUrl(request.authorizationUrl);
+      final result = await callback;
+      return await tokenClient.exchangeCode(
+        tokenEndpoint: tokenEndpoint,
+        clientId: clientId,
+        clientSecret: clientSecret,
+        code: result.code,
+        redirectUri: redirectUri.toString(),
+        codeVerifier: request.codeVerifier,
+      );
+    } finally {
+      await server.close(force: true);
+    }
+  }
+
+  Future<OAuthCallbackResult> _readCallback(
+    HttpServer server,
+    String expectedState,
+    String callbackPath,
+    Duration timeout,
+  ) async {
+    try {
+      await for (final request in server.timeout(timeout)) {
+        if (request.uri.path != callbackPath) {
+          request.response.statusCode = HttpStatus.notFound;
+          await request.response.close();
+          continue;
+        }
+        final query = request.uri.queryParameters;
+        final response = request.response;
+        response.headers.contentType = ContentType.html;
+        if (query['error'] != null) {
+          response.statusCode = HttpStatus.badRequest;
+          response.write('Authorization failed. You can close this window.');
+          await response.close();
+          throw StateError('OAuth authorization failed: ${query['error']}');
+        }
+        if (query['state'] != expectedState) {
+          response.statusCode = HttpStatus.badRequest;
+          response.write(
+            'Authorization state did not match. You can close this window.',
+          );
+          await response.close();
+          throw StateError('OAuth authorization state did not match.');
+        }
+        final code = query['code'];
+        if (code == null || code.isEmpty) {
+          response.statusCode = HttpStatus.badRequest;
+          response.write(
+            'Authorization code was missing. You can close this window.',
+          );
+          await response.close();
+          throw const FormatException(
+            'OAuth callback did not contain an authorization code.',
+          );
+        }
+        response.write('Authorization complete. You can close this window.');
+        await response.close();
+        return OAuthCallbackResult(code: code, state: expectedState);
+      }
+      throw TimeoutException('OAuth authorization timed out.', timeout);
+    } on TimeoutException {
+      rethrow;
+    }
+  }
+}
+
+const twitchOAuthRedirectUrl = 'http://localhost:17563/oauth/callback';
+
+/// OAuth implicit flow used by Twitch's public desktop application client.
+///
+/// Twitch returns the token in the URL fragment, which browsers deliberately
+/// do not send to an HTTP server. The callback page therefore forwards the
+/// fragment to the loopback server with a same-origin request.
+final class OAuthImplicitAuthorizationFlow {
+  const OAuthImplicitAuthorizationFlow({
+    this.httpServerFactory = _bindTwitchLoopback,
+  });
+
+  final Future<HttpServer> Function() httpServerFactory;
+
+  Future<OAuthTokenSet> authorize({
+    required String authorizationEndpoint,
+    required String clientId,
+    required List<String> scopes,
+    required Future<void> Function(Uri authorizationUrl) openAuthorizationUrl,
+    Duration timeout = const Duration(minutes: 5),
+  }) async {
+    final server = await httpServerFactory();
+    final redirectUri = Uri(
+      scheme: 'http',
+      host: Uri.parse(twitchOAuthRedirectUrl).host,
+      port: server.port,
+      path: '/oauth/callback',
+    );
+    final state = createOAuthState();
+    final authorizationUrl = Uri.parse(authorizationEndpoint).replace(
+      queryParameters: {
+        'client_id': clientId,
+        'redirect_uri': redirectUri.toString(),
+        'response_type': 'token',
+        'scope': scopes.join(' '),
+        'state': state,
+        'force_verify': 'true',
+      },
+    );
+    try {
+      final token = _readCallback(server, state, timeout);
+      await openAuthorizationUrl(authorizationUrl);
+      return await token;
+    } finally {
+      await server.close(force: true);
+    }
+  }
+
+  Future<OAuthTokenSet> _readCallback(
+    HttpServer server,
+    String expectedState,
+    Duration timeout,
+  ) async {
+    try {
+      await for (final request in server.timeout(timeout)) {
+        if (request.uri.path != '/oauth/callback') {
+          request.response.statusCode = HttpStatus.notFound;
+          await request.response.close();
+          continue;
+        }
+        final query = request.uri.queryParameters;
+        final response = request.response;
+        response.headers.contentType = ContentType.html;
+        if (query.isEmpty) {
+          response.write(_implicitCallbackPage);
+          await response.close();
+          continue;
+        }
+        if (query['error'] != null) {
+          response.write('Authorization failed. You can close this window.');
+          await response.close();
+          throw StateError('OAuth authorization failed: ${query['error']}');
+        }
+        if (query['state'] != expectedState) {
+          response.write(
+            'Authorization state did not match. You can close this window.',
+          );
+          await response.close();
+          throw StateError('OAuth authorization state did not match.');
+        }
+        final accessToken = query['access_token'];
+        if (accessToken == null || accessToken.isEmpty) {
+          response.write(
+            'Authorization token was missing. You can close this window.',
+          );
+          await response.close();
+          throw const FormatException(
+            'OAuth callback did not contain an access token.',
+          );
+        }
+        response.write('Authorization complete. You can close this window.');
+        await response.close();
+        final expiresIn = int.tryParse(query['expires_in'] ?? '');
+        return OAuthTokenSet(
+          accessToken: accessToken,
+          expiresAt: expiresIn == null
+              ? null
+              : DateTime.now().add(Duration(seconds: expiresIn)),
+        );
+      }
+      throw TimeoutException('OAuth authorization timed out.', timeout);
+    } on TimeoutException {
+      rethrow;
+    }
+  }
+}
+
+const _implicitCallbackPage = '''
+<!doctype html>
+<html><head><meta charset="utf-8"><title>ShowRunner Twitch sign-in</title></head>
+<body>
+<p>Completing Twitch authorization…</p>
+<script>
+const fragment = window.location.hash.substring(1);
+if (fragment) {
+  fetch(window.location.pathname + '?' + fragment)
+    .then(() => document.body.innerHTML = '<p>Authorization complete. You can close this window.</p>')
+    .catch(() => document.body.innerHTML = '<p>Authorization could not be delivered. You can close this window.</p>');
+} else {
+  document.body.innerHTML = '<p>No authorization response was received.</p>';
+}
+</script>
+</body></html>
+''';
+
+final class OAuthTokenClient {
+  const OAuthTokenClient({this.httpClientFactory = _defaultHttpClient});
+
+  final HttpClient Function() httpClientFactory;
+  static const maxAttempts = 3;
+
+  Future<OAuthTokenSet> refresh({
+    required String tokenEndpoint,
+    required String clientId,
+    String? clientSecret,
+    required String refreshToken,
+  }) async {
+    late String body;
+    late int statusCode;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      final client = httpClientFactory();
+      final request = await client.postUrl(Uri.parse(tokenEndpoint));
+      request.headers.contentType = ContentType(
+        'application',
+        'x-www-form-urlencoded',
+        charset: 'utf-8',
+      );
+      request.write(
+        Uri(
+          queryParameters: {
+            'client_id': clientId,
+            'refresh_token': refreshToken,
+            'grant_type': 'refresh_token',
+            if (clientSecret != null && clientSecret.isNotEmpty)
+              'client_secret': clientSecret,
+          },
+        ).query,
+      );
+      final response = await request.close();
+      body = await utf8.decoder.bind(response).join();
+      statusCode = response.statusCode;
+      client.close(force: true);
+      if (statusCode >= 200 && statusCode < 300) break;
+      if (attempt < maxAttempts && statusCode >= 500) {
+        await Future<void>.delayed(
+          Duration(milliseconds: 100 * (1 << (attempt - 1))),
+        );
+        continue;
+      }
+      throw HttpException('OAuth refresh failed ($statusCode): $body');
+    }
+    final token = _decodeTokenSet(body);
+    return OAuthTokenSet(
+      accessToken: token.accessToken,
+      refreshToken: token.refreshToken ?? refreshToken,
+      expiresAt: token.expiresAt,
+    );
+  }
+
+  Future<OAuthTokenSet> exchangeCode({
+    required String tokenEndpoint,
+    required String clientId,
+    String? clientSecret,
+    required String code,
+    required String redirectUri,
+    String? codeVerifier,
+  }) async {
+    late String body;
+    late int statusCode;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      final client = httpClientFactory();
+      try {
+        final request = await client.postUrl(Uri.parse(tokenEndpoint));
+        request.headers.contentType = ContentType(
+          'application',
+          'x-www-form-urlencoded',
+          charset: 'utf-8',
+        );
+        request.write(
+          Uri(
+            queryParameters: {
+              'client_id': clientId,
+              'code': code,
+              'redirect_uri': redirectUri,
+              'grant_type': 'authorization_code',
+              if (clientSecret != null && clientSecret.isNotEmpty)
+                'client_secret': clientSecret,
+              if (codeVerifier != null && codeVerifier.isNotEmpty)
+                'code_verifier': codeVerifier,
+            },
+          ).query,
+        );
+        final response = await request.close();
+        body = await utf8.decoder.bind(response).join();
+        statusCode = response.statusCode;
+      } finally {
+        client.close(force: true);
+      }
+      if (statusCode >= 200 && statusCode < 300) break;
+      if (attempt < maxAttempts && statusCode >= 500) {
+        await Future<void>.delayed(
+          Duration(milliseconds: 100 * (1 << (attempt - 1))),
+        );
+        continue;
+      }
+      throw HttpException('OAuth code exchange failed ($statusCode): $body');
+    }
+    return _decodeTokenSet(body);
+  }
+}
+
+final class OAuthTokenManager {
+  OAuthTokenManager({required this.current, required this.refresh});
+
+  OAuthTokenSet? current;
+  final Future<OAuthTokenSet> Function(String refreshToken) refresh;
+  Future<OAuthTokenSet?>? _refreshing;
+
+  Future<String?> accessToken() async {
+    final token = current;
+    if (token == null || !token.isExpired || token.refreshToken == null) {
+      return token?.accessToken;
+    }
+    _refreshing ??= refresh(token.refreshToken!);
+    try {
+      current = await _refreshing;
+      return current?.accessToken;
+    } finally {
+      _refreshing = null;
+    }
+  }
+}
+
+HttpClient _defaultHttpClient() => HttpClient();
+
+Future<void> openOAuthUrlInBrowser(Uri url) async {
+  if (!Platform.isWindows) {
+    throw UnsupportedError(
+      'OAuth browser launch is currently supported on Windows only.',
+    );
+  }
+  // Use the registered Windows URL handler. Explorer can silently ignore long
+  // authorization URLs; a shell command with an unquoted URL drops '&' fields.
+  final quotedUrl = url.toString().replaceAll("'", "''");
+  final command = "Start-Process -FilePath '$quotedUrl'";
+  final encoded = base64Encode([
+    for (final unit in command.codeUnits) ...[unit & 0xff, unit >> 8],
+  ]);
+  final result = await Process.run('powershell.exe', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-EncodedCommand',
+    encoded,
+  ]);
+  if (result.exitCode != 0) {
+    throw StateError('Windows could not open the OAuth authorization page.');
+  }
+}
+
+Future<HttpServer> _bindLoopback() =>
+    HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+
+// Twitch requires an exact registered redirect, including a fixed port.
+// localhost is the exception to its HTTPS requirement for development clients.
+Future<HttpServer> _bindTwitchLoopback() => HttpServer.bind(
+  InternetAddress.loopbackIPv4,
+  Uri.parse(twitchOAuthRedirectUrl).port,
+);
+
+OAuthTokenSet _decodeTokenSet(String body) {
+  final decoded = jsonDecode(body);
+  if (decoded is! Map || decoded['access_token'] is! String) {
+    throw const FormatException(
+      'OAuth response did not contain an access token.',
+    );
+  }
+  final expiresIn = (decoded['expires_in'] as num?)?.toInt();
+  return OAuthTokenSet(
+    accessToken: decoded['access_token'] as String,
+    refreshToken: decoded['refresh_token'] as String?,
+    expiresAt: expiresIn == null
+        ? null
+        : DateTime.now().add(Duration(seconds: expiresIn)),
+  );
+}

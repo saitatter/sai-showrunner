@@ -1,0 +1,52 @@
+name: Nightly Flutter checks
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  graph-benchmark:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: Run graph benchmark harness
+        shell: pwsh
+        run: |
+          Push-Location packages/showrunner-flutter
+          flutter pub get
+          if ($LASTEXITCODE -ne 0) { throw "Native verification failed with exit code $LASTEXITCODE." }
+          New-Item -ItemType Directory -Force ../../.tmp/benchmarks | Out-Null
+          for ($sample = 0; $sample -lt 5; $sample++) {
+            flutter test tool/graph_benchmark_test.dart --reporter expanded | Tee-Object ../../.tmp/benchmarks/editor.log -Append
+            if ($LASTEXITCODE -ne 0) { throw 'Editor benchmark failed.' }
+            flutter test tool/graph_execution_benchmark_test.dart --reporter expanded | Tee-Object ../../.tmp/benchmarks/execution.log -Append
+            if ($LASTEXITCODE -ne 0) { throw 'Execution benchmark failed.' }
+          }
+          Pop-Location
+          node tools/benchmarks/summarize.mjs .tmp/benchmarks
+          if ($LASTEXITCODE -ne 0) { throw 'Benchmark summary failed.' }
+
+      - name: Upload benchmark measurements
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: graph-benchmarks
+          path: .tmp/benchmarks
+          retention-days: 30

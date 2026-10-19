@@ -1,0 +1,491 @@
+import 'dart:io';
+import 'dart:async';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
+import 'package:showrunner_flutter/persistence/resource_repository.dart';
+import 'package:showrunner_flutter/plugins/obs/actions.dart';
+import 'package:showrunner_flutter/plugins/obs/contracts.dart';
+import 'package:showrunner_flutter/plugins/obs/connection_router.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
+import 'package:showrunner_flutter/services/provider_settings_validator.dart';
+import 'package:showrunner_flutter/services/showrunner_data_service.dart';
+
+void main() {
+  test(
+    'replay waits for the selected connection to finish saving and cancels listeners',
+    () async {
+      final requested = Completer<void>();
+      final transport = _EventObsTransport((request, data) async {
+        expect(request, 'SaveReplayBuffer');
+        requested.complete();
+        return {};
+      });
+      final router = ObsConnectionRouter(
+        dataService: ShowRunnerDataService(Directory('test-obs-unused')),
+        settingsLoader: () async => {'host': '127.0.0.1', 'port': 4455},
+        resourceLoader: () async => [],
+        transportFactory: (endpoint, state) => transport,
+      );
+      final registry = DartPluginRegistry()..register(createObsPlugin(router));
+      addTearDown(registry.close);
+      addTearDown(transport.controller.close);
+      var completed = false;
+      final result = registry.invokeAction('obs', 'replaySave', {}).then((
+        value,
+      ) {
+        completed = true;
+        return value;
+      });
+      await requested.future;
+      expect(completed, false);
+      transport.controller.add({'eventType': 'RecordStateChanged'});
+      transport.controller.add({
+        'eventType': 'ReplayBufferSaved',
+        'savedReplayPath': 'new-replay.mp4',
+      });
+      expect(await result, {'replayFile': 'new-replay.mp4'});
+      expect(transport.controller.hasListener, false);
+
+      final failing = _EventObsTransport(
+        (request, data) async => throw StateError('not running'),
+      );
+      addTearDown(failing.controller.close);
+      await expectLater(saveObsReplayBuffer(failing), throwsStateError);
+      expect(failing.controller.hasListener, false);
+    },
+  );
+
+  test(
+    'studio toggle reads OBS state instead of a stale configuration',
+    () async {
+      var studio = false;
+      final registry = DartPluginRegistry()
+        ..register(
+          createObsPlugin(
+            CallbackObsTransport((request, data) async {
+              if (request == 'GetStudioModeEnabled') {
+                return {'studioModeEnabled': studio};
+              }
+              if (request == 'SetStudioModeEnabled') {
+                studio = data['studioModeEnabled'] == true;
+              }
+              return {};
+            }),
+          ),
+        );
+      addTearDown(registry.close);
+      for (final expected in [true, false, true]) {
+        await registry.invokeAction('obs', 'toggleStudioMode', {
+          'studioMode': 'toggle',
+          'studioModeEnabled': true,
+        });
+        expect(studio, expected);
+      }
+    },
+  );
+
+  test(
+    'browser refresh accepts the source field exposed by its editor',
+    () async {
+      final registry = DartPluginRegistry()
+        ..register(
+          createObsPlugin(
+            CallbackObsTransport((request, data) async {
+              expect(request, 'PressInputPropertiesButton');
+              expect(data['inputName'], 'Browser');
+              return {};
+            }),
+          ),
+        );
+      addTearDown(registry.close);
+      await registry.invokeAction('obs', 'browserRefresh', {
+        'source': 'Browser',
+      });
+      await registry.invokeAction('obs', 'refreshBrowser', {
+        'sourceName': 'Browser',
+      });
+    },
+  );
+
+  test(
+    'playMedia resolves the scene item before enabling or restarting it',
+    () async {
+      final requests = <String>[];
+      final registry = DartPluginRegistry()
+        ..register(
+          createObsPlugin(
+            CallbackObsTransport((request, data) async {
+              requests.add(request);
+              if (request == 'GetSceneItemList') {
+                return {
+                  'sceneItems': [
+                    {'sceneItemId': 2, 'sourceName': 'Other'},
+                    {'sceneItemId': 7, 'sourceName': 'Clip'},
+                  ],
+                };
+              }
+              if (request == 'GetSceneItemEnabled') {
+                return {'sceneItemEnabled': false};
+              }
+              if (request == 'TriggerMediaInputAction') {
+                expect(data['inputName'], 'Clip');
+              }
+              return {};
+            }),
+          ),
+        );
+      addTearDown(registry.close);
+      await registry.invokeAction('obs', 'playMedia', {
+        'scene': 'Main',
+        'source': 7,
+      });
+      expect(requests, [
+        'GetSceneItemList',
+        'GetSceneItemEnabled',
+        'SetSceneItemEnabled',
+        'TriggerMediaInputAction',
+      ]);
+      requests.clear();
+      await expectLater(
+        registry.invokeAction('obs', 'playMedia', {
+          'scene': 'Main',
+          'source': 99,
+        }),
+        throwsStateError,
+      );
+      expect(requests, ['GetSceneItemList']);
+    },
+  );
+
+  test('exposes structured configuration for every OBS action', () {
+    final actions = createObsPlugin(
+      CallbackObsTransport((request, data) async => {}),
+    ).actions;
+    final expectedIds = [
+      'scene',
+      'prevScene',
+      'hotkey',
+      'streamStartStop',
+      'recordingStartStop',
+      'virtualCamStartStop',
+      'replayBufferStartStop',
+      'replaySave',
+      'toggleStudioMode',
+      'triggerStudioModeTransition',
+      'mute',
+      'changeVolume',
+      'source',
+      'getInputSettings',
+      'setInputSettings',
+      'filter',
+      'text',
+      'mediaAction',
+      'playMedia',
+      'chapterMarker',
+      'browserUrl',
+      'browserRefresh',
+      'refreshBrowser',
+      'setBrowserURL',
+      'setImage',
+      'screenshot',
+      'transform',
+    ];
+
+    expect(actions.map((action) => action.actionId.value), expectedIds);
+    for (final action in actions) {
+      expect(action.configSchema, isNotNull, reason: action.actionId.value);
+    }
+    final stream = actions.firstWhere(
+      (action) => action.actionId.value == 'streamStartStop',
+    );
+    expect(stream.configSchema!.fields.single.key, 'streaming');
+    expect(
+      stream.configSchema!.fields.single.kind,
+      DartDataInputKind.enumeration,
+    );
+    expect(stream.configSchema!.fields.single.options, [
+      'true',
+      'false',
+      'toggle',
+    ]);
+  });
+
+  test('normalizes string toggle values from generic input controls', () async {
+    final requests = <String>[];
+    final registry = DartPluginRegistry()
+      ..register(
+        createObsPlugin(
+          CallbackObsTransport((request, data) async {
+            requests.add(request);
+            return {};
+          }),
+        ),
+      );
+
+    await registry.invokeAction('obs', 'recordingStartStop', {
+      'recording': 'false',
+    });
+    await registry.invokeAction('obs', 'toggleStudioMode', {
+      'studioMode': 'true',
+    });
+
+    expect(requests, ['StopRecord', 'SetStudioModeEnabled']);
+  });
+
+  test('decodes lifecycle action configurations into typed contracts', () {
+    final actions = createObsPlugin(
+      CallbackObsTransport((request, data) async => const {}),
+    ).actions;
+
+    final stream = actions
+        .firstWhere((action) => action.actionId.value == 'streamStartStop')
+        .decodeConfig({'streaming': 'toggle'});
+    expect(stream, isA<ObsToggleConfig>());
+    expect((stream as ObsToggleConfig).mode, ObsToggleMode.toggle);
+
+    final studio = actions
+        .firstWhere((action) => action.actionId.value == 'toggleStudioMode')
+        .decodeConfig({'studioMode': 'toggle', 'studioModeEnabled': true});
+    expect(studio, isA<ObsStudioModeConfig>());
+    expect((studio as ObsStudioModeConfig).studioModeEnabled, isTrue);
+
+    final screenshot = actions
+        .firstWhere((action) => action.actionId.value == 'screenshot')
+        .decodeConfig({'directory': 'captures', 'width': 1920});
+    expect(screenshot, isA<ObsScreenshotConfig>());
+    expect((screenshot as ObsScreenshotConfig).width, 1920);
+
+    final transform = actions
+        .firstWhere((action) => action.actionId.value == 'transform')
+        .decodeConfig({'scene': 'Main', 'source': '7', 'transform': {}});
+    expect(transform, isA<ObsTransformConfig>());
+    expect((transform as ObsTransformConfig).source, 7);
+
+    final media = actions
+        .firstWhere((action) => action.actionId.value == 'mediaAction')
+        .decodeConfig({'source': 'Video', 'action': 'Restart'});
+    expect(media, isA<ObsMediaActionConfig>());
+    expect((media as ObsMediaActionConfig).action, ObsMediaAction.restart);
+  });
+
+  test('persists OBS resources in the plugin directory', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'showrunner-resources-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final repository = ResourceRepository(
+      Directory('${directory.path}/obs/connections'),
+    );
+    const resource = ResourceData(
+      id: 'obs-local',
+      config: {
+        'name': 'Local OBS',
+        'host': '127.0.0.1',
+        'port': 4455,
+        'local': true,
+      },
+    );
+
+    await repository.save(resource);
+
+    expect((await repository.load('obs-local'))?.config['port'], 4455);
+  });
+
+  test('routes OBS actions through the plugin transport', () async {
+    final requests = <String>[];
+    final transport = CallbackObsTransport((request, data) async {
+      requests.add(request);
+      if (request == 'GetInputMute') return {'inputMuted': false};
+      if (request == 'GetSceneItemEnabled') return {'sceneItemEnabled': false};
+      if (request == 'GetSourceFilter') return {'filterEnabled': true};
+      return {};
+    });
+    final registry = DartPluginRegistry()..register(createObsPlugin(transport));
+
+    await registry.invokeAction('obs', 'streamStartStop', {'streaming': true});
+    await registry.invokeAction('obs', 'mute', {
+      'source': 'Mic',
+      'muted': 'toggle',
+    });
+    await registry.invokeAction('obs', 'browserUrl', {
+      'source': 'ChatOverlay',
+      'url': 'http://127.0.0.1:3000/overlay',
+    });
+
+    expect(requests, [
+      'StartStream',
+      'GetInputMute',
+      'SetInputMute',
+      'SetInputSettings',
+    ]);
+  });
+
+  test('tracks the previous OBS scene', () async {
+    final requests = <String>[];
+    final transport = CallbackObsTransport((request, data) async {
+      requests.add(request);
+      if (request == 'GetCurrentProgramScene') {
+        return {'currentProgramSceneName': 'Intro'};
+      }
+      return {};
+    });
+    final registry = DartPluginRegistry()..register(createObsPlugin(transport));
+
+    await registry.invokeAction('obs', 'scene', {'scene': 'Main'});
+    final result =
+        await registry.invokeAction('obs', 'prevScene', {})
+            as Map<String, dynamic>?;
+
+    expect(result?['scene'], 'Intro');
+    expect(requests, [
+      'GetCurrentProgramScene',
+      'SetCurrentProgramScene',
+      'SetCurrentProgramScene',
+    ]);
+  });
+
+  test('checks OBS health through the transport', () async {
+    final requests = <String>[];
+    final transport = CallbackObsTransport((request, data) async {
+      requests.add(request);
+      return {'obsVersion': '30.0.0'};
+    });
+    final registry = DartPluginRegistry()
+      ..register(
+        createObsPlugin(transport),
+        onHealthCheck: () async {
+          await transport.call('GetVersion', {});
+          return true;
+        },
+      );
+
+    expect(await registry.checkHealth('obs'), isTrue);
+    expect(requests, ['GetVersion']);
+  });
+
+  test('reports OBS health transport failures', () async {
+    final transport = CallbackObsTransport((request, data) async {
+      throw StateError('OBS is offline');
+    });
+    final registry = DartPluginRegistry()
+      ..register(
+        createObsPlugin(transport),
+        onHealthCheck: () async {
+          await transport.call('GetVersion', {});
+          return true;
+        },
+      );
+
+    expect(await registry.checkHealth('obs'), isFalse);
+  });
+
+  test('validates and persists OBS connection settings', () async {
+    final directory = await Directory.systemTemp.createTemp('showrunner-obs-');
+    addTearDown(() => directory.delete(recursive: true));
+    final dataService = ShowRunnerDataService(directory);
+
+    final invalid = validateProviderSettings('obs', {
+      'host': '',
+      'port': 70000,
+    });
+    expect(invalid.isValid, isFalse);
+
+    final settings = {'host': 'obs.local', 'port': 4456, 'password': 'updated'};
+    expect(validateProviderSettings('obs', settings).isValid, isTrue);
+    await dataService.savePluginSettings('obs', settings);
+
+    expect(await dataService.loadPluginSettings('obs'), {
+      'host': 'obs.local',
+      'port': 4456,
+      'password': 'updated',
+    });
+  });
+
+  test(
+    'routes transform actions with the OBS WebSocket payload shape',
+    () async {
+      Map<String, dynamic>? requestData;
+      final registry = DartPluginRegistry()
+        ..register(
+          createObsPlugin(
+            CallbackObsTransport((request, data) async {
+              requestData = data;
+              return {};
+            }),
+          ),
+        );
+
+      await registry.invokeAction('obs', 'transform', {
+        'scene': 'Main',
+        'source': 7,
+        'transform': {
+          'position': {'x': 100},
+          'scale': {'x': 2, 'y': 2},
+        },
+      });
+
+      expect(requestData?['sceneName'], 'Main');
+      expect(requestData?['sceneItemId'], 7);
+      expect(requestData?['sceneItemTransform'], {
+        'positionX': 100,
+        'scaleX': 2,
+        'scaleY': 2,
+      });
+    },
+  );
+
+  test('reads and writes OBS input settings through actions', () async {
+    final requests = <(String, Map<String, dynamic>)>[];
+    final registry = DartPluginRegistry()
+      ..register(
+        createObsPlugin(
+          CallbackObsTransport((request, data) async {
+            requests.add((request, data));
+            if (request == 'GetInputSettings') {
+              return {
+                'inputName': 'Camera',
+                'inputSettings': {'device_id': 'camera-1'},
+              };
+            }
+            return {};
+          }),
+        ),
+      );
+
+    final current = await registry.invokeAction('obs', 'getInputSettings', {
+      'sourceName': 'Camera',
+    });
+    await registry.invokeAction('obs', 'setInputSettings', {
+      'sourceName': 'Camera',
+      'inputSettings': {'device_id': 'camera-2'},
+    });
+
+    expect((current as Map)['inputSettings'], {'device_id': 'camera-1'});
+    expect(requests.map((entry) => entry.$1), [
+      'GetInputSettings',
+      'SetInputSettings',
+    ]);
+    expect(requests[0].$2['inputName'], 'Camera');
+    expect(requests[1].$2, {
+      'inputName': 'Camera',
+      'inputSettings': {'device_id': 'camera-2'},
+    });
+  });
+}
+
+final class _EventObsTransport implements ObsTransport, ObsEventTransport {
+  _EventObsTransport(this.callback);
+  final ObsCall callback;
+  final controller = StreamController<Map<String, dynamic>>.broadcast();
+  @override
+  Stream<Map<String, dynamic>> get events => controller.stream;
+  @override
+  Future<Map<String, dynamic>> call(
+    String request,
+    Map<String, dynamic> data,
+  ) => callback(request, data);
+  @override
+  Future<void> close() async {}
+}

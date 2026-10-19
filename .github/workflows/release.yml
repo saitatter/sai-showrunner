@@ -1,189 +1,210 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version without v; empty derives it from conventional commits
+        required: false
+        type: string
+      dry_run:
+        description: Preview version and changelog without changing files, tags or releases
+        required: false
+        default: false
+        type: boolean
+      backfill_version:
+        description: Rebuild assets of an existing Flutter release without changing its tag or publication state
+        required: false
+        type: string
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: showrunner-release
+  cancel-in-progress: false
 
 jobs:
-  package-windows-preflight:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: yarn
-          cache-dependency-path: yarn.lock
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Install distutils compatibility
-        run: pip install setuptools
-
-      - name: Install dependencies without native builds
-        run: yarn install --immutable
-        env:
-          YARN_ENABLE_SCRIPTS: false
-
-      - name: Setup Vite extensions
-        run: yarn setup-vite
-
-      - name: Rebuild native dependencies
-        run: |
-          yarn workspace showrunner-core run rebuild
-          yarn workspace showrunner-plugin-input-native run rebuild
-          yarn workspace showrunner-plugin-sound-native run rebuild
-        env:
-          GYP_MSVS_VERSION: 2022
-
-      - name: Build renderer and packages
-        run: node ./vite-util/multi-vite.mjs build
-        env:
-          VITE_APP_MIXPANEL_PROJECT_TOKEN: ${{ secrets.MIXPANEL_PROJECT_TOKEN }}
-          SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
-          SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
-
-      - name: Package Windows app
-        run: yarn workspace showrunner run electron:build -- --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: Verify Windows artifacts
-        run: yarn release:smoke-artifacts
-
-  release:
+  plan:
     runs-on: ubuntu-latest
-    needs: package-windows-preflight
+    permissions:
+      contents: read
+      actions: read
     outputs:
-      released: ${{ steps.semantic-release.outputs.new_release_published || 'false' }}
-      version: ${{ steps.semantic-release.outputs.new_release_version }}
-      tag: ${{ steps.semantic-release.outputs.new_release_git_tag }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      commit: ${{ steps.plan.outputs.commit }}
+      build: ${{ steps.plan.outputs.build }}
+      publish: ${{ steps.plan.outputs.publish }}
+      ci_reuse: ${{ steps.ci.outputs.reuse }}
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Require trusted main
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: test "$RELEASE_REF" = refs/heads/main
+      - uses: actions/checkout@v7
         with:
+          ref: main
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: yarn
-          cache-dependency-path: yarn.lock
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: yarn install --immutable
+      - name: Preview version and notes
+        id: plan
         env:
-          YARN_ENABLE_SCRIPTS: false
+          REQUESTED_VERSION: ${{ inputs.version }}
+          BACKFILL_VERSION: ${{ inputs.backfill_version }}
+        run: |
+          args=(--check --notes "$RUNNER_TEMP/release-notes.md")
+          if [ -n "$REQUESTED_VERSION" ]; then args+=(--version "$REQUESTED_VERSION"); fi
+          if [ -n "$BACKFILL_VERSION" ]; then args+=(--backfill "$BACKFILL_VERSION"); fi
+          node tools/release/prepare.mjs "${args[@]}"
+      - name: Look for successful CI on the exact main commit
+        id: ci
+        if: steps.plan.outputs.publish == 'true' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLANNED_COMMIT: ${{ steps.plan.outputs.commit }}
+        run: node tools/release/ci-proof.mjs
+      - name: Verify existing GitHub release for backfill
+        if: inputs.backfill_version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.plan.outputs.tag }}
+        run: gh release view "$RELEASE_TAG" --json tagName,isDraft,isPrerelease
 
-      - name: Semantic release
-        id: semantic-release
-        uses: cycjimmy/semantic-release-action@v4
+  validate:
+    needs: plan
+    if: needs.plan.outputs.publish == 'true' && !inputs.dry_run && needs.plan.outputs.ci_reuse != 'true'
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.plan.outputs.commit }}
+
+  prepare:
+    needs: [plan, validate]
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.publish == 'true' && !inputs.dry_run && (needs.plan.outputs.ci_reuse == 'true' || needs.validate.result == 'success')
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Require release token for protected main
+        if: inputs.backfill_version == ''
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo '::error::Set RELEASE_TOKEN with permission to push the release commit to protected main. See docs/versioning-policy.md.'
+            exit 1
+          fi
+      - uses: actions/checkout@v7
         with:
-          semantic_version: 24
-          extra_plugins: |
-            @semantic-release/commit-analyzer
-            @semantic-release/release-notes-generator
-            @semantic-release/github
-            conventional-changelog-conventionalcommits
+          ref: ${{ needs.plan.outputs.commit }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Prepare, commit and tag the validated snapshot
+        if: inputs.backfill_version == ''
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          EXPECTED_COMMIT: ${{ needs.plan.outputs.commit }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_COMMIT"
+          node tools/release/prepare.mjs --version "$RELEASE_VERSION" --notes "$RUNNER_TEMP/release-notes.md"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add CHANGELOG.md package.json packages/showrunner-flutter/pubspec.yaml packages/showrunner-flutter/lib/services/update_check_service.dart
+          git commit -m "chore(release): $RELEASE_VERSION"
+          git tag -a "v$RELEASE_VERSION" -m "v$RELEASE_VERSION"
+          git push --atomic origin HEAD:refs/heads/main "refs/tags/v$RELEASE_VERSION"
+          args=(--draft --latest=false)
+          if [[ "$RELEASE_VERSION" == *-* ]]; then args+=(--prerelease); fi
+          gh release create "v$RELEASE_VERSION" --verify-tag --title "v$RELEASE_VERSION" --notes-file "$RUNNER_TEMP/release-notes.md" "${args[@]}"
 
   package-windows:
     runs-on: windows-latest
-    needs: release
-    if: needs.release.outputs.released == 'true'
+    environment: release
+    permissions:
+      contents: write
+    needs: [plan, prepare]
+    if: needs.plan.outputs.publish == 'true' && !inputs.dry_run
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Checkout released commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: yarn
           cache-dependency-path: yarn.lock
 
       - name: Enable Corepack
+        shell: pwsh
         run: corepack enable
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
-
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Install distutils compatibility
-        run: pip install setuptools
-
-      - name: Install dependencies without native builds
+      - name: Install browser overlay dependencies
+        shell: pwsh
         run: yarn install --immutable
         env:
           YARN_ENABLE_SCRIPTS: false
 
-      - name: Setup Vite extensions
-        run: yarn setup-vite
+      - name: Build browser overlay runtime
+        shell: pwsh
+        run: yarn overlay:build
 
-      - name: Rebuild native dependencies
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v4
+
+      - name: Build and smoke-test Windows package
+        shell: pwsh
         run: |
-          yarn workspace showrunner-core run rebuild
-          yarn workspace showrunner-plugin-input-native run rebuild
-          yarn workspace showrunner-plugin-sound-native run rebuild
+          $packageArgs = @(
+            '-Version', $env:RELEASE_VERSION,
+            '-BuildNumber', $env:RELEASE_BUILD,
+            '-RequireBundledYouTubeClient'
+          )
+          Write-Host 'Packaging unsigned Windows binaries and running application/updater proofs.'
+          & .\scripts\package-flutter-windows.ps1 @packageArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         env:
-          GYP_MSVS_VERSION: 2022
-
-      - name: Build renderer and packages
-        run: node ./vite-util/multi-vite.mjs build
-        env:
-          VITE_APP_MIXPANEL_PROJECT_TOKEN: ${{ secrets.MIXPANEL_PROJECT_TOKEN }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          RELEASE_BUILD: ${{ needs.plan.outputs.build }}
           SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
 
-      - name: Package Windows app
-        run: yarn workspace showrunner run electron:build -- --config.extraMetadata.version=${{ needs.release.outputs.version }} --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - name: Smoke packaged artifacts
-        run: yarn release:smoke-artifacts
-
-      - name: Upload Windows artifacts
+      - name: Upload Windows package
         shell: pwsh
         run: |
-          $files = Get-ChildItem -Path release -File |
-            Where-Object {
-              $_.Name -eq "latest.yml" -or
-              $_.Name -like "*.exe" -or
-              $_.Name -like "*.exe.blockmap" -or
-              $_.Name -like "*.zip"
-            } |
-            ForEach-Object { $_.FullName }
-          $forbidden = $files | Where-Object { [System.IO.Path]::GetFileName($_) -eq "builder-debug.yml" }
-          if ($forbidden) {
-            throw "builder-debug.yml must not be published as a release asset."
+          $archive = Get-Item -LiteralPath ".\release\ShowRunner-Flutter-windows-$env:RELEASE_VERSION.zip"
+          gh release upload $env:RELEASE_TAG $archive.FullName --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release asset upload failed.' }
+          if ($env:BACKFILL_VERSION -eq '') {
+            $releaseArgs = @('release', 'edit', $env:RELEASE_TAG, '--draft=false')
+            if ($env:RELEASE_VERSION.Contains('-')) {
+              $releaseArgs += @('--prerelease', '--latest=false')
+            } else {
+              $releaseArgs += '--latest'
+            }
+            & gh @releaseArgs
+            if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
           }
-          if (-not $files) {
-            throw "No Windows package artifacts found in release/."
-          }
-          gh release upload "${{ needs.release.outputs.tag }}" $files --clobber
-          gh release edit "${{ needs.release.outputs.tag }}" --draft=false --latest
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          BACKFILL_VERSION: ${{ inputs.backfill_version }}

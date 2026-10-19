@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ro"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Overlay inspector — Electron și Flutter</title>
+<style>
+body{margin:24px;background:#181818;color:#eee;font:15px system-ui}h1{font-size:22px}p{max-width:1000px;line-height:1.6}button{background:#292929;color:#e4b7ff;border:1px solid #666;padding:9px 16px;border-radius:6px;margin-right:8px;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}.panel{border:1px solid #444;border-radius:8px;overflow:hidden}.label{padding:12px;background:#242424}.viewport{position:relative;overflow:auto}.viewport img{width:100%;display:block}.crop .viewport{width:352px;height:350px;margin:0 auto;overflow:hidden}.crop .viewport img{position:absolute;width:1440px;max-width:none;left:-1088px;top:-205px}.font.crop .viewport{width:660px;height:430px}.font.crop .panel:first-child img{left:-760px;top:-335px}.font.crop .panel:last-child img{left:-780px;top:-340px}@media(max-width:850px){.grid{grid-template-columns:1fr}}
+</style>
+<h1>Inspectorul overlay: Electron/Vue → Flutter</h1>
+<p>Aceeași resursă „Parity Overlay”, același widget „Stream Title”, capturi la 1440 × 900 pe Windows.
+Comparația păstrează capturile reale. Sidebar-ul, toolbar-ul, font rendering-ul și selecția canvasului diferă între framework-uri.</p>
+<button onclick="screen('label')">Proprietăți și transformări</button><button onclick="screen('font')">Font, stroke și shadow</button>
+<label><input id="zoom" type="checkbox" onchange="document.querySelector('.grid').classList.toggle('crop',this.checked)"> Mărește inspectorul</label>
+<div class="grid"><div class="panel"><div class="label">Varianta veche — Electron / Vue</div><div class="viewport"><img id="old" src="electron-overlay-inspector-label.png" alt="Inspector Electron"></div></div>
+<div class="panel"><div class="label">Varianta nouă — Flutter</div><div class="viewport"><img id="new" src="flutter-overlay-inspector-label.png" alt="Inspector Flutter"></div></div></div>
+<p>Flutter păstrează ordinea proprietăților, preview-ul fontului, cele două rânduri de aliniere și transformările X/Y și Width/Height.
+Redenumirea se face prin dublu click pe numele widgetului din lista de layere; câmpul Name a fost eliminat din inspector. Reordonarea rămâne disponibilă în listă. Câmpurile numerice reflectă mutarea pe canvas și resping valori nefinite sau dimensiuni negative.
+Popup-ul Font are acum lățimea de 640px, bare de culoare, câmpuri cu px și casete Stroke/Shadow cu etichetele în stânga. Fundalul, grila și butoanele de aliniere folosesc griurile variantei vechi.</p>
+<p><a style="color:#e4b7ff" href="flutter-before.png">Captura Flutter înainte de ajustări</a> · <a style="color:#e4b7ff" href="../testing.md">Ghidul de testare și verificare</a></p>
+<p><a style="color:#e4b7ff" href="flutter-color-picker.png">Selectorul de culoare Flutter: roată, RGB/HSV, alpha și hex</a> — captură din testul nativ Windows.</p>
+<p><a style="color:#e4b7ff" href="flutter-alignment-guides.png">Snap și ghidaje de aliniere Flutter</a> — margini și centre, buton de activare și Shift pentru ocolire temporară.</p>
+<script>function screen(mode){document.querySelector('.grid').classList.toggle('font',mode==='font');for(const [id,prefix]of[['old','electron'],['new','flutter']])document.getElementById(id).src=prefix+'-overlay-inspector-'+mode+'.png';}if(location.hash==='#font')screen('font');</script>
+</html>

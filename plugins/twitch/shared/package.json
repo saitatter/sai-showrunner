@@ -5,16 +5,15 @@
   "main": "src/index.ts",
   "devMain": "src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "typecheck": "tsc --noEmit"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "typescript": "*"
+    "typescript": "^5.7.3"
   },
   "dependencies": {
-    "axios": "*",
-    "showrunner-core": "workspace:^",
+    "axios": "^1.7.9",
     "showrunner-schema": "workspace:^"
   }
 }

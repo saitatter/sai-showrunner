@@ -1,306 +1,93 @@
-import { defineStore } from "pinia"
-import { ComputedRef, MaybeRefOrGetter, computed, ref, toValue } from "vue"
-import { RPCHandler, RPCMessage } from "showrunner-ws-rpc"
-import { OverlayConfig } from "showrunner-plugin-overlays-shared"
-import { ShowRunnerBridgeImplementation, useOverlaySoundPlayer } from "showrunner-overlay-core"
-import { ViewerDataRow, ViewerDataObserver, IPCSchema } from "showrunner-schema"
-import { ipcParseSchema } from "./ipc-schema"
+import { OverlayTransport, OverlayTransportMessage, OverlayTransportStatus, Unsubscribe } from "showrunner-overlay-core"
 
-export const useWebsocketBridge = defineStore("websocket-bridge", () => {
-	let websocket: WebSocket | undefined = undefined
-	let reconnectTimer: ReturnType<typeof setTimeout> | undefined = undefined
-	let isConnecting = false
-	const connectionStatus = ref<"idle" | "connecting" | "connected" | "reconnecting">("idle")
-	const rpcs = new RPCHandler()
+export class BrowserOverlaySocket implements OverlayTransport {
+	private socket?: WebSocket
+	private reconnectTimer?: number
+	private connecting = false
+	private pending?: Promise<void>
+	private cancelPending?: () => void
+	private closed = false
+	private readonly listeners = new Set<(message: OverlayTransportMessage) => void>()
+	private readonly statusListeners = new Set<(status: OverlayTransportStatus) => void>()
+	private status: OverlayTransportStatus = "idle"
 
-	const config = ref<OverlayConfig>({
-		name: "UNLOADED PLUGIN",
-		size: { width: 0, height: 0 },
-		widgets: [],
-	})
+	constructor(private readonly overlayId: string, private readonly host = window.location.host) {}
 
-	const stateStore = ref<Record<string, Record<string, any>>>({})
-	const stateMeta: Record<string, Record<string, { refCount: number }>> = {}
-
-	const widgetRpcs: Record<string, (...args: any) => any> = {}
-	const widgetBroadcastHandlers: Record<string, ((...args: any) => any)[]> = {}
-
-	const viewerDataObservers = new Set<ViewerDataObserver>()
-
-	const overlayId = ref(window.location.href.substring(window.location.href.lastIndexOf("/") + 1))
-
-	const sender = (data: RPCMessage) => {
-		if (websocket && websocket.readyState === WebSocket.OPEN) {
-			websocket.send(JSON.stringify(data))
-		}
-	}
-
-	function connect() {
-		if (isConnecting) return
-		isConnecting = true
-
-		// Clear any pending reconnect
-		if (reconnectTimer !== undefined) {
-			clearTimeout(reconnectTimer)
-			reconnectTimer = undefined
-		}
-
-		const wasConnected = connectionStatus.value === "connected" || connectionStatus.value === "reconnecting"
-		connectionStatus.value = wasConnected ? "reconnecting" : "connecting"
-
-		websocket = new WebSocket(`ws://${window.location.host}?overlay=${overlayId.value}`)
-
-		websocket.addEventListener("open", () => {
-			isConnecting = false
-			connectionStatus.value = "connected"
+	connect(): Promise<void> {
+		if (this.socket?.readyState === WebSocket.OPEN) return Promise.resolve()
+		if (this.connecting && this.pending) return this.pending
+		this.closed = false
+		if (this.reconnectTimer !== undefined) window.clearTimeout(this.reconnectTimer)
+		this.reconnectTimer = undefined
+		this.setStatus("connecting")
+		this.connecting = true
+		this.pending = new Promise<void>((resolve, reject) => {
+			const socket = new WebSocket(`ws://${this.host}?overlay=${encodeURIComponent(this.overlayId)}`)
+			this.socket = socket
+			this.cancelPending = () => reject(new Error("Overlay connection closed before opening"))
+			socket.addEventListener("open", () => {
+				if (this.socket !== socket || this.closed) return
+				this.connecting = false; this.cancelPending = undefined; this.setStatus("connected"); resolve()
+			}, { once: true })
+			socket.addEventListener("error", (event) => {
+				if (this.socket !== socket) return
+				reject(event)
+				socket.close()
+			}, { once: true })
+			socket.addEventListener("message", (event) => {
+				if (this.socket !== socket || this.closed || typeof event.data !== "string") return
+				try {
+					const message = JSON.parse(event.data) as OverlayTransportMessage
+					for (const listener of this.listeners) listener(message)
+				} catch { /* Ignore malformed transport messages. */ }
+			})
+				socket.addEventListener("close", () => {
+				if (this.socket !== socket) return
+				this.cancelPending?.()
+				this.cancelPending = undefined
+					this.socket = undefined
+					this.connecting = false
+					if (!this.closed && this.reconnectTimer === undefined) {
+						this.setStatus("reconnecting")
+						this.reconnectTimer = window.setTimeout(() => { this.reconnectTimer = undefined; void this.connect().catch(() => {}) }, 1000)
+				}
+			})
 		})
-
-		websocket.addEventListener("error", (err) => {
-			console.error("WebSocket Error:", err)
-		})
-
-		websocket.addEventListener("close", () => {
-			isConnecting = false
-			websocket = undefined
-			if (reconnectTimer !== undefined) return // Already scheduled
-			connectionStatus.value = "reconnecting"
-			reconnectTimer = setTimeout(() => {
-				reconnectTimer = undefined
-				connect()
-			}, 1000)
-		})
-
-		websocket.addEventListener("message", (ev) => {
-			let data: RPCMessage | undefined = undefined
-			if (typeof ev.data != "string") return
-
-			try {
-				data = JSON.parse(ev.data)
-			} catch {
-				return
-			}
-
-			rpcs.handleMessage(data as RPCMessage, sender)
-		})
+		return this.pending
 	}
 
-	rpcs.handle("overlays_setConfig", (configData: OverlayConfig) => {
-		config.value = configData
-		document.title = `ShowRunner Overlay -- ${configData.name}`
-	})
-
-	rpcs.handle("overlays_widgetRPC", (widgetId: string, rpcId: string, ...args: any[]) => {
-		const widgetRpc = widgetRpcs[`${widgetId}.${rpcId}`]
-
-		if (widgetRpc) return widgetRpc(...args)
-
-		return undefined
-	})
-
-	rpcs.handle("overlays_broadcast", (broadcastId: string, ...args: any[]) => {
-		const handlers = widgetBroadcastHandlers[`${broadcastId}`]
-		if (!handlers) return
-
-		for (const handler of handlers) {
-			try {
-				handler(...args)
-			} catch (err) {
-				console.error(err)
-			}
-		}
-	})
-
-	//VIEWER DATA EVENTS
-	rpcs.handle("overlays_onNewViewerData", (provider: string, id: string, viewerData: ViewerDataRow) => {
-		for (const observer of viewerDataObservers.values()) {
-			observer.onNewViewerData(provider, id, viewerData)
-		}
-	})
-
-	rpcs.handle("overlays_onViewerDataChanged", (provider: string, id: string, varName: string, value: any) => {
-		for (const observer of viewerDataObservers.values()) {
-			observer.onViewerDataChanged(provider, id, varName, value)
-		}
-	})
-
-	rpcs.handle("overlays_onViewerDataRemoved", (provider: string, id: string) => {
-		for (const observer of viewerDataObservers.values()) {
-			observer.onViewerDataRemoved(provider, id)
-		}
-	})
-
-	rpcs.handle("overlays_onNewViewerVariable", (varName: string, ipcSchema: IPCSchema) => {
-		const schema = ipcParseSchema(ipcSchema)
-		for (const observer of viewerDataObservers.values()) {
-			observer.onNewViewerVariable({ name: varName, schema })
-		}
-	})
-
-	rpcs.handle("overlays_onViewerVariableDeleted", (varName: string) => {
-		for (const observer of viewerDataObservers.values()) {
-			observer.onViewerVariableDeleted(varName)
-		}
-	})
-
-	const soundPlayer = useOverlaySoundPlayer()
-
-	rpcs.handle(
-		"overlays_playAudio",
-		(mediaFile: string, playId: string, startSec: number, endSec: number, volume: number) => {
-			const url = `http://${window.location.host}/${mediaFile.startsWith("/") ? mediaFile.slice(1) : mediaFile}`
-
-			soundPlayer.playSound(playId, url, startSec, endSec, volume)
-		}
-	)
-
-	rpcs.handle("overlays_cancelAudio", (playId: string) => {
-		soundPlayer.cancelSound(playId)
-	})
-
-	function acquireState(plugin: string, state: string) {
-		const meta = stateMeta[plugin]?.[state]
-		if (!meta) {
-			//New state
-			if (!(plugin in stateStore.value)) {
-				stateStore.value[plugin] = {}
-			}
-
-			stateStore.value[plugin][state] = undefined
-
-			if (!(plugin in stateMeta)) {
-				stateMeta[plugin] = {}
-			}
-
-			stateMeta[plugin][state] = { refCount: 1 }
-
-			rpcs.call("overlays_acquireState", sender, plugin, state)
-		} else {
-			meta.refCount += 1
-		}
+	async close(): Promise<void> {
+		this.closed = true
+		this.setStatus("idle")
+		if (this.reconnectTimer !== undefined) window.clearTimeout(this.reconnectTimer)
+		this.reconnectTimer = undefined
+		this.cancelPending?.()
+		this.cancelPending = undefined
+		this.connecting = false
+		this.pending = undefined
+		const socket = this.socket
+		this.socket = undefined
+		socket?.close()
 	}
 
-	function releaseState(plugin: string, state: string) {
-		const meta = stateMeta[plugin]?.[state]
-
-		if (!meta) {
-			console.error("Tried to release non acquired state", plugin, state)
-			return
-		}
-
-		meta.refCount -= 1
-
-		if (meta.refCount == 0) {
-			rpcs.call("overlays_freeState", sender, plugin, state)
-
-			delete stateMeta[plugin][state]
-			delete stateStore.value[plugin][state]
-		}
+	send(message: OverlayTransportMessage): void {
+		if (this.socket?.readyState !== WebSocket.OPEN) return
+		this.socket.send(JSON.stringify(message))
 	}
 
-	function getBridge(widget: MaybeRefOrGetter<string>): ShowRunnerBridgeImplementation {
-		return {
-			acquireState,
-			releaseState,
-			state: stateStore,
-			config: computed(() => {
-				const widgetConfig = config.value.widgets.find((w) => w.id == toValue(widget))
-				if (widgetConfig) return widgetConfig
-
-				return {
-					id: "error",
-					plugin: "error",
-					widget: "error",
-					name: "error",
-					size: { width: 0, height: 0 },
-					position: { x: 0, y: 0 },
-					config: {},
-					visible: false,
-					locked: false,
-				}
-			}),
-			registerRPC(id, func) {
-				widgetRpcs[`${toValue(widget)}.${id}`] = func
-			},
-			unregisterRPC(id) {
-				delete widgetRpcs[`${toValue(widget)}.${id}`]
-			},
-			registerMessage(id, func) {
-				const slug = `${id}`
-				if (slug in widgetBroadcastHandlers) {
-					widgetBroadcastHandlers[slug].push(func)
-				} else {
-					widgetBroadcastHandlers[slug] = [func]
-				}
-			},
-			unregisterMessage(id, func) {
-				const handlers = widgetBroadcastHandlers[id]
-				if (!handlers) return
-
-				const idx = handlers.findIndex((h) => h == func)
-				if (idx < 0) return
-
-				handlers.splice(idx, 1)
-
-				if (handlers.length == 0) {
-					delete widgetBroadcastHandlers[id]
-				}
-			},
-			async callRPC(id, ...args) {
-				return await rpcs.call("overlays_widgetRPC", sender, id, toValue(widget), ...args)
-			},
-			observeViewerData(observer) {
-				if (viewerDataObservers.has(observer)) return observer
-
-				const listening = viewerDataObservers.size != 0
-				viewerDataObservers.add(observer)
-
-				if (!listening) {
-					rpcs.call("overlays_observeViewerData", sender)
-				}
-
-				return observer
-			},
-			async unobserveViewerData(observer) {
-				if (!viewerDataObservers.has(observer)) return
-
-				viewerDataObservers.delete(observer)
-
-				const stillListening = viewerDataObservers.size != 0
-
-				if (!stillListening) {
-					await rpcs.call("overlays_unobserveViewerData", sender)
-				}
-			},
-			async queryViewerData(start, end, sortBy, sortOrder) {
-				return (await rpcs.call(
-					"overlays_queryViewerData",
-					sender,
-					start,
-					end,
-					sortBy,
-					sortOrder
-				)) as ViewerDataRow[]
-			},
-			async getViewerVariables() {
-				const serializedVariables = (await rpcs.call("overlays_getViewerVariables", sender)) as {
-					name: string
-					schema: IPCSchema
-				}[]
-
-				return serializedVariables.map((v) => ({ name: v.name, schema: ipcParseSchema(v.schema) }))
-			},
-		}
+	onMessage(listener: (message: OverlayTransportMessage) => void): Unsubscribe {
+		this.listeners.add(listener)
+		return () => this.listeners.delete(listener)
 	}
 
-	async function initialize() {
-		connect()
+	onStatus(listener: (status: OverlayTransportStatus) => void): Unsubscribe {
+		this.statusListeners.add(listener)
+		listener(this.status)
+		return () => this.statusListeners.delete(listener)
 	}
 
-	return {
-		overlayId: computed(() => overlayId.value),
-		config: computed(() => config.value),
-		connectionStatus: computed(() => connectionStatus.value),
-		initialize,
-		getBridge,
+	private setStatus(status: OverlayTransportStatus): void {
+		this.status = status
+		for (const listener of this.statusListeners) listener(status)
 	}
-})
+}

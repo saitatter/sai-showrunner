@@ -1,0 +1,651 @@
+import 'dart:math';
+
+import '../../schema/data_input.dart';
+import '../../runtime/cancellation.dart';
+import '../../runtime/expression.dart';
+import '../../schema/resource.dart';
+import '../../services/plugin_event_hub.dart';
+import '../registry/builtin_resource_specs.dart';
+import '../registry/plugin_contract.dart';
+import 'contracts.dart';
+
+typedef OverlayResourceLoader =
+    Future<ResourceData?> Function(String overlayId);
+typedef OverlayResourceSaver = Future<void> Function(ResourceData resource);
+
+final class OverlayResourceStore {
+  const OverlayResourceStore({required this.load, required this.save});
+
+  final OverlayResourceLoader load;
+  final OverlayResourceSaver save;
+}
+
+abstract final class OverlayEventIds {
+  static const widget = 'overlayWidget';
+  static const widgetRpc = 'overlayWidgetRPC';
+  static const broadcast = 'overlayBroadcast';
+  static const configChanged = 'overlayConfigChanged';
+}
+
+const _triggerWidgetSchema = DartDataInputSchema(
+  label: 'Overlay widget trigger',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Widget ID',
+      key: 'widgetId',
+      kind: DartDataInputKind.text,
+      required: true,
+    ),
+    DartDataInputSchema(
+      label: 'Overlay ID',
+      key: 'overlayId',
+      kind: DartDataInputKind.text,
+    ),
+    DartDataInputSchema(
+      label: 'Payload',
+      key: 'payload',
+      kind: DartDataInputKind.object,
+    ),
+  ],
+);
+
+const _alertSchema = DartDataInputSchema(
+  label: 'Overlay alert',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Alert widget',
+      key: 'alert',
+      kind: DartDataInputKind.object,
+      required: true,
+      fields: [
+        DartDataInputSchema(
+          label: 'Widget ID',
+          key: 'widgetId',
+          kind: DartDataInputKind.text,
+          required: true,
+        ),
+        DartDataInputSchema(
+          label: 'Overlay ID',
+          key: 'overlayId',
+          kind: DartDataInputKind.text,
+          required: true,
+        ),
+      ],
+    ),
+    DartDataInputSchema(
+      label: 'Title',
+      key: 'title',
+      kind: DartDataInputKind.multilineText,
+      required: true,
+      defaultValue: '',
+    ),
+    DartDataInputSchema(
+      label: 'Subtitle',
+      key: 'subtitle',
+      kind: DartDataInputKind.multilineText,
+      required: true,
+      defaultValue: '',
+    ),
+  ],
+);
+
+const _chatMessageSchema = DartDataInputSchema(
+  label: 'Chat message',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Target widget',
+      key: 'targetWidget',
+      kind: DartDataInputKind.object,
+      fields: [
+        DartDataInputSchema(
+          label: 'Widget ID',
+          key: 'widgetId',
+          kind: DartDataInputKind.text,
+        ),
+        DartDataInputSchema(
+          label: 'Overlay ID',
+          key: 'overlayId',
+          kind: DartDataInputKind.text,
+        ),
+      ],
+    ),
+    DartDataInputSchema(
+      label: 'Message ID',
+      key: 'messageId',
+      kind: DartDataInputKind.text,
+      defaultValue: '',
+    ),
+    DartDataInputSchema(
+      label: 'Platform',
+      key: 'platform',
+      kind: DartDataInputKind.text,
+      defaultValue: 'twitch',
+    ),
+    DartDataInputSchema(
+      label: 'Viewer name',
+      key: 'viewerName',
+      kind: DartDataInputKind.text,
+      defaultValue: '',
+    ),
+    DartDataInputSchema(
+      label: 'Message',
+      key: 'message',
+      kind: DartDataInputKind.multilineText,
+      required: true,
+      defaultValue: '',
+    ),
+    DartDataInputSchema(
+      label: 'Badges',
+      key: 'badges',
+      kind: DartDataInputKind.text,
+      defaultValue: '',
+    ),
+  ],
+);
+
+const _paidAlertSchema = DartDataInputSchema(
+  label: 'Paid alert',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Target widget',
+      key: 'targetWidget',
+      kind: DartDataInputKind.object,
+      fields: [
+        DartDataInputSchema(
+          label: 'Widget ID',
+          key: 'widgetId',
+          kind: DartDataInputKind.text,
+        ),
+        DartDataInputSchema(
+          label: 'Overlay ID',
+          key: 'overlayId',
+          kind: DartDataInputKind.text,
+        ),
+      ],
+    ),
+    DartDataInputSchema(
+      label: 'Event ID',
+      key: 'eventId',
+      kind: DartDataInputKind.text,
+      defaultValue: '',
+    ),
+    DartDataInputSchema(
+      label: 'Platform',
+      key: 'platform',
+      kind: DartDataInputKind.text,
+      defaultValue: 'youtube',
+    ),
+    DartDataInputSchema(
+      label: 'Viewer name',
+      key: 'viewerName',
+      kind: DartDataInputKind.text,
+      defaultValue: '',
+    ),
+    DartDataInputSchema(
+      label: 'Amount',
+      key: 'amount',
+      kind: DartDataInputKind.text,
+      defaultValue: '',
+    ),
+    DartDataInputSchema(
+      label: 'Currency',
+      key: 'currency',
+      kind: DartDataInputKind.text,
+      defaultValue: 'USD',
+    ),
+    DartDataInputSchema(
+      label: 'Title',
+      key: 'title',
+      kind: DartDataInputKind.text,
+      defaultValue: 'New Support',
+    ),
+    DartDataInputSchema(
+      label: 'Message',
+      key: 'message',
+      kind: DartDataInputKind.multilineText,
+      defaultValue: '',
+    ),
+  ],
+);
+
+const _beginSceneSchema = DartDataInputSchema(
+  label: 'Begin scene overlay',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Target widget',
+      key: 'targetWidget',
+      kind: DartDataInputKind.object,
+      fields: [
+        DartDataInputSchema(
+          label: 'Widget ID',
+          key: 'widgetId',
+          kind: DartDataInputKind.text,
+        ),
+        DartDataInputSchema(
+          label: 'Overlay ID',
+          key: 'overlayId',
+          kind: DartDataInputKind.text,
+        ),
+      ],
+    ),
+    DartDataInputSchema(
+      label: 'Scene key',
+      key: 'sceneKey',
+      kind: DartDataInputKind.text,
+      defaultValue: 'main',
+    ),
+    DartDataInputSchema(
+      label: 'Title',
+      key: 'title',
+      kind: DartDataInputKind.text,
+      defaultValue: 'Starting Soon',
+    ),
+    DartDataInputSchema(
+      label: 'Subtitle',
+      key: 'subtitle',
+      kind: DartDataInputKind.text,
+      defaultValue: '',
+    ),
+    DartDataInputSchema(
+      label: 'Accent color',
+      key: 'accentColor',
+      kind: DartDataInputKind.color,
+      defaultValue: '#9146ff',
+    ),
+  ],
+);
+
+const _endSceneSchema = DartDataInputSchema(
+  label: 'End scene overlay',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Target widget',
+      key: 'targetWidget',
+      kind: DartDataInputKind.object,
+      fields: [
+        DartDataInputSchema(
+          label: 'Widget ID',
+          key: 'widgetId',
+          kind: DartDataInputKind.text,
+        ),
+        DartDataInputSchema(
+          label: 'Overlay ID',
+          key: 'overlayId',
+          kind: DartDataInputKind.text,
+        ),
+      ],
+    ),
+    DartDataInputSchema(
+      label: 'Scene key',
+      key: 'sceneKey',
+      kind: DartDataInputKind.text,
+      defaultValue: 'main',
+    ),
+  ],
+);
+
+const _emoteSchema = DartDataInputSchema(
+  label: 'Emote message',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Bouncer widget',
+      key: 'bouncer',
+      kind: DartDataInputKind.object,
+      required: true,
+      fields: [
+        DartDataInputSchema(
+          label: 'Widget ID',
+          key: 'widgetId',
+          kind: DartDataInputKind.text,
+          required: true,
+        ),
+        DartDataInputSchema(
+          label: 'Overlay ID',
+          key: 'overlayId',
+          kind: DartDataInputKind.text,
+        ),
+      ],
+    ),
+    DartDataInputSchema(
+      label: 'Emote message',
+      key: 'message',
+      kind: DartDataInputKind.multilineText,
+      required: true,
+    ),
+  ],
+);
+
+const _visibilitySchema = DartDataInputSchema(
+  label: 'Widget visibility',
+  kind: DartDataInputKind.object,
+  fields: [
+    DartDataInputSchema(
+      label: 'Widget',
+      key: 'widget',
+      kind: DartDataInputKind.object,
+      required: true,
+      fields: [
+        DartDataInputSchema(
+          label: 'Widget ID',
+          key: 'widgetId',
+          kind: DartDataInputKind.text,
+          required: true,
+        ),
+        DartDataInputSchema(
+          label: 'Overlay ID',
+          key: 'overlayId',
+          kind: DartDataInputKind.text,
+          required: true,
+        ),
+      ],
+    ),
+    DartDataInputSchema(
+      label: 'Visibility',
+      key: 'enabled',
+      kind: DartDataInputKind.enumeration,
+      options: ['true', 'false', 'toggle'],
+      required: true,
+      defaultValue: 'true',
+    ),
+  ],
+);
+
+DartPluginManifest createOverlaysPlugin({
+  DartPluginEventHub? eventHub,
+  OverlayResourceStore? overlayStore,
+}) {
+  final hub = eventHub ?? DartPluginEventHub();
+  return DartPluginManifest(
+    id: PluginId('overlays'),
+    name: 'Overlays',
+    resources: builtInResourceSpecsFor(const PluginId('overlays')),
+    actions: [
+      ActionSpec<OverlayTriggerWidgetConfig, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('triggerWidget'),
+        displayName: 'Trigger Overlay Widget',
+        configSchema: _triggerWidgetSchema,
+        configCodec: overlayTriggerWidgetConfigCodec,
+        invoke: (config, context) => _triggerWidget(hub, config),
+      ),
+      ActionSpec<OverlayAlertConfig, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('alert'),
+        displayName: 'Show Alert',
+        configSchema: _alertSchema,
+        configCodec: overlayAlertConfigCodec,
+        invoke: (config, context) => _showAlert(
+          hub,
+          config,
+          context: context,
+          overlayStore: overlayStore,
+        ),
+      ),
+      ActionSpec<OverlayChatMessageConfig, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('pushChatMessage'),
+        displayName: 'Push Chat Message',
+        configSchema: _chatMessageSchema,
+        configCodec: overlayChatMessageConfigCodec,
+        invoke: (config, context) => _pushChatMessage(hub, config),
+      ),
+      ActionSpec<OverlayPaidAlertConfig, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('pushPaidAlert'),
+        displayName: 'Push Paid Alert',
+        configSchema: _paidAlertSchema,
+        configCodec: overlayPaidAlertConfigCodec,
+        invoke: (config, context) => _pushPaidAlert(hub, config),
+      ),
+      ActionSpec<OverlaySceneConfig, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('beginSceneOverlay'),
+        displayName: 'Begin Scene Overlay',
+        configSchema: _beginSceneSchema,
+        configCodec: overlaySceneConfigCodec,
+        invoke: (config, context) => _sceneEvent(hub, 'scene.begin', config),
+      ),
+      ActionSpec<OverlaySceneConfig, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('endSceneOverlay'),
+        displayName: 'End Scene Overlay',
+        configSchema: _endSceneSchema,
+        configCodec: overlaySceneConfigCodec,
+        invoke: (config, context) => _sceneEvent(hub, 'scene.end', config),
+      ),
+      ActionSpec<OverlayEmoteConfig, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('spawnEmotes'),
+        displayName: 'Bounce Emotes',
+        configSchema: _emoteSchema,
+        configCodec: overlayEmoteConfigCodec,
+        invoke: (config, context) => _spawnEmotes(hub, config),
+      ),
+      ActionSpec<OverlayVisibilityConfig, Object?>(
+        pluginId: PluginId('overlays'),
+        actionId: ActionId('widgetVisibility'),
+        displayName: 'Widget Visibility',
+        configSchema: _visibilitySchema,
+        configCodec: overlayVisibilityConfigCodec,
+        invoke: (config, context) =>
+            _setWidgetVisibility(hub, config, overlayStore: overlayStore),
+      ),
+    ],
+  );
+}
+
+Future<Object?> _triggerWidget(
+  DartPluginEventHub eventHub,
+  OverlayTriggerWidgetConfig config,
+) async {
+  final widgetId = config.widgetId?.trim() ?? '';
+  if (widgetId.isEmpty) return {'triggered': false, 'widgetId': widgetId};
+  eventHub.emit(OverlayEventIds.widget, {
+    'widgetId': widgetId,
+    'overlayId': config.overlayId,
+    'payload': config.payload,
+  });
+  return {'triggered': true, 'widgetId': widgetId};
+}
+
+Future<Object?> _showAlert(
+  DartPluginEventHub eventHub,
+  OverlayAlertConfig config, {
+  required EvaluationContext context,
+  required OverlayResourceStore? overlayStore,
+}) async {
+  final target = config.alert;
+  if (target == null) return {'triggered': false};
+  final selection = await _alertMediaSelection(target, overlayStore);
+  if (selection == null) {
+    return {'triggered': false, ...target.toRuntime()};
+  }
+  context.cancellationToken?.throwIfCancelled();
+  eventHub.emit(OverlayEventIds.widgetRpc, {
+    ...target.toRuntime(),
+    'rpcId': 'showAlert',
+    'args': [config.title ?? '', config.subtitle ?? '', selection.index],
+  });
+  await cancellableDelay(
+    Duration(milliseconds: (selection.duration * 1000).round()),
+    context.cancellationToken,
+  );
+  return {'triggered': true, ...target.toRuntime()};
+}
+
+Future<Object?> _pushChatMessage(
+  DartPluginEventHub eventHub,
+  OverlayChatMessageConfig config,
+) async {
+  final target = config.targetWidget;
+  eventHub.emit(OverlayEventIds.broadcast, {
+    'broadcastId': 'showrunner_chat_message',
+    'payload': {
+      'id': _eventId(config.messageId, 'showrunner-chat'),
+      'targetOverlayId': target?.overlayId ?? '',
+      'targetWidgetId': target?.widgetId ?? '',
+      'platform': _fallbackText(config.platform, 'unknown'),
+      'displayName': _fallbackText(config.viewerName, 'unknown'),
+      'username': _fallbackText(config.viewerName, 'unknown'),
+      'message': config.message ?? '',
+      'badges': config.badges ?? '',
+    },
+  });
+  return {'sent': true};
+}
+
+Future<Object?> _pushPaidAlert(
+  DartPluginEventHub eventHub,
+  OverlayPaidAlertConfig config,
+) async {
+  final target = config.targetWidget;
+  eventHub.emit(OverlayEventIds.broadcast, {
+    'broadcastId': 'showrunner_paid_alert',
+    'payload': {
+      'id': _eventId(config.eventId, 'showrunner-paid'),
+      'targetOverlayId': target?.overlayId ?? '',
+      'targetWidgetId': target?.widgetId ?? '',
+      'platform': _fallbackText(config.platform, 'unknown'),
+      'displayName': _fallbackText(config.viewerName, 'unknown'),
+      'amount': config.amount ?? '',
+      'currency': _fallbackText(config.currency, ''),
+      'title': _fallbackText(config.title, 'New Support'),
+      'message': config.message ?? '',
+    },
+  });
+  return {'sent': true};
+}
+
+Future<Object?> _sceneEvent(
+  DartPluginEventHub eventHub,
+  String type,
+  OverlaySceneConfig config,
+) async {
+  final target = config.targetWidget;
+  eventHub.emit(OverlayEventIds.broadcast, {
+    'broadcastId': 'showrunner_scene_event',
+    'payload': {
+      'type': type,
+      'targetOverlayId': target?.overlayId ?? '',
+      'targetWidgetId': target?.widgetId ?? '',
+      'sceneKey': _fallbackText(config.sceneKey, 'main'),
+      'title': config.title ?? '',
+      'subtitle': config.subtitle ?? '',
+      'accentColor': _fallbackText(config.accentColor, '#9146ff'),
+    },
+  });
+  return {'sent': true, 'type': type};
+}
+
+Future<Object?> _spawnEmotes(
+  DartPluginEventHub eventHub,
+  OverlayEmoteConfig config,
+) async {
+  final target = config.bouncer;
+  if (target == null) return {'triggered': false};
+  eventHub.emit(OverlayEventIds.widgetRpc, {
+    ...target.toRuntime(),
+    'rpcId': 'spawnEmotes',
+    'args': [config.message ?? ''],
+  });
+  return {'triggered': true, ...target.toRuntime()};
+}
+
+Future<Object?> _setWidgetVisibility(
+  DartPluginEventHub eventHub,
+  OverlayVisibilityConfig config, {
+  required OverlayResourceStore? overlayStore,
+}) async {
+  if (overlayStore == null) {
+    throw StateError('Overlay resource storage is not configured.');
+  }
+  final target = config.widget;
+  if (target == null) return {'widgetVisible': false};
+  final overlayId = target.overlayId!;
+  final widgetId = target.widgetId!;
+  final resource = await overlayStore.load(overlayId);
+  if (resource == null) return {'widgetVisible': false};
+  final widgets = _maps(resource.config['widgets']);
+  final index = widgets.indexWhere(
+    (widget) => widget['id']?.toString() == widgetId,
+  );
+  if (index < 0) return {'widgetVisible': false};
+  final current = widgets[index]['visible'] == true;
+  final visible = config.mode == OverlayVisibilityMode.toggle
+      ? !current
+      : config.mode == OverlayVisibilityMode.enabled;
+  widgets[index] = {...widgets[index], 'visible': visible};
+  await overlayStore.save(
+    ResourceData(
+      id: resource.id,
+      config: {...resource.config, 'widgets': widgets},
+      state: resource.state,
+    ),
+  );
+  eventHub.emit(OverlayEventIds.configChanged, {
+    'overlayId': overlayId,
+    'widgetId': widgetId,
+    'visible': visible,
+  });
+  return {'widgetVisible': visible};
+}
+
+Future<({int index, double duration})?> _alertMediaSelection(
+  OverlayTarget target,
+  OverlayResourceStore? overlayStore,
+) async {
+  if (overlayStore == null) return (index: 0, duration: 0.0);
+  final resource = await overlayStore.load(target.overlayId!);
+  if (resource == null) return null;
+  final widget = _maps(
+    resource.config['widgets'],
+  ).where((item) => item['id']?.toString() == target.widgetId).firstOrNull;
+  final widgetConfig = widget?['config'];
+  final media = widgetConfig is Map ? _maps(widgetConfig['media']) : const [];
+  if (media.isEmpty) return null;
+  final weights = media
+      .map((item) => _number(item['weight'], 0))
+      .map((weight) => max(weight, 0))
+      .toList();
+  final total = weights.fold<double>(0, (sum, weight) => sum + weight);
+  if (total <= 0) {
+    return (index: 0, duration: _mediaDuration(media[0]));
+  }
+  var targetWeight = Random().nextDouble() * total;
+  for (var index = 0; index < weights.length; index++) {
+    targetWeight -= weights[index];
+    if (targetWeight <= 0) {
+      return (index: index, duration: _mediaDuration(media[index]));
+    }
+  }
+  final index = weights.length - 1;
+  return (index: index, duration: _mediaDuration(media[index]));
+}
+
+double _mediaDuration(RuntimeMap media) =>
+    _number(media['duration'], 0).clamp(0, double.infinity).toDouble();
+
+String _fallbackText(Object? value, String fallback) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty ? fallback : text;
+}
+
+String _eventId(Object? value, String prefix) =>
+    _fallbackText(value, '$prefix-${DateTime.now().microsecondsSinceEpoch}');
+
+double _number(Object? value, double fallback) =>
+    value is num ? value.toDouble() : double.tryParse('$value') ?? fallback;
+
+List<RuntimeMap> _maps(Object? value) => value is List
+    ? value
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList()
+    : <RuntimeMap>[];

@@ -49,23 +49,24 @@ export type TemplateNumber = number | string
 registerType("Number", {
 	constructor: Number,
 	icon: "mdi mdi-numeric",
-	validate(value: number | string | undefined, schema: SchemaNumber) {
+	validate(value: number | string | undefined, schema: Schema) {
+		const numberSchema = schema as SchemaNumber
 		if (typeof value == "string") {
-			if (!schema.template) return `${schema.name ?? "This"} cannot be a template value`
+			if (!numberSchema.template) return `${numberSchema.name ?? "This"} cannot be a template value`
 			return undefined
 		}
 
 		if (value == null) {
-			if (schema.required) return `${schema.name ?? "This"} is required`
+			if (numberSchema.required) return `${numberSchema.name ?? "This"} is required`
 			return undefined
 		}
 
-		if (schema.min != null && value < schema.min) {
-			return `${schema.name} must be at least ${schema.min}`
+		if (numberSchema.min != null && value < numberSchema.min) {
+			return `${numberSchema.name} must be at least ${numberSchema.min}`
 		}
 
-		if (schema.max != null && value > schema.max) {
-			return `${schema.name} must be less than ${schema.max}`
+		if (numberSchema.max != null && value > numberSchema.max) {
+			return `${numberSchema.name} must be less than ${numberSchema.max}`
 		}
 
 		return undefined
@@ -97,15 +98,16 @@ export interface SchemaString extends Enumable<string>, SchemaBase<string> {
 registerType("String", {
 	constructor: String,
 	icon: "mdi mdi-text-short",
-	validate(value: string | undefined, schema: SchemaString) {
+	validate(value: string | undefined, schema: Schema) {
+		const stringSchema = schema as SchemaString
 		if (value == null) {
-			if (schema.required) return `${schema.name} is required`
+			if (stringSchema.required) return `${stringSchema.name} is required`
 			return undefined
 		}
 
-		if (schema.maxLength != null && !schema.template) {
-			if (value.length > schema.maxLength) {
-				return `${schema.name} can only be ${schema.maxLength} characters long`
+		if (stringSchema.maxLength != null && !stringSchema.template) {
+			if (value.length > stringSchema.maxLength) {
+				return `${stringSchema.name} can only be ${stringSchema.maxLength} characters long`
 			}
 		}
 

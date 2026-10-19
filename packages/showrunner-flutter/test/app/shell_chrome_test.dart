@@ -1,0 +1,210 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/app/commands/app_command.dart';
+import 'package:showrunner_flutter/app/project_panel.dart';
+import 'package:showrunner_flutter/app/system_bar.dart';
+import 'package:showrunner_flutter/app/workspace_registry.dart';
+import 'package:showrunner_flutter/features/settings/interface_preferences.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/services/showrunner_data_service.dart';
+
+void main() {
+  testWidgets('renders the reference system bar chrome', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ShowRunnerSystemBar(commands: AppCommandRegistry(const [])),
+      ),
+    );
+
+    expect(find.text('File'), findsOneWidget);
+    expect(find.text('Help'), findsOneWidget);
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('View'), findsOneWidget);
+    expect(find.byType(ShowRunnerBrandMark), findsOneWidget);
+    expect(find.byIcon(Icons.keyboard_arrow_down), findsNWidgets(4));
+  });
+
+  testWidgets('renders project navigation as expandable groups', (
+    tester,
+  ) async {
+    final preferences = FlutterInterfacePreferences(
+      dataService: ShowRunnerDataService(Directory.systemTemp),
+      initialValues: {
+        'hideNativeIntegrationShortcuts': false,
+        'collapseIntegrationCategoriesByDefault': false,
+      },
+    );
+    addTearDown(preferences.dispose);
+    WorkspaceId? selectedWorkspace;
+    String? selectedResourceType;
+    final registry = DartPluginRegistry();
+    for (final plugin in const [
+      (PluginId('obs'), 'OBS'),
+      (PluginId('twitch'), 'Twitch'),
+      (PluginId('youtube'), 'YouTube'),
+      (PluginId('moderation'), 'Moderation'),
+    ]) {
+      registry.register(DartPluginManifest(id: plugin.$1, name: plugin.$2));
+    }
+    addTearDown(registry.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 300,
+          height: 1200,
+          child: ShowRunnerProjectPanel(
+            selectedWorkspace: WorkspaceIds.graph,
+            pluginRegistryFuture: Future.value(registry),
+            preferences: preferences,
+            selectedPluginId: null,
+            callbacks: ProjectPanelCallbacks(
+              onDestinationSelected: (workspace) =>
+                  selectedWorkspace = workspace,
+              onPluginSelected: (_) {},
+              onPluginToggle: (_, _) async {},
+              onResourceSelected: (resourceType) {
+                selectedResourceType = resourceType;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('ShowRunner'), findsOneWidget);
+    expect(find.text('Automations'), findsOneWidget);
+    expect(find.text('Integrations'), findsOneWidget);
+    expect(find.text('Stream Plans'), findsOneWidget);
+    expect(find.text('Variables'), findsOneWidget);
+    expect(find.text('Viewer Variables'), findsOneWidget);
+    await tester.tap(find.text('Viewer Variables'));
+    expect(selectedWorkspace, WorkspaceIds.viewerVariables);
+
+    await tester.tap(find.text('Integrations'));
+    await tester.pumpAndSettle();
+    expect(find.text('OBS'), findsNWidgets(2));
+    expect(find.text('Connections'), findsOneWidget);
+    expect(find.text('Twitch'), findsNWidgets(2));
+    expect(find.text('YouTube'), findsNWidgets(2));
+    expect(find.text('Moderation'), findsNWidgets(2));
+    expect(find.text('Account Login'), findsOneWidget);
+    expect(find.text('Channel Point Rewards'), findsOneWidget);
+    expect(find.text('Viewer Groups'), findsOneWidget);
+    expect(find.text('Live Integration'), findsOneWidget);
+    expect(find.text('Moderation Docker'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Connections'));
+    await tester.tap(find.text('Connections'));
+    expect(selectedResourceType, 'OBSConnection');
+
+    await tester.drag(find.byType(ListView), const Offset(0, -1000));
+    await tester.pumpAndSettle();
+    expect(find.text('Overlays'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Tools'));
+    await tester.tap(find.text('Tools'));
+    await tester.pump();
+    expect(find.text('Automation Editor'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 1000));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Queues'));
+    await tester.tap(find.text('Queues'));
+    expect(selectedWorkspace, WorkspaceIds.queues);
+    await tester.tap(find.byIcon(Icons.chevron_right).first);
+    await tester.pumpAndSettle();
+    expect(find.text('All Automations'), findsNothing);
+  });
+
+  testWidgets('hides duplicate native integration shortcuts by default', (
+    tester,
+  ) async {
+    final preferences = FlutterInterfacePreferences(
+      dataService: ShowRunnerDataService(Directory.systemTemp),
+      initialValues: {'collapseIntegrationCategoriesByDefault': false},
+    );
+    addTearDown(preferences.dispose);
+    final registry = DartPluginRegistry()
+      ..register(const DartPluginManifest(id: PluginId('obs'), name: 'OBS'));
+    addTearDown(registry.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 300,
+          height: 900,
+          child: ShowRunnerProjectPanel(
+            selectedWorkspace: WorkspaceIds.graph,
+            pluginRegistryFuture: Future.value(registry),
+            preferences: preferences,
+            selectedPluginId: null,
+            callbacks: ProjectPanelCallbacks(
+              onDestinationSelected: (_) {},
+              onPluginSelected: (_) {},
+              onPluginToggle: (_, _) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Integrations'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('OBS'), findsOneWidget);
+    expect(find.text('Connections'), findsNothing);
+  });
+
+  testWidgets('search opens the matching integration group', (tester) async {
+    final preferences = FlutterInterfacePreferences(
+      dataService: ShowRunnerDataService(Directory.systemTemp),
+      initialValues: {'collapseIntegrationCategoriesByDefault': true},
+    );
+    addTearDown(preferences.dispose);
+    final registry = DartPluginRegistry()
+      ..register(
+        const DartPluginManifest(id: PluginId('twitch'), name: 'Twitch'),
+      );
+    addTearDown(registry.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 300,
+          height: 900,
+          child: ShowRunnerProjectPanel(
+            selectedWorkspace: WorkspaceIds.graph,
+            pluginRegistryFuture: Future.value(registry),
+            preferences: preferences,
+            selectedPluginId: null,
+            callbacks: ProjectPanelCallbacks(
+              onDestinationSelected: (_) {},
+              onPluginSelected: (_) {},
+              onPluginToggle: (_, _) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Integrations'));
+    await tester.pumpAndSettle();
+    expect(find.text('Twitch'), findsNothing);
+
+    await tester.enterText(find.byType(TextField), 'Twitch');
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is RichText && widget.text.toPlainText() == 'Twitch',
+      ),
+      findsOneWidget,
+    );
+  });
+}

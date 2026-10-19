@@ -1,0 +1,179 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sai_nodes/sai_nodes.dart' show NodeEditor, GraphSceneBuilder;
+import 'package:integration_test/integration_test.dart';
+import 'package:showrunner_flutter/persistence/automation_repository.dart';
+import '../support/integration_fixtures.dart';
+import 'package:showrunner_flutter/services/showrunner_data_service.dart';
+import 'package:showrunner_flutter/design_system/tokens/tokens.dart';
+
+import '../support/showrunner_test_app.dart';
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('renders the deterministic empty application surface', (
+    tester,
+  ) async {
+    final directory = await createShowRunnerFixtureDirectory();
+    addTearDown(() => directory.delete(recursive: true));
+    final view = tester.view;
+    view.physicalSize = const ui.Size(1440, 900);
+    view.devicePixelRatio = 1;
+    addTearDown(view.reset);
+
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: const ValueKey('showrunner-visual-surface'),
+        child: buildShowRunnerTestApp(
+          dataService: ShowRunnerDataService(directory),
+          showGraphEditor: false,
+        ),
+      ),
+    );
+    // Runtime workers keep timers alive, so pumpAndSettle would wait forever.
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(
+      find.bySemanticsLabel('ShowRunner desktop application'),
+      findsOneWidget,
+    );
+    expect(find.text('File'), findsOneWidget);
+    expect(find.text('Help'), findsOneWidget);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('workspace-document-tabs')))
+          .height,
+      ShowRunnerSpacing.controlHeight,
+    );
+    await _writeOptionalCapture(tester);
+  });
+
+  testWidgets('renders the deterministic loaded graph surface', (tester) async {
+    final directory = await createShowRunnerFixtureDirectory();
+    addTearDown(() => directory.delete(recursive: true));
+    await AutomationRepository(
+      File('${directory.path}/automations/visual-automation.yaml'),
+    ).save(
+      automationFixture(
+        name: 'Paid Event -> Add to Alerts Queue',
+        entryNodeId: 'super-chat',
+        nodes: [
+          GraphNode(
+            id: 'super-chat',
+            type: triggerNodeType('youtube', 'superChat'),
+            data: {'config': {}},
+          ),
+          actionFixture('queue', plugin: 'ShowRunner', action: 'addToQueue'),
+        ],
+        connections: [controlFixture('event-queue', 'super-chat', 'queue')],
+      ),
+    );
+    final view = tester.view;
+    view.physicalSize = const ui.Size(1440, 900);
+    view.devicePixelRatio = 1;
+    addTearDown(view.reset);
+
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: const ValueKey('showrunner-visual-graph'),
+        child: buildShowRunnerTestApp(
+          dataService: ShowRunnerDataService(directory),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Automations').first);
+    await _pumpUntilVisible(
+      tester,
+      find.text('Paid Event -> Add to Alerts Queue'),
+    );
+    await tester.tap(find.text('Paid Event -> Add to Alerts Queue').first);
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Graph healthy'), findsOneWidget);
+    expect(find.textContaining('2 nodes'), findsOneWidget);
+    expect(find.text('Add node'), findsOneWidget);
+    expect(find.text('Super Chat'), findsOneWidget);
+    expect(find.text('Add to Queue'), findsAtLeastNWidgets(1));
+    expect(find.text('str'), findsAtLeastNWidgets(1));
+    expect(find.text('string'), findsNothing);
+    expect(find.textContaining('Select a node'), findsOneWidget);
+    final graphController = tester
+        .widget<NodeEditor>(find.byType(NodeEditor).first)
+        .controller;
+    final connection = graphController.activeSpace!.connections.values.single;
+    final scene = GraphSceneBuilder().build(graphController);
+    final source = scene.nodes[connection.from.nodeId]!.geometry;
+    final target = scene.nodes[connection.to.nodeId]!.geometry;
+    final sourcePort = source.ports[connection.from.portId]!;
+    final targetPort = target.ports[connection.to.portId]!;
+    expect(sourcePort.x, closeTo(source.bounds.right, .1));
+    expect(targetPort.x, closeTo(target.bounds.left, .1));
+    expect(sourcePort.y, greaterThan(source.bounds.top + 30));
+    expect(targetPort.y, greaterThan(target.bounds.top + 30));
+    final dismissButtons = find.text('Dismiss');
+    if (dismissButtons.evaluate().isNotEmpty) {
+      final dismissBox = tester.renderObject<RenderBox>(dismissButtons.last);
+      await tester.tapAt(
+        dismissBox.localToGlobal(dismissBox.size.center(Offset.zero)),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+    await _writeOptionalCapture(tester, fileName: 'app-graph.png');
+  });
+}
+
+Future<void> _writeOptionalCapture(
+  WidgetTester tester, {
+  String fileName = 'app-empty.png',
+}) async {
+  if (Platform.environment['SHOWRUNNER_VISUAL_CAPTURE'] != '1') return;
+  final toastDismissButton = find.byKey(
+    const ValueKey('showrunner-toast-dismiss'),
+  );
+  if (toastDismissButton.evaluate().isNotEmpty) {
+    await tester.tap(toastDismissButton);
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+  final messenger = find.byType(ScaffoldMessenger);
+  if (messenger.evaluate().isNotEmpty) {
+    tester
+        .state<ScaffoldMessengerState>(messenger.first)
+        .hideCurrentMaterialBanner();
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+  final outputDirectory = Directory(
+    Platform.environment['SHOWRUNNER_VISUAL_OUTPUT'] ??
+        'test/reference/flutter',
+  );
+  await outputDirectory.create(recursive: true);
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find.byType(RepaintBoundary).first,
+  );
+  final image = await boundary.toImage(pixelRatio: 1);
+  try {
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (bytes == null) throw StateError('Flutter did not produce PNG bytes.');
+    await File(
+      '${outputDirectory.path}/$fileName',
+    ).writeAsBytes(bytes.buffer.asUint8List());
+  } finally {
+    image.dispose();
+  }
+}
+
+Future<void> _pumpUntilVisible(WidgetTester tester, Finder finder) async {
+  for (var attempt = 0; attempt < 20; attempt++) {
+    if (finder.evaluate().isNotEmpty) return;
+    await tester.pump(const Duration(milliseconds: 150));
+  }
+  throw TestFailure('Timed out waiting for $finder.');
+}

@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "id": "parity-automation",
+  "graph": {
+    "schemaVersion": 1,
+    "id": "parity-automation",
+    "spaces": {
+      "space:main": {
+        "id": "space:main",
+        "nodes": {
+          "chat-trigger": {
+            "id": "chat-trigger",
+            "type": "trigger:twitch/chat",
+            "data": {
+              "config": {}
+            },
+            "metadata": {}
+          },
+          "queue-alert": {
+            "id": "queue-alert",
+            "type": "action:ShowRunner/addToQueue",
+            "data": {
+              "config": {
+                "queue": "alerts",
+                "automation": "paid-alert"
+              }
+            },
+            "metadata": {}
+          },
+          "push-message": {
+            "id": "push-message",
+            "type": "action:overlays/pushChatMessage",
+            "data": {
+              "config": {
+                "message": "Hello from the parity fixture"
+              }
+            },
+            "metadata": {}
+          }
+        },
+        "connections": {
+          "edge-trigger-queue": {
+            "id": "edge-trigger-queue",
+            "from": {
+              "nodeId": "chat-trigger",
+              "portId": "exec.out"
+            },
+            "to": {
+              "nodeId": "queue-alert",
+              "portId": "exec.in"
+            },
+            "kind": "control",
+            "data": {}
+          },
+          "edge-queue-overlay": {
+            "id": "edge-queue-overlay",
+            "from": {
+              "nodeId": "queue-alert",
+              "portId": "exec.out"
+            },
+            "to": {
+              "nodeId": "push-message",
+              "portId": "exec.in"
+            },
+            "kind": "control",
+            "data": {}
+          }
+        },
+        "nodePresentations": {
+          "chat-trigger": {
+            "nodeId": "chat-trigger",
+            "position": {
+              "x": 80.0,
+              "y": 80.0
+            },
+            "size": null,
+            "title": null,
+            "collapsed": false,
+            "metadata": {}
+          },
+          "queue-alert": {
+            "nodeId": "queue-alert",
+            "position": {
+              "x": 420.0,
+              "y": 80.0
+            },
+            "size": null,
+            "title": null,
+            "collapsed": false,
+            "metadata": {}
+          },
+          "push-message": {
+            "nodeId": "push-message",
+            "position": {
+              "x": 760.0,
+              "y": 80.0
+            },
+            "size": null,
+            "title": null,
+            "collapsed": false,
+            "metadata": {}
+          }
+        },
+        "connectionPresentations": {},
+        "frames": {},
+        "comments": {},
+        "metadata": {}
+      }
+    },
+    "metadata": {}
+  },
+  "subgraphs": {},
+  "settings": {
+    "entryNodeId": "chat-trigger"
+  },
+  "metadata": {
+    "name": "Parity Automation"
+  }
+}
