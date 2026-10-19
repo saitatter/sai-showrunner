@@ -183,6 +183,28 @@
       "flutter": null,
       "status": "intentionally_removed",
       "reason": "Not part of the target CastMate/ShowRunner product surface."
+    },
+    "chat": {
+      "main": "No dedicated workspace in frozen reference",
+      "flutter": "ChatWorkspace",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/features/chat/chat_workspace.dart",
+          "marker": "ChatWorkspace"
+        }
+      ]
+    },
+    "chatCommands": {
+      "main": "No dedicated workspace in frozen reference",
+      "flutter": "CommandsWorkspace",
+      "status": "improved",
+      "flutterEvidence": [
+        {
+          "path": "packages/showrunner-flutter/lib/features/chat/commands_workspace.dart",
+          "marker": "CommandsWorkspace"
+        }
+      ]
     }
   },
   "commands": {
@@ -542,6 +564,7 @@
   "discovery": {
     "flutterFeatureDirectories": [
       "automation",
+      "chat",
       "dashboard",
       "diagnostics",
       "plugins",

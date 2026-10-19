@@ -1,6 +1,10 @@
 import '../graph/domain/automation_document.dart';
 import 'dart:async';
 import 'dart:io';
+import '../features/chat/unified_chat_runtime.dart';
+import '../features/chat/chat_dock_service.dart';
+import '../features/chat/chat_workspace.dart';
+import '../features/chat/commands_workspace.dart';
 
 import 'package:flutter/material.dart';
 
@@ -52,6 +56,8 @@ final class WorkspaceHostContext {
     required this.actionQueue,
     required this.healthFuture,
     required this.providerEvents,
+    this.chatRuntime,
+    this.chatDock,
     required this.pluginRegistryFuture,
     this.overlayPresenceReaderFuture,
     this.overlayObsSourceService,
@@ -110,6 +116,8 @@ final class WorkspaceHostContext {
   final DartAutomationQueueManager? queueManager;
   final Future<StartupHealthSnapshot> healthFuture;
   final ProviderEventRuntime providerEvents;
+  final UnifiedChatRuntime? chatRuntime;
+  final ChatDockService? chatDock;
   final Future<DartPluginRegistry> pluginRegistryFuture;
   final Future<OverlayPresenceReader?>? overlayPresenceReaderFuture;
   final OverlayObsSourceActions? overlayObsSourceService;
@@ -222,6 +230,21 @@ final class WorkspaceRegistry {
     }
 
     return switch (id) {
+      WorkspaceIds.chat =>
+        host.chatRuntime == null
+            ? const SizedBox.shrink()
+            : ChatWorkspace(
+                runtime: host.chatRuntime!,
+                providerEvents: host.providerEvents,
+                dock: host.chatDock,
+              ),
+      WorkspaceIds.chatCommands =>
+        host.chatRuntime == null
+            ? const SizedBox.shrink()
+            : CommandsWorkspace(
+                manager: host.chatRuntime!.commands,
+                dataService: host.dataService,
+              ),
       WorkspaceIds.graph =>
         host.showGraphEditor
             ? AutomationResourceWorkspace(

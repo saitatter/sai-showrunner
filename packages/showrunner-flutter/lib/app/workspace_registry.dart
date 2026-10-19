@@ -20,6 +20,8 @@ abstract final class WorkspaceIds {
   static const remote = WorkspaceId('workspace.remote');
   static const home = WorkspaceId('workspace.home');
   static const updates = WorkspaceId('workspace.updates');
+  static const chat = WorkspaceId('workspace.chat');
+  static const chatCommands = WorkspaceId('workspace.chatCommands');
 
   static const overlayPrefix = 'workspace.overlay.';
   static const streamPlanPrefix = 'workspace.streamPlan.';
@@ -58,6 +60,8 @@ abstract final class WorkspaceIds {
     remote,
     home,
     updates,
+    chat,
+    chatCommands,
   ];
 }
 
@@ -74,6 +78,16 @@ final class WorkspaceDescriptor {
 }
 
 const workspaceDescriptors = <WorkspaceDescriptor>[
+  WorkspaceDescriptor(
+    id: WorkspaceIds.chat,
+    title: 'Chat',
+    icon: Icons.forum_outlined,
+  ),
+  WorkspaceDescriptor(
+    id: WorkspaceIds.chatCommands,
+    title: 'Chat Commands',
+    icon: Icons.terminal,
+  ),
   WorkspaceDescriptor(
     id: WorkspaceIds.graph,
     title: 'Graph',

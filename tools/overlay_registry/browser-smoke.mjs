@@ -14,9 +14,23 @@ const browser = candidates.find(existsSync);
 if (!browser) throw new Error('Set SHOWRUNNER_CHROMIUM_BINARY to a Chrome or Edge executable.');
 if (!existsSync(join(dist, 'overlay.html'))) throw new Error('Build the overlay before running the browser smoke test.');
 const profile = mkdtempSync(join(tmpdir(), 'showrunner-browser-smoke-'));
-const server = createServer((request, response) => {
+const dockToken = 'isolated-browser-smoke-token';
+const dockMessages = [
+  {identity:'twitch:channel:1', platform:'twitch', viewerName:'Twitch Viewer', message:'Hello from Twitch', isOwner:false, deleted:false},
+  {identity:'youtube:live:2', platform:'youtube', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', isOwner:false, deleted:false},
+];
+const dockRequests = [];
+const server = createServer(async (request, response) => {
   const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname).replace(/^\/overlays(?=\/assets\/)/, '');
-  const file = pathname.startsWith('/assets/') ? resolve(dist, '.' + pathname) : join(dist, 'overlay.html');
+  if (pathname.startsWith('/api/')) {
+    if (request.headers['x-showrunner-chat'] !== dockToken) {response.writeHead(401); response.end(); return;}
+    response.setHeader('Content-Type', 'application/json');
+    if (pathname === '/api/chat') {response.end(JSON.stringify({messages:dockMessages, emotes:[{name:':smile:',text:'😀'}]})); return;}
+    let body = ''; for await (const chunk of request) body += chunk;
+    dockRequests.push({path:pathname, ...JSON.parse(body)});
+    response.end(JSON.stringify({ok:true})); return;
+  }
+  const file = pathname.startsWith('/assets/') ? resolve(dist, '.' + pathname) : join(dist, pathname === '/chat-dock' ? 'chat-dock.html' : 'overlay.html');
   if (!file.startsWith(dist + sep) || !existsSync(file)) {response.writeHead(404); response.end(); return;}
   response.setHeader('Content-Type', {'.js':'text/javascript', '.css':'text/css', '.html':'text/html'}[extname(file)] ?? 'application/octet-stream');
   response.end(readFileSync(file));
@@ -93,6 +107,29 @@ try {
   mkdirSync(join(root, '.tmp/overlay-browser'), {recursive:true});
   writeFileSync(join(root, '.tmp/overlay-browser/report.json'), JSON.stringify({...proof, updated:true, stopped:true},null,2));
   console.log('Browser DOM, WebGL, update, removal and shutdown passed:', JSON.stringify(proof));
+  await send('Page.navigate', {url:`http://127.0.0.1:${server.address().port}/chat-dock#${dockToken}`});
+  for (let attempt = 0; !(await evaluate('document.querySelectorAll("article").length === 2')); attempt++) {
+    if (attempt > 100) throw new Error('Chat dock did not load shared history.'); await pause(100);
+  }
+  if (await evaluate('Boolean(window.chatXss) || document.querySelector("article b") !== null')) throw new Error('Chat dock interpreted a message or user name as HTML.');
+  await evaluate(`document.querySelector('#filter').value='twitch'; document.querySelector('#filter').dispatchEvent(new Event('change'))`);
+  if (!(await evaluate('document.querySelectorAll("article").length === 1 && document.querySelector("article").textContent.includes("Twitch Viewer")'))) throw new Error('Chat dock platform filter failed.');
+  await evaluate(`document.querySelector('#platform').value='youtube'; document.querySelector('#message').value='Browser dock message'; document.querySelector('#composer').requestSubmit()`);
+  for (let attempt = 0; dockRequests.length !== 1; attempt++) {
+    if (attempt > 100) throw new Error('Chat dock composer did not send.'); await pause(100);
+  }
+  if (dockRequests[0].platform !== 'youtube' || dockRequests[0].message !== 'Browser dock message') throw new Error('Chat dock sent to the wrong platform.');
+  for (let attempt = 0; !(await evaluate('!document.querySelector("#composer button").disabled')); attempt++) {
+    if (attempt > 100) throw new Error('Chat dock composer did not finish sending.'); await pause(100);
+  }
+  await evaluate(`document.querySelector('#message').value=':smi'; document.querySelector('#message').setSelectionRange(4,4); document.querySelector('#message').dispatchEvent(new Event('input')); document.querySelector('#emotes button').click()`);
+  if (!(await evaluate(`document.querySelector('#message').value === '😀 '`))) throw new Error('Chat dock emote autocomplete failed.');
+  await evaluate(`const menu=document.querySelector('article select'); menu.value='reply'; menu.dispatchEvent(new Event('change'))`);
+  if (!(await evaluate(`document.querySelector('#platform').value === 'twitch' && document.querySelector('#message').value === '@Twitch Viewer '`))) throw new Error('Chat dock reply target failed.');
+  const screenshot = await send('Page.captureScreenshot', {format:'png'});
+  writeFileSync(join(root, '.tmp/overlay-browser/chat-dock.png'), Buffer.from(screenshot.data, 'base64'));
+  if (errors.length) throw new Error(`Chat dock browser exceptions: ${JSON.stringify(errors)}`);
+  console.log('Chat dock history, HTML safety, platform filter, composer, emote autocomplete and reply passed.');
 } finally {
   socket?.close();
   for (const entry of pending.values()) clearTimeout(entry.timer);

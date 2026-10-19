@@ -7,6 +7,7 @@ import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_contract.dart';
 import 'channel_points.dart';
 import 'contracts.dart';
+import '../../features/chat/chat_trigger_filter.dart';
 
 part 'actions/chat.dart';
 part 'actions/moderation.dart';
@@ -561,6 +562,7 @@ DartPluginManifest createTwitchPlugin(
       _twitchAction(moderationActions, 'timeout'),
       _twitchAction(moderationActions, 'ban'),
       _twitchAction(moderationActions, 'unban'),
+      _twitchAction(moderationActions, 'deleteMessage'),
       _twitchAction(moderationActions, 'addViewerToGroup'),
       _twitchAction(moderationActions, 'removeViewerFromGroup'),
       _twitchAction(moderationActions, 'clearViewerGroup'),
@@ -608,12 +610,58 @@ DartTriggerContract _twitchTrigger(
 ) {
   switch (eventId) {
     case 'chat':
-      return _emptyTwitchTrigger(
-        eventId,
-        'Chat Message',
-        eventHub,
-        _chatEventSchema,
-        TwitchChatMessageEvent.fromRuntime,
+      return TriggerSpec<ChatTriggerFilter, TwitchChatMessageEvent>(
+        pluginId: PluginId('twitch'),
+        triggerId: TriggerId(eventId),
+        displayName: 'Chat Message',
+        configSchema: _twitchObject('Chat filter', [
+          DartDataInputSchema(
+            label: 'Command',
+            key: 'command',
+            kind: DartDataInputKind.object,
+            fields: [
+              _twitchText('Match (empty accepts all)', 'match'),
+              DartDataInputSchema(
+                label: 'Mode',
+                key: 'mode',
+                kind: DartDataInputKind.enumeration,
+                options: ['command', 'exact', 'startsWith', 'contains'],
+                defaultValue: 'command',
+              ),
+              DartDataInputSchema(
+                label: 'Aliases',
+                key: 'aliases',
+                kind: DartDataInputKind.array,
+                itemKind: DartDataInputKind.text,
+              ),
+              DartDataInputSchema(
+                label: 'Case sensitive',
+                key: 'caseSensitive',
+                kind: DartDataInputKind.boolean,
+                defaultValue: false,
+              ),
+              DartDataInputSchema(
+                label: 'Require arguments',
+                key: 'hasMessage',
+                kind: DartDataInputKind.boolean,
+                defaultValue: false,
+              ),
+            ],
+          ),
+        ]),
+        configCodec: TwitchConfigCodec(
+          ChatTriggerFilter.new,
+          (filter) => filter.source,
+        ),
+        listen: () => _twitchEventStream(
+          eventHub,
+          eventId,
+          TwitchChatMessageEvent.fromRuntime,
+        ),
+        eventSchema: _chatEventSchema,
+        eventDecoder: TwitchChatMessageEvent.fromRuntime,
+        eventEncoder: _encodeTwitchEvent,
+        matches: (filter, message) => filter.matches(message.message ?? ''),
       );
     case 'firstTimeChat':
       return _emptyTwitchTrigger(

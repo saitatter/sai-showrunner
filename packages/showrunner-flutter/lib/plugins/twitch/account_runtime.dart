@@ -122,6 +122,7 @@ const _channelScopes = <String>[
   'moderator:read:followers',
   'moderator:manage:shoutouts',
   'moderator:manage:banned_users',
+  'moderator:manage:chat_messages',
   'channel:moderate',
   'bits:read',
   'channel:manage:raids',

@@ -23,6 +23,12 @@ import '../../runtime/profile_runtime.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
 import '../../plugins/variables/runtime.dart';
+import '../../features/chat/unified_chat_runtime.dart';
+import '../../features/chat/command_manager.dart';
+import '../../persistence/automation_repository.dart';
+import '../../persistence/filesystem/safe_path.dart';
+import '../../runtime/expression.dart';
+import '../../features/chat/chat_dock_service.dart';
 
 /// The application-owned runtime composition.
 ///
@@ -48,6 +54,8 @@ final class ShowRunnerServices {
     required this.viewerDataSynchronizer,
     required this.variableRuntime,
     required this.healthFuture,
+    required this.chatRuntime,
+    required this.chatDock,
   });
 
   factory ShowRunnerServices.create({
@@ -165,6 +173,50 @@ final class ShowRunnerServices {
     final profileRuntimeFuture = profileManagerFuture.then(
       (manager) => manager.runtime,
     );
+    final chatCommands = ChatCommandManager(
+      repository: CommandRepository(dataService.userDirectory),
+      execute: (command, values) async {
+        final file = await containedFile(dataService.userDirectory, [
+          'automations',
+          command.automationFile,
+        ]);
+        final automation = await AutomationRepository(file).loadStrict();
+        if (automation == null) {
+          throw StateError(
+            'Command automation does not exist: ${command.automationFile}',
+          );
+        }
+        await queueManager.enqueue(
+          automation,
+          EvaluationContext(
+            contextState: {...values, 'event': values, 'trigger': values},
+          ),
+          queueId: command.queueId,
+          sourceMetadata: {
+            'sourceType': 'chat-command',
+            'sourceId': command.id,
+            'platform': values['platform'],
+          },
+        );
+      },
+    );
+    final chatRuntime = UnifiedChatRuntime(
+      eventHub: eventHub,
+      dataService: dataService,
+      registryFuture: pluginRegistryFuture,
+      commands: chatCommands,
+      youtubeLiveChatId: () => providerEvents.youtube?.liveChatId,
+    );
+    final chatDock = ChatDockService(runtime: chatRuntime);
+    void refreshChatIdentities() {
+      unawaited(
+        chatRuntime.refreshIdentities().catchError((Object error) {
+          chatRuntime.error = error;
+        }),
+      );
+    }
+
+    providerEvents.addListener(refreshChatIdentities);
     final services = ShowRunnerServices._(
       dataService: dataService,
       actionQueue: actionQueue,
@@ -182,10 +234,15 @@ final class ShowRunnerServices {
       viewerDataSynchronizer: viewerDataSynchronizer,
       variableRuntime: variableRuntime,
       healthFuture: StartupHealthLoader(dataService).load(),
+      chatRuntime: chatRuntime,
+      chatDock: chatDock,
     );
     services._shutdownCoordinator = AppLifecycleCoordinator(
       shutdownTasks: [
+        () async => providerEvents.removeListener(refreshChatIdentities),
         providerEvents.stop,
+        chatDock.stop,
+        chatRuntime.close,
         viewerDataSynchronizer.stop,
         queueManager.dispose,
         executionTrace.dispose,
@@ -214,6 +271,8 @@ final class ShowRunnerServices {
   final ViewerDataSynchronizer viewerDataSynchronizer;
   final DartVariableRuntime variableRuntime;
   final Future<StartupHealthSnapshot> healthFuture;
+  final UnifiedChatRuntime chatRuntime;
+  final ChatDockService chatDock;
 
   late final AppLifecycleCoordinator _shutdownCoordinator;
   Future<void>? _startFuture;
@@ -221,6 +280,12 @@ final class ShowRunnerServices {
   Future<void> start() => _startFuture ??= _startInternal();
 
   Future<void> _startInternal() async {
+    await chatRuntime.start();
+    try {
+      await chatDock.restore();
+    } catch (error) {
+      chatRuntime.error = error;
+    }
     await Future.wait<void>([
       viewerDataSynchronizer.start(),
       providerEvents.start(),

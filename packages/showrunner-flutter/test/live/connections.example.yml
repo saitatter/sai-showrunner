@@ -515,6 +515,11 @@ scenarios:
     plugin: "twitch"
     action: "unban"
     config: {"viewerId":""}
+  - name: "Twitch: Delete Chat Message"
+    enabled: false
+    plugin: "twitch"
+    action: "deleteMessage"
+    config: {"messageId":""}
   - name: "Twitch: Add Viewer to Group"
     enabled: false
     plugin: "twitch"

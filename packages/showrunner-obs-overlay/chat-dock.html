@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ShowRunner Chat</title></head>
+<body><header><strong>ShowRunner Chat</strong><select id="filter" aria-label="Filter platform"><option value="">All platforms</option><option>twitch</option><option>youtube</option></select></header>
+<div id="status" role="status"></div><main id="messages" aria-label="Chat history"></main>
+<div id="emotes" aria-label="Emote suggestions"></div>
+<form id="composer"><select id="platform" aria-label="Send to platform"><option>twitch</option><option>youtube</option></select><input id="message" aria-label="Message" autocomplete="off" placeholder="Message"><button>Send</button></form>
+<script type="module" src="/src/chat-dock.ts"></script></body></html>

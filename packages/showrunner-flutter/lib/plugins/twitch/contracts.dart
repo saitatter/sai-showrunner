@@ -230,6 +230,37 @@ final class TwitchChatConfig {
   };
 }
 
+final class TwitchDeleteMessageConfig {
+  const TwitchDeleteMessageConfig({
+    required this.messageId,
+    this.broadcasterId,
+    this.moderatorId,
+  });
+  final String messageId;
+  final String? broadcasterId, moderatorId;
+  factory TwitchDeleteMessageConfig.fromRuntime(RuntimeMap value) {
+    final id = value['messageId'];
+    if (id is! String || id.trim().isEmpty) {
+      throw const FormatException('Message ID is required.');
+    }
+    return TwitchDeleteMessageConfig(
+      messageId: id,
+      broadcasterId: _string(value['broadcasterId']),
+      moderatorId: _string(value['moderatorId']),
+    );
+  }
+  RuntimeMap toRuntime() => {
+    'messageId': messageId,
+    if (broadcasterId != null) 'broadcasterId': broadcasterId,
+    if (moderatorId != null) 'moderatorId': moderatorId,
+  };
+}
+
+final twitchDeleteMessageConfigCodec = TwitchConfigCodec(
+  TwitchDeleteMessageConfig.fromRuntime,
+  (TwitchDeleteMessageConfig value) => value.toRuntime(),
+);
+
 final class TwitchAnnouncementConfig {
   const TwitchAnnouncementConfig({
     this.broadcasterId,

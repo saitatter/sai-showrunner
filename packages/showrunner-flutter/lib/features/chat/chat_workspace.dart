@@ -1,0 +1,364 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../plugins/runtime/provider_event_workers.dart';
+import 'chat_message.dart';
+import 'unified_chat_runtime.dart';
+import 'chat_dock_service.dart';
+
+class ChatWorkspace extends StatefulWidget {
+  const ChatWorkspace({
+    super.key,
+    required this.runtime,
+    required this.providerEvents,
+    this.dock,
+  });
+  final UnifiedChatRuntime runtime;
+  final ProviderEventRuntime providerEvents;
+  final ChatDockService? dock;
+  @override
+  State<ChatWorkspace> createState() => _ChatWorkspaceState();
+}
+
+class _ChatWorkspaceState extends State<ChatWorkspace> {
+  final _message = TextEditingController();
+  final _search = TextEditingController();
+  ChatPlatform _destination = ChatPlatform.twitch;
+  ChatPlatform? _filter;
+  bool _busy = false;
+  Object? _error;
+  List<ChatEmote> get _suggestions {
+    final selection = _message.selection;
+    if (!selection.isValid || !selection.isCollapsed) return [];
+    final before = _message.text.substring(0, selection.baseOffset);
+    final word = before.split(RegExp(r'\s')).last;
+    return word.length < 2
+        ? []
+        : widget.runtime.suggestEmotes(word, _destination);
+  }
+
+  void _insertEmote(ChatEmote emote) {
+    final cursor = _message.selection.baseOffset;
+    if (cursor < 0) return;
+    final prefix = _message.text.substring(0, cursor);
+    final word = prefix.split(RegExp(r'\s')).last;
+    final inserted = '${emote.text} ';
+    final value = _message.text.replaceRange(
+      cursor - word.length,
+      cursor,
+      inserted,
+    );
+    setState(
+      () => _message.value = TextEditingValue(
+        text: value,
+        selection: TextSelection.collapsed(
+          offset: cursor - word.length + inserted.length,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _message.dispose();
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await action();
+    } catch (error) {
+      _error = error;
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _send() => _run(() async {
+    await widget.runtime.send(_destination, _message.text);
+    if (mounted) _message.clear();
+  });
+  Future<void> _moderate(ChatMessage message, ChatQuickAction action) async {
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${action.name} on ${message.platform.name}?'),
+        content: Text('${message.userName}: ${message.text}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    if (accepted == true) {
+      await _run(() => widget.runtime.quickAction(message, action));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([widget.runtime, widget.providerEvents]),
+    builder: (context, _) {
+      final runtime = widget.runtime;
+      final search = _search.text.toLowerCase();
+      final messages = runtime.messages
+          .where(
+            (m) =>
+                (_filter == null || m.platform == _filter) &&
+                (search.isEmpty ||
+                    '${m.userName} ${m.text}'.toLowerCase().contains(search)),
+          )
+          .toList()
+          .reversed
+          .toList();
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('Chat', style: Theme.of(context).textTheme.headlineSmall),
+                Chip(
+                  label: Text(
+                    'Twitch: ${widget.providerEvents.twitchState.name}',
+                  ),
+                ),
+                Chip(
+                  label: Text(
+                    'YouTube: ${widget.providerEvents.youtubeState.name}',
+                  ),
+                ),
+                TextButton(
+                  onPressed: runtime.clearHistory,
+                  child: const Text('Clear local history'),
+                ),
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => _run(runtime.loadTwitchEmotes),
+                  child: const Text('Load Twitch emotes'),
+                ),
+                if (widget.dock != null)
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => _run(() async {
+                            final url = await widget.dock!.start();
+                            await Clipboard.setData(
+                              ClipboardData(text: url.toString()),
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Dock URL copied. Add it in OBS → Docks → Custom Browser Docks.',
+                                  ),
+                                ),
+                              );
+                            }
+                          }),
+                    child: const Text('Copy OBS dock URL'),
+                  ),
+                if (widget.dock?.url != null)
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => _run(() => widget.dock!.stop(disable: true)),
+                    child: const Text('Stop OBS dock'),
+                  ),
+              ],
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('All platforms'),
+                  selected: _filter == null,
+                  onSelected: (_) => setState(() => _filter = null),
+                ),
+                for (final platform in ChatPlatform.values)
+                  ChoiceChip(
+                    label: Text(platform.name),
+                    selected: _filter == platform,
+                    onSelected: (_) => setState(() => _filter = platform),
+                  ),
+              ],
+            ),
+            TextField(
+              controller: _search,
+              decoration: const InputDecoration(
+                labelText: 'Search messages or users',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            if (_error ?? runtime.error case final Object error)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(
+                  '$error',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            Expanded(
+              child: messages.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No messages. Connect Twitch or YouTube in Plugins.',
+                      ),
+                    )
+                  : ListView.builder(
+                      reverse: true,
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final message = messages[index];
+                        return ListTile(
+                          leading: Tooltip(
+                            message: message.platform.name,
+                            child: Icon(
+                              message.platform == ChatPlatform.twitch
+                                  ? Icons.live_tv
+                                  : Icons.smart_display_outlined,
+                            ),
+                          ),
+                          title: Text(
+                            '${message.userName}${message.isBroadcaster
+                                ? ' · owner'
+                                : message.isModerator
+                                ? ' · moderator'
+                                : ''}',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          subtitle: SelectableText(
+                            message.deleted ? 'Message deleted' : message.text,
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            tooltip: 'Message and user actions',
+                            onSelected: (value) {
+                              if (value == 'copy') {
+                                Clipboard.setData(
+                                  ClipboardData(text: message.text),
+                                );
+                              } else if (value == 'reply') {
+                                setState(() {
+                                  _destination = message.platform;
+                                  _message.text = '@${message.userName} ';
+                                });
+                              } else if (value == 'user') {
+                                setState(() => _search.text = message.userName);
+                              } else {
+                                _moderate(
+                                  message,
+                                  ChatQuickAction.values.byName(value),
+                                );
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'reply',
+                                child: Text('Reply'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'copy',
+                                child: Text('Copy message'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'user',
+                                child: Text('Show messages from user'),
+                              ),
+                              if (!_busy &&
+                                  !message.deleted &&
+                                  message.id.isNotEmpty)
+                                const PopupMenuItem(
+                                  value: 'deleteMessage',
+                                  child: Text('Delete message'),
+                                ),
+                              if (!_busy &&
+                                  !message.isBroadcaster &&
+                                  message.userId.isNotEmpty) ...[
+                                const PopupMenuItem(
+                                  value: 'timeout',
+                                  child: Text('Timeout for 60 seconds'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'ban',
+                                  child: Text('Ban user'),
+                                ),
+                                if (message.platform == ChatPlatform.twitch)
+                                  const PopupMenuItem(
+                                    value: 'unban',
+                                    child: Text('Unban user'),
+                                  ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            if (_suggestions.isNotEmpty)
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final emote in _suggestions)
+                    ActionChip(
+                      label: Text(emote.name),
+                      onPressed: () => _insertEmote(emote),
+                    ),
+                ],
+              ),
+            Row(
+              children: [
+                DropdownButton<ChatPlatform>(
+                  value: _destination,
+                  onChanged: _busy
+                      ? null
+                      : (v) {
+                          if (v != null) setState(() => _destination = v);
+                        },
+                  items: ChatPlatform.values
+                      .map(
+                        (p) => DropdownMenuItem(value: p, child: Text(p.name)),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _message,
+                    enabled: !_busy,
+                    decoration: const InputDecoration(
+                      labelText: 'Message',
+                      hintText: 'Send to the selected platform',
+                    ),
+                    onSubmitted: (_) => _send(),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                IconButton(
+                  tooltip: 'Send message',
+                  onPressed: _busy ? null : _send,
+                  icon: const Icon(Icons.send),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
