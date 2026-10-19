@@ -1,4 +1,4 @@
-name: Signed Windows release proof
+name: Windows release proof
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  signed-windows-proof:
+  windows-proof:
     if: github.ref == 'refs/heads/main'
     environment: release
     runs-on: windows-latest
@@ -54,36 +54,26 @@ jobs:
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v4
 
-      - name: Build, sign, and smoke-test Windows package
+      - name: Build and smoke-test Windows package
         shell: pwsh
         run: |
-          $hasSigningCertificate = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64)
-          $hasSigningPassword = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD)
-          if (-not $hasSigningCertificate -or -not $hasSigningPassword) {
-            throw 'Windows signing secrets are required for the release proof.'
-          }
           $hasYouTubeClient = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_YOUTUBE_CLIENT_ID)
           if (-not $hasYouTubeClient) {
             throw 'A bundled YouTube OAuth client ID is required for the release proof.'
           }
           & .\scripts\package-flutter-windows.ps1 `
             -Version $env:PROOF_VERSION `
-            -RequireBundledYouTubeClient `
-            -SignWindowsBundle `
-            -RequireWindowsSignature
+            -RequireBundledYouTubeClient
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         env:
           PROOF_VERSION: ${{ inputs.version }}
           SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
-          SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
-          SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
-          SHOWRUNNER_WINDOWS_TIMESTAMP_URL: ${{ vars.SHOWRUNNER_WINDOWS_TIMESTAMP_URL }}
 
-      - name: Upload signed proof archive
+      - name: Upload proof archive
         uses: actions/upload-artifact@v7
         with:
-          name: showrunner-windows-signed-proof-${{ inputs.version }}
+          name: showrunner-windows-proof-${{ inputs.version }}
           path: release/ShowRunner-Flutter-windows-${{ inputs.version }}.zip
           if-no-files-found: error
           retention-days: 14

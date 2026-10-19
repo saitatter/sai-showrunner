@@ -20,6 +20,7 @@
 - Clarify Twitch Public OAuth setup and remove stale test-count claims from the node-testing guide.
 
 ### CI & Build
+- Publish unsigned Windows packages without requiring signing credentials, while retaining application and updater proofs before publication.
 - Wait for asynchronous resource-list updates in native create/delete tests instead of relying on fixed frame delays.
 - Handle Dart build-hook diagnostics in the local Windows PowerShell signing proof while preserving updater failure exit checks.
 - Verify the production Debug executable before native integration tests replace its entrypoint, and check contract parity before expensive native builds.

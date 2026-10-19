@@ -13,7 +13,7 @@ on:
         default: false
         type: boolean
       backfill_version:
-        description: Rebuild signed assets of an existing Flutter release without changing its tag or publication state
+        description: Rebuild assets of an existing Flutter release without changing its tag or publication state
         required: false
         type: string
 
@@ -165,16 +165,9 @@ jobs:
           $packageArgs = @(
             '-Version', $env:RELEASE_VERSION,
             '-BuildNumber', $env:RELEASE_BUILD,
-            '-RequireBundledYouTubeClient',
-            '-SignWindowsBundle',
-            '-RequireWindowsSignature'
+            '-RequireBundledYouTubeClient'
           )
-          $hasSigningCertificate = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64)
-          $hasSigningPassword = -not [string]::IsNullOrWhiteSpace($env:SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD)
-          if (-not $hasSigningCertificate -or -not $hasSigningPassword) {
-            throw 'Windows signing secrets are required for a release package.'
-          }
-          Write-Host 'Protected Windows signing secrets detected; running signed package and updater proof.'
+          Write-Host 'Packaging unsigned Windows binaries and running application/updater proofs.'
           & .\scripts\package-flutter-windows.ps1 @packageArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         env:
@@ -182,9 +175,6 @@ jobs:
           RELEASE_BUILD: ${{ needs.plan.outputs.build }}
           SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
           SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
-          SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
-          SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
-          SHOWRUNNER_WINDOWS_TIMESTAMP_URL: ${{ vars.SHOWRUNNER_WINDOWS_TIMESTAMP_URL }}
 
       - name: Upload Windows package
         shell: pwsh

@@ -8,25 +8,24 @@ const workflowPath = resolve(repositoryRoot, ".github/workflows/release.yml")
 const proofWorkflowPath = resolve(repositoryRoot, ".github/workflows/release-proof.yml")
 
 describe("Windows release workflow", () => {
-	it("refuses to package or publish an unsigned Windows build", async () => {
+	it("packages unsigned Windows releases without certificate credentials", async () => {
 		const workflow = await readFile(workflowPath, "utf8")
 
-		expect(workflow).toContain("'-SignWindowsBundle'")
-		expect(workflow).toContain("'-RequireWindowsSignature'")
-		expect(workflow).toContain("SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_BASE64")
-		expect(workflow).toContain("SHOWRUNNER_WINDOWS_SIGNING_CERTIFICATE_PASSWORD")
-		expect(workflow).toContain("throw 'Windows signing secrets are required for a release package.'")
+		expect(workflow).not.toContain("-SignWindowsBundle")
+		expect(workflow).not.toContain("-RequireWindowsSignature")
+		expect(workflow).not.toContain("SIGNING_CERTIFICATE")
+		expect(workflow).toContain("Packaging unsigned Windows binaries")
 	})
 
 	it("builds the browser overlay and runs the updater proof before upload", async () => {
 		const workflow = await readFile(workflowPath, "utf8")
 		const overlayBuild = workflow.indexOf("run: yarn overlay:build")
-		const packageStep = workflow.indexOf("-RequireWindowsSignature")
+		const packageStep = workflow.indexOf("name: Build and smoke-test Windows package")
 		const uploadStep = workflow.indexOf("name: Upload Windows package")
 
 		expect(overlayBuild).toBeGreaterThan(-1)
 		expect(packageStep).toBeGreaterThan(overlayBuild)
-		expect(workflow).toContain("Protected Windows signing secrets detected; running signed package and updater proof.")
+		expect(workflow).toContain("running application/updater proofs.")
 		expect(uploadStep).toBeGreaterThan(packageStep)
 		expect(workflow.slice(packageStep, uploadStep)).toContain("package-flutter-windows.ps1")
 	})
@@ -36,12 +35,13 @@ describe("Windows release workflow", () => {
 
 		expect(workflow).toContain("workflow_dispatch:")
 		expect(workflow).toContain("ref: main")
-		expect(workflow).toContain("-SignWindowsBundle")
-		expect(workflow).toContain("-RequireWindowsSignature")
+		expect(workflow).not.toContain("-SignWindowsBundle")
+		expect(workflow).not.toContain("-RequireWindowsSignature")
+		expect(workflow).not.toContain("SIGNING_CERTIFICATE")
 		expect(workflow).toContain("package-flutter-windows.ps1")
 		expect(workflow).toContain("actions/upload-artifact@v7")
 		expect(workflow).not.toContain("gh release upload")
-		expect(parse(workflow).jobs["signed-windows-proof"].environment).toBe("release")
+		expect(parse(workflow).jobs["windows-proof"].environment).toBe("release")
 	})
 })
 
