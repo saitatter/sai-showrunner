@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Features
+
+### Fixes
+
+### Refactors
+
+### Docs
+
+### CI & Build
+
+## 2.0.0 - 2026-10-19
+
+### Features
 - Replace the desktop application with the Flutter production workspace, including typed immutable automation and shader graphs, overlays, profiles, queues and Stream Plans.
 - Add integrated Twitch and YouTube workspaces, remote dashboards, viewer data, local audio and Bluetooth heart-rate workflows.
 
