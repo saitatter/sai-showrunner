@@ -14,6 +14,8 @@ A production workspace for streamers and live creators, built with Flutter for W
 - Build visual automations with typed connections, conditions, variables,
   reusable subgraphs, queues and execution feedback.
 - Connect Twitch, YouTube and OBS; manage chat, events, scenes and production tools.
+- On the development branch, use [managed commands and unified chat](docs/chat-and-commands.md)
+  with Twitch/YouTube, cooldowns, role checks and a local OBS chat dock.
 - Organize broadcasts with profiles and segmented Stream Plans.
 - Design OBS browser overlays with editable widgets and visual Shader Graph effects.
 - Route sound and TTS, use viewer data, and control remote dashboards.
@@ -26,8 +28,8 @@ Flutter desktop runtime and release process. Attribution and license notices rem
 OBS overlays use a separate browser renderer because OBS consumes Browser Sources.
 The automation and shader editors use [sai_nodes](https://github.com/saitatter/sai_nodes).
 
-The Flutter cutover is tracked under **Unreleased** until a release is
-published. Existing downloads can predate this implementation. Supported features,
+The Flutter desktop shipped in **v2.0.0**. New development features remain under
+**Unreleased** until publication. Supported features,
 external-service limits and missing integrations are documented in
 [product status](docs/product-parity.md) and the
 [Streamer.bot comparison](docs/streamerbot-comparison.md).

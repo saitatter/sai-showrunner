@@ -16,7 +16,7 @@ boundary verification, generated-registry checks, Flutter formatting/analysis/te
 and contract/product inventories. Integration adds the native Windows lifecycle
 suite; Visual captures isolated 1440x900 fixtures and runs catalog/regression checks.
 Together, Integration and Visual capture during the same native run. The grouped
-native entrypoint compiles once for all 21 fixture files; the fixture-inventory
+native entrypoint compiles once for all 22 fixture files; the fixture-inventory
 test prevents new native scenarios being omitted. Individual files can still be
 run directly, and the standalone capture command uses a smaller grouped entrypoint.
 CI also builds Windows Debug/Release, tests signing helpers with isolated fixtures,
@@ -68,6 +68,23 @@ and 89 actual WebGL shader compile/link/render fixtures. This is historical evid
 not a promise that current changes have already passed.
 
 ## Visual checks
+
+Chat/Commands adds the native `application/chat_workspaces_test.dart` fixture:
+create/edit/enable/delete, alias-to-queue execution, counters, shared provider
+history, filters and reply selection. Its review captures use Flutter 3.47.7 /
+Dart 3.13.5, 1440x900 at DPR 1, under
+`packages/showrunner-flutter/.tmp/chat-ui/`. The added sidebar destinations and
+new workspaces are intentional; captures were visually inspected. Frozen Electron
+references and existing Flutter regression baselines are unchanged.
+The full chat validation passed `ci-check.ps1 -Integration -Visual`; both reviewed
+Flutter inspector regions had zero differing pixels. A native shader workflow
+initially lost a binding after rapid field changes; the fixture now settles each
+edit and checks its document value before continuing. Both occurrences in the
+grouped Windows suite passed with the final binding assertions intact.
+
+The Chromium overlay smoke proof also exercises the chat dock with isolated mock
+HTTP APIs: two-provider history, text escaping, filters, routing, emoji and reply.
+These fixtures make no live provider calls and do not verify OBS/CEF itself.
 
 See [the visual harness](../tools/visual_parity/README.md). The historical Electron
 catalog is diagnostic; a green comparison does not establish pixel equivalence.

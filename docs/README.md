@@ -11,6 +11,7 @@ migration plans or test-session reports. Historical versions remain in Git.
 - [Release and versioning policy](versioning-policy.md): manual preview, publish and asset rebuilds.
 - [Release checklist](release-checklist.md): operator checks before publication.
 - [Streamer.bot comparison](streamerbot-comparison.md): current capability gaps and priorities.
+- [Chat and commands](chat-and-commands.md): managed command behavior, unified chat and OBS dock setup.
 - [Heart rate](heart-rate.md): BLE devices, simulation and automation.
 - [Dependency provenance](dependency-provenance.md): license and attribution boundaries.
 

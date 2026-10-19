@@ -41,6 +41,22 @@ scripts/test-live-twitch-stability.ps1. A real event must be sent/generated when
 probe requests it; a local fixture is reported separately. Use a dedicated account
 for moderation tests. Do not repeat writes just because credentials are present.
 
+## Unified chat and managed commands
+
+The development Chat/Chat Commands workspaces have isolated runtime, HTTP,
+Chromium and Windows UI fixtures. This does not extend the earlier live Twitch
+evidence to the new client or certify YouTube authorization. No live messages,
+bans, timeouts or personal OBS dock changes were made for those fixtures.
+See [setup and behavior](../chat-and-commands.md).
+
+Before a live pass, reconnect Twitch if its token predates
+`moderator:manage:chat_messages`. The client uses the authenticated channel account
+for sends and moderation. YouTube needs an active test broadcast/liveChatId and
+an account allowed to send and moderate. Use a separate consenting test account
+for timeout/ban tests. Test aliases, unrelated messages, role rejection and
+global/user cooldowns using different users; inspect actual Queues execution as
+well as command counters. Browser fixtures do not replace an OBS/CEF dock check.
+
 ## Other providers and devices
 
 YouTube requires an authorized test channel/liveChatId; memberships and paid events

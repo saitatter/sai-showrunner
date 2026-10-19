@@ -14,6 +14,7 @@ main after integration. The old desktop is not a supported runtime.
 | OBS | Scene/source/media/filter/output control and browser overlays | Use portable OBS; streaming/recording and Studio Mode have real side effects |
 | Twitch | OAuth, chat, moderation, rewards, polls/predictions and events | Eligibility, permissions and event delivery are separate checks |
 | YouTube | Chat, membership and paid-message events with chat/moderation actions | Real channel/live-chat authorization is required |
+| Chat / Commands (development) | Shared Twitch/YouTube history and composer, moderation, local OBS dock; managed aliases, arguments, roles, cooldowns and counters | Isolated fixture coverage; advanced features and live account checks remain in the Streamer.bot comparison |
 | Overlays / shaders | Typed widgets, aligned canvas, actual WebGL shaders and state bindings | GPU/browser/OBS rendering must be tested separately from widget tests |
 | Variables / queues | Persisted viewer data, session state, queue history, replay/pause/cancel | Fixtures verify behavior; persistence is not full configuration backup |
 | Remote / Satellite | Host/client negotiation, button RPC, state subscriptions, label/button widgets | Real remote signaling/device connectivity is separate from local fixtures |
@@ -35,11 +36,10 @@ copying transient test/action counts into multiple documents.
 
 ## Open work
 
-- Managed chat commands need proper filtering, aliases, cooldowns and permissions.
-  The current chat-command starter has a statically identified filtering gap; see
-  [the Streamer.bot comparison](streamerbot-comparison.md).
-- Unified multi-platform chat, Kick, selected donation providers and broader Twitch
-  lifecycle actions remain product gaps, not completed parity claims.
+- Managed commands and unified Twitch/YouTube chat are implemented on the development
+  branch. Advanced permissions, command menus, rich emotes and moderation synchronization
+  remain open; see [the Streamer.bot comparison](streamerbot-comparison.md).
+- Kick, selected donation providers and broader Twitch lifecycle actions remain gaps.
 - Unsigned release publication requires publishing credentials and a successful
   packaging/updater proof; PR checks alone cannot replace that proof.
 - Frozen Electron screenshots have significant intentional/native-layout differences.
