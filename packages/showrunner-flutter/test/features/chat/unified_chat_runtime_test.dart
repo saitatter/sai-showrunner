@@ -125,6 +125,30 @@ void main() {
     },
   };
   test(
+    'local deletion changes only the selected channel when provider IDs overlap',
+    () async {
+      for (final channel in ['channel', 'other-channel']) {
+        runtime.ingest(
+          ChatMessage(
+            platform: ChatPlatform.twitch,
+            id: 'same-id',
+            channelId: channel,
+            userId: 'viewer',
+            userName: 'Viewer',
+            text: 'hello',
+            receivedAt: DateTime.now(),
+          ),
+        );
+      }
+      await runtime.quickAction(
+        runtime.messages.first,
+        ChatQuickAction.deleteMessage,
+      );
+      expect(runtime.messages.map((m) => m.deleted), [true, false]);
+      expect((calls.single['query'] as Map)['broadcaster_id'], 'channel');
+    },
+  );
+  test(
     'moderation arriving before a message prevents display recovery and command execution',
     () async {
       await runtime.commands.save(
