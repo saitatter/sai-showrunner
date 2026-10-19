@@ -20,6 +20,7 @@
 - Clarify Twitch Public OAuth setup and remove stale test-count claims from the node-testing guide.
 
 ### CI & Build
+- Verify the production Debug executable before native integration tests replace its entrypoint, and check contract parity before expensive native builds.
 - Pin the historical contract comparison to its immutable commit so clean CI checkouts do not require local-only tags.
 - Scroll first-run setup controls into view during native tests on smaller Windows runner screens.
 - Make releases manual from main with conventional-commit version selection, curated notes, dry-run and immutable-tag asset rebuilds.

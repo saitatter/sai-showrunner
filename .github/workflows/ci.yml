@@ -72,6 +72,10 @@ jobs:
         shell: pwsh
         run: ./scripts/ci-check.ps1 -Stage Flutter
 
+      - name: Validate Flutter contract parity
+        shell: pwsh
+        run: ./scripts/ci-check.ps1 -Stage Parity
+
       - name: Build Flutter Windows debug and release
         working-directory: packages/showrunner-flutter
         shell: pwsh
@@ -80,6 +84,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Debug build failed.' }
           flutter build windows --release --no-pub
           if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
+
+      # Native integration tests replace the Debug executable with a test entrypoint.
+      - name: Smoke Flutter Windows startup
+        shell: pwsh
+        run: .\scripts\smoke-flutter-windows.ps1 -Configuration Debug
 
       - name: Run Flutter integration gate
         shell: pwsh
@@ -118,14 +127,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Overlay build failed.' }
           corepack yarn overlay:browser-smoke
           if ($LASTEXITCODE -ne 0) { throw 'Browser DOM/WebGL smoke failed.' }
-
-      - name: Validate Flutter contract parity
-        shell: pwsh
-        run: ./scripts/ci-check.ps1 -Stage Parity
-
-      - name: Smoke Flutter Windows startup
-        shell: pwsh
-        run: .\scripts\smoke-flutter-windows.ps1 -Configuration Debug
 
       - name: Verify Windows signing proof path
         shell: pwsh

@@ -47,6 +47,17 @@ describe("Windows release workflow", () => {
 
 
 describe("Manual release policy", () => {
+  it("checks the production Debug entrypoint before integration tests replace it", async () => {
+    const ci = parse(await readFile(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8"))
+    const steps = ci.jobs["test-windows"].steps
+    const build = steps.findIndex(step => step.name === "Build Flutter Windows debug and release")
+    const startup = steps.findIndex(step => step.name === "Smoke Flutter Windows startup")
+    const integration = steps.findIndex(step => step.name === "Run Flutter integration gate")
+    expect(build).toBeGreaterThan(-1)
+    expect(startup).toBeGreaterThan(build)
+    expect(integration).toBeGreaterThan(startup)
+    expect(steps[startup].run).toContain("-Configuration Debug")
+  })
   it("never publishes on pushes or PR merges and validates the planned commit", async () => {
     const workflow = parse(await readFile(workflowPath, "utf8"))
     expect(Object.keys(workflow.on)).toEqual(["workflow_dispatch"])
