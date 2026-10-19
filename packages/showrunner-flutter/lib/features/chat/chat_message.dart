@@ -43,7 +43,16 @@ final class ChatMessage {
   final bool isModerator, isSubscriber, isVip, isBroadcaster, isBot, deleted;
   final Map<String, dynamic> source;
 
-  String get identity => '${platform.name}:$channelId:$id';
+  String get identity =>
+      '${platform.name}:$channelId:${id.isNotEmpty ? id : 'missing:${receivedAt.microsecondsSinceEpoch}:$userId:${text.hashCode}'}';
+  DateTime? get publishedAt {
+    final snippet = source['snippet'];
+    final value =
+        source['providerTime'] ??
+        (snippet is Map ? snippet['publishedAt'] : null);
+    return value is String ? DateTime.tryParse(value) : null;
+  }
+
   String get userIdentity => '${platform.name}:$userId';
 
   bool permits(ChatPermission permission) => switch (permission) {

@@ -170,6 +170,8 @@ final class UnifiedChatRuntime extends ChangeNotifier {
   final _subscriptions = <StreamSubscription<Map<String, dynamic>>>[];
   final _messages = <ChatMessage>[];
   final _seen = <String>{};
+  final _deletedIds = <String>{};
+  final _clearBefore = <String, DateTime>{};
   final _botIds = <ChatPlatform, Set<String>>{};
   String _liveChatId = '';
   String _twitchChannelId = '';
@@ -458,30 +460,56 @@ final class UnifiedChatRuntime extends ChangeNotifier {
             (event) => markUserDeleted(
               ChatPlatform.twitch,
               channelId: event['broadcaster_user_id']?.toString(),
+              before: DateTime.tryParse('${event['providerTime'] ?? ''}'),
             ),
           ),
     );
     _subscriptions.add(
-      eventHub
-          .stream('twitchUserChatCleared')
-          .listen(
-            (event) => markUserDeleted(
-              ChatPlatform.twitch,
-              channelId: event['broadcaster_user_id']?.toString(),
-              userId: event['target_user_id']?.toString(),
-            ),
-          ),
+      eventHub.stream('twitchUserChatCleared').listen((event) {
+        final id = event['target_user_id'];
+        if (id is String && id.isNotEmpty) {
+          markUserDeleted(
+            ChatPlatform.twitch,
+            channelId: event['broadcaster_user_id']?.toString(),
+            userId: id,
+            before: DateTime.tryParse('${event['providerTime'] ?? ''}'),
+          );
+        }
+      }),
     );
     for (final eventId in ['chatMessage', 'superChat', 'superSticker']) {
       _subscriptions.add(
         eventHub.stream(eventId).listen((event) {
           final snippet = event['snippet'];
+          if (snippet is Map && snippet['type'] == 'tombstone') {
+            markDeleted(
+              ChatPlatform.youtube,
+              '${event['id'] ?? ''}',
+              channelId: snippet['liveChatId']?.toString() ?? _liveChatId,
+            );
+            return;
+          }
+          if (snippet is Map && snippet['type'] == 'userBannedEvent') {
+            final details = snippet['userBannedDetails'];
+            final banned = details is Map ? details['bannedUserDetails'] : null;
+            final id = banned is Map ? banned['channelId'] : null;
+            if (id is String && id.isNotEmpty) {
+              markUserDeleted(
+                ChatPlatform.youtube,
+                channelId: snippet['liveChatId']?.toString() ?? _liveChatId,
+                userId: id,
+                before: DateTime.tryParse('${snippet['publishedAt'] ?? ''}'),
+              );
+            }
+            return;
+          }
           if (snippet is Map && snippet['type'] == 'messageDeletedEvent') {
             final details = snippet['messageDeletedDetails'];
             if (details is Map) {
               markDeleted(
                 ChatPlatform.youtube,
                 details['deletedMessageId']?.toString() ?? '',
+                channelId: snippet['liveChatId']?.toString() ?? _liveChatId,
               );
             }
             return;
@@ -526,6 +554,17 @@ final class UnifiedChatRuntime extends ChangeNotifier {
       _filterAndDispatch(message, isPublic: false);
       return; // Private inputs never enter the public history, dock or overlay.
     }
+    final room = '${message.platform.name}:${message.channelId}';
+    final cutoff = [
+      _clearBefore['$room:*'],
+      _clearBefore['$room:${message.userId}'],
+    ].nonNulls;
+    if (_deletedIds.contains('$room:${message.id}') ||
+        _deletedIds.contains('${message.platform.name}:*:${message.id}') ||
+        (message.publishedAt != null &&
+            cutoff.any((time) => !message.publishedAt!.isAfter(time)))) {
+      message = message.markDeleted();
+    }
     _messages.add(message);
     while (_messages.length > historyLimit) {
       final removed = _messages.removeAt(0);
@@ -557,13 +596,24 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     ChatPlatform platform, {
     String? channelId,
     String? userId,
+    DateTime? before,
   }) {
     if (channelId == null || channelId.isEmpty) return;
+    final cutoff = before ?? DateTime.now();
+    final key = '${platform.name}:$channelId:${userId ?? '*'}';
+    if (_clearBefore[key] == null || _clearBefore[key]!.isBefore(cutoff)) {
+      _clearBefore[key] = cutoff;
+    }
+    if (_clearBefore.length > 4096) {
+      _clearBefore.remove(_clearBefore.keys.first);
+    }
     for (var i = 0; i < _messages.length; i++) {
       final message = _messages[i];
       if (message.platform == platform &&
           message.channelId == channelId &&
-          (userId == null || message.userId == userId)) {
+          (userId == null || message.userId == userId) &&
+          (message.publishedAt == null ||
+              !message.publishedAt!.isAfter(cutoff))) {
         _messages[i] = message.markDeleted();
       }
     }
@@ -572,6 +622,8 @@ final class UnifiedChatRuntime extends ChangeNotifier {
 
   void markDeleted(ChatPlatform platform, String id, {String? channelId}) {
     if (id.isEmpty) return;
+    _deletedIds.add('${platform.name}:${channelId ?? '*'}:$id');
+    if (_deletedIds.length > 4096) _deletedIds.remove(_deletedIds.first);
     for (var i = 0; i < _messages.length; i++) {
       final message = _messages[i];
       if (message.platform == platform &&

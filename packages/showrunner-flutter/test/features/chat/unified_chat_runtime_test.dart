@@ -125,6 +125,91 @@ void main() {
     },
   };
   test(
+    'moderation arriving before a message prevents display recovery and command execution',
+    () async {
+      await runtime.commands.save(
+        ChatCommand(
+          id: 'late',
+          name: 'Late',
+          pattern: '!late',
+          automationFile: 'a.yaml',
+        ),
+      );
+      hub.emit('twitchChatDeleted', {
+        'broadcaster_user_id': 'channel',
+        'message_id': 'late-deleted',
+      });
+      hub.emit('chat', twitch('late-deleted', text: '!late'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(runtime.messages.single.deleted, isTrue);
+      expect(runtime.commands.countersFor('late').accepted, 0);
+      runtime.clearHistory();
+      hub.emit('twitchUserChatCleared', {
+        'broadcaster_user_id': 'channel',
+        'target_user_id': 'viewer',
+        'providerTime': '2026-01-02T00:00:00Z',
+      });
+      hub.emit('chat', {
+        ...twitch('late-cleared'),
+        'providerTime': '2026-01-01T00:00:00Z',
+      });
+      hub.emit('chat', {
+        ...twitch('new'),
+        'providerTime': '2026-01-03T00:00:00Z',
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(runtime.messages.map((m) => m.deleted), [true, false]);
+      hub.emit('twitchUserChatCleared', {'broadcaster_user_id': 'channel'});
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(runtime.messages.last.deleted, isFalse);
+    },
+  );
+  test(
+    'YouTube bans target the banned user rather than the moderator or another live chat',
+    () async {
+      for (final user in ['banned', 'moderator']) {
+        runtime.ingest(
+          ChatMessage(
+            platform: ChatPlatform.youtube,
+            id: user,
+            channelId: 'live-chat',
+            userId: user,
+            userName: user,
+            text: 'hello',
+            receivedAt: DateTime.now(),
+          ),
+        );
+      }
+      hub.emit('chatMessage', {
+        'id': 'ban',
+        'snippet': {
+          'type': 'userBannedEvent',
+          'liveChatId': 'live-chat',
+          'authorChannelId': 'moderator',
+          'userBannedDetails': {
+            'bannedUserDetails': {'channelId': 'banned'},
+            'banType': 'permanent',
+          },
+        },
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(runtime.messages.first.deleted, isTrue);
+      expect(runtime.messages.last.deleted, isFalse);
+      hub.emit('chatMessage', {
+        'id': 'moderator',
+        'snippet': {'type': 'tombstone', 'liveChatId': 'other-live'},
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(runtime.messages.last.deleted, isFalse);
+      hub.emit('chatMessage', {
+        'id': 'moderator',
+        'snippet': {'type': 'tombstone', 'liveChatId': 'live-chat'},
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(runtime.messages.last.deleted, isTrue);
+    },
+  );
+  test(
     'configured actions validate scope and dispatch trusted message/event context',
     () async {
       await runtime.saveActions([
