@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### CI & Build
+- Wait for shader field edits to settle before switching inputs in native workflow tests.
 - Recover draft release assets using the protected publishing job's permissions.
 - Pass named packaging parameters correctly when building Windows releases.
 
