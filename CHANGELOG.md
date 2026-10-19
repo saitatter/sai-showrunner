@@ -12,6 +12,7 @@
 - Add unified Twitch/YouTube chat with moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Keep local chat deletion scoped to the selected channel when message IDs overlap.
 - Keep normal Tab focus traversal when chat suggestions are closed and return focus after inserting a suggestion.
 - Treat empty Deny rules as unrestricted and match explicit command/highlight roles against actual provider badges.
 - Synchronize YouTube ban/tombstone events and keep late deleted messages suppressed without clearing unrelated users or channels.

@@ -727,7 +727,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
       },
     );
     if (action == ChatQuickAction.deleteMessage) {
-      markDeleted(message.platform, message.id);
+      markDeleted(message.platform, message.id, channelId: message.channelId);
     }
   }
 
