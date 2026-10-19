@@ -17,7 +17,14 @@ final class ChatTriggerFilter {
           (raw['aliases'] as List? ?? []).isNotEmpty) {
         throw const FormatException('Aliases require a command match value.');
       }
-      CommandMatchMode.values.byName(raw['mode']?.toString() ?? 'command');
+      final mode = CommandMatchMode.values.byName(
+        raw['mode']?.toString() ?? 'command',
+      );
+      if (mode == CommandMatchMode.regex) {
+        throw const FormatException(
+          'Configure bounded regex matching in Chat Commands.',
+        );
+      }
     }
     if (source['cooldown'] != null) {
       throw const FormatException('Configure cooldowns in Chat Commands.');

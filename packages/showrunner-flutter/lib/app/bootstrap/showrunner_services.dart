@@ -29,6 +29,7 @@ import '../../persistence/automation_repository.dart';
 import '../../persistence/filesystem/safe_path.dart';
 import '../../runtime/expression.dart';
 import '../../features/chat/chat_dock_service.dart';
+import '../../persistence/resource_repository.dart';
 
 /// The application-owned runtime composition.
 ///
@@ -66,6 +67,7 @@ final class ShowRunnerServices {
   }) {
     final actionQueue = DartActionQueue();
     final eventHub = DartPluginEventHub();
+    final commandManagerReady = Completer<ChatCommandManager>();
     final viewerDataRepository = FileViewerDataRepository(
       Directory('${dataService.userDirectory.path}/viewer-data'),
     );
@@ -122,6 +124,7 @@ final class ShowRunnerServices {
     pluginRegistryFuture = createConfiguredPluginRegistry(
       dataService,
       eventHub: eventHub,
+      chatCommands: commandManagerReady.future,
       viewerDataRepository: viewerDataRepository,
       queueManager: queueManager,
       executionEngine: graphExecutionEngine,
@@ -175,6 +178,31 @@ final class ShowRunnerServices {
     );
     final chatCommands = ChatCommandManager(
       repository: CommandRepository(dataService.userDirectory),
+      onEvent: eventHub.emit,
+      isEnabled: () async =>
+          (await pluginRegistryFuture).isPluginEnabled('chatCommands'),
+      groupMemberships: (message, groups) async {
+        final repository = ResourceRepository(
+          Directory('${dataService.userDirectory.path}/twitch/groups'),
+        );
+        final memberships = <String>{};
+        for (final id in groups) {
+          final group = await repository.load(id);
+          if (group == null) {
+            throw StateError('Viewer group does not exist: $id');
+          }
+          final members = (group.config['userIds'] as List? ?? []).map(
+            (id) => '$id',
+          );
+          if (members.any(
+            (id) =>
+                (id.contains(':') ? id : 'twitch:$id') == message.userIdentity,
+          )) {
+            memberships.add(id);
+          }
+        }
+        return memberships;
+      },
       execute: (command, values) async {
         final file = await containedFile(dataService.userDirectory, [
           'automations',
@@ -200,6 +228,7 @@ final class ShowRunnerServices {
         );
       },
     );
+    commandManagerReady.complete(chatCommands);
     final chatRuntime = UnifiedChatRuntime(
       eventHub: eventHub,
       dataService: dataService,

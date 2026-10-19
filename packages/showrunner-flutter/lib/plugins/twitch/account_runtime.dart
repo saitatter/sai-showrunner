@@ -114,6 +114,7 @@ final class TwitchAccountAuthService {
 const _channelScopes = <String>[
   'user:read:email',
   'user:read:chat',
+  'user:read:whispers',
   'user:write:chat',
   'moderator:manage:announcements',
   'channel:manage:broadcast',
@@ -138,6 +139,7 @@ const _channelScopes = <String>[
 const _botScopes = <String>[
   'user:read:email',
   'user:read:chat',
+  'user:read:whispers',
   'user:write:chat',
   'chat:read',
   'chat:edit',

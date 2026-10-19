@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Add advanced command permissions, bounded regex, private Twitch sources, graph management actions and external Twitch moderation synchronization.
 - Add managed Twitch/YouTube chat commands with aliases, argument parsing, permissions, cooldowns, persisted counters and named automation queues.
 - Add unified Twitch/YouTube chat with moderation, emote suggestions and an authenticated local OBS browser dock.
 

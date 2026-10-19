@@ -82,6 +82,15 @@ initially lost a binding after rapid field changes; the fixture now settles each
 edit and checks its document value before continuing. Both occurrences in the
 grouped Windows suite passed with the final binding assertions intact.
 
+Advanced command fixtures additionally cover Allow/Deny users/roles/groups,
+fail-closed group lookup, named regex captures and a pathological expression that
+times out while the UI heartbeat keeps running. Graph plugin fixtures exercise
+filtered lifecycle triggers, enable/delete and independent counter/cooldown resets.
+The targeted Windows Chat/Commands fixture passes with the expanded editor; its
+captured command list was inspected. Twitch delete/clear events are tested with
+channel scoping and whisper input is asserted absent from public history. These
+are fixture proofs; live whisper scopes and privileges remain unverified.
+
 The Chromium overlay smoke proof also exercises the chat dock with isolated mock
 HTTP APIs: two-provider history, text escaping, filters, routing, emoji and reply.
 These fixtures make no live provider calls and do not verify OBS/CEF itself.

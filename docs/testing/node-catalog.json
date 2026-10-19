@@ -2,6 +2,315 @@
   "schemaVersion": 1,
   "plugins": [
     {
+      "id": "chatCommands",
+      "name": "Chat Commands",
+      "actions": [
+        {
+          "id": "list",
+          "name": "List Chat Commands",
+          "config": {
+            "key": null,
+            "label": "List Chat Commands",
+            "type": "object",
+            "fields": [
+              {
+                "key": "includedOnly",
+                "label": "Included commands only",
+                "type": "boolean"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "get",
+          "name": "Get Chat Command and Counters",
+          "config": {
+            "key": null,
+            "label": "Get Chat Command and Counters",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setEnabled",
+          "name": "Enable or Disable Chat Command",
+          "config": {
+            "key": null,
+            "label": "Enable or Disable Chat Command",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "enabled",
+                "label": "Enabled",
+                "type": "boolean"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "resetCounters",
+          "name": "Reset Chat Command Counters",
+          "config": {
+            "key": null,
+            "label": "Reset Chat Command Counters",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "resetUserCounters",
+          "name": "Reset Chat Command User Counters",
+          "config": {
+            "key": null,
+            "label": "Reset Chat Command User Counters",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "userIdentity",
+                "label": "User identity (platform:userId, empty for all)",
+                "type": "text"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "resetCooldowns",
+          "name": "Reset Chat Command Cooldowns",
+          "config": {
+            "key": null,
+            "label": "Reset Chat Command Cooldowns",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "userIdentity",
+                "label": "User identity (platform:userId, empty for all)",
+                "type": "text"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "delete",
+          "name": "Delete Chat Command",
+          "config": {
+            "key": null,
+            "label": "Delete Chat Command",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "triggered",
+          "name": "Command Triggered",
+          "config": {
+            "key": null,
+            "label": "Command filter",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID (empty for any)",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "cooldown",
+          "name": "Command On Cooldown",
+          "config": {
+            "key": null,
+            "label": "Command filter",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID (empty for any)",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "rejected",
+          "name": "Command Rejected",
+          "config": {
+            "key": null,
+            "label": "Command filter",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID (empty for any)",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "failed",
+          "name": "Command Dispatch Failed",
+          "config": {
+            "key": null,
+            "label": "Command filter",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID (empty for any)",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "added",
+          "name": "Command Added",
+          "config": {
+            "key": null,
+            "label": "Command filter",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID (empty for any)",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "updated",
+          "name": "Command Updated",
+          "config": {
+            "key": null,
+            "label": "Command filter",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID (empty for any)",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "deleted",
+          "name": "Command Deleted",
+          "config": {
+            "key": null,
+            "label": "Command filter",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID (empty for any)",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "countersReset",
+          "name": "Command Counters Reset",
+          "config": {
+            "key": null,
+            "label": "Command filter",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID (empty for any)",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "cooldownReset",
+          "name": "Command Cooldown Reset",
+          "config": {
+            "key": null,
+            "label": "Command filter",
+            "type": "object",
+            "fields": [
+              {
+                "key": "commandId",
+                "label": "Command ID (empty for any)",
+                "type": "text"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
       "id": "heartrate",
       "name": "Heart Rate",
       "actions": [
@@ -5838,10 +6147,10 @@
             "name": "QA resource",
             "activationAutomation": {
               "schemaVersion": 1,
-              "id": "81c4f3869d3cb9110b7657b9540d01d2",
+              "id": "17fc6c41914c7201aa46141c9d313805",
               "graph": {
                 "schemaVersion": 1,
-                "id": "81c4f3869d3cb9110b7657b9540d01d2",
+                "id": "17fc6c41914c7201aa46141c9d313805",
                 "spaces": {
                   "space:main": {
                     "id": "space:main",
@@ -5862,10 +6171,10 @@
             },
             "deactivationAutomation": {
               "schemaVersion": 1,
-              "id": "2228b2121402b054cc72e01664be7678",
+              "id": "9dbcfb9b991aee6382ffda54b8b53959",
               "graph": {
                 "schemaVersion": 1,
-                "id": "2228b2121402b054cc72e01664be7678",
+                "id": "9dbcfb9b991aee6382ffda54b8b53959",
                 "spaces": {
                   "space:main": {
                     "id": "space:main",
@@ -5891,9 +6200,9 @@
     }
   ],
   "counts": {
-    "plugins": 33,
-    "actions": 167,
-    "triggers": 51
+    "plugins": 34,
+    "actions": 174,
+    "triggers": 60
   },
   "note": "Insertion and serialization passed; live execution requires enabled scenarios and connections."
 }

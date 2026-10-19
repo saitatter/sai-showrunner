@@ -13,6 +13,13 @@ DartPluginRegistry buildDefaultPluginRegistry({
   final variablesRepository =
       viewerDataRepository ?? InMemoryViewerDataRepository();
   final registry = DartPluginRegistry();
+  registry.register(
+    createChatCommandsPlugin(
+      manager: () =>
+          Future.error(StateError('Chat Commands runtime is unavailable.')),
+      eventHub: eventHub,
+    ),
+  );
   _registerHeartRatePlugin(registry, eventHub: eventHub);
   registry.register(
     createShowRunnerPlugin(

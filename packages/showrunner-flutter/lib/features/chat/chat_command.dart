@@ -1,6 +1,9 @@
 import 'chat_message.dart';
+import 'safe_regex.dart';
 
-enum CommandMatchMode { command, exact, startsWith, contains }
+enum CommandMatchMode { command, exact, startsWith, contains, regex }
+
+enum CommandGrant { allow, deny }
 
 enum CommandArgumentMode { words, quoted, remainder }
 
@@ -24,7 +27,23 @@ final class ChatCommand {
     this.userCooldown = Duration.zero,
     this.minimumArguments = 0,
     this.queueId = 'default',
-  }) : aliases = List.unmodifiable(aliases),
+    this.grant = CommandGrant.allow,
+    Set<ChatPermission> roles = const {},
+    Set<String> users = const {},
+    Set<String> groups = const {},
+    Set<ChatOrigin> origins = const {ChatOrigin.chat},
+    this.ignoreBots = true,
+    this.ignoreInternal = true,
+    this.broadcasterBypass = false,
+    this.persistCounter = true,
+    this.persistUserCounter = true,
+    this.group = '',
+    this.includeInList = true,
+  }) : roles = Set.unmodifiable(roles),
+       users = Set.unmodifiable(users),
+       groups = Set.unmodifiable(groups),
+       origins = Set.unmodifiable(origins),
+       aliases = List.unmodifiable(aliases),
        platforms = Set.unmodifiable(platforms) {
     if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(id)) {
       throw const FormatException('Invalid command ID.');
@@ -64,6 +83,29 @@ final class ChatCommand {
         throw const FormatException('Command names cannot contain spaces.');
       }
     }
+    if (origins.isEmpty) {
+      throw const FormatException('Select at least one message source.');
+    }
+    for (final user in users) {
+      if (!RegExp(r'^(twitch|youtube):[^\s:]+$').hasMatch(user)) {
+        throw const FormatException(
+          'Users must use platform:userId, for example twitch:123.',
+        );
+      }
+    }
+    if (groups.any(
+      (g) => g.trim().isEmpty || g.contains('/') || g.contains('\\'),
+    )) {
+      throw const FormatException('Invalid viewer group ID.');
+    }
+    if (matchMode == CommandMatchMode.regex) {
+      for (final expression in [pattern, ...aliases]) {
+        if (expression.length > 2048) {
+          throw const FormatException('Regex is too long.');
+        }
+        RegExp(expression, caseSensitive: caseSensitive);
+      }
+    }
     final patterns = [
       pattern,
       ...aliases,
@@ -73,7 +115,52 @@ final class ChatCommand {
     }
   }
 
-  final String id, name, pattern, automationFile, queueId;
+  final String id, name, pattern, automationFile, queueId, group;
+  final CommandGrant grant;
+  final Set<ChatPermission> roles;
+  final Set<String> users, groups;
+  final Set<ChatOrigin> origins;
+  final bool ignoreBots,
+      ignoreInternal,
+      broadcasterBypass,
+      persistCounter,
+      persistUserCounter,
+      includeInList;
+
+  Future<CommandMatch?> matchAsync(String text) async {
+    if (matchMode != CommandMatchMode.regex) return match(text);
+    for (final expression in [pattern, ...aliases]) {
+      final result = await findChatRegex(
+        expression,
+        text,
+        caseSensitive: caseSensitive,
+      );
+      if (result == null) continue;
+      final groups = (result['groups'] as List).cast<String?>();
+      return CommandMatch(
+        groups.first ?? '',
+        text.substring(result['end'] as int).trim(),
+        groups.skip(1).map((g) => g ?? '').toList(),
+        captures: {
+          for (var i = 0; i < groups.length; i++) '$i': groups[i],
+          ...Map<String, String?>.from(result['named'] as Map),
+        },
+      );
+    }
+    return null;
+  }
+
+  bool grants(ChatMessage message, Set<String> memberships) {
+    if (broadcasterBypass && message.isBroadcaster) return true;
+    if (!message.permits(permission)) return false;
+    final empty = roles.isEmpty && users.isEmpty && groups.isEmpty;
+    final listed =
+        users.contains(message.userIdentity) ||
+        roles.any(message.permits) ||
+        groups.any(memberships.contains);
+    return grant == CommandGrant.allow ? empty || listed : !empty && !listed;
+  }
+
   final List<String> aliases;
   final Set<ChatPlatform> platforms;
   final bool enabled, caseSensitive;
@@ -92,6 +179,18 @@ final class ChatCommand {
   );
 
   Map<String, dynamic> toJson() => {
+    'grant': grant.name,
+    'roles': roles.map((r) => r.name).toList(),
+    'users': users.toList(),
+    'groups': groups.toList(),
+    'origins': origins.map((o) => o.name).toList(),
+    'ignoreBots': ignoreBots,
+    'ignoreInternal': ignoreInternal,
+    'broadcasterBypass': broadcasterBypass,
+    'persistCounter': persistCounter,
+    'persistUserCounter': persistUserCounter,
+    'group': group,
+    'includeInList': includeInList,
     'id': id,
     'name': name,
     'pattern': pattern,
@@ -110,6 +209,22 @@ final class ChatCommand {
   };
 
   factory ChatCommand.fromJson(Map<String, dynamic> json) => ChatCommand(
+    grant: CommandGrant.values.byName(json['grant'] as String? ?? 'allow'),
+    roles: (json['roles'] as List? ?? [])
+        .map((r) => ChatPermission.values.byName(r as String))
+        .toSet(),
+    users: (json['users'] as List? ?? []).cast<String>().toSet(),
+    groups: (json['groups'] as List? ?? []).cast<String>().toSet(),
+    origins: (json['origins'] as List? ?? ['chat'])
+        .map((o) => ChatOrigin.values.byName(o as String))
+        .toSet(),
+    ignoreBots: json['ignoreBots'] as bool? ?? true,
+    ignoreInternal: json['ignoreInternal'] as bool? ?? true,
+    broadcasterBypass: json['broadcasterBypass'] as bool? ?? false,
+    persistCounter: json['persistCounter'] as bool? ?? true,
+    persistUserCounter: json['persistUserCounter'] as bool? ?? true,
+    group: json['group'] as String? ?? '',
+    includeInList: json['includeInList'] as bool? ?? true,
     id: json['id'] as String,
     name: json['name'] as String,
     pattern: json['pattern'] as String,
@@ -133,8 +248,14 @@ final class ChatCommand {
 }
 
 final class CommandMatch {
-  CommandMatch(this.matchedText, this.argumentText, List<String> arguments)
-    : arguments = List.unmodifiable(arguments);
+  CommandMatch(
+    this.matchedText,
+    this.argumentText,
+    List<String> arguments, {
+    Map<String, String?> captures = const {},
+  }) : arguments = List.unmodifiable(arguments),
+       captures = Map.unmodifiable(captures);
+  final Map<String, String?> captures;
   final String matchedText, argumentText;
   final List<String> arguments;
 }
@@ -152,6 +273,9 @@ CommandMatch? matchCommandText(
     if (pattern.isEmpty) continue;
     final needle = caseSensitive ? pattern : pattern.toLowerCase();
     final index = switch (mode) {
+      CommandMatchMode.regex => throw UnsupportedError(
+        'Use matchAsync for bounded regex matching.',
+      ),
       CommandMatchMode.exact => haystack == needle ? 0 : -1,
       CommandMatchMode.contains => haystack.indexOf(needle),
       CommandMatchMode.startsWith => haystack.startsWith(needle) ? 0 : -1,

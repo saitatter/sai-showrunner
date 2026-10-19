@@ -2,6 +2,15 @@ import '../../runtime/expression.dart';
 
 enum ChatPlatform { twitch, youtube }
 
+enum ChatOrigin {
+  chat,
+  sharedChat,
+  whisper,
+  botWhisper,
+  subscription,
+  internal,
+}
+
 enum ChatPermission { everyone, subscriber, vip, moderator, broadcaster }
 
 final class ChatMessage {
@@ -13,6 +22,7 @@ final class ChatMessage {
     required this.userName,
     required this.text,
     required this.receivedAt,
+    this.origin = ChatOrigin.chat,
     this.isModerator = false,
     this.isSubscriber = false,
     this.isVip = false,
@@ -23,6 +33,7 @@ final class ChatMessage {
   }) : source = Map.unmodifiable(source);
 
   final ChatPlatform platform;
+  final ChatOrigin origin;
   final String id;
   final String channelId;
   final String userId;
@@ -45,6 +56,7 @@ final class ChatMessage {
 
   RuntimeMap get context => {
     'platform': platform.name,
+    'origin': origin.name,
     'viewerId': userId,
     'viewerName': userName,
     'messageId': id,
@@ -65,6 +77,7 @@ final class ChatMessage {
     userName: userName,
     text: text,
     receivedAt: receivedAt,
+    origin: origin,
     isModerator: isModerator,
     isSubscriber: isSubscriber,
     isVip: isVip,
@@ -78,6 +91,7 @@ final class ChatMessage {
     RuntimeMap event, {
     DateTime? now,
     Set<String> botIds = const {},
+    ChatOrigin? origin,
   }) {
     final message = event['message'];
     final text = message is Map ? message['text'] : message;
@@ -93,6 +107,14 @@ final class ChatMessage {
         : (badges?.toString() ?? '').split(',').toSet();
     return ChatMessage(
       platform: ChatPlatform.twitch,
+      origin:
+          origin ??
+          (event['source_broadcaster_user_id'] != null &&
+                  event['source_broadcaster_user_id'] != channelId
+              ? ChatOrigin.sharedChat
+              : ['sub', 'resub'].contains(event['notice_type'])
+              ? ChatOrigin.subscription
+              : ChatOrigin.chat),
       id: (event['message_id'] ?? event['messageId'] ?? '').toString(),
       channelId: channelId,
       userId: userId,

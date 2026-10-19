@@ -121,9 +121,118 @@ final class ChatCommandManager extends ChangeNotifier {
     required this.repository,
     required this.execute,
     DateTime Function()? now,
+    this.groupMemberships,
+    this.onEvent,
+    this.isEnabled,
   }) : now = now ?? DateTime.now;
   final CommandRepository repository;
   final CommandExecutor execute;
+  final Future<bool> Function()? isEnabled;
+  final Future<Set<String>> Function(ChatMessage message, Set<String> groups)?
+  groupMemberships;
+  final void Function(String eventId, Map<String, dynamic> values)? onEvent;
+
+  void _emit(
+    String event,
+    ChatCommand command, [
+    Map<String, dynamic> values = const {},
+  ]) => onEvent?.call('chatCommands.$event', {
+    'commandId': command.id,
+    'command': command.pattern,
+    ...values,
+  });
+
+  ChatCommand commandById(String id) => _commands.firstWhere(
+    (c) => c.id == id,
+    orElse: () => throw StateError('Unknown command: $id'),
+  );
+
+  Future<void> setEnabled(String id, bool enabled) => save(
+    ChatCommand.fromJson({...commandById(id).toJson(), 'enabled': enabled}),
+  );
+
+  Map<String, CommandCounters> _persistedCounters(
+    Map<String, CommandCounters> values,
+  ) => {
+    for (final entry in values.entries)
+      entry.key: CommandCounters(
+        accepted:
+            _commands
+                    .where((c) => c.id == entry.key)
+                    .firstOrNull
+                    ?.persistCounter ==
+                false
+            ? 0
+            : entry.value.accepted,
+        dispatched:
+            _commands
+                    .where((c) => c.id == entry.key)
+                    .firstOrNull
+                    ?.persistCounter ==
+                false
+            ? 0
+            : entry.value.dispatched,
+        failed:
+            _commands
+                    .where((c) => c.id == entry.key)
+                    .firstOrNull
+                    ?.persistCounter ==
+                false
+            ? 0
+            : entry.value.failed,
+        users:
+            _commands
+                    .where((c) => c.id == entry.key)
+                    .firstOrNull
+                    ?.persistUserCounter ==
+                false
+            ? {}
+            : entry.value.users,
+      ),
+  };
+
+  Future<void> resetUserCounters(String id, {String? userIdentity}) =>
+      _serialize(() async {
+        _ensureReady();
+        final command = commandById(id);
+        final current = countersFor(id);
+        final users = {...current.users};
+        if (userIdentity == null) {
+          users.clear();
+        } else {
+          users.remove(userIdentity);
+        }
+        final next = {
+          ..._counters,
+          id: CommandCounters(
+            accepted: current.accepted,
+            dispatched: current.dispatched,
+            failed: current.failed,
+            users: users,
+          ),
+        };
+        await repository.saveCounters(_persistedCounters(next));
+        _counters = next;
+        _emit('countersReset', command, {
+          'userIdentity': userIdentity,
+          'usersOnly': true,
+        });
+        notifyListeners();
+      });
+
+  Future<void> resetCooldowns(String id, {String? userIdentity}) =>
+      _serialize(() async {
+        _ensureReady();
+        final command = commandById(id);
+        if (userIdentity == null) {
+          _globalReady.remove(id);
+          _userReady.removeWhere((key, _) => key.startsWith('$id:'));
+        } else {
+          _userReady.remove('$id:$userIdentity');
+        }
+        _emit('cooldownReset', command, {'userIdentity': userIdentity});
+        notifyListeners();
+      });
   final DateTime Function() now;
   List<ChatCommand> _commands = [];
   Map<String, CommandCounters> _counters = {};
@@ -143,7 +252,7 @@ final class ChatCommandManager extends ChangeNotifier {
       _validate(commands);
       final counters = await repository.loadCounters();
       _commands = commands;
-      _counters = counters;
+      _counters = _persistedCounters(counters);
       _loaded = true;
       error = null;
     } catch (failure) {
@@ -164,7 +273,8 @@ final class ChatCommandManager extends ChangeNotifier {
         if (!left.enabled ||
             !right.enabled ||
             left.matchMode != right.matchMode ||
-            !left.platforms.any(right.platforms.contains)) {
+            !left.platforms.any(right.platforms.contains) ||
+            !left.origins.any(right.origins.contains)) {
           continue;
         }
         for (final name in [left.pattern, ...left.aliases]) {
@@ -194,23 +304,28 @@ final class ChatCommandManager extends ChangeNotifier {
     _validate(next);
     await repository.save(next);
     _commands = next;
+    _emit(index < 0 ? 'added' : 'updated', command);
     notifyListeners();
   });
 
   Future<void> delete(String id) => _serialize(() async {
     _ensureReady();
+    final command = commandById(id);
     final next = _commands.where((c) => c.id != id).toList();
     await repository.save(next);
     _commands = next;
+    _emit('deleted', command);
     // Historical counters are intentionally retained when a definition is deleted.
     notifyListeners();
   });
 
   Future<void> resetCounters(String id) => _serialize(() async {
     _ensureReady();
+    final command = commandById(id);
     final next = {..._counters, id: CommandCounters()};
-    await repository.saveCounters(next);
+    await repository.saveCounters(_persistedCounters(next));
     _counters = next;
+    _emit('countersReset', command, {'usersOnly': false});
     notifyListeners();
   });
 
@@ -227,32 +342,73 @@ final class ChatCommandManager extends ChangeNotifier {
   });
 
   Future<void> handle(ChatMessage message) => _serialize(() async {
-    if (!_loaded ||
-        _closed ||
-        message.deleted ||
-        message.isBot ||
-        message.userId.isEmpty) {
+    if (!_loaded || _closed || message.deleted || message.userId.isEmpty) {
+      return;
+    }
+    if (isEnabled != null && !await isEnabled!()) {
+      lastDecision = 'Chat Commands plugin is disabled';
+      notifyListeners();
       return;
     }
     for (final command in _commands) {
       if (!command.enabled || !command.platforms.contains(message.platform)) {
         continue;
       }
-      final match = command.match(message.text);
-      if (match == null) continue;
-      if (!message.permits(command.permission)) {
+      if (!command.origins.contains(message.origin) ||
+          (command.ignoreBots && message.isBot) ||
+          (command.ignoreInternal && message.origin == ChatOrigin.internal)) {
+        continue;
+      }
+      CommandMatch? match;
+      Set<String> memberships = {};
+      try {
+        match = await command.matchAsync(message.text);
+        if (match == null) continue;
+        if (command.groups.isNotEmpty) {
+          final resolver = groupMemberships;
+          if (resolver == null) {
+            throw StateError('Viewer group storage is unavailable.');
+          }
+          memberships = await resolver(message, command.groups);
+        }
+      } catch (failure) {
+        error = failure;
+        lastDecision = '${command.name}: matching or group lookup failed';
+        _emit('rejected', command, {
+          ...message.context,
+          'reason': 'configuration',
+        });
+        break;
+      }
+      if (!command.grants(message, memberships)) {
         lastDecision = '${command.name}: permission denied';
+        _emit('rejected', command, {
+          ...message.context,
+          'reason': 'permission',
+        });
         break;
       }
       if (match.arguments.length < command.minimumArguments) {
         lastDecision = '${command.name}: missing arguments';
+        _emit('rejected', command, {...message.context, 'reason': 'arguments'});
         break;
       }
       final instant = now();
       final userKey = '${command.id}:${message.userIdentity}';
-      if ((_globalReady[command.id]?.isAfter(instant) ?? false) ||
-          (_userReady[userKey]?.isAfter(instant) ?? false)) {
+      if (!(command.broadcasterBypass && message.isBroadcaster) &&
+          ((_globalReady[command.id]?.isAfter(instant) ?? false) ||
+              (_userReady[userKey]?.isAfter(instant) ?? false))) {
         lastDecision = '${command.name}: cooldown';
+        _emit('cooldown', command, {
+          ...message.context,
+          'globalRemainingMs':
+              (_globalReady[command.id]?.difference(instant).inMilliseconds ??
+                      0)
+                  .clamp(0, 86400000),
+          'userRemainingMs':
+              (_userReady[userKey]?.difference(instant).inMilliseconds ?? 0)
+                  .clamp(0, 86400000),
+        });
         break;
       }
       // Reserve both cooldowns before any asynchronous file/queue operation.
@@ -269,27 +425,31 @@ final class ChatCommandManager extends ChangeNotifier {
         ifAbsent: () => 1,
       );
       try {
-        await repository.saveCounters(_counters);
-        await execute(command, {
+        await repository.saveCounters(_persistedCounters(_counters));
+        final values = <String, dynamic>{
           ...message.context,
           'command': command.pattern,
           'commandId': command.id,
           'matchedCommand': match.matchedText,
           'arguments': match.arguments,
+          'captures': match.captures,
           'argumentText': match.argumentText,
           'commandCount': counters.accepted,
           'userCommandCount': counters.users[message.userIdentity],
-        });
+        };
+        _emit('triggered', command, values);
+        await execute(command, values);
         counters.dispatched++;
         lastDecision = '${command.name}: queued';
         error = null;
       } catch (failure) {
         counters.failed++;
         lastDecision = '${command.name}: failed';
+        _emit('failed', command, {...message.context});
         error = failure;
       }
       try {
-        await repository.saveCounters(_counters);
+        await repository.saveCounters(_persistedCounters(_counters));
       } catch (failure) {
         error = failure;
       }
