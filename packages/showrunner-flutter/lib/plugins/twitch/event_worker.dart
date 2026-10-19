@@ -599,6 +599,7 @@ RuntimeMap _normalizeTwitchEvent(String eventId, Map event) {
   );
   final message = event['message'];
   copyIfPresent('message', message is Map ? message['text'] : message);
+  if (message is Map) copyIfPresent('messageFragments', message['fragments']);
   copyIfPresent('messageId', event['message_id']);
   copyIfPresent('bits', event['bits']);
   copyIfPresent('tier', _tierNumber(event['tier']));

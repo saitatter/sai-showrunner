@@ -31,3 +31,5 @@ button[data-color="blue"] { border-color: #66ccff; }
 button[data-color="green"] { border-color: #99dd77; }
 button[data-color="orange"] { border-color: #ffbb66; }
 button[data-color="red"] { border-color: #ff8888; }
+
+p img.emote { height: 1.7em; max-width: 3em; object-fit: contain; vertical-align: middle; }

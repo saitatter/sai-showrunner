@@ -97,7 +97,7 @@ final class ChatDockService {
       request.response.headers.set('X-Content-Type-Options', 'nosniff');
       request.response.headers.set(
         'Content-Security-Policy',
-        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'",
+        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://static-cdn.jtvnw.net https://cdn.betterttv.net https://cdn.frankerfacez.com https://cdn.7tv.app https://cdn.7tv.io; object-src 'none'; base-uri 'none'",
       );
       final origin = 'http://127.0.0.1:${_server?.port}';
       if (request.headers.value('host') != '127.0.0.1:${_server?.port}' ||
@@ -132,6 +132,14 @@ final class ChatDockService {
                     'identity': m.identity,
                     ...m.context,
                     'deleted': m.deleted,
+                    'parts': runtime
+                        .messageParts(m)
+                        .map(
+                          (part) => part.toJson(
+                            animate: runtime.preferences.animatedEmotes,
+                          ),
+                        )
+                        .toList(),
                     'highlighted': runtime.preferences.highlights(m),
                     'time': m.receivedAt.toUtc().toIso8601String(),
                   },
@@ -145,7 +153,9 @@ final class ChatDockService {
                     .toList(),
             },
             'emotes': runtime.emotes
-                .map((e) => {'name': e.name, 'text': e.text})
+                .map(
+                  (e) => e.toJson(animate: runtime.preferences.animatedEmotes),
+                )
                 .toList(),
           });
         }

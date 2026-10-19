@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Render rich chat emotes with Twitch fragments and 7TV/BTTV/FFZ catalogs, bounded caching, animation preferences and text fallback.
 - Add configurable global/message/user/event chat automation actions and a public Twitch/YouTube event feed in chat and the dock.
 - Add shared chat display preferences, user/text/role highlights and bounded ignore rules with explicit command-blocking controls.
 - Add keyboard command and local-action menus, paused chat views and exact user filtering in chat and the OBS dock.

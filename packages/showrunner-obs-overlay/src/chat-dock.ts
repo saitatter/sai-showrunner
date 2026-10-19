@@ -1,6 +1,6 @@
 import "./chat-dock.css"
 
-type Message = { identity: string; platform: string; viewerName: string; message: string; isOwner: boolean; deleted: boolean; highlighted?: boolean; time?: string; isModerator?: boolean }
+type Message = { identity: string; platform: string; viewerName: string; message: string; isOwner: boolean; deleted: boolean; parts?: {text:string; imageUrl?:string}[]; highlighted?: boolean; time?: string; isModerator?: boolean }
 type FeedEvent = { eventId: string; eventType: string; platform: string; viewerId: string; viewerName: string; message: string; time: string }
 type ConfiguredAction = { id: string; label: string; scope: string; platforms: string[]; icon: string; color: string }
 let configuredActions: ConfiguredAction[] = []
@@ -75,7 +75,20 @@ function render() {
     const title = document.createElement("strong")
     title.textContent = `${preferences.timestamps && message.time ? new Date(message.time).toLocaleTimeString() + " " : ""}${preferences.platformIcons ? message.platform + " - " : ""}${message.viewerName}${preferences.roleBadges ? message.isOwner ? " - owner" : message.isModerator ? " - moderator" : "" : ""}`
     const text = document.createElement("p")
-    text.textContent = message.deleted ? "Message deleted" : message.message
+    if (message.deleted) text.textContent = "Message deleted"
+    else if (message.parts) {
+      for (const part of message.parts) {
+        let url: URL | undefined
+        try { if (part.imageUrl) url = new URL(part.imageUrl) } catch { /* text fallback */ }
+        if (url && url.protocol === "https:" && !url.username && !url.password && (!url.port || url.port === "443") &&
+            ["static-cdn.jtvnw.net", "cdn.betterttv.net", "cdn.frankerfacez.com", "cdn.7tv.app", "cdn.7tv.io"].includes(url.hostname)) {
+          const image = document.createElement("img"); image.src = url.href; image.alt = part.text; image.title = part.text
+          image.referrerPolicy = "no-referrer"; image.className = "emote"
+          image.addEventListener("error", () => image.replaceWith(document.createTextNode(part.text)), {once:true})
+          text.append(image)
+        } else text.append(document.createTextNode(part.text))
+      }
+    } else text.textContent = message.message
     const actions = document.createElement("select")
     actions.setAttribute("aria-label", "Message actions")
     for (const [value, label] of [["", "Actions"], ["reply", "Reply"], ["copy", "Copy message"], ["user", "Show messages from user"], ...(!message.deleted ? [["deleteMessage", "Delete message"]] : []), ...(!message.isOwner ? [["timeout", "Timeout 60s"], ["ban", "Ban user"], ...(message.platform === "twitch" ? [["unban", "Unban user"]] : [])] : [])]) {
