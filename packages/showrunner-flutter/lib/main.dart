@@ -212,6 +212,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   );
   Future<void> _navigationWrite = Future<void>.value();
   bool _restoredNavigation = false;
+  final _navigationReady = Completer<void>();
   int _projectCatalogRevision = 0;
   String? _selectedResourceType;
   String? _selectedResourceId;
@@ -517,6 +518,14 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
   }
 
   void _openDestination(WorkspaceId workspace) {
+    if (!_restoredNavigation) {
+      unawaited(
+        _navigationReady.future.then((_) {
+          if (mounted) _openDestination(workspace);
+        }),
+      );
+      return;
+    }
     setState(() {
       if (workspace != WorkspaceIds.resources) _selectedResourceType = null;
       if (workspace != WorkspaceIds.resources) _selectedResourceId = null;

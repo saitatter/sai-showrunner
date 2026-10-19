@@ -96,6 +96,7 @@ extension _ShowRunnerPageNavigation on _ShowRunnerPageState {
 
   Future<void> _initializeNavigationAndFirstRun() async {
     await _restoreNavigation();
+    if (!_navigationReady.isCompleted) _navigationReady.complete();
     await _openFirstRunSetupIfNeeded();
   }
 
