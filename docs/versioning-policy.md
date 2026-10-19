@@ -75,6 +75,9 @@ use that test certificate.
 Keep concise user-facing entries under Features, Fixes, Refactors, Docs or CI & Build
 in CHANGELOG.md's Unreleased section. Keep published sections intact. Conventional
 commits select the version; curated changelog entries describe the user impact.
+Use Fixes for bugs in functionality that existed before the current feature work.
+Corrections made while implementing a new unreleased feature stay in its Features
+entry; do not publish implementation iterations as separate release fixes.
 Prefer rebase-and-merge for independent commits, or a meaningful conventional
 squash title for a single logical change. Do not hide breaking changes in a generic
 merge title. Never reset user data to make a schema change or upgrade pass.

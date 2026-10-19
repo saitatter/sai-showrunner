@@ -3,8 +3,13 @@
 - Follow the user's instructions over this file.
 - Use conventional commit titles and a body explaining the change, reason and validation.
   Keep each commit focused; split documentation, release tooling and independent fixes.
-- Add one short user-facing entry to the matching section of `CHANGELOG.md` under
+- Add or update a short user-facing entry in the matching section of `CHANGELOG.md` under
   Unreleased in the same commit. Keep released entries intact.
+- Reserve `Fixes` for problems in functionality that existed before the current
+  feature work. Corrections made while implementing a new unreleased feature
+  belong in that feature's `Features` entry, not in separate `Fixes` notes.
+  Update the existing feature entry when needed instead of listing implementation
+  iterations as release fixes.
 - Release only by manually running Release on main. Do not bump versions, create
   release tags, publish a release or bypass reviews unless the session authorizes it.
   Follow [the release policy](docs/versioning-policy.md). A PR merge must not publish.
