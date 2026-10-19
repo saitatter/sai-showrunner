@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### CI & Build
+- Recover draft release assets using the protected publishing job's permissions.
 - Pass named packaging parameters correctly when building Windows releases.
 
 ### Features
