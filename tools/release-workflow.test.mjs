@@ -97,6 +97,13 @@ describe("Manual release policy", () => {
     expect(workflow.on.workflow_dispatch.inputs).toHaveProperty("backfill_version")
     const packaging = workflow.jobs["package-windows"]
     expect(packaging.environment).toBe("release")
+    expect(workflow.jobs.plan.permissions.contents).toBe("read")
+    expect(workflow.jobs.plan.steps.some(step => step.name === "Verify existing GitHub release for backfill")).toBe(false)
+    const recovery = workflow.jobs.prepare.steps.find(step => step.name === "Verify existing GitHub release for backfill")
+    expect(workflow.jobs.prepare.environment).toBe("release")
+    expect(workflow.jobs.prepare.permissions.contents).toBe("write")
+    expect(recovery.env.RELEASE_TAG).toBe("${{ needs.plan.outputs.tag }}")
+    expect(recovery.env.GH_REPO).toBe("${{ github.repository }}")
     const upload = packaging.steps.find(step => step.name === "Upload Windows package")
     expect(upload.run).toContain("if ($env:BACKFILL_VERSION -eq '')")
     expect(upload.run).toContain("'--prerelease', '--latest=false'")
