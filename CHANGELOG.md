@@ -9,6 +9,7 @@
 ### Features
 
 ### Fixes
+- Preserve workspace navigation during startup restoration.
 
 ### Refactors
 
