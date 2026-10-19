@@ -1,6 +1,11 @@
 import "./chat-dock.css"
 
 type Message = { identity: string; platform: string; viewerName: string; message: string; isOwner: boolean; deleted: boolean; highlighted?: boolean; time?: string; isModerator?: boolean }
+type FeedEvent = { eventId: string; eventType: string; platform: string; viewerId: string; viewerName: string; message: string; time: string }
+type ConfiguredAction = { id: string; label: string; scope: string; platforms: string[]; icon: string; color: string }
+let configuredActions: ConfiguredAction[] = []
+let events: FeedEvent[] = []
+let pausedEventIds: Set<string> | undefined
 type Emote = { name: string; text: string }
 type Preferences = { fontSize: number; font: string; timestamps: boolean; newestFirst: boolean; alternatingRows: boolean; platformIcons: boolean; roleBadges: boolean }
 let preferences: Preferences = { fontSize: 14, font: "system", timestamps: false, newestFirst: false, alternatingRows: false, platformIcons: true, roleBadges: true }
@@ -32,11 +37,38 @@ async function request(path: string, body?: unknown) {
 function render() {
   const atBottom = history.scrollHeight - history.scrollTop - history.clientHeight < 50
   history.replaceChildren()
-  const visible = messages.filter(m => (!filter.value || m.platform === filter.value) && (!pausedIdentities || pausedIdentities.has(m.identity)) && (!userIdentity || userKey(m) === userIdentity))
-  if (preferences.newestFirst) visible.reverse()
+  const globals = element("global-actions"); globals.replaceChildren()
+  for (const action of configuredActions.filter(a => a.scope === "global" && a.platforms.includes(platform.value))) {
+    const button = document.createElement("button"); button.type = "button"; button.textContent = action.label
+    button.dataset.color = action.color; button.title = `Run ${action.label}`
+    button.addEventListener("click", async () => { button.disabled = true
+      try { await request("/api/configured-action", {id:action.id, platform:platform.value}); status.textContent = "Action queued." }
+      catch (error) { status.textContent = String(error) } finally { button.disabled = false }
+    }); globals.append(button)
+  }
   history.style.fontSize = `${preferences.fontSize}px`
   history.style.fontFamily = preferences.font === "system" ? "system-ui, sans-serif" : preferences.font
   history.classList.toggle("alternating", preferences.alternatingRows)
+  if (element<HTMLSelectElement>("view").value === "events") {
+    const visible = events.filter(e => (!filter.value || e.platform === filter.value) && (!pausedEventIds || pausedEventIds.has(e.eventId)) && (!userIdentity || `${e.platform}:${e.viewerId}` === userIdentity))
+    if (preferences.newestFirst) visible.reverse()
+    for (const event of visible) {
+      const row = document.createElement("article"), title = document.createElement("strong"), text = document.createElement("p")
+      title.textContent = `${event.platform} - ${event.eventType} - ${event.viewerName}`; text.textContent = event.message
+      row.append(title, text)
+      for (const action of configuredActions.filter(a => a.scope === "event" && a.platforms.includes(event.platform))) {
+        const button = document.createElement("button"); button.type = "button"; button.textContent = action.label; button.dataset.color = action.color
+        button.addEventListener("click", async () => { button.disabled = true
+          try { await request("/api/configured-action", {id:action.id, platform:event.platform, eventId:event.eventId}); status.textContent = "Action queued." }
+          catch (error) { status.textContent = String(error) } finally { button.disabled = false }
+        }); row.append(button)
+      }
+      history.append(row)
+    }
+    return
+  }
+  const visible = messages.filter(m => (!filter.value || m.platform === filter.value) && (!pausedIdentities || pausedIdentities.has(m.identity)) && (!userIdentity || userKey(m) === userIdentity))
+  if (preferences.newestFirst) visible.reverse()
   for (const message of visible) {
     const row = document.createElement("article")
     row.classList.toggle("highlighted", message.highlighted === true)
@@ -49,8 +81,17 @@ function render() {
     for (const [value, label] of [["", "Actions"], ["reply", "Reply"], ["copy", "Copy message"], ["user", "Show messages from user"], ...(!message.deleted ? [["deleteMessage", "Delete message"]] : []), ...(!message.isOwner ? [["timeout", "Timeout 60s"], ["ban", "Ban user"], ...(message.platform === "twitch" ? [["unban", "Unban user"]] : [])] : [])]) {
       const option = document.createElement("option"); option.value = value; option.textContent = label; actions.append(option)
     }
+    for (const action of configuredActions.filter(a => ["message", "user"].includes(a.scope) && a.platforms.includes(message.platform) && !message.deleted)) {
+      const option = document.createElement("option"); option.value = `configured:${action.id}`; option.textContent = `${action.scope}: ${action.label}`; actions.append(option)
+    }
     actions.addEventListener("change", async () => {
       const action = actions.value; actions.value = ""
+      if (action.startsWith("configured:")) {
+        actions.disabled = true
+        try { await request("/api/configured-action", {id:action.slice("configured:".length), platform:message.platform, identity:message.identity}); status.textContent = "Action queued." }
+        catch (error) { status.textContent = String(error) } finally { actions.disabled = false }
+        return
+      }
       if (action === "reply") { platform.value = message.platform; input.value = `@${message.viewerName} `; input.focus(); return }
       if (action === "user") { userIdentity = userKey(message); render(); return }
       if (action === "copy") {
@@ -65,6 +106,7 @@ function render() {
   }
   if (atBottom && !preferences.newestFirst) history.scrollTop = history.scrollHeight
 }
+element("view").addEventListener("change", render)
 filter.addEventListener("change", () => { userIdentity = undefined; render() })
 function insertCompletion(index: number) {
   const completion = candidates[index]
@@ -94,7 +136,7 @@ function suggest(reset = true) {
   }
 }
 input.addEventListener("input", () => suggest())
-platform.addEventListener("change", () => suggest())
+platform.addEventListener("change", () => { suggest(); render() })
 input.addEventListener("keydown", event => {
   if (!candidates.length) return
   if (event.key === "Tab" || event.key === "Enter") { event.preventDefault(); insertCompletion(selectedCompletion) }
@@ -109,8 +151,8 @@ form.addEventListener("submit", async event => {
   try {
     switch (sentText.trim()) {
       case "/clear": await request("/api/clear", {}); messages = []; signature = ""; render(); status.textContent = "Local history cleared."; break
-      case "/pause": pausedIdentities = new Set(messages.map(m => m.identity)); render(); status.textContent = "View paused. Use /resume to show incoming messages."; break
-      case "/resume": pausedIdentities = undefined; render(); status.textContent = "View resumed."; break
+      case "/pause": pausedIdentities = new Set(messages.map(m => m.identity)); pausedEventIds = new Set(events.map(e => e.eventId)); render(); status.textContent = "View paused. Use /resume to show incoming messages."; break
+      case "/resume": pausedIdentities = undefined; pausedEventIds = undefined; render(); status.textContent = "View resumed."; break
       default: await request("/api/send", { platform: platform.value, message: sentText }); status.textContent = "Message sent."
     }
     if (input.value === sentText) input.value = ""
@@ -121,8 +163,9 @@ form.addEventListener("submit", async event => {
 })
 async function poll() {
   try {
-    const snapshot = await request("/api/chat") as { messages: Message[]; emotes: Emote[]; preferences?: Preferences & Record<string, unknown>; completions?: Record<string, Completion[]> }
-    const next = JSON.stringify([snapshot.messages, snapshot.preferences])
+    const snapshot = await request("/api/chat") as { messages: Message[]; emotes: Emote[]; actions?: ConfiguredAction[]; events?: FeedEvent[]; preferences?: Preferences & Record<string, unknown>; completions?: Record<string, Completion[]> }
+    const next = JSON.stringify([snapshot.messages, snapshot.preferences, snapshot.events, snapshot.actions])
+    events = snapshot.events ?? []; configuredActions = snapshot.actions ?? []
     if (snapshot.preferences) { preferences = snapshot.preferences; storedPreferences = snapshot.preferences }
     emotes = snapshot.emotes
     completions = snapshot.completions ?? {}

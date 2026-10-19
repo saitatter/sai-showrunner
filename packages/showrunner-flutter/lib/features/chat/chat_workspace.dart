@@ -4,6 +4,8 @@ import '../../plugins/runtime/provider_event_workers.dart';
 import 'chat_message.dart';
 import 'chat_completion.dart';
 import 'chat_preferences_dialog.dart';
+import 'chat_actions_dialog.dart';
+import 'configured_chat_action.dart';
 import 'unified_chat_runtime.dart';
 import 'chat_dock_service.dart';
 
@@ -31,6 +33,8 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
   int _selectedSuggestion = 0;
   Set<String>? _pausedIdentities;
   String? _userIdentity;
+  bool _showEvents = false;
+  Set<String>? _pausedEventIds;
   List<ChatCompletion> get _suggestions {
     final selection = _message.selection;
     if (!selection.isValid || !selection.isCollapsed) return [];
@@ -92,11 +96,14 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
     }
   }
 
-  void _pause() => setState(
-    () => _pausedIdentities = widget.runtime.messages
-        .map((m) => m.identity)
-        .toSet(),
-  );
+  void _pause() => setState(() {
+    _pausedIdentities = widget.runtime.messages.map((m) => m.identity).toSet();
+    _pausedEventIds = widget.runtime.events.map((e) => e.id).toSet();
+  });
+  void _resume() => setState(() {
+    _pausedIdentities = null;
+    _pausedEventIds = null;
+  });
 
   @override
   void dispose() {
@@ -125,7 +132,7 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
       case '/pause':
         _pause();
       case '/resume':
-        setState(() => _pausedIdentities = null);
+        _resume();
       default:
         await widget.runtime.send(_destination, _message.text);
     }
@@ -152,6 +159,64 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
     if (accepted == true) {
       await _run(() => widget.runtime.quickAction(message, action));
     }
+  }
+
+  Widget _eventFeed(UnifiedChatRuntime runtime, String search) {
+    final events = runtime.events
+        .where(
+          (e) =>
+              (_filter == null || e.platform == _filter) &&
+              (_pausedEventIds == null || _pausedEventIds!.contains(e.id)) &&
+              (_userIdentity == null ||
+                  '${e.platform.name}:${e.userId}' == _userIdentity) &&
+              (search.isEmpty ||
+                  '${e.type} ${e.userName} ${e.message}'.toLowerCase().contains(
+                    search,
+                  )),
+        )
+        .toList();
+    if (events.isEmpty) {
+      return const Center(child: Text('No provider events in this session.'));
+    }
+    events.setAll(0, events.reversed.toList());
+    return ListView.builder(
+      reverse: !runtime.preferences.newestFirst,
+      itemCount: events.length,
+      itemBuilder: (context, index) {
+        final event = events[index];
+        final actions = runtime
+            .actionsFor(ChatActionScope.event, event.platform)
+            .toList();
+        return ListTile(
+          leading: const Icon(Icons.bolt),
+          title: Text(
+            '${runtime.preferences.timestamps ? '${event.time.toLocal().toIso8601String().substring(11, 19)} ' : ''}${event.platform.name} - ${event.type} - ${event.userName}',
+          ),
+          subtitle: Text(event.message),
+          trailing: actions.isEmpty
+              ? null
+              : PopupMenuButton<String>(
+                  tooltip: 'Event actions',
+                  onSelected: _busy
+                      ? null
+                      : (id) => _run(
+                          () => runtime.runConfiguredAction(
+                            id,
+                            platform: event.platform,
+                            eventId: event.id,
+                          ),
+                        ),
+                  itemBuilder: (_) => [
+                    for (final action in actions)
+                      PopupMenuItem(
+                        value: action.id,
+                        child: Text(action.label),
+                      ),
+                  ],
+                ),
+        );
+      },
+    );
   }
 
   @override
@@ -207,6 +272,13 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                       label: Text('Bot whispers: ${worker.state.name}'),
                     ),
                   ),
+                TextButton(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => ChatActionsDialog(runtime: runtime),
+                  ),
+                  child: const Text('Chat actions'),
+                ),
                 IconButton(
                   tooltip: 'Chat preferences',
                   icon: const Icon(Icons.tune),
@@ -226,9 +298,8 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                   child: const Text('Load Twitch emotes'),
                 ),
                 TextButton.icon(
-                  onPressed: () => _pausedIdentities == null
-                      ? _pause()
-                      : setState(() => _pausedIdentities = null),
+                  onPressed: () =>
+                      _pausedIdentities == null ? _pause() : _resume(),
                   icon: Icon(
                     _pausedIdentities == null ? Icons.pause : Icons.play_arrow,
                   ),
@@ -279,6 +350,16 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                   selected: _filter == null,
                   onSelected: (_) => setState(() => _filter = null),
                 ),
+                ChoiceChip(
+                  label: const Text('Messages'),
+                  selected: !_showEvents,
+                  onSelected: (_) => setState(() => _showEvents = false),
+                ),
+                ChoiceChip(
+                  label: const Text('Events'),
+                  selected: _showEvents,
+                  onSelected: (_) => setState(() => _showEvents = true),
+                ),
                 for (final platform in ChatPlatform.values)
                   ChoiceChip(
                     label: Text(platform.name),
@@ -303,8 +384,37 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
+            if (runtime
+                .actionsFor(ChatActionScope.global, _destination)
+                .isNotEmpty)
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final action in runtime.actionsFor(
+                    ChatActionScope.global,
+                    _destination,
+                  ))
+                    TextButton.icon(
+                      icon: Icon(
+                        chatActionIcon(action.icon),
+                        color: chatActionColor(action.color),
+                      ),
+                      label: Text(action.label),
+                      onPressed: _busy
+                          ? null
+                          : () => _run(
+                              () => runtime.runConfiguredAction(
+                                action.id,
+                                platform: _destination,
+                              ),
+                            ),
+                    ),
+                ],
+              ),
             Expanded(
-              child: messages.isEmpty
+              child: _showEvents
+                  ? _eventFeed(runtime, search)
+                  : messages.isEmpty
                   ? const Center(
                       child: Text(
                         'No messages. Connect Twitch or YouTube in Plugins.',
@@ -376,6 +486,14 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                                 setState(
                                   () => _userIdentity = message.userIdentity,
                                 );
+                              } else if (value.startsWith('configured:')) {
+                                _run(
+                                  () => runtime.runConfiguredAction(
+                                    value.substring('configured:'.length),
+                                    platform: message.platform,
+                                    messageIdentity: message.identity,
+                                  ),
+                                );
                               } else {
                                 _moderate(
                                   message,
@@ -396,6 +514,32 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                                 value: 'user',
                                 child: Text('Show messages from user'),
                               ),
+                              if (!_busy && !message.deleted)
+                                for (final scope in [
+                                  ChatActionScope.message,
+                                  ChatActionScope.user,
+                                ])
+                                  for (final action in runtime.actionsFor(
+                                    scope,
+                                    message.platform,
+                                  ))
+                                    PopupMenuItem(
+                                      value: 'configured:${action.id}',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            chatActionIcon(action.icon),
+                                            color: chatActionColor(
+                                              action.color,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '${scope.name}: ${action.label}',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                               if (!_busy &&
                                   !message.deleted &&
                                   message.id.isNotEmpty)

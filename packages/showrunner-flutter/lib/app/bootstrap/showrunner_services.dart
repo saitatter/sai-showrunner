@@ -176,6 +176,35 @@ final class ShowRunnerServices {
     final profileRuntimeFuture = profileManagerFuture.then(
       (manager) => manager.runtime,
     );
+    Future<void> enqueueChatAutomation(
+      String automationFile,
+      String queueId,
+      Map<String, dynamic> values, {
+      required String sourceType,
+      required String sourceId,
+    }) async {
+      final file = await containedFile(dataService.userDirectory, [
+        'automations',
+        automationFile,
+      ]);
+      final automation = await AutomationRepository(file).loadStrict();
+      if (automation == null) {
+        throw StateError('Chat automation does not exist: $automationFile');
+      }
+      await queueManager.enqueue(
+        automation,
+        EvaluationContext(
+          contextState: {...values, 'event': values, 'trigger': values},
+        ),
+        queueId: queueId,
+        sourceMetadata: {
+          'sourceType': sourceType,
+          'sourceId': sourceId,
+          'platform': values['platform'],
+        },
+      );
+    }
+
     final chatCommands = ChatCommandManager(
       repository: CommandRepository(dataService.userDirectory),
       onEvent: eventHub.emit,
@@ -203,30 +232,13 @@ final class ShowRunnerServices {
         }
         return memberships;
       },
-      execute: (command, values) async {
-        final file = await containedFile(dataService.userDirectory, [
-          'automations',
-          command.automationFile,
-        ]);
-        final automation = await AutomationRepository(file).loadStrict();
-        if (automation == null) {
-          throw StateError(
-            'Command automation does not exist: ${command.automationFile}',
-          );
-        }
-        await queueManager.enqueue(
-          automation,
-          EvaluationContext(
-            contextState: {...values, 'event': values, 'trigger': values},
-          ),
-          queueId: command.queueId,
-          sourceMetadata: {
-            'sourceType': 'chat-command',
-            'sourceId': command.id,
-            'platform': values['platform'],
-          },
-        );
-      },
+      execute: (command, values) => enqueueChatAutomation(
+        command.automationFile,
+        command.queueId,
+        values,
+        sourceType: 'chat-command',
+        sourceId: command.id,
+      ),
     );
     commandManagerReady.complete(chatCommands);
     final chatRuntime = UnifiedChatRuntime(
@@ -234,6 +246,13 @@ final class ShowRunnerServices {
       dataService: dataService,
       registryFuture: pluginRegistryFuture,
       commands: chatCommands,
+      executeAction: (action, values) => enqueueChatAutomation(
+        action.automationFile,
+        action.queueId,
+        values,
+        sourceType: 'chat-quick-action',
+        sourceId: action.id,
+      ),
       youtubeLiveChatId: () => providerEvents.youtube?.liveChatId,
     );
     final chatDock = ChatDockService(runtime: chatRuntime);

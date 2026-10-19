@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/chat/chat_command.dart';
 import 'package:showrunner_flutter/features/chat/chat_preferences.dart';
+import 'package:showrunner_flutter/features/chat/configured_chat_action.dart';
 import 'package:showrunner_flutter/features/chat/chat_message.dart';
 import 'package:showrunner_flutter/features/chat/command_manager.dart';
 import 'package:showrunner_flutter/features/chat/unified_chat_runtime.dart';
@@ -20,6 +21,7 @@ void main() {
   late DartPluginRegistry registry;
   late UnifiedChatRuntime runtime;
   late List<Map<String, dynamic>> calls;
+  late List<Map<String, dynamic>> actionCalls;
   String? activeYouTubeChat;
   setUp(() async {
     activeYouTubeChat = null;
@@ -43,6 +45,7 @@ void main() {
     });
     hub = DartPluginEventHub();
     calls = [];
+    actionCalls = [];
     registry = DartPluginRegistry()
       ..register(
         createTwitchPlugin(
@@ -83,6 +86,7 @@ void main() {
         execute: (_, _) async {},
       ),
       historyLimit: 2,
+      executeAction: (action, values) async => actionCalls.add(values),
       youtubeLiveChatId: () => activeYouTubeChat,
     );
     await runtime.start();
@@ -120,6 +124,88 @@ void main() {
       'isChatSponsor': true,
     },
   };
+  test(
+    'configured actions validate scope and dispatch trusted message/event context',
+    () async {
+      await runtime.saveActions([
+        for (final scope in ChatActionScope.values)
+          ConfiguredChatAction(
+            id: scope.name,
+            label: scope.name,
+            automationFile: 'a.yaml',
+            scope: scope,
+            platforms: {ChatPlatform.twitch},
+            arguments: {'mode': 'probe'},
+          ),
+      ]);
+      hub.emit('chat', twitch('target'));
+      hub.emit('follow', {
+        'id': 'event-1',
+        'user_id': 'follower',
+        'user_name': 'Follower',
+        'message': 'hello',
+        'accessToken': 'never-export',
+      });
+      hub.emit('twitchWhisper', {
+        'whisper_id': 'private',
+        'from_user_id': 'private-user',
+        'to_user_id': 'channel',
+        'whisper': {'text': 'keep private'},
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(runtime.events, hasLength(1));
+      expect(
+        runtime.events.single.context.toString(),
+        isNot(contains('never-export')),
+      );
+      await runtime.send(ChatPlatform.twitch, '/action:global extra text');
+      for (final scope in [ChatActionScope.message, ChatActionScope.user]) {
+        await runtime.runConfiguredAction(
+          scope.name,
+          platform: ChatPlatform.twitch,
+          messageIdentity: runtime.messages.single.identity,
+        );
+      }
+      await runtime.runConfiguredAction(
+        'event',
+        platform: ChatPlatform.twitch,
+        eventId: runtime.events.single.id,
+      );
+      expect(actionCalls, hasLength(4));
+      expect(actionCalls.first['actionInput'], 'extra text');
+      expect(actionCalls[1]['viewerId'], 'viewer');
+      expect(actionCalls[2]['chatActionScope'], 'user');
+      expect(actionCalls.last['viewerId'], 'follower');
+      expect(actionCalls.last['actionArguments'], {'mode': 'probe'});
+      await expectLater(
+        runtime.runConfiguredAction('global', platform: ChatPlatform.youtube),
+        throwsStateError,
+      );
+      await expectLater(
+        runtime.send(ChatPlatform.twitch, '/action:message'),
+        throwsStateError,
+      );
+      runtime.clearHistory();
+      await expectLater(
+        runtime.runConfiguredAction(
+          'message',
+          platform: ChatPlatform.twitch,
+          messageIdentity: 'twitch:channel:target',
+        ),
+        throwsStateError,
+      );
+      await expectLater(
+        runtime.runConfiguredAction(
+          'event',
+          platform: ChatPlatform.twitch,
+          eventId: 'gone',
+        ),
+        throwsStateError,
+      );
+      expect((await data.loadPluginSettings('chat-actions'))['version'], 1);
+      expect(calls, isEmpty);
+    },
+  );
   test(
     'unsupported persisted preferences remain intact and cannot be overwritten',
     () async {

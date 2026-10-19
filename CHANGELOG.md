@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Add configurable global/message/user/event chat automation actions and a public Twitch/YouTube event feed in chat and the dock.
 - Add shared chat display preferences, user/text/role highlights and bounded ignore rules with explicit command-blocking controls.
 - Add keyboard command and local-action menus, paused chat views and exact user filtering in chat and the OBS dock.
 - Add advanced command permissions, bounded regex, private Twitch sources, graph management actions and external Twitch moderation synchronization.
@@ -10,6 +11,7 @@
 - Add unified Twitch/YouTube chat with moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Keep command priority controls correct while filtering the command list.
 - Preserve workspace navigation during startup restoration.
 - Enforce configured Twitch chat-trigger filters.
 

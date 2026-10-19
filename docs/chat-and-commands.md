@@ -90,6 +90,32 @@ token in the fragment. Keep the full URL private. The token is stored through th
 desktop secret store; it is not an OAuth token. **Stop dock** disables automatic
 restoration. This is a control dock, not a transparent stream overlay.
 
+## Configurable actions and event feed
+
+Open **Chat actions** to add, edit, disable, reorder or remove a shortcut to a
+saved automation and queue. Choose Global, Message, User or Event scope, platforms,
+label, icon, color and literal `name=value` arguments. Global buttons follow the
+composer platform and appear in `/action:<id>` completion; optional trailing text
+is available as `actionInput`. Message/user actions appear in message menus;
+event actions appear beside feed entries. Selected targets must still exist and
+message targets must not have been deleted. Unknown/disabled actions fail visibly.
+
+Graphs receive the selected message or public event context plus `chatActionId`,
+`chatActionScope`, `actionArguments` and `actionInput`. Context is also available
+under `event` and `trigger`. The same saved-graph queue executor serves commands
+and quick actions; shortcuts do not embed execution code in their definitions.
+Definitions are in `settings/chat-actions.yaml` (version 1). Arguments are ordinary
+configuration, so do not put credentials in them. Unsupported files are preserved.
+The authenticated dock exposes enabled shortcuts, not automation files or arguments.
+
+The **Events** view collects bounded session entries for Twitch follows,
+subscriptions/gifts, redemptions, bits, raids, bans/timeouts and YouTube membership,
+Super Chat and Super Stickers. Platform/search filters and pause apply to this
+view. Only curated public fields enter the feed; whispers and command lifecycle
+payloads are excluded. Clear local history also clears the event feed, retaining
+replay deduplication. This feed represents delivered provider events, not an audit
+of every action performed on the platform.
+
 ## Preferences, highlights and ignores
 
 Open **Chat preferences** for shared font/size, timestamps, history direction,

@@ -11,6 +11,7 @@ import '../../services/http_provider_transports.dart';
 import 'chat_message.dart';
 import 'chat_completion.dart';
 import 'chat_preferences.dart';
+import 'configured_chat_action.dart';
 import 'command_manager.dart';
 
 enum ChatQuickAction { deleteMessage, timeout, ban, unban }
@@ -27,6 +28,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     required this.registryFuture,
     required this.commands,
     this.youtubeLiveChatId,
+    this.executeAction,
     this.historyLimit = 500,
   });
 
@@ -36,6 +38,136 @@ final class UnifiedChatRuntime extends ChangeNotifier {
   final ChatCommandManager commands;
   final String? Function()? youtubeLiveChatId;
   final int historyLimit;
+  final Future<void> Function(ConfiguredChatAction, Map<String, dynamic>)?
+  executeAction;
+  List<ConfiguredChatAction> _configuredActions = [];
+  List<ConfiguredChatAction> get configuredActions =>
+      List.unmodifiable(_configuredActions);
+  bool _actionsValid = true;
+  final _events = <ChatFeedEvent>[];
+  final _seenEvents = <String>{};
+  int _eventSequence = 0;
+  List<ChatFeedEvent> get events => List.unmodifiable(_events);
+
+  Future<void> saveActions(List<ConfiguredChatAction> actions) async {
+    if (!_actionsValid) {
+      throw StateError('Existing chat actions are invalid and were preserved.');
+    }
+    if (actions.length > 100 ||
+        actions.map((a) => a.id).toSet().length != actions.length) {
+      throw const FormatException('Too many chat actions or duplicate IDs.');
+    }
+    final snapshot = List<ConfiguredChatAction>.of(actions);
+    await dataService.savePluginSettings('chat-actions', {
+      'version': 1,
+      'actions': snapshot.map((a) => a.toJson()).toList(),
+    });
+    _configuredActions = snapshot;
+    if (!_closed) notifyListeners();
+  }
+
+  Iterable<ConfiguredChatAction> actionsFor(
+    ChatActionScope scope,
+    ChatPlatform platform,
+  ) => _configuredActions.where(
+    (a) => a.enabled && a.scope == scope && a.platforms.contains(platform),
+  );
+
+  Future<void> runConfiguredAction(
+    String id, {
+    required ChatPlatform platform,
+    String? messageIdentity,
+    String? eventId,
+    String input = '',
+  }) async {
+    final action = _configuredActions
+        .where((a) => a.id == id && a.enabled)
+        .firstOrNull;
+    if (action == null || !action.platforms.contains(platform)) {
+      throw StateError('Chat action is unavailable.');
+    }
+    Map<String, dynamic> target = {'platform': platform.name};
+    switch (action.scope) {
+      case ChatActionScope.global:
+        break;
+      case ChatActionScope.message || ChatActionScope.user:
+        final message = messages
+            .where(
+              (m) =>
+                  m.identity == messageIdentity &&
+                  m.platform == platform &&
+                  !m.deleted,
+            )
+            .firstOrNull;
+        if (message == null) {
+          throw StateError('The target message is no longer available.');
+        }
+        target = message.context;
+      case ChatActionScope.event:
+        final event = _events
+            .where((e) => e.id == eventId && e.platform == platform)
+            .firstOrNull;
+        if (event == null) {
+          throw StateError('The target event is no longer available.');
+        }
+        target = event.context;
+    }
+    final execute = executeAction;
+    if (execute == null) {
+      throw StateError('Chat action execution is unavailable.');
+    }
+    await execute(action, {
+      ...target,
+      'chatActionId': id,
+      'chatActionScope': action.scope.name,
+      'actionArguments': action.arguments,
+      'actionInput': input,
+    });
+  }
+
+  void _addFeedEvent(
+    ChatPlatform platform,
+    String type,
+    Map<String, dynamic> values,
+  ) {
+    String value(Object? text) =>
+        text is String ? text.substring(0, text.length.clamp(0, 2000)) : '';
+    final snippet = values['snippet'] is Map
+        ? values['snippet'] as Map
+        : const {};
+    final author = values['authorDetails'] is Map
+        ? values['authorDetails'] as Map
+        : const {};
+    final providerId = value(values['id']);
+    final id =
+        '${platform.name}:$type:${providerId.isEmpty ? ++_eventSequence : providerId}';
+    if (!_seenEvents.add(id)) return;
+    if (_seenEvents.length > 4096) _seenEvents.remove(_seenEvents.first);
+    _events.add(
+      ChatFeedEvent(
+        id: id,
+        platform: platform,
+        type: type,
+        time: DateTime.now(),
+        userId: value(
+          values['viewerId'] ?? values['user_id'] ?? author['channelId'],
+        ),
+        userName: value(
+          values['viewerName'] ?? values['user_name'] ?? author['displayName'],
+        ),
+        message: value(
+          values['message'] ??
+              values['user_input'] ??
+              snippet['displayMessage'],
+        ),
+      ),
+    );
+    while (_events.length > historyLimit) {
+      _events.removeAt(0);
+    }
+    if (!_closed) notifyListeners();
+  }
+
   final _subscriptions = <StreamSubscription<Map<String, dynamic>>>[];
   final _messages = <ChatMessage>[];
   final _seen = <String>{};
@@ -185,6 +317,12 @@ final class UnifiedChatRuntime extends ChangeNotifier {
 
   List<ChatCompletion> composerCompletions(ChatPlatform platform) => [
     ...chatLocalActions,
+    for (final action in actionsFor(ChatActionScope.global, platform))
+      ChatCompletion(
+        '/action:${action.id}',
+        '${action.label} - run automation',
+        'action',
+      ),
     ...commandCompletions(commands.commands, platform),
     for (final emote in emotes)
       if (platform == ChatPlatform.twitch || emote.name.startsWith(':'))
@@ -209,7 +347,54 @@ final class UnifiedChatRuntime extends ChangeNotifier {
       _preferencesValid = false;
       error = failure;
     }
+    try {
+      final saved = await dataService.loadPluginSettings('chat-actions');
+      if (saved.isNotEmpty ||
+          await File(
+            '${dataService.settingsDirectory.path}/chat-actions.yaml',
+          ).exists()) {
+        if (saved['version'] != 1) {
+          throw const FormatException('Unsupported chat actions version.');
+        }
+        final actions = (saved['actions'] as List)
+            .map(
+              (a) => ConfiguredChatAction.fromJson(
+                Map<String, dynamic>.from(a as Map),
+              ),
+            )
+            .toList();
+        if (actions.length > 100 ||
+            actions.map((a) => a.id).toSet().length != actions.length) {
+          throw const FormatException('Invalid chat action list.');
+        }
+        _configuredActions = actions;
+      }
+    } catch (failure) {
+      _actionsValid = false;
+      error = failure;
+    }
     if (_closed) return;
+    for (final platform in ChatPlatform.values) {
+      final types = platform == ChatPlatform.twitch
+          ? [
+              'follow',
+              'subscription',
+              'giftedSub',
+              'redemption',
+              'bits',
+              'raid',
+              'ban',
+              'timeout',
+            ]
+          : ['membership', 'superChat', 'superSticker'];
+      for (final type in types) {
+        _subscriptions.add(
+          eventHub
+              .stream(type)
+              .listen((values) => _addFeedEvent(platform, type, values)),
+        );
+      }
+    }
     _subscriptions.add(
       eventHub.stream('chat').listen((event) {
         final message = ChatMessage.fromTwitch(
@@ -352,6 +537,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
 
   void clearHistory() {
     _messages.clear();
+    _events.clear();
     _hidden.clear();
     _pending.clear();
     notifyListeners();
@@ -389,6 +575,14 @@ final class UnifiedChatRuntime extends ChangeNotifier {
 
   Future<void> send(ChatPlatform platform, String text) async {
     final message = text.trim();
+    if (message.startsWith('/action:')) {
+      final token = message.split(RegExp(r'\s')).first;
+      return runConfiguredAction(
+        token.substring('/action:'.length),
+        platform: platform,
+        input: message.substring(token.length).trimLeft(),
+      );
+    }
     if (message.isEmpty) throw const FormatException('Enter a chat message.');
     if (message.length > (platform == ChatPlatform.twitch ? 500 : 200)) {
       throw const FormatException('Message exceeds the platform limit.');

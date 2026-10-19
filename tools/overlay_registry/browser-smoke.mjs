@@ -26,7 +26,7 @@ const server = createServer(async (request, response) => {
   if (pathname.startsWith('/api/')) {
     if (request.headers['x-showrunner-chat'] !== dockToken) {response.writeHead(401); response.end(); return;}
     response.setHeader('Content-Type', 'application/json');
-    if (pathname === '/api/chat') {response.end(JSON.stringify({messages:dockMessages, preferences:dockPreferences, completions:{twitch:[{text:'!hello',label:'!hello - Hello',kind:'command'},{text:'!hi',label:'!hi - Hello',kind:'command'},{text:'/pause',label:'/pause',kind:'action'},{text:'/resume',label:'/resume',kind:'action'},{text:'\u{1f600}',label:':smile:',kind:'emote'}],youtube:[{text:'\u{1f600}',label:':smile:',kind:'emote'}]}, emotes:[{name:':smile:',text:'😀'}]})); return;}
+    if (pathname === '/api/chat') {response.end(JSON.stringify({actions:[{id:'global',label:'Global probe',scope:'global',platforms:['twitch'],icon:'play',color:'green'},{id:'message',label:'Message probe',scope:'message',platforms:['twitch'],icon:'chat',color:'default'},{id:'event',label:'Event probe',scope:'event',platforms:['twitch'],icon:'star',color:'blue'}],events:[{eventId:'follow-1',eventType:'follow',platform:'twitch',viewerId:'follower',viewerName:'Follower',message:'<b>safe event text</b>',time:'2026-01-01T00:00:00Z'}], messages:dockMessages, preferences:dockPreferences, completions:{twitch:[{text:'!hello',label:'!hello - Hello',kind:'command'},{text:'!hi',label:'!hi - Hello',kind:'command'},{text:'/pause',label:'/pause',kind:'action'},{text:'/resume',label:'/resume',kind:'action'},{text:'\u{1f600}',label:':smile:',kind:'emote'}],youtube:[{text:'\u{1f600}',label:':smile:',kind:'emote'}]}, emotes:[{name:':smile:',text:'😀'}]})); return;}
     let body = ''; for await (const chunk of request) body += chunk;
     dockRequests.push({path:pathname, ...JSON.parse(body)});
     if (pathname === '/api/preferences') dockPreferences = JSON.parse(body);
@@ -145,6 +145,16 @@ try {
   for (let attempt=0; dockPreferences.fontSize !== 18; attempt++) { if(attempt>100) throw new Error('Dock preferences did not save.'); await pause(50); }
   await pause(1100);
   if (!(await evaluate(`document.querySelector('#messages').style.fontSize === '18px' && document.querySelector('article').textContent.includes('Incoming during pause')`))) throw new Error('Dock preferences did not sync font and history direction.');
+  await evaluate(`document.querySelector('#global-actions button').click()`);
+  for (let attempt=0; !dockRequests.some(r=>r.path==='/api/configured-action' && r.id==='global'); attempt++) { if(attempt>100) throw new Error('Global chat action failed.'); await pause(50); }
+  await evaluate(`const actions=document.querySelector('article select'); actions.value='configured:message'; actions.dispatchEvent(new Event('change'))`);
+  for (let attempt=0; !dockRequests.some(r=>r.id==='message'); attempt++) { if(attempt>100) throw new Error('Message chat action failed.'); await pause(50); }
+  if (dockRequests.find(r=>r.id==='message').identity !== 'twitch:channel:late') throw new Error('Message action used wrong context.');
+  await evaluate(`document.querySelector('#view').value='events'; document.querySelector('#view').dispatchEvent(new Event('change'))`);
+  if (!(await evaluate(`document.querySelector('article').textContent.includes('Follower') && !document.querySelector('article b')`))) throw new Error('Public event feed failed HTML safety.');
+  await evaluate(`document.querySelector('article button').click()`);
+  for (let attempt=0; !dockRequests.some(r=>r.id==='event'); attempt++) { if(attempt>100) throw new Error('Event chat action failed.'); await pause(50); }
+  if (dockRequests.find(r=>r.id==='event').eventId !== 'follow-1') throw new Error('Event action used wrong context.');
   const screenshot = await send('Page.captureScreenshot', {format:'png'});
   writeFileSync(join(root, '.tmp/overlay-browser/chat-dock.png'), Buffer.from(screenshot.data, 'base64'));
   if (errors.length) throw new Error(`Chat dock browser exceptions: ${JSON.stringify(errors)}`);

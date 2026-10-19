@@ -113,6 +113,19 @@ final class ChatDockService {
         if (path == '/api/chat' && request.method == 'GET') {
           return await _respond(request, HttpStatus.ok, {
             'preferences': runtime.preferences.toJson(),
+            'events': runtime.events.map((e) => e.context).toList(),
+            'actions': [
+              for (final action in runtime.configuredActions)
+                if (action.enabled)
+                  {
+                    'id': action.id,
+                    'label': action.label,
+                    'scope': action.scope.name,
+                    'platforms': action.platforms.map((p) => p.name).toList(),
+                    'icon': action.icon,
+                    'color': action.color,
+                  },
+            ],
             'messages': runtime.messages
                 .map(
                   (m) => {
@@ -156,6 +169,13 @@ final class ChatDockService {
           await runtime.send(
             ChatPlatform.values.byName(payload['platform'] as String),
             payload['message'] as String,
+          );
+        } else if (path == '/api/configured-action') {
+          await runtime.runConfiguredAction(
+            payload['id'] as String,
+            platform: ChatPlatform.values.byName(payload['platform'] as String),
+            messageIdentity: payload['identity'] as String?,
+            eventId: payload['eventId'] as String?,
           );
         } else if (path == '/api/preferences') {
           await runtime.savePreferences(
