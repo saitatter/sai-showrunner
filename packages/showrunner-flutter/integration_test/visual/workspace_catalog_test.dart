@@ -81,6 +81,7 @@ void main() {
       ('Variables', 'variables.png'),
       ('Viewer Variables', 'viewer-variables.png'),
     ]) {
+      await _scrollProjectPanelTo(tester, entry.$1);
       await tester.tap(find.text(entry.$1).first);
       await _pumpApplication(tester);
       await _capture(tester, entry.$2);
@@ -224,6 +225,7 @@ Future<void> _openCatalogResource(
     matching: find.text(resource),
   );
   if (!tester.any(resourceLabel)) {
+    await _scrollProjectPanelTo(tester, group);
     final groupLabel = find.descendant(of: panel, matching: find.text(group));
     if (!tester.any(groupLabel)) {
       throw StateError('Project panel group "$group" was not found.');
@@ -279,19 +281,29 @@ Future<void> _pumpApplication(WidgetTester tester) async {
 }
 
 Future<void> _scrollProjectPanelTo(WidgetTester tester, String label) async {
-  final target = find.text(label);
   final panel = find.byKey(const ValueKey('showrunner-project-panel-scroll'));
-  bool isVisible() {
-    if (!tester.any(target)) return false;
-    final rect = tester.getRect(target.first);
-    return rect.top >= 0 && rect.bottom <= 900;
+  final target = find.descendant(of: panel, matching: find.text(label));
+  if (tester.any(target)) {
+    await tester.ensureVisible(target.first);
+    await tester.pump();
+    if (tester.any(target.hitTestable())) return;
   }
-
-  for (var attempt = 0; attempt < 8 && !isVisible(); attempt++) {
+  // Previously visited tools may leave earlier lazy rows unbuilt. Start at the
+  // beginning before searching down, and scope labels to the project panel.
+  final scrollable = tester.state<ScrollableState>(
+    find.descendant(of: panel, matching: find.byType(Scrollable)).first,
+  );
+  scrollable.position.jumpTo(scrollable.position.minScrollExtent);
+  await tester.pump();
+  for (
+    var attempt = 0;
+    attempt < 8 && !tester.any(target.hitTestable());
+    attempt++
+  ) {
     await tester.drag(panel, const Offset(0, -500));
     await tester.pump();
   }
-  if (!isVisible()) {
+  if (!tester.any(target.hitTestable())) {
     throw StateError('Project panel item "$label" did not become visible.');
   }
 }

@@ -74,7 +74,9 @@ create/edit/enable/delete, alias-to-queue execution, counters, shared provider
 history, filters and reply selection. Its review captures use Flutter 3.47.7 /
 Dart 3.13.5, 1440x900 at DPR 1, under
 `packages/showrunner-flutter/.tmp/chat-ui/`. The added sidebar destinations and
-new workspaces are intentional; captures were visually inspected. Frozen Electron
+new workspaces are intentional; captures were visually inspected. The catalog
+fixture explicitly scrolls workspace/group labels into view before selecting
+them, including lazy rows above a previously scrolled Tools section. Frozen Electron
 references and existing Flutter regression baselines are unchanged.
 The full chat validation passed `ci-check.ps1 -Integration -Visual`; both reviewed
 Flutter inspector regions had zero differing pixels. A native shader workflow
