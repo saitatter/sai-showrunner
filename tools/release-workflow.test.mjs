@@ -47,16 +47,24 @@ describe("Windows release workflow", () => {
 
 
 describe("Manual release policy", () => {
-  it("checks the production Debug entrypoint before integration tests replace it", async () => {
+  it("separates production startup from integration and requires both Windows gates", async () => {
     const ci = parse(await readFile(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8"))
-    const steps = ci.jobs["test-windows"].steps
+    const steps = ci.jobs["windows-build"].steps
     const build = steps.findIndex(step => step.name === "Build Flutter Windows debug and release")
     const startup = steps.findIndex(step => step.name === "Smoke Flutter Windows startup")
-    const integration = steps.findIndex(step => step.name === "Run Flutter integration gate")
     expect(build).toBeGreaterThan(-1)
     expect(startup).toBeGreaterThan(build)
-    expect(integration).toBeGreaterThan(startup)
     expect(steps[startup].run).toContain("-Configuration Debug")
+    expect(steps.some(step => step.name === "Run Flutter integration gate")).toBe(false)
+    expect(ci.jobs["test-windows"].needs.sort()).toEqual(["windows-build", "windows-integration"])
+    expect(ci.jobs["test-windows"].if).toContain("always()")
+    const gate = ci.jobs["test-windows"].steps[0]
+    expect(gate.env.BUILD_RESULT).toContain("needs.windows-build.result")
+    expect(gate.env.INTEGRATION_RESULT).toContain("needs.windows-integration.result")
+    expect(gate.run).toContain('test "$BUILD_RESULT" = success && test "$INTEGRATION_RESULT" = success')
+    const integrationSteps = ci.jobs["windows-integration"].steps
+    expect(integrationSteps.find(step => step.name === "Run Flutter integration gate").run).toContain("-CaptureDirectory")
+    expect(integrationSteps.map(step => step.run ?? "").join("\n")).not.toContain("capture-flutter-visual.ps1")
   })
   it("never publishes on pushes or PR merges and validates the planned commit", async () => {
     const workflow = parse(await readFile(workflowPath, "utf8"))
@@ -88,7 +96,7 @@ describe("Manual release policy", () => {
   })
   it("matches branch-protection checks and pins the same SDK in every workflow", async () => {
     const ci = parse(await readFile(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8"))
-    expect(Object.keys(ci.jobs).sort()).toEqual(["release-dry-run", "scripts-ubuntu", "test-windows"])
+    expect(Object.keys(ci.jobs).sort()).toEqual(["release-dry-run", "scripts-ubuntu", "test-windows", "windows-build", "windows-integration"])
     expect(ci.on).toHaveProperty("workflow_call")
     for (const name of ["ci", "nightly", "release", "release-proof"]) {
       const source = await readFile(resolve(repositoryRoot, `.github/workflows/${name}.yml`), "utf8")

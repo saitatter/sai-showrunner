@@ -47,9 +47,15 @@ try {
     Invoke-Check node @($yarnScript, 'parity:check')
     Invoke-Check node @($yarnScript, 'parity:product')
   }
-  if ($Integration) { Invoke-Check powershell @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', './scripts/test-flutter-integration.ps1') }
+  if ($Integration) {
+    $integrationArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', './scripts/test-flutter-integration.ps1')
+    if ($Visual) { $integrationArgs += @('-CaptureDirectory', '.tmp/visual/flutter') }
+    Invoke-Check powershell $integrationArgs
+  }
   if ($Visual) {
-    Invoke-Check powershell @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', './scripts/capture-flutter-visual.ps1', '-OutputDirectory', '.tmp/visual/flutter')
+    if (-not $Integration) {
+      Invoke-Check powershell @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', './scripts/capture-flutter-visual.ps1', '-OutputDirectory', '.tmp/visual/flutter')
+    }
     Invoke-Check node @($yarnScript, 'visual:compare:catalog', '--actual-root=.tmp/visual/flutter')
     Invoke-Check node @($yarnScript, 'visual:regression', '--actual-root=.tmp/visual/flutter')
   }

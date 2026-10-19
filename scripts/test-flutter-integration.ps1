@@ -1,36 +1,21 @@
-$ErrorActionPreference = 'Stop'
+﻿param([string]$CaptureDirectory = '')
 
-Push-Location (Join-Path $PSScriptRoot '..\packages\showrunner-flutter')
+$ErrorActionPreference = 'Stop'
+$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$previousCapture = $env:SHOWRUNNER_VISUAL_CAPTURE
+$previousOutput = $env:SHOWRUNNER_VISUAL_OUTPUT
+if ($CaptureDirectory) {
+  $env:SHOWRUNNER_VISUAL_CAPTURE = '1'
+  $env:SHOWRUNNER_VISUAL_OUTPUT = [IO.Path]::GetFullPath((Join-Path $repositoryRoot $CaptureDirectory))
+}
+
+Push-Location (Join-Path $repositoryRoot 'packages\showrunner-flutter')
 try {
-  $tests = @(
-    'integration_test/application/document_lifecycle_test.dart',
-    'integration_test/application/creation_lifecycle_test.dart',
-    'integration_test/application/document_edit_save_close_test.dart',
-    'integration_test/application/first_run_setup_test.dart',
-    'integration_test/runtime/runtime_workflows_test.dart',
-    'integration_test/plugins/provider_lifecycle_test.dart',
-    'integration_test/plugins/heart_rate_lifecycle_test.dart',
-    'integration_test/remote/remote_dashboard_lifecycle_test.dart',
-    'integration_test/resources/resource_crud_test.dart',
-    'integration_test/resources/queue_lifecycle_test.dart',
-    'integration_test/resources/local_data_controls_test.dart',
-    'integration_test/resources/extended_editors_test.dart',
-    'integration_test/resources/resource_workspace_lifecycle_test.dart',
-    'integration_test/resources/sound_live_local_test.dart',
-    'integration_test/schema/strict_schema_restart_test.dart',
-    'integration_test/visual/app_surface_test.dart',
-    'integration_test/visual/overlay_popup_rendering_test.dart',
-    'integration_test/visual/overlay_alignment_test.dart',
-    'integration_test/visual/editor_workflows_test.dart',
-    'integration_test/visual/shader_workflows_test.dart',
-    'integration_test/visual/workspace_catalog_test.dart'
-  )
-  foreach ($test in $tests) {
-    flutter test $test -d windows
-    if ($LASTEXITCODE -ne 0) {
-      exit $LASTEXITCODE
-    }
-  }
+  # Compile once instead of rebuilding a Windows executable for each fixture.
+  flutter test integration_test/native_suite_test.dart --no-pub -d windows
+  if ($LASTEXITCODE -ne 0) { throw "Native integration suite failed with exit code $LASTEXITCODE." }
 } finally {
   Pop-Location
+  $env:SHOWRUNNER_VISUAL_CAPTURE = $previousCapture
+  $env:SHOWRUNNER_VISUAL_OUTPUT = $previousOutput
 }
