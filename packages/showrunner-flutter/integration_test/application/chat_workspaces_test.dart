@@ -213,6 +213,15 @@ void main() {
       await tester.tap(find.widgetWithText(TextButton, 'Resume view'));
       await tester.pump();
       expect(find.text('Arrived while paused'), findsOneWidget);
+      await tester.enterText(_field('Message'), '');
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(
+        tester.widget<TextField>(_field('Message')).focusNode!.hasFocus,
+        isFalse,
+      );
+
       await tester.tap(find.text('Chat Commands').first);
       await _wait(tester, () => tester.any(find.byType(CommandsWorkspace)));
       await tester.tap(find.byType(Switch).first);

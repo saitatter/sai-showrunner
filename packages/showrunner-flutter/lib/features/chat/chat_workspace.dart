@@ -26,6 +26,7 @@ class ChatWorkspace extends StatefulWidget {
 
 class _ChatWorkspaceState extends State<ChatWorkspace> {
   final _message = TextEditingController();
+  final _composerFocus = FocusNode();
   final _search = TextEditingController();
   ChatPlatform _destination = ChatPlatform.twitch;
   ChatPlatform? _filter;
@@ -77,6 +78,7 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
       );
       _selectedSuggestion = 0;
     });
+    _composerFocus.requestFocus();
   }
 
   void _completeOrSend() {
@@ -108,6 +110,7 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
 
   @override
   void dispose() {
+    _composerFocus.dispose();
     _message.dispose();
     _search.dispose();
     super.dispose();
@@ -499,6 +502,7 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                                   _destination = message.platform;
                                   _message.text = '@${message.userName} ';
                                 });
+                                _composerFocus.requestFocus();
                               } else if (value == 'user') {
                                 setState(
                                   () => _userIdentity = message.userIdentity,
@@ -619,22 +623,27 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                 Expanded(
                   child: CallbackShortcuts(
                     bindings: {
-                      const SingleActivator(LogicalKeyboardKey.tab): () {
-                        final suggestions = _suggestions;
-                        if (suggestions.isNotEmpty) {
-                          _insertSuggestion(
-                            suggestions[_selectedSuggestion %
-                                suggestions.length],
-                          );
-                        }
+                      if (_suggestions.isNotEmpty) ...{
+                        const SingleActivator(LogicalKeyboardKey.tab): () {
+                          final suggestions = _suggestions;
+                          if (suggestions.isNotEmpty) {
+                            _insertSuggestion(
+                              suggestions[_selectedSuggestion %
+                                  suggestions.length],
+                            );
+                          }
+                        },
+                        const SingleActivator(
+                          LogicalKeyboardKey.arrowDown,
+                        ): () =>
+                            _stepSuggestion(1),
+                        const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
+                            _stepSuggestion(-1),
                       },
-                      const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
-                          _stepSuggestion(1),
-                      const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
-                          _stepSuggestion(-1),
                     },
                     child: TextField(
                       controller: _message,
+                      focusNode: _composerFocus,
                       enabled: !_busy,
                       decoration: const InputDecoration(
                         labelText: 'Message',
