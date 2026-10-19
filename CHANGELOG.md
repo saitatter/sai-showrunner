@@ -21,6 +21,7 @@
 - Clarify Twitch Public OAuth setup and remove stale test-count claims from the node-testing guide.
 
 ### CI & Build
+- Keep unsigned package proofs compatible with Windows PowerShell build-hook diagnostics while still failing on updater errors.
 - Reuse successful CI only for the exact trusted main commit during release; run fresh validation whenever that proof is absent or incomplete.
 - Compile native lifecycle tests once and capture their visual fixtures in the same run, preserving all existing scenarios and visual tolerances.
 - Publish unsigned Windows packages without requiring signing credentials, while retaining application and updater proofs before publication.

@@ -116,8 +116,19 @@ try {
     if ($SignWindowsBundle -or $RequireWindowsSignature) {
       $updateSmokeArgs += '--require-signature'
     }
-    dart run tool/update_smoke.dart @updateSmokeArgs
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $dartExecutable = (Get-Command dart -ErrorAction Stop).Source
+    $previousErrorPreference = $ErrorActionPreference
+    try {
+      # Dart build-hook diagnostics on stderr are not failures in PowerShell 5.
+      $ErrorActionPreference = 'Continue'
+      & $dartExecutable run tool/update_smoke.dart @updateSmokeArgs
+      $updaterExitCode = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousErrorPreference
+    }
+    if ($updaterExitCode -ne 0) {
+      throw "Packaged updater proof failed with exit code $updaterExitCode."
+    }
   }
 }
 finally {
