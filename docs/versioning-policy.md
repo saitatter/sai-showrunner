@@ -26,8 +26,12 @@ node tools/release/prepare.mjs --check
 node tools/release/prepare.mjs --check --version 2.0.0-beta.1
 ```
 
-The workflow previews first, runs the same reusable CI gates on the frozen commit,
-then prepares and atomically pushes a version/changelog commit and annotated tag.
+The workflow previews first and checks for completed successful push CI on main
+for the exact planned SHA in this repository. It requires all five CI jobs,
+including both Windows jobs and their required aggregate. PR/fork runs, other
+commits, skipped or missing gates and API failures never qualify. If that proof
+is absent, it runs the same reusable CI gates on the frozen commit. It then
+prepares and atomically pushes a version/changelog commit and annotated tag.
 It updates package.json, Flutter pubspec, updater fallback and CHANGELOG.md together.
 If main advanced during validation, publication stops rather than releasing an
 untested new snapshot. The notes come from Unreleased, with a full comparison link.

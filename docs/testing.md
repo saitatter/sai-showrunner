@@ -15,13 +15,31 @@ The default runs documentation/version checks, overlay tests/typechecking, brows
 boundary verification, generated-registry checks, Flutter formatting/analysis/tests,
 and contract/product inventories. Integration adds the native Windows lifecycle
 suite; Visual captures isolated 1440x900 fixtures and runs catalog/regression checks.
+Together, Integration and Visual capture during the same native run. The grouped
+native entrypoint compiles once for all 21 fixture files; the fixture-inventory
+test prevents new native scenarios being omitted. Individual files can still be
+run directly, and the standalone capture command uses a smaller grouped entrypoint.
 CI also builds Windows Debug/Release, tests signing helpers with isolated fixtures,
 runs startup smokes, and exercises the production overlay in Chromium.
 
-Required GitHub checks retain the branch-protection names test-windows,
-scripts-ubuntu and release-dry-run. The release preview is read-only and does not
-require publishing credentials. Manual Release reuses the same workflow on the
-exact planned commit; nightly adds repeated benchmark sampling. PRs target main,
+GitHub runs windows-build (production Debug/Release, startup and signing-helper
+proofs) alongside windows-integration (analysis/unit tests, contracts, one native
+suite, captured visual comparisons and Chromium). The required test-windows check
+is an aggregate that runs even after a dependency failure and accepts only success
+from both Windows jobs. The other required names remain scripts-ubuntu and
+release-dry-run. No fixture, assertion, screenshot region or tolerance is dropped.
+
+The previous sequential Windows job took 30m20s: native fixtures 13m, production
+builds 5m38s, Flutter checks 3m07s, duplicate captures 1m38s and cold SDK-cache saving
+2m32s. The grouped local native run passed 96 tests with one audio probe skipped
+in 3m17s after a single 14s incremental compilation, with zero differing pixels in
+both reviewed regions. Local timings are not a prediction for a hosted runner;
+use GitHub job durations to judge CI improvement and distinguish warm/cold caches.
+
+The release preview is read-only and does not require publishing credentials.
+Manual Release reuses successful main-push CI only for the exact planned commit
+with every gate completed successfully; otherwise it runs the reusable workflow.
+Nightly adds repeated benchmark sampling. PRs target main,
 and CI push checks run only on main to avoid duplicate migration-branch runs.
 
 ## Focused checks
