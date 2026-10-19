@@ -87,7 +87,7 @@ final class ChatPreferences {
   bool highlights(ChatMessage message) =>
       !message.deleted &&
       (highlightedUsers.contains(message.userIdentity) ||
-          highlightedRoles.any(message.permits) ||
+          highlightedRoles.any(message.hasRole) ||
           highlightTerms.any(
             (s) => message.text.toLowerCase().contains(s.toLowerCase()),
           ));

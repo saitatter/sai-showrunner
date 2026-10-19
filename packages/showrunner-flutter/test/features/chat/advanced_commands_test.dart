@@ -98,10 +98,37 @@ void main() {
       expect(calls.length, 4);
       await manager.save(command({'grant': 'deny'}));
       await manager.handle(message(owner: true));
-      expect(calls.length, 4);
+      expect(calls.length, 5);
       await manager.save(command({'grant': 'deny', 'broadcasterBypass': true}));
       await manager.handle(message(owner: true));
-      expect(calls.length, 5);
+      expect(calls.length, 6);
+    },
+  );
+
+  test(
+    'explicit Allow/Deny roles use actual badges while minimum permission keeps its hierarchy',
+    () async {
+      await manager.save(
+        command({
+          'grant': 'deny',
+          'roles': ['subscriber'],
+        }),
+      );
+      await manager.handle(message(moderator: true));
+      await manager.handle(message(owner: true));
+      expect(calls, hasLength(2));
+      await manager.save(
+        command({
+          'roles': ['moderator'],
+        }),
+      );
+      await manager.handle(message(owner: true));
+      expect(calls, hasLength(2));
+      await manager.save(command({'permission': 'moderator'}));
+      await manager.handle(message(owner: true));
+      expect(calls, hasLength(3));
+      expect(command({'grant': 'deny'}).grants(message(), {}), isTrue);
+      expect(command({'grant': 'allow'}).grants(message(), {}), isTrue);
     },
   );
 

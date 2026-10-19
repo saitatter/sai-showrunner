@@ -24,9 +24,10 @@ arguments and insufficient arguments are rejected before reserving cooldowns.
 Permissions use provider roles: everyone, subscriber/member, VIP, moderator and
 broadcaster. Moderators and broadcasters satisfy subscriber and VIP restrictions.
 The minimum role is combined with an optional Allow/Deny rule. Within that rule,
-selected roles, platform-qualified users (`twitch:123`, `youtube:UC...`) and viewer
+selected actual provider roles, platform-qualified users (`twitch:123`, `youtube:UC...`) and viewer
 groups are alternatives. An empty Allow rule permits everyone who meets the minimum;
-an empty Deny rule denies nobody. Existing Viewer Data groups supply membership;
+an empty Deny rule denies nobody. Explicit roles use actual badges; only the
+minimum permission applies the moderator/broadcaster hierarchy. Existing Viewer Data groups supply membership;
 unqualified group user IDs are Twitch IDs. A missing group fails closed.
 
 Global cooldowns span aliases and platforms; user cooldowns span aliases for that

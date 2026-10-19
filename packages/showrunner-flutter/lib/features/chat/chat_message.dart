@@ -63,6 +63,14 @@ final class ChatMessage {
     ChatPermission.vip => isBroadcaster || isModerator || isVip,
   };
 
+  bool hasRole(ChatPermission role) => switch (role) {
+    ChatPermission.everyone => true,
+    ChatPermission.broadcaster => isBroadcaster,
+    ChatPermission.moderator => isModerator,
+    ChatPermission.subscriber => isSubscriber,
+    ChatPermission.vip => isVip,
+  };
+
   RuntimeMap get context => {
     'platform': platform.name,
     'origin': origin.name,
