@@ -330,10 +330,6 @@ final class ShowRunnerServices {
           },
         ),
         ApplicationRuntimeResource(
-          name: 'variables',
-          stop: () async => variableRuntime.dispose(),
-        ),
-        ApplicationRuntimeResource(
           name: 'overlay-obs',
           stop: overlayObsSourceService.close,
         ),
@@ -349,6 +345,10 @@ final class ShowRunnerServices {
             await registry.start();
           },
           stop: () async => (await pluginRegistryFuture).close(),
+        ),
+        ApplicationRuntimeResource(
+          name: 'variables',
+          stop: variableRuntime.close,
         ),
         ApplicationRuntimeResource(
           name: 'execution-trace',

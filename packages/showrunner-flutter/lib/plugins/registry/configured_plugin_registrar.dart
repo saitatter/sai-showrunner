@@ -339,6 +339,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
         variableRuntime: configuredVariableRuntime,
       ),
       onStart: configuredVariableRuntime.load,
+      onStop: variableRuntime == null ? configuredVariableRuntime.close : null,
     );
     registry.registerUi(
       'variables',

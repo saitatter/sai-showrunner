@@ -21,7 +21,7 @@
 
 ### Refactors
 - Compose application startup and workspaces through explicit owners, scoped capabilities and feature-owned registrations; isolate Stream Plan state per application.
-- Retain asynchronous runtime and tray teardown, cancel background work and release reached plugin modules after partial startup failures.
+- Retain asynchronous runtime and tray teardown, cancel background work, flush variable edits before registry shutdown and release reached plugin modules after partial startup failures.
 - Give navigation, document sessions and execution workflows explicit owners with validated navigation persistence and guarded asynchronous saves.
 
 ### Docs

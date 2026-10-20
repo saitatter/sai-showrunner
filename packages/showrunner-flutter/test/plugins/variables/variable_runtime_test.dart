@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
@@ -9,8 +10,57 @@ import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
 import '../../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
+import 'package:showrunner_flutter/persistence/filesystem/atomic_file.dart';
 
 void main() {
+  test(
+    'close drains blocked variable edits before their registry dependency closes',
+    () async {
+      final root = await Directory.systemTemp.createTemp('variable-close-');
+      final repository = ResourceRepository(root);
+      await repository.save(
+        const ResourceData(
+          id: 'count',
+          config: {'type': 'number', 'persistent': true, 'defaultValue': 1},
+          state: {'value': 1},
+        ),
+      );
+      final registry = DartPluginRegistry();
+      registry.register(createVariablesPlugin());
+      final runtime = DartVariableRuntime(
+        directory: root,
+        onChanged: (id, value) =>
+            registry.updateDynamicState('variables', id, value),
+      );
+      await runtime.load();
+      final entered = Completer<void>(), release = Completer<void>();
+      final blocker = withFileLock('${root.path}/count.transaction', () async {
+        entered.complete();
+        await release.future;
+      });
+      await entered.future;
+      final edit = runtime.setValue('count', 7);
+      var closed = false;
+      final closing = runtime.close().then((_) {
+        closed = true;
+      });
+      try {
+        await Future<void>.delayed(Duration.zero);
+        expect(closed, false);
+        await expectLater(runtime.reload(), throwsStateError);
+      } finally {
+        release.complete();
+        await blocker;
+        await edit;
+        await closing;
+        await runtime.close();
+      }
+      expect(registry.stateValues('variables')['count'], 7);
+      expect((await repository.load('count'))?.state['value'], 7);
+      await registry.close();
+      await root.delete(recursive: true);
+    },
+  );
   test('variable actions persist values and expose dynamic state', () async {
     final root = await Directory.systemTemp.createTemp('showrunner-variables-');
     addTearDown(() => root.delete(recursive: true));
