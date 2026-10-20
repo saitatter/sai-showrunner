@@ -4,10 +4,19 @@ import 'native_input.dart';
 
 void registerConfiguredInput(DartPluginRegistry registry) {
   final inputPlatform = const NativeInputPlatform();
+  var eventsStarted = false;
   registry.register(
     createInputPlugin(platform: inputPlatform),
-    onStart: inputPlatform.startEvents,
-    onStop: inputPlatform.stopEvents,
+    onStart: () async {
+      eventsStarted = true;
+      await inputPlatform.startEvents();
+    },
+    onStop: () async {
+      if (eventsStarted) {
+        eventsStarted = false;
+        await inputPlatform.stopEvents();
+      }
+    },
   );
 }
 

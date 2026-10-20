@@ -6,27 +6,23 @@ Future<void> persistPluginEnabled({
   required DartPluginRegistry registry,
   required String pluginId,
   required bool enabled,
-}) async {
+}) {
   final typedPluginId = PluginId(pluginId);
-  final previous = registry.isPluginEnabledId(typedPluginId);
-  registry.setPluginEnabledId(typedPluginId, enabled);
-  try {
-    final settings = await dataService.loadPluginSettings('showrunner-flutter');
-    final disabled = <String>{
-      if (settings['disabledPlugins'] is List)
-        ...((settings['disabledPlugins'] as List).whereType<String>()),
-    };
-    if (enabled) {
-      disabled.remove(pluginId);
-    } else {
-      disabled.add(pluginId);
-    }
-    await dataService.savePluginSettings('showrunner-flutter', {
-      ...settings,
-      'disabledPlugins': disabled.toList()..sort(),
-    });
-  } catch (_) {
-    registry.setPluginEnabledId(typedPluginId, previous);
-    rethrow;
-  }
+  return registry.setEnabled(
+    typedPluginId,
+    enabled,
+    persist: (nextEnabled) =>
+        dataService.transformPluginSettings('showrunner-flutter', (settings) {
+          final disabled = <String>{
+            if (settings['disabledPlugins'] is List)
+              ...((settings['disabledPlugins'] as List).whereType<String>()),
+          };
+          if (nextEnabled) {
+            disabled.remove(pluginId);
+          } else {
+            disabled.add(pluginId);
+          }
+          return {...settings, 'disabledPlugins': disabled.toList()..sort()};
+        }),
+  );
 }

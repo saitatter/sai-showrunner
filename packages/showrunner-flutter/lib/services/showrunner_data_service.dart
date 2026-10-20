@@ -118,14 +118,21 @@ final class ShowRunnerDataService {
   ) => updatePluginSettings(pluginId, {settingId: value});
 
   /// Atomically merge independent settings owners without a stale read/write.
-  Future<void> updatePluginSettings(String pluginId, JsonMap patch) async {
+  Future<void> updatePluginSettings(String pluginId, JsonMap patch) =>
+      transformPluginSettings(pluginId, (settings) => {...settings, ...patch});
+
+  /// Transform one settings document while holding the same transaction lock as
+  /// all other writers. Collection edits must read inside this lock as well.
+  Future<void> transformPluginSettings(
+    String pluginId,
+    JsonMap Function(JsonMap settings) transform,
+  ) async {
     validateFileIdentifier(pluginId);
     await withFileLock(
       '${settingsDirectory.path}/$pluginId.transaction',
       () async {
         final settings = await loadPluginSettings(pluginId);
-        settings.addAll(patch);
-        await _savePluginSettings(pluginId, settings);
+        await _savePluginSettings(pluginId, transform(settings));
       },
     );
   }

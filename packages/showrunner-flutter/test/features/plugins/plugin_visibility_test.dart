@@ -6,6 +6,49 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
+  test(
+    'concurrent collection edits preserve other plugins and settings owners',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'plugin-policy-race-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final data = ShowRunnerDataService(directory);
+      final registries = List.generate(
+        2,
+        (index) => DartPluginRegistry()
+          ..register(
+            DartPluginManifest(
+              id: PluginId('plugin-$index'),
+              name: 'Plugin $index',
+            ),
+          ),
+      );
+      addTearDown(() async {
+        for (final registry in registries) {
+          await registry.close();
+        }
+      });
+      await Future.wait([
+        for (var index = 0; index < registries.length; index++)
+          persistPluginEnabled(
+            dataService: data,
+            registry: registries[index],
+            pluginId: 'plugin-$index',
+            enabled: false,
+          ),
+        data.updatePluginSetting(
+          'showrunner-flutter',
+          'projectSidebarWidth',
+          350,
+        ),
+      ]);
+      final saved = await data.loadPluginSettings('showrunner-flutter');
+      expect(saved['disabledPlugins'], ['plugin-0', 'plugin-1']);
+      expect(saved['projectSidebarWidth'], 350);
+    },
+  );
+
   test('notifies listeners when plugin enabled state changes', () {
     final registry = DartPluginRegistry();
     registry.register(

@@ -54,6 +54,25 @@ is a facade. `first_party_plugin_ui.dart` assembles Flutter UI independently;
 disabled integrations retain their settings and resource editors. IoT resource
 routing lives in `plugins/iot/configured_resolver.dart`. These are statically
 compiled first-party factories, not external plugin loading.
+
+Plugin lifecycle states (`registered`, `initialized`, `starting`, `running`,
+`stopping`, `stopped`, `disabled`, `failed`) describe module ownership separately
+from enable policy and connection health. The current first-party enable policy
+is `automationOnly`: disabling blocks graph actions and plugin visibility while
+preserving settings/editors and shared chat, OBS, overlay and device connections.
+Their existing host owners still stop them at shutdown. It is not a disconnect
+button. A module disabled before host startup is skipped; first activation starts
+it once, and toggling again never restarts or disposes that instance.
+
+The asynchronous `setEnabled` host operation serializes policy changes, persists
+before publishing and reverses persistence if first activation fails or shutdown
+intervenes. Partial startup is cleaned once; failed modules require a new host.
+Rollback failures retain both errors. Settings collection edits execute under the
+same file transaction lock as other settings owners. Shutdown awaits pending
+policy transactions, initialization/start and reverse dependency cleanup. Modules
+that allocate during initialization are released even when disabled; native input
+only calls platform teardown if events were actually requested. Late health
+results are invalidated after policy changes or close.
 An unconfigured provider is not evidence of a successful external connection.
 
 User data uses typed resource repositories, atomic writes and explicit validation.
