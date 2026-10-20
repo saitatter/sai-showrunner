@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import '../../services/plugin_event_hub.dart';
+import '../../services/bounded_event_stream.dart';
+import '../runtime/provider_event.dart';
 import '../runtime/provider_worker_status.dart';
 import 'actions.dart';
 import 'event_parser.dart';
@@ -30,6 +32,7 @@ final class YouTubeLiveChatWorker {
   bool _acceptPolls = true;
   int _generation = 0;
   Future<void>? _pendingPoll;
+  final Set<String> _seenMessages = {};
   Object? lastError;
   ProviderWorkerState _state = ProviderWorkerState.stopped;
   DateTime? lastSuccessAt;
@@ -70,21 +73,53 @@ final class YouTubeLiveChatWorker {
       lastError = null;
       lastSuccessAt = DateTime.now();
       _setState(ProviderWorkerState.running);
-      _pageToken = response['nextPageToken']?.toString() ?? _pageToken;
       final items = response['items'];
       if (items is List) {
         for (final item in items.whereType<Map>()) {
           final data = Map<String, dynamic>.from(item);
+          final providerId = data['id']?.toString();
+          if (providerId?.isNotEmpty == true &&
+              _seenMessages.contains(providerId)) {
+            continue;
+          }
           final type = (data['snippet'] as Map?)?['type']?.toString();
           final eventId = youTubeDomainEventType(type);
-          eventHub.emit(eventId, flattenYouTubeEvent(data, eventType: type));
+          eventHub.emitProviderEvent(
+            ProviderEventEnvelope(
+              platform: ProviderPlatform.youtube,
+              eventType: eventId,
+              providerEventId: providerId,
+              channelId: liveChatId,
+              occurredAt:
+                  DateTime.tryParse(
+                    '${(data['snippet'] as Map?)?['publishedAt']}',
+                  ) ??
+                  DateTime.now().toUtc(),
+              payload: flattenYouTubeEvent(data, eventType: type),
+            ),
+          );
+          if (providerId?.isNotEmpty == true) {
+            _seenMessages.add(providerId!);
+            if (_seenMessages.length > 4096) {
+              _seenMessages.remove(_seenMessages.first);
+            }
+          }
         }
       }
+      _pageToken = response['nextPageToken']?.toString() ?? _pageToken;
     } catch (error) {
       if (!_acceptPolls || generation != _generation) return;
       _failureCount++;
       lastError = error;
       onError?.call(error);
+      if (error is EventBackpressureException) {
+        _running = false;
+        _acceptPolls = false;
+        _timer?.cancel();
+        _timer = null;
+        _setState(ProviderWorkerState.error);
+        return;
+      }
       _setState(
         _running ? ProviderWorkerState.reconnecting : ProviderWorkerState.error,
       );

@@ -6,8 +6,104 @@ import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/plugins/twitch/actions.dart';
 import 'package:showrunner_flutter/plugins/twitch/event_worker.dart';
 import 'package:showrunner_flutter/plugins/runtime/provider_worker_status.dart';
+import 'package:showrunner_flutter/plugins/runtime/provider_event.dart';
+import 'package:showrunner_flutter/services/bounded_event_stream.dart';
 
 void main() {
+  test(
+    'backpressure fails the worker visibly and rejected IDs remain replayable',
+    () async {
+      final hub = DartPluginEventHub(pendingCapacity: 1);
+      final sockets = <_FakeEventSubSocket>[];
+      final received = <Map>[];
+      final listener = hub.stream('ban').listen(received.add)..pause();
+      final worker = TwitchEventSubWorker(
+        accessToken: 'token',
+        clientId: 'client',
+        broadcasterId: 'channel',
+        subscriptionTypes: const ['channel.ban'],
+        eventHub: hub,
+        request: (_, _, _, _) async => {},
+        socketFactory: (_) async {
+          final socket = _FakeEventSubSocket();
+          sockets.add(socket);
+          scheduleMicrotask(
+            () => socket.add(
+              jsonEncode({
+                'payload': {
+                  'session': {'id': 'session-${sockets.length}'},
+                },
+              }),
+            ),
+          );
+          return socket;
+        },
+      );
+      String frame(String id) => jsonEncode({
+        'metadata': {'message_type': 'notification', 'message_id': id},
+        'payload': {
+          'subscription': {'type': 'channel.ban'},
+          'event': {'user_id': id, 'is_permanent': true},
+        },
+      });
+      await worker.start();
+      sockets.first.add(frame('first'));
+      sockets.first.add(frame('retry'));
+      await _waitFor(() => worker.state == ProviderWorkerState.error);
+      expect(worker.lastError, isA<EventBackpressureException>());
+      expect(sockets.first.closed, isTrue);
+      listener.resume();
+      await _waitFor(() => received.length == 1);
+      await worker.start();
+      sockets.last.add(frame('retry'));
+      await _waitFor(() => received.length == 2);
+      expect(received.map((event) => event['viewerId']), ['first', 'retry']);
+      await worker.stop();
+      await listener.cancel();
+      await hub.dispose();
+    },
+  );
+
+  test(
+    'typed whisper events retain identity and stay outside the public event feed',
+    () async {
+      final hub = DartPluginEventHub();
+      final socket = _FakeEventSubSocket();
+      final worker = _workerWithSocket(socket, hub);
+      final all = <ProviderEventEnvelope>[], public = <ProviderEventEnvelope>[];
+      hub.providerEvents.listen(all.add);
+      hub.publicProviderEvents.listen(public.add);
+      await worker.start();
+      socket.add(
+        jsonEncode({
+          'metadata': {
+            'message_type': 'notification',
+            'message_id': 'private-id',
+            'message_timestamp': '2026-10-20T12:00:00Z',
+          },
+          'payload': {
+            'subscription': {'type': 'user.whisper.message'},
+            'event': {
+              'from_user_id': 'viewer',
+              'text': 'Private',
+              'access_token': 'redact',
+            },
+          },
+        }),
+      );
+      await _waitFor(() => all.length == 1);
+      expect(public, isEmpty);
+      expect(all.single.providerEventId, 'private-id');
+      expect(all.single.accountId, 'broadcaster');
+      expect(all.single.channelId, isNull);
+      expect(all.single.occurredAt, DateTime.utc(2026, 10, 20, 12));
+      expect(all.single.visibility, ProviderEventVisibility.private);
+      expect(all.single.safePayload.containsKey('access_token'), isFalse);
+      await worker.stop();
+      await hub.dispose();
+    },
+  );
+
   test(
     'stop cancels an unfinished welcome without resurrecting the worker',
     () async {

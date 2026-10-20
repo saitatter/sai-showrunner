@@ -4,8 +4,66 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/plugins/runtime/provider_event_workers.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
+import 'package:showrunner_flutter/plugins/runtime/provider_event.dart';
+import 'package:showrunner_flutter/services/bounded_event_stream.dart';
 
 void main() {
+  test(
+    'overload preserves the page cursor and resumes without replaying accepted IDs',
+    () async {
+      final hub = DartPluginEventHub(pendingCapacity: 1);
+      final values = <RuntimeMap>[], envelopes = <ProviderEventEnvelope>[];
+      final subscription = hub.stream('chatMessage').listen(values.add)
+        ..pause();
+      hub.providerEvents.listen(envelopes.add);
+      var requests = 0;
+      final worker = YouTubeLiveChatWorker(
+        liveChatId: 'room',
+        eventHub: hub,
+        interval: const Duration(hours: 1),
+        request: (_, _, query, _) async {
+          requests++;
+          expect(query['pageToken'], requests < 3 ? isNull : 'next');
+          return {
+            'nextPageToken': 'next',
+            'items': requests < 3
+                ? [
+                    for (final id in ['first', 'retry'])
+                      {
+                        'id': id,
+                        'snippet': {
+                          'type': 'textMessageEvent',
+                          'publishedAt': '2026-10-20T12:00:00Z',
+                        },
+                      },
+                  ]
+                : [],
+          };
+        },
+      );
+      await worker.pollOnce();
+      expect(worker.state, ProviderWorkerState.error);
+      expect(worker.lastError, isA<EventBackpressureException>());
+      subscription.resume();
+      await Future<void>.delayed(Duration.zero);
+      worker.start();
+      await worker.pollOnce();
+      await Future<void>.delayed(Duration.zero);
+      expect(values.map((event) => event['messageId']), ['first', 'retry']);
+      expect(envelopes.map((event) => event.providerEventId), [
+        'first',
+        'retry',
+      ]);
+      expect(envelopes.first.platform, ProviderPlatform.youtube);
+      expect(envelopes.first.channelId, 'room');
+      expect(envelopes.first.occurredAt, DateTime.utc(2026, 10, 20, 12));
+      await worker.pollOnce();
+      await worker.stop();
+      await subscription.cancel();
+      await hub.dispose();
+    },
+  );
+
   test(
     'a previous generation cannot clear a restarted poll or report it healthy',
     () async {

@@ -86,6 +86,26 @@ own I/O cancellation and deadlines. Twitch/YouTube worker state remains the sour
 of truth for shared chat connections, separate from action transport readiness.
 An unconfigured provider is not evidence of a successful external connection.
 
+Twitch and YouTube adapters publish `ProviderEventEnvelope` values containing
+platform, domain event type, provider ID when supplied, account/channel identity,
+time and a deeply immutable domain payload. Credential-shaped fields are removed
+recursively; message text remains intact. The event hub projects that same domain
+payload onto existing graph trigger channels, preserving IDs and field names.
+Private whispers have a separate visibility and never enter the public typed feed.
+
+The hub limits channel allocation to 256 and pending delivery to 4096 events per
+subscriber, including paused subscribers. Publication preflights every recipient
+before any accepts an event. Overflow throws a payload-free diagnostic; it never
+evicts an accepted message. Typed and graph projections commit together. Twitch
+and YouTube stop with an explicit error on overload, requiring an explicit restart
+after consumers recover. Rejected Twitch IDs remain replayable; YouTube only
+advances its cursor after accepted delivery and retains a bounded deduplication
+set during restart. Protocol replay is required to recover rejected data; there
+is no durable event spool. No-subscriber broadcast events are not retained. Host
+shutdown cancels queued work and paused subscriptions deliberately. Downstream
+asynchronous jobs remain owned by their command/automation queues; this bound
+covers event delivery, not arbitrary futures spawned by a listener.
+
 User data uses typed resource repositories, atomic writes and explicit validation.
 Viewer data and secret settings have separate persistence boundaries. Tests use
 isolated directories and must never seed or reset production storage.
