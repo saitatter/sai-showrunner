@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:convert';
 import 'package:showrunner_flutter/runtime/execution_trace.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/graph/runtime/production_graph_vm.dart';
@@ -6,6 +7,99 @@ import 'package:showrunner_flutter/graph/runtime/graph_runtime.dart';
 import '../support/graph_fixtures.dart';
 
 void main() {
+  test(
+    'default previews exclude raw secrets, viewer values and private messages',
+    () async {
+      final service = ExecutionTraceService();
+      addTearDown(service.dispose);
+      final run = service.start(
+        mode: ExecutionTraceMode.live,
+        source: const ExecutionTraceSource(
+          type: 'profile',
+          id: 'private-trigger',
+        ),
+      );
+      const node = ExecutionNodeRef(nodeId: 'a');
+      run.nodeStarted(node);
+      run.nodeResult(node, {
+        'done': true,
+        'status': 'completed',
+        'access_token': 'secret-token',
+        'result': {'client-secret': 'secret-client'},
+        'viewerData': {'balance': 78234},
+        'whisper': {'text': 'private-message'},
+        'value': 'private-derived-value',
+      });
+      final error = StateError('private-message secret-token');
+      run.nodeFailed(
+        node,
+        error,
+        stackTrace: StackTrace.fromString('secret-stack'),
+      );
+      run.end(ExecutionTraceRunStatus.error, error: error);
+      final snapshot = service.snapshotFor(run.executionId)!;
+      final encoded = jsonEncode({
+        'events': snapshot.events.map((event) => event.toJson()).toList(),
+        'previews': snapshot.nodes.values
+            .map((node) => node.resultPreview)
+            .toList(),
+        'error': snapshot.info.error!.toJson(),
+      });
+      for (final value in [
+        'secret-token',
+        'secret-client',
+        'private-message',
+        'private-derived-value',
+        'secret-stack',
+        '78234',
+      ]) {
+        expect(encoded, isNot(contains(value)));
+      }
+      final preview =
+          snapshot.events.whereType<ExecutionNodeResultEvent>().single.preview
+              as Map;
+      expect(preview['done'], isTrue);
+      expect(preview['status'], 'completed');
+      expect(snapshot.info.error!.name, 'StateError');
+    },
+  );
+
+  test(
+    'trusted public result fields remain bounded and never override secret denial',
+    () {
+      final fields = <String>{'label', 'result', 'token', 'whisper'};
+      final policy = TraceValuePolicy.publicFields(fields);
+      fields.add('untrusted');
+      final result = sanitizeExecutionResult({
+        'label': 'Public label',
+        'untrusted': 'must-not-appear',
+        'token': 'secret-token',
+        'whisper': 'private-message',
+        'result': {
+          'metric': 12,
+          'accessToken': 'secret-child',
+          'viewerData': {'balance': 7},
+        },
+      }, policy: policy);
+      final encoded = jsonEncode(result.value);
+      expect(encoded, contains('Public label'));
+      expect(encoded, contains('12'));
+      for (final value in [
+        'must-not-appear',
+        'secret-token',
+        'private-message',
+        'secret-child',
+        'balance',
+      ]) {
+        expect(encoded, isNot(contains(value)));
+      }
+      expect(result.truncated, isTrue);
+      expect(
+        () => (result.value as Map)['label'] = 'write',
+        throwsUnsupportedError,
+      );
+    },
+  );
   test(
     'retains bounded nodes, edges and history with explicit truncation counters',
     () async {
@@ -115,7 +209,7 @@ void main() {
         },
       },
       'large': List.filled(100, 'x'),
-    });
+    }, policy: TraceValuePolicy.publicFields({'deep', 'large'}));
 
     expect(result.truncated, isTrue);
     expect(result.value, isA<Map>());
@@ -187,7 +281,10 @@ void main() {
     final state =
         traced.snapshot.nodes[const ExecutionNodeRef(nodeId: 'action').key]!;
     expect(state.status, ExecutionTraceNodeStatus.error);
-    expect(state.error!.message, contains('expected failure'));
+    expect(state.error!.name, 'StateError');
+    expect(state.error!.message, contains('details omitted'));
+    expect(state.error!.message, isNot(contains('expected failure')));
+    expect(state.error!.stack, isNull);
   });
   test(
     'actual trigger and unified control connection IDs appear directly in traces',

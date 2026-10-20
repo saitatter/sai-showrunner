@@ -9,4 +9,4 @@ export 'trace/trace_sink.dart';
 export 'trace/trace_session.dart';
 export 'trace/trace_service.dart';
 export 'trace/trace_redaction.dart'
-    show SanitizedExecutionResult, sanitizeExecutionResult;
+    show TraceValuePolicy, SanitizedExecutionResult, sanitizeExecutionResult;

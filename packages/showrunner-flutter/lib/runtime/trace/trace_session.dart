@@ -10,6 +10,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
     required this.info,
     required this.isRetained,
     required this.maxNodes,
+    this.valuePolicy = TraceValuePolicy.metadata,
   }) : _started = info.startedAt;
 
   final void Function(ExecutionTraceEvent) _publish;
@@ -17,6 +18,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
   ExecutionTraceRunInfo info;
   final bool Function(String) isRetained;
   final int maxNodes;
+  final TraceValuePolicy valuePolicy;
   final DateTime _started;
   final Map<String, int> _invocations = {};
   bool _ended = false;
@@ -105,7 +107,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
   void nodeResult(ExecutionNodeRef node, Object? result, {int? invocation}) {
     if (!_accepts) return;
     final count = _nextInvocation(node, invocation);
-    final sanitized = sanitizeExecutionResult(result);
+    final sanitized = sanitizeExecutionResult(result, policy: valuePolicy);
     _publish(
       ExecutionNodeResultEvent(
         executionId: executionId,

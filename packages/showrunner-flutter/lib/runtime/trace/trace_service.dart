@@ -1,3 +1,4 @@
+import 'trace_redaction.dart';
 import 'trace_updates.dart';
 import 'dart:async';
 import 'trace_models.dart';
@@ -51,6 +52,7 @@ final class ExecutionTraceService {
   ExecutionTraceSession start({
     required ExecutionTraceMode mode,
     required ExecutionTraceSource source,
+    TraceValuePolicy valuePolicy = TraceValuePolicy.metadata,
   }) {
     if (_disposed) throw StateError('Execution trace service is disposed.');
     final id =
@@ -69,6 +71,7 @@ final class ExecutionTraceService {
       nextSequence: _nextSequence,
       info: info,
       maxNodes: maxNodesPerRun,
+      valuePolicy: valuePolicy,
       isRetained: (id) => !_disposed && _store.contains(id),
     );
     _publish(

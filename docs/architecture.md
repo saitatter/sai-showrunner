@@ -85,6 +85,19 @@ history and exact counters for retained nodes/edges come from snapshots. Flutter
 canvases coalesce projection changes to one frame; projection never writes to an
 authoring document. Shutdown cancels paused notifications without waiting for
 consumers to resume. Stable insertion order resolves equal run timestamps.
+Counters describe the current retained identity window; evicted identities lose
+their prior totals if they later reappear.
+
+Trace previews default to typed acknowledgement booleans and a fixed set of status
+values. Arbitrary strings, scalar results, unknown fields, viewer data, raw resource
+configuration and private message containers are omitted. Trusted runtime code may
+declare public result fields with `TraceValuePolicy`; credential/private containers
+stay denied recursively even under opt-in. This policy is not a saved-document or
+wire setting. Preview collection/string/depth/encoded-size limits remain enforced,
+and retained preview collections are immutable. Trace errors retain a domain code
+or runtime type, not raw exception text/stack. The original exception/stack remains
+at the invocation/application error boundary for operation handling. Execution
+results used by graphs remain unchanged; privacy applies to diagnostic projection.
 
 Shader authoring uses the same immutable graph/core/canvas. Semantic changes
 invalidate generated GLSL; presentation changes do not. Node previews use derived

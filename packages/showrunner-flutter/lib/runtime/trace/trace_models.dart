@@ -144,10 +144,10 @@ final class ExecutionTraceError {
   factory ExecutionTraceError.fromObject(Object error, [StackTrace? trace]) =>
       ExecutionTraceError(
         name: error.runtimeType.toString(),
-        message: boundedTraceString(error.toString(), 4096),
-        stack: trace == null
-            ? null
-            : boundedTraceString(trace.toString(), 8192),
+        message: safeTraceErrorMessage(error),
+        // Runtime exception text and stack can contain private values/paths.
+        // The original error remains at the invocation/application boundary.
+        stack: null,
       );
 
   Map<String, Object?> toJson() => {
