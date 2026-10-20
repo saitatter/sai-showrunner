@@ -115,13 +115,16 @@ final class ShowRunnerDataService {
     String pluginId,
     String settingId,
     dynamic value,
-  ) async {
+  ) => updatePluginSettings(pluginId, {settingId: value});
+
+  /// Atomically merge independent settings owners without a stale read/write.
+  Future<void> updatePluginSettings(String pluginId, JsonMap patch) async {
     validateFileIdentifier(pluginId);
     await withFileLock(
       '${settingsDirectory.path}/$pluginId.transaction',
       () async {
         final settings = await loadPluginSettings(pluginId);
-        settings[settingId] = value;
+        settings.addAll(patch);
         await _savePluginSettings(pluginId, settings);
       },
     );

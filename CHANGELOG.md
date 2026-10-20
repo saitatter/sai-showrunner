@@ -19,6 +19,7 @@
 - Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
+- Give navigation, document sessions and execution workflows explicit owners with validated navigation persistence and guarded asynchronous saves.
 
 ### Docs
 - Map runtime ownership, network trust boundaries and remaining baseline security work with measured validation evidence.

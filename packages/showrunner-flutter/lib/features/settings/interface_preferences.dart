@@ -45,10 +45,13 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
   double _projectSidebarWidth = defaultProjectSidebarWidth;
   WindowCloseBehavior _windowCloseBehavior = WindowCloseBehavior.ask;
   bool _loading = true;
-  bool _saving = false;
+  final _writes = <Future<void>>{};
+  Future<void>? _loadFuture;
+  Future<void>? _closeFuture;
+  bool _disposed = false;
 
   bool get isLoading => _loading;
-  bool get isSaving => _saving;
+  bool get isSaving => _writes.isNotEmpty;
 
   bool value(String key) => _values[key] ?? false;
 
@@ -62,7 +65,8 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
   double get projectSidebarWidth => _projectSidebarWidth;
   WindowCloseBehavior get windowCloseBehavior => _windowCloseBehavior;
 
-  Future<void> load() async {
+  Future<void> load() => _loadFuture ??= _load();
+  Future<void> _load() async {
     try {
       final settings = await dataService.loadPluginSettings(
         'showrunner-flutter',
@@ -155,33 +159,58 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
   }
 
   Future<void> enableAllPlugins(DartPluginRegistry registry) async {
-    final settings = await dataService.loadPluginSettings('showrunner-flutter');
-    await dataService.savePluginSettings('showrunner-flutter', {
-      ...settings,
-      'disabledPlugins': <String>[],
-    });
+    await dataService.updatePluginSetting(
+      'showrunner-flutter',
+      'disabledPlugins',
+      <String>[],
+    );
     for (final plugin in registry.plugins) {
       registry.setPluginEnabledId(plugin.id, true);
     }
   }
 
-  Future<void> _saveValues() async {
-    _saving = true;
+  Future<void> _saveValues() {
+    if (_disposed) {
+      return Future.error(StateError('Interface preferences are closed.'));
+    }
+    final operation = dataService.updatePluginSettings('showrunner-flutter', {
+      ..._values,
+      'windowCloseBehavior': _windowCloseBehavior.name,
+      'projectSidebarWidth': _projectSidebarWidth,
+    });
+    _writes.add(operation);
     notifyListeners();
-    try {
-      final settings = await dataService.loadPluginSettings(
-        'showrunner-flutter',
-      );
-      await dataService.savePluginSettings('showrunner-flutter', {
-        ...settings,
-        ..._values,
-        'windowCloseBehavior': _windowCloseBehavior.name,
-        'projectSidebarWidth': _projectSidebarWidth,
-      });
-    } finally {
-      _saving = false;
+    void finished() {
+      _writes.remove(operation);
       notifyListeners();
     }
+
+    operation.then<void>(
+      (_) => finished(),
+      onError: (Object _, StackTrace _) => finished(),
+    );
+    return operation;
+  }
+
+  Future<void> close() => _closeFuture ??= _close();
+  Future<void> _close() async {
+    try {
+      await Future.wait([?_loadFuture, ..._writes]);
+    } finally {
+      dispose();
+    }
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    super.dispose();
   }
 }
 

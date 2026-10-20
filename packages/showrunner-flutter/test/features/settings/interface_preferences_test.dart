@@ -7,6 +7,25 @@ import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
   test(
+    'pending preference loads can finish after widget disposal without notification',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'preferences-lifetime-',
+      );
+      final preferences = FlutterInterfacePreferences(
+        dataService: ShowRunnerDataService(directory),
+      );
+      var notices = 0;
+      preferences.addListener(() => notices++);
+      final loading = preferences.load();
+      preferences.dispose();
+      await loading;
+      await preferences.close();
+      expect(notices, 0);
+      await directory.delete(recursive: true);
+    },
+  );
+  test(
     'loads and persists interface preferences without losing plugin state',
     () async {
       final directory = await Directory.systemTemp.createTemp(
