@@ -185,6 +185,13 @@ final class ShowRunnerServices {
         registry: registry,
         queueManager: queueManager,
         executionEngine: graphExecutionEngine,
+        onTriggerFailure: (failure) => ShowRunnerLogger.instance.error(
+          'profiles',
+          'Profile trigger failed',
+          error: StateError(
+            'Profile ${failure.profileId}: ${failure.error.runtimeType}',
+          ),
+        ),
       );
       final manager = DartProfileLifecycleManager(
         directory: Directory('${dataService.userDirectory.path}/profiles'),

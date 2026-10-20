@@ -64,6 +64,15 @@ graph and nested inputs. Typed source metadata cannot overwrite that snapshot.
 Compiler/cache and VM remain below invocation orchestration; the independent
 interpreter stays available for differential correctness fixtures.
 
+Each profile session owns its subscriptions, registry listeners and background
+trigger invocations. Disposal cancels direct work, detaches event producers and
+awaits cleanup. The runtime also owns activation/deactivation calls and closes all
+sessions, including editor-created ones, before releasing its dependencies.
+Concurrent managed activation is serialized per profile; generation checks prevent
+an old replacement from recreating superseded subscriptions. Accepted queue items
+remain independently owned by their queues. Background trigger failures are kept
+as typed profile diagnostics and reported without raw event payloads in app logs.
+
 Shader authoring uses the same immutable graph/core/canvas. Semantic changes
 invalidate generated GLSL; presentation changes do not. Node previews use derived
 documents. Shader source is compiled/rendered by the actual browser WebGL runtime.
