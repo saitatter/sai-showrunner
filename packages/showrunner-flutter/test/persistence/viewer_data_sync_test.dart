@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:showrunner_flutter/persistence/filesystem/atomic_file.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/viewer_data_repository.dart';
 import 'package:showrunner_flutter/persistence/viewer_data_sync.dart';
@@ -5,6 +9,47 @@ import 'package:showrunner_flutter/schema/viewer_data.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
+  test(
+    'stop awaits a blocked viewer write before the event hub can close',
+    () async {
+      final root = await Directory.systemTemp.createTemp('viewer-sync-drain-');
+      final repository = FileViewerDataRepository(root);
+      final hub = DartPluginEventHub();
+      final synchronizer = ViewerDataSynchronizer(
+        repository: repository,
+        eventHub: hub,
+      );
+      final entered = Completer<void>(), release = Completer<void>();
+      final file =
+          '${root.path}/twitch/${base64UrlEncode(utf8.encode('42')).replaceAll('=', '')}.json';
+      final blocker = withFileLock(file, () async {
+        entered.complete();
+        await release.future;
+      });
+      await entered.future;
+      await synchronizer.start();
+      final delivered = hub.stream('chat').first;
+      final added = hub.stream('viewerDataAdded').first;
+      hub.emit('chat', {'user_id': '42', 'user_name': 'Alice'});
+      await delivered;
+      var stopped = false;
+      final stopping = synchronizer.stop().then((_) {
+        stopped = true;
+      });
+      try {
+        await Future<void>.delayed(Duration.zero);
+        expect(stopped, false);
+      } finally {
+        release.complete();
+        await blocker;
+        await stopping;
+        expect((await added)['id'], '42');
+        await hub.dispose();
+        await root.delete(recursive: true);
+      }
+    },
+  );
+
   test(
     'syncs Twitch viewer identities and preserves existing values',
     () async {

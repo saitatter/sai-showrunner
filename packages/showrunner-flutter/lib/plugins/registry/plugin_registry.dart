@@ -17,6 +17,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   final Map<PluginId, DartPluginUiContribution> _uiContributions = {};
   final Set<PluginId> _disabledPluginIds = {};
   final Set<PluginId> _skippedStartModuleIds = {};
+  final Set<PluginId> _initializedOrStarted = {};
   final Map<PluginId, Map<StateId, Object?>> _stateValues = {};
   Future<void>? _initializeFuture;
   Future<void>? _startFuture;
@@ -277,17 +278,29 @@ final class DartPluginRegistry extends ChangeNotifier {
   ///
   /// Factories remain side-effect free; long-lived workers and listeners are
   /// started only after the complete registry has been composed.
-  Future<void> start() => _startFuture ??= _startInternal();
+  Future<void> start() {
+    if (_closeFuture != null) {
+      return Future.error(StateError('Plugin registry is closed.'));
+    }
+    return _startFuture ??= _startInternal();
+  }
 
   Future<void> initialize([
     DartPluginHostContext host = const DartPluginHostContext(),
-  ]) => _initializeFuture ??= _initializeInternal(host);
+  ]) {
+    if (_closeFuture != null) {
+      return Future.error(StateError('Plugin registry is closed.'));
+    }
+    return _initializeFuture ??= _initializeInternal(host);
+  }
 
   Future<void> _initializeInternal(DartPluginHostContext host) async {
     if (_closeFuture != null) {
       throw StateError('Plugin registry is closed.');
     }
     for (final module in _modules.values) {
+      if (_closeFuture != null) return;
+      _initializedOrStarted.add(module.manifest.id);
       await module.initialize(host);
     }
   }
@@ -297,10 +310,12 @@ final class DartPluginRegistry extends ChangeNotifier {
       throw StateError('Plugin registry is closed.');
     }
     for (final module in _modules.values) {
+      if (_closeFuture != null) return;
       if (!isPluginEnabledId(module.manifest.id)) {
         _skippedStartModuleIds.add(module.manifest.id);
         continue;
       }
+      _initializedOrStarted.add(module.manifest.id);
       await module.start();
     }
   }
@@ -356,10 +371,22 @@ final class DartPluginRegistry extends ChangeNotifier {
   Future<void> close() => _closeFuture ??= _closeInternal();
 
   Future<void> _closeInternal() async {
+    // Initialization/start callers retain their failure; teardown still owns
+    // every resource that was reached before that failure or a close request.
+    try {
+      await _initializeFuture;
+    } catch (_) {}
+    try {
+      await _startFuture;
+    } catch (_) {}
     final modules = _modules.values.toList().reversed;
     Object? firstError;
     StackTrace? firstStackTrace;
     for (final module in modules) {
+      if (_initializedOrStarted.isNotEmpty &&
+          !_initializedOrStarted.contains(module.manifest.id)) {
+        continue;
+      }
       if (_skippedStartModuleIds.contains(module.manifest.id)) continue;
       try {
         await module.stop();

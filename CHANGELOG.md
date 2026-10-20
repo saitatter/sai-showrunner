@@ -19,6 +19,7 @@
 - Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
+- Retain asynchronous runtime and tray teardown, cancel background work and release reached plugin modules after partial startup failures.
 - Give navigation, document sessions and execution workflows explicit owners with validated navigation persistence and guarded asynchronous saves.
 
 ### Docs

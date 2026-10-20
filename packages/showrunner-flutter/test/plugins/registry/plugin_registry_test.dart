@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/obs/obs.dart';
@@ -11,6 +12,35 @@ import 'package:showrunner_flutter/plugins/registry/plugin_module.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_ui.dart';
 
 void main() {
+  test(
+    'close waits for a starting module and never starts later modules',
+    () async {
+      final entered = Completer<void>(), release = Completer<void>();
+      final events = <String>[];
+      final registry = DartPluginRegistry()
+        ..register(
+          const DartPluginManifest(id: PluginId('first'), name: 'First'),
+          onStart: () async {
+            entered.complete();
+            await release.future;
+            events.add('ready');
+          },
+          onStop: () async => events.add('stop:first'),
+        )
+        ..register(
+          const DartPluginManifest(id: PluginId('later'), name: 'Later'),
+          onStart: () async => events.add('start:later'),
+          onStop: () async => events.add('stop:later'),
+        );
+      final starting = registry.start();
+      await entered.future;
+      final closing = registry.close();
+      release.complete();
+      await Future.wait([starting, closing]);
+      expect(events, ['ready', 'stop:first']);
+      await expectLater(registry.start(), throwsStateError);
+    },
+  );
   test(
     'disabled plugins do not start workers or stop workers that never started',
     () async {

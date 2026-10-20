@@ -38,6 +38,7 @@ final class DartProfileLifecycleManager {
   bool _refreshRequested = false;
   bool _started = false;
   bool _disposed = false;
+  Future<void>? _disposeFuture;
 
   Future<void> start() async {
     if (_started) return;
@@ -60,11 +61,25 @@ final class DartProfileLifecycleManager {
     }
   }
 
-  Future<void> dispose() async {
-    if (_disposed) return;
+  Future<void> dispose() => _disposeFuture ??= _dispose();
+  Future<void> _dispose() async {
     _disposed = true;
     runtime.registry.removeListener(_onRegistryStateChanged);
-    await Future.wait(_managedIds.map(runtime.disposeManagedSession));
+    Object? failure;
+    StackTrace? failureStack;
+    Future<void> release(Future<void> Function() operation) async {
+      try {
+        await operation();
+      } on Object catch (error, stack) {
+        failure ??= error;
+        failureStack ??= stack;
+      }
+    }
+
+    await release(() async => await _refreshFuture);
+    for (final profileId in _managedIds) {
+      await release(() => runtime.disposeManagedSession(profileId));
+    }
     for (final profileId in _managedIds) {
       runtime.forgetProfile(profileId);
     }
@@ -73,7 +88,8 @@ final class DartProfileLifecycleManager {
     _lastBoundProfiles.clear();
     _notifiedActive.clear();
     _notifiedTriggers.clear();
-    await runtime.dispose();
+    await release(runtime.dispose);
+    if (failure != null) Error.throwWithStackTrace(failure!, failureStack!);
   }
 
   void _onRegistryStateChanged() {
@@ -123,6 +139,7 @@ final class DartProfileLifecycleManager {
   }
 
   Future<void> _reconcileProfiles() async {
+    if (_disposed) return;
     final context = EvaluationContext(
       contextState: runtime.registry.stateContext(),
     );
@@ -138,6 +155,7 @@ final class DartProfileLifecycleManager {
     }
 
     for (final entry in _profiles.entries) {
+      if (_disposed) return;
       final profileId = entry.key;
       final profile = entry.value;
       try {
@@ -158,6 +176,7 @@ final class DartProfileLifecycleManager {
         _managedIds.add(profileId);
         final wasActive = runtime.isActive(profileId);
         await runtime.reconcile(profileId, profile, context: context);
+        if (_disposed) return;
         final isActive = runtime.isActive(profileId);
         if (isActive && !runtime.hasManagedSession(profileId)) {
           await runtime.replaceManagedSession(
