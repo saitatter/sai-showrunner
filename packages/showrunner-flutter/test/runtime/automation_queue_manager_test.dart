@@ -6,6 +6,40 @@ import 'package:showrunner_flutter/runtime/expression.dart';
 import '../support/graph_fixtures.dart';
 
 void main() {
+  test(
+    'concurrent drains await the same execution through queue lookup',
+    () async {
+      final entered = Completer<void>();
+      final finish = Completer<void>();
+      final queue = DartActionQueue()..setPaused(true);
+      var executions = 0;
+      final manager = DartAutomationQueueManager(
+        defaultQueue: queue,
+        execute: (_, _, _) async {
+          executions++;
+          entered.complete();
+          await finish.future;
+        return null;
+        },
+      );
+      addTearDown(manager.dispose);
+      await manager.enqueue(AutomationDocument.empty(), EvaluationContext());
+      queue.setPaused(false);
+      var completed = 0;
+      final drains = List.generate(
+        10,
+        (_) => manager.drain(null).then((_) => completed++),
+      );
+      await entered.future;
+      await Future<void>.delayed(Duration.zero);
+      expect(completed, 0);
+      expect(executions, 1);
+      finish.complete();
+      await Future.wait(drains);
+      expect(completed, 10);
+      expect(queue.history, hasLength(1));
+    },
+  );
   testWidgets('shutdown cancels queue gap timers and preserves pending work', (
     tester,
   ) async {
