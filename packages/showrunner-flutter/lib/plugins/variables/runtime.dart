@@ -48,6 +48,9 @@ final class DartVariableRuntime extends ChangeNotifier {
   final DartVariableChanged? onChanged;
   final Map<String, DartVariableDefinition> _definitions = {};
   bool _loaded = false;
+  bool _disposed = false;
+  Future<void>? _closing;
+  final _pending = <Future<void>>{};
 
   Iterable<DartVariableDefinition> get definitions =>
       _definitions.values.toList(growable: false);
@@ -56,20 +59,56 @@ final class DartVariableRuntime extends ChangeNotifier {
 
   DartVariableDefinition? definitionOf(String id) => _find(id);
 
-  Future<void> load() async {
+  Future<void> load() => _track(_load);
+  Future<void> _load() async {
     await _loadFromDisk();
     _loaded = true;
     _publishAll();
   }
 
   /// Reloads definitions after an editor or another process changes a file.
-  Future<void> reload() async {
-    await _loadFromDisk();
-    _loaded = true;
-    _publishAll();
+  Future<void> reload() => _track(_load);
+
+  Future<T> _track<T>(Future<T> Function() operation) {
+    if (_disposed || _closing != null) {
+      return Future.error(StateError('Variable runtime is closed.'));
+    }
+    final result = Future<T>.sync(operation);
+    final pending = result.then<void>((_) {});
+    _pending.add(pending);
+    pending.then<void>(
+      (_) {
+        _pending.remove(pending);
+      },
+      onError: (Object _, StackTrace _) {
+        _pending.remove(pending);
+      },
+    );
+    return result;
   }
 
-  Future<dynamic> setValue(String id, dynamic value) async {
+  /// Flush caller-owned edits before their registry/notifier dependencies close.
+  Future<void> close() => _closing ??= _close();
+  Future<void> _close() async {
+    try {
+      while (_pending.isNotEmpty) {
+        await Future.wait(_pending.toList());
+      }
+    } finally {
+      dispose();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    super.dispose();
+  }
+
+  Future<dynamic> setValue(String id, dynamic value) =>
+      _track(() => _setValue(id, value));
+  Future<dynamic> _setValue(String id, dynamic value) async {
     await _ensureLoaded();
     final definition = _find(id);
     if (definition == null) return null;
@@ -80,6 +119,15 @@ final class DartVariableRuntime extends ChangeNotifier {
   }
 
   Future<dynamic> offsetValue(
+    String id,
+    num offset, {
+    num? minimum,
+    num? maximum,
+  }) => _track(
+    () => _offsetValue(id, offset, minimum: minimum, maximum: maximum),
+  );
+
+  Future<dynamic> _offsetValue(
     String id,
     num offset, {
     num? minimum,
@@ -103,7 +151,7 @@ final class DartVariableRuntime extends ChangeNotifier {
       setValue(id, _find(id)?.defaultValue);
 
   Future<void> _ensureLoaded() async {
-    if (!_loaded) await load();
+    if (!_loaded) await _load();
   }
 
   Future<void> _loadFromDisk() async {
@@ -164,6 +212,7 @@ final class DartVariableRuntime extends ChangeNotifier {
   }
 
   void _publishAll() {
+    if (_disposed) return;
     for (final definition in _definitions.values) {
       _publish(definition, notify: false);
     }
@@ -171,6 +220,7 @@ final class DartVariableRuntime extends ChangeNotifier {
   }
 
   void _publish(DartVariableDefinition definition, {bool notify = true}) {
+    if (_disposed) return;
     onChanged?.call(definition.id, definition.currentValue);
     if (notify) notifyListeners();
   }
