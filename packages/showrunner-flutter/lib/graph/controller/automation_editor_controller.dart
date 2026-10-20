@@ -33,7 +33,7 @@ final class AutomationEditorController {
     definitions.bindRegistry(registry);
     final previous = _ownedRegistry;
     _ownedRegistry = null;
-    if (previous != null) unawaited(previous.close());
+    if (previous != null) _releaseOwnedRegistry(previous);
   }
 
   AutomationDocument get document =>
@@ -163,12 +163,29 @@ final class AutomationEditorController {
     UpdateDocumentMetadataCommand(next.graph.metadata),
     label: label,
   );
+  Future<void> _teardown = Future.value();
+  bool _disposed = false;
+  Future<void> get teardownComplete => _teardown;
+  void _releaseOwnedRegistry(DartPluginRegistry registry) {
+    _teardown = Future.wait([_teardown, registry.close()]).then<void>((_) {});
+    // A synchronous widget dispose cannot await; the session owner awaits this
+    // retained future and reports any failure during application teardown.
+    _teardown.ignore();
+  }
+
+  Future<void> close() {
+    dispose();
+    return _teardown;
+  }
+
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     graph.dispose();
     definitions.dispose();
     final registry = _ownedRegistry;
     _ownedRegistry = null;
-    if (registry != null) unawaited(registry.close());
+    if (registry != null) _releaseOwnedRegistry(registry);
   }
 }
 

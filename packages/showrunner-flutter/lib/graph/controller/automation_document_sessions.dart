@@ -118,6 +118,7 @@ final class AutomationDocumentSessions {
     final session = _documents.removeAt(position);
     session.editor.removeListener(_sessionChanged);
     session.editor.dispose();
+    _trackEditor(session.editor);
     if (_activeFileName == fileName) {
       _activeFileName = _documents.isEmpty
           ? null
@@ -131,6 +132,7 @@ final class AutomationDocumentSessions {
     for (final session in _documents) {
       session.editor.removeListener(_sessionChanged);
       session.editor.dispose();
+      _trackEditor(session.editor);
     }
     _documents.clear();
     _activeFileName = null;
@@ -143,7 +145,20 @@ final class AutomationDocumentSessions {
         .toList(),
     if (_activeFileName != null) 'selectedAutomationTab': _activeFileName,
   };
+  Future<void> _teardown = Future.value();
+  Future<void> get teardownComplete => _teardown;
+  bool _disposed = false;
+  void _trackEditor(AutomationEditorController editor) {
+    _teardown = Future.wait([
+      _teardown,
+      editor.teardownComplete,
+    ]).then<void>((_) {});
+    _teardown.ignore();
+  }
+
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _listeners.clear();
     clear();
   }
