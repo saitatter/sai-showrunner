@@ -23,6 +23,7 @@
 - Document chat setup and remaining Streamer.bot differences using static .NET evidence and an isolated runtime UI comparison.
 
 ### CI & Build
+- Add a reproducible cross-runtime source/import inventory and baseline behavior contract matrix.
 - Wait for asynchronous command dispatch and Save All writes to complete before checking persisted lifecycle results.
 - Speed up visual catalog comparisons by avoiding per-pixel allocations while preserving reports, diff images and strict thresholds.
 - Scroll lazy sidebar groups into view before opening resources in the native visual catalog fixture.
