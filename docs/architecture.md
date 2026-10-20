@@ -58,29 +58,74 @@ See [testing](testing.md) and [product status](product-parity.md).
 
 ## Dependency and lifecycle ownership
 
+`main.dart` owns platform bootstrap and launches the app. `ApplicationController`
+owns startup, restoration and asynchronous teardown. `ShowRunnerPage` borrows its
+models and hosts dialogs, command bindings and canvas/trace view state.
+
 ```mermaid
 flowchart LR
-  UI[Flutter shell and workspaces] --> DOC[Immutable documents and command history]
-  DOC --> CORE[sai_nodes core and shared geometry]
-  UI --> SERVICES[Application service composition]
-  SERVICES --> RUNTIME[Queues, profiles, Stream Plans and execution engine]
-  RUNTIME --> REGISTRY[Built-in plugin contracts and transports]
-  REGISTRY --> REPOS[Typed repositories and separate secret store]
-  REGISTRY --> BRIDGE[HTTP, overlay RPC and remote ACL boundaries]
-  BRIDGE --> BROWSER[TypeScript DOM and WebGL browser runtime]
-  REGISTRY --> NATIVE[Windows, WebRTC, BLE and audio adapters]
+  MAIN[Platform bootstrap] --> APP[ApplicationController]
+  APP --> NAV[WorkspaceNavigationController]
+  APP --> DOC[DocumentSessionCoordinator]
+  APP --> SERVICES[ShowRunnerServices / ApplicationRuntime]
+  UI[ShowRunnerPage / shell] --> APP
+  UI --> FEATURES[Static feature-owned workspace builders]
+  DOC --> SESSIONS[AutomationDocumentSessions / sai_nodes history]
+  UI --> WORKFLOWS[GraphExecutionWorkflow / ProfileActivationWorkflow]
+  WORKFLOWS --> SERVICES
+  SERVICES --> PRODUCERS[Providers / profiles / Stream Plans]
+  PRODUCERS --> SINKS[Chat / viewers / queues / traces]
+  SINKS --> PLUGINS[Plugin registry / transports / event hub]
+  PLUGINS --> BROWSER[TypeScript DOM / WebGL overlay]
 ```
 
-| Owner | Creates/starts | Releases | Stable boundary and constraints |
+The former page field/callback clusters have explicit owners:
+
+| Cluster | Owner and boundary |
+| --- | --- |
+| Tabs, destination/resource selection, restored navigation | `WorkspaceNavigationController`; immutable snapshots, validated settings codec, ordered startup requests and serialized/debounced persistence |
+| Automation editor/history, overlay/plan drafts, save/close/delete and dirty decisions | `DocumentSessionCoordinator`; existing session managers and typed repositories remain authoritative; revision/identity checks protect newer edits from late saves |
+| Run graph/from-node and profile activation | `GraphExecutionWorkflow` and `ProfileActivationWorkflow`; queue/execution boundary, no compilation in widget state; trace selection stays ephemeral in the canvas adapter |
+| Startup, registry binding and model disposal | `ApplicationController` and `ShowRunnerServices`; the view adopts one owner and retains its shutdown future |
+| Window/tray decisions and dirty guards | `WindowCloseCoordinator`; prompts/window operations remain injected UI callbacks |
+| Dialog presentation, profile editor dirty flag/controller, canvas key, trace adapter, catalog refresh revision and command bindings | Local page/view state; no parallel authoring model |
+| Workspace construction and dependencies | Static feature registrations plus seven immutable scoped capability bundles; borrowed services/controllers are explicit fields, resource maps/tab lists are copied snapshots |
+
+Ownership is acquired at construction, including resources without a start hook.
+`ApplicationRuntime` starts in dependency order and stops in reverse order, attempts
+all releases and reports named failures before rethrowing the first one. Repeated
+start/stop calls share completion futures. Failed startup releases constructed
+resources; restarting requires a new application/service graph, not reusing a
+partially stopped instance. Plugin cleanup stops only reached modules once startup
+has begun; never-started registries still release constructor-owned resources.
+
+| Resource / constructor owner | Starter and disposer | Last dependent / cancellation and drain | Restart and executable evidence |
 | --- | --- | --- | --- |
-| Application service composition | Shared event hub, stores, command manager, registry and runtime workers | Application shutdown/lifecycle coordinator | Observable runtime state is separate from authoring documents |
-| Workspace/document sessions | One editor controller and history per opened document | Tab close after dirty guard | `WorkspaceId`, `AutomationDocument`, commands/history and shared scene geometry |
-| Graph runtime and queues | Compiled projections, cancellation and execution sessions | Completion, cancellation or queue shutdown | `GraphExecutionEngine` and `ExecutionTraceSource`; interpreter remains an oracle |
-| Plugin registry | Initializes once, starts modules in registration order | Stops in reverse order, continues after stop failures | `DartPluginModule`; disable gates contracts and is not a worker lifecycle promise |
-| Persistence services | Validated resource and state operations | Serialized atomic writes and explicit caller lifetime | `ResourceRepository`; unsupported documents cannot be overwritten |
-| Overlay and HTTP bridge | Request handlers, socket peers, event/state subscriptions | Bridge disposal removes handlers/listeners and closes peers | Browser protocol is versioned independently of Flutter UI |
-| Chat dock | Loopback listener and a distinct stored random capability | Service stop; disable controls restoration | Chat-only principal, separate from overlay or remote permissions |
-| Remote dashboards and device adapters | Signaling, WebRTC channels, BLE subscriptions, playback | Owning module/connection stop and cancellation | Native integration must stay behind injectable transport boundaries |
+| Navigation / `ApplicationController.create` | Owner start restores; owner shutdown calls `close` | Documents restore before tab availability; timer cancelled and serialized writes flushed; atomic settings patches preserve unrelated preferences | New owner; `workspace_navigation_controller_test.dart`, `application_controller_test.dart` |
+| Document sessions and scratch editor / document coordinator | Restore/open; coordinator `close` | Cancels modal decisions, waits pending writes, disposes sessions, then awaits retained editor teardown | New coordinator; `document_session_coordinator_test.dart`, `automation_document_sessions_test.dart` |
+| Interface preferences / application owner | Owner load/close | Retains load and outstanding writes; prevents late notifications | New owner; `interface_preferences_test.dart` |
+| Event hub / services factory | Constructed before dependents; hub disposed last | Provider/listener and queue/registry consumers stop first | New service graph; `showrunner_services_test.dart` |
+| Startup health / services factory | Load at construction; graph start and stop await the same snapshot | Read-only filesystem probe finishes before storage ownership ends; result retains ready/offline/error | New service graph; startup-health/service tests |
+| Variable notifier / services factory | Registry starts loading; service graph awaits `close` before registry disposal | Views and registry contracts borrow it; queue/profile/plan producers stop first, then pending variable edits/load/reload finish while registry callbacks are still valid | New service graph; variable blocked-write and service lifecycle tests |
+| Overlay OBS source helper / services factory | Lazy use; service graph closes after plugin registry | Plugin helpers release listeners/transports before the event hub | New service graph; service and overlay bridge tests |
+| Plugin registry and configured transports / services factory | Service graph initializes/starts, then closes | Queues/traces/profile/plan/provider dependents stop before registry; registry awaits in-flight start and reverse module disposal | New registry; `plugin_registry_test.dart`, injected failed-start/port-release service tests |
+| Execution traces and queues / services factory | Created before runtime producers; graph disposes | Cancel running tokens, wake gap waits, await pending loads and drains, then close queue streams before trace sink | New graph; `automation_queue_manager_test.dart`, `execution_trace_test.dart` |
+| Viewer synchronizer / services factory | Graph start/stop | Cancel subscriptions/generation before awaiting active repository writes and hub delivery | Can start after completed stop; `viewer_data_sync_test.dart` blocks a real atomic write |
+| Chat runtime and dock / services factory | Graph start/restore; dock stops before chat closes | Identity listener/providers stop first; dock closes listener/peers, chat releases subscriptions/timers | New service graph; chat/dock suites and native chat fixture |
+| Stream Plans / services factory | Borrowed by registry actions, documents and UI; graph closes | Wait transition chain, deactivate while registry/queues still exist; no global runtime shared across applications | New graph; service isolation and `stream_plan_test.dart` |
+| Profile manager/runtime / services factory | Graph starts manager; awaits dispose | Stop provider events first, detach registry listener, await refresh, release managed sessions even after refresh failure | New graph; profile/service lifecycle suites |
+| Provider workers / services factory | Graph start/stop | Stop event production and await workers before profile/plan/chat/viewer/queue sinks close | New graph; provider lifecycle suites |
+| Chat identity listener / services factory | Graph attaches last, detaches first | Disable callback, remove listener and await serialized identity refresh | New graph; service lifecycle tests |
+| Temporary graph plugin registries / editor controller | Editor binding; retained `teardownComplete` awaited by session owner | Borrowed app registry is never closed by editor; only owned temporary registry is released | New editor; editor/session suites |
+| Tray, logger and instance lock / page host | Host initializes; retained host lifecycle future releases | Tray awaits partial initialization; logger flush and instance-lock release follow application teardown | New host; `showrunner_tray_test.dart`, lifecycle and native fixtures |
+
+Window shutdown has a diagnostic deadline only at the host boundary. Timeout
+keeps the native window open and reports that teardown is still running; it does
+not cancel or silently declare success for owned work. Widget `dispose` starts the
+same retained owner future because Flutter cannot await disposal. Explicit host
+callers can await `ApplicationController.shutdown`. Dirty cancel/hide-to-tray
+never starts shutdown. Settings/documents are flushed before accepted native exit.
+The close boundary is covered by `window_close_coordinator_test.dart`.
 
 These types are integration seams, not an ABI guarantee for third-party code.
 External plugins remain isolated and versioned under [ADR-003](architecture/adr-003-external-plugins.md).
