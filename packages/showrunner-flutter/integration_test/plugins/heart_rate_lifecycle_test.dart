@@ -33,8 +33,14 @@ void main() {
         await eventHub.dispose();
       });
 
+      registry.setPluginEnabled('heartrate', false);
       await registry.initialize();
       await registry.start();
+      await registry.setEnabled(
+        const PluginId('heartrate'),
+        true,
+        persist: (_) async {},
+      );
       await registry.invokeAction('heartrate', 'startSimulation', {
         'bpm': 124,
         'batteryPercent': 72,
@@ -75,6 +81,20 @@ void main() {
 
       expect(events, hasLength(1));
       expect(events.single.bpm, 151);
+
+      await registry.setEnabled(
+        const PluginId('heartrate'),
+        false,
+        persist: (_) async {},
+      );
+      expect(service.status, HeartRateConnectionStatus.connected);
+      expect(transport.lastConnection, same(connection));
+      await registry.setEnabled(
+        const PluginId('heartrate'),
+        true,
+        persist: (_) async {},
+      );
+      expect(transport.lastConnection, same(connection));
 
       await registry.invokeAction('heartrate', 'disconnect', const {});
       expect(service.status, HeartRateConnectionStatus.idle);

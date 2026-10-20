@@ -22,6 +22,7 @@
 - Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
+- Separate Twitch EventSub sockets, subscription declarations and event parsing, plus YouTube event parsing, from worker lifecycle management while preserving event routing and payloads.
 - Track plugin lifecycle separately from automation enable policy; serialize persisted toggles, start previously skipped modules once and roll back failed activation without disconnecting shared chat.
 - Move first-party provider setup into owned, statically imported factories and separate Flutter UI assembly from transport composition without changing saved plugin contracts.
 - Validate first-party plugin packs atomically, including dependency order, ownership, contract versions and resource editor coverage before lifecycle startup.

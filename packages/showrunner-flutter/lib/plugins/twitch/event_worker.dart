@@ -1,135 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
-import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../runtime/provider_worker_status.dart';
 import 'actions.dart';
 
-typedef EventSubSocketFactory = Future<EventSubSocket> Function(Uri uri);
+import 'eventsub_socket.dart';
+import 'eventsub_subscriptions.dart';
+import 'event_parser.dart';
 
-abstract interface class EventSubSocket {
-  Stream<dynamic> get messages;
-
-  Future<void> close([int? code, String? reason]);
-}
-
-final class TwitchEventSubSubscription {
-  const TwitchEventSubSubscription({
-    required this.type,
-    required this.version,
-    required this.condition,
-  });
-
-  final String type;
-  final String version;
-  final RuntimeMap condition;
-}
-
-List<TwitchEventSubSubscription> defaultTwitchEventSubSubscriptions(
-  String broadcasterId,
-) => [
-  TwitchEventSubSubscription(
-    type: 'channel.chat.message',
-    version: '1',
-    condition: {'broadcaster_user_id': broadcasterId, 'user_id': broadcasterId},
-  ),
-  for (final type in [
-    'channel.chat.message_delete',
-    'channel.chat.clear',
-    'channel.chat.clear_user_messages',
-  ])
-    TwitchEventSubSubscription(
-      type: type,
-      version: '1',
-      condition: {
-        'broadcaster_user_id': broadcasterId,
-        'user_id': broadcasterId,
-      },
-    ),
-  TwitchEventSubSubscription(
-    type: 'user.whisper.message',
-    version: '1',
-    condition: {'user_id': broadcasterId},
-  ),
-  TwitchEventSubSubscription(
-    type: 'channel.chat.notification',
-    version: '1',
-    condition: {'broadcaster_user_id': broadcasterId, 'user_id': broadcasterId},
-  ),
-  TwitchEventSubSubscription(
-    type: 'channel.ban',
-    version: '1',
-    condition: {'broadcaster_user_id': broadcasterId},
-  ),
-  for (final type in const [
-    'channel.ad_break.begin',
-    'channel.channel_points_custom_reward_redemption.add',
-    'channel.cheer',
-    'channel.hype_train.begin',
-    'channel.hype_train.progress',
-    'channel.hype_train.end',
-    'channel.poll.begin',
-    'channel.poll.end',
-    'channel.prediction.begin',
-    'channel.prediction.lock',
-    'channel.prediction.end',
-    'channel.subscribe',
-    'channel.subscription.gift',
-  ])
-    TwitchEventSubSubscription(
-      type: type,
-      version: type.startsWith('channel.hype_train') ? '2' : '1',
-      condition: {'broadcaster_user_id': broadcasterId},
-    ),
-  TwitchEventSubSubscription(
-    type: 'channel.follow',
-    version: '2',
-    condition: {
-      'broadcaster_user_id': broadcasterId,
-      'moderator_user_id': broadcasterId,
-    },
-  ),
-  TwitchEventSubSubscription(
-    type: 'channel.shoutout.create',
-    version: '1',
-    condition: {
-      'broadcaster_user_id': broadcasterId,
-      'moderator_user_id': broadcasterId,
-    },
-  ),
-  TwitchEventSubSubscription(
-    type: 'channel.shoutout.receive',
-    version: '1',
-    condition: {
-      'broadcaster_user_id': broadcasterId,
-      'moderator_user_id': broadcasterId,
-    },
-  ),
-  TwitchEventSubSubscription(
-    type: 'channel.raid',
-    version: '1',
-    condition: {'to_broadcaster_user_id': broadcasterId},
-  ),
-  TwitchEventSubSubscription(
-    type: 'channel.raid',
-    version: '1',
-    condition: {'from_broadcaster_user_id': broadcasterId},
-  ),
-];
-
-final class WebSocketEventSubSocket implements EventSubSocket {
-  const WebSocketEventSubSocket(this.socket);
-
-  final WebSocket socket;
-
-  @override
-  Stream<dynamic> get messages => socket;
-
-  @override
-  Future<void> close([int? code, String? reason]) => socket.close(code, reason);
-}
+export 'eventsub_socket.dart';
+export 'eventsub_subscriptions.dart';
 
 final class TwitchEventSubWorker {
   TwitchEventSubWorker({
@@ -138,7 +19,7 @@ final class TwitchEventSubWorker {
     required this.broadcasterId,
     required this.request,
     required this.eventHub,
-    this.socketFactory = _connectSocket,
+    this.socketFactory = connectEventSubSocket,
     this.reconnectDelay = const Duration(seconds: 2),
     this.maxReconnectAttempts = 5,
     this.onStatusChanged,
@@ -473,46 +354,10 @@ final class TwitchEventSubWorker {
       }
     }
     final type = subscription['type']?.toString();
-    final eventId = switch (type) {
-      'channel.chat.message' => 'chat',
-      'channel.chat.message_delete' => 'twitchChatDeleted',
-      'channel.chat.clear' => 'twitchChatCleared',
-      'channel.chat.clear_user_messages' => 'twitchUserChatCleared',
-      'user.whisper.message' => 'twitchWhisper',
-      'channel.chat.notification' =>
-        event['notice_type'] == 'first_message' ? 'firstTimeChat' : 'chat',
-      'channel.ban' =>
-        event['is_permanent'] == false || event['ends_at'] != null
-            ? 'timeout'
-            : 'ban',
-      'channel.moderate' => event['action'] == 'timeout' ? 'timeout' : null,
-      'channel.ad_break.begin' => 'adStarted',
-      'channel.ad_break.end' => 'adEnded',
-      'channel.ad_schedule' => 'adSchedule',
-      'channel.channel_points_custom_reward_redemption.add' => 'redemption',
-      'channel.cheer' => 'bits',
-      'channel.follow' => 'follow',
-      'channel.hype_train.begin' => 'hypeTrainStarted',
-      'channel.hype_train.progress' => 'hypeTrainLevelUp',
-      'channel.hype_train.end' => 'hypeTrainEnded',
-      'channel.poll.begin' => 'pollStarted',
-      'channel.poll.end' => 'pollEnded',
-      'channel.prediction.begin' => 'predictionStarted',
-      'channel.prediction.lock' => 'predictionLocked',
-      'channel.prediction.end' => 'predictionSettled',
-      'channel.subscribe' => 'subscription',
-      'channel.subscription.gift' => 'giftedSub',
-      'channel.shoutout.create' => 'shoutoutSent',
-      'channel.shoutout.receive' => 'shoutoutReceived',
-      'channel.raid' =>
-        event['to_broadcaster_user_id']?.toString() == broadcasterId
-            ? 'raid'
-            : 'raidOut',
-      _ => null,
-    };
+    final eventId = twitchDomainEventType(type, event, broadcasterId);
     if (eventId != null) {
       eventHub.emit(eventId, {
-        ..._normalizeTwitchEvent(eventId, event),
+        ...normalizeTwitchEvent(eventId, event),
         if (metadata['message_timestamp'] is String)
           'providerTime': metadata['message_timestamp'],
       });
@@ -527,7 +372,7 @@ final class TwitchEventSubWorker {
               .difference(DateTime.now());
           _adEndTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
             if (!_stopping) {
-              eventHub.emit('adEnded', _normalizeTwitchEvent('adEnded', event));
+              eventHub.emit('adEnded', normalizeTwitchEvent('adEnded', event));
             }
           });
         }
@@ -584,65 +429,3 @@ final class TwitchEventSubWorker {
     if (!_stopping && !isRunning) unawaited(_reconnect());
   }
 }
-
-RuntimeMap _normalizeTwitchEvent(String eventId, Map event) {
-  final normalized = <String, dynamic>{
-    ...Map<String, dynamic>.from(event),
-    'eventType': eventId,
-    'platform': 'twitch',
-  };
-
-  void copyIfPresent(String target, Object? value) {
-    if (value != null) normalized[target] = value;
-  }
-
-  copyIfPresent('viewerId', event['user_id'] ?? event['chatter_user_id']);
-  copyIfPresent(
-    'viewerName',
-    event['user_name'] ?? event['user_login'] ?? event['chatter_user_name'],
-  );
-  final message = event['message'];
-  copyIfPresent('message', message is Map ? message['text'] : message);
-  if (message is Map) copyIfPresent('messageFragments', message['fragments']);
-  copyIfPresent('messageId', event['message_id']);
-  copyIfPresent('bits', event['bits']);
-  copyIfPresent('tier', _tierNumber(event['tier']));
-  copyIfPresent('totalMonths', event['cumulative_months']);
-  copyIfPresent('streakMonths', event['streak_months']);
-  copyIfPresent('userInput', event['user_input']);
-  copyIfPresent('redemptionId', event['id']);
-  copyIfPresent('targetBroadcasterId', event['to_broadcaster_user_id']);
-  copyIfPresent('viewers', event['viewers']);
-
-  final badges = event['badges'];
-  if (badges is List) {
-    normalized['badges'] = badges
-        .whereType<Map>()
-        .map((badge) => badge['set_id']?.toString() ?? badge['title'])
-        .whereType<Object>()
-        .join(',');
-  }
-
-  final reward = event['reward'];
-  if (reward is Map) {
-    copyIfPresent('rewardId', reward['id']);
-    copyIfPresent('rewardName', reward['title']);
-  }
-
-  if (eventId == 'giftedSub') {
-    copyIfPresent('gifterId', event['user_id']);
-    copyIfPresent('gifterName', event['user_name']);
-    copyIfPresent('subs', event['total']);
-  }
-  return normalized;
-}
-
-num? _tierNumber(Object? value) {
-  if (value is num) return value;
-  final tier = int.tryParse(value?.toString() ?? '');
-  if (tier == null) return null;
-  return tier ~/ 1000;
-}
-
-Future<EventSubSocket> _connectSocket(Uri uri) async =>
-    WebSocketEventSubSocket(await WebSocket.connect(uri.toString()));
