@@ -15,7 +15,7 @@
       "status": "equivalent",
       "flutterEvidence": [
         {
-          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "path": "packages/showrunner-flutter/lib/features/dashboard/workspace_registration.dart",
           "marker": "MainDashboardWorkspace"
         }
       ]
@@ -70,7 +70,7 @@
       "status": "equivalent",
       "flutterEvidence": [
         {
-          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "path": "packages/showrunner-flutter/lib/features/profile/workspace_registration.dart",
           "marker": "ProfileWorkspace"
         }
       ]
@@ -81,7 +81,7 @@
       "status": "improved",
       "flutterEvidence": [
         {
-          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "path": "packages/showrunner-flutter/lib/features/queue/workspace_registration.dart",
           "marker": "QueueWorkspace"
         }
       ]
@@ -170,7 +170,7 @@
       "reason": "Feature implementation and unsigned package/install/rollback proofs pass locally; the published release download and installed upgrade still require an authorized manual release and operator verification.",
       "flutterEvidence": [
         {
-          "path": "packages/showrunner-flutter/lib/app/workspace_host.dart",
+          "path": "packages/showrunner-flutter/lib/features/support/workspace_registration.dart",
           "marker": "UpdateWorkspace"
         }
       ],

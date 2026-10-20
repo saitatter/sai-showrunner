@@ -65,31 +65,38 @@ abstract final class WorkspaceIds {
   ];
 }
 
+enum WorkspaceCategory { application, authoring, live, resources }
+
 final class WorkspaceDescriptor {
   const WorkspaceDescriptor({
     required this.id,
     required this.title,
     required this.icon,
+    this.category = WorkspaceCategory.application,
   });
 
   final WorkspaceId id;
   final String title;
   final IconData icon;
+  final WorkspaceCategory category;
 }
 
 const workspaceDescriptors = <WorkspaceDescriptor>[
   WorkspaceDescriptor(
     id: WorkspaceIds.chat,
+    category: WorkspaceCategory.live,
     title: 'Chat',
     icon: Icons.forum_outlined,
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.chatCommands,
+    category: WorkspaceCategory.live,
     title: 'Chat Commands',
     icon: Icons.terminal,
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.graph,
+    category: WorkspaceCategory.authoring,
     title: 'Graph',
     icon: Icons.account_tree,
   ),
@@ -100,26 +107,31 @@ const workspaceDescriptors = <WorkspaceDescriptor>[
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.diagnostics,
+    category: WorkspaceCategory.live,
     title: 'Diagnostics',
     icon: Icons.monitor_heart,
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.automations,
+    category: WorkspaceCategory.authoring,
     title: 'Automations',
     icon: Icons.bolt,
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.profiles,
+    category: WorkspaceCategory.authoring,
     title: 'Profiles',
     icon: Icons.people_alt,
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.queues,
+    category: WorkspaceCategory.live,
     title: 'Queues',
     icon: Icons.queue_music,
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.resources,
+    category: WorkspaceCategory.resources,
     title: 'Resources',
     icon: Icons.layers,
   ),
@@ -141,16 +153,19 @@ const workspaceDescriptors = <WorkspaceDescriptor>[
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.variables,
+    category: WorkspaceCategory.resources,
     title: 'Variables',
     icon: Icons.data_object,
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.viewerVariables,
+    category: WorkspaceCategory.resources,
     title: 'Viewer Variables',
     icon: Icons.person_search_outlined,
   ),
   WorkspaceDescriptor(
     id: WorkspaceIds.remote,
+    category: WorkspaceCategory.live,
     title: 'Remote',
     icon: Icons.public,
   ),

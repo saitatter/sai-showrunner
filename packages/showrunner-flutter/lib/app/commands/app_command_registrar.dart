@@ -17,6 +17,7 @@ final class AppCommandRegistrar {
     required this.selectedWorkspace,
     required this.graphEditorVisible,
     required this.hasActiveAutomation,
+    this.canRunAutomation,
     required this.hasDirtyAutomation,
     required this.canCloseWorkspace,
     required this.canCloseOthers,
@@ -47,6 +48,7 @@ final class AppCommandRegistrar {
   final WorkspaceId Function() selectedWorkspace;
   final bool graphEditorVisible;
   final bool Function() hasActiveAutomation;
+  final bool Function()? canRunAutomation;
   final bool Function()? canSaveDocument;
   final bool Function() hasDirtyAutomation;
   final bool Function() canCloseWorkspace;
@@ -247,7 +249,10 @@ final class AppCommandRegistrar {
       label: 'Run automation',
       icon: Icons.play_arrow,
       shortcut: const SingleActivator(LogicalKeyboardKey.f6),
-      canExecute: (_) => hasActiveAutomation(),
+      canExecute: (_) =>
+          _isGraphWorkspace &&
+          hasActiveAutomation() &&
+          (canRunAutomation?.call() ?? true),
       execute: (_) => onRunAutomation(),
     ),
     AppCommand(

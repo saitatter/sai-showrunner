@@ -1,4 +1,4 @@
-part of '../main.dart';
+part of 'showrunner_page.dart';
 
 extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
   Future<void> _runSmokeScenario() async {

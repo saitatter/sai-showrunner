@@ -11,9 +11,116 @@ import 'package:showrunner_flutter/features/chat/chat_message.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import '../support/graph_fixtures.dart';
+import 'package:showrunner_flutter/app/lifecycle/application_runtime.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'separate application compositions never share active Stream Plan state',
+    () async {
+      final firstRoot = await Directory.systemTemp.createTemp(
+        'services-first-',
+      );
+      final secondRoot = await Directory.systemTemp.createTemp(
+        'services-second-',
+      );
+      final first = ShowRunnerServices.create(
+        dataService: ShowRunnerDataService(firstRoot),
+        onVariableChanged: (_, _) {},
+        ownedRegistryFactory: () async => DartPluginRegistry(),
+      );
+      final second = ShowRunnerServices.create(
+        dataService: ShowRunnerDataService(secondRoot),
+        onVariableChanged: (_, _) {},
+        ownedRegistryFactory: () async => DartPluginRegistry(),
+      );
+      await Future.wait([first.start(), second.start()]);
+      first.streamPlans.activate('only-first');
+      expect(second.streamPlans.isActive, false);
+      await first.shutdown();
+      second.streamPlans.activate('second-is-alive');
+      expect(second.streamPlans.activePlanId, 'second-is-alive');
+      await second.shutdown();
+      await firstRoot.delete(recursive: true);
+      await secondRoot.delete(recursive: true);
+    },
+  );
+
+  test(
+    'close during plugin start waits and prevents late event producers',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'services-start-close-',
+      );
+      final entered = Completer<void>(), release = Completer<void>();
+      var starts = 0, stops = 0;
+      final registry = DartPluginRegistry()
+        ..register(
+          const DartPluginManifest(id: PluginId('gate'), name: 'Gate'),
+          onStart: () async {
+            starts++;
+            entered.complete();
+            await release.future;
+          },
+          onStop: () async {
+            stops++;
+          },
+        );
+      final services = ShowRunnerServices.create(
+        dataService: ShowRunnerDataService(root),
+        onVariableChanged: (_, _) {},
+        ownedRegistryFactory: () async => registry,
+      );
+      final start = services.start();
+      await entered.future;
+      final close = services.shutdown();
+      release.complete();
+      await Future.wait([start, close, services.shutdown()]);
+      expect(starts, 1);
+      expect(stops, 1);
+      expect(services.lifecycleState, ApplicationRuntimeState.stopped);
+      expect(services.chatRuntime.messages, isEmpty);
+      await expectLater(services.start(), throwsStateError);
+      await root.delete(recursive: true);
+    },
+  );
+
+  test(
+    'failed plugin start releases the HTTP listener before reporting failure',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'services-failed-start-',
+      );
+      final failure = StateError('Injected startup failure');
+      HttpServer? listener;
+      var port = 0;
+      final registry = DartPluginRegistry()
+        ..register(
+          const DartPluginManifest(id: PluginId('listener'), name: 'Listener'),
+          onStart: () async {
+            listener = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+            port = listener!.port;
+          },
+          onStop: () async {
+            await listener?.close(force: true);
+          },
+        )
+        ..register(
+          const DartPluginManifest(id: PluginId('failure'), name: 'Failure'),
+          onStart: () async => throw failure,
+        );
+      final services = ShowRunnerServices.create(
+        dataService: ShowRunnerDataService(root),
+        onVariableChanged: (_, _) {},
+        ownedRegistryFactory: () async => registry,
+      );
+      await expectLater(services.start(), throwsA(same(failure)));
+      await services.shutdown();
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, port);
+      await probe.close();
+      await root.delete(recursive: true);
+    },
+  );
 
   test(
     'managed commands run saved graphs through the real queue with event, argument and counter context',

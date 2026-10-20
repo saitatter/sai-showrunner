@@ -1,11 +1,11 @@
-part of '../main.dart';
+part of 'showrunner_page.dart';
 
 extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
   Future<void> _openAutomation(
     AutomationDocument automation,
     String fileName,
   ) async {
-    if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
+    if (!WorkspaceNavigationSnapshot.isSafeAutomationFileName(fileName)) return;
     _captureActiveAutomation();
     final session = _automationDocuments.open(automation, fileName);
     _loadAutomationSession(session);
@@ -38,6 +38,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
   }
 
   void _loadAutomationSession(AutomationEditorSession session) {
+    if (_disposed) return;
     _graphExecution.setSource(
       ExecutionTraceSource(type: 'automation', id: session.fileName),
     );
@@ -53,7 +54,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     final selection =
         await showDialog<({String name, AutomationStarter? starter})>(
           context: context,
-          builder: (context) => _NewAutomationDialog(starterOnly: starterOnly),
+          builder: (context) => NewAutomationDialog(starterOnly: starterOnly),
         );
     if (!mounted) return;
     if (selection == null) return;
@@ -151,7 +152,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
   }
 
   Future<void> _renameAutomationEntry(String fileName, String name) async {
-    if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
+    if (!WorkspaceNavigationSnapshot.isSafeAutomationFileName(fileName)) return;
     final file = File(
       '${widget.dataService.userDirectory.path}/automations/$fileName',
     );
@@ -165,7 +166,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
   }
 
   Future<void> _renameProfileEntry(String fileName, String name) async {
-    if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
+    if (!WorkspaceNavigationSnapshot.isSafeAutomationFileName(fileName)) return;
     final file = File(
       '${widget.dataService.userDirectory.path}/profiles/$fileName',
     );
@@ -187,7 +188,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
   }
 
   Future<void> _deleteProfileEntry(String fileName) async {
-    if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
+    if (!WorkspaceNavigationSnapshot.isSafeAutomationFileName(fileName)) return;
     final profileController = _profileWorkspaceController;
     if (profileController.activeProfileFile == fileName &&
         !await profileController.confirmClose()) {
@@ -209,7 +210,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     String resourceType,
     String name,
   ) async {
-    if (!_ShowRunnerPageState._isSafeResourceId(resource.id)) return;
+    if (!WorkspaceNavigationSnapshot.isSafeResourceId(resource.id)) return;
     final definition = createDefaultResourceEditorRegistry().find(resourceType);
     if (definition == null) return;
     final updated = ResourceData(
@@ -240,58 +241,49 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     ResourceData resource,
     String resourceType,
   ) async {
-    if (!_ShowRunnerPageState._isSafeResourceId(resource.id)) return;
-    final definition = createDefaultResourceEditorRegistry().find(resourceType);
-    if (definition == null) return;
-    final repository = ResourceRepository(
-      Directory(
-        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
+    if (!WorkspaceNavigationSnapshot.isSafeResourceId(resource.id)) return;
+    if (!await _guardDocumentClose(
+      () => _documents.deleteResource(
+        resource,
+        resourceType,
+        _showAutomationCloseDialog,
       ),
-      resourceType: resourceType,
-      secretSettings: widget.dataService.secretSettingsStore,
-    );
-    if (resourceType == 'Dashboard') {
-      await DashboardCloudSyncService(
-        dataService: widget.dataService,
-      ).synchronize(
-        ResourceData(
-          id: resource.id,
-          config: {...resource.config, 'remoteTwitchIds': const <String>[]},
-          state: resource.state,
-        ),
-      );
+    )) {
+      return;
     }
-    await repository.delete(resource.id);
+    final workspace = switch (resourceType) {
+      'Overlay' => WorkspaceIds.overlay(resource.id),
+      'StreamPlan' => WorkspaceIds.streamPlan(resource.id),
+      _ => null,
+    };
+    if (workspace != null) {
+      if (!_workspaceDocuments.canClose) {
+        _workspaceDocuments.open(WorkspaceIds.home);
+      }
+      _workspaceDocuments.close(workspace);
+    }
     if (!mounted) return;
     _updatePageState(() => _projectCatalogRevision++);
   }
 
   Future<void> _deleteAutomation(String fileName) async {
-    if (!_ShowRunnerPageState._isSafeAutomationFileName(fileName)) return;
-    if (_activeAutomationFile == fileName && !await _confirmAutomationClose()) {
+    if (!WorkspaceNavigationSnapshot.isSafeAutomationFileName(fileName)) return;
+    if (!await _guardDocumentClose(
+      () => _documents.deleteAutomation(fileName, _showAutomationCloseDialog),
+    )) {
       return;
     }
-    final file = File(
-      '${widget.dataService.userDirectory.path}/automations/$fileName',
-    );
-    await AutomationRepository(file).delete();
     if (!mounted) return;
-    if (_activeAutomationFile == fileName) {
-      _automationDocuments.close(fileName);
-      final replacement = _activeAutomationSession;
-      if (replacement == null) {
-        _scratchEditor.load(AutomationDocument.empty());
-        _graphExecution.setSource(
-          ExecutionTraceSource(
-            type: 'automation',
-            id: _scratchEditor.document.id,
-          ),
-        );
-      } else {
-        _loadAutomationSession(replacement);
-      }
+    final replacement = _activeAutomationSession;
+    if (replacement != null) {
+      _loadAutomationSession(replacement);
     } else {
-      _automationDocuments.close(fileName);
+      _graphExecution.setSource(
+        ExecutionTraceSource(
+          type: 'automation',
+          id: _scratchEditor.document.id,
+        ),
+      );
     }
     _updatePageState(() => _projectCatalogRevision++);
     unawaited(_persistNavigation());

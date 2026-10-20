@@ -1,364 +1,90 @@
-import '../graph/domain/automation_document.dart';
-import 'dart:async';
-import 'dart:io';
-import '../features/chat/unified_chat_runtime.dart';
-import '../features/chat/chat_dock_service.dart';
-import '../features/chat/chat_workspace.dart';
-import '../features/chat/commands_workspace.dart';
-
 import 'package:flutter/material.dart';
-
-import '../graph/controller/automation_editor_controller.dart';
-import '../graph/ui/automation_graph_workspace.dart';
-import '../graph/execution/showrunner_execution_visual_adapter.dart';
-import 'commands/app_command.dart';
-import '../features/automation/automation_catalog_workspace.dart';
-import '../features/dashboard/main_dashboard_workspace.dart';
-import '../features/diagnostics/diagnostics_workspace.dart';
-import '../graph/ui/automation_resource_workspace.dart';
-import '../features/plugins/plugin_workspace.dart';
-import '../features/profile/profile_workspace.dart';
-import '../features/queue/queue_workspace.dart';
-import '../features/remote/remote_workspace.dart';
-import '../features/resources/resource_editor_registry.dart';
-import '../features/resources/resource_options.dart';
-import '../features/resources/resources_workspace.dart';
-import '../features/settings/interface_preferences.dart';
-import '../features/settings/settings_workspace.dart';
-import '../features/setup/setup_workspace.dart';
-import '../features/support/support_workspaces.dart';
-import '../features/variables/variables_workspace.dart';
-import '../plugins/registry/plugin_registry.dart';
-import '../plugins/overlays/overlay_presence.dart';
-import '../plugins/obs/overlay_source_service.dart';
-import '../plugins/runtime/provider_event_workers.dart';
-import '../plugins/stream_plans/manifest.dart';
-import '../plugins/variables/runtime.dart';
-import '../runtime/action_queue.dart';
-import '../runtime/automation_queue_manager.dart';
-import '../runtime/profile_runtime.dart';
-import '../schema/resource.dart';
-import '../services/showrunner_data_service.dart';
-import '../services/update_check_service.dart';
-import '../services/update_install_service.dart';
-import '../graph/controller/automation_document_sessions.dart';
-import 'startup_health.dart';
+import 'workspace_context.dart';
 import 'workspace_registry.dart';
+import '../features/chat/workspace_registration.dart' as features_chat;
+import '../graph/ui/workspace_registration.dart' as graph_ui;
+import '../features/automation/workspace_registration.dart'
+    as features_automation;
+import '../features/plugins/workspace_registration.dart' as features_plugins;
+import '../features/diagnostics/workspace_registration.dart'
+    as features_diagnostics;
+import '../features/profile/workspace_registration.dart' as features_profile;
+import '../features/queue/workspace_registration.dart' as features_queue;
+import '../features/resources/workspace_registration.dart'
+    as features_resources;
+import '../features/support/workspace_registration.dart' as features_support;
+import '../features/settings/workspace_registration.dart' as features_settings;
+import '../features/setup/workspace_registration.dart' as features_setup;
+import '../features/variables/workspace_registration.dart'
+    as features_variables;
+import '../features/remote/workspace_registration.dart' as features_remote;
+import '../features/dashboard/workspace_registration.dart'
+    as features_dashboard;
 
-/// Dependencies needed by a workspace builder, assembled once by the shell.
-final class WorkspaceHostContext {
-  const WorkspaceHostContext({
-    required this.dataService,
-    required this.graphEditor,
-    this.graphCanvasKey,
-    this.graphExecution,
-    this.onRunGraph,
-    required this.actionQueue,
-    required this.healthFuture,
-    required this.providerEvents,
-    this.chatRuntime,
-    this.chatDock,
-    required this.pluginRegistryFuture,
-    this.overlayPresenceReaderFuture,
-    this.overlayObsSourceService,
-    required this.profileRuntimeFuture,
-    required this.showGraphEditor,
-    required this.onRunNode,
-    required this.onOpenAutomation,
-    required this.onRepairAutomation,
-    required this.onCreateAutomation,
-    required this.onDeleteAutomation,
-    required this.interfacePreferences,
-    required this.onOpenWorkspace,
-    this.commands,
-    this.queueManager,
-    this.streamPlanRuntime,
-    this.variableRuntime,
-    this.automationDocuments,
-    this.onAutomationSelected,
-    this.onAutomationClosed,
-    this.onAutomationReordered,
-    this.profileController,
-    this.profileDirty = false,
-    this.onProfileDirtyChanged,
-    this.onProfileEntriesChanged,
-    this.onRenameProfile,
-    this.onDeleteProfile,
-    this.onCreateProfile,
-    this.projectCatalogRevision = 0,
-    this.selectedResourceType,
-    this.selectedResourceId,
-    this.onResourceSelected,
-    this.onOpenResource,
-    this.onRenameResource,
-    this.onDeleteResource,
-    this.onCreateResource,
-    this.overlayResources = const <String, ResourceData>{},
-    this.onSaveOverlay,
-    this.onOverlayDirtyChanged,
-    this.onOverlayDocumentChanged,
-    this.streamPlanResources = const <String, ResourceData>{},
-    this.onSaveStreamPlan,
-    this.onStreamPlanDocumentChanged,
-    this.selectedPluginId,
-    this.onPluginSelected,
-    this.updateService,
-    this.installService,
-    this.onRestartRequested,
-  });
+typedef WorkspaceBuilder =
+    Widget Function(BuildContext context, WorkspaceHostContext host);
 
-  final ShowRunnerDataService dataService;
-  final AutomationEditorController graphEditor;
-  final GlobalKey<AutomationGraphWorkspaceState>? graphCanvasKey;
-  final ShowrunnerExecutionVisualAdapter? graphExecution;
-  final Future<void> Function()? onRunGraph;
-  final DartActionQueue actionQueue;
-  final DartAutomationQueueManager? queueManager;
-  final Future<StartupHealthSnapshot> healthFuture;
-  final ProviderEventRuntime providerEvents;
-  final UnifiedChatRuntime? chatRuntime;
-  final ChatDockService? chatDock;
-  final Future<DartPluginRegistry> pluginRegistryFuture;
-  final Future<OverlayPresenceReader?>? overlayPresenceReaderFuture;
-  final OverlayObsSourceActions? overlayObsSourceService;
-  final Future<DartProfileRuntime> profileRuntimeFuture;
-  final DartStreamPlanRuntime? streamPlanRuntime;
-  final DartVariableRuntime? variableRuntime;
-  final bool showGraphEditor;
-  final Future<void> Function(String schemaNodeId)? onRunNode;
-  final FutureOr<void> Function(AutomationDocument automation, String fileName)
-  onOpenAutomation;
-  final Future<void> Function(AutomationDocument automation, String fileName)
-  onRepairAutomation;
-  final Future<void> Function() onCreateAutomation;
-  final Future<void> Function(String fileName) onDeleteAutomation;
-  final FlutterInterfacePreferences interfacePreferences;
-  final ValueChanged<WorkspaceId> onOpenWorkspace;
-  final AppCommandRegistry? commands;
-  final AutomationDocumentSessions? automationDocuments;
-  final ValueChanged<String>? onAutomationSelected;
-  final FutureOr<void> Function(String fileName)? onAutomationClosed;
-  final void Function(int oldPosition, int newPosition)? onAutomationReordered;
-  final ProfileWorkspaceController? profileController;
-  final bool profileDirty;
-  final ValueChanged<bool>? onProfileDirtyChanged;
-  final VoidCallback? onProfileEntriesChanged;
-  final FutureOr<void> Function(String fileName, String name)? onRenameProfile;
-  final FutureOr<void> Function(String fileName)? onDeleteProfile;
-  final FutureOr<void> Function()? onCreateProfile;
-  final int projectCatalogRevision;
-  final String? selectedResourceType;
-  final String? selectedResourceId;
-  final ValueChanged<String>? onResourceSelected;
-  final FutureOr<void> Function(ResourceData resource, String resourceType)?
-  onOpenResource;
-  final FutureOr<void> Function(
-    ResourceData resource,
-    String resourceType,
-    String name,
-  )?
-  onRenameResource;
-  final FutureOr<void> Function(ResourceData resource, String resourceType)?
-  onDeleteResource;
-  final FutureOr<void> Function(String resourceType)? onCreateResource;
-  final Map<String, ResourceData> overlayResources;
-  final Future<void> Function(ResourceData resource)? onSaveOverlay;
-  final void Function(String resourceId, bool dirty)? onOverlayDirtyChanged;
-  final void Function(ResourceData resource, bool dirty)?
-  onOverlayDocumentChanged;
-  final Map<String, ResourceData> streamPlanResources;
-  final Future<void> Function(ResourceData resource)? onSaveStreamPlan;
-  final void Function(ResourceData resource, bool dirty)?
-  onStreamPlanDocumentChanged;
-  final String? selectedPluginId;
-  final ValueChanged<String>? onPluginSelected;
-  final UpdateCheckService? updateService;
-  final UpdateInstallService? installService;
-  final Future<bool> Function()? onRestartRequested;
+final class WorkspaceRegistration {
+  const WorkspaceRegistration(this.descriptor, this.builder);
+  final WorkspaceDescriptor descriptor;
+  final WorkspaceBuilder builder;
 }
 
-/// Builds registered top-level workspaces without coupling the shell to pages.
+/// Deterministic feature registrations; no service locator or dynamic loading.
 final class WorkspaceRegistry {
-  const WorkspaceRegistry();
+  const WorkspaceRegistry({this.builders = defaultBuilders});
+  final Map<WorkspaceId, WorkspaceBuilder> builders;
+  static const defaultBuilders = <WorkspaceId, WorkspaceBuilder>{
+    WorkspaceIds.chat: features_chat.buildChatWorkspace,
+    WorkspaceIds.chatCommands: features_chat.buildChatCommandsWorkspace,
+    WorkspaceIds.graph: graph_ui.buildGraphWorkspace,
+    WorkspaceIds.automations: features_automation.buildAutomationsWorkspace,
+    WorkspaceIds.plugins: features_plugins.buildPluginsWorkspace,
+    WorkspaceIds.diagnostics: features_diagnostics.buildDiagnosticsWorkspace,
+    WorkspaceIds.profiles: features_profile.buildProfilesWorkspace,
+    WorkspaceIds.queues: features_queue.buildQueuesWorkspace,
+    WorkspaceIds.resources: features_resources.buildResourcesWorkspace,
+    WorkspaceIds.logs: features_support.buildLogsWorkspace,
+    WorkspaceIds.about: features_support.buildAboutWorkspace,
+    WorkspaceIds.updates: features_support.buildUpdatesWorkspace,
+    WorkspaceIds.settings: features_settings.buildSettingsWorkspace,
+    WorkspaceIds.setup: features_setup.buildSetupWorkspace,
+    WorkspaceIds.variables: features_variables.buildVariablesWorkspace,
+    WorkspaceIds.viewerVariables:
+        features_variables.buildViewerVariablesWorkspace,
+    WorkspaceIds.remote: features_remote.buildRemoteWorkspace,
+    WorkspaceIds.home: features_dashboard.buildHomeWorkspace,
+  };
+
+  WorkspaceRegistration resolve(WorkspaceId id) {
+    if (WorkspaceIds.isOverlay(id) || WorkspaceIds.isStreamPlan(id)) {
+      return WorkspaceRegistration(
+        WorkspaceDescriptor(
+          id: id,
+          title: WorkspaceIds.isOverlay(id) ? 'Overlay' : 'Stream Plan',
+          icon: Icons.layers,
+          category: WorkspaceCategory.resources,
+        ),
+        (context, host) =>
+            features_resources.buildResourceDocumentWorkspace(
+              context,
+              id,
+              host,
+            ) ??
+            features_support.buildLogsWorkspace(context, host),
+      );
+    }
+    return WorkspaceRegistration(
+      workspaceDescriptorFor(id),
+      builders[id] ?? features_support.buildLogsWorkspace,
+    );
+  }
 
   Widget build(
     BuildContext context,
     WorkspaceId id,
     WorkspaceHostContext host,
   ) {
-    final overlayId = WorkspaceIds.overlayResourceId(id);
-    if (overlayId != null) {
-      final resource = host.overlayResources[overlayId];
-      if (resource == null || host.onSaveOverlay == null) {
-        return const LogsWorkspace();
-      }
-      return OverlayEditorPage(
-        resource: resource,
-        onSave: host.onSaveOverlay!,
-        onDocumentChanged: host.onOverlayDocumentChanged,
-        presenceReaderFuture: host.overlayPresenceReaderFuture,
-        obsSourceService: host.overlayObsSourceService,
-        templateSuggestions: [
-          for (final definition
-              in host.variableRuntime?.definitions ??
-                  const <DartVariableDefinition>[]) ...[
-            definition.id,
-            if (definition.name?.trim().isNotEmpty == true)
-              definition.name!.trim(),
-          ],
-        ],
-        onDirtyChanged: (dirty) =>
-            host.onOverlayDirtyChanged?.call(resource.id, dirty),
-      );
-    }
-
-    final streamPlanId = WorkspaceIds.streamPlanResourceId(id);
-    if (streamPlanId != null) {
-      final resource = host.streamPlanResources[streamPlanId];
-      if (resource == null || host.onSaveStreamPlan == null) {
-        return const LogsWorkspace();
-      }
-      return StreamPlanEditorPage(
-        resource: resource,
-        onSave: host.onSaveStreamPlan!,
-        registryFuture: host.pluginRegistryFuture,
-        resourceOptionsLoader: (resourceType) =>
-            loadResourceOptions(host.dataService, resourceType),
-        documentMode: true,
-        onDocumentChanged: host.onStreamPlanDocumentChanged,
-      );
-    }
-
-    return switch (id) {
-      WorkspaceIds.chat =>
-        host.chatRuntime == null
-            ? const SizedBox.shrink()
-            : ChatWorkspace(
-                runtime: host.chatRuntime!,
-                providerEvents: host.providerEvents,
-                dock: host.chatDock,
-              ),
-      WorkspaceIds.chatCommands =>
-        host.chatRuntime == null
-            ? const SizedBox.shrink()
-            : CommandsWorkspace(
-                manager: host.chatRuntime!.commands,
-                dataService: host.dataService,
-              ),
-      WorkspaceIds.graph =>
-        host.showGraphEditor
-            ? AutomationResourceWorkspace(
-                editor: host.graphEditor,
-                documents: host.automationDocuments,
-                onSelected: host.onAutomationSelected,
-                onClosed: host.onAutomationClosed,
-                onReordered: host.onAutomationReordered,
-                healthFuture: host.healthFuture,
-                canvasKey: host.graphCanvasKey,
-                execution: host.graphExecution,
-                onRun: host.onRunGraph,
-                onRunNode: host.onRunNode,
-                resourceOptionsLoader: (type) =>
-                    loadResourceOptions(host.dataService, type),
-              )
-            : const LogsWorkspace(),
-      WorkspaceIds.plugins => PluginWorkspace(
-        dataService: host.dataService,
-        registryFuture: host.pluginRegistryFuture,
-        providerEvents: host.providerEvents,
-        selectedPluginId: host.selectedPluginId,
-        commands: host.commands,
-        onOpenWorkspace: host.onOpenWorkspace,
-      ),
-      WorkspaceIds.diagnostics => DiagnosticsWorkspace(
-        healthFuture: host.healthFuture,
-        queue: host.actionQueue,
-        providerEvents: host.providerEvents,
-        registryFuture: host.pluginRegistryFuture,
-      ),
-      WorkspaceIds.automations => AutomationCatalogWorkspace(
-        dataService: host.dataService,
-        onOpen: host.onOpenAutomation,
-        onRepair: host.onRepairAutomation,
-        onCreate: host.onCreateAutomation,
-        onDelete: host.onDeleteAutomation,
-      ),
-      WorkspaceIds.profiles => ProfileWorkspace(
-        dataService: host.dataService,
-        providerEvents: host.providerEvents,
-        registryFuture: host.pluginRegistryFuture,
-        runtimeFuture: host.profileRuntimeFuture,
-        controller: host.profileController,
-        onDirtyChanged: host.onProfileDirtyChanged,
-        onEntriesChanged: host.onProfileEntriesChanged,
-        onCreate: host.onCreateProfile,
-      ),
-      WorkspaceIds.queues => QueueWorkspace(
-        dataService: host.dataService,
-        queue: host.actionQueue,
-        queueManager: host.queueManager,
-      ),
-      WorkspaceIds.resources => ResourcesWorkspace(
-        dataService: host.dataService,
-        editorRegistry: createDefaultResourceEditorRegistry(),
-        registryFuture: host.pluginRegistryFuture,
-        streamPlanRuntime: host.streamPlanRuntime,
-        variableRuntime: host.variableRuntime,
-        resourceType: host.selectedResourceType,
-        resourceId: host.selectedResourceId,
-        revision: host.projectCatalogRevision,
-        onCreate: host.onCreateResource,
-        onOpenResource: host.onOpenResource,
-      ),
-      WorkspaceIds.logs => const LogsWorkspace(),
-      WorkspaceIds.about => const AboutWorkspace(),
-      WorkspaceIds.updates => UpdateWorkspace(
-        updateService: host.updateService,
-        installService: host.installService,
-        onRestartRequested: host.onRestartRequested,
-        downloadDirectory: Directory(
-          '${host.dataService.userDirectory.path}/updates',
-        ),
-        rollbackDirectory: Directory(
-          '${host.dataService.userDirectory.path}/updates/rollback',
-        ),
-      ),
-      WorkspaceIds.settings => SettingsWorkspace(
-        preferences: host.interfacePreferences,
-        registryFuture: host.pluginRegistryFuture,
-        dataService: host.dataService,
-      ),
-      WorkspaceIds.setup => SetupWorkspace(
-        dataService: host.dataService,
-        onOpenPlugin: (pluginId) {
-          host.onPluginSelected?.call(pluginId);
-          host.onOpenWorkspace(WorkspaceIds.plugins);
-        },
-      ),
-      WorkspaceIds.variables => VariablesWorkspace(
-        dataService: host.dataService,
-        eventHub: host.providerEvents.eventHub,
-        variableRuntime: host.variableRuntime,
-      ),
-      WorkspaceIds.viewerVariables => VariablesWorkspace(
-        dataService: host.dataService,
-        eventHub: host.providerEvents.eventHub,
-        variableRuntime: host.variableRuntime,
-        initialSection: VariablesWorkspaceSection.viewerVariables,
-      ),
-      WorkspaceIds.remote => RemoteWorkspace(
-        dataService: host.dataService,
-        registryFuture: host.pluginRegistryFuture,
-      ),
-      WorkspaceIds.home => MainDashboardWorkspace(
-        dataService: host.dataService,
-        actionQueue: host.actionQueue,
-        providerEvents: host.providerEvents,
-        registryFuture: host.pluginRegistryFuture,
-        streamPlanRuntime: host.streamPlanRuntime,
-        onOpenWorkspace: host.onOpenWorkspace,
-      ),
-      _ => const LogsWorkspace(),
-    };
+    return resolve(id).builder(context, host);
   }
 }

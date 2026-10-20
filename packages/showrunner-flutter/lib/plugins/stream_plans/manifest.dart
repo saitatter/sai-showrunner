@@ -15,8 +15,6 @@ import '../registry/builtin_resource_specs.dart';
 import '../registry/plugin_registry.dart';
 import 'contracts.dart';
 
-final streamPlanRuntime = DartStreamPlanRuntime();
-
 typedef DartStreamPlanComponentHandler =
     FutureOr<void> Function(String segmentId, dynamic config);
 
@@ -56,6 +54,31 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
   StreamPlanData? _activePlan;
   final Map<String, DartStreamPlanComponent> _componentTypes = {};
   Future<void>? _transition;
+
+  Future<void>? _closing;
+  bool _closed = false;
+  Future<void> close({DartPluginRegistry? registry}) =>
+      _closing ??= _close(registry);
+  Future<void> _close(DartPluginRegistry? registry) async {
+    try {
+      await _transition;
+      if (isActive && registry != null) {
+        await _deactivatePlanInternal(registry: registry);
+      }
+    } finally {
+      activePlanId = null;
+      activeSegmentId = null;
+      _activePlan = null;
+      _componentTypes.clear();
+      _closed = true;
+      super.dispose();
+    }
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_closed) super.notifyListeners();
+  }
 
   StreamPlanData? get activePlan => _activePlan;
   bool get isActive => activePlanId != null;
@@ -480,6 +503,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
   }
 
   Future<T> _exclusive<T>(Future<T> Function() operation) async {
+    if (_closing != null) throw StateError('Stream Plan runtime is closed.');
     final previous = _transition;
     // Reserve our position before awaiting the preceding transition. Otherwise
     // multiple rapid commands wait for the same predecessor and run together.
@@ -501,7 +525,7 @@ DartPluginManifest createStreamPlansPlugin({
   DartAutomationQueueManager? queueManager,
   GraphExecutionEngine? executionEngine,
 }) {
-  final activeRuntime = runtime ?? streamPlanRuntime;
+  final activeRuntime = runtime ?? DartStreamPlanRuntime();
   if (executionEngine != null) activeRuntime.executionEngine = executionEngine;
   if (queueManager != null) activeRuntime.queueManager = queueManager;
   return DartPluginManifest(

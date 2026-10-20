@@ -132,7 +132,9 @@ void main() {
   });
 
   test('registers Stream Plan navigation actions', () async {
-    final registry = DartPluginRegistry()..register(createStreamPlansPlugin());
+    final runtime = DartStreamPlanRuntime();
+    final registry = DartPluginRegistry()
+      ..register(createStreamPlansPlugin(runtime: runtime));
 
     expect(registry.findAction('stream-plans', 'nextSegment'), isNotNull);
     expect(registry.findAction('stream-plans', 'prevSegment'), isNotNull);
@@ -140,7 +142,7 @@ void main() {
       registry.findAction('stream-plans', 'nextSegment')?.decodeConfig({}),
       isA<StreamPlanNavigationConfig>(),
     );
-    streamPlanRuntime.activate('plan-1', segmentId: 'one');
+    runtime.activate('plan-1', segmentId: 'one');
     const segments = [
       {'id': 'one', 'name': 'One'},
       {'id': 'two', 'name': 'Two'},
@@ -150,7 +152,7 @@ void main() {
     });
     expect((result as Map)['action'], 'nextSegment');
     expect(result['segmentId'], 'two');
-    streamPlanRuntime.deactivate();
+    runtime.deactivate();
   });
 
   test('executes plan and segment transitions in configured order', () async {

@@ -6,11 +6,12 @@ import 'package:showrunner_flutter/app/workspace_registry.dart';
 void main() {
   test('builds the shared application command surface', () async {
     var activeAutomation = false;
+    var workspace = WorkspaceIds.graph;
     var dirtyAutomation = false;
     var undoAvailable = true;
     var executed = false;
     final registry = AppCommandRegistrar(
-      selectedWorkspace: () => WorkspaceIds.graph,
+      selectedWorkspace: () => workspace,
       graphEditorVisible: true,
       hasActiveAutomation: () => activeAutomation,
       hasDirtyAutomation: () => dirtyAutomation,
@@ -58,5 +59,9 @@ void main() {
     expect(registry.canExecute('file.save', context), isTrue);
     expect(registry.canExecute('file.saveAll', context), isTrue);
     expect(registry.canExecute('edit.undo', context), isFalse);
+    expect(registry.canExecute('run.automation', context), isTrue);
+    workspace = WorkspaceIds.home;
+    expect(registry.canExecute('run.automation', context), isFalse);
+    await registry.run('run.automation', context);
   });
 }
