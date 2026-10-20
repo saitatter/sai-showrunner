@@ -29,6 +29,35 @@ Plans, plugin events and node runs. The production compiled engine uses a cached
 flat program and Dart VM. The interpreter is retained as a correctness oracle.
 Cancellation, guards and failures are propagated through actions and subgraphs.
 
+`GraphInvocation` is the runtime request contract above the engine. It carries an
+immutable document or repository file target, typed origin, entry node/space,
+explicit dispatch policy, collection-snapshotted context, cancellation handle and
+trace mode. Runtime handles/observers are not wire DTOs. Every evaluation gets
+fresh collection state; opaque runtime capabilities remain explicit references.
+`AutomationInvocationService` coordinates loading, queue preflight and execution
+without retrying actions. `InvocationAccepted` contains an immutable enqueue
+receipt and separately observable queue item; it is never a completed graph.
+`InvocationCompleted` contains the actual engine result and timestamps. Failures
+retain their stage, original exception and stack, including typed provider errors.
+
+The execution pathway inventory preserves these intentional dispatch choices:
+
+| Path | Dispatch and acknowledgement | Context and source |
+| --- | --- | --- |
+| Editor run / run from node | Always queue; editor awaits drain, or reports pending when paused | Fresh context, selected node/space, automation/file identity and queue/item trace link |
+| Inline editor test | Direct, await completion | Fresh context, inline-test source and test trace mode |
+| Profile activation/deactivation/triggers | Named/document queue when configured, otherwise direct | Registry state plus caller locals, event/trigger payload and profile/phase/trigger identity |
+| Stream Plan phases and segment transitions | Document queue when configured, otherwise direct; transitions serialize | Caller locals/state plus streamPlan object/flat keys and plan/segment/phase identity |
+| Chat commands and quick actions | Strict load then enqueue selected queue; counters/cooldowns acknowledge acceptance | Scoped values plus event/trigger views, command/action identity and platform |
+| Remote button | Authenticated RPC emits an event; active profile determines dispatch | RPC acknowledgement is not graph completion; profile trigger supplies execution source |
+| ShowRunner runAutomation / addToQueue | Respectively direct completion / explicit queue acceptance | Existing action context or payload/queuedAt/source wrapper; no implicit retry |
+
+Queues capture a graph snapshot at enqueue and explicit replay uses that snapshot;
+they do not reload a newer document at execution. Queue policy owns execution
+tokens, timeout and gap. Direct execution retains the caller's cancellation handle.
+Compiler/cache and VM remain below invocation orchestration; the independent
+interpreter stays available for differential correctness fixtures.
+
 Shader authoring uses the same immutable graph/core/canvas. Semantic changes
 invalidate generated GLSL; presentation changes do not. Node previews use derived
 documents. Shader source is compiled/rendered by the actual browser WebGL runtime.
