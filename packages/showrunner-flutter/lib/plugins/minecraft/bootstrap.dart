@@ -19,9 +19,14 @@ Future<void> registerConfiguredMinecraft(
       connectionResolver: (id) async =>
           (await rconConnectionRepository.load(id))?.config,
     ),
+
+    initialHealth: const DartPluginHealth.connectionUnchecked(),
   );
 }
 
 void registerDefaultMinecraft(DartPluginRegistry registry) {
-  registry.register(createMinecraftPlugin());
+  registry.register(
+    createMinecraftPlugin(),
+    initialHealth: const DartPluginHealth.notConfigured(),
+  );
 }

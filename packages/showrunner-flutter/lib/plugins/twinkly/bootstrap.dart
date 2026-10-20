@@ -7,12 +7,16 @@ void registerConfiguredTwinkly(DartPluginRegistry registry) {
   final twinklyTransport = TwinklyHttpTransport();
   registry.register(
     createTwinklyPlugin(TwinklyTransport(twinklyTransport.request)),
+
+    initialHealth: const DartPluginHealth.connectionUnchecked(),
   );
 }
 
 void registerDefaultTwinkly(DartPluginRegistry registry) {
   registry.register(
     createTwinklyPlugin(TwinklyTransport(_unconfiguredTwinkly)),
+
+    initialHealth: const DartPluginHealth.notConfigured(),
   );
 }
 

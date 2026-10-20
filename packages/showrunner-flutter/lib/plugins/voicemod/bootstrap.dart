@@ -18,6 +18,8 @@ Future<void> registerConfiguredVoiceMod(
   registry.register(
     createVoiceModPlugin(voiceModTransport),
     onStop: voiceModTransport.close,
+
+    initialHealth: const DartPluginHealth.connectionUnchecked(),
   );
 }
 
@@ -29,6 +31,8 @@ void registerDefaultVoiceMod(DartPluginRegistry registry) {
   registry.register(
     createVoiceModPlugin(voiceModTransport),
     onStop: voiceModTransport.close,
+
+    initialHealth: const DartPluginHealth.notConfigured(),
   );
 }
 

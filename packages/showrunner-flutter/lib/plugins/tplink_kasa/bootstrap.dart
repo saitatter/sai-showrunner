@@ -34,11 +34,18 @@ Future<void> registerConfiguredKasa(
         );
       },
     ),
+
+    initialHealth: (kasaTransport != null)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
 }
 
 void registerDefaultKasa(DartPluginRegistry registry) {
-  registry.register(createKasaPlugin(KasaTransport(_unconfiguredKasa)));
+  registry.register(
+    createKasaPlugin(KasaTransport(_unconfiguredKasa)),
+    initialHealth: const DartPluginHealth.notConfigured(),
+  );
 }
 
 Future<RuntimeMap> _unconfiguredKasa(RuntimeMap request) =>

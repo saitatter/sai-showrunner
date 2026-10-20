@@ -55,6 +55,10 @@ Future<void> registerConfiguredTwitch(
         Directory('${dataService.userDirectory.path}/twitch/groups'),
       ),
     ),
+
+    initialHealth: (twitchTransport != null)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
   _registerTwitchStreamPlanComponent(
     runtime: activeStreamPlans,
@@ -73,6 +77,8 @@ void registerDefaultTwitch(
       TwitchTransport(_unconfiguredTwitch),
       eventHub: eventHub,
     ),
+
+    initialHealth: const DartPluginHealth.notConfigured(),
   );
   _registerTwitchStreamPlanComponent(
     runtime: activeStreamPlans,

@@ -30,6 +30,10 @@ Future<void> registerConfiguredYouTube(
       YouTubeTransport(youtubeTransport?.request ?? _unconfiguredYouTube),
       eventHub: eventHub,
     ),
+
+    initialHealth: (youtubeTransport != null)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
 }
 
@@ -42,6 +46,8 @@ void registerDefaultYouTube(
       YouTubeTransport(_unconfiguredYouTube),
       eventHub: eventHub,
     ),
+
+    initialHealth: const DartPluginHealth.notConfigured(),
   );
 }
 

@@ -38,11 +38,18 @@ Future<void> registerConfiguredElgato(
         );
       },
     ),
+
+    initialHealth: (elgatoTransport != null)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
 }
 
 void registerDefaultElgato(DartPluginRegistry registry) {
-  registry.register(createElgatoPlugin(ElgatoTransport(_unconfiguredElgato)));
+  registry.register(
+    createElgatoPlugin(ElgatoTransport(_unconfiguredElgato)),
+    initialHealth: const DartPluginHealth.notConfigured(),
+  );
 }
 
 Future<RuntimeMap> _unconfiguredElgato(

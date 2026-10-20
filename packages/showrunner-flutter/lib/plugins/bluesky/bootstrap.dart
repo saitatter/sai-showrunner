@@ -35,12 +35,20 @@ Future<void> registerConfiguredBluesky(
       accountResolver: (id) async =>
           (await blueskyAccountRepository.load(id))?.config,
     ),
+
+    initialHealth:
+        (blueskyIdentifier?.isNotEmpty == true &&
+            blueskyPassword?.isNotEmpty == true)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
 }
 
 void registerDefaultBluesky(DartPluginRegistry registry) {
   registry.register(
     createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
+
+    initialHealth: const DartPluginHealth.notConfigured(),
   );
 }
 

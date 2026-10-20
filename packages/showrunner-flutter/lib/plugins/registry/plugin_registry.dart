@@ -6,10 +6,12 @@ import 'plugin_contract.dart';
 import 'plugin_host_context.dart';
 import 'plugin_module.dart';
 import 'plugin_lifecycle.dart';
+import 'plugin_health.dart';
 import 'plugin_registration.dart';
 import 'flutter_plugin_ui_contract.dart';
 
 export 'plugin_contract.dart';
+export 'plugin_health.dart';
 
 final class DartPluginRegistry extends ChangeNotifier {
   final Map<PluginId, DartPluginModule> _modules = {};
@@ -38,12 +40,14 @@ final class DartPluginRegistry extends ChangeNotifier {
     DartPluginLifecycleHook? onStart,
     DartPluginLifecycleHook? onStop,
     Future<bool> Function()? onHealthCheck,
+    DartPluginHealth initialHealth = const DartPluginHealth.ready(),
   }) => registerModule(
     ManifestDartPluginModule(
       plugin,
       onStart: onStart,
       onStop: onStop,
       onHealthCheck: onHealthCheck,
+      initialHealth: initialHealth,
     ),
   );
 
@@ -379,12 +383,50 @@ final class DartPluginRegistry extends ChangeNotifier {
 
   /// Typed registry boundary for runtime and plugin code.
   Future<bool> checkHealthId(PluginId pluginId) async {
-    if (_closeFuture != null || !isPluginEnabledId(pluginId)) return false;
+    return (await checkHealthDetailsId(pluginId)).isHealthy;
+  }
+
+  Future<DartPluginHealth> checkHealthDetailsId(PluginId pluginId) async {
+    if (_closeFuture != null) {
+      return const DartPluginHealth(
+        status: DartPluginHealthStatus.unavailable,
+        message: 'Plugin host is stopped.',
+      );
+    }
+    if (!isPluginEnabledId(pluginId)) {
+      return const DartPluginHealth(
+        status: DartPluginHealthStatus.disabled,
+        message:
+            'Automation is disabled; shared provider connections are retained.',
+      );
+    }
     final epoch = _healthEpoch;
     final pluginModule = module(pluginId);
-    if (pluginModule == null) return false;
-    final health = await pluginModule.checkHealth();
-    return _closeFuture == null && epoch == _healthEpoch && health.isHealthy;
+    if (pluginModule == null) {
+      return const DartPluginHealth(
+        status: DartPluginHealthStatus.unavailable,
+        message: 'Plugin is unavailable.',
+      );
+    }
+    DartPluginHealth health;
+    try {
+      health = await pluginModule.checkHealth().timeout(
+        const Duration(seconds: 10),
+      );
+    } catch (error) {
+      health = DartPluginHealth(
+        status: DartPluginHealthStatus.error,
+        message: error.toString(),
+        error: error,
+      );
+    }
+    if (_closeFuture != null || epoch != _healthEpoch) {
+      return const DartPluginHealth(
+        status: DartPluginHealthStatus.unavailable,
+        message: 'Health result invalidated by a host or policy change.',
+      );
+    }
+    return health;
   }
 
   /// Explicit string boundary used by health/status surfaces.

@@ -73,6 +73,16 @@ policy transactions, initialization/start and reverse dependency cleanup. Module
 that allocate during initialization are released even when disabled; native input
 only calls platform teardown if events were actually requested. Late health
 results are invalidated after policy changes or close.
+
+Provider health is distinct from module ownership: local modules can be ready,
+missing default connection settings report `notConfigured`, and configuration
+without a successful probe reports an unverified/disconnected status rather than
+green readiness. Per-resource connections can override missing defaults. Settings
+and diagnostics use the registry health boundary, which skips disabled probes,
+limits queries to ten seconds and invalidates stale results. Timeout does not
+abort arbitrary transport work: protocol adapters remain responsible for their
+own I/O cancellation and deadlines. Twitch/YouTube worker state remains the source
+of truth for shared chat connections, separate from action transport readiness.
 An unconfigured provider is not evidence of a successful external connection.
 
 User data uses typed resource repositories, atomic writes and explicit validation.

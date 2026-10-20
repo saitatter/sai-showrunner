@@ -26,6 +26,12 @@ Future<void> registerConfiguredWyze(
   registry.register(
     createWyzePlugin(wyzeTransport),
     onStop: wyzeTransport.close,
+
+    initialHealth:
+        (wyzeSettings['apiKey']?.toString().isNotEmpty == true &&
+            wyzeSettings['keyId']?.toString().isNotEmpty == true)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
 }
 
@@ -33,6 +39,8 @@ void registerDefaultWyze(DartPluginRegistry registry) {
   registry.register(
     createWyzePlugin(_unconfiguredWyzeTransport),
     onStop: _unconfiguredWyzeTransport.close,
+
+    initialHealth: const DartPluginHealth.notConfigured(),
   );
 }
 

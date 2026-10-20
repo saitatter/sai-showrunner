@@ -10,36 +10,50 @@ import '../registry/plugin_registration.dart';
 import 'actions.dart';
 import 'connection_router.dart';
 
-final _obsContribution = FirstPartyPluginContribution<ObsTransport>(
-  id: const PluginId('obs'),
-  createModule: (transport) => ManifestDartPluginModule(
-    createObsPlugin(transport),
-    onStop: transport.close,
-    onHealthCheck: () async {
-      await transport.call('GetVersion', {});
-      return true;
-    },
-  ),
-);
+final _obsContribution =
+    FirstPartyPluginContribution<({ObsTransport transport, bool configured})>(
+      id: const PluginId('obs'),
+      createModule: (context) => ManifestDartPluginModule(
+        createObsPlugin(context.transport),
+        onStop: context.transport.close,
+        initialHealth: context.configured
+            ? const DartPluginHealth.connectionUnchecked()
+            : const DartPluginHealth.notConfigured(),
+        onHealthCheck: context.configured
+            ? () async {
+                await context.transport.call('GetVersion', {});
+                return true;
+              }
+            : null,
+      ),
+    );
 
 void _registerPack(
   DartPluginRegistry registry,
   ObsTransport obs,
   ObsTransport extensions,
-  DartPluginEventHub? eventHub,
-) {
+  DartPluginEventHub? eventHub, {
+  bool configured = false,
+}) {
+  final extensionHealth = configured
+      ? const DartPluginHealth.connectionUnchecked()
+      : const DartPluginHealth.notConfigured();
   registry.registerModules([
-    _obsContribution.create(obs),
+    _obsContribution.create((transport: obs, configured: configured)),
     PluginModuleRegistration(
       id: const PluginId('aitum'),
       dependencies: const [PluginId('obs')],
-      module: ManifestDartPluginModule(createAitumPlugin(extensions)),
+      module: ManifestDartPluginModule(
+        createAitumPlugin(extensions),
+        initialHealth: extensionHealth,
+      ),
     ),
     PluginModuleRegistration(
       id: const PluginId('advss'),
       dependencies: const [PluginId('obs')],
       module: ManifestDartPluginModule(
         createAdvssPlugin(extensions, eventHub: eventHub),
+        initialHealth: extensionHealth,
       ),
     ),
   ]);
@@ -59,7 +73,13 @@ void registerConfiguredObsPack(
         onStateChanged: (state, value) =>
             registry.updateState('obs', state, value),
       );
-  _registerPack(registry, obsTransport, obsTransport, eventHub);
+  _registerPack(
+    registry,
+    obsTransport,
+    obsTransport,
+    eventHub,
+    configured: true,
+  );
 }
 
 void registerDefaultObsPack(

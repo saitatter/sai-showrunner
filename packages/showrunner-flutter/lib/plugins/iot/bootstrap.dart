@@ -14,9 +14,14 @@ void registerConfiguredIot(
         dataService: dataService,
       ),
     ),
+
+    initialHealth: const DartPluginHealth.connectionUnchecked(),
   );
 }
 
 void registerDefaultIot(DartPluginRegistry registry) {
-  registry.register(createIotPlugin());
+  registry.register(
+    createIotPlugin(),
+    initialHealth: const DartPluginHealth.notConfigured(),
+  );
 }

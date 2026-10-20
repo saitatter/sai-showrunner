@@ -430,16 +430,16 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
             IconButton(
               tooltip: 'Check plugin health',
               onPressed: () async {
-                final healthy = await widget.registryFuture.then(
-                  (r) => r.checkHealthId(plugin.id),
+                final health = await widget.registryFuture.then(
+                  (r) => r.checkHealthDetailsId(plugin.id),
                 );
                 if (!context.mounted) return;
                 showShowRunnerFeedback(
                   context,
-                  healthy
+                  health.isHealthy
                       ? '${plugin.name} is ready'
-                      : '${plugin.name} is unavailable',
-                  severity: healthy
+                      : '${plugin.name}: ${health.message ?? health.status.name}',
+                  severity: health.isHealthy
                       ? ShowRunnerFeedbackSeverity.success
                       : ShowRunnerFeedbackSeverity.warning,
                 );

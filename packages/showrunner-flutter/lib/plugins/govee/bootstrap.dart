@@ -21,11 +21,18 @@ Future<void> registerConfiguredGovee(
     createGoveePlugin(
       GoveeTransport(goveeTransport?.request ?? _unconfiguredGovee),
     ),
+
+    initialHealth: (goveeTransport != null)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
 }
 
 void registerDefaultGovee(DartPluginRegistry registry) {
-  registry.register(createGoveePlugin(GoveeTransport(_unconfiguredGovee)));
+  registry.register(
+    createGoveePlugin(GoveeTransport(_unconfiguredGovee)),
+    initialHealth: const DartPluginHealth.notConfigured(),
+  );
 }
 
 Future<RuntimeMap> _unconfiguredGovee(
