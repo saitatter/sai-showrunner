@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/features/chat/chat_command.dart';
@@ -357,9 +358,22 @@ void main() {
       await runtime.savePreferences(
         ChatPreferences(ignoredUsers: {'twitch:viewer'}),
       );
-      hub.emit('chat', twitch('hidden', text: '!probe'));
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      await runtime.filtersSettled;
+      final dispatched = Completer<void>();
+      void commandChanged() {
+        if (runtime.commands.countersFor('probe').dispatched == 1 &&
+            !dispatched.isCompleted) {
+          dispatched.complete();
+        }
+      }
+
+      runtime.commands.addListener(commandChanged);
+      try {
+        hub.emit('chat', twitch('hidden', text: '!probe'));
+        await runtime.filtersSettled;
+        await dispatched.future.timeout(const Duration(seconds: 5));
+      } finally {
+        runtime.commands.removeListener(commandChanged);
+      }
       expect(runtime.messages, isEmpty);
       expect(runtime.commands.countersFor('probe').dispatched, 1);
       await runtime.savePreferences(
@@ -368,8 +382,9 @@ void main() {
           preventIgnoredCommands: true,
         ),
       );
+      final delivered = hub.stream('chat').first;
       hub.emit('chat', twitch('blocked', text: '!probe'));
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await delivered;
       await runtime.filtersSettled;
       expect(runtime.commands.countersFor('probe').accepted, 1);
       await runtime.savePreferences(
