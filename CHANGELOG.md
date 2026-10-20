@@ -21,6 +21,7 @@
 ### Refactors
 
 ### Docs
+- Map runtime ownership, network trust boundaries and remaining baseline security work with measured validation evidence.
 - Clarify that corrections made while implementing new features remain in their feature entries rather than release fixes.
 - Document chat setup and remaining Streamer.bot differences using static .NET evidence and an isolated runtime UI comparison.
 

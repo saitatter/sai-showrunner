@@ -51,6 +51,24 @@ changing its implementation; do not duplicate an equivalent suite or mark an
 untested access path as a confirmed vulnerability. Baseline phase completion also
 requires closing the open items in the architecture trust review.
 
+Validation of the initial baseline/security changes, using the pinned environment
+above (wall-clock times include process startup):
+
+| Local gate | Actual result | Elapsed |
+| --- | --- | --- |
+| `ci-check.ps1 -Stage All` | Format/analyze, docs/version/registry/typechecks and inventories passed; 712 Flutter tests passed, 10 opt-in skips; 128 JavaScript tests passed | 69.61 s |
+| `ci-check.ps1 -Stage Parity -Integration -Visual` in isolated native checkout | 97 passed, one existing audio skip; both reviewed inspector regions had zero differing pixels; frozen Electron catalog remains diagnostic with historical differences | 238.49 s |
+| Chromium overlay/dock smoke | DOM/WebGL compile/render, update/removal/shutdown, chat history, keyboard completion, HTML safety and composer passed | 6.80 s |
+| Incremental Windows lifecycle rebuild after adding the LAN machine-hostname allowance | One native document lifecycle test passed; IP/localhost/machine-name and denied-authority cases also passed in focused HTTP tests | 21.69 s |
+
+Before the fixes, three HTTP boundary probes failed with 204 instead of 403;
+malformed overlay JSON produced an unhandled exception and a peer timeout. The
+first full check also caught a braces lint in a newly added test; it was corrected
+before the successful run above. No assertion, visual threshold, reference capture
+or SDK/lockfile requirement was relaxed. No live credentials, OBS profile or
+production resources were used. This validation does not close the remaining LAN
+capability, quota, secret-projection and manual/device items in the trust review.
+
 ## Local checks and CI
 
 ```powershell
