@@ -141,7 +141,6 @@ void main() {
         await services.shutdown();
         await root.delete(recursive: true);
       });
-      await services.start();
       final registry = await services.pluginRegistryFuture;
       var captured = Completer<Map<String, dynamic>>();
       registry.register(
@@ -160,6 +159,7 @@ void main() {
           ],
         ),
       );
+      await services.start();
       final automation = eventFixture(
         id: 'event',
         plugin: 'twitch',

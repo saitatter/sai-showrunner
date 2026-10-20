@@ -20,6 +20,7 @@
 - Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
+- Move first-party provider setup into owned, statically imported factories and separate Flutter UI assembly from transport composition without changing saved plugin contracts.
 - Validate first-party plugin packs atomically, including dependency order, ownership, contract versions and resource editor coverage before lifecycle startup.
 - Compose application startup and workspaces through explicit owners, scoped capabilities and feature-owned registrations; isolate Stream Plan state per application.
 - Retain asynchronous runtime and tray teardown, cancel background work, flush variable edits before registry shutdown and release reached plugin modules after partial startup failures.

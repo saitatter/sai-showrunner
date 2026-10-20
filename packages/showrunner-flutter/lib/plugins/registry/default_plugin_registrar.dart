@@ -1,4 +1,45 @@
-part of 'plugin_bootstrap.dart';
+import '../../graph/runtime/graph_execution_engine.dart';
+import '../../persistence/viewer_data_repository.dart';
+import '../../runtime/automation_queue_manager.dart';
+import '../../services/plugin_event_hub.dart';
+import '../bluesky/bootstrap.dart';
+import '../chat_commands/bootstrap.dart';
+import '../dashboards/bootstrap.dart';
+import '../discord/bootstrap.dart';
+import '../donordrive/bootstrap.dart';
+import '../elgato/bootstrap.dart';
+import '../govee/bootstrap.dart';
+import '../heartrate/bootstrap.dart';
+import '../http/bootstrap.dart';
+import '../input/bootstrap.dart';
+import '../iot/bootstrap.dart';
+import '../lifx/bootstrap.dart';
+import '../minecraft/bootstrap.dart';
+import '../moderation/bootstrap.dart';
+import '../obs/bootstrap.dart';
+import '../os/bootstrap.dart';
+import '../overlays/bootstrap.dart';
+import '../philips_hue/bootstrap.dart';
+import '../random/bootstrap.dart';
+import '../remote/bootstrap.dart';
+import '../showrunner/bootstrap.dart';
+import '../showrunner/manifest.dart';
+import '../sound/bootstrap.dart';
+import '../sound/output.dart';
+import '../sound/tts_runtime.dart';
+import '../spellcast/bootstrap.dart';
+import '../stream_plans/bootstrap.dart';
+import '../stream_plans/manifest.dart';
+import '../time/bootstrap.dart';
+import '../tplink_kasa/bootstrap.dart';
+import '../twinkly/bootstrap.dart';
+import '../twitch/bootstrap.dart';
+import '../variables/bootstrap.dart';
+import '../voicemod/bootstrap.dart';
+import '../wyze/bootstrap.dart';
+import '../youtube/bootstrap.dart';
+import 'first_party_plugin_ui.dart';
+import 'plugin_registry.dart';
 
 DartPluginRegistry buildDefaultPluginRegistry({
   DartPluginEventHub? eventHub,
@@ -15,175 +56,61 @@ DartPluginRegistry buildDefaultPluginRegistry({
       viewerDataRepository ?? InMemoryViewerDataRepository();
   final registry = DartPluginRegistry();
   final activeStreamPlans = streamPlans ?? DartStreamPlanRuntime();
-  registry.register(
-    createChatCommandsPlugin(
-      manager: () =>
-          Future.error(StateError('Chat Commands runtime is unavailable.')),
-      eventHub: eventHub,
-    ),
+  registerDefaultChatCommands(registry, eventHub: eventHub);
+  registerHeartRatePlugin(registry, eventHub: eventHub);
+  registerDefaultShowRunner(
+    registry,
+    queueManager: queueManager,
+    runAutomation: runAutomation,
+    activateProfile: activateProfile,
   );
-  _registerHeartRatePlugin(registry, eventHub: eventHub);
-  registry.register(
-    createShowRunnerPlugin(
-      queueManager: queueManager,
-      runAutomation: runAutomation,
-      activateProfile: activateProfile,
-    ),
+  registerDefaultObsPack(registry, eventHub: eventHub);
+  registerDefaultYouTube(registry, eventHub: eventHub);
+  registerDefaultTwitch(
+    registry,
+    eventHub: eventHub,
+    activeStreamPlans: activeStreamPlans,
   );
-  final obsTransport = CallbackObsTransport(_unconfiguredObs);
-  registry.register(
-    createObsPlugin(obsTransport),
-    onHealthCheck: () async {
-      await obsTransport.call('GetVersion', {});
-      return true;
-    },
+  registerDefaultModeration(registry);
+  registerDefaultDiscord(registry);
+  registerDefaultBluesky(registry);
+  registerDefaultDonorDrive(registry, eventHub: eventHub);
+  registerDefaultRemote(registry, eventHub: eventHub);
+  registerDefaultVoiceMod(registry);
+  registerDefaultSound(
+    registry,
+    ttsService: ttsService,
+    soundOutputs: soundOutputs,
   );
-  registry.register(
-    createAitumPlugin(CallbackObsTransport(_unconfiguredAitum)),
+  registerDefaultMinecraft(registry);
+  registerDefaultHttp(registry, eventHub: eventHub);
+  registerDefaultTime(registry);
+  registerDefaultOs(registry);
+  registerDefaultRandom(registry, eventHub: eventHub);
+  registerDefaultVariables(
+    registry,
+    eventHub: eventHub,
+    variablesRepository: variablesRepository,
   );
-  registry.register(
-    createAdvssPlugin(
-      CallbackObsTransport(_unconfiguredAitum),
-      eventHub: eventHub,
-    ),
+  registerDefaultOverlays(registry, eventHub: eventHub);
+  registerDefaultSpellcast(registry, eventHub: eventHub);
+  registerDefaultIot(registry);
+  registerDefaultGovee(registry);
+  registerDefaultPhilipsHue(registry);
+  registerDefaultTwinkly(registry);
+  registerDefaultElgato(registry);
+  registerDefaultKasa(registry);
+  registerDefaultLifx(registry);
+  registerDefaultWyze(registry);
+  registerDefaultDashboards(registry);
+  registerDefaultInput(registry);
+  registerDefaultStreamPlans(
+    registry,
+    queueManager: queueManager,
+    executionEngine: executionEngine,
+    activeStreamPlans: activeStreamPlans,
+    streamPlans: streamPlans,
   );
-  registry.register(
-    createYouTubePlugin(
-      YouTubeTransport(_unconfiguredYouTube),
-      eventHub: eventHub,
-    ),
-  );
-  registry.register(
-    createTwitchPlugin(
-      TwitchTransport(_unconfiguredTwitch),
-      eventHub: eventHub,
-    ),
-  );
-  _registerTwitchStreamPlanComponent(
-    runtime: activeStreamPlans,
-    transport: TwitchTransport(_unconfiguredTwitch),
-  );
-  final moderationService = ModerationService(
-    dataService: ShowRunnerDataService(Directory.systemTemp),
-  );
-  registry.register(
-    createModerationPlugin(moderationService),
-    onHealthCheck: () async =>
-        (await moderationService.checkHealth()).health == 'healthy',
-    onStop: moderationService.dispose,
-  );
-  registry.registerUi(
-    'moderation',
-    createModerationPluginUi(moderationService),
-  );
-  registry.register(createDiscordPlugin());
-  registry.register(
-    createBlueskyPlugin(BlueskyTransport(_unconfiguredBluesky)),
-  );
-  registry.register(createDonorDrivePlugin(null, eventHub: eventHub));
-  registry.register(createRemotePlugin(eventHub: eventHub));
-  final voiceModTransport = CallbackVoiceModTransport(
-    getVoicesCallback: _unconfiguredVoiceModVoices,
-    selectVoiceCallback: _unconfiguredVoiceMod,
-  );
-  registry.register(
-    createVoiceModPlugin(voiceModTransport),
-    onStop: voiceModTransport.close,
-  );
-  registry.register(
-    createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
-  );
-  registry.register(createMinecraftPlugin());
-  registry.register(createHttpPlugin(eventHub: eventHub));
-  registry.register(createTimePlugin());
-  registry.register(createOsPlugin());
-  registry.register(createRandomPlugin(eventHub: eventHub));
-  registry.register(
-    createVariablesPlugin(
-      viewerDataRepository: variablesRepository,
-      eventHub: eventHub,
-    ),
-  );
-  registry.registerUi('variables', createVariablesPluginUi());
-  registry.register(createOverlaysPlugin(eventHub: eventHub));
-  final spellcastHub = eventHub ?? DartPluginEventHub();
-  registry.register(createSpellcastPlugin(eventHub: spellcastHub));
-  registry.registerUi('spellcast', createSpellcastPluginUi(spellcastHub));
-  registry.register(createIotPlugin());
-  registry.register(createGoveePlugin(GoveeTransport(_unconfiguredGovee)));
-  registry.register(
-    createPhilipsHuePlugin(HueTransport(_unconfiguredPhilipsHue)),
-  );
-  registry.register(
-    createTwinklyPlugin(TwinklyTransport(_unconfiguredTwinkly)),
-  );
-  registry.register(createElgatoPlugin(ElgatoTransport(_unconfiguredElgato)));
-  registry.register(createKasaPlugin(KasaTransport(_unconfiguredKasa)));
-  registry.register(createLifxPlugin(_unconfiguredLifxTransport));
-  registry.register(
-    createWyzePlugin(_unconfiguredWyzeTransport),
-    onStop: _unconfiguredWyzeTransport.close,
-  );
-  registry.register(dashboardPlugin);
-  registry.register(createInputPlugin());
-  registry.register(
-    createStreamPlansPlugin(
-      runtime: activeStreamPlans,
-      registry: registry,
-      queueManager: queueManager,
-      executionEngine: executionEngine,
-    ),
-    onStop: streamPlans == null
-        ? () => activeStreamPlans.close(registry: registry)
-        : null,
-  );
-  _registerCommonPluginUis(registry, activeStreamPlans);
+  registerCommonPluginUis(registry, activeStreamPlans);
   return registry;
-}
-
-void _registerCommonPluginUis(
-  DartPluginRegistry registry,
-  DartStreamPlanRuntime streamPlans,
-) {
-  final factories = <String, DartPluginUiContribution Function()>{
-    'obs': createObsPluginUi,
-    'youtube': createYouTubePluginUi,
-    'twitch': createTwitchPluginUi,
-    'discord': createDiscordPluginUi,
-    'bluesky': createBlueskyPluginUi,
-    'remote': createRemotePluginUi,
-    'sound': createSoundPluginUi,
-    'minecraft': createMinecraftPluginUi,
-    'overlays': createOverlaysPluginUi,
-    'iot': createIotPluginUi,
-    'wyze': createWyzePluginUi,
-    'dashboards': createDashboardsPluginUi,
-    'input': createInputPluginUi,
-    'stream-plans': () => createStreamPlansPluginUi(runtime: streamPlans),
-  };
-  for (final entry in factories.entries) {
-    if (registry.findPlugin(entry.key) != null &&
-        registry.uiFor(entry.key) == null) {
-      registry.registerUi(entry.key, entry.value());
-    }
-  }
-
-  for (final pluginId in const [
-    'advss',
-    'aitum',
-    'donordrive',
-    'elgato',
-    'govee',
-    'http',
-    'lifx',
-    'os',
-    'philips-hue',
-    'random',
-    'time',
-    'tplink-kasa',
-    'twinkly',
-    'voicemod',
-  ]) {
-    registry.registerUi(pluginId, createGenericPluginUi(pluginId));
-  }
 }
