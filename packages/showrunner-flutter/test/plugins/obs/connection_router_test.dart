@@ -1,12 +1,80 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/obs/actions.dart';
+import 'package:showrunner_flutter/plugins/obs/bootstrap.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/obs/connection_router.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
+  test(
+    'close prevents delayed endpoint resolution from opening a transport',
+    () async {
+      final entered = Completer<void>(),
+          settings = Completer<Map<String, dynamic>>();
+      var opened = 0;
+      final router = ObsConnectionRouter(
+        dataService: ShowRunnerDataService(Directory.systemTemp),
+        settingsLoader: () {
+          entered.complete();
+          return settings.future;
+        },
+        resourceLoader: () async => [],
+        transportFactory: (_, _) {
+          opened++;
+          return _RecordingTransport();
+        },
+      );
+      final pending = expectLater(
+        router.call('GetVersion', {}),
+        throwsStateError,
+      );
+      await entered.future;
+      await router.close();
+      settings.complete({'host': '127.0.0.1', 'port': 4456});
+      await pending;
+      expect(opened, 0);
+    },
+  );
+
+  test(
+    'OBS pack owns one shared router and suppresses callbacks after shutdown',
+    () async {
+      var stops = 0, updates = 0;
+      void Function(String, dynamic)? publish;
+      final router = ObsConnectionRouter(
+        dataService: ShowRunnerDataService(Directory.systemTemp),
+        settingsLoader: () async => {'host': '127.0.0.1', 'port': 4456},
+        resourceLoader: () async => [],
+        onStateChanged: (_, _) => updates++,
+        transportFactory: (_, callback) {
+          publish = callback;
+          return _RecordingTransport(onClose: () => stops++);
+        },
+      );
+      final registry = DartPluginRegistry();
+      registerConfiguredObsPack(
+        registry,
+        dataService: ShowRunnerDataService(Directory.systemTemp),
+        eventHub: null,
+        ownedTransport: router,
+      );
+      await registry.initialize();
+      await registry.start();
+      expect(await registry.checkHealth('obs'), isTrue);
+      publish!('connected', true);
+      expect(updates, 1);
+      await Future.wait([registry.close(), registry.close(), router.close()]);
+      publish!('connected', true);
+      expect(updates, 1);
+      expect(stops, 1);
+      await expectLater(router.call('GetVersion', {}), throwsStateError);
+    },
+  );
+
   test('routes requests through the configured default OBS resource', () async {
     ObsConnectionEndpoint? createdEndpoint;
     var calls = <String>[];
