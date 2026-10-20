@@ -13,6 +13,7 @@
 - Add unified Twitch/YouTube chat with channel-scoped moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Prevent delayed Twitch/YouTube chat startup or broadcast discovery from reactivating disconnected sessions; release their owned requests on disconnect.
 - Reject oversized TP-Link Kasa TCP frames from their headers instead of continuing to buffer their bodies.
 - Stop reporting unconfigured or unverified provider connections as healthy; skip disabled health probes and bound their response deadline.
 - Prevent overlapping YouTube chat polls and ignore late responses or errors after stopping the worker.

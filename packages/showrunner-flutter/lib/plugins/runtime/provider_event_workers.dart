@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 
 import '../../schema/json.dart';
 import '../../services/plugin_event_hub.dart';
-import '../../services/http_provider_transports.dart';
+import '../twitch/connection_factory.dart';
+import '../youtube/connection_factory.dart';
+import 'provider_operation_policy.dart';
+import 'provider_event.dart';
 import '../twitch/event_worker.dart';
 import '../twitch/account_runtime.dart';
 import '../youtube/event_worker.dart';
@@ -17,7 +20,50 @@ export '../youtube/event_worker.dart';
 export 'provider_worker_status.dart';
 
 final class ProviderEventRuntime extends ChangeNotifier {
-  ProviderEventRuntime({required this.dataService, required this.eventHub});
+  ProviderEventRuntime({
+    required this.dataService,
+    required this.eventHub,
+    this.twitchRequestFactory = createTwitchRuntimeRequest,
+    this.youtubeRequestFactory = createYouTubeRuntimeRequest,
+    this.twitchSocketFactory = connectEventSubSocket,
+  });
+
+  final TwitchRuntimeRequestFactory twitchRequestFactory;
+  final YouTubeRuntimeRequestFactory youtubeRequestFactory;
+  final EventSubSocketFactory twitchSocketFactory;
+  ProviderOperationScope? _twitchScope;
+  ProviderOperationScope? _botScope;
+  ProviderOperationScope? _youtubeScope;
+  Future<YouTubeRequest?>? _resolvingYouTube;
+  int _twitchGeneration = 0;
+  int _youtubeGeneration = 0;
+  bool _disposed = false;
+
+  bool _currentTwitch(int generation) =>
+      !_disposed && generation == _twitchGeneration;
+  bool _currentYouTube(int generation) =>
+      !_disposed && generation == _youtubeGeneration;
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  void _requireOpen() {
+    if (_disposed) throw StateError('Provider runtime is disposed.');
+  }
+
+  void _requireYouTube(int generation) {
+    if (!_currentYouTube(generation)) {
+      throw StateError('YouTube operation was cancelled.');
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _twitchGeneration++;
+    _youtubeGeneration++;
+    super.dispose();
+  }
 
   final ShowRunnerDataService dataService;
   final DartPluginEventHub eventHub;
@@ -67,11 +113,14 @@ final class ProviderEventRuntime extends ChangeNotifier {
     } else {
       _activeProfileTriggerSets.remove(profileId);
     }
-    notifyListeners();
+    _notify();
   }
 
   Future<Map<String, dynamic>> discoverYouTubeBroadcast() async {
-    final request = await _resolveYouTubeRequest();
+    _requireOpen();
+    final generation = _youtubeGeneration;
+    final request = await _resolveYouTubeRequest(generation);
+    _requireYouTube(generation);
     if (request == null) {
       throw StateError(
         'YouTube access token is required for broadcast discovery.',
@@ -82,6 +131,7 @@ final class ProviderEventRuntime extends ChangeNotifier {
       'broadcastStatus': 'active',
       'maxResults': '1',
     }, null);
+    _requireYouTube(generation);
     final items = response['items'];
     final item = items is List && items.isNotEmpty && items.first is Map
         ? Map<String, dynamic>.from(items.first as Map)
@@ -100,6 +150,7 @@ final class ProviderEventRuntime extends ChangeNotifier {
         'eventType': 'live',
         'maxResults': '5',
       }, null);
+      _requireYouTube(generation);
       final searchItems = search['items'];
       final videoIds = searchItems is List
           ? searchItems
@@ -113,6 +164,7 @@ final class ProviderEventRuntime extends ChangeNotifier {
           'part': 'snippet,liveStreamingDetails',
           'id': videoIds.join(','),
         }, null);
+        _requireYouTube(generation);
         final videoItems = videos['items'];
         final video =
             videoItems is List &&
@@ -134,7 +186,7 @@ final class ProviderEventRuntime extends ChangeNotifier {
             'status': liveChatId == null ? 'unknown' : 'live',
             'liveChatId': liveChatId,
           };
-    notifyListeners();
+    _notify();
     return _youtubeBroadcast ?? <String, dynamic>{};
   }
 
@@ -142,168 +194,242 @@ final class ProviderEventRuntime extends ChangeNotifier {
     String author = 'Simulated Viewer',
     String message = '!hello chat',
   }) {
-    eventHub.emit('chatMessage', {
-      'id': 'simulated-${DateTime.now().microsecondsSinceEpoch}',
-      'snippet': {
-        'type': 'textMessageEvent',
-        'displayMessage': message,
-        'publishedAt': DateTime.now().toUtc().toIso8601String(),
-      },
-      'authorDetails': {
-        'displayName': author,
-        'isChatModerator': false,
-        'isChatOwner': false,
-      },
-    });
+    _requireOpen();
+    final now = DateTime.now().toUtc();
+    final id = 'simulated-${now.microsecondsSinceEpoch}';
+    eventHub.emitProviderEvent(
+      ProviderEventEnvelope(
+        platform: ProviderPlatform.youtube,
+        eventType: 'chatMessage',
+        occurredAt: now,
+        providerEventId: id,
+        channelId: _youtubeLiveChatId,
+        payload: {
+          'id': id,
+          'snippet': {
+            'type': 'textMessageEvent',
+            'displayMessage': message,
+            'publishedAt': DateTime.now().toUtc().toIso8601String(),
+          },
+          'authorDetails': {
+            'displayName': author,
+            'isChatModerator': false,
+            'isChatOwner': false,
+          },
+        },
+      ),
+    );
   }
 
-  Future<YouTubeRequest?> _resolveYouTubeRequest() async {
+  Future<YouTubeRequest?> _resolveYouTubeRequest(int generation) async {
+    _requireYouTube(generation);
     if (_youtubeRequest != null) return _youtubeRequest;
+    if (_resolvingYouTube != null) return _resolvingYouTube;
+    final resolving = _loadYouTubeRequest(generation);
+    _resolvingYouTube = resolving;
+    try {
+      return await resolving;
+    } finally {
+      if (identical(_resolvingYouTube, resolving)) _resolvingYouTube = null;
+    }
+  }
+
+  Future<YouTubeRequest?> _loadYouTubeRequest(int generation) async {
     final settings = await dataService.loadPluginSettings('youtube');
+    _requireYouTube(generation);
     final accessToken = settings['accessToken'] as String?;
     if (accessToken?.isNotEmpty != true) return null;
-    _youtubeRequest = JsonHttpTransport(
-      baseUrl: 'https://www.googleapis.com',
-      accessToken: accessToken,
-    ).request;
+    final scope = ProviderOperationScope();
+    _youtubeScope = scope;
+    _youtubeRequest = youtubeRequestFactory(
+      accessToken: accessToken!,
+      scope: scope,
+    );
     return _youtubeRequest;
   }
 
   Future<void> startYouTubeChat({String? liveChatId}) async {
+    _requireOpen();
+    final generation = ++_youtubeGeneration;
+    await _stopYouTubeOwned();
+    if (!_currentYouTube(generation)) return;
     final settings = await dataService.loadPluginSettings('youtube');
+    if (!_currentYouTube(generation)) return;
     final resolvedId =
         liveChatId ?? _youtubeLiveChatId ?? settings['liveChatId'] as String?;
-    final request = await _resolveYouTubeRequest();
+    YouTubeRequest? request;
+    try {
+      request = await _resolveYouTubeRequest(generation);
+    } catch (_) {
+      if (!_currentYouTube(generation)) return;
+      rethrow;
+    }
+    if (!_currentYouTube(generation)) return;
     if (request == null || resolvedId == null || resolvedId.isEmpty) {
       throw StateError('YouTube access token and live chat ID are required.');
     }
-    await youtube?.stop();
     youtube = YouTubeLiveChatWorker(
       request: request,
       eventHub: eventHub,
       liveChatId: resolvedId,
-      onStatusChanged: notifyListeners,
+      onStatusChanged: _notify,
     );
     youtube!.start();
     _youtubeLiveChatId = resolvedId;
-    notifyListeners();
+    _notify();
+  }
+
+  Future<void> _stopYouTubeOwned() async {
+    final worker = youtube;
+    final scope = _youtubeScope;
+    youtube = null;
+    _youtubeScope = null;
+    _youtubeRequest = null;
+    _resolvingYouTube = null;
+    final stopping = worker?.stop();
+    await scope?.close();
+    await stopping;
   }
 
   Future<void> stopYouTubeChat() async {
-    await youtube?.stop();
-    youtube = null;
-    notifyListeners();
+    _youtubeGeneration++;
+    await _stopYouTubeOwned();
+    _notify();
   }
 
   Future<void> startTwitch() async {
-    await _startTwitch(await loadTwitchChannelSettings(dataService));
+    _requireOpen();
+    final generation = ++_twitchGeneration;
+    await _stopTwitchOwned();
+    if (!_currentTwitch(generation)) return;
+    final settings = await loadTwitchChannelSettings(dataService);
+    if (!_currentTwitch(generation)) return;
+    await _startTwitch(settings, generation);
   }
 
-  Future<void> _startTwitch(Map<String, dynamic> twitchSettings) async {
-    final twitchToken = twitchSettings['accessToken'] as String?;
-    final twitchClientId = twitchSettings['clientId'] as String?;
-    final broadcasterId = twitchSettings['broadcasterId'] as String?;
-    if (twitchToken?.isNotEmpty != true ||
-        twitchClientId?.isNotEmpty != true ||
+  Future<void> _startTwitch(
+    Map<String, dynamic> settings,
+    int generation,
+  ) async {
+    final token = settings['accessToken'] as String?;
+    final clientId = settings['clientId'] as String?;
+    final broadcasterId = settings['broadcasterId'] as String?;
+    if (token?.isNotEmpty != true ||
+        clientId?.isNotEmpty != true ||
         broadcasterId?.isNotEmpty != true) {
       throw StateError(
         'Twitch access token, client ID, and broadcaster ID are required.',
       );
     }
-    await twitch?.stop();
-    final transport = JsonHttpTransport(
-      baseUrl: 'https://api.twitch.tv',
-      accessToken: twitchToken,
-      headers: {'Client-Id': twitchClientId!},
-    );
-    twitch = TwitchEventSubWorker(
-      accessToken: twitchToken!,
-      clientId: twitchClientId,
+    final scope = ProviderOperationScope();
+    _twitchScope = scope;
+    final worker = TwitchEventSubWorker(
+      accessToken: token!,
+      clientId: clientId!,
       broadcasterId: broadcasterId!,
-      request: transport.request,
+      request: twitchRequestFactory(
+        accessToken: token,
+        clientId: clientId,
+        scope: scope,
+      ),
+      socketFactory: twitchSocketFactory,
       eventHub: eventHub,
-      onStatusChanged: notifyListeners,
+      onStatusChanged: _notify,
     );
-    await twitch!.start();
-    await botWhispers?.stop();
-    botWhispers = null;
-    final bot = await TwitchAccountAuthService(
-      dataService: dataService,
-    ).loadAccount('bot');
-    final botToken = bot?.config['accessToken']?.toString() ?? '';
-    final botId = bot?.config['twitchId']?.toString() ?? '';
-    if (botToken.isNotEmpty && botId.isNotEmpty && botId != broadcasterId) {
-      final botTransport = JsonHttpTransport(
-        baseUrl: 'https://api.twitch.tv',
-        accessToken: botToken,
-        headers: {'Client-Id': twitchClientId},
-      );
-      botWhispers = TwitchEventSubWorker(
-        accessToken: botToken,
-        clientId: twitchClientId,
-        broadcasterId: botId,
-        request: botTransport.request,
-        eventHub: eventHub,
-        onStatusChanged: notifyListeners,
-        subscriptions: [
-          TwitchEventSubSubscription(
-            type: 'user.whisper.message',
-            version: '1',
-            condition: {'user_id': botId},
+    twitch = worker;
+    try {
+      await worker.start();
+      if (!_currentTwitch(generation)) return;
+      final bot = await TwitchAccountAuthService(
+        dataService: dataService,
+      ).loadAccount('bot');
+      if (!_currentTwitch(generation)) return;
+      final botToken = bot?.config['accessToken']?.toString() ?? '';
+      final botId = bot?.config['twitchId']?.toString() ?? '';
+      if (botToken.isNotEmpty && botId.isNotEmpty && botId != broadcasterId) {
+        final botScope = ProviderOperationScope();
+        _botScope = botScope;
+        final botWorker = TwitchEventSubWorker(
+          accessToken: botToken,
+          clientId: clientId,
+          broadcasterId: botId,
+          request: twitchRequestFactory(
+            accessToken: botToken,
+            clientId: clientId,
+            scope: botScope,
           ),
-        ],
-      );
-      await botWhispers!.start();
+          socketFactory: twitchSocketFactory,
+          eventHub: eventHub,
+          onStatusChanged: _notify,
+          subscriptions: [
+            TwitchEventSubSubscription(
+              type: 'user.whisper.message',
+              version: '1',
+              condition: {'user_id': botId},
+            ),
+          ],
+        );
+        botWhispers = botWorker;
+        await botWorker.start();
+      }
+    } catch (_) {
+      if (!_currentTwitch(generation)) return;
+      rethrow;
     }
-    notifyListeners();
+    if (_currentTwitch(generation)) _notify();
+  }
+
+  Future<void> _stopTwitchOwned() async {
+    final channel = twitch;
+    final bot = botWhispers;
+    final scopes = [_twitchScope, _botScope];
+    twitch = null;
+    botWhispers = null;
+    _twitchScope = null;
+    _botScope = null;
+    await Future.wait<void>([
+      if (channel != null) channel.stop(),
+      if (bot != null) bot.stop(),
+      for (final scope in scopes)
+        if (scope != null) scope.close(),
+    ]);
   }
 
   Future<void> stopTwitch() async {
-    await twitch?.stop();
-    await botWhispers?.stop();
-    botWhispers = null;
-    twitch = null;
-    notifyListeners();
+    _twitchGeneration++;
+    await _stopTwitchOwned();
+    _notify();
   }
 
   Future<void> start() async {
+    _requireOpen();
+    final twitchGeneration = ++_twitchGeneration;
+    final youtubeGeneration = ++_youtubeGeneration;
+    await Future.wait([_stopTwitchOwned(), _stopYouTubeOwned()]);
     final twitchSettings = await loadTwitchChannelSettings(dataService);
     final youtubeSettings = await dataService.loadPluginSettings('youtube');
-    final twitchToken = twitchSettings['accessToken'] as String?;
-    if (twitchToken?.isNotEmpty == true &&
+    if (_currentTwitch(twitchGeneration) &&
+        (twitchSettings['accessToken'] as String?)?.isNotEmpty == true &&
         (twitchSettings['clientId'] as String?)?.isNotEmpty == true &&
         (twitchSettings['broadcasterId'] as String?)?.isNotEmpty == true) {
-      await _startTwitch(twitchSettings);
+      await _startTwitch(twitchSettings, twitchGeneration);
     }
-    final youtubeToken = youtubeSettings['accessToken'] as String?;
-    final liveChatId = youtubeSettings['liveChatId'] as String?;
-    if (youtubeToken?.isNotEmpty == true && liveChatId?.isNotEmpty == true) {
-      final transport = JsonHttpTransport(
-        baseUrl: 'https://www.googleapis.com',
-        accessToken: youtubeToken,
+    if (_currentYouTube(youtubeGeneration) &&
+        (youtubeSettings['accessToken'] as String?)?.isNotEmpty == true &&
+        (youtubeSettings['liveChatId'] as String?)?.isNotEmpty == true) {
+      await startYouTubeChat(
+        liveChatId: youtubeSettings['liveChatId'] as String,
       );
-      _youtubeRequest = transport.request;
-      _youtubeLiveChatId = liveChatId;
-      youtube = YouTubeLiveChatWorker(
-        request: transport.request,
-        eventHub: eventHub,
-        liveChatId: liveChatId!,
-        onStatusChanged: notifyListeners,
-      );
-      youtube!.start();
-      notifyListeners();
     }
   }
 
   Future<void> stop() async {
-    await twitch?.stop();
-    await botWhispers?.stop();
-    botWhispers = null;
-    await youtube?.stop();
-    twitch = null;
-    youtube = null;
-    _youtubeRequest = null;
+    // Both generations are invalidated before either platform can finish I/O.
+    _twitchGeneration++;
+    _youtubeGeneration++;
+    final stopping = [_stopTwitchOwned(), _stopYouTubeOwned()];
     _youtubeLiveChatId = null;
-    notifyListeners();
+    await Future.wait(stopping);
+    _notify();
   }
 }
