@@ -1,3 +1,4 @@
+import 'trace_frame_updates.dart';
 import '../../runtime/automation_invocation_service.dart';
 import '../../runtime/graph_invocation.dart';
 import '../../runtime/cancellation.dart';
@@ -91,6 +92,7 @@ class _InlineAutomationGraphState extends State<InlineAutomationGraph> {
     execution = traceService == null
         ? null
         : ShowrunnerExecutionVisualAdapter(
+            scheduleUpdate: scheduleTraceFrame,
             service: traceService!,
             source: ExecutionTraceSource(type: 'automation', id: id),
             documentId: id,

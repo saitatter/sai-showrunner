@@ -1,18 +1,39 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'trace_models.dart';
 import 'trace_events.dart';
 import 'trace_snapshots.dart';
 
 final class TraceRetentionStore {
-  TraceRetentionStore({required this.maxRuns, required this.maxEventsPerRun});
-  final int maxRuns, maxEventsPerRun;
+  TraceRetentionStore({
+    required this.maxRuns,
+    required this.maxEventsPerRun,
+    required this.maxNodesPerRun,
+    required this.maxEdgesPerRun,
+  }) {
+    if ([
+      maxRuns,
+      maxEventsPerRun,
+      maxNodesPerRun,
+      maxEdgesPerRun,
+    ].any((value) => value < 1)) {
+      throw ArgumentError('Trace retention limits must be positive.');
+    }
+  }
+  final int maxRuns, maxEventsPerRun, maxNodesPerRun, maxEdgesPerRun;
+  bool contains(String id) => _runs.containsKey(id);
   final Map<String, _TraceRunState> _runs = {};
   List<ExecutionTraceRunSnapshot> get snapshots => [
     for (final run in _runs.values) run.snapshot(),
   ];
   ExecutionTraceRunSnapshot? snapshotFor(String id) => _runs[id]?.snapshot();
   void create(ExecutionTraceRunInfo info) {
-    _runs[info.executionId] = _TraceRunState(info, maxEventsPerRun);
+    _runs[info.executionId] = _TraceRunState(
+      info,
+      maxEventsPerRun,
+      maxNodesPerRun,
+      maxEdgesPerRun,
+    );
   }
 
   int nextSequence(String id) => _runs[id]?._nextSequence() ?? 0;
@@ -34,11 +55,12 @@ final class TraceRetentionStore {
 }
 
 final class _TraceRunState {
-  _TraceRunState(this.info, this.maxEventsPerRun);
+  _TraceRunState(this.info, this.maxEventsPerRun, this.maxNodes, this.maxEdges);
 
   ExecutionTraceRunInfo info;
-  final int maxEventsPerRun;
-  final List<ExecutionTraceEvent> events = [];
+  final int maxEventsPerRun, maxNodes, maxEdges;
+  int droppedEvents = 0, evictedNodes = 0, evictedEdges = 0;
+  final Queue<ExecutionTraceEvent> events = Queue();
   final Map<String, _TraceNodeState> nodes = {};
   final Map<String, int> activeCounts = {}, invocationTotals = {};
   final Map<String, ExecutionTraceEdgeSnapshot> edges = {};
@@ -73,7 +95,10 @@ final class _TraceRunState {
         break;
     }
     events.add(event);
-    if (events.length > maxEventsPerRun) events.removeAt(0);
+    if (events.length > maxEventsPerRun) {
+      events.removeFirst();
+      droppedEvents++;
+    }
     switch (event) {
       case ExecutionRunStartedEvent():
         info = info.copyWith(status: ExecutionTraceRunStatus.running);
@@ -237,20 +262,34 @@ final class _TraceRunState {
       case ExecutionEdgeTraversedEvent():
         break;
     }
+    while (nodes.length > maxNodes) {
+      final key = nodes.keys.first;
+      nodes.remove(key);
+      activeCounts.remove(key);
+      invocationTotals.remove(key);
+      evictedNodes++;
+    }
+    while (edges.length > maxEdges) {
+      edges.remove(edges.keys.first);
+      evictedEdges++;
+    }
     if (event is ExecutionRunEndedEvent) activeCounts.clear();
   }
 
   ExecutionTraceRunSnapshot snapshot() => ExecutionTraceRunSnapshot(
     info: info,
     events: List.unmodifiable(events),
-    nodes: {
+    nodes: Map.unmodifiable({
       for (final entry in nodes.entries)
         entry.key: entry.value.snapshot(
           activeCount: activeCounts[entry.key] ?? 0,
           invocationCount: invocationTotals[entry.key],
         ),
-    },
+    }),
     edges: Map.unmodifiable(edges),
+    droppedEventCount: droppedEvents,
+    evictedNodeCount: evictedNodes,
+    evictedEdgeCount: evictedEdges,
   );
 }
 

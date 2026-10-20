@@ -13,8 +13,9 @@ final class ShowrunnerExecutionVisualAdapter
     required this.service,
     required this._source,
     this.documentId,
+    this.scheduleUpdate = scheduleMicrotask,
   }) {
-    _subscription = service.events.listen((_) => _refresh());
+    _subscription = service.events.listen((_) => _scheduleRefresh());
     _refresh();
   }
   final ExecutionTraceService service;
@@ -23,16 +24,38 @@ final class ShowrunnerExecutionVisualAdapter
       GraphExecutionVisualController();
   ExecutionTraceSource _source;
   final String? documentId;
+  final void Function(void Function()) scheduleUpdate;
+  bool _refreshScheduled = false;
+  void _scheduleRefresh() {
+    if (_disposed || _refreshScheduled) return;
+    _refreshScheduled = true;
+    scheduleUpdate(() {
+      _refreshScheduled = false;
+      _refresh();
+    });
+  }
+
   String? _pinnedId;
   bool _disposed = false;
   String? get pinnedExecutionId => _pinnedId;
-  List<ExecutionTraceRunSnapshot> get runs =>
-      (documentId == null
-            ? service.snapshotsFor(_source)
-            : service.snapshots
-                  .where((run) => run.info.source.documentId == documentId)
-                  .toList())
-        ..sort((a, b) => b.info.startedAt.compareTo(a.info.startedAt));
+  List<ExecutionTraceRunSnapshot> get runs {
+    final available =
+        (documentId == null
+                ? service.snapshotsFor(_source)
+                : service.snapshots
+                      .where((run) => run.info.source.documentId == documentId)
+                      .toList())
+            .indexed
+            .toList();
+    available.sort((a, b) {
+      final time = b.$2.info.startedAt.compareTo(a.$2.info.startedAt);
+      // Windows clocks can give multiple runs the same timestamp. Retention
+      // insertion order is authoritative for ties, independent of sort stability.
+      return time == 0 ? b.$1.compareTo(a.$1) : time;
+    });
+    return [for (final entry in available) entry.$2];
+  }
+
   @override
   GraphExecutionSnapshot get snapshot => _visuals.snapshot;
   void setSource(ExecutionTraceSource source) {

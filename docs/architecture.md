@@ -73,6 +73,19 @@ an old replacement from recreating superseded subscriptions. Accepted queue item
 remain independently owned by their queues. Background trigger failures are kept
 as typed profile diagnostics and reported without raw event payloads in app logs.
 
+Trace storage separates domain events/models, session production, retention and
+the public service facade. Defaults retain 32 runs, 512 events, 1024 node states
+and 2048 edge states per run; positive limits are validated. Snapshots are read-only
+and expose event/node/edge truncation counters. Invocation counters are bounded
+with retained node state; evicted sessions stop collecting new data. Trace retention
+may evict old diagnostics, while graph execution continues independently.
+The `events` stream is a coalesced change hint, not a complete event spool: every
+subscriber retains at most the latest hint, including while paused. Ordered event
+history and exact counters for retained nodes/edges come from snapshots. Flutter
+canvases coalesce projection changes to one frame; projection never writes to an
+authoring document. Shutdown cancels paused notifications without waiting for
+consumers to resume. Stable insertion order resolves equal run timestamps.
+
 Shader authoring uses the same immutable graph/core/canvas. Semantic changes
 invalidate generated GLSL; presentation changes do not. Node previews use derived
 documents. Shader source is compiled/rendered by the actual browser WebGL runtime.

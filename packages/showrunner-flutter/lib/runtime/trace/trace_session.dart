@@ -8,14 +8,27 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
     required this._publish,
     required this._nextSequence,
     required this.info,
+    required this.isRetained,
+    required this.maxNodes,
   }) : _started = info.startedAt;
 
   final void Function(ExecutionTraceEvent) _publish;
   final int Function(String) _nextSequence;
   ExecutionTraceRunInfo info;
+  final bool Function(String) isRetained;
+  final int maxNodes;
   final DateTime _started;
   final Map<String, int> _invocations = {};
   bool _ended = false;
+  bool get _accepts {
+    if (_ended) return false;
+    if (!isRetained(executionId)) {
+      _ended = true;
+      _invocations.clear();
+      return false;
+    }
+    return true;
+  }
 
   @override
   String get executionId => info.executionId;
@@ -25,9 +38,12 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
 
   @override
   void nodeStarted(ExecutionNodeRef node, {int? invocation}) {
-    if (_ended) return;
+    if (!_accepts) return;
     final count = _nextInvocation(node, invocation);
     _invocations[node.key] = count;
+    while (_invocations.length > maxNodes) {
+      _invocations.remove(_invocations.keys.first);
+    }
     _publish(
       ExecutionNodeStartedEvent(
         executionId: executionId,
@@ -46,7 +62,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
     int? invocation,
     Duration? duration,
   }) {
-    if (_ended) return;
+    if (!_accepts) return;
     final count = _nextInvocation(node, invocation);
     _publish(
       ExecutionNodeCompletedEvent(
@@ -69,7 +85,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
     int? invocation,
     Duration? duration,
   }) {
-    if (_ended) return;
+    if (!_accepts) return;
     final count = _nextInvocation(node, invocation);
     _publish(
       ExecutionNodeFailedEvent(
@@ -87,7 +103,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
 
   @override
   void nodeResult(ExecutionNodeRef node, Object? result, {int? invocation}) {
-    if (_ended) return;
+    if (!_accepts) return;
     final count = _nextInvocation(node, invocation);
     final sanitized = sanitizeExecutionResult(result);
     _publish(
@@ -106,7 +122,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
 
   @override
   void controlPath(ExecutionNodeRef node, String port, {int? iteration}) {
-    if (_ended) return;
+    if (!_accepts) return;
     _publish(
       ExecutionControlPathEvent(
         executionId: executionId,
@@ -122,7 +138,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
 
   @override
   void edgeTraversed(ExecutionEdgeRef edge) {
-    if (_ended) return;
+    if (!_accepts) return;
     _publish(
       ExecutionEdgeTraversedEvent(
         executionId: executionId,
@@ -136,7 +152,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
 
   @override
   void loopIteration(ExecutionNodeRef node, int iteration) {
-    if (_ended) return;
+    if (!_accepts) return;
     _publish(
       ExecutionLoopIterationEvent(
         executionId: executionId,
@@ -155,7 +171,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
     String subgraphId, {
     required int depth,
   }) {
-    if (_ended) return;
+    if (!_accepts) return;
     _publish(
       ExecutionSubgraphEnteredEvent(
         executionId: executionId,
@@ -176,7 +192,7 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
     required int depth,
     required Duration duration,
   }) {
-    if (_ended) return;
+    if (!_accepts) return;
     _publish(
       ExecutionSubgraphExitedEvent(
         executionId: executionId,
@@ -197,8 +213,9 @@ final class ExecutionTraceSession implements ExecutionTraceSink {
     Object? error,
     StackTrace? stackTrace,
   }) {
-    if (_ended) return;
+    if (!_accepts) return;
     _ended = true;
+    _invocations.clear();
     final traceError = error == null
         ? null
         : ExecutionTraceError.fromObject(error, stackTrace);

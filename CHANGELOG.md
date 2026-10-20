@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Bound trace event/node/edge retention with explicit truncation counters, coalesce paused observer notifications and refresh execution visuals once per frame with stable run selection.
 - Add immutable Twitch/YouTube provider events with credential redaction, private/public feed separation and bounded delivery queues that report overload without silently dropping accepted events.
 - Render rich chat emotes with Twitch fragments and 7TV/BTTV/FFZ catalogs, bounded caching, animation preferences and text fallback.
 - Add configurable global/message/user/event chat automation actions and a public Twitch/YouTube event feed in chat and the dock.

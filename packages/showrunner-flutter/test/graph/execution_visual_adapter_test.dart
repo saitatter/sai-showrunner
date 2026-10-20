@@ -6,6 +6,41 @@ import 'package:showrunner_flutter/runtime/execution_trace.dart';
 
 void main() {
   test(
+    'burst updates schedule one read-only projection per requested frame',
+    () async {
+      final service = ExecutionTraceService();
+      final frames = <void Function()>[];
+      const source = ExecutionTraceSource(type: 'automation', id: 'frames');
+      final adapter = ShowrunnerExecutionVisualAdapter(
+        service: service,
+        source: source,
+        scheduleUpdate: frames.add,
+      );
+      addTearDown(() async {
+        adapter.dispose();
+        await service.dispose();
+      });
+      var changes = 0;
+      adapter.addListener(() => changes++);
+      final run = service.start(mode: ExecutionTraceMode.live, source: source);
+      for (var i = 0; i < 30; i++) {
+        run.nodeStarted(const ExecutionNodeRef(nodeId: 'a'));
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(frames, hasLength(1));
+      expect(changes, 0);
+      frames.removeAt(0)();
+      expect(changes, 1);
+      expect(
+        adapter
+            .snapshot
+            .nodes[const ScopedNodeRef(mainAutomationSpace, 'a')]!
+            .activeCount,
+        30,
+      );
+    },
+  );
+  test(
     'concurrent and pinned runs retain exact counts beyond bounded event history',
     () async {
       final service = ExecutionTraceService(maxEventsPerRun: 2);
