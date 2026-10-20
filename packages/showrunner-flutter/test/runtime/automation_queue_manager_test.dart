@@ -19,7 +19,7 @@ void main() {
           executions++;
           entered.complete();
           await finish.future;
-        return null;
+          return null;
         },
       );
       addTearDown(manager.dispose);

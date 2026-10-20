@@ -1,3 +1,4 @@
+import '../runtime/graph_invocation.dart';
 import 'application_controller.dart';
 import 'lifecycle/application_runtime.dart';
 import '../features/automation/new_automation_dialog.dart';
@@ -618,7 +619,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     );
     _graphExecution.setSource(source);
     try {
-      final item = await GraphExecutionWorkflow(_automationQueueManager).run(
+      final item = await GraphExecutionWorkflow(_services.invocations).run(
         automation: automation,
         source: source,
         entryNodeId: entryNodeId,

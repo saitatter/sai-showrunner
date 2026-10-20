@@ -191,8 +191,9 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
     final runtime = await _profileRuntimeFuture;
     final result = await runtime.activate('smoke', loaded);
     if (!runtime.isActive('smoke') ||
-        !result.completed ||
-        result.contextState['profileValue'] != 'true') {
+        result is! InvocationCompleted ||
+        !result.execution.completed ||
+        result.execution.contextState['profileValue'] != 'true') {
       throw StateError('Profile smoke did not activate its automation.');
     }
     await runtime.deactivate('smoke', loaded);

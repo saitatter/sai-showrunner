@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:showrunner_flutter/runtime/graph_invocation.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/showrunner/manifest.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
@@ -185,9 +186,15 @@ void main() {
       );
       final profile = profileFixture(events: [document]);
       await runtime.activate('p', profile);
-      await runtime.handleTrigger('p', profile, 'test', 'chat', {
-        'message': 'queued',
-      });
+      final accepted = await runtime.handleTrigger(
+        'p',
+        profile,
+        'test',
+        'chat',
+        {'message': 'queued'},
+      );
+      expect(accepted, isA<InvocationAccepted>());
+      expect(accepted, isNot(isA<InvocationCompleted>()));
       expect(queue.pending, hasLength(1));
       expect(queue.pending.single.source['automation'], document.toJson());
       expect(queue.pending.single.source['entryNodeId'], 'event');

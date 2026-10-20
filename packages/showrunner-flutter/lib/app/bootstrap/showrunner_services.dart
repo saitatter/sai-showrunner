@@ -1,3 +1,5 @@
+import '../../runtime/automation_invocation_service.dart';
+import '../../runtime/graph_invocation.dart';
 import '../../plugins/stream_plans/manifest.dart';
 import 'dart:async';
 import 'dart:io';
@@ -20,7 +22,6 @@ import '../../plugins/showrunner/manifest.dart';
 import '../../runtime/action_queue.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../../graph/runtime/graph_execution_engine.dart';
-import '../../graph/domain/automation_document.dart';
 import '../../runtime/execution_trace.dart';
 import '../../runtime/profile_manager.dart';
 import '../../runtime/profile_runtime.dart';
@@ -31,7 +32,6 @@ import '../../features/chat/unified_chat_runtime.dart';
 import '../../features/chat/command_manager.dart';
 import '../../persistence/automation_repository.dart';
 import '../../persistence/filesystem/safe_path.dart';
-import '../../runtime/expression.dart';
 import '../../features/chat/chat_dock_service.dart';
 import '../../persistence/resource_repository.dart';
 
@@ -48,6 +48,7 @@ final class ShowRunnerServices {
     required this.graphExecutionEngine,
     required this.executionTrace,
     required this.queueManager,
+    required this.invocations,
     required this.pluginRegistryFuture,
     required this.overlayPresenceReaderFuture,
     required this.overlayObsSourceService,
@@ -105,6 +106,7 @@ final class ShowRunnerServices {
     );
     late final Future<DartPluginRegistry> pluginRegistryFuture;
     late final Future<DartProfileRuntime> profileRuntimeFuture;
+    late final AutomationInvocationService invocations;
     final queueManager = DartAutomationQueueManager(
       defaultQueue: actionQueue,
       loadConfig: (queueId) async {
@@ -114,20 +116,19 @@ final class ShowRunnerServices {
         if (!await file.exists()) return null;
         return queueRepository.load(file);
       },
-      execute: (automation, context, item) async {
-        final registry = await pluginRegistryFuture;
-        return graphExecutionEngine.executeWithRegistry(
-          automation: automation,
-          context: context,
-          registry: registry,
-          entryNodeId: item.source['entryNodeId'] as String?,
-          entrySpaceId:
-              item.source['entrySpaceId'] as String? ?? mainAutomationSpace,
-          traceSource: ExecutionTraceSource.fromMetadata({
-            ...item.source,
-            'itemId': item.id,
-          }),
-        );
+      execute: (automation, context, item) =>
+          invocations.executeQueued(automation, context, item),
+    );
+    invocations = AutomationInvocationService(
+      engine: graphExecutionEngine,
+      registry: () => pluginRegistryFuture,
+      queues: queueManager,
+      loadDocument: (fileName) async {
+        final file = await containedFile(dataService.userDirectory, [
+          'automations',
+          fileName,
+        ]);
+        return AutomationRepository(file).loadStrict();
       },
     );
     pluginRegistryFuture =
@@ -139,14 +140,16 @@ final class ShowRunnerServices {
           viewerDataRepository: viewerDataRepository,
           queueManager: queueManager,
           executionEngine: graphExecutionEngine,
-          runAutomation: (automation, context) async {
-            final registry = await pluginRegistryFuture;
-            return graphExecutionEngine.executeWithRegistry(
-              automation: automation,
-              context: context,
-              registry: registry,
-            );
-          },
+          runAutomation: (automation, context) => invocations.invokeOrThrow(
+            GraphInvocation(
+              target: InvocationDocument(automation),
+              origin: InvocationOrigin.automation,
+              sourceId: automation.id,
+              dispatch: InvocationDispatch.direct,
+              context: InvocationContext.capture(context),
+              cancellation: context.cancellationToken,
+            ),
+          ),
           activateProfile:
               activateProfile ??
               (id, mode, context) => ProfileActivationWorkflow(
@@ -200,25 +203,20 @@ final class ShowRunnerServices {
       required String sourceType,
       required String sourceId,
     }) async {
-      final file = await containedFile(dataService.userDirectory, [
-        'automations',
-        automationFile,
-      ]);
-      final automation = await AutomationRepository(file).loadStrict();
-      if (automation == null) {
-        throw StateError('Chat automation does not exist: $automationFile');
-      }
-      await queueManager.enqueue(
-        automation,
-        EvaluationContext(
-          contextState: {...values, 'event': values, 'trigger': values},
+      await invocations.invokeOrThrow(
+        GraphInvocation(
+          target: InvocationFile(automationFile),
+          origin: sourceType == 'chat-command'
+              ? InvocationOrigin.chatCommand
+              : InvocationOrigin.chatQuickAction,
+          sourceId: sourceId,
+          dispatch: InvocationDispatch.queued,
+          queueId: queueId,
+          context: InvocationContext(
+            state: {...values, 'event': values, 'trigger': values},
+          ),
+          sourceDetails: {'platform': values['platform']},
         ),
-        queueId: queueId,
-        sourceMetadata: {
-          'sourceType': sourceType,
-          'sourceId': sourceId,
-          'platform': values['platform'],
-        },
       );
     }
 
@@ -292,6 +290,7 @@ final class ShowRunnerServices {
       graphExecutionEngine: graphExecutionEngine,
       executionTrace: executionTrace,
       queueManager: queueManager,
+      invocations: invocations,
       pluginRegistryFuture: pluginRegistryFuture,
       overlayPresenceReaderFuture: overlayPresenceReader.future,
       overlayObsSourceService: overlayObsSourceService,
@@ -420,6 +419,7 @@ final class ShowRunnerServices {
   final ShowRunnerDataService dataService;
   final DartActionQueue actionQueue;
   final GraphExecutionEngine graphExecutionEngine;
+  final AutomationInvocationService invocations;
   final ExecutionTraceService executionTrace;
   final DartAutomationQueueManager queueManager;
   final Future<DartPluginRegistry> pluginRegistryFuture;

@@ -1,3 +1,5 @@
+import '../../runtime/automation_invocation_service.dart';
+import '../../graph/runtime/graph_execution_engine.dart';
 import 'dart:async';
 import 'dart:io';
 import '../../graph/domain/automation_document.dart';
@@ -17,6 +19,11 @@ void registerConfiguredShowRunner(
   registry.register(
     createShowRunnerPlugin(
       queueManager: queueManager,
+      invocations: AutomationInvocationService(
+        engine: CompiledExecutionEngine(),
+        registry: () => registry,
+        queues: queueManager,
+      ),
       loadAutomation: (automationId) =>
           _loadAutomationResource(dataService, automationId),
       runAutomation: runAutomation,
@@ -34,6 +41,11 @@ void registerDefaultShowRunner(
   registry.register(
     createShowRunnerPlugin(
       queueManager: queueManager,
+      invocations: AutomationInvocationService(
+        engine: CompiledExecutionEngine(),
+        registry: () => registry,
+        queues: queueManager,
+      ),
       runAutomation: runAutomation,
       activateProfile: activateProfile,
     ),

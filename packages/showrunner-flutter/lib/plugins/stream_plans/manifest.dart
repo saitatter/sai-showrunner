@@ -1,3 +1,5 @@
+import '../../runtime/automation_invocation_service.dart';
+import '../../runtime/graph_invocation.dart';
 import '../../graph/domain/automation_document.dart';
 import 'dart:async';
 
@@ -5,9 +7,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
-import '../../runtime/execution_trace.dart';
 import '../../graph/runtime/graph_execution_engine.dart';
-import '../../graph/runtime/graph_runtime.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../../schema/json.dart';
 import '../../schema/stream_plan.dart';
@@ -429,7 +429,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     }
   }
 
-  Future<GraphExecutionResult> _runAutomation(
+  Future<InvocationResult> _runAutomation(
     JsonMap automation, {
     required String planId,
     String? segmentId,
@@ -451,39 +451,21 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
       },
       cancellationToken: baseContext.cancellationToken,
     );
-    final queue = queueManager;
-    final queueId = parsed.queueId;
-    if (queue != null && queueId != null) {
-      final item = await queue.enqueue(
-        parsed,
-        executionContext,
-        queueId: queueId,
-        sourceMetadata: {
-          'sourceType': 'stream-plan',
-          'sourceId': planId,
-          ...?(sourceSubId == null
-              ? null
-              : <String, dynamic>{'sourceSubId': sourceSubId}),
-        },
-      );
-      return GraphExecutionResult(
-        completed: true,
-        steps: 0,
-        nodeResults: const <String, RuntimeMap>{},
-        contextState: Map<String, dynamic>.from(executionContext.contextState),
-        outputValues: {'queued': true, 'queueId': queueId, 'itemId': item.id},
-      );
-    }
-    return executionEngine.executeWithRegistry(
-      automation: parsed,
-      context: executionContext,
-      registry: registry,
-      onNodeEnter: onNodeEnter,
-      onNodeExit: onNodeExit,
-      traceSource: ExecutionTraceSource(
-        type: 'stream-plan',
-        id: planId,
-        subId: sourceSubId,
+    return AutomationInvocationService(
+      engine: executionEngine,
+      registry: () => registry,
+      queues: queueManager,
+    ).invokeOrThrow(
+      GraphInvocation(
+        target: InvocationDocument(parsed),
+        origin: InvocationOrigin.streamPlan,
+        sourceId: planId,
+        sourceSubId: sourceSubId,
+        dispatch: InvocationDispatch.documentQueue,
+        context: InvocationContext.capture(executionContext),
+        cancellation: executionContext.cancellationToken,
+        onNodeEnter: onNodeEnter,
+        onNodeExit: onNodeExit,
       ),
     );
   }
