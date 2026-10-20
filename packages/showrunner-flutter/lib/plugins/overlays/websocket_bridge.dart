@@ -29,6 +29,8 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     this.soundOutputs,
     this.mediaRoot,
     this.ttsRoot,
+    this.maxMessageBytes = 1024 * 1024,
+    this.requestTimeout = const Duration(seconds: 20),
     Directory? webRoot,
   }) : webRoot = webRoot ?? _discoverWebRoot() {
     server.addRequestHandler(_handleHttpRequest);
@@ -56,6 +58,8 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
   final SoundOutputRegistry? soundOutputs;
   final Directory? mediaRoot;
   final Directory? ttsRoot;
+  final int maxMessageBytes;
+  final Duration requestTimeout;
   final Directory? webRoot;
   late final List<StreamSubscription<RuntimeMap>> _subscriptions;
   final _peers = <_OverlayPeer>{};
@@ -178,7 +182,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
       return true;
     }
     registerAudioOutput(resource.id);
-    final peer = _OverlayPeer(socket);
+    final peer = _OverlayPeer(socket, maxMessageBytes, requestTimeout);
     peer.overlayId = overlayId;
     peer.onRequest = (name, args) => _handlePeerRequest(peer, name, args);
     _peers.add(peer);
@@ -540,7 +544,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
 }
 
 final class _OverlayPeer {
-  _OverlayPeer(this.socket) {
+  _OverlayPeer(this.socket, this.maxMessageBytes, this.requestTimeout) {
     _subscription = socket.listen(
       (data) => unawaited(_receive(data)),
       onError: (_, _) => _finish(),
@@ -550,6 +554,8 @@ final class _OverlayPeer {
   }
 
   final WebSocket socket;
+  final int maxMessageBytes;
+  final Duration requestTimeout;
   late final StreamSubscription<dynamic> _subscription;
   final _pending = <String, Completer<Object?>>{};
   final acquiredStates = <String>{};
@@ -566,13 +572,18 @@ final class _OverlayPeer {
     if (_closed) {
       return Future.error(StateError('Overlay WebSocket is closed.'));
     }
+    if (_pending.length >= 64) {
+      return Future.error(StateError('Too many pending overlay requests.'));
+    }
     final requestId = 'flutter-overlay-${_nextRequest++}';
     final completer = Completer<Object?>();
     _pending[requestId] = completer;
     socket.add(
       jsonEncode({'requestId': requestId, 'name': name, 'args': args}),
     );
-    return completer.future;
+    return completer.future.timeout(requestTimeout).whenComplete(() {
+      _pending.remove(requestId);
+    });
   }
 
   Future<void> close() async {
@@ -581,7 +592,23 @@ final class _OverlayPeer {
   }
 
   Future<void> _receive(dynamic data) async {
-    if (data is! String) return;
+    try {
+      if (data is! String) {
+        await socket.close(WebSocketStatus.unsupportedData);
+        return;
+      }
+      if (data.length > maxMessageBytes ||
+          utf8.encode(data).length > maxMessageBytes) {
+        await socket.close(WebSocketStatus.messageTooBig);
+        return;
+      }
+      await _receiveMessage(data);
+    } on Object {
+      await socket.close(WebSocketStatus.invalidFramePayloadData);
+    }
+  }
+
+  Future<void> _receiveMessage(String data) async {
     final decoded = jsonDecode(data);
     if (decoded is! Map) return;
     final message = Map<String, dynamic>.from(decoded);

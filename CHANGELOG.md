@@ -12,6 +12,7 @@
 - Add unified Twitch/YouTube chat with channel-scoped moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Close malformed or oversized overlay WebSocket peers safely and bound pending RPC calls and response deadlines.
 - Reject forged HTTP authorities and foreign-origin remote-button requests before exposing data or dispatching actions.
 - Preserve settings through temporary Windows file-sharing locks by retrying atomic replacement without removing the original.
 - Preserve workspace navigation during startup restoration.
