@@ -1,3 +1,4 @@
+import '../runtime/provider_operation_policy.dart';
 import 'dart:async';
 import '../../runtime/expression.dart';
 import '../../services/showrunner_data_service.dart';
@@ -9,6 +10,7 @@ Future<void> registerConfiguredElgato(
   DartPluginRegistry registry, {
   required ShowRunnerDataService dataService,
 }) async {
+  final scope = ProviderOperationScope();
   final elgatoSettings = await dataService.loadPluginSettings('elgato');
   final elgatoHost = elgatoSettings['host']?.toString().trim();
   final elgatoPort = pluginPort(elgatoSettings['port'], 9123);
@@ -17,7 +19,7 @@ Future<void> registerConfiguredElgato(
       elgatoSettings['rgb'] == true ||
       elgatoSettings['rgb']?.toString().toLowerCase() == 'true';
   final elgatoTransport = elgatoHost?.isNotEmpty == true
-      ? ElgatoHttpTransport(host: elgatoHost!, port: elgatoPort)
+      ? ElgatoHttpTransport(scope: scope, host: elgatoHost!, port: elgatoPort)
       : null;
   final configuredElgatoTransport = ElgatoTransport(
     elgatoTransport?.request ?? _unconfiguredElgato,
@@ -32,6 +34,7 @@ Future<void> registerConfiguredElgato(
         if (host.isEmpty) return configuredElgatoTransport;
         return ElgatoTransport(
           ElgatoHttpTransport(
+            scope: scope,
             host: host,
             port: pluginPort(config['port'], elgatoPort),
           ).request,
@@ -42,6 +45,7 @@ Future<void> registerConfiguredElgato(
     initialHealth: (elgatoTransport != null)
         ? const DartPluginHealth.connectionUnchecked()
         : const DartPluginHealth.notConfigured(),
+    onStop: scope.close,
   );
 }
 

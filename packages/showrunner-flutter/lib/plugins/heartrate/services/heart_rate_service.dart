@@ -8,6 +8,7 @@ import '../events.dart';
 import '../../../services/plugin_event_hub.dart';
 import 'heart_rate_stats.dart';
 import 'heart_rate_zones.dart';
+import '../../runtime/provider_operation_policy.dart';
 
 enum HeartRateConnectionStatus {
   disabled,
@@ -607,12 +608,10 @@ final class HeartRateService extends ChangeNotifier {
 
   void _scheduleReconnect() {
     if (_closing || !_reconnectEnabled || _reconnectTimer != null) return;
-    final multiplier = 1 << _reconnectAttempt.clamp(0, 4);
-    final requestedMilliseconds = reconnectDelay.inMilliseconds * multiplier;
-    final delay = Duration(
-      milliseconds: requestedMilliseconds > maxReconnectDelay.inMilliseconds
-          ? maxReconnectDelay.inMilliseconds
-          : requestedMilliseconds,
+    final delay = ProviderOperationPolicy.backoff(
+      reconnectDelay,
+      _reconnectAttempt.clamp(0, 4),
+      maximum: maxReconnectDelay,
     );
     _reconnectTimer = Timer(delay, () {
       _reconnectTimer = null;

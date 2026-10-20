@@ -7,6 +7,7 @@ import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
+import '../runtime/provider_operation_policy.dart';
 
 abstract interface class LifxTransport {
   Future<RuntimeMap> getState();
@@ -61,7 +62,10 @@ final class LifxUdpTransport implements LifxTransport {
     required this.host,
     this.port = 56700,
     this.target = const <int>[],
-  });
+    ProviderOperationScope? scope,
+  }) : _scope = scope ?? ProviderOperationScope();
+
+  final ProviderOperationScope _scope;
 
   final String host;
   final int port;
@@ -90,31 +94,38 @@ final class LifxUdpTransport implements LifxTransport {
   );
 
   @override
-  Future<void> close() async {}
+  Future<void> close() => _scope.close();
 
   Future<Uint8List> _request({
     required int messageType,
     required int responseType,
   }) async {
+    _scope.requireOpen();
     final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
     final completer = Completer<Uint8List>();
-    late StreamSubscription<RawSocketEvent> subscription;
+    StreamSubscription<RawSocketEvent>? subscription;
+    void Function()? release;
     void finishError(Object error, [StackTrace? stack]) {
       if (!completer.isCompleted) completer.completeError(error, stack);
     }
 
-    subscription = socket.listen((event) {
-      if (event != RawSocketEvent.read) return;
-      Datagram? datagram;
-      while ((datagram = socket.receive()) != null) {
-        final packet = datagram!.data;
-        if (parseLifxMessageType(packet) == responseType &&
-            !completer.isCompleted) {
-          completer.complete(Uint8List.fromList(packet));
-        }
-      }
-    }, onError: finishError);
     try {
+      _scope.requireOpen();
+      release = _scope.track(() {
+        finishError(StateError('LIFX operation was cancelled.'));
+        socket.close();
+      });
+      subscription = socket.listen((event) {
+        if (event != RawSocketEvent.read) return;
+        Datagram? datagram;
+        while ((datagram = socket.receive()) != null) {
+          final packet = datagram!.data;
+          if (parseLifxMessageType(packet) == responseType &&
+              !completer.isCompleted) {
+            completer.complete(Uint8List.fromList(packet));
+          }
+        }
+      }, onError: finishError);
       socket.send(
         buildLifxPacket(
           messageType: messageType,
@@ -124,9 +135,12 @@ final class LifxUdpTransport implements LifxTransport {
         InternetAddress(host),
         port,
       );
-      return await completer.future.timeout(const Duration(seconds: 2));
+      return await completer.future.timeout(
+        ProviderOperationPolicy.datagramReplyTimeout,
+      );
     } finally {
-      await subscription.cancel();
+      release?.call();
+      await subscription?.cancel();
       socket.close();
     }
   }
@@ -135,8 +149,12 @@ final class LifxUdpTransport implements LifxTransport {
     required int messageType,
     List<int> payload = const [],
   }) async {
+    _scope.requireOpen();
     final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+    void Function()? release;
     try {
+      _scope.requireOpen();
+      release = _scope.track(socket.close);
       socket.send(
         buildLifxPacket(
           messageType: messageType,
@@ -149,6 +167,7 @@ final class LifxUdpTransport implements LifxTransport {
       );
       return {'sent': true, 'messageType': messageType};
     } finally {
+      release?.call();
       socket.close();
     }
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import '../../services/plugin_event_hub.dart';
 import '../../services/bounded_event_stream.dart';
 import '../runtime/provider_event.dart';
+import '../runtime/provider_operation_policy.dart';
 import '../runtime/provider_worker_status.dart';
 import 'actions.dart';
 import 'event_parser.dart';
@@ -125,8 +126,15 @@ final class YouTubeLiveChatWorker {
       );
     }
     if (_running && generation == _generation) {
-      final multiplier = 1 << _failureCount.clamp(0, 6);
-      _schedule(_failureCount == 0 ? interval : _boundedBackoff(multiplier));
+      _schedule(
+        _failureCount == 0
+            ? interval
+            : ProviderOperationPolicy.backoff(
+                interval,
+                _failureCount.clamp(0, 6),
+                maximum: maxBackoff,
+              ),
+      );
     }
   }
 
@@ -143,11 +151,6 @@ final class YouTubeLiveChatWorker {
   void _schedule(Duration delay) {
     _timer?.cancel();
     _timer = Timer(delay, () => unawaited(pollOnce()));
-  }
-
-  Duration _boundedBackoff(int multiplier) {
-    final candidate = interval * multiplier;
-    return candidate > maxBackoff ? maxBackoff : candidate;
   }
 
   void _setState(ProviderWorkerState value) {

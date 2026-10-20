@@ -1,3 +1,4 @@
+import '../runtime/provider_operation_policy.dart';
 import 'dart:async';
 import 'dart:io';
 import '../../runtime/expression.dart';
@@ -10,11 +11,12 @@ Future<void> registerConfiguredPhilipsHue(
   DartPluginRegistry registry, {
   required ShowRunnerDataService dataService,
 }) async {
+  final scope = ProviderOperationScope();
   final hueSettings = await dataService.loadPluginSettings('philips-hue');
   final hueIp = hueSettings['hubIp']?.toString().trim() ?? '';
   final hueKey = hueSettings['hubKey']?.toString().trim() ?? '';
   final hueTransport = hueIp.isNotEmpty && hueKey.isNotEmpty
-      ? HueHttpTransport(host: hueIp, applicationKey: hueKey)
+      ? HueHttpTransport(scope: scope, host: hueIp, applicationKey: hueKey)
       : null;
   final configuredHueTransport = HueTransport(
     hueTransport?.request ?? _unconfiguredPhilipsHue,
@@ -30,6 +32,7 @@ Future<void> registerConfiguredPhilipsHue(
         }
         return HueTransport(
           HueHttpTransport(
+            scope: scope,
             host: host,
             applicationKey: key.isEmpty ? hueKey : key,
           ).request,
@@ -40,21 +43,26 @@ Future<void> registerConfiguredPhilipsHue(
     initialHealth: (hueTransport != null)
         ? const DartPluginHealth.connectionUnchecked()
         : const DartPluginHealth.notConfigured(),
+    onStop: scope.close,
+    onStart: () async {
+      if (hueTransport != null) {
+        try {
+          await PhilipsHueResourceSynchronizer(
+            lightDirectory: Directory(
+              '${dataService.userDirectory.path}/iot/lights',
+            ),
+            plugDirectory: Directory(
+              '${dataService.userDirectory.path}/iot/plugs',
+            ),
+            secretSettings: dataService.secretSettingsStore,
+          ).sync(configuredHueTransport);
+        } catch (_) {
+          // Resource discovery is best effort; actions can still use manually
+          // configured Hue resources when the bridge is temporarily offline.
+        }
+      }
+    },
   );
-  if (hueTransport != null) {
-    try {
-      await PhilipsHueResourceSynchronizer(
-        lightDirectory: Directory(
-          '${dataService.userDirectory.path}/iot/lights',
-        ),
-        plugDirectory: Directory('${dataService.userDirectory.path}/iot/plugs'),
-        secretSettings: dataService.secretSettingsStore,
-      ).sync(configuredHueTransport);
-    } catch (_) {
-      // Resource discovery is best effort; actions can still use manually
-      // configured Hue resources when the bridge is temporarily offline.
-    }
-  }
 }
 
 void registerDefaultPhilipsHue(DartPluginRegistry registry) {

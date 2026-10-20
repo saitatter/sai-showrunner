@@ -1,3 +1,4 @@
+import '../runtime/provider_operation_policy.dart';
 import 'dart:async';
 import 'dart:io';
 import '../../persistence/resource_repository.dart';
@@ -17,6 +18,7 @@ Future<void> registerConfiguredTwitch(
   required DartPluginEventHub? eventHub,
   required DartStreamPlanRuntime activeStreamPlans,
 }) async {
+  final scope = ProviderOperationScope();
   final twitch = await loadTwitchChannelSettings(dataService);
   final twitchClientId = twitch['clientId'] as String?;
   final twitchManager = createPluginTokenManager(
@@ -27,6 +29,7 @@ Future<void> registerConfiguredTwitch(
   );
   final twitchTransport = twitchManager != null
       ? JsonHttpTransport(
+          operationScope: scope,
           baseUrl: 'https://api.twitch.tv',
           accessTokenProvider: twitchManager.accessToken,
           headers: {
@@ -59,6 +62,7 @@ Future<void> registerConfiguredTwitch(
     initialHealth: (twitchTransport != null)
         ? const DartPluginHealth.connectionUnchecked()
         : const DartPluginHealth.notConfigured(),
+    onStop: scope.close,
   );
   _registerTwitchStreamPlanComponent(
     runtime: activeStreamPlans,

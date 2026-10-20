@@ -1,3 +1,4 @@
+import '../runtime/provider_operation_policy.dart';
 import 'dart:async';
 import '../../runtime/expression.dart';
 import '../../services/showrunner_data_service.dart';
@@ -9,10 +10,12 @@ Future<void> registerConfiguredKasa(
   DartPluginRegistry registry, {
   required ShowRunnerDataService dataService,
 }) async {
+  final scope = ProviderOperationScope();
   final kasaSettings = await dataService.loadPluginSettings('tplink-kasa');
   final kasaHost = kasaSettings['host']?.toString().trim();
   final kasaTransport = kasaHost?.isNotEmpty == true
       ? KasaTcpTransport(
+          scope: scope,
           host: kasaHost!,
           port: pluginPort(kasaSettings['port'], 9999),
         )
@@ -28,6 +31,7 @@ Future<void> registerConfiguredKasa(
         if (host.isEmpty) return configuredKasaTransport;
         return KasaTransport(
           KasaTcpTransport(
+            scope: scope,
             host: host,
             port: pluginPort(config['port'], 9999),
           ).request,
@@ -38,6 +42,7 @@ Future<void> registerConfiguredKasa(
     initialHealth: (kasaTransport != null)
         ? const DartPluginHealth.connectionUnchecked()
         : const DartPluginHealth.notConfigured(),
+    onStop: scope.close,
   );
 }
 

@@ -1,3 +1,5 @@
+import '../runtime/provider_operation_policy.dart';
+import '../../services/provider_http_policy.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -19,7 +21,15 @@ final class ElgatoTransport {
 typedef ElgatoTransportResolver = ElgatoTransport Function(RuntimeMap config);
 
 final class ElgatoHttpTransport {
-  const ElgatoHttpTransport({required this.host, this.port = 9123});
+  ElgatoHttpTransport({
+    required this.host,
+    this.port = 9123,
+    ProviderOperationScope? scope,
+    this.policy = const ProviderOperationPolicy(),
+  }) : _scope = scope ?? ProviderOperationScope();
+  final ProviderOperationScope _scope;
+  final ProviderOperationPolicy policy;
+  Future<void> close() => _scope.close();
 
   final String host;
   final int port;
@@ -32,26 +42,27 @@ final class ElgatoHttpTransport {
       port: port,
       path: '/elgato$normalizedPath',
     );
-    final client = HttpClient();
-    try {
-      final request = await client.openUrl(method, uri);
-      request.headers.contentType = ContentType.json;
-      if (body != null) request.write(jsonEncode(body));
-      final response = await request.close();
-      final text = await utf8.decoder.bind(response).join();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException(
-          'Elgato request failed (${response.statusCode}): $text',
-        );
-      }
-      if (text.isEmpty) return <String, dynamic>{};
-      final decoded = jsonDecode(text);
-      return decoded is Map
-          ? Map<String, dynamic>.from(decoded)
-          : <String, dynamic>{};
-    } finally {
-      client.close(force: true);
-    }
+    return runProviderHttp<RuntimeMap>(
+      scope: _scope,
+      policy: policy,
+      send: (client) async {
+        final request = await client.openUrl(method, uri);
+        request.headers.contentType = ContentType.json;
+        if (body != null) request.write(jsonEncode(body));
+        final response = await request.close();
+        final text = await readProviderHttpText(response, policy);
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw HttpException(
+            'Elgato request failed (${response.statusCode}).',
+          );
+        }
+        if (text.isEmpty) return <String, dynamic>{};
+        final decoded = jsonDecode(text);
+        return decoded is Map
+            ? Map<String, dynamic>.from(decoded)
+            : <String, dynamic>{};
+      },
+    );
   }
 }
 

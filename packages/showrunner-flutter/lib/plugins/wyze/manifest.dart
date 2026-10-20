@@ -1,3 +1,5 @@
+import '../runtime/provider_operation_policy.dart';
+import '../../services/provider_http_policy.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
@@ -88,7 +90,13 @@ final class WyzeHttpTransport implements WyzeTransport {
     this.apiBase = 'https://api.wyzecam.com',
     this.authBase = 'https://auth-prod.api.wyze.com',
     this.onTokens,
-  });
+    ProviderOperationScope? scope,
+    this.policy = const ProviderOperationPolicy(),
+  }) : _scope = scope ?? ProviderOperationScope();
+
+  final ProviderOperationScope _scope;
+  final ProviderOperationPolicy policy;
+  final Set<Future<void>> _tokenWrites = {};
 
   final String keyId;
   final String apiKey;
@@ -176,7 +184,10 @@ final class WyzeHttpTransport implements WyzeTransport {
       _runAction(mac, model, on ? 'power_on' : 'power_off', null);
 
   @override
-  Future<void> close() async {}
+  Future<void> close() async {
+    await _scope.close();
+    await Future.wait(_tokenWrites);
+  }
 
   Future<RuntimeMap> _runAction(
     String mac,
@@ -232,9 +243,18 @@ final class WyzeHttpTransport implements WyzeTransport {
   }
 
   Future<void> _applyTokens(WyzeToken tokens) async {
+    _scope.requireOpen();
     accessToken = tokens.accessToken;
     refreshToken = tokens.refreshToken;
-    await onTokens?.call(tokens);
+    final writing = onTokens?.call(tokens);
+    if (writing != null) {
+      _tokenWrites.add(writing);
+      try {
+        await writing;
+      } finally {
+        _tokenWrites.remove(writing);
+      }
+    }
   }
 
   Future<RuntimeMap> _post(
@@ -242,26 +262,25 @@ final class WyzeHttpTransport implements WyzeTransport {
     RuntimeMap body, {
     Map<String, String> headers = const {},
   }) async {
-    final client = HttpClient();
-    try {
-      final request = await client.postUrl(Uri.parse(url));
-      request.headers.contentType = ContentType.json;
-      headers.forEach(request.headers.set);
-      request.write(jsonEncode(body));
-      final response = await request.close();
-      final text = await utf8.decoder.bind(response).join();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException(
-          'Wyze request failed (${response.statusCode}): $text',
-        );
-      }
-      final decoded = text.isEmpty ? null : jsonDecode(text);
-      return decoded is Map
-          ? Map<String, dynamic>.from(decoded)
-          : <String, dynamic>{};
-    } finally {
-      client.close(force: true);
-    }
+    return runProviderHttp<RuntimeMap>(
+      scope: _scope,
+      policy: policy,
+      send: (client) async {
+        final request = await client.postUrl(Uri.parse(url));
+        request.headers.contentType = ContentType.json;
+        headers.forEach(request.headers.set);
+        request.write(jsonEncode(body));
+        final response = await request.close();
+        final text = await readProviderHttpText(response, policy);
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw HttpException('Wyze request failed (${response.statusCode}).');
+        }
+        final decoded = text.isEmpty ? null : jsonDecode(text);
+        return decoded is Map
+            ? Map<String, dynamic>.from(decoded)
+            : <String, dynamic>{};
+      },
+    );
   }
 }
 

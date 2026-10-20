@@ -1,3 +1,5 @@
+import '../runtime/provider_operation_policy.dart';
+import '../../services/provider_http_policy.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -25,7 +27,15 @@ final class HueTransport {
 typedef HueTransportResolver = HueTransport Function(RuntimeMap config);
 
 final class HueHttpTransport {
-  const HueHttpTransport({required this.host, required this.applicationKey});
+  HueHttpTransport({
+    required this.host,
+    required this.applicationKey,
+    ProviderOperationScope? scope,
+    this.policy = const ProviderOperationPolicy(),
+  }) : _scope = scope ?? ProviderOperationScope();
+  final ProviderOperationScope _scope;
+  final ProviderOperationPolicy policy;
+  Future<void> close() => _scope.close();
 
   final String host;
   final String applicationKey;
@@ -36,33 +46,35 @@ final class HueHttpTransport {
     RuntimeMap query,
     dynamic body,
   ) async {
-    final client = HttpClient()
-      ..badCertificateCallback = (certificate, host, port) => true;
-    try {
-      final uri = Uri.parse('https://$host/clip/v2$path').replace(
-        queryParameters: {
-          ...query.map((key, value) => MapEntry(key, '$value')),
-        },
-      );
-      final request = await client.openUrl(method, uri);
-      request.headers.contentType = ContentType.json;
-      request.headers.set('hue-application-key', applicationKey);
-      if (body != null) request.write(jsonEncode(body));
-      final response = await request.close();
-      final text = await utf8.decoder.bind(response).join();
-      dynamic decoded;
-      if (text.isNotEmpty) decoded = jsonDecode(text);
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException(
-          'Philips Hue request failed (${response.statusCode}): $text',
+    return runProviderHttp<RuntimeMap>(
+      scope: _scope,
+      policy: policy,
+      configure: (client) =>
+          client.badCertificateCallback = (certificate, host, port) => true,
+      send: (client) async {
+        final uri = Uri.parse('https://$host/clip/v2$path').replace(
+          queryParameters: {
+            ...query.map((key, value) => MapEntry(key, '$value')),
+          },
         );
-      }
-      return decoded is Map
-          ? Map<String, dynamic>.from(decoded)
-          : <String, dynamic>{};
-    } finally {
-      client.close(force: true);
-    }
+        final request = await client.openUrl(method, uri);
+        request.headers.contentType = ContentType.json;
+        request.headers.set('hue-application-key', applicationKey);
+        if (body != null) request.write(jsonEncode(body));
+        final response = await request.close();
+        final text = await readProviderHttpText(response, policy);
+        dynamic decoded;
+        if (text.isNotEmpty) decoded = jsonDecode(text);
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw HttpException(
+            'Philips Hue request failed (${response.statusCode}).',
+          );
+        }
+        return decoded is Map
+            ? Map<String, dynamic>.from(decoded)
+            : <String, dynamic>{};
+      },
+    );
   }
 }
 
