@@ -31,6 +31,7 @@
 - Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
+- Separate trace models, events, snapshots, session production and retention behind the existing public trace facade without coupling them to Flutter or saved graphs.
 - Separate typed queue source metadata from captured automation snapshots and isolate nested context collections so explicit replay uses the original graph and inputs.
 - Route editor runs, inline tests, chat, graph actions, profiles and Stream Plans through typed graph invocations with immutable context snapshots, distinct queue receipts/results and classified failures; cancel inline tests when their editor closes.
 - Share bounded provider I/O and retry policies while keeping protocol adapters separate; cancel owned requests at shutdown and finish token persistence already in progress.
