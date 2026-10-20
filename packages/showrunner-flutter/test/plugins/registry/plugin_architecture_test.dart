@@ -15,6 +15,7 @@ void main() {
         final path = file.path.replaceAll('\\', '/');
         final name = path.split('/').last;
         if (name != 'manifest.dart' &&
+            name != 'resources.dart' &&
             !name.endsWith('runtime.dart') &&
             !name.endsWith('worker.dart')) {
           continue;

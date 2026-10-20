@@ -6,7 +6,7 @@ import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import 'transform.dart';
 import 'contracts.dart';
-import '../registry/builtin_resource_specs.dart';
+import 'resources.dart';
 import '../registry/plugin_contract.dart';
 
 part 'actions/scenes.dart';
@@ -411,7 +411,7 @@ DartPluginManifest createObsPlugin(ObsTransport transport) {
   return DartPluginManifest(
     id: PluginId('obs'),
     name: 'OBS Studio',
-    resources: builtInResourceSpecsFor(const PluginId('obs')),
+    resources: obsResourceContracts,
     states: const [
       StateSpec(
         id: StateId('connection'),

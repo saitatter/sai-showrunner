@@ -2,7 +2,7 @@ import 'dart:async';
 
 import '../../runtime/expression.dart';
 import '../../schema/data_input.dart';
-import '../registry/builtin_resource_specs.dart';
+import 'resources.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 import 'output.dart';
@@ -134,7 +134,7 @@ DartPluginManifest createSoundPlugin({
   return DartPluginManifest(
     id: PluginId('sound'),
     name: 'Sound & TTS',
-    resources: builtInResourceSpecsFor(const PluginId('sound')),
+    resources: soundResourceContracts,
     settings: const [
       SettingSpec(
         id: SettingId('globalVolume'),

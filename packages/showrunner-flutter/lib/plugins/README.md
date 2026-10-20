@@ -6,6 +6,7 @@ Each plugin owns a directory with an explicit contract, runtime, and UI boundary
 plugins/<plugin>/
   <plugin>.dart       public barrel
   manifest.dart       settings, actions, triggers, state
+  resources.dart      canonical resource IDs, storage and defaults without Flutter UI
   bootstrap.dart      typed default/configured first-party factory
   runtime.dart        workers and provider services
   ui/                 bespoke Flutter pages

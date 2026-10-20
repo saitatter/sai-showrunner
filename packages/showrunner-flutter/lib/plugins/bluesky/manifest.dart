@@ -3,7 +3,7 @@ import 'dart:io';
 
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
-import '../registry/builtin_resource_specs.dart';
+import 'resources.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 
@@ -153,7 +153,7 @@ DartPluginManifest createBlueskyPlugin(
 }) => DartPluginManifest(
   id: PluginId('bluesky'),
   name: 'BlueSky',
-  resources: builtInResourceSpecsFor(const PluginId('bluesky')),
+  resources: blueskyResourceContracts,
   settings: const [
     SettingSpec(id: SettingId('identifier'), displayName: 'Handle or DID'),
     SettingSpec(
