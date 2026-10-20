@@ -4,6 +4,53 @@ Use Flutter 3.47.7 / Dart 3.13.5, Node 22 and Yarn 4.1.0. Install the committed
 lockfiles. Tests and smokes must use temporary application data; live settings,
 OBS profiles and credentials are never disposable fixtures.
 
+## Baseline and behavior contracts
+
+The reference for the baseline/security work is commit `872f3b2f1` (the integrated
+chat branch). It was captured with a clean working tree on Windows 11 Pro x64,
+build 26200, Flutter 3.47.7 / Dart 3.13.5, Node 22.23.2 and Yarn 4.1.0. Both
+committed lockfiles were unchanged. The source-equivalent PR CI passed 704 Flutter
+tests (10 opt-in skips), 97 native scenarios (one audio skip), 128 JavaScript tests,
+reviewed visual comparisons and Chromium. This is CI evidence, not a new local run.
+
+Regenerate the lexical inventory with
+`node tools/audit-baseline.mjs .tmp/audit-global/inventory.json`. It records HEAD,
+status, environment, lockfile SHA-256 values, source/test domains, largest files,
+registration/listener/timer/server candidates and import cycles. The clean
+reference contained 668 source files: 572 Dart, 85 TypeScript, one JavaScript build
+helper and nine native C++/header files plus one TypeScript build configuration.
+There were 45 `part` declarations owned by seven libraries. The import scan found one four-file schema
+cycle; it collapses Dart parts and excludes unresolved package aliases and native
+includes. Type-only import cycles do not prove runtime initialization failures.
+Static sites include tests/generated code and do not count live handles.
+In particular, module implementation sites are not the registered plugin count.
+Contract inventories remain the authority for the 34 plugins, 174 actions and
+60 triggers. Large editors are inventory findings, not grounds for a rewrite.
+
+The initial local focused baseline passed 48 tests in 4.50 seconds, including
+overlay transport, registry lifecycle, persistence, secret projection, HTTP,
+chat dock and remote fixtures. Raw reference, inventory, before/after security
+reproducers and subsequent check outputs belong in ignored `.tmp/audit-global/`.
+No permanent dated audit logs are needed. Timings include runner startup and
+are not interchangeable with nightly benchmark medians/p95 or GPU frame rates.
+
+| Contract surface | Existing characterization fixtures | Remaining proof boundary |
+| --- | --- | --- |
+| Shell startup, wizard, dirty/save/cancel, restart and tray/close | `test/app/app_lifecycle_coordinator_test.dart`, `integration_test/application/first_run_setup_test.dart`, `document_lifecycle_test.dart`, `document_edit_save_close_test.dart` | Native OS tray behavior and 1024x640 wizard need explicit size-specific/manual proof |
+| Immutable graph authoring, history, subgraphs, shader semantics | `test/graph/`, `test/plugins/overlays/shader_graph_controller_test.dart`, `integration_test/visual/editor_workflows_test.dart`, `shader_workflows_test.dart` | Frozen Electron catalog remains diagnostic |
+| Execution equivalence, branches/loops, cancellation, nested errors and traces | `test/graph/automation_execution_test.dart`, `test/runtime/execution_trace_test.dart`, `integration_test/runtime/runtime_workflows_test.dart` | External action side effects require live credentials |
+| Queues, profiles and serial Stream Plan transitions | `test/runtime/action_queue_test.dart`, `profile_runtime_test.dart`, `test/plugins/stream_plans/stream_plan_test.dart`, `integration_test/resources/queue_lifecycle_test.dart` | Real provider delivery remains opt-in |
+| Plugin availability, start/stop and reconnect | `test/plugins/registry/plugin_registry_test.dart`, `integration_test/plugins/provider_lifecycle_test.dart` | Enable/disable gates invocation; it does not promise worker stop/start on each toggle |
+| Unsupported/invalid data, atomic writes, secret separation, junctions | `test/persistence/persistence_safety_test.dart`, `atomic_file_test.dart`, `secret_settings_store_test.dart` | Process termination during an actual disk write is not a demonstrated crash-recovery test |
+| Overlay/remote assets, RPC, ACL, shader rendering | `test/plugins/overlays/websocket_bridge_test.dart`, `test/plugins/remote/dashboard_host_test.dart`, `tools/overlay_registry/browser-smoke.mjs` | See architecture trust review for unresolved LAN capabilities and quotas |
+| Chat priority/cooldowns/counters, identity scoping and private/public isolation | `test/features/chat/`, `integration_test/application/chat_workspaces_test.dart` | Twitch whispers and YouTube privileges still require account validation |
+| Unsigned packaging, startup and updater rollback | `test/features/support/update_install_service_test.dart`, `scripts/smoke-flutter-windows.ps1`, release dry-run | Publishing remains a separate manually authorized operation |
+
+Keep this matrix tied to executable fixtures. Add a missing behavior test before
+changing its implementation; do not duplicate an equivalent suite or mark an
+untested access path as a confirmed vulnerability. Baseline phase completion also
+requires closing the open items in the architecture trust review.
+
 ## Local checks and CI
 
 ```powershell
