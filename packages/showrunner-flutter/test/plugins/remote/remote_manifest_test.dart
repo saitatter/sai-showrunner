@@ -8,6 +8,47 @@ import 'package:showrunner_flutter/plugins/remote/manifest.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
+  for (final forgedHost in [false, true]) {
+    test(
+      'rejects browser remote-button requests with ${forgedHost ? 'forged Host' : 'foreign Origin'}',
+      () async {
+        final hub = DartPluginEventHub();
+        final runtime = RemoteButtonRuntime(eventHub: hub, port: 0);
+        final events = <dynamic>[];
+        final subscription = hub.stream('remoteButton').listen(events.add);
+        final client = HttpClient();
+        await runtime.start();
+        try {
+          final request = await client.postUrl(
+            Uri.parse(
+              'http://127.0.0.1:${runtime.boundPort}/buttons/press?button=Start',
+            ),
+          );
+          if (forgedHost) {
+            request.headers.set(
+              'Host',
+              'untrusted.invalid:${runtime.boundPort}',
+            );
+          }
+          request.headers.set(
+            'Origin',
+            'http://untrusted.invalid:${runtime.boundPort}',
+          );
+          final response = await request.close();
+          await response.drain<void>();
+          await Future<void>.delayed(Duration.zero);
+          expect(response.statusCode, HttpStatus.forbidden);
+          expect(events, isEmpty);
+        } finally {
+          client.close(force: true);
+          await subscription.cancel();
+          await runtime.stop();
+          await hub.dispose();
+        }
+      },
+    );
+  }
+
   test('exposes remote button trigger matching', () async {
     final eventHub = DartPluginEventHub();
     final registry = DartPluginRegistry()

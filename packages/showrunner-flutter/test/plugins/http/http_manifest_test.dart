@@ -9,6 +9,89 @@ import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
+  test(
+    'LAN binding accepts local IP and machine hostname authorities',
+    () async {
+      final service = DartHttpEndpointService(host: '0.0.0.0', port: 0);
+      service.addRequestHandler((request) async {
+        request.response.statusCode = HttpStatus.noContent;
+        await request.response.close();
+        return true;
+      });
+      await service.start();
+      final client = HttpClient();
+      try {
+        for (final host in [
+          '127.0.0.1',
+          'localhost',
+          Platform.localHostname.toLowerCase(),
+        ]) {
+          final request = await client.getUrl(
+            Uri.parse('http://127.0.0.1:${service.boundPort}/overlays/test'),
+          );
+          request.headers.set('Host', '$host:${service.boundPort}');
+          request.headers.set('Origin', 'http://$host:${service.boundPort}');
+          final response = await request.close();
+          await response.drain<void>();
+          expect(response.statusCode, HttpStatus.noContent, reason: host);
+        }
+        for (final headers in [
+          {'Host': 'untrusted.invalid:${service.boundPort}'},
+          {'Host': 'localhost:1'},
+          {'Origin': 'null'},
+          {'Origin': 'https://untrusted.invalid'},
+          {'Sec-Fetch-Site': 'cross-site'},
+        ]) {
+          final request = await client.getUrl(
+            Uri.parse('http://127.0.0.1:${service.boundPort}/overlays/test'),
+          );
+          headers.forEach(request.headers.set);
+          final response = await request.close();
+          await response.drain<void>();
+          expect(response.statusCode, HttpStatus.forbidden, reason: '$headers');
+        }
+      } finally {
+        client.close(force: true);
+        await service.stop();
+      }
+    },
+  );
+
+  test(
+    'rejects a forged same-origin Host before invoking HTTP handlers',
+    () async {
+      final service = DartHttpEndpointService(port: 0);
+      var invoked = false;
+      service.addRequestHandler((request) async {
+        invoked = true;
+        request.response.statusCode = HttpStatus.noContent;
+        await request.response.close();
+        return true;
+      });
+      await service.start();
+      final client = HttpClient();
+      try {
+        final request = await client.getUrl(
+          Uri.parse(
+            'http://127.0.0.1:${service.boundPort}/overlays/probe/config',
+          ),
+        );
+        request.headers.set('Host', 'untrusted.invalid:${service.boundPort}');
+        request.headers.set(
+          'Origin',
+          'http://untrusted.invalid:${service.boundPort}',
+        );
+        final response = await request.close();
+        await response.drain<void>();
+        expect(response.statusCode, HttpStatus.forbidden);
+        expect(invoked, isFalse);
+      } finally {
+        client.close(force: true);
+        await service.stop();
+      }
+    },
+  );
+
   test('HTTP request action decodes a typed request contract', () {
     final config = createHttpPlugin().actions.single.decodeConfig({
       'url': 'https://example.test',
