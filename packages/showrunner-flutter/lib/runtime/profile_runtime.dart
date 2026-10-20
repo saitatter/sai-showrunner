@@ -1,3 +1,6 @@
+import 'cancellation.dart';
+import 'profile_session.dart';
+export 'profile_session.dart';
 import 'automation_invocation_service.dart';
 import 'graph_invocation.dart';
 import '../graph/domain/automation_document.dart';
@@ -23,18 +26,47 @@ final class DartProfileRuntime {
     required this.registry,
     GraphExecutionEngine? executionEngine,
     this.queueManager,
+    this.onTriggerFailure,
   }) : executionEngine = executionEngine ?? CompiledExecutionEngine();
 
   final DartPluginRegistry registry;
   final GraphExecutionEngine executionEngine;
   final DartAutomationQueueManager? queueManager;
+  final void Function(ProfileTriggerFailure)? onTriggerFailure;
+  ProfileTriggerFailure? lastTriggerFailure;
+  bool _closed = false;
+  Future<void>? _closing;
+  final Set<DartProfileSession> _sessions = {};
+  final Set<DartCancellationToken> _runTokens = {};
+  final Set<Future<InvocationResult>> _executions = {};
+  void _reportTriggerFailure(String profileId, Object error, StackTrace stack) {
+    if (_closed) return;
+    final failure = ProfileTriggerFailure(profileId, error, stack);
+    lastTriggerFailure = failure;
+    try {
+      onTriggerFailure?.call(failure);
+    } catch (callbackError, callbackStack) {
+      lastTriggerFailure = ProfileTriggerFailure(
+        profileId,
+        callbackError,
+        callbackStack,
+      );
+    }
+  }
+
+  final Map<String, int> _sessionGenerations = {};
+  final Map<String, Future<void>> _managedOperations = {};
+  void _ensureOpen() {
+    if (_closed) throw StateError('Profile runtime is closed.');
+  }
+
   final Map<String, bool> _activeProfiles = {};
   final Map<String, DartProfileSession> _managedSessions = {};
 
   bool isActive(String profileId) => _activeProfiles[profileId] ?? false;
 
   bool hasManagedSession(String profileId) =>
-      _managedSessions.containsKey(profileId);
+      _managedSessions[profileId]?.isClosed == false;
 
   bool shouldBeActive(ShowRunnerProfile profile, {EvaluationContext? context}) {
     final runtimeContext = _withRegistryState(context);
@@ -81,6 +113,7 @@ final class DartProfileRuntime {
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
   }) async {
+    _ensureOpen();
     final result = await _runAutomation(
       profile.activationAutomation,
       _withRegistryState(context),
@@ -92,6 +125,7 @@ final class DartProfileRuntime {
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
     );
+    _ensureOpen();
     _activeProfiles[profileId] = true;
     return result;
   }
@@ -103,6 +137,7 @@ final class DartProfileRuntime {
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
   }) async {
+    _ensureOpen();
     final result = await _runAutomation(
       profile.deactivationAutomation,
       _withRegistryState(context),
@@ -114,6 +149,7 @@ final class DartProfileRuntime {
       onNodeEnter: onNodeEnter,
       onNodeExit: onNodeExit,
     );
+    _ensureOpen();
     _activeProfiles[profileId] = false;
     return result;
   }
@@ -128,10 +164,58 @@ final class DartProfileRuntime {
     EvaluationContext? context,
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
+  }) => _managedOperation(
+    profileId,
+    () => _setManagedActive(
+      profileId,
+      profile,
+      active: active,
+      context: context,
+      onNodeEnter: onNodeEnter,
+      onNodeExit: onNodeExit,
+    ),
+  );
+
+  Future<T> _managedOperation<T>(
+    String profileId,
+    Future<T> Function() operation,
+  ) {
+    _ensureOpen();
+    final previous = _managedOperations[profileId];
+    final result = Completer<T>();
+    Future<void> run() async {
+      try {
+        if (previous != null) await previous;
+        _ensureOpen();
+        result.complete(await operation());
+      } catch (error, stack) {
+        result.completeError(error, stack);
+      }
+    }
+
+    final running = run();
+    _managedOperations[profileId] = running;
+    unawaited(
+      running.then<void>((_) {
+        if (identical(_managedOperations[profileId], running)) {
+          _managedOperations.remove(profileId);
+        }
+      }),
+    );
+    return result.future;
+  }
+
+  Future<InvocationResult?> _setManagedActive(
+    String profileId,
+    ShowRunnerProfile profile, {
+    required bool active,
+    EvaluationContext? context,
+    void Function(String nodeId)? onNodeEnter,
+    void Function(String nodeId)? onNodeExit,
   }) async {
     if (active == isActive(profileId)) return null;
     if (!active) {
-      await _managedSessions.remove(profileId)?.dispose();
+      await disposeManagedSession(profileId);
       return deactivate(
         profileId,
         profile,
@@ -164,7 +248,11 @@ final class DartProfileRuntime {
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
   }) async {
+    _ensureOpen();
+    final generation = (_sessionGenerations[profileId] ?? 0) + 1;
+    _sessionGenerations[profileId] = generation;
     await _managedSessions.remove(profileId)?.dispose();
+    if (_closed || generation != _sessionGenerations[profileId]) return;
     _managedSessions[profileId] = watch(
       profileId,
       profile,
@@ -175,6 +263,7 @@ final class DartProfileRuntime {
   }
 
   Future<void> disposeManagedSession(String profileId) async {
+    _sessionGenerations[profileId] = (_sessionGenerations[profileId] ?? 0) + 1;
     await _managedSessions.remove(profileId)?.dispose();
   }
 
@@ -182,10 +271,29 @@ final class DartProfileRuntime {
     _activeProfiles.remove(profileId);
   }
 
-  Future<void> dispose() async {
-    final sessions = _managedSessions.values.toList();
+  Future<void> dispose() => _closing ??= _dispose();
+  Future<void> _dispose() async {
+    _closed = true;
+    for (final token in _runTokens.toList()) {
+      token.cancel();
+    }
+    final sessions = _sessions.toList();
     _managedSessions.clear();
-    await Future.wait(sessions.map((session) => session.dispose()));
+    _activeProfiles.clear();
+    try {
+      await Future.wait(sessions.map((session) => session.dispose()));
+    } finally {
+      await Future.wait(
+        _executions.toList().map(
+          (execution) => execution.then<void>(
+            (_) {},
+            onError: (Object _, StackTrace _) {},
+          ),
+        ),
+      );
+      await Future.wait(_managedOperations.values.toList());
+      _sessionGenerations.clear();
+    }
   }
 
   Future<InvocationResult?> handleTrigger(
@@ -199,7 +307,7 @@ final class DartProfileRuntime {
     void Function(String nodeId)? onNodeExit,
     JsonMap? triggerEntry,
   }) async {
-    if (!isActive(profileId)) return null;
+    if (_closed || !isActive(profileId)) return null;
     final typedPluginId = PluginId(pluginId);
     final typedTriggerId = TriggerId(triggerId);
     for (final target in _triggerTargets(profile)) {
@@ -231,145 +339,181 @@ final class DartProfileRuntime {
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
   }) {
+    _ensureOpen();
     final subscriptions = <StreamSubscription<RuntimeMap>>[];
     final listenerRemovers = <void Function()>[];
-    final sharedTargets = <String, List<_ProfileTriggerTarget>>{};
-    for (final target in _triggerTargets(profile)) {
-      final pluginId = target.pluginId;
-      final triggerId = target.triggerId;
-      if (pluginId == const PluginId('ShowRunner') &&
-          triggerId == const TriggerId('autoRun')) {
-        void listener() {
-          if (!isActive(profileId)) return;
-          unawaited(
-            handleTrigger(
-              profileId,
-              profile,
-              pluginId.value,
-              triggerId.value,
-              {'triggerId': target.entry['id'], 'profileId': profileId},
-              context: context,
-              onNodeEnter: onNodeEnter,
-              onNodeExit: onNodeExit,
-              triggerEntry: target.entry,
-            ),
-          );
-        }
-
-        registry.addListener(listener);
-        listenerRemovers.add(() => registry.removeListener(listener));
-        if (isActive(profileId)) listener();
-        continue;
-      }
-      if (pluginId == const PluginId('ShowRunner') &&
-          triggerId == const TriggerId('condition')) {
-        final condition = target.config['condition'];
-        var lastValue = target.config['runImmediately'] == true ? false : null;
-        bool evaluate() => evaluateBooleanCondition(
-          condition is Map
-              ? Map<String, dynamic>.from(condition)
-              : const <String, dynamic>{},
-          _withRegistryState(context),
-        );
-        final initialValue = evaluate();
-        lastValue ??= initialValue;
-        if (lastValue == false && initialValue) {
-          unawaited(
-            handleTrigger(
-              profileId,
-              profile,
-              pluginId.value,
-              triggerId.value,
-              {'triggerId': target.entry['id'], 'profileId': profileId},
-              context: context,
-              onNodeEnter: onNodeEnter,
-              onNodeExit: onNodeExit,
-              triggerEntry: target.entry,
-            ),
-          );
-          lastValue = true;
-        }
-        void listener() {
-          if (!isActive(profileId)) return;
-          final currentValue = evaluate();
-          if (currentValue && lastValue != true) {
-            unawaited(
-              handleTrigger(
+    late final DartProfileSession session;
+    session = DartProfileSession(
+      subscriptions: subscriptions,
+      listenerRemovers: listenerRemovers,
+      onFailure: (error, stack) =>
+          _reportTriggerFailure(profileId, error, stack),
+      onDisposed: () => _sessions.remove(session),
+    );
+    _sessions.add(session);
+    final parent = context?.cancellationToken;
+    parent?.addListener(session.cancellation.cancel);
+    if (parent != null) {
+      listenerRemovers.add(
+        () => parent.removeListener(session.cancellation.cancel),
+      );
+    }
+    final sessionContext = EvaluationContext(
+      locals: context?.locals,
+      contextState: context?.contextState,
+      cancellationToken: session.cancellation,
+    );
+    try {
+      final sharedTargets = <String, List<_ProfileTriggerTarget>>{};
+      for (final target in _triggerTargets(profile)) {
+        final pluginId = target.pluginId;
+        final triggerId = target.triggerId;
+        if (pluginId == const PluginId('ShowRunner') &&
+            triggerId == const TriggerId('autoRun')) {
+          void listener() {
+            if (!isActive(profileId)) return;
+            session.dispatch(
+              () => handleTrigger(
                 profileId,
                 profile,
                 pluginId.value,
                 triggerId.value,
                 {'triggerId': target.entry['id'], 'profileId': profileId},
-                context: context,
+                context: sessionContext,
                 onNodeEnter: onNodeEnter,
                 onNodeExit: onNodeExit,
                 triggerEntry: target.entry,
               ),
             );
           }
-          lastValue = currentValue;
-        }
 
-        registry.addListener(listener);
-        listenerRemovers.add(() => registry.removeListener(listener));
-        continue;
-      }
-      final definition = registry.trigger(
-        TriggerKey(plugin: pluginId, trigger: triggerId),
-      );
-      if (definition == null || !registry.isPluginEnabledId(pluginId)) {
-        continue;
-      }
-      final configuredStream = definition.listenForRuntime(target.config);
-      if (configuredStream != null) {
-        subscriptions.add(
-          configuredStream.cast<RuntimeMap>().listen((payload) {
-            if (!definition.matchesRuntime(target.config, payload)) {
-              return;
-            }
-            unawaited(
-              _runTriggerTarget(
+          registry.addListener(listener);
+          listenerRemovers.add(() => registry.removeListener(listener));
+          if (isActive(profileId)) listener();
+          continue;
+        }
+        if (pluginId == const PluginId('ShowRunner') &&
+            triggerId == const TriggerId('condition')) {
+          final condition = target.config['condition'];
+          var lastValue = target.config['runImmediately'] == true
+              ? false
+              : null;
+          bool evaluate() => evaluateBooleanCondition(
+            condition is Map
+                ? Map<String, dynamic>.from(condition)
+                : const <String, dynamic>{},
+            _withRegistryState(context),
+          );
+          final initialValue = evaluate();
+          lastValue ??= initialValue;
+          if (lastValue == false && initialValue) {
+            session.dispatch(
+              () => handleTrigger(
                 profileId,
-                target,
+                profile,
+                pluginId.value,
+                triggerId.value,
+                {'triggerId': target.entry['id'], 'profileId': profileId},
+                context: sessionContext,
+                onNodeEnter: onNodeEnter,
+                onNodeExit: onNodeExit,
+                triggerEntry: target.entry,
+              ),
+            );
+            lastValue = true;
+          }
+          void listener() {
+            if (!isActive(profileId)) return;
+            final currentValue = evaluate();
+            if (currentValue && lastValue != true) {
+              session.dispatch(
+                () => handleTrigger(
+                  profileId,
+                  profile,
+                  pluginId.value,
+                  triggerId.value,
+                  {'triggerId': target.entry['id'], 'profileId': profileId},
+                  context: sessionContext,
+                  onNodeEnter: onNodeEnter,
+                  onNodeExit: onNodeExit,
+                  triggerEntry: target.entry,
+                ),
+              );
+            }
+            lastValue = currentValue;
+          }
+
+          registry.addListener(listener);
+          listenerRemovers.add(() => registry.removeListener(listener));
+          continue;
+        }
+        final definition = registry.trigger(
+          TriggerKey(plugin: pluginId, trigger: triggerId),
+        );
+        if (definition == null || !registry.isPluginEnabledId(pluginId)) {
+          continue;
+        }
+        final configuredStream = definition.listenForRuntime(target.config);
+        if (configuredStream != null) {
+          subscriptions.add(
+            configuredStream.cast<RuntimeMap>().listen((payload) {
+              if (!definition.matchesRuntime(target.config, payload)) {
+                return;
+              }
+              session.dispatch(
+                () => _runTriggerTarget(
+                  profileId,
+                  target,
+                  payload,
+                  context: sessionContext,
+                  onNodeEnter: onNodeEnter,
+                  onNodeExit: onNodeExit,
+                ),
+              );
+            }),
+          );
+        } else {
+          sharedTargets
+              .putIfAbsent(
+                '${pluginId.value}\u0000${triggerId.value}',
+                () => [],
+              )
+              .add(target);
+        }
+      }
+      for (final targets in sharedTargets.values) {
+        final first = targets.first;
+        final pluginId = first.pluginId;
+        final triggerId = first.triggerId;
+        final definition = registry.trigger(
+          TriggerKey(plugin: pluginId, trigger: triggerId),
+        );
+        if (definition == null) continue;
+        subscriptions.add(
+          definition.listenFromRuntime().cast<RuntimeMap>().listen((payload) {
+            session.dispatch(
+              () => _dispatchTriggerTargets(
+                profileId,
+                definition,
+                targets,
                 payload,
-                context: context,
+                context: sessionContext,
                 onNodeEnter: onNodeEnter,
                 onNodeExit: onNodeExit,
               ),
             );
           }),
         );
-      } else {
-        sharedTargets
-            .putIfAbsent('${pluginId.value}\u0000${triggerId.value}', () => [])
-            .add(target);
       }
-    }
-    for (final targets in sharedTargets.values) {
-      final first = targets.first;
-      final pluginId = first.pluginId;
-      final triggerId = first.triggerId;
-      final definition = registry.trigger(
-        TriggerKey(plugin: pluginId, trigger: triggerId),
-      );
-      if (definition == null) continue;
-      subscriptions.add(
-        definition.listenFromRuntime().cast<RuntimeMap>().listen((payload) {
-          unawaited(
-            _dispatchTriggerTargets(
-              profileId,
-              definition,
-              targets,
-              payload,
-              context: context,
-              onNodeEnter: onNodeEnter,
-              onNodeExit: onNodeExit,
-            ),
-          );
+      return session;
+    } catch (error) {
+      unawaited(
+        session.dispose().catchError((Object cleanup, StackTrace stack) {
+          _reportTriggerFailure(profileId, cleanup, stack);
         }),
       );
+      rethrow;
     }
-    return DartProfileSession._(subscriptions, listenerRemovers);
   }
 
   Iterable<_ProfileTriggerTarget> _triggerTargets(
@@ -415,6 +559,8 @@ final class DartProfileRuntime {
     void Function(String nodeId)? onNodeExit,
   }) async {
     for (final target in targets) {
+      if (_closed || !isActive(profileId)) return;
+      context?.cancellationToken?.throwIfCancelled();
       if (!definition.matchesRuntime(target.config, payload)) {
         continue;
       }
@@ -490,43 +636,39 @@ final class DartProfileRuntime {
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
   }) async {
-    return AutomationInvocationService(
-      engine: executionEngine,
-      registry: () => registry,
-      queues: queueManager,
-    ).invokeOrThrow(
-      GraphInvocation(
-        target: InvocationDocument(automation),
-        origin: InvocationOrigin.profile,
-        sourceId: sourceMetadata?['sourceId']?.toString() ?? automation.id,
-        sourceSubId: sourceMetadata?['sourceSubId']?.toString(),
-        dispatch: InvocationDispatch.documentQueue,
-        queueId: queueId,
-        entryNodeId: entryNodeId,
-        context: InvocationContext.capture(context),
-        cancellation: context.cancellationToken,
-        onNodeEnter: onNodeEnter,
-        onNodeExit: onNodeExit,
-      ),
-    );
-  }
-}
-
-final class DartProfileSession {
-  DartProfileSession._(this._subscriptions, this._listenerRemovers);
-
-  final List<StreamSubscription<RuntimeMap>> _subscriptions;
-  final List<void Function()> _listenerRemovers;
-
-  Future<void> dispose() async {
-    await Future.wait(
-      _subscriptions.map((subscription) => subscription.cancel()),
-    );
-    _subscriptions.clear();
-    for (final remove in _listenerRemovers) {
-      remove();
+    _ensureOpen();
+    final token = DartCancellationToken();
+    final parent = context.cancellationToken;
+    parent?.addListener(token.cancel);
+    _runTokens.add(token);
+    final execution =
+        AutomationInvocationService(
+          engine: executionEngine,
+          registry: () => registry,
+          queues: queueManager,
+        ).invokeOrThrow(
+          GraphInvocation(
+            target: InvocationDocument(automation),
+            origin: InvocationOrigin.profile,
+            sourceId: sourceMetadata?['sourceId']?.toString() ?? automation.id,
+            sourceSubId: sourceMetadata?['sourceSubId']?.toString(),
+            dispatch: InvocationDispatch.documentQueue,
+            queueId: queueId,
+            entryNodeId: entryNodeId,
+            context: InvocationContext.capture(context),
+            cancellation: token,
+            onNodeEnter: onNodeEnter,
+            onNodeExit: onNodeExit,
+          ),
+        );
+    _executions.add(execution);
+    try {
+      return await execution;
+    } finally {
+      _executions.remove(execution);
+      _runTokens.remove(token);
+      parent?.removeListener(token.cancel);
     }
-    _listenerRemovers.clear();
   }
 }
 
