@@ -28,6 +28,8 @@ suite, captured visual comparisons and Chromium). The required test-windows chec
 is an aggregate that runs even after a dependency failure and accepts only success
 from both Windows jobs. The other required names remain scripts-ubuntu and
 release-dry-run. No fixture, assertion, screenshot region or tolerance is dropped.
+Native persistence fixtures wait for the editor saved state before reading disk:
+fixed animation pumps cannot establish completion of sequential Save All writes.
 
 The previous sequential Windows job took 30m20s: native fixtures 13m, production
 builds 5m38s, Flutter checks 3m07s, duplicate captures 1m38s and cold SDK-cache saving

@@ -23,6 +23,7 @@
 - Document chat setup and remaining Streamer.bot differences using static .NET evidence and an isolated runtime UI comparison.
 
 ### CI & Build
+- Wait for Save All to finish writing every document before checking native lifecycle persistence.
 - Speed up visual catalog comparisons by avoiding per-pixel allocations while preserving reports, diff images and strict thresholds.
 - Scroll lazy sidebar groups into view before opening resources in the native visual catalog fixture.
 - Add opt-in public 7TV/BTTV/FFZ catalog contract probes without credentials or account writes.
