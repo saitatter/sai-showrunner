@@ -62,6 +62,18 @@ final class ObsConnectionRouter implements ObsTransport, ObsReplayTransport {
   final Future<List<ResourceData>> Function()? resourceLoader;
   final ObsTransportFactory _transportFactory;
   final _transports = <String, ObsTransport>{};
+  bool _closed = false;
+  Future<void>? _closeFuture;
+
+  ObsTransport _transportFor(ObsConnectionEndpoint endpoint) {
+    if (_closed) throw StateError('OBS connection router is closed.');
+    return _transports.putIfAbsent(
+      endpoint.cacheKey,
+      () => _transportFactory(endpoint, (state, value) {
+        if (!_closed) onStateChanged?.call(state, value);
+      }),
+    );
+  }
 
   Future<List<ResourceData>> listConnections() async =>
       resourceLoader?.call() ??
@@ -76,20 +88,14 @@ final class ObsConnectionRouter implements ObsTransport, ObsReplayTransport {
   @override
   Future<RuntimeMap> call(String request, RuntimeMap data) async {
     final endpoint = await resolveEndpoint();
-    final transport = _transports.putIfAbsent(
-      endpoint.cacheKey,
-      () => _transportFactory(endpoint, onStateChanged),
-    );
+    final transport = _transportFor(endpoint);
     return transport.call(request, data);
   }
 
   @override
   Future<RuntimeMap> saveReplayBuffer() async {
     final endpoint = await resolveEndpoint();
-    final transport = _transports.putIfAbsent(
-      endpoint.cacheKey,
-      () => _transportFactory(endpoint, onStateChanged),
-    );
+    final transport = _transportFor(endpoint);
     return saveObsReplayBuffer(transport);
   }
 
@@ -124,10 +130,7 @@ final class ObsConnectionRouter implements ObsTransport, ObsReplayTransport {
     RuntimeMap data,
   ) async {
     final endpoint = await resolveEndpointFor(connectionId);
-    final transport = _transports.putIfAbsent(
-      endpoint.cacheKey,
-      () => _transportFactory(endpoint, onStateChanged),
-    );
+    final transport = _transportFor(endpoint);
     return transport.call(request, data);
   }
 
@@ -151,7 +154,12 @@ final class ObsConnectionRouter implements ObsTransport, ObsReplayTransport {
   }
 
   @override
-  Future<void> close() async {
+  Future<void> close() {
+    _closed = true;
+    return _closeFuture ??= _closeInternal();
+  }
+
+  Future<void> _closeInternal() async {
     final transports = _transports.values.toList();
     _transports.clear();
     await Future.wait(transports.map((transport) => transport.close()));

@@ -12,6 +12,7 @@
 - Add unified Twitch/YouTube chat with channel-scoped moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Close the shared OBS action connection at host shutdown and prevent delayed requests from reopening it afterward.
 - Disable graph run shortcuts when another workspace is active or the application runtime is unavailable.
 - Close malformed or oversized overlay WebSocket peers safely and bound pending RPC calls and response deadlines.
 - Reject forged HTTP authorities and foreign-origin remote-button requests before exposing data or dispatching actions.
