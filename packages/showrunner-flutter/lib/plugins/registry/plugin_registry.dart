@@ -14,6 +14,12 @@ export 'plugin_contract.dart';
 export 'plugin_health.dart';
 
 final class DartPluginRegistry extends ChangeNotifier {
+  DartPluginRegistry({Map<ResourceTypeId, PluginId>? resourceEditorOwners})
+    : _resourceEditorOwners = resourceEditorOwners == null
+          ? null
+          : Map.unmodifiable(resourceEditorOwners);
+
+  final Map<ResourceTypeId, PluginId>? _resourceEditorOwners;
   final Map<PluginId, DartPluginModule> _modules = {};
   final Map<PluginId, PluginModuleRegistration> _registrations = {};
   final Map<ActionKey, DartActionContract> _actions = {};
@@ -68,6 +74,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     }
     final additions = registrations.toList();
     if (additions.isEmpty) return;
+    final editorIds = availableEditors ?? _resourceEditorOwners?.keys.toSet();
     final ordered = orderPluginRegistrations([
       ..._registrations.values,
       ...additions,
@@ -134,10 +141,15 @@ final class DartPluginRegistry extends ChangeNotifier {
             'Resource is registered more than once: ${resource.resourceTypeId}',
           );
         }
-        if (availableEditors != null &&
-            !availableEditors.contains(resource.resourceTypeId)) {
+        if (editorIds != null && !editorIds.contains(resource.resourceTypeId)) {
           throw ArgumentError(
             'Resource editor missing: ${resource.resourceTypeId} (${plugin.id}).',
+          );
+        }
+        final editorOwner = _resourceEditorOwners?[resource.resourceTypeId];
+        if (editorOwner != null && editorOwner != plugin.id) {
+          throw ArgumentError(
+            'Resource editor ${resource.resourceTypeId} belongs to $editorOwner, not ${plugin.id}.',
           );
         }
         resources[resource.resourceTypeId] = resource;

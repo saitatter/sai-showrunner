@@ -5,6 +5,7 @@ import '../input/ui/plugin_ui.dart';
 import '../iot/ui/plugin_ui.dart';
 import '../minecraft/ui/plugin_ui.dart';
 import '../obs/ui/plugin_ui.dart';
+import '../../features/resources/resource_editor_registry.dart';
 import '../overlays/ui/plugin_ui.dart';
 import '../remote/ui/plugin_ui.dart';
 import '../sound/ui/plugin_ui.dart';
@@ -16,6 +17,16 @@ import '../youtube/ui/plugin_ui.dart';
 import 'flutter_plugin_ui_contract.dart';
 import 'generic_plugin_ui.dart';
 import 'plugin_registry.dart';
+
+DartPluginRegistry createFirstPartyPluginRegistry() {
+  final editors = createDefaultResourceEditorRegistry();
+  return DartPluginRegistry(
+    resourceEditorOwners: {
+      for (final editor in editors.definitions)
+        editor.resourceTypeId: editor.ownerId,
+    },
+  );
+}
 
 void registerCommonPluginUis(
   DartPluginRegistry registry,

@@ -26,7 +26,7 @@
 - Separate Twitch EventSub sockets, subscription declarations and event parsing, plus YouTube event parsing, from worker lifecycle management while preserving event routing and payloads.
 - Track plugin lifecycle separately from automation enable policy; serialize persisted toggles, start previously skipped modules once, preserve unused-registry teardown and roll back failed activation without disconnecting shared chat.
 - Move first-party provider setup into owned, statically imported factories and separate Flutter UI assembly from transport composition without changing saved plugin contracts.
-- Validate first-party plugin packs atomically, including dependency order, ownership, contract versions and resource editor coverage before lifecycle startup.
+- Validate first-party plugin packs atomically, including dependency order, ownership, contract versions and canonical Flutter resource editor coverage before lifecycle startup.
 - Compose application startup and workspaces through explicit owners, scoped capabilities and feature-owned registrations; isolate Stream Plan state per application.
 - Retain asynchronous runtime and tray teardown, cancel background work, flush variable edits before registry shutdown and release reached plugin modules after partial startup failures.
 - Give navigation, document sessions and execution workflows explicit owners with validated navigation persistence and guarded asynchronous saves; native fixtures await flush and shutdown before restart or storage cleanup.

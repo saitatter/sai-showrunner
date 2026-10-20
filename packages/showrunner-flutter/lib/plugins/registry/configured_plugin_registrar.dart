@@ -83,7 +83,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     settings: appSettings,
     portOverride: httpPortOverride,
   );
-  final registry = DartPluginRegistry();
+  final registry = createFirstPartyPluginRegistry();
   final activeStreamPlans = streamPlans ?? DartStreamPlanRuntime();
   try {
     registerConfiguredChatCommands(

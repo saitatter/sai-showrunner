@@ -44,7 +44,8 @@ any contracts or notifying listeners. Dependencies initialize/start first and
 stop last; absent optional dependencies are allowed, present cycles are rejected.
 The composing caller retains ownership if validation fails. Composition is sealed
 at initialization/startup; runtime state survives additions made before that point.
-Flutter assembly can supply resource editor IDs for complete coverage validation;
+Flutter assembly supplies an immutable map of canonical resource editor owners
+to first-party registries, enforcing coverage and ownership on every registration;
 the module factory contract itself has no Flutter UI dependency.
 The default/configured registrars explicitly assemble provider-owned
 `plugins/<provider>/bootstrap.dart` factories. They pass typed dependencies;

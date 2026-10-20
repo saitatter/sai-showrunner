@@ -54,7 +54,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
 }) {
   final variablesRepository =
       viewerDataRepository ?? InMemoryViewerDataRepository();
-  final registry = DartPluginRegistry();
+  final registry = createFirstPartyPluginRegistry();
   final activeStreamPlans = streamPlans ?? DartStreamPlanRuntime();
   registerDefaultChatCommands(registry, eventHub: eventHub);
   registerHeartRatePlugin(registry, eventHub: eventHub);

@@ -141,7 +141,7 @@ void main() {
   );
 
   test(
-    'resource editor coverage is validated before registering a pack',
+    'resource editor coverage and immutable ownership are validated before registration',
     () async {
       final registry = DartPluginRegistry();
       final module = entry(
@@ -170,6 +170,18 @@ void main() {
         availableEditors: {const ResourceTypeId('Example')},
       );
       expect(registry.findResource('Example'), isNotNull);
+      final owners = {const ResourceTypeId('Example'): const PluginId('other')};
+      final strict = DartPluginRegistry(resourceEditorOwners: owners);
+      owners[const ResourceTypeId('Example')] = const PluginId('resources');
+      expect(() => strict.registerModules([module]), throwsArgumentError);
+      expect(strict.plugins, isEmpty);
+      final missing = DartPluginRegistry(resourceEditorOwners: {});
+      expect(() => missing.registerModules([module]), throwsArgumentError);
+      expect(missing.plugins, isEmpty);
+      final complete = DartPluginRegistry(resourceEditorOwners: owners);
+      complete.registerModules([module]);
+      expect(complete.findResource('Example'), isNotNull);
+      await Future.wait([strict.close(), missing.close(), complete.close()]);
       await registry.close();
     },
   );
