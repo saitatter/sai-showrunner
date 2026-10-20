@@ -5,6 +5,7 @@ import 'dart:io';
 import '../../schema/data_input.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
+import '../../services/http_policy.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 
@@ -26,12 +27,14 @@ final class RemoteButtonRuntime {
   final RemoteButtonNameLoader? loadButtonNames;
   final RemoteButtonStateReporter? onStateChanged;
   HttpServer? _server;
+  Set<String> _trustedHosts = {};
   StreamSubscription<HttpRequest>? _subscription;
 
   int? get boundPort => _server?.port;
 
   Future<void> start() async {
     if (_server != null) return;
+    _trustedHosts = await trustedHttpHosts(host);
     _server = await HttpServer.bind(host, port, shared: true);
     _subscription = _server!.listen(_handle);
     onStateChanged?.call('running');
@@ -48,6 +51,10 @@ final class RemoteButtonRuntime {
 
   Future<void> _handle(HttpRequest request) async {
     try {
+      if (!isTrustedHttpRequest(request, hosts: _trustedHosts)) {
+        await _json(request.response, HttpStatus.forbidden, null);
+        return;
+      }
       if (request.method == 'GET' && request.uri.path == '/buttons') {
         final buttons = await loadButtonNames?.call() ?? const <String>[];
         await _json(request.response, HttpStatus.ok, {'buttons': buttons});

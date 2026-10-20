@@ -12,6 +12,7 @@
 - Add unified Twitch/YouTube chat with channel-scoped moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Reject forged HTTP authorities and foreign-origin remote-button requests before exposing data or dispatching actions.
 - Preserve settings through temporary Windows file-sharing locks by retrying atomic replacement without removing the original.
 - Preserve workspace navigation during startup restoration.
 - Enforce configured Twitch chat-trigger filters.

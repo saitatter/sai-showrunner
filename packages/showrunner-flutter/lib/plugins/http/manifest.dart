@@ -32,6 +32,7 @@ final class DartHttpEndpointService {
   final String host;
   final int port;
   HttpServer? _server;
+  Set<String> _trustedHosts = {};
   final _routes = <_HttpEndpointRoute>[];
   final _requestHandlers = <DartHttpRequestHandler>[];
   final _webSocketHandlers = <DartHttpWebSocketHandler>[];
@@ -56,6 +57,7 @@ final class DartHttpEndpointService {
 
   Future<void> start() async {
     if (_server != null) return;
+    _trustedHosts = await trustedHttpHosts(host);
     final server = await HttpServer.bind(host, port);
     _server = server;
     server.listen(_handleRequest);
@@ -99,16 +101,9 @@ final class DartHttpEndpointService {
 
   Future<void> _handleRequest(HttpRequest request) async {
     try {
-      final origin = request.headers.value('origin');
-      if (origin != null) {
-        final uri = Uri.tryParse(origin);
-        final authority = request.headers.value(HttpHeaders.hostHeader);
-        if (uri == null ||
-            !{'http', 'https'}.contains(uri.scheme) ||
-            uri.authority != authority) {
-          await _respond(request, HttpStatus.forbidden);
-          return;
-        }
+      if (!isTrustedHttpRequest(request, hosts: _trustedHosts)) {
+        await _respond(request, HttpStatus.forbidden);
+        return;
       }
       await _dispatchRequest(request).timeout(requestTimeout);
     } on HttpBodyLimitException catch (error) {
