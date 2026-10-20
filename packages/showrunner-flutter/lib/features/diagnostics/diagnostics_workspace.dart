@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../app/startup_health.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
-import '../../plugins/registry/plugin_health.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../runtime/action_queue.dart';
 
@@ -277,9 +276,7 @@ class _PluginHealthDiagnostics extends StatelessWidget {
             else
               for (final plugin in plugins)
                 FutureBuilder<DartPluginHealth>(
-                  future: snapshot.data!
-                      .findModule(plugin.id.value)!
-                      .checkHealth(),
+                  future: snapshot.data!.checkHealthDetailsId(plugin.id),
                   builder: (context, healthSnapshot) {
                     final health = healthSnapshot.data;
                     final healthy = health?.isHealthy == true;

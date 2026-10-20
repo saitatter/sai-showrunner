@@ -19,9 +19,14 @@ Future<void> registerConfiguredDiscord(
       webhookResolver: (id) async =>
           (await discordWebhookRepository.load(id))?.config,
     ),
+
+    initialHealth: const DartPluginHealth.connectionUnchecked(),
   );
 }
 
 void registerDefaultDiscord(DartPluginRegistry registry) {
-  registry.register(createDiscordPlugin());
+  registry.register(
+    createDiscordPlugin(),
+    initialHealth: const DartPluginHealth.notConfigured(),
+  );
 }

@@ -21,6 +21,7 @@ final class ManifestDartPluginModule implements DartPluginModule {
     this.onStart,
     this.onStop,
     this.onHealthCheck,
+    this.initialHealth = const DartPluginHealth.ready(),
   });
 
   @override
@@ -28,6 +29,7 @@ final class ManifestDartPluginModule implements DartPluginModule {
   final DartPluginLifecycleHook? onStart;
   final DartPluginLifecycleHook? onStop;
   final Future<bool> Function()? onHealthCheck;
+  final DartPluginHealth initialHealth;
 
   @override
   Future<void> initialize(DartPluginHostContext host) async {}
@@ -45,7 +47,7 @@ final class ManifestDartPluginModule implements DartPluginModule {
   @override
   Future<DartPluginHealth> checkHealth() async {
     final healthCheck = onHealthCheck;
-    if (healthCheck == null) return const DartPluginHealth.ready();
+    if (healthCheck == null) return initialHealth;
     try {
       return await healthCheck()
           ? const DartPluginHealth.ready()

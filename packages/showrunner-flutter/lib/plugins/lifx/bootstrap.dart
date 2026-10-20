@@ -32,11 +32,18 @@ Future<void> registerConfiguredLifx(
         );
       },
     ),
+
+    initialHealth: (lifxTransport != null)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
 }
 
 void registerDefaultLifx(DartPluginRegistry registry) {
-  registry.register(createLifxPlugin(_unconfiguredLifxTransport));
+  registry.register(
+    createLifxPlugin(_unconfiguredLifxTransport),
+    initialHealth: const DartPluginHealth.notConfigured(),
+  );
 }
 
 final LifxTransport _unconfiguredLifxTransport = CallbackLifxTransport(

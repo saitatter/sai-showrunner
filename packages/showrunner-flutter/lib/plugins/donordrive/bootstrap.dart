@@ -41,6 +41,10 @@ Future<void> registerConfiguredDonorDrive(
     onStop: donorDriveRuntime == null
         ? null
         : () async => donorDriveRuntime.stop(),
+
+    initialHealth: (donorDriveRuntime != null)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
 }
 
@@ -48,5 +52,8 @@ void registerDefaultDonorDrive(
   DartPluginRegistry registry, {
   required DartPluginEventHub? eventHub,
 }) {
-  registry.register(createDonorDrivePlugin(null, eventHub: eventHub));
+  registry.register(
+    createDonorDrivePlugin(null, eventHub: eventHub),
+    initialHealth: const DartPluginHealth.notConfigured(),
+  );
 }

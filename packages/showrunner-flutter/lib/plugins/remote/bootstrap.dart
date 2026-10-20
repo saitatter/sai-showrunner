@@ -47,6 +47,10 @@ Future<void> registerConfiguredRemote(
     createRemotePlugin(eventHub: eventHub, runtime: remoteRuntime),
     onStart: remoteRuntime?.start,
     onStop: remoteRuntime?.stop,
+
+    initialHealth: (remoteRuntime != null)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
 }
 
@@ -54,7 +58,10 @@ void registerDefaultRemote(
   DartPluginRegistry registry, {
   required DartPluginEventHub? eventHub,
 }) {
-  registry.register(createRemotePlugin(eventHub: eventHub));
+  registry.register(
+    createRemotePlugin(eventHub: eventHub),
+    initialHealth: const DartPluginHealth.notConfigured(),
+  );
 }
 
 Future<List<String>> _loadRemoteButtonNames(

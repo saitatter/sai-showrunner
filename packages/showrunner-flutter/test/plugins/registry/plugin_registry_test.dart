@@ -6,7 +6,6 @@ import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
-import 'package:showrunner_flutter/plugins/registry/plugin_health.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_host_context.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_module.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_ui.dart';

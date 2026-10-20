@@ -36,6 +36,10 @@ Future<void> registerConfiguredPhilipsHue(
         );
       },
     ),
+
+    initialHealth: (hueTransport != null)
+        ? const DartPluginHealth.connectionUnchecked()
+        : const DartPluginHealth.notConfigured(),
   );
   if (hueTransport != null) {
     try {
@@ -56,6 +60,8 @@ Future<void> registerConfiguredPhilipsHue(
 void registerDefaultPhilipsHue(DartPluginRegistry registry) {
   registry.register(
     createPhilipsHuePlugin(HueTransport(_unconfiguredPhilipsHue)),
+
+    initialHealth: const DartPluginHealth.notConfigured(),
   );
 }
 
