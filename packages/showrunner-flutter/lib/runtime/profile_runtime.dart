@@ -1,3 +1,5 @@
+import 'automation_invocation_service.dart';
+import 'graph_invocation.dart';
 import '../graph/domain/automation_document.dart';
 import '../graph/definitions/showrunner_graph_types.dart';
 import 'dart:async';
@@ -7,9 +9,7 @@ import '../schema/json.dart';
 import '../schema/profile.dart';
 import 'expression.dart';
 import '../graph/runtime/graph_execution_engine.dart';
-import '../graph/runtime/graph_runtime.dart';
 import 'automation_queue_manager.dart';
-import 'execution_trace.dart';
 
 typedef _ProfileTriggerTarget = ({
   PluginId pluginId,
@@ -48,7 +48,7 @@ final class DartProfileRuntime {
     };
   }
 
-  Future<GraphExecutionResult?> reconcile(
+  Future<InvocationResult?> reconcile(
     String profileId,
     ShowRunnerProfile profile, {
     EvaluationContext? context,
@@ -74,7 +74,7 @@ final class DartProfileRuntime {
           );
   }
 
-  Future<GraphExecutionResult> activate(
+  Future<InvocationResult> activate(
     String profileId,
     ShowRunnerProfile profile, {
     EvaluationContext? context,
@@ -96,7 +96,7 @@ final class DartProfileRuntime {
     return result;
   }
 
-  Future<GraphExecutionResult> deactivate(
+  Future<InvocationResult> deactivate(
     String profileId,
     ShowRunnerProfile profile, {
     EvaluationContext? context,
@@ -121,7 +121,7 @@ final class DartProfileRuntime {
   /// Changes a profile from a runtime action and owns the trigger subscription
   /// created by that action. The profile editor keeps using [activate] and
   /// [watch] separately so its existing close lifecycle remains explicit.
-  Future<GraphExecutionResult?> setManagedActive(
+  Future<InvocationResult?> setManagedActive(
     String profileId,
     ShowRunnerProfile profile, {
     required bool active,
@@ -188,7 +188,7 @@ final class DartProfileRuntime {
     await Future.wait(sessions.map((session) => session.dispose()));
   }
 
-  Future<GraphExecutionResult?> handleTrigger(
+  Future<InvocationResult?> handleTrigger(
     String profileId,
     ShowRunnerProfile profile,
     String pluginId,
@@ -437,7 +437,7 @@ final class DartProfileRuntime {
         cancellationToken: context?.cancellationToken,
       );
 
-  Future<GraphExecutionResult> _runTriggerTarget(
+  Future<InvocationResult> _runTriggerTarget(
     String profileId,
     _ProfileTriggerTarget target,
     RuntimeMap payload, {
@@ -481,7 +481,7 @@ final class DartProfileRuntime {
     );
   }
 
-  Future<GraphExecutionResult> _runAutomation(
+  Future<InvocationResult> _runAutomation(
     AutomationDocument automation,
     EvaluationContext context, {
     String? queueId,
@@ -490,38 +490,24 @@ final class DartProfileRuntime {
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
   }) async {
-    final queue = queueManager;
-    final effectiveQueueId = queueId ?? automation.queueId;
-    if (queue != null && effectiveQueueId != null) {
-      final item = await queue.enqueue(
-        automation,
-        context,
-        queueId: effectiveQueueId,
-        sourceMetadata: sourceMetadata,
+    return AutomationInvocationService(
+      engine: executionEngine,
+      registry: () => registry,
+      queues: queueManager,
+    ).invokeOrThrow(
+      GraphInvocation(
+        target: InvocationDocument(automation),
+        origin: InvocationOrigin.profile,
+        sourceId: sourceMetadata?['sourceId']?.toString() ?? automation.id,
+        sourceSubId: sourceMetadata?['sourceSubId']?.toString(),
+        dispatch: InvocationDispatch.documentQueue,
+        queueId: queueId,
         entryNodeId: entryNodeId,
-      );
-      return GraphExecutionResult(
-        completed: true,
-        steps: 0,
-        nodeResults: const <String, RuntimeMap>{},
-        contextState: Map<String, dynamic>.from(context.contextState),
-        outputValues: {
-          'queued': true,
-          'queueId': effectiveQueueId,
-          'itemId': item.id,
-        },
-      );
-    }
-    return executionEngine.executeWithRegistry(
-      automation: automation,
-      entryNodeId: entryNodeId,
-      context: context,
-      registry: registry,
-      onNodeEnter: onNodeEnter,
-      onNodeExit: onNodeExit,
-      traceSource: sourceMetadata == null
-          ? null
-          : ExecutionTraceSource.fromMetadata(sourceMetadata),
+        context: InvocationContext.capture(context),
+        cancellation: context.cancellationToken,
+        onNodeEnter: onNodeEnter,
+        onNodeExit: onNodeExit,
+      ),
     );
   }
 }

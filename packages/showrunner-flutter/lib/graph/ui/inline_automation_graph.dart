@@ -1,3 +1,6 @@
+import '../../runtime/automation_invocation_service.dart';
+import '../../runtime/graph_invocation.dart';
+import '../../runtime/cancellation.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../components/data_inputs/resource_schema.dart';
@@ -7,7 +10,6 @@ import 'automation_graph_workspace.dart';
 import 'graph_execution_trace_scope.dart';
 import '../execution/showrunner_execution_visual_adapter.dart';
 import '../../runtime/execution_trace.dart';
-import '../../runtime/expression.dart';
 import '../runtime/graph_execution_engine.dart';
 import '../domain/automation_document.dart';
 
@@ -29,6 +31,13 @@ class InlineAutomationGraph extends StatefulWidget {
 
 class _InlineAutomationGraphState extends State<InlineAutomationGraph> {
   int generation = 0;
+  final Set<DartCancellationToken> _runningTests = {};
+  void _cancelTests() {
+    for (final token in _runningTests.toList()) {
+      token.cancel();
+    }
+  }
+
   Object? error;
   ExecutionTraceService? traceService;
   GraphExecutionEngine? engine;
@@ -44,12 +53,14 @@ class _InlineAutomationGraphState extends State<InlineAutomationGraph> {
   void didUpdateWidget(InlineAutomationGraph old) {
     super.didUpdateWidget(old);
     if (old.editor != widget.editor) {
+      _cancelTests();
       old.editor.removeListener(_editorChanged);
       widget.editor.addListener(_editorChanged);
       _syncExecution();
     }
     if (old.editor != widget.editor ||
         old.registryFuture != widget.registryFuture) {
+      _cancelTests();
       unawaited(_bind());
     }
   }
@@ -93,19 +104,32 @@ class _InlineAutomationGraphState extends State<InlineAutomationGraph> {
   }) async {
     final registry = await widget.registryFuture;
     if (!mounted) return;
-    await engine!.executeWithRegistry(
-      automation: document,
-      context: EvaluationContext(),
-      registry: registry,
-      entryNodeId: nodeId,
-      entrySpaceId: spaceId ?? mainAutomationSpace,
-      traceMode: ExecutionTraceMode.test,
-      traceSource: ExecutionTraceSource(type: 'inline-test', id: document.id),
-    );
+    final token = DartCancellationToken();
+    _runningTests.add(token);
+    try {
+      await AutomationInvocationService(
+        engine: engine!,
+        registry: () => registry,
+      ).invokeOrThrow(
+        GraphInvocation(
+          target: InvocationDocument(document),
+          origin: InvocationOrigin.inlineTest,
+          sourceId: document.id,
+          dispatch: InvocationDispatch.direct,
+          entryNodeId: nodeId,
+          entrySpaceId: spaceId ?? mainAutomationSpace,
+          cancellation: token,
+          mode: ExecutionTraceMode.test,
+        ),
+      );
+    } finally {
+      _runningTests.remove(token);
+    }
   }
 
   @override
   void dispose() {
+    _cancelTests();
     widget.editor.removeListener(_editorChanged);
     execution?.dispose();
     super.dispose();

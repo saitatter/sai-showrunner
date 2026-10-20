@@ -1,3 +1,5 @@
+import 'package:showrunner_flutter/runtime/automation_invocation_service.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/showrunner/manifest.dart';
@@ -45,14 +47,18 @@ void main() {
     final automation = AutomationDocument.empty().withMetadata({
       'name': 'Alert worker',
     });
-    final registry = DartPluginRegistry()
-      ..register(
-        createShowRunnerPlugin(
-          queueManager: manager,
-          loadAutomation: (id) async =>
-              id == 'alert-worker' ? automation : null,
+    final registry = DartPluginRegistry();
+    registry.register(
+      createShowRunnerPlugin(
+        queueManager: manager,
+        invocations: AutomationInvocationService(
+          engine: CompiledExecutionEngine(),
+          registry: () => registry,
+          queues: manager,
         ),
-      );
+        loadAutomation: (id) async => id == 'alert-worker' ? automation : null,
+      ),
+    );
     addTearDown(registry.close);
 
     final trigger = registry.findTrigger('ShowRunner', 'queueItemStarted')!;

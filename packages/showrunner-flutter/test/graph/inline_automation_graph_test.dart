@@ -11,8 +11,78 @@ import 'package:showrunner_flutter/graph/ui/inline_automation_graph.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/runtime/execution_trace.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
+import 'package:showrunner_flutter/runtime/cancellation.dart';
+import '../support/graph_fixtures.dart' show automationFixture, actionFixture;
 
 void main() {
+  testWidgets(
+    'closing an inline editor cancels its running graph without dirtying it',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 950));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      DartCancellationToken? token;
+      var stopped = false;
+      final registry = DartPluginRegistry()
+        ..register(
+          DartPluginManifest(
+            id: const PluginId('test'),
+            name: 'Test',
+            actions: [
+              ActionSpec<RuntimeMap, Object?>(
+                pluginId: const PluginId('test'),
+                actionId: const ActionId('record'),
+                invoke: (_, context) async {
+                  token = context.cancellationToken;
+                  await token!.whenCancelled;
+                  stopped = true;
+                  return null;
+                },
+              ),
+            ],
+          ),
+        );
+      final traces = ExecutionTraceService();
+      final editor = AutomationEditorController(
+        document: automationFixture(
+          nodes: [actionFixture('a')],
+          entryNodeId: 'a',
+        ),
+        registry: registry,
+      );
+      addTearDown(() async {
+        editor.dispose();
+        await registry.close();
+        await traces.dispose();
+      });
+      final before = editor.document.graph;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GraphExecutionTraceScope(
+              service: traces,
+              engine: CompiledExecutionEngine(traceService: traces),
+              child: InlineAutomationGraph(
+                editor: editor,
+                registryFuture: Future.value(registry),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Run'));
+      await tester.pump();
+      expect(token, isNotNull);
+      expect(stopped, isFalse);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      expect(token!.isCancelled, isTrue);
+      expect(stopped, isTrue);
+      expect(editor.document.graph, same(before));
+      expect(editor.isDirty, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     'inline graphs show only their document traces and run through the application engine',
     (tester) async {

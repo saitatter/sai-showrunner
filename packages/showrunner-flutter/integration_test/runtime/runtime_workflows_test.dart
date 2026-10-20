@@ -1,3 +1,4 @@
+import 'package:showrunner_flutter/runtime/graph_invocation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/app/bootstrap/showrunner_services.dart';
@@ -221,7 +222,8 @@ void main() {
       {'message': 'profile-event'},
     );
 
-    expect(result?.completed, isTrue);
+    expect(result, isA<InvocationCompleted>());
+    expect((result as InvocationCompleted).execution.completed, isTrue);
     expect(calls, ['profile-event']);
   });
 

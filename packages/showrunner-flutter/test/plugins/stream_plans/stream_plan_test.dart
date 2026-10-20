@@ -293,7 +293,20 @@ void main() {
     );
     addTearDown(queueManager.dispose);
     final runtime = DartStreamPlanRuntime(queueManager: queueManager);
-    final registry = DartPluginRegistry();
+    final registry = DartPluginRegistry()
+      ..register(
+        DartPluginManifest(
+          id: const PluginId('test'),
+          name: 'Test',
+          actions: [
+            ActionSpec<Map<String, dynamic>, Object?>(
+              pluginId: const PluginId('test'),
+              actionId: const ActionId('record'),
+              invoke: (_, _) async => null,
+            ),
+          ],
+        ),
+      );
     addTearDown(registry.close);
     final plan = StreamPlanData(
       name: 'Show',

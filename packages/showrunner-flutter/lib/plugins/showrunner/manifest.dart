@@ -1,3 +1,5 @@
+import '../../runtime/automation_invocation_service.dart';
+import '../../runtime/graph_invocation.dart';
 import '../../graph/domain/automation_document.dart';
 import 'dart:convert';
 
@@ -313,6 +315,7 @@ typedef ShowRunnerProfileActivation =
 
 DartPluginManifest createShowRunnerPlugin({
   DartAutomationQueueManager? queueManager,
+  AutomationInvocationService? invocations,
   ShowRunnerAutomationLoader? loadAutomation,
   ShowRunnerAutomationRunner? runAutomation,
   ShowRunnerProfileActivation? activateProfile,
@@ -486,7 +489,7 @@ DartPluginManifest createShowRunnerPlugin({
       invoke: (config, context) => _addToQueue(
         config,
         context,
-        queueManager: queueManager,
+        invocations: invocations,
         loadAutomation: loadAutomation,
       ),
       configCodec: showRunnerAddToQueueConfigCodec,
@@ -619,12 +622,12 @@ DartPluginManifest createShowRunnerPlugin({
 Future<RuntimeMap> _addToQueue(
   ShowRunnerAddToQueueConfig config,
   EvaluationContext context, {
-  required DartAutomationQueueManager? queueManager,
+  required AutomationInvocationService? invocations,
   required ShowRunnerAutomationLoader? loadAutomation,
 }) async {
   final queueId = config.queue?.trim() ?? '';
   final automationId = config.automation?.trim() ?? '';
-  if (queueManager == null ||
+  if (invocations == null ||
       loadAutomation == null ||
       queueId.isEmpty ||
       automationId.isEmpty) {
@@ -635,24 +638,30 @@ Future<RuntimeMap> _addToQueue(
     return {'queued': false, 'queueId': queueId, 'automationId': automationId};
   }
   final payload = config.payload ?? context.contextState;
-  final queued = await queueManager.enqueue(
-    automation,
-    EvaluationContext(
-      locals: context.locals,
-      contextState: {
-        'payload': payload,
-        'queuedAt': DateTime.now().toIso8601String(),
-        'source': {'type': 'graph', 'action': 'addToQueue'},
-      },
+  final outcome = await invocations.invokeOrThrow(
+    GraphInvocation(
+      target: InvocationDocument(automation),
+      origin: InvocationOrigin.automation,
+      sourceId: automationId,
+      dispatch: InvocationDispatch.queued,
+      queueId: queueId,
+      context: InvocationContext(
+        locals: context.locals,
+        state: {
+          'payload': payload,
+          'queuedAt': DateTime.now().toIso8601String(),
+          'source': {'type': 'graph', 'action': 'addToQueue'},
+        },
+      ),
+      cancellation: context.cancellationToken,
     ),
-    queueId: queueId,
-    sourceMetadata: {'sourceType': 'automation', 'sourceId': automationId},
   );
+  final queued = outcome as InvocationAccepted;
   return {
     'queued': true,
     'queueId': queueId,
     'automationId': automationId,
-    'itemId': queued.id,
+    'itemId': queued.receipt.itemId,
   };
 }
 
