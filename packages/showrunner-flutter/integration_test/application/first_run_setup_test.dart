@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/app/app_foundations.dart';
 import 'package:showrunner_flutter/features/setup/setup_workspace.dart';
-import 'package:showrunner_flutter/main.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 import '../support/showrunner_test_app.dart';
@@ -65,15 +64,9 @@ void main() {
       final dataService = ShowRunnerDataService(directory);
 
       await tester.pumpWidget(
-        MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: buildShowRunnerTheme(),
-          builder: showRunnerAppFrame,
-          home: ShowRunnerPage(
-            dataService: dataService,
-            loadSampleGraph: false,
-            showGraphEditor: false,
-          ),
+        buildShowRunnerTestApp(
+          dataService: dataService,
+          showGraphEditor: false,
         ),
       );
       await _pumpUntilVisible(tester, find.text('First-run setup'));
@@ -97,8 +90,7 @@ void main() {
       );
       await _pumpSetup(tester);
       expect(find.text('First-run setup'), findsNothing);
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump(const Duration(milliseconds: 250));
+      await closeShowRunnerTestApp(tester);
     },
   );
 }

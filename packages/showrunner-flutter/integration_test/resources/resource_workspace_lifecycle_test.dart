@@ -183,9 +183,7 @@ void main() {
       'center',
     );
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 250));
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await closeShowRunnerTestApp(tester);
     await tester.pumpWidget(buildShowRunnerTestApp(dataService: dataService));
     await _pumpApplication(tester);
 
@@ -224,6 +222,7 @@ void main() {
     await _openStreamPlan(tester);
     expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
 
+    await flushShowRunnerTestApp(tester);
     final savedSettings = await dataService.loadPluginSettings(
       'showrunner-flutter',
     );
@@ -232,9 +231,7 @@ void main() {
       contains('workspace.streamPlan.session-plan'),
     );
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 250));
-    await Future<void>.delayed(const Duration(milliseconds: 750));
+    await closeShowRunnerTestApp(tester);
     await tester.pumpWidget(
       buildShowRunnerTestApp(dataService: dataService, showGraphEditor: false),
     );
