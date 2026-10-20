@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_lifecycle.dart';
 import 'package:showrunner_flutter/plugins/runtime/provider_worker_status.dart';
 import 'package:showrunner_flutter/plugins/twitch/event_worker.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
@@ -15,6 +16,7 @@ void main() {
   test(
     'plugin disable and re-enable changes action execution immediately',
     () async {
+      var starts = 0, stops = 0;
       final registry = DartPluginRegistry()
         ..register(
           DartPluginManifest(
@@ -28,21 +30,44 @@ void main() {
               ),
             ],
           ),
+          onStart: () async => starts++,
+          onStop: () async => stops++,
         );
       addTearDown(registry.close);
+      await registry.initialize();
+      await registry.start();
 
       expect(await registry.invokeAction('integration', 'ping', const {}), {
         'ok': true,
       });
-      registry.setPluginEnabled('integration', false);
+      final policyWrites = <bool>[];
+      Future<void> persist(bool enabled) async => policyWrites.add(enabled);
+      await registry.setEnabled(
+        const PluginId('integration'),
+        false,
+        persist: persist,
+      );
+      expect(
+        registry.lifecycleOf(const PluginId('integration')),
+        PluginLifecycleState.running,
+      );
+      expect(stops, 0);
       expect(
         () => registry.invokeAction('integration', 'ping', const {}),
         throwsA(isA<PluginConfigurationError>()),
       );
-      registry.setPluginEnabled('integration', true);
+      await registry.setEnabled(
+        const PluginId('integration'),
+        true,
+        persist: persist,
+      );
       expect(await registry.invokeAction('integration', 'ping', const {}), {
         'ok': true,
       });
+      expect(policyWrites, [false, true]);
+      expect(starts, 1);
+      await registry.close();
+      expect(stops, 1);
     },
   );
 
