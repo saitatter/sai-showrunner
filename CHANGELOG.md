@@ -30,6 +30,7 @@
 - Document chat setup and remaining Streamer.bot differences using static .NET evidence and an isolated runtime UI comparison.
 
 ### CI & Build
+- Launch browser smokes through a responsive CDP endpoint, retain startup diagnostics and try another installed Chromium browser when startup fails.
 - Add a reproducible cross-runtime source/import inventory and baseline behavior contract matrix.
 - Wait for asynchronous command dispatch and Save All writes to complete before checking persisted lifecycle results.
 - Speed up visual catalog comparisons by avoiding per-pixel allocations while preserving reports, diff images and strict thresholds.

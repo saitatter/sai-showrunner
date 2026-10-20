@@ -188,6 +188,15 @@ unit/widget passes with 7 opt-in probes skipped, all 21 native integration files
 and 89 actual WebGL shader compile/link/render fixtures. This is historical evidence,
 not a promise that current changes have already passed.
 
+Browser smokes launch an isolated Chromium profile and require a responsive CDP
+version endpoint within the existing ten-second startup deadline. They accept
+the debugging address announced on stderr as well as `DevToolsActivePort`, retain
+bounded startup diagnostics and try the next installed Chrome/Edge binary only
+when startup fails. `SHOWRUNNER_CHROMIUM_BINARY` selects one explicit executable.
+DOM/WebGL/chat assertions run once after readiness; a failed assertion is never
+retried on another browser. Launcher fixtures cover missing port files, early
+exit, spawn errors, unresponsive endpoints and isolated-profile cleanup.
+
 ## Visual checks
 
 Chat/Commands adds the native `application/chat_workspaces_test.dart` fixture:
