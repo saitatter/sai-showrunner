@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -5,6 +7,8 @@ import 'dart:typed_data';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import '../../runtime/expression.dart';
+import '../../runtime/cancellation.dart';
+import '../runtime/provider_operation_policy.dart';
 
 final class TtsSpeechRequest {
   const TtsSpeechRequest({
@@ -15,6 +19,7 @@ final class TtsSpeechRequest {
     this.volume = 1,
     this.pitch = 1,
     this.rate = 0.5,
+    this.cancellationToken,
   });
 
   final String text;
@@ -24,6 +29,7 @@ final class TtsSpeechRequest {
   final double volume;
   final double pitch;
   final double rate;
+  final DartCancellationToken? cancellationToken;
 }
 
 final class TtsSpeechResult {
@@ -58,21 +64,88 @@ typedef TtsProcessRunner =
 
 final class WindowsTtsFileSynthesisService implements TtsFileSynthesisService {
   WindowsTtsFileSynthesisService({
-    TtsProcessRunner? run,
+    this._run,
     Directory? cacheDirectory,
     bool? enabled,
-  }) : _run = run ?? Process.run,
-       _cacheDirectory =
+  }) : _cacheDirectory =
            cacheDirectory ??
            Directory('${Directory.systemTemp.path}/ShowRunner-tts'),
        _enabled = enabled ?? Platform.isWindows;
 
-  final TtsProcessRunner _run;
+  final TtsProcessRunner? _run;
+  final ProviderOperationScope _scope = ProviderOperationScope();
+  final Set<Future<String?>> _pending = {};
+  Future<void>? _closing;
+
+  Future<void> close() => _closing ??= _close();
+  Future<void> _close() async {
+    await _scope.close();
+    await Future.wait(
+      _pending.toList().map(
+        (pending) =>
+            pending.then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+      ),
+    );
+  }
+
+  Future<ProcessResult> _runOwned(
+    String executable,
+    List<String> arguments,
+    DartCancellationToken? token,
+  ) async {
+    _scope.requireOpen();
+    token?.throwIfCancelled();
+    if (_run != null) return _run(executable, arguments);
+    final process = await Process.start(executable, arguments);
+    void abort() {
+      process.kill();
+    }
+
+    token?.addListener(abort);
+    if (_scope.isClosed) process.kill();
+    void Function()? release;
+    try {
+      if (!_scope.isClosed) {
+        release = _scope.track(() {
+          process.kill();
+        });
+      }
+      final results = await Future.wait<Object>([
+        process.exitCode,
+        utf8.decoder.bind(process.stdout).join(),
+        utf8.decoder.bind(process.stderr).join(),
+      ]);
+      _scope.requireOpen();
+      token?.throwIfCancelled();
+      return ProcessResult(
+        process.pid,
+        results[0] as int,
+        results[1],
+        results[2],
+      );
+    } finally {
+      token?.removeListener(abort);
+      release?.call();
+    }
+  }
+
   final Directory _cacheDirectory;
   final bool _enabled;
 
   @override
   Future<String?> synthesizeToFile(TtsSpeechRequest request) async {
+    _scope.requireOpen();
+    request.cancellationToken?.throwIfCancelled();
+    final pending = _synthesize(request);
+    _pending.add(pending);
+    try {
+      return await pending;
+    } finally {
+      _pending.remove(pending);
+    }
+  }
+
+  Future<String?> _synthesize(TtsSpeechRequest request) async {
     if (!_enabled || request.text.trim().isEmpty) return null;
 
     await _cacheDirectory.create(recursive: true);
@@ -95,14 +168,16 @@ final class WindowsTtsFileSynthesisService implements TtsFileSynthesisService {
     );
     final encodedScript = _encodePowerShell(script);
     try {
-      final result = await _run('powershell.exe', [
+      final result = await _runOwned('powershell.exe', [
         '-NoProfile',
         '-NonInteractive',
         '-ExecutionPolicy',
         'Bypass',
         '-EncodedCommand',
         encodedScript,
-      ]);
+      ], request.cancellationToken);
+      _scope.requireOpen();
+      request.cancellationToken?.throwIfCancelled();
       if (result.exitCode != 0 ||
           !await file.exists() ||
           await file.length() <= 44) {
@@ -175,22 +250,60 @@ final class FlutterTtsSpeechService implements TtsSpeechService {
   FlutterTtsSpeechService({this._client});
 
   FlutterTts? _client;
+  final ProviderOperationScope _scope = ProviderOperationScope();
+  final Set<Completer<void>> _pending = {};
+  Future<void>? _closing;
+
+  Future<void> close() => _closing ??= _close();
+  Future<void> _close() async {
+    await _scope.close();
+    for (final pending in _pending.toList()) {
+      if (!pending.isCompleted) {
+        pending.completeError(StateError('Speech was cancelled.'));
+      }
+    }
+    await _client?.stop();
+  }
 
   FlutterTts get _tts => _client ??= FlutterTts();
 
   @override
   Future<TtsSpeechResult> speak(TtsSpeechRequest request) async {
+    _scope.requireOpen();
     if (request.text.trim().isEmpty) {
       return TtsSpeechResult(spoken: false, text: request.text);
     }
 
     final tts = _tts;
     await tts.awaitSpeakCompletion(true);
+    _scope.requireOpen();
     await _configureVoice(tts, request);
+    _scope.requireOpen();
     await _requireSuccess(tts.setVolume(request.volume), 'volume');
     await _requireSuccess(tts.setPitch(request.pitch), 'pitch');
     await _requireSuccess(tts.setSpeechRate(request.rate), 'rate');
-    await _requireSuccess(tts.speak(request.text), 'speech');
+    final token = request.cancellationToken;
+    token?.throwIfCancelled();
+    final cancelled = Completer<void>();
+    _pending.add(cancelled);
+    Future<void>? stopping;
+    void abort() {
+      stopping ??= tts.stop().then<void>((_) {});
+    }
+
+    token?.addListener(abort);
+    try {
+      await Future.any<void>([
+        _requireSuccess(tts.speak(request.text), 'speech'),
+        cancelled.future,
+        if (token != null) token.whenCancelled,
+      ]);
+      token?.throwIfCancelled();
+    } finally {
+      token?.removeListener(abort);
+      await stopping;
+      _pending.remove(cancelled);
+    }
     return TtsSpeechResult(spoken: true, text: request.text);
   }
 
@@ -210,6 +323,7 @@ final class FlutterTtsSpeechService implements TtsSpeechService {
 
     if (provider == 'system') return;
     final voices = _voiceMaps(await tts.getVoices);
+    _scope.requireOpen();
     final selected = _findVoice(voices, provider, name, locale);
     if (selected != null) {
       final selectedName = selected['name']?.toString().trim() ?? '';
@@ -287,6 +401,7 @@ final class FlutterTtsSpeechService implements TtsSpeechService {
     String setting,
   ) async {
     final result = await operation;
+    _scope.requireOpen();
     if (!_isSuccess(result)) {
       throw StateError('TTS $setting configuration failed.');
     }

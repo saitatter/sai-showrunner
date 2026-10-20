@@ -13,6 +13,7 @@
 - Add unified Twitch/YouTube chat with channel-scoped moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Release owned audio playback, speech and Windows synthesis processes at module shutdown; propagate action cancellation before routed TTS playback.
 - Start every cancellation abort callback before notifying synchronous waiters, preventing cleanup continuations from skipping physical shutdown.
 - Prevent delayed Twitch/YouTube chat startup or broadcast discovery from reactivating disconnected sessions; release their owned requests on disconnect.
 - Reject oversized TP-Link Kasa TCP frames from their headers instead of continuing to buffer their bodies.

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 typedef SoundOutputResolver = SoundOutput? Function(String id);
 typedef SoundFilePlayer = Future<bool> Function(SoundPlayRequest request);
 typedef SoundFileAborter = Future<void> Function(String playId);
@@ -178,6 +180,35 @@ final class AudioSplitterOutput implements AbortableSoundOutput {
 final class SoundOutputRegistry {
   SoundOutputRegistry({this.defaultOutputId = 'system.default', this.refresh});
 
+  bool _closed = false;
+  Future<void>? _closing;
+  int _playSequence = 0;
+  final Set<Future<bool>> _pendingPlayback = {};
+
+  Future<void> close() {
+    if (_closing != null) return _closing!;
+    _closed = true;
+    return _closing = _close();
+  }
+
+  Future<void> _close() async {
+    try {
+      await Future.wait([
+        for (final entry in _activePlaybacks.entries.toList())
+          if (entry.value is AbortableSoundOutput)
+            (entry.value as AbortableSoundOutput).abortPlay(entry.key),
+      ]);
+    } finally {
+      await Future.wait(
+        _pendingPlayback.toList().map(
+          (pending) =>
+              pending.then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+        ),
+      );
+      _pendingAborts.clear();
+    }
+  }
+
   String? defaultOutputId;
   final SoundOutputRefresher? refresh;
   final Map<String, SoundOutput> _outputs = {};
@@ -189,6 +220,7 @@ final class SoundOutputRegistry {
   SoundOutput? find(String id) => _outputs[id];
 
   void register(SoundOutput output) {
+    if (_closed) throw StateError('Sound output registry is closed.');
     if (output.id.trim().isEmpty) {
       throw ArgumentError.value(output.id, 'output.id');
     }
@@ -222,6 +254,7 @@ final class SoundOutputRegistry {
     double volume = 100,
     String? playId,
   }) async {
+    if (_closed) throw StateError('Sound output registry is closed.');
     // Resource editors persist splitter changes independently of the runtime
     // registry. Refresh persisted outputs before resolving the root so an
     // edited graph takes effect without restarting ShowRunner.
@@ -230,6 +263,7 @@ final class SoundOutputRegistry {
     } on Object {
       // Keep cached outputs usable while the resource directory is unavailable.
     }
+    if (_closed) throw StateError('Sound output registry is closed.');
     final id = outputId?.trim().isNotEmpty == true
         ? outputId!.trim()
         : defaultOutputId;
@@ -243,15 +277,24 @@ final class SoundOutputRegistry {
       startSec: startSec,
       endSec: endSec,
       volume: volume.clamp(0, 100).toDouble(),
-      playId: playId?.trim().isNotEmpty == true ? playId!.trim() : null,
+      playId: playId?.trim().isNotEmpty == true
+          ? playId!.trim()
+          : 'sound-owned-${_playSequence++}',
     );
     if (request.playId != null && _pendingAborts.remove(request.playId)) {
       return false;
     }
+    if (_activePlaybacks.containsKey(request.playId)) {
+      throw StateError('Sound playback ID is already active.');
+    }
     if (request.playId != null) _activePlaybacks[request.playId!] = output;
+    Future<bool>? pending;
     try {
-      return await output.playFile(request);
+      pending = output.playFile(request);
+      _pendingPlayback.add(pending);
+      return await pending;
     } finally {
+      _pendingPlayback.remove(pending);
       if (request.playId != null &&
           identical(_activePlaybacks[request.playId], output)) {
         _activePlaybacks.remove(request.playId);
