@@ -3,9 +3,76 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
 import 'package:showrunner_flutter/runtime/expression.dart';
+import 'package:showrunner_flutter/schema/queue.dart';
 import '../support/graph_fixtures.dart';
 
 void main() {
+  test(
+    'a timed out action retains queue ownership until cleanup finishes',
+    () async {
+      final cancelled = Completer<void>();
+      final cleanup = Completer<void>();
+      var stopped = false;
+      var nextStarted = false;
+      final queue = DartActionQueue(
+        defaultTimeout: const Duration(milliseconds: 20),
+      )..setPaused(true);
+      final manager = DartAutomationQueueManager(
+        defaultQueue: queue,
+        execute: (document, context, item) async {
+          if (item.source['name'] == 'first') {
+            await context.cancellationToken!.whenCancelled;
+            cancelled.complete();
+            await cleanup.future;
+            stopped = true;
+          } else {
+            expect(stopped, isTrue);
+            nextStarted = true;
+          }
+          return null;
+        },
+      );
+      addTearDown(manager.dispose);
+      await manager.enqueue(
+        AutomationDocument.empty().withMetadata({'name': 'first'}),
+        EvaluationContext(),
+      );
+      await manager.enqueue(
+        AutomationDocument.empty().withMetadata({'name': 'next'}),
+        EvaluationContext(),
+      );
+      queue.setPaused(false);
+      final draining = manager.drain(null);
+      await cancelled.future;
+      expect(queue.running, isNotNull);
+      expect(queue.history, isEmpty);
+      expect(nextStarted, isFalse);
+      cleanup.complete();
+      await draining;
+      expect(nextStarted, isTrue);
+      expect(queue.history.map((item) => item.status), ['completed', 'failed']);
+    },
+  );
+
+  test(
+    'synchronous load failure is not cached as an unrecoverable queue',
+    () async {
+      var calls = 0;
+      final manager = DartAutomationQueueManager(
+        defaultQueue: DartActionQueue(),
+        execute: (_, _, _) async => null,
+        loadConfig: (_) {
+          if (++calls == 1) throw StateError('temporary failure');
+          return Future.value(const QueueConfig(name: 'Recovered'));
+        },
+      );
+      addTearDown(manager.dispose);
+      await expectLater(manager.queueFor('alerts'), throwsStateError);
+      final queue = await manager.queueFor('alerts');
+      expect(queue, same(manager.registeredQueue('alerts')));
+      expect(calls, 2);
+    },
+  );
   test(
     'queue snapshots survive caller/action mutation and replay exactly',
     () async {

@@ -13,6 +13,7 @@
 - Add unified Twitch/YouTube chat with channel-scoped moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Keep timed-out queue actions owned until cleanup finishes, await standalone queue shutdown, cancel gap timers and allow retry after a temporary queue-load failure.
 - Make concurrent queue drains share ownership before queue lookup, so waiting callers cannot report completion while an action is still running.
 - Release owned audio playback, speech and Windows synthesis processes at module shutdown; propagate action cancellation before routed TTS playback.
 - Start every cancellation abort callback before notifying synchronous waiters, preventing cleanup continuations from skipping physical shutdown.

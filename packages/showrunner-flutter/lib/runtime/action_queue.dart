@@ -101,6 +101,14 @@ final class DartActionQueue {
   int _nextId = 0;
   Future<void> Function()? _cancelRunning;
   DartCancellationToken? _runningCancellationToken;
+  bool _closed = false;
+  Future<void>? _closing;
+  Future<void>? _processing;
+  final Set<Completer<void>> _gapWaits = {};
+  void _ensureOpen() {
+    if (_closed) throw StateError('Action queue is closed.');
+  }
+
   bool _cancelRequested = false;
   String? _cancelReason;
 
@@ -112,6 +120,7 @@ final class DartActionQueue {
       _runningCancellationToken;
 
   void setPaused(bool value) {
+    _ensureOpen();
     if (paused == value) return;
     paused = value;
     _changes.add(null);
@@ -122,6 +131,7 @@ final class DartActionQueue {
     RuntimeMap contextState, {
     RuntimeMap locals = const <String, dynamic>{},
   }) {
+    _ensureOpen();
     final item = QueuedGraphExecution(
       id: 'queue-${_nextId++}',
       source: Map<String, dynamic>.from(source),
@@ -134,6 +144,46 @@ final class DartActionQueue {
   }
 
   Future<void> processNext(
+    Future<Object?> Function(QueuedGraphExecution item) execute, {
+    Duration? timeout,
+    Future<void> Function()? cancelRunning,
+  }) {
+    _ensureOpen();
+    if (paused || running != null || pending.isEmpty) return Future.value();
+    final completion = Completer<void>();
+    _processing = completion.future;
+    unawaited(_ownProcessing(execute, timeout, cancelRunning, completion));
+    return completion.future;
+  }
+
+  Future<void> _ownProcessing(
+    Future<Object?> Function(QueuedGraphExecution item) execute,
+    Duration? timeout,
+    Future<void> Function()? cancelRunning,
+    Completer<void> completion,
+  ) async {
+    Object? failure;
+    StackTrace? failureStack;
+    try {
+      await _processNext(
+        execute,
+        timeout: timeout,
+        cancelRunning: cancelRunning,
+      );
+    } catch (error, stack) {
+      failure = error;
+      failureStack = stack;
+    } finally {
+      if (identical(_processing, completion.future)) _processing = null;
+      if (failure == null) {
+        completion.complete();
+      } else {
+        completion.completeError(failure, failureStack!);
+      }
+    }
+  }
+
+  Future<void> _processNext(
     Future<Object?> Function(QueuedGraphExecution item) execute, {
     Duration? timeout,
     Future<void> Function()? cancelRunning,
@@ -160,6 +210,19 @@ final class DartActionQueue {
           await operation.timeout(limit);
         } on TimeoutException {
           cancellationToken.cancel();
+          item.status = 'cancelling';
+          item.reason = 'Execution timeout; waiting for cleanup';
+          _changes.add(item);
+          try {
+            if (!_cancelRequested) await _cancelRunning?.call();
+          } finally {
+            // A deadline signals cancellation, not physical completion. Retain
+            // queue ownership until the action has released its resources.
+            await operation.then<void>(
+              (_) {},
+              onError: (Object _, StackTrace _) {},
+            );
+          }
           rethrow;
         }
       }
@@ -203,16 +266,21 @@ final class DartActionQueue {
     Duration? gap,
     Duration? timeout,
   }) async {
-    while (!paused && pending.isNotEmpty) {
+    _ensureOpen();
+    while (!_closed && !paused && pending.isNotEmpty) {
       await processNext(execute, timeout: timeout);
       final effectiveGap = gap ?? defaultGap;
-      if (!paused && pending.isNotEmpty && effectiveGap > Duration.zero) {
-        await Future<void>.delayed(effectiveGap);
+      if (!_closed &&
+          !paused &&
+          pending.isNotEmpty &&
+          effectiveGap > Duration.zero) {
+        await _waitGap(effectiveGap);
       }
     }
   }
 
   void skip(String id) {
+    _ensureOpen();
     if (running?.id == id) {
       unawaited(cancelRunning(reason: 'Cancelled by operator'));
       return;
@@ -241,11 +309,13 @@ final class DartActionQueue {
   }
 
   void clearPending() {
+    _ensureOpen();
     pending.clear();
     _changes.add(null);
   }
 
   void replay(String id) {
+    _ensureOpen();
     final item = history
         .where(
           (entry) =>
@@ -266,12 +336,18 @@ final class DartActionQueue {
   };
 
   void restore(RuntimeMap value) {
+    _ensureOpen();
+    final restoredPending = _items(value['pending']);
+    final restoredHistory = _items(
+      value['history'],
+    ).take(max(0, historyLimit)).toList();
+    if (running != null) throw StateError('Cannot restore a running queue.');
     pending
       ..clear()
-      ..addAll(_items(value['pending']));
+      ..addAll(restoredPending);
     history
       ..clear()
-      ..addAll(_items(value['history']).take(max(0, historyLimit)));
+      ..addAll(restoredHistory);
     paused = value['paused'] == true;
     _nextId = (value['nextId'] as num?)?.toInt() ?? _nextId;
   }
@@ -285,7 +361,34 @@ final class DartActionQueue {
       ? value.whereType<Map>().map(QueuedGraphExecution.fromJson).toList()
       : <QueuedGraphExecution>[];
 
-  Future<void> dispose() => _changes.close();
+  Future<void> _waitGap(Duration gap) async {
+    final completion = Completer<void>();
+    final timer = Timer(gap, completion.complete);
+    _gapWaits.add(completion);
+    try {
+      await completion.future;
+    } finally {
+      timer.cancel();
+      _gapWaits.remove(completion);
+    }
+  }
+
+  Future<void> dispose() => _closing ??= _dispose();
+  Future<void> _dispose() async {
+    _closed = true;
+    for (final wait in _gapWaits.toList()) {
+      if (!wait.isCompleted) wait.complete();
+    }
+    try {
+      await cancelRunning(reason: 'Application shutdown');
+    } finally {
+      await _processing?.then<void>(
+        (_) {},
+        onError: (Object _, StackTrace _) {},
+      );
+      await _changes.close();
+    }
+  }
 }
 
 DateTime? _dateTime(Object? value) =>
