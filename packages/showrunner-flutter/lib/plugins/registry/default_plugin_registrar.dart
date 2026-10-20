@@ -9,10 +9,12 @@ DartPluginRegistry buildDefaultPluginRegistry({
   GraphExecutionEngine? executionEngine,
   ShowRunnerAutomationRunner? runAutomation,
   ShowRunnerProfileActivation? activateProfile,
+  DartStreamPlanRuntime? streamPlans,
 }) {
   final variablesRepository =
       viewerDataRepository ?? InMemoryViewerDataRepository();
   final registry = DartPluginRegistry();
+  final activeStreamPlans = streamPlans ?? DartStreamPlanRuntime();
   registry.register(
     createChatCommandsPlugin(
       manager: () =>
@@ -58,6 +60,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
     ),
   );
   _registerTwitchStreamPlanComponent(
+    runtime: activeStreamPlans,
     transport: TwitchTransport(_unconfiguredTwitch),
   );
   final moderationService = ModerationService(
@@ -125,16 +128,23 @@ DartPluginRegistry buildDefaultPluginRegistry({
   registry.register(createInputPlugin());
   registry.register(
     createStreamPlansPlugin(
+      runtime: activeStreamPlans,
       registry: registry,
       queueManager: queueManager,
       executionEngine: executionEngine,
     ),
+    onStop: streamPlans == null
+        ? () => activeStreamPlans.close(registry: registry)
+        : null,
   );
-  _registerCommonPluginUis(registry);
+  _registerCommonPluginUis(registry, activeStreamPlans);
   return registry;
 }
 
-void _registerCommonPluginUis(DartPluginRegistry registry) {
+void _registerCommonPluginUis(
+  DartPluginRegistry registry,
+  DartStreamPlanRuntime streamPlans,
+) {
   final factories = <String, DartPluginUiContribution Function()>{
     'obs': createObsPluginUi,
     'youtube': createYouTubePluginUi,
@@ -149,7 +159,7 @@ void _registerCommonPluginUis(DartPluginRegistry registry) {
     'wyze': createWyzePluginUi,
     'dashboards': createDashboardsPluginUi,
     'input': createInputPluginUi,
-    'stream-plans': createStreamPlansPluginUi,
+    'stream-plans': () => createStreamPlansPluginUi(runtime: streamPlans),
   };
   for (final entry in factories.entries) {
     if (registry.findPlugin(entry.key) != null &&

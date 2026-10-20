@@ -1,263 +1,66 @@
-import '../graph/domain/automation_document.dart';
+import 'workspace_context.dart';
 import 'dart:async';
-import '../features/chat/unified_chat_runtime.dart';
-import '../features/chat/chat_dock_service.dart';
 
 import 'package:flutter/material.dart';
 
 import 'commands/app_command.dart';
 import 'app_feedback.dart';
-import '../graph/controller/automation_document_sessions.dart';
-import '../app/startup_health.dart';
 import '../design_system/controls/controls.dart';
 import '../design_system/tokens/tokens.dart';
 import 'project_panel.dart';
 import 'system_bar.dart';
 import 'workspace_registry.dart';
 import 'workspace_host.dart';
-import '../graph/controller/automation_editor_controller.dart';
-import '../graph/ui/automation_graph_workspace.dart';
-import '../graph/execution/showrunner_execution_visual_adapter.dart';
 import '../features/plugins/plugin_visibility.dart';
-import '../features/profile/profile_workspace.dart';
 import '../features/settings/interface_preferences.dart';
-import '../plugins/runtime/provider_event_workers.dart';
-import '../plugins/registry/plugin_registry.dart';
-import '../plugins/overlays/overlay_presence.dart';
-import '../plugins/obs/overlay_source_service.dart';
-import '../plugins/stream_plans/manifest.dart';
-import '../plugins/variables/runtime.dart';
-import '../runtime/action_queue.dart';
-import '../runtime/automation_queue_manager.dart';
 import '../schema/resource.dart';
-import '../runtime/profile_runtime.dart';
-import '../services/showrunner_data_service.dart';
 import '../services/project_catalog_service.dart';
-import '../services/update_check_service.dart';
-import '../services/update_install_service.dart';
 
 class ShowRunnerShell extends StatelessWidget {
   const ShowRunnerShell({
     super.key,
-    required this.dataService,
-    required this.graphEditor,
-    this.graphCanvasKey,
-    this.graphExecution,
-    this.onRunGraph,
-    required this.actionQueue,
-    this.queueManager,
-    required this.healthFuture,
-    required this.providerEvents,
-    this.chatRuntime,
-    this.chatDock,
-    required this.pluginRegistryFuture,
-    this.overlayPresenceReaderFuture,
-    this.overlayObsSourceService,
-    required this.profileRuntimeFuture,
-    this.streamPlanRuntime,
-    this.variableRuntime,
-    required this.selectedWorkspace,
-    required this.activeAutomationFile,
-    this.activeAutomationDirty = false,
-    required this.showGraphEditor,
-    required this.onDestinationSelected,
-    required this.onRunNode,
-    required this.onOpenAutomation,
-    this.onRenameAutomation,
-    this.onDeleteAutomationItem,
-    required this.onRepairAutomation,
-    required this.onCreateAutomation,
-    required this.onDeleteAutomation,
+    required this.runtime,
+    required this.graph,
+    required this.navigation,
+    required this.resources,
+    required this.profiles,
+    required this.automations,
+    required this.support,
     required this.interfacePreferences,
     required this.commands,
-    this.openWorkspaces = const [WorkspaceIds.graph],
-    this.onTabSelected,
-    this.onTabClosed,
-    this.onTabReordered,
-    this.automationDocuments,
-    this.onAutomationSelected,
-    this.onAutomationClosed,
-    this.onAutomationReordered,
-    this.profileController,
-    this.profileDirty = false,
-    this.onProfileDirtyChanged,
-    this.onProfileEntriesChanged,
-    this.onRenameProfile,
-    this.onDeleteProfile,
-    this.onCreateProfile,
-    this.projectCatalogRevision = 0,
-    this.selectedResourceType,
-    this.selectedResourceId,
-    this.onResourceSelected,
-    this.onOpenResource,
-    this.onRenameResource,
-    this.onDeleteResource,
-    this.onCreateResource,
-    this.overlayResources = const <String, ResourceData>{},
-    this.overlayDirty = const <String, bool>{},
-    this.onSaveOverlay,
-    this.onOverlayDirtyChanged,
-    this.onOverlayDocumentChanged,
-    this.streamPlanResources = const <String, ResourceData>{},
-    this.streamPlanDirty = const <String, bool>{},
-    this.onSaveStreamPlan,
-    this.onStreamPlanDocumentChanged,
-    this.selectedPluginId,
-    this.onPluginSelected,
-    this.updateService,
-    this.installService,
-    this.onRestartRequested,
     this.workspaceRegistry = const WorkspaceRegistry(),
   });
-
-  final ShowRunnerDataService dataService;
-  final AutomationEditorController graphEditor;
-  final GlobalKey<AutomationGraphWorkspaceState>? graphCanvasKey;
-  final ShowrunnerExecutionVisualAdapter? graphExecution;
-  final Future<void> Function()? onRunGraph;
-  final DartActionQueue actionQueue;
-  final DartAutomationQueueManager? queueManager;
-  final Future<StartupHealthSnapshot> healthFuture;
-  final ProviderEventRuntime providerEvents;
-  final UnifiedChatRuntime? chatRuntime;
-  final ChatDockService? chatDock;
-  final Future<DartPluginRegistry> pluginRegistryFuture;
-  final Future<OverlayPresenceReader?>? overlayPresenceReaderFuture;
-  final OverlayObsSourceActions? overlayObsSourceService;
-  final Future<DartProfileRuntime> profileRuntimeFuture;
-  final DartStreamPlanRuntime? streamPlanRuntime;
-  final DartVariableRuntime? variableRuntime;
-  final WorkspaceId selectedWorkspace;
-  final String? activeAutomationFile;
-  final bool activeAutomationDirty;
-  final bool showGraphEditor;
-  final ValueChanged<WorkspaceId> onDestinationSelected;
-  final Future<void> Function(String schemaNodeId)? onRunNode;
-  final FutureOr<void> Function(AutomationDocument automation, String fileName)
-  onOpenAutomation;
-  final FutureOr<void> Function(String fileName, String name)?
-  onRenameAutomation;
-  final FutureOr<void> Function(String fileName)? onDeleteAutomationItem;
-  final Future<void> Function(AutomationDocument automation, String fileName)
-  onRepairAutomation;
-  final Future<void> Function() onCreateAutomation;
-  final Future<void> Function(String fileName) onDeleteAutomation;
+  final RuntimeStatusSources runtime;
+  final GraphWorkspacePorts graph;
+  final WorkspaceNavigationState navigation;
+  final ResourceWorkspacePorts resources;
+  final ProfileWorkspacePorts profiles;
+  final AutomationWorkspaceActions automations;
+  final WorkspaceSupportPorts support;
   final FlutterInterfacePreferences interfacePreferences;
   final AppCommandRegistry commands;
-  final List<WorkspaceId> openWorkspaces;
-  final ValueChanged<WorkspaceId>? onTabSelected;
-  final FutureOr<void> Function(WorkspaceId)? onTabClosed;
-  final void Function(int oldPosition, int newPosition)? onTabReordered;
-  final AutomationDocumentSessions? automationDocuments;
-  final ValueChanged<String>? onAutomationSelected;
-  final FutureOr<void> Function(String fileName)? onAutomationClosed;
-  final void Function(int oldPosition, int newPosition)? onAutomationReordered;
-  final ProfileWorkspaceController? profileController;
-  final bool profileDirty;
-  final ValueChanged<bool>? onProfileDirtyChanged;
-  final VoidCallback? onProfileEntriesChanged;
-  final FutureOr<void> Function(String fileName, String name)? onRenameProfile;
-  final FutureOr<void> Function(String fileName)? onDeleteProfile;
-  final FutureOr<void> Function()? onCreateProfile;
-  final int projectCatalogRevision;
-  final String? selectedResourceType;
-  final String? selectedResourceId;
-  final ValueChanged<String>? onResourceSelected;
-  final FutureOr<void> Function(ResourceData resource, String resourceType)?
-  onOpenResource;
-  final FutureOr<void> Function(
-    ResourceData resource,
-    String resourceType,
-    String name,
-  )?
-  onRenameResource;
-  final FutureOr<void> Function(ResourceData resource, String resourceType)?
-  onDeleteResource;
-  final FutureOr<void> Function(String resourceType)? onCreateResource;
-  final Map<String, ResourceData> overlayResources;
-  final Map<String, bool> overlayDirty;
-  final Future<void> Function(ResourceData resource)? onSaveOverlay;
-  final void Function(String resourceId, bool dirty)? onOverlayDirtyChanged;
-  final void Function(ResourceData resource, bool dirty)?
-  onOverlayDocumentChanged;
-  final Map<String, ResourceData> streamPlanResources;
-  final Map<String, bool> streamPlanDirty;
-  final Future<void> Function(ResourceData resource)? onSaveStreamPlan;
-  final void Function(ResourceData resource, bool dirty)?
-  onStreamPlanDocumentChanged;
-  final String? selectedPluginId;
-  final ValueChanged<String>? onPluginSelected;
-  final UpdateCheckService? updateService;
-  final UpdateInstallService? installService;
-  final Future<bool> Function()? onRestartRequested;
   final WorkspaceRegistry workspaceRegistry;
 
   @override
   Widget build(BuildContext context) {
-    final tabs = openWorkspaces.isEmpty ? [selectedWorkspace] : openWorkspaces;
-    final selectedTab = tabs.indexOf(selectedWorkspace);
+    final tabs = navigation.openWorkspaces.isEmpty
+        ? [navigation.selectedWorkspace]
+        : navigation.openWorkspaces;
+    final selectedTab = tabs.indexOf(navigation.selectedWorkspace);
     void runCommand(String id) {
       unawaited(commands.run(id, AppCommandContext(buildContext: context)));
     }
 
     final workspaceHost = WorkspaceHostContext(
-      dataService: dataService,
-      graphEditor: graphEditor,
-      graphCanvasKey: graphCanvasKey,
-      graphExecution: graphExecution,
-      onRunGraph: onRunGraph,
-      actionQueue: actionQueue,
-      queueManager: queueManager,
-      healthFuture: healthFuture,
-      providerEvents: providerEvents,
-      chatRuntime: chatRuntime,
-      chatDock: chatDock,
-      pluginRegistryFuture: pluginRegistryFuture,
-      overlayPresenceReaderFuture: overlayPresenceReaderFuture,
-      overlayObsSourceService: overlayObsSourceService,
-      profileRuntimeFuture: profileRuntimeFuture,
-      streamPlanRuntime: streamPlanRuntime,
-      variableRuntime: variableRuntime,
-      showGraphEditor: showGraphEditor,
-      onRunNode: onRunNode,
-      onOpenAutomation: onOpenAutomation,
-      onRepairAutomation: onRepairAutomation,
-      onCreateAutomation: onCreateAutomation,
-      onDeleteAutomation: onDeleteAutomation,
+      runtime: runtime,
+      graph: graph,
+      navigation: navigation,
+      resources: resources,
+      profiles: profiles,
+      automations: automations,
+      support: support,
       interfacePreferences: interfacePreferences,
-      onOpenWorkspace: onDestinationSelected,
       commands: commands,
-      automationDocuments: automationDocuments,
-      onAutomationSelected: onAutomationSelected,
-      onAutomationClosed: onAutomationClosed,
-      onAutomationReordered: onAutomationReordered,
-      profileController: profileController,
-      profileDirty: profileDirty,
-      onProfileDirtyChanged: onProfileDirtyChanged,
-      onProfileEntriesChanged: onProfileEntriesChanged,
-      onRenameProfile: onRenameProfile,
-      onDeleteProfile: onDeleteProfile,
-      onCreateProfile: onCreateProfile,
-      projectCatalogRevision: projectCatalogRevision,
-      selectedResourceType: selectedResourceType,
-      selectedResourceId: selectedResourceId,
-      onResourceSelected: onResourceSelected,
-      onOpenResource: onOpenResource,
-      onRenameResource: onRenameResource,
-      onDeleteResource: onDeleteResource,
-      onCreateResource: onCreateResource,
-      overlayResources: overlayResources,
-      onSaveOverlay: onSaveOverlay,
-      onOverlayDirtyChanged: onOverlayDirtyChanged,
-      onOverlayDocumentChanged: onOverlayDocumentChanged,
-      streamPlanResources: streamPlanResources,
-      onSaveStreamPlan: onSaveStreamPlan,
-      onStreamPlanDocumentChanged: onStreamPlanDocumentChanged,
-      selectedPluginId: selectedPluginId,
-      onPluginSelected: onPluginSelected,
-      updateService: updateService,
-      installService: installService,
-      onRestartRequested: onRestartRequested,
     );
 
     final shell = Material(
@@ -276,42 +79,48 @@ class ShowRunnerShell extends StatelessWidget {
                         : interfacePreferences.projectSidebarWidth,
                     onWidthChanged: interfacePreferences.setProjectSidebarWidth,
                     child: ShowRunnerProjectPanel(
-                      selectedWorkspace: selectedWorkspace,
-                      pluginRegistryFuture: pluginRegistryFuture,
+                      selectedWorkspace: navigation.selectedWorkspace,
+                      pluginRegistryFuture: runtime.pluginRegistryFuture,
                       preferences: interfacePreferences,
-                      selectedPluginId: selectedPluginId,
+                      selectedPluginId: navigation.selectedPluginId,
                       callbacks: ProjectPanelCallbacks(
-                        onDestinationSelected: onDestinationSelected,
+                        onDestinationSelected: navigation.onDestinationSelected,
                         onPluginSelected: (pluginId) {
-                          onPluginSelected?.call(pluginId);
-                          onDestinationSelected(WorkspaceIds.plugins);
+                          navigation.onPluginSelected?.call(pluginId);
+                          navigation.onDestinationSelected(
+                            WorkspaceIds.plugins,
+                          );
                         },
                         onPluginToggle: (pluginId, enabled) =>
                             _setPluginEnabled(context, pluginId, enabled),
-                        onOpenAutomation: onOpenAutomation,
-                        onRenameAutomation: onRenameAutomation,
-                        onDeleteAutomation: onDeleteAutomationItem,
-                        onCreateAutomation: onCreateAutomation,
-                        onRenameProfile: onRenameProfile,
-                        onDeleteProfile: onDeleteProfile,
-                        onCreateProfile: onCreateProfile,
-                        onResourceSelected: onResourceSelected,
-                        onOpenResource: onOpenResource,
-                        onRenameResource: onRenameResource,
-                        onDeleteResource: onDeleteResource,
-                        onCreateResource: onCreateResource,
+                        onOpenAutomation: automations.onOpenAutomation,
+                        onRenameAutomation: automations.onRenameAutomation,
+                        onDeleteAutomation: automations.onDeleteAutomationItem,
+                        onCreateAutomation: automations.onCreateAutomation,
+                        onRenameProfile: profiles.onRenameProfile,
+                        onDeleteProfile: profiles.onDeleteProfile,
+                        onCreateProfile: profiles.onCreateProfile,
+                        onResourceSelected: resources.onResourceSelected,
+                        onOpenResource: resources.onOpenResource,
+                        onRenameResource: resources.onRenameResource,
+                        onDeleteResource: resources.onDeleteResource,
+                        onCreateResource: resources.onCreateResource,
                         onOpenProfile: (fileName) {
-                          onDestinationSelected(WorkspaceIds.profiles);
-                          return profileController?.openProfile(fileName);
+                          navigation.onDestinationSelected(
+                            WorkspaceIds.profiles,
+                          );
+                          return profiles.profileController?.openProfile(
+                            fileName,
+                          );
                         },
                       ),
                       catalogService: ShowRunnerProjectCatalogService(
-                        dataService.userDirectory,
+                        runtime.dataService.userDirectory,
                       ),
-                      catalogRevision: projectCatalogRevision,
-                      activeAutomationFile: activeAutomationFile,
-                      selectedResourceType: selectedResourceType,
-                      selectedResourceId: selectedResourceId,
+                      catalogRevision: resources.projectCatalogRevision,
+                      activeAutomationFile: graph.activeAutomationFile,
+                      selectedResourceType: navigation.selectedResourceType,
+                      selectedResourceId: navigation.selectedResourceId,
                     ),
                   ),
                 ),
@@ -320,17 +129,17 @@ class ShowRunnerShell extends StatelessWidget {
                     children: [
                       _WorkspaceTabBar(
                         tabs: tabs,
-                        selectedWorkspace: selectedWorkspace,
-                        activeAutomationDirty: activeAutomationDirty,
-                        hasActiveAutomation: activeAutomationFile != null,
-                        activeProfileDirty: profileDirty,
-                        overlayResources: overlayResources,
-                        overlayDirty: overlayDirty,
-                        streamPlanResources: streamPlanResources,
-                        streamPlanDirty: streamPlanDirty,
-                        onSelected: onTabSelected ?? (_) {},
-                        onClosed: onTabClosed ?? (_) {},
-                        onReordered: onTabReordered ?? (_, _) {},
+                        selectedWorkspace: navigation.selectedWorkspace,
+                        activeAutomationDirty: graph.activeAutomationDirty,
+                        hasActiveAutomation: graph.activeAutomationFile != null,
+                        activeProfileDirty: profiles.profileDirty,
+                        overlayResources: resources.overlayResources,
+                        overlayDirty: resources.overlayDirty,
+                        streamPlanResources: resources.streamPlanResources,
+                        streamPlanDirty: resources.streamPlanDirty,
+                        onSelected: navigation.onTabSelected ?? (_) {},
+                        onClosed: navigation.onTabClosed ?? (_) {},
+                        onReordered: navigation.onTabReordered ?? (_, _) {},
                       ),
                       Expanded(
                         child: IndexedStack(
@@ -376,9 +185,9 @@ class ShowRunnerShell extends StatelessWidget {
     bool enabled,
   ) async {
     try {
-      final registry = await pluginRegistryFuture;
+      final registry = await runtime.pluginRegistryFuture;
       await persistPluginEnabled(
-        dataService: dataService,
+        dataService: runtime.dataService,
         registry: registry,
         pluginId: pluginId,
         enabled: enabled,

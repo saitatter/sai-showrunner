@@ -1,7 +1,11 @@
+import '../../plugins/stream_plans/manifest.dart';
 import 'dart:async';
 import 'dart:io';
 
-import '../lifecycle/app_lifecycle_coordinator.dart';
+import '../lifecycle/application_runtime.dart';
+import '../execution/profile_activation_workflow.dart';
+import '../../plugins/registry/plugin_host_context.dart';
+import '../../services/structured_logger.dart';
 import '../../app/startup_health.dart';
 import '../../persistence/queue_config_repository.dart';
 import '../../persistence/viewer_data_repository.dart';
@@ -57,6 +61,7 @@ final class ShowRunnerServices {
     required this.healthFuture,
     required this.chatRuntime,
     required this.chatDock,
+    required this.streamPlans,
   });
 
   factory ShowRunnerServices.create({
@@ -64,7 +69,9 @@ final class ShowRunnerServices {
     required void Function(String id, dynamic value) onVariableChanged,
     ShowRunnerProfileActivation? activateProfile,
     bool smokeMode = false,
+    Future<DartPluginRegistry> Function()? ownedRegistryFactory,
   }) {
+    final streamPlans = DartStreamPlanRuntime();
     final actionQueue = DartActionQueue();
     final eventHub = DartPluginEventHub();
     final commandManagerReady = Completer<ChatCommandManager>();
@@ -84,6 +91,7 @@ final class ShowRunnerServices {
       eventHub: eventHub,
     );
     final executionTrace = ExecutionTraceService();
+    final healthFuture = StartupHealthLoader(dataService).load();
     final graphExecutionEngine = CompiledExecutionEngine(
       traceService: executionTrace,
     );
@@ -96,6 +104,7 @@ final class ShowRunnerServices {
       Directory('${dataService.userDirectory.path}/queues'),
     );
     late final Future<DartPluginRegistry> pluginRegistryFuture;
+    late final Future<DartProfileRuntime> profileRuntimeFuture;
     final queueManager = DartAutomationQueueManager(
       defaultQueue: actionQueue,
       loadConfig: (queueId) async {
@@ -121,30 +130,39 @@ final class ShowRunnerServices {
         );
       },
     );
-    pluginRegistryFuture = createConfiguredPluginRegistry(
-      dataService,
-      eventHub: eventHub,
-      chatCommands: commandManagerReady.future,
-      viewerDataRepository: viewerDataRepository,
-      queueManager: queueManager,
-      executionEngine: graphExecutionEngine,
-      runAutomation: (automation, context) async {
-        final registry = await pluginRegistryFuture;
-        return graphExecutionEngine.executeWithRegistry(
-          automation: automation,
-          context: context,
-          registry: registry,
+    pluginRegistryFuture =
+        ownedRegistryFactory?.call() ??
+        createConfiguredPluginRegistry(
+          dataService,
+          eventHub: eventHub,
+          chatCommands: commandManagerReady.future,
+          viewerDataRepository: viewerDataRepository,
+          queueManager: queueManager,
+          executionEngine: graphExecutionEngine,
+          runAutomation: (automation, context) async {
+            final registry = await pluginRegistryFuture;
+            return graphExecutionEngine.executeWithRegistry(
+              automation: automation,
+              context: context,
+              registry: registry,
+            );
+          },
+          activateProfile:
+              activateProfile ??
+              (id, mode, context) => ProfileActivationWorkflow(
+                dataService,
+                () => profileRuntimeFuture,
+              ).run(id, mode, context),
+          variableRuntime: variableRuntime,
+          httpPortOverride: smokeMode ? 0 : null,
+          startRuntime: false,
+          streamPlans: streamPlans,
+          onOverlayPresenceReaderCreated: (reader) {
+            if (!overlayPresenceReader.isCompleted) {
+              overlayPresenceReader.complete(reader);
+            }
+          },
         );
-      },
-      activateProfile: activateProfile,
-      variableRuntime: variableRuntime,
-      httpPortOverride: smokeMode ? 0 : null,
-      onOverlayPresenceReaderCreated: (reader) {
-        if (!overlayPresenceReader.isCompleted) {
-          overlayPresenceReader.complete(reader);
-        }
-      },
-    );
     unawaited(
       pluginRegistryFuture.then<void>(
         (_) {
@@ -170,10 +188,9 @@ final class ShowRunnerServices {
         runtime: runtime,
         onActivityChanged: providerEvents.updateProfileActivity,
       );
-      await manager.start();
       return manager;
     });
-    final profileRuntimeFuture = profileManagerFuture.then(
+    profileRuntimeFuture = profileManagerFuture.then(
       (manager) => manager.runtime,
     );
     Future<void> enqueueChatAutomation(
@@ -256,15 +273,19 @@ final class ShowRunnerServices {
       youtubeLiveChatId: () => providerEvents.youtube?.liveChatId,
     );
     final chatDock = ChatDockService(runtime: chatRuntime);
+    var identitiesEnabled = false;
+    Future<void> identityRefresh = Future.value();
     void refreshChatIdentities() {
-      unawaited(
-        chatRuntime.refreshIdentities().catchError((Object error) {
+      if (!identitiesEnabled) return;
+      identityRefresh = identityRefresh.then((_) async {
+        try {
+          await chatRuntime.refreshIdentities();
+        } catch (error) {
           chatRuntime.error = error;
-        }),
-      );
+        }
+      });
     }
 
-    providerEvents.addListener(refreshChatIdentities);
     final services = ShowRunnerServices._(
       dataService: dataService,
       actionQueue: actionQueue,
@@ -281,23 +302,116 @@ final class ShowRunnerServices {
       viewerDataRepository: viewerDataRepository,
       viewerDataSynchronizer: viewerDataSynchronizer,
       variableRuntime: variableRuntime,
-      healthFuture: StartupHealthLoader(dataService).load(),
+      healthFuture: healthFuture,
       chatRuntime: chatRuntime,
       chatDock: chatDock,
+      streamPlans: streamPlans,
     );
-    services._shutdownCoordinator = AppLifecycleCoordinator(
-      shutdownTasks: [
-        () async => providerEvents.removeListener(refreshChatIdentities),
-        providerEvents.stop,
-        chatDock.stop,
-        chatRuntime.close,
-        viewerDataSynchronizer.stop,
-        queueManager.dispose,
-        executionTrace.dispose,
-        () async => (await profileManagerFuture).dispose(),
-        () async => (await pluginRegistryFuture).close(),
-        eventHub.dispose,
-        overlayObsSourceService.close,
+    // Observe derived futures immediately; start()/shutdown() retain and surface
+    // the actual construction error rather than an unhandled duplicate future.
+    profileRuntimeFuture.ignore();
+    profileManagerFuture.ignore();
+    services._runtime = ApplicationRuntime(
+      onFailure: (name, error, stack) => ShowRunnerLogger.instance.error(
+        'lifecycle',
+        'Failed to stop $name',
+        error: error,
+        stackTrace: stack,
+      ),
+      resources: [
+        ApplicationRuntimeResource(name: 'event-hub', stop: eventHub.dispose),
+        ApplicationRuntimeResource(
+          name: 'startup-health',
+          start: () async {
+            await healthFuture;
+          },
+          stop: () async {
+            await healthFuture;
+          },
+        ),
+        ApplicationRuntimeResource(
+          name: 'variables',
+          stop: () async => variableRuntime.dispose(),
+        ),
+        ApplicationRuntimeResource(
+          name: 'overlay-obs',
+          stop: overlayObsSourceService.close,
+        ),
+        ApplicationRuntimeResource(
+          name: 'plugins',
+          start: () async {
+            final registry = await pluginRegistryFuture;
+            await registry.initialize(
+              DartPluginHostContext(
+                services: {'dataService': dataService, 'eventHub': eventHub},
+              ),
+            );
+            await registry.start();
+          },
+          stop: () async => (await pluginRegistryFuture).close(),
+        ),
+        ApplicationRuntimeResource(
+          name: 'execution-trace',
+          stop: executionTrace.dispose,
+        ),
+        ApplicationRuntimeResource(name: 'queues', stop: queueManager.dispose),
+        ApplicationRuntimeResource(
+          name: 'viewer-data-sync',
+          start: viewerDataSynchronizer.start,
+          stop: viewerDataSynchronizer.stop,
+        ),
+        ApplicationRuntimeResource(
+          name: 'chat',
+          start: chatRuntime.start,
+          stop: chatRuntime.close,
+        ),
+        ApplicationRuntimeResource(
+          name: 'chat-dock',
+          start: () async {
+            try {
+              await chatDock.restore();
+            } catch (error) {
+              chatRuntime.error = error;
+            }
+          },
+          stop: chatDock.stop,
+        ),
+        ApplicationRuntimeResource(
+          name: 'stream-plans',
+          stop: () async {
+            DartPluginRegistry? registry;
+            try {
+              registry = await pluginRegistryFuture;
+            } catch (_) {
+              /* The plugin owner reports this construction error. */
+            }
+            await streamPlans.close(registry: registry);
+          },
+        ),
+        ApplicationRuntimeResource(
+          name: 'profiles',
+          start: () async => (await profileManagerFuture).start(),
+          stop: () async => (await profileManagerFuture).dispose(),
+        ),
+        ApplicationRuntimeResource(
+          name: 'providers',
+          start: providerEvents.start,
+          stop: providerEvents.stop,
+        ),
+        ApplicationRuntimeResource(
+          name: 'chat-identity-listener',
+          start: () async {
+            identitiesEnabled = true;
+            providerEvents.addListener(refreshChatIdentities);
+            refreshChatIdentities();
+            await identityRefresh;
+          },
+          stop: () async {
+            identitiesEnabled = false;
+            providerEvents.removeListener(refreshChatIdentities);
+            await identityRefresh;
+          },
+        ),
       ],
     );
     return services;
@@ -321,24 +435,10 @@ final class ShowRunnerServices {
   final Future<StartupHealthSnapshot> healthFuture;
   final UnifiedChatRuntime chatRuntime;
   final ChatDockService chatDock;
+  final DartStreamPlanRuntime streamPlans;
 
-  late final AppLifecycleCoordinator _shutdownCoordinator;
-  Future<void>? _startFuture;
-
-  Future<void> start() => _startFuture ??= _startInternal();
-
-  Future<void> _startInternal() async {
-    await chatRuntime.start();
-    try {
-      await chatDock.restore();
-    } catch (error) {
-      chatRuntime.error = error;
-    }
-    await Future.wait<void>([
-      viewerDataSynchronizer.start(),
-      providerEvents.start(),
-    ]);
-  }
-
-  Future<void> shutdown() => _shutdownCoordinator.shutdown();
+  late final ApplicationRuntime _runtime;
+  ApplicationRuntimeState get lifecycleState => _runtime.state;
+  Future<void> start() => _runtime.start();
+  Future<void> shutdown() => _runtime.shutdown();
 }

@@ -1,3 +1,4 @@
+import '../../services/structured_logger.dart';
 import '../../graph/domain/automation_document.dart';
 import '../../graph/definitions/showrunner_graph_types.dart';
 import 'dart:io';
@@ -128,6 +129,7 @@ DartPluginRegistry createDefaultPluginRegistry({
   GraphExecutionEngine? executionEngine,
   ShowRunnerAutomationRunner? runAutomation,
   ShowRunnerProfileActivation? activateProfile,
+  DartStreamPlanRuntime? streamPlans,
 }) {
   return buildDefaultPluginRegistry(
     eventHub: eventHub,
@@ -138,6 +140,7 @@ DartPluginRegistry createDefaultPluginRegistry({
     executionEngine: executionEngine,
     runAutomation: runAutomation,
     activateProfile: activateProfile,
+    streamPlans: streamPlans,
   );
 }
 
@@ -196,6 +199,7 @@ Future<AutomationDocument?> _loadAutomationResource(
 
 void _registerTwitchStreamPlanComponent({
   required TwitchTransport transport,
+  required DartStreamPlanRuntime runtime,
   String? broadcasterId,
 }) {
   Future<void> updateStreamInfo(String segmentId, dynamic rawConfig) async {
@@ -217,7 +221,7 @@ void _registerTwitchStreamPlanComponent({
     }, body);
   }
 
-  streamPlanRuntime.registerComponentType(
+  runtime.registerComponentType(
     DartStreamPlanComponent(
       id: 'twitch-stream-info',
       onActivate: updateStreamInfo,

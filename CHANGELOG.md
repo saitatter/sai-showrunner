@@ -12,6 +12,7 @@
 - Add unified Twitch/YouTube chat with channel-scoped moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Disable graph run shortcuts when another workspace is active or the application runtime is unavailable.
 - Close malformed or oversized overlay WebSocket peers safely and bound pending RPC calls and response deadlines.
 - Reject forged HTTP authorities and foreign-origin remote-button requests before exposing data or dispatching actions.
 - Preserve settings through temporary Windows file-sharing locks by retrying atomic replacement without removing the original.
@@ -19,6 +20,7 @@
 - Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
+- Compose application startup and workspaces through explicit owners, scoped capabilities and feature-owned registrations; isolate Stream Plan state per application.
 - Retain asynchronous runtime and tray teardown, cancel background work and release reached plugin modules after partial startup failures.
 - Give navigation, document sessions and execution workflows explicit owners with validated navigation persistence and guarded asynchronous saves.
 

@@ -1,4 +1,4 @@
-part of '../main.dart';
+part of 'showrunner_page.dart';
 
 extension _ShowrunnerDocumentCommands on _ShowRunnerPageState {
   Future<void> _closeTab(WorkspaceId workspace) async {
@@ -65,147 +65,112 @@ extension _ShowrunnerDocumentCommands on _ShowRunnerPageState {
     unawaited(_persistNavigation());
   }
 
-  Future<bool> _confirmAutomationClose() async {
-    _captureActiveAutomation();
-    final session = _activeAutomationSession;
-    if (session == null || !session.dirty) return true;
-    final decision = await _showAutomationCloseDialog(session.fileName);
-    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
+  Future<bool> _guardDocumentClose(Future<bool> Function() operation) async {
+    try {
+      return await operation();
+    } catch (error) {
+      if (mounted) {
+        showShowRunnerFeedback(
+          context,
+          'Unable to save document: $error',
+          severity: ShowRunnerFeedbackSeverity.error,
+        );
+      }
       return false;
     }
-    if (decision == _CloseDecision.save) {
-      return _saveAutomationSession(session);
-    }
-    return true;
   }
+
+  Future<bool> _confirmAutomationClose() => _activeAutomationFile == null
+      ? Future.value(true)
+      : _guardDocumentClose(
+          () => _documents.confirmAutomation(
+            _activeAutomationFile!,
+            _showAutomationCloseDialog,
+          ),
+        );
 
   Future<bool> _confirmAllAutomationClose() async {
-    _captureActiveAutomation();
-    final dirtyAutomations = _automationDocuments.documents
-        .where((document) => document.dirty)
-        .toList();
-    final dirtyStreamPlans = _streamPlanDocuments.dirty.entries
-        .where((entry) => entry.value)
-        .map((entry) => _streamPlanDocuments.resources[entry.key])
-        .whereType<ResourceData>()
-        .toList();
-    if (dirtyAutomations.isEmpty && dirtyStreamPlans.isEmpty) return true;
-    final dirtyNames = [
-      ...dirtyAutomations.map((document) => document.fileName),
-      ...dirtyStreamPlans.map((resource) => resource.name),
-    ];
-    final decision = await showDialog<_CloseDecision>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unsaved changes'),
-        content: Text(
-          'Save changes to ${dirtyNames.join(', ')} before exiting?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
-            child: const Text('Cancel'),
+    return _guardDocumentClose(
+      () => _documents.confirmAllClose((names) async {
+        final decision = await showDialog<DocumentCloseDecision>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Unsaved changes'),
+            content: Text('Save changes to $names before exiting?'),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(DocumentCloseDecision.cancel),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(DocumentCloseDecision.discard),
+                child: const Text("Don't Save"),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(DocumentCloseDecision.save),
+                child: const Text('Save All'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.discard),
-            child: const Text("Don't Save"),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
-            child: const Text('Save All'),
-          ),
-        ],
-      ),
+        );
+        return mounted
+            ? decision ?? DocumentCloseDecision.cancel
+            : DocumentCloseDecision.cancel;
+      }),
     );
-    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
-      return false;
-    }
-    if (decision == _CloseDecision.save) {
-      for (final session in dirtyAutomations) {
-        if (!await _saveAutomationSession(session)) return false;
-      }
-      for (final resource in dirtyStreamPlans) {
-        if (!await _trySaveStreamPlanResource(resource)) return false;
-      }
-    }
-    return true;
   }
 
-  Future<bool> _confirmStreamPlanClose(String resourceId) async {
-    final resource = _streamPlanDocuments.resources[resourceId];
-    if (resource == null || _streamPlanDocuments.dirty[resourceId] != true) {
-      return true;
-    }
-    final decision = await showDialog<_CloseDecision>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unsaved changes'),
-        content: Text('Save changes to ${resource.name} before closing?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.discard),
-            child: const Text("Don't Save"),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
-      return false;
-    }
-    if (decision == _CloseDecision.save) {
-      return _trySaveStreamPlanResource(resource);
-    }
-    return true;
-  }
+  Future<bool> _confirmStreamPlanClose(String id) => _guardDocumentClose(
+    () => _documents.confirmResource(
+      'StreamPlan',
+      id,
+      _showAutomationCloseDialog,
+    ),
+  );
 
-  Future<_CloseDecision?> _showAutomationCloseDialog(String fileName) {
-    return showDialog<_CloseDecision>(
+  Future<DocumentCloseDecision> _showAutomationCloseDialog(
+    String fileName,
+  ) async {
+    if (!mounted) return DocumentCloseDecision.cancel;
+    final decision = await showDialog<DocumentCloseDecision>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Unsaved changes'),
         content: Text('Save changes to $fileName before closing?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.cancel),
+            onPressed: () =>
+                Navigator.of(context).pop(DocumentCloseDecision.cancel),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.discard),
+            onPressed: () =>
+                Navigator.of(context).pop(DocumentCloseDecision.discard),
             child: const Text("Don't Save"),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(_CloseDecision.save),
+            onPressed: () =>
+                Navigator.of(context).pop(DocumentCloseDecision.save),
             child: const Text('Save'),
           ),
         ],
       ),
     );
+    return mounted
+        ? decision ?? DocumentCloseDecision.cancel
+        : DocumentCloseDecision.cancel;
   }
 
   Future<void> _closeAutomationDocument(String fileName) async {
-    final session = _automationDocuments.find(fileName);
-    if (session == null) return;
-    _captureActiveAutomation();
-    if (session.dirty) {
-      final decision = await _showAutomationCloseDialog(fileName);
-      if (!mounted || decision == null || decision == _CloseDecision.cancel) {
-        return;
-      }
-      if (decision == _CloseDecision.save &&
-          !await _saveAutomationSession(session)) {
-        return;
-      }
-    }
     final wasActive = _activeAutomationFile == fileName;
-    _automationDocuments.close(fileName);
+    if (!await _guardDocumentClose(
+      () => _documents.closeAutomation(fileName, _showAutomationCloseDialog),
+    )) {
+      return;
+    }
     if (wasActive) {
       final replacement = _activeAutomationSession;
       if (replacement == null) {
@@ -262,14 +227,9 @@ extension _ShowrunnerDocumentCommands on _ShowRunnerPageState {
     AutomationDocument? data,
     bool showFeedback = false,
   }) async {
-    final saved = data ?? session.data;
-    final savedRevision = session.editor.graph.revision;
     final fileName = session.fileName;
     try {
-      await AutomationRepository(
-        File('${widget.dataService.userDirectory.path}/automations/$fileName'),
-      ).save(saved);
-      _automationDocuments.markSaved(session.fileName, revision: savedRevision);
+      await _documents.saveAutomation(session, document: data);
       if (showFeedback && mounted) {
         showShowRunnerFeedback(
           context,
@@ -337,26 +297,10 @@ extension _ShowrunnerDocumentCommands on _ShowRunnerPageState {
   }
 
   Future<void> _saveAll() async {
-    _captureActiveAutomation();
-    for (final session in _automationDocuments.documents) {
-      if (session.dirty && !await _saveAutomationSession(session)) return;
-    }
-    for (final entry in _overlayDocuments.dirty.entries.toList()) {
-      final resource = _overlayDocuments.resources[entry.key];
-      if (entry.value &&
-          resource != null &&
-          !await _trySaveOverlayResource(resource)) {
-        return;
-      }
-    }
-    for (final entry in _streamPlanDocuments.dirty.entries.toList()) {
-      final resource = _streamPlanDocuments.resources[entry.key];
-      if (entry.value &&
-          resource != null &&
-          !await _trySaveStreamPlanResource(resource)) {
-        return;
-      }
-    }
+    await _guardDocumentClose(() async {
+      await _documents.saveAll();
+      return true;
+    });
     if (mounted) _updatePageState(() {});
   }
 
@@ -392,26 +336,7 @@ extension _ShowrunnerDocumentCommands on _ShowRunnerPageState {
     }
   }
 
-  Future<bool> _confirmOverlayClose(String id) async {
-    final resource = _overlayDocuments.resources[id];
-    if (resource == null || _overlayDocuments.dirty[id] != true) return true;
-    final decision = await _showAutomationCloseDialog(resource.name);
-    if (!mounted || decision == null || decision == _CloseDecision.cancel) {
-      return false;
-    }
-    if (decision == _CloseDecision.save) {
-      return _trySaveOverlayResource(resource);
-    }
-    return true;
-  }
-
-  Future<bool> _confirmAllResourceClose() async {
-    for (final id in _overlayDocuments.resources.keys.toList()) {
-      if (!await _confirmOverlayClose(id)) return false;
-    }
-    for (final id in _streamPlanDocuments.resources.keys.toList()) {
-      if (!await _confirmStreamPlanClose(id)) return false;
-    }
-    return true;
-  }
+  Future<bool> _confirmOverlayClose(String id) => _guardDocumentClose(
+    () => _documents.confirmResource('Overlay', id, _showAutomationCloseDialog),
+  );
 }
