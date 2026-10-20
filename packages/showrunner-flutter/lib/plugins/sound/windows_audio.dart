@@ -248,6 +248,7 @@ final class MediaKitSoundOutput implements AbortableSoundOutput {
       } else {
         await player.setAudioDevice(AudioDevice.auto());
       }
+      if (abortSignal?.isCompleted == true) return false;
       await player.play();
       final completion = Future.any<void>([
         player.stream.completed.firstWhere((completed) => completed),

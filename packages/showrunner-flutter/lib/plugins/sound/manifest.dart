@@ -245,6 +245,7 @@ Future<RuntimeMap> _speakTTS(
   TtsVoiceResolver? resolveVoice, {
   double globalVolume = 100,
 }) async {
+  context.cancellationToken?.throwIfCancelled();
   final text = config.text ?? '';
   if (text.trim().isEmpty) return {'spoken': false, 'text': text};
 
@@ -291,6 +292,7 @@ Future<RuntimeMap> _speakTTS(
     volume: volume,
     pitch: pitch,
     rate: rate,
+    cancellationToken: context.cancellationToken,
   );
   // Playback owns action/global/output volume. Baking the same gain into the
   // WAV would apply it twice and make routed speech unexpectedly quiet.
@@ -303,8 +305,10 @@ Future<RuntimeMap> _speakTTS(
       volume: 1,
       pitch: pitch,
       rate: rate,
+      cancellationToken: context.cancellationToken,
     ),
   );
+  context.cancellationToken?.throwIfCancelled();
   if (generatedFile != null) {
     final played = await _playOutput(
       outputs,

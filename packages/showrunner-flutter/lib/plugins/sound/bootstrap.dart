@@ -4,6 +4,7 @@ import '../../persistence/resource_repository.dart';
 import '../../services/showrunner_data_service.dart';
 import '../registry/plugin_factory_settings.dart';
 import '../registry/plugin_registry.dart';
+import '../registry/plugin_module.dart';
 import 'manifest.dart';
 import 'output.dart';
 import 'tts_runtime.dart';
@@ -43,10 +44,11 @@ Future<SoundOutputRegistry> registerConfiguredSound(
   if (soundOutputs == null) {
     await refreshSoundSplitters();
   }
-  registry.register(
-    createSoundPlugin(
+  registry.registerModule(
+    _createOwnedSoundModule(
       ttsService: ttsService,
       soundOutputs: configuredSoundOutputs,
+      ownsOutputs: soundOutputs == null,
       ttsVoiceResolver: (id) async {
         final resource = await ResourceRepository(
           Directory('${dataService.userDirectory.path}/sound/tts'),
@@ -64,7 +66,36 @@ void registerDefaultSound(
   required TtsSpeechService? ttsService,
   required SoundOutputRegistry? soundOutputs,
 }) {
-  registry.register(
-    createSoundPlugin(ttsService: ttsService, soundOutputs: soundOutputs),
+  registry.registerModule(
+    _createOwnedSoundModule(ttsService: ttsService, soundOutputs: soundOutputs),
+  );
+}
+
+DartPluginModule _createOwnedSoundModule({
+  TtsSpeechService? ttsService,
+  SoundOutputRegistry? soundOutputs,
+  bool? ownsOutputs,
+  TtsVoiceResolver? ttsVoiceResolver,
+  double globalVolume = 100,
+}) {
+  final speech = ttsService ?? FlutterTtsSpeechService();
+  final synthesis = createDefaultTtsFileSynthesisService();
+  final outputs = soundOutputs ?? createDefaultSoundOutputRegistry();
+  return ManifestDartPluginModule(
+    createSoundPlugin(
+      ttsService: speech,
+      ttsFileService: synthesis,
+      soundOutputs: outputs,
+      ttsVoiceResolver: ttsVoiceResolver,
+      globalVolume: globalVolume,
+    ),
+    onStop: () async {
+      await Future.wait<void>([
+        if (ownsOutputs ?? soundOutputs == null) outputs.close(),
+        if (ttsService == null && speech is FlutterTtsSpeechService)
+          speech.close(),
+        if (synthesis is WindowsTtsFileSynthesisService) synthesis.close(),
+      ]);
+    },
   );
 }

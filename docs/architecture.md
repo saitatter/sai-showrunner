@@ -110,6 +110,16 @@ reloads credentials. Explicit chat selection takes precedence over the last
 selection, then saved settings. Stopping chat retains the last selection; stopping
 the host clears it. Host shutdown awaits stop before disposing notifications.
 
+The sound module closes the output registry, speech client and Windows file
+synthesizer it creates; injected speech/output services remain caller-owned.
+Output shutdown rejects new playback, assigns IDs to anonymous plays, aborts
+active outputs and waits for playback cleanup. Non-abortable injected outputs
+must finish themselves. Windows synthesis owns each child process, kills it on
+host/action cancellation and drains process completion before shutdown returns.
+TTS requests carry the action cancellation token through synthesis and speech;
+cancelled synthesis cannot proceed to playback. Tests mock speech/process runners
+and output callbacks; real device playback and audio quality remain opt-in.
+
 Twitch and YouTube adapters publish `ProviderEventEnvelope` values containing
 platform, domain event type, provider ID when supplied, account/channel identity,
 time and a deeply immutable domain payload. Credential-shaped fields are removed
