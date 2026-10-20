@@ -5,6 +5,7 @@ import '../../runtime/expression.dart';
 import 'plugin_contract.dart';
 import 'plugin_host_context.dart';
 import 'plugin_module.dart';
+import 'plugin_lifecycle.dart';
 import 'plugin_registration.dart';
 import 'flutter_plugin_ui_contract.dart';
 
@@ -20,6 +21,13 @@ final class DartPluginRegistry extends ChangeNotifier {
   final Set<PluginId> _disabledPluginIds = {};
   final Set<PluginId> _skippedStartModuleIds = {};
   final Set<PluginId> _initializedOrStarted = {};
+  final Set<PluginId> _initialized = {};
+  final Set<PluginId> _started = {};
+  final Set<PluginId> _stopped = {};
+  final Map<PluginId, PluginLifecycleState> _lifecycle = {};
+  final Map<PluginId, Object> _lifecycleErrors = {};
+  Future<void> _policyTail = Future.value();
+  int _healthEpoch = 0;
   final Map<PluginId, Map<StateId, Object?>> _stateValues = {};
   Future<void>? _initializeFuture;
   Future<void>? _startFuture;
@@ -152,6 +160,9 @@ final class DartPluginRegistry extends ChangeNotifier {
     _resources
       ..clear()
       ..addAll(resources);
+    for (final entry in additions) {
+      _lifecycle[entry.id] = PluginLifecycleState.registered;
+    }
     notifyListeners();
   }
 
@@ -270,13 +281,83 @@ final class DartPluginRegistry extends ChangeNotifier {
 
   /// Typed registry boundary for runtime and plugin code.
   void setPluginEnabledId(PluginId pluginId, bool enabled) {
+    if (_closeFuture != null) throw StateError('Plugin registry is closed.');
     final wasEnabled = isPluginEnabledId(pluginId);
     if (enabled) {
       _disabledPluginIds.remove(pluginId);
     } else {
       _disabledPluginIds.add(pluginId);
     }
-    if (wasEnabled != enabled) notifyListeners();
+    if (wasEnabled != enabled) {
+      _healthEpoch++;
+      notifyListeners();
+    }
+  }
+
+  PluginLifecycleState? lifecycleOf(PluginId id) => _lifecycle[id];
+  Object? lifecycleError(PluginId id) => _lifecycleErrors[id];
+  PluginEnablePolicy enablePolicyOf(PluginId id) {
+    if (module(id) == null) throw ArgumentError('Unknown plugin: $id');
+    return PluginEnablePolicy.automationOnly;
+  }
+
+  /// Serialize persistence and runtime changes across every plugin in this host.
+  /// Publishing happens after persistence succeeds. Only a never-started module
+  /// starts on enable; disabling automation preserves shared connections.
+  Future<void> setEnabled(
+    PluginId id,
+    bool enabled, {
+    required Future<void> Function(bool enabled) persist,
+  }) {
+    final operation = _policyTail.then((_) async {
+      if (_closeFuture != null) throw StateError('Plugin registry is closed.');
+      final target = module(id);
+      if (target == null) throw ArgumentError('Unknown plugin: $id');
+      await _initializeFuture;
+      await _startFuture;
+      if (_closeFuture != null) throw StateError('Plugin registry is closed.');
+      final previous = isPluginEnabledId(id);
+      if (previous == enabled) return;
+      await persist(enabled);
+      try {
+        if (_closeFuture != null) {
+          throw StateError('Plugin registry is closed.');
+        }
+        if (enabled && _lifecycleErrors.containsKey(id)) {
+          throw StateError('Failed plugin $id requires a new host.');
+        }
+        if (enabled && _startFuture != null && !_started.contains(id)) {
+          try {
+            await _startModule(target);
+          } catch (error, stack) {
+            // A failed first start may have opened only part of its resources.
+            // It cannot be restarted in this host, and shutdown must not stop it twice.
+            try {
+              if (_stopped.add(id)) await target.stop();
+            } catch (cleanupError) {
+              throw PluginStartupCleanupError(error, cleanupError);
+            }
+            Error.throwWithStackTrace(error, stack);
+          }
+        }
+        if (_closeFuture != null) {
+          throw StateError('Plugin registry is closed.');
+        }
+        setPluginEnabledId(id, enabled);
+      } catch (error, stack) {
+        try {
+          await persist(previous);
+        } catch (rollbackError) {
+          throw PluginPolicyTransactionError(error, rollbackError);
+        }
+        Error.throwWithStackTrace(error, stack);
+      }
+    });
+    _policyTail = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
   }
 
   /// Looks up a trigger with a strongly typed key.
@@ -298,9 +379,12 @@ final class DartPluginRegistry extends ChangeNotifier {
 
   /// Typed registry boundary for runtime and plugin code.
   Future<bool> checkHealthId(PluginId pluginId) async {
+    if (_closeFuture != null || !isPluginEnabledId(pluginId)) return false;
+    final epoch = _healthEpoch;
     final pluginModule = module(pluginId);
     if (pluginModule == null) return false;
-    return (await pluginModule.checkHealth()).isHealthy;
+    final health = await pluginModule.checkHealth();
+    return _closeFuture == null && epoch == _healthEpoch && health.isHealthy;
   }
 
   /// Explicit string boundary used by health/status surfaces.
@@ -334,7 +418,15 @@ final class DartPluginRegistry extends ChangeNotifier {
     for (final module in _modules.values) {
       if (_closeFuture != null) return;
       _initializedOrStarted.add(module.manifest.id);
-      await module.initialize(host);
+      try {
+        await module.initialize(host);
+        _initialized.add(module.manifest.id);
+        _setLifecycle(module.manifest.id, PluginLifecycleState.initialized);
+      } catch (error) {
+        _lifecycleErrors[module.manifest.id] = error;
+        _setLifecycle(module.manifest.id, PluginLifecycleState.failed);
+        rethrow;
+      }
     }
   }
 
@@ -342,14 +434,36 @@ final class DartPluginRegistry extends ChangeNotifier {
     if (_closeFuture != null) {
       throw StateError('Plugin registry is closed.');
     }
+    await _initializeFuture;
     for (final module in _modules.values) {
       if (_closeFuture != null) return;
       if (!isPluginEnabledId(module.manifest.id)) {
         _skippedStartModuleIds.add(module.manifest.id);
+        _setLifecycle(module.manifest.id, PluginLifecycleState.disabled);
         continue;
       }
-      _initializedOrStarted.add(module.manifest.id);
+      await _startModule(module);
+    }
+  }
+
+  void _setLifecycle(PluginId id, PluginLifecycleState state) {
+    _lifecycle[id] = state;
+    notifyListeners();
+  }
+
+  Future<void> _startModule(DartPluginModule module) async {
+    final id = module.manifest.id;
+    if (!_started.add(id)) return;
+    _skippedStartModuleIds.remove(id);
+    _initializedOrStarted.add(id);
+    _setLifecycle(id, PluginLifecycleState.starting);
+    try {
       await module.start();
+      _setLifecycle(id, PluginLifecycleState.running);
+    } catch (error) {
+      _lifecycleErrors[id] = error;
+      _setLifecycle(id, PluginLifecycleState.failed);
+      rethrow;
     }
   }
 
@@ -404,6 +518,8 @@ final class DartPluginRegistry extends ChangeNotifier {
   Future<void> close() => _closeFuture ??= _closeInternal();
 
   Future<void> _closeInternal() async {
+    _healthEpoch++;
+    await _policyTail;
     // Initialization/start callers retain their failure; teardown still owns
     // every resource that was reached before that failure or a close request.
     try {
@@ -420,10 +536,18 @@ final class DartPluginRegistry extends ChangeNotifier {
           !_initializedOrStarted.contains(module.manifest.id)) {
         continue;
       }
-      if (_skippedStartModuleIds.contains(module.manifest.id)) continue;
+      final id = module.manifest.id;
+      if (_skippedStartModuleIds.contains(id) && !_initialized.contains(id)) {
+        continue;
+      }
+      if (!_stopped.add(id)) continue;
       try {
+        _setLifecycle(id, PluginLifecycleState.stopping);
         await module.stop();
+        _setLifecycle(id, PluginLifecycleState.stopped);
       } catch (error, stackTrace) {
+        _lifecycleErrors[id] = error;
+        _setLifecycle(id, PluginLifecycleState.failed);
         firstError ??= error;
         firstStackTrace ??= stackTrace;
       }

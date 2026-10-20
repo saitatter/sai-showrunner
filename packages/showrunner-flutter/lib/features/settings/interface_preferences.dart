@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
 import '../../services/showrunner_data_service.dart';
+import '../plugins/plugin_visibility.dart';
 
 enum WindowCloseBehavior {
   ask,
@@ -159,13 +160,13 @@ final class FlutterInterfacePreferences extends ChangeNotifier {
   }
 
   Future<void> enableAllPlugins(DartPluginRegistry registry) async {
-    await dataService.updatePluginSetting(
-      'showrunner-flutter',
-      'disabledPlugins',
-      <String>[],
-    );
     for (final plugin in registry.plugins) {
-      registry.setPluginEnabledId(plugin.id, true);
+      await persistPluginEnabled(
+        dataService: dataService,
+        registry: registry,
+        pluginId: plugin.id.value,
+        enabled: true,
+      );
     }
   }
 
