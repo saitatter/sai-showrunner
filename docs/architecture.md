@@ -37,6 +37,15 @@ documents. Shader source is compiled/rendered by the actual browser WebGL runtim
 
 Built-in Dart plugins own manifests, action/trigger contracts, runtimes and UI
 contributions; see the [plugin layout](../packages/showrunner-flutter/lib/plugins/README.md).
+`FirstPartyPluginContribution<Context>` describes a statically compiled module
+factory with a concrete context, version and required/optional dependencies.
+`DartPluginRegistry.registerModules` validates the entire pack before publishing
+any contracts or notifying listeners. Dependencies initialize/start first and
+stop last; absent optional dependencies are allowed, present cycles are rejected.
+The composing caller retains ownership if validation fails. Composition is sealed
+at initialization/startup; runtime state survives additions made before that point.
+Flutter assembly can supply resource editor IDs for complete coverage validation;
+the module factory contract itself has no Flutter UI dependency.
 Configured transports and event workers are composed in configured_plugin_registrar.
 An unconfigured provider is not evidence of a successful external connection.
 
