@@ -91,6 +91,12 @@ No new state framework, dynamic service locator or external-plugin ABI is introd
 | Command routing follows the visible workspace and runtime availability | `test/app/app_command_registrar_test.dart`; the hidden-graph run probe failed against the original registrar before the guard was added |
 | All stable workspace IDs and resource document builders remain registered | `test/app/workspace_registry_test.dart`; product evidence points to the feature-owned builder files |
 
+Native application fixtures adopt an explicit `ApplicationController` and register
+its awaited shutdown after the directory-cleanup callback, so teardown's reverse
+order finishes owned I/O before fixture deletion. Restart fixtures unmount and await that owner before rebuilding;
+navigation assertions explicitly flush debounced writes before reading settings.
+Fixed sleeps and retrying directory deletion do not establish lifecycle completion.
+
 Native acceptance retains `creation_lifecycle`, `document_edit_save_close`, both
 first-run fixtures (including 1024x640), resource/queue/profile/provider workflows,
 chat, shader/editor workflows and the complete workspace catalog. The catalog

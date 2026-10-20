@@ -22,19 +22,7 @@ void main() {
       tester.view.physicalSize = const ui.Size(1440, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      addTearDown(() async {
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pump();
-        for (var attempt = 0; ; attempt++) {
-          try {
-            await root.delete(recursive: true);
-            break;
-          } on FileSystemException {
-            if (attempt == 20) rethrow;
-            await Future<void>.delayed(const Duration(milliseconds: 50));
-          }
-        }
-      });
+      addTearDown(() => root.delete(recursive: true));
       await AutomationRepository(
         File('${root.path}/automations/chat-command.yaml'),
       ).save(createEventAutomation(plugin: 'ShowRunner', trigger: 'autoRun'));
