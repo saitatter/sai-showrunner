@@ -3,7 +3,7 @@ import '../../schema/data_input.dart';
 import '../../persistence/resource_repository.dart';
 import '../../schema/resource.dart';
 import '../../services/plugin_event_hub.dart';
-import '../registry/builtin_resource_specs.dart';
+import 'resources.dart';
 import '../registry/plugin_contract.dart';
 import 'channel_points.dart';
 import 'contracts.dart';
@@ -449,7 +449,7 @@ DartPluginManifest createTwitchPlugin(
   return DartPluginManifest(
     id: PluginId('twitch'),
     name: 'Twitch',
-    resources: builtInResourceSpecsFor(const PluginId('twitch')),
+    resources: twitchResourceContracts,
     states: const [
       StateSpec(
         id: StateId('connection'),

@@ -47,6 +47,10 @@ at initialization/startup; runtime state survives additions made before that poi
 Flutter assembly supplies an immutable map of canonical resource editor owners
 to first-party registries, enforcing coverage and ownership on every registration;
 the module factory contract itself has no Flutter UI dependency.
+Canonical resource descriptors live in each provider's `resources.dart` and are
+imported directly by its manifest. The shared editor index derives its entries
+from those immutable declarations and rejects duplicate/unknown type IDs; it
+does not maintain a second plugin switch or copy resource defaults.
 The default/configured registrars explicitly assemble provider-owned
 `plugins/<provider>/bootstrap.dart` factories. They pass typed dependencies;
 transport/account setup stays with the provider and shared HTTP, variable and

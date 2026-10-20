@@ -1,6 +1,6 @@
 import '../../runtime/expression.dart';
 import '../../schema/data_input.dart';
-import '../registry/builtin_resource_specs.dart';
+import 'resources.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
 
@@ -112,7 +112,7 @@ DartPluginManifest createIotPlugin({IotResourceActionResolver? resolver}) =>
     DartPluginManifest(
       id: PluginId('iot'),
       name: 'IoT & Smart Home',
-      resources: builtInResourceSpecsFor(const PluginId('iot')),
+      resources: iotResourceContracts,
       actions: [
         ActionSpec<IotActionConfig, Object?>(
           pluginId: PluginId('iot'),
