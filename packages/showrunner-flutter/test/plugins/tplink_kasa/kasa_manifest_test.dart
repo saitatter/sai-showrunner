@@ -9,6 +9,33 @@ import 'package:showrunner_flutter/plugins/tplink_kasa/manifest.dart';
 
 void main() {
   test(
+    'rejects an oversized TCP frame from its header before buffering its body',
+    () async {
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final clients = <Socket>[];
+      final listening = server.listen((socket) {
+        clients.add(socket);
+        socket.listen((_) {
+          socket.add([0x00, 0x20, 0x00, 0x00]);
+        });
+      });
+      try {
+        final transport = KasaTcpTransport(
+          host: InternetAddress.loopbackIPv4.address,
+          port: server.port,
+        );
+        await expectLater(transport.request({}), throwsFormatException);
+      } finally {
+        for (final client in clients) {
+          client.destroy();
+        }
+        await listening.cancel();
+        await server.close();
+      }
+    },
+  );
+
+  test(
     'maps Kasa light and plug actions to the native request shape',
     () async {
       final requests = <Map<String, dynamic>>[];

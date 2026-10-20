@@ -257,14 +257,29 @@ Future<List<int>> _readFrame(Socket socket) {
   final completer = Completer<List<int>>();
   final buffer = <int>[];
   StreamSubscription<List<int>>? subscription;
+  void rejectOversizedFrame() {
+    if (!completer.isCompleted) {
+      completer.completeError(
+        const FormatException('Kasa response exceeds the 1 MiB frame limit.'),
+      );
+      unawaited(subscription?.cancel());
+    }
+  }
+
   subscription = socket.listen(
     (chunk) {
+      if (buffer.length + chunk.length > 1024 * 1024 + 4) {
+        rejectOversizedFrame();
+        return;
+      }
       buffer.addAll(chunk);
       if (buffer.length < 4) return;
-      final length = ByteData.sublistView(
-        Uint8List.fromList(buffer),
-      ).getUint32(0);
-      if (length > 1024 * 1024 || buffer.length < length + 4) return;
+      final length = (buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3];
+      if (length > 1024 * 1024) {
+        rejectOversizedFrame();
+        return;
+      }
+      if (buffer.length < length + 4) return;
       if (!completer.isCompleted) {
         completer.complete(buffer.sublist(4, length + 4));
         unawaited(subscription?.cancel());
