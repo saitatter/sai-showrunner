@@ -55,6 +55,12 @@ The execution pathway inventory preserves these intentional dispatch choices:
 Queues capture a graph snapshot at enqueue and explicit replay uses that snapshot;
 they do not reload a newer document at execution. Queue policy owns execution
 tokens, timeout and gap. Direct execution retains the caller's cancellation handle.
+Timeout signals cancellation and retains queue ownership until the operation
+finishes cleanup; it cannot make a non-cooperative external action stop by itself.
+The next queue item never overlaps that cleanup. Standalone queue disposal also
+awaits the active operation and wakes owned gap timers before closing its stream.
+Pending items remain pending at shutdown; completed/failed replay uses the captured
+graph and nested inputs. Typed source metadata cannot overwrite that snapshot.
 Compiler/cache and VM remain below invocation orchestration; the independent
 interpreter stays available for differential correctness fixtures.
 

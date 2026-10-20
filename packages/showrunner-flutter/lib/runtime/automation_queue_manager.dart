@@ -71,7 +71,18 @@ final class DartAutomationQueueManager {
     if (key.isEmpty || key == 'default') return Future.value(defaultQueue);
     final existing = _queues[key];
     if (existing != null) return Future.value(existing);
-    return _queueLoads[key] ??= _loadQueue(key);
+    final pending = _queueLoads[key];
+    if (pending != null) return pending;
+    final completion = Completer<DartActionQueue>();
+    _queueLoads[key] = completion.future;
+    unawaited(
+      _loadQueue(key).then<void>(
+        completion.complete,
+        onError: (Object error, StackTrace stack) =>
+            completion.completeError(error, stack),
+      ),
+    );
+    return completion.future;
   }
 
   Future<DartActionQueue> applyConfig(

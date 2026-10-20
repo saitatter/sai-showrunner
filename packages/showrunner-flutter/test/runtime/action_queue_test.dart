@@ -9,6 +9,42 @@ import 'package:showrunner_flutter/domain/errors/showrunner_error.dart';
 import 'package:showrunner_flutter/schema/identifiers.dart';
 
 void main() {
+  testWidgets('disposing standalone queue cancels its pending gap timer', (
+    tester,
+  ) async {
+    final queue = DartActionQueue(defaultGap: const Duration(hours: 1));
+    queue.enqueue({'type': 'manual'}, {});
+    queue.enqueue({'type': 'manual'}, {});
+    final draining = queue.processAll((_) async => null);
+    await tester.pump();
+    expect(queue.pending, hasLength(1));
+    await queue.dispose();
+    await draining;
+    expect(queue.pending, hasLength(1));
+    expect(() => queue.enqueue({}, {}), throwsStateError);
+    await queue.dispose();
+  });
+
+  test(
+    'standalone disposal awaits running cleanup before closing its stream',
+    () async {
+      final queue = DartActionQueue();
+      queue.enqueue({}, {});
+      final entered = Completer<void>();
+      var stopped = false;
+      final processing = queue.processNext((_) async {
+        entered.complete();
+        await queue.runningCancellationToken!.whenCancelled;
+        stopped = true;
+        return null;
+      });
+      await entered.future;
+      await queue.dispose();
+      await processing;
+      expect(stopped, isTrue);
+      expect(queue.history.single.status, 'cancelled');
+    },
+  );
   test('processes, pauses, replays, and bounds Dart queue history', () async {
     final queue = DartActionQueue(historyLimit: 2);
     final first = queue.enqueue({'type': 'manual'}, {'value': 1});
