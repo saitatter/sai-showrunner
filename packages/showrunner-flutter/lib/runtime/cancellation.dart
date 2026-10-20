@@ -26,7 +26,6 @@ final class DartCancellationToken {
   void cancel() {
     if (_isCancelled) return;
     _isCancelled = true;
-    _cancelled.complete();
     final listeners = List<void Function()>.of(_listeners);
     _listeners.clear();
     for (final listener in listeners) {
@@ -36,6 +35,9 @@ final class DartCancellationToken {
         // Cancellation must reach every listener even if one cleanup fails.
       }
     }
+    // Synchronous whenCancelled continuations may detach abort listeners.
+    // Publish completion only after every captured physical abort has begun.
+    _cancelled.complete();
   }
 
   void throwIfCancelled() {
