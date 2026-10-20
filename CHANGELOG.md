@@ -29,6 +29,7 @@
 - Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
+- Introduce typed graph invocations with immutable context snapshots and distinct queue receipts, execution results and classified failures.
 - Share bounded provider I/O and retry policies while keeping protocol adapters separate; cancel owned requests at shutdown and finish token persistence already in progress.
 - Own canonical resource declarations alongside each provider and derive the shared editor lookup from those same contracts.
 - Separate Twitch EventSub sockets, subscription declarations and event parsing, plus YouTube event parsing, from worker lifecycle management while preserving event routing and payloads.
