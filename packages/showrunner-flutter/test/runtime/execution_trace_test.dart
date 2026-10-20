@@ -6,6 +6,71 @@ import 'package:showrunner_flutter/graph/runtime/graph_runtime.dart';
 import '../support/graph_fixtures.dart';
 
 void main() {
+  test(
+    'retains bounded nodes, edges and history with explicit truncation counters',
+    () async {
+      final service = ExecutionTraceService(
+        maxEventsPerRun: 4,
+        maxNodesPerRun: 3,
+        maxEdgesPerRun: 2,
+      );
+      addTearDown(service.dispose);
+      final run = service.start(
+        mode: ExecutionTraceMode.live,
+        source: const ExecutionTraceSource(type: 'automation', id: 'bounded'),
+      );
+      for (var i = 0; i < 100; i++) {
+        final node = ExecutionNodeRef(nodeId: 'node-$i');
+        run.nodeStarted(node);
+        run.nodeCompleted(node);
+        run.edgeTraversed(
+          ExecutionEdgeRef(
+            edgeId: 'edge-$i',
+            from: node,
+            to: ExecutionNodeRef(nodeId: 'node-${i + 1}'),
+          ),
+        );
+      }
+      final snapshot = service.snapshotFor(run.executionId)!;
+      expect(snapshot.nodes.length, 3);
+      expect(snapshot.edges.length, 2);
+      expect(snapshot.events.length, 4);
+      expect(snapshot.evictedNodeCount, 97);
+      expect(snapshot.evictedEdgeCount, 98);
+      expect(snapshot.droppedEventCount, 297);
+      expect(snapshot.isTruncated, isTrue);
+      expect(
+        snapshot.events.map((event) => event.seq),
+        orderedEquals([297, 298, 299, 300]),
+      );
+      expect(() => snapshot.nodes.clear(), throwsUnsupportedError);
+    },
+  );
+
+  test(
+    'paused listeners retain only the latest hint and never block shutdown',
+    () async {
+      final service = ExecutionTraceService();
+      final updates = <ExecutionTraceEvent>[];
+      final subscription = service.events.listen(updates.add)..pause();
+      final run = service.start(
+        mode: ExecutionTraceMode.live,
+        source: const ExecutionTraceSource(type: 'automation', id: 'paused'),
+      );
+      for (var i = 0; i < 1000; i++) {
+        run.loopIteration(const ExecutionNodeRef(nodeId: 'loop'), i);
+      }
+      expect(updates, isEmpty);
+      expect(service.coalescedNotifications, 1000);
+      subscription.resume();
+      await Future<void>.delayed(Duration.zero);
+      expect(updates, hasLength(1));
+      expect(updates.single.seq, 1000);
+      subscription.pause();
+      await service.dispose().timeout(const Duration(seconds: 1));
+      await subscription.cancel();
+    },
+  );
   test('creates ordered bounded traces for concurrent runs', () async {
     final service = ExecutionTraceService(maxRuns: 4, maxEventsPerRun: 4);
     final source = const ExecutionTraceSource(type: 'automation', id: 'demo');

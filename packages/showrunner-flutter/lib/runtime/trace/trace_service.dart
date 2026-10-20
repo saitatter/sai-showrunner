@@ -1,3 +1,4 @@
+import 'trace_updates.dart';
 import 'dart:async';
 import 'trace_models.dart';
 import 'trace_events.dart';
@@ -6,21 +7,27 @@ import 'trace_session.dart';
 import 'trace_retention.dart';
 
 final class ExecutionTraceService {
-  ExecutionTraceService({this.maxRuns = 32, this.maxEventsPerRun = 512})
-    : _store = TraceRetentionStore(
-        maxRuns: maxRuns,
-        maxEventsPerRun: maxEventsPerRun,
-      );
+  ExecutionTraceService({
+    this.maxRuns = 32,
+    this.maxEventsPerRun = 512,
+    this.maxNodesPerRun = 1024,
+    this.maxEdgesPerRun = 2048,
+  }) : _store = TraceRetentionStore(
+         maxRuns: maxRuns,
+         maxEventsPerRun: maxEventsPerRun,
+         maxNodesPerRun: maxNodesPerRun,
+         maxEdgesPerRun: maxEdgesPerRun,
+       );
 
   final int maxRuns;
-  final int maxEventsPerRun;
-  final StreamController<ExecutionTraceEvent> _events =
-      StreamController<ExecutionTraceEvent>.broadcast();
+  final int maxEventsPerRun, maxNodesPerRun, maxEdgesPerRun;
+  final TraceUpdateStream _events = TraceUpdateStream();
+  int get coalescedNotifications => _events.coalesced;
   final TraceRetentionStore _store;
   int _counter = 0;
   bool _disposed = false;
 
-  Stream<ExecutionTraceEvent> get events => _events.stream;
+  Stream<ExecutionTraceEvent> get events => _events;
 
   List<ExecutionTraceRunSnapshot> get snapshots => _store.snapshots;
 
@@ -61,6 +68,8 @@ final class ExecutionTraceService {
       publish: _publish,
       nextSequence: _nextSequence,
       info: info,
+      maxNodes: maxNodesPerRun,
+      isRetained: (id) => !_disposed && _store.contains(id),
     );
     _publish(
       ExecutionRunStartedEvent(
@@ -76,7 +85,7 @@ final class ExecutionTraceService {
 
   int _nextSequence(String executionId) => _store.nextSequence(executionId);
   void _publish(ExecutionTraceEvent event) {
-    if (_store.accept(event) && !_events.isClosed) _events.add(event);
+    if (!_disposed && _store.accept(event)) _events.add(event);
   }
 
   Future<void> dispose() async {

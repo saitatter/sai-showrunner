@@ -35,12 +35,18 @@ final class ExecutionTraceRunSnapshot {
     required this.events,
     required this.nodes,
     this.edges = const {},
+    this.droppedEventCount = 0,
+    this.evictedNodeCount = 0,
+    this.evictedEdgeCount = 0,
   });
 
   final ExecutionTraceRunInfo info;
   final List<ExecutionTraceEvent> events;
   final Map<String, ExecutionTraceNodeSnapshot> nodes;
   final Map<String, ExecutionTraceEdgeSnapshot> edges;
+  final int droppedEventCount, evictedNodeCount, evictedEdgeCount;
+  bool get isTruncated =>
+      droppedEventCount + evictedNodeCount + evictedEdgeCount > 0;
 }
 
 final class ExecutionTraceEdgeSnapshot {

@@ -1,3 +1,4 @@
+import '../graph/ui/trace_frame_updates.dart';
 import '../runtime/graph_invocation.dart';
 import 'application_controller.dart';
 import 'lifecycle/application_runtime.dart';
@@ -186,6 +187,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       unawaited(windowManager.setPreventClose(true));
     }
     _graphExecution = ShowrunnerExecutionVisualAdapter(
+      scheduleUpdate: scheduleTraceFrame,
       service: _services.executionTrace,
       source: ExecutionTraceSource(
         type: 'automation',
