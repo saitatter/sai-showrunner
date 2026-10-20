@@ -36,7 +36,7 @@ are not interchangeable with nightly benchmark medians/p95 or GPU frame rates.
 
 | Contract surface | Existing characterization fixtures | Remaining proof boundary |
 | --- | --- | --- |
-| Shell startup, wizard, dirty/save/cancel, restart and tray/close | `test/app/app_lifecycle_coordinator_test.dart`, `integration_test/application/first_run_setup_test.dart`, `document_lifecycle_test.dart`, `document_edit_save_close_test.dart` | Native OS tray behavior and 1024x640 wizard need explicit size-specific/manual proof |
+| Shell startup, wizard, dirty/save/cancel, restart and tray/close | `test/app/app_lifecycle_coordinator_test.dart`, `integration_test/application/first_run_setup_test.dart`, `document_lifecycle_test.dart`, `document_edit_save_close_test.dart` | 1024x640 wizard is covered by the native fixture; OS tray interaction remains a manual boundary |
 | Immutable graph authoring, history, subgraphs, shader semantics | `test/graph/`, `test/plugins/overlays/shader_graph_controller_test.dart`, `integration_test/visual/editor_workflows_test.dart`, `shader_workflows_test.dart` | Frozen Electron catalog remains diagnostic |
 | Execution equivalence, branches/loops, cancellation, nested errors and traces | `test/graph/automation_execution_test.dart`, `test/runtime/execution_trace_test.dart`, `integration_test/runtime/runtime_workflows_test.dart` | External action side effects require live credentials |
 | Queues, profiles and serial Stream Plan transitions | `test/runtime/action_queue_test.dart`, `profile_runtime_test.dart`, `test/plugins/stream_plans/stream_plan_test.dart`, `integration_test/resources/queue_lifecycle_test.dart` | Real provider delivery remains opt-in |
@@ -68,6 +68,58 @@ before the successful run above. No assertion, visual threshold, reference captu
 or SDK/lockfile requirement was relaxed. No live credentials, OBS profile or
 production resources were used. This validation does not close the remaining LAN
 capability, quota, secret-projection and manual/device items in the trust review.
+
+## Application composition and lifecycle contracts
+
+The composition work starts from baseline/security commit `0e29f7064`. Platform
+bootstrap remains in `main.dart`; application models have explicit owners described
+in the [ownership matrix](architecture.md#dependency-and-lifecycle-ownership).
+The graph authoring model, command history and stored document formats are unchanged.
+No new state framework, dynamic service locator or external-plugin ABI is introduced.
+
+| Contract | Evidence |
+| --- | --- |
+| Validated immutable settings snapshots, safe unknown-ID omission, ordered early navigation, coalesced writes and failure recovery | `test/app/workspace_navigation_controller_test.dart`; atomic settings patches preserve other preferences |
+| Save All, save/discard/cancel, revision and document-identity checks, pending modal cancellation | `test/app/document_session_coordinator_test.dart`; real repository round trips plus injected blocked writers |
+| Root owner restoration and awaited, repeatable shutdown; isolated Stream Plan state | `test/app/application_controller_test.dart`, `showrunner_services_test.dart` |
+| Dependency order, shutdown during blocked start, failed-start cleanup and continued cleanup after failures | `test/app/application_runtime_test.dart`, service tests and `test/plugins/registry/plugin_registry_test.dart`; failed start releases a real loopback listener |
+| Active action cancellation, retained pending queue work and no live gap timer after close | `test/runtime/automation_queue_manager_test.dart`; widget binding rejects leaked timers |
+| Variable writes finish before registry/notifier shutdown, late edits are rejected | `test/plugins/variables/variable_runtime_test.dart` holds a real resource transaction lock and verifies both persisted value and registry state |
+| Event writes finish before the event hub closes | `test/persistence/viewer_data_sync_test.dart` blocks a real viewer JSON atomic write |
+| Tray initialization/close race and exactly one icon destruction | `test/app/showrunner_tray_test.dart` mocks the platform method channel; this is not a claim about manual OS tray interaction |
+| Cancelled document/profile guards and hide-to-tray keep services alive; duplicate close is guarded; timeout leaves the window open and teardown running | `test/app/window_close_coordinator_test.dart` |
+| Command routing follows the visible workspace and runtime availability | `test/app/app_command_registrar_test.dart`; the hidden-graph run probe failed against the original registrar before the guard was added |
+| All stable workspace IDs and resource document builders remain registered | `test/app/workspace_registry_test.dart`; product evidence points to the feature-owned builder files |
+
+Native acceptance retains `creation_lifecycle`, `document_edit_save_close`, both
+first-run fixtures (including 1024x640), resource/queue/profile/provider workflows,
+chat, shader/editor workflows and the complete workspace catalog. The catalog
+continues to scroll the lazy sidebar both down and back up before selection.
+
+The capture contract remains Flutter 3.47.7 / Dart 3.13.5, 1440x900 at DPR 1 with
+the existing reviewed inspector regions and frozen Electron references. There is
+no intended layout/font change and no baseline replacement. Raw command output,
+source-equivalence proof, the original hidden-run reproducer and captures live
+in ignored `.tmp/app-composition` and the isolated native checkout. Testing never
+uses the user's OBS profiles, credentials or production data.
+
+Final composition verification used the pinned SDK above and unchanged lockfiles.
+The isolated native checkout matched all 769 committed product/test source files
+under `packages`, `libs` and `plugins` after normalizing line endings. Graph and
+inspector captures were inspected; both reviewed inspector regions had zero
+differing pixels. The catalog passed its existing gate; historical Electron
+pixel differences remain diagnostic, not a full pixel-parity claim.
+
+| Local gate | Actual result | Elapsed |
+| --- | --- | --- |
+| `ci-check.ps1 -Stage All` | Format/analyze, docs/version/generated-registry/typechecks and inventories passed; 743 Flutter tests passed, 10 opt-in skips; 128 JavaScript tests passed | 82.00 s |
+| `ci-check.ps1 -Stage Parity -Integration -Visual` in isolated native checkout | 97 passed, one existing opt-in audio skip; catalog passed; zero differing pixels in both reviewed regions | 260.76 s |
+| Chromium overlay/dock smoke | DOM/WebGL rendering/update/removal/shutdown and chat history, HTML safety, filters, composer and keyboard completion passed | approximately 6.8 s |
+
+No assertion, SDK requirement, screenshot baseline or comparison threshold was
+weakened. These results validate the composition/lifecycle work; the remaining
+baseline network-security and live-account/device proof boundaries remain as
+recorded above and in the architecture trust review.
 
 ## Local checks and CI
 
