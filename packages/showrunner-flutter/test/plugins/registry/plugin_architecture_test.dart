@@ -16,6 +16,8 @@ void main() {
         final name = path.split('/').last;
         if (name != 'manifest.dart' &&
             name != 'resources.dart' &&
+            name != 'connection_factory.dart' &&
+            !path.contains('/runtime/') &&
             !name.endsWith('runtime.dart') &&
             !name.endsWith('worker.dart')) {
           continue;

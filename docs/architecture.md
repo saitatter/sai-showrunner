@@ -101,6 +101,15 @@ scope. Borrowed HTTP clients remain caller-owned. Mutations are not retried by
 the common policy; existing provider-specific authentication refresh remains
 separate. Wyze shutdown awaits rotated-token persistence already in progress.
 
+The shared chat runtime owns separate Twitch/channel, bot-whisper and YouTube
+request scopes. Starts, broadcast discovery and settings loads check the owning
+platform's generation after asynchronous work; disconnect invalidates that
+generation before awaiting cleanup. Old cleanup snapshots cannot stop a newer
+session. Concurrent YouTube discovery shares credential resolution, and reconnect
+reloads credentials. Explicit chat selection takes precedence over the last
+selection, then saved settings. Stopping chat retains the last selection; stopping
+the host clears it. Host shutdown awaits stop before disposing notifications.
+
 Twitch and YouTube adapters publish `ProviderEventEnvelope` values containing
 platform, domain event type, provider ID when supplied, account/channel identity,
 time and a deeply immutable domain payload. Credential-shaped fields are removed
