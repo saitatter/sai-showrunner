@@ -242,11 +242,12 @@ function compare(reference, actual, channelThreshold) {
 	let differentPixels = 0
 	let totalChannelDelta = 0
 	for (let offset = 0; offset < reference.rgba.length; offset += 4) {
-		const channelDelta = [0, 1, 2, 3].map((channel) =>
-			Math.abs(reference.rgba[offset + channel] - actual.rgba[offset + channel]),
-		)
-		const maxDelta = Math.max(...channelDelta)
-		totalChannelDelta += channelDelta.reduce((sum, value) => sum + value, 0)
+		const redDelta = Math.abs(reference.rgba[offset] - actual.rgba[offset])
+		const greenDelta = Math.abs(reference.rgba[offset + 1] - actual.rgba[offset + 1])
+		const blueDelta = Math.abs(reference.rgba[offset + 2] - actual.rgba[offset + 2])
+		const alphaDelta = Math.abs(reference.rgba[offset + 3] - actual.rgba[offset + 3])
+		const maxDelta = Math.max(redDelta, greenDelta, blueDelta, alphaDelta)
+		totalChannelDelta += redDelta + greenDelta + blueDelta + alphaDelta
 		if (maxDelta > channelThreshold) {
 			differentPixels += 1
 			diff[offset] = 255

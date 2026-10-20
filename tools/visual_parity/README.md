@@ -4,6 +4,13 @@ The comparator is dependency-free and runs on Node.js. It compares two PNG
 captures, checks their dimensions, writes a red-on-grayscale diff image, and
 can persist a machine-readable report.
 
+Pixel comparison uses scalar RGBA deltas to avoid per-pixel allocations. The
+RGBA regression test checks alpha differences, strict threshold boundaries and
+exact diff pixels. The optimization was checked against the complete catalog:
+all reports and 29 generated artifact hashes matched the previous comparator;
+a local Node 22 run decreased from about 2.04 seconds to 1.53 seconds. Timings
+vary by host; CI timeouts and image tolerances are unchanged.
+
 Example:
 
 ```powershell
