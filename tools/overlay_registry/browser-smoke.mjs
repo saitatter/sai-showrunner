@@ -1,19 +1,10 @@
 import { createServer } from 'node:http';
-import { existsSync, readFileSync, mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, join, extname, sep } from 'node:path';
-import { spawn } from 'node:child_process';
-import { tmpdir } from 'node:os';
+import { launchChromium } from './chromium-launcher.mjs';
 const root = resolve(import.meta.dirname, '../..');
 const dist = join(root, 'packages/showrunner-obs-overlay/dist/obs-overlay');
-const candidates = [process.env.SHOWRUNNER_CHROMIUM_BINARY,
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-  'C:/Program Files/Microsoft/Edge/Application/msedge.exe', '/usr/bin/chromium', '/usr/bin/google-chrome'].filter(Boolean);
-const browser = candidates.find(existsSync);
-if (!browser) throw new Error('Set SHOWRUNNER_CHROMIUM_BINARY to a Chrome or Edge executable.');
 if (!existsSync(join(dist, 'overlay.html'))) throw new Error('Build the overlay before running the browser smoke test.');
-const profile = mkdtempSync(join(tmpdir(), 'showrunner-browser-smoke-'));
 const dockToken = 'isolated-browser-smoke-token';
 const dockMessages = [
   {identity:'twitch:channel:1', platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', parts:[{text:'Hello '},{text:'from',imageUrl:'https://static-cdn.jtvnw.net/probe.png'},{text:' '},{text:'Twitch',imageUrl:'https://static-cdn.jtvnw.net/missing.png'}], isOwner:false, deleted:false},
@@ -38,9 +29,7 @@ const server = createServer(async (request, response) => {
   response.end(readFileSync(file));
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const child = spawn(browser, ['--headless=new', '--no-first-run', '--no-default-browser-check',
-  '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--use-gl=angle', '--use-angle=swiftshader',
-  '--enable-unsafe-swiftshader', 'about:blank'], {windowsHide: true, stdio: 'ignore'});
+let browserSession;
 let socket;
 const pending = new Map();
 let id = 0;
@@ -58,11 +47,8 @@ async function evaluate(expression) {
   return result.result.value;
 }
 try {
-  for (let attempt = 0; !existsSync(join(profile, 'DevToolsActivePort')); attempt++) {
-    if (attempt > 100) throw new Error('Chromium did not expose its debugging port.');
-    await pause(100);
-  }
-  const port = readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split(/\r?\n/)[0];
+  browserSession = await launchChromium();
+  const port = browserSession.port;
   const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
   socket = new WebSocket(targets.find(target => target.type === 'page').webSocketDebuggerUrl);
   await new Promise((resolve,reject) => {socket.addEventListener('open', resolve, {once:true}); socket.addEventListener('error', reject, {once:true});});
@@ -171,12 +157,6 @@ try {
 } finally {
   socket?.close();
   for (const entry of pending.values()) clearTimeout(entry.timer);
-  const closed = new Promise(resolve => child.once('exit', resolve));
-  child.kill(); await Promise.race([closed, pause(3000)]);
-  await new Promise(resolve => server.close(resolve));
-  // Only this unique temporary browser profile is removed.
-  if (!resolve(profile).startsWith(resolve(tmpdir()) + sep + 'showrunner-browser-smoke-')) {
-    throw new Error('Refusing to remove a browser profile outside the temporary test directory.');
-  }
-  rmSync(profile, {recursive:true,force:true,maxRetries:10,retryDelay:100});
+  try { await browserSession?.close(); }
+  finally { await new Promise(resolve => server.close(resolve)); }
 }
