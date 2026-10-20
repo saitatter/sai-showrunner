@@ -1,3 +1,4 @@
+import '../services/structured_logger.dart';
 import 'dart:async';
 
 import '../runtime/expression.dart';
@@ -10,6 +11,9 @@ final class ViewerDataSynchronizer {
 
   final ViewerDataRepository repository;
   final DartPluginEventHub eventHub;
+  final _active = <Future<void>>{};
+  Future<void>? _stopFuture;
+  int _generation = 0;
   final _subscriptions = <StreamSubscription<RuntimeMap>>[];
 
   static const _twitchEvents = <String>{
@@ -32,17 +36,28 @@ final class ViewerDataSynchronizer {
   bool get isRunning => _subscriptions.isNotEmpty;
 
   Future<void> start() async {
+    final generation = _generation;
+    await _stopFuture;
+    if (generation != _generation) return;
+    _stopFuture = null;
     if (isRunning) return;
     for (final eventId in [..._twitchEvents, ..._youtubeEvents]) {
       _subscriptions.add(
         eventHub.stream(eventId).listen((event) {
-          unawaited(_handleEvent(eventId, event));
+          final operation = _handleEvent(eventId, event);
+          _active.add(operation);
+          unawaited(operation.whenComplete(() => _active.remove(operation)));
         }),
       );
     }
   }
 
-  Future<void> stop() async {
+  Future<void> stop() {
+    _generation++;
+    return _stopFuture ??= _stop();
+  }
+
+  Future<void> _stop() async {
     final subscriptions = List<StreamSubscription<RuntimeMap>>.from(
       _subscriptions,
     );
@@ -50,6 +65,7 @@ final class ViewerDataSynchronizer {
     await Future.wait(
       subscriptions.map((subscription) => subscription.cancel()),
     );
+    await Future.wait(_active.toList());
   }
 
   Future<ViewerDataSyncResult?> syncEvent(
@@ -78,9 +94,13 @@ final class ViewerDataSynchronizer {
   Future<void> _handleEvent(String eventId, RuntimeMap event) async {
     try {
       await syncEvent(eventId, event);
-    } catch (_) {
-      // Provider events must not take down the worker when a local definition
-      // or a malformed row cannot be synchronized.
+    } catch (error, stack) {
+      ShowRunnerLogger.instance.error(
+        'viewer-data',
+        'Provider identity synchronization failed',
+        error: error,
+        stackTrace: stack,
+      );
     }
   }
 

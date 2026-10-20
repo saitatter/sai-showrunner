@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/runtime/action_queue.dart';
 import 'package:showrunner_flutter/runtime/automation_queue_manager.dart';
@@ -5,6 +6,52 @@ import 'package:showrunner_flutter/runtime/expression.dart';
 import '../support/graph_fixtures.dart';
 
 void main() {
+  testWidgets('shutdown cancels queue gap timers and preserves pending work', (
+    tester,
+  ) async {
+    final queue = DartActionQueue(defaultGap: const Duration(hours: 1))
+      ..setPaused(true);
+    final manager = DartAutomationQueueManager(
+      defaultQueue: queue,
+      execute: (_, _, _) async => null,
+    );
+    for (var i = 0; i < 2; i++) {
+      await manager.enqueue(AutomationDocument.empty(), EvaluationContext());
+    }
+    queue.setPaused(false);
+    final draining = manager.drain(null);
+    await tester.pump();
+    expect(queue.history, hasLength(1));
+    expect(queue.pending, hasLength(1));
+    await manager.dispose();
+    await draining;
+    expect(queue.pending, hasLength(1));
+    // The widget-test binding also fails if the hour-long timer remains live.
+  });
+  test(
+    'shutdown cancels and awaits the active action before closing queue sinks',
+    () async {
+      final entered = Completer<void>();
+      var actionStopped = false;
+      final manager = DartAutomationQueueManager(
+        defaultQueue: DartActionQueue(),
+        execute: (_, context, _) async {
+          entered.complete();
+          await context.cancellationToken!.whenCancelled;
+          actionStopped = true;
+          return null;
+        },
+      );
+      final item = await manager.enqueue(
+        AutomationDocument.empty(),
+        EvaluationContext(),
+      );
+      await entered.future;
+      await Future.wait([manager.dispose(), manager.dispose()]);
+      expect(actionStopped, true);
+      expect(item.status, 'cancelled');
+    },
+  );
   test(
     'keeps independent resource queues and preserves runtime context',
     () async {

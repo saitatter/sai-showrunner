@@ -38,6 +38,8 @@ final class DartAutomationQueueManager {
   final StreamController<RuntimeMap> _started =
       StreamController<RuntimeMap>.broadcast();
   bool _disposed = false;
+  Future<void>? _disposeFuture;
+  final _gapWaits = <Completer<void>>{};
 
   DartActionQueue get defaultQueue => _queues['default']!;
 
@@ -99,6 +101,7 @@ final class DartAutomationQueueManager {
   }) async {
     final queueKey = _key(queueId);
     final queue = await queueFor(queueKey);
+    _ensureOpen();
     final traceQueueKey = queueKey.isEmpty ? 'default' : queueKey;
     final source = <String, Object?>{
       'automation': automation.toJson(),
@@ -132,6 +135,7 @@ final class DartAutomationQueueManager {
       if (queue.paused || queue.pending.isEmpty) return;
     }
     final queue = await queueFor(key);
+    if (_disposed) return;
     final operation = _drainQueue(key, queue);
     _drains[key] = operation;
     try {
@@ -141,9 +145,24 @@ final class DartAutomationQueueManager {
     }
   }
 
-  Future<void> dispose() async {
-    if (_disposed) return;
+  Future<void> dispose() => _disposeFuture ??= _dispose();
+  Future<void> _dispose() async {
     _disposed = true;
+    for (final wait in _gapWaits.toList()) {
+      wait.complete();
+    }
+    await Future.wait(
+      _queues.values.toSet().map(
+        (queue) => queue.cancelRunning(reason: 'Application shutdown'),
+      ),
+    );
+    // Pending loads still report their errors to their queueFor/enqueue caller.
+    await Future.wait(
+      _queueLoads.values.map(
+        (load) => load.then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+      ),
+    );
+    await Future.wait(_drains.values.toList());
     await Future.wait(_queues.values.toSet().map((queue) => queue.dispose()));
     _queues.clear();
     _queueNames.clear();
@@ -153,21 +172,29 @@ final class DartAutomationQueueManager {
   }
 
   Future<DartActionQueue> _loadQueue(String key) async {
-    final config = await loadConfig?.call(key);
-    if (config == null) {
-      throw ResourceNotFoundError(
-        technicalMessage: 'Action queue resource was not found: $key',
-        userMessage: 'The automation references a queue that no longer exists.',
-        operationId: key,
-      );
+    try {
+      final config = await loadConfig?.call(key);
+      _ensureOpen();
+      if (config == null) {
+        throw ResourceNotFoundError(
+          technicalMessage: 'Action queue resource was not found: $key',
+          userMessage:
+              'The automation references a queue that no longer exists.',
+          operationId: key,
+        );
+      }
+      final queue = DartActionQueue(
+        defaultGap: config.gap,
+        defaultTimeout: config.timeout,
+      )..setPaused(config.paused);
+      _queues[key] = queue;
+      _queueNames[key] = config.name.isEmpty ? key : config.name;
+      return queue;
+    } finally {
+      // Only in-flight loads belong to teardown. Completed futures can retain
+      // an old zone and must not be treated as pending work on shutdown.
+      _queueLoads.remove(key);
     }
-    final queue = DartActionQueue(
-      defaultGap: config.gap,
-      defaultTimeout: config.timeout,
-    )..setPaused(config.paused);
-    _queues[key] = queue;
-    _queueNames[key] = config.name.isEmpty ? key : config.name;
-    return queue;
   }
 
   Future<void> _drainQueue(String key, DartActionQueue queue) async {
@@ -208,8 +235,22 @@ final class DartAutomationQueueManager {
       }
       if (!_disposed && !queue.paused && queue.pending.isNotEmpty) {
         final gap = queue.defaultGap;
-        if (gap > Duration.zero) await Future<void>.delayed(gap);
+        if (gap > Duration.zero) {
+          await _waitGap(gap);
+        }
       }
+    }
+  }
+
+  Future<void> _waitGap(Duration gap) async {
+    final wait = Completer<void>();
+    final timer = Timer(gap, wait.complete);
+    _gapWaits.add(wait);
+    try {
+      await wait.future;
+    } finally {
+      timer.cancel();
+      _gapWaits.remove(wait);
     }
   }
 
