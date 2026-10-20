@@ -171,6 +171,17 @@ void main() {
     );
     await tester.pump();
     await _runFileCommand(tester, 'Save all');
+    // Save All writes tabs sequentially; animation pumps do not await disk I/O.
+    for (var attempt = 0; graph.editor.isDirty && attempt < 100; attempt++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(graph.editor.isDirty, isFalse, reason: 'Save All must complete');
+    expect(
+      (await AutomationRepository(
+        File('${directory.path}/automations/close-flow.yaml'),
+      ).load())!.graph.spaces[mainAutomationSpace]!.nodes,
+      hasLength(2),
+    );
     final secondEntry = (await AutomationRepository.loadDirectory(
       Directory('${directory.path}/automations'),
     )).singleWhere((entry) => entry.automation?.metadata['name'] == 'Second');
