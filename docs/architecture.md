@@ -99,6 +99,17 @@ or runtime type, not raw exception text/stack. The original exception/stack rema
 at the invocation/application error boundary for operation handling. Execution
 results used by graphs remain unchanged; privacy applies to diagnostic projection.
 
+Stream Plan close reserves shutdown before cancelling its active graph tokens and
+awaiting serialized transitions. Waiting transitions recheck close after their
+predecessor, so they cannot reactivate the plan during shutdown. A failed new plan
+activation becomes idle. A failed segment switch leaves its plan selected without
+an active segment; reached new components receive reverse-order cleanup. Segment
+and plan exit attempt remaining cleanup after failures, clear provisional state
+and preserve original/cleanup errors. Arbitrary external actions cannot be rolled
+back; no implicit retries or replay of already executed provider effects occurs.
+Component callbacks must finish their own asynchronous cleanup. Named-queue plan
+phases still acknowledge enqueue acceptance rather than graph completion.
+
 Shader authoring uses the same immutable graph/core/canvas. Semantic changes
 invalidate generated GLSL; presentation changes do not. Node previews use derived
 documents. Shader source is compiled/rendered by the actual browser WebGL runtime.
