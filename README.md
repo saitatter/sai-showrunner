@@ -59,6 +59,8 @@ Run the same local checks used by CI:
 
 See [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md),
 [testing](docs/testing.md) and [release policy](docs/versioning-policy.md).
+For integrations, follow the [first-party plugin layout](packages/showrunner-flutter/lib/plugins/README.md)
+and its module lifecycle, connection ownership and event-delivery contracts.
 Releases are manual from main, with a preview, curated changelog notes and unsigned
 Windows ZIP packages. No signing certificate is required. Merging a PR does not
 publish or change the version.
