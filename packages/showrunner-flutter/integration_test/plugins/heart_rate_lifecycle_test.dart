@@ -87,7 +87,7 @@ void main() {
         false,
         persist: (_) async {},
       );
-      expect(service.status, HeartRateConnectionStatus.connected);
+      expect(service.status, HeartRateConnectionStatus.streaming);
       expect(transport.lastConnection, same(connection));
       await registry.setEnabled(
         const PluginId('heartrate'),

@@ -28,7 +28,7 @@ final class DartPluginRegistry extends ChangeNotifier {
   final Set<PluginId> _stopped = {};
   final Map<PluginId, PluginLifecycleState> _lifecycle = {};
   final Map<PluginId, Object> _lifecycleErrors = {};
-  Future<void> _policyTail = Future.value();
+  Future<void>? _policyTail;
   int _healthEpoch = 0;
   final Map<PluginId, Map<StateId, Object?>> _stateValues = {};
   Future<void>? _initializeFuture;
@@ -313,7 +313,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     bool enabled, {
     required Future<void> Function(bool enabled) persist,
   }) {
-    final operation = _policyTail.then((_) async {
+    final operation = (_policyTail ?? Future<void>.value()).then((_) async {
       if (_closeFuture != null) throw StateError('Plugin registry is closed.');
       final target = module(id);
       if (target == null) throw ArgumentError('Unknown plugin: $id');
