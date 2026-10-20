@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../../services/plugin_event_hub.dart';
+import '../../services/bounded_event_stream.dart';
+import '../../runtime/expression.dart';
+import '../runtime/provider_event.dart';
 import '../runtime/provider_worker_status.dart';
 import 'actions.dart';
 
@@ -138,6 +141,8 @@ final class TwitchEventSubWorker {
             _handleMessage(raw);
           } on FormatException {
             // A malformed frame must not terminate event delivery.
+          } on EventBackpressureException catch (error) {
+            _failBackpressure(error);
           }
         }
       },
@@ -243,17 +248,18 @@ final class TwitchEventSubWorker {
         final schedule = Map<String, dynamic>.from(data.first as Map);
         final fingerprint = jsonEncode(schedule);
         if (fingerprint != _lastAdSchedule) {
-          _lastAdSchedule = fingerprint;
-          eventHub.emit('adSchedule', {
+          _emitDomainEvent('adSchedule', {
             ...schedule,
             'eventType': 'adSchedule',
             'platform': 'twitch',
           });
+          _lastAdSchedule = fingerprint;
         }
       }
       adScheduleError = null;
     } catch (error) {
       adScheduleError = error;
+      if (error is EventBackpressureException) _failBackpressure(error);
     } finally {
       _loadingAdSchedule = false;
     }
@@ -348,19 +354,27 @@ final class TwitchEventSubWorker {
     if (subscription is! Map || event is! Map) return;
     final messageId = metadata['message_id']?.toString();
     if (messageId != null && messageId.isNotEmpty) {
-      if (!_seenMessages.add(messageId)) return;
-      if (_seenMessages.length > 4096) {
-        _seenMessages.remove(_seenMessages.first);
-      }
+      if (_seenMessages.contains(messageId)) return;
     }
     final type = subscription['type']?.toString();
     final eventId = twitchDomainEventType(type, event, broadcasterId);
     if (eventId != null) {
-      eventHub.emit(eventId, {
-        ...normalizeTwitchEvent(eventId, event),
-        if (metadata['message_timestamp'] is String)
-          'providerTime': metadata['message_timestamp'],
-      });
+      _emitDomainEvent(
+        eventId,
+        {
+          ...normalizeTwitchEvent(eventId, event),
+          if (metadata['message_timestamp'] is String)
+            'providerTime': metadata['message_timestamp'],
+        },
+        providerEventId: messageId,
+        occurredAt: DateTime.tryParse('${metadata['message_timestamp']}'),
+      );
+      if (messageId != null && messageId.isNotEmpty) {
+        _seenMessages.add(messageId);
+        if (_seenMessages.length > 4096) {
+          _seenMessages.remove(_seenMessages.first);
+        }
+      }
       if (eventId == 'adStarted') {
         _adEndTimer?.cancel();
         final seconds = int.tryParse('${event['duration_seconds']}');
@@ -372,13 +386,49 @@ final class TwitchEventSubWorker {
               .difference(DateTime.now());
           _adEndTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
             if (!_stopping) {
-              eventHub.emit('adEnded', normalizeTwitchEvent('adEnded', event));
+              try {
+                _emitDomainEvent(
+                  'adEnded',
+                  normalizeTwitchEvent('adEnded', event),
+                );
+              } on EventBackpressureException catch (error) {
+                _failBackpressure(error);
+              }
             }
           });
         }
         unawaited(_refreshAdSchedule());
       }
     }
+  }
+
+  void _emitDomainEvent(
+    String eventType,
+    RuntimeMap payload, {
+    String? providerEventId,
+    DateTime? occurredAt,
+  }) {
+    eventHub.emitProviderEvent(
+      ProviderEventEnvelope(
+        platform: ProviderPlatform.twitch,
+        eventType: eventType,
+        providerEventId: providerEventId,
+        accountId: broadcasterId,
+        channelId: eventType == 'twitchWhisper' ? null : broadcasterId,
+        visibility: eventType == 'twitchWhisper'
+            ? ProviderEventVisibility.private
+            : ProviderEventVisibility.public,
+        occurredAt: occurredAt ?? DateTime.now().toUtc(),
+        payload: payload,
+      ),
+    );
+  }
+
+  void _failBackpressure(EventBackpressureException error) {
+    lastError = error;
+    // Stop the socket immediately. Reconnection requires an explicit user action
+    // after consumers recover, so overload is visible rather than silently lossy.
+    unawaited(stop().then((_) => _setState(ProviderWorkerState.error)));
   }
 
   Future<void> _disposeConnection() async {

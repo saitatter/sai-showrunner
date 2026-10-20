@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Add immutable Twitch/YouTube provider events with credential redaction, private/public feed separation and bounded delivery queues that report overload without silently dropping accepted events.
 - Render rich chat emotes with Twitch fragments and 7TV/BTTV/FFZ catalogs, bounded caching, animation preferences and text fallback.
 - Add configurable global/message/user/event chat automation actions and a public Twitch/YouTube event feed in chat and the dock.
 - Add shared chat display preferences, user/text/role highlights and bounded ignore rules with explicit command-blocking controls.
