@@ -1,3 +1,4 @@
+import 'runtime_snapshot.dart';
 import 'expression.dart';
 import 'dart:async';
 import 'dart:math';
@@ -8,9 +9,9 @@ import 'cancellation.dart';
 final class QueuedGraphExecution {
   QueuedGraphExecution({
     required this.id,
-    required this.source,
-    required this.contextState,
-    this.locals = const <String, dynamic>{},
+    required RuntimeMap source,
+    required RuntimeMap contextState,
+    RuntimeMap locals = const <String, dynamic>{},
     this.status = 'pending',
     this.startedAt,
     this.completedAt,
@@ -21,7 +22,9 @@ final class QueuedGraphExecution {
     this.errorOperationId,
     this.errorRetryable,
     this.reason,
-  });
+  }) : source = freezeRuntimeMap(source),
+       contextState = freezeRuntimeMap(contextState),
+       locals = freezeRuntimeMap(locals);
 
   final String id;
   final RuntimeMap source;

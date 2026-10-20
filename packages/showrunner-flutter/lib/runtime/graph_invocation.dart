@@ -1,3 +1,4 @@
+import 'runtime_snapshot.dart';
 import '../graph/domain/automation_document.dart';
 import '../graph/runtime/graph_runtime.dart';
 import 'action_queue.dart';
@@ -49,16 +50,16 @@ final class InvocationFile extends GraphInvocationTarget {
 /// capabilities are retained as references and are never serialized by this API.
 final class InvocationContext {
   InvocationContext({RuntimeMap locals = const {}, RuntimeMap state = const {}})
-    : locals = _snapshotMap(locals),
-      state = _snapshotMap(state);
+    : locals = freezeRuntimeMap(locals),
+      state = freezeRuntimeMap(state);
   factory InvocationContext.capture(EvaluationContext context) =>
       InvocationContext(locals: context.locals, state: context.contextState);
   final RuntimeMap locals;
   final RuntimeMap state;
   EvaluationContext evaluate({DartCancellationToken? cancellation}) =>
       EvaluationContext(
-        locals: _copyMap(locals),
-        contextState: _copyMap(state),
+        locals: copyRuntimeMap(locals),
+        contextState: copyRuntimeMap(state),
         cancellationToken: cancellation,
       );
 }
@@ -82,7 +83,7 @@ final class GraphInvocation {
     this.onNodeExit,
     RuntimeMap sourceDetails = const {},
   }) : context = context ?? InvocationContext(),
-       sourceDetails = _snapshotMap(sourceDetails);
+       sourceDetails = freezeRuntimeMap(sourceDetails);
   final GraphInvocationTarget target;
   final InvocationOrigin origin;
   final String sourceId;
@@ -154,21 +155,3 @@ final class InvocationFailed extends InvocationResult {
   final DateTime failedAt;
   Never rethrowError() => Error.throwWithStackTrace(error, stack);
 }
-
-RuntimeMap _snapshotMap(Map value) => Map<String, Object?>.unmodifiable({
-  for (final entry in value.entries)
-    entry.key as String: _snapshot(entry.value),
-});
-Object? _snapshot(Object? value) => switch (value) {
-  Map map => _snapshotMap(map),
-  List list => List<Object?>.unmodifiable(list.map(_snapshot)),
-  _ => value,
-};
-Map<String, dynamic> _copyMap(Map value) => {
-  for (final entry in value.entries) entry.key as String: _copy(entry.value),
-};
-Object? _copy(Object? value) => switch (value) {
-  Map map => _copyMap(map),
-  List list => list.map(_copy).toList(),
-  _ => value,
-};
