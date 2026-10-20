@@ -2,8 +2,8 @@ import 'dart:io';
 
 import '../../persistence/resource_repository.dart';
 import '../../services/showrunner_data_service.dart';
-import '../iot/manifest.dart';
-import 'plugin_registry.dart';
+import 'manifest.dart';
+import '../registry/plugin_registry.dart';
 
 IotResourceActionResolver createConfiguredIotResolver({
   required DartPluginRegistry registry,

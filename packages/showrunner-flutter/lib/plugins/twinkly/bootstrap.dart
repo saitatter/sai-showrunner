@@ -1,0 +1,27 @@
+import 'dart:async';
+import '../../runtime/expression.dart';
+import '../registry/plugin_registry.dart';
+import 'manifest.dart';
+
+void registerConfiguredTwinkly(DartPluginRegistry registry) {
+  final twinklyTransport = TwinklyHttpTransport();
+  registry.register(
+    createTwinklyPlugin(TwinklyTransport(twinklyTransport.request)),
+  );
+}
+
+void registerDefaultTwinkly(DartPluginRegistry registry) {
+  registry.register(
+    createTwinklyPlugin(TwinklyTransport(_unconfiguredTwinkly)),
+  );
+}
+
+Future<RuntimeMap> _unconfiguredTwinkly(
+  String ip,
+  String method,
+  String path,
+  RuntimeMap query,
+  dynamic body,
+) => Future<RuntimeMap>.error(
+  StateError('Twinkly transport is not configured.'),
+);

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/resource_repository.dart';
 import 'package:showrunner_flutter/plugins/iot/manifest.dart';
 import 'package:showrunner_flutter/plugins/philips_hue/manifest.dart';
-import 'package:showrunner_flutter/plugins/registry/configured_iot_resolver.dart';
+import 'package:showrunner_flutter/plugins/iot/configured_resolver.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/tplink_kasa/manifest.dart';
 import 'package:showrunner_flutter/schema/resource.dart';

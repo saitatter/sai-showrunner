@@ -46,7 +46,14 @@ The composing caller retains ownership if validation fails. Composition is seale
 at initialization/startup; runtime state survives additions made before that point.
 Flutter assembly can supply resource editor IDs for complete coverage validation;
 the module factory contract itself has no Flutter UI dependency.
-Configured transports and event workers are composed in configured_plugin_registrar.
+The default/configured registrars explicitly assemble provider-owned
+`plugins/<provider>/bootstrap.dart` factories. They pass typed dependencies;
+transport/account setup stays with the provider and shared HTTP, variable and
+dashboard ports are constructed by their owning factories. The public bootstrap
+is a facade. `first_party_plugin_ui.dart` assembles Flutter UI independently;
+disabled integrations retain their settings and resource editors. IoT resource
+routing lives in `plugins/iot/configured_resolver.dart`. These are statically
+compiled first-party factories, not external plugin loading.
 An unconfigured provider is not evidence of a successful external connection.
 
 User data uses typed resource repositories, atomic writes and explicit validation.
