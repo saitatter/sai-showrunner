@@ -127,6 +127,55 @@ weakened. These results validate the composition/lifecycle work; the remaining
 baseline network-security and live-account/device proof boundaries remain as
 recorded above and in the architecture trust review.
 
+## Plugin composition and provider lifecycle contracts
+
+Phase 02 starts from integrated main `3a4051905`. Generated inventories before
+and after the work are identical: 34 plugins, 174 actions, 61 triggers, 57 states,
+20 resource types and 65 settings, including their UI metadata. Canonical resource
+declarations now live with providers; Flutter editor ownership is preflighted.
+Saved graph IDs/payloads and generated overlay contracts are unchanged.
+
+| Behavior | Executable proof |
+| --- | --- |
+| Atomic pack registration, factory identity/version, required/optional dependency order, cycles and resource/editor ownership | `test/plugins/registry/plugin_registration_test.dart`, `plugin_registry_test.dart` |
+| Persisted enable transactions, concurrent toggles, rollback, skipped/failed startup and reverse teardown | `test/plugins/registry/plugin_lifecycle_test.dart`; plugin visibility/settings race fixtures |
+| Distinct disabled, missing-configuration, disconnected and healthy states; bounded/stale health results | `test/plugins/registry/plugin_health_test.dart` |
+| No Flutter screens in manifests/runtime; provider-owned factories and static composition | `test/plugins/registry/plugin_architecture_test.dart` |
+| EventSub keepalive/reconnect/subscription order, parsing and private whisper isolation; YouTube polling/cursor/late-response behavior | `test/plugins/twitch/event_worker_test.dart`, `test/plugins/youtube/live_chat_worker_test.dart` |
+| Disconnect during settings/socket/discovery work, independent platforms, concurrent selection and fresh credentials | `test/plugins/runtime/provider_runtime_lifecycle_test.dart`; existing unified-chat active-worker precedence fixture |
+| Immutable/redacted envelopes, private/public isolation, bounded paused queues, atomic publication and explicit overload/restart | `test/services/plugin_event_hub_test.dart`; Twitch/YouTube worker overload fixtures |
+| HTTP body/deadline bounds, non-retried writes, physical HTTP/TCP/UDP cancellation, borrowed client ownership and token-write completion | `test/plugins/runtime/provider_operation_policy_test.dart`; Kasa oversized-header fixture |
+| Audio/TTS ownership, anonymous playback abort, awaited cleanup, late-start rejection and action cancellation | `test/plugins/sound/sound_lifecycle_test.dart`, `test/runtime/cancellation_test.dart`; no audible output |
+| Shared OBS transport shutdown and late connection guards; active-stream automation toggle policy with retained BLE transport | OBS router fixtures and `integration_test/plugins/provider_lifecycle_test.dart`, `heart_rate_lifecycle_test.dart` |
+
+The final lexical inventory contains 766 source/test files versus 697 initially,
+with 42 part declarations versus 44. The existing four-file TypeScript schema
+cycle is unchanged; no new import cycle is reported. These are lexical counts,
+not counts of live handles. Both dependency lockfile hashes are unchanged.
+Raw before/after inventories, generated contract comparisons and check outputs
+remain in ignored `.tmp/plugin-provider/`.
+
+Final checks use Windows 11 x64, Flutter 3.47.7 / Dart 3.13.5, Node 22.23.2 and
+Yarn 4.1.0. The isolated native checkout is verified against 974 tracked files
+after line-ending normalization; its build/storage/captures remain separate from
+the working checkout and user data. There is no intended layout/font change:
+1440x900 at DPR 1, the existing reviewed inspector regions, frozen Electron
+references and comparison thresholds remain unchanged.
+
+| Local gate | Actual result |
+| --- | --- |
+| `ci-check.ps1 -Stage All` | Formatting, analysis, docs/version/generated-registry/typechecks and parity pass; 809 Flutter tests pass with 10 opt-in skips; 132 JavaScript tests pass |
+| `ci-check.ps1 -Stage Parity -Integration -Visual` in isolated checkout | 97 native scenarios pass, one opt-in audio skip; catalog gate passes and both reviewed inspector regions have zero differing pixels |
+| Chromium overlay/dock smoke | DOM/WebGL render/update/removal/shutdown, chat history, HTML safety, filters, composer and completion pass |
+| Chromium shader catalog | All 89 exported shaders link/render without reported errors |
+
+Graph, diagnostics and inspector captures are inspected under this contract;
+historical Electron catalog differences remain diagnostic. Simulated providers,
+loopback HTTP/TCP/UDP and injected BLE/audio services establish lifecycle behavior,
+not live Twitch/YouTube privileges, OBS/CEF delivery, hardware compatibility or
+subjective audio quality. No production profiles, credentials or live providers
+are used. Baseline network-security items remain tracked in the trust review.
+
 ## Local checks and CI
 
 ```powershell

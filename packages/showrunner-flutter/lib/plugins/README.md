@@ -21,7 +21,7 @@ Shared plugin infrastructure lives outside the concrete plugin directories:
 
 ```text
 plugins/registry/   atomic composition contracts, static assembly and Flutter UI assembly
-plugins/runtime/    provider event runtime
+plugins/runtime/    typed event envelopes, bounded I/O policy and shared worker ownership
 services/            provider transports, OAuth, validation, and event hub
 features/resources/ resource editor registry
 ```
@@ -36,3 +36,24 @@ and ADVSS form one pack sharing the OBS connection. Shared settings/OAuth helper
 preserve provider-specific refresh rules. Flutter contributions remain separate
 from manifests and module contracts. Source architecture fixtures enforce these
 boundaries; generated contract parity protects saved action/trigger/resource IDs.
+
+Register module ownership with `ManifestDartPluginModule` lifecycle hooks and use
+`FirstPartyPluginContribution` for dependency packs. Registration validates the
+whole pack before publishing and is sealed when initialization begins. Provider
+manifests/resources remain independent of Flutter widgets; editor builders and
+workspace pages belong to Flutter assembly. Resource editor ownership is checked
+against the same canonical provider declarations.
+
+Keep automation enable policy, module lifecycle and external connection health
+separate. Disabling automation retains shared chat/device connections and editor
+contributions; a dedicated disconnect or host shutdown releases connections.
+Allocate requests under the owning module/session's `ProviderOperationScope`,
+use bounded protocol-specific budgets, and invalidate late asynchronous results.
+Only safe reads may use the shared HTTP retry policy. First-party sound modules
+close the audio/TTS services they create; injected services remain caller-owned.
+
+Twitch/YouTube adapters emit immutable `ProviderEventEnvelope` domain values.
+Keep private events outside public feeds, redact credential fields and handle
+bounded-queue overload explicitly. The event hub is not a durable spool. See
+[architecture](../../../../docs/architecture.md) and
+[testing](../../../../docs/testing.md) for ownership, queue limits and fixtures.
