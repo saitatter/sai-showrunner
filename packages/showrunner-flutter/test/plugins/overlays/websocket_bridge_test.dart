@@ -16,6 +16,80 @@ import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 
 void main() {
+  for (final traffic in ['malformed', 'oversized', 'binary', 'silent']) {
+    test('closes $traffic overlay peers without unhandled failures', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'overlay-boundary-',
+      );
+      final repository = ResourceRepository(
+        Directory('${directory.path}/overlays'),
+      );
+      await repository.save(
+        const ResourceData(
+          id: 'probe',
+          config: {
+            'name': 'Probe',
+            'size': {'width': 100, 'height': 100},
+            'widgets': [],
+          },
+        ),
+      );
+      final hub = DartPluginEventHub();
+      final registry = createDefaultPluginRegistry(eventHub: hub);
+      final server = DartHttpEndpointService(port: 0);
+      await server.start();
+      final bridge = DartOverlayWebSocketService(
+        server: server,
+        eventHub: hub,
+        overlayStore: OverlayResourceStore(
+          load: repository.load,
+          save: repository.save,
+        ),
+        registry: registry,
+        viewerDataRepository: InMemoryViewerDataRepository(),
+        requestTimeout: traffic == 'silent'
+            ? const Duration(milliseconds: 20)
+            : const Duration(seconds: 5),
+      );
+      final socket = await WebSocket.connect(
+        'ws://127.0.0.1:${server.boundPort}/?overlay=probe',
+      );
+      final closed = Completer<void>();
+      final subscription = socket.listen((raw) {
+        final message = jsonDecode(raw as String) as Map;
+        if (traffic == 'silent') return;
+        socket.add(
+          jsonEncode({'responseId': message['requestId'], 'result': null}),
+        );
+        switch (traffic) {
+          case 'malformed':
+            socket.add('{invalid');
+          case 'oversized':
+            socket.add('x' * (1024 * 1024 + 1));
+          case 'binary':
+            socket.add([1, 2, 3]);
+        }
+      }, onDone: closed.complete);
+      try {
+        await closed.future.timeout(const Duration(seconds: 6));
+        expect(socket.closeCode, switch (traffic) {
+          'malformed' => WebSocketStatus.invalidFramePayloadData,
+          'oversized' => WebSocketStatus.messageTooBig,
+          'binary' => WebSocketStatus.unsupportedData,
+          _ => WebSocketStatus.normalClosure,
+        });
+      } finally {
+        await subscription.cancel();
+        await socket.close();
+        await bridge.dispose();
+        await server.stop();
+        await registry.close();
+        await hub.dispose();
+        await directory.delete(recursive: true);
+      }
+    });
+  }
+
   test('serves an overlay config and forwards browser RPC events', () async {
     final directory = await Directory.systemTemp.createTemp(
       'showrunner-overlay-',
@@ -35,6 +109,7 @@ void main() {
         id: 'overlay-1',
         config: {
           'name': 'Test Overlay',
+          'accessToken': 'fixture-not-public',
           'size': {'width': 1280, 'height': 720},
           'widgets': [],
         },
@@ -73,6 +148,28 @@ void main() {
     StreamSubscription<dynamic>? socketSubscription;
 
     try {
+      final missingRequest = await client.getUrl(
+        Uri.parse(
+          'http://127.0.0.1:${server.boundPort}/overlays/missing/config',
+        ),
+      );
+      final missingResponse = await missingRequest.close();
+      await missingResponse.drain<void>();
+      expect(missingResponse.statusCode, HttpStatus.notFound);
+      final missingSocket = await WebSocket.connect(
+        'ws://127.0.0.1:${server.boundPort}/?overlay=missing',
+      );
+      expect(
+        await missingSocket.toList().timeout(const Duration(seconds: 2)),
+        isEmpty,
+      );
+      await expectLater(
+        WebSocket.connect(
+          'ws://127.0.0.1:${server.boundPort}/?overlay=overlay-1',
+          headers: {'Origin': 'https://untrusted.invalid'},
+        ),
+        throwsA(isA<WebSocketException>()),
+      );
       final configRequest = await client.getUrl(
         Uri.parse(
           'http://127.0.0.1:${server.boundPort}/overlays/overlay-1/config',
