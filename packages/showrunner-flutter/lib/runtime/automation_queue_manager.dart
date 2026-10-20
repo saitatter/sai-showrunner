@@ -125,23 +125,39 @@ final class DartAutomationQueueManager {
   ///
   /// Errors are retained on the queue item and do not prevent following queue
   /// items from being processed, matching the desktop queue behavior.
-  Future<void> drain(String? queueId) async {
+  Future<void> drain(String? queueId) {
+    if (_disposed) return Future.value();
     final key = _key(queueId).isEmpty ? 'default' : _key(queueId);
     final existing = _drains[key];
-    if (existing != null) {
-      await existing;
-      if (_disposed) return;
-      final queue = await queueFor(key);
-      if (queue.paused || queue.pending.isEmpty) return;
-    }
-    final queue = await queueFor(key);
-    if (_disposed) return;
-    final operation = _drainQueue(key, queue);
-    _drains[key] = operation;
+    if (existing != null) return existing;
+    // Reserve before loading the queue: even a cached queue lookup yields.
+    final completion = Completer<void>();
+    _drains[key] = completion.future;
+    unawaited(_ownDrain(key, completion));
+    return completion.future;
+  }
+
+  Future<void> _ownDrain(String key, Completer<void> completion) async {
+    Object? failure;
+    StackTrace? failureStack;
     try {
-      await operation;
+      final queue = await queueFor(key);
+      do {
+        await _drainQueue(key, queue);
+        // Enqueue may have run while the previous drain was completing.
+      } while (!_disposed && !queue.paused && queue.pending.isNotEmpty);
+    } catch (error, stack) {
+      if (!_disposed) {
+        failure = error;
+        failureStack = stack;
+      }
     } finally {
-      if (identical(_drains[key], operation)) _drains.remove(key);
+      if (identical(_drains[key], completion.future)) _drains.remove(key);
+      if (failure == null) {
+        completion.complete();
+      } else {
+        completion.completeError(failure, failureStack!);
+      }
     }
   }
 
