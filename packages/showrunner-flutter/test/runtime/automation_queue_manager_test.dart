@@ -7,6 +7,69 @@ import '../support/graph_fixtures.dart';
 
 void main() {
   test(
+    'queue snapshots survive caller/action mutation and replay exactly',
+    () async {
+      final queue = DartActionQueue()..setPaused(true);
+      final messages = <Object?>[];
+      final documents = <Map<String, Object?>>[];
+      final manager = DartAutomationQueueManager(
+        defaultQueue: queue,
+        execute: (document, context, item) async {
+          documents.add(document.toJson());
+          final event = context.contextState['event'] as Map;
+          messages.add(event['message']);
+          event['message'] = 'action mutation';
+          return null;
+        },
+      );
+      addTearDown(manager.dispose);
+      final event = <String, Object?>{'message': 'captured'};
+      final document = AutomationDocument.empty().withMetadata({
+        'name': 'captured graph',
+      });
+      final item = await manager.enqueue(
+        document,
+        EvaluationContext(contextState: {'event': event}),
+      );
+      event['message'] = 'caller mutation';
+      expect(
+        () => (item.contextState['event'] as Map)['message'] = 'write',
+        throwsUnsupportedError,
+      );
+      expect(
+        () => (item.source['automation'] as Map)['schemaVersion'] = 9,
+        throwsUnsupportedError,
+      );
+      queue.setPaused(false);
+      await manager.drain(null);
+      queue.replay(item.id);
+      await manager.drain(null);
+      expect(messages, ['captured', 'captured']);
+      expect(documents, [document.toJson(), document.toJson()]);
+    },
+  );
+
+  test(
+    'source metadata cannot replace an enqueued automation snapshot',
+    () async {
+      final queue = DartActionQueue()..setPaused(true);
+      final manager = DartAutomationQueueManager(
+        defaultQueue: queue,
+        execute: (_, _, _) async => null,
+      );
+      addTearDown(manager.dispose);
+      await expectLater(
+        manager.enqueue(
+          AutomationDocument.empty(),
+          EvaluationContext(),
+          sourceMetadata: {'automation': AutomationDocument.empty().toJson()},
+        ),
+        throwsArgumentError,
+      );
+      expect(queue.pending, isEmpty);
+    },
+  );
+  test(
     'concurrent drains await the same execution through queue lookup',
     () async {
       final entered = Completer<void>();

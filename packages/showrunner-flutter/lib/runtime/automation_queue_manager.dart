@@ -1,3 +1,5 @@
+import 'queued_automation_source.dart';
+import 'runtime_snapshot.dart';
 import '../graph/domain/automation_document.dart';
 import 'dart:async';
 
@@ -99,24 +101,24 @@ final class DartAutomationQueueManager {
     String? entryNodeId,
     String? entrySpaceId,
   }) async {
+    context.cancellationToken?.throwIfCancelled();
+    final metadata = freezeRuntimeMap(sourceMetadata ?? const {});
+    final locals = freezeRuntimeMap(context.locals);
+    final state = freezeRuntimeMap(context.contextState);
     final queueKey = _key(queueId);
     final queue = await queueFor(queueKey);
     _ensureOpen();
+    context.cancellationToken?.throwIfCancelled();
     final traceQueueKey = queueKey.isEmpty ? 'default' : queueKey;
-    final source = <String, Object?>{
-      'automation': automation.toJson(),
-      ...?sourceMetadata,
-      'queueId': traceQueueKey,
-      'queueName': _queueNames[traceQueueKey] ?? traceQueueKey,
-      'name': automation.metadata['name'] ?? 'Queued automation',
-      'entryNodeId': ?entryNodeId,
-      'entrySpaceId': ?entrySpaceId,
-    };
-    final item = queue.enqueue(
-      source,
-      context.contextState,
-      locals: context.locals,
-    );
+    final source = QueuedAutomationSource(
+      document: automation,
+      queueId: traceQueueKey,
+      queueName: _queueNames[traceQueueKey] ?? traceQueueKey,
+      entryNodeId: entryNodeId,
+      entrySpaceId: entrySpaceId,
+      metadata: metadata,
+    ).toWire();
+    final item = queue.enqueue(source, state, locals: locals);
     unawaited(drain(queueKey));
     return item;
   }
@@ -232,14 +234,12 @@ final class DartAutomationQueueManager {
               'queuedAt': item.contextState['queuedAt'],
             'startedAt': item.startedAt?.toIso8601String(),
           });
-          final automation = AutomationDocument.fromJson(
-            Map<String, Object?>.from(item.source['automation'] as Map),
-          );
+          final source = QueuedAutomationSource.fromWire(item.source);
           return execute(
-            automation,
+            source.document,
             EvaluationContext(
-              locals: item.locals,
-              contextState: item.contextState,
+              locals: copyRuntimeMap(item.locals),
+              contextState: copyRuntimeMap(item.contextState),
               cancellationToken: queue.runningCancellationToken,
             ),
             item,
