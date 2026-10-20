@@ -14,6 +14,7 @@
 - Add unified Twitch/YouTube chat with channel-scoped moderation, emote suggestions and an authenticated local OBS browser dock.
 
 ### Fixes
+- Cancel active Stream Plan graphs at close, reject waiting transitions and clear failed provisional state while attempting all component cleanup and preserving cleanup failures.
 - Keep credentials, private chat and sensitive viewer values out of trace previews; capture arbitrary result text only through an explicit trusted contract and retain error codes/types instead of raw exception text.
 - Cancel and await profile-owned trigger work at session/host shutdown, prevent duplicate managed activation and retain background failures without unhandled futures.
 - Keep timed-out queue actions owned until cleanup finishes, await standalone queue shutdown, cancel gap timers and allow retry after a temporary queue-load failure.

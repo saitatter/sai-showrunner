@@ -1,3 +1,4 @@
+import '../../runtime/cancellation.dart';
 import '../../runtime/automation_invocation_service.dart';
 import '../../runtime/graph_invocation.dart';
 import '../../graph/domain/automation_document.dart';
@@ -41,6 +42,16 @@ const _segmentSchema = DartDataInputSchema(
   fields: [],
 );
 
+final class StreamPlanCleanupFailure implements Exception {
+  StreamPlanCleanupFailure(this.cause, Iterable<Object> cleanupErrors)
+    : cleanupErrors = List.unmodifiable(cleanupErrors);
+  final Object cause;
+  final List<Object> cleanupErrors;
+  @override
+  String toString() =>
+      'Stream Plan transition failed and component cleanup also failed.';
+}
+
 final class DartStreamPlanRuntime extends ChangeNotifier {
   DartStreamPlanRuntime({
     this.queueManager,
@@ -54,18 +65,39 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
   StreamPlanData? _activePlan;
   final Map<String, DartStreamPlanComponent> _componentTypes = {};
   Future<void>? _transition;
+  Object? lastTransitionError;
+  final Set<DartCancellationToken> _runTokens = {};
+  bool _cleanupDuringClose = false;
 
   Future<void>? _closing;
   bool _closed = false;
-  Future<void> close({DartPluginRegistry? registry}) =>
-      _closing ??= _close(registry);
+  Future<void> close({DartPluginRegistry? registry}) {
+    final pending = _closing;
+    if (pending != null) return pending;
+    final completion = Completer<void>();
+    _closing = completion.future;
+    unawaited(
+      _close(registry).then<void>(
+        completion.complete,
+        onError: (Object error, StackTrace stack) =>
+            completion.completeError(error, stack),
+      ),
+    );
+    return completion.future;
+  }
+
   Future<void> _close(DartPluginRegistry? registry) async {
+    for (final token in _runTokens.toList()) {
+      token.cancel();
+    }
     try {
       await _transition;
+      _cleanupDuringClose = true;
       if (isActive && registry != null) {
         await _deactivatePlanInternal(registry: registry);
       }
     } finally {
+      _cleanupDuringClose = false;
       activePlanId = null;
       activeSegmentId = null;
       _activePlan = null;
@@ -80,10 +112,17 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     if (!_closed) super.notifyListeners();
   }
 
+  void _ensureOpen() {
+    if (_closed || _closing != null) {
+      throw StateError('Stream Plan runtime is closed.');
+    }
+  }
+
   StreamPlanData? get activePlan => _activePlan;
   bool get isActive => activePlanId != null;
 
   void registerComponentType(DartStreamPlanComponent component) {
+    _ensureOpen();
     if (component.id.trim().isEmpty) {
       throw ArgumentError.value(component.id, 'component.id');
     }
@@ -93,6 +132,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
   DartStreamPlanComponent? componentType(String id) => _componentTypes[id];
 
   void activate(String planId, {String? segmentId}) {
+    _ensureOpen();
     activePlanId = planId;
     activeSegmentId = segmentId;
     _activePlan = null;
@@ -100,6 +140,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
   }
 
   void deactivate() {
+    _ensureOpen();
     activePlanId = null;
     activeSegmentId = null;
     _activePlan = null;
@@ -107,6 +148,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
   }
 
   String? next(StreamPlanData plan) {
+    _ensureOpen();
     final index = plan.segments.indexWhere(
       (segment) => segment.id == activeSegmentId,
     );
@@ -117,6 +159,7 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
   }
 
   String? previous(StreamPlanData plan) {
+    _ensureOpen();
     final index = plan.segments.indexWhere(
       (segment) => segment.id == activeSegmentId,
     );
@@ -148,27 +191,35 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     activeSegmentId = null;
     _activePlan = plan;
     notifyListeners();
-    await _runAutomation(
-      plan.activationAutomation,
-      planId: planId,
-      sourceSubId: 'activation',
-      registry: registry,
-      context: context,
-      onNodeEnter: onNodeEnter,
-      onNodeExit: onNodeExit,
-    );
-
-    final firstSegment = plan.segments.firstOrNull;
-    if (firstSegment != null) {
-      await _activateSegmentInternal(
-        planId,
-        plan,
-        firstSegment.id,
+    try {
+      await _runAutomation(
+        plan.activationAutomation,
+        planId: planId,
+        sourceSubId: 'activation',
         registry: registry,
         context: context,
         onNodeEnter: onNodeEnter,
         onNodeExit: onNodeExit,
       );
+
+      final firstSegment = plan.segments.firstOrNull;
+      if (firstSegment != null) {
+        await _activateSegmentInternal(
+          planId,
+          plan,
+          firstSegment.id,
+          registry: registry,
+          context: context,
+          onNodeEnter: onNodeEnter,
+          onNodeExit: onNodeExit,
+        );
+      }
+    } catch (_) {
+      activePlanId = null;
+      activeSegmentId = null;
+      _activePlan = null;
+      notifyListeners();
+      rethrow;
     }
   });
 
@@ -321,31 +372,56 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     void Function(String nodeId)? onNodeExit,
   }) async {
     if (activeSegmentId != null) {
-      await _deactivateSegmentInternal(
-        planId,
-        plan,
-        activeSegmentId!,
-        registry: registry,
-        context: context,
-        onNodeEnter: onNodeEnter,
-        onNodeExit: onNodeExit,
-      );
+      try {
+        await _deactivateSegmentInternal(
+          planId,
+          plan,
+          activeSegmentId!,
+          registry: registry,
+          context: context,
+          onNodeEnter: onNodeEnter,
+          onNodeExit: onNodeExit,
+        );
+      } finally {
+        activeSegmentId = null;
+        notifyListeners();
+      }
     }
 
     final segment = plan.segments.firstWhere((item) => item.id == segmentId);
     activeSegmentId = segment.id;
     notifyListeners();
-    await _invokeComponentHandlers(segment, activate: true);
-    await _runAutomation(
-      segment.activationAutomation,
-      planId: planId,
-      segmentId: segment.id,
-      sourceSubId: '${segment.id}.activation',
-      registry: registry,
-      context: context,
-      onNodeEnter: onNodeEnter,
-      onNodeExit: onNodeExit,
-    );
+    final reached = <({DartStreamPlanComponent? component, dynamic config})>[];
+    try {
+      for (final entry in segment.components.entries) {
+        final component = _componentTypes[entry.key];
+        reached.add((component: component, config: entry.value));
+        await component?.onActivate?.call(segment.id, entry.value);
+      }
+      await _runAutomation(
+        segment.activationAutomation,
+        planId: planId,
+        segmentId: segment.id,
+        sourceSubId: '${segment.id}.activation',
+        registry: registry,
+        context: context,
+        onNodeEnter: onNodeEnter,
+        onNodeExit: onNodeExit,
+      );
+    } catch (error, stack) {
+      final failures = <Object>[];
+      for (final entry in reached.reversed) {
+        try {
+          await entry.component?.onDeactivate?.call(segment.id, entry.config);
+        } catch (cleanup) {
+          failures.add(cleanup);
+        }
+      }
+      activeSegmentId = null;
+      notifyListeners();
+      if (failures.isNotEmpty) throw StreamPlanCleanupFailure(error, failures);
+      Error.throwWithStackTrace(error, stack);
+    }
   }
 
   Future<void> _deactivateSegmentInternal(
@@ -361,17 +437,35 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
         .where((item) => item.id == segmentId)
         .firstOrNull;
     if (segment == null) return;
-    await _invokeComponentHandlers(segment, activate: false);
-    await _runAutomation(
-      segment.deactivationAutomation,
-      planId: planId,
-      segmentId: segment.id,
-      sourceSubId: '${segment.id}.deactivation',
-      registry: registry,
-      context: context,
-      onNodeEnter: onNodeEnter,
-      onNodeExit: onNodeExit,
-    );
+    Object? failure;
+    StackTrace? failureStack;
+    for (final entry in segment.components.entries) {
+      try {
+        await _componentTypes[entry.key]?.onDeactivate?.call(
+          segment.id,
+          entry.value,
+        );
+      } catch (error, stack) {
+        failure ??= error;
+        failureStack ??= stack;
+      }
+    }
+    try {
+      await _runAutomation(
+        segment.deactivationAutomation,
+        planId: planId,
+        segmentId: segment.id,
+        sourceSubId: '${segment.id}.deactivation',
+        registry: registry,
+        context: context,
+        onNodeEnter: onNodeEnter,
+        onNodeExit: onNodeExit,
+      );
+    } catch (error, stack) {
+      failure ??= error;
+      failureStack ??= stack;
+    }
+    if (failure != null) Error.throwWithStackTrace(failure, failureStack!);
   }
 
   Future<void> _deactivatePlanInternal({
@@ -389,44 +483,44 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    Object? failure;
+    StackTrace? failureStack;
     if (activeSegmentId != null) {
-      await _deactivateSegmentInternal(
-        planId,
-        plan,
-        activeSegmentId!,
+      try {
+        await _deactivateSegmentInternal(
+          planId,
+          plan,
+          activeSegmentId!,
+          registry: registry,
+          context: context,
+          onNodeEnter: onNodeEnter,
+          onNodeExit: onNodeExit,
+        );
+      } catch (error, stack) {
+        failure ??= error;
+        failureStack ??= stack;
+      }
+      activeSegmentId = null;
+      notifyListeners();
+    }
+    try {
+      await _runAutomation(
+        plan.deactivationAutomation,
+        planId: planId,
+        sourceSubId: 'deactivation',
         registry: registry,
         context: context,
         onNodeEnter: onNodeEnter,
         onNodeExit: onNodeExit,
       );
-      activeSegmentId = null;
-      notifyListeners();
+    } catch (error, stack) {
+      failure ??= error;
+      failureStack ??= stack;
     }
-    await _runAutomation(
-      plan.deactivationAutomation,
-      planId: planId,
-      sourceSubId: 'deactivation',
-      registry: registry,
-      context: context,
-      onNodeEnter: onNodeEnter,
-      onNodeExit: onNodeExit,
-    );
     activePlanId = null;
     _activePlan = null;
     notifyListeners();
-  }
-
-  Future<void> _invokeComponentHandlers(
-    StreamPlanSegmentData segment, {
-    required bool activate,
-  }) async {
-    for (final entry in segment.components.entries) {
-      final component = _componentTypes[entry.key];
-      final handler = activate
-          ? component?.onActivate
-          : component?.onDeactivate;
-      await handler?.call(segment.id, entry.value);
-    }
+    if (failure != null) Error.throwWithStackTrace(failure, failureStack!);
   }
 
   Future<InvocationResult> _runAutomation(
@@ -439,6 +533,9 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     void Function(String nodeId)? onNodeEnter,
     void Function(String nodeId)? onNodeExit,
   }) async {
+    if (_closed || (_closing != null && !_cleanupDuringClose)) {
+      throw StateError('Stream Plan runtime is closed.');
+    }
     final baseContext = context ?? EvaluationContext();
     final parsed = AutomationDocument.fromJson(automation);
     final executionContext = EvaluationContext(
@@ -451,23 +548,34 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
       },
       cancellationToken: baseContext.cancellationToken,
     );
-    return AutomationInvocationService(
-      engine: executionEngine,
-      registry: () => registry,
-      queues: queueManager,
-    ).invokeOrThrow(
-      GraphInvocation(
-        target: InvocationDocument(parsed),
-        origin: InvocationOrigin.streamPlan,
-        sourceId: planId,
-        sourceSubId: sourceSubId,
-        dispatch: InvocationDispatch.documentQueue,
-        context: InvocationContext.capture(executionContext),
-        cancellation: executionContext.cancellationToken,
-        onNodeEnter: onNodeEnter,
-        onNodeExit: onNodeExit,
-      ),
-    );
+    final token = DartCancellationToken();
+    final parent = executionContext.cancellationToken;
+    parent?.addListener(token.cancel);
+    _runTokens.add(token);
+    try {
+      final execution =
+          AutomationInvocationService(
+            engine: executionEngine,
+            registry: () => registry,
+            queues: queueManager,
+          ).invokeOrThrow(
+            GraphInvocation(
+              target: InvocationDocument(parsed),
+              origin: InvocationOrigin.streamPlan,
+              sourceId: planId,
+              sourceSubId: sourceSubId,
+              dispatch: InvocationDispatch.documentQueue,
+              context: InvocationContext.capture(executionContext),
+              cancellation: token,
+              onNodeEnter: onNodeEnter,
+              onNodeExit: onNodeExit,
+            ),
+          );
+      return await execution;
+    } finally {
+      _runTokens.remove(token);
+      parent?.removeListener(token.cancel);
+    }
   }
 
   StreamPlanSegmentData? _adjacentSegment(
@@ -493,7 +601,13 @@ final class DartStreamPlanRuntime extends ChangeNotifier {
     _transition = release.future;
     try {
       if (previous != null) await previous;
+      if (_closing != null) throw StateError('Stream Plan runtime is closed.');
+      lastTransitionError = null;
       return await operation();
+    } catch (error) {
+      lastTransitionError = error;
+      notifyListeners();
+      rethrow;
     } finally {
       release.complete();
       if (identical(_transition, release.future)) _transition = null;
