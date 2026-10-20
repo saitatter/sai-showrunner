@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../runtime/expression.dart';
 import 'http_policy.dart';
+import '../plugins/runtime/provider_operation_policy.dart';
 
 final class JsonHttpTransport {
   const JsonHttpTransport({
@@ -11,16 +12,18 @@ final class JsonHttpTransport {
     this.accessToken,
     this.accessTokenProvider,
     this.headers = const <String, String>{},
-    this.timeout = const Duration(seconds: 20),
-    this.maxResponseBytes = 4 * 1024 * 1024,
+    this.timeout = ProviderOperationPolicy.defaultRequestTimeout,
+    this.maxResponseBytes = ProviderOperationPolicy.defaultMaxResponseBytes,
     this.client,
     this.maxRetries = 1,
+    this.operationScope,
   });
 
   final Duration timeout;
   final int maxResponseBytes;
   final HttpClient? client;
   final int maxRetries;
+  final ProviderOperationScope? operationScope;
   final String baseUrl;
   final String? accessToken;
   final Future<String?> Function()? accessTokenProvider;
@@ -44,13 +47,18 @@ final class JsonHttpTransport {
     RuntimeMap query,
     dynamic body,
   ) async {
-    final safe = {'GET', 'HEAD'}.contains(method.toUpperCase());
+    final safe = ProviderOperationPolicy.canRetryHttpMethod(method);
     for (var attempt = 0; ; attempt++) {
       try {
         return await _requestValue(method, path, query, body);
       } on ProviderRateLimitException catch (error) {
         if (!safe || attempt >= maxRetries) rethrow;
-        await Future<void>.delayed(error.delay);
+        final scope = operationScope;
+        if (scope == null) {
+          await Future<void>.delayed(error.delay);
+        } else {
+          await scope.delay(error.delay);
+        }
       }
     }
   }
@@ -61,6 +69,7 @@ final class JsonHttpTransport {
     RuntimeMap query,
     dynamic body,
   ) async {
+    operationScope?.requireOpen();
     final uri = Uri.parse(baseUrl)
         .resolve(path)
         .replace(
@@ -70,9 +79,14 @@ final class JsonHttpTransport {
         );
     final httpClient = client ?? (HttpClient()..connectionTimeout = timeout);
     HttpClientRequest? activeRequest;
+    final release = operationScope?.track(() {
+      activeRequest?.abort();
+      if (client == null) httpClient.close(force: true);
+    });
     try {
       final request = await httpClient.openUrl(method, uri).timeout(timeout);
       activeRequest = request;
+      operationScope?.requireOpen();
       request.headers.contentType = ContentType.json;
       headers.forEach(request.headers.set);
       final token = accessTokenProvider == null
@@ -101,11 +115,13 @@ final class JsonHttpTransport {
       }
       dynamic decoded;
       if (text.isNotEmpty) decoded = jsonDecode(text);
+      operationScope?.requireOpen();
       return decoded;
     } on Object {
       activeRequest?.abort();
       rethrow;
     } finally {
+      release?.call();
       if (client == null) httpClient.close(force: true);
     }
   }

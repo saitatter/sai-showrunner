@@ -1,3 +1,5 @@
+import '../runtime/provider_operation_policy.dart';
+import '../../services/provider_http_policy.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -24,7 +26,15 @@ final class TwinklyTransport {
 }
 
 final class TwinklyHttpTransport {
-  TwinklyHttpTransport({Random? random}) : _random = random ?? Random.secure();
+  TwinklyHttpTransport({
+    Random? random,
+    ProviderOperationScope? scope,
+    this.policy = const ProviderOperationPolicy(),
+  }) : _random = random ?? Random.secure(),
+       _scope = scope ?? ProviderOperationScope();
+  final ProviderOperationScope _scope;
+  final ProviderOperationPolicy policy;
+  Future<void> close() => _scope.close();
 
   final Random _random;
   final Map<String, _TwinklyToken> _tokens = {};
@@ -56,35 +66,37 @@ final class TwinklyHttpTransport {
     dynamic body,
     String? token,
   ) async {
-    final client = HttpClient();
-    try {
-      final uri = Uri.parse('http://$ip/xled/v1$path').replace(
-        queryParameters: {
-          ...query.map((key, value) => MapEntry(key, '$value')),
-        },
-      );
-      final request = await client.openUrl(method, uri);
-      request.headers.contentType = ContentType.json;
-      if (token != null) request.headers.set('X-Auth-Token', token);
-      if (body != null) request.write(jsonEncode(body));
-      final response = await request.close();
-      final text = await utf8.decoder.bind(response).join();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException(
-          'Twinkly request failed (${response.statusCode}): $text',
+    return runProviderHttp<RuntimeMap>(
+      scope: _scope,
+      policy: policy,
+      send: (client) async {
+        final uri = Uri.parse('http://$ip/xled/v1$path').replace(
+          queryParameters: {
+            ...query.map((key, value) => MapEntry(key, '$value')),
+          },
         );
-      }
-      if (text.isEmpty) return <String, dynamic>{};
-      final decoded = jsonDecode(text);
-      return decoded is Map
-          ? Map<String, dynamic>.from(decoded)
-          : <String, dynamic>{};
-    } finally {
-      client.close(force: true);
-    }
+        final request = await client.openUrl(method, uri);
+        request.headers.contentType = ContentType.json;
+        if (token != null) request.headers.set('X-Auth-Token', token);
+        if (body != null) request.write(jsonEncode(body));
+        final response = await request.close();
+        final text = await readProviderHttpText(response, policy);
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw HttpException(
+            'Twinkly request failed (${response.statusCode}).',
+          );
+        }
+        if (text.isEmpty) return <String, dynamic>{};
+        final decoded = jsonDecode(text);
+        return decoded is Map
+            ? Map<String, dynamic>.from(decoded)
+            : <String, dynamic>{};
+      },
+    );
   }
 
   Future<String> _validToken(String ip) async {
+    _scope.requireOpen();
     final current = _tokens[ip];
     if (current != null && current.expiresAt.isAfter(DateTime.now())) {
       return current.value;
@@ -106,6 +118,7 @@ final class TwinklyHttpTransport {
     await _request(ip, 'POST', '/verify', const {}, {
       'challenge-response': response,
     }, token);
+    _scope.requireOpen();
     _tokens[ip] = _TwinklyToken(
       value: token,
       expiresAt: DateTime.now().add(Duration(seconds: expiresIn - 5)),

@@ -1,3 +1,4 @@
+import '../runtime/provider_operation_policy.dart';
 import 'dart:async';
 import '../../runtime/expression.dart';
 import '../../services/http_provider_transports.dart';
@@ -12,6 +13,7 @@ Future<void> registerConfiguredYouTube(
   required ShowRunnerDataService dataService,
   required DartPluginEventHub? eventHub,
 }) async {
+  final scope = ProviderOperationScope();
   final youtube = await dataService.loadPluginSettings('youtube');
   final youtubeManager = createPluginTokenManager(
     pluginId: 'youtube',
@@ -21,6 +23,7 @@ Future<void> registerConfiguredYouTube(
   );
   final youtubeTransport = youtubeManager != null
       ? JsonHttpTransport(
+          operationScope: scope,
           baseUrl: 'https://www.googleapis.com',
           accessTokenProvider: youtubeManager.accessToken,
         )
@@ -34,6 +37,7 @@ Future<void> registerConfiguredYouTube(
     initialHealth: (youtubeTransport != null)
         ? const DartPluginHealth.connectionUnchecked()
         : const DartPluginHealth.notConfigured(),
+    onStop: scope.close,
   );
 }
 

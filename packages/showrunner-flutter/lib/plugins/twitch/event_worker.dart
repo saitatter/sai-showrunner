@@ -5,6 +5,7 @@ import '../../services/plugin_event_hub.dart';
 import '../../services/bounded_event_stream.dart';
 import '../../runtime/expression.dart';
 import '../runtime/provider_event.dart';
+import '../runtime/provider_operation_policy.dart';
 import '../runtime/provider_worker_status.dart';
 import 'actions.dart';
 
@@ -303,8 +304,13 @@ final class TwitchEventSubWorker {
         attempt++
       ) {
         reconnectAttempts = attempt + 1;
-        final multiplier = 1 << attempt;
-        await Future<void>.delayed(reconnectDelay * multiplier);
+        await Future<void>.delayed(
+          ProviderOperationPolicy.backoff(
+            reconnectDelay,
+            attempt,
+            maximum: ProviderOperationPolicy.maxReconnectDelay,
+          ),
+        );
         if (_stopping || generation != _generation) return;
         try {
           await _connect();

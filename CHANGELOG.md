@@ -25,6 +25,7 @@
 - Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
+- Share bounded provider I/O and retry policies while keeping protocol adapters separate; cancel owned requests at shutdown and finish token persistence already in progress.
 - Own canonical resource declarations alongside each provider and derive the shared editor lookup from those same contracts.
 - Separate Twitch EventSub sockets, subscription declarations and event parsing, plus YouTube event parsing, from worker lifecycle management while preserving event routing and payloads.
 - Track plugin lifecycle separately from automation enable policy; serialize persisted toggles, start previously skipped modules once, preserve unused-registry teardown and roll back failed activation without disconnecting shared chat.

@@ -8,6 +8,7 @@ import '../../runtime/expression.dart';
 import '../iot/light_color.dart';
 import '../registry/plugin_contract.dart';
 import 'contracts.dart';
+import '../runtime/provider_operation_policy.dart';
 
 typedef KasaRequest = Future<RuntimeMap> Function(RuntimeMap request);
 
@@ -18,28 +19,44 @@ final class KasaTransport {
 }
 
 final class KasaTcpTransport {
-  const KasaTcpTransport({required this.host, this.port = 9999});
+  KasaTcpTransport({
+    required this.host,
+    this.port = 9999,
+    ProviderOperationScope? scope,
+  }) : _scope = scope ?? ProviderOperationScope();
+
+  final ProviderOperationScope _scope;
+  Future<void> close() => _scope.close();
 
   final String host;
   final int port;
 
   Future<RuntimeMap> request(RuntimeMap payload) async {
+    _scope.requireOpen();
     final socket = await Socket.connect(
       host,
       port,
-      timeout: const Duration(seconds: 2),
+      timeout: ProviderOperationPolicy.deviceConnectTimeout,
     );
+    void Function()? release;
     try {
+      _scope.requireOpen();
+      release = _scope.track(socket.destroy);
       final responseFuture = _readFrame(socket);
       socket.add(encodeKasaFrame(jsonEncode(payload)));
-      await socket.flush();
-      final response = await responseFuture.timeout(const Duration(seconds: 5));
+      // Listen for the reply immediately: shutdown can close the socket while
+      // bytes are still being flushed by the socket's own write queue.
+      final response = await responseFuture.timeout(
+        ProviderOperationPolicy.deviceReplyTimeout,
+      );
+      _scope.requireOpen();
       final decoded = jsonDecode(decodeKasaPayload(response));
       return decoded is Map
           ? Map<String, dynamic>.from(decoded)
           : <String, dynamic>{};
     } finally {
-      await socket.close();
+      release?.call();
+      socket.destroy();
     }
   }
 }
@@ -268,14 +285,16 @@ Future<List<int>> _readFrame(Socket socket) {
 
   subscription = socket.listen(
     (chunk) {
-      if (buffer.length + chunk.length > 1024 * 1024 + 4) {
+      if (buffer.length + chunk.length >
+          ProviderOperationPolicy.maxDeviceFrameBytes + 4) {
         rejectOversizedFrame();
         return;
       }
       buffer.addAll(chunk);
       if (buffer.length < 4) return;
-      final length = (buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3];
-      if (length > 1024 * 1024) {
+      final length =
+          (buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3];
+      if (length > ProviderOperationPolicy.maxDeviceFrameBytes) {
         rejectOversizedFrame();
         return;
       }

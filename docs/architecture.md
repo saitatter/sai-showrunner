@@ -90,6 +90,17 @@ own I/O cancellation and deadlines. Twitch/YouTube worker state remains the sour
 of truth for shared chat connections, separate from action transport readiness.
 An unconfigured provider is not evidence of a successful external connection.
 
+`ProviderOperationPolicy` defines shared request/body budgets, safe HTTP retry
+classification and saturating reconnect backoff. `ProviderOperationScope` owns
+physical abort callbacks and retry timers, rejects work after close and aborts
+registered resources once in reverse order. Provider adapters retain protocol,
+authentication, certificate and error semantics. Device HTTP has a whole-request
+deadline and bounded response bodies; Kasa/LIFX retain TCP/UDP-specific budgets.
+Configured default and per-resource clients share their module's cancellation
+scope. Borrowed HTTP clients remain caller-owned. Mutations are not retried by
+the common policy; existing provider-specific authentication refresh remains
+separate. Wyze shutdown awaits rotated-token persistence already in progress.
+
 Twitch and YouTube adapters publish `ProviderEventEnvelope` values containing
 platform, domain event type, provider ID when supplied, account/channel identity,
 time and a deeply immutable domain payload. Credential-shaped fields are removed

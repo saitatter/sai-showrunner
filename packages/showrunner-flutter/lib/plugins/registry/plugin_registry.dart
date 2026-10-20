@@ -7,6 +7,7 @@ import 'plugin_host_context.dart';
 import 'plugin_module.dart';
 import 'plugin_lifecycle.dart';
 import 'plugin_health.dart';
+import '../runtime/provider_operation_policy.dart';
 import 'plugin_registration.dart';
 import 'flutter_plugin_ui_contract.dart';
 
@@ -423,7 +424,7 @@ final class DartPluginRegistry extends ChangeNotifier {
     DartPluginHealth health;
     try {
       health = await pluginModule.checkHealth().timeout(
-        const Duration(seconds: 10),
+        ProviderOperationPolicy.healthTimeout,
       );
     } catch (error) {
       health = DartPluginHealth(

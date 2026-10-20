@@ -1,3 +1,4 @@
+import '../runtime/provider_operation_policy.dart';
 import 'dart:async';
 import '../../runtime/expression.dart';
 import '../../services/http_provider_transports.dart';
@@ -9,10 +10,12 @@ Future<void> registerConfiguredGovee(
   DartPluginRegistry registry, {
   required ShowRunnerDataService dataService,
 }) async {
+  final scope = ProviderOperationScope();
   final goveeSettings = await dataService.loadPluginSettings('govee');
   final goveeApiKey = goveeSettings['apiKey'] as String?;
   final goveeTransport = goveeApiKey?.isNotEmpty == true
       ? JsonHttpTransport(
+          operationScope: scope,
           baseUrl: 'https://developer-api.govee.com',
           headers: {'Govee-API-KEY': goveeApiKey!},
         )
@@ -25,6 +28,7 @@ Future<void> registerConfiguredGovee(
     initialHealth: (goveeTransport != null)
         ? const DartPluginHealth.connectionUnchecked()
         : const DartPluginHealth.notConfigured(),
+    onStop: scope.close,
   );
 }
 

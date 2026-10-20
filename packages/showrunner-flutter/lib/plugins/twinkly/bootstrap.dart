@@ -9,6 +9,7 @@ void registerConfiguredTwinkly(DartPluginRegistry registry) {
     createTwinklyPlugin(TwinklyTransport(twinklyTransport.request)),
 
     initialHealth: const DartPluginHealth.connectionUnchecked(),
+    onStop: twinklyTransport.close,
   );
 }
 

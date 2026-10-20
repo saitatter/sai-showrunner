@@ -1,3 +1,4 @@
+import '../runtime/provider_operation_policy.dart';
 import 'dart:async';
 import '../../runtime/expression.dart';
 import '../../services/showrunner_data_service.dart';
@@ -9,10 +10,12 @@ Future<void> registerConfiguredLifx(
   DartPluginRegistry registry, {
   required ShowRunnerDataService dataService,
 }) async {
+  final scope = ProviderOperationScope();
   final lifxSettings = await dataService.loadPluginSettings('lifx');
   final lifxHost = lifxSettings['host']?.toString().trim();
   final lifxTransport = lifxHost?.isNotEmpty == true
       ? LifxUdpTransport(
+          scope: scope,
           host: lifxHost!,
           port: pluginPort(lifxSettings['port'], 56700),
           target: parseLifxTarget(lifxSettings['target']?.toString()),
@@ -26,6 +29,7 @@ Future<void> registerConfiguredLifx(
         final host = config['host']?.toString().trim() ?? '';
         if (host.isEmpty) return configuredLifxTransport;
         return LifxUdpTransport(
+          scope: scope,
           host: host,
           port: pluginPort(config['port'], 56700),
           target: parseLifxTarget(config['target']?.toString()),
@@ -36,6 +40,7 @@ Future<void> registerConfiguredLifx(
     initialHealth: (lifxTransport != null)
         ? const DartPluginHealth.connectionUnchecked()
         : const DartPluginHealth.notConfigured(),
+    onStop: scope.close,
   );
 }
 
