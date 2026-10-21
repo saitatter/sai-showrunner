@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:showrunner_flutter/graph/runtime/automation_contract_validation.dart';
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/graph/runtime/compiler_labels.dart';
 import 'package:showrunner_flutter/graph/runtime/compiler_slots.dart';
@@ -96,6 +99,92 @@ void main() {
     expect(vmNormalizeActionResult(42), {'_result': 42});
     expect(vmNormalizeActionResult(null), isNull);
   });
+  test(
+    'corrupted node types and missing entries fail without document mutation',
+    () {
+      for (final doc in [
+        automationFixture(
+          nodes: [GraphNode(id: 'bad', type: 'unknown.corrupted')],
+          entryNodeId: 'bad',
+        ),
+        automationFixture(nodes: [actionFixture('a')], entryNodeId: 'missing'),
+      ]) {
+        final before = jsonEncode(doc.toJson());
+        expect(
+          () => DartProductionGraphCompiler().compileAutomation(doc),
+          throwsStateError,
+        );
+        expect(jsonEncode(doc.toJson()), before);
+      }
+    },
+  );
+  test(
+    'missing action and trigger contracts fail validation without mutation',
+    () async {
+      final registry = DartPluginRegistry();
+      try {
+        for (final doc in [
+          automationFixture(nodes: [actionFixture('a')], entryNodeId: 'a'),
+          eventFixture(id: 'trigger'),
+        ]) {
+          final before = jsonEncode(doc.toJson());
+          expect(
+            () => validateAutomationContracts(doc, registry),
+            throwsStateError,
+          );
+          expect(jsonEncode(doc.toJson()), before);
+        }
+      } finally {
+        await registry.close();
+      }
+    },
+  );
+  test(
+    'unsupported document versions are rejected without rewriting input',
+    () {
+      final wire = automationFixture().toJson();
+      wire['schemaVersion'] = 999;
+      final before = jsonEncode(wire);
+      expect(() => AutomationDocument.fromJson(wire), throwsFormatException);
+      expect(jsonEncode(wire), before);
+    },
+  );
+  test(
+    'ordinary control cycles compile deterministically and obey VM step guard',
+    () async {
+      final doc = automationFixture(
+        nodes: [actionFixture('a')],
+        connections: [controlFixture('repeat', 'a', 'a')],
+        entryNodeId: 'a',
+      );
+      final compiler = DartProductionGraphCompiler();
+      final program = compiler.compileAutomation(doc);
+      final again = compiler.compileAutomation(doc);
+      expect(
+        [
+          for (final i in again.instructions)
+            (i.op, i.arg0, i.nodeId, i.edgeId),
+        ],
+        [
+          for (final i in program.instructions)
+            (i.op, i.arg0, i.nodeId, i.edgeId),
+        ],
+      );
+      var calls = 0;
+      await expectLater(
+        DartGraphVm(program, maxInstructions: 12).execute(
+          context: EvaluationContext(),
+          action: (node, config, context) async {
+            calls++;
+            return null;
+          },
+        ),
+        throwsStateError,
+      );
+      expect(calls, greaterThan(0));
+      expect(calls, lessThan(12));
+    },
+  );
   final valid = DartProductionGraphCompiler().compileAutomation(
     automationFixture(nodes: [actionFixture('a')], entryNodeId: 'a'),
   );
