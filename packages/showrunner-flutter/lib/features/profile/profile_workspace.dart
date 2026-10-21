@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import '../../graph/domain/automation_document.dart';
 import 'dart:io';
 import 'dart:async';
@@ -388,7 +389,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     final repo = ProfileRepository(
       File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
     );
-    await repo.save(profile);
+    await repo.save(profile, requireAbsent: true);
     await _load();
     final index = _entries.indexWhere((entry) => entry.fileName == fileName);
     if (index != -1 && mounted) {
@@ -423,7 +424,12 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
           '${widget.dataService.userDirectory.path}/profiles/${entry.fileName}',
         ),
       );
-      await repo.save(updated);
+      await repo.save(
+        updated,
+        expectedRevision: original == null
+            ? null
+            : DocumentRevision.of(original.toJson()),
+      );
       await _load();
       widget.onEntriesChanged?.call();
     } catch (error) {
@@ -465,12 +471,16 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         !await _confirmClose()) {
       return;
     }
-    final file = File(
-      '${widget.dataService.userDirectory.path}/profiles/$fileName',
-    );
-    if (await file.exists()) {
-      await file.delete();
+    final entry = _entries
+        .where((entry) => entry.fileName == fileName)
+        .firstOrNull;
+    final original = entry?.profile;
+    if (original == null) {
+      throw StateError('Cannot delete an unreadable profile.');
     }
+    await ProfileRepository(
+      File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
+    ).delete(expectedRevision: DocumentRevision.of(original.toJson()));
     _selectedIndex = null;
     _markClean();
     await _load();

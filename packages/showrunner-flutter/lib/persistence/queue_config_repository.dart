@@ -1,9 +1,8 @@
+import 'document_revision.dart';
+import 'filesystem/typed_document_file.dart';
 import 'document_codec.dart';
 import 'dart:io';
 
-import 'package:yaml/yaml.dart';
-
-import 'filesystem/atomic_file.dart';
 import 'filesystem/safe_path.dart';
 import '../schema/queue.dart';
 
@@ -45,22 +44,40 @@ final class QueueConfigRepository {
       throw ArgumentError('Queue file leaves the repository.');
     }
     file = await containedFile(directory, [file.uri.pathSegments.last]);
-    final parsed = decodeYamlValue(loadYaml(await file.readAsString()));
-    if (parsed is! Map) {
-      throw const FormatException('Queue config must contain an object.');
-    }
-    return QueueConfig.fromJson(Map<String, dynamic>.from(parsed));
+    final config = await _store(file).load();
+    if (config == null) throw const FormatException('Queue config is missing.');
+    return config;
   }
 
-  Future<void> save(String fileName, QueueConfig config) async {
+  TypedDocumentFile<QueueConfig> _store(File file) => TypedDocumentFile(
+    file: file,
+    kind: 'queue',
+    decode: QueueConfig.fromJson,
+    encode: (value) => value.toJson(),
+    format: encodeYaml,
+  );
+
+  Future<void> save(
+    String fileName,
+    QueueConfig config, {
+    DocumentRevision? expectedRevision,
+    bool requireAbsent = false,
+  }) async {
     validateFileIdentifier(fileName);
     final file = await containedFile(directory, [fileName]);
-    await writeAtomicText(file, encodeYaml(config.toJson()));
+    await _store(file).save(
+      config,
+      expectedRevision: expectedRevision,
+      requireAbsent: requireAbsent,
+    );
   }
 
-  Future<void> delete(String fileName) async {
+  Future<void> delete(
+    String fileName, {
+    DocumentRevision? expectedRevision,
+  }) async {
     validateFileIdentifier(fileName);
     final file = await containedFile(directory, [fileName]);
-    if (await file.exists()) await file.delete();
+    await _store(file).delete(expectedRevision: expectedRevision);
   }
 }

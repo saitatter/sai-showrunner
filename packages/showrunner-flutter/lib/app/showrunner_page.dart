@@ -1,3 +1,4 @@
+import '../persistence/document_revision.dart';
 import '../graph/ui/trace_frame_updates.dart';
 import '../runtime/graph_invocation.dart';
 import 'application_controller.dart';

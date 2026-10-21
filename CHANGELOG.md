@@ -7,13 +7,14 @@
 ### Fixes
 - Serialize viewer updates across repository owners, reject stale definition edits and report corrupt viewer data instead of silently skipping it; preserve provider-qualified identities and group membership.
 - Keep resource form drafts open after failed saves and prevent duplicate submissions without exposing credential-bearing errors.
-- Reject stale resource editor saves/deletes and duplicate creation instead of silently replacing another owner’s data; preserve newer in-flight edits when advancing the saved baseline.
+- Reject stale resource, automation, profile and queue editor saves/deletes and duplicate creation instead of silently replacing another owner’s data; preserve newer in-flight edits when advancing the saved baseline.
 - Reject dangling filesystem redirects and recursive YAML aliases, handle secret roots with trailing separators and clear native DPAPI buffers after use.
 - Recover plugin settings and encrypted credentials together after interrupted saves, serialize independent settings owners and keep unknown encrypted fields out of public settings/resource files.
 - Recover resource config, runtime state and encrypted credentials as one generation after interrupted saves/deletes; serialize repository owners across processes and preserve externally changed files on recovery conflicts.
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Share typed single-document storage across automation/profile/queue repositories, with explicit domain store contracts and validation under the same owner lock as atomic publication.
 - Split resource editors into provider-owned Flutter libraries and contribution packs, with shared form controls, explicit editing capabilities and safe read-only fallbacks for unavailable or malformed resources.
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 

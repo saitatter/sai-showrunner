@@ -37,7 +37,7 @@ void main() {
     expect(unsupportedEntry.isValid, isFalse);
     expect(unsupportedEntry.error, isA<FormatException>());
 
-    final reopened = await AutomationRepository(canonicalFile).loadStrict();
+    final reopened = await AutomationRepository(canonicalFile).load();
     expect(reopened?.toJson(), canonical.toJson());
     expect(await canonicalFile.exists(), isTrue);
     expect(await unsupportedFile.exists(), isTrue);

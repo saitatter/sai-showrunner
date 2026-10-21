@@ -128,7 +128,7 @@ final class ShowRunnerServices {
           'automations',
           fileName,
         ]);
-        return AutomationRepository(file).loadStrict();
+        return AutomationRepository(file).load();
       },
     );
     pluginRegistryFuture =

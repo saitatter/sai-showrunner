@@ -1,11 +1,7 @@
-import 'document_codec.dart';
+import 'document_revision.dart';
+import 'filesystem/typed_document_file.dart';
 import '../graph/domain/automation_document.dart';
-import 'dart:convert';
 import 'dart:io';
-
-import 'package:yaml/yaml.dart';
-
-import 'filesystem/atomic_file.dart';
 
 final class AutomationCatalogEntry {
   const AutomationCatalogEntry({
@@ -21,31 +17,29 @@ final class AutomationCatalogEntry {
   bool get isValid => automation != null && error == null;
 }
 
-final class AutomationRepository {
+abstract interface class AutomationStore {
+  Future<AutomationDocument?> load();
+  Future<void> save(
+    AutomationDocument document, {
+    DocumentRevision? expectedRevision,
+    bool requireAbsent = false,
+  });
+  Future<void> delete({DocumentRevision? expectedRevision});
+}
+
+final class AutomationRepository implements AutomationStore {
   const AutomationRepository(this.file);
 
   final File file;
 
-  Future<AutomationDocument?> load() => loadStrict();
-
-  /// Loads only the canonical version-1 automation envelope.
-  Future<AutomationDocument?> loadStrict() async {
-    if (!await file.exists()) return null;
-    final contents = await file.readAsString();
-    dynamic decoded;
-    try {
-      decoded = jsonDecode(contents);
-    } on FormatException {
-      decoded = decodeYamlValue(loadYaml(contents));
-    }
-    if (decoded is! Map) {
-      throw const FormatException(
-        'Automation file must contain a JSON object.',
-      );
-    }
-    final source = Map<String, dynamic>.from(decoded);
-    return AutomationDocument.fromJson(source);
-  }
+  TypedDocumentFile<AutomationDocument> get _store => TypedDocumentFile(
+    file: file,
+    kind: 'automation',
+    decode: AutomationDocument.fromJson,
+    encode: (document) => document.toJson(),
+  );
+  @override
+  Future<AutomationDocument?> load() => _store.load();
 
   static Future<List<AutomationCatalogEntry>> loadDirectory(
     Directory directory,
@@ -70,14 +64,17 @@ final class AutomationRepository {
     return entries;
   }
 
-  Future<void> save(AutomationDocument automation) async {
-    await writeAtomicText(
-      file,
-      const JsonEncoder.withIndent('  ').convert(automation.toJson()),
-    );
-  }
-
-  Future<void> delete() async {
-    if (await file.exists()) await file.delete();
-  }
+  @override
+  Future<void> save(
+    AutomationDocument document, {
+    DocumentRevision? expectedRevision,
+    bool requireAbsent = false,
+  }) => _store.save(
+    document,
+    expectedRevision: expectedRevision,
+    requireAbsent: requireAbsent,
+  );
+  @override
+  Future<void> delete({DocumentRevision? expectedRevision}) =>
+      _store.delete(expectedRevision: expectedRevision);
 }

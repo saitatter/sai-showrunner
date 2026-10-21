@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import '../../components/data_inputs/numeric_input_formatter.dart';
 import 'dart:async';
 import 'dart:io';
@@ -103,7 +104,11 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
     );
     if (name == null || name.isEmpty) return;
     final fileName = 'queue_${DateTime.now().millisecondsSinceEpoch}.yaml';
-    await _repository.save(fileName, QueueConfig(name: name));
+    await _repository.save(
+      fileName,
+      QueueConfig(name: name),
+      requireAbsent: true,
+    );
     await widget.queueManager?.applyConfig(fileName, QueueConfig(name: name));
     await _load();
     if (mounted) {
@@ -120,13 +125,25 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
       builder: (_) => _EditQueueDialog(config: config),
     );
     if (result == null || result.name.isEmpty) return;
-    await _repository.save(fileName, result);
+    await _repository.save(
+      fileName,
+      result,
+      expectedRevision: DocumentRevision.of(config.toJson()),
+    );
     await widget.queueManager?.applyConfig(fileName, result);
     await _load();
   }
 
   Future<void> _deleteQueue(String fileName) async {
-    await _repository.delete(fileName);
+    final entry = _entries
+        .where((entry) => entry.fileName == fileName)
+        .firstOrNull;
+    final current = entry?.config;
+    if (current == null) throw StateError('Cannot delete an unreadable queue.');
+    await _repository.delete(
+      fileName,
+      expectedRevision: DocumentRevision.of(current.toJson()),
+    );
     _selectedIndex = null;
     if (widget.queueManager?.registeredQueue(fileName) case final queue?) {
       queue.clearPending();

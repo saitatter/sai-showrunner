@@ -43,7 +43,7 @@ void main() {
     );
 
     await expectLater(
-      AutomationRepository(file).loadStrict(),
+      AutomationRepository(file).load(),
       throwsA(isA<FormatException>()),
     );
   });

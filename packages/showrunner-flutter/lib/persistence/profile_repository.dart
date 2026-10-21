@@ -1,10 +1,7 @@
-import 'document_codec.dart';
-import 'dart:convert';
+import 'document_revision.dart';
+import 'filesystem/typed_document_file.dart';
 import 'dart:io';
 
-import 'package:yaml/yaml.dart';
-
-import 'filesystem/atomic_file.dart';
 import '../schema/profile.dart';
 
 final class ProfileCatalogEntry {
@@ -17,7 +14,17 @@ final class ProfileCatalogEntry {
   bool get isValid => profile != null && error == null;
 }
 
-final class ProfileRepository {
+abstract interface class ProfileStore {
+  Future<ShowRunnerProfile?> load();
+  Future<void> save(
+    ShowRunnerProfile document, {
+    DocumentRevision? expectedRevision,
+    bool requireAbsent = false,
+  });
+  Future<void> delete({DocumentRevision? expectedRevision});
+}
+
+final class ProfileRepository implements ProfileStore {
   const ProfileRepository(this.file);
 
   final File file;
@@ -49,26 +56,25 @@ final class ProfileRepository {
     return entries;
   }
 
-  Future<ShowRunnerProfile?> load() async {
-    if (!await file.exists()) return null;
-    final contents = await file.readAsString();
-    dynamic decoded;
-    try {
-      decoded = jsonDecode(contents);
-    } on FormatException {
-      decoded = decodeYamlValue(loadYaml(contents));
-    }
-    if (decoded is! Map) {
-      throw const FormatException('Profile file must contain a JSON object.');
-    }
-    final source = Map<String, dynamic>.from(decoded);
-    return ShowRunnerProfile.fromJson(source);
-  }
-
-  Future<void> save(ShowRunnerProfile profile) async {
-    await writeAtomicText(
-      file,
-      const JsonEncoder.withIndent('  ').convert(profile.toJson()),
-    );
-  }
+  TypedDocumentFile<ShowRunnerProfile> get _store => TypedDocumentFile(
+    file: file,
+    kind: 'profile',
+    decode: ShowRunnerProfile.fromJson,
+    encode: (document) => document.toJson(),
+  );
+  @override
+  Future<ShowRunnerProfile?> load() => _store.load();
+  @override
+  Future<void> save(
+    ShowRunnerProfile document, {
+    DocumentRevision? expectedRevision,
+    bool requireAbsent = false,
+  }) => _store.save(
+    document,
+    expectedRevision: expectedRevision,
+    requireAbsent: requireAbsent,
+  );
+  @override
+  Future<void> delete({DocumentRevision? expectedRevision}) =>
+      _store.delete(expectedRevision: expectedRevision);
 }
