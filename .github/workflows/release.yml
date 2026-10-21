@@ -133,7 +133,7 @@ jobs:
     permissions:
       contents: write
     needs: [plan, prepare]
-    if: needs.plan.outputs.publish == 'true' && !inputs.dry_run
+    if: always() && needs.plan.result == 'success' && needs.prepare.result == 'success' && needs.plan.outputs.publish == 'true' && !inputs.dry_run
     steps:
       - name: Checkout released commit
         uses: actions/checkout@v7
