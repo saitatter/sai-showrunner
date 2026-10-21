@@ -1,3 +1,6 @@
+import 'dart:convert';
+import '../schema/identifiers.dart';
+import '../persistence/plugin_settings_store.dart';
 import '../persistence/document_codec.dart';
 import 'dart:io';
 
@@ -59,50 +62,19 @@ final class ShowRunnerDataService {
     );
   }
 
-  Future<JsonMap> loadPluginSettings(String pluginId) async {
-    validateFileIdentifier(pluginId);
-    final file = await containedFile(settingsDirectory, ['$pluginId.yaml']);
-    final values = <String, dynamic>{};
-    if (await file.exists()) {
-      final parsed = loadYaml(await file.readAsString());
-      if (parsed is! YamlMap) {
-        throw const FormatException('Plugin settings must contain a map.');
-      }
-      values.addAll(_toMap(parsed));
-    }
-    values.addAll(await secretSettingsStore.load(pluginId));
-    return values;
-  }
+  PluginSettingsStore get pluginSettingsStore => FilePluginSettingsStore(
+    directory: settingsDirectory,
+    secrets: secretSettingsStore,
+  );
 
-  Future<void> savePluginSettings(String pluginId, JsonMap settings) {
-    validateFileIdentifier(pluginId);
-    return withFileLock(
-      '${settingsDirectory.path}/$pluginId.transaction',
-      () => _savePluginSettings(pluginId, settings),
-    );
-  }
+  Future<JsonMap> loadPluginSettings(String pluginId) =>
+      pluginSettingsStore.load(PluginId(pluginId));
 
-  Future<void> _savePluginSettings(String pluginId, JsonMap settings) async {
-    final secretKeys = secretSettingIdsFor(pluginId);
-    final publicSettings = <String, dynamic>{
-      for (final entry in settings.entries)
-        if (!secretKeys.contains(entry.key)) entry.key: entry.value,
-    };
-    final secretSettings = <String, dynamic>{
-      for (final key in secretKeys)
-        if (settings.containsKey(key)) key: settings[key],
-    };
-    if (secretSettings.isNotEmpty) {
-      final existing = await _loadSecretSettings(pluginId);
-      await secretSettingsStore.save(pluginId, {
-        ...existing,
-        ...secretSettings,
-      });
-    }
-    validateFileIdentifier(pluginId);
-    final file = await containedFile(settingsDirectory, ['$pluginId.yaml']);
-    await writeAtomicText(file, encodeYaml(publicSettings));
-  }
+  Future<bool> pluginSettingsExist(String pluginId) =>
+      pluginSettingsStore.exists(PluginId(pluginId));
+
+  Future<void> savePluginSettings(String pluginId, JsonMap settings) =>
+      pluginSettingsStore.save(PluginId(pluginId), settings);
 
   Future<void> updatePluginSetting(
     String pluginId,
@@ -110,30 +82,18 @@ final class ShowRunnerDataService {
     dynamic value,
   ) => updatePluginSettings(pluginId, {settingId: value});
 
-  /// Atomically merge independent settings owners without a stale read/write.
-  Future<void> updatePluginSettings(String pluginId, JsonMap patch) =>
-      transformPluginSettings(pluginId, (settings) => {...settings, ...patch});
-
-  /// Transform one settings document while holding the same transaction lock as
-  /// all other writers. Collection edits must read inside this lock as well.
-  Future<void> transformPluginSettings(
-    String pluginId,
-    JsonMap Function(JsonMap settings) transform,
-  ) async {
-    validateFileIdentifier(pluginId);
-    await withFileLock(
-      '${settingsDirectory.path}/$pluginId.transaction',
-      () async {
-        final settings = await loadPluginSettings(pluginId);
-        await _savePluginSettings(pluginId, transform(settings));
-      },
+  Future<void> updatePluginSettings(String pluginId, JsonMap patch) {
+    final snapshot = jsonDecode(jsonEncode(patch)) as JsonMap;
+    return transformPluginSettings(
+      pluginId,
+      (settings) => {...settings, ...snapshot},
     );
   }
 
-  Future<JsonMap> _loadSecretSettings(String pluginId) async {
-    // A decryption failure must never authorize overwriting an existing secret.
-    return secretSettingsStore.load(pluginId);
-  }
+  Future<void> transformPluginSettings(
+    String pluginId,
+    JsonMap Function(JsonMap settings) transform,
+  ) => pluginSettingsStore.transform(PluginId(pluginId), transform);
 
   Future<Map<String, JsonMap>> loadResourceConfigs(
     String resourceDirectory,

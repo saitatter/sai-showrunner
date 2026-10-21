@@ -386,6 +386,11 @@ widgets:
       isFalse,
     );
     expect((await repository.load('yaml-resource'))?.name, 'Updated overlay');
-    expect((await directory.list().toList()), hasLength(1));
+    expect(
+      (await directory.list().where((entity) => entity is File).toList()).map(
+        (entity) => entity.uri.pathSegments.last,
+      ),
+      ['yaml-resource.yaml'],
+    );
   });
 }

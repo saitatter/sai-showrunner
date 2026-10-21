@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
@@ -349,10 +348,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     await commands.load();
     try {
       final saved = await dataService.loadPluginSettings('chat');
-      if (saved.isNotEmpty ||
-          await File(
-            '${dataService.settingsDirectory.path}/chat.yaml',
-          ).exists()) {
+      if (saved.isNotEmpty || await dataService.pluginSettingsExist('chat')) {
         preferences = ChatPreferences.fromJson(saved);
       }
     } catch (failure) {
@@ -362,9 +358,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     try {
       final saved = await dataService.loadPluginSettings('chat-actions');
       if (saved.isNotEmpty ||
-          await File(
-            '${dataService.settingsDirectory.path}/chat-actions.yaml',
-          ).exists()) {
+          await dataService.pluginSettingsExist('chat-actions')) {
         if (saved['version'] != 1) {
           throw const FormatException('Unsupported chat actions version.');
         }
