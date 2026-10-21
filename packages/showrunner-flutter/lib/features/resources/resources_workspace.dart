@@ -306,17 +306,14 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
           }
         }
 
-        final runtimeBuilder = editor.runtimeBuilder;
-        final content = runtimeBuilder != null && widget.registryFuture != null
-            ? runtimeBuilder(
-                context,
-                resource,
-                save,
-                registryFuture: widget.registryFuture!,
-                resourceOptionsLoader: (resourceType) =>
-                    loadResourceOptions(dataService, resourceType),
-              )
-            : editor.builder(context, resource, save);
+        final content = editor.build(
+          context,
+          resource,
+          save,
+          registryFuture: widget.registryFuture,
+          resourceOptionsLoader: (type) =>
+              loadResourceOptions(dataService, type),
+        );
         return MediaPickerScope(
           directory: Directory('${dataService.userDirectory.path}/media'),
           child: content,

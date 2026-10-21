@@ -1,7 +1,16 @@
-part of '../resource_editor_registry.dart';
+import 'package:showrunner_flutter/components/data_inputs/numeric_input_formatter.dart';
+import 'package:flutter/material.dart';
 
-class _OverlayWidgetInspector extends StatelessWidget {
-  const _OverlayWidgetInspector({
+import 'package:showrunner_flutter/schema/json.dart';
+import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_editor.dart';
+import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_model.dart';
+import 'package:showrunner_flutter/plugins/overlays/generated_widget_catalog.dart';
+
+import 'package:showrunner_flutter/plugins/overlays/ui/editor/overlay_widget_config_editor.dart';
+import 'package:showrunner_flutter/plugins/overlays/ui/editor/overlay_widget_presentation.dart';
+
+class OverlayWidgetInspector extends StatelessWidget {
+  const OverlayWidgetInspector({
     super.key,
     required this.widgetConfig,
     required this.onChanged,
@@ -25,8 +34,8 @@ class _OverlayWidgetInspector extends StatelessWidget {
     final config = widgetConfig['config'] is Map
         ? Map<String, dynamic>.from(widgetConfig['config'] as Map)
         : const <String, dynamic>{};
-    final pluginId = _definitionPluginId(widgetConfig);
-    final widgetId = _definitionWidgetId(widgetConfig);
+    final pluginId = OverlayWidgetPresentation.pluginId(widgetConfig);
+    final widgetId = OverlayWidgetPresentation.widgetId(widgetConfig);
     final definition = catalog.cast<GeneratedOverlayWidget?>().firstWhere(
       (candidate) =>
           candidate?.pluginId == pluginId && candidate?.id == widgetId,
@@ -37,7 +46,7 @@ class _OverlayWidgetInspector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _OverlayWidgetConfigEditor(
+        OverlayWidgetConfigEditor(
           plugin: resolvedPlugin,
           widget: resolvedWidget,
           config: config,

@@ -1,16 +1,95 @@
-part of '../resource_editor_registry.dart';
+import 'package:showrunner_flutter/components/data_inputs/numeric_input_formatter.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
 
-class _DashboardEditor extends StatefulWidget {
-  const _DashboardEditor({required this.resource, required this.onSave});
+import 'package:showrunner_flutter/schema/json.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
+import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
+import 'package:showrunner_flutter/plugins/dashboards/ui/dashboard_widget_config.dart';
+
+import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
+import 'package:showrunner_flutter/components/data_inputs/resource_field_values.dart';
+import 'package:showrunner_flutter/plugins/overlays/ui/editor/overlay_widget_presentation.dart';
+
+int _dashboardIdCounter = 0;
+
+String _newDashboardId(String prefix) =>
+    '$prefix-${DateTime.now().microsecondsSinceEpoch}-${_dashboardIdCounter++}';
+
+String _dashboardId(Object? value, String prefix) {
+  final id = value?.toString().trim();
+  return id == null || id.isEmpty ? _newDashboardId(prefix) : id;
+}
+
+String _dashboardValue(Object? value, String fallback) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty ? fallback : text;
+}
+
+JsonMap _dashboardWidget(Map value) {
+  final size = value['size'] is Map
+      ? Map<String, dynamic>.from(value['size'] as Map)
+      : const <String, dynamic>{};
+  final config = value['config'] is Map
+      ? Map<String, dynamic>.from(value['config'] as Map)
+      : <String, dynamic>{
+          'label': value['title']?.toString() ?? 'New widget',
+          'color': '#000000',
+        };
+  return {
+    ...Map<String, dynamic>.from(value),
+    'id': _dashboardId(value['id'], 'widget'),
+    'plugin': _dashboardValue(value['plugin'], 'dashboards'),
+    'widget': _dashboardValue(value['widget'], 'label'),
+    'size': {
+      'width': (size['width'] as num?)?.toInt() ?? 4,
+      'height': (size['height'] as num?)?.toInt() ?? 1,
+    },
+    'config': config,
+  };
+}
+
+JsonMap _dashboardSection(Map value) {
+  final widgets = ResourceFieldValues.maps(
+    value['widgets'],
+  ).map(_dashboardWidget).toList();
+  return {
+    ...Map<String, dynamic>.from(value),
+    'id': _dashboardId(value['id'], 'section'),
+    'name': value['name']?.toString() ?? 'New section',
+    'columns': (value['columns'] as num?)?.toInt() ?? 4,
+    'widgets': widgets,
+  };
+}
+
+JsonMap _dashboardPage(Map value) {
+  final sections = ResourceFieldValues.maps(
+    value['sections'],
+  ).map(_dashboardSection).toList();
+  return {
+    ...Map<String, dynamic>.from(value),
+    'id': _dashboardId(value['id'], 'page'),
+    'name': value['name']?.toString() ?? 'New page',
+    'sections': sections,
+  };
+}
+
+class DashboardEditor extends StatefulWidget {
+  const DashboardEditor({
+    super.key,
+    required this.resource,
+    required this.onSave,
+  });
 
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
 
   @override
-  State<_DashboardEditor> createState() => _DashboardEditorState();
+  State<DashboardEditor> createState() => _DashboardEditorState();
 }
 
-class _DashboardEditorState extends State<_DashboardEditor> {
+class _DashboardEditorState extends State<DashboardEditor> {
   late final TextEditingController _name;
   late final TextEditingController _remoteTwitchIds;
   late List<JsonMap> _pages;
@@ -23,12 +102,16 @@ class _DashboardEditorState extends State<_DashboardEditor> {
       text: widget.resource.config['name']?.toString() ?? '',
     );
     _remoteTwitchIds = TextEditingController(
-      text: _strings(widget.resource.config['remoteTwitchIds']).join(', '),
+      text: ResourceFieldValues.strings(
+        widget.resource.config['remoteTwitchIds'],
+      ).join(', '),
     );
-    _pages = _maps(
+    _pages = ResourceFieldValues.maps(
       widget.resource.config['pages'],
     ).map(_dashboardPage).toList();
-    _resourceSlots = _maps(widget.resource.config['resourceSlots']);
+    _resourceSlots = ResourceFieldValues.maps(
+      widget.resource.config['resourceSlots'],
+    );
   }
 
   @override
@@ -39,7 +122,7 @@ class _DashboardEditorState extends State<_DashboardEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
+  Widget build(BuildContext context) => ResourceForm(
     title: 'Edit dashboard',
     fields: [
       TextField(
@@ -111,7 +194,11 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                   onPressed: index == 0
                       ? null
                       : () => setState(
-                          () => _moveListItem(_resourceSlots, index, index - 1),
+                          () => ResourceFieldValues.moveListItem(
+                            _resourceSlots,
+                            index,
+                            index - 1,
+                          ),
                         ),
                   icon: const Icon(Icons.arrow_upward),
                 ),
@@ -120,7 +207,11 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                   onPressed: index == _resourceSlots.length - 1
                       ? null
                       : () => setState(
-                          () => _moveListItem(_resourceSlots, index, index + 1),
+                          () => ResourceFieldValues.moveListItem(
+                            _resourceSlots,
+                            index,
+                            index + 1,
+                          ),
                         ),
                   icon: const Icon(Icons.arrow_downward),
                 ),
@@ -176,7 +267,11 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                   onPressed: pageIndex == 0
                       ? null
                       : () => setState(
-                          () => _moveListItem(_pages, pageIndex, pageIndex - 1),
+                          () => ResourceFieldValues.moveListItem(
+                            _pages,
+                            pageIndex,
+                            pageIndex - 1,
+                          ),
                         ),
                   icon: const Icon(Icons.arrow_upward),
                 ),
@@ -185,7 +280,11 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                   onPressed: pageIndex == _pages.length - 1
                       ? null
                       : () => setState(
-                          () => _moveListItem(_pages, pageIndex, pageIndex + 1),
+                          () => ResourceFieldValues.moveListItem(
+                            _pages,
+                            pageIndex,
+                            pageIndex + 1,
+                          ),
                         ),
                   icon: const Icon(Icons.arrow_downward),
                 ),
@@ -251,7 +350,7 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                 onPressed: sectionIndex == 0
                     ? null
                     : () => setState(
-                        () => _moveListItem(
+                        () => ResourceFieldValues.moveListItem(
                           sections,
                           sectionIndex,
                           sectionIndex - 1,
@@ -264,7 +363,7 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                 onPressed: sectionIndex == sections.length - 1
                     ? null
                     : () => setState(
-                        () => _moveListItem(
+                        () => ResourceFieldValues.moveListItem(
                           sections,
                           sectionIndex,
                           sectionIndex + 1,
@@ -290,7 +389,7 @@ class _DashboardEditorState extends State<_DashboardEditor> {
               dense: true,
               onTap: () => _editWidget(widgets, index),
               leading: const Icon(Icons.widgets_outlined),
-              title: Text(_widgetTitle(widgets[index])),
+              title: Text(OverlayWidgetPresentation.title(widgets[index])),
               subtitle: Text(
                 '${widgets[index]['plugin'] ?? 'unknown'} / ${widgets[index]['widget'] ?? widgets[index]['type'] ?? 'unknown'}',
               ),
@@ -301,7 +400,11 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                     onPressed: index == 0
                         ? null
                         : () => setState(
-                            () => _moveListItem(widgets, index, index - 1),
+                            () => ResourceFieldValues.moveListItem(
+                              widgets,
+                              index,
+                              index - 1,
+                            ),
                           ),
                     icon: const Icon(Icons.arrow_upward),
                   ),
@@ -310,7 +413,11 @@ class _DashboardEditorState extends State<_DashboardEditor> {
                     onPressed: index == widgets.length - 1
                         ? null
                         : () => setState(
-                            () => _moveListItem(widgets, index, index + 1),
+                            () => ResourceFieldValues.moveListItem(
+                              widgets,
+                              index,
+                              index + 1,
+                            ),
                           ),
                     icon: const Icon(Icons.arrow_downward),
                   ),

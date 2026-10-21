@@ -1,7 +1,15 @@
-part of '../resource_editor_registry.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
 
-class _OverlayWidgetConfigEditor extends StatelessWidget {
-  const _OverlayWidgetConfigEditor({
+import 'package:showrunner_flutter/schema/json.dart';
+import 'package:showrunner_flutter/features/resources/overlay/overlay_document.dart';
+import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
+import 'package:showrunner_flutter/components/data_inputs/overlay_style_inputs.dart';
+import 'package:showrunner_flutter/plugins/overlays/generated_widget_catalog.dart';
+
+class OverlayWidgetConfigEditor extends StatelessWidget {
+  const OverlayWidgetConfigEditor({
+    super.key,
     required this.plugin,
     required this.widget,
     required this.config,

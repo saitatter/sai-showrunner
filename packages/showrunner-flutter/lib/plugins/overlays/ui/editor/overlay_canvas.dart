@@ -1,4 +1,11 @@
-part of '../resource_editor_registry.dart';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+
+import 'package:showrunner_flutter/schema/json.dart';
+import 'package:showrunner_flutter/features/resources/overlay/overlay_document.dart';
+import 'package:showrunner_flutter/plugins/overlays/generated_widget_catalog.dart';
+
+import 'package:showrunner_flutter/plugins/overlays/ui/editor/overlay_widget_presentation.dart';
 
 class _OverlayAlignmentPainter extends CustomPainter {
   const _OverlayAlignmentPainter(this.vertical, this.horizontal, this.scale);
@@ -37,7 +44,7 @@ class _OverlayAlignmentPainter extends CustomPainter {
       old.scale != scale;
 }
 
-enum _OverlayResizeHandle {
+enum OverlayResizeHandle {
   topLeft,
   top,
   topRight,
@@ -75,8 +82,9 @@ enum _OverlayResizeHandle {
   };
 }
 
-class _OverlayCanvas extends StatelessWidget {
-  const _OverlayCanvas({
+class OverlayCanvas extends StatelessWidget {
+  const OverlayCanvas({
+    super.key,
     required this.width,
     required this.height,
     required this.widgets,
@@ -106,7 +114,7 @@ class _OverlayCanvas extends StatelessWidget {
   final void Function(int index, Offset delta, double tolerance) onMove;
   final void Function(
     int index,
-    _OverlayResizeHandle handle,
+    OverlayResizeHandle handle,
     Offset delta,
     double tolerance,
   )
@@ -225,15 +233,15 @@ class _OverlayCanvas extends StatelessWidget {
     final hidden = widgetConfig['visible'] == false;
     final locked = widgetConfig['locked'] == true;
     final kind = widgetConfig['widget']?.toString() ?? 'widget';
-    final pluginId = _definitionPluginId(widgetConfig);
-    final widgetId = _definitionWidgetId(widgetConfig);
+    final pluginId = OverlayWidgetPresentation.pluginId(widgetConfig);
+    final widgetId = OverlayWidgetPresentation.widgetId(widgetConfig);
     final isLabel = widgetId == 'label';
     final definition = catalog.cast<GeneratedOverlayWidget?>().firstWhere(
       (candidate) =>
           candidate?.pluginId == pluginId && candidate?.id == widgetId,
       orElse: () => null,
     );
-    final label = _widgetTitle(widgetConfig, catalog);
+    final label = OverlayWidgetPresentation.title(widgetConfig, catalog);
     final rawConfig = widgetConfig['config'];
     final config = isLabel && definition != null
         ? mergeOverlayWidgetDefaults(definition.configSchema, rawConfig)
@@ -339,7 +347,7 @@ class _OverlayCanvas extends StatelessWidget {
             ),
           ),
           if (selected && !locked && !hidden)
-            for (final handle in _OverlayResizeHandle.values)
+            for (final handle in OverlayResizeHandle.values)
               _buildResizeHandle(context, index, handle, scale),
         ],
       ),
@@ -501,19 +509,19 @@ class _OverlayCanvas extends StatelessWidget {
   Widget _buildResizeHandle(
     BuildContext context,
     int index,
-    _OverlayResizeHandle handle,
+    OverlayResizeHandle handle,
     double scale,
   ) {
     final color = Theme.of(context).colorScheme.primary;
     final alignment = switch (handle) {
-      _OverlayResizeHandle.topLeft => Alignment.topLeft,
-      _OverlayResizeHandle.top => Alignment.topCenter,
-      _OverlayResizeHandle.topRight => Alignment.topRight,
-      _OverlayResizeHandle.right => Alignment.centerRight,
-      _OverlayResizeHandle.bottomRight => Alignment.bottomRight,
-      _OverlayResizeHandle.bottom => Alignment.bottomCenter,
-      _OverlayResizeHandle.bottomLeft => Alignment.bottomLeft,
-      _OverlayResizeHandle.left => Alignment.centerLeft,
+      OverlayResizeHandle.topLeft => Alignment.topLeft,
+      OverlayResizeHandle.top => Alignment.topCenter,
+      OverlayResizeHandle.topRight => Alignment.topRight,
+      OverlayResizeHandle.right => Alignment.centerRight,
+      OverlayResizeHandle.bottomRight => Alignment.bottomRight,
+      OverlayResizeHandle.bottom => Alignment.bottomCenter,
+      OverlayResizeHandle.bottomLeft => Alignment.bottomLeft,
+      OverlayResizeHandle.left => Alignment.centerLeft,
     };
     return Align(
       alignment: alignment,

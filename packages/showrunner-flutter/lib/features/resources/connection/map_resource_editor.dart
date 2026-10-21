@@ -1,7 +1,14 @@
-part of '../resource_editor_registry.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 
-class _MapResourceEditor extends StatefulWidget {
-  const _MapResourceEditor({
+import 'package:showrunner_flutter/schema/resource.dart';
+import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
+
+import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
+
+class MapResourceEditor extends StatefulWidget {
+  const MapResourceEditor({
+    super.key,
     required this.title,
     required this.resource,
     required this.fields,
@@ -16,10 +23,10 @@ class _MapResourceEditor extends StatefulWidget {
   final Set<String> secretFields;
 
   @override
-  State<_MapResourceEditor> createState() => _MapResourceEditorState();
+  State<MapResourceEditor> createState() => _MapResourceEditorState();
 }
 
-class _MapResourceEditorState extends State<_MapResourceEditor> {
+class _MapResourceEditorState extends State<MapResourceEditor> {
   late final Map<String, dynamic> _values;
 
   @override
@@ -31,7 +38,7 @@ class _MapResourceEditorState extends State<_MapResourceEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
+  Widget build(BuildContext context) => ResourceForm(
     title: widget.title,
     fields: [
       for (final field in widget.fields)
@@ -72,26 +79,5 @@ class _MapResourceEditorState extends State<_MapResourceEditor> {
           widget.secretFields.contains(field) ||
           field.toLowerCase().contains('password'),
     );
-  }
-}
-
-String _displayValue(dynamic value) {
-  if (value is List) return value.join(', ');
-  return value?.toString() ?? '';
-}
-
-String _jsonDisplayValue(dynamic value) {
-  if (value is Map) return jsonEncode(value);
-  return _displayValue(value);
-}
-
-dynamic _parseJsonMap(String value) {
-  final trimmed = value.trim();
-  if (trimmed.isEmpty) return <String, dynamic>{};
-  try {
-    final decoded = jsonDecode(trimmed);
-    return decoded is Map<String, dynamic> ? decoded : trimmed;
-  } on FormatException {
-    return trimmed;
   }
 }

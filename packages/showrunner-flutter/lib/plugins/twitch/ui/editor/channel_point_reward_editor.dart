@@ -1,7 +1,16 @@
-part of '../resource_editor_registry.dart';
+import 'package:showrunner_flutter/components/data_inputs/numeric_input_formatter.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 
-class _ChannelPointRewardEditor extends StatefulWidget {
-  const _ChannelPointRewardEditor({
+import 'package:showrunner_flutter/schema/resource.dart';
+import 'package:showrunner_flutter/features/resources/color_field.dart';
+
+import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
+import 'package:showrunner_flutter/components/data_inputs/resource_field_values.dart';
+
+class ChannelPointRewardEditor extends StatefulWidget {
+  const ChannelPointRewardEditor({
+    super.key,
     required this.resource,
     required this.onSave,
   });
@@ -10,11 +19,11 @@ class _ChannelPointRewardEditor extends StatefulWidget {
   final Future<void> Function(ResourceData resource) onSave;
 
   @override
-  State<_ChannelPointRewardEditor> createState() =>
+  State<ChannelPointRewardEditor> createState() =>
       _ChannelPointRewardEditorState();
 }
 
-class _ChannelPointRewardEditorState extends State<_ChannelPointRewardEditor> {
+class _ChannelPointRewardEditorState extends State<ChannelPointRewardEditor> {
   late final TextEditingController _name;
   late final TextEditingController _twitchId;
   late final TextEditingController _prompt;
@@ -42,28 +51,34 @@ class _ChannelPointRewardEditorState extends State<_ChannelPointRewardEditor> {
     final config = widget.resource.config;
     final rewardData = _configuredRewardData;
     _name = TextEditingController(
-      text: _displayValue(config['name'] ?? config['title']),
+      text: ResourceFieldValues.display(config['name'] ?? config['title']),
     );
-    _twitchId = TextEditingController(text: _displayValue(config['twitchId']));
-    _prompt = TextEditingController(text: _displayValue(rewardData['prompt']));
+    _twitchId = TextEditingController(
+      text: ResourceFieldValues.display(config['twitchId']),
+    );
+    _prompt = TextEditingController(
+      text: ResourceFieldValues.display(rewardData['prompt']),
+    );
     _cost = TextEditingController(
-      text: _displayValue(rewardData['cost'] ?? 100),
+      text: ResourceFieldValues.display(rewardData['cost'] ?? 100),
     );
     _cooldown = TextEditingController(
-      text: _displayValue(rewardData['cooldown']),
+      text: ResourceFieldValues.display(rewardData['cooldown']),
     );
     _maxPerStream = TextEditingController(
-      text: _displayValue(rewardData['maxRedemptionsPerStream']),
+      text: ResourceFieldValues.display(rewardData['maxRedemptionsPerStream']),
     );
     _maxPerUser = TextEditingController(
-      text: _displayValue(rewardData['maxRedemptionsPerUserPerStream']),
+      text: ResourceFieldValues.display(
+        rewardData['maxRedemptionsPerUserPerStream'],
+      ),
     );
     _controllable = config['controllable'] != false;
     _transient = config['transient'] == true;
     _allowEnable = config['allowEnable'] != false;
     _userInputRequired = rewardData['userInputRequired'] == true;
     _skipQueue = rewardData['skipQueue'] == true;
-    _backgroundColor = _displayValue(
+    _backgroundColor = ResourceFieldValues.display(
       rewardData['backgroundColor'] ?? '#9147ff',
     );
   }
@@ -85,7 +100,7 @@ class _ChannelPointRewardEditorState extends State<_ChannelPointRewardEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
+  Widget build(BuildContext context) => ResourceForm(
     title: 'Edit Twitch channel point reward',
     fields: [
       TextField(

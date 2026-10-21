@@ -1,4 +1,26 @@
-part of '../resource_editor_registry.dart';
+import 'package:showrunner_flutter/components/data_inputs/numeric_input_formatter.dart';
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'package:showrunner_flutter/app/app_feedback.dart';
+import 'package:showrunner_flutter/app/name_dialog.dart';
+import 'package:showrunner_flutter/design_system/tokens/tokens.dart';
+
+import 'package:showrunner_flutter/plugins/obs/overlay_source_service.dart';
+import 'package:showrunner_flutter/schema/json.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
+import 'package:showrunner_flutter/features/resources/overlay/overlay_document.dart';
+import 'package:showrunner_flutter/features/resources/overlay/overlay_snapping.dart';
+import 'package:showrunner_flutter/plugins/overlays/generated_widget_catalog.dart';
+import 'package:showrunner_flutter/plugins/overlays/overlay_widget_icons.dart';
+import 'package:showrunner_flutter/plugins/overlays/overlay_presence.dart';
+import 'package:showrunner_flutter/services/oauth_token.dart';
+
+import 'package:showrunner_flutter/plugins/overlays/ui/editor/overlay_canvas.dart';
+import 'package:showrunner_flutter/plugins/overlays/ui/editor/overlay_widget_inspector.dart';
+import 'package:showrunner_flutter/plugins/overlays/ui/editor/overlay_widget_presentation.dart';
 
 class OverlayEditorPage extends StatefulWidget {
   const OverlayEditorPage({
@@ -148,7 +170,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
             child: Row(
               children: [
                 Expanded(
-                  child: _OverlayCanvas(
+                  child: OverlayCanvas(
                     width: canvasWidth,
                     height: canvasHeight,
                     widgets: _widgets,
@@ -726,7 +748,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
             ),
           ),
         ),
-        child: _OverlayWidgetInspector(
+        child: OverlayWidgetInspector(
           key: ValueKey('overlay-widget-inspector-${selected['id']}'),
           widgetConfig: selected,
           onChanged: (key, value) {
@@ -864,10 +886,11 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                                               'overlay-layer-title-${item['id']}',
                                             ),
                                             widgetId: item['id'].toString(),
-                                            name: _widgetTitle(
-                                              item,
-                                              _overlayWidgetCatalog,
-                                            ),
+                                            name:
+                                                OverlayWidgetPresentation.title(
+                                                  item,
+                                                  _overlayWidgetCatalog,
+                                                ),
                                             onSelected: () => setState(
                                               () =>
                                                   _selectedWidgetIndex = index,
@@ -1348,7 +1371,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     int width,
     int height,
     double tolerance, {
-    _OverlayResizeHandle? handle,
+    OverlayResizeHandle? handle,
   }) {
     final result = _snapEnabled && !HardwareKeyboard.instance.isShiftPressed
         ? snapOverlayBounds(
@@ -1430,7 +1453,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
 
   void _resizeWidgetOnCanvas(
     int index,
-    _OverlayResizeHandle handle,
+    OverlayResizeHandle handle,
     Offset delta,
     int canvasWidth,
     int canvasHeight,
@@ -1672,8 +1695,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
         .cast<GeneratedOverlayWidget?>()
         .firstWhere(
           (candidate) =>
-              candidate?.pluginId == _definitionPluginId(item) &&
-              candidate?.id == _definitionWidgetId(item),
+              candidate?.pluginId == OverlayWidgetPresentation.pluginId(item) &&
+              candidate?.id == OverlayWidgetPresentation.widgetId(item),
           orElse: () => null,
         );
     final icon = definition == null

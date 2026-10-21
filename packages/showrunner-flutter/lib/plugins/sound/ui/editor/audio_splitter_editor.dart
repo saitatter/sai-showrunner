@@ -1,16 +1,42 @@
-part of '../resource_editor_registry.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 
-class _AudioSplitterEditor extends StatefulWidget {
-  const _AudioSplitterEditor({required this.resource, required this.onSave});
+import 'package:showrunner_flutter/schema/json.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
+
+import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
+import 'package:showrunner_flutter/components/data_inputs/resource_field_values.dart';
+
+int _audioSplitIdCounter = 0;
+String _audioSplitId(Object? value) {
+  final id = value?.toString().trim();
+  return id == null || id.isEmpty
+      ? 'split-${DateTime.now().microsecondsSinceEpoch}-${_audioSplitIdCounter++}'
+      : id;
+}
+
+JsonMap _audioSplit(Map value) => {
+  ...Map<String, dynamic>.from(value),
+  'id': _audioSplitId(value['id']),
+  'mute': value['mute'] == true,
+  'volume': ((value['volume'] as num?)?.toDouble() ?? 100).clamp(0, 100),
+};
+
+class AudioSplitterEditor extends StatefulWidget {
+  const AudioSplitterEditor({
+    super.key,
+    required this.resource,
+    required this.onSave,
+  });
 
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
 
   @override
-  State<_AudioSplitterEditor> createState() => _AudioSplitterEditorState();
+  State<AudioSplitterEditor> createState() => _AudioSplitterEditorState();
 }
 
-class _AudioSplitterEditorState extends State<_AudioSplitterEditor> {
+class _AudioSplitterEditorState extends State<AudioSplitterEditor> {
   late final TextEditingController _name;
   late List<JsonMap> _redirects;
 
@@ -18,9 +44,9 @@ class _AudioSplitterEditorState extends State<_AudioSplitterEditor> {
   void initState() {
     super.initState();
     _name = TextEditingController(
-      text: _displayValue(widget.resource.config['name']),
+      text: ResourceFieldValues.display(widget.resource.config['name']),
     );
-    _redirects = _maps(
+    _redirects = ResourceFieldValues.maps(
       widget.resource.config['redirects'],
     ).map(_audioSplit).toList();
   }
@@ -32,7 +58,7 @@ class _AudioSplitterEditorState extends State<_AudioSplitterEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
+  Widget build(BuildContext context) => ResourceForm(
     title: 'Edit audio splitter',
     fields: [
       TextField(

@@ -5,6 +5,7 @@
 ### Features
 
 ### Fixes
+- Keep resource form drafts open after failed saves and prevent duplicate submissions without exposing credential-bearing errors.
 - Reject stale resource editor saves/deletes and duplicate creation instead of silently replacing another owner’s data; preserve newer in-flight edits when advancing the saved baseline.
 - Reject dangling filesystem redirects and recursive YAML aliases, handle secret roots with trailing separators and clear native DPAPI buffers after use.
 - Recover plugin settings and encrypted credentials together after interrupted saves, serialize independent settings owners and keep unknown encrypted fields out of public settings/resource files.
@@ -12,6 +13,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Split resource editors into provider-owned Flutter libraries and contribution packs, with shared form controls, explicit editing capabilities and safe read-only fallbacks for unavailable or malformed resources.
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
