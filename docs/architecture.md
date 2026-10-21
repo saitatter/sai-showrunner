@@ -269,6 +269,8 @@ An I/O error after the journal is durable can leave a pending save even though s
 
 Path resolution checks existing ancestors without following a link when deciding whether it exists; dangling junctions fail closed rather than appearing to be missing files. This is pathname containment, not a kernel no-follow handle contract: an adversary able to replace ancestors during a filesystem operation remains outside its race guarantees. YAML conversion is shared across repositories and rejects recursive aliases without including source values in its error. DPAPI input/output native buffers are cleared before release.
 
+Viewer row operations share per-identity OS locks across file repository instances; in-memory mutations serialize on an owned per-identity queue. Provider-qualified keys and group values remain unchanged. Definition edits compare semantic revisions under their own lock. Malformed definitions cannot authorize replacement; corrupt/mismatched rows fail visibly with payload-free errors. Both adapters run the same fixtures for defaults, scoping, groups, import policy, pagination, concurrent increments and stale schema edits. File readers validate contained paths before accessing provider rows.
+
 The real-filesystem tests interrupt each journal/member write before and after publication, interrupt deletion/cleanup, simulate an abrupt process exit and verify an independent process cannot acquire a held lock. Resource fixtures assert config/state/credential generation equality and scan staged payloads for plaintext secrets. Windows DPAPI itself is exercised on isolated fixture bytes, alongside injected ciphers for deterministic faults.
 
 ## Verification boundaries

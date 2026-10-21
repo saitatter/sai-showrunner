@@ -53,7 +53,7 @@ void main() {
     await _settleIo(tester, () => runtime.valueOf('counter') == 10);
     expect(runtime.valueOf('counter'), 10);
     await tester.tap(find.byTooltip('Edit variable'));
-    await tester.pumpAndSettle();
+    await _settleIo(tester, () => true);
     final current = find.descendant(
       of: find.byType(AlertDialog),
       matching: find.byWidgetPredicate(
@@ -70,17 +70,17 @@ void main() {
       (w) => w is TextField && w.decoration?.labelText == 'Search variables',
     );
     await tester.enterText(search, 'does not exist');
-    await tester.pumpAndSettle();
+    await _settleIo(tester, () => true);
     expect(find.text('No variables found'), findsOneWidget);
     await tester.enterText(search, 'Session');
-    await tester.pumpAndSettle();
+    await _settleIo(tester, () => true);
     expect(find.text('Session counter'), findsOneWidget);
     final restarted = DartVariableRuntime(directory: repository.directory);
     addTearDown(restarted.dispose);
     await tester.runAsync(restarted.load);
     expect(restarted.valueOf('counter'), 10);
     await tester.tap(find.byTooltip('Delete variable'));
-    await tester.pumpAndSettle();
+    await _settleIo(tester, () => true);
     await tester.runAsync(
       () => tester.tap(find.widgetWithText(FilledButton, 'Delete')),
     );
@@ -90,7 +90,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.runAsync(runtime.close);
     await tester.runAsync(repository.list);
-    await tester.pumpAndSettle();
+    await _settleIo(tester, () => true);
   });
 }
 
@@ -100,7 +100,8 @@ Future<void> _until(WidgetTester tester, Finder target) async {
       () => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
     await tester.pump(const Duration(milliseconds: 100));
-    if (target.evaluate().isNotEmpty) return;
+    if (target.evaluate().isNotEmpty && !tester.binding.hasScheduledFrame)
+      return;
   }
   throw TestFailure('Missing $target');
 }
@@ -111,7 +112,7 @@ Future<void> _settleIo(WidgetTester tester, bool Function() completed) async {
       () => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
     await tester.pump(const Duration(milliseconds: 100));
-    if (completed()) return;
+    if (completed() && !tester.binding.hasScheduledFrame) return;
   }
   throw TestFailure('Variable operation did not complete.');
 }

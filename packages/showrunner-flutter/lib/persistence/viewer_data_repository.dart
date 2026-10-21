@@ -1,3 +1,7 @@
+import 'document_revision.dart';
+import 'package:crypto/crypto.dart';
+import 'filesystem/file_transaction.dart';
+import 'filesystem/safe_path.dart';
 import 'document_codec.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -23,7 +27,10 @@ final class ViewerDataSyncResult {
 abstract interface class ViewerDataRepository {
   Future<List<ViewerVariableDefinition>> loadDefinitions();
 
-  Future<void> saveDefinitions(Iterable<ViewerVariableDefinition> definitions);
+  Future<void> saveDefinitions(
+    Iterable<ViewerVariableDefinition> definitions, {
+    DocumentRevision? expectedRevision,
+  });
 
   Future<JsonMap> getDefaultViewerData();
 
@@ -63,27 +70,41 @@ final class FileViewerDataRepository implements ViewerDataRepository {
   FileViewerDataRepository(this.directory);
 
   final Directory directory;
-  final Map<String, Future<void>> _viewerLocks = {};
 
   File get definitionsFile => File('${directory.path}/variables.yaml');
 
   @override
   Future<List<ViewerVariableDefinition>> loadDefinitions() async {
-    if (!await definitionsFile.exists()) return const [];
-    final parsed = loadYaml(await definitionsFile.readAsString());
-    if (parsed is! YamlList) return const [];
+    final file = await containedFile(directory, ['variables.yaml']);
+    if (!await file.exists()) return const [];
+    final contents = await file.readAsString();
+    if (contents.trim().isEmpty) return const [];
+    final dynamic parsed;
+    try {
+      parsed = loadYaml(contents);
+    } on YamlException {
+      throw const FormatException('Invalid viewer variable definitions YAML.');
+    }
+    if (parsed is! YamlList) {
+      throw const FormatException(
+        'Viewer variable definitions must be a list.',
+      );
+    }
 
     final definitions = <ViewerVariableDefinition>[];
+    final names = <String>{};
     for (final item in parsed) {
-      if (item is! YamlMap) continue;
       try {
-        definitions.add(
-          ViewerVariableDefinition.fromJson(decodeYamlValue(item) as JsonMap),
+        if (item is! YamlMap) throw const FormatException();
+        final definition = ViewerVariableDefinition.fromJson(
+          decodeYamlValue(item) as JsonMap,
         );
-      } on ArgumentError {
-        continue;
-      } on FormatException {
-        continue;
+        if (!names.add(definition.name)) throw const FormatException();
+        definitions.add(definition);
+      } catch (_) {
+        throw const FormatException(
+          'Unsupported or malformed viewer variable definition.',
+        );
       }
     }
     return definitions;
@@ -91,10 +112,33 @@ final class FileViewerDataRepository implements ViewerDataRepository {
 
   @override
   Future<void> saveDefinitions(
-    Iterable<ViewerVariableDefinition> definitions,
-  ) async {
+    Iterable<ViewerVariableDefinition> definitions, {
+    DocumentRevision? expectedRevision,
+  }) async {
     final values = definitions.toList(growable: false);
-    await writeAtomicText(definitionsFile, _encodeDefinitions(values));
+    await FileTransaction(
+      directory: directory,
+      id: 'definitions',
+      targets: const {},
+    ).locked(() async {
+      final current = await loadDefinitions();
+      if (expectedRevision != null &&
+          DocumentRevision.of(
+                current.map((value) => value.toJson()).toList(),
+              ) !=
+              expectedRevision) {
+        throw PersistenceConflictException('viewer-definitions');
+      }
+      final names = <String>{};
+      for (final value in values) {
+        ViewerVariableDefinition.fromJson(value.toJson());
+        if (!names.add(value.name)) {
+          throw const FormatException('Duplicate viewer variable definition.');
+        }
+      }
+      final file = await containedFile(directory, ['variables.yaml']);
+      await writeAtomicText(file, _encodeDefinitions(values));
+    });
   }
 
   @override
@@ -122,20 +166,41 @@ final class FileViewerDataRepository implements ViewerDataRepository {
     String sortBy = 'id',
     bool descending = false,
   }) async {
-    final viewerDirectory = _providerDirectory(provider);
+    _providerDirectory(provider);
+    final viewerDirectory = (await containedFile(directory, [
+      provider,
+      ".scan",
+    ])).parent;
     if (!await viewerDirectory.exists()) return const [];
     final rows = <ViewerDataRow>[];
     await for (final entity in viewerDirectory.list()) {
       if (entity is! File || !entity.path.endsWith('.json')) continue;
       try {
         final row = ViewerDataRow.fromJson(
-          jsonDecode(await entity.readAsString()) as JsonMap,
+          jsonDecode(
+                await (await containedFile(directory, [
+                  provider,
+                  entity.uri.pathSegments.last,
+                ])).readAsString(),
+              )
+              as JsonMap,
         );
-        if (row.provider == provider) rows.add(row);
+        final expected = await _viewerFile(provider, row.viewer.id);
+        if (row.provider != provider ||
+            expected.uri.pathSegments.last != entity.uri.pathSegments.last) {
+          throw const FormatException(
+            'Viewer identity does not match its file.',
+          );
+        }
+        rows.add(row);
       } on FormatException {
-        // Ignore corrupted rows, matching the resource catalog behavior.
+        throw const FormatException(
+          'Viewer catalog contains a corrupt or unsupported row. Stored files were preserved.',
+        );
       } on TypeError {
-        // Ignore malformed JSON objects.
+        throw const FormatException(
+          'Viewer catalog contains a malformed row. Stored files were preserved.',
+        );
       }
     }
     rows.sort((left, right) {
@@ -225,7 +290,7 @@ final class FileViewerDataRepository implements ViewerDataRepository {
       );
     }
     return _withViewerLock(_viewerKey(row.provider, row.viewer.id), () async {
-      final file = _viewerFile(row.provider, row.viewer.id);
+      final file = await _viewerFile(row.provider, row.viewer.id);
       if (!overwrite && await file.exists()) return false;
       final current = await _readViewer(row.provider, row.viewer);
       await _writeViewer(
@@ -289,7 +354,7 @@ final class FileViewerDataRepository implements ViewerDataRepository {
       for (final definition in definitions)
         definition.name: definition.constructedDefault,
     };
-    final file = _viewerFile(provider, viewer.id);
+    final file = await _viewerFile(provider, viewer.id);
     if (!await file.exists()) {
       return ViewerDataRow(
         provider: provider,
@@ -299,9 +364,13 @@ final class FileViewerDataRepository implements ViewerDataRepository {
       );
     }
 
-    final stored = ViewerDataRow.fromJson(
-      jsonDecode(await file.readAsString()) as JsonMap,
-    );
+    final ViewerDataRow stored;
+    final contents = await file.readAsString();
+    try {
+      stored = ViewerDataRow.fromJson(jsonDecode(contents) as JsonMap);
+    } catch (_) {
+      throw const FormatException('Unsupported or malformed viewer data row.');
+    }
     if (stored.provider != provider || stored.viewer.id != viewer.id) {
       throw FormatException('Viewer data row does not match its file path.');
     }
@@ -321,16 +390,17 @@ final class FileViewerDataRepository implements ViewerDataRepository {
   }
 
   Future<void> _writeViewer(ViewerDataRow row) async {
-    final file = _viewerFile(row.provider, row.viewer.id);
+    final file = await _viewerFile(row.provider, row.viewer.id);
     const encoder = JsonEncoder.withIndent('  ');
     await writeAtomicText(file, encoder.convert(row.toJson()));
   }
 
-  File _viewerFile(String provider, String viewerId) {
+  Future<File> _viewerFile(String provider, String viewerId) {
     final encodedId = base64Url
         .encode(utf8.encode(viewerId))
         .replaceAll('=', '');
-    return File('${_providerDirectory(provider).path}/$encodedId.json');
+    _providerDirectory(provider);
+    return containedFile(directory, [provider, '$encodedId.json']);
   }
 
   Directory _providerDirectory(String provider) {
@@ -340,12 +410,12 @@ final class FileViewerDataRepository implements ViewerDataRepository {
     return Directory('${directory.path}/$provider');
   }
 
-  Future<T> _withViewerLock<T>(String key, Future<T> Function() operation) {
-    final previous = _viewerLocks[key] ?? Future<void>.value();
-    final result = previous.then((_) => operation());
-    _viewerLocks[key] = result.then<void>((_) {}, onError: (_) {});
-    return result;
-  }
+  Future<T> _withViewerLock<T>(String key, Future<T> Function() operation) =>
+      FileTransaction(
+        directory: directory,
+        id: 'viewer-${sha256.convert(utf8.encode(key))}',
+        targets: const {},
+      ).locked(operation);
 
   String _viewerKey(String provider, String viewerId) =>
       '${provider.length}:$provider:$viewerId';
@@ -359,6 +429,7 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
 
   List<ViewerVariableDefinition> _definitions;
   final Map<String, ViewerDataRow> _rows = {};
+  final Map<String, Future<void>> _operations = {};
 
   @override
   Future<List<ViewerVariableDefinition>> loadDefinitions() async =>
@@ -366,9 +437,25 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
 
   @override
   Future<void> saveDefinitions(
-    Iterable<ViewerVariableDefinition> definitions,
-  ) async {
-    _definitions = List.of(definitions);
+    Iterable<ViewerVariableDefinition> definitions, {
+    DocumentRevision? expectedRevision,
+  }) async {
+    if (expectedRevision != null &&
+        DocumentRevision.of(
+              _definitions.map((value) => value.toJson()).toList(),
+            ) !=
+            expectedRevision) {
+      throw PersistenceConflictException('viewer-definitions');
+    }
+    final values = definitions.toList(growable: false);
+    final names = <String>{};
+    for (final value in values) {
+      ViewerVariableDefinition.fromJson(value.toJson());
+      if (!names.add(value.name)) {
+        throw const FormatException('Duplicate viewer variable definition.');
+      }
+    }
+    _definitions = values;
   }
 
   @override
@@ -415,6 +502,16 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
     ViewerIdentity viewer,
     String variable,
     dynamic value,
+  ) => _locked(
+    _viewerKey(provider, viewer.id),
+    () => _setViewerValue(provider, viewer, variable, value),
+  );
+
+  Future<ViewerDataRow> _setViewerValue(
+    String provider,
+    ViewerIdentity viewer,
+    String variable,
+    dynamic value,
   ) async {
     final definition = _findDefinition(variable);
     if (definition == null) {
@@ -438,6 +535,16 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
 
   @override
   Future<ViewerDataRow> offsetViewerValue(
+    String provider,
+    ViewerIdentity viewer,
+    String variable,
+    num offset,
+  ) => _locked(
+    _viewerKey(provider, viewer.id),
+    () => _offsetViewerValue(provider, viewer, variable, offset),
+  );
+
+  Future<ViewerDataRow> _offsetViewerValue(
     String provider,
     ViewerIdentity viewer,
     String variable,
@@ -472,7 +579,13 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
   }
 
   @override
-  Future<bool> importViewerRow(
+  Future<bool> importViewerRow(ViewerDataRow row, {bool overwrite = false}) =>
+      _locked(
+        _viewerKey(row.provider, row.viewer.id),
+        () => _importViewerRow(row, overwrite: overwrite),
+      );
+
+  Future<bool> _importViewerRow(
     ViewerDataRow row, {
     bool overwrite = false,
   }) async {
@@ -494,6 +607,14 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
 
   @override
   Future<ViewerDataSyncResult> syncViewerIdentity(
+    String provider,
+    ViewerIdentity viewer,
+  ) => _locked(
+    _viewerKey(provider, viewer.id),
+    () => _syncViewerIdentity(provider, viewer),
+  );
+
+  Future<ViewerDataSyncResult> _syncViewerIdentity(
     String provider,
     ViewerIdentity viewer,
   ) async {
@@ -525,6 +646,17 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
       if (definition.name == name) return definition;
     }
     return null;
+  }
+
+  Future<T> _locked<T>(String key, Future<T> Function() operation) {
+    final previous = _operations[key] ?? Future<void>.value();
+    final result = previous.then((_) => operation());
+    final complete = result.then<void>((_) {}, onError: (Object _) {});
+    _operations[key] = complete;
+    complete.then((_) {
+      if (identical(_operations[key], complete)) _operations.remove(key);
+    });
+    return result;
   }
 
   String _viewerKey(String provider, String viewerId) =>

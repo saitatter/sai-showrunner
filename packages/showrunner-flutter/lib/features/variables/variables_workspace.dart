@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -300,6 +301,7 @@ class ViewerDataWorkspacePanel extends StatefulWidget {
 class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
   final _viewerIdController = TextEditingController();
   List<ViewerVariableDefinition> _definitions = const [];
+  DocumentRevision? _definitionsRevision;
   ViewerDataRow? _row;
   Object? _error;
   bool _loadingDefinitions = true;
@@ -382,6 +384,9 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
       if (!mounted) return;
       setState(() {
         _definitions = definitions;
+        _definitionsRevision = DocumentRevision.of(
+          definitions.map((value) => value.toJson()).toList(),
+        );
         if (_viewerSortBy != 'id' &&
             _viewerSortBy != 'displayName' &&
             !definitions.any(
@@ -485,13 +490,15 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
   }
 
   Future<void> _editDefinition([ViewerVariableDefinition? definition]) async {
+    final revision = _definitionsRevision;
+    final openedDefinitions = List.of(_definitions);
     final result = await showDialog<ViewerVariableDefinition>(
       context: context,
       builder: (context) =>
           _ViewerVariableDefinitionDialog(definition: definition),
     );
     if (result == null) return;
-    final duplicate = _definitions.any(
+    final duplicate = openedDefinitions.any(
       (item) => item.name == result.name && item.name != definition?.name,
     );
     if (duplicate) {
@@ -504,7 +511,7 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
       }
       return;
     }
-    final next = [..._definitions];
+    final next = [...openedDefinitions];
     final index = definition == null
         ? -1
         : next.indexWhere((item) => item.name == definition.name);
@@ -514,7 +521,7 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
       next[index] = result;
     }
     try {
-      await widget.repository.saveDefinitions(next);
+      await widget.repository.saveDefinitions(next, expectedRevision: revision);
       await _loadDefinitions();
     } catch (error) {
       if (mounted) setState(() => _error = error);
@@ -522,6 +529,8 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
   }
 
   Future<void> _deleteDefinition(ViewerVariableDefinition definition) async {
+    final revision = _definitionsRevision;
+    final openedDefinitions = List.of(_definitions);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -542,7 +551,8 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
     if (confirmed != true) return;
     try {
       await widget.repository.saveDefinitions(
-        _definitions.where((item) => item.name != definition.name),
+        openedDefinitions.where((item) => item.name != definition.name),
+        expectedRevision: revision,
       );
       await _loadDefinitions();
     } catch (error) {
