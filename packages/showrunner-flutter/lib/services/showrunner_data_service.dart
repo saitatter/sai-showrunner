@@ -5,7 +5,6 @@ import 'package:yaml/yaml.dart';
 
 import '../persistence/filesystem/atomic_file.dart';
 import '../persistence/filesystem/safe_path.dart';
-import 'structured_logger.dart';
 import '../persistence/secret_settings_store.dart';
 import '../schema/json.dart';
 
@@ -66,18 +65,12 @@ final class ShowRunnerDataService {
     final values = <String, dynamic>{};
     if (await file.exists()) {
       final parsed = loadYaml(await file.readAsString());
-      if (parsed is YamlMap) values.addAll(_toMap(parsed));
+      if (parsed is! YamlMap) {
+        throw const FormatException('Plugin settings must contain a map.');
+      }
+      values.addAll(_toMap(parsed));
     }
-    try {
-      values.addAll(await secretSettingsStore.load(pluginId));
-    } on Object catch (error, stackTrace) {
-      ShowRunnerLogger.instance.error(
-        'persistence',
-        'Could not decrypt settings for $pluginId',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
+    values.addAll(await secretSettingsStore.load(pluginId));
     return values;
   }
 

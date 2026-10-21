@@ -5,6 +5,7 @@
 ### Features
 
 ### Fixes
+- Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.

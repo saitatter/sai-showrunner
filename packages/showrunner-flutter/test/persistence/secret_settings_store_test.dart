@@ -3,9 +3,49 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/secret_settings_store.dart';
+import 'package:showrunner_flutter/persistence/secret_storage_exception.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
+  test(
+    'real Windows DPAPI round-trips fixture secrets and rejects invalid ciphertext',
+    () async {
+      final plaintext = utf8.encode('isolated-dpapi-test-value');
+      final encrypted = await encryptWithWindowsDpapi(plaintext);
+      expect(encrypted, isNot(equals(plaintext)));
+      expect(await decryptWithWindowsDpapi(encrypted), plaintext);
+      await expectLater(decryptWithWindowsDpapi([1, 2, 3]), throwsStateError);
+    },
+    skip: !Platform.isWindows,
+  );
+
+  test(
+    'secret read failures remain typed and omit arbitrary cipher details',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'showrunner-secret-failure-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      await File('${directory.path}/obs.yaml').writeAsBytes([1, 2, 3]);
+      final store = SecretSettingsStore(
+        directory: directory,
+        decrypt: (_) async => throw StateError('unregistered-sensitive-value'),
+      );
+      try {
+        await store.load('obs');
+        fail('Expected a secret failure.');
+      } on SecretStorageException catch (error) {
+        expect(error.operation, 'read');
+        expect(error.owner, 'obs.yaml');
+        expect(
+          error.toString(),
+          isNot(contains('unregistered-sensitive-value')),
+        );
+      }
+      expect(await File('${directory.path}/obs.yaml').readAsBytes(), [1, 2, 3]);
+    },
+  );
+
   test(
     'round-trips encrypted secret settings without exposing plaintext',
     () async {
