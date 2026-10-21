@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import 'package:showrunner_flutter/schema/identifiers.dart';
 
 import '../../persistence/resource_repository.dart';
@@ -48,7 +49,13 @@ final class WyzeAccountAuthService {
       },
       state: {...?existing?.state, 'authenticated': true},
     );
-    await _repository.save(account);
+    await _repository.save(
+      account,
+      expectedRevision: existing == null
+          ? null
+          : DocumentRevision.of(existing.toJson()),
+      requireAbsent: existing == null,
+    );
     return account;
   }
 
@@ -85,9 +92,7 @@ Future<void> saveWyzeAccountTokens(
   final repository = _repository(dataService);
   final account = await repository.load('main');
   if (account == null) {
-    final current = await dataService.loadPluginSettings('wyze');
-    await dataService.savePluginSettings('wyze', {
-      ...current,
+    await dataService.updatePluginSettings('wyze', {
       'accessToken': accessToken,
       'refreshToken': refreshToken,
     });
@@ -103,6 +108,7 @@ Future<void> saveWyzeAccountTokens(
       },
       state: account.state,
     ),
+    expectedRevision: DocumentRevision.of(account.toJson()),
   );
 }
 

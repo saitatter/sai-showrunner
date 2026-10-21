@@ -87,9 +87,7 @@ class _YouTubeWorkspaceState extends State<YouTubeWorkspace> {
       _error = null;
     });
     try {
-      final settings = await widget.dataService.loadPluginSettings('youtube');
-      await widget.dataService.savePluginSettings('youtube', {
-        ...settings,
+      await widget.dataService.updatePluginSettings('youtube', {
         'liveChatId': liveChatId,
       });
       await widget.providerEvents.startYouTubeChat(liveChatId: liveChatId);

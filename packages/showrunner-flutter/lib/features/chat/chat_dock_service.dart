@@ -37,10 +37,8 @@ final class ChatDockService {
         'Build the browser overlay before starting the chat dock.',
       );
     }
-    final secrets = runtime.dataService.secretSettingsStore;
-    final stored = await secrets.load('chat-dock');
     final settings = await runtime.dataService.loadPluginSettings('chat-dock');
-    final previousToken = stored['token'];
+    final previousToken = settings['token'];
     final token = previousToken is String && previousToken.length >= 32
         ? previousToken
         : base64UrlEncode(
@@ -49,8 +47,8 @@ final class ChatDockService {
     final port = settings['port'] is int ? settings['port'] as int : 0;
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
     try {
-      await secrets.save('chat-dock', {'token': token});
-      await runtime.dataService.savePluginSettings('chat-dock', {
+      await runtime.dataService.updatePluginSettings('chat-dock', {
+        'token': token,
         'port': server.port,
         'enabled': true,
       });

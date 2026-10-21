@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import 'package:showrunner_flutter/schema/identifiers.dart';
 
 import '../../persistence/resource_repository.dart';
@@ -56,7 +57,13 @@ final class BlueskyAccountAuthService {
       },
       state: {...?existing?.state, 'authenticated': true},
     );
-    await repository.save(updated);
+    await repository.save(
+      updated,
+      expectedRevision: existing == null
+          ? null
+          : DocumentRevision.of(existing.toJson()),
+      requireAbsent: existing == null,
+    );
     return updated;
   }
 

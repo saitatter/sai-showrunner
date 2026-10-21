@@ -41,8 +41,7 @@ OAuthTokenManager? createPluginTokenManager({
         clientSecret: clientSecret,
         refreshToken: token,
       );
-      await dataService.savePluginSettings(pluginId, {
-        ...settings,
+      await dataService.updatePluginSettings(pluginId, {
         'accessToken': next.accessToken,
         if (next.refreshToken != null) 'refreshToken': next.refreshToken,
         if (next.expiresAt != null)

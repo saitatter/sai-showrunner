@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import 'package:flutter/material.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
@@ -24,6 +25,7 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
     with SingleTickerProviderStateMixin {
   final _filterController = TextEditingController();
   final _pluginValues = <String, Map<String, dynamic>>{};
+  final _storageRevisions = <String, DocumentRevision>{};
   final _controllers = <String, TextEditingController>{};
   final _savingPlugins = <String>{};
   late final Future<void> _pluginSettingsFuture;
@@ -55,7 +57,9 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
       final values = await widget.dataService.loadPluginSettings(
         plugin.id.value,
       );
+      _storageRevisions[plugin.id.value] = DocumentRevision.of(values);
       _pluginValues[plugin.id.value] = {
+        ...values,
         for (final setting in plugin.settings)
           setting.id.value: values[setting.id.value] ?? setting.defaultValue,
       };
@@ -125,7 +129,12 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
           );
         }
       }
-      await widget.dataService.savePluginSettings(plugin.id.value, values);
+      await widget.dataService.savePluginSettings(
+        plugin.id.value,
+        values,
+        expectedRevision: _storageRevisions[plugin.id.value],
+      );
+      _storageRevisions[plugin.id.value] = DocumentRevision.of(values);
       _pluginValues[plugin.id.value] = values;
     } catch (error) {
       if (mounted) setState(() => _error = error);

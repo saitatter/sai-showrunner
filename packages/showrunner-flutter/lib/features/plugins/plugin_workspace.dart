@@ -1,3 +1,5 @@
+import '../../plugins/youtube/auth_service.dart';
+import '../../persistence/document_revision.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -5,7 +7,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../components/data_inputs/numeric_input_formatter.dart';
 
-import '../../services/oauth_token.dart';
 import '../../app/app_feedback.dart';
 import '../../app/commands/app_command.dart';
 import '../../app/workspace_registry.dart';
@@ -49,6 +50,7 @@ class PluginWorkspace extends StatefulWidget {
 class _PluginWorkspaceState extends State<PluginWorkspace> {
   final _controllers = <String, TextEditingController>{};
   final _settings = <String, Map<String, dynamic>>{};
+  final _storageRevisions = <String, DocumentRevision>{};
   bool _loading = true;
   String? _saving;
   Object? _error;
@@ -95,6 +97,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
       for (final pluginId in _fields.keys) {
         final values = await widget.dataService.loadPluginSettings(pluginId);
         _settings[pluginId] = values;
+        _storageRevisions[pluginId] = DocumentRevision.of(values);
         for (final field in _fields[pluginId]!) {
           final key = '$pluginId:$field';
           final definition = _definitions[key]!;
@@ -118,7 +121,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
       _error = null;
     });
     try {
-      final values = <String, dynamic>{};
+      final values = <String, dynamic>{...?_settings[pluginId]};
       for (final field in _fields[pluginId]!) {
         final definition = _definitions['$pluginId:$field']!;
         final rawValue = _controllers['$pluginId:$field']!.text.trim();
@@ -129,7 +132,12 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
       if (!validation.isValid) {
         throw ArgumentError(validation.errors.join(' '));
       }
-      await widget.dataService.savePluginSettings(pluginId, values);
+      await widget.dataService.savePluginSettings(
+        pluginId,
+        values,
+        expectedRevision: _storageRevisions[pluginId],
+      );
+      _storageRevisions[pluginId] = DocumentRevision.of(values);
       _settings[pluginId] = values;
     } catch (error) {
       _error = error;
@@ -166,15 +174,17 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
             'Client ID is required before Twitch authorization.',
           );
         }
-        await widget.dataService.savePluginSettings('twitch', {
-          ...?_settings['twitch'],
-          'clientId': clientId,
-        });
+        final shared = {...?_settings['twitch'], 'clientId': clientId};
+        await widget.dataService.savePluginSettings(
+          'twitch',
+          shared,
+          expectedRevision: _storageRevisions['twitch'],
+        );
+        _storageRevisions['twitch'] = DocumentRevision.of(shared);
         await TwitchAccountAuthService(
           dataService: widget.dataService,
         ).authorizeAccount('channel');
         final values = await loadTwitchChannelSettings(widget.dataService);
-        await widget.dataService.savePluginSettings('twitch', values);
         if (!mounted) return;
         _settings['twitch'] = values;
         for (final entry in values.entries) {
@@ -190,53 +200,30 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
               : 'Client ID and client secret are required before authorization.',
         );
       }
-      final authorizationEndpoint = isYouTube
-          ? 'https://accounts.google.com/o/oauth2/v2/auth'
-          : 'https://id.twitch.tv/oauth2/authorize';
-      final tokenEndpoint = isYouTube
-          ? 'https://oauth2.googleapis.com/token'
-          : 'https://id.twitch.tv/oauth2/token';
-      final scopes = isYouTube
-          ? const [
-              'https://www.googleapis.com/auth/youtube.readonly',
-              'https://www.googleapis.com/auth/youtube.force-ssl',
-            ]
-          : const ['chat:read', 'chat:edit', 'moderator:manage:banned_users'];
-      final token = await OAuthAuthorizationFlow().authorize(
-        requestBuilder: (redirectUri) {
-          final state = createOAuthState();
-          final verifier = isYouTube ? createOAuthCodeVerifier() : null;
-          return const OAuthAuthorizationClient().buildRequest(
-            authorizationEndpoint: authorizationEndpoint,
-            clientId: clientId,
-            redirectUri: redirectUri.toString(),
-            state: state,
-            scopes: scopes,
-            codeVerifier: verifier,
-          );
-        },
-        openAuthorizationUrl: openOAuthUrlInBrowser,
-        tokenClient: const OAuthTokenClient(),
-        tokenEndpoint: tokenEndpoint,
-        clientId: clientId,
-        clientSecret: isYouTube && clientSecret.isEmpty ? null : clientSecret,
-        callbackPath: isYouTube ? '/oauth/youtube/callback' : '/oauth/callback',
-      );
-      final values = <String, dynamic>{
-        ..._settings[pluginId] ?? <String, dynamic>{},
+      if (!isYouTube) {
+        throw UnsupportedError('This provider has no authorization flow.');
+      }
+      final configured = {
+        ...?_settings[pluginId],
+        'clientId': clientId,
+        'clientSecret': clientSecret,
       };
-      values['clientId'] = clientId;
-      values['clientSecret'] = clientSecret;
-      values['accessToken'] = token.accessToken;
-      if (token.refreshToken != null) {
-        values['refreshToken'] = token.refreshToken;
+      await widget.dataService.savePluginSettings(
+        pluginId,
+        configured,
+        expectedRevision: _storageRevisions[pluginId],
+      );
+      _storageRevisions[pluginId] = DocumentRevision.of(configured);
+      final connected = await YouTubeAuthService(
+        dataService: widget.dataService,
+      ).connect();
+      _settings[pluginId] = connected;
+      _storageRevisions[pluginId] = DocumentRevision.of(connected);
+      for (final entry in connected.entries) {
+        _controllers['$pluginId:${entry.key}']?.text = _encodeSettingValue(
+          entry.value,
+        );
       }
-      if (token.expiresAt != null) {
-        values['expiresAt'] = token.expiresAt!.toIso8601String();
-      }
-      await widget.dataService.savePluginSettings(pluginId, values);
-      _settings[pluginId] = values;
-      _controllers['$pluginId:accessToken']!.text = token.accessToken;
     } catch (error) {
       _error = error;
     } finally {
@@ -262,7 +249,12 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         'hubIp': pairing.host,
         'hubKey': pairing.applicationKey,
       };
-      await widget.dataService.savePluginSettings('philips-hue', values);
+      await widget.dataService.savePluginSettings(
+        'philips-hue',
+        values,
+        expectedRevision: _storageRevisions['philips-hue'],
+      );
+      _storageRevisions['philips-hue'] = DocumentRevision.of(values);
       _settings['philips-hue'] = values;
       _controllers['philips-hue:hubIp']?.text = pairing.host;
       _controllers['philips-hue:hubKey']?.text = pairing.applicationKey;

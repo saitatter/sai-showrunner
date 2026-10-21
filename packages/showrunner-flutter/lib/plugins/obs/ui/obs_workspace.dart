@@ -1,3 +1,4 @@
+import '../../../persistence/document_revision.dart';
 import '../../../components/data_inputs/numeric_input_formatter.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -389,6 +390,8 @@ class _ObsWorkspaceState extends State<ObsWorkspace> {
   bool _settingsLoading = true;
   bool _settingsSaving = false;
   Object? _settingsError;
+  Map<String, dynamic> _loadedSettings = {};
+  DocumentRevision? _settingsRevision;
   final _hostController = TextEditingController();
   final _portController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -408,6 +411,8 @@ class _ObsWorkspaceState extends State<ObsWorkspace> {
       final settings =
           await (widget.settingsFuture ??
               widget.dataService.loadPluginSettings('obs'));
+      _loadedSettings = Map.from(settings);
+      _settingsRevision = DocumentRevision.of(settings);
       _hostController.text = settings['host']?.toString() ?? '127.0.0.1';
       _portController.text = settings['port']?.toString() ?? '4455';
       _passwordController.text = settings['password']?.toString() ?? '';
@@ -438,7 +443,13 @@ class _ObsWorkspaceState extends State<ObsWorkspace> {
       _settingsError = null;
     });
     try {
-      await widget.dataService.savePluginSettings('obs', settings);
+      await widget.dataService.updatePluginSettings(
+        'obs',
+        settings,
+        expectedRevision: _settingsRevision,
+      );
+      _loadedSettings = {..._loadedSettings, ...settings};
+      _settingsRevision = DocumentRevision.of(_loadedSettings);
     } catch (error) {
       _settingsError = error;
     }
