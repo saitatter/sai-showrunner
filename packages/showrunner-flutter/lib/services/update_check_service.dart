@@ -13,7 +13,7 @@ typedef UpdateReleaseFetcher = Future<JsonMap> Function();
 /// present a stable version to the updater UI.
 const showRunnerFlutterVersion = String.fromEnvironment(
   'SHOWRUNNER_VERSION',
-  defaultValue: '2.0.0',
+  defaultValue: '2.1.0',
 );
 
 final class UpdateCheckService {

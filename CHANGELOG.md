@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Features
+
+### Fixes
+
+### Refactors
+
+### Docs
+
+### CI & Build
+
+## 2.1.0 - 2026-10-21
+
+### Features
 - Bound trace event/node/edge retention with explicit truncation counters, coalesce paused observer notifications and refresh execution visuals once per frame with stable run selection.
 - Add immutable Twitch/YouTube provider events with credential redaction, private/public feed separation and bounded delivery queues that report overload without silently dropping accepted events.
 - Render rich chat emotes with Twitch fragments and 7TV/BTTV/FFZ catalogs, bounded caching, animation preferences and text fallback.
